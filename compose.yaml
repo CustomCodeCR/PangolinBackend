@@ -1,0 +1,71 @@
+# DESARROLLO LOCAL COMPARTIDO (NO publicar estos puertos directamente a Internet).
+# Cada persona que clone GitHub obtiene su propio volumen postgres_data.
+name: castrofallas
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: login
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Ejecuta el script de configuracion para crear .env}
+    ports:
+      # DBeaver desde la misma computadora; no disponible en otras computadoras.
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/Database/SeedLocal.sql:/tmp/SeedLocal.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d login"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://0.0.0.0:5000
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=login;Username=postgres;Password=${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD}"
+      Auth__OtpPepper: ${AUTH_OTP_PEPPER:?Falta AUTH_OTP_PEPPER}
+      Auth__SecureCookie: "false"
+      Development__ApplySchema: "true"
+      Email__Mode: ${EMAIL_MODE:-LocalOutbox}
+      Smtp__Host: ${SMTP_HOST:-smtp.gmail.com}
+      Smtp__Port: ${SMTP_PORT:-587}
+      Smtp__Tls: ${SMTP_TLS:-StartTls}
+      Smtp__From: ${SMTP_FROM:-pruebas@castrofallas.local}
+      Smtp__Username: ${SMTP_USERNAME:-}
+      Smtp__Password: ${SMTP_PASSWORD:-}
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+      DOTNET_WATCH_SUPPRESS_LAUNCH_BROWSER: "true"
+    ports:
+      - "127.0.0.1:${BACKEND_HOST_PORT:-5000}:5000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:5000
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "127.0.0.1:${FRONTEND_HOST_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      # Impide que node_modules de Windows sobreescriba los modulos Linux del contenedor.
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

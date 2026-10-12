@@ -1,0 +1,21 @@
+# Credenciales privadas y archivos generados por cada participante
+.env
+.env.*
+!.env.example
+**/appsettings.Local.json
+**/appsettings.*.Local.json
+**/node_modules/
+**/dist/
+**/bin/
+**/obj/
+**/TestResults/
+frontend/tsconfig.tsbuildinfo
+backend/local-outbox/
+.backup/
+*.dump
+*.backup
+*.bak
+*.log
+.vs/
+.vscode/
+.DS_Store

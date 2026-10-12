@@ -1,0 +1,9 @@
+bin
+obj
+local-outbox
+.env
+.env.*
+!*.example
+appsettings.Local.json
+**/*.user
+.git

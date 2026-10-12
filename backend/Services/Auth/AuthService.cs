@@ -1,0 +1,270 @@
+using System.Net.Mail;
+using System.Security.Cryptography;
+using System.Text;
+using CastroFallas.MiniQuote.Api.Data;
+using CastroFallas.MiniQuote.Api.Models.Auth;
+using SmtpClient = MailKit.Net.Smtp.SmtpClient;
+using MailKit.Security;
+using Microsoft.EntityFrameworkCore;
+using MimeKit;
+
+namespace CastroFallas.MiniQuote.Api.Services.Auth;
+
+public record RequestOtpDto(string? TipoAcceso, string? Correo, string? CodigoDynamics);
+public record VerifyOtpDto(Guid ChallengeId, string? Codigo);
+public record OtpStarted(Guid ChallengeId, string Message, int ExpiresInSeconds);
+public record AuthIdentity(Guid UsuarioId, Guid ClienteId, string NombreCliente, string Correo, string TipoAcceso);
+
+public sealed class AuthService(
+    AppDbContext db,
+    IConfiguration configuration,
+    IHostEnvironment environment,
+    ILogger<AuthService> logger)
+{
+    private const int OtpTtlMinutes = 5;
+    private const int MaxOtpAttempts = 5;
+    private const string SessionCookie = "cf_session";
+    private static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(8);
+    private readonly string _pepper = configuration["Auth:OtpPepper"]
+        ?? throw new InvalidOperationException("Falta Auth:OtpPepper");
+
+    // Se mantiene una respuesta uniforme para no enumerar correos registrados.
+    public async Task<(OtpStarted? Result, bool TooMany)> RequestOtpAsync(RequestOtpDto input, CancellationToken ct)
+    {
+        string role = (input.TipoAcceso ?? "").Trim().ToLowerInvariant();
+        string email = (input.Correo ?? "").Trim().ToLowerInvariant();
+        string dynamics = (input.CodigoDynamics ?? "").Trim();
+        if (role is not ("cliente" or "usuario") || email.Length > 255 ||
+            !MailAddress.TryCreate(email, out var address) ||
+            !string.Equals(address.Address, email, StringComparison.OrdinalIgnoreCase) ||
+            (role == "cliente" && string.IsNullOrWhiteSpace(dynamics)))
+            return (null, false);
+        if (dynamics.Length > 200) return (null, false);
+
+        // Límite por dirección incluso cuando no existe el usuario. El registro
+        // es atómico en PostgreSQL: funciona sin Redis y entre varias instancias.
+        // El límite por IP se aplica adicionalmente en Program.cs.
+        var emailKey = Sha256(email);
+        var allowed = await db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO otp_rate_limits (identifier_hash, window_start, request_count, last_requested_at)
+            VALUES ({emailKey}, NOW(), 1, NOW())
+            ON CONFLICT (identifier_hash) DO UPDATE SET
+                window_start = CASE WHEN otp_rate_limits.window_start <= NOW() - INTERVAL '15 minutes'
+                    THEN NOW() ELSE otp_rate_limits.window_start END,
+                request_count = CASE WHEN otp_rate_limits.window_start <= NOW() - INTERVAL '15 minutes'
+                    THEN 1 ELSE otp_rate_limits.request_count + 1 END,
+                last_requested_at = NOW()
+            WHERE otp_rate_limits.window_start <= NOW() - INTERVAL '15 minutes'
+                OR (otp_rate_limits.request_count < 3
+                    AND otp_rate_limits.last_requested_at <= NOW() - INTERVAL '60 seconds');
+            """, ct);
+        if (allowed == 0) return (null, true);
+
+        var user = await db.Usuarios.Include(u => u.Cliente)
+            .FirstOrDefaultAsync(u => u.Correo.ToLower() == email && u.TipoAcceso == role &&
+                u.Status && u.DeletedAt == null && u.Cliente.Status && u.Cliente.DeletedAt == null &&
+                (role != "cliente" || u.Cliente.CodigoDynamics == dynamics), ct);
+
+        // Evita distinguir entre correos existentes y desconocidos.
+        if (user is null)
+            return (new OtpStarted(Guid.NewGuid(), GenericMessage, 300), false);
+
+        var now = DateTime.UtcNow;
+        var cooldown = await db.OtpChallenges.AsNoTracking()
+            .AnyAsync(x => x.UsuarioId == user.Uuid && x.CreatedAt > now.AddSeconds(-60), ct);
+        if (cooldown) return (null, true);
+
+        var id = Guid.NewGuid();
+        var otp = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
+        var row = new OtpChallenge
+        {
+            Uuid = id, UsuarioId = user.Uuid, TipoAcceso = role,
+            OtpHash = OtpHash(id, otp), CreatedAt = now,
+            ExpiresAt = now.AddMinutes(OtpTtlMinutes)
+        };
+        // El último código invalida los anteriores.
+        await db.OtpChallenges.Where(x => x.UsuarioId == user.Uuid && x.UsedAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.UsedAt, now), ct);
+        db.OtpChallenges.Add(row);
+        await db.SaveChangesAsync(ct);
+
+        try
+        {
+            await SendMailAsync(email, otp, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Nunca registrar el OTP; permitir diagnosticar sin exponer secretos.
+            logger.LogError(ex, "No se pudo entregar un OTP a la cuenta {UserId}", user.Uuid);
+            row.UsedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+            throw new EmailDeliveryException();
+        }
+        return (new OtpStarted(id, GenericMessage, 300), false);
+    }
+
+    public async Task<(string Token, AuthIdentity Identity)?> VerifyOtpAsync(VerifyOtpDto input, CancellationToken ct)
+    {
+        if (input.ChallengeId == Guid.Empty || input.Codigo is null ||
+            input.Codigo.Length != 6 || input.Codigo.Any(c => c < '0' || c > '9'))
+            return null;
+
+        // Bloqueo transaccional: dos peticiones simultáneas no pueden gastar el mismo OTP.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        // No componer LINQ encima de SELECT ... FOR UPDATE: algunas versiones
+        // de EF Core generan SQL no componible y responden HTTP 500.
+        OtpChallenge? challenge = null;
+        await foreach (var row in db.OtpChallenges
+            .FromSqlInterpolated($"SELECT * FROM otp_challenges WHERE uuid = {input.ChallengeId} FOR UPDATE")
+            .AsAsyncEnumerable().WithCancellation(ct))
+        {
+            challenge = row;
+            break;
+        }
+        if (challenge is null) return null;
+        await db.Entry(challenge).Reference(x => x.Usuario)
+            .Query().Include(x => x.Cliente).LoadAsync(ct);
+
+        var now = DateTime.UtcNow;
+        if (challenge.UsedAt != null || challenge.ExpiresAt <= now ||
+            challenge.Attempts >= MaxOtpAttempts || !challenge.Usuario.Status ||
+            challenge.Usuario.DeletedAt != null || !challenge.Usuario.Cliente.Status ||
+            challenge.Usuario.Cliente.DeletedAt != null || challenge.Usuario.TipoAcceso != challenge.TipoAcceso)
+            return null;
+
+        challenge.Attempts++;
+        var candidateHash = Convert.FromHexString(OtpHash(challenge.Uuid, input.Codigo));
+        var actualHash = Convert.FromHexString(challenge.OtpHash);
+        if (!CryptographicOperations.FixedTimeEquals(candidateHash, actualHash))
+        {
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return null;
+        }
+
+        challenge.UsedAt = now;
+        // DB existentes pueden tener last_login_at TIMESTAMP o TIMESTAMPTZ.
+        // Usar NOW() del propio PostgreSQL evita errores 500 por DateTime.Kind.
+        // Se actualiza dentro de la misma transacción que consume el OTP.
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE usuarios SET last_login_at = NOW() WHERE uuid = {challenge.UsuarioId}", ct);
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE clientes SET last_login_at = NOW() WHERE uuid = {challenge.Usuario.ClienteId}", ct);
+        var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+        db.AuthSessions.Add(new AuthSession
+        {
+            UsuarioId = challenge.UsuarioId, TipoAcceso = challenge.TipoAcceso,
+            TokenHash = Sha256(token), CreatedAt = now, ExpiresAt = now.Add(SessionLifetime)
+        });
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+
+        return (token, ToIdentity(challenge.Usuario, challenge.TipoAcceso));
+    }
+
+    public async Task<AuthIdentity?> GetIdentityAsync(HttpContext http, CancellationToken ct)
+    {
+        if (!http.Request.Cookies.TryGetValue(SessionCookie, out var token) || token.Length != 64 ||
+            !token.All(Uri.IsHexDigit)) return null;
+
+        var now = DateTime.UtcNow;
+        var tokenHash = Sha256(token);
+        var session = await db.AuthSessions.AsNoTracking()
+            .Include(s => s.Usuario).ThenInclude(u => u.Cliente)
+            .FirstOrDefaultAsync(s => s.TokenHash == tokenHash && s.ExpiresAt > now && s.RevokedAt == null, ct);
+        if (session is null || !session.Usuario.Status || session.Usuario.DeletedAt != null ||
+            !session.Usuario.Cliente.Status || session.Usuario.Cliente.DeletedAt != null ||
+            session.Usuario.TipoAcceso != session.TipoAcceso) return null;
+        return ToIdentity(session.Usuario, session.TipoAcceso);
+    }
+
+    public void WriteCookie(HttpContext http, string token)
+    {
+        http.Response.Cookies.Append(SessionCookie, token, new CookieOptions
+        {
+            HttpOnly = true, Secure = configuration.GetValue<bool>("Auth:SecureCookie"),
+            SameSite = SameSiteMode.Strict, Path = "/", IsEssential = true,
+            MaxAge = SessionLifetime
+        });
+        http.Response.Headers.CacheControl = "no-store";
+    }
+
+    public async Task LogoutAsync(HttpContext http, CancellationToken ct)
+    {
+        if (http.Request.Cookies.TryGetValue(SessionCookie, out var token) &&
+            token.Length == 64 && token.All(Uri.IsHexDigit))
+        {
+            var hash = Sha256(token);
+            await db.AuthSessions.Where(x => x.TokenHash == hash && x.RevokedAt == null)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.RevokedAt, DateTime.UtcNow), ct);
+        }
+        http.Response.Cookies.Delete(SessionCookie, new CookieOptions { Path = "/", SameSite = SameSiteMode.Strict, Secure = configuration.GetValue<bool>("Auth:SecureCookie") });
+        http.Response.Headers.CacheControl = "no-store";
+    }
+
+    private string OtpHash(Guid id, string otp)
+    {
+        var key = Encoding.UTF8.GetBytes(_pepper);
+        return Convert.ToHexString(HMACSHA256.HashData(key, Encoding.UTF8.GetBytes($"{id:N}:{otp}")))
+            .ToLowerInvariant();
+    }
+    private static string Sha256(string value) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
+    private static AuthIdentity ToIdentity(Usuario u, string role) =>
+        new(u.Uuid, u.ClienteId, u.Cliente.Nombre, u.Correo, role);
+    private const string GenericMessage = "Si los datos corresponden a una cuenta habilitada, recibirás un código por correo.";
+
+    private async Task SendMailAsync(string email, string otp, CancellationToken ct)
+    {
+        var mode = configuration["Email:Mode"] ?? "Smtp";
+        string from = configuration["Smtp:From"] ?? "pruebas@castrofallas.local";
+        var message = new MimeMessage();
+        message.From.Add(MailboxAddress.Parse(from));
+        message.To.Add(MailboxAddress.Parse(email));
+        message.Subject = "Código de acceso | Castro Fallas";
+        message.Body = new TextPart("plain")
+        {
+            Text = $"Tu código temporal de Castro Fallas es: {otp}\n\nVálido durante 5 minutos y una sola vez. Si no lo solicitaste, ignorá este mensaje."
+        };
+
+        // Demostración LOCAL: se genera un archivo .eml en el backend.
+        // No se entrega a Gmail; no existe ningún endpoint que exponga el OTP.
+        // Este modo está prohibido fuera del entorno Development.
+        if (mode.Equals("LocalOutbox", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!environment.IsDevelopment())
+                throw new InvalidOperationException("LocalOutbox solo se permite en Development.");
+            string folder = Path.Combine(environment.ContentRootPath, "local-outbox");
+            Directory.CreateDirectory(folder);
+            var filename = $"otp-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.eml";
+            await using var stream = new FileStream(Path.Combine(folder, filename), FileMode.CreateNew, FileAccess.Write);
+            await message.WriteToAsync(stream, ct);
+            logger.LogInformation("Correo OTP de prueba escrito en backend/local-outbox/{File} (sin envío externo)", filename);
+            return;
+        }
+        if (!mode.Equals("Smtp", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Email:Mode debe ser Smtp o LocalOutbox.");
+
+        string host = configuration["Smtp:Host"] ?? throw new InvalidOperationException("SMTP sin configurar");
+        int port = configuration.GetValue<int>("Smtp:Port");
+        string tlsMode = configuration["Smtp:Tls"] ?? "StartTls";
+        var tls = tlsMode switch
+        {
+            "StartTls" => SecureSocketOptions.StartTls,
+            "SslOnConnect" => SecureSocketOptions.SslOnConnect,
+            "None" when environment.IsDevelopment() &&
+                (host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                 host == "127.0.0.1" || host == "::1") => SecureSocketOptions.None,
+            _ => throw new InvalidOperationException("TLS SMTP inválido. None solo en localhost con Development.")
+        };
+        using var smtp = new SmtpClient();
+        await smtp.ConnectAsync(host, port, tls, ct);
+        string? user = configuration["Smtp:Username"];
+        if (!string.IsNullOrWhiteSpace(user))
+            await smtp.AuthenticateAsync(user, configuration["Smtp:Password"] ?? "", ct);
+        await smtp.SendAsync(message, ct);
+        await smtp.DisconnectAsync(true, ct);
+    }
+}
+
+public sealed class EmailDeliveryException : Exception { }

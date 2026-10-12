@@ -1,0 +1,7 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0
+WORKDIR /app
+COPY CastroFallas.MiniQuote.Api.csproj ./
+RUN dotnet restore CastroFallas.MiniQuote.Api.csproj
+COPY . .
+EXPOSE 5000
+CMD ["dotnet", "watch", "--project", "CastroFallas.MiniQuote.Api.csproj", "run", "--no-launch-profile", "--urls", "http://0.0.0.0:5000"]
