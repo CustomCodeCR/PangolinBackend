@@ -187,3 +187,5 @@ Si no tenés `pg_dump` en PATH, en Windows suele estar en `C:\Program Files\Post
 - Si conviven la app antigua local y la de Docker usando el mismo dominio `127.0.0.1`, sus cookies `cf_session` pueden interferir. Usá una sola o limpiá las cookies locales.
 
 El proyecto original sin Docker todavía puede ejecutarse con los procedimientos de `GUIA-LOCAL-LOGIN.md`, pero para el equipo se recomienda Docker Compose como flujo principal.
+#   P a n g o l i n B a c k e n d  
+ 
