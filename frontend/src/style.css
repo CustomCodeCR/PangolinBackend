@@ -2884,8 +2884,6 @@ html:not(.theme-dark) .service-modal__sections section{background:rgba(255,255,2
 .nav-dropdown--open .nav-dropdown__trigger span{transform:translateY(1px) rotate(180deg)}
 .nav-dropdown__trigger .nav-dropdown__chevron{display:block;flex:0 0 auto;width:16px;height:16px;transform:rotate(0);transition:transform .18s}
 .nav-dropdown--open .nav-dropdown__trigger .nav-dropdown__chevron{transform:rotate(180deg)}
-.site-brand img{width:62px;height:72px;object-fit:contain}
-@media(max-width:1080px){.site-brand img{width:52px;height:62px}}
 .faq-item>button .lucide-symbol{width:24px;height:24px;flex:0 0 24px;color:#b40822}
 @media(max-width:800px){
   .app-site,.app-site main,.app-site section,.app-site footer{min-width:0}

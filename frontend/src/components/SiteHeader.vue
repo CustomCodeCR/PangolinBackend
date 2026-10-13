@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowUpRight, ChevronDown, Menu, Moon, Settings, Sun, UserRound, X } from "lucide-vue-next"
+import { ArrowUpRight, ChevronDown, Menu, Moon, Settings, Sun, UserRound, X } from '@lucide/vue'
 import LanguageSwitcher from './LanguageSwitcher.vue'
 
 const props = defineProps<{ active?: string; overlay?: boolean }>()
@@ -12,7 +12,7 @@ const darkMode = ref(false)
 const sessionUser = ref<{ correo: string; nombreCliente: string } | null>(null)
 const loggingOut = ref(false)
 const isAuthenticated = computed(() => !!sessionUser.value)
-const isGuest = ref(false)
+const isDeveloperPreview = ref(localStorage.getItem('castrofallas-developer-preview') === 'true')
 const settingsOpen = ref(false)
 const baseLinks = [
   { key: 'servicios', id: 'principal', url: '/home' },
@@ -21,16 +21,15 @@ const baseLinks = [
   { key: 'soluciones', id: 'soluciones', url: '/servicios' }
 ]
 const links = computed(() => baseLinks.map(link => ({ ...link, label: t(`navLinks.${link.key}`) })))
-const visibleLinks = computed(() => links.value.filter(link => isAuthenticated.value || isGuest.value || link.id === 'principal'))
+const visibleLinks = computed(() => links.value.filter(link => isDeveloperPreview.value || isAuthenticated.value || link.id === 'principal'))
 const cargoLinks = computed(() => [
   { key: 'embarque', id: 'embarque', url: '/tracking', label: t('navLinks.embarque') },
   { key: 'itinerario', id: 'itinerario', url: '/itinerario', label: t('navLinks.itinerario') }
 ])
-const canBrowseSections = computed(() => isAuthenticated.value || isGuest.value)
+const canBrowseSections = computed(() => isDeveloperPreview.value || isAuthenticated.value)
 function syncGuest() {
-  // El modo invitado vive solo en la pestaña donde fue elegido..
   localStorage.removeItem('castrofallas-guest-mode')
-  isGuest.value = !isAuthenticated.value && sessionStorage.getItem('castrofallas-guest-mode') === 'true'
+  sessionStorage.removeItem('castrofallas-guest-mode')
 }
 async function refreshSession() {
   try {
@@ -80,7 +79,7 @@ function toggleTheme() {
 <template>
   <header class="site-header" :class="{ 'site-header--overlay': props.overlay }">
     <div class="header-inner">
-      <a class="site-brand" href="/home" :aria-label="$t('phrases.p138')"><img src="/images/logo-header-white.png" alt="Castro Fallas" /></a>
+      <a class="site-brand" href="/home" :aria-label="$t('phrases.p138')"><img src="/images/logo.png" alt="Castro Fallas" /></a>
       <button class="menu-toggle" type="button" :aria-expanded="expanded" :aria-label="$t('phrases.p137')" @click="expanded = !expanded"><X v-if="expanded" :size="22" aria-hidden="true" /><Menu v-else :size="22" aria-hidden="true" /></button>
       <nav class="main-nav" :class="{ 'main-nav--open': expanded }" :aria-label="$t('phrases.p136')">
         <a v-for="link in visibleLinks" :key="link.id" :class="{ 'is-active': props.active === link.id }" :href="link.url" @click="expanded = false">{{ link.label }}</a>
