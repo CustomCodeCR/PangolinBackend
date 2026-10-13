@@ -4,7 +4,7 @@ import {
   ArrowDown, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight,
   Check, CircleDot, Clock3, List, Mail, MapPin, Menu, MessageCircle, Minus,
   Moon, Package, Phone, Plane, Plus, Search, Settings, Ship, Sparkles, Sun, Truck, UserRound, X
-} from '@lucide/vue'
+} from "lucide-vue-next"
 
 const props = withDefaults(defineProps<{ glyph: string; size?: number }>(), { size: 18 })
 const icons: Record<string, Component> = {

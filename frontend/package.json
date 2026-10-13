@@ -12,6 +12,7 @@
     "@lucide/vue": "^1.56.0",
     "3d-world-map": "^1.4.1",
     "embla-carousel": "^8.6.0",
+    "lucide-vue-next": "^1.0.0",
     "vue": "^3.5.13",
     "vue-i18n": "^10.0.8"
   },

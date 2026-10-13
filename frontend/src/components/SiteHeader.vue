@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowUpRight, ChevronDown, Menu, Moon, Settings, Sun, UserRound, X } from '@lucide/vue'
+import { ArrowUpRight, ChevronDown, Menu, Moon, Settings, Sun, UserRound, X } from "lucide-vue-next"
 import LanguageSwitcher from './LanguageSwitcher.vue'
 
 const props = defineProps<{ active?: string; overlay?: boolean }>()
