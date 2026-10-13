@@ -28,7 +28,7 @@ const cargoLinks = computed(() => [
 ])
 const canBrowseSections = computed(() => isAuthenticated.value || isGuest.value)
 function syncGuest() {
-  // El modo invitado vive solo en la pestaña donde fue elegido.
+  // El modo invitado vive solo en la pestaña donde fue elegido..
   localStorage.removeItem('castrofallas-guest-mode')
   isGuest.value = !isAuthenticated.value && sessionStorage.getItem('castrofallas-guest-mode') === 'true'
 }
