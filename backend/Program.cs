@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using MongoDB.Driver;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +22,16 @@ if (builder.Configuration["Email:Mode"]?.Equals("LocalOutbox", StringComparison.
     throw new InvalidOperationException("Email:Mode=LocalOutbox no está permitido fuera de Development.");
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(postgres));
+// Redis y MongoDB se utilizan SOLO para cache/auditoría de cotizaciones.
+// Si no se configuran, el login y las cotizaciones siguen usando PostgreSQL.
+var redisUrl = builder.Configuration["Redis:ConnectionString"];
+if (!string.IsNullOrWhiteSpace(redisUrl))
+    builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+        ConnectionMultiplexer.Connect(ConfigurationOptions.Parse(redisUrl + ",abortConnect=false,connectRetry=1,connectTimeout=1500")));
+var mongoUrl = builder.Configuration["Mongo:ConnectionString"];
+if (!string.IsNullOrWhiteSpace(mongoUrl))
+    builder.Services.AddSingleton<IMongoDatabase>(_ =>
+        new MongoClient(mongoUrl).GetDatabase(builder.Configuration["Mongo:Database"] ?? "castrofallas_logs"));
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<QuoteService>();
 builder.Services.AddProblemDetails();
@@ -42,24 +54,38 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
-// Desarrollo local: aplica SQL idempotente sobre la base 'login'.
-// No borra tablas ni datos. Fuera de Development nunca se autoejecuta.
+// Desarrollo local: comprueba / aplica SQL idempotente sin borrar tablas ni datos.
+// Docker espera al healthcheck de PostgreSQL; estos reintentos adicionales cubren
+// cortes breves de red y arranques lentos sin confundirlos con errores de esquema.
+// Fuera de Development nunca se autoejecuta.
 if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("Development:ApplySchema"))
 {
-    try
+    const int maxAttempts = 15;
+    var scriptPath = Path.Combine(app.Environment.ContentRootPath, "Database", "AuthSchema.sql");
+    var sql = await File.ReadAllTextAsync(scriptPath);
+    for (var attempt = 1; attempt <= maxAttempts; attempt++)
     {
-        await using var scope = app.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var scriptPath = Path.Combine(app.Environment.ContentRootPath, "Database", "AuthSchema.sql");
-        var sql = await File.ReadAllTextAsync(scriptPath);
-        await db.Database.ExecuteSqlRawAsync(sql);
-        app.Logger.LogInformation("Esquema de login comprobado/aplicado en PostgreSQL ({Database}).",
-            new NpgsqlConnectionStringBuilder(postgres).Database);
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogCritical(ex, "No se pudo aplicar AuthSchema.sql. Revisá que exista la base 'login', usuario y contraseña; respaldo antes de migrar.");
-        throw;
+        try
+        {
+            await using var scope = app.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.Database.ExecuteSqlRawAsync(sql);
+            app.Logger.LogInformation("PostgreSQL conectado y esquema comprobado en {Database} (intento {Attempt}).",
+                new NpgsqlConnectionStringBuilder(postgres).Database, attempt);
+            break;
+        }
+        catch (Exception ex) when (attempt < maxAttempts &&
+            (ex is NpgsqlException { IsTransient: true } || ex is TimeoutException))
+        {
+            app.Logger.LogWarning(ex, "PostgreSQL aún no está disponible ({Attempt}/{MaxAttempts}); se reintentará.",
+                attempt, maxAttempts);
+            await Task.Delay(TimeSpan.FromSeconds(3), app.Lifetime.ApplicationStopping);
+        }
+        catch (Exception ex)
+        {
+            app.Logger.LogCritical(ex, "No se pudo conectar o aplicar AuthSchema.sql. Revisá credenciales y logs; nunca borres los volúmenes para intentar arreglarlo.");
+            throw;
+        }
     }
 }
 
@@ -104,7 +130,7 @@ app.UseRateLimiter();
 
 app.MapGet("/api/health", () => Results.Ok(new
 {
-    service = "CastroFallas.MiniQuote.Api", status = "ok", version = "local-postgres-v1", utc = DateTime.UtcNow
+    service = "CastroFallas.MiniQuote.Api", status = "ok", version = "rediseno-auth-otp-v1", utc = DateTime.UtcNow
 }));
 
 app.MapGet("/api/health/ready", async (AppDbContext db, IConfiguration config, CancellationToken ct) =>

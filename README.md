@@ -1,191 +1,76 @@
-# Castro Fallas · desarrollo colaborativo (Vue + .NET + PostgreSQL)
+# Castro Fallas — Rediseño 8 + Docker GitHub
 
-Proyecto con login **Cliente / Usuario / Invitado**, OTP por correo, cotizador, globo 3D y diseño web. Se puede utilizar **sin instalar PostgreSQL, .NET ni Node.js** en el equipo anfitrión: Docker Compose crea los 3 servicios. Código adaptable para subir a un **repositorio GitHub privado**.
+Esta entrega es la fusión de **`castrofallas-rediseno 8.zip` (interfaz principal)** con **`castrofallas-unificado-actualizado (2).zip` (API, autenticación, PostgreSQL y Docker)**. Está pensada para desarrollo local, **no** para producción directamente.
 
-> Esta configuración es solo para **desarrollo local**. Los puertos se publican exclusivamente en `127.0.0.1`, la cookie HTTP no lleva `Secure` y la API arranca con `Development`. **No publicar este Compose a Internet ni usarlo en producción** sin preparar HTTPS, migraciones gestionadas, secretos y controles de seguridad específicos.
+## Inicio y publicación rápida (Windows)
 
-## 1. Antes de empezar
-
-- Instalar [Docker Desktop](https://docs.docker.com/desktop/) (Windows/macOS) o Docker Engine + Compose plugin (Linux).
-- Iniciar Docker Desktop. No hacen falta Node.js, .NET ni un PostgreSQL local para ejecutar esta versión.
-- Descargar y descomprimir el proyecto **o clonarlo desde GitHub**.
-- Abrir PowerShell o una terminal dentro de la carpeta que contiene `compose.yaml` (esta carpeta).
-
-Si aún tenés corriendo la versión antigua en dos terminales (`npm run dev` y `dotnet run`), detenela con `Ctrl+C` **antes de usar los mismos puertos**. Docker usará por defecto `5173`, `5000` y `5433` (PostgreSQL usa `5432` dentro de Docker).
-
-## 2. Windows PowerShell — primer arranque
+Para levantar Docker con PostgreSQL y verificar que la API efectivamente se conectó, abrir **Docker Desktop**, extraer este proyecto y ejecutar:
 
 ```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+.\scripts\iniciar-docker.ps1
+```
+
+Para llevar esta versión a `main` de `CustomCodeCR/PangolinBackend` desde una sesión autorizada de GitHub:
+
+```powershell
+.\scripts\publicar-main.ps1
+```
+
+**Antes de hacerlo si ya había datos**, copiar tu `.env` anterior sin cambiar la contraseña Postgres y conservar el volumen de Docker. Los contenedores tienen `restart: unless-stopped` para reiniciar automáticamente al arrancar Docker Desktop. Consultar **[PASOS-GITHUB-DOCKER.md](PASOS-GITHUB-DOCKER.md)** para el procedimiento completo y sus precauciones.
+
+## Contenido de la integración
+
+- Frontend Vue 3 + Vite: se conservan los estilos y cambios recientes de la entrega 8, incluidos navegación, modo invitado, noticias, servicios, itinerarios, cotizador, traducciones ES/EN, modo oscuro e imágenes.
+- Autenticación en .NET 10: OTP con correo SMTP o LocalOutbox según `.env`, cookie HTTP-only, `/api/auth/me`, `/api/auth/logout`, rate limiting y sesiones en PostgreSQL.
+- El menú nuevo usa el servidor para comprobar sesión. El ícono de usuario sirve para cerrar sesión; el modo invitado solo modifica la navegación **pública**, nunca otorga permiso para cotizar.
+- `/cotizaciones` comprueba la sesión y `POST /api/quotes` exige autenticación también en el servidor. Los registros quedan en `login.quote_requests`, vinculados a cliente/usuario.
+- PostgreSQL `login` almacena `clientes`, `usuarios`, OTP, sesiones y cotizaciones. Redis y MongoDB son opcionales/auxiliares para caché y auditoría.
+- Se incorpora al esquema de desarrollo la tabla provisional `public.itinerarios` con `pol`, `pod`, `closing`, `etd`, `eta`, `carrier`, `vessel`, `voyage`, `transporte`, `modalidad`, `id`, `created_at`. **La página de itinerarios todavía no guarda datos mediante la API**. El SQL es idempotente y preserva una tabla existente, añadiendo `closing` si falta.
+
+## Actualizar una instalación de Docker existente en Windows
+
+1. **Respaldá tu base de datos** antes de actualizar (especialmente si ya contiene usuarios, OTP, itinerarios o cotizaciones).
+2. Extraé este ZIP en una **carpeta nueva**. Si ya tenías una configuración SMTP/Gmail funcionando en el proyecto anterior, **copiá tu `.env` anterior en la carpeta nueva** antes de iniciar contenedores. Este ZIP omite `.env` a propósito. No difundás su contenido.
+3. Si es primera instalación y no existe `.env`, abrí PowerShell en la carpeta nueva y ejecutá:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 .\scripts\setup-docker.ps1
-# Si PowerShell bloquea scripts, utilizar esta alternativa sin modificar políticas:
-# powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-docker.ps1
+```
 
-docker compose config
-# Configura tres servicios y guarda los datos de PostgreSQL en un volumen.
-docker compose up -d --build
+> El script **no modifica** `.env` si ya existe. Si lo generás de cero, el modo de correo inicial es `LocalOutbox`. Para enviar OTP de verdad, conservá o configurá tus variables `EMAIL_MODE=Smtp` y `SMTP_*` de Gmail en tu propio `.env`. **No cambies** `POSTGRES_PASSWORD` sobre una base de datos ya inicializada.
+
+4. Levantá la actualización (renueva solo los volúmenes **anónimos** de dependencias; los volúmenes **con nombre** de PostgreSQL/Redis/Mongo se conservan):
+
+```powershell
+docker compose up -d --build --force-recreate --renew-anon-volumes
 docker compose ps
+curl.exe -i http://127.0.0.1:5000/api/health/ready
 ```
 
-**No compartás la salida de `docker compose config`**: puede mostrar valores privados de `.env`.
+5. Abrí **http://127.0.0.1:5173**. Si hay error de login, revisá `docker compose logs --tail=100 backend`, **sin compartir secretos ni códigos OTP**.
 
-Para Mac/Linux:
+**No ejecutes `docker compose down -v`**, porque puede destruir los datos de los volúmenes con nombre. El mismo `name: castrofallas` en Compose permite reutilizar esos volúmenes al usar la misma instalación de Docker.
 
-```bash
-bash scripts/setup-docker.sh
-docker compose up -d --build
-docker compose ps
-```
-
-El script crea `.env` con dos secretos aleatorios. No se sobrescribe un `.env` existente. `.env` y los correos OTP locales **no se suben a Git**.
-
-| Qué es | Dirección en tu PC |
-|---|---|
-| Web Vue | http://127.0.0.1:5173 |
-| API .NET / diagnóstico | http://127.0.0.1:5000/api/health/ready |
-| PostgreSQL para DBeaver | host `127.0.0.1`, puerto `5433`, base `login`, usuario `postgres`, contraseña `POSTGRES_PASSWORD` de `.env` |
-
-**Dentro de Docker**, el backend accede a `Host=postgres;Port=5432`, **no** a `localhost`. Vite envía `/api` a `http://backend:5000` por la red de Compose. Si aparece `"postgres":"ok"` y `"status":"ready"` en el diagnóstico, el backend ya habla con la base.
-
-## 3. Preparar cuentas de demostración
-
-La API aplica `backend/Database/AuthSchema.sql` cuando inicia en `Development`: crea/adapta las tablas `clientes`, `usuarios`, `otp_challenges`, `otp_rate_limits`, `auth_sessions`, `quote_requests` sin borrar registros preexistentes. No crea usuarios demo automáticamente.
-
-Para agregar una empresa y dos cuentas ficticias:
+## Verificaciones
 
 ```powershell
-docker compose exec postgres psql -U postgres -d login -f /tmp/SeedLocal.sql
+python scripts/verify-integration.py
+cd frontend
+npm ci
+npm run build
+cd ..
 ```
 
-- **Usuario**: `demo.usuario@castrofallas.test`.
-- **Cliente**: `demo.cliente@castrofallas.test`, Dynamics `DYN001`.
-- **Invitado**: entra sin OTP, sin permisos para registrar cotizaciones.
+Con Docker corriendo, el script `python scripts/smoke-local.py` comprueba un flujo de login OTP **con LocalOutbox**, usando datos ficticios sembrados con `docker compose exec postgres psql -U postgres -d login -f /tmp/SeedLocal.sql`. **No ejecutar el smoke de LocalOutbox contra una configuración SMTP real** sin adaptar el procedimiento.
 
-El modo predeterminado `EMAIL_MODE=LocalOutbox` crea archivos `.eml` dentro de `backend/local-outbox/` **en tu propia computadora**. Abrí el correo más reciente, copiá el código y verificá el ingreso. **No hay envío real** a correos externos en ese modo. El archivo contiene un OTP temporal y no debe subirse a GitHub.
+## Estado funcional y límites
 
-Para habilitar correo real, editá **solo tu `.env` privado** y cambiá:
+- Cotizador: integración del guardado a PostgreSQL, sujeta a que Docker/backend/DB estén funcionando.
+- Contacto rápido: abre un `mailto:`, no almacena en PostgreSQL.
+- Itinerarios: la tabla está definida en el SQL de desarrollo; la pantalla sigue como interfaz demostrativa, sin endpoint para altas o consultas.
+- Tracking y noticias: interfaz visual, no conexión a un sistema de seguimiento o feed de noticias real.
+- Esta entrega **no** incluye credenciales privadas, secretos, bases de datos locales ni archivos generados de `node_modules`.
 
-```dotenv
-EMAIL_MODE=Smtp
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_TLS=StartTls
-SMTP_FROM=cuenta-que-envia@gmail.com
-SMTP_USERNAME=cuenta-que-envia@gmail.com
-SMTP_PASSWORD=CONTRASENA_DE_APLICACION
-```
-
-La contraseña de aplicación debe ser de esa misma cuenta con 2FA y autorización SMTP. **No es la contraseña normal de Gmail.** Al cambiar el `.env`:
-
-```powershell
-docker compose up -d --force-recreate --no-deps backend
-```
-
-> `.env` viaja al contenedor como variables de entorno. Los antiguos `dotnet user-secrets` de Windows **no se copian automáticamente a Docker** y ya no se necesitan aquí. El backend no lee el `appsettings.Development.json` del PC por encima de estas variables: las variables del contenedor tienen prioridad.
-
-## 4. Trabajar todos los días
-
-```powershell
-# Encender los servicios
- docker compose up -d
-
-# Ver errores de la API / OTP
- docker compose logs -f backend
-
-# Ver logs de Vue
- docker compose logs -f frontend
-
-# Actualizar imágenes de desarrollo tras cambios de Dockerfile/dependencias
- docker compose up -d --build
-
-# Detener servicios sin borrar la base
- docker compose down
-```
-
-Los archivos de `frontend/` y `backend/` están montados como volúmenes de trabajo: **al guardar código en VS Code, Vite actualiza la web y `dotnet watch` recompila la API**. Para cambios de código normalmente no hay que reconstruir.
-
-Si agregás paquetes npm, corré dentro del frontend para actualizar `package.json` y `package-lock.json`:
-
-```powershell
-docker compose exec frontend npm install nombre-del-paquete
-```
-
-Cuando un compañero descargue cambios de dependencias, puede reconstruir el frontend sin tocar PostgreSQL:
-
-```powershell
-docker compose up -d --build --force-recreate --renew-anon-volumes --no-deps frontend
-```
-
-**Nunca usar `docker compose down -v`** si querés conservar datos; `-v` elimina el volumen nombrado de PostgreSQL. No borres manualmente contenedores, imágenes ni volúmenes para actualizar archivos.
-
-## 5. GitHub para todo el equipo
-
-Este paquete incluye `.gitignore`, `.env.example` (sin secretos), `.github/workflows/ci.yml` (comprueba compilaciones en PR), `compose.yaml`, Dockerfiles y documentación. Usar un repositorio **privado** por el código y el contexto empresarial.
-
-**Crear un repositorio nuevo** desde la carpeta del proyecto, una sola vez (crear antes el repositorio vacío en GitHub):
-
-```powershell
-git init
-git branch -M main
-git add .
-git status --short
-git commit -m "Proyecto base Docker y OTP"
-git remote add origin https://github.com/ORGANIZACION/REPOSITORIO.git
-git push -u origin main
-```
-
-Comprobar que en `git status --short` **NO aparezca `.env`, archivos `.eml`, credenciales, volcados `.dump` ni `node_modules`**. Si se publicaron secretos antes, revocarlos/cambiarlos: agregarlos después a `.gitignore` no elimina copias que ya existan en el historial.
-
-**Cualquier colaborador autorizado** ejecuta:
-
-```powershell
-git clone https://github.com/ORGANIZACION/REPOSITORIO.git
-cd REPOSITORIO
-.\scripts\setup-docker.ps1
-docker compose up -d --build
-```
-
-Para intercambiar cambios: crear una rama, `git add`, `git commit`, `git push` y abrir **Pull Request**. Revisar y aprobar antes de fusionar a `main`; `git pull` en cada PC actualiza el código, **no los datos PostgreSQL**. Cada participante tiene su propia base y sus propias credenciales.
-
-## 6. Si necesitás migrar tu base PostgreSQL LOCAL existente
-
-**Esto es opcional**: si querés conservar los usuarios y cotizaciones ya registrados en el servidor local `localhost:5432`, primero hacé un backup. No confundas ambas bases: después de instalar Docker, en DBeaver el contenedor se ve en **puerto 5433**, mientras que tu PostgreSQL anterior continúa en **5432**.
-
-1. **Antes de arrancar el backend Docker**, asegurate de que el Docker PostgreSQL tenga un volumen nuevo/vacío. Si ya cargaste datos importantes en Docker, **no importes sobre ellos**: respaldá y planificá una reconciliación.
-2. Desde PowerShell, con `pg_dump` del PostgreSQL local instalado y disponible, en la raíz del proyecto:
-
-```powershell
-New-Item -ItemType Directory -Force .backup
-pg_dump -h 127.0.0.1 -p 5432 -U postgres -d login -F c -f .backup\login-local.dump
-```
-
-3. Iniciá **solo PostgreSQL de Docker**:
-
-```powershell
-docker compose up -d postgres
-$pgContainer = docker compose ps -q postgres
-docker cp .backup\login-local.dump "${pgContainer}:/tmp/login-local.dump"
-docker compose exec postgres pg_restore -U postgres -d login --no-owner --no-acl /tmp/login-local.dump
-```
-
-4. Solo si `pg_restore` terminó sin errores, iniciá API y frontend:
-
-```powershell
-docker compose up -d --build
-```
-
-5. Abrí DBeaver en `127.0.0.1:5433`, base `login`, y verificá las tablas/registros. **No elimines tu base local anterior** hasta validar los datos y guardar respaldos. Si el dump procede de una versión anterior, `AuthSchema.sql` se aplica al arrancar la API en modo desarrollo. `pg_dump` y `pg_restore` deben ser compatibles con las versiones de PostgreSQL origen/destino.
-
-Si no tenés `pg_dump` en PATH, en Windows suele estar en `C:\Program Files\PostgreSQL\VERSION\bin\pg_dump.exe` o puede exportarse desde la opción Backup de DBeaver cuando las herramientas cliente estén configuradas. Un dump contiene datos personales: **no subirlo al repo**.
-
-## 7. Notas de seguridad y producción
-
-- Puertos mapeados **solo a 127.0.0.1**; este Compose es para desarrollo de cada integrante. No abrir ni reenviar esos puertos por Internet.
-- OTP de prueba `LocalOutbox` solo funciona en `Development`. Para un despliegue real usar correo autenticado, TLS y un remitente verificado.
-- PostgreSQL persiste en volumen `postgres_data`. No sincronizar ni compartir el volumen entre miembros del equipo.
-- En producción usar HTTPS, cookie `Secure=true`, secretos externos, backups y migraciones aplicadas de forma controlada. Evitar que `Development:ApplySchema` corra automáticamente allí.
-- El sistema distingue `cliente` y `usuario` con `tipo_acceso` y usa sesión de servidor. Para roles adicionales o panel administrativo hay que implementar autorizaciones también en .NET, no solo ocultar enlaces en Vue.
-- Si conviven la app antigua local y la de Docker usando el mismo dominio `127.0.0.1`, sus cookies `cf_session` pueden interferir. Usá una sola o limpiá las cookies locales.
-
-El proyecto original sin Docker todavía puede ejecutarse con los procedimientos de `GUIA-LOCAL-LOGIN.md`, pero para el equipo se recomienda Docker Compose como flujo principal.
-#   P a n g o l i n B a c k e n d  
- 
+Más detalles técnicos en `INTEGRACION.md`. La interfaz requiere verificar licencia de la librería `3d-world-map` antes de publicarla comercialmente.

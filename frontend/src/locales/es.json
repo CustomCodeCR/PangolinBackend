@@ -1,0 +1,790 @@
+{
+  "phrases": {
+    "p000": "Conectamos tu carga",
+    "p001": "con el mundo.",
+    "p002": "Soluciones logísticas, aduaneras y de transporte internacional con atención cercana y experiencia regional.",
+    "p003": "Explorar servicios",
+    "p004": "Hablar con nosotros",
+    "p005": "LOGÍSTICA SIN FRONTERAS · COSTA RICA",
+    "p006": "NOTICIAS",
+    "p007": "VER TODAS ↗",
+    "p008": "NUESTROS SERVICIOS",
+    "p009": "Soluciones logísticas",
+    "p010": "para cada necesidad.",
+    "p011": "Conectamos tus cargas con diferentes destinos de forma segura, eficiente y confiable.",
+    "p012": "SERVICIO DESTACADO ·",
+    "p013": "Cotizar este servicio",
+    "p014": "Oficinas",
+    "p015": "a nivel mundial",
+    "p016": "Consolidados terrestres",
+    "p017": "Rutas de transporte",
+    "p018": "internacional",
+    "p019": "Atención al cliente",
+    "p020": "CONEXIONES SIN FRONTERAS",
+    "p021": "Consulta tu",
+    "p022": "embarque.",
+    "p023": "Explorá nuestro globo interactivo y descubrí cómo conectamos a Costa Rica con el mundo.",
+    "p024": "Rastrear ahora",
+    "p025": "Visualización de muestra: seguimiento real pendiente de integración.",
+    "p026": "UNA EXPERIENCIA QUE NOS RESPALDA",
+    "p027": "Experiencia para",
+    "p028": "mover tu",
+    "p029": "negocio.",
+    "p030": "Logística + Aduanas.",
+    "p031": "Un solo equipo para acompañar tu operación.",
+    "p032": "TE AYUDAMOS A RESOLVER TUS DUDAS",
+    "p033": "Información útil para tu",
+    "p034": "operación.",
+    "p035": "EMPECEMOS A MOVER TU CARGA",
+    "p036": "Tu próximo destino",
+    "p037": "empieza aquí.",
+    "p038": "Solicitá una cotización",
+    "p039": "SOBRE NOSOTROS",
+    "p040": "Experiencia que",
+    "p041": "conecta destinos.",
+    "p042": "AÑOS DE EXPERIENCIA",
+    "p043": "Nos mueve",
+    "p044": "tu confianza.",
+    "p045": "Conectamos negocios a través de soluciones logísticas y aduaneras, con un enfoque cercano y comprometido con cada operación.",
+    "p046": "Nuestra propuesta une experiencia regional, coordinación y conocimiento del transporte internacional para acompañar la operación de nuestros clientes.",
+    "p047": "Texto institucional provisional, pendiente de aprobación.",
+    "p048": "A TU LADO EN CADA ETAPA",
+    "p049": "Servicios",
+    "p050": "complementarios.",
+    "p051": "Soluciones adicionales para acompañar cada etapa de tu operación logística.",
+    "p052": "SOLUCIONES LOGÍSTICAS",
+    "p053": "Operaciones de carga",
+    "p054": "Unimos coordinación y servicio para mover tu carga.",
+    "p055": "Conocé más →",
+    "p056": "GESTIÓN ADUANERA",
+    "p057": "Acompañamiento integral",
+    "p058": "Atención cercana para tus necesidades de logística y aduanas.",
+    "p059": "Solicitar cotización →",
+    "p060": "SERVICIOS DIGITALES",
+    "p061": "Gestioná tu carga",
+    "p062": "fácilmente.",
+    "p063": "Consultá nuestra visualización de rutas o solicitá una cotización.",
+    "p064": "Vista demostrativa",
+    "p065": "Solicitud de cotización",
+    "p066": "ACTUALIDAD E INNOVACIÓN",
+    "p067": "Los robots están ahora",
+    "p068": "en las fábricas.",
+    "p069": "Innovación y actualidad en las operaciones logísticas. Contenido de demostración.",
+    "p070": "Explorar noticias",
+    "p071": "Artículos ilustrativos para el prototipo",
+    "p072": "Lo que mueve",
+    "p073": "al mundo.",
+    "p074": "NOTICIA",
+    "p075": "Contenido de muestra · Artículo pendiente",
+    "p076": "¿NECESITÁS UNA SOLUCIÓN?",
+    "p077": "Movemos tus proyectos.",
+    "p078": "Solicitar cotización",
+    "p079": "← Volver al inicio",
+    "p080": "CARGA INTERNACIONAL",
+    "p081": "Visualizá de forma interactiva algunas de nuestras conexiones internacionales.",
+    "p082": "Las rutas del globo son ilustrativas. Todavía no existe una conexión de seguimiento de embarques.",
+    "p083": "CONEXIONES QUE MUEVEN TU NEGOCIO",
+    "p084": "El mundo",
+    "p085": "más cerca",
+    "p086": "de vos.",
+    "p087": "Soluciones logísticas, aduaneras y de transporte internacional.",
+    "p088": "ACCESO A LA PLATAFORMA",
+    "p089": "Bienvenido",
+    "p090": "Ingresá para explorar la nueva experiencia digital de Castro Fallas.",
+    "p091": "Acceso provisional",
+    "p092": "Esta versión no solicita credenciales ni autentica usuarios.",
+    "p093": "Entrar a la demostración",
+    "p094": "El inicio de sesión real se implementará cuando estén definidos los usuarios y sus permisos.",
+    "p095": "Diseño demostrativo",
+    "p096": "Contacto",
+    "p097": "Accesos",
+    "p098": "Cotización",
+    "p099": "Soluciones logísticas, aduaneras y de transporte internacional desde Costa Rica.",
+    "p100": "Conectamos tu carga con el mundo.",
+    "p101": "TU SOLICITUD",
+    "p102": "Detalles de tu carga",
+    "p103": "Completá la información para registrar tu solicitud de cotización.",
+    "p104": "Servicio",
+    "p105": "Marítimo",
+    "p106": "Aéreo",
+    "p107": "Terrestre",
+    "p108": "Origen",
+    "p109": "Destino",
+    "p110": "Tipo de carga",
+    "p111": "Peso total (kg)",
+    "p112": "Piezas",
+    "p113": "Información adicional",
+    "p114": "Detalles opcionales de la carga",
+    "p115": "Solicitud recibida",
+    "p116": "Ruta",
+    "p117": "Carga",
+    "p118": "Peso",
+    "p119": "Fuente de la última operación:",
+    "p120": "Consultar nuevamente",
+    "p121": "Procesando…",
+    "p122": "Enviar a Pricing",
+    "p123": "SOLUCIONES A TU MEDIDA",
+    "p124": "Solicitá tu",
+    "p125": "cotización.",
+    "p126": "Contanos sobre tu carga y prepará una solicitud para nuestro equipo.",
+    "p127": "Las solicitudes de esta demostración se registran mediante la API existente cuando el backend está disponible. No se envía un correo automáticamente.",
+    "p128": "Noticias",
+    "p129": "Sobre Nosotros",
+    "p130": "Soluciones",
+    "p131": "Carga Internacional",
+    "p132": "Bienvenidos",
+    "p133": "Noticias destacadas",
+    "p134": "Tipo de transporte",
+    "p135": "Tres pilares de servicio",
+    "p136": "Navegación principal",
+    "p137": "Abrir o cerrar menú",
+    "p138": "Castro Fallas, ir al inicio",
+    "p139": "Instalaciones y transporte terrestre logístico",
+    "p140": "Terminal portuaria con contenedores",
+    "p141": "Personal trabajando dentro de un almacén",
+    "p142": "Carga aérea",
+    "p143": "AÉREO",
+    "p144": "Velocidad y coordinación para cargas que necesitan llegar a tiempo.",
+    "p145": "Coordinamos alternativas de transporte aéreo y el acompañamiento aduanero de tu operación.",
+    "p146": "Transporte terrestre",
+    "p147": "TERRESTRE",
+    "p148": "Conectamos rutas terrestres con soluciones prácticas y seguras.",
+    "p149": "Planificamos el movimiento de tu mercancía y la documentación necesaria para cada trayecto.",
+    "p150": "Carga marítima",
+    "p151": "MARÍTIMO",
+    "p152": "Alternativas marítimas para conectar tus operaciones internacionales.",
+    "p153": "Gestionamos logística para contenedores y embarques consolidados según las necesidades de tu negocio.",
+    "p154": "LOGÍSTICA",
+    "p155": "Conexiones internacionales",
+    "p156": "INNOVACIÓN",
+    "p157": "Tecnología en los almacenes",
+    "p158": "OPERACIONES",
+    "p159": "El futuro de la logística",
+    "p160": "Aviones con problemas aduaneros",
+    "p161": "Espacio reservado para una nota sobre el transporte aéreo y los procedimientos aduaneros. Contenido de demostración.",
+    "p162": "REPORTES",
+    "p163": "Nuevos costos de tarifas en Zona Libre",
+    "p164": "Espacio reservado para un reporte de tarifas. Las cifras y condiciones deben verificarse antes de su publicación.",
+    "p165": "Actualizaciones de tarifas y comercio internacional",
+    "p166": "Espacio reservado para reportes del sector logístico y aduanero. Publicación pendiente.",
+    "p167": "¿Qué servicios ofrece Grupo Castro Fallas?",
+    "p168": "El diseño presenta soluciones de logística, gestión aduanera y transporte internacional aéreo, marítimo y terrestre. Podemos ayudarte a preparar una solicitud para tu operación.",
+    "p169": "¿Cómo puedo solicitar una cotización?",
+    "p170": "Seleccioná “Cotizaciones”, completá los detalles de la carga y presioná “Enviar a Pricing”. En esta demostración, la solicitud se registra mediante la API existente; no se envía un correo automáticamente.",
+    "p171": "¿Cómo puedo rastrear mi carga?",
+    "p172": "La sección “Consulta tu embarque” incluye por ahora una visualización 3D demostrativa. El rastreo de embarques real requerirá definir una fuente de datos e integrarla.",
+    "p173": "¿Manejan FCL y LCL?",
+    "p174": "FCL se refiere a contenedor completo y LCL a carga consolidada. Para confirmar disponibilidad y condiciones de estos servicios, es necesario consultar al equipo comercial.",
+    "p175": "Logística + Aduanas",
+    "p176": "Unimos destinos con soluciones a la medida.",
+    "p177": "Atención cercana",
+    "p178": "Personas que entienden tu negocio."
+  },
+  "content": {
+    "services": {
+      "Air": {
+        "title": "Carga aérea",
+        "label": "AÉREO",
+        "description": "Velocidad y coordinación para cargas que necesitan llegar a tiempo.",
+        "detail": "Coordinamos alternativas de transporte aéreo y el acompañamiento aduanero de tu operación."
+      },
+      "Land": {
+        "title": "Transporte terrestre",
+        "label": "TERRESTRE",
+        "description": "Conectamos rutas terrestres con soluciones prácticas y seguras.",
+        "detail": "Planificamos el movimiento de tu mercancía y la documentación necesaria para cada trayecto."
+      },
+      "Maritime": {
+        "title": "Carga marítima",
+        "label": "MARÍTIMO",
+        "description": "Alternativas marítimas para conectar tus operaciones internacionales.",
+        "detail": "Gestionamos logística para contenedores y embarques consolidados según las necesidades de tu negocio."
+      }
+    },
+    "homeNews": [
+      {
+        "category": "LOGÍSTICA",
+        "title": "Conexiones internacionales"
+      },
+      {
+        "category": "INNOVACIÓN",
+        "title": "Tecnología en los almacenes"
+      },
+      {
+        "category": "OPERACIONES",
+        "title": "El futuro de la logística"
+      }
+    ],
+    "news": [
+      {
+        "category": "NOTICIAS",
+        "title": "Aviones con problemas aduaneros",
+        "description": "Espacio reservado para una nota sobre el transporte aéreo y los procedimientos aduaneros. Contenido de demostración."
+      },
+      {
+        "category": "REPORTES",
+        "title": "Nuevos costos de tarifas en Zona Libre",
+        "description": "Espacio reservado para un reporte de tarifas. Las cifras y condiciones deben verificarse antes de su publicación."
+      },
+      {
+        "category": "REPORTES",
+        "title": "Actualizaciones de tarifas y comercio internacional",
+        "description": "Espacio reservado para reportes del sector logístico y aduanero. Publicación pendiente."
+      },
+      {
+        "category": "LOGÍSTICA",
+        "title": "Puertos regionales agilizan el flujo de contenedores",
+        "description": "Información de demostración: las terminales de la región prueban nuevos procesos de coordinación para reducir esperas y mejorar la planificación de carga. Datos y fechas pendientes de verificación."
+      },
+      {
+        "category": "INNOVACIÓN",
+        "title": "La automatización transforma los centros de distribución",
+        "description": "Información de demostración: herramientas de inventario y clasificación buscan dar mayor visibilidad a cada etapa de la operación. El impacto y las cifras de esta nota son ilustrativos y deben verificarse antes de publicar."
+      }
+    ],
+    "faqs": [
+      {
+        "q": "¿Qué servicios ofrece Grupo Castro Fallas?",
+        "a": "El diseño presenta soluciones de logística, gestión aduanera y transporte internacional aéreo, marítimo y terrestre. Podemos ayudarte a preparar una solicitud para tu operación."
+      },
+      {
+        "q": "¿Cómo puedo solicitar una cotización?",
+        "a": "Seleccioná “Cotizaciones”, completá los detalles de la carga y presioná “Enviar a Pricing”. En esta demostración, la solicitud se registra mediante la API existente; no se envía un correo automáticamente."
+      },
+      {
+        "q": "¿Cómo puedo rastrear mi carga?",
+        "a": "La sección “Consulta tu embarque” incluye por ahora una visualización 3D demostrativa. El rastreo de embarques real requerirá definir una fuente de datos e integrarla."
+      },
+      {
+        "q": "¿Manejan FCL y LCL?",
+        "a": "FCL se refiere a contenedor completo y LCL a carga consolidada. Para confirmar disponibilidad y condiciones de estos servicios, es necesario consultar al equipo comercial."
+      }
+    ],
+    "promises": [
+      {
+        "title": "Logística + Aduanas",
+        "subtitle": "Un solo equipo para acompañar tu operación."
+      },
+      {
+        "title": "Conexiones internacionales",
+        "subtitle": "Unimos destinos con soluciones a la medida."
+      },
+      {
+        "title": "Atención cercana",
+        "subtitle": "Personas que entienden tu negocio."
+      }
+    ]
+  },
+  "navLinks": {
+    "servicios": "Principal",
+    "noticias": "Noticias",
+    "nosotros": "Sobre Nosotros",
+    "soluciones": "Servicios",
+    "embarque": "Carga internacional",
+    "itinerario": "Itinerario"
+  },
+  "custom": {
+    "about": {
+      "title": "Sobre Nosotros",
+      "years": "AÑOS DE EXPERIENCIA",
+      "introduction": "Castro Fallas Logística Internacional es una compañía creada hace 48 años, con el fin de satisfacer las necesidades de los diferentes eslabones de la cadena logística y los diferentes actores que en ella intervienen, a través de la gestión, coordinación y supervisión del transporte de mercancías con los diferentes medios a nivel nacional e internacional, para carga de importación y exportación.",
+      "valuesEyebrow": "LO QUE NOS DEFINE",
+      "valuesTitle": "Nuestros valores",
+      "values": [
+        "Compromiso",
+        "Ética",
+        "Trabajo en equipo",
+        "Experiencia",
+        "Calidad"
+      ]
+    },
+    "home": {
+      "newsHeader": "NEWS · NOTICIAS · NEWS",
+      "allNews": "VER TODAS ↗",
+      "quoteNow": "Cotizá ahora",
+      "contactAria": "Información de contacto",
+      "newsAria": "Noticias destacadas",
+      "contact": [
+        "Número de teléfono",
+        "Correo electrónico",
+        "WhatsApp",
+        "Dirección",
+        "Horario de atención",
+        "Lunes a viernes: 7:30 am a 5:15 pm"
+      ],
+      "stats": [
+        "Oficinas a nivel mundial",
+        "Consolidados terrestres Panamá – CRC",
+        "Rutas de transporte internacional",
+        "Atención al cliente"
+      ],
+      "modal": {
+        "Maritime": {
+          "title": "Transporte Marítimo",
+          "sections": [
+            {
+              "heading": "Modalidad LCL",
+              "items": [
+                "Mayor flexibilidad en la gestión del almacenaje.",
+                "Las tarifas se ajustan al volumen y el peso de la carga.",
+                "Tarifas de transporte marítimo menos volátiles.",
+                "Costos más bajos de transporte terrestre.",
+                "Agilidad en el despacho de aduanas."
+              ]
+            },
+            {
+              "heading": "Modalidad FCL",
+              "items": [
+                "La recolección y la entrega de la carga se programan fácilmente.",
+                "La carga viaja con total seguridad, sin riesgo de daños por manipulaciones adicionales.",
+                "Gastos portuarios locales estandarizados.",
+                "No hay riesgo de retrasos o daños por el contacto con las cargas de otros expedidores."
+              ]
+            },
+            {
+              "heading": "Ventajas Castro Fallas",
+              "items": [
+                "Seguridad — Gestión orientada a proteger la carga durante cada etapa del proceso.",
+                "Cobertura — Conexiones y soluciones adaptadas a operaciones nacionales e internacionales.",
+                "Eficiencia — Coordinación enfocada en optimizar tiempos y procesos logísticos."
+              ]
+            }
+          ]
+        },
+        "Land": {
+          "title": "Transporte Terrestre",
+          "sections": [
+            {
+              "heading": "Modalidad LTL",
+              "items": [
+                "Mayor flexibilidad en la gestión del almacenaje.",
+                "Las tarifas se ajustan al volumen y el peso de la carga.",
+                "Tarifas de transporte terrestre menos volátiles.",
+                "Agilidad en el despacho de aduanas."
+              ]
+            },
+            {
+              "heading": "Modalidad FTL",
+              "items": [
+                "La recolección y la entrega de la carga se programan fácilmente.",
+                "La carga viaja con total seguridad, sin riesgo de daños por manipulaciones adicionales.",
+                "Gastos fronterizos locales estandarizados.",
+                "No hay riesgo de retrasos o daños por el contacto con las cargas de otros expedidores."
+              ]
+            },
+            {
+              "heading": "Ventajas Castro Fallas",
+              "items": [
+                "Seguridad — Gestión orientada a proteger la carga durante cada etapa del proceso.",
+                "Cobertura — Conexiones y soluciones adaptadas a operaciones nacionales e internacionales.",
+                "Eficiencia — Coordinación enfocada en optimizar tiempos y procesos logísticos."
+              ]
+            }
+          ]
+        },
+        "Air": {
+          "title": "Transporte Aéreo",
+          "sections": [
+            {
+              "heading": "Soluciones aéreas",
+              "items": [
+                "Soluciones para envíos internacionales que necesitan rapidez.",
+                "Las tarifas se ajustan al volumen y el peso de la carga.",
+                "Coordinación eficiente de transporte internacional.",
+                "Agilidad en el despacho de aduanas."
+              ]
+            },
+            {
+              "heading": "Ventajas Castro Fallas",
+              "items": [
+                "Seguridad — Gestión orientada a proteger la carga durante cada etapa del proceso.",
+                "Cobertura — Conexiones y soluciones adaptadas a operaciones nacionales e internacionales.",
+                "Eficiencia — Coordinación enfocada en optimizar tiempos y procesos logísticos."
+              ]
+            }
+          ]
+        }
+      },
+      "close": "Cerrar",
+      "modalEyebrow": "CASTRO FALLAS · SERVICIOS",
+      "requestRate": "Solicitar tarifa",
+      "statsAria": "Datos de Castro Fallas",
+      "showStat": "Mostrar dato",
+      "seeMore": "Ver más",
+      "trackingTitle": "Seguimiento de carga",
+      "quoteCardTitle": "Cotizá tu carga",
+      "officeAddress": "Frente a Café Volio, Barrio San José, Curridabat, Costa Rica"
+    },
+    "news": {
+      "readArticle": "Ver noticia",
+      "closeArticle": "Cerrar noticia",
+      "sampleNote": "Artículo de demostración · Información pendiente de verificación"
+    },
+    "login": {
+      "eyebrow": "ACCESO A LA PLATAFORMA",
+      "title": "Bienvenidos",
+      "intro": "Elegí cómo querés acceder. El ingreso con cuenta se confirma por correo.",
+      "roles": [
+        "Cliente",
+        "Usuario",
+        "Invitado"
+      ],
+      "roleAria": "Tipo de ingreso",
+      "guest": "Podés explorar la página sin iniciar sesión. Para registrar cotizaciones necesitás una cuenta habilitada.",
+      "guestButton": "Entrar como invitado",
+      "email": "Correo electrónico",
+      "companyCode": "Código Dynamics de la empresa",
+      "companyCodePlaceholder": "Código asignado a tu empresa",
+      "emailPlaceholder": "nombre@empresa.com",
+      "clientHelp": "El correo debe pertenecer a un usuario activo vinculado con ese código Dynamics.",
+      "userHelp": "Tu cuenta debe estar activa y registrada con tipo de acceso «usuario».",
+      "sendCode": "Enviar código al correo",
+      "sending": "Enviando…",
+      "otpMessage": "Revisá tu correo.",
+      "otpLabel": "Código de 6 dígitos",
+      "otpHelp": "Vence a los 5 minutos; máximo 5 intentos. Cada código puede utilizarse una sola vez.",
+      "verify": "Verificar y entrar",
+      "verifying": "Verificando…",
+      "back": "← Volver / solicitar otro código",
+      "footer": "Acceso de prueba · Sin creación pública de cuentas",
+      "localOutbox": "En modo local, revisá la bandeja local del servidor.",
+      "requestError": "No se pudo solicitar el código.",
+      "verifyError": "No se pudo verificar el código.",
+      "invalidOtp": "Código inválido o expirado.",
+      "loginError": "No se pudo iniciar sesión.",
+      "errorHttp": "Error HTTP {status}",
+      "brand": "GRUPO CASTRO FALLAS",
+      "topTag": "CONEXIONES QUE MUEVEN TU NEGOCIO",
+      "visualTitle1": "El mundo",
+      "visualTitle2": "más cerca",
+      "visualTitle3": "de vos.",
+      "visualIntro": "Soluciones logísticas, aduaneras y de transporte internacional.",
+      "visualBottom": "CASTRO FALLAS · COSTA RICA",
+      "end": "Acceso a la plataforma"
+    },
+    "quote": {
+      "landingEyebrow": "COTIZACIONES · CASTRO FALLAS",
+      "landingHeading": "¡Cotizá tu próximo",
+      "landingHighlight": "embarque!",
+      "landingIntro": "Elegí el tipo de carga o dejanos tus datos y nuestro equipo te ayuda a encontrar la mejor opción.",
+      "landLabel": "TRANSPORTE TERRESTRE",
+      "landTitle": "Cotizá tus cargas terrestres en línea",
+      "landDescription": "Elegí FTL o LTL y completá los datos de tu ruta.",
+      "landButton": "Cotizá tu carga",
+      "oceanLabel": "CARGA AÉREA Y MARÍTIMA",
+      "oceanTitle": "Cotizá tus embarques",
+      "oceanDescription": "Contanos sobre tu envío aéreo o marítimo.",
+      "oceanButton": "Cotizá tus embarques",
+      "quickEyebrow": "¿TENÉS UNA CONSULTA?",
+      "quickTitle": "Contactanos",
+      "quickIntro": "Compartí tus datos y te ayudamos con tu cotización.",
+      "fullName": "Nombre completo",
+      "company": "Empresa",
+      "country": "País",
+      "phone": "Teléfono",
+      "email": "Correo electrónico",
+      "requestLabel": "¿Qué necesitás cotizar?",
+      "sendRequest": "Enviar solicitud",
+      "mailOpened": "Se abrió tu correo para que enviés la consulta.",
+      "back": "← Volver a cotizaciones",
+      "requestEyebrow": "SOLICITUD DE COTIZACIÓN",
+      "transportHeading": "Transporte internacional",
+      "land": "terrestre",
+      "prepare": "Completá los pasos para que podamos preparar tu tarifa.",
+      "steps": [
+        "Tipo de transporte",
+        "Detalle de carga",
+        "Confirmación"
+      ],
+      "progressAria": "Progreso de la cotización",
+      "asideEyebrow": "COTIZÁ TU CARGA CON NOSOTROS",
+      "asideIntro": "Conectamos tu carga con una solución logística a tu medida.",
+      "transportStep": "PASO 1 DE 3",
+      "chooseTransport": "Seleccioná el tipo de transporte",
+      "chooseTransportHelp": "Elegí la opción que mejor se adapta al tamaño de tu carga.",
+      "ftl": "Transporte terrestre completo",
+      "ftlDetail": "FTL · Camión exclusivo",
+      "ltl": "Transporte terrestre consolidado",
+      "ltlDetail": "LTL · Carga compartida",
+      "cargoStep": "PASO 2 DE 3",
+      "cargoDetails": "Detalle de carga",
+      "cargoDetailsHelp": "Indicá la ruta y las características del transporte.",
+      "equipment": "Tipo de equipo",
+      "select": "Seleccionar",
+      "insured": "¿Querés asegurar la carga?",
+      "origin": "País de origen",
+      "destination": "País de destino",
+      "selectCountry": "Seleccioná un país",
+      "contactStep": "PASO 3 DE 3",
+      "contactDetails": "Datos de contacto",
+      "contactHelp": "¿A dónde enviamos la cotización?",
+      "legalName": "Razón social",
+      "contactName": "Nombre de contacto",
+      "customerType": "Tipo de cliente",
+      "companyType": "Empresa",
+      "individualType": "Persona física",
+      "backStep": "Regresar",
+      "next": "Siguiente",
+      "requestRate": "Solicitar tarifa",
+      "sending": "Enviando…",
+      "successTitle": "¡Solicitud recibida!",
+      "landSuccess": "Registramos tu cotización terrestre. Nuestro equipo puede continuar el seguimiento con los datos enviados.",
+      "oceanSuccess": "Registramos tu solicitud de embarque.",
+      "requestNumber": "Número de solicitud:",
+      "checkStatus": "Consultar estado",
+      "checking": "Consultando…",
+      "status": "Estado:",
+      "oceanEyebrow": "COTIZACIÓN AÉREA Y MARÍTIMA",
+      "oceanHeading": "Cotizá tu carga",
+      "withUs": "con nosotros",
+      "oceanIntro": "Compartí los datos principales de tu carga y te ayudaremos a encontrar la mejor opción para tu envío.",
+      "routeService": "Ruta y servicio",
+      "routeHelp": "Indicá cómo y hacia dónde se mueve tu carga.",
+      "detailsGoods": "Detalles de la mercancía",
+      "goodsHelp": "Agregá información para preparar la tarifa.",
+      "contactSectionHelp": "¿A quién enviamos el seguimiento de la solicitud?",
+      "service": "Tipo de envío",
+      "maritimeFcl": "Marítimo FCL - Contenedor completo",
+      "maritimeLcl": "Marítimo LCL - Carga consolidada",
+      "airFreight": "Aéreo",
+      "operation": "Tipo de operación",
+      "export": "Exportación",
+      "import": "Importación",
+      "incoterm": "Incoterm",
+      "choose": "Seleccioná",
+      "nationalization": "¿Requiere nacionalización?",
+      "yes": "Sí",
+      "no": "No",
+      "descriptionGoods": "Descripción de la mercancía",
+      "goodsExample": "Ej. repuestos automotrices, textiles, alimentos, equipo médico, etc.",
+      "containerType": "Tipo de contenedor",
+      "container20": "20 pies estándar",
+      "container40": "40 pies estándar",
+      "container40hc": "40 pies high cube",
+      "refrigerated": "Refrigerado",
+      "notApplicable": "No aplica / carga aérea",
+      "quantity": "Cantidad de contenedores o bultos",
+      "dangerous": "¿La mercancía es peligrosa?",
+      "moreDetails": "Más detalles sobre la carga",
+      "name": "Nombre",
+      "companyEmail": "Correo",
+      "customerPhone": "Número de teléfono",
+      "sendQuote": "Solicitar cotización",
+      "requested": "Solicitar tarifa",
+      "submitError": "No se pudo enviar la solicitud.",
+      "completeRoute": "Completá el país de origen, el país de destino y el tipo de equipo.",
+      "completeContact": "Completá tus datos de contacto para continuar.",
+      "completeContactBeforeSend": "Completá todos tus datos de contacto antes de enviar.",
+      "validApi": "La API debe devolver JSON.",
+      "invalidApi": "La API no devolvió una respuesta válida.",
+      "equipmentOptions": {
+        "ftl": [
+          "Camión completo",
+          "Furgón",
+          "Plataforma",
+          "Refrigerado"
+        ],
+        "ltl": [
+          "Consolidado LTL",
+          "Pallets",
+          "Carga suelta",
+          "Refrigerado"
+        ]
+      },
+      "countries": [
+        "Costa Rica",
+        "Panamá",
+        "Nicaragua",
+        "Guatemala",
+        "El Salvador",
+        "Honduras",
+        "México",
+        "Estados Unidos",
+        "Canadá",
+        "China",
+        "España",
+        "Colombia",
+        "Chile",
+        "Perú"
+      ],
+      "asideFtl": "Transporte Terrestre Completo (FTL)",
+      "asideLtl": "Transporte Terrestre Consolidado (LTL)",
+      "emailSubject": "Consulta sobre cotización - Castro Fallas",
+      "sourceRegistered": "solicitud registrada",
+      "sourceUpdated": "consulta actualizada",
+      "checkError": "No se pudo consultar la solicitud.",
+      "checkingSession": "Verificando tu sesión…",
+      "loginRequired": "Iniciá sesión para cotizar.",
+      "loginRequiredHelp": "Podés explorar el sitio como invitado, pero para registrar una cotización necesitás una cuenta autorizada.",
+      "goToLogin": "Ingresar",
+      "sessionExpired": "Tu sesión venció. Volvé a iniciar sesión para continuar."
+    },
+    "header": {
+      "language": "Seleccionar idioma",
+      "settings": "Configuración",
+      "dark": "Activar modo oscuro",
+      "light": "Activar modo claro",
+      "logout": "Cerrar sesión",
+      "logoutError": "No se pudo cerrar sesión. Intentá nuevamente."
+    },
+    "tracking": {
+      "globeAria": "Globo mundial 3D con rutas logísticas ilustrativas",
+      "mapAria": "Mapa mundial interactivo de demostración",
+      "regionalHub": "COSTA RICA · HUB REGIONAL",
+      "globalConnections": "CONEXIONES GLOBALES",
+      "mapUnavailable": "El mapa interactivo no está disponible en este navegador."
+    },
+    "scroll": {
+      "goTop": "Volver al inicio"
+    },
+    "itinerary": {
+      "eyebrow": "PLANIFICACIÓN DE TU EMBARQUE",
+      "titleStart": "Tu itinerario,",
+      "titleEnd": "paso a paso.",
+      "intro": "Conoce las etapas habituales de una operación logística internacional y cómo coordinamos cada momento de tu carga.",
+      "demoTag": "ITINERARIO DE DEMOSTRACIÓN",
+      "modeLabel": "Seleccioná el tipo de transporte",
+      "modes": [
+        "Marítimo",
+        "Terrestre"
+      ],
+      "origin": "Origen",
+      "originDetail": "Coordinación de retiro y preparación de documentos.",
+      "transit": "Tránsito internacional",
+      "transitDetails": [
+        "Puerto de carga y descarga marítima coordinados.",
+        "Puntos de salida, tránsito y entrega terrestre coordinados."
+      ],
+      "destination": "Destino",
+      "destinationDetail": "Despacho y entrega coordinados según tu operación.",
+      "timelineTitle": "Etapas de tu itinerario",
+      "steps": [
+        {
+          "title": "Preparación en origen",
+          "detail": "Revisamos la información de la carga y organizamos su retiro."
+        },
+        {
+          "title": "Transporte internacional",
+          "detail": "Coordinamos el trayecto según el medio de transporte seleccionado."
+        },
+        {
+          "title": "Llegada y entrega",
+          "detail": "Damos seguimiento a la llegada y a la coordinación de la entrega."
+        }
+      ],
+      "ctaTitle": "¿Necesitas planificar un embarque?",
+      "ctaButton": "Solicitar cotización",
+      "backHome": "Volver al inicio",
+      "aria": "Vista de demostración de itinerario logístico",
+      "dashboard": {
+        "eyebrow": "OPERACIÓN DE DEMOSTRACIÓN",
+        "title": "Embarque internacional",
+        "subtitle": "Resumen del itinerario de carga",
+        "status": "En planificación",
+        "routeLabel": "ORIGEN Y DESTINO",
+        "modeLabel": "TRANSPORTE",
+        "stagesLabel": "ETAPAS",
+        "stages": "etapas",
+        "transitLabel": "RECORRIDO",
+        "tabsLabel": "Secciones del embarque",
+        "tabs": [
+          "Resumen",
+          "Itinerario",
+          "Documentos",
+          "Traslados"
+        ],
+        "listEyebrow": "PLANIFICACIÓN DEL RECORRIDO",
+        "stageColumn": "ETAPA",
+        "routeColumn": "RUTA Y ACTIVIDAD",
+        "statusColumn": "ESTADO",
+        "rows": [
+          {
+            "stage": "Preparación en origen",
+            "route": "Centro logístico",
+            "detail": "Coordinación del retiro y documentos de carga",
+            "status": "Por coordinar"
+          },
+          {
+            "stage": "Transporte internacional",
+            "route": "Ruta internacional",
+            "detail": "Seguimiento del trayecto y conexión en tránsito",
+            "status": "Planificado"
+          },
+          {
+            "stage": "Arribo y entrega",
+            "route": "Destino final",
+            "detail": "Despacho y coordinación de la entrega",
+            "status": "Pendiente"
+          }
+        ]
+      },
+      "table": {
+        "eyebrow": "DETALLE DEL EMBARQUE",
+        "title": "Información del itinerario",
+        "columnField": "Campo",
+        "columnInformation": "Información",
+        "fields": {
+          "origin": "Origen",
+          "destination": "Destino",
+          "transport": "Transporte",
+          "modality": "Modalidad"
+        },
+        "values": {
+          "origin": "Costa Rica",
+          "destination": "Ubicación de destino por confirmar",
+          "closing": "Fecha límite de recepción por confirmar",
+          "etd": "Fecha estimada de salida por confirmar",
+          "eta": "Fecha estimada de llegada por confirmar",
+          "notApplicable": "No aplica para este transporte"
+        },
+        "transportDetails": [
+          {
+            "pol": "Puerto de carga por confirmar",
+            "pod": "Puerto de descarga por confirmar"
+          },
+          {
+            "pol": "Punto de salida por confirmar",
+            "pod": "Punto de entrega por confirmar"
+          }
+        ],
+        "modalities": [
+          [
+            "FCL",
+            "LCL"
+          ],
+          [
+            "LTL"
+          ]
+        ]
+      },
+      "form": {
+        "eyebrow": "DATOS DEL EMBARQUE",
+        "itemTitle": "Itinerario {number}",
+        "status": "Estatus",
+        "statuses": [
+          "En planificación",
+          "En tránsito",
+          "Entregado",
+          "Retrasado"
+        ],
+        "add": "Agregar otro itinerario",
+        "remove": "Quitar itinerario",
+        "search": "Buscar",
+        "resultsEyebrow": "RESULTADOS DEL EMBARQUE",
+        "resultsTitle": "Resumen de itinerarios",
+        "resultsCount": "itinerario(s)",
+        "notSpecified": "Por confirmar",
+        "loadingPort": "Puerto de carga",
+        "unloadingPort": "Puerto de descarga",
+        "viewDetails": "Ver detalles",
+        "hideDetails": "Ocultar detalles"
+      }
+    }
+  },
+  "legal": {
+    "footerPrivacy": "Política de privacidad",
+    "footerTerms": "Términos y condiciones",
+    "footerCookies": "Política de cookies",
+    "footerLicenses": "Créditos y licencias"
+  }
+}

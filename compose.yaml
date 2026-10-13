@@ -16,10 +16,40 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/Database/SeedLocal.sql:/tmp/SeedLocal.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d login"]
+      # pg_isready por sí solo NO comprueba la contraseña; psql sí la valida.
+      test:
+        - CMD-SHELL
+        - >
+          pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" &&
+          PGPASSWORD="$${POSTGRES_PASSWORD}" psql -h 127.0.0.1
+          -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" -tAc "SELECT 1" |
+          grep -qx 1
       interval: 5s
       timeout: 5s
       retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  mongo:
+    image: mongo:8
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
 
   backend:
     build:
@@ -33,6 +63,9 @@ services:
       Auth__OtpPepper: ${AUTH_OTP_PEPPER:?Falta AUTH_OTP_PEPPER}
       Auth__SecureCookie: "false"
       Development__ApplySchema: "true"
+      Redis__ConnectionString: redis:6379
+      Mongo__ConnectionString: mongodb://mongo:27017
+      Mongo__Database: castrofallas_logs
       Email__Mode: ${EMAIL_MODE:-LocalOutbox}
       Smtp__Host: ${SMTP_HOST:-smtp.gmail.com}
       Smtp__Port: ${SMTP_PORT:-587}
@@ -49,6 +82,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      # Redis y Mongo son auxiliares; su caída no debe bloquear el login
+      # ni la conexión obligatoria a PostgreSQL.
 
   frontend:
     build:
@@ -69,3 +104,5 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
+  mongo_data:

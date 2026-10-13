@@ -31,3 +31,15 @@ jobs:
           dotnet-version: 10.0.x
       - name: Compilar API
         run: dotnet build backend/CastroFallas.MiniQuote.Api.csproj --configuration Release
+
+  docker-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validar configuracion Compose
+        env:
+          POSTGRES_PASSWORD: ci-placeholder-not-real
+          AUTH_OTP_PEPPER: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+        run: docker compose config --quiet
+      - name: Verificar integracion y rutas
+        run: python3 scripts/verify-integration.py

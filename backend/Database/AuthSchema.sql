@@ -85,16 +85,39 @@ CREATE TABLE IF NOT EXISTS quote_requests (
     "CargoType" VARCHAR(100) NOT NULL,
     "WeightKg" NUMERIC(18,2) NOT NULL,
     "Pieces" INTEGER NOT NULL,
-    "Notes" VARCHAR(1000) NULL,
+    "Notes" TEXT NULL,
     "Status" VARCHAR(30) NOT NULL,
     "CreatedAtUtc" TIMESTAMPTZ NOT NULL
 );
+
+-- El rediseño genera descripciones de múltiples pasos que pueden superar 1000 caracteres.
+-- Ampliar columnas existentes sin borrar cotizaciones históricas.
+ALTER TABLE quote_requests ALTER COLUMN "Notes" TYPE TEXT;
 
 -- Vinculación de futuras cotizaciones a la empresa que inició sesión.
 -- Los registros históricos quedan con NULL, no se asignan automáticamente a otra empresa.
 ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS "ClienteId" UUID NULL;
 ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS "UsuarioId" UUID NULL;
 CREATE INDEX IF NOT EXISTS idx_quotes_cliente_id ON quote_requests("ClienteId");
+
+
+-- Itinerarios provisionales: comparten base login pero NO dependen de usuarios/cotizaciones.
+-- CREATE no sobreescribe tablas existentes; ALTER conserva las filas al añadir Closing.
+CREATE TABLE IF NOT EXISTS public.itinerarios (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    pol VARCHAR(150) NOT NULL,
+    pod VARCHAR(150) NOT NULL,
+    etd DATE NOT NULL,
+    eta DATE NOT NULL,
+    carrier VARCHAR(150) NULL,
+    vessel VARCHAR(150) NULL,
+    voyage VARCHAR(50) NULL,
+    transporte VARCHAR(20) NOT NULL,
+    modalidad VARCHAR(3) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    closing DATE NULL
+);
+ALTER TABLE public.itinerarios ADD COLUMN IF NOT EXISTS closing DATE NULL;
 
 -- Mantiene updated_at sincronizado incluso cuando los registros se editan en DBeaver.
 CREATE OR REPLACE FUNCTION auth_touch_updated_at()

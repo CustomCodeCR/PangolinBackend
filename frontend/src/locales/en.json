@@ -1,0 +1,790 @@
+{
+  "phrases": {
+    "p000": "Connecting your cargo",
+    "p001": "with the world.",
+    "p002": "Logistics, customs and international transportation solutions with personalized service and regional expertise.",
+    "p003": "Explore services",
+    "p004": "Contact us",
+    "p005": "BORDERLESS LOGISTICS · COSTA RICA",
+    "p006": "NEWS",
+    "p007": "VIEW ALL ↗",
+    "p008": "OUR SERVICES",
+    "p009": "Logistics solutions",
+    "p010": "for every need.",
+    "p011": "We connect your cargo to destinations safely, efficiently and reliably.",
+    "p012": "FEATURED SERVICE ·",
+    "p013": "Get a quote for this service",
+    "p014": "Offices",
+    "p015": "worldwide",
+    "p016": "Land consolidations",
+    "p017": "International transport",
+    "p018": "routes",
+    "p019": "Customer support",
+    "p020": "CONNECTIONS WITHOUT BORDERS",
+    "p021": "Track your",
+    "p022": "shipment.",
+    "p023": "Explore our interactive globe and discover how we connect Costa Rica to the world.",
+    "p024": "Track now",
+    "p025": "Demo visualization: live tracking integration is pending.",
+    "p026": "EXPERIENCE THAT BACKS US",
+    "p027": "Experience to",
+    "p028": "move your",
+    "p029": "business.",
+    "p030": "Logistics + Customs.",
+    "p031": "One team to support your operation.",
+    "p032": "HERE TO ANSWER YOUR QUESTIONS",
+    "p033": "Useful information for your",
+    "p034": "operation.",
+    "p035": "LET'S GET YOUR CARGO MOVING",
+    "p036": "Your next destination",
+    "p037": "starts here.",
+    "p038": "Request a quote",
+    "p039": "ABOUT US",
+    "p040": "Experience that",
+    "p041": "connects destinations.",
+    "p042": "YEARS OF EXPERIENCE",
+    "p043": "Driven by",
+    "p044": "your trust.",
+    "p045": "We connect businesses through logistics and customs solutions, with personal attention and commitment to every operation.",
+    "p046": "Our approach combines regional expertise, coordination and international transportation knowledge to support our customers.",
+    "p047": "Provisional corporate copy, pending approval.",
+    "p048": "BY YOUR SIDE AT EVERY STAGE",
+    "p049": "Services",
+    "p050": "complementary services.",
+    "p051": "Additional solutions to support every stage of your logistics operation.",
+    "p052": "LOGISTICS SOLUTIONS",
+    "p053": "Cargo operations",
+    "p054": "We combine coordination and service to move your cargo.",
+    "p055": "Learn more →",
+    "p056": "CUSTOMS MANAGEMENT",
+    "p057": "End-to-end support",
+    "p058": "Personalized attention to your logistics and customs needs.",
+    "p059": "Request a quote →",
+    "p060": "DIGITAL SERVICES",
+    "p061": "Manage your cargo",
+    "p062": "with ease.",
+    "p063": "Explore our route visualization or request a quote.",
+    "p064": "Demo view",
+    "p065": "Quote request",
+    "p066": "NEWS AND INNOVATION",
+    "p067": "Robots are now",
+    "p068": "in factories.",
+    "p069": "Innovation and news in logistics operations. Demo content.",
+    "p070": "Explore news",
+    "p071": "Illustrative articles for the prototype",
+    "p072": "What moves",
+    "p073": "the world.",
+    "p074": "ARTICLE",
+    "p075": "Sample content · Article pending",
+    "p076": "NEED A SOLUTION?",
+    "p077": "We move your projects.",
+    "p078": "Request a quote",
+    "p079": "← Back to home",
+    "p080": "INTERNATIONAL CARGO",
+    "p081": "Interactively explore some of our international connections.",
+    "p082": "The globe routes are illustrative. Live shipment tracking is not connected yet.",
+    "p083": "CONNECTIONS THAT MOVE YOUR BUSINESS",
+    "p084": "The world",
+    "p085": "closer",
+    "p086": "to you.",
+    "p087": "Logistics, customs and international transportation solutions.",
+    "p088": "PLATFORM ACCESS",
+    "p089": "Welcome",
+    "p090": "Enter to explore the new Castro Fallas digital experience.",
+    "p091": "Temporary access",
+    "p092": "This version does not request credentials or authenticate users.",
+    "p093": "Enter the demo",
+    "p094": "Real sign-in will be implemented when users and permissions are defined.",
+    "p095": "Demo design",
+    "p096": "Contact",
+    "p097": "Quick links",
+    "p098": "Quote",
+    "p099": "Logistics, customs and international transportation solutions from Costa Rica.",
+    "p100": "Connecting your cargo to the world.",
+    "p101": "YOUR REQUEST",
+    "p102": "Your cargo details",
+    "p103": "Complete the information to submit your quote request.",
+    "p104": "Service",
+    "p105": "Ocean freight",
+    "p106": "Air freight",
+    "p107": "Road freight",
+    "p108": "Origin",
+    "p109": "Destination",
+    "p110": "Cargo type",
+    "p111": "Total weight (kg)",
+    "p112": "Pieces",
+    "p113": "Additional information",
+    "p114": "Optional cargo details",
+    "p115": "Request received",
+    "p116": "Route",
+    "p117": "Cargo",
+    "p118": "Weight",
+    "p119": "Last operation source:",
+    "p120": "Check again",
+    "p121": "Processing…",
+    "p122": "Send to Pricing",
+    "p123": "TAILORED SOLUTIONS",
+    "p124": "Request your",
+    "p125": "quote.",
+    "p126": "Tell us about your cargo and prepare a request for our team.",
+    "p127": "Demo requests are recorded through the existing API when the backend is available. Emails are not sent automatically.",
+    "p128": "News",
+    "p129": "About us",
+    "p130": "Solutions",
+    "p131": "International cargo",
+    "p132": "Welcome",
+    "p133": "Featured news",
+    "p134": "Transport type",
+    "p135": "Three pillars of service",
+    "p136": "Main navigation",
+    "p137": "Open or close menu",
+    "p138": "Castro Fallas, go to home",
+    "p139": "Logistics facilities and road transportation",
+    "p140": "Container port terminal",
+    "p141": "Staff working inside a warehouse",
+    "p142": "Air freight",
+    "p143": "AIR",
+    "p144": "Speed and coordination for time-sensitive cargo.",
+    "p145": "We coordinate air freight alternatives and customs support for your operation.",
+    "p146": "Road transportation",
+    "p147": "ROAD",
+    "p148": "We connect overland routes with practical and secure solutions.",
+    "p149": "We plan cargo movement and the documentation required for every journey.",
+    "p150": "Ocean freight",
+    "p151": "OCEAN",
+    "p152": "Ocean freight alternatives for your international operations.",
+    "p153": "We manage containers and consolidated shipments to meet your business needs.",
+    "p154": "LOGISTICS",
+    "p155": "International connections",
+    "p156": "INNOVATION",
+    "p157": "Warehouse technology",
+    "p158": "OPERATIONS",
+    "p159": "The future of logistics",
+    "p160": "Aircraft facing customs issues",
+    "p161": "Placeholder for an article about air transport and customs procedures. Demo content.",
+    "p162": "REPORTS",
+    "p163": "New rates in the Free Trade Zone",
+    "p164": "Placeholder for a rate report. Figures and terms must be verified before publication.",
+    "p165": "Rate and international trade updates",
+    "p166": "Placeholder for logistics and customs industry reports. Publication pending.",
+    "p167": "What services does Grupo Castro Fallas offer?",
+    "p168": "The website presents logistics, customs management and international air, ocean and land transport solutions. We can help prepare a request for your operation.",
+    "p169": "How can I request a quote?",
+    "p170": "Select Quotes, complete the cargo details and click Send to Pricing. In this demo, the request is recorded through the existing API; no email is sent automatically.",
+    "p171": "How can I track my shipment?",
+    "p172": "The Track your shipment section currently includes a 3D demo visualization. Live shipment tracking requires a data source and integration.",
+    "p173": "Do you handle FCL and LCL?",
+    "p174": "FCL means full container load and LCL means less than container load. Contact our commercial team to confirm availability and terms.",
+    "p175": "Logistics + Customs",
+    "p176": "We connect destinations with tailored solutions.",
+    "p177": "Personalized service",
+    "p178": "People who understand your business."
+  },
+  "content": {
+    "services": {
+      "Air": {
+        "title": "Air freight",
+        "label": "AIR",
+        "description": "Speed and coordination for time-sensitive cargo.",
+        "detail": "We coordinate air freight alternatives and customs support for your operation."
+      },
+      "Land": {
+        "title": "Road transportation",
+        "label": "ROAD",
+        "description": "We connect overland routes with practical and secure solutions.",
+        "detail": "We plan cargo movement and the documentation required for every journey."
+      },
+      "Maritime": {
+        "title": "Ocean freight",
+        "label": "OCEAN",
+        "description": "Ocean freight alternatives for your international operations.",
+        "detail": "We manage containers and consolidated shipments to meet your business needs."
+      }
+    },
+    "homeNews": [
+      {
+        "category": "LOGISTICS",
+        "title": "International connections"
+      },
+      {
+        "category": "INNOVATION",
+        "title": "Warehouse technology"
+      },
+      {
+        "category": "OPERATIONS",
+        "title": "The future of logistics"
+      }
+    ],
+    "news": [
+      {
+        "category": "NEWS",
+        "title": "Aircraft facing customs issues",
+        "description": "Placeholder for an article about air transport and customs procedures. Demo content."
+      },
+      {
+        "category": "REPORTS",
+        "title": "New rates in the Free Trade Zone",
+        "description": "Placeholder for a rate report. Figures and terms must be verified before publication."
+      },
+      {
+        "category": "REPORTS",
+        "title": "Rate and international trade updates",
+        "description": "Placeholder for logistics and customs industry reports. Publication pending."
+      },
+      {
+        "category": "LOGISTICS",
+        "title": "Regional ports streamline container flows",
+        "description": "Demo information: terminals across the region are testing new coordination processes to reduce waiting times and improve cargo planning. Dates and figures are pending verification."
+      },
+      {
+        "category": "INNOVATION",
+        "title": "Automation reshapes distribution centers",
+        "description": "Demo information: inventory and sorting tools aim to provide better visibility at every stage of an operation. The impact and figures in this sample story are illustrative and should be verified before publication."
+      }
+    ],
+    "faqs": [
+      {
+        "q": "What services does Grupo Castro Fallas offer?",
+        "a": "The website presents logistics, customs management and international air, ocean and land transport solutions. We can help prepare a request for your operation."
+      },
+      {
+        "q": "How can I request a quote?",
+        "a": "Select Quotes, complete the cargo details and click Send to Pricing. In this demo, the request is recorded through the existing API; no email is sent automatically."
+      },
+      {
+        "q": "How can I track my shipment?",
+        "a": "The Track your shipment section currently includes a 3D demo visualization. Live shipment tracking requires a data source and integration."
+      },
+      {
+        "q": "Do you handle FCL and LCL?",
+        "a": "FCL means full container load and LCL means less than container load. Contact our commercial team to confirm availability and terms."
+      }
+    ],
+    "promises": [
+      {
+        "title": "Logistics + Customs",
+        "subtitle": "One team to support your operation."
+      },
+      {
+        "title": "International connections",
+        "subtitle": "We connect destinations with tailored solutions."
+      },
+      {
+        "title": "Personalized service",
+        "subtitle": "People who understand your business."
+      }
+    ]
+  },
+  "navLinks": {
+    "servicios": "Home",
+    "noticias": "News",
+    "nosotros": "About us",
+    "soluciones": "Services",
+    "embarque": "International shipping",
+    "itinerario": "Itinerary"
+  },
+  "custom": {
+    "about": {
+      "title": "About Us",
+      "years": "YEARS OF EXPERIENCE",
+      "introduction": "Castro Fallas Logística Internacional is a company founded 48 years ago to meet the needs of the different links in the logistics chain and the many stakeholders involved. We manage, coordinate and supervise freight transportation by different means, nationally and internationally, for import and export cargo.",
+      "valuesEyebrow": "WHAT DEFINES US",
+      "valuesTitle": "Our values",
+      "values": [
+        "Commitment",
+        "Integrity",
+        "Teamwork",
+        "Experience",
+        "Quality"
+      ]
+    },
+    "home": {
+      "newsHeader": "NEWS · NEWS · NEWS",
+      "allNews": "VIEW ALL ↗",
+      "quoteNow": "Get a quote",
+      "contactAria": "Contact information",
+      "newsAria": "Featured news",
+      "contact": [
+        "Phone number",
+        "Email",
+        "WhatsApp",
+        "Address",
+        "Business hours",
+        "Monday to Friday: 7:30 am to 5:15 pm"
+      ],
+      "stats": [
+        "Offices worldwide",
+        "Land consolidations Panama – CRC",
+        "International transport routes",
+        "Customer support"
+      ],
+      "modal": {
+        "Maritime": {
+          "title": "Ocean Freight",
+          "sections": [
+            {
+              "heading": "LCL service",
+              "items": [
+                "Greater flexibility in storage management.",
+                "Rates are adjusted to cargo volume and weight.",
+                "Less volatile ocean freight rates.",
+                "Lower inland transportation costs.",
+                "Faster customs clearance."
+              ]
+            },
+            {
+              "heading": "FCL service",
+              "items": [
+                "Pickup and delivery can be scheduled easily.",
+                "Cargo travels securely, reducing the risk of damage from additional handling.",
+                "Standardized local port charges.",
+                "No risk of delays or damage from contact with other shippers’ cargo."
+              ]
+            },
+            {
+              "heading": "Castro Fallas advantages",
+              "items": [
+                "Security — Cargo protection throughout every stage of the process.",
+                "Coverage — Connections and solutions tailored to domestic and international operations.",
+                "Efficiency — Coordination focused on optimizing logistics times and processes."
+              ]
+            }
+          ]
+        },
+        "Land": {
+          "title": "Road Transportation",
+          "sections": [
+            {
+              "heading": "LTL service",
+              "items": [
+                "Greater flexibility in storage management.",
+                "Rates are adjusted to cargo volume and weight.",
+                "Less volatile road freight rates.",
+                "Faster customs clearance."
+              ]
+            },
+            {
+              "heading": "FTL service",
+              "items": [
+                "Pickup and delivery can be scheduled easily.",
+                "Cargo travels securely, reducing the risk of damage from additional handling.",
+                "Standardized local border charges.",
+                "No risk of delays or damage from contact with other shippers’ cargo."
+              ]
+            },
+            {
+              "heading": "Castro Fallas advantages",
+              "items": [
+                "Security — Cargo protection throughout every stage of the process.",
+                "Coverage — Connections and solutions tailored to domestic and international operations.",
+                "Efficiency — Coordination focused on optimizing logistics times and processes."
+              ]
+            }
+          ]
+        },
+        "Air": {
+          "title": "Air Freight",
+          "sections": [
+            {
+              "heading": "Air solutions",
+              "items": [
+                "Solutions for international shipments that need speed.",
+                "Rates are adjusted to cargo volume and weight.",
+                "Efficient international transportation coordination.",
+                "Faster customs clearance."
+              ]
+            },
+            {
+              "heading": "Castro Fallas advantages",
+              "items": [
+                "Security — Cargo protection throughout every stage of the process.",
+                "Coverage — Connections and solutions tailored to domestic and international operations.",
+                "Efficiency — Coordination focused on optimizing logistics times and processes."
+              ]
+            }
+          ]
+        }
+      },
+      "close": "Close",
+      "modalEyebrow": "CASTRO FALLAS · SERVICES",
+      "requestRate": "Request a rate",
+      "statsAria": "Castro Fallas facts",
+      "showStat": "Show fact",
+      "seeMore": "Learn more",
+      "trackingTitle": "Track your cargo",
+      "quoteCardTitle": "Quote your cargo",
+      "officeAddress": "Across from Café Volio, Barrio San José, Curridabat, Costa Rica"
+    },
+    "news": {
+      "readArticle": "Read story",
+      "closeArticle": "Close story",
+      "sampleNote": "Demo article · Information pending verification"
+    },
+    "login": {
+      "eyebrow": "PLATFORM ACCESS",
+      "title": "Welcome",
+      "intro": "Choose how you want to access the platform. Account access is confirmed by email.",
+      "roles": [
+        "Client",
+        "User",
+        "Guest"
+      ],
+      "roleAria": "Access type",
+      "guest": "You can explore the site without signing in. An enabled account is required to register quote requests.",
+      "guestButton": "Continue as guest",
+      "email": "Email address",
+      "companyCode": "Company Dynamics code",
+      "companyCodePlaceholder": "Code assigned to your company",
+      "emailPlaceholder": "name@company.com",
+      "clientHelp": "Your email must belong to an active user linked to that Dynamics code.",
+      "userHelp": "Your account must be active and registered with «user» access.",
+      "sendCode": "Email me a code",
+      "sending": "Sending…",
+      "otpMessage": "Check your email.",
+      "otpLabel": "6-digit code",
+      "otpHelp": "Expires in 5 minutes; maximum 5 attempts. Each code can only be used once.",
+      "verify": "Verify and continue",
+      "verifying": "Verifying…",
+      "back": "← Back / request another code",
+      "footer": "Test access · Public account creation is disabled",
+      "localOutbox": "In local mode, check the server local outbox.",
+      "requestError": "Could not request the code.",
+      "verifyError": "Could not verify the code.",
+      "invalidOtp": "Invalid or expired code.",
+      "loginError": "Could not sign in.",
+      "errorHttp": "HTTP error {status}",
+      "brand": "CASTRO FALLAS GROUP",
+      "topTag": "CONNECTIONS THAT MOVE YOUR BUSINESS",
+      "visualTitle1": "The world",
+      "visualTitle2": "closer",
+      "visualTitle3": "to you.",
+      "visualIntro": "Logistics, customs and international transportation solutions.",
+      "visualBottom": "CASTRO FALLAS · COSTA RICA",
+      "end": "Platform access"
+    },
+    "quote": {
+      "landingEyebrow": "QUOTES · CASTRO FALLAS",
+      "landingHeading": "Quote your next",
+      "landingHighlight": "shipment!",
+      "landingIntro": "Choose your cargo type or leave us your details and our team will help you find the best option.",
+      "landLabel": "ROAD TRANSPORTATION",
+      "landTitle": "Request a quote for your road cargo",
+      "landDescription": "Choose FTL or LTL and enter your route details.",
+      "landButton": "Quote your cargo",
+      "oceanLabel": "AIR AND OCEAN FREIGHT",
+      "oceanTitle": "Quote your shipments",
+      "oceanDescription": "Tell us about your air or ocean shipment.",
+      "oceanButton": "Quote your shipments",
+      "quickEyebrow": "HAVE A QUESTION?",
+      "quickTitle": "Contact us",
+      "quickIntro": "Share your details and we will help with your quote.",
+      "fullName": "Full name",
+      "company": "Company",
+      "country": "Country",
+      "phone": "Phone",
+      "email": "Email address",
+      "requestLabel": "What do you need a quote for?",
+      "sendRequest": "Send request",
+      "mailOpened": "Your email app opened so you can send your inquiry.",
+      "back": "← Back to quotes",
+      "requestEyebrow": "QUOTE REQUEST",
+      "transportHeading": "International road",
+      "land": "transportation",
+      "prepare": "Complete the steps so we can prepare your rate.",
+      "steps": [
+        "Transport type",
+        "Cargo details",
+        "Confirmation"
+      ],
+      "progressAria": "Quote progress",
+      "asideEyebrow": "QUOTE YOUR CARGO WITH US",
+      "asideIntro": "We connect your cargo with a logistics solution tailored to your needs.",
+      "transportStep": "STEP 1 OF 3",
+      "chooseTransport": "Select a transport type",
+      "chooseTransportHelp": "Choose the option that best fits the size of your shipment.",
+      "ftl": "Full truckload transportation",
+      "ftlDetail": "FTL · Exclusive truck",
+      "ltl": "Less-than-truckload transportation",
+      "ltlDetail": "LTL · Shared cargo",
+      "cargoStep": "STEP 2 OF 3",
+      "cargoDetails": "Cargo details",
+      "cargoDetailsHelp": "Enter the route and transportation details.",
+      "equipment": "Equipment type",
+      "select": "Select",
+      "insured": "Would you like to insure the cargo?",
+      "origin": "Origin country",
+      "destination": "Destination country",
+      "selectCountry": "Select a country",
+      "contactStep": "STEP 3 OF 3",
+      "contactDetails": "Contact details",
+      "contactHelp": "Where should we send the quote?",
+      "legalName": "Legal business name",
+      "contactName": "Contact name",
+      "customerType": "Customer type",
+      "companyType": "Company",
+      "individualType": "Individual",
+      "backStep": "Back",
+      "next": "Next",
+      "requestRate": "Request a rate",
+      "sending": "Sending…",
+      "successTitle": "Request received!",
+      "landSuccess": "We registered your road freight quote. Our team can follow up with the details provided.",
+      "oceanSuccess": "Your shipment request has been registered.",
+      "requestNumber": "Request number:",
+      "checkStatus": "Check status",
+      "checking": "Checking…",
+      "status": "Status:",
+      "oceanEyebrow": "AIR AND OCEAN FREIGHT QUOTE",
+      "oceanHeading": "Quote your cargo",
+      "withUs": "with us",
+      "oceanIntro": "Share the main details of your cargo and we will help find the best shipping option.",
+      "routeService": "Route and service",
+      "routeHelp": "Tell us how and where your cargo is moving.",
+      "detailsGoods": "Cargo details",
+      "goodsHelp": "Add information to help prepare your rate.",
+      "contactSectionHelp": "Who should receive updates about this request?",
+      "service": "Shipment type",
+      "maritimeFcl": "Ocean FCL - Full container",
+      "maritimeLcl": "Ocean LCL - Consolidated cargo",
+      "airFreight": "Air freight",
+      "operation": "Operation type",
+      "export": "Export",
+      "import": "Import",
+      "incoterm": "Incoterm",
+      "choose": "Select",
+      "nationalization": "Is customs clearance required?",
+      "yes": "Yes",
+      "no": "No",
+      "descriptionGoods": "Cargo description",
+      "goodsExample": "E.g. automotive parts, textiles, food, medical equipment, etc.",
+      "containerType": "Container type",
+      "container20": "20 ft standard",
+      "container40": "40 ft standard",
+      "container40hc": "40 ft high cube",
+      "refrigerated": "Refrigerated",
+      "notApplicable": "Not applicable / air freight",
+      "quantity": "Number of containers or packages",
+      "dangerous": "Is the cargo dangerous?",
+      "moreDetails": "Additional cargo details",
+      "name": "Name",
+      "companyEmail": "Email",
+      "customerPhone": "Phone number",
+      "sendQuote": "Request a quote",
+      "requested": "Request a rate",
+      "submitError": "Could not submit the request.",
+      "completeRoute": "Complete the origin country, destination country and equipment type.",
+      "completeContact": "Complete your contact details to continue.",
+      "completeContactBeforeSend": "Complete all contact details before submitting.",
+      "validApi": "The API must return JSON.",
+      "invalidApi": "The API returned an invalid response.",
+      "equipmentOptions": {
+        "ftl": [
+          "Full truck",
+          "Box truck",
+          "Flatbed",
+          "Refrigerated"
+        ],
+        "ltl": [
+          "LTL consolidated",
+          "Pallets",
+          "Loose cargo",
+          "Refrigerated"
+        ]
+      },
+      "countries": [
+        "Costa Rica",
+        "Panama",
+        "Nicaragua",
+        "Guatemala",
+        "El Salvador",
+        "Honduras",
+        "Mexico",
+        "United States",
+        "Canada",
+        "China",
+        "Spain",
+        "Colombia",
+        "Chile",
+        "Peru"
+      ],
+      "asideFtl": "Full Truckload Transportation (FTL)",
+      "asideLtl": "Less-than-Truckload Transportation (LTL)",
+      "emailSubject": "Quote inquiry - Castro Fallas",
+      "sourceRegistered": "request registered",
+      "sourceUpdated": "request updated",
+      "checkError": "Could not retrieve the request.",
+      "checkingSession": "Checking your session…",
+      "loginRequired": "Sign in to request a quote.",
+      "loginRequiredHelp": "You can browse as a guest, but requesting a quote requires an authorized account.",
+      "goToLogin": "Sign in",
+      "sessionExpired": "Your session has expired. Please sign in again to continue."
+    },
+    "header": {
+      "language": "Select language",
+      "settings": "Settings",
+      "dark": "Switch to dark mode",
+      "light": "Switch to light mode",
+      "logout": "Sign out",
+      "logoutError": "Could not sign out. Please try again."
+    },
+    "tracking": {
+      "globeAria": "3D world globe with illustrative logistics routes",
+      "mapAria": "Interactive demo world map",
+      "regionalHub": "COSTA RICA · REGIONAL HUB",
+      "globalConnections": "GLOBAL CONNECTIONS",
+      "mapUnavailable": "The interactive map is unavailable in this browser."
+    },
+    "scroll": {
+      "goTop": "Back to top"
+    },
+    "itinerary": {
+      "eyebrow": "SHIPMENT PLANNING",
+      "titleStart": "Your itinerary,",
+      "titleEnd": "step by step.",
+      "intro": "Explore the typical stages of an international logistics operation and how we coordinate each moment of your shipment.",
+      "demoTag": "ITINERARY PREVIEW",
+      "modeLabel": "Select a transport mode",
+      "modes": [
+        "Maritime",
+        "Ground"
+      ],
+      "origin": "Origin",
+      "originDetail": "Pickup coordination and document preparation.",
+      "transit": "International transit",
+      "transitDetails": [
+        "Coordinated ocean loading and discharge ports.",
+        "Coordinated ground departure, transit, and delivery points."
+      ],
+      "destination": "Destination",
+      "destinationDetail": "Clearance and delivery coordinated for your operation.",
+      "timelineTitle": "Itinerary stages",
+      "steps": [
+        {
+          "title": "Origin preparation",
+          "detail": "We review shipment information and arrange pickup."
+        },
+        {
+          "title": "International transport",
+          "detail": "We coordinate the route based on the selected transport mode."
+        },
+        {
+          "title": "Arrival and delivery",
+          "detail": "We follow arrival and coordinate delivery."
+        }
+      ],
+      "ctaTitle": "Planning an international shipment?",
+      "ctaButton": "Request a quote",
+      "backHome": "Back to home",
+      "aria": "Logistics itinerary preview",
+      "dashboard": {
+        "eyebrow": "ITINERARY PREVIEW",
+        "title": "International shipment",
+        "subtitle": "Cargo itinerary overview",
+        "status": "Planning",
+        "routeLabel": "ORIGIN AND DESTINATION",
+        "modeLabel": "TRANSPORT",
+        "stagesLabel": "STAGES",
+        "stages": "stages",
+        "transitLabel": "ROUTE",
+        "tabsLabel": "Shipment sections",
+        "tabs": [
+          "Overview",
+          "Itinerary",
+          "Documents",
+          "Transfers"
+        ],
+        "listEyebrow": "ROUTE PLANNING",
+        "stageColumn": "STAGE",
+        "routeColumn": "ROUTE AND ACTIVITY",
+        "statusColumn": "STATUS",
+        "rows": [
+          {
+            "stage": "Origin preparation",
+            "route": "Logistics center",
+            "detail": "Pickup coordination and cargo documents",
+            "status": "To coordinate"
+          },
+          {
+            "stage": "International transport",
+            "route": "International route",
+            "detail": "Route follow-up and transit connection",
+            "status": "Planned"
+          },
+          {
+            "stage": "Arrival and delivery",
+            "route": "Final destination",
+            "detail": "Clearance and delivery coordination",
+            "status": "Pending"
+          }
+        ]
+      },
+      "table": {
+        "eyebrow": "SHIPMENT DETAILS",
+        "title": "Itinerary information",
+        "columnField": "Field",
+        "columnInformation": "Information",
+        "fields": {
+          "origin": "Origin",
+          "destination": "Destination",
+          "transport": "Transport",
+          "modality": "Modality"
+        },
+        "values": {
+          "origin": "Costa Rica",
+          "destination": "Destination location to be confirmed",
+          "closing": "Cargo receiving deadline to be confirmed",
+          "etd": "Estimated departure date to be confirmed",
+          "eta": "Estimated arrival date to be confirmed",
+          "notApplicable": "Not applicable to this transport mode"
+        },
+        "transportDetails": [
+          {
+            "pol": "Port of loading to be confirmed",
+            "pod": "Port of discharge to be confirmed"
+          },
+          {
+            "pol": "Departure point to be confirmed",
+            "pod": "Delivery point to be confirmed"
+          }
+        ],
+        "modalities": [
+          [
+            "FCL",
+            "LCL"
+          ],
+          [
+            "LTL"
+          ]
+        ]
+      },
+      "form": {
+        "eyebrow": "SHIPMENT DETAILS",
+        "itemTitle": "Itinerary {number}",
+        "status": "Status",
+        "statuses": [
+          "Planning",
+          "In transit",
+          "Delivered",
+          "Delayed"
+        ],
+        "add": "Add another itinerary",
+        "remove": "Remove itinerary",
+        "search": "Search",
+        "resultsEyebrow": "SHIPMENT RESULTS",
+        "resultsTitle": "Itinerary summary",
+        "resultsCount": "itinerary(ies)",
+        "notSpecified": "To be confirmed",
+        "loadingPort": "Port of loading",
+        "unloadingPort": "Port of discharge",
+        "viewDetails": "View details",
+        "hideDetails": "Hide details"
+      }
+    }
+  },
+  "legal": {
+    "footerPrivacy": "Privacy policy",
+    "footerTerms": "Terms and conditions",
+    "footerCookies": "Cookie policy",
+    "footerLicenses": "Credits and licenses"
+  }
+}

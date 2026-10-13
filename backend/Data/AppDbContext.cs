@@ -23,7 +23,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         quote.Property(x => x.CargoType).HasMaxLength(100).IsRequired();
         quote.Property(x => x.WeightKg).HasPrecision(18, 2);
         quote.Property(x => x.Status).HasMaxLength(30).IsRequired();
-        quote.Property(x => x.Notes).HasMaxLength(1000);
+        quote.Property(x => x.Notes).HasColumnType("text");
 
         var cliente = modelBuilder.Entity<Cliente>();
         cliente.ToTable("clientes");

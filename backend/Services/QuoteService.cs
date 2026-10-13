@@ -1,12 +1,17 @@
+using System.Globalization;
+using System.Text.Json;
 using CastroFallas.MiniQuote.Api.Data;
 using CastroFallas.MiniQuote.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using MongoDB.Bson;
+using MongoDB.Driver;
+using StackExchange.Redis;
 
 namespace CastroFallas.MiniQuote.Api.Services;
 
-// Para el entorno local, PostgreSQL es la única fuente de datos.
-// Redis y MongoDB no son necesarios para registrar y consultar cotizaciones.
-public sealed class QuoteService(AppDbContext db, ILogger<QuoteService> logger)
+// PostgreSQL es la fuente de verdad. Redis/Mongo son complementos opcionales:
+// su caída NO afecta la autenticación ni el registro de cotizaciones.
+public sealed class QuoteService(AppDbContext db, ILogger<QuoteService> logger, IServiceProvider services)
 {
     public async Task<QuoteRequest> CreateAsync(CreateQuoteRequest input, Guid clienteId, Guid usuarioId, CancellationToken ct)
     {
@@ -15,22 +20,92 @@ public sealed class QuoteService(AppDbContext db, ILogger<QuoteService> logger)
         {
             ClienteId = clienteId,
             UsuarioId = usuarioId,
-            ServiceType = input.ServiceType.Trim(),
-            Origin = input.Origin.Trim(),
-            Destination = input.Destination.Trim(),
-            CargoType = input.CargoType.Trim(),
+            ServiceType = input.ServiceType!.Trim(),
+            Origin = input.Origin!.Trim(),
+            Destination = input.Destination!.Trim(),
+            CargoType = input.CargoType!.Trim(),
             WeightKg = input.WeightKg,
             Pieces = input.Pieces,
             Notes = string.IsNullOrWhiteSpace(input.Notes) ? null : input.Notes.Trim()
         };
         db.QuoteRequests.Add(quote);
         await db.SaveChangesAsync(ct);
-        logger.LogInformation("Cotización creada: {QuoteId}, cliente {ClienteId}", quote.Id, clienteId);
+        logger.LogInformation("Cotización creada: {QuoteId} para cliente {ClienteId}", quote.Id, clienteId);
+        await TryCacheAsync(quote);
+        await TryLogAsync(quote, ct);
         return quote;
     }
 
     public async Task<(QuoteRequest? Quote, string Source)> GetAsync(Guid id, CancellationToken ct)
-        => (await db.QuoteRequests.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct), "postgres");
+    {
+        try
+        {
+            // Resolver Redis DENTRO del try: la primera conexión puede fallar
+            // incluso antes de pedir datos. PostgreSQL sigue siendo el respaldo.
+            var cache = services.GetService<IConnectionMultiplexer>();
+            if (cache is not null)
+            {
+                var value = await cache.GetDatabase().StringGetAsync(CacheKey(id));
+                if (value.HasValue)
+                {
+                    var quote = JsonSerializer.Deserialize<QuoteRequest>((string)value!);
+                    if (quote is not null && quote.Id == id)
+                        return (quote, "redis");
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Cache Redis no disponible para {QuoteId}", id);
+        }
+        var result = await db.QuoteRequests.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (result is not null) await TryCacheAsync(result);
+        return (result, "postgres");
+    }
+
+    private async Task TryCacheAsync(QuoteRequest quote)
+    {
+        try
+        {
+            var redis = services.GetService<IConnectionMultiplexer>();
+            if (redis is null) return;
+            await redis.GetDatabase().StringSetAsync(CacheKey(quote.Id),
+                JsonSerializer.Serialize(quote), TimeSpan.FromMinutes(10));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "No se pudo cachear la cotización {QuoteId} en Redis", quote.Id);
+        }
+    }
+
+    private async Task TryLogAsync(QuoteRequest quote, CancellationToken ct)
+    {
+        try
+        {
+            var mongo = services.GetService<IMongoDatabase>();
+            if (mongo is null) return;
+            await mongo.GetCollection<ActivityLog>("activity_logs").InsertOneAsync(new ActivityLog
+            {
+                Action = "QuoteCreated",
+                QuoteId = quote.Id.ToString(),
+                Data = new BsonDocument
+                {
+                    { "clientId", quote.ClienteId.ToString() },
+                    { "serviceType", quote.ServiceType },
+                    { "origin", quote.Origin },
+                    { "destination", quote.Destination },
+                    { "weightKg", quote.WeightKg.ToString(CultureInfo.InvariantCulture) },
+                    { "pieces", quote.Pieces }
+                }
+            }, cancellationToken: ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "No se pudo registrar auditoría {QuoteId} en MongoDB", quote.Id);
+        }
+    }
+
+    private static string CacheKey(Guid id) => $"quote:{id:N}";
 
     private static void Validate(CreateQuoteRequest input)
     {
@@ -42,5 +117,6 @@ public sealed class QuoteService(AppDbContext db, ILogger<QuoteService> logger)
         if (string.IsNullOrWhiteSpace(input.CargoType)) throw new ArgumentException("El tipo de carga es obligatorio.");
         if (input.WeightKg <= 0) throw new ArgumentException("El peso debe ser mayor que cero.");
         if (input.Pieces <= 0) throw new ArgumentException("La cantidad de piezas debe ser mayor que cero.");
+        if (input.Notes is { Length: > 8000 }) throw new ArgumentException("Los detalles superan el máximo permitido (8000 caracteres).");
     }
 }
