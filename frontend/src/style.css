@@ -2125,6 +2125,7 @@ html.theme-dark .quote-flow .quote-progress .quote-progress-step.is-active small
 .login-auth-card>.section-tag{display:inline-block}
 .login-auth-intro{margin:0 0 20px}
 .login-auth-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:5px;border:1px solid #e6dfe1;border-radius:14px;background:#fff;margin:23px 0}
+.login-auth-options--two{grid-template-columns:repeat(2,minmax(0,1fr))}
 .login-auth-options button{min-height:42px;border:0;border-radius:10px;background:transparent;color:#53555d;font:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:background .2s,color .2s,box-shadow .2s}
 .login-auth-options button.selected{background:#ad0922;color:#fff;box-shadow:0 5px 14px #ad092233}
 .login-auth-form{display:grid;gap:15px}

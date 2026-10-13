@@ -15,16 +15,8 @@ import SiteFooter from './components/SiteFooter.vue'
 import ScrollProgressButton from './components/ScrollProgressButton.vue'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n({ useScope: 'global' })
-const developerPreviewKey = 'castrofallas-developer-preview'
-const previewParams = new URLSearchParams(window.location.search)
-if (previewParams.get('vista') === 'programadora') {
-  localStorage.setItem(developerPreviewKey, 'true')
-  previewParams.delete('vista')
-  const cleanQuery = previewParams.toString()
-  window.history.replaceState({}, '', `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}${window.location.hash}`)
-}
-const isDeveloperPreview = localStorage.getItem(developerPreviewKey) === 'true'
 const gatedPaths = new Set(['/noticias', '/nosotros', '/servicios', '/tracking', '/itinerario'])
+const pageWasReloaded = (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined)?.type === 'reload'
 const seoByPath: Record<string, { title: string; description: string; indexable?: boolean }> = {
   '/': {
     title: 'Castro Fallas | Agencia aduanal y logística en Costa Rica',
@@ -127,25 +119,23 @@ function applyPageSeo() {
 applyPageSeo()
 const quoteAccess = ref<'checking' | 'allowed' | 'denied'>('checking')
 const requestPath = window.location.pathname.replace(/\/+$/, '') || '/'
-const routeAccess = ref<'checking' | 'ready'>(gatedPaths.has(requestPath) && !isDeveloperPreview ? 'checking' : 'ready')
+const routeAccess = ref<'checking' | 'ready'>('ready')
 const loginNextHref = '/bienvenidos?next=' + encodeURIComponent(window.location.pathname + window.location.search)
 onMounted(async () => {
-  if (gatedPaths.has(requestPath)) {
+  if (pageWasReloaded) {
+    localStorage.removeItem('castrofallas-authenticated')
     localStorage.removeItem('castrofallas-guest-mode')
     sessionStorage.removeItem('castrofallas-guest-mode')
-    if (isDeveloperPreview) {
-      routeAccess.value = 'ready'
-    } else {
-      try {
-        const response = await fetch('/api/auth/me', { credentials: 'same-origin', cache: 'no-store' })
-        if (response.ok) routeAccess.value = 'ready'
-        else window.location.replace('/home')
-      } catch { window.location.replace('/home') }
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin', cache: 'no-store' })
+    } catch { /* Las páginas privadas siguen verificando el acceso en el servidor. */ }
+    if (requestPath !== '/home' && requestPath !== '/') {
+      window.location.replace('/home')
+      return
     }
   }
   if (requestPath === '/cotizaciones') {
-    if (isDeveloperPreview) quoteAccess.value = 'allowed'
-    else try {
+    try {
       const response = await fetch('/api/auth/me', { credentials: 'same-origin', cache: 'no-store' })
       quoteAccess.value = response.ok ? 'allowed' : 'denied'
     } catch { quoteAccess.value = 'denied' }

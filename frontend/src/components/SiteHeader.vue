@@ -12,7 +12,8 @@ const darkMode = ref(false)
 const sessionUser = ref<{ correo: string; nombreCliente: string } | null>(null)
 const loggingOut = ref(false)
 const isAuthenticated = computed(() => !!sessionUser.value)
-const isDeveloperPreview = ref(localStorage.getItem('castrofallas-developer-preview') === 'true')
+// This preference is local to this browser profile; it is not shared with other visitors.
+const pageWasReloaded = (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined)?.type === 'reload'
 const settingsOpen = ref(false)
 const baseLinks = [
   { key: 'servicios', id: 'principal', url: '/home' },
@@ -21,12 +22,11 @@ const baseLinks = [
   { key: 'soluciones', id: 'soluciones', url: '/servicios' }
 ]
 const links = computed(() => baseLinks.map(link => ({ ...link, label: t(`navLinks.${link.key}`) })))
-const visibleLinks = computed(() => links.value.filter(link => isDeveloperPreview.value || isAuthenticated.value || link.id === 'principal'))
+const visibleLinks = computed(() => links.value)
 const cargoLinks = computed(() => [
   { key: 'embarque', id: 'embarque', url: '/tracking', label: t('navLinks.embarque') },
   { key: 'itinerario', id: 'itinerario', url: '/itinerario', label: t('navLinks.itinerario') }
 ])
-const canBrowseSections = computed(() => isDeveloperPreview.value || isAuthenticated.value)
 function syncGuest() {
   localStorage.removeItem('castrofallas-guest-mode')
   sessionStorage.removeItem('castrofallas-guest-mode')
@@ -60,7 +60,7 @@ function handleOutsideClick(event: MouseEvent) {
 
 onMounted(() => {
   syncGuest()
-  void refreshSession()
+  if (!pageWasReloaded) void refreshSession()
   darkMode.value = localStorage.getItem('castrofallas-theme') === 'dark'
   document.documentElement.classList.toggle('theme-dark', darkMode.value)
   document.addEventListener('click', handleOutsideClick)
@@ -83,7 +83,7 @@ function toggleTheme() {
       <button class="menu-toggle" type="button" :aria-expanded="expanded" :aria-label="$t('phrases.p137')" @click="expanded = !expanded"><X v-if="expanded" :size="22" aria-hidden="true" /><Menu v-else :size="22" aria-hidden="true" /></button>
       <nav class="main-nav" :class="{ 'main-nav--open': expanded }" :aria-label="$t('phrases.p136')">
         <a v-for="link in visibleLinks" :key="link.id" :class="{ 'is-active': props.active === link.id }" :href="link.url" @click="expanded = false">{{ link.label }}</a>
-        <div v-if="canBrowseSections" class="nav-dropdown" :class="{ 'nav-dropdown--open': cargoMenuOpen, 'nav-dropdown--active': cargoLinks.some(link => props.active === link.id) }">
+        <div class="nav-dropdown" :class="{ 'nav-dropdown--open': cargoMenuOpen, 'nav-dropdown--active': cargoLinks.some(link => props.active === link.id) }">
           <button class="nav-dropdown__trigger" type="button" :aria-expanded="cargoMenuOpen" @click="cargoMenuOpen = !cargoMenuOpen">
             {{ t('navLinks.embarque') }} <ChevronDown :size="16" class="nav-dropdown__chevron" aria-hidden="true" />
           </button>

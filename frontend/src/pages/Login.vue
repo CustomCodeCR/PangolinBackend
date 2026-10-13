@@ -4,9 +4,10 @@ import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LanguageSwitcher from '../components/LanguageSwitcher.vue'
 const { t } = useI18n({ useScope: 'global' })
+const isLocalDeveloperHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
 
-type Role = 'usuario' | 'cliente'
-const role = ref<Role>('cliente')
+type Role = 'usuario' | 'cliente' | 'invitado'
+const role = ref<Role>(isLocalDeveloperHost ? 'invitado' : 'cliente')
 const email = ref('')
 const dynamics = ref('')
 const otp = ref('')
@@ -91,6 +92,15 @@ async function verifyCode() {
   }
 }
 
+function enterAsGuest() {
+  if (!isLocalDeveloperHost) return
+  localStorage.setItem('castrofallas-developer-preview', 'enabled')
+  localStorage.removeItem('castrofallas-authenticated')
+  localStorage.removeItem('castrofallas-guest-mode')
+  sessionStorage.removeItem('castrofallas-guest-mode')
+  window.location.assign('/home')
+}
+
 function changeRole(next: Role) {
   role.value = next
   step.value = 'identity'
@@ -119,12 +129,17 @@ function changeRole(next: Role) {
         <h2>{{ $t('custom.login.title') }}<span>.</span></h2>
         <p class="login-auth-intro">{{ $t('custom.login.intro') }}</p>
 
-        <div class="login-auth-options" role="group" :aria-label="$t('custom.login.roleAria')">
+        <div :class="['login-auth-options', { 'login-auth-options--two': !isLocalDeveloperHost }]" role="group" :aria-label="$t('custom.login.roleAria')">
           <button type="button" :class="{ selected: role === 'cliente' }" @click="changeRole('cliente')">{{ $t('custom.login.roles.0') }}</button>
           <button type="button" :class="{ selected: role === 'usuario' }" @click="changeRole('usuario')">{{ $t('custom.login.roles.1') }}</button>
+          <button v-if="isLocalDeveloperHost" type="button" :class="{ selected: role === 'invitado' }" @click="changeRole('invitado')">{{ $t('custom.login.roles.2') }}</button>
         </div>
 
-        <form v-if="step === 'identity'" class="login-auth-form" @submit.prevent="requestCode">
+        <div v-if="isLocalDeveloperHost && role === 'invitado'" class="login-auth-form">
+          <p class="login-auth-help">{{ $t('custom.login.guest') }}</p>
+          <button class="login-auth-primary" type="button" @click="enterAsGuest">{{ $t('custom.login.guestButton') }} <IconSymbol glyph="→" /></button>
+        </div>
+        <form v-else-if="step === 'identity'" class="login-auth-form" @submit.prevent="requestCode">
           <label>{{ $t('custom.login.email') }}
             <input v-model="email" required type="email" maxlength="255" autocomplete="email" :placeholder="$t('custom.login.emailPlaceholder')" />
           </label>
