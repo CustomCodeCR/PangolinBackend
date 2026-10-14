@@ -85,7 +85,7 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
           <p class="section-tag center">{{ $t('phrases.p060') }}</p>
           <h2 class="section-title centered">{{ $t('phrases.p061') }} <span>{{ $t('phrases.p062') }}</span></h2>
           <p class="section-desc centered">{{ $t('phrases.p063') }}</p>
-          <div class="access-grid"><a class="access-card access-card--tracking" href="/tracking"><IconSymbol glyph="↗" /><strong>{{ $t('custom.home.trackingTitle') }}</strong><small>{{ $t('phrases.p064') }}</small></a><a class="access-card access-card--quote" href="/cotizaciones"><IconSymbol glyph="➜" /><strong>{{ $t('custom.home.quoteCardTitle') }}</strong><small>{{ $t('phrases.p065') }}</small></a></div>
+          <div class="access-grid"><a class="access-card access-card--tracking" href="/tracking"><IconSymbol glyph="→" /><strong>{{ $t('custom.home.trackingTitle') }}</strong><small>{{ $t('phrases.p064') }}</small></a><a class="access-card access-card--quote" href="/cotizaciones"><IconSymbol glyph="➜" /><strong>{{ $t('custom.home.quoteCardTitle') }}</strong><small>{{ $t('phrases.p065') }}</small></a></div>
         </div>
       </section>
     </main>

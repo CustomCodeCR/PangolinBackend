@@ -13,6 +13,7 @@ import Legal from './pages/Legal.vue'
 import SiteHeader from './components/SiteHeader.vue'
 import SiteFooter from './components/SiteFooter.vue'
 import ScrollProgressButton from './components/ScrollProgressButton.vue'
+import AssistantBot from './components/AssistantBot.vue'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n({ useScope: 'global' })
 const gatedPaths = new Set(['/noticias', '/nosotros', '/servicios', '/tracking', '/itinerario'])
@@ -181,5 +182,6 @@ const page = computed(()=> {
     <SiteFooter/>
   </div>
   <ScrollProgressButton v-if="page !== 'login'" />
+  <AssistantBot v-if="page !== 'login'" />
   </template>
 </template>

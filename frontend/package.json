@@ -6,19 +6,24 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "ws:dev": "node websocket-server.cjs",
+    "ws:test": "node scripts/test-websocket-local.cjs"
   },
   "dependencies": {
     "@lucide/vue": "^1.56.0",
+    "@microsoft/signalr": "^10.0.11",
     "3d-world-map": "^1.4.1",
     "embla-carousel": "^8.6.0",
     "vue": "^3.5.13",
-    "vue-i18n": "^10.0.8"
+    "vue-i18n": "^10.0.8",
+    "ws": "^8.22.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
-    "vue-tsc": "^2.2.0"
+    "vue-tsc": "^2.2.0",
+    "@types/ws": "^8.18.2"
   }
 }

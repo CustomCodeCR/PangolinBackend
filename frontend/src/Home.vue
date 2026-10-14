@@ -56,7 +56,31 @@ const homeNews = computed(() => baseHomeNews.map((item, index) => ({
 
 
 const activeStat = ref(0)
+const newsScroller = ref<HTMLElement | null>(null)
 let statsTimer: number | undefined
+let newsTimer: number | undefined
+let newsPauseUntil = 0
+
+function pauseNews() {
+  newsPauseUntil = Date.now() + 8000
+}
+
+function advanceNews() {
+  const scroller = newsScroller.value
+  if (!scroller || document.hidden || Date.now() < newsPauseUntil ||
+      !window.matchMedia('(max-width: 800px)').matches ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+  const cards = scroller.querySelectorAll<HTMLElement>('.home-news-sidebar__group:first-child .home-hero-news__card')
+  if (cards.length < 2) return
+  const step = cards[1].getBoundingClientRect().left - cards[0].getBoundingClientRect().left
+  if (step <= 0 || scroller.scrollWidth <= scroller.clientWidth) return
+
+  const cycleWidth = step * cards.length
+  if (scroller.scrollLeft >= cycleWidth - 2) scroller.scrollLeft -= cycleWidth
+  const index = Math.round(scroller.scrollLeft / step)
+  scroller.scrollTo({ left: Math.min(scroller.scrollWidth - scroller.clientWidth, (index + 1) * step), behavior: 'smooth' })
+}
 
 function showStat(index: number) {
   activeStat.value = (index + stats.value.length) % stats.value.length
@@ -64,10 +88,12 @@ function showStat(index: number) {
 
 onMounted(() => {
   statsTimer = window.setInterval(() => showStat(activeStat.value + 1), 2500)
+  newsTimer = window.setInterval(advanceNews, 3400)
 })
 
 onUnmounted(() => {
   if (statsTimer) window.clearInterval(statsTimer)
+  if (newsTimer) window.clearInterval(newsTimer)
 })
 </script>
 
@@ -131,7 +157,7 @@ onUnmounted(() => {
                   @mouseenter="activeService = service.key"
                   @focus="activeService = service.key"
                   @click="activeService = service.key"
-                ><span>{{ service.label }}</span></button>
+                ><span class="service-accordion__name">{{ service.label }}</span></button>
                 <div v-if="activeService === service.key" class="service-accordion__panel">
                   <div class="service-accordion__copy">
                     <h3>{{ service.title }}</h3>
@@ -150,7 +176,15 @@ onUnmounted(() => {
               <span>{{ $t('custom.home.newsHeader') }}</span>
               <a href="/noticias">{{ $t('custom.home.allNews') }}</a>
             </div>
-            <div class="home-news-sidebar__list">
+            <div
+              ref="newsScroller"
+              class="home-news-sidebar__list"
+              tabindex="0"
+              :aria-label="$t('custom.home.newsAria')"
+              @touchstart.passive="pauseNews"
+              @pointerdown="pauseNews"
+              @focusin="pauseNews"
+            >
               <div class="home-news-sidebar__track">
                 <div v-for="copy in 2" :key="copy" class="home-news-sidebar__group" :aria-hidden="copy === 2">
                   <a
@@ -285,7 +319,7 @@ onUnmounted(() => {
 
           <div class="access-grid">
             <a class="access-card access-card--tracking" href="/tracking">
-              <IconSymbol glyph="↗" :size="22" />
+              <IconSymbol glyph="→" :size="22" />
               <strong>{{ $t('custom.home.trackingTitle') }}</strong>
               <small>{{ $t('phrases.p064') }}</small>
             </a>

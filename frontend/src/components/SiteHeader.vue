@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ArrowUpRight, ChevronDown, Menu, Moon, Settings, Sun, UserRound, X } from '@lucide/vue'
 import LanguageSwitcher from './LanguageSwitcher.vue'
@@ -7,8 +7,11 @@ import LanguageSwitcher from './LanguageSwitcher.vue'
 const props = defineProps<{ active?: string; overlay?: boolean }>()
 const { t } = useI18n({ useScope: 'global' })
 const expanded = ref(false)
+const headerElement = ref<HTMLElement | null>(null)
+let mobileMenuResizeObserver: ResizeObserver | null = null
 const cargoMenuOpen = ref(false)
 const darkMode = ref(false)
+const systemThemeQuery = window.matchMedia?.('(prefers-color-scheme: dark)')
 const sessionUser = ref<{ correo: string; nombreCliente: string } | null>(null)
 const loggingOut = ref(false)
 const isAuthenticated = computed(() => !!sessionUser.value)
@@ -57,15 +60,45 @@ async function logout() {
 function handleOutsideClick(event: MouseEvent) {
   if (!(event.target as Element).closest('.header-settings')) settingsOpen.value = false
 }
+function applySystemTheme(event?: MediaQueryListEvent) {
+  if (localStorage.getItem('castrofallas-theme')) return
+  darkMode.value = event?.matches ?? !!systemThemeQuery?.matches
+  document.documentElement.classList.toggle('theme-dark', darkMode.value)
+}
+watch(expanded, async isOpen => {
+  const header = headerElement.value
+  const hero = header?.closest<HTMLElement>('.home-hero')
+  if (!header || !hero) return
+  mobileMenuResizeObserver?.disconnect()
+  mobileMenuResizeObserver = null
+  if (!isOpen) {
+    hero.classList.remove('home-hero--menu-open')
+    hero.style.removeProperty('--mobile-open-menu-height')
+    return
+  }
+  await nextTick()
+  const updateMenuHeight = () => hero.style.setProperty('--mobile-open-menu-height', `${header.getBoundingClientRect().height}px`)
+  hero.classList.add('home-hero--menu-open')
+  updateMenuHeight()
+  mobileMenuResizeObserver = new ResizeObserver(updateMenuHeight)
+  mobileMenuResizeObserver.observe(header)
+})
 
 onMounted(() => {
   syncGuest()
   if (!pageWasReloaded) void refreshSession()
-  darkMode.value = localStorage.getItem('castrofallas-theme') === 'dark'
+  const savedTheme = localStorage.getItem('castrofallas-theme')
+  darkMode.value = savedTheme ? savedTheme === 'dark' : !!systemThemeQuery?.matches
   document.documentElement.classList.toggle('theme-dark', darkMode.value)
+  systemThemeQuery?.addEventListener('change', applySystemTheme)
   document.addEventListener('click', handleOutsideClick)
 })
 onUnmounted(() => {
+  mobileMenuResizeObserver?.disconnect()
+  const hero = headerElement.value?.closest<HTMLElement>('.home-hero')
+  hero?.classList.remove('home-hero--menu-open')
+  hero?.style.removeProperty('--mobile-open-menu-height')
+  systemThemeQuery?.removeEventListener('change', applySystemTheme)
   document.removeEventListener('click', handleOutsideClick)
 })
 
@@ -77,7 +110,7 @@ function toggleTheme() {
 </script>
 
 <template>
-  <header class="site-header" :class="{ 'site-header--overlay': props.overlay }">
+  <header ref="headerElement" class="site-header" :class="{ 'site-header--overlay': props.overlay, 'site-header--menu-open': expanded }">
     <div class="header-inner">
       <a class="site-brand" href="/home" :aria-label="$t('phrases.p138')"><img src="/images/logo.png" alt="Castro Fallas" /></a>
       <button class="menu-toggle" type="button" :aria-expanded="expanded" :aria-label="$t('phrases.p137')" @click="expanded = !expanded"><X v-if="expanded" :size="22" aria-hidden="true" /><Menu v-else :size="22" aria-hidden="true" /></button>

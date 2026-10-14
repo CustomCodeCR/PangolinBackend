@@ -1939,6 +1939,8 @@ html.theme-dark .service-accordion__item.is-open .service-accordion__trigger{bac
 .service-accordion__trigger span{position:relative;z-index:1}
 .service-accordion .service-accordion__item.is-open > .service-accordion__trigger{flex:0 0 auto;align-items:center;justify-content:center!important;padding:8px!important;color:#fff!important}
 .service-accordion__item.is-open .service-accordion__trigger span{color:#fff!important;-webkit-text-stroke:0 transparent!important;text-shadow:0 1px 5px rgba(0,0,0,.24)}
+.service-accordion .service-accordion__trigger{transition:background-color .2s,color .2s,border-color .2s}
+.service-accordion .service-accordion__trigger:hover,.service-accordion .service-accordion__trigger:active{transform:none!important}
 
 /* FAQ background: a soft red wash fading into the page color. */
 .faq-section{background:#fff!important;color:#17191e}
@@ -2653,6 +2655,37 @@ html.theme-dark .header-settings__panel .language-switcher__menu::before{backgro
 html.theme-dark .header-settings__panel .language-switcher__menu button,html.theme-dark .header-settings__panel .language-switcher__menu button:hover,html.theme-dark .header-settings__panel .language-switcher__menu button.active{background:transparent!important;color:#fff!important}
 @media(max-width:800px){.header-settings__panel{right:0}.header-settings__trigger{width:38px;height:38px}}
 @media(prefers-reduced-motion:reduce){.header-settings__panel::before,.header-settings__panel .language-switcher__menu::before{animation:none}}
+
+/* GIO keeps its greeting animation enabled at all times. */
+.site-assistant{position:fixed;z-index:1001;inset:auto 0 10px;height:96px;pointer-events:none}
+.site-assistant__mascot{position:absolute;left:12px;bottom:0;display:grid;place-items:end center;width:56px;height:84px;padding:0;border:0;background:transparent;pointer-events:auto;filter:drop-shadow(0 5px 4px rgba(0,0,0,.2))}
+.site-assistant__figure{position:relative;display:block;width:56px;height:84px;overflow:visible}
+.site-assistant__figure-base{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.site-assistant__wave-hand{position:absolute;left:76.17%;top:24.74%;width:23.83%;height:14.32%;object-fit:contain;transform-origin:45.5% 91%;animation:gio-wave-hand .55s ease-in-out infinite alternate}
+.site-assistant__hint{position:absolute;left:54px;bottom:16px;white-space:nowrap;padding:7px 10px;border:1px solid rgba(168,14,24,.25);border-radius:999px;background:#fff;color:#24242a;font-size:10px;font-weight:850;box-shadow:0 4px 15px #0002;opacity:0;transform:translateX(-4px);transition:opacity .18s,transform .18s}
+.site-assistant__mascot:hover .site-assistant__hint,.site-assistant__mascot:focus-visible .site-assistant__hint{opacity:1;transform:translateX(0)}
+.site-assistant--open .site-assistant__mascot{animation-play-state:paused}
+.site-assistant__panel{position:absolute;left:14px;bottom:96px;display:flex;flex-direction:column;width:min(350px,calc(100vw - 28px));max-height:min(68vh,520px);overflow:hidden;pointer-events:auto;border:1px solid rgba(168,14,24,.3);border-radius:20px;background:rgba(255,255,255,.96);color:#22242b;box-shadow:0 18px 55px rgba(0,0,0,.25);backdrop-filter:blur(14px)}
+.site-assistant__header{display:flex;align-items:center;gap:10px;padding:12px 13px;background:linear-gradient(110deg,#a80e18,#77101c);color:#fff}
+.site-assistant__header-icon{display:grid;place-items:center;width:36px;height:36px;border:1px solid #ffffff55;border-radius:12px;background:#ffffff16}
+.site-assistant__heading{display:grid;flex:1;gap:3px;min-width:0}.site-assistant__heading strong{font-size:13px}.site-assistant__heading small{display:flex;align-items:center;gap:5px;font-size:10px;opacity:.86}
+.site-assistant__heading small i{width:7px;height:7px;border-radius:50%;background:#8ff0ab}
+.site-assistant__close{display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:9px;background:#ffffff18;color:#fff}
+.site-assistant__messages{display:flex;flex:1;flex-direction:column;gap:9px;overflow-y:auto;padding:13px 12px 8px}
+.site-assistant__message{max-width:88%;padding:9px 11px;border-radius:13px;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.site-assistant__message p{margin:0}.site-assistant__message--bot{align-self:flex-start;border:1px solid #e9dadd;background:#fff8f8}.site-assistant__message--visitor{align-self:flex-end;background:#a80e18;color:#fff}
+.site-assistant__message a{display:inline-flex;gap:5px;align-items:center;margin-top:6px;color:#a80e18;font-size:11px;font-weight:850;text-decoration:underline}
+.site-assistant__quick{display:flex;gap:6px;overflow-x:auto;padding:5px 11px 9px;scrollbar-width:none}.site-assistant__quick button{flex:0 0 auto;padding:6px 9px;border:1px solid #dcaeb4;border-radius:999px;background:#fff;color:#8e0c1b;font-size:10px;font-weight:800}
+.site-assistant__form{display:flex;gap:7px;padding:9px 10px;border-top:1px solid #ece2e4}.site-assistant__form input{flex:1;min-width:0;height:38px;padding:0 11px;border:1px solid #ded8da;border-radius:11px;background:#fff;color:#22242b;font-size:12px;outline:none}.site-assistant__form input:focus{border-color:#a80e18;box-shadow:0 0 0 3px #a80e1818}
+.site-assistant__form>button{display:grid;place-items:center;width:39px;height:38px;border:0;border-radius:11px;background:#a80e18;color:#fff}.site-assistant__form>button:disabled{opacity:.45;cursor:not-allowed}
+html.theme-dark .site-assistant__panel{border-color:#ffffff32;background:rgba(12,19,35,.97);color:#fff}
+html.theme-dark .site-assistant__message--bot{border-color:#ffffff22;background:#17233a;color:#fff}
+html.theme-dark .site-assistant__message a{color:#ff8391}
+html.theme-dark .site-assistant__form{border-color:#ffffff1f}
+html.theme-dark .site-assistant__form input{border-color:#ffffff30;background:#0b1222;color:#fff}
+html.theme-dark .site-assistant__quick button{border-color:#ff7583;background:#191f31;color:#fff}
+@keyframes gio-wave-hand{from{transform:rotate(-9deg)}to{transform:rotate(9deg)}}
+@media(max-width:580px){.site-assistant{bottom:6px;height:82px}.site-assistant__mascot{left:7px;width:48px;height:72px}.site-assistant__figure{width:48px;height:72px}.site-assistant__panel{left:9px;bottom:82px;width:min(345px,calc(100vw - 18px));max-height:65vh}.site-assistant__hint{left:46px;bottom:12px}}
 html.theme-dark .itinerary-cta .btn-white,
 html.theme-dark .itinerary-cta .btn-white span{color:#111!important}
 html.theme-dark .itinerary-back{color:#fff!important}
@@ -2662,6 +2695,81 @@ html.theme-dark .itinerary-back{color:#fff!important}
 .itinerary-hero::after{z-index:1;bottom:-105px;height:285px;background:linear-gradient(180deg,transparent 0%,rgba(255,248,248,.78) 68%,var(--itinerary-bg) 100%)}
 .itinerary-hero__content{z-index:2}
 html.theme-dark .itinerary-hero::after{background:linear-gradient(180deg,transparent 0%,rgba(1,8,29,.78) 68%,var(--itinerary-bg) 100%)}
+
+/* GIO: panel claro tipo asistente, con contraste ajustado al tema y accesos en filas. */
+.site-assistant__panel {
+  --gio-surface: #fff;
+  --gio-ink: #17233a;
+  --gio-muted: #657084;
+  --gio-line: #d8e0ea;
+  --gio-bubble: #eef2f7;
+  --gio-action: #fff;
+  --gio-action-hover: #f7eef0;
+  background: var(--gio-surface);
+  color: var(--gio-ink);
+}
+
+.site-assistant__header {
+  background: #f3f6fa;
+  color: var(--gio-ink);
+  border-bottom: 1px solid var(--gio-line);
+}
+
+.site-assistant__header-icon {
+  border-color: #a80e1833;
+  background: #fff;
+  color: #a80e18;
+}
+
+.site-assistant__heading small { color: var(--gio-muted); opacity: 1; }
+.site-assistant__close { background: #e9edf3; color: var(--gio-ink); }
+.site-assistant__message--bot { border-color: var(--gio-line); background: var(--gio-bubble); color: var(--gio-ink); }
+.site-assistant__quick { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 7px 11px 11px; }
+.site-assistant__quick button {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 13px;
+  border: 1px solid var(--gio-line);
+  border-radius: 13px;
+  background: var(--gio-action);
+  color: var(--gio-ink);
+  font-size: 13px;
+  font-weight: 750;
+  text-align: left;
+  transition: border-color .18s, background .18s, transform .18s;
+}
+.site-assistant__quick button svg { flex: 0 0 auto; color: #a80e18; }
+.site-assistant__quick button:hover { border-color: #a80e1870; background: var(--gio-action-hover); transform: translateY(-1px); }
+.site-assistant__form { border-color: var(--gio-line); }
+.site-assistant__form input { border-color: var(--gio-line); background: var(--gio-surface); color: var(--gio-ink); }
+.site-assistant__form input::placeholder { color: var(--gio-muted); }
+
+html.theme-dark .site-assistant__panel {
+  --gio-surface: #101a2d;
+  --gio-ink: #f4f6fb;
+  --gio-muted: #b6c0d1;
+  --gio-line: #344158;
+  --gio-bubble: #1a2740;
+  --gio-action: #121f35;
+  --gio-action-hover: #202e47;
+}
+html.theme-dark .site-assistant__header {
+  background: linear-gradient(110deg, #a80e18, #77101c);
+  border-color: #ffffff22;
+  color: #fff;
+}
+html.theme-dark .site-assistant__header-icon { border-color: #ffffff55; background: #ffffff16; color: #fff; }
+html.theme-dark .site-assistant__heading small { color: #fff; }
+html.theme-dark .site-assistant__close { background: #ffffff18; color: #fff; }
+html.theme-dark .site-assistant__message--bot { border-color: var(--gio-line); background: var(--gio-bubble); color: var(--gio-ink); }
+html.theme-dark .site-assistant__quick button { border-color: var(--gio-line); background: var(--gio-action); color: var(--gio-ink); }
+html.theme-dark .site-assistant__quick button svg { color: #ff8391; }
+html.theme-dark .site-assistant__quick button:hover { border-color: #ff839180; background: var(--gio-action-hover); }
+html.theme-dark .site-assistant__form { border-color: var(--gio-line); }
+html.theme-dark .site-assistant__form input { border-color: var(--gio-line); background: #0b1426; color: var(--gio-ink); }
 
 /* Keep the itinerary page on one warm canvas; the global app gradient was
    restarting on <main> and creating the visible blue horizontal block. */
@@ -2826,8 +2934,10 @@ html:not(.theme-dark) .news-editorial-hero__fade{background:linear-gradient(90de
 .news-editorial-card__image{position:relative;height:218px;overflow:hidden;background:#131b2c}
 .news-editorial-card--lead .news-editorial-card__image{height:100%;min-height:300px}
 .news-editorial-card__image img{width:100%;height:100%;object-fit:cover;transition:transform .4s}
+.news-editorial-card__image::after{position:absolute;z-index:1;inset:auto 0 0;height:48%;content:"";background:linear-gradient(180deg,transparent,rgba(8,15,29,.38));-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);-webkit-mask-image:linear-gradient(180deg,transparent 0%,rgba(0,0,0,.42) 34%,#000 100%);mask-image:linear-gradient(180deg,transparent 0%,rgba(0,0,0,.42) 34%,#000 100%);pointer-events:none;transition:height .3s,opacity .3s}
+.news-editorial-card:hover .news-editorial-card__image::after{height:56%;opacity:.92}
 .news-editorial-card:hover .news-editorial-card__image img{transform:scale(1.04)}
-.news-editorial-card__image>span{position:absolute;top:14px;left:14px;display:grid;place-items:center;width:34px;height:34px;border:1px solid rgba(255,255,255,.72);border-radius:50%;background:rgba(8,15,29,.3);color:#fff;font-size:10px;font-weight:900;backdrop-filter:blur(8px)}
+.news-editorial-card__image>span{position:absolute;z-index:2;top:14px;left:14px;display:grid;place-items:center;width:34px;height:34px;border:1px solid rgba(255,255,255,.72);border-radius:50%;background:rgba(8,15,29,.3);color:#fff;font-size:10px;font-weight:900;backdrop-filter:blur(8px)}
 .news-editorial-card__copy{display:flex;flex-direction:column;align-items:flex-start;padding:22px 22px 24px}
 .news-editorial-card--lead .news-editorial-card__copy{justify-content:center;padding:clamp(24px,3vw,42px)}
 .news-editorial-card__copy .section-tag{margin:0;color:#b20b2d;font-size:9px}
@@ -3593,4 +3703,445 @@ html.theme-dark .app-site.news-page .news-editorial-hero__bottomline-rule {
   border-color: #b10b25;
   background: #fff;
   color: #b10b25;
+}
+
+/* Eleva el bloque del hero y su leyenda vertical, sin cambiar su diseño. */
+@media (min-width: 581px) {
+  .home-hero .home-hero__content {
+    transform: translateY(-60px);
+  }
+
+  .home-hero .hero-vertical-text {
+    bottom: calc(clamp(150px, 14vh, 200px) + 60px);
+  }
+}
+
+@media (max-width: 580px) {
+  .home-hero .home-hero__content {
+    transform: translateY(-36px);
+  }
+}
+
+/* Gio conserva sus proporciones y queda al tamaño del botón circular de la flecha. */
+.site-assistant {
+  bottom: 25px;
+}
+
+.site-assistant__mascot,
+.site-assistant__figure {
+  width: 65px;
+  height: 97.5px;
+}
+
+.site-assistant__mascot {
+  left: 12px;
+}
+
+@media (max-width: 580px) {
+  .site-assistant {
+    bottom: 12px;
+  }
+
+  .site-assistant__mascot,
+  .site-assistant__figure {
+    width: 55px;
+    height: 82.5px;
+  }
+}
+
+.site-assistant__wave-hand {
+  left: 74.5%;
+  top: 24.1%;
+  width: 25.5%;
+  height: 15.3%;
+}
+
+/* ===================================================================
+   HOME MOVIL: acordeón VERTICAL que se abre lateralmente + noticias
+   horizontales con avance JS. Aislado del diseño de escritorio.
+   =================================================================== */
+.service-accordion__indicator { display: none; }
+
+@media (max-width: 800px) {
+  .app-site #servicios .service-accordion {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: stretch;
+    width: 100%;
+    height: 395px;
+    min-height: 395px;
+    gap: 7px;
+    margin-top: 26px;
+    padding: 0;
+    overflow: hidden;
+    scroll-snap-type: none;
+  }
+  .app-site #servicios .service-accordion__item {
+    flex: 0 0 48px;
+    display: block;
+    width: auto;
+    min-width: 0;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 15px;
+    background: #fff6f7;
+    border: 1px solid #dbbbc3;
+    transition: flex-grow .38s ease, flex-basis .38s ease, background .25s ease;
+  }
+  .app-site #servicios .service-accordion__item.is-open {
+    flex: 1 1 0;
+    min-width: 0;
+    background: #fdf5f6;
+    border-color: #bb1435;
+  }
+  /* En los dos modos, la tarjeta cerrada es una pestaña estrecha y vertical. */
+  .app-site #servicios .service-accordion__item:not(.is-open)::before { opacity: .09; }
+  .app-site #servicios .service-accordion__item:not(.is-open)::after { opacity: 0; }
+  /* Claro: misma fotografía visible que en escritorio, sin película blanca. */
+  html:not(.theme-dark) .app-site #servicios .service-accordion__item.is-open::before { opacity: 1; }
+  html:not(.theme-dark) .app-site #servicios .service-accordion__item.is-open::after {
+    opacity: 1;
+    background: linear-gradient(180deg,
+      rgba(3,8,18,.06) 0%,
+      rgba(3,8,18,.08) 35%,
+      rgba(3,8,18,.76) 100%);
+  }
+
+  .app-site #servicios .service-accordion__trigger,
+  .app-site #servicios .service-accordion .service-accordion__item.is-open > .service-accordion__trigger {
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center !important;
+    flex: none;
+    width: 48px;
+    height: 100%;
+    min-height: 0;
+    padding: 5px !important;
+    border: 0;
+    border-right: 1px solid rgba(172, 13, 45, .20);
+    background: transparent !important;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .app-site #servicios .service-accordion__item.is-open > .service-accordion__trigger {
+    background: #b20b2d !important;
+    border-right-color: rgba(255, 255, 255, .22);
+  }
+  .app-site #servicios .service-accordion__trigger .service-accordion__name,
+  html:not(.theme-dark) .app-site #servicios .service-accordion__item:not(.is-open) .service-accordion__trigger .service-accordion__name {
+    position: relative;
+    display: block;
+    width: max-content;
+    max-width: none;
+    transform: rotate(180deg) !important;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    white-space: nowrap;
+    font: 900 clamp(13px, 3.5vw, 17px)/1.1 system-ui, sans-serif;
+    letter-spacing: .095em;
+    text-align: center;
+    text-shadow: none;
+    color: #ae1230 !important;
+    -webkit-text-fill-color: #ae1230 !important;
+    -webkit-text-stroke: 0 !important;
+    pointer-events: none;
+  }
+  .app-site #servicios .service-accordion__item.is-open .service-accordion__trigger .service-accordion__name,
+  html.theme-dark .app-site #servicios .service-accordion__trigger .service-accordion__name {
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+  }
+  .app-site #servicios .service-accordion__indicator { display: none; }
+  .app-site #servicios .service-accordion__panel {
+    position: absolute;
+    z-index: 3;
+    inset: 0 0 0 48px;
+    display: flex;
+    align-items: flex-end;
+    flex: none;
+    width: auto;
+    height: 100%;
+    min-height: 0;
+    padding: 17px 12px 18px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* Sin velo blanco: oscurecimiento puntual queda en ::after, detrás del texto. */
+    background: transparent;
+  }
+  .app-site #servicios .service-accordion__copy { width: 100%; max-width: none; min-width: 0; }
+  .app-site #servicios .service-accordion__copy h3 {
+    margin: 0 0 9px;
+    color: #fff !important;
+    text-shadow: 0 2px 9px rgba(0,0,0,.6);
+    font-size: clamp(16px, 4.3vw, 24px);
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+  .app-site #servicios .service-accordion__copy p {
+    margin-bottom: 14px;
+    color: #fff !important;
+    font-size: clamp(11px, 3vw, 14px);
+    line-height: 1.48;
+    text-shadow: 0 2px 8px rgba(0,0,0,.65);
+  }
+  .app-site #servicios .service-accordion__copy .btn {
+    display: inline-flex;
+    width: fit-content;
+    min-width: 0;
+    min-height: 36px;
+    max-width: 100%;
+    padding: 8px 9px;
+    gap: 6px;
+    font-size: clamp(9px, 2.5vw, 11px);
+    line-height: 1.15;
+    white-space: nowrap;
+    position: relative;
+    z-index: 4;
+  }
+  .app-site #servicios .service-accordion__trigger:focus-visible { outline: 3px solid #f55c75; outline-offset: -3px; }
+
+  /* Oscuro: fondo profundo y tipografía clara (el modo claro arriba es blanco). */
+  html.theme-dark .app-site #servicios .service-accordion__item,
+  html.theme-dark .app-site #servicios .service-accordion__item.is-open {
+    background: #141e35;
+    border-color: #80283c;
+  }
+  html.theme-dark .app-site #servicios .service-accordion__item.is-open::before { opacity: .77; }
+  html.theme-dark .app-site #servicios .service-accordion__item.is-open::after {
+    opacity: 1;
+    background: linear-gradient(to bottom, rgba(3,8,20,.23), rgba(3,8,20,.82));
+  }
+  html.theme-dark .app-site #servicios .service-accordion__panel { background: transparent; }
+  html.theme-dark .app-site #servicios .service-accordion__copy h3,
+  html.theme-dark .app-site #servicios .service-accordion__copy p { color: #fff !important; }
+
+  /* Noticias con scroll horizontal táctil y avance automático desde Home.vue. */
+  .app-site #servicios .home-news-sidebar {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    height: auto !important;
+    min-height: 0;
+    padding: 16px 12px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, .18);
+    border-color: rgba(255, 255, 255, .3);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, .1), inset 0 1px 0 rgba(255, 255, 255, .32), inset 0 -1px 0 rgba(255, 255, 255, .1);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    mask-image: none;
+  }
+  html.theme-dark .app-site #servicios .home-news-sidebar {
+    background: rgba(8, 15, 30, .36);
+    border-color: rgba(255, 255, 255, .28);
+  }
+  .app-site #servicios .home-news-sidebar__list {
+    position: relative;
+    display: block;
+    flex: 0 0 auto;
+    width: 100%;
+    height: 200px !important;
+    min-height: 200px !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    touch-action: pan-x;
+    -webkit-overflow-scrolling: touch;
+    outline-offset: 2px;
+  }
+  .app-site #servicios .home-news-sidebar__list::-webkit-scrollbar { display: none; }
+  .app-site #servicios .home-news-sidebar__track {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    width: max-content;
+    height: 100%;
+    gap: 0;
+    animation: none !important;
+    transform: none !important;
+  }
+  .app-site #servicios .home-news-sidebar__group,
+  .app-site #servicios .home-news-sidebar__group:nth-child(2) {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: stretch;
+    width: max-content;
+    height: 100%;
+    gap: 12px;
+    padding: 0 12px 0 0;
+  }
+  .app-site #servicios .home-news-sidebar__group .home-hero-news__card,
+  .app-site #servicios .home-news-sidebar__list .home-hero-news__card {
+    position: relative;
+    inset: auto;
+    display: block;
+    flex: 0 0 clamp(195px, 70vw, 290px);
+    width: clamp(195px, 70vw, 290px);
+    max-width: none;
+    height: 195px;
+    min-height: 195px;
+    aspect-ratio: auto;
+    border-radius: 13px;
+    scroll-snap-align: start;
+  }
+  .app-site #servicios .home-news-sidebar .home-hero-news__header { color: #272b34; }
+  .app-site #servicios .home-news-sidebar .home-hero-news__header a { color: #a20a27; }
+  html.theme-dark .app-site #servicios .home-news-sidebar .home-hero-news__header { color: #fff !important; }
+  html.theme-dark .app-site #servicios .home-news-sidebar .home-hero-news__header a { color: #ff7188 !important; }
+  .app-site #servicios .home-news-sidebar__list .home-hero-news__copy { left: 12px; right: 12px; bottom: 12px; }
+  .app-site #servicios .home-news-sidebar__list .home-hero-news__copy strong { font-size: 13px; }
+}
+
+@media (max-width: 360px) {
+  .app-site #servicios .service-accordion { height: 420px; min-height: 420px; gap: 5px; }
+  .app-site #servicios .service-accordion__item { flex-basis: 41px; }
+  .app-site #servicios .service-accordion__trigger,
+  .app-site #servicios .service-accordion .service-accordion__item.is-open > .service-accordion__trigger { width: 41px; }
+  .app-site #servicios .service-accordion__panel { left: 41px; padding-inline: 9px; }
+  .app-site #servicios .service-accordion__copy h3 { font-size: 16px; }
+  .app-site #servicios .service-accordion__copy p { font-size: 11px; }
+}
+
+/* NAV MÓVIL: al abrir hamburguesa, la barra superior y el panel usan
+   exactamente el mismo rojo (también encima del hero con overlay). */
+@media (max-width: 1080px) {
+  /* The menu stays in page flow and pushes following content down. */
+  .site-header.site-header--menu-open {
+    position: relative !important;
+    z-index: 1000 !important;
+    height: auto !important;
+    background: #9f0921 !important;
+  }
+  .home-hero:has(.site-header.site-header--menu-open) .site-header.site-header--menu-open.site-header--overlay {
+    position: fixed !important;
+    inset: 0 auto auto 0;
+    width: 100%;
+    top: 0 !important;
+    margin: 0;
+  }
+  .home-hero.home-hero--menu-open { padding-top: var(--mobile-open-menu-height, 0px); }
+  .site-header.site-header--menu-open .header-inner {
+    width: 100%;
+    height: auto;
+    min-height: 72px;
+    padding-inline: max(18px, calc((100vw - 900px) / 2));
+    flex-wrap: wrap;
+    gap: 0;
+  }
+  .site-header.site-header--menu-open .main-nav.main-nav--open {
+    position: static;
+    width: 100%;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    padding: 16px 0 max(24px, env(safe-area-inset-bottom));
+    background: transparent !important;
+    box-shadow: none;
+  }
+  .site-header.site-header--menu-open .main-nav.main-nav--open > a:not(.nav-login),
+  .site-header.site-header--menu-open .main-nav.main-nav--open .nav-dropdown__trigger {
+    border-bottom: 1px solid rgba(255, 255, 255, .68) !important;
+  }
+  .site-header.site-header--menu-open .main-nav.main-nav--open .nav-dropdown__menu {
+    margin: 0 15px 8px;
+    padding: 8px;
+    border: 1px solid rgba(255, 255, 255, .2) !important;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, .12) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 12px 30px rgba(45, 0, 12, .12) !important;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  .site-header.site-header--menu-open .main-nav.main-nav--open .nav-dropdown__menu a,
+  html.theme-dark .site-header.site-header--menu-open .main-nav.main-nav--open .nav-dropdown__menu a {
+    color: #fff !important;
+  }
+  .site-header.site-header--menu-open .main-nav.main-nav--open .nav-dropdown__menu a:hover {
+    background: rgba(255, 255, 255, .14) !important;
+  }
+}
+
+/* Keep the mobile settings popover beside the welcome action and its gear. */
+@media (max-width: 800px) {
+  .site-header.site-header--menu-open .header-account-tools:has(.header-settings--open) {
+    display: grid !important;
+    grid-template-columns: max-content 38px minmax(170px, 220px);
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin: 10px 0 6px;
+  }
+  .site-header.site-header--menu-open .header-settings--open { display: contents; }
+  .site-header.site-header--menu-open .header-settings--open .header-settings__trigger {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: center;
+  }
+  .site-header.site-header--menu-open .header-settings--open .header-settings__panel {
+    position: relative;
+    top: auto;
+    right: auto;
+    grid-column: 3;
+    grid-row: 1;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    margin: 0;
+  }
+  .site-header.site-header--menu-open .header-account-tools > .nav-login {
+    padding: 10px 12px;
+    font-size: 11px;
+  }
+}
+@media (max-width: 380px) {
+  .site-header.site-header--menu-open .header-account-tools:has(.header-settings--open) {
+    grid-template-columns: max-content 36px minmax(145px, 1fr);
+    gap: 6px;
+  }
+  .site-header.site-header--menu-open .header-settings__panel .theme-toggle span { font-size: 10px; }
+}
+
+
+/* Móvil: mismo rojo sólido de las pestañas de servicios que en escritorio.
+   Se aplica en modo claro y oscuro sin alterar la fotografía seleccionada. */
+@media (max-width: 800px) {
+  .app-site #servicios .service-accordion__item:not(.is-open),
+  html.theme-dark .app-site #servicios .service-accordion__item:not(.is-open) {
+    background: #b20b2d;
+    border-color: #c32141;
+  }
+
+  /* No mezclar imágenes atenuadas sobre el fondo de la pestaña cerrada. */
+  .app-site #servicios .service-accordion__item:not(.is-open)::before,
+  .app-site #servicios .service-accordion__item:not(.is-open)::after {
+    opacity: 0;
+  }
+
+  /* También se pinta de rojo la franja vertical del servicio abierto. */
+  .app-site #servicios .service-accordion__trigger,
+  .app-site #servicios .service-accordion .service-accordion__item.is-open > .service-accordion__trigger,
+  html.theme-dark .app-site #servicios .service-accordion__trigger,
+  html.theme-dark .app-site #servicios .service-accordion .service-accordion__item.is-open > .service-accordion__trigger {
+    background: #b20b2d !important;
+    border-right-color: rgba(255, 255, 255, .22);
+  }
+
+  /* Los nombres verticales contrastan sobre rojo en ambos temas. */
+  .app-site #servicios .service-accordion__trigger .service-accordion__name,
+  html:not(.theme-dark) .app-site #servicios .service-accordion__item:not(.is-open) .service-accordion__trigger .service-accordion__name,
+  html.theme-dark .app-site #servicios .service-accordion__trigger .service-accordion__name {
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    -webkit-text-stroke: 0 !important;
+  }
 }
