@@ -7,11 +7,25 @@ import SiteFooter from '../components/SiteFooter.vue'
 
 type TransportMode = 'maritime' | 'ground'
 type ItineraryStatus = 'planning' | 'transit' | 'delivered' | 'delayed'
+// Formulario de búsqueda: id numérico local (NO es un registro de PostgreSQL).
 type Itinerary = {
   id: number
   pol: string
   pod: string
   closing: string
+  status: ItineraryStatus | ''
+  etd: string
+  eta: string
+  transport: TransportMode
+  modality: string
+}
+
+// Registro devuelto por la API /api/itinerarios. Su id es UUID (string).
+type ItineraryResultado = {
+  id: string
+  pol: string
+  pod: string
+  closing: string | null
   status: ItineraryStatus
   etd: string
   eta: string
@@ -33,10 +47,13 @@ const activeItineraryId = ref(1)
 const activeItinerary = computed(() => itineraries.value.find(item => item.id === activeItineraryId.value) ?? itineraries.value[0])
 const searchPerformed = ref(false)
 const resultsRef = ref<HTMLElement | null>(null)
-const expandedResultId = ref<number | null>(null)
+const expandedResultId = ref<string | null>(null)
+const resultados = ref<ItineraryResultado[]>([])
+const cargando = ref(false)
+const errorBusqueda = ref('')
 
 function createItinerary(id: number): Itinerary {
-  return { id, pol: '', pod: '', closing: '', status: 'planning', etd: '', eta: '', transport: 'maritime', modality: 'FCL' }
+  return { id, pol: '', pod: '', closing: '', status: '', etd: '', eta: '', transport: 'maritime', modality: '' }
 }
 
 function optionsFor(item: Itinerary) {
@@ -48,7 +65,7 @@ function portPlaceholder(item: Itinerary, port: 'pol' | 'pod') {
 }
 
 function changeTransport(item: Itinerary) {
-  item.modality = optionsFor(item)[0]
+  item.modality = ''
 }
 
 function selectTransport(mode: TransportMode) {
@@ -72,10 +89,49 @@ function statusLabel(status: ItineraryStatus) {
 }
 
 async function searchItineraries() {
+  const f = activeItinerary.value
+  if (!f || cargando.value) return
+
+  const qs = new URLSearchParams()
+  if (f.pol.trim()) qs.set('pol', f.pol.trim())
+  if (f.pod.trim()) qs.set('pod', f.pod.trim())
+  if (f.closing) qs.set('closing', f.closing)
+  if (f.etd) qs.set('etd', f.etd)
+  if (f.eta) qs.set('eta', f.eta)
+  if (f.status) qs.set('status', f.status)
+  if (f.transport) qs.set('transporte', f.transport)
+  if (f.modality) qs.set('modalidad', f.modality)
+
+  cargando.value = true
+  errorBusqueda.value = ''
+  resultados.value = []
   searchPerformed.value = true
   expandedResultId.value = null
-  await nextTick()
-  resultsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+  try {
+    const response = await fetch(`/api/itinerarios?${qs.toString()}`, {
+      credentials: 'same-origin',
+      cache: 'no-store',
+    })
+
+    // El endpoint de la guía requiere una sesión válida.
+    if (response.status === 401) {
+      window.location.assign('/bienvenidos?next=' + encodeURIComponent(window.location.pathname + window.location.search))
+      return
+    }
+    if (!response.ok) throw new Error(`No se pudieron consultar itinerarios (${response.status}).`)
+
+    const data: unknown = await response.json()
+    if (!Array.isArray(data)) throw new Error('La API devolvió un formato inesperado.')
+    resultados.value = data as ItineraryResultado[]
+  } catch (error) {
+    errorBusqueda.value = error instanceof Error ? error.message : 'Error desconocido.'
+    resultados.value = []
+  } finally {
+    cargando.value = false
+    await nextTick()
+    resultsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 }
 </script>
 
@@ -110,27 +166,30 @@ async function searchItineraries() {
         </header>
 
         <div class="itinerary-form-lines">
-          <label class="itinerary-form-line"><strong>{{ t('custom.itinerary.form.status') }}</strong><select v-model="item.status"><option v-for="status in statuses" :key="status.value" :value="status.value">{{ status.label }}</option></select></label>
+          <label class="itinerary-form-line"><strong>{{ t('custom.itinerary.form.status') }}</strong><select v-model="item.status"><option value="">Todos</option><option v-for="status in statuses" :key="status.value" :value="status.value">{{ status.label }}</option></select></label>
           <label class="itinerary-form-line"><strong>POL</strong><input v-model="item.pol" type="text" :placeholder="portPlaceholder(item, 'pol')" /></label>
           <label class="itinerary-form-line"><strong>POD</strong><input v-model="item.pod" type="text" :placeholder="portPlaceholder(item, 'pod')" /></label>
           <label class="itinerary-form-line"><strong>Closing</strong><input v-model="item.closing" type="date" /></label>
           <label class="itinerary-form-line"><strong>ETD</strong><input v-model="item.etd" type="date" /></label>
           <label class="itinerary-form-line"><strong>ETA</strong><input v-model="item.eta" type="date" /></label>
-          <label class="itinerary-form-line"><strong>{{ labels.modality }}</strong><select v-model="item.modality"><option v-for="option in optionsFor(item)" :key="option" :value="option">{{ option }}</option></select></label>
+          <label class="itinerary-form-line"><strong>{{ labels.modality }}</strong><select v-model="item.modality"><option value="">Todas</option><option v-for="option in optionsFor(item)" :key="option" :value="option">{{ option }}</option></select></label>
         </div>
         </template>
       </section>
 
       <div class="itinerary-actions">
-        <button class="itinerary-search-button" type="button" @click="searchItineraries"><IconSymbol glyph="⌕" aria-hidden="true" />{{ t('custom.itinerary.form.search') }}</button>
+        <button class="itinerary-search-button" type="button" :disabled="cargando" @click="searchItineraries"><IconSymbol glyph="⌕" aria-hidden="true" />{{ cargando ? 'Buscando…' : t('custom.itinerary.form.search') }}</button>
       </div>
 
       <section v-if="searchPerformed" ref="resultsRef" class="itinerary-search-results" aria-live="polite">
         <header class="itinerary-search-results__heading">
           <div><p class="section-tag">{{ t('custom.itinerary.form.resultsEyebrow') }}</p><h2>{{ t('custom.itinerary.form.resultsTitle') }}</h2></div>
-          <span>{{ itineraries.length }} {{ t('custom.itinerary.form.resultsCount') }}</span>
+          <span>{{ resultados.length }} {{ t('custom.itinerary.form.resultsCount') }}</span>
         </header>
-        <article v-for="(item, index) in itineraries" :key="item.id" class="itinerary-result-card">
+        <p v-if="cargando" role="status">Consultando itinerarios…</p>
+        <p v-else-if="errorBusqueda" role="alert">{{ errorBusqueda }}</p>
+        <p v-else-if="resultados.length === 0">No se encontraron itinerarios con esos filtros.</p>
+        <article v-for="(item, index) in (!cargando && !errorBusqueda ? resultados : [])" :key="item.id" class="itinerary-result-card">
           <div class="itinerary-result-card__status">
             <small>{{ t('custom.itinerary.form.status') }}</small>
             <strong>{{ t('custom.itinerary.form.itemTitle', { number: String(index + 1).padStart(2, '0') }) }}</strong>

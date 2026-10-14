@@ -4145,3 +4145,17 @@ html.theme-dark .app-site.news-page .news-editorial-hero__bottomline-rule {
     -webkit-text-stroke: 0 !important;
   }
 }
+
+
+/* Corregir fondo superior del menú móvil en Noticias */
+@media (max-width: 1080px) {
+  .app-site.news-page .news-editorial-hero
+  > .site-header.site-header--overlay.site-header--menu-open {
+    position: absolute !important;
+    top: 0 !important;
+    right: 0;
+    left: 0 !important;
+    width: 100%;
+    background: #9f0921 !important;
+  }
+}

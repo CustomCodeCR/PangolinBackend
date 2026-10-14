@@ -11,6 +11,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<Usuario> Usuarios => Set<Usuario>();
     public DbSet<OtpChallenge> OtpChallenges => Set<OtpChallenge>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
+    public DbSet<Itinerario> Itinerarios => Set<Itinerario>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -79,5 +80,24 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         session.Property(x => x.ExpiresAt).HasColumnName("expires_at");
         session.Property(x => x.RevokedAt).HasColumnName("revoked_at");
         session.HasOne(x => x.Usuario).WithMany().HasForeignKey(x => x.UsuarioId).OnDelete(DeleteBehavior.Cascade);
+
+
+        var itinerario = modelBuilder.Entity<Itinerario>();
+        itinerario.ToTable("itinerarios", "public");
+        itinerario.HasKey(x => x.Id);
+        itinerario.Property(x => x.Id).HasColumnName("id");
+        itinerario.Property(x => x.Pol).HasColumnName("pol").HasMaxLength(150).IsRequired();
+        itinerario.Property(x => x.Pod).HasColumnName("pod").HasMaxLength(150).IsRequired();
+        itinerario.Property(x => x.Closing).HasColumnName("closing").HasColumnType("date");
+        itinerario.Property(x => x.Etd).HasColumnName("etd").HasColumnType("date");
+        itinerario.Property(x => x.Eta).HasColumnName("eta").HasColumnType("date");
+        itinerario.Property(x => x.Status).HasColumnName("status").HasMaxLength(20).IsRequired();
+        itinerario.Property(x => x.Transporte).HasColumnName("transporte").HasMaxLength(20).IsRequired();
+        itinerario.Property(x => x.Modalidad).HasColumnName("modalidad").HasMaxLength(3).IsRequired();
+        itinerario.Property(x => x.Carrier).HasColumnName("carrier").HasMaxLength(150);
+        itinerario.Property(x => x.Vessel).HasColumnName("vessel").HasMaxLength(150);
+        itinerario.Property(x => x.Voyage).HasColumnName("voyage").HasMaxLength(50);
+        itinerario.Property(x => x.CreatedAt).HasColumnName("created_at")
+        .HasColumnType("timestamp with time zone").HasDefaultValueSql("now()");
     }
 }

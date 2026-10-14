@@ -223,4 +223,38 @@ app.MapGet("/api/quotes/{id:guid}", async (
     return Results.Ok(result.Quote);
 });
 
+
+app.MapGet("/api/itinerarios", async (
+    AppDbContext db, AuthService auth, HttpContext http,
+    string? pol, string? pod, string? status, string? transporte,
+    string? modalidad, DateOnly? closing, DateOnly? etd, DateOnly? eta,
+    CancellationToken ct) =>
+{
+    if (await auth.GetIdentityAsync(http, ct) is null)
+        return Results.Unauthorized();
+
+    var query = db.Itinerarios.AsNoTracking();
+    if (!string.IsNullOrWhiteSpace(pol))
+        query = query.Where(x => EF.Functions.ILike(x.Pol, $"%{pol.Trim()}%"));
+    if (!string.IsNullOrWhiteSpace(pod))
+        query = query.Where(x => EF.Functions.ILike(x.Pod, $"%{pod.Trim()}%"));
+    if (!string.IsNullOrWhiteSpace(status))
+        query = query.Where(x => x.Status == status);
+    if (!string.IsNullOrWhiteSpace(transporte))
+        query = query.Where(x => x.Transporte == transporte);
+    if (!string.IsNullOrWhiteSpace(modalidad))
+        query = query.Where(x => x.Modalidad == modalidad);
+    if (closing.HasValue) query = query.Where(x => x.Closing == closing.Value);
+    if (etd.HasValue) query = query.Where(x => x.Etd == etd.Value);
+    if (eta.HasValue) query = query.Where(x => x.Eta == eta.Value);
+
+    var data = await query.OrderBy(x => x.Etd).Take(100)
+        .Select(x => new {
+            x.Id, x.Pol, x.Pod, x.Closing, x.Status, x.Etd, x.Eta,
+            Transport = x.Transporte, Modality = x.Modalidad
+        }).ToListAsync(ct);
+    http.Response.Headers.CacheControl = "no-store";
+    return Results.Ok(data);
+});
+
 app.Run();
