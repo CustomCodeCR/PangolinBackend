@@ -38,12 +38,10 @@ public sealed class QuoteService(AppDbContext db, ILogger<QuoteService> logger, 
 
     public async Task<(QuoteRequest? Quote, string Source)> GetAsync(Guid id, CancellationToken ct)
     {
-        try
+        var cache = services.GetService<IConnectionMultiplexer>();
+        if (cache is not null)
         {
-            // Resolver Redis DENTRO del try: la primera conexión puede fallar
-            // incluso antes de pedir datos. PostgreSQL sigue siendo el respaldo.
-            var cache = services.GetService<IConnectionMultiplexer>();
-            if (cache is not null)
+            try
             {
                 var value = await cache.GetDatabase().StringGetAsync(CacheKey(id));
                 if (value.HasValue)
@@ -53,10 +51,10 @@ public sealed class QuoteService(AppDbContext db, ILogger<QuoteService> logger, 
                         return (quote, "redis");
                 }
             }
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            logger.LogWarning(ex, "Cache Redis no disponible para {QuoteId}", id);
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(ex, "Cache Redis no disponible para {QuoteId}", id);
+            }
         }
         var result = await db.QuoteRequests.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (result is not null) await TryCacheAsync(result);

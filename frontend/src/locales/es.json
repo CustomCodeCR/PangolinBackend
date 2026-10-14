@@ -199,6 +199,12 @@
         "label": "MARÍTIMO",
         "description": "Alternativas marítimas para conectar tus operaciones internacionales.",
         "detail": "Gestionamos logística para contenedores y embarques consolidados según las necesidades de tu negocio."
+      },
+      "Multimodal": {
+        "title": "Transporte multimodal",
+        "label": "MULTIMODAL",
+        "description": "Soluciones que integran varios medios de transporte en una sola operación.",
+        "detail": "Coordinamos conexiones aéreas, marítimas y terrestres para mover tu carga de origen a destino con una gestión logística integrada."
       }
     },
     "homeNews": [
@@ -308,7 +314,7 @@
         "Número de teléfono",
         "Correo electrónico",
         "WhatsApp",
-        "Dirección",
+        "Casa matriz",
         "Horario de atención",
         "Lunes a viernes: 7:30 am a 5:15 pm"
       ],
@@ -392,6 +398,27 @@
                 "Las tarifas se ajustan al volumen y el peso de la carga.",
                 "Coordinación eficiente de transporte internacional.",
                 "Agilidad en el despacho de aduanas."
+              ]
+            },
+            {
+              "heading": "Ventajas Castro Fallas",
+              "items": [
+                "Seguridad — Gestión orientada a proteger la carga durante cada etapa del proceso.",
+                "Cobertura — Conexiones y soluciones adaptadas a operaciones nacionales e internacionales.",
+                "Eficiencia — Coordinación enfocada en optimizar tiempos y procesos logísticos."
+              ]
+            }
+          ]
+        },
+        "Multimodal": {
+          "title": "Transporte Multimodal",
+          "sections": [
+            {
+              "heading": "Coordinación integrada",
+              "items": [
+                "Planificación de conexiones entre dos o más medios de transporte.",
+                "Coordinación de las distintas etapas de la operación.",
+                "Alternativas según la ruta, la carga y los tiempos requeridos."
               ]
             },
             {

@@ -16,14 +16,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/Database/SeedLocal.sql:/tmp/SeedLocal.sql:ro
     healthcheck:
-      # pg_isready por sí solo NO comprueba la contraseña; psql sí la valida.
-      test:
-        - CMD-SHELL
-        - >
-          pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" &&
-          PGPASSWORD="$${POSTGRES_PASSWORD}" psql -h 127.0.0.1
-          -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" -tAc "SELECT 1" |
-          grep -qx 1
+      test: ["CMD-SHELL", "pg_isready -U postgres -d login"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -82,8 +75,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      # Redis y Mongo son auxiliares; su caída no debe bloquear el login
-      # ni la conexión obligatoria a PostgreSQL.
+      redis:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
 
   frontend:
     build:

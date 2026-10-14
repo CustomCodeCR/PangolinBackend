@@ -16,11 +16,12 @@ const localizedServices = computed(() => baseServices.map(service => ({
   description: t(`content.services.${service.key}.description`),
   detail: t(`content.services.${service.key}.detail`)
 })))
-const transportServices = computed(() => (['Air', 'Maritime', 'Land'] as ServiceKey[]).map(key => localizedServices.value.find(service => service.key === key)!))
+const transportServices = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as ServiceKey[]).map(key => localizedServices.value.find(service => service.key === key)!))
 const selectedService = computed(() => localizedServices.value.find(service => service.key === activeService.value) ?? localizedServices.value[0])
 const modalService = ref<ServiceKey | null>(null)
-const modalItemCounts: Record<ServiceKey, number[]> = { Maritime: [5, 4, 3], Land: [4, 4, 3], Air: [4, 3] }
-const serviceInfo = computed(() => Object.fromEntries((['Maritime', 'Land', 'Air'] as ServiceKey[]).map(key => {
+const modalPhoto = computed(() => baseServices.find(service => service.key === modalService.value)?.photo ?? '/images/hero.webp')
+const modalItemCounts: Record<ServiceKey, number[]> = { Maritime: [5, 4, 3], Land: [4, 4, 3], Air: [4, 3], Multimodal: [3, 3] }
+const serviceInfo = computed(() => Object.fromEntries((['Maritime', 'Land', 'Air', 'Multimodal'] as ServiceKey[]).map(key => {
   const base = `custom.home.modal.${key}`
   return [key, {
     title: t(`${base}.title`),
@@ -362,6 +363,7 @@ onUnmounted(() => {
           role="dialog"
           aria-modal="true"
           :aria-label="serviceInfo[modalService].title"
+          :style="{ '--modal-service-photo': `url('${modalPhoto}')` }"
         >
           <button class="service-modal__close" type="button" :aria-label="$t('custom.home.close')" @click="modalService = null"><IconSymbol glyph="×" :size="20" /></button>
           <p class="section-tag">{{ $t('custom.home.modalEyebrow') }}</p>

@@ -9,8 +9,9 @@ import SiteFooter from '../components/SiteFooter.vue'
 const { t } = useI18n({ useScope: 'global' })
 const activeService = ref<ServiceKey>('Air')
 const modalService = ref<ServiceKey | null>(null)
-const modalItemCounts: Record<ServiceKey, number[]> = { Maritime: [5, 4, 3], Land: [4, 4, 3], Air: [4, 3] }
-const serviceInfo = computed(() => Object.fromEntries((['Maritime', 'Land', 'Air'] as ServiceKey[]).map(key => {
+const modalPhoto = computed(() => baseServices.find(service => service.key === modalService.value)?.photo ?? '/images/hero.webp')
+const modalItemCounts: Record<ServiceKey, number[]> = { Maritime: [5, 4, 3], Land: [4, 4, 3], Air: [4, 3], Multimodal: [3, 3] }
+const serviceInfo = computed(() => Object.fromEntries((['Maritime', 'Land', 'Air', 'Multimodal'] as ServiceKey[]).map(key => {
   const base = `custom.home.modal.${key}`
   return [key, {
     title: t(`${base}.title`),
@@ -20,7 +21,7 @@ const serviceInfo = computed(() => Object.fromEntries((['Maritime', 'Land', 'Air
     }))
   }]
 })) as Record<ServiceKey, { title: string; sections: { heading: string; items: string[] }[] }>)
-const services = computed(() => (['Air', 'Maritime', 'Land'] as ServiceKey[]).map(key => {
+const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as ServiceKey[]).map(key => {
   const service = baseServices.find(item => item.key === key)!
   return {
     ...service,
@@ -89,7 +90,7 @@ const services = computed(() => (['Air', 'Maritime', 'Land'] as ServiceKey[]).ma
       </section>
     </main>
     <div v-if="modalService" class="service-modal-backdrop" @click.self="modalService = null">
-      <section class="service-modal" role="dialog" aria-modal="true" :aria-label="serviceInfo[modalService].title">
+      <section class="service-modal" role="dialog" aria-modal="true" :aria-label="serviceInfo[modalService].title" :style="{ '--modal-service-photo': `url('${modalPhoto}')` }">
         <button class="service-modal__close" type="button" :aria-label="$t('custom.home.close')" @click="modalService = null"><IconSymbol glyph="×" :size="20" /></button>
         <p class="section-tag">{{ $t('custom.home.modalEyebrow') }}</p>
         <h2>{{ serviceInfo[modalService].title }}</h2>

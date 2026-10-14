@@ -199,6 +199,12 @@
         "label": "OCEAN",
         "description": "Ocean freight alternatives for your international operations.",
         "detail": "We manage containers and consolidated shipments to meet your business needs."
+      },
+      "Multimodal": {
+        "title": "Multimodal transportation",
+        "label": "MULTIMODAL",
+        "description": "Solutions combining different modes of transport in one operation.",
+        "detail": "We coordinate air, ocean, and land connections to move your cargo from origin to destination through integrated logistics management."
       }
     },
     "homeNews": [
@@ -308,7 +314,7 @@
         "Phone number",
         "Email",
         "WhatsApp",
-        "Address",
+        "Head office",
         "Business hours",
         "Monday to Friday: 7:30 am to 5:15 pm"
       ],
@@ -392,6 +398,27 @@
                 "Rates are adjusted to cargo volume and weight.",
                 "Efficient international transportation coordination.",
                 "Faster customs clearance."
+              ]
+            },
+            {
+              "heading": "Castro Fallas advantages",
+              "items": [
+                "Security — Cargo protection throughout every stage of the process.",
+                "Coverage — Connections and solutions tailored to domestic and international operations.",
+                "Efficiency — Coordination focused on optimizing logistics times and processes."
+              ]
+            }
+          ]
+        },
+        "Multimodal": {
+          "title": "Multimodal Transportation",
+          "sections": [
+            {
+              "heading": "Integrated coordination",
+              "items": [
+                "Planning connections between two or more modes of transport.",
+                "Coordination of the different stages of the operation.",
+                "Options tailored to the route, cargo, and required timing."
               ]
             },
             {

@@ -2,23 +2,6 @@
 
 Esta entrega es la fusión de **`castrofallas-rediseno 8.zip` (interfaz principal)** con **`castrofallas-unificado-actualizado (2).zip` (API, autenticación, PostgreSQL y Docker)**. Está pensada para desarrollo local, **no** para producción directamente.
 
-## Inicio y publicación rápida (Windows)
-
-Para levantar Docker con PostgreSQL y verificar que la API efectivamente se conectó, abrir **Docker Desktop**, extraer este proyecto y ejecutar:
-
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-.\scripts\iniciar-docker.ps1
-```
-
-Para llevar esta versión a `main` de `CustomCodeCR/PangolinBackend` desde una sesión autorizada de GitHub:
-
-```powershell
-.\scripts\publicar-main.ps1
-```
-
-**Antes de hacerlo si ya había datos**, copiar tu `.env` anterior sin cambiar la contraseña Postgres y conservar el volumen de Docker. Los contenedores tienen `restart: unless-stopped` para reiniciar automáticamente al arrancar Docker Desktop. Consultar **[PASOS-GITHUB-DOCKER.md](PASOS-GITHUB-DOCKER.md)** para el procedimiento completo y sus precauciones.
-
 ## Contenido de la integración
 
 - Frontend Vue 3 + Vite: se conservan los estilos y cambios recientes de la entrega 8, incluidos navegación, modo invitado, noticias, servicios, itinerarios, cotizador, traducciones ES/EN, modo oscuro e imágenes.

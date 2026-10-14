@@ -54,38 +54,24 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
-// Desarrollo local: comprueba / aplica SQL idempotente sin borrar tablas ni datos.
-// Docker espera al healthcheck de PostgreSQL; estos reintentos adicionales cubren
-// cortes breves de red y arranques lentos sin confundirlos con errores de esquema.
-// Fuera de Development nunca se autoejecuta.
+// Desarrollo local: aplica SQL idempotente sobre la base 'login'.
+// No borra tablas ni datos. Fuera de Development nunca se autoejecuta.
 if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("Development:ApplySchema"))
 {
-    const int maxAttempts = 15;
-    var scriptPath = Path.Combine(app.Environment.ContentRootPath, "Database", "AuthSchema.sql");
-    var sql = await File.ReadAllTextAsync(scriptPath);
-    for (var attempt = 1; attempt <= maxAttempts; attempt++)
+    try
     {
-        try
-        {
-            await using var scope = app.Services.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            await db.Database.ExecuteSqlRawAsync(sql);
-            app.Logger.LogInformation("PostgreSQL conectado y esquema comprobado en {Database} (intento {Attempt}).",
-                new NpgsqlConnectionStringBuilder(postgres).Database, attempt);
-            break;
-        }
-        catch (Exception ex) when (attempt < maxAttempts &&
-            (ex is NpgsqlException { IsTransient: true } || ex is TimeoutException))
-        {
-            app.Logger.LogWarning(ex, "PostgreSQL aún no está disponible ({Attempt}/{MaxAttempts}); se reintentará.",
-                attempt, maxAttempts);
-            await Task.Delay(TimeSpan.FromSeconds(3), app.Lifetime.ApplicationStopping);
-        }
-        catch (Exception ex)
-        {
-            app.Logger.LogCritical(ex, "No se pudo conectar o aplicar AuthSchema.sql. Revisá credenciales y logs; nunca borres los volúmenes para intentar arreglarlo.");
-            throw;
-        }
+        await using var scope = app.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var scriptPath = Path.Combine(app.Environment.ContentRootPath, "Database", "AuthSchema.sql");
+        var sql = await File.ReadAllTextAsync(scriptPath);
+        await db.Database.ExecuteSqlRawAsync(sql);
+        app.Logger.LogInformation("Esquema de login comprobado/aplicado en PostgreSQL ({Database}).",
+            new NpgsqlConnectionStringBuilder(postgres).Database);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogCritical(ex, "No se pudo aplicar AuthSchema.sql. Revisá que exista la base 'login', usuario y contraseña; respaldo antes de migrar.");
+        throw;
     }
 }
 

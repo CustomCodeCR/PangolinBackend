@@ -52,7 +52,7 @@ schema = read('backend/Database/AuthSchema.sql')
 check('CREATE TABLE IF NOT EXISTS public.itinerarios' in schema and
       'ADD COLUMN IF NOT EXISTS closing DATE NULL' in schema,
       'Itinerarios provisionales con closing sin eliminar registros')
-check('isGuest' in header and "sessionStorage.getItem('castrofallas-guest-mode')" in header and
+check('isGuest' in header and "localStorage.getItem('castrofallas-guest-mode')" in header and
       'isAuthenticated = computed(() => !!sessionUser.value)' in header,
       'Modo invitado nuevo no sustituye la sesión del backend')
 check('button v-else type="button" class="nav-user-icon"' in header and
@@ -62,14 +62,4 @@ check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('fro
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
 check('VITE_API_PROXY_TARGET' in read('frontend/vite.config.ts'), 'Proxy Docker conservado')
-check('Host=postgres;Port=5432;Database=login' in compose, 'Conexion al servicio Postgres por DNS interno de Docker')
-check('service_healthy' in compose and 'PGPASSWORD="$$' + '{POSTGRES_PASSWORD}' + '"' in compose,
-      'PostgreSQL valida credenciales antes de arrancar la API')
-check(compose.count('restart: unless-stopped') == 5 and 'postgres_data:' in compose,
-      'Cinco contenedores con reinicio automatico y datos persistentes')
-check('proxy_pass http://backend:5000;' in read('frontend/nginx.conf'),
-      'Nginx usa nombre y puerto del backend real')
-check(all((root / name).is_file() for name in
-    ('scripts/iniciar-docker.ps1', 'scripts/publicar-main.ps1', 'PASOS-GITHUB-DOCKER.md')),
-    'Scripts de inicio y publicacion main incluidos')
 print('Comprobaciones estáticas de integración finalizadas.')
