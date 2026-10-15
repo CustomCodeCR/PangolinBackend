@@ -12,11 +12,10 @@ let mobileMenuResizeObserver: ResizeObserver | null = null
 const cargoMenuOpen = ref(false)
 const darkMode = ref(false)
 const systemThemeQuery = window.matchMedia?.('(prefers-color-scheme: dark)')
-const sessionUser = ref<{ correo: string; nombreCliente: string } | null>(null)
+const sessionUser = ref<{ correo: string; nombreCliente: string; role: 'client' | 'admin'; adminType: string | null } | null>(null)
 const loggingOut = ref(false)
 const isAuthenticated = computed(() => !!sessionUser.value)
 // This preference is local to this browser profile; it is not shared with other visitors.
-const pageWasReloaded = (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined)?.type === 'reload'
 const settingsOpen = ref(false)
 const baseLinks = [
   { key: 'servicios', id: 'principal', url: '/home' },
@@ -86,7 +85,7 @@ watch(expanded, async isOpen => {
 
 onMounted(() => {
   syncGuest()
-  if (!pageWasReloaded) void refreshSession()
+  void refreshSession()
   const savedTheme = localStorage.getItem('castrofallas-theme')
   darkMode.value = savedTheme ? savedTheme === 'dark' : !!systemThemeQuery?.matches
   document.documentElement.classList.toggle('theme-dark', darkMode.value)
