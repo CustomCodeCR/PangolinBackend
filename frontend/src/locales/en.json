@@ -824,7 +824,14 @@
         "loadingPort": "Port of loading",
         "unloadingPort": "Port of discharge",
         "viewDetails": "View details",
-        "hideDetails": "Hide details"
+        "hideDetails": "Hide details",
+        "dateFrom": "from",
+        "dateTo": "to",
+        "invalidDateRange": "The start date cannot be later than the end date.",
+        "paginationLabel": "Itinerary result pages",
+        "previousPage": "Previous",
+        "nextPage": "Next",
+        "pageOf": "Page {page} of {total}"
       }
     }
   },
