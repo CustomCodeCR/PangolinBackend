@@ -102,7 +102,7 @@ CREATE INDEX IF NOT EXISTS idx_quotes_cliente_id ON quote_requests("ClienteId");
 
 
 -- Itinerarios provisionales: comparten base login pero NO dependen de usuarios/cotizaciones.
--- CREATE no sobreescribe tablas existentes; ALTER conserva las filas al añadir Closing.
+-- CREATE no sobreescribe tablas existentes; ALTER conserva las filas al añadir Closing y status.
 CREATE TABLE IF NOT EXISTS public.itinerarios (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     pol VARCHAR(150) NOT NULL,
@@ -114,10 +114,16 @@ CREATE TABLE IF NOT EXISTS public.itinerarios (
     voyage VARCHAR(50) NULL,
     transporte VARCHAR(20) NOT NULL,
     modalidad VARCHAR(3) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'planning',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     closing DATE NULL
 );
 ALTER TABLE public.itinerarios ADD COLUMN IF NOT EXISTS closing DATE NULL;
+-- Migración no destructiva: bases anteriores no tienen status, pero EF lo consulta.
+ALTER TABLE public.itinerarios ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'planning';
+UPDATE public.itinerarios SET status = 'planning' WHERE status IS NULL;
+ALTER TABLE public.itinerarios ALTER COLUMN status SET DEFAULT 'planning';
+ALTER TABLE public.itinerarios ALTER COLUMN status SET NOT NULL;
 
 -- Mantiene updated_at sincronizado incluso cuando los registros se editan en DBeaver.
 CREATE OR REPLACE FUNCTION auth_touch_updated_at()
