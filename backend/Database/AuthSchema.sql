@@ -173,6 +173,28 @@ CREATE TABLE IF NOT EXISTS quote_multimodal_details (
     additional_details TEXT NULL
 );
 
+-- Contenido compartido: las vistas de noticias y el administrador usan PostgreSQL
+-- en vez del localStorage de un único navegador. SQL idempotente, sin DROP.
+CREATE TABLE IF NOT EXISTS public.cms_news (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(160) NOT NULL,
+    category VARCHAR(60) NOT NULL,
+    description VARCHAR(1200) NOT NULL,
+    image TEXT NOT NULL DEFAULT '',
+    published BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_cms_news_published ON public.cms_news(published, created_at DESC);
+CREATE TABLE IF NOT EXISTS public.cms_media (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(200) NOT NULL,
+    kind VARCHAR(30) NOT NULL,
+    src TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Itinerarios provisionales: comparten base login pero NO dependen de usuarios/cotizaciones.
 -- CREATE no sobreescribe tablas existentes; ALTER conserva las filas al añadir Closing y status.
 CREATE TABLE IF NOT EXISTS public.itinerarios (
