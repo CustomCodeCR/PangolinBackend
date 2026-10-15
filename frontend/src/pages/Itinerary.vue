@@ -238,13 +238,30 @@ async function searchItineraries(pageNumber = 1) {
           <label class="itinerary-form-line"><strong>{{ t('custom.itinerary.form.status') }}</strong><select v-model="item.status"><option value="">Todos</option><option v-for="status in statuses" :key="status.value" :value="status.value">{{ status.label }}</option></select></label>
           <label class="itinerary-form-line"><strong>POL</strong><input v-model="item.pol" type="text" :placeholder="portPlaceholder(item, 'pol')" /></label>
           <label class="itinerary-form-line"><strong>POD</strong><input v-model="item.pod" type="text" :placeholder="portPlaceholder(item, 'pod')" /></label>
-          <label class="itinerary-form-line"><strong>Closing · {{ t('custom.itinerary.form.dateFrom') }}</strong><input v-model="item.closingDesde" type="date" :max="item.closingHasta || undefined" /></label>
-          <label class="itinerary-form-line"><strong>Closing · {{ t('custom.itinerary.form.dateTo') }}</strong><input v-model="item.closingHasta" type="date" :min="item.closingDesde || undefined" /></label>
-          <label class="itinerary-form-line"><strong>ETD · {{ t('custom.itinerary.form.dateFrom') }}</strong><input v-model="item.etdDesde" type="date" :max="item.etdHasta || undefined" /></label>
-          <label class="itinerary-form-line"><strong>ETD · {{ t('custom.itinerary.form.dateTo') }}</strong><input v-model="item.etdHasta" type="date" :min="item.etdDesde || undefined" /></label>
-          <label class="itinerary-form-line"><strong>ETA · {{ t('custom.itinerary.form.dateFrom') }}</strong><input v-model="item.etaDesde" type="date" :max="item.etaHasta || undefined" /></label>
-          <label class="itinerary-form-line"><strong>ETA · {{ t('custom.itinerary.form.dateTo') }}</strong><input v-model="item.etaHasta" type="date" :min="item.etaDesde || undefined" /></label>
           <label class="itinerary-form-line"><strong>{{ labels.modality }}</strong><select v-model="item.modality"><option value="">Todas</option><option v-for="option in optionsFor(item)" :key="option" :value="option">{{ option }}</option></select></label>
+          <!-- Closing, ETD y ETA son rangos opcionales, no filtros clonados.
+               Mantener nombres v-model y validación para no romper la API. -->
+          <div class="itinerary-date-range" role="group" aria-label="Closing">
+            <strong class="itinerary-date-range__title">Closing</strong>
+            <div class="itinerary-date-range__fields">
+              <label class="itinerary-form-line"><strong>{{ t('custom.itinerary.form.dateFrom') }}</strong><input v-model="item.closingDesde" type="date" :max="item.closingHasta || undefined" /></label>
+              <label class="itinerary-form-line"><strong>{{ t('custom.itinerary.form.dateTo') }}</strong><input v-model="item.closingHasta" type="date" :min="item.closingDesde || undefined" /></label>
+            </div>
+          </div>
+          <div class="itinerary-date-range" role="group" aria-label="ETD">
+            <strong class="itinerary-date-range__title">ETD</strong>
+            <div class="itinerary-date-range__fields">
+              <label class="itinerary-form-line"><strong>{{ t('custom.itinerary.form.dateFrom') }}</strong><input v-model="item.etdDesde" type="date" :max="item.etdHasta || undefined" /></label>
+              <label class="itinerary-form-line"><strong>{{ t('custom.itinerary.form.dateTo') }}</strong><input v-model="item.etdHasta" type="date" :min="item.etdDesde || undefined" /></label>
+            </div>
+          </div>
+          <div class="itinerary-date-range" role="group" aria-label="ETA">
+            <strong class="itinerary-date-range__title">ETA</strong>
+            <div class="itinerary-date-range__fields">
+              <label class="itinerary-form-line"><strong>{{ t('custom.itinerary.form.dateFrom') }}</strong><input v-model="item.etaDesde" type="date" :max="item.etaHasta || undefined" /></label>
+              <label class="itinerary-form-line"><strong>{{ t('custom.itinerary.form.dateTo') }}</strong><input v-model="item.etaHasta" type="date" :min="item.etaDesde || undefined" /></label>
+            </div>
+          </div>
         </div>
         </template>
 
