@@ -811,6 +811,8 @@
       "form": {
         "eyebrow": "SHIPMENT DETAILS",
         "itemTitle": "Itinerary {number}",
+        "dateFrom": "From",
+        "dateTo": "To",
         "status": "Status",
         "statuses": [
           "Planning",
