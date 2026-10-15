@@ -500,6 +500,7 @@
       "multimodalDescription": "Combina medios de transporte y especifica el país de entrada.",
       "multimodalButton": "Cotizar multimodal",
       "entryCountry": "País de entrada",
+      "entryCountryRequired": "El país de entrada es obligatorio para multimodal.",
       "clientOnly": "Solo clientes pueden solicitar cotizaciones",
       "clientOnlyHelp": "Ingresá con una cuenta de cliente para enviar una solicitud. Esta sección no está habilitada para administradores.",
       "weightKg": "Peso total estimado (kg, opcional)",
