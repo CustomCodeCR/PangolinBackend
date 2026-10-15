@@ -45,7 +45,7 @@ Nota: el contenido guardado en `localStorage` en versiones anteriores **no se mi
 ## 5. Cotizaciones e itinerarios
 
 - Las cuatro opciones lógicas continúan: `Land` con FTL/LTL, `Air`, `Maritime` con FCL/LCL y `Multimodal` con país de entrada obligatorio.
-- El nuevo rediseño agrupa visualmente aéreo y marítimo en un selector de servicio; multimodal tiene acceso propio.
+- El nuevo diseño conserva cuatro tarjetas de cotización independientes: terrestre, aéreo, marítimo y multimodal; el backend utiliza las cuatro tablas de detalle correspondientes.
 - `POST /api/quotes` solo permite `client` y conserva las cuatro tablas independientes del PR #6.
 - El cliente no puede editar ni borrar cotizaciones.
 - Los endpoints administrativos de itinerarios se mantienen protegidos por JWT `admin`.
