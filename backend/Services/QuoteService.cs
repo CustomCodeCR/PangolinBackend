@@ -145,7 +145,8 @@ public sealed class QuoteService(AppDbContext db, ILogger<QuoteService> logger, 
         }
         logger.LogInformation("Cotización creada: {QuoteId} para cliente {ClienteId}", quote.Id, clienteId);
         var response = ToResponse(quote);
-        await TryCacheAsync(response);
+        // La primera lectura carga siempre los detalles confirmados de PostgreSQL.
+        // Solo después del GET se almacena en Redis (lecturas posteriores).
         await TryLogAsync(quote, ct);
         return response;
     }
