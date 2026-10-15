@@ -1,6 +1,9 @@
 using System.Net.Mail;
 using System.Security.Cryptography;
 using System.Text;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.IdentityModel.Tokens;
 using CastroFallas.MiniQuote.Api.Data;
 using CastroFallas.MiniQuote.Api.Models.Auth;
 using SmtpClient = MailKit.Net.Smtp.SmtpClient;
@@ -13,7 +16,7 @@ namespace CastroFallas.MiniQuote.Api.Services.Auth;
 public record RequestOtpDto(string? TipoAcceso, string? Correo, string? CodigoDynamics);
 public record VerifyOtpDto(Guid ChallengeId, string? Codigo);
 public record OtpStarted(Guid ChallengeId, string Message, int ExpiresInSeconds);
-public record AuthIdentity(Guid UsuarioId, Guid ClienteId, string NombreCliente, string Correo, string TipoAcceso);
+public record AuthIdentity(Guid UsuarioId, Guid ClienteId, string NombreCliente, string Correo, string TipoAcceso, string Role, string? AdminType);
 
 public sealed class AuthService(
     AppDbContext db,
@@ -23,8 +26,9 @@ public sealed class AuthService(
 {
     private const int OtpTtlMinutes = 5;
     private const int MaxOtpAttempts = 5;
-    private const string SessionCookie = "cf_session";
+    private const string SessionCookie = JwtAuthOptions.CookieName;
     private static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(8);
+    private readonly SymmetricSecurityKey _jwtKey = JwtAuthOptions.GetSigningKey(configuration);
     private readonly string _pepper = configuration["Auth:OtpPepper"]
         ?? throw new InvalidOperationException("Falta Auth:OtpPepper");
 
@@ -150,10 +154,26 @@ public sealed class AuthService(
             $"UPDATE usuarios SET last_login_at = NOW() WHERE uuid = {challenge.UsuarioId}", ct);
         await db.Database.ExecuteSqlInterpolatedAsync(
             $"UPDATE clientes SET last_login_at = NOW() WHERE uuid = {challenge.Usuario.ClienteId}", ct);
-        var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+        var sessionId = Guid.NewGuid();
+        var jwtRole = JwtAuthOptions.MapRole(challenge.TipoAcceso);
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, challenge.UsuarioId.ToString()),
+            new Claim(JwtRegisteredClaimNames.Jti, sessionId.ToString()),
+            new Claim(JwtAuthOptions.ClientIdClaim, challenge.Usuario.ClienteId.ToString()),
+            new Claim(JwtAuthOptions.RoleClaim, jwtRole)
+        };
+        var jwt = new JwtSecurityToken(
+            issuer: JwtAuthOptions.Issuer(configuration),
+            audience: JwtAuthOptions.Audience(configuration),
+            claims: claims,
+            notBefore: now,
+            expires: now.Add(SessionLifetime),
+            signingCredentials: new SigningCredentials(_jwtKey, SecurityAlgorithms.HmacSha256));
+        var token = new JwtSecurityTokenHandler().WriteToken(jwt);
         db.AuthSessions.Add(new AuthSession
         {
-            UsuarioId = challenge.UsuarioId, TipoAcceso = challenge.TipoAcceso,
+            Uuid = sessionId, UsuarioId = challenge.UsuarioId, TipoAcceso = challenge.TipoAcceso,
             TokenHash = Sha256(token), CreatedAt = now, ExpiresAt = now.Add(SessionLifetime)
         });
         await db.SaveChangesAsync(ct);
@@ -162,20 +182,43 @@ public sealed class AuthService(
         return (token, ToIdentity(challenge.Usuario, challenge.TipoAcceso));
     }
 
-    public async Task<AuthIdentity?> GetIdentityAsync(HttpContext http, CancellationToken ct)
+    // El middleware valida firma, audiencia, emisor y expiración antes de llamar a este método.
+    // PostgreSQL sigue siendo autoridad para revocación y desactivación de cuentas.
+    public async Task<AuthIdentity?> ValidateJwtSessionAsync(
+        string token, ClaimsPrincipal principal, CancellationToken ct)
     {
-        if (!http.Request.Cookies.TryGetValue(SessionCookie, out var token) || token.Length != 64 ||
-            !token.All(Uri.IsHexDigit)) return null;
+        var sub = principal.FindFirstValue(JwtRegisteredClaimNames.Sub)
+            ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        var jti = principal.FindFirstValue(JwtRegisteredClaimNames.Jti);
+        var clientId = principal.FindFirstValue(JwtAuthOptions.ClientIdClaim);
+        var role = principal.FindFirstValue(JwtAuthOptions.RoleClaim)
+            ?? principal.FindFirstValue(ClaimTypes.Role);
+        if (!Guid.TryParse(sub, out var userId) || !Guid.TryParse(jti, out var sessionId) ||
+            !Guid.TryParse(clientId, out var parsedClient) || role is not ("client" or "admin"))
+            return null;
 
         var now = DateTime.UtcNow;
-        var tokenHash = Sha256(token);
+        var hash = Sha256(token);
         var session = await db.AuthSessions.AsNoTracking()
             .Include(s => s.Usuario).ThenInclude(u => u.Cliente)
-            .FirstOrDefaultAsync(s => s.TokenHash == tokenHash && s.ExpiresAt > now && s.RevokedAt == null, ct);
-        if (session is null || !session.Usuario.Status || session.Usuario.DeletedAt != null ||
-            !session.Usuario.Cliente.Status || session.Usuario.Cliente.DeletedAt != null ||
-            session.Usuario.TipoAcceso != session.TipoAcceso) return null;
+            .FirstOrDefaultAsync(s => s.Uuid == sessionId && s.TokenHash == hash &&
+                s.ExpiresAt > now && s.RevokedAt == null, ct);
+        if (session is null || session.UsuarioId != userId ||
+            session.Usuario.ClienteId != parsedClient || !session.Usuario.Status ||
+            session.Usuario.DeletedAt != null || !session.Usuario.Cliente.Status ||
+            session.Usuario.Cliente.DeletedAt != null ||
+            session.Usuario.TipoAcceso != session.TipoAcceso ||
+            JwtAuthOptions.MapRole(session.TipoAcceso) != role)
+            return null;
         return ToIdentity(session.Usuario, session.TipoAcceso);
+    }
+
+    public Task<AuthIdentity?> GetIdentityAsync(HttpContext http, CancellationToken ct)
+    {
+        if (http.User.Identity?.IsAuthenticated != true ||
+            http.Items["auth.identity"] is not AuthIdentity identity)
+            return Task.FromResult<AuthIdentity?>(null);
+        return Task.FromResult<AuthIdentity?>(identity);
     }
 
     public void WriteCookie(HttpContext http, string token)
@@ -192,7 +235,7 @@ public sealed class AuthService(
     public async Task LogoutAsync(HttpContext http, CancellationToken ct)
     {
         if (http.Request.Cookies.TryGetValue(SessionCookie, out var token) &&
-            token.Length == 64 && token.All(Uri.IsHexDigit))
+            token.Length <= 4096 && token.Count(c => c == '.') == 2)
         {
             var hash = Sha256(token);
             await db.AuthSessions.Where(x => x.TokenHash == hash && x.RevokedAt == null)
@@ -211,7 +254,7 @@ public sealed class AuthService(
     private static string Sha256(string value) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
     private static AuthIdentity ToIdentity(Usuario u, string role) =>
-        new(u.Uuid, u.ClienteId, u.Cliente.Nombre, u.Correo, role);
+        new(u.Uuid, u.ClienteId, u.Cliente.Nombre, u.Correo, role, JwtAuthOptions.MapRole(role), null);
     private const string GenericMessage = "Si los datos corresponden a una cuenta habilitada, recibirás un código por correo.";
 
     private async Task SendMailAsync(string email, string otp, CancellationToken ct)

@@ -31,6 +31,10 @@ unset DB_PASSWORD
 OTP_PEPPER="$(openssl rand -hex 32)"
 dotnet user-secrets set --project "$PROJECT" 'Auth:OtpPepper' "$OTP_PEPPER" >/dev/null
 unset OTP_PEPPER
+JWT_KEY="$(openssl rand -hex 32)"
+dotnet user-secrets set --project "$PROJECT" 'Auth:JwtSigningKey' "$JWT_KEY" >/dev/null
+unset JWT_KEY
+echo 'Se generó Auth:JwtSigningKey; las sesiones JWT anteriores dejarán de ser válidas si se rota.'
 echo 'Se generó un nuevo Auth:OtpPepper (los OTP anteriores ya no se podrán verificar).'
 
 echo 'Configuración privada guardada. No se cambió ni eliminó ninguna base de datos.'

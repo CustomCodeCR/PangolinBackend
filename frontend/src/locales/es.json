@@ -453,7 +453,7 @@
       "intro": "Elegí cómo querés acceder. El ingreso con cuenta se confirma por correo.",
       "roles": [
         "Cliente",
-        "Usuario",
+        "Administrador",
         "Invitado"
       ],
       "roleAria": "Tipo de ingreso",
@@ -464,7 +464,7 @@
       "companyCodePlaceholder": "Código asignado a tu empresa",
       "emailPlaceholder": "nombre@empresa.com",
       "clientHelp": "El correo debe pertenecer a un usuario activo vinculado con ese código Dynamics.",
-      "userHelp": "Tu cuenta debe estar activa y registrada con tipo de acceso «usuario».",
+      "userHelp": "Tu cuenta administrativa debe estar activa y registrada.",
       "sendCode": "Enviar código al correo",
       "sending": "Enviando…",
       "otpMessage": "Revisá tu correo.",
