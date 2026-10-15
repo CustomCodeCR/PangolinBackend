@@ -123,18 +123,6 @@ const requestPath = window.location.pathname.replace(/\/+$/, '') || '/'
 const routeAccess = ref<'checking' | 'ready'>('ready')
 const loginNextHref = '/bienvenidos?next=' + encodeURIComponent(window.location.pathname + window.location.search)
 onMounted(async () => {
-  if (pageWasReloaded) {
-    localStorage.removeItem('castrofallas-authenticated')
-    localStorage.removeItem('castrofallas-guest-mode')
-    sessionStorage.removeItem('castrofallas-guest-mode')
-    try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin', cache: 'no-store' })
-    } catch { /* Las páginas privadas siguen verificando el acceso en el servidor. */ }
-    if (requestPath !== '/home' && requestPath !== '/') {
-      window.location.replace('/home')
-      return
-    }
-  }
   if (requestPath === '/cotizaciones') {
     try {
       const response = await fetch('/api/auth/me', { credentials: 'same-origin', cache: 'no-store' })
