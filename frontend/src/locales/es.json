@@ -495,6 +495,15 @@
       "end": "Acceso a la plataforma"
     },
     "quote": {
+      "airLabel": "TRANSPORTE AÉREO",
+      "airTitle": "Cotiza tu carga aérea",
+      "airDescription": "Solicita transporte aéreo y registra los detalles de tu mercancía.",
+      "airButton": "Cotizar aéreo",
+      "maritimeLabel": "TRANSPORTE MARÍTIMO",
+      "maritimeTitle": "Cotiza tu carga marítima",
+      "maritimeDescription": "Elige FCL o LCL y solicita un servicio marítimo.",
+      "maritimeButton": "Cotizar marítimo",
+      "airEquipment": "Tipo de equipo o presentación de la carga",
       "multimodalLabel": "TRANSPORTE MULTIMODAL",
       "multimodalTitle": "Cotiza una operación multimodal",
       "multimodalDescription": "Combina medios de transporte y especifica el país de entrada.",
