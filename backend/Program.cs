@@ -238,6 +238,7 @@ app.MapGet("/api/health/ready", async (AppDbContext db, IConfiguration config, C
         await db.Database.ExecuteSqlRawAsync("SELECT quote_id, operation FROM quote_air_details LIMIT 0", ct);
         await db.Database.ExecuteSqlRawAsync("SELECT quote_id, shipping_type FROM quote_maritime_details LIMIT 0", ct);
         await db.Database.ExecuteSqlRawAsync("SELECT quote_id, entry_country FROM quote_multimodal_details LIMIT 0", ct);
+        await db.Database.ExecuteSqlRawAsync("SELECT id FROM auth_admin_user_audit LIMIT 0", ct);
         return Results.Ok(new
         {
             status = "ready", postgres = "ok", emailMode = config["Email:Mode"] ?? "Smtp"
@@ -422,5 +423,8 @@ app.MapGet("/api/itinerarios", async (
 
 // CRUD administrativo aislado del frontend: política admin en cada ruta de escritura.
 app.MapItinerariosCrud();
+
+// Directorio de usuarios y cambios de acceso auditados (JWT admin).
+app.MapAdminUsers();
 
 app.Run();
