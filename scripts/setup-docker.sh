@@ -9,7 +9,9 @@ command -v openssl >/dev/null || { echo 'Se necesita openssl para generar secret
 umask 077
 pgpassword="$(openssl rand -hex 24)"
 pepper="$(openssl rand -hex 32)"
+jwt_key="$(openssl rand -hex 32)"
 sed -e "s/CAMBIAR_PASSWORD_GENERADO/$pgpassword/g" \
     -e "s/CAMBIAR_SECRETO_GENERADO_DE_64_CARACTERES/$pepper/g" \
+    -e "s/CAMBIAR_JWT_HEX_DE_64_CARACTERES/$jwt_key/g" \
     "$root/.env.example" > "$root/.env"
 echo '.env creado con secretos aleatorios (no subir a GitHub).'
