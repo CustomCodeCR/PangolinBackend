@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prueba E2E local: OTP .eml -> cookie -> cotización -> logout.
+"""Prueba E2E local: OTP .eml -> cookie -> cuatro cotizaciones -> logout.
 Solo ejecutarlo con Development:ApplySchema=true, Email:Mode=LocalOutbox y SeedLocal.sql aplicado.
 No muestra el código OTP en consola ni lo envía fuera del equipo.
 """
@@ -107,13 +107,12 @@ def main():
 
     status, me = call(browser, '/api/auth/me')
     require(status == 200 and me.get('correo') == email and me.get('role') == 'admin', f'Cookie/JWT incorrecta: {status} {me}')
-    status, quote = call(browser, '/api/quotes', {
+    # Las cotizaciones nuevas solo las pueden emitir cuentas con rol client.
+    status, _ = call(browser, '/api/quotes', {
         'serviceType': 'Maritime', 'origin': 'Miami', 'destination': 'San José',
         'cargoType': 'Carga general', 'weightKg': 100, 'pieces': 1
     })
-    require(status == 201 and quote.get('id'), f'Cotización HTTP {status}: {quote}')
-    status, saved = call(browser, '/api/quotes/' + quote['id'])
-    require(status == 200 and saved.get('id') == quote['id'], f'Consulta de cotización: {status} {saved}')
+    require(status == 403, f'Un admin pudo crear cotizaciones de cliente: {status}')
     # CRUD de itinerarios: escritura exclusiva para admin, lectura para usuarios registrados.
     pol = 'SMOKE-' + uuid4().hex[:10]
     itinerary = {
@@ -190,6 +189,60 @@ def main():
     require(status == 403, 'Un cliente pudo editar itinerarios.')
     status, _ = call(client_browser, '/api/admin/itinerarios/' + fake_id, method='DELETE')
     require(status == 403, 'Un cliente pudo eliminar itinerarios.')
+    # Cada modalidad escribe en su tabla propia y el GET devuelve los campos reales.
+    common = {
+        'origin': 'Miami', 'destination': 'Costa Rica',
+        'contact': {
+            'fullName': 'Prueba Cliente', 'company': 'Empresa Demo',
+            'email': 'demo.cliente@castrofallas.test', 'phone': '8888-8888',
+            'country': 'Costa Rica'
+        }
+    }
+    shared = {
+        'operation': 'Importación', 'incoterm': 'FOB',
+        'nationalization': True, 'description': 'Equipo de prueba',
+        'quantity': 2, 'dangerousGoods': False,
+        'additionalDetails': 'Prueba automática'
+    }
+    samples = [
+        ('Land', 'land', {
+            'transportKind': 'FTL', 'equipment': 'Furgón', 'insured': True,
+            'customerType': 'Empresa'
+        }),
+        ('Air', 'air', dict(shared, equipmentType='No aplica')),
+        ('Maritime', 'maritime', dict(shared, shippingType='FCL', containerType='40HC')),
+        ('Multimodal', 'multimodal', dict(shared, entryCountry='Panamá', containerType='40HC'))
+    ]
+    created = []
+    for service_type, detail_name, detail in samples:
+        payload = dict(common, serviceType=service_type, weightKg=125.5, **{detail_name: detail})
+        status, quote = call(client_browser, '/api/quotes', payload)
+        require(status == 201 and quote.get('id'), f'Crear {service_type}: {status} {quote}')
+        created.append(quote['id'])
+        require(quote.get(detail_name) is not None and quote.get('weightKg') == 125.5
+                and quote.get('contact', {}).get('email') == common['contact']['email'],
+                f'Campos guardados en {service_type}: {quote}')
+        status, saved = call(client_browser, '/api/quotes/' + quote['id'])
+        require(status == 200 and saved.get(detail_name) == quote.get(detail_name),
+                f'Leer {service_type} persistido: {status} {saved}')
+        for other in ('land', 'air', 'maritime', 'multimodal'):
+            if other != detail_name:
+                require(saved.get(other) is None, f'{service_type} tiene detalles ajenos de {other}')
+
+    status, page = call(client_browser, '/api/quotes/mine?page=1&pageSize=20')
+    require(status == 200 and all(i in [item['id'] for item in page.get('items', [])] for i in created),
+            f'Listado del cliente incompleto: {status} {page}')
+    status, invalid = call(client_browser, '/api/quotes',
+        dict(common, serviceType='Multimodal', multimodal=dict(shared, containerType='40HC')))
+    require(status == 400, f'Multimodal sin país de entrada aceptado: {status} {invalid}')
+    status, invalid = call(client_browser, '/api/quotes',
+        dict(common, serviceType='Air', maritime=dict(shared, shippingType='FCL', containerType='40HC')))
+    require(status == 400, f'Modalidad cruzada aceptada: {status} {invalid}')
+    status, _ = call(client_browser, '/api/quotes/' + created[0], {}, 'PUT')
+    require(status == 405, f'La API permitió editar la cotización: {status}')
+    status, _ = call(client_browser, '/api/quotes/' + created[0], method='DELETE')
+    require(status == 405, f'La API permitió eliminar cotizaciones: {status}')
+
     status, _ = call(client_browser, '/api/auth/logout', {})
     require(status == 204, 'No se pudo cerrar sesión de cliente.')
 
@@ -199,7 +252,7 @@ def main():
     status, _ = call(build_opener(), '/api/admin/itinerarios', itinerary)
     require(status == 401, 'Un invitado pudo crear itinerarios.')
 
-    print('OK: OTP/JWT, CRUD admin de itinerarios, permisos cliente/invitado, firma alterada y logout.')
+    print('OK: OTP/JWT, CRUD de itinerarios, 4 tablas de cotización, permisos cliente/admin y logout.')
 
 if __name__ == '__main__':
     try:
