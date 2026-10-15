@@ -185,6 +185,7 @@ app.MapGet("/api/health/ready", async (AppDbContext db, IConfiguration config, C
         await db.Database.ExecuteSqlRawAsync("SELECT uuid, otp_hash, expires_at FROM otp_challenges LIMIT 0", ct);
         await db.Database.ExecuteSqlRawAsync("SELECT uuid, token_hash, expires_at FROM auth_sessions LIMIT 0", ct);
         await db.Database.ExecuteSqlRawAsync("SELECT identifier_hash FROM otp_rate_limits LIMIT 0", ct);
+        await db.Database.ExecuteSqlRawAsync("SELECT id, pol, pod, closing, etd, eta, status, transporte, modalidad, carrier, vessel, voyage, created_at FROM public.itinerarios LIMIT 0", ct);
         return Results.Ok(new
         {
             status = "ready", postgres = "ok", emailMode = config["Email:Mode"] ?? "Smtp"
@@ -345,5 +346,8 @@ app.MapGet("/api/itinerarios", async (
         totalPages = (int)Math.Ceiling((double)total / currentPageSize)
     });
 }).RequireAuthorization("registered");
+
+// CRUD administrativo aislado del frontend: política admin en cada ruta de escritura.
+app.MapItinerariosCrud();
 
 app.Run();
