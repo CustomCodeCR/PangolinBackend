@@ -42,3 +42,13 @@ Ejemplos en desarrollo:
 - `http://localhost:5173/tracking?previewRole=cliente` muestra la vista de cliente.
 - `http://localhost:5173/admin/contenido?previewRole=administrador` muestra el editor de contenido.
 - `http://localhost:5173/admin/usuarios?previewRole=administrador` muestra el diseño de gestión de usuarios; la lista requiere la API real.
+
+## Implementación real en backend (actualización 2026-10-15)
+
+La API se adaptó al contrato de correo único: `POST /api/auth/request-otp` admite `{correo}` y deduce el tipo real de usuario de PostgreSQL. No restringe a `@gmail.com`: cualquier correo **registrado y habilitado** puede recibir OTP según `EMAIL_MODE`. El contrato antiguo con `tipoAcceso` y `codigoDynamics` permanece temporalmente compatible.
+
+El backend conserva las convenciones internas existentes: `tipo_acceso='usuario'` produce claim JWT `admin`, y `tipo_acceso='cliente'` produce `client`. El frontend normaliza esas dos etiquetas a `administrador` y `cliente`. **Invitado no es un rol asignable a una cuenta real**, sino ausencia de sesión.
+
+Ya se implementaron `GET /api/admin/users` (paginado) y `PATCH /api/admin/users/{id}` (solo role administrador/cliente y estado). Revocación de sesiones, bloqueo de modificaciones sobre uno mismo, último administrador protegido y auditoría en PostgreSQL. Las rutas administrativas requieren JWT válido, independientemente de la previsualización local.
+
+Noticias y multimedia del panel disponen de APIs persistentes; el editor solo escribe al servidor si hay sesión real `admin`. Detalle en [docs/INTEGRACION-LOGIN-ADMIN-2026.md](../docs/INTEGRACION-LOGIN-ADMIN-2026.md).
