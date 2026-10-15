@@ -453,7 +453,7 @@
       "intro": "Choose how you want to access the platform. Account access is confirmed by email.",
       "roles": [
         "Client",
-        "User",
+        "Administrator",
         "Guest"
       ],
       "roleAria": "Access type",
@@ -464,7 +464,7 @@
       "companyCodePlaceholder": "Code assigned to your company",
       "emailPlaceholder": "name@company.com",
       "clientHelp": "Your email must belong to an active user linked to that Dynamics code.",
-      "userHelp": "Your account must be active and registered with «user» access.",
+      "userHelp": "Your administrator account must be active and registered.",
       "sendCode": "Email me a code",
       "sending": "Sending…",
       "otpMessage": "Check your email.",
