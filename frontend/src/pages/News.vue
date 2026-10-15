@@ -4,7 +4,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import EmblaCarousel, { type EmblaCarouselType } from 'embla-carousel'
 import { useI18n } from 'vue-i18n'
 import { news as baseNews } from '../content'
-import { readManagedNews, type ManagedNews } from '../adminContent'
+import type { ManagedNews } from '../adminContent'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 
@@ -60,8 +60,16 @@ function closeArticle() {
   startStoryTimer()
 }
 function handleArticleKeydown(event: KeyboardEvent) { if (event.key === 'Escape') closeArticle() }
-onMounted(() => {
-  managedNews.value = readManagedNews()
+onMounted(async () => {
+  // Las noticias publicadas se comparten entre navegadores desde PostgreSQL.
+  // En ausencia de la API permanecen visibles las noticias incluidas en el sitio.
+  try {
+    const response = await fetch('/api/content/news', { cache: 'no-store' })
+    if (response.ok) {
+      const items = await response.json()
+      if (Array.isArray(items)) managedNews.value = items
+    }
+  } catch { /* El carrusel de noticias incorporadas sigue disponible. */ }
   window.addEventListener('keydown', handleArticleKeydown)
   if (emblaViewport.value) {
     emblaApi = EmblaCarousel(emblaViewport.value, { align: 'start', loop: true })
