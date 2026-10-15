@@ -26,7 +26,7 @@ function getWebSocketUrl(): string {
     }
   }
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${protocol}//${location.hostname}:8081`
+  return `${protocol}//${location.host}/ws`
 }
 
 function scheduleReconnect() {
@@ -57,6 +57,7 @@ export function connectWebSocket(): WebSocket | null {
     socket = connection
 
     connection.onopen = () => {
+      if (attempts > 0) window.dispatchEvent(new Event('castrofallas:reconnected'))
       attempts = 0
       console.log('[Castro Fallas] WebSocket conectado')
     }
