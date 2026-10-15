@@ -490,6 +490,7 @@
       "end": "Platform access"
     },
     "quote": {
+      "weightKg": "Estimated total weight (kg, optional)",
       "landingEyebrow": "QUOTES · CASTRO FALLAS",
       "landingHeading": "Quote your next",
       "landingHighlight": "shipment!",
