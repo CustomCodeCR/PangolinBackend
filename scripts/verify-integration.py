@@ -53,9 +53,8 @@ check(all(f'CREATE TABLE IF NOT EXISTS {table}' in schema for table in
           ('quote_contacts', 'quote_land_details', 'quote_air_details',
            'quote_maritime_details', 'quote_multimodal_details')),
       'Cotizaciones estructuradas en cuatro tablas independientes y contacto')
-check(all(f'{mode}: {{ ...shared' in app for mode in ('air', 'maritime', 'multimodal')) is False
-      or all(f'{mode}:' in app for mode in ('air', 'maritime', 'multimodal')),
-      'Formulario preparado para transportar detalles estructurados')
+check(all(f'{mode}: {{' in app for mode in ('land', 'air', 'maritime', 'multimodal')),
+      'Frontend envía los cuatro detalles con clave propia')
 check('land: {' in app and 'weightKg: 1' not in app
       and 'maritime: {' in app and 'multimodal: {' in app,
       'Frontend no inventa peso y envía detalles por modalidad')
