@@ -495,6 +495,15 @@
       "end": "Platform access"
     },
     "quote": {
+      "airLabel": "AIR FREIGHT",
+      "airTitle": "Request an air freight quote",
+      "airDescription": "Request air transportation with your shipment details.",
+      "airButton": "Quote air freight",
+      "maritimeLabel": "OCEAN FREIGHT",
+      "maritimeTitle": "Request an ocean freight quote",
+      "maritimeDescription": "Choose FCL or LCL for your ocean shipment.",
+      "maritimeButton": "Quote ocean freight",
+      "airEquipment": "Equipment or cargo presentation",
       "multimodalLabel": "MULTIMODAL TRANSPORT",
       "multimodalTitle": "Request a multimodal quote",
       "multimodalDescription": "Combine transport modes and provide the entry country.",
