@@ -52,6 +52,28 @@ check("url: '/servicios'" in header and 'logoutSession' in header, 'Menú actual
 check('EmblaCarousel' in read('frontend/src/pages/News.vue') and 'news-article-modal' in read('frontend/src/pages/News.vue'), 'Nueva página Noticias y modal disponible')
 check((root/'frontend/src/pages/Services.vue').is_file(), 'Página Servicios incluida')
 check('selectTransport' in read('frontend/src/pages/Itinerary.vue'), 'Mejoras de transporte incorporadas')
+# Protección frente a las regresiones introducidas por la integración del frontend.
+itinerary = read('frontend/src/pages/Itinerary.vue')
+date_inputs = re.findall(r'<input\s+v-model="item\.(closing|etd|eta)"\s+type="date"', itinerary)
+check(len(date_inputs) == 3 and set(date_inputs) == {'closing', 'etd', 'eta'}
+      and not any(stale in itinerary for stale in
+                  ('closingDesde', 'closingHasta', 'etdDesde', 'etdHasta', 'etaDesde', 'etaHasta')),
+      'Itinerarios: exactamente un Closing, ETD y ETA; no hay fechas duplicadas')
+check("['closing', 'etd', 'eta'] as const" in itinerary and
+      "filters.set(key, f[key])" in itinerary and
+      all(exact in program for exact in ('DateOnly? closing', 'DateOnly? etd', 'DateOnly? eta')),
+      'Itinerarios: el frontend envía filtros de fecha exacta compatibles con la API')
+responsive_css = read('frontend/src/style.css')
+menu_css = responsive_css.split('/* NAV MÓVIL: al abrir hamburguesa', 1)[1].split(
+    '/* Keep the mobile settings popover', 1)[0]
+check(all(css in menu_css for css in
+          ('display: grid;', 'grid-template-rows: 72px auto;',
+           '.site-header.site-header--menu-open .site-brand',
+           '.site-header.site-header--menu-open .menu-toggle',
+           '.site-header.site-header--menu-open .main-nav.main-nav--open',
+           'grid-row: 2;')),
+      'Nav móvil: logo/botón en primera fila, enlaces en segunda, estructura estable')
+
 schema = read('backend/Database/AuthSchema.sql')
 check(all(f'CREATE TABLE IF NOT EXISTS {table}' in schema for table in
           ('quote_contacts', 'quote_land_details', 'quote_air_details',

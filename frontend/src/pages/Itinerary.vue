@@ -14,13 +14,10 @@ type Itinerary = {
   id: number
   pol: string
   pod: string
-  closingDesde: string
-  closingHasta: string
+  closing: string
   status: ItineraryStatus | ''
-  etdDesde: string
-  etdHasta: string
-  etaDesde: string
-  etaHasta: string
+  etd: string
+  eta: string
   transport: TransportMode
   modality: string
 }
@@ -75,7 +72,7 @@ let appliedFilters = ''
 function createItinerary(id: number): Itinerary {
   return {
     id, pol: '', pod: '', status: '', transport: 'maritime', modality: '',
-    closingDesde: '', closingHasta: '', etdDesde: '', etdHasta: '', etaDesde: '', etaHasta: ''
+    closing: '', etd: '', eta: ''
   }
 }
 
@@ -118,31 +115,14 @@ async function searchItineraries(pageNumber = 1) {
     const f = activeItinerary.value
     if (!f) return
 
-    const invalidRange = [
-      [f.closingDesde, f.closingHasta],
-      [f.etdDesde, f.etdHasta],
-      [f.etaDesde, f.etaHasta]
-    ].some(([desde, hasta]) => desde && hasta && desde > hasta)
-
-    if (invalidRange) {
-      errorBusqueda.value = t('custom.itinerary.form.invalidDateRange')
-      searchPerformed.value = true
-      resultados.value = []
-      totalResults.value = 0
-      totalPages.value = 0
-      currentPage.value = 1
-      await nextTick()
-      resultsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      return
-    }
-
     const filters = new URLSearchParams()
     if (f.pol.trim()) filters.set('pol', f.pol.trim())
     if (f.pod.trim()) filters.set('pod', f.pod.trim())
     if (f.status) filters.set('status', f.status)
     if (f.transport) filters.set('transporte', f.transport)
     if (f.modality) filters.set('modalidad', f.modality)
-    for (const key of ['closingDesde', 'closingHasta', 'etdDesde', 'etdHasta', 'etaDesde', 'etaHasta'] as const) {
+    // La API acepta fechas exactas: closing, etd y eta; sin rangos duplicados.
+    for (const key of ['closing', 'etd', 'eta'] as const) {
       if (f[key]) filters.set(key, f[key])
     }
     appliedFilters = filters.toString()
@@ -166,7 +146,7 @@ async function searchItineraries(pageNumber = 1) {
 
     if (response.status === 401 && authState.previewRole) {
       const f = activeItinerary.value
-      if (f) resultados.value = [{ id: 'preview-' + f.id, pol: f.pol || 'San José, Costa Rica', pod: f.pod || 'Miami, Estados Unidos', closing: null, status: f.status || 'planning', etd: f.etdDesde || '', eta: f.etaDesde || '', transport: f.transport, modality: f.modality || (f.transport === 'maritime' ? 'FCL' : 'LTL') }]
+      if (f) resultados.value = [{ id: 'preview-' + f.id, pol: f.pol || 'San José, Costa Rica', pod: f.pod || 'Miami, Estados Unidos', closing: f.closing || null, status: f.status || 'planning', etd: f.etd || '', eta: f.eta || '', transport: f.transport, modality: f.modality || (f.transport === 'maritime' ? 'FCL' : 'LTL') }]
       totalResults.value = resultados.value.length
       totalPages.value = 1
       currentPage.value = 1
@@ -238,12 +218,9 @@ async function searchItineraries(pageNumber = 1) {
           <label class="itinerary-form-line"><strong>{{ t('custom.itinerary.form.status') }}</strong><select v-model="item.status"><option value="">Todos</option><option v-for="status in statuses" :key="status.value" :value="status.value">{{ status.label }}</option></select></label>
           <label class="itinerary-form-line"><strong>POL</strong><input v-model="item.pol" type="text" :placeholder="portPlaceholder(item, 'pol')" /></label>
           <label class="itinerary-form-line"><strong>POD</strong><input v-model="item.pod" type="text" :placeholder="portPlaceholder(item, 'pod')" /></label>
-          <label class="itinerary-form-line"><strong>Closing · {{ t('custom.itinerary.form.dateFrom') }}</strong><input v-model="item.closingDesde" type="date" :max="item.closingHasta || undefined" /></label>
-          <label class="itinerary-form-line"><strong>Closing · {{ t('custom.itinerary.form.dateTo') }}</strong><input v-model="item.closingHasta" type="date" :min="item.closingDesde || undefined" /></label>
-          <label class="itinerary-form-line"><strong>ETD · {{ t('custom.itinerary.form.dateFrom') }}</strong><input v-model="item.etdDesde" type="date" :max="item.etdHasta || undefined" /></label>
-          <label class="itinerary-form-line"><strong>ETD · {{ t('custom.itinerary.form.dateTo') }}</strong><input v-model="item.etdHasta" type="date" :min="item.etdDesde || undefined" /></label>
-          <label class="itinerary-form-line"><strong>ETA · {{ t('custom.itinerary.form.dateFrom') }}</strong><input v-model="item.etaDesde" type="date" :max="item.etaHasta || undefined" /></label>
-          <label class="itinerary-form-line"><strong>ETA · {{ t('custom.itinerary.form.dateTo') }}</strong><input v-model="item.etaHasta" type="date" :min="item.etaDesde || undefined" /></label>
+          <label class="itinerary-form-line"><strong>Closing</strong><input v-model="item.closing" type="date" /></label>
+          <label class="itinerary-form-line"><strong>ETD</strong><input v-model="item.etd" type="date" /></label>
+          <label class="itinerary-form-line"><strong>ETA</strong><input v-model="item.eta" type="date" /></label>
           <label class="itinerary-form-line"><strong>{{ labels.modality }}</strong><select v-model="item.modality"><option value="">Todas</option><option v-for="option in optionsFor(item)" :key="option" :value="option">{{ option }}</option></select></label>
         </div>
         </template>
