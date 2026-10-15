@@ -7,6 +7,11 @@ namespace CastroFallas.MiniQuote.Api.Data;
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<QuoteRequest> QuoteRequests => Set<QuoteRequest>();
+    public DbSet<QuoteContact> QuoteContacts => Set<QuoteContact>();
+    public DbSet<QuoteLandDetail> QuoteLandDetails => Set<QuoteLandDetail>();
+    public DbSet<QuoteAirDetail> QuoteAirDetails => Set<QuoteAirDetail>();
+    public DbSet<QuoteMaritimeDetail> QuoteMaritimeDetails => Set<QuoteMaritimeDetail>();
+    public DbSet<QuoteMultimodalDetail> QuoteMultimodalDetails => Set<QuoteMultimodalDetail>();
     public DbSet<Cliente> Clientes => Set<Cliente>();
     public DbSet<Usuario> Usuarios => Set<Usuario>();
     public DbSet<OtpChallenge> OtpChallenges => Set<OtpChallenge>();
@@ -25,6 +30,76 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         quote.Property(x => x.WeightKg).HasPrecision(18, 2);
         quote.Property(x => x.Status).HasMaxLength(30).IsRequired();
         quote.Property(x => x.Notes).HasColumnType("text");
+
+        var contact = modelBuilder.Entity<QuoteContact>();
+        contact.ToTable("quote_contacts");
+        contact.HasKey(x => x.QuoteId);
+        contact.Property(x => x.QuoteId).HasColumnName("quote_id");
+        contact.Property(x => x.FullName).HasColumnName("full_name").HasMaxLength(150);
+        contact.Property(x => x.Company).HasColumnName("company").HasMaxLength(200);
+        contact.Property(x => x.Email).HasColumnName("email").HasMaxLength(255);
+        contact.Property(x => x.Phone).HasColumnName("phone").HasMaxLength(40);
+        contact.Property(x => x.Country).HasColumnName("country").HasMaxLength(100);
+        quote.HasOne(x => x.Contact).WithOne().HasForeignKey<QuoteContact>(x => x.QuoteId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        var land = modelBuilder.Entity<QuoteLandDetail>();
+        land.ToTable("quote_land_details");
+        land.HasKey(x => x.QuoteId);
+        land.Property(x => x.QuoteId).HasColumnName("quote_id");
+        land.Property(x => x.TransportKind).HasColumnName("transport_kind").HasMaxLength(3);
+        land.Property(x => x.Equipment).HasColumnName("equipment").HasMaxLength(100);
+        land.Property(x => x.Insured).HasColumnName("insured");
+        land.Property(x => x.CustomerType).HasColumnName("customer_type").HasMaxLength(30);
+        quote.HasOne(x => x.Land).WithOne().HasForeignKey<QuoteLandDetail>(x => x.QuoteId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        var air = modelBuilder.Entity<QuoteAirDetail>();
+        air.ToTable("quote_air_details");
+        air.HasKey(x => x.QuoteId);
+        air.Property(x => x.QuoteId).HasColumnName("quote_id");
+        air.Property(x => x.Operation).HasColumnName("operation").HasMaxLength(20);
+        air.Property(x => x.Incoterm).HasColumnName("incoterm").HasMaxLength(3);
+        air.Property(x => x.Nationalization).HasColumnName("nationalization");
+        air.Property(x => x.Description).HasColumnName("description");
+        air.Property(x => x.EquipmentType).HasColumnName("equipment_type").HasMaxLength(100);
+        air.Property(x => x.Quantity).HasColumnName("quantity");
+        air.Property(x => x.DangerousGoods).HasColumnName("dangerous_goods");
+        air.Property(x => x.AdditionalDetails).HasColumnName("additional_details");
+        quote.HasOne(x => x.Air).WithOne().HasForeignKey<QuoteAirDetail>(x => x.QuoteId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        var maritime = modelBuilder.Entity<QuoteMaritimeDetail>();
+        maritime.ToTable("quote_maritime_details");
+        maritime.HasKey(x => x.QuoteId);
+        maritime.Property(x => x.QuoteId).HasColumnName("quote_id");
+        maritime.Property(x => x.Operation).HasColumnName("operation").HasMaxLength(20);
+        maritime.Property(x => x.Incoterm).HasColumnName("incoterm").HasMaxLength(3);
+        maritime.Property(x => x.Nationalization).HasColumnName("nationalization");
+        maritime.Property(x => x.ShippingType).HasColumnName("shipping_type").HasMaxLength(3);
+        maritime.Property(x => x.Description).HasColumnName("description");
+        maritime.Property(x => x.ContainerType).HasColumnName("container_type").HasMaxLength(100);
+        maritime.Property(x => x.Quantity).HasColumnName("quantity");
+        maritime.Property(x => x.DangerousGoods).HasColumnName("dangerous_goods");
+        maritime.Property(x => x.AdditionalDetails).HasColumnName("additional_details");
+        quote.HasOne(x => x.Maritime).WithOne().HasForeignKey<QuoteMaritimeDetail>(x => x.QuoteId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        var multimodal = modelBuilder.Entity<QuoteMultimodalDetail>();
+        multimodal.ToTable("quote_multimodal_details");
+        multimodal.HasKey(x => x.QuoteId);
+        multimodal.Property(x => x.QuoteId).HasColumnName("quote_id");
+        multimodal.Property(x => x.Operation).HasColumnName("operation").HasMaxLength(20);
+        multimodal.Property(x => x.Incoterm).HasColumnName("incoterm").HasMaxLength(3);
+        multimodal.Property(x => x.Nationalization).HasColumnName("nationalization");
+        multimodal.Property(x => x.EntryCountry).HasColumnName("entry_country").HasMaxLength(100);
+        multimodal.Property(x => x.Description).HasColumnName("description");
+        multimodal.Property(x => x.ContainerType).HasColumnName("container_type").HasMaxLength(100);
+        multimodal.Property(x => x.Quantity).HasColumnName("quantity");
+        multimodal.Property(x => x.DangerousGoods).HasColumnName("dangerous_goods");
+        multimodal.Property(x => x.AdditionalDetails).HasColumnName("additional_details");
+        quote.HasOne(x => x.Multimodal).WithOne().HasForeignKey<QuoteMultimodalDetail>(x => x.QuoteId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         var cliente = modelBuilder.Entity<Cliente>();
         cliente.ToTable("clientes");
