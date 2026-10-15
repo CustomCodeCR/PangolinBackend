@@ -108,8 +108,8 @@ public sealed class QuoteService(AppDbContext db, ILogger<QuoteService> logger, 
     private static void Validate(CreateQuoteRequest input)
     {
         if (input.ServiceType is null ||
-            !new[] { "Maritime", "Air", "Land" }.Contains(input.ServiceType, StringComparer.OrdinalIgnoreCase))
-            throw new ArgumentException("ServiceType debe ser Maritime, Air o Land.");
+            !new[] { "Maritime", "Air", "Land", "Multimodal" }.Contains(input.ServiceType, StringComparer.OrdinalIgnoreCase))
+            throw new ArgumentException("ServiceType debe ser Maritime, Air, Land o Multimodal.");
         if (string.IsNullOrWhiteSpace(input.Origin)) throw new ArgumentException("El origen es obligatorio.");
         if (string.IsNullOrWhiteSpace(input.Destination)) throw new ArgumentException("El destino es obligatorio.");
         if (string.IsNullOrWhiteSpace(input.CargoType)) throw new ArgumentException("El tipo de carga es obligatorio.");
