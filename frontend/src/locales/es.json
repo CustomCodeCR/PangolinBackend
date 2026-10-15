@@ -490,6 +490,7 @@
       "end": "Acceso a la plataforma"
     },
     "quote": {
+      "weightKg": "Peso total estimado (kg, opcional)",
       "landingEyebrow": "COTIZACIONES · CASTRO FALLAS",
       "landingHeading": "¡Cotizá tu próximo",
       "landingHighlight": "embarque!",
