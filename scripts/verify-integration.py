@@ -96,4 +96,29 @@ check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('fro
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
 check('VITE_API_PROXY_TARGET' in read('frontend/vite.config.ts'), 'Proxy Docker conservado')
+# Regresión detectada al integrar rediseño: la cuadrícula del menú móvil
+# del ZIP de referencia fue sustituida por flex-wrap y el formulario perdió
+# las claves dateFrom/dateTo, mostrando sus IDs de traducción al usuario.
+responsive = read('frontend/src/responsive-regressions.css')
+itinerary = read('frontend/src/pages/Itinerary.vue')
+main_ts = read('frontend/src/main.ts')
+check(main_ts.index("import './responsive-regressions.css'") > main_ts.index("import './style.css'"),
+      'El responsive restaurado se aplica después del CSS general')
+check(all(x in responsive for x in ('grid-template-columns: minmax(0, 1fr) auto',
+                                   'grid-template-rows: 72px auto',
+                                   '.site-header.site-header--menu-open .site-brand',
+                                   '.site-header.site-header--menu-open .menu-toggle',
+                                   '.site-header.site-header--menu-open .main-nav.main-nav--open')),
+      'Menú móvil recupera la cuadrícula original del ZIP')
+check(itinerary.count('class="itinerary-date-range"') == 3 and
+      all(x in itinerary for x in
+          ('closingDesde', 'closingHasta', 'etdDesde', 'etdHasta',
+           'etaDesde', 'etaHasta')),
+      'Itinerarios agrupa tres rangos conservando seis parámetros API')
+for language, desde, hasta in (('es', 'Desde', 'Hasta'), ('en', 'From', 'To')):
+    texts = json.loads(read(f'frontend/src/locales/{language}.json'))
+    form = texts['custom']['itinerary']['form']
+    check(form.get('dateFrom') == desde and form.get('dateTo') == hasta,
+          f'Traducciones de fechas de itinerario recuperadas: {language}')
+
 print('Comprobaciones estáticas de integración finalizadas.')
