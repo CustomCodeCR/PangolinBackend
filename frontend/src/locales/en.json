@@ -500,6 +500,7 @@
       "multimodalDescription": "Combine transport modes and provide the entry country.",
       "multimodalButton": "Request multimodal quote",
       "entryCountry": "Entry country",
+      "entryCountryRequired": "Entry country is required for multimodal quotations.",
       "clientOnly": "Only clients can request quotes",
       "clientOnlyHelp": "Sign in with a client account to submit a quote. This page is not available to administrators.",
       "weightKg": "Estimated total weight (kg, optional)",
