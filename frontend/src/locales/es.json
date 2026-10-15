@@ -448,6 +448,8 @@
       "sampleNote": "Artículo de demostración · Información pendiente de verificación"
     },
     "login": {
+      "emailHelp": "Introduce el correo registrado en Castro Fallas. Tu rol se identifica automáticamente.",
+      "emailInvalid": "Introduce una dirección de correo electrónico válida.",
       "eyebrow": "ACCESO A LA PLATAFORMA",
       "title": "Bienvenidos",
       "intro": "Ingresa tu dirección de Gmail para recibir un código de un solo uso.",
@@ -493,6 +495,11 @@
       "end": "Acceso a la plataforma"
     },
     "quote": {
+      "multimodalLabel": "TRANSPORTE MULTIMODAL",
+      "multimodalTitle": "Cotiza una operación multimodal",
+      "multimodalDescription": "Combina medios de transporte y especifica el país de entrada.",
+      "multimodalButton": "Cotizar multimodal",
+      "entryCountry": "País de entrada",
       "clientOnly": "Solo clientes pueden solicitar cotizaciones",
       "clientOnlyHelp": "Ingresá con una cuenta de cliente para enviar una solicitud. Esta sección no está habilitada para administradores.",
       "weightKg": "Peso total estimado (kg, opcional)",
