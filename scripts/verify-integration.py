@@ -49,6 +49,19 @@ check('EmblaCarousel' in read('frontend/src/pages/News.vue') and 'news-article-m
 check((root/'frontend/src/pages/Services.vue').is_file(), 'Página Servicios incluida')
 check('selectTransport' in read('frontend/src/pages/Itinerary.vue'), 'Mejoras de transporte incorporadas')
 schema = read('backend/Database/AuthSchema.sql')
+check(all(f'CREATE TABLE IF NOT EXISTS {table}' in schema for table in
+          ('quote_contacts', 'quote_land_details', 'quote_air_details',
+           'quote_maritime_details', 'quote_multimodal_details')),
+      'Cotizaciones estructuradas en cuatro tablas independientes y contacto')
+check(all(f'{mode}: {{ ...shared' in app for mode in ('air', 'maritime', 'multimodal')) is False
+      or all(f'{mode}:' in app for mode in ('air', 'maritime', 'multimodal')),
+      'Formulario preparado para transportar detalles estructurados')
+check('land: {' in app and 'weightKg: 1' not in app
+      and 'maritime: {' in app and 'multimodal: {' in app,
+      'Frontend no inventa peso y envía detalles por modalidad')
+check('app.MapGet("/api/quotes/mine"' in program and
+      '.RequireAuthorization("client")' in program,
+      'Cotizaciones propias y creación restringida a clientes')
 check('CREATE TABLE IF NOT EXISTS public.itinerarios' in schema and
       'ADD COLUMN IF NOT EXISTS closing DATE NULL' in schema,
       'Itinerarios provisionales con closing sin eliminar registros')
