@@ -6,7 +6,7 @@ import { deleteManaged, newManagedId, readManagedItineraries, readManagedMedia, 
 
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 type Section = 'itineraries' | 'news' | 'media' | 'users'
-type AppRole = 'invitado' | 'cliente' | 'administrador'
+type AppRole = 'cliente' | 'administrador'
 interface ManagedUser { id: string; correo: string; nombre?: string; role: AppRole; activo: boolean }
 const section = ref<Section>(new URLSearchParams(window.location.search).get('tab') === 'usuarios' ? 'users' : 'itineraries')
 const itineraries = ref<ManagedItinerary[]>([])
@@ -72,13 +72,68 @@ async function loadItineraries() {
 }
 
 async function loadUsers() {
-  usersLoading.value = false
   users.value = []
-  usersError.value = 'La API de usuarios aún no está implementada en el backend de main. Esta sección queda como previsualización y no consulta ni modifica cuentas reales.'
+  usersError.value = ''
+  if (!isLiveAdmin.value) {
+    usersLoading.value = false
+    usersError.value = 'Previsualización: se necesita una sesión administradora real para consultar usuarios.'
+    return
+  }
+  usersLoading.value = true
+  try {
+    const all: ManagedUser[] = []
+    let page = 1
+    let totalPages = 1
+    do {
+      const response = await fetch(`/api/admin/users?page=${page}&pageSize=100`, {
+        credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' }
+      })
+      if (!response.ok) throw new Error(`No se pudo cargar usuarios (HTTP ${response.status}).`)
+      const data = await response.json()
+      if (!Array.isArray(data.users) || !Number.isInteger(data.totalPages))
+        throw new Error('Formato de listado de usuarios incorrecto.')
+      all.push(...data.users.map((item: ManagedUser) => ({
+        id: String(item.id),
+        correo: item.correo,
+        nombre: item.nombre,
+        role: item.role,
+        activo: item.activo
+      })))
+      totalPages = data.totalPages
+      page++
+    } while (page <= totalPages && page <= 1000)
+    users.value = all
+  } catch (cause) {
+    usersError.value = cause instanceof Error ? cause.message : 'No se pudieron cargar usuarios.'
+  } finally {
+    usersLoading.value = false
+  }
 }
 
-async function updateUser(_user: ManagedUser) {
-  // Se habilitará al incorporar una API segura de usuarios en el backend.
+async function updateUser(user: ManagedUser) {
+  if (!isLiveAdmin.value) return
+  usersError.value = ''
+  usersNotice.value = ''
+  savingUserId.value = user.id
+  try {
+    const response = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
+      method: 'PATCH', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ role: user.role, activo: user.activo })
+    })
+    if (!response.ok) {
+      const problem = await response.json().catch(() => null)
+      throw new Error(problem?.error || `No se pudo actualizar la cuenta (HTTP ${response.status}).`)
+    }
+    await loadUsers()
+    usersNotice.value = 'Los cambios se guardaron. Se invalidaron las sesiones activas de la cuenta modificada.'
+  } catch (cause) {
+    usersError.value = cause instanceof Error ? cause.message : 'No se pudo modificar la cuenta.'
+    await loadUsers()
+    usersError.value = cause instanceof Error ? cause.message : 'No se pudo modificar la cuenta.'
+  } finally {
+    savingUserId.value = null
+  }
 }
 
 function startNew() {
@@ -182,7 +237,7 @@ function useMediaForNews(item: ManagedMedia) { section.value = 'news'; newsForm.
     <section class="manager-shell">
       <div class="manager-heading"><p class="manager-eyebrow">CASTRO FALLAS · ADMINISTRACIÓN</p><h1>{{ section === 'users' ? 'Gestión de usuarios' : 'Administración del sitio' }}</h1><p>{{ section === 'users' ? 'Consulta las cuentas y administra sus roles desde esta sección.' : 'Administra itinerarios, noticias e imágenes desde esta pantalla.' }}</p></div>
       <div v-if="authState.previewRole" class="manager-preview-note" role="status">Previsualización de desarrollo · Estás viendo el rol {{ authState.previewRole }}. No es una sesión real ni un acceso administrativo de producción.</div>
-      <div class="manager-notice" role="note"><strong>Importante:</strong> los itinerarios se guardan en el servidor con una sesión administradora real. Noticias, multimedia y la previsualización se guardan solo en este navegador.</div>
+      <div class="manager-notice" role="note"><strong>Importante:</strong> itinerarios y cambios de usuarios se guardan en el servidor con una sesión administradora real. Noticias, multimedia y la previsualización se guardan solo en este navegador.</div>
       <nav class="manager-tabs" aria-label="Secciones de administración">
         <button :class="{ active: section !== 'users' }" @click="selectSection('itineraries')">Contenido</button>
         <button :class="{ active: section === 'users' }" @click="selectSection('users')">Gestión de usuarios <span>{{ users.length }}</span></button>
@@ -198,7 +253,7 @@ function useMediaForNews(item: ManagedMedia) { section.value = 'news'; newsForm.
         <p v-if="usersNotice" class="manager-feedback" role="status">{{ usersNotice }}</p>
         <div v-if="usersLoading" class="manager-users-empty">Consultando el sistema de usuarios…</div>
         <div v-else-if="!usersError && users.length === 0" class="manager-users-empty">Aún no hay cuentas para mostrar.</div>
-        <div v-else-if="users.length" class="manager-users-table-wrap"><table class="manager-users-table"><thead><tr><th>Cuenta</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody><tr v-for="user in users" :key="user.id"><td><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td><td><select v-model="user.role" :disabled="Boolean(authState.previewRole)" :aria-label="`Rol de ${user.correo}`"><option value="invitado">Invitado</option><option value="cliente">Cliente</option><option value="administrador">Administrador</option></select></td><td><select v-model="user.activo" :disabled="Boolean(authState.previewRole)" :aria-label="`Estado de ${user.correo}`"><option :value="true">Activo</option><option :value="false">Desactivado</option></select></td><td><button class="manager-user-save" :disabled="Boolean(authState.previewRole) || savingUserId === user.id" @click="updateUser(user)">{{ savingUserId === user.id ? 'Guardando…' : 'Guardar' }}</button></td></tr></tbody></table></div>
+        <div v-else-if="users.length" class="manager-users-table-wrap"><table class="manager-users-table"><thead><tr><th>Cuenta</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody><tr v-for="user in users" :key="user.id"><td><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td><td><select v-model="user.role" :disabled="Boolean(authState.previewRole)" :aria-label="`Rol de ${user.correo}`"><option value="cliente">Cliente</option><option value="administrador">Administrador</option></select></td><td><select v-model="user.activo" :disabled="Boolean(authState.previewRole)" :aria-label="`Estado de ${user.correo}`"><option :value="true">Activo</option><option :value="false">Desactivado</option></select></td><td><button class="manager-user-save" :disabled="Boolean(authState.previewRole) || savingUserId === user.id" @click="updateUser(user)">{{ savingUserId === user.id ? 'Guardando…' : 'Guardar' }}</button></td></tr></tbody></table></div>
       </section>
       <div class="manager-layout">
         <template v-if="section !== 'users'">
