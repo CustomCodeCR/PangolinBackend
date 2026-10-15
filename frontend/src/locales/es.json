@@ -811,6 +811,8 @@
       "form": {
         "eyebrow": "DATOS DEL EMBARQUE",
         "itemTitle": "Itinerario {number}",
+        "dateFrom": "Desde",
+        "dateTo": "Hasta",
         "status": "Estatus",
         "statuses": [
           "En planificación",
