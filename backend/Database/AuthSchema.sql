@@ -76,6 +76,21 @@ CREATE INDEX IF NOT EXISTS idx_sessions_usuario ON auth_sessions(usuario_id, exp
 -- Nota: el alta/actualización de registros de clientes y usuarios se hace en DBeaver.
 -- No se ofrecen endpoints públicos de alta para prevenir registros no autorizados.
 
+-- Auditoría de cambios de rol/estado; nunca se guardan códigos OTP ni JWT.
+-- No se borran ni alteran filas de clientes/usuarios existentes.
+CREATE TABLE IF NOT EXISTS auth_admin_user_audit (
+    id BIGSERIAL PRIMARY KEY,
+    actor_usuario_id UUID NULL REFERENCES usuarios(uuid) ON DELETE SET NULL,
+    target_usuario_id UUID NULL REFERENCES usuarios(uuid) ON DELETE SET NULL,
+    old_role VARCHAR(20) NOT NULL,
+    new_role VARCHAR(20) NOT NULL,
+    old_active BOOLEAN NOT NULL,
+    new_active BOOLEAN NOT NULL,
+    changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_admin_user_audit_target
+    ON auth_admin_user_audit(target_usuario_id, changed_at DESC);
+
 -- En caso de una base creada manualmente con clientes/usuarios y sin el cotizador.
 CREATE TABLE IF NOT EXISTS quote_requests (
     "Id" UUID PRIMARY KEY,
