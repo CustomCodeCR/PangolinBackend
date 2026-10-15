@@ -27,7 +27,7 @@ public static class ContentEndpoints
                 .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Image, x.Published })
                 .ToListAsync(ct)));
 
-        admin.MapPost("/news", async (SaveNewsRequest input, AppDbContext db, CancellationToken ct) =>
+        admin.MapPost("/news", async (SaveNewsRequest input, AppDbContext db, RealtimeNotifier realtime, CancellationToken ct) =>
         {
             var validation = ValidateNews(input);
             if (validation is not null) return Results.BadRequest(new { error = validation });
@@ -35,11 +35,12 @@ public static class ContentEndpoints
             ApplyNews(news, input);
             db.ManagedNews.Add(news);
             await db.SaveChangesAsync(ct);
+            await realtime.NewsChangedAsync();
             return Results.Created($"/api/admin/content/news/{news.Id}", NewsView(news));
         });
 
         admin.MapPut("/news/{id:guid}", async (
-            Guid id, SaveNewsRequest input, AppDbContext db, CancellationToken ct) =>
+            Guid id, SaveNewsRequest input, AppDbContext db, RealtimeNotifier realtime, CancellationToken ct) =>
         {
             var validation = ValidateNews(input);
             if (validation is not null) return Results.BadRequest(new { error = validation });
@@ -47,15 +48,17 @@ public static class ContentEndpoints
             if (news is null) return Results.NotFound(new { error = "Noticia no encontrada." });
             ApplyNews(news, input);
             await db.SaveChangesAsync(ct);
+            await realtime.NewsChangedAsync();
             return Results.Ok(NewsView(news));
         });
 
-        admin.MapDelete("/news/{id:guid}", async (Guid id, AppDbContext db, CancellationToken ct) =>
+        admin.MapDelete("/news/{id:guid}", async (Guid id, AppDbContext db, RealtimeNotifier realtime, CancellationToken ct) =>
         {
             var news = await db.ManagedNews.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (news is null) return Results.NotFound(new { error = "Noticia no encontrada." });
             db.ManagedNews.Remove(news);
             await db.SaveChangesAsync(ct);
+            await realtime.NewsChangedAsync();
             return Results.NoContent();
         });
 
@@ -65,7 +68,7 @@ public static class ContentEndpoints
                 .Select(x => new { x.Id, x.Name, x.Kind, x.Src })
                 .ToListAsync(ct)));
 
-        admin.MapPost("/media", async (SaveMediaRequest input, AppDbContext db, CancellationToken ct) =>
+        admin.MapPost("/media", async (SaveMediaRequest input, AppDbContext db, RealtimeNotifier realtime, CancellationToken ct) =>
         {
             var validation = ValidateMedia(input);
             if (validation is not null) return Results.BadRequest(new { error = validation });
@@ -73,11 +76,12 @@ public static class ContentEndpoints
             ApplyMedia(media, input);
             db.ManagedMedia.Add(media);
             await db.SaveChangesAsync(ct);
+            await realtime.MediaChangedAsync();
             return Results.Created($"/api/admin/content/media/{media.Id}", MediaView(media));
         });
 
         admin.MapPut("/media/{id:guid}", async (
-            Guid id, SaveMediaRequest input, AppDbContext db, CancellationToken ct) =>
+            Guid id, SaveMediaRequest input, AppDbContext db, RealtimeNotifier realtime, CancellationToken ct) =>
         {
             var validation = ValidateMedia(input);
             if (validation is not null) return Results.BadRequest(new { error = validation });
@@ -85,15 +89,17 @@ public static class ContentEndpoints
             if (media is null) return Results.NotFound(new { error = "Archivo no encontrado." });
             ApplyMedia(media, input);
             await db.SaveChangesAsync(ct);
+            await realtime.MediaChangedAsync();
             return Results.Ok(MediaView(media));
         });
 
-        admin.MapDelete("/media/{id:guid}", async (Guid id, AppDbContext db, CancellationToken ct) =>
+        admin.MapDelete("/media/{id:guid}", async (Guid id, AppDbContext db, RealtimeNotifier realtime, CancellationToken ct) =>
         {
             var media = await db.ManagedMedia.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (media is null) return Results.NotFound(new { error = "Archivo no encontrado." });
             db.ManagedMedia.Remove(media);
             await db.SaveChangesAsync(ct);
+            await realtime.MediaChangedAsync();
             return Results.NoContent();
         });
     }
