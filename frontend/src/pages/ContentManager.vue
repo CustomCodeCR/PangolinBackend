@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { subscribeToChanges } from '../services/realtime'
 import IconSymbol from '../components/IconSymbol.vue'
 import { authState, refreshSession } from '../services/auth'
 import { deleteManaged, newManagedId, readManagedItineraries, readManagedMedia, readManagedNews, saveManaged, type ManagedItinerary, type ManagedMedia, type ManagedNews } from '../adminContent'
@@ -51,11 +52,31 @@ async function loadMedia() {
     media.value = list
   } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'Error consultando multimedia.' }
 }
+let unsubscribeItineraries: (() => void) | undefined
+let unsubscribeNews: (() => void) | undefined
+let unsubscribeMedia: (() => void) | undefined
+function refreshOpenSection() {
+  if (!isLiveAdmin.value) return
+  if (section.value === 'itineraries') void loadItineraries()
+  if (section.value === 'news') void loadNews()
+  if (section.value === 'media') void loadMedia()
+}
 onMounted(async () => {
+  unsubscribeItineraries = subscribeToChanges('itinerarios', refreshOpenSection)
+  unsubscribeNews = subscribeToChanges('news', refreshOpenSection)
+  unsubscribeMedia = subscribeToChanges('media', refreshOpenSection)
+  window.addEventListener('castrofallas:reconnected', refreshOpenSection)
   await refreshSession()
   reload()
   if (isLiveAdmin.value) await Promise.all([loadItineraries(), loadNews(), loadMedia()])
   if (section.value === 'users') await loadUsers()
+})
+
+onUnmounted(() => {
+  unsubscribeItineraries?.()
+  unsubscribeNews?.()
+  unsubscribeMedia?.()
+  window.removeEventListener('castrofallas:reconnected', refreshOpenSection)
 })
 
 function selectSection(next: Section) {

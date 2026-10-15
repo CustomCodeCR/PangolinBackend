@@ -88,6 +88,7 @@ builder.Services.AddAuthorization(options =>
 });
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<QuoteService>();
+builder.Services.AddSingleton<RealtimeNotifier>();
 builder.Services.AddScoped<AssistantService>();
 builder.Services.AddHttpClient("OpenAI", client =>
 {
@@ -180,10 +181,15 @@ app.Use(async (ctx, next) =>
     await next(ctx);
 });
 
+app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) });
 app.UseRouting();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Mismo origen que la API y Vite: sin un proceso Node adicional en producción.
+app.MapGet("/ws", (HttpContext http, RealtimeNotifier notifier, AuthService auth) =>
+    notifier.HandleAsync(http, auth));
 
 app.MapGet("/api/health", () => Results.Ok(new
 {
@@ -308,13 +314,14 @@ app.MapPost("/api/auth/logout", async (AuthService auth, HttpContext http, Cance
 });
 
 app.MapPost("/api/quotes", async (
-    CreateQuoteRequest input, QuoteService service, AuthService auth, HttpContext http, CancellationToken ct) =>
+    CreateQuoteRequest input, QuoteService service, AuthService auth, RealtimeNotifier realtime, HttpContext http, CancellationToken ct) =>
 {
     var user = await auth.GetIdentityAsync(http, ct);
     if (user is null) return Results.Unauthorized();
     try
     {
         var quote = await service.CreateAsync(input, user.ClienteId, user.UsuarioId, ct);
+        await realtime.QuoteChangedAsync(user.ClienteId);
         return Results.Created($"/api/quotes/{quote.Id}", quote);
     }
     catch (ArgumentException ex)

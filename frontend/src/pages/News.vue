@@ -7,6 +7,7 @@ import { news as baseNews } from '../content'
 import type { ManagedNews } from '../adminContent'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
+import { subscribeToChanges } from '../services/realtime'
 
 const { t } = useI18n({ useScope: 'global' })
 const activeArticleIndex = ref<number | null>(null)
@@ -60,7 +61,7 @@ function closeArticle() {
   startStoryTimer()
 }
 function handleArticleKeydown(event: KeyboardEvent) { if (event.key === 'Escape') closeArticle() }
-onMounted(async () => {
+async function reloadNews() {
   // Las noticias publicadas se comparten entre navegadores desde PostgreSQL.
   // En ausencia de la API permanecen visibles las noticias incluidas en el sitio.
   try {
@@ -70,6 +71,13 @@ onMounted(async () => {
       if (Array.isArray(items)) managedNews.value = items
     }
   } catch { /* El carrusel de noticias incorporadas sigue disponible. */ }
+}
+let unsubscribeNews: (() => void) | undefined
+function handleReconnected() { void reloadNews() }
+onMounted(async () => {
+  await reloadNews()
+  unsubscribeNews = subscribeToChanges('news', () => { void reloadNews() })
+  window.addEventListener('castrofallas:reconnected', handleReconnected)
   window.addEventListener('keydown', handleArticleKeydown)
   if (emblaViewport.value) {
     emblaApi = EmblaCarousel(emblaViewport.value, { align: 'start', loop: true })
@@ -78,6 +86,8 @@ onMounted(async () => {
   startStoryTimer()
 })
 onUnmounted(() => {
+  unsubscribeNews?.()
+  window.removeEventListener('castrofallas:reconnected', handleReconnected)
   window.removeEventListener('keydown', handleArticleKeydown)
   pauseStoryTimer()
   emblaApi?.destroy()
