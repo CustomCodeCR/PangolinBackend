@@ -87,7 +87,7 @@
   border-top: 1px solid rgba(69, 66, 75, .14);
   min-width: 0;
 }
-.itinerary-date-range legend {
+.itinerary-date-range__title {
   grid-column: 1;
   padding: 0;
   font-weight: 800;
