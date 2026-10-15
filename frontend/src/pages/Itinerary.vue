@@ -12,10 +12,13 @@ type Itinerary = {
   id: number
   pol: string
   pod: string
-  closing: string
+  closingDesde: string
+  closingHasta: string
   status: ItineraryStatus | ''
-  etd: string
-  eta: string
+  etdDesde: string
+  etdHasta: string
+  etaDesde: string
+  etaHasta: string
   transport: TransportMode
   modality: string
 }
@@ -31,6 +34,14 @@ type ItineraryResultado = {
   eta: string
   transport: TransportMode
   modality: string
+}
+
+type ItineraryPageResponse = {
+  items: ItineraryResultado[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
 }
 
 const { t, tm } = useI18n({ useScope: 'global' })
@@ -51,9 +62,17 @@ const expandedResultId = ref<string | null>(null)
 const resultados = ref<ItineraryResultado[]>([])
 const cargando = ref(false)
 const errorBusqueda = ref('')
+const currentPage = ref(1)
+const totalPages = ref(0)
+const totalResults = ref(0)
+const pageSize = 20
+let appliedFilters = ''
 
 function createItinerary(id: number): Itinerary {
-  return { id, pol: '', pod: '', closing: '', status: '', etd: '', eta: '', transport: 'maritime', modality: '' }
+  return {
+    id, pol: '', pod: '', status: '', transport: 'maritime', modality: '',
+    closingDesde: '', closingHasta: '', etdDesde: '', etdHasta: '', etaDesde: '', etaHasta: ''
+  }
 }
 
 function optionsFor(item: Itinerary) {
@@ -88,19 +107,46 @@ function statusLabel(status: ItineraryStatus) {
   return statuses.value.find(option => option.value === status)?.label ?? status
 }
 
-async function searchItineraries() {
-  const f = activeItinerary.value
-  if (!f || cargando.value) return
+async function searchItineraries(pageNumber = 1) {
+  if (cargando.value || pageNumber < 1 || (pageNumber > 1 && pageNumber > totalPages.value)) return
 
-  const qs = new URLSearchParams()
-  if (f.pol.trim()) qs.set('pol', f.pol.trim())
-  if (f.pod.trim()) qs.set('pod', f.pod.trim())
-  if (f.closing) qs.set('closing', f.closing)
-  if (f.etd) qs.set('etd', f.etd)
-  if (f.eta) qs.set('eta', f.eta)
-  if (f.status) qs.set('status', f.status)
-  if (f.transport) qs.set('transporte', f.transport)
-  if (f.modality) qs.set('modalidad', f.modality)
+  if (pageNumber === 1) {
+    const f = activeItinerary.value
+    if (!f) return
+
+    const invalidRange = [
+      [f.closingDesde, f.closingHasta],
+      [f.etdDesde, f.etdHasta],
+      [f.etaDesde, f.etaHasta]
+    ].some(([desde, hasta]) => desde && hasta && desde > hasta)
+
+    if (invalidRange) {
+      errorBusqueda.value = t('custom.itinerary.form.invalidDateRange')
+      searchPerformed.value = true
+      resultados.value = []
+      totalResults.value = 0
+      totalPages.value = 0
+      currentPage.value = 1
+      await nextTick()
+      resultsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+
+    const filters = new URLSearchParams()
+    if (f.pol.trim()) filters.set('pol', f.pol.trim())
+    if (f.pod.trim()) filters.set('pod', f.pod.trim())
+    if (f.status) filters.set('status', f.status)
+    if (f.transport) filters.set('transporte', f.transport)
+    if (f.modality) filters.set('modalidad', f.modality)
+    for (const key of ['closingDesde', 'closingHasta', 'etdDesde', 'etdHasta', 'etaDesde', 'etaHasta'] as const) {
+      if (f[key]) filters.set(key, f[key])
+    }
+    appliedFilters = filters.toString()
+  }
+
+  const qs = new URLSearchParams(appliedFilters)
+  qs.set('page', String(pageNumber))
+  qs.set('pageSize', String(pageSize))
 
   cargando.value = true
   errorBusqueda.value = ''
@@ -114,7 +160,6 @@ async function searchItineraries() {
       cache: 'no-store',
     })
 
-    // El endpoint de la guía requiere una sesión válida.
     if (response.status === 401) {
       window.location.assign('/bienvenidos?next=' + encodeURIComponent(window.location.pathname + window.location.search))
       return
@@ -122,17 +167,29 @@ async function searchItineraries() {
     if (!response.ok) throw new Error(`No se pudieron consultar itinerarios (${response.status}).`)
 
     const data: unknown = await response.json()
-    if (!Array.isArray(data)) throw new Error('La API devolvió un formato inesperado.')
-    resultados.value = data as ItineraryResultado[]
+    if (!data || typeof data !== 'object' || !('items' in data) || !Array.isArray(data.items)
+      || !('total' in data) || typeof data.total !== 'number'
+      || !('page' in data) || typeof data.page !== 'number'
+      || !('totalPages' in data) || typeof data.totalPages !== 'number') {
+      throw new Error('La API devolvió un formato inesperado.')
+    }
+    const result = data as ItineraryPageResponse
+    resultados.value = result.items
+    totalResults.value = result.total
+    totalPages.value = result.totalPages
+    currentPage.value = result.page
   } catch (error) {
     errorBusqueda.value = error instanceof Error ? error.message : 'Error desconocido.'
     resultados.value = []
+    totalResults.value = 0
+    totalPages.value = 0
   } finally {
     cargando.value = false
     await nextTick()
     resultsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 }
+
 </script>
 
 <template>
@@ -169,22 +226,25 @@ async function searchItineraries() {
           <label class="itinerary-form-line"><strong>{{ t('custom.itinerary.form.status') }}</strong><select v-model="item.status"><option value="">Todos</option><option v-for="status in statuses" :key="status.value" :value="status.value">{{ status.label }}</option></select></label>
           <label class="itinerary-form-line"><strong>POL</strong><input v-model="item.pol" type="text" :placeholder="portPlaceholder(item, 'pol')" /></label>
           <label class="itinerary-form-line"><strong>POD</strong><input v-model="item.pod" type="text" :placeholder="portPlaceholder(item, 'pod')" /></label>
-          <label class="itinerary-form-line"><strong>Closing</strong><input v-model="item.closing" type="date" /></label>
-          <label class="itinerary-form-line"><strong>ETD</strong><input v-model="item.etd" type="date" /></label>
-          <label class="itinerary-form-line"><strong>ETA</strong><input v-model="item.eta" type="date" /></label>
+          <label class="itinerary-form-line"><strong>Closing · {{ t('custom.itinerary.form.dateFrom') }}</strong><input v-model="item.closingDesde" type="date" :max="item.closingHasta || undefined" /></label>
+          <label class="itinerary-form-line"><strong>Closing · {{ t('custom.itinerary.form.dateTo') }}</strong><input v-model="item.closingHasta" type="date" :min="item.closingDesde || undefined" /></label>
+          <label class="itinerary-form-line"><strong>ETD · {{ t('custom.itinerary.form.dateFrom') }}</strong><input v-model="item.etdDesde" type="date" :max="item.etdHasta || undefined" /></label>
+          <label class="itinerary-form-line"><strong>ETD · {{ t('custom.itinerary.form.dateTo') }}</strong><input v-model="item.etdHasta" type="date" :min="item.etdDesde || undefined" /></label>
+          <label class="itinerary-form-line"><strong>ETA · {{ t('custom.itinerary.form.dateFrom') }}</strong><input v-model="item.etaDesde" type="date" :max="item.etaHasta || undefined" /></label>
+          <label class="itinerary-form-line"><strong>ETA · {{ t('custom.itinerary.form.dateTo') }}</strong><input v-model="item.etaHasta" type="date" :min="item.etaDesde || undefined" /></label>
           <label class="itinerary-form-line"><strong>{{ labels.modality }}</strong><select v-model="item.modality"><option value="">Todas</option><option v-for="option in optionsFor(item)" :key="option" :value="option">{{ option }}</option></select></label>
         </div>
         </template>
       </section>
 
       <div class="itinerary-actions">
-        <button class="itinerary-search-button" type="button" :disabled="cargando" @click="searchItineraries"><IconSymbol glyph="⌕" aria-hidden="true" />{{ cargando ? 'Buscando…' : t('custom.itinerary.form.search') }}</button>
+        <button class="itinerary-search-button" type="button" :disabled="cargando" @click="searchItineraries(1)"><IconSymbol glyph="⌕" aria-hidden="true" />{{ cargando ? 'Buscando…' : t('custom.itinerary.form.search') }}</button>
       </div>
 
       <section v-if="searchPerformed" ref="resultsRef" class="itinerary-search-results" aria-live="polite">
         <header class="itinerary-search-results__heading">
           <div><p class="section-tag">{{ t('custom.itinerary.form.resultsEyebrow') }}</p><h2>{{ t('custom.itinerary.form.resultsTitle') }}</h2></div>
-          <span>{{ resultados.length }} {{ t('custom.itinerary.form.resultsCount') }}</span>
+          <span v-if="!errorBusqueda">{{ totalResults }} {{ t('custom.itinerary.form.resultsCount') }}</span>
         </header>
         <p v-if="cargando" role="status">Consultando itinerarios…</p>
         <p v-else-if="errorBusqueda" role="alert">{{ errorBusqueda }}</p>
@@ -192,7 +252,7 @@ async function searchItineraries() {
         <article v-for="(item, index) in (!cargando && !errorBusqueda ? resultados : [])" :key="item.id" class="itinerary-result-card">
           <div class="itinerary-result-card__status">
             <small>{{ t('custom.itinerary.form.status') }}</small>
-            <strong>{{ t('custom.itinerary.form.itemTitle', { number: String(index + 1).padStart(2, '0') }) }}</strong>
+            <strong>{{ t('custom.itinerary.form.itemTitle', { number: String((currentPage - 1) * pageSize + index + 1).padStart(2, '0') }) }}</strong>
             <span class="itinerary-result-status" :class="`itinerary-result-status--${item.status}`">{{ statusLabel(item.status) }}</span>
           </div>
           <div class="itinerary-result-card__route">
@@ -212,6 +272,11 @@ async function searchItineraries() {
             <span><small>{{ t('custom.itinerary.form.status') }}</small><strong>{{ statusLabel(item.status) }}</strong></span>
           </div>
         </article>
+        <nav v-if="!cargando && !errorBusqueda && totalPages > 1" class="itinerary-pagination" :aria-label="t('custom.itinerary.form.paginationLabel')">
+          <button type="button" :disabled="currentPage <= 1" @click="searchItineraries(currentPage - 1)">{{ t('custom.itinerary.form.previousPage') }}</button>
+          <span>{{ t('custom.itinerary.form.pageOf', { page: currentPage, total: totalPages }) }}</span>
+          <button type="button" :disabled="currentPage >= totalPages" @click="searchItineraries(currentPage + 1)">{{ t('custom.itinerary.form.nextPage') }}</button>
+        </nav>
       </section>
 
       <section class="itinerary-cta"><div><p class="section-tag light-tag">CASTRO FALLAS</p><h2>{{ t('custom.itinerary.ctaTitle') }}</h2></div><a href="/cotizaciones" class="btn btn-white">{{ t('custom.itinerary.ctaButton') }} <IconSymbol glyph="↗" /></a></section>

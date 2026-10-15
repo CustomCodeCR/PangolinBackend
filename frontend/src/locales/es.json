@@ -824,7 +824,14 @@
         "loadingPort": "Puerto de carga",
         "unloadingPort": "Puerto de descarga",
         "viewDetails": "Ver detalles",
-        "hideDetails": "Ocultar detalles"
+        "hideDetails": "Ocultar detalles",
+        "dateFrom": "desde",
+        "dateTo": "hasta",
+        "invalidDateRange": "La fecha inicial no puede ser posterior a la fecha final.",
+        "paginationLabel": "Páginas de resultados de itinerarios",
+        "previousPage": "Anterior",
+        "nextPage": "Siguiente",
+        "pageOf": "Página {page} de {total}"
       }
     }
   },

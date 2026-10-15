@@ -284,10 +284,25 @@ app.MapGet("/api/itinerarios", async (
     AppDbContext db, AuthService auth, HttpContext http,
     string? pol, string? pod, string? status, string? transporte,
     string? modalidad, DateOnly? closing, DateOnly? etd, DateOnly? eta,
-    CancellationToken ct) =>
+    DateOnly? closingDesde, DateOnly? closingHasta,
+    DateOnly? etdDesde, DateOnly? etdHasta,
+    DateOnly? etaDesde, DateOnly? etaHasta,
+    int? page, int? pageSize, CancellationToken ct) =>
 {
     if (await auth.GetIdentityAsync(http, ct) is null)
         return Results.Unauthorized();
+
+    var currentPage = page ?? 1;
+    var currentPageSize = pageSize ?? 20;
+    // Límites explícitos: evitan desbordamientos en Skip y consultas excesivas.
+    var offset = ((long)currentPage - 1) * currentPageSize;
+    if (currentPage < 1 || currentPageSize < 1 || currentPageSize > 100 || offset > int.MaxValue)
+        return Results.BadRequest(new { error = "La página debe ser mayor a cero y pageSize debe estar entre 1 y 100." });
+
+    if ((closingDesde.HasValue && closingHasta.HasValue && closingDesde.Value > closingHasta.Value) ||
+        (etdDesde.HasValue && etdHasta.HasValue && etdDesde.Value > etdHasta.Value) ||
+        (etaDesde.HasValue && etaHasta.HasValue && etaDesde.Value > etaHasta.Value))
+        return Results.BadRequest(new { error = "La fecha inicial no puede ser posterior a la fecha final." });
 
     var query = db.Itinerarios.AsNoTracking();
     if (!string.IsNullOrWhiteSpace(pol))
@@ -300,17 +315,35 @@ app.MapGet("/api/itinerarios", async (
         query = query.Where(x => x.Transporte == transporte);
     if (!string.IsNullOrWhiteSpace(modalidad))
         query = query.Where(x => x.Modalidad == modalidad);
+
+    // Los filtros exactos anteriores siguen disponibles para otros consumidores de la API.
     if (closing.HasValue) query = query.Where(x => x.Closing == closing.Value);
     if (etd.HasValue) query = query.Where(x => x.Etd == etd.Value);
     if (eta.HasValue) query = query.Where(x => x.Eta == eta.Value);
 
-    var data = await query.OrderBy(x => x.Etd).Take(100)
+    // Los rangos son inclusivos y se pueden usar con solo uno de los extremos.
+    if (closingDesde.HasValue) query = query.Where(x => x.Closing >= closingDesde.Value);
+    if (closingHasta.HasValue) query = query.Where(x => x.Closing <= closingHasta.Value);
+    if (etdDesde.HasValue) query = query.Where(x => x.Etd >= etdDesde.Value);
+    if (etdHasta.HasValue) query = query.Where(x => x.Etd <= etdHasta.Value);
+    if (etaDesde.HasValue) query = query.Where(x => x.Eta >= etaDesde.Value);
+    if (etaHasta.HasValue) query = query.Where(x => x.Eta <= etaHasta.Value);
+
+    var total = await query.CountAsync(ct);
+    var data = await query.OrderBy(x => x.Etd).ThenBy(x => x.Id)
+        .Skip((int)offset).Take(currentPageSize)
         .Select(x => new {
             x.Id, x.Pol, x.Pod, x.Closing, x.Status, x.Etd, x.Eta,
             Transport = x.Transporte, Modality = x.Modalidad
         }).ToListAsync(ct);
     http.Response.Headers.CacheControl = "no-store";
-    return Results.Ok(data);
+    return Results.Ok(new {
+        items = data,
+        total,
+        page = currentPage,
+        pageSize = currentPageSize,
+        totalPages = (int)Math.Ceiling((double)total / currentPageSize)
+    });
 }).RequireAuthorization("registered");
 
 app.Run();

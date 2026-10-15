@@ -4159,3 +4159,14 @@ html.theme-dark .app-site.news-page .news-editorial-hero__bottomline-rule {
     background: #9f0921 !important;
   }
 }
+
+/* Navegación entre páginas de resultados de itinerarios. */
+.itinerary-pagination{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:12px;margin-top:22px;padding-top:20px;border-top:1px solid #eee7e9}
+.itinerary-pagination button{min-height:38px;padding:8px 15px;border:1px solid #b20c2a;border-radius:9px;background:#fff;color:#a70a24;font-size:12px;font-weight:800;cursor:pointer}
+.itinerary-pagination button:hover:not(:disabled){background:#b20c2a;color:#fff}
+.itinerary-pagination button:disabled{opacity:.45;cursor:not-allowed}
+.itinerary-pagination span{color:#55515a;font-size:12px;font-weight:750}
+html.theme-dark .itinerary-pagination{border-color:#30394e}
+html.theme-dark .itinerary-pagination button{background:#111b34;color:#ffdbe2}
+html.theme-dark .itinerary-pagination button:hover:not(:disabled){background:#b20c2a;color:#fff}
+html.theme-dark .itinerary-pagination span{color:#e1e4eb}
