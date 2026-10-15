@@ -64,6 +64,15 @@ check("['closing', 'etd', 'eta'] as const" in itinerary and
       all(exact in program for exact in ('DateOnly? closing', 'DateOnly? etd', 'DateOnly? eta')),
       'Itinerarios: el frontend envía filtros de fecha exacta compatibles con la API')
 responsive_css = read('frontend/src/style.css')
+check(all(rule in responsive_css.split('/* Corregir fondo superior del menú móvil en Noticias */')[-1] for rule in (
+      '.app-site.news-page .news-editorial-hero',
+      '> .site-header.site-header--overlay.site-header--menu-open',
+      'position: absolute !important;',
+      'top: 0 !important;',
+      'background: #9f0921 !important;'
+      )) and responsive_css.count('/* Corregir fondo superior del menú móvil en Noticias */') == 1,
+      'Noticias: menú móvil rojo arranca al borde superior, sin franja de fotografía')
+
 menu_css = responsive_css.split('/* NAV MÓVIL: al abrir hamburguesa', 1)[1].split(
     '/* Keep the mobile settings popover', 1)[0]
 check(all(css in menu_css for css in
