@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import IconSymbol from '../components/IconSymbol.vue'
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { subscribeToChanges } from '../services/realtime'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
@@ -60,7 +61,20 @@ const resultsRef = ref<HTMLElement | null>(null)
 const expandedResultId = ref<string | null>(null)
 const resultados = ref<ItineraryResultado[]>([])
 const publishedItineraries = ref<ManagedItinerary[]>([])
-onMounted(async () => { await refreshSession(); publishedItineraries.value = readManagedItineraries() })
+let unsubscribeItineraries: (() => void) | undefined
+function refreshVisibleResults() {
+  if (searchPerformed.value && !cargando.value && authState.user) void searchItineraries(currentPage.value, false)
+}
+onMounted(async () => {
+  await refreshSession()
+  publishedItineraries.value = readManagedItineraries()
+  unsubscribeItineraries = subscribeToChanges('itinerarios', refreshVisibleResults)
+  window.addEventListener('castrofallas:reconnected', refreshVisibleResults)
+})
+onUnmounted(() => {
+  unsubscribeItineraries?.()
+  window.removeEventListener('castrofallas:reconnected', refreshVisibleResults)
+})
 const cargando = ref(false)
 const errorBusqueda = ref('')
 const currentPage = ref(1)
@@ -108,7 +122,7 @@ function statusLabel(status: ItineraryStatus) {
   return statuses.value.find(option => option.value === status)?.label ?? status
 }
 
-async function searchItineraries(pageNumber = 1) {
+async function searchItineraries(pageNumber = 1, scroll = true) {
   if (cargando.value || pageNumber < 1 || (pageNumber > 1 && pageNumber > totalPages.value)) return
 
   if (pageNumber === 1) {
@@ -178,7 +192,7 @@ async function searchItineraries(pageNumber = 1) {
   } finally {
     cargando.value = false
     await nextTick()
-    resultsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (scroll) resultsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 }
 
