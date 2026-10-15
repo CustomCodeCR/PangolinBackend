@@ -4029,15 +4029,30 @@ html.theme-dark .app-site.news-page .news-editorial-hero__bottomline-rule {
     margin: 0;
   }
   .home-hero.home-hero--menu-open { padding-top: var(--mobile-open-menu-height, 0px); }
+  /* Keep the logo and toggle in the same 72px row as the closed header.
+     The expanding navigation occupies its own row instead of shifting the logo. */
   .site-header.site-header--menu-open .header-inner {
-    width: 100%;
+    width: min(100% - 38px, 1220px);
     height: auto;
     min-height: 72px;
-    padding-inline: max(18px, calc((100vw - 900px) / 2));
-    flex-wrap: wrap;
+    padding-inline: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 72px auto;
+    align-items: center;
     gap: 0;
   }
+  .site-header.site-header--menu-open .site-brand {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .site-header.site-header--menu-open .menu-toggle {
+    grid-column: 2;
+    grid-row: 1;
+  }
   .site-header.site-header--menu-open .main-nav.main-nav--open {
+    grid-column: 1 / -1;
+    grid-row: 2;
     position: static;
     width: 100%;
     height: auto;
@@ -4067,6 +4082,13 @@ html.theme-dark .app-site.news-page .news-editorial-hero__bottomline-rule {
   }
   .site-header.site-header--menu-open .main-nav.main-nav--open .nav-dropdown__menu a:hover {
     background: rgba(255, 255, 255, .14) !important;
+  }
+}
+
+/* Match the standard compact header inset when the menu expands. */
+@media (max-width: 520px) {
+  .site-header.site-header--menu-open .header-inner {
+    width: calc(100% - 32px);
   }
 }
 
