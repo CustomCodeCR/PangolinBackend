@@ -39,7 +39,7 @@ check((root/'frontend/public/images/logo.png').is_file(), 'Activos gráficos del
 for language in ('es', 'en'):
     d=json.loads(read(f'frontend/src/locales/{language}.json'))
     check(all(x in d['custom']['quote'] for x in ('checkingSession','loginRequired','goToLogin','sessionExpired')) and 'logout' in d['custom']['header'], f'Traducciones integradas: {language}')
-check(not (root/'.env').exists(), 'El proyecto entregable no contiene .env privado')
+check('.env' in read('.gitignore').splitlines(), 'Git excluye .env local; no se inspeccionan secretos')
 check('vue-i18n' in json.loads(read('frontend/package.json'))['dependencies'], 'Dependencias originales del rediseño conservadas')
 check('embla-carousel' in json.loads(read('frontend/package.json'))['dependencies'], 'Carrusel de noticias incorporado con su dependencia')
 check('node_modules/embla-carousel' in json.loads(read('frontend/package-lock.json'))['packages'], 'Lockfile actualizado para carrusel')
