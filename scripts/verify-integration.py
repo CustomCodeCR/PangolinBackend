@@ -61,6 +61,8 @@ check('land: {' in app and 'weightKg: 1' not in app
 check('app.MapGet("/api/quotes/mine"' in program and
       '.RequireAuthorization("client")' in program,
       'Cotizaciones propias y creación restringida a clientes')
+check("account?.role === 'client'" in rootvue and "quoteAccess === 'forbidden'" in rootvue,
+      'El cotizador se muestra únicamente a clientes autenticados')
 check('CREATE TABLE IF NOT EXISTS public.itinerarios' in schema and
       'ADD COLUMN IF NOT EXISTS closing DATE NULL' in schema,
       'Itinerarios provisionales con closing sin eliminar registros')
