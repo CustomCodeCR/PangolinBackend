@@ -79,7 +79,7 @@ public sealed class QuoteService(AppDbContext db, ILogger<QuoteService> logger, 
                     {
                         QuoteId = quote.Id, TransportKind = kind,
                         Equipment = Required(land.Equipment, "land.equipment", 100),
-                        Insured = land.Insured,
+                        Insured = RequireBool(land.Insured, "land.insured"),
                         CustomerType = Required(land.CustomerType, "land.customerType", 30)
                     };
                     break;
@@ -182,13 +182,13 @@ public sealed class QuoteService(AppDbContext db, ILogger<QuoteService> logger, 
     private static QuoteResponse ToResponse(QuoteRequest q) => new(
         q.Id, q.ClienteId, q.UsuarioId, q.ServiceType, q.Origin, q.Destination,
         q.CargoType, q.WeightKg, q.Pieces, q.Notes, q.Status, q.CreatedAtUtc,
-        q.Contact is { } c ? new(c.FullName, c.Company, c.Email, c.Phone, c.Country) : null,
-        q.Land is { } l ? new(l.TransportKind, l.Equipment, l.Insured, l.CustomerType) : null,
-        q.Air is { } a ? new(a.Operation, a.Incoterm, a.Nationalization, a.Description,
+        q.Contact is { } c ? new QuoteContactInput(c.FullName, c.Company, c.Email, c.Phone, c.Country) : null,
+        q.Land is { } l ? new QuoteLandInput(l.TransportKind, l.Equipment, l.Insured, l.CustomerType) : null,
+        q.Air is { } a ? new QuoteAirInput(a.Operation, a.Incoterm, a.Nationalization, a.Description,
             a.EquipmentType, a.Quantity, a.DangerousGoods, a.AdditionalDetails) : null,
-        q.Maritime is { } m ? new(m.Operation, m.Incoterm, m.Nationalization, m.ShippingType,
+        q.Maritime is { } m ? new QuoteMaritimeInput(m.Operation, m.Incoterm, m.Nationalization, m.ShippingType,
             m.Description, m.ContainerType, m.Quantity, m.DangerousGoods, m.AdditionalDetails) : null,
-        q.Multimodal is { } u ? new(u.Operation, u.Incoterm, u.Nationalization, u.EntryCountry,
+        q.Multimodal is { } u ? new QuoteMultimodalInput(u.Operation, u.Incoterm, u.Nationalization, u.EntryCountry,
             u.Description, u.ContainerType, u.Quantity, u.DangerousGoods, u.AdditionalDetails) : null);
 
     private static string Required(string? value, string field, int max)
