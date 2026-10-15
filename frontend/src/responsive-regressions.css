@@ -1,0 +1,126 @@
+/*
+ * Restauración quirúrgica del menú móvil a partir de
+ * PangolinBackend-cambiosAntiCagada2.zip (RESPONSIVE-AUDITORIA.md).
+ *
+ * Mantiene el header en flujo y reserva dos filas estables: la primera para
+ * logo + hamburguesa, la segunda para navegación + controles de cuenta.
+ * Evita el flex-wrap introducido en el merge que desplazó el logo / panel.
+ * Se carga al final, sin reemplazar los demás estilos nuevos de main.
+ */
+@media (max-width: 1080px) {
+  .site-header.site-header--menu-open {
+    position: relative !important;
+    z-index: 1000 !important;
+    height: auto !important;
+    background: #9f0921 !important;
+  }
+
+  /* En el hero de inicio la cabecera conserva el tratamiento original. */
+  .home-hero:has(.site-header.site-header--menu-open)
+  .site-header.site-header--menu-open.site-header--overlay {
+    position: fixed !important;
+    inset: 0 auto auto 0;
+    width: 100%;
+    top: 0 !important;
+    margin: 0;
+  }
+  .home-hero.home-hero--menu-open {
+    padding-top: var(--mobile-open-menu-height, 0px);
+  }
+
+  .site-header.site-header--menu-open .header-inner {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 72px auto;
+    width: min(100% - 38px, 1220px);
+    height: auto;
+    min-height: 72px;
+    padding-inline: 0 !important;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 0;
+  }
+  .site-header.site-header--menu-open .site-brand {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+  }
+  .site-header.site-header--menu-open .menu-toggle {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+  .site-header.site-header--menu-open .main-nav.main-nav--open {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    position: static;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    padding: 16px 0 max(24px, env(safe-area-inset-bottom));
+    background: transparent !important;
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .site-header.site-header--menu-open .header-inner {
+    width: calc(100% - 32px);
+  }
+}
+
+/*
+ * Itinerarios: los tres conceptos son rangos, no seis campos distintos.
+ * Se agrupan visual y semánticamente manteniendo parámetros Desde/Hasta.
+ */
+.itinerary-date-range {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(100px, 0.48fr) minmax(0, 1fr) minmax(0, 1fr);
+  align-items: end;
+  gap: 12px;
+  padding: 12px 0;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid rgba(69, 66, 75, .14);
+  min-width: 0;
+}
+.itinerary-date-range legend {
+  grid-column: 1;
+  padding: 0;
+  font-weight: 800;
+  font-size: 13px;
+  margin-bottom: 0;
+}
+.itinerary-date-range__fields {
+  grid-column: 2 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+.itinerary-date-range__fields .itinerary-form-line {
+  min-width: 0;
+}
+.itinerary-date-range__fields input[type="date"] {
+  min-width: 0;
+  width: 100%;
+}
+
+@media (max-width: 680px) {
+  .itinerary-date-range {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .itinerary-date-range legend,
+  .itinerary-date-range__fields {
+    grid-column: 1;
+  }
+}
+@media (max-width: 380px) {
+  .itinerary-date-range__fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
