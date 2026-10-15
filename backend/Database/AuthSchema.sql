@@ -102,7 +102,7 @@ CREATE INDEX IF NOT EXISTS idx_quotes_cliente_id ON quote_requests("ClienteId");
 
 
 -- Itinerarios provisionales: comparten base login pero NO dependen de usuarios/cotizaciones.
--- CREATE no sobreescribe tablas existentes; ALTER conserva las filas al añadir Closing.
+-- CREATE no sobreescribe tablas existentes; ALTER conserva las filas al añadir Closing y status.
 CREATE TABLE IF NOT EXISTS public.itinerarios (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     pol VARCHAR(150) NOT NULL,
