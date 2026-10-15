@@ -52,7 +52,7 @@ Con Docker corriendo, el script `python scripts/smoke-local.py` comprueba un flu
 
 - Cotizador: integración del guardado a PostgreSQL, sujeta a que Docker/backend/DB estén funcionando.
 - Contacto rápido: abre un `mailto:`, no almacena en PostgreSQL.
-- Itinerarios: la tabla está definida en el SQL de desarrollo; la pantalla sigue como interfaz demostrativa, sin endpoint para altas o consultas.
+- Itinerarios: la pantalla consulta `GET /api/itinerarios` con sesión cliente/admin válida; no hay endpoint para crear o editar. La API admite rangos inclusivos `closingDesde`/`closingHasta`, `etdDesde`/`etdHasta`, `etaDesde`/`etaHasta` y conserva los parámetros de fecha exacta `closing`, `etd` y `eta`. Para paginar se envían `page` (desde 1) y `pageSize` (1–100, por defecto 20); la respuesta es `{ items, total, page, pageSize, totalPages }`, ordenada por ETD e ID. Los rangos invertidos y páginas inválidas producen HTTP 400.
 - Tracking y noticias: interfaz visual, no conexión a un sistema de seguimiento o feed de noticias real.
 - Esta entrega **no** incluye credenciales privadas, secretos, bases de datos locales ni archivos generados de `node_modules`.
 
