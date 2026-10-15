@@ -30,7 +30,33 @@ function emptyNews(): ManagedNews { return { id: '', title: '', category: 'LOGÍ
 function emptyItinerary(): ManagedItinerary { return { id: '', origin: '', destination: '', transport: 'Marítimo', departure: '', arrival: '', status: 'Programado', closing: '', modality: 'FCL', carrier: '', vessel: '', voyage: '' } }
 function emptyMedia(): ManagedMedia { return { id: '', name: '', kind: 'Imagen', src: '' } }
 function reload() { itineraries.value = readManagedItineraries(); news.value = readManagedNews(); media.value = readManagedMedia() }
-onMounted(async () => { await refreshSession(); reload(); if (isLiveAdmin.value) await loadItineraries(); if (section.value === 'users') await loadUsers() })
+
+async function loadNews() {
+  if (!isLiveAdmin.value) { news.value = readManagedNews(); return }
+  try {
+    const response = await fetch('/api/admin/content/news', { credentials: 'same-origin', cache: 'no-store' })
+    if (!response.ok) throw new Error(`No se pudieron cargar las noticias (HTTP ${response.status}).`)
+    const list = await response.json()
+    if (!Array.isArray(list)) throw new Error('Listado de noticias inválido.')
+    news.value = list
+  } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'Error consultando noticias.' }
+}
+async function loadMedia() {
+  if (!isLiveAdmin.value) { media.value = readManagedMedia(); return }
+  try {
+    const response = await fetch('/api/admin/content/media', { credentials: 'same-origin', cache: 'no-store' })
+    if (!response.ok) throw new Error(`No se pudo cargar multimedia (HTTP ${response.status}).`)
+    const list = await response.json()
+    if (!Array.isArray(list)) throw new Error('Listado multimedia inválido.')
+    media.value = list
+  } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'Error consultando multimedia.' }
+}
+onMounted(async () => {
+  await refreshSession()
+  reload()
+  if (isLiveAdmin.value) await Promise.all([loadItineraries(), loadNews(), loadMedia()])
+  if (section.value === 'users') await loadUsers()
+})
 
 function selectSection(next: Section) {
   section.value = next
@@ -39,8 +65,10 @@ function selectSection(next: Section) {
   if (next === 'users') url.searchParams.set('tab', 'usuarios')
   else url.searchParams.delete('tab')
   window.history.replaceState({}, '', url)
-  if (next === 'users') loadUsers()
-  else if (next === 'itineraries' && isLiveAdmin.value) loadItineraries()
+  if (next === 'users') void loadUsers()
+  else if (next === 'itineraries') void loadItineraries()
+  else if (next === 'news') void loadNews()
+  else if (next === 'media') void loadMedia()
 }
 
 async function loadItineraries() {
@@ -190,13 +218,51 @@ async function submitItinerary() {
   } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo guardar el itinerario.' }
 }
 
-function submitNews() {
-  const item = { ...newsForm.value, id: editingId.value ?? newManagedId() }
-  saveManaged('news', item); reload(); notice.value = 'Noticia guardada en este navegador.'; startNew()
+async function submitNews() {
+  if (!isLiveAdmin.value) {
+    const item = { ...newsForm.value, id: editingId.value ?? newManagedId() }
+    saveManaged('news', item); reload(); notice.value = 'Noticia de previsualización, solo en este navegador.'; startNew(); return
+  }
+  notice.value = ''
+  try {
+    const response = await fetch(editingId.value
+      ? `/api/admin/content/news/${encodeURIComponent(editingId.value)}`
+      : '/api/admin/content/news', {
+      method: editingId.value ? 'PUT' : 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newsForm.value)
+    })
+    if (!response.ok) {
+      const data = await response.json().catch(() => null)
+      throw new Error(data?.error || `No se guardó la noticia (HTTP ${response.status}).`)
+    }
+    startNew()
+    await loadNews()
+    notice.value = 'Noticia guardada en PostgreSQL.'
+  } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo guardar la noticia.' }
 }
-function submitMedia() {
-  const item = { ...mediaForm.value, id: editingId.value ?? newManagedId() }
-  saveManaged('media', item); reload(); notice.value = 'Archivo agregado a la biblioteca local.'; startNew()
+async function submitMedia() {
+  if (!isLiveAdmin.value) {
+    const item = { ...mediaForm.value, id: editingId.value ?? newManagedId() }
+    saveManaged('media', item); reload(); notice.value = 'Multimedia de previsualización, solo en este navegador.'; startNew(); return
+  }
+  notice.value = ''
+  try {
+    const response = await fetch(editingId.value
+      ? `/api/admin/content/media/${encodeURIComponent(editingId.value)}`
+      : '/api/admin/content/media', {
+      method: editingId.value ? 'PUT' : 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(mediaForm.value)
+    })
+    if (!response.ok) {
+      const data = await response.json().catch(() => null)
+      throw new Error(data?.error || `No se guardó el archivo (HTTP ${response.status}).`)
+    }
+    startNew()
+    await loadMedia()
+    notice.value = 'Multimedia guardada en PostgreSQL.'
+  } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo guardar multimedia.' }
 }
 async function remove(id: string) {
   if (section.value === 'itineraries' && isLiveAdmin.value) {
@@ -210,8 +276,22 @@ async function remove(id: string) {
     } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo eliminar el itinerario.' }
     return
   }
+  if (isLiveAdmin.value && (section.value === 'news' || section.value === 'media')) {
+    try {
+      const kind = section.value
+      const response = await fetch(`/api/admin/content/${kind}/${encodeURIComponent(id)}`, {
+        method: 'DELETE', credentials: 'same-origin'
+      })
+      if (!response.ok) throw new Error(`No se pudo eliminar (HTTP ${response.status}).`)
+      if (editingId.value === id) startNew()
+      if (kind === 'news') await loadNews()
+      else await loadMedia()
+      notice.value = 'Elemento eliminado de PostgreSQL.'
+    } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'Error eliminando contenido.' }
+    return
+  }
   const kind = section.value === 'itineraries' ? 'itineraries' : section.value === 'news' ? 'news' : 'media'
-  deleteManaged(kind, id); reload(); if (editingId.value === id) startNew(); notice.value = 'Elemento eliminado solo en este navegador.'
+  deleteManaged(kind, id); reload(); if (editingId.value === id) startNew(); notice.value = 'Elemento eliminado solo en previsualización.'
 }
 function selectFile(event: Event, target: 'news' | 'media') {
   const file = (event.target as HTMLInputElement).files?.[0]
@@ -237,7 +317,7 @@ function useMediaForNews(item: ManagedMedia) { section.value = 'news'; newsForm.
     <section class="manager-shell">
       <div class="manager-heading"><p class="manager-eyebrow">CASTRO FALLAS · ADMINISTRACIÓN</p><h1>{{ section === 'users' ? 'Gestión de usuarios' : 'Administración del sitio' }}</h1><p>{{ section === 'users' ? 'Consulta las cuentas y administra sus roles desde esta sección.' : 'Administra itinerarios, noticias e imágenes desde esta pantalla.' }}</p></div>
       <div v-if="authState.previewRole" class="manager-preview-note" role="status">Previsualización de desarrollo · Estás viendo el rol {{ authState.previewRole }}. No es una sesión real ni un acceso administrativo de producción.</div>
-      <div class="manager-notice" role="note"><strong>Importante:</strong> itinerarios y cambios de usuarios se guardan en el servidor con una sesión administradora real. Noticias, multimedia y la previsualización se guardan solo en este navegador.</div>
+      <div class="manager-notice" role="note"><strong>Importante:</strong> los itinerarios, usuarios, noticias y multimedia se guardan en PostgreSQL con sesión administradora real. En previsualización los cambios son locales.</div>
       <nav class="manager-tabs" aria-label="Secciones de administración">
         <button :class="{ active: section !== 'users' }" @click="selectSection('itineraries')">Contenido</button>
         <button :class="{ active: section === 'users' }" @click="selectSection('users')">Gestión de usuarios <span>{{ users.length }}</span></button>
