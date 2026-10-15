@@ -54,6 +54,7 @@ services:
       ASPNETCORE_URLS: http://0.0.0.0:5000
       ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=login;Username=postgres;Password=${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD}"
       Auth__OtpPepper: ${AUTH_OTP_PEPPER:?Falta AUTH_OTP_PEPPER}
+      Auth__JwtSigningKey: ${AUTH_JWT_SIGNING_KEY:?Falta AUTH_JWT_SIGNING_KEY}
       Auth__SecureCookie: "false"
       Development__ApplySchema: "true"
       Redis__ConnectionString: redis:6379
