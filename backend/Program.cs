@@ -1,3 +1,7 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
 using CastroFallas.MiniQuote.Api.Data;
 using CastroFallas.MiniQuote.Api.Models;
@@ -32,6 +36,56 @@ var mongoUrl = builder.Configuration["Mongo:ConnectionString"];
 if (!string.IsNullOrWhiteSpace(mongoUrl))
     builder.Services.AddSingleton<IMongoDatabase>(_ =>
         new MongoClient(mongoUrl).GetDatabase(builder.Configuration["Mongo:Database"] ?? "castrofallas_logs"));
+// Cookie JWT firmada; sin token para visitantes anónimos. Todas las operaciones
+// protegidas verifican además que la sesión PostgreSQL no haya sido revocada.
+var jwtKey = JwtAuthOptions.GetSigningKey(builder.Configuration);
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = JwtAuthOptions.Issuer(builder.Configuration),
+            ValidateAudience = true,
+            ValidAudience = JwtAuthOptions.Audience(builder.Configuration),
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = jwtKey,
+            ValidateLifetime = true,
+            RequireExpirationTime = true,
+            RequireSignedTokens = true,
+            ClockSkew = TimeSpan.FromSeconds(30),
+            NameClaimType = JwtRegisteredClaimNames.Sub,
+            RoleClaimType = JwtAuthOptions.RoleClaim
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                if (context.Request.Cookies.TryGetValue(JwtAuthOptions.CookieName, out var cookie))
+                    context.Token = cookie;
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = async context =>
+            {
+                var authService = context.HttpContext.RequestServices.GetRequiredService<AuthService>();
+                var token = context.HttpContext.Request.Cookies[JwtAuthOptions.CookieName];
+                var identity = token is not null && context.Principal is not null
+                    ? await authService.ValidateJwtSessionAsync(token, context.Principal, context.HttpContext.RequestAborted)
+                    : null;
+                if (identity is null)
+                    context.Fail("Sesión inválida, revocada o cuenta deshabilitada.");
+                else
+                    context.HttpContext.Items["auth.identity"] = identity;
+            }
+        };
+    });
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("client", policy => policy.RequireRole("client"));
+    options.AddPolicy("admin", policy => policy.RequireRole("admin"));
+    options.AddPolicy("registered", policy => policy.RequireRole("client", "admin"));
+});
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<QuoteService>();
 builder.Services.AddProblemDetails();
@@ -113,6 +167,8 @@ app.Use(async (ctx, next) =>
 
 app.UseRouting();
 app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapGet("/api/health", () => Results.Ok(new
 {
@@ -187,7 +243,7 @@ app.MapGet("/api/auth/me", async (AuthService auth, HttpContext http, Cancellati
     http.Response.Headers.CacheControl = "no-store";
     var user = await auth.GetIdentityAsync(http, ct);
     return user is null ? Results.Unauthorized() : Results.Ok(user);
-});
+}).RequireAuthorization("registered");
 
 app.MapPost("/api/auth/logout", async (AuthService auth, HttpContext http, CancellationToken ct) =>
 {
@@ -209,7 +265,7 @@ app.MapPost("/api/quotes", async (
     {
         return Results.BadRequest(new { error = ex.Message });
     }
-});
+}).RequireAuthorization("registered");
 
 app.MapGet("/api/quotes/{id:guid}", async (
     Guid id, QuoteService service, AuthService auth, HttpContext http, CancellationToken ct) =>
@@ -221,7 +277,7 @@ app.MapGet("/api/quotes/{id:guid}", async (
         return Results.NotFound(new { error = "Cotización no encontrada." });
     http.Response.Headers["X-Data-Source"] = result.Source;
     return Results.Ok(result.Quote);
-});
+}).RequireAuthorization("registered");
 
 
 app.MapGet("/api/itinerarios", async (
@@ -255,6 +311,6 @@ app.MapGet("/api/itinerarios", async (
         }).ToListAsync(ct);
     http.Response.Headers.CacheControl = "no-store";
     return Results.Ok(data);
-});
+}).RequireAuthorization("registered");
 
 app.Run();
