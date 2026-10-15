@@ -11,6 +11,11 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       strictPort: true,
       proxy: {
+        '/ws': {
+          target: env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:5000',
+          ws: true,
+          changeOrigin: false,
+        },
         '/api': {
           target: env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:5000',
           // Mantener Host del navegador para pasar la comprobacion de Origin del backend.
