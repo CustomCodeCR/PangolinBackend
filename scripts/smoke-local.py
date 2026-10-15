@@ -117,7 +117,31 @@ def main():
     require(status == 204, f'Logout: {status}')
     status, _ = call(browser, '/api/auth/me')
     require(status == 401, f'Sesión no revocada: {status}')
-    print('OK: OTP, JWT, roles, rechazo de firma alterada y revocación (PostgreSQL).')
+    # Caso cliente: JWT con role=client y mismo mecanismo de sesión.
+    client_jar = http.cookiejar.CookieJar()
+    client_browser = build_opener(HTTPCookieProcessor(client_jar))
+    client_email = 'demo.cliente@castrofallas.test'
+    client_start = time.time()
+    status, issued = call(client_browser, '/api/auth/request-otp', {
+        'tipoAcceso': 'cliente', 'correo': client_email, 'codigoDynamics': 'DYN001'
+    })
+    require(status == 200, f'Solicitud OTP cliente HTTP {status}: {issued}')
+    client_otp = latest_otp(client_email, client_start)
+    require(client_otp is not None, 'No llegó OTP de prueba para cliente.')
+    status, verified = call(client_browser, '/api/auth/verify-otp', {
+        'challengeId': issued['challengeId'], 'codigo': client_otp
+    })
+    require(status == 200 and verified.get('user', {}).get('role') == 'client',
+            f'El cliente no recibió role=client ({status}).')
+    status, client_me = call(client_browser, '/api/auth/me')
+    require(status == 200 and client_me.get('role') == 'client', 'JWT cliente no válido.')
+    status, _ = call(client_browser, '/api/auth/logout', {})
+    require(status == 204, 'No se pudo cerrar sesión de cliente.')
+
+    # Visitantes anónimos no reciben autenticación ni token.
+    status, _ = call(build_opener(), '/api/auth/me')
+    require(status == 401, 'Un invitado obtuvo una identidad autenticada.')
+    print('OK: OTP, JWT client/admin, sin token para invitados, firma alterada rechazada y logout.')
 
 if __name__ == '__main__':
     try:
