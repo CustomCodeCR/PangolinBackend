@@ -3,7 +3,7 @@ namespace CastroFallas.MiniQuote.Api.Models;
 // Los cuatro formularios tienen contratos independientes. Los detalles solo
 // existen para solicitudes nuevas; las cotizaciones históricas quedan legibles.
 public sealed record QuoteContactInput(string? FullName, string? Company, string? Email, string? Phone, string? Country);
-public sealed record QuoteLandInput(string? TransportKind, string? Equipment, bool Insured, string? CustomerType);
+public sealed record QuoteLandInput(string? TransportKind, string? Equipment, bool? Insured, string? CustomerType);
 public sealed record QuoteAirInput(string? Operation, string? Incoterm, bool? Nationalization, string? Description,
     string? EquipmentType, int? Quantity, bool? DangerousGoods, string? AdditionalDetails);
 public sealed record QuoteMaritimeInput(string? Operation, string? Incoterm, bool? Nationalization, string? ShippingType,
