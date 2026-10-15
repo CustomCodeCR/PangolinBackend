@@ -7,6 +7,7 @@ import base64
 from email import policy
 from email.parser import BytesParser
 from pathlib import Path
+from uuid import uuid4
 from urllib.request import Request, build_opener, HTTPCookieProcessor
 from urllib.error import HTTPError
 import http.cookiejar
@@ -19,12 +20,12 @@ OUTBOX = ROOT / 'backend' / 'local-outbox'
 BASE = 'http://127.0.0.1:5000'
 
 
-def call(opener, route, data=None):
+def call(opener, route, data=None, method=None):
     headers = {'Accept': 'application/json'}
     if data is not None:
         data = json.dumps(data).encode('utf-8')
         headers['Content-Type'] = 'application/json'
-    req = Request(BASE + route, data=data, headers=headers)
+    req = Request(BASE + route, data=data, headers=headers, method=method)
     try:
         with opener.open(req, timeout=15) as resp:
             raw = resp.read()
@@ -113,6 +114,51 @@ def main():
     require(status == 201 and quote.get('id'), f'Cotización HTTP {status}: {quote}')
     status, saved = call(browser, '/api/quotes/' + quote['id'])
     require(status == 200 and saved.get('id') == quote['id'], f'Consulta de cotización: {status} {saved}')
+    # CRUD de itinerarios: escritura exclusiva para admin, lectura para usuarios registrados.
+    pol = 'SMOKE-' + uuid4().hex[:10]
+    itinerary = {
+        'pol': pol, 'pod': 'San José', 'closing': '2026-10-10',
+        'etd': '2026-10-12', 'eta': '2026-10-20',
+        'status': 'planning', 'transport': 'maritime', 'modality': 'FCL',
+        'carrier': 'Demo Carrier', 'vessel': 'Demo Vessel', 'voyage': 'V-100'
+    }
+    status, invalid = call(browser, '/api/admin/itinerarios',
+                           dict(itinerary, eta='2026-10-01'))
+    require(status == 400 and 'errors' in invalid,
+            f'No se rechazó ETA anterior a ETD: {status} {invalid}')
+    status, invalid = call(browser, '/api/admin/itinerarios',
+                           dict(itinerary, transport='ground', modality='FCL'))
+    require(status == 400, 'Se aceptó modalidad incompatible con transporte.')
+
+    status, created = call(browser, '/api/admin/itinerarios', itinerary)
+    require(status == 201 and created.get('id'), f'Crear itinerario: {status} {created}')
+    item_id = created['id']
+    item_route = '/api/itinerarios/' + item_id
+    try:
+        status, found = call(browser, item_route)
+        require(status == 200 and found.get('pol') == pol and found.get('carrier') == 'Demo Carrier',
+                f'Leer itinerario: {status} {found}')
+        status, page = call(browser, '/api/itinerarios?pol=' + pol + '&page=1&pageSize=1')
+        require(status == 200 and page.get('total') == 1 and
+                len(page.get('items', [])) == 1 and page['items'][0].get('id') == item_id,
+                f'Filtro/paginación itinerario: {status} {page}')
+        change = dict(itinerary, status='transit', modality='LCL', voyage=None)
+        status, modified = call(browser, '/api/admin/itinerarios/' + item_id, change, 'PUT')
+        require(status == 200 and modified.get('status') == 'transit'
+                and modified.get('modality') == 'LCL' and modified.get('voyage') is None
+                and modified.get('id') == item_id,
+                f'Actualizar itinerario: {status} {modified}')
+        status, found = call(browser, item_route)
+        require(status == 200 and found.get('status') == 'transit',
+                'La actualización no se guardó en PostgreSQL.')
+        status, removed = call(browser, '/api/admin/itinerarios/' + item_id, method='DELETE')
+        require(status == 204, f'Eliminar itinerario: {status} {removed}')
+        status, missing = call(browser, item_route)
+        require(status == 404, 'El itinerario eliminado sigue visible.')
+    finally:
+        # Garantiza limpieza de la fila temporal si falló una aserción.
+        call(browser, '/api/admin/itinerarios/' + item_id, method='DELETE')
+
     status, _ = call(browser, '/api/auth/logout', {})
     require(status == 204, f'Logout: {status}')
     status, _ = call(browser, '/api/auth/me')
@@ -135,13 +181,25 @@ def main():
             f'El cliente no recibió role=client ({status}).')
     status, client_me = call(client_browser, '/api/auth/me')
     require(status == 200 and client_me.get('role') == 'client', 'JWT cliente no válido.')
+    status, page = call(client_browser, '/api/itinerarios?page=1&pageSize=1')
+    require(status == 200 and 'items' in page, 'Cliente no puede leer itinerarios.')
+    status, forbidden = call(client_browser, '/api/admin/itinerarios', itinerary)
+    require(status == 403, f'Un cliente pudo crear itinerarios: {status} {forbidden}')
+    fake_id = str(uuid4())
+    status, _ = call(client_browser, '/api/admin/itinerarios/' + fake_id, itinerary, 'PUT')
+    require(status == 403, 'Un cliente pudo editar itinerarios.')
+    status, _ = call(client_browser, '/api/admin/itinerarios/' + fake_id, method='DELETE')
+    require(status == 403, 'Un cliente pudo eliminar itinerarios.')
     status, _ = call(client_browser, '/api/auth/logout', {})
     require(status == 204, 'No se pudo cerrar sesión de cliente.')
 
     # Visitantes anónimos no reciben autenticación ni token.
     status, _ = call(build_opener(), '/api/auth/me')
     require(status == 401, 'Un invitado obtuvo una identidad autenticada.')
-    print('OK: OTP, JWT client/admin, sin token para invitados, firma alterada rechazada y logout.')
+    status, _ = call(build_opener(), '/api/admin/itinerarios', itinerary)
+    require(status == 401, 'Un invitado pudo crear itinerarios.')
+
+    print('OK: OTP/JWT, CRUD admin de itinerarios, permisos cliente/invitado, firma alterada y logout.')
 
 if __name__ == '__main__':
     try:
