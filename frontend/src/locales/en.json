@@ -493,6 +493,9 @@
       "end": "Platform access"
     },
     "quote": {
+      "clientOnly": "Only clients can request quotes",
+      "clientOnlyHelp": "Sign in with a client account to submit a quote. This page is not available to administrators.",
+      "weightKg": "Estimated total weight (kg, optional)",
       "landingEyebrow": "QUOTES · CASTRO FALLAS",
       "landingHeading": "Quote your next",
       "landingHighlight": "shipment!",

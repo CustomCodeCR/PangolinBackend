@@ -72,3 +72,9 @@ Con Docker corriendo, el script `python scripts/smoke-local.py` comprueba un flu
 - Esta entrega **no** incluye credenciales privadas, secretos, bases de datos locales ni archivos generados de `node_modules`.
 
 Más detalles técnicos en `INTEGRACION.md`. La interfaz requiere verificar licencia de la librería `3d-world-map` antes de publicarla comercialmente.
+
+## Cotizaciones estructuradas por modalidad (propuesta en rama)
+
+La API recibe solicitudes autenticadas de clientes y guarda las cotizaciones en `quote_requests`, `quote_contacts` y **cuatro tablas de detalle separadas**: `quote_land_details`, `quote_air_details`, `quote_maritime_details` y `quote_multimodal_details`. No se ofrecen rutas de edición ni borrado; la base de datos conserva cotizaciones históricas. El frontend usa JSON estructurado y ya no inventa `weightKg = 1`.
+
+Contrato, migración y pruebas: [docs/COTIZACIONES-ESQUEMA-V2.md](docs/COTIZACIONES-ESQUEMA-V2.md).

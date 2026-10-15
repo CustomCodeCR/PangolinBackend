@@ -134,7 +134,7 @@ function applyPageSeo() {
   }
 }
 applyPageSeo()
-const quoteAccess = ref<'checking' | 'allowed' | 'denied'>('allowed')
+const quoteAccess = ref<'checking' | 'allowed' | 'denied' | 'forbidden'>('checking')
 const requestPath = window.location.pathname.replace(/\/+$/, '') || '/'
 const legacyAdminRoute = requestPath === '/admin/contenido' || requestPath === '/admin/usuarios'
 const adminRoute = requestPath === '/administracion' || legacyAdminRoute
@@ -149,6 +149,10 @@ onMounted(async () => {
     else window.location.replace('/home')
     return
   }
+  if (requestPath === '/cotizaciones') {
+    if (!user) quoteAccess.value = 'denied'
+    else quoteAccess.value = role === 'cliente' ? 'allowed' : 'forbidden'
+  }
   if (legacyAdminRoute && role === 'administrador') {
     const params = new URLSearchParams()
     if (requestPath === '/admin/usuarios' || new URLSearchParams(window.location.search).get('tab') === 'usuarios') params.set('tab', 'usuarios')
@@ -160,7 +164,6 @@ onMounted(async () => {
     window.location.replace('/home?acceso=cliente')
     return
   }
-  if (requestPath === '/cotizaciones') quoteAccess.value = 'allowed'
   nextTick(() => {
     if (window.location.hash) document.getElementById(decodeURIComponent(window.location.hash.slice(1)))?.scrollIntoView()
   })
@@ -201,6 +204,11 @@ const page = computed(()=> {
       <h1>{{ t('custom.quote.loginRequired') }}</h1>
       <p>{{ t('custom.quote.loginRequiredHelp') }}</p>
       <a class="btn btn-primary" :href="loginNextHref">{{ t('custom.quote.goToLogin') }} <IconSymbol glyph="→" /></a>
+    </div>
+    <div v-else-if="quoteAccess === 'forbidden'" class="container quote-access-status">
+      <h1>{{ t('custom.quote.clientOnly') }}</h1>
+      <p>{{ t('custom.quote.clientOnlyHelp') }}</p>
+      <a class="btn btn-primary" href="/home">{{ t('custom.quote.back') }} <IconSymbol glyph="←" /></a>
     </div>
     <QuoteApp v-else/>
     <SiteFooter/>

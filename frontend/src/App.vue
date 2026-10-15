@@ -10,8 +10,8 @@ type Quote = {
   origin: string
   destination: string
   cargoType: string
-  weightKg: number
-  pieces: number
+  weightKg: number | null
+  pieces: number | null
   notes?: string | null
   status: string
   createdAtUtc: string
@@ -31,9 +31,9 @@ const source = ref('')
 const quickSent = ref(false)
 const contact = reactive({ fullName: '', email: '', country: 'Costa Rica', phone: '', company: '' })
 const quickContact = reactive({ fullName: '', email: '', country: '', phone: '', company: '', request: '' })
-const land = reactive({ origin: '', destination: '', equipment: '', insured: false, customerType: '' })
+const land = reactive({ origin: '', destination: '', equipment: '', insured: false, customerType: '', weightKg: '' as number | '' })
 const cargo = reactive({
-  contactName: '', company: '', phone: '', email: '', nationalization: '', shippingType: 'Marítimo FCL - Contenedor completo', operation: 'Exportación', incoterm: '', origin: '', destination: '', containerType: '', description: '', containers: 1, dangerous: '', details: ''
+  weightKg: '' as number | '', contactName: '', company: '', phone: '', email: '', nationalization: '', shippingType: 'Marítimo FCL - Contenedor completo', operation: 'Exportación', incoterm: '', origin: '', destination: '', containerType: '', description: '', containers: 1, dangerous: '', details: ''
 })
 
 const countries = computed(() => tm('custom.quote.countries') as unknown as string[])
@@ -112,26 +112,44 @@ function quotePayload() {
   if (mode.value === 'land') {
     return {
       serviceType: 'Land', origin: land.origin, destination: land.destination,
-      cargoType: `Transporte terrestre ${transportKind.value}`, weightKg: 1, pieces: 1,
-      notes: [
-        `Tipo de transporte: ${transportKind.value === 'FTL' ? 'Terrestre completo (FTL)' : 'Terrestre consolidado (LTL)'}`,
-        `Equipo: ${land.equipment}`, `Seguro: ${land.insured ? 'Sí' : 'No'}`,
-        `Tipo de cliente: ${land.customerType}`,
-        `Contacto: ${contact.fullName}; correo: ${contact.email}; empresa: ${contact.company}; país: ${contact.country}; teléfono: ${contact.phone}`
-      ].join('\n')
+      weightKg: land.weightKg === '' ? null : Number(land.weightKg),
+      contact: {
+        fullName: contact.fullName, company: contact.company,
+        email: contact.email, phone: contact.phone, country: contact.country
+      },
+      land: {
+        transportKind: transportKind.value, equipment: land.equipment,
+        insured: land.insured, customerType: land.customerType
+      }
     }
   }
   const isAir = cargo.shippingType.toLowerCase().includes('aéreo') || cargo.shippingType.toLowerCase().includes('aereo')
+  const serviceType = isAir ? 'Air' : 'Maritime'
+  const base = {
+    serviceType, origin: cargo.origin, destination: cargo.destination,
+    weightKg: cargo.weightKg === '' ? null : Number(cargo.weightKg),
+    contact: {
+      fullName: cargo.contactName, company: cargo.company,
+      email: cargo.email, phone: cargo.phone, country: null
+    }
+  }
+  const shared = {
+    operation: cargo.operation, incoterm: cargo.incoterm,
+    nationalization: cargo.nationalization === 'Sí',
+    description: cargo.description, quantity: Number(cargo.containers),
+    dangerousGoods: cargo.dangerous === '' ? null : cargo.dangerous === 'Sí',
+    additionalDetails: cargo.details || null
+  }
+  if (isAir) {
+    return { ...base, air: { ...shared, equipmentType: cargo.containerType } }
+  }
   return {
-    serviceType: isAir ? 'Air' : 'Maritime', origin: cargo.origin, destination: cargo.destination,
-    cargoType: cargo.description || cargo.shippingType, weightKg: 1, pieces: Number(cargo.containers) || 1,
-    notes: [
-      `Nombre: ${cargo.contactName}`, `Empresa: ${cargo.company}`, `Teléfono: ${cargo.phone}`, `Correo: ${cargo.email}`,
-      `Requiere nacionalización: ${cargo.nationalization}`, `Tipo de envío: ${cargo.shippingType}`,
-      `Tipo de operación: ${cargo.operation}`, `Incoterm: ${cargo.incoterm}`, `Tipo de contenedor: ${cargo.containerType}`,
-      `Mercancía peligrosa: ${cargo.dangerous}`, `Cantidad de contenedores/piezas: ${cargo.containers}`,
-      `Detalles: ${cargo.details}`
-    ].join('\n')
+    ...base,
+    maritime: {
+      ...shared,
+      shippingType: cargo.shippingType.includes('LCL') ? 'LCL' : 'FCL',
+      containerType: cargo.containerType
+    }
   }
 }
 
@@ -149,7 +167,7 @@ async function submitQuote() {
   quote.value = null
   try {
     const response = await fetch('/api/quotes', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(quotePayload())
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(quotePayload())
     })
     quote.value = await readApiResponse(response)
     source.value = response.headers.get('X-Data-Source') ?? t('custom.quote.sourceRegistered')
@@ -239,6 +257,7 @@ async function reloadQuote() {
             <div class="quote-fields">
               <label>{{ $t('custom.quote.equipment') }} <i>*</i><select v-model="land.equipment" required><option disabled value="">{{ $t('custom.quote.select') }}</option><option v-for="equipment in landEquipment" :key="equipment">{{ equipment }}</option></select></label>
               <label class="quote-check"><input v-model="land.insured" type="checkbox" /> {{ $t('custom.quote.insured') }}</label>
+              <label>{{ $t('custom.quote.weightKg') }} <input v-model.number="land.weightKg" type="number" min="0.01" step="0.01" /></label>
               <div class="quote-fields--two">
               <label>{{ $t('custom.quote.origin') }} <i>*</i><select v-model="land.origin" required><option disabled value="">{{ $t('custom.quote.selectCountry') }}</option><option v-for="country in countries" :key="country">{{ country }}</option></select></label>
               <label>{{ $t('custom.quote.destination') }} <i>*</i><select v-model="land.destination" required><option disabled value="">{{ $t('custom.quote.selectCountry') }}</option><option v-for="country in countries" :key="country">{{ country }}</option></select></label>
@@ -287,6 +306,7 @@ async function reloadQuote() {
             <label class="quote-field-wide">{{ $t('custom.quote.descriptionGoods') }} <i>*</i><small>{{ $t('custom.quote.goodsExample') }}</small><textarea v-model="cargo.description" rows="2" required /></label>
             <label>{{ $t('custom.quote.containerType') }} <i>*</i><select v-model="cargo.containerType" required><option disabled value="">{{ $t('custom.quote.choose') }}</option><option>{{ $t('custom.quote.container20') }}</option><option>{{ $t('custom.quote.container40') }}</option><option>{{ $t('custom.quote.container40hc') }}</option><option>{{ $t('custom.quote.refrigerated') }}</option><option>{{ $t('custom.quote.notApplicable') }}</option></select></label>
             <label>{{ $t('custom.quote.quantity') }} <i>*</i><input v-model.number="cargo.containers" type="number" min="1" required /></label>
+            <label>{{ $t('custom.quote.weightKg') }} <input v-model.number="cargo.weightKg" type="number" min="0.01" step="0.01" /></label>
             <label>{{ $t('custom.quote.dangerous') }} <select v-model="cargo.dangerous"><option value="">{{ $t('custom.quote.choose') }}</option><option value="Sí">{{ $t('custom.quote.yes') }}</option><option value="No">{{ $t('custom.quote.no') }}</option></select></label>
             <label>{{ $t('custom.quote.moreDetails') }}<textarea v-model="cargo.details" rows="3" /></label>
           </div>
