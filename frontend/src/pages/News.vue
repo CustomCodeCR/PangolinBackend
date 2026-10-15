@@ -4,20 +4,30 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import EmblaCarousel, { type EmblaCarouselType } from 'embla-carousel'
 import { useI18n } from 'vue-i18n'
 import { news as baseNews } from '../content'
+import { readManagedNews, type ManagedNews } from '../adminContent'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 
 const { t } = useI18n({ useScope: 'global' })
 const activeArticleIndex = ref<number | null>(null)
+const managedNews = ref<ManagedNews[]>([])
 const activeStoryIndex = ref(0)
 const emblaViewport = ref<HTMLElement | null>(null)
 let emblaApi: EmblaCarouselType | null = null
-const news = computed(() => baseNews.map((article, index) => ({
-  ...article,
-  category: t(`content.news.${index}.category`),
-  title: t(`content.news.${index}.title`),
-  description: t(`content.news.${index}.description`)
-})))
+const news = computed(() => [
+  ...baseNews.map((article, index) => ({
+    ...article,
+    category: t(`content.news.${index}.category`),
+    title: t(`content.news.${index}.title`),
+    description: t(`content.news.${index}.description`)
+  })),
+  ...managedNews.value.filter(article => article.published && article.title.trim()).map(article => ({
+    category: article.category,
+    title: article.title,
+    description: article.description,
+    image: article.image || '/images/cover-logistics.jpeg'
+  }))
+])
 const leadStory = computed(() => news.value[activeStoryIndex.value] ?? news.value[0])
 const carouselStories = computed(() => news.value.map((article, index) => ({ ...article, index })))
 const activeArticle = computed(() => activeArticleIndex.value === null ? null : news.value[activeArticleIndex.value])
@@ -51,6 +61,7 @@ function closeArticle() {
 }
 function handleArticleKeydown(event: KeyboardEvent) { if (event.key === 'Escape') closeArticle() }
 onMounted(() => {
+  managedNews.value = readManagedNews()
   window.addEventListener('keydown', handleArticleKeydown)
   if (emblaViewport.value) {
     emblaApi = EmblaCarousel(emblaViewport.value, { align: 'start', loop: true })

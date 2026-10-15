@@ -88,6 +88,12 @@ builder.Services.AddAuthorization(options =>
 });
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<QuoteService>();
+builder.Services.AddScoped<AssistantService>();
+builder.Services.AddHttpClient("OpenAI", client =>
+{
+    client.BaseAddress = new Uri("https://api.openai.com/v1/");
+    client.Timeout = TimeSpan.FromSeconds(25);
+});
 builder.Services.AddProblemDetails();
 
 // Se utiliza la dirección real de la conexión local; NO se confía en headers
@@ -96,6 +102,15 @@ builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddPolicy("auth", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 20,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        }));
+    options.AddPolicy("assistant", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
         {
@@ -174,6 +189,37 @@ app.MapGet("/api/health", () => Results.Ok(new
 {
     service = "CastroFallas.MiniQuote.Api", status = "ok", version = "rediseno-auth-otp-v1", utc = DateTime.UtcNow
 }));
+
+
+app.MapPost("/api/assistant/chat", async (
+    AssistantChatRequest input, AssistantService assistant, CancellationToken ct) =>
+{
+    var question = input.Question?.Trim();
+    if (string.IsNullOrWhiteSpace(question))
+        return Results.BadRequest(new { error = "Escribí una consulta." });
+    if (question.Length > 800)
+        return Results.BadRequest(new { error = "La consulta debe tener 800 caracteres o menos." });
+    if (!assistant.IsConfigured)
+        return Results.Json(new { error = "El asistente de IA todavía no está configurado.", code = "ai_not_configured" }, statusCode: 503);
+
+    try
+    {
+        var answer = await assistant.ReplyAsync(input with { Question = question }, ct);
+        return Results.Ok(new { answer, source = "ai" });
+    }
+    catch (AssistantProviderException)
+    {
+        return Results.Json(new { error = "No se pudo generar la respuesta en este momento.", code = "ai_unavailable" }, statusCode: 502);
+    }
+    catch (HttpRequestException)
+    {
+        return Results.Json(new { error = "No se pudo conectar con el asistente de IA.", code = "ai_unavailable" }, statusCode: 502);
+    }
+    catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+    {
+        return Results.Json(new { error = "El asistente tardó demasiado en responder.", code = "ai_timeout" }, statusCode: 504);
+    }
+}).RequireRateLimiting("assistant");
 
 app.MapGet("/api/health/ready", async (AppDbContext db, IConfiguration config, CancellationToken ct) =>
 {

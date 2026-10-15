@@ -1,15 +1,11 @@
 <script setup lang="ts">
 import IconSymbol from '../components/IconSymbol.vue'
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LanguageSwitcher from '../components/LanguageSwitcher.vue'
+import { refreshSession } from '../services/auth'
 const { t } = useI18n({ useScope: 'global' })
-const isLocalDeveloperHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-
-type Role = 'usuario' | 'cliente' | 'invitado'
-const role = ref<Role>(isLocalDeveloperHost ? 'invitado' : 'cliente')
 const email = ref('')
-const dynamics = ref('')
 const otp = ref('')
 const challengeId = ref('')
 const step = ref<'identity' | 'otp'>('identity')
@@ -20,17 +16,23 @@ const nextPath = new URLSearchParams(window.location.search).get('next')
 const destination = nextPath?.startsWith('/') && !nextPath.startsWith('//') && !nextPath.startsWith('/\\')
   ? nextPath : '/home'
 
+const systemThemeQuery = window.matchMedia?.('(prefers-color-scheme: dark)')
+function applyThemePreference() {
+  const savedTheme = localStorage.getItem('castrofallas-theme')
+  const darkMode = savedTheme ? savedTheme === 'dark' : !!systemThemeQuery?.matches
+  document.documentElement.classList.toggle('theme-dark', darkMode)
+}
+function syncSystemTheme(event: MediaQueryListEvent) {
+  if (localStorage.getItem('castrofallas-theme')) return
+  document.documentElement.classList.toggle('theme-dark', event.matches)
+}
+
+applyThemePreference()
 onMounted(async () => {
-  // El servidor determina si hay una sesión auténtica; localStorage no concede acceso.
-  try {
-    const response = await fetch('/api/auth/me', { credentials: 'same-origin', cache: 'no-store' })
-    if (response.ok) {
-      localStorage.removeItem('castrofallas-guest-mode')
-      sessionStorage.removeItem('castrofallas-guest-mode')
-      window.location.replace(destination)
-    }
-  } catch { /* La página de login sigue accesible si falla la API. */ }
+  systemThemeQuery?.addEventListener('change', syncSystemTheme)
+  if (await refreshSession()) window.location.replace(destination)
 })
+onUnmounted(() => systemThemeQuery?.removeEventListener('change', syncSystemTheme))
 
 async function parseError(response: Response): Promise<string> {
   try {
@@ -46,6 +48,10 @@ async function parseError(response: Response): Promise<string> {
 async function requestCode() {
   error.value = ''
   message.value = ''
+  if (!/^[A-Z0-9._%+-]+@gmail\.com$/i.test(email.value.trim())) {
+    error.value = t('custom.login.gmailOnly')
+    return
+  }
   loading.value = true
   try {
     const response = await fetch('/api/auth/request-otp', {
@@ -53,9 +59,7 @@ async function requestCode() {
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
       body: JSON.stringify({
-        tipoAcceso: role.value,
-        correo: email.value.trim().toLowerCase(),
-        codigoDynamics: role.value === 'cliente' ? dynamics.value.trim() : null
+        correo: email.value.trim().toLowerCase()
       })
     })
     if (!response.ok) throw new Error(await parseError(response))
@@ -82,8 +86,8 @@ async function verifyCode() {
       body: JSON.stringify({ challengeId: challengeId.value, codigo: otp.value.trim() })
     })
     if (!response.ok) throw new Error(await parseError(response))
-    localStorage.removeItem('castrofallas-guest-mode')
-    sessionStorage.removeItem('castrofallas-guest-mode')
+    const user = await refreshSession()
+    if (!user) throw new Error(t('custom.login.roleNotReturned'))
     window.location.assign(destination)
   } catch (e) {
     error.value = e instanceof Error ? e.message : t('custom.login.verifyError')
@@ -93,26 +97,16 @@ async function verifyCode() {
 }
 
 function enterAsGuest() {
-  if (!isLocalDeveloperHost) return
-  localStorage.setItem('castrofallas-developer-preview', 'enabled')
-  localStorage.removeItem('castrofallas-authenticated')
-  localStorage.removeItem('castrofallas-guest-mode')
-  sessionStorage.removeItem('castrofallas-guest-mode')
   window.location.assign('/home')
-}
-
-function changeRole(next: Role) {
-  role.value = next
-  step.value = 'identity'
-  otp.value = ''
-  error.value = ''
-  message.value = ''
 }
 </script>
 
 <template>
   <main class="login-screen">
     <div class="login-visual">
+      <button class="login-guest-back" type="button" @click="enterAsGuest">
+        <span aria-hidden="true">←</span> {{ $t('custom.login.back') }}
+      </button>
       <div class="login-visual__content">
         <img src="/images/logo.png" :alt="$t('phrases.p138')" />
         <p class="section-tag light-tag">{{ $t('custom.login.topTag') }}</p>
@@ -129,25 +123,11 @@ function changeRole(next: Role) {
         <h2>{{ $t('custom.login.title') }}<span>.</span></h2>
         <p class="login-auth-intro">{{ $t('custom.login.intro') }}</p>
 
-        <div :class="['login-auth-options', { 'login-auth-options--two': !isLocalDeveloperHost }]" role="group" :aria-label="$t('custom.login.roleAria')">
-          <button type="button" :class="{ selected: role === 'cliente' }" @click="changeRole('cliente')">{{ $t('custom.login.roles.0') }}</button>
-          <button type="button" :class="{ selected: role === 'usuario' }" @click="changeRole('usuario')">{{ $t('custom.login.roles.1') }}</button>
-          <button v-if="isLocalDeveloperHost" type="button" :class="{ selected: role === 'invitado' }" @click="changeRole('invitado')">{{ $t('custom.login.roles.2') }}</button>
-        </div>
-
-        <div v-if="isLocalDeveloperHost && role === 'invitado'" class="login-auth-form">
-          <p class="login-auth-help">{{ $t('custom.login.guest') }}</p>
-          <button class="login-auth-primary" type="button" @click="enterAsGuest">{{ $t('custom.login.guestButton') }} <IconSymbol glyph="→" /></button>
-        </div>
-        <form v-else-if="step === 'identity'" class="login-auth-form" @submit.prevent="requestCode">
+        <form v-if="step === 'identity'" class="login-auth-form" @submit.prevent="requestCode">
           <label>{{ $t('custom.login.email') }}
             <input v-model="email" required type="email" maxlength="255" autocomplete="email" :placeholder="$t('custom.login.emailPlaceholder')" />
           </label>
-          <label v-if="role === 'cliente'">{{ $t('custom.login.companyCode') }}
-            <input v-model="dynamics" required maxlength="200" autocomplete="off" :placeholder="$t('custom.login.companyCodePlaceholder')" />
-          </label>
-          <p class="login-auth-help" v-if="role === 'cliente'">{{ $t('custom.login.clientHelp') }}</p>
-          <p class="login-auth-help" v-else>{{ $t('custom.login.userHelp') }}</p>
+          <p class="login-auth-help">{{ $t('custom.login.gmailHelp') }}</p>
           <button class="login-auth-primary" type="submit" :disabled="loading">{{ loading ? $t('custom.login.sending') : $t('custom.login.sendCode') }} <IconSymbol glyph="→" /></button>
         </form>
 

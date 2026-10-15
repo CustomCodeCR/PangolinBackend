@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import IconSymbol from '../components/IconSymbol.vue'
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
+import { authState, refreshSession } from '../services/auth'
+import { readManagedItineraries, type ManagedItinerary } from '../adminContent'
 
 type TransportMode = 'maritime' | 'ground'
 type ItineraryStatus = 'planning' | 'transit' | 'delivered' | 'delayed'
@@ -60,6 +62,8 @@ const searchPerformed = ref(false)
 const resultsRef = ref<HTMLElement | null>(null)
 const expandedResultId = ref<string | null>(null)
 const resultados = ref<ItineraryResultado[]>([])
+const publishedItineraries = ref<ManagedItinerary[]>([])
+onMounted(async () => { await refreshSession(); publishedItineraries.value = readManagedItineraries() })
 const cargando = ref(false)
 const errorBusqueda = ref('')
 const currentPage = ref(1)
@@ -160,6 +164,14 @@ async function searchItineraries(pageNumber = 1) {
       cache: 'no-store',
     })
 
+    if (response.status === 401 && authState.previewRole) {
+      const f = activeItinerary.value
+      if (f) resultados.value = [{ id: 'preview-' + f.id, pol: f.pol || 'San José, Costa Rica', pod: f.pod || 'Miami, Estados Unidos', closing: null, status: f.status || 'planning', etd: f.etdDesde || '', eta: f.etaDesde || '', transport: f.transport, modality: f.modality || (f.transport === 'maritime' ? 'FCL' : 'LTL') }]
+      totalResults.value = resultados.value.length
+      totalPages.value = 1
+      currentPage.value = 1
+      return
+    }
     if (response.status === 401) {
       window.location.assign('/bienvenidos?next=' + encodeURIComponent(window.location.pathname + window.location.search))
       return
@@ -235,6 +247,7 @@ async function searchItineraries(pageNumber = 1) {
           <label class="itinerary-form-line"><strong>{{ labels.modality }}</strong><select v-model="item.modality"><option value="">Todas</option><option v-for="option in optionsFor(item)" :key="option" :value="option">{{ option }}</option></select></label>
         </div>
         </template>
+
       </section>
 
       <div class="itinerary-actions">
@@ -279,9 +292,24 @@ async function searchItineraries(pageNumber = 1) {
         </nav>
       </section>
 
+      <section v-if="authState.previewRole && publishedItineraries.length" class="published-itineraries">
+        <p class="section-tag">CASTRO FALLAS</p>
+        <h2>Itinerarios programados</h2>
+        <article v-for="item in publishedItineraries" :key="item.id" class="published-itinerary-card">
+          <div><small>{{ item.transport }} · {{ item.status }}</small><strong>{{ item.origin }} <span>→</span> {{ item.destination }}</strong></div>
+          <div class="published-itinerary-dates"><span v-if="item.departure">Salida: {{ item.departure }}</span><span v-if="item.arrival">Llegada: {{ item.arrival }}</span></div>
+        </article>
+      </section>
+
       <section class="itinerary-cta"><div><p class="section-tag light-tag">CASTRO FALLAS</p><h2>{{ t('custom.itinerary.ctaTitle') }}</h2></div><a href="/cotizaciones" class="btn btn-white">{{ t('custom.itinerary.ctaButton') }} <IconSymbol glyph="↗" /></a></section>
       <a class="itinerary-back" href="/home"><IconSymbol glyph="←" /> {{ t('custom.itinerary.backHome') }}</a>
     </main>
     <SiteFooter />
   </div>
 </template>
+
+<style scoped>
+
+.published-itineraries{margin:36px 0}.published-itineraries h2{margin:0 0 18px;font-size:clamp(24px,3vw,36px)}.published-itinerary-card{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:10px 0;padding:18px 22px;border:1px solid #ffffff3c;border-radius:16px;background:#ffffff0c;backdrop-filter:blur(12px);color:inherit}.published-itinerary-card>div:first-child{display:grid;gap:7px}.published-itinerary-card small,.published-itinerary-dates{opacity:.75}.published-itinerary-card strong{font-size:18px}.published-itinerary-card strong span{color:#ef3340;padding:0 5px}.published-itinerary-dates{display:flex;gap:16px;font-size:13px}@media(max-width:600px){.published-itinerary-card{align-items:flex-start;flex-direction:column}.published-itinerary-card strong{font-size:16px}.published-itinerary-dates{flex-wrap:wrap}}
+
+</style>

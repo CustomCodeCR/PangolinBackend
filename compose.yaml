@@ -60,6 +60,8 @@ services:
       Redis__ConnectionString: redis:6379
       Mongo__ConnectionString: mongodb://mongo:27017
       Mongo__Database: castrofallas_logs
+      Ai__OpenAI__ApiKey: ${OPENAI_API_KEY:-}
+      Ai__OpenAI__Model: ${OPENAI_MODEL:-gpt-4.1-mini}
       Email__Mode: ${EMAIL_MODE:-LocalOutbox}
       Smtp__Host: ${SMTP_HOST:-smtp.gmail.com}
       Smtp__Port: ${SMTP_PORT:-587}

@@ -2,6 +2,7 @@
 import IconSymbol from './components/IconSymbol.vue'
 import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { authState } from './services/auth'
 
 type Quote = {
   id: string
@@ -16,7 +17,7 @@ type Quote = {
   createdAtUtc: string
 }
 
-type QuoteMode = 'land' | 'air' | 'maritime' | 'multimodal'
+type QuoteMode = 'land' | 'ocean-air'
 type TransportKind = 'FTL' | 'LTL'
 
 const { t, tm } = useI18n({ useScope: 'global' })
@@ -28,19 +29,18 @@ const error = ref('')
 const quote = ref<Quote | null>(null)
 const source = ref('')
 const quickSent = ref(false)
-
 const contact = reactive({ fullName: '', email: '', country: 'Costa Rica', phone: '', company: '' })
 const quickContact = reactive({ fullName: '', email: '', country: '', phone: '', company: '', request: '' })
 const land = reactive({ origin: '', destination: '', equipment: '', insured: false, customerType: '' })
 const cargo = reactive({
-  contactName: '', company: '', phone: '', email: '', nationalization: '', shippingType: 'Marítimo FCL - Contenedor completo', operation: 'Exportación', incoterm: '', origin: '', destination: '', entryCountry: '', containerType: '', description: '', containers: 1, dangerous: '', details: ''
+  contactName: '', company: '', phone: '', email: '', nationalization: '', shippingType: 'Marítimo FCL - Contenedor completo', operation: 'Exportación', incoterm: '', origin: '', destination: '', containerType: '', description: '', containers: 1, dangerous: '', details: ''
 })
 
 const countries = computed(() => tm('custom.quote.countries') as unknown as string[])
 const landEquipment = computed(() => transportKind.value === 'FTL'
   ? tm('custom.quote.equipmentOptions.ftl') as unknown as string[]
   : tm('custom.quote.equipmentOptions.ltl') as unknown as string[])
-const landAsideTitle = computed(() => landStep.value === 0 ? t('custom.quote.chooseTransport') : t(transportKind.value === 'FTL' ? 'custom.quote.asideFtl' : 'custom.quote.asideLtl'))
+const landAsideTitle = computed(() => landStep.value === 0 ? t('custom.quote.landAsideStart') : t(transportKind.value === 'FTL' ? 'custom.quote.asideFtl' : 'custom.quote.asideLtl'))
 
 function startFlow(selected: QuoteMode) {
   mode.value = selected
@@ -75,11 +75,8 @@ function retreatLand() {
   landStep.value = Math.max(0, landStep.value - 1)
 }
 
-function startCargoForm(selected: 'air' | 'maritime' | 'multimodal') {
-  mode.value = selected
-  cargo.shippingType = selected === 'air' ? 'Aéreo' : selected === 'maritime' ? 'Marítimo FCL - Contenedor completo' : 'Multimodal'
-  cargo.entryCountry = ''
-  cargo.containerType = ''
+function startCargoForm() {
+  mode.value = 'ocean-air'
   error.value = ''
   quickSent.value = false
   window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -124,24 +121,23 @@ function quotePayload() {
       ].join('\n')
     }
   }
-  const shippingMode = mode.value === 'air' ? 'Air' : mode.value === 'multimodal' ? 'Multimodal' : 'Maritime'
+  const isAir = cargo.shippingType.toLowerCase().includes('aéreo') || cargo.shippingType.toLowerCase().includes('aereo')
   return {
-    serviceType: shippingMode, origin: cargo.origin, destination: cargo.destination,
+    serviceType: isAir ? 'Air' : 'Maritime', origin: cargo.origin, destination: cargo.destination,
     cargoType: cargo.description || cargo.shippingType, weightKg: 1, pieces: Number(cargo.containers) || 1,
     notes: [
       `Nombre: ${cargo.contactName}`, `Empresa: ${cargo.company}`, `Teléfono: ${cargo.phone}`, `Correo: ${cargo.email}`,
       `Requiere nacionalización: ${cargo.nationalization}`, `Tipo de envío: ${cargo.shippingType}`,
       `Tipo de operación: ${cargo.operation}`, `Incoterm: ${cargo.incoterm}`, `Tipo de contenedor: ${cargo.containerType}`,
       `Mercancía peligrosa: ${cargo.dangerous}`, `Cantidad de contenedores/piezas: ${cargo.containers}`,
-      ...(mode.value === 'multimodal' ? [`País de entrada: ${cargo.entryCountry}`] : []),
       `Detalles: ${cargo.details}`
     ].join('\n')
   }
 }
 
 async function submitQuote() {
-  if (mode.value === 'multimodal' && !cargo.entryCountry.trim()) {
-    error.value = t('custom.quote.entryCountryRequired')
+  if (!authState.user || !['cliente', 'administrador'].includes(authState.user.role)) {
+    window.location.assign('/bienvenidos?next=' + encodeURIComponent('/cotizaciones'))
     return
   }
   if (mode.value === 'land' && (!contact.email || !contact.company || !contact.phone || !contact.fullName || !land.customerType)) {
@@ -196,16 +192,8 @@ async function reloadQuote() {
             <button class="quote-pill quote-pill--red" type="button" @click="startFlow('land')">{{ $t('custom.quote.landButton') }} <IconSymbol glyph="↗" /></button>
           </article>
           <article class="quote-choice-card quote-choice-card--ocean">
-            <div><span class="quote-choice-icon" aria-hidden="true">✈</span><p class="quote-kicker">{{ $t('custom.quote.airLabel') }}</p><h2>{{ $t('custom.quote.airTitle') }}</h2><p>{{ $t('custom.quote.airDescription') }}</p></div>
-            <button class="quote-pill quote-pill--navy" type="button" @click="startCargoForm('air')">{{ $t('custom.quote.airButton') }} <IconSymbol glyph="↗" /></button>
-          </article>
-          <article class="quote-choice-card quote-choice-card--ocean">
-            <div><span class="quote-choice-icon" aria-hidden="true">⚓</span><p class="quote-kicker">{{ $t('custom.quote.maritimeLabel') }}</p><h2>{{ $t('custom.quote.maritimeTitle') }}</h2><p>{{ $t('custom.quote.maritimeDescription') }}</p></div>
-            <button class="quote-pill quote-pill--navy" type="button" @click="startCargoForm('maritime')">{{ $t('custom.quote.maritimeButton') }} <IconSymbol glyph="↗" /></button>
-          </article>
-          <article class="quote-choice-card quote-choice-card--ocean">
-            <div><span class="quote-choice-icon" aria-hidden="true">⇄</span><p class="quote-kicker">{{ $t('custom.quote.multimodalLabel') }}</p><h2>{{ $t('custom.quote.multimodalTitle') }}</h2><p>{{ $t('custom.quote.multimodalDescription') }}</p></div>
-            <button class="quote-pill quote-pill--navy" type="button" @click="startCargoForm('multimodal')">{{ $t('custom.quote.multimodalButton') }} <IconSymbol glyph="↗" /></button>
+            <div><span class="quote-choice-icon" aria-hidden="true"><IconSymbol glyph="✈" :size="24" /></span><p class="quote-kicker">{{ $t('custom.quote.oceanLabel') }}</p><h2>{{ $t('custom.quote.oceanTitle') }}</h2><p>{{ $t('custom.quote.oceanDescription') }}</p></div>
+            <button class="quote-pill quote-pill--navy" type="button" @click="startCargoForm">{{ $t('custom.quote.oceanButton') }} <IconSymbol glyph="↗" /></button>
           </article>
         </div>
         <form class="quote-quick-form" @submit.prevent="sendQuickContact">
@@ -236,7 +224,7 @@ async function reloadQuote() {
       </div>
 
       <div class="quote-wizard-layout">
-        <aside class="quote-wizard-aside"><div class="quote-map-dots" aria-hidden="true"></div><span class="quote-truck-art" aria-hidden="true">▰</span><p class="quote-kicker">{{ $t('custom.quote.asideEyebrow') }}</p><h2>{{ landAsideTitle }}</h2><p>{{ $t('custom.quote.asideIntro') }}</p></aside>
+        <aside class="quote-wizard-aside"><div class="quote-map-dots" aria-hidden="true"></div><span class="quote-truck-art" aria-hidden="true"><IconSymbol glyph="truck" :size="128" /></span><p class="quote-kicker">{{ $t('custom.quote.asideEyebrow') }}</p><h2>{{ landAsideTitle }}</h2><p>{{ $t('custom.quote.asideIntro') }}</p></aside>
         <section class="quote-wizard-panel">
           <template v-if="landStep === 0">
             <p class="quote-panel-kicker">{{ $t('custom.quote.transportStep') }}</p><h2>{{ $t('custom.quote.chooseTransport') }}</h2><p class="quote-panel-copy">{{ $t('custom.quote.chooseTransportHelp') }}</p>
@@ -280,15 +268,14 @@ async function reloadQuote() {
 
     <section v-else class="quote-ocean-flow">
       <button class="quote-text-back" type="button" @click="backToLanding">{{ $t('custom.quote.back') }}</button>
-      <header class="quote-cargo-heading"><p class="quote-kicker">{{ $t('custom.quote.' + mode + 'Label') }}</p><h1>{{ $t('custom.quote.' + mode + 'Heading') }} <span>{{ $t('custom.quote.withUs') }}</span></h1><p>{{ $t('custom.quote.' + mode + 'Intro') }}</p></header>
+      <header class="quote-cargo-heading"><p class="quote-kicker">{{ $t('custom.quote.oceanEyebrow') }}</p><h1>{{ $t('custom.quote.oceanHeading') }} <span>{{ $t('custom.quote.withUs') }}</span></h1><p>{{ $t('custom.quote.oceanIntro') }}</p></header>
       <form class="quote-cargo-form" @submit.prevent="submitQuote">
         <section class="cargo-form-section">
           <div class="cargo-form-section__heading"><span>01</span><div><h2>{{ $t('custom.quote.routeService') }}</h2><p>{{ $t('custom.quote.routeHelp') }}</p></div></div>
           <div class="quote-fields quote-fields--two">
             <label>{{ $t('custom.quote.origin') }} <i>*</i><input v-model="cargo.origin" list="quote-countries" required /></label>
             <label>{{ $t('custom.quote.destination') }} <i>*</i><input v-model="cargo.destination" list="quote-countries" required /></label>
-            <label v-if="mode === 'maritime'" class="quote-field-wide">{{ $t('custom.quote.service') }} <i>*</i><select v-model="cargo.shippingType" required><option value="Marítimo FCL - Contenedor completo">{{ $t('custom.quote.maritimeFcl') }}</option><option value="Marítimo LCL - Carga consolidada">{{ $t('custom.quote.maritimeLcl') }}</option></select></label>
-            <label v-if="mode === 'multimodal'" class="quote-field-wide">{{ $t('custom.quote.entryCountry') }} <i>*</i><input v-model.trim="cargo.entryCountry" list="quote-countries" required /></label>
+            <label class="quote-field-wide">{{ $t('custom.quote.service') }} <i>*</i><select v-model="cargo.shippingType" required><option value="Marítimo FCL - Contenedor completo">{{ $t('custom.quote.maritimeFcl') }}</option><option value="Marítimo LCL - Carga consolidada">{{ $t('custom.quote.maritimeLcl') }}</option><option value="Aéreo">{{ $t('custom.quote.airFreight') }}</option></select></label>
             <label>{{ $t('custom.quote.operation') }} <i>*</i><select v-model="cargo.operation" required><option value="Exportación">{{ $t('custom.quote.export') }}</option><option value="Importación">{{ $t('custom.quote.import') }}</option></select></label>
             <label>{{ $t('custom.quote.incoterm') }} <i>*</i><select v-model="cargo.incoterm" required><option disabled value="">{{ $t('custom.quote.choose') }}</option><option v-for="term in ['EXW','FCA','FAS','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP']" :key="term">{{ term }}</option></select></label>
             <label class="quote-field-wide">{{ $t('custom.quote.nationalization') }} <i>*</i><select v-model="cargo.nationalization" required><option disabled value="">{{ $t('custom.quote.choose') }}</option><option value="Sí">{{ $t('custom.quote.yes') }}</option><option value="No">{{ $t('custom.quote.no') }}</option></select></label>

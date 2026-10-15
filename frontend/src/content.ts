@@ -19,7 +19,7 @@ export const news = [
 ]
 export const faqs = [
   {q:'¿Qué servicios ofrece Grupo Castro Fallas?',a:'El diseño presenta soluciones de logística, gestión aduanera y transporte internacional aéreo, marítimo y terrestre. Podemos ayudarte a preparar una solicitud para tu operación.'},
-  {q:'¿Cómo puedo solicitar una cotización?',a:'Seleccioná “Cotizaciones”, completá los detalles de la carga y presioná “Enviar a Pricing”. En esta demostración, la solicitud se registra mediante la API existente; no se envía un correo automáticamente.'},
+  {q:'¿Cómo puedo solicitar una cotización?',a:'En “Cotizaciones”, completa los detalles de la carga y selecciona “Enviar a Pricing”. En esta demostración, la solicitud se registra mediante la API existente; no se envía un correo automáticamente.'},
   {q:'¿Cómo puedo rastrear mi carga?',a:'La sección “Consulta tu embarque” incluye por ahora una visualización 3D demostrativa. El rastreo de embarques real requerirá definir una fuente de datos e integrarla.'},
   {q:'¿Manejan FCL y LCL?',a:'FCL se refiere a contenedor completo y LCL a carga consolidada. Para confirmar disponibilidad y condiciones de estos servicios, es necesario consultar al equipo comercial.'},
 ]

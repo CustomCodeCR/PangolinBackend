@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ArrowUpRight, ChevronDown, Menu, Moon, Settings, Sun, UserRound, X } from '@lucide/vue'
 import LanguageSwitcher from './LanguageSwitcher.vue'
+import { authState, currentRole, logoutSession, refreshSession } from '../services/auth'
 
 const props = defineProps<{ active?: string; overlay?: boolean }>()
 const { t } = useI18n({ useScope: 'global' })
@@ -12,11 +13,14 @@ let mobileMenuResizeObserver: ResizeObserver | null = null
 const cargoMenuOpen = ref(false)
 const darkMode = ref(false)
 const systemThemeQuery = window.matchMedia?.('(prefers-color-scheme: dark)')
-const sessionUser = ref<{ correo: string; nombreCliente: string; role: 'client' | 'admin'; adminType: string | null } | null>(null)
+const sessionUser = computed(() => authState.user)
 const loggingOut = ref(false)
 const isAuthenticated = computed(() => !!sessionUser.value)
-// This preference is local to this browser profile; it is not shared with other visitors.
+const isAdministrator = computed(() => currentRole() === 'administrador')
+const canAccessCargo = computed(() => currentRole() === 'cliente' || currentRole() === 'administrador')
 const settingsOpen = ref(false)
+const rolePreviewSuffix = computed(() => authState.previewRole ? `?previewRole=${authState.previewRole}` : '')
+const administrationHref = computed(() => `/administracion${authState.previewRole ? `?previewRole=${encodeURIComponent(authState.previewRole)}` : ''}`)
 const baseLinks = [
   { key: 'servicios', id: 'principal', url: '/home' },
   { key: 'noticias', id: 'noticias', url: '/noticias' },
@@ -24,32 +28,16 @@ const baseLinks = [
   { key: 'soluciones', id: 'soluciones', url: '/servicios' }
 ]
 const links = computed(() => baseLinks.map(link => ({ ...link, label: t(`navLinks.${link.key}`) })))
-const visibleLinks = computed(() => links.value)
+const visibleLinks = computed(() => links.value.map(link => ({ ...link, url: `${link.url}${rolePreviewSuffix.value}` })))
 const cargoLinks = computed(() => [
-  { key: 'embarque', id: 'embarque', url: '/tracking', label: t('navLinks.embarque') },
-  { key: 'itinerario', id: 'itinerario', url: '/itinerario', label: t('navLinks.itinerario') }
+  { key: 'embarque', id: 'embarque', url: `/tracking${rolePreviewSuffix.value}`, label: t('navLinks.embarque') },
+  { key: 'itinerario', id: 'itinerario', url: `/itinerario${rolePreviewSuffix.value}`, label: t('navLinks.itinerario') }
 ])
-function syncGuest() {
-  localStorage.removeItem('castrofallas-guest-mode')
-  sessionStorage.removeItem('castrofallas-guest-mode')
-}
-async function refreshSession() {
-  try {
-    const response = await fetch('/api/auth/me', { credentials: 'same-origin', cache: 'no-store' })
-    sessionUser.value = response.ok ? await response.json() : null
-    if (sessionUser.value) localStorage.removeItem('castrofallas-guest-mode')
-  } catch { sessionUser.value = null }
-  syncGuest()
-}
 async function logout() {
   if (loggingOut.value) return
   loggingOut.value = true
   try {
-    const response = await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
-    if (!response.ok) throw new Error('Logout failed')
-    sessionUser.value = null
-    localStorage.removeItem('castrofallas-authenticated')
-    sessionStorage.removeItem('castrofallas-guest-mode')
+    await logoutSession()
     window.location.assign('/')
   } catch {
     loggingOut.value = false
@@ -84,8 +72,7 @@ watch(expanded, async isOpen => {
 })
 
 onMounted(() => {
-  syncGuest()
-  void refreshSession()
+  if (!authState.loaded) void refreshSession()
   const savedTheme = localStorage.getItem('castrofallas-theme')
   darkMode.value = savedTheme ? savedTheme === 'dark' : !!systemThemeQuery?.matches
   document.documentElement.classList.toggle('theme-dark', darkMode.value)
@@ -115,7 +102,7 @@ function toggleTheme() {
       <button class="menu-toggle" type="button" :aria-expanded="expanded" :aria-label="$t('phrases.p137')" @click="expanded = !expanded"><X v-if="expanded" :size="22" aria-hidden="true" /><Menu v-else :size="22" aria-hidden="true" /></button>
       <nav class="main-nav" :class="{ 'main-nav--open': expanded }" :aria-label="$t('phrases.p136')">
         <a v-for="link in visibleLinks" :key="link.id" :class="{ 'is-active': props.active === link.id }" :href="link.url" @click="expanded = false">{{ link.label }}</a>
-        <div class="nav-dropdown" :class="{ 'nav-dropdown--open': cargoMenuOpen, 'nav-dropdown--active': cargoLinks.some(link => props.active === link.id) }">
+        <div v-if="canAccessCargo" class="nav-dropdown" :class="{ 'nav-dropdown--open': cargoMenuOpen, 'nav-dropdown--active': cargoLinks.some(link => props.active === link.id) }">
           <button class="nav-dropdown__trigger" type="button" :aria-expanded="cargoMenuOpen" @click="cargoMenuOpen = !cargoMenuOpen">
             {{ t('navLinks.embarque') }} <ChevronDown :size="16" class="nav-dropdown__chevron" aria-hidden="true" />
           </button>
@@ -123,9 +110,12 @@ function toggleTheme() {
             <a v-for="link in cargoLinks" :key="link.id" :href="link.url" @click="cargoMenuOpen = false; expanded = false">{{ link.label }}</a>
           </div>
         </div>
+        <div v-if="isAdministrator" class="nav-dropdown" :class="{ 'nav-dropdown--active': props.active === 'administracion' }">
+          <a class="nav-dropdown__trigger nav-admin-entry" :href="administrationHref" @click="expanded = false">Administración</a>
+        </div>
         <div class="header-account-tools">
           <a v-if="!isAuthenticated" class="nav-login" href="/bienvenidos">{{ $t('phrases.p132') }} <ArrowUpRight :size="18" aria-hidden="true" /></a>
-          <button v-else type="button" class="nav-user-icon" :disabled="loggingOut" :aria-label="t('custom.header.logout')" :title="sessionUser?.correo + ' — ' + t('custom.header.logout')" @click="logout">
+          <button v-if="isAuthenticated" type="button" class="nav-user-icon" :disabled="loggingOut" :aria-label="t('custom.header.logout')" :title="sessionUser?.correo + ' — ' + t('custom.header.logout')" @click="logout">
             <UserRound :size="19" aria-hidden="true" />
           </button>
           <div class="header-settings" :class="{ 'header-settings--open': settingsOpen }">

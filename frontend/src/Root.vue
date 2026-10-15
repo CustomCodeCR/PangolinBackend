@@ -10,10 +10,12 @@ import Tracking from './pages/Tracking.vue'
 import Itinerary from './pages/Itinerary.vue'
 import Services from './pages/Services.vue'
 import Legal from './pages/Legal.vue'
+import Administration from './pages/Administration.vue'
 import SiteHeader from './components/SiteHeader.vue'
 import SiteFooter from './components/SiteFooter.vue'
 import ScrollProgressButton from './components/ScrollProgressButton.vue'
 import AssistantBot from './components/AssistantBot.vue'
+import { authState, currentRole, refreshSession } from './services/auth'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n({ useScope: 'global' })
 const gatedPaths = new Set(['/noticias', '/nosotros', '/servicios', '/tracking', '/itinerario'])
@@ -28,51 +30,66 @@ const seoByPath: Record<string, { title: string; description: string; indexable?
   },
   '/noticias': {
     title: 'Noticias de logística y comercio exterior | Castro Fallas',
-    description: 'Leé noticias sobre logística, aduanas, transporte internacional y comercio exterior en Costa Rica y Centroamérica.'
+    description: 'Noticias sobre logística, aduanas, transporte internacional y comercio exterior en Costa Rica y Centroamérica.'
   },
   '/nosotros': {
     title: 'Sobre Castro Fallas | Logística internacional en Costa Rica',
-    description: 'Conocé la experiencia de Castro Fallas en logística, gestión aduanera y transporte de mercancías desde Costa Rica hacia el mundo.'
+    description: 'Conoce la experiencia de Castro Fallas en logística, gestión aduanera y transporte de mercancías desde Costa Rica hacia el mundo.'
   },
   '/servicios': {
     title: 'Servicios de aduanas y transporte | Castro Fallas Costa Rica',
-    description: 'Explorá soluciones de agenciamiento aduanero, almacenamiento fiscal y transporte aéreo, marítimo y terrestre para tu empresa.'
+    description: 'Soluciones de agenciamiento aduanero, almacenamiento fiscal y transporte aéreo, marítimo y terrestre para empresas.'
   },
   '/tracking': {
     title: 'Seguimiento de carga | Castro Fallas',
-    description: 'Consultá información de seguimiento de carga y conexiones logísticas de Castro Fallas.',
+    description: 'Información de seguimiento de carga y conexiones logísticas de Castro Fallas.',
     indexable: false
   },
   '/itinerario': {
     title: 'Itinerario de carga | Castro Fallas',
-    description: 'Consultá información de itinerarios y coordinación de carga internacional con Castro Fallas.',
+    description: 'Información de itinerarios y coordinación de carga internacional con Castro Fallas.',
     indexable: false
   },
   '/cotizaciones': {
-    title: 'Cotizá transporte y logística | Castro Fallas Costa Rica',
-    description: 'Solicitá una cotización para tus cargas aéreas, marítimas o terrestres con el equipo de Castro Fallas.',
+    title: 'Cotizar transporte y logística | Castro Fallas Costa Rica',
+    description: 'Solicita una cotización para cargas aéreas, marítimas o terrestres con el equipo de Castro Fallas.',
     indexable: false
   },
   '/bienvenidos': {
     title: 'Acceso a la plataforma | Castro Fallas',
-    description: 'Accedé a la plataforma de Castro Fallas como cliente o usuario autorizado.',
+    description: 'Accede a la plataforma de Castro Fallas como cliente o usuario autorizado.',
+    indexable: false
+  },
+  '/admin/contenido': {
+    title: 'Administración de contenido | Castro Fallas',
+    description: 'Administración local de itinerarios, noticias y multimedia.',
+    indexable: false
+  },
+  '/admin/usuarios': {
+    title: 'Administración de usuarios | Castro Fallas',
+    description: 'Administración de cuentas y roles autorizados de Castro Fallas.',
+    indexable: false
+  },
+  '/administracion': {
+    title: 'Administración | Castro Fallas',
+    description: 'Administración de contenido y usuarios autorizados de Castro Fallas.',
     indexable: false
   },
   '/privacidad': {
     title: 'Política de privacidad | Castro Fallas',
-    description: 'Consultá cómo Castro Fallas trata y protege la información personal relacionada con sus servicios y este sitio web.'
+    description: 'Información sobre el tratamiento y la protección de datos personales relacionados con los servicios de Castro Fallas y este sitio web.'
   },
   '/terminos': {
     title: 'Términos y condiciones | Castro Fallas',
-    description: 'Leé las condiciones de uso del sitio web y de los servicios digitales de Castro Fallas.'
+    description: 'Condiciones de uso del sitio web y de los servicios digitales de Castro Fallas.'
   },
   '/cookies': {
     title: 'Política de cookies | Castro Fallas',
-    description: 'Conocé cómo este sitio usa cookies y tecnologías necesarias para su funcionamiento.'
+    description: 'Información sobre el uso de cookies y tecnologías necesarias para el funcionamiento de este sitio.'
   },
   '/licencias': {
     title: 'Créditos y licencias | Castro Fallas',
-    description: 'Revisá los créditos y las licencias de recursos, bibliotecas y elementos utilizados en el sitio de Castro Fallas.'
+    description: 'Créditos y licencias de recursos, bibliotecas y elementos utilizados en el sitio de Castro Fallas.'
   }
 }
 function setMeta(selector: string, attribute: 'name' | 'property', key: string, content: string | null) {
@@ -117,25 +134,44 @@ function applyPageSeo() {
   }
 }
 applyPageSeo()
-const quoteAccess = ref<'checking' | 'allowed' | 'denied'>('checking')
+const quoteAccess = ref<'checking' | 'allowed' | 'denied'>('allowed')
 const requestPath = window.location.pathname.replace(/\/+$/, '') || '/'
-const routeAccess = ref<'checking' | 'ready'>('ready')
+const legacyAdminRoute = requestPath === '/admin/contenido' || requestPath === '/admin/usuarios'
+const adminRoute = requestPath === '/administracion' || legacyAdminRoute
+const restrictedRoute = requestPath === '/tracking' || requestPath === '/itinerario' || adminRoute
+const routeAccess = ref<'checking' | 'ready'>(restrictedRoute ? 'checking' : 'ready')
 const loginNextHref = '/bienvenidos?next=' + encodeURIComponent(window.location.pathname + window.location.search)
 onMounted(async () => {
-  if (requestPath === '/cotizaciones') {
-    try {
-      const response = await fetch('/api/auth/me', { credentials: 'same-origin', cache: 'no-store' })
-      quoteAccess.value = response.ok ? 'allowed' : 'denied'
-    } catch { quoteAccess.value = 'denied' }
+  const user = await refreshSession()
+  const role = currentRole()
+  if (adminRoute && role !== 'administrador') {
+    if (!user && !authState.previewRole) window.location.replace(loginNextHref)
+    else window.location.replace('/home')
+    return
   }
+  if (legacyAdminRoute && role === 'administrador') {
+    const params = new URLSearchParams()
+    if (requestPath === '/admin/usuarios' || new URLSearchParams(window.location.search).get('tab') === 'usuarios') params.set('tab', 'usuarios')
+    if (authState.previewRole) params.set('previewRole', authState.previewRole)
+    window.location.replace(`/administracion${params.size ? `?${params.toString()}` : ''}`)
+    return
+  }
+  if ((requestPath === '/tracking' || requestPath === '/itinerario') && role !== 'cliente' && role !== 'administrador') {
+    window.location.replace('/home?acceso=cliente')
+    return
+  }
+  if (requestPath === '/cotizaciones') quoteAccess.value = 'allowed'
   nextTick(() => {
     if (window.location.hash) document.getElementById(decodeURIComponent(window.location.hash.slice(1)))?.scrollIntoView()
   })
+  routeAccess.value = 'ready'
 })
 const page = computed(()=> {
   const path=window.location.pathname.replace(/\/+$/,'') || '/'
   if(path==='/home' || path==='/') return 'home'
   if(path==='/bienvenidos') return 'login'
+  if(path==='/administracion') return 'administration'
+  if(path==='/admin/contenido' || path==='/admin/usuarios') return 'administration'
   if(path==='/noticias') return 'news'
   if(path==='/nosotros') return 'about'
   if(path==='/servicios') return 'services'
@@ -150,7 +186,8 @@ const page = computed(()=> {
   <div v-if="routeAccess === 'checking'" class="app-site" aria-busy="true" />
   <template v-else>
   <Login v-if="page==='login'"/>
-  <Home v-else-if="page==='home'"/>
+  <Home v-else-if="page==='home'" />
+  <Administration v-else-if="page==='administration'" />
   <News v-else-if="page==='news'"/>
   <About v-else-if="page==='about'"/>
   <Services v-else-if="page==='services'"/>

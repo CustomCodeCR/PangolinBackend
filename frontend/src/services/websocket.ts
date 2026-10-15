@@ -11,7 +11,7 @@ export interface DataChangeNotification {
 }
 
 function getWebSocketUrl(): string {
-  const configured = import.meta.env.VITE_WS_URL?.trim()
+  const configured = (import.meta as ImportMeta & { env?: { VITE_WS_URL?: string } }).env?.VITE_WS_URL?.trim()
   if (configured) {
     try {
       const address = new URL(configured)

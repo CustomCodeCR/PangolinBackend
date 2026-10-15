@@ -1035,6 +1035,179 @@ button:active,
   }
 }
 
+/* Cotizador: barrido rojo sobre azul marino e iconos de progreso sin doble aro. */
+html.theme-dark .quote-page .quote-flow .quote-wizard-aside,
+html.theme-dark .quote-page .quote-flow .quote-wizard-panel,
+html.theme-dark .quote-page .quote-flow .transport-choice,
+html.theme-dark .quote-page .quote-flow .quote-success {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: #111c35 !important;
+  border-color: #2b3b58 !important;
+}
+html.theme-dark .quote-page .quote-flow .quote-wizard-aside::before,
+html.theme-dark .quote-page .quote-flow .quote-wizard-panel::before,
+html.theme-dark .quote-page .quote-flow .transport-choice::before,
+html.theme-dark .quote-page .quote-flow .quote-success::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: -20%;
+  bottom: -20%;
+  left: -75%;
+  width: 68%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 0%, rgba(173, 9, 34, .12) 25%, rgba(173, 9, 34, .38) 52%, rgba(173, 9, 34, .12) 78%, transparent 100%);
+  filter: blur(28px);
+  transform: skewX(-12deg);
+  animation: quote-panel-red-sweep 8s ease-in-out infinite alternate;
+}
+html.theme-dark .quote-page .quote-flow .quote-wizard-aside > :not(.quote-map-dots):not(.quote-truck-art),
+html.theme-dark .quote-page .quote-flow .quote-wizard-panel > *,
+html.theme-dark .quote-page .quote-flow .transport-choice > *,
+html.theme-dark .quote-page .quote-flow .quote-success > * {
+  position: relative;
+  z-index: 1;
+}
+html.theme-dark .quote-page .quote-flow .quote-wizard-aside .quote-map-dots {
+  z-index: 0;
+}
+html.theme-dark .quote-page .quote-flow .quote-wizard-aside .quote-truck-art {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: auto;
+  right: 10%;
+  transform: translateY(-50%);
+  color: #fff !important;
+  opacity: .8;
+  filter: drop-shadow(5px 10px 0 rgba(8, 19, 39, .35));
+}
+html.theme-dark .quote-page .quote-flow .quote-wizard-aside .quote-truck-art .lucide-symbol {
+  width: auto !important;
+  height: auto !important;
+  background: transparent !important;
+  color: inherit !important;
+}
+html.theme-dark .quote-page .quote-flow .quote-wizard-aside .quote-truck-art svg {
+  width: 128px;
+  height: 128px;
+  stroke-width: 1.25;
+}
+html.theme-dark .quote-page .quote-flow .quote-wizard-aside {
+  justify-content: center !important;
+}
+@keyframes quote-panel-red-sweep {
+  from { left: -75%; }
+  to { left: 112%; }
+}
+.quote-page .quote-flow .quote-progress-step > span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 54px;
+  height: 54px;
+  border: 3px solid #344258;
+  border-radius: 50%;
+  background: #19243a;
+  color: #aeb8c8;
+  box-shadow: none;
+}
+.quote-page .quote-flow .quote-progress-step > span > .lucide-symbol {
+  display: inline-flex;
+  width: auto !important;
+  height: auto !important;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: inherit !important;
+  font-size: inherit;
+  box-shadow: none !important;
+}
+.quote-page .quote-flow .quote-progress-step > span > .lucide-symbol svg {
+  width: 1em;
+  height: 1em;
+}
+.quote-page .quote-flow .quote-progress-step.is-active > span {
+  border-color: #ad0922;
+  background: #ad0922;
+  color: #fff;
+}
+@media (max-width: 1080px) {
+  .quote-page .quote-flow .quote-progress-step > span { width: 44px; height: 44px; }
+}
+@media (max-width: 600px) {
+  .quote-page .quote-flow .quote-progress-step > span { width: 46px; height: 46px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.theme-dark .quote-page .quote-flow .quote-wizard-aside::before,
+  html.theme-dark .quote-page .quote-flow .quote-wizard-panel::before,
+  html.theme-dark .quote-page .quote-flow .transport-choice::before,
+  html.theme-dark .quote-page .quote-flow .quote-success::before { animation: none; left: 20%; opacity: .7; }
+}
+
+/* Cotizaciones: conservar superficies oscuras en todas las etapas del tema oscuro.
+   Este bloque va al final para evitar que reglas antiguas de glass claro las tapen. */
+html.theme-dark .quote-page {
+  background: #070d1d !important;
+  color: #f2f5fb !important;
+}
+html.theme-dark .quote-page .quote-choice-card,
+html.theme-dark .quote-page .quote-quick-form,
+html.theme-dark .quote-page .quote-wizard-panel,
+html.theme-dark .quote-page .quote-cargo-form,
+html.theme-dark .quote-page .quote-wizard-aside,
+html.theme-dark .quote-page .transport-choice,
+html.theme-dark .quote-page .quote-success {
+  color: #f2f5fb !important;
+  background-color: #111c35 !important;
+  background-image: radial-gradient(ellipse at 8% 50%, #d20b2a24 0%, transparent 46%), linear-gradient(135deg, #111c35 0%, #17243d 56%, #101a31 100%) !important;
+  background-size: 100% 100%, 100% 100% !important;
+  background-position: center !important;
+  border-color: #34445e !important;
+}
+html.theme-dark .quote-page .quote-flow :is(h1, h2, h3, p, label, small, strong, .quote-panel-copy, .quote-hint, .quote-text-back, .quote-progress-step, .quote-quick-intro, .quote-wizard-aside > p:last-child) {
+  color: #edf2fb !important;
+  -webkit-text-fill-color: #edf2fb !important;
+}
+html.theme-dark .quote-page .quote-flow :is(.quote-kicker, .quote-panel-kicker) {
+  color: #ff7085 !important;
+  -webkit-text-fill-color: #ff7085 !important;
+}
+html.theme-dark .quote-page .quote-flow :is(.quote-fields input, .quote-fields select, .quote-fields textarea) {
+  color: #f2f5fb !important;
+  -webkit-text-fill-color: #f2f5fb !important;
+  background: #0b1428 !important;
+  border-color: #3b4b65 !important;
+}
+html.theme-dark .quote-page .quote-flow .quote-fields option {
+  color: #f2f5fb !important;
+  background: #0b1428 !important;
+}
+html.theme-dark .quote-page .quote-flow .quote-fields input::placeholder,
+html.theme-dark .quote-page .quote-flow .quote-fields textarea::placeholder {
+  color: #9ba8bd !important;
+  -webkit-text-fill-color: #9ba8bd !important;
+}
+html.theme-dark .quote-page .quote-flow :is(.quote-pill, .quote-next, .quote-submit, .manager-submit) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html.theme-dark .quote-page .quote-flow .quote-error {
+  color: #ffdce2 !important;
+  -webkit-text-fill-color: #ffdce2 !important;
+  background: #4b1c2b !important;
+  border: 1px solid #803047;
+}
+html.theme-dark .quote-page .quote-flow .quote-progress:before { background: #344258 !important; }
+html.theme-dark .quote-page .quote-flow .quote-progress-step span { background: #19243a !important; color: #d3dbea !important; border-color: #46546a !important; }
+html.theme-dark .quote-page .quote-flow .quote-progress-step.is-active span { background: #b20c2a !important; color: #fff !important; border-color: #b20c2a !important; }
+
+
 html.theme-dark .quote-contact-heading h1,
 html.theme-dark .quote-promo-card h2,
 html.theme-dark .quote-promo-card > p:not(.quote-step-kicker),
@@ -4029,30 +4202,15 @@ html.theme-dark .app-site.news-page .news-editorial-hero__bottomline-rule {
     margin: 0;
   }
   .home-hero.home-hero--menu-open { padding-top: var(--mobile-open-menu-height, 0px); }
-  /* Keep the logo and toggle in the same 72px row as the closed header.
-     The expanding navigation occupies its own row instead of shifting the logo. */
   .site-header.site-header--menu-open .header-inner {
-    width: min(100% - 38px, 1220px);
+    width: 100%;
     height: auto;
     min-height: 72px;
-    padding-inline: 0;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: 72px auto;
-    align-items: center;
+    padding-inline: max(18px, calc((100vw - 900px) / 2));
+    flex-wrap: wrap;
     gap: 0;
   }
-  .site-header.site-header--menu-open .site-brand {
-    grid-column: 1;
-    grid-row: 1;
-  }
-  .site-header.site-header--menu-open .menu-toggle {
-    grid-column: 2;
-    grid-row: 1;
-  }
   .site-header.site-header--menu-open .main-nav.main-nav--open {
-    grid-column: 1 / -1;
-    grid-row: 2;
     position: static;
     width: 100%;
     height: auto;
@@ -4082,13 +4240,6 @@ html.theme-dark .app-site.news-page .news-editorial-hero__bottomline-rule {
   }
   .site-header.site-header--menu-open .main-nav.main-nav--open .nav-dropdown__menu a:hover {
     background: rgba(255, 255, 255, .14) !important;
-  }
-}
-
-/* Match the standard compact header inset when the menu expands. */
-@media (max-width: 520px) {
-  .site-header.site-header--menu-open .header-inner {
-    width: calc(100% - 32px);
   }
 }
 
@@ -4169,26 +4320,248 @@ html.theme-dark .app-site.news-page .news-editorial-hero__bottomline-rule {
 }
 
 
-/* Corregir fondo superior del menú móvil en Noticias */
-@media (max-width: 1080px) {
-  .app-site.news-page .news-editorial-hero
-  > .site-header.site-header--overlay.site-header--menu-open {
-    position: absolute !important;
-    top: 0 !important;
-    right: 0;
-    left: 0 !important;
-    width: 100%;
-    background: #9f0921 !important;
-  }
+/* Fondo institucional y campos amplios para la tarjeta de cotización. */
+html:not(.theme-dark) .quote-page .quote-flow .quote-choice-card--land,
+html:not(.theme-dark) .quote-page .quote-flow .quote-choice-card--ocean,
+html:not(.theme-dark) .quote-page .quote-flow .quote-quick-form,
+html:not(.theme-dark) .quote-page .quote-flow .quote-wizard-panel,
+html:not(.theme-dark) .quote-page .quote-flow .quote-cargo-form,
+html:not(.theme-dark) .quote-page .quote-flow .quote-wizard-aside,
+html:not(.theme-dark) .quote-page .quote-flow .transport-choice,
+html:not(.theme-dark) .quote-page .quote-flow .quote-success {
+  background-color: #fff !important;
+  color: #172033 !important;
+}
+html:not(.theme-dark) .quote-page .quote-flow :is(.quote-choice-card h2, .quote-choice-card p:not(.quote-kicker), .quote-quick-form h2, .quote-quick-form p, .quote-fields label, .quote-wizard-panel h2, .quote-wizard-panel p, .quote-wizard-aside h2, .quote-wizard-aside p, .quote-cargo-form h2, .quote-cargo-form h3, .quote-cargo-form label, .transport-choice strong, .transport-choice small, .quote-success h2, .quote-success p, .quote-success small) {
+  color: #172033 !important;
+  -webkit-text-fill-color: #172033 !important;
+}
+html:not(.theme-dark) .quote-page .quote-flow :is(.quote-kicker, .quote-panel-kicker) {
+  color: #b20c2a !important;
+  -webkit-text-fill-color: #b20c2a !important;
 }
 
-/* Navegación entre páginas de resultados de itinerarios. */
-.itinerary-pagination{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:12px;margin-top:22px;padding-top:20px;border-top:1px solid #eee7e9}
-.itinerary-pagination button{min-height:38px;padding:8px 15px;border:1px solid #b20c2a;border-radius:9px;background:#fff;color:#a70a24;font-size:12px;font-weight:800;cursor:pointer}
-.itinerary-pagination button:hover:not(:disabled){background:#b20c2a;color:#fff}
-.itinerary-pagination button:disabled{opacity:.45;cursor:not-allowed}
-.itinerary-pagination span{color:#55515a;font-size:12px;font-weight:750}
-html.theme-dark .itinerary-pagination{border-color:#30394e}
-html.theme-dark .itinerary-pagination button{background:#111b34;color:#ffdbe2}
-html.theme-dark .itinerary-pagination button:hover:not(:disabled){background:#b20c2a;color:#fff}
-html.theme-dark .itinerary-pagination span{color:#e1e4eb}
+html.theme-dark .quote-page .quote-flow .quote-choice-card--land,
+html.theme-dark .quote-page .quote-flow .quote-choice-card--ocean,
+html.theme-dark .quote-page .quote-flow .quote-quick-form,
+html.theme-dark .quote-page .quote-flow .quote-wizard-panel,
+html.theme-dark .quote-page .quote-flow .quote-cargo-form,
+html.theme-dark .quote-page .quote-flow .quote-wizard-aside,
+html.theme-dark .quote-page .quote-flow .transport-choice,
+html.theme-dark .quote-page .quote-flow .quote-success {
+  background: #111c35 !important;
+  color: #f3f6fc !important;
+  border-color: #2b3b58 !important;
+}
+
+/* El mismo barrido rojo atraviesa cada tarjeta, también Contactanos. */
+html.theme-dark .quote-page .quote-flow .quote-choice-card--land:before,
+html.theme-dark .quote-page .quote-flow .quote-choice-card--ocean:before,
+html.theme-dark .quote-page .quote-flow .quote-quick-form:before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  top: -18%;
+  bottom: -18%;
+  left: -78%;
+  width: 72%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 0%, rgba(237, 36, 66, .28) 22%, rgba(237, 36, 66, .58) 52%, rgba(237, 36, 66, .28) 78%, transparent 100%) !important;
+  filter: blur(26px);
+  transform: skewX(-12deg);
+  animation: quote-card-red-sweep 6s linear infinite !important;
+}
+html.theme-dark .quote-page .quote-flow .quote-quick-form {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: #111c35 !important;
+}
+html.theme-dark .quote-page .quote-flow .quote-quick-form > * {
+  position: relative;
+  z-index: 1;
+}
+html.theme-dark .quote-page .quote-flow .quote-choice-card--land > *,
+html.theme-dark .quote-page .quote-flow .quote-choice-card--ocean > * {
+  position: relative;
+  z-index: 1;
+}
+html.theme-dark .quote-page .quote-flow :is(.quote-choice-card h2, .quote-choice-card p:not(.quote-kicker), .quote-quick-form h2, .quote-quick-form p:not(.quote-kicker), .quote-fields label, .quote-fields label small, .quote-wizard-panel h2, .quote-wizard-panel p:not(.quote-panel-kicker), .quote-wizard-aside h2, .quote-wizard-aside p:not(.quote-kicker), .quote-cargo-form h2, .quote-cargo-form h3, .quote-cargo-form p:not(.quote-kicker), .quote-cargo-form label, .quote-cargo-form label small, .transport-choice strong, .transport-choice small, .quote-success h2, .quote-success p, .quote-success small) {
+  color: #f3f6fc !important;
+  -webkit-text-fill-color: #f3f6fc !important;
+}
+html.theme-dark .quote-page .quote-flow :is(.quote-kicker, .quote-panel-kicker, .quote-fields label i, .quote-cargo-form label i) {
+  color: #ff7085 !important;
+  -webkit-text-fill-color: #ff7085 !important;
+}
+html.theme-dark .quote-page .quote-flow :is(.quote-fields input, .quote-fields select, .quote-fields textarea) {
+  background: #0b1428 !important;
+  color: #f3f6fc !important;
+  border-color: #3b4b65 !important;
+  -webkit-text-fill-color: #f3f6fc !important;
+}
+html.theme-dark .quote-page .quote-flow .quote-fields option {
+  background: #0b1428 !important;
+  color: #f3f6fc !important;
+}
+html.theme-dark .quote-page .quote-flow :is(.quote-fields input, .quote-fields textarea)::placeholder {
+  color: #aab6c9 !important;
+  -webkit-text-fill-color: #aab6c9 !important;
+}
+html.theme-dark .quote-page .quote-flow .quote-submit,
+html.theme-dark .quote-page .quote-flow .quote-submit * {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+/* Diseño de form1s: controles anchos y asteriscos en la misma línea. */
+.quote-page .quote-flow .quote-quick-form .quote-fields--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.quote-page .quote-flow .quote-quick-form .quote-fields label {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  justify-content: start;
+  column-gap: 4px;
+  row-gap: 7px;
+  min-width: 0;
+}
+.quote-page .quote-flow .quote-quick-form .quote-fields label > input,
+.quote-page .quote-flow .quote-quick-form .quote-fields label > select,
+.quote-page .quote-flow .quote-quick-form .quote-fields label > textarea {
+  grid-column: 1 / -1;
+  width: 100%;
+  max-width: 100%;
+}
+@media (max-width: 600px) {
+  .quote-page .quote-flow .quote-quick-form .quote-fields--two { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Volver a la vista de invitado desde la esquina superior izquierda de la imagen. */
+.login-visual .login-guest-back {
+  position: absolute;
+  z-index: 2;
+  top: 26px;
+  left: clamp(22px, 3vw, 48px);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 9px 15px;
+  border: 1px solid rgba(255, 255, 255, .56);
+  border-radius: 999px;
+  background: #ad0922;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 750;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: background .2s ease, transform .2s ease;
+}
+.login-visual .login-guest-back:hover { background: #c20e2b; transform: translateX(-2px); }
+.login-visual .login-guest-back span { font-size: 19px; line-height: 1; }
+.nav-admin-link { background: #810b1e; }
+
+/* Acento de marca para el login. */
+.login-screen {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  --login-accent: #ad0922;
+}
+.login-screen::before {
+  content: none;
+}
+.login-screen > * { z-index: 1; }
+.login-visual__content,
+.login-card { position: relative; z-index: 3; }
+.login-visual__bottom,
+.login-guest-back,
+.login-top-tools,
+.login-end { z-index: 3; }
+.login-card h2 span,
+.login-auth-card > .section-tag { color: var(--login-accent) !important; }
+
+/* The login follows the same saved theme and browser preference as the main site. */
+html.theme-dark .login-screen,
+html.theme-dark .login-card-column {
+  background: #01081D !important;
+  color: #f4f6fb;
+}
+html.theme-dark .login-screen { --login-accent: #ad0922; }
+html.theme-dark .login-visual {
+  background-image: linear-gradient(125deg, rgba(66, 5, 23, .78) 0%, rgba(7, 18, 40, .74) 58%, rgba(1, 8, 29, .68) 100%), url('/images/hero.webp');
+}
+html.theme-dark .login-visual::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: clamp(90px, 15%, 210px);
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(1, 8, 29, 0) 0%, rgba(1, 8, 29, .72) 58%, #01081D 100%);
+}
+html:not(.theme-dark) .login-visual::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: clamp(90px, 15%, 210px);
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(252, 249, 249, 0) 0%, rgba(252, 249, 249, .76) 58%, #fcf9f9 100%);
+}
+html.theme-dark .login-card h2,
+html.theme-dark .login-auth-form label,
+html.theme-dark .login-auth-back {
+  color: #f4f6fb !important;
+}
+html.theme-dark .login-card > p,
+html.theme-dark .login-auth-help,
+html.theme-dark .login-auth-footer,
+html.theme-dark .login-end {
+  color: #b7c1d2 !important;
+}
+html.theme-dark .login-auth-form input {
+  background: #0b1428 !important;
+  border-color: #34425b !important;
+  color: #f4f6fb !important;
+}
+html.theme-dark .login-auth-form input::placeholder { color: #9daac0 !important; }
+html.theme-dark .login-auth-form input:focus { border-color: #cf1237 !important; }
+html.theme-dark .login-auth-error {
+  background: #29111e !important;
+  border-color: #7d263d !important;
+  color: #ffc0cb !important;
+}
+html.theme-dark .login-top-tools,
+html.theme-dark .login-top-tools .language-switcher { color: #f4f6fb !important; }
+html.theme-dark .login-mini-brand { color: #ad0922 !important; }
+html.theme-dark .login-top-tools .logo-dot { background: #ad0922; }
+html.theme-dark .login-card h2 span,
+html.theme-dark .login-auth-card > .section-tag,
+html.theme-dark .login-visual__content h1 em { color: var(--login-accent) !important; }
+html:not(.theme-dark) .login-visual__content h1 em { color: var(--login-accent) !important; }
+@media (max-width: 800px) {
+  html.theme-dark .login-visual::after {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: 100px;
+    background: linear-gradient(180deg, rgba(1, 8, 29, 0) 0%, rgba(1, 8, 29, .78) 65%, #01081D 100%);
+  }
+  html:not(.theme-dark) .login-visual::after {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: 100px;
+    background: linear-gradient(180deg, rgba(252, 249, 249, 0) 0%, rgba(252, 249, 249, .82) 65%, #fcf9f9 100%);
+  }
+}
