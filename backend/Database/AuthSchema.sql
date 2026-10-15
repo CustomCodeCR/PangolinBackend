@@ -101,6 +101,63 @@ ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS "UsuarioId" UUID NULL;
 CREATE INDEX IF NOT EXISTS idx_quotes_cliente_id ON quote_requests("ClienteId");
 
 
+-- Cotizaciones estructuradas v2: nunca borra quote_requests ni las filas previas.
+-- El peso o la cantidad desconocidos se guardan NULL, no como valores ficticios.
+ALTER TABLE quote_requests ALTER COLUMN "WeightKg" DROP NOT NULL;
+ALTER TABLE quote_requests ALTER COLUMN "Pieces" DROP NOT NULL;
+
+-- Una fila de contacto por cotización nueva; las históricas pueden no tenerla.
+CREATE TABLE IF NOT EXISTS quote_contacts (
+    quote_id UUID PRIMARY KEY REFERENCES quote_requests("Id") ON DELETE CASCADE,
+    full_name VARCHAR(150) NOT NULL,
+    company VARCHAR(200) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(40) NOT NULL,
+    country VARCHAR(100) NULL
+);
+CREATE TABLE IF NOT EXISTS quote_land_details (
+    quote_id UUID PRIMARY KEY REFERENCES quote_requests("Id") ON DELETE CASCADE,
+    transport_kind VARCHAR(3) NOT NULL CHECK (transport_kind IN ('FTL','LTL')),
+    equipment VARCHAR(100) NOT NULL,
+    insured BOOLEAN NOT NULL,
+    customer_type VARCHAR(30) NOT NULL
+);
+CREATE TABLE IF NOT EXISTS quote_air_details (
+    quote_id UUID PRIMARY KEY REFERENCES quote_requests("Id") ON DELETE CASCADE,
+    operation VARCHAR(20) NOT NULL,
+    incoterm VARCHAR(3) NOT NULL,
+    nationalization BOOLEAN NOT NULL,
+    description TEXT NOT NULL,
+    equipment_type VARCHAR(100) NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    dangerous_goods BOOLEAN NULL,
+    additional_details TEXT NULL
+);
+CREATE TABLE IF NOT EXISTS quote_maritime_details (
+    quote_id UUID PRIMARY KEY REFERENCES quote_requests("Id") ON DELETE CASCADE,
+    operation VARCHAR(20) NOT NULL,
+    incoterm VARCHAR(3) NOT NULL,
+    nationalization BOOLEAN NOT NULL,
+    shipping_type VARCHAR(3) NOT NULL CHECK (shipping_type IN ('FCL','LCL')),
+    description TEXT NOT NULL,
+    container_type VARCHAR(100) NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    dangerous_goods BOOLEAN NULL,
+    additional_details TEXT NULL
+);
+CREATE TABLE IF NOT EXISTS quote_multimodal_details (
+    quote_id UUID PRIMARY KEY REFERENCES quote_requests("Id") ON DELETE CASCADE,
+    operation VARCHAR(20) NOT NULL,
+    incoterm VARCHAR(3) NOT NULL,
+    nationalization BOOLEAN NOT NULL,
+    entry_country VARCHAR(100) NOT NULL,
+    description TEXT NOT NULL,
+    container_type VARCHAR(100) NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    dangerous_goods BOOLEAN NULL,
+    additional_details TEXT NULL
+);
+
 -- Itinerarios provisionales: comparten base login pero NO dependen de usuarios/cotizaciones.
 -- CREATE no sobreescribe tablas existentes; ALTER conserva las filas al añadir Closing y status.
 CREATE TABLE IF NOT EXISTS public.itinerarios (

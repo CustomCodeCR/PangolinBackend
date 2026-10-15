@@ -117,7 +117,7 @@ function applyPageSeo() {
   }
 }
 applyPageSeo()
-const quoteAccess = ref<'checking' | 'allowed' | 'denied'>('checking')
+const quoteAccess = ref<'checking' | 'allowed' | 'denied' | 'forbidden'>('checking')
 const requestPath = window.location.pathname.replace(/\/+$/, '') || '/'
 const routeAccess = ref<'checking' | 'ready'>('ready')
 const loginNextHref = '/bienvenidos?next=' + encodeURIComponent(window.location.pathname + window.location.search)
@@ -125,7 +125,11 @@ onMounted(async () => {
   if (requestPath === '/cotizaciones') {
     try {
       const response = await fetch('/api/auth/me', { credentials: 'same-origin', cache: 'no-store' })
-      quoteAccess.value = response.ok ? 'allowed' : 'denied'
+      if (!response.ok) quoteAccess.value = 'denied'
+      else {
+        const account = await response.json()
+        quoteAccess.value = account?.role === 'client' ? 'allowed' : 'forbidden'
+      }
     } catch { quoteAccess.value = 'denied' }
   }
   nextTick(() => {
@@ -164,6 +168,11 @@ const page = computed(()=> {
       <h1>{{ t('custom.quote.loginRequired') }}</h1>
       <p>{{ t('custom.quote.loginRequiredHelp') }}</p>
       <a class="btn btn-primary" :href="loginNextHref">{{ t('custom.quote.goToLogin') }} <IconSymbol glyph="→" /></a>
+    </div>
+    <div v-else-if="quoteAccess === 'forbidden'" class="container quote-access-status">
+      <h1>{{ t('custom.quote.clientOnly') }}</h1>
+      <p>{{ t('custom.quote.clientOnlyHelp') }}</p>
+      <a class="btn btn-primary" href="/home">{{ t('custom.quote.back') }} <IconSymbol glyph="←" /></a>
     </div>
     <QuoteApp v-else/>
     <SiteFooter/>

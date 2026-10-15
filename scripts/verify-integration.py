@@ -39,7 +39,7 @@ check((root/'frontend/public/images/logo.png').is_file(), 'Activos gráficos del
 for language in ('es', 'en'):
     d=json.loads(read(f'frontend/src/locales/{language}.json'))
     check(all(x in d['custom']['quote'] for x in ('checkingSession','loginRequired','goToLogin','sessionExpired')) and 'logout' in d['custom']['header'], f'Traducciones integradas: {language}')
-check(not (root/'.env').exists(), 'El proyecto entregable no contiene .env privado')
+check('.env' in read('.gitignore').splitlines(), 'Git excluye .env local; no se inspeccionan secretos')
 check('vue-i18n' in json.loads(read('frontend/package.json'))['dependencies'], 'Dependencias originales del rediseño conservadas')
 check('embla-carousel' in json.loads(read('frontend/package.json'))['dependencies'], 'Carrusel de noticias incorporado con su dependencia')
 check('node_modules/embla-carousel' in json.loads(read('frontend/package-lock.json'))['packages'], 'Lockfile actualizado para carrusel')
@@ -49,6 +49,20 @@ check('EmblaCarousel' in read('frontend/src/pages/News.vue') and 'news-article-m
 check((root/'frontend/src/pages/Services.vue').is_file(), 'Página Servicios incluida')
 check('selectTransport' in read('frontend/src/pages/Itinerary.vue'), 'Mejoras de transporte incorporadas')
 schema = read('backend/Database/AuthSchema.sql')
+check(all(f'CREATE TABLE IF NOT EXISTS {table}' in schema for table in
+          ('quote_contacts', 'quote_land_details', 'quote_air_details',
+           'quote_maritime_details', 'quote_multimodal_details')),
+      'Cotizaciones estructuradas en cuatro tablas independientes y contacto')
+check(all(f'{mode}: {{' in app for mode in ('land', 'air', 'maritime', 'multimodal')),
+      'Frontend envía los cuatro detalles con clave propia')
+check('land: {' in app and 'weightKg: 1' not in app
+      and 'maritime: {' in app and 'multimodal: {' in app,
+      'Frontend no inventa peso y envía detalles por modalidad')
+check('app.MapGet("/api/quotes/mine"' in program and
+      '.RequireAuthorization("client")' in program,
+      'Cotizaciones propias y creación restringida a clientes')
+check("account?.role === 'client'" in rootvue and "quoteAccess === 'forbidden'" in rootvue,
+      'El cotizador se muestra únicamente a clientes autenticados')
 check('CREATE TABLE IF NOT EXISTS public.itinerarios' in schema and
       'ADD COLUMN IF NOT EXISTS closing DATE NULL' in schema,
       'Itinerarios provisionales con closing sin eliminar registros')

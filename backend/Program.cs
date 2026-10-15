@@ -186,6 +186,12 @@ app.MapGet("/api/health/ready", async (AppDbContext db, IConfiguration config, C
         await db.Database.ExecuteSqlRawAsync("SELECT uuid, token_hash, expires_at FROM auth_sessions LIMIT 0", ct);
         await db.Database.ExecuteSqlRawAsync("SELECT identifier_hash FROM otp_rate_limits LIMIT 0", ct);
         await db.Database.ExecuteSqlRawAsync("SELECT id, pol, pod, closing, etd, eta, status, transporte, modalidad, carrier, vessel, voyage, created_at FROM public.itinerarios LIMIT 0", ct);
+        await db.Database.ExecuteSqlRawAsync("SELECT \"Id\", \"ClienteId\", \"UsuarioId\", \"WeightKg\", \"Pieces\" FROM quote_requests LIMIT 0", ct);
+        await db.Database.ExecuteSqlRawAsync("SELECT quote_id, full_name FROM quote_contacts LIMIT 0", ct);
+        await db.Database.ExecuteSqlRawAsync("SELECT quote_id, transport_kind FROM quote_land_details LIMIT 0", ct);
+        await db.Database.ExecuteSqlRawAsync("SELECT quote_id, operation FROM quote_air_details LIMIT 0", ct);
+        await db.Database.ExecuteSqlRawAsync("SELECT quote_id, shipping_type FROM quote_maritime_details LIMIT 0", ct);
+        await db.Database.ExecuteSqlRawAsync("SELECT quote_id, entry_country FROM quote_multimodal_details LIMIT 0", ct);
         return Results.Ok(new
         {
             status = "ready", postgres = "ok", emailMode = config["Email:Mode"] ?? "Smtp"
@@ -266,7 +272,28 @@ app.MapPost("/api/quotes", async (
     {
         return Results.BadRequest(new { error = ex.Message });
     }
-}).RequireAuthorization("registered");
+}).RequireAuthorization("client");
+
+// La empresa autenticada solo puede enumerar sus propias solicitudes.
+// Límite de página explícito para no devolver registros de otros clientes.
+app.MapGet("/api/quotes/mine", async (
+    AppDbContext db, AuthService auth, HttpContext http,
+    int? page, int? pageSize, CancellationToken ct) =>
+{
+    var user = await auth.GetIdentityAsync(http, ct);
+    if (user is null) return Results.Unauthorized();
+    var p = page ?? 1;
+    var size = pageSize ?? 20;
+    if (p < 1 || size < 1 || size > 100 || ((long)p - 1) * size > int.MaxValue)
+        return Results.BadRequest(new { error = "page debe ser mayor que 0 y pageSize debe estar entre 1 y 100." });
+    var q = db.QuoteRequests.AsNoTracking().Where(x => x.ClienteId == user.ClienteId);
+    var total = await q.CountAsync(ct);
+    var items = await q.OrderByDescending(x => x.CreatedAtUtc).ThenBy(x => x.Id)
+        .Skip((p - 1) * size).Take(size)
+        .Select(x => new { x.Id, x.ServiceType, x.Origin, x.Destination, x.Status, x.CreatedAtUtc })
+        .ToListAsync(ct);
+    return Results.Ok(new { items, total, page = p, pageSize = size, totalPages = (int)Math.Ceiling((double)total / size) });
+}).RequireAuthorization("client");
 
 app.MapGet("/api/quotes/{id:guid}", async (
     Guid id, QuoteService service, AuthService auth, HttpContext http, CancellationToken ct) =>
