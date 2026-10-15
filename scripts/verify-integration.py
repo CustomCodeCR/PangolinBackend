@@ -28,7 +28,7 @@ check('login-screen' in login and 'LanguageSwitcher' in login, 'Pantalla visual 
 check(all(route in login for route in ['/api/auth/request-otp', '/api/auth/verify-otp'])
       and 'refreshSession' in login and 'authState' in read('frontend/src/services/auth.ts'),
       'Login de correo único verifica OTP y obtiene el rol del servidor')
-check('quoteAccess' in rootvue and '/api/auth/me' in rootvue and 'QuoteApp v-else' in rootvue, 'Formulario protegido por comprobación de sesión')
+check('quoteAccess' in rootvue and 'refreshSession()' in rootvue and 'QuoteApp v-else' in rootvue, 'Formulario protegido por comprobación de sesión')
 check('logoutSession' in header and 'sessionUser' in header
       and '/api/auth/logout' in read('frontend/src/services/auth.ts'),
       'Cabecera muestra estado de sesión y logout real')
