@@ -17,7 +17,6 @@ import AssistantBot from './components/AssistantBot.vue'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n({ useScope: 'global' })
 const gatedPaths = new Set(['/noticias', '/nosotros', '/servicios', '/tracking', '/itinerario'])
-const pageWasReloaded = (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined)?.type === 'reload'
 const seoByPath: Record<string, { title: string; description: string; indexable?: boolean }> = {
   '/': {
     title: 'Castro Fallas | Agencia aduanal y logística en Costa Rica',
