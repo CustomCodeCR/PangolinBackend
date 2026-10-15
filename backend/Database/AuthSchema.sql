@@ -76,6 +76,21 @@ CREATE INDEX IF NOT EXISTS idx_sessions_usuario ON auth_sessions(usuario_id, exp
 -- Nota: el alta/actualización de registros de clientes y usuarios se hace en DBeaver.
 -- No se ofrecen endpoints públicos de alta para prevenir registros no autorizados.
 
+-- Auditoría de cambios de rol/estado; nunca se guardan códigos OTP ni JWT.
+-- No se borran ni alteran filas de clientes/usuarios existentes.
+CREATE TABLE IF NOT EXISTS auth_admin_user_audit (
+    id BIGSERIAL PRIMARY KEY,
+    actor_usuario_id UUID NULL REFERENCES usuarios(uuid) ON DELETE SET NULL,
+    target_usuario_id UUID NULL REFERENCES usuarios(uuid) ON DELETE SET NULL,
+    old_role VARCHAR(20) NOT NULL,
+    new_role VARCHAR(20) NOT NULL,
+    old_active BOOLEAN NOT NULL,
+    new_active BOOLEAN NOT NULL,
+    changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_admin_user_audit_target
+    ON auth_admin_user_audit(target_usuario_id, changed_at DESC);
+
 -- En caso de una base creada manualmente con clientes/usuarios y sin el cotizador.
 CREATE TABLE IF NOT EXISTS quote_requests (
     "Id" UUID PRIMARY KEY,
@@ -156,6 +171,28 @@ CREATE TABLE IF NOT EXISTS quote_multimodal_details (
     quantity INTEGER NOT NULL CHECK (quantity > 0),
     dangerous_goods BOOLEAN NULL,
     additional_details TEXT NULL
+);
+
+-- Contenido compartido: las vistas de noticias y el administrador usan PostgreSQL
+-- en vez del localStorage de un único navegador. SQL idempotente, sin DROP.
+CREATE TABLE IF NOT EXISTS public.cms_news (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(160) NOT NULL,
+    category VARCHAR(60) NOT NULL,
+    description VARCHAR(1200) NOT NULL,
+    image TEXT NOT NULL DEFAULT '',
+    published BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_cms_news_published ON public.cms_news(published, created_at DESC);
+CREATE TABLE IF NOT EXISTS public.cms_media (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(200) NOT NULL,
+    kind VARCHAR(30) NOT NULL,
+    src TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Itinerarios provisionales: comparten base login pero NO dependen de usuarios/cotizaciones.

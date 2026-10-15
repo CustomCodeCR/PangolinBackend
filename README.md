@@ -78,3 +78,11 @@ Más detalles técnicos en `INTEGRACION.md`. La interfaz requiere verificar lice
 La API recibe solicitudes autenticadas de clientes y guarda las cotizaciones en `quote_requests`, `quote_contacts` y **cuatro tablas de detalle separadas**: `quote_land_details`, `quote_air_details`, `quote_maritime_details` y `quote_multimodal_details`. No se ofrecen rutas de edición ni borrado; la base de datos conserva cotizaciones históricas. El frontend usa JSON estructurado y ya no inventa `weightKg = 1`.
 
 Contrato, migración y pruebas: [docs/COTIZACIONES-ESQUEMA-V2.md](docs/COTIZACIONES-ESQUEMA-V2.md).
+
+## Integración de login y administración (rama de correcciones)
+
+El login nuevo solicita **solo correo registrado**, y el backend deduce el rol desde `usuarios.tipo_acceso` (`cliente` -> `client`, `usuario` -> `admin`). Se admiten cuentas empresariales, no solo Gmail. La web mantiene OTP por SMTP o LocalOutbox en Development y JWT revocable HttpOnly. Los cuatro tipos de cotización de PR #6 y el CRUD de itinerarios PR #5 se conservan. La opción multimodal vuelve a la nueva interfaz.
+
+En el panel de administración, usuarios, noticias y multimedia se gestionan mediante API protegida y persistencia PostgreSQL. El contenido publicado se muestra en la página Noticias desde `GET /api/content/news`. La previsualización de desarrollo no otorga permisos del servidor. Guía detallada y pruebas: [docs/INTEGRACION-LOGIN-ADMIN-2026.md](docs/INTEGRACION-LOGIN-ADMIN-2026.md).
+
+**Requiere ejecutar y validar migración en base de pruebas antes de fusionar.** El SQL es aditivo y no borra cotizaciones existentes. Nunca usar `docker compose down -v` para actualizar.

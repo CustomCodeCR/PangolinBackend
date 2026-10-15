@@ -48,8 +48,8 @@ async function parseError(response: Response): Promise<string> {
 async function requestCode() {
   error.value = ''
   message.value = ''
-  if (!/^[A-Z0-9._%+-]+@gmail\.com$/i.test(email.value.trim())) {
-    error.value = t('custom.login.gmailOnly')
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim())) {
+    error.value = t('custom.login.emailInvalid')
     return
   }
   loading.value = true
@@ -127,7 +127,7 @@ function enterAsGuest() {
           <label>{{ $t('custom.login.email') }}
             <input v-model="email" required type="email" maxlength="255" autocomplete="email" :placeholder="$t('custom.login.emailPlaceholder')" />
           </label>
-          <p class="login-auth-help">{{ $t('custom.login.gmailHelp') }}</p>
+          <p class="login-auth-help">{{ $t('custom.login.emailHelp') }}</p>
           <button class="login-auth-primary" type="submit" :disabled="loading">{{ loading ? $t('custom.login.sending') : $t('custom.login.sendCode') }} <IconSymbol glyph="→" /></button>
         </form>
 

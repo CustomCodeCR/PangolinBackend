@@ -25,9 +25,13 @@ service = read('backend/Services/Auth/AuthService.cs')
 compose = read('compose.yaml')
 
 check('login-screen' in login and 'LanguageSwitcher' in login, 'Pantalla visual e idioma del rediseño')
-check(all(route in login for route in ['/api/auth/request-otp', '/api/auth/verify-otp', '/api/auth/me']), 'Login OTP y sesión enlazados')
-check('quoteAccess' in rootvue and '/api/auth/me' in rootvue and 'QuoteApp v-else' in rootvue, 'Formulario protegido por comprobación de sesión')
-check('/api/auth/logout' in header and 'sessionUser' in header, 'Cabecera muestra estado de sesión y logout')
+check(all(route in login for route in ['/api/auth/request-otp', '/api/auth/verify-otp'])
+      and 'refreshSession' in login and 'authState' in read('frontend/src/services/auth.ts'),
+      'Login de correo único verifica OTP y obtiene el rol del servidor')
+check('quoteAccess' in rootvue and 'refreshSession()' in rootvue and 'QuoteApp v-else' in rootvue, 'Formulario protegido por comprobación de sesión')
+check('logoutSession' in header and 'sessionUser' in header
+      and '/api/auth/logout' in read('frontend/src/services/auth.ts'),
+      'Cabecera muestra estado de sesión y logout real')
 check("fetch('/api/quotes'" in app and 'sessionExpired' in app, 'Cotizador del rediseño conectado a API')
 check(all(ep in program for ep in ['/api/auth/request-otp', '/api/auth/verify-otp', '/api/auth/logout', '/api/auth/me', '/api/quotes']), 'Endpoints de auth y cotizaciones en backend')
 check('GetIdentityAsync(http, ct)' in program and 'user.ClienteId' in program, 'Cotizaciones autorizadas en servidor y por cliente')
@@ -44,7 +48,7 @@ check('vue-i18n' in json.loads(read('frontend/package.json'))['dependencies'], '
 check('embla-carousel' in json.loads(read('frontend/package.json'))['dependencies'], 'Carrusel de noticias incorporado con su dependencia')
 check('node_modules/embla-carousel' in json.loads(read('frontend/package-lock.json'))['packages'], 'Lockfile actualizado para carrusel')
 check("if(path==='/servicios') return 'services'" in rootvue and '<Services v-else-if' in rootvue, 'Nueva página Servicios registrada y conservada con autenticación')
-check("url: '/servicios'" in header and '/api/auth/logout' in header, 'Menú actualizado sin perder logout')
+check("url: '/servicios'" in header and 'logoutSession' in header, 'Menú actualizado sin perder logout')
 check('EmblaCarousel' in read('frontend/src/pages/News.vue') and 'news-article-modal' in read('frontend/src/pages/News.vue'), 'Nueva página Noticias y modal disponible')
 check((root/'frontend/src/pages/Services.vue').is_file(), 'Página Servicios incluida')
 check('selectTransport' in read('frontend/src/pages/Itinerary.vue'), 'Mejoras de transporte incorporadas')
@@ -61,17 +65,33 @@ check('land: {' in app and 'weightKg: 1' not in app
 check('app.MapGet("/api/quotes/mine"' in program and
       '.RequireAuthorization("client")' in program,
       'Cotizaciones propias y creación restringida a clientes')
-check("account?.role === 'client'" in rootvue and "quoteAccess === 'forbidden'" in rootvue,
+check("role === 'cliente'" in rootvue and "quoteAccess === 'forbidden'" in rootvue,
       'El cotizador se muestra únicamente a clientes autenticados')
+check(all(x in schema for x in ('CREATE TABLE IF NOT EXISTS public.cms_news',
+                                   'CREATE TABLE IF NOT EXISTS public.cms_media',
+                                   'CREATE TABLE IF NOT EXISTS auth_admin_user_audit')),
+      'Persistencia CMS y auditoría de cambios de usuarios')
+check(all(x in program for x in ('app.MapAdminUsers()', 'app.MapManagedContent()')),
+      'Endpoints nuevos conectados al backend')
+check(all(x in read('frontend/src/pages/ContentManager.vue') for x in
+          ('/api/admin/users', '/api/admin/content/news', '/api/admin/content/media')),
+      'Panel administra usuarios, noticias y multimedia mediante la API')
+check("fetch('/api/content/news'" in read('frontend/src/pages/News.vue'),
+      'Noticias públicas publicadas desde PostgreSQL')
+check('multimodal: {' in app and 'cargo.entryCountry' in app and
+      "mode.value === 'multimodal'" in app,
+      'Modalidad multimodal recuperada en el nuevo diseño')
+check('automaticRole' in service and 'user.TipoAcceso' in service,
+      'OTP por correo infiere rol desde PostgreSQL')
 check('CREATE TABLE IF NOT EXISTS public.itinerarios' in schema and
       'ADD COLUMN IF NOT EXISTS closing DATE NULL' in schema,
       'Itinerarios provisionales con closing sin eliminar registros')
-check('isGuest' in header and "localStorage.getItem('castrofallas-guest-mode')" in header and
-      'isAuthenticated = computed(() => !!sessionUser.value)' in header,
-      'Modo invitado nuevo no sustituye la sesión del backend')
-check('button v-else type="button" class="nav-user-icon"' in header and
-      'logout()' in header,
-      'Icono de perfil de rediseño 8 con logout real')
+check("currentRole() === 'administrador'" in header and
+      'isAuthenticated = computed(() => !!sessionUser.value)' in header and
+      'previewRole' in read('frontend/src/services/auth.ts'),
+      'El menú administra rol real y previsualización sin privilegios API')
+check('class="nav-user-icon"' in header and '@click="logout"' in header,
+      'Icono de perfil con cierre de sesión real')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')

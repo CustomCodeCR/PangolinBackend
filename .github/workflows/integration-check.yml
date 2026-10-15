@@ -1,0 +1,68 @@
+name: Backend and frontend integration
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build .NET and Vue
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build backend
+        run: dotnet build backend/CastroFallas.MiniQuote.Api.csproj --configuration Release
+      - name: Build frontend
+        run: |
+          npm ci --prefix frontend
+          npm run build --prefix frontend
+      - name: Static integration checks
+        run: python3 scripts/verify-integration.py
+
+  smoke:
+    name: PostgreSQL OTP CRUD CMS smoke
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate local-only development secrets
+        run: bash scripts/setup-docker.sh
+      - name: Start test containers
+        run: docker compose up -d --build backend
+      - name: Wait for backend readiness
+        run: |
+          ready=0
+          for i in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:5000/api/health/ready >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 5
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo 'Backend did not become ready'
+            docker compose logs --tail=80 backend
+            exit 1
+          fi
+      - name: Seed test accounts only
+        run: docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d login -f /tmp/SeedLocal.sql
+      - name: Test login, roles, CRUD and quote modes
+        run: python3 scripts/smoke-local.py
+      - name: Backend logs on failure
+        if: failure()
+        run: docker compose logs --tail=100 backend
+      - name: Stop containers without deleting volumes
+        if: always()
+        run: docker compose down

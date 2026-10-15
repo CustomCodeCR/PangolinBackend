@@ -448,6 +448,8 @@
       "sampleNote": "Demo article · Information pending verification"
     },
     "login": {
+      "emailHelp": "Enter your registered Castro Fallas email address. Your access role is detected automatically.",
+      "emailInvalid": "Enter a valid email address.",
       "eyebrow": "PLATFORM ACCESS",
       "title": "Welcome",
       "intro": "Enter your Gmail address and we will send you a one-time code.",
@@ -493,6 +495,21 @@
       "end": "Platform access"
     },
     "quote": {
+      "airLabel": "AIR FREIGHT",
+      "airTitle": "Request an air freight quote",
+      "airDescription": "Request air transportation with your shipment details.",
+      "airButton": "Quote air freight",
+      "maritimeLabel": "OCEAN FREIGHT",
+      "maritimeTitle": "Request an ocean freight quote",
+      "maritimeDescription": "Choose FCL or LCL for your ocean shipment.",
+      "maritimeButton": "Quote ocean freight",
+      "airEquipment": "Equipment or cargo presentation",
+      "multimodalLabel": "MULTIMODAL TRANSPORT",
+      "multimodalTitle": "Request a multimodal quote",
+      "multimodalDescription": "Combine transport modes and provide the entry country.",
+      "multimodalButton": "Request multimodal quote",
+      "entryCountry": "Entry country",
+      "entryCountryRequired": "Entry country is required for multimodal quotations.",
       "clientOnly": "Only clients can request quotes",
       "clientOnlyHelp": "Sign in with a client account to submit a quote. This page is not available to administrators.",
       "weightKg": "Estimated total weight (kg, optional)",

@@ -33,7 +33,7 @@ async function loadUsers() {
     return
   }
   try {
-    const response = await fetch('/api/admin/users', {
+    const response = await fetch('/api/admin/users?page=1&pageSize=100', {
       credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' }
     })
     if (!response.ok) throw new Error(response.status === 404
@@ -121,7 +121,7 @@ onMounted(loadUsers)
             <tbody>
               <tr v-for="user in users" :key="user.id">
                 <td><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td>
-                <td><select v-model="user.role" :aria-label="`Rol de ${user.correo}`"><option value="invitado">Invitado</option><option value="cliente">Cliente</option><option value="administrador">Administrador</option></select></td>
+                <td><select v-model="user.role" :aria-label="`Rol de ${user.correo}`"><option value="cliente">Cliente</option><option value="administrador">Administrador</option></select></td>
                 <td><select v-model="user.activo" :aria-label="`Estado de ${user.correo}`"><option :value="true">Activo</option><option :value="false">Desactivado</option></select></td>
                 <td><button class="admin-users-save" type="button" :disabled="savingId === user.id" @click="updateUser(user)">{{ savingId === user.id ? 'Guardando…' : 'Guardar' }}</button></td>
               </tr>

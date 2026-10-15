@@ -35,15 +35,20 @@ public sealed class AuthService(
     // Se mantiene una respuesta uniforme para no enumerar correos registrados.
     public async Task<(OtpStarted? Result, bool TooMany)> RequestOtpAsync(RequestOtpDto input, CancellationToken ct)
     {
-        string role = (input.TipoAcceso ?? "").Trim().ToLowerInvariant();
-        string email = (input.Correo ?? "").Trim().ToLowerInvariant();
-        string dynamics = (input.CodigoDynamics ?? "").Trim();
-        if (role is not ("cliente" or "usuario") || email.Length > 255 ||
+        var suppliedRole = (input.TipoAcceso ?? "").Trim().ToLowerInvariant();
+        var automaticRole = suppliedRole.Length == 0;
+        var email = (input.Correo ?? "").Trim().ToLowerInvariant();
+        var dynamics = (input.CodigoDynamics ?? "").Trim();
+        // Contrato nuevo: solo correo. El rol se consulta exclusivamente en
+        // PostgreSQL, sin confiar en una selección realizada por el navegador.
+        // El contrato anterior con tipoAcceso/codigoDynamics sigue admitido.
+        if ((!automaticRole && suppliedRole is not ("cliente" or "usuario")) ||
+            email.Length > 255 ||
             !MailAddress.TryCreate(email, out var address) ||
             !string.Equals(address.Address, email, StringComparison.OrdinalIgnoreCase) ||
-            (role == "cliente" && string.IsNullOrWhiteSpace(dynamics)))
+            (!automaticRole && suppliedRole == "cliente" && string.IsNullOrWhiteSpace(dynamics)) ||
+            dynamics.Length > 200)
             return (null, false);
-        if (dynamics.Length > 200) return (null, false);
 
         // Límite por dirección incluso cuando no existe el usuario. El registro
         // es atómico en PostgreSQL: funciona sin Redis y entre varias instancias.
@@ -65,13 +70,19 @@ public sealed class AuthService(
         if (allowed == 0) return (null, true);
 
         var user = await db.Usuarios.Include(u => u.Cliente)
-            .FirstOrDefaultAsync(u => u.Correo.ToLower() == email && u.TipoAcceso == role &&
+            .FirstOrDefaultAsync(u => u.Correo.ToLower() == email &&
+                (automaticRole || u.TipoAcceso == suppliedRole) &&
+                (u.TipoAcceso == "cliente" || u.TipoAcceso == "usuario") &&
                 u.Status && u.DeletedAt == null && u.Cliente.Status && u.Cliente.DeletedAt == null &&
-                (role != "cliente" || u.Cliente.CodigoDynamics == dynamics), ct);
+                (automaticRole || suppliedRole != "cliente" || u.Cliente.CodigoDynamics == dynamics), ct);
 
-        // Evita distinguir entre correos existentes y desconocidos.
+        // Una cuenta inexistente o deshabilitada recibe una respuesta uniforme,
+        // sin correo ni OTP; nunca se revela su rol ni su existencia.
         if (user is null)
             return (new OtpStarted(Guid.NewGuid(), GenericMessage, 300), false);
+
+        // El rol real de la cuenta determina el challenge, el JWT y los permisos.
+        var role = user.TipoAcceso;
 
         var now = DateTime.UtcNow;
         var cooldown = await db.OtpChallenges.AsNoTracking()

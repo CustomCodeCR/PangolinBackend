@@ -69,7 +69,7 @@ def main():
     email = 'demo.usuario@castrofallas.test'
     moment = time.time()
     status, started = call(browser, '/api/auth/request-otp', {
-        'tipoAcceso': 'usuario', 'correo': email
+        'correo': email  # Nuevo formulario: solo correo; rol desde PostgreSQL
     })
     require(status == 200, f'Solicitud OTP HTTP {status}: {started}')
     otp = latest_otp(email, moment)
@@ -113,6 +113,68 @@ def main():
         'cargoType': 'Carga general', 'weightKg': 100, 'pieces': 1
     })
     require(status == 403, f'Un admin pudo crear cotizaciones de cliente: {status}')
+    # El nuevo panel lista cuentas reales y audita cambios, sin permitir invitado.
+    status, listing = call(browser, '/api/admin/users?page=1&pageSize=100')
+    require(status == 200 and isinstance(listing.get('users'), list),
+            f'Listado de usuarios admin: {status} {listing}')
+    target = next((u for u in listing['users'] if u.get('correo') == 'demo.cliente@castrofallas.test'), None)
+    require(target and target.get('role') == 'cliente', 'No aparece el cliente de demostración.')
+    user_route = '/api/admin/users/' + target['id']
+    status, invalid = call(browser, user_route, {'role': 'invitado', 'activo': True}, 'PATCH')
+    require(status == 400, f'Se permitió convertir usuario en invitado: {status} {invalid}')
+    status, selfChange = call(browser, '/api/admin/users/' + me['usuarioId'],
+                              {'role': 'cliente', 'activo': True}, 'PATCH')
+    require(status == 409, f'Un administrador pudo cambiar su propia cuenta: {status} {selfChange}')
+    # Alterna una cuenta DEMO de forma temporal y garantiza restaurarla.
+    try:
+        status, disabled = call(browser, user_route, {'role': 'cliente', 'activo': False}, 'PATCH')
+        require(status == 200 and disabled.get('activo') is False,
+                f'No se pudo desactivar temporalmente demo cliente: {status} {disabled}')
+    finally:
+        status, restored = call(browser, user_route, {'role': 'cliente', 'activo': True}, 'PATCH')
+        require(status == 200 and restored.get('activo') is True,
+                f'No se pudo restaurar demo cliente: {status} {restored}')
+
+    # CMS real: publicación visible en otra sesión, edición, media y limpieza.
+    news = {
+        'title': 'SMOKE NEWS ' + uuid4().hex[:10], 'category': 'PRUEBAS',
+        'description': 'Contenido temporal para probar PostgreSQL.',
+        'image': '/images/cover-logistics.jpeg', 'published': True
+    }
+    media = {
+        'name': 'SMOKE MEDIA ' + uuid4().hex[:10],
+        'kind': 'Imagen', 'src': '/images/cover-logistics.jpeg'
+    }
+    news_id = None
+    media_id = None
+    try:
+        status, created_news = call(browser, '/api/admin/content/news', news)
+        require(status == 201 and created_news.get('id'), f'Crear noticia: {status} {created_news}')
+        news_id = created_news['id']
+        status, public_news = call(build_opener(), '/api/content/news')
+        require(status == 200 and any(row['id'] == news_id for row in public_news),
+                'La noticia publicada no se ve en el sitio público.')
+        status, hidden = call(browser, '/api/admin/content/news/' + news_id,
+                              dict(news, published=False), 'PUT')
+        require(status == 200 and hidden.get('published') is False,
+                f'No se pudo ocultar noticia: {status} {hidden}')
+        status, public_news = call(build_opener(), '/api/content/news')
+        require(status == 200 and all(row['id'] != news_id for row in public_news),
+                'Una noticia despublicada permanece visible.')
+        status, created_media = call(browser, '/api/admin/content/media', media)
+        require(status == 201 and created_media.get('id'), f'Crear multimedia: {status} {created_media}')
+        media_id = created_media['id']
+        status, media_items = call(browser, '/api/admin/content/media')
+        require(status == 200 and any(row['id'] == media_id for row in media_items),
+                'El nuevo archivo multimedia no se guardó.')
+    finally:
+        if news_id:
+            status, _ = call(browser, '/api/admin/content/news/' + news_id, method='DELETE')
+            require(status == 204, f'No se limpió noticia de prueba: {status}')
+        if media_id:
+            status, _ = call(browser, '/api/admin/content/media/' + media_id, method='DELETE')
+            require(status == 204, f'No se limpió multimedia de prueba: {status}')
+
     # CRUD de itinerarios: escritura exclusiva para admin, lectura para usuarios registrados.
     pol = 'SMOKE-' + uuid4().hex[:10]
     itinerary = {
@@ -168,7 +230,7 @@ def main():
     client_email = 'demo.cliente@castrofallas.test'
     client_start = time.time()
     status, issued = call(client_browser, '/api/auth/request-otp', {
-        'tipoAcceso': 'cliente', 'correo': client_email, 'codigoDynamics': 'DYN001'
+        'correo': client_email  # Cliente también utiliza correo sin elegir rol
     })
     require(status == 200, f'Solicitud OTP cliente HTTP {status}: {issued}')
     client_otp = latest_otp(client_email, client_start)
@@ -180,6 +242,10 @@ def main():
             f'El cliente no recibió role=client ({status}).')
     status, client_me = call(client_browser, '/api/auth/me')
     require(status == 200 and client_me.get('role') == 'client', 'JWT cliente no válido.')
+    status, denied_users = call(client_browser, '/api/admin/users')
+    require(status == 403, f'Cliente pudo listar cuentas: {status} {denied_users}')
+    status, denied_media = call(client_browser, '/api/admin/content/media')
+    require(status == 403, f'Cliente pudo ver biblioteca privada: {status} {denied_media}')
     status, page = call(client_browser, '/api/itinerarios?page=1&pageSize=1')
     require(status == 200 and 'items' in page, 'Cliente no puede leer itinerarios.')
     status, forbidden = call(client_browser, '/api/admin/itinerarios', itinerary)
@@ -252,7 +318,7 @@ def main():
     status, _ = call(build_opener(), '/api/admin/itinerarios', itinerary)
     require(status == 401, 'Un invitado pudo crear itinerarios.')
 
-    print('OK: OTP/JWT, CRUD de itinerarios, 4 tablas de cotización, permisos cliente/admin y logout.')
+    print('OK: login por correo, OTP/JWT, roles, usuarios admin, CMS, itinerarios y 4 cotizaciones.')
 
 if __name__ == '__main__':
     try:

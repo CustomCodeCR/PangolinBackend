@@ -7,6 +7,8 @@ namespace CastroFallas.MiniQuote.Api.Data;
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<QuoteRequest> QuoteRequests => Set<QuoteRequest>();
+    public DbSet<ManagedNews> ManagedNews => Set<ManagedNews>();
+    public DbSet<ManagedMedia> ManagedMedia => Set<ManagedMedia>();
     public DbSet<QuoteContact> QuoteContacts => Set<QuoteContact>();
     public DbSet<QuoteLandDetail> QuoteLandDetails => Set<QuoteLandDetail>();
     public DbSet<QuoteAirDetail> QuoteAirDetails => Set<QuoteAirDetail>();
@@ -100,6 +102,28 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         multimodal.Property(x => x.AdditionalDetails).HasColumnName("additional_details");
         quote.HasOne(x => x.Multimodal).WithOne().HasForeignKey<QuoteMultimodalDetail>(x => x.QuoteId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        var news = modelBuilder.Entity<ManagedNews>();
+        news.ToTable("cms_news", "public");
+        news.HasKey(x => x.Id);
+        news.Property(x => x.Id).HasColumnName("id");
+        news.Property(x => x.Title).HasColumnName("title").HasMaxLength(160).IsRequired();
+        news.Property(x => x.Category).HasColumnName("category").HasMaxLength(60).IsRequired();
+        news.Property(x => x.Description).HasColumnName("description").HasMaxLength(1200).IsRequired();
+        news.Property(x => x.Image).HasColumnName("image").HasColumnType("text").IsRequired();
+        news.Property(x => x.Published).HasColumnName("published");
+        news.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp with time zone");
+        news.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp with time zone");
+
+        var media = modelBuilder.Entity<ManagedMedia>();
+        media.ToTable("cms_media", "public");
+        media.HasKey(x => x.Id);
+        media.Property(x => x.Id).HasColumnName("id");
+        media.Property(x => x.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+        media.Property(x => x.Kind).HasColumnName("kind").HasMaxLength(30).IsRequired();
+        media.Property(x => x.Src).HasColumnName("src").HasColumnType("text").IsRequired();
+        media.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp with time zone");
+        media.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp with time zone");
 
         var cliente = modelBuilder.Entity<Cliente>();
         cliente.ToTable("clientes");
