@@ -8,16 +8,20 @@ namespace CastroFallas.MiniQuote.Api.Services;
 // noticias marcadas como publicadas; toda escritura exige JWT administrador.
 public static class ContentEndpoints
 {
-    private const int MaxImageChars = 3_500_000;
+    private const int MaxImageChars = 3_350_000; // Aproximadamente 2.5 MB en base64.
+    private const int MaxUrlChars = 2048;
 
     public static void MapManagedContent(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/content/news", async (AppDbContext db, CancellationToken ct) =>
-            Results.Ok(await db.ManagedNews.AsNoTracking()
+        app.MapGet("/api/content/news", async (AppDbContext db, HttpContext http, CancellationToken ct) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+            return Results.Ok(await db.ManagedNews.AsNoTracking()
                 .Where(x => x.Published)
                 .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
                 .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Image, x.Published })
-                .ToListAsync(ct)));
+                .ToListAsync(ct));
+        });
 
         var admin = app.MapGroup("/api/admin/content").RequireAuthorization("admin");
 
@@ -115,11 +119,28 @@ public static class ContentEndpoints
     {
         if (string.IsNullOrWhiteSpace(x.Name) || x.Name.Trim().Length > 200)
             return "El nombre debe tener entre 1 y 200 caracteres.";
-        if (string.IsNullOrWhiteSpace(x.Kind) || x.Kind.Trim().Length > 30)
-            return "El tipo de archivo debe tener entre 1 y 30 caracteres.";
-        if (!ValidImage(x.Src, allowEmpty: false))
-            return "La URL/imagen no es válida o supera el tamaño permitido.";
-        return null;
+        var kind = x.Kind?.Trim();
+        if (kind is not ("Imagen" or "Video (enlace)" or "Documento (enlace)"))
+            return "Selecciona Imagen, Video (enlace) o Documento (enlace).";
+
+        if (kind == "Imagen")
+            return ValidImage(x.Src, allowEmpty: false)
+                ? null : "La imagen debe ser HTTPS, /images/ o PNG/JPEG/WebP/GIF hasta 2.5 MB.";
+
+        return ValidHttpsLink(x.Src)
+            ? null : "Los videos y documentos deben tener un enlace HTTPS válido (máximo 2048 caracteres).";
+    }
+
+    // Videos y documentos son enlaces, no archivos binarios ni datos base64.
+    private static bool ValidHttpsLink(string? src)
+    {
+        if (string.IsNullOrWhiteSpace(src)) return false;
+        var value = src.Trim();
+        return value.Length <= MaxUrlChars &&
+            Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+            uri.Scheme == Uri.UriSchemeHttps &&
+            uri.Host.Length > 0 &&
+            string.IsNullOrEmpty(uri.UserInfo);
     }
 
     private static bool ValidImage(string? src, bool allowEmpty)
@@ -128,13 +149,33 @@ public static class ContentEndpoints
         var value = src.Trim();
         if (value.Length > MaxImageChars) return false;
         if (value.StartsWith("/images/", StringComparison.Ordinal) &&
+            value.Length <= MaxUrlChars &&
             !value.Contains("..", StringComparison.Ordinal) &&
             !value.Contains('\\')) return true;
-        if (Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
-            uri.Scheme == Uri.UriSchemeHttps && uri.Host.Length > 0) return true;
-        return new[] { "data:image/png;base64,", "data:image/jpeg;base64,",
-            "data:image/webp;base64,", "data:image/gif;base64," }
-            .Any(prefix => value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+        if (ValidHttpsLink(value)) return true;
+
+        // Sólo aceptamos tipos raster conocidos; nunca data:image/svg+xml.
+        string[] prefixes = [
+            "data:image/png;base64,", "data:image/jpeg;base64,",
+            "data:image/webp;base64,", "data:image/gif;base64,"
+        ];
+        var prefix = prefixes.FirstOrDefault(p => value.StartsWith(p, StringComparison.OrdinalIgnoreCase));
+        if (prefix is null) return false;
+        var encoded = value.AsSpan(prefix.Length);
+        if (encoded.IsEmpty || encoded.Length % 4 != 0) return false;
+        var paddingStarted = false;
+        var paddingCount = 0;
+        foreach (var ch in encoded)
+        {
+            if (ch == '=')
+            {
+                paddingStarted = true;
+                if (++paddingCount > 2) return false;
+            }
+            else if (paddingStarted || !(ch is >= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '0' and <= '9' or '+' or '/'))
+                return false;
+        }
+        return true;
     }
 
     private static void ApplyNews(ManagedNews target, SaveNewsRequest input)
