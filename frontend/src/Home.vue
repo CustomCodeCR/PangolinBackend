@@ -423,6 +423,8 @@ onUnmounted(() => {
           :aria-label="serviceInfo[modalService].title"
           :style="{ '--modal-service-photo': modalPhoto }"
         >
+          <SiteMedia v-if="siteVisual(`home.services.${modalService.toLowerCase()}.media`, baseServices.find(item => item.key === modalService)?.photo ?? '/images/hero.webp').kind === 'Video'"
+            :slot-key="`home.services.${modalService.toLowerCase()}.media`" :fallback="baseServices.find(item => item.key === modalService)?.photo ?? '/images/hero.webp'" background />
           <button class="service-modal__close" type="button" :aria-label="$t('custom.home.close')" @click="modalService = null"><IconSymbol glyph="×" :size="20" /></button>
           <p class="section-tag">{{ $t('custom.home.modalEyebrow') }}</p>
           <h2>{{ serviceInfo[modalService].title }}</h2>
