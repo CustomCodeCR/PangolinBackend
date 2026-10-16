@@ -675,6 +675,13 @@
       "settings": "Settings",
       "dark": "Switch to dark mode",
       "light": "Switch to light mode",
+      "profile": "My profile",
+      "account": "Account",
+      "accountName": "Account name",
+      "accountRole": "Role",
+      "accountEmail": "Email address",
+      "roleAdmin": "Administrator",
+      "roleClient": "Client",
       "logout": "Sign out",
       "logoutError": "Could not sign out. Please try again."
     },
