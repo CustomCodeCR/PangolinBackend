@@ -127,6 +127,13 @@ check('class="nav-user-icon header-profile__trigger"' in header
       and 'roleLabel' in header and 'handleOutsideClick' in header
       and 'handleEscapeKey' in header,
       'Icono de usuario abre perfil con nombre, rol, correo y cierre de sesión explícito')
+profile_styles = read('frontend/src/components/SiteHeader.vue')
+check(':global(html.theme-dark) .header-profile__panel' in profile_styles
+      and ':global(html.theme-dark) .header-profile__details dd' in profile_styles
+      and '.header-account-tools:has(.header-profile--open)' in profile_styles
+      and 'grid-column: 1 / -1;' in profile_styles
+      and 'position: relative;' in profile_styles,
+      'Perfil usa tema oscuro y ocupa una fila centrada en navegación móvil')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
