@@ -263,13 +263,65 @@ function toggleTheme() {
 }
 .header-profile__logout:hover { background: #900a22; }
 .header-profile__logout:disabled { opacity: .65; cursor: wait; }
-/* The expanded mobile nav stays in normal flow; anchor the card toward
-   the screen interior and keep its width below the viewport. */
+/* Use the same dark surface as the site rather than a white card.
+   :global is required because the theme class lives on <html> and this
+   component uses scoped styles. */
+:global(html.theme-dark) .header-profile__panel {
+  background: #0a1228;
+  border-color: rgba(255, 255, 255, .2);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, .45);
+  color: #f4f6fb;
+}
+:global(html.theme-dark) .header-profile__heading {
+  color: #ffb5c4;
+  border-bottom-color: rgba(255, 255, 255, .18);
+}
+:global(html.theme-dark) .header-profile__details dt {
+  color: #c0c9da;
+}
+:global(html.theme-dark) .header-profile__details dd {
+  color: #f4f6fb;
+}
+
+/* A mobile profile is part of the expanded navigation flow, not an
+   absolutely-positioned popover hanging off the user icon. Keep both
+   controls centered in the first row, then center the card beneath them. */
 @media (max-width: 1080px) {
-  .header-profile__panel {
+  .header-account-tools:has(.header-profile--open) {
+    display: grid;
+    grid-template-columns: 44px 40px;
+    grid-template-rows: 44px auto;
+    justify-content: center;
+    justify-items: center;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    margin-inline: 0;
+  }
+  .header-profile--open {
+    display: contents;
+  }
+  .header-profile--open .header-profile__trigger {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .header-account-tools:has(.header-profile--open) > .header-settings {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .header-profile--open .header-profile__panel {
+    position: relative;
+    top: auto;
     right: auto;
-    left: 0;
-    width: min(310px, calc(100vw - 48px));
+    left: auto;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: center;
+    width: min(310px, calc(100vw - 40px));
+    max-width: calc(100vw - 40px);
+    box-sizing: border-box;
+    margin: 0;
+    transform: none;
   }
 }
 </style>
