@@ -41,7 +41,7 @@ public static class ContentEndpoints
             db.ManagedNews.Add(news);
             await db.SaveChangesAsync(ct);
             await updates.AdminsAsync("news-admin");
-            await updates.PublicAsync("news");
+            if (news.Published) await updates.PublicAsync("news");
             return Results.Created($"/api/admin/content/news/{news.Id}", NewsView(news));
         });
 
@@ -52,10 +52,11 @@ public static class ContentEndpoints
             if (validation is not null) return Results.BadRequest(new { error = validation });
             var news = await db.ManagedNews.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (news is null) return Results.NotFound(new { error = "Noticia no encontrada." });
+            var wasPublished = news.Published;
             ApplyNews(news, input);
             await db.SaveChangesAsync(ct);
             await updates.AdminsAsync("news-admin");
-            await updates.PublicAsync("news");
+            if (wasPublished || news.Published) await updates.PublicAsync("news");
             return Results.Ok(NewsView(news));
         });
 
@@ -66,7 +67,7 @@ public static class ContentEndpoints
             db.ManagedNews.Remove(news);
             await db.SaveChangesAsync(ct);
             await updates.AdminsAsync("news-admin");
-            await updates.PublicAsync("news");
+            if (news.Published) await updates.PublicAsync("news");
             return Results.NoContent();
         });
 
