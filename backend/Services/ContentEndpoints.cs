@@ -132,8 +132,11 @@ public static class ContentEndpoints
         if (string.IsNullOrWhiteSpace(x.Name) || x.Name.Trim().Length > 200)
             return "El nombre debe tener entre 1 y 200 caracteres.";
         var kind = x.Kind?.Trim();
-        if (kind is not ("Imagen" or "Video (enlace)" or "Documento (enlace)"))
-            return "Selecciona Imagen, Video (enlace) o Documento (enlace).";
+        if (kind is not ("Imagen" or "Video" or "Documento" or "Video (enlace)" or "Documento (enlace)"))
+            return "Tipo de archivo multimedia desconocido.";
+        if (kind is "Video" or "Documento")
+            return ValidInternalMediaLink(x.Src)
+                ? null : "Los archivos almacenados en S3 deben conservar su referencia interna.";
 
         if (kind == "Imagen")
             return ValidImage(x.Src, allowEmpty: false)
@@ -155,6 +158,15 @@ public static class ContentEndpoints
             string.IsNullOrEmpty(uri.UserInfo);
     }
 
+    private static bool ValidInternalMediaLink(string? src)
+    {
+        if (string.IsNullOrWhiteSpace(src)) return false;
+        var value = src.Trim();
+        if (!value.StartsWith("/api/content/media/", StringComparison.Ordinal) ||
+            !value.EndsWith("/file", StringComparison.Ordinal) || value.Length > 100) return false;
+        return Guid.TryParse(value["/api/content/media/".Length..^"/file".Length], out _);
+    }
+
     private static bool ValidImage(string? src, bool allowEmpty)
     {
         if (string.IsNullOrWhiteSpace(src)) return allowEmpty;
@@ -165,12 +177,7 @@ public static class ContentEndpoints
             !value.Contains("..", StringComparison.Ordinal) &&
             !value.Contains('\\')) return true;
         if (ValidHttpsLink(value)) return true;
-        if (value.StartsWith("/api/content/media/", StringComparison.Ordinal) &&
-            value.EndsWith("/file", StringComparison.Ordinal) && value.Length < 100)
-        {
-            var middle = value["/api/content/media/".Length..^"/file".Length];
-            if (Guid.TryParse(middle, out _)) return true;
-        }
+        if (ValidInternalMediaLink(value)) return true;
 
         // Sólo aceptamos tipos raster conocidos; nunca data:image/svg+xml.
         string[] prefixes = [
