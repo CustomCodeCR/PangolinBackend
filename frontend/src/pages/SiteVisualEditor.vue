@@ -286,7 +286,9 @@ onMounted(load)
 .visual-editor__pages button,.visual-editor__button{padding:11px 15px;border:1px solid #ddd;border-radius:11px;cursor:pointer;background:white;color:#292a30;font-weight:700}
 .visual-editor__pages button.active{background:#a60b29;color:#fff;border-color:#a60b29}
 .visual-editor__columns{display:grid;grid-template-columns:minmax(235px,32%) minmax(0,1fr);gap:20px;align-items:start}
-.visual-editor__locations{display:grid;gap:9px;max-height:760px;overflow:auto}
+/* La barra se aloja en un canal propio; el padding derecho iguala al izquierdo. */
+.visual-editor__locations{display:grid;align-content:start;gap:9px;max-height:760px;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;padding:0 12px 0 0;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:#9aa4b4 transparent}
+.visual-editor__locations>button,.visual-editor__locations>label,.visual-editor__locations>.visual-editor__filters{min-width:0}
 .visual-editor__locations label,.visual-editor__details label{display:grid;gap:7px;font-weight:750;font-size:13px}
 .visual-editor__locations input,.visual-editor__details textarea,.visual-editor__details input,.visual-editor__details select{min-width:0;width:100%;padding:11px;border-radius:9px;border:1px solid #cbd1d8;font:inherit;background:white;color:#202126}
 .visual-editor__locations button{display:grid;gap:4px;text-align:left;padding:12px;border:1px solid #e1e4e9;border-radius:12px;background:#fff;color:#202126;cursor:pointer}
@@ -336,7 +338,7 @@ html.theme-dark .visual-editor .manager-eyebrow{color:#ff879b!important}
 html.theme-dark .visual-editor .visual-editor__locations button.active{background:#382137!important;border-color:#e34464!important}
 html.theme-dark .visual-editor :is(input,select,textarea){color:#f7f9fc!important;background:#141f33!important;border-color:#54647d!important;color-scheme:dark}
 html.theme-dark .visual-editor input[type="file"]::file-selector-button{background:#2b3b58;border:1px solid #7585a0;color:#fff;border-radius:6px;padding:7px 11px;cursor:pointer}
-html.theme-dark .visual-editor .visual-editor__locations{scrollbar-color:#64758e #1d2a41}
+html.theme-dark .visual-editor .visual-editor__locations{scrollbar-color:#64758e transparent}
 html.theme-dark .visual-editor :is(input,textarea)::placeholder{color:#adb9ce!important}
 html.theme-dark .visual-editor :is(.visual-editor__text-preview,.visual-editor__context,.visual-editor__preview-empty,.visual-editor__empty){background:#1c2a41!important;border-color:#445570!important;color:#d1d9e7!important}
 html.theme-dark .visual-editor .visual-editor__context a{color:#ff8ba1!important}
