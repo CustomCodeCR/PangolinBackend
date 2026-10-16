@@ -29,13 +29,14 @@ git switch feature/signalr-live-updates-20261016
 git pull --ff-only origin feature/signalr-live-updates-20261016
 $env:FRONTEND_BIND_IP = "0.0.0.0"
 docker compose -f compose.yaml -f compose.minio.yaml config --services
-docker compose -f compose.yaml -f compose.minio.yaml up -d --build
+docker compose -f compose.yaml -f compose.minio.yaml up -d --build --no-deps backend frontend
 docker compose -f compose.yaml -f compose.minio.yaml ps
 ```
 
-`config --services` solamente lista los servicios, no cambia datos. El
-`up -d --build` crea/recrea servicios de aplicación según necesidad, sin
-eliminar volúmenes. Al cambiar de rama se compilan también los endpoints
+`config --services` solamente lista los servicios, no cambia datos. El comando `up -d --build --no-deps backend frontend` actualiza **solo**
+los dos contenedores de la aplicación; los contenedores de PostgreSQL,
+Redis, MongoDB y MinIO deben estar ya encendidos y no se recrean.
+No elimina volúmenes. Al cambiar de rama se compilan también los endpoints
 SignalR del backend.
 
 En el PC que hospeda, ejecutar `ipconfig` y consultar **IPv4 de Wi-Fi**
