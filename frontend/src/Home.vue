@@ -356,8 +356,7 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <section class="faq-section section-spacing" :style="{ '--cms-faq': siteCssImage('home.faq.media', '/images/operation.webp') }">
-        <SiteMedia v-if="siteVisual('home.faq.media', '/images/operation.webp').kind.startsWith('Video')" slot-key="home.faq.media" fallback="/images/operation.webp" background />
+      <section class="faq-section section-spacing">
         <div class="faq-background"></div>
         <div class="container faq-content">
           <p class="section-tag light-tag center">{{ siteText('home.faq.heading1', $t('phrases.p032'), locale) }}</p>
