@@ -138,7 +138,8 @@ def main():
     # CMS real: publicación visible en otra sesión, edición, media y limpieza.
     news = {
         'title': 'SMOKE NEWS ' + uuid4().hex[:10], 'category': 'PRUEBAS',
-        'description': 'Contenido temporal para probar PostgreSQL.',
+        'description': 'Resumen temporal para probar PostgreSQL.',
+        'body': 'Artículo completo temporal con varios detalles, distinto del resumen.',
         'image': '/images/cover-logistics.jpeg', 'published': True
     }
     media = {
@@ -153,8 +154,9 @@ def main():
         require(status == 201 and created_news.get('id'), f'Crear noticia: {status} {created_news}')
         news_id = created_news['id']
         status, public_news = call(build_opener(), '/api/content/news')
-        require(status == 200 and any(row['id'] == news_id for row in public_news),
-                'La noticia publicada no se ve en el sitio público.')
+        require(status == 200 and any(row['id'] == news_id and row.get('body') == news['body']
+                                      for row in public_news),
+                'La noticia publicada y su contenido no se ven en el sitio público.')
         status, hidden = call(browser, '/api/admin/content/news/' + news_id,
                               dict(news, published=False), 'PUT')
         require(status == 200 and hidden.get('published') is False,
