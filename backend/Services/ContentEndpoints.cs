@@ -103,6 +103,8 @@ public static class ContentEndpoints
         {
             var media = await db.ManagedMedia.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (media is null) return Results.NotFound(new { error = "Archivo no encontrado." });
+            if (await db.SiteCmsSlots.AnyAsync(x => x.DraftMediaId == id || x.PublishedMediaId == id, ct))
+                return Results.Conflict(new { error = "Este archivo está asignado a una sección del sitio. Primero cambiá esa ubicación." });
             if (await db.ManagedNews.AnyAsync(n => n.Image == media.Src, ct))
                 return Results.Conflict(new { error = "Este archivo está siendo usado por una noticia. Cambiá la imagen de la noticia antes de eliminarlo." });
             db.ManagedMedia.Remove(media);
