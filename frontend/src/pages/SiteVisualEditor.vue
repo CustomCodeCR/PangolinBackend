@@ -25,7 +25,7 @@ const pages = [...new Map(siteSlotCatalog.map(slot => [slot.page, { id: slot.pag
 const visible = computed(() => siteSlotCatalog.filter(slot =>
   slot.page === page.value &&
   (typeFilter.value === 'all' || slot.type === typeFilter.value) &&
-  (slot.label + ' ' + slot.help + ' ' + slot.key + ' ' + slot.fallback).toLocaleLowerCase('es')
+  (slot.label + ' ' + slot.section + ' ' + slot.help + ' ' + slot.key + ' ' + slot.fallback).toLocaleLowerCase('es')
     .includes(query.value.trim().toLocaleLowerCase('es'))))
 const filteredCount = computed(() => visible.value.length)
 const selected = computed<SiteSlotDefinition>(() => siteSlotCatalog.find(x => x.key === currentKey.value) ?? siteSlotCatalog[0])
@@ -202,16 +202,17 @@ onMounted(load)
           <div v-if="!visible.length" class="visual-editor__empty">No encontramos ubicaciones con esos filtros.</div>
           <button v-for="slot in visible" :key="slot.key" type="button" :class="{ active: slot.key === selected.key }" @click="select(slot)">
             <span class="visual-editor__slot-type">{{ slot.type === 'media' ? 'Imagen / Video' : 'Texto' }}</span>
+            <span class="visual-editor__section">{{ slot.section }}</span>
             <strong>{{ slot.label }}</strong><small>{{ slot.help }}</small>
             <span v-if="rows.some(x => x.key === slot.key && (x.publishedMediaId || x.publishedEs || x.publishedEn))" class="visual-editor__published">Personalizada</span>
           </button>
         </aside>
         <div v-if="visible.length" class="visual-editor__details">
-          <p class="manager-eyebrow">{{ selected.pageLabel }} / {{ selected.label }}</p>
+          <p class="manager-eyebrow">{{ selected.pageLabel }} / {{ selected.section }} / {{ selected.label }}</p>
           <h3>{{ selected.label }}</h3>
           <p class="visual-editor__description">{{ selected.help }}</p>
           <div class="visual-editor__context">
-            <span><strong>Ubicación:</strong> {{ selected.pageLabel }} / {{ selected.label }}</span>
+            <span><strong>Ubicación:</strong> {{ selected.pageLabel }} → {{ selected.section }} → {{ selected.label }}</span>
             <a :href="pageHref" target="_blank" rel="noopener noreferrer">Ver página real ↗</a>
           </div>
           <template v-if="selected.type === 'text'">
@@ -222,6 +223,7 @@ onMounted(load)
             <div class="visual-editor__text-preview"><strong>Vista previa (ES)</strong><p>{{ textEs || defaultCopy }}</p></div>
           </template>
           <template v-else>
+            <p class="visual-editor__hint"><strong>Archivo original:</strong> {{ selected.fallback ? selected.fallback.split('/').pop() : 'Esta ubicación no tiene fotografía original' }}</p>
             <div class="visual-editor__preview-grid">
               <div><strong>Contenido publicado</strong>
                 <video v-if="publishedSrc && publishedIsVideo && !previewError.published" :key="publishedSrc" :src="publishedSrc" controls muted playsinline preload="metadata" @error="previewError.published = true" />
@@ -281,6 +283,7 @@ onMounted(load)
 .visual-editor__locations button.active{border-color:#a70c2b;background:#fff5f7}
 .visual-editor__locations small,.visual-editor__description,.visual-editor__hint{color:#657079;font-size:12px;line-height:1.5}
 .visual-editor__slot-type{font-size:10px;color:#9c0b28;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.visual-editor__section{font-size:11px;color:#4b6179;font-weight:700}
 .visual-editor__published{font-size:11px;color:#276347}
 .visual-editor__details{display:grid;gap:14px;min-width:0}
 .visual-editor__details h3{font-size:26px;margin:0}
@@ -314,6 +317,7 @@ onMounted(load)
 :global(html.theme-dark) .visual-editor :is(.visual-editor__text-preview,.visual-editor__context,.visual-editor__preview-empty,.visual-editor__empty){background:#1c2a41!important;border-color:#445570!important;color:#d1d9e7!important}
 :global(html.theme-dark) .visual-editor .visual-editor__context a{color:#ff8ba1!important}
 :global(html.theme-dark) .visual-editor .visual-editor__slot-type{color:#ff879b!important}
+:global(html.theme-dark) .visual-editor .visual-editor__section{color:#b6c7e1!important}
 :global(html.theme-dark) .visual-editor .visual-editor__published{color:#88e4ad!important}
 :global(html.theme-dark) .visual-editor .visual-editor__warning,
 :global(html.theme-dark) .visual-editor .visual-editor__error{background:#3b2531!important;color:#ffd6dc!important}
