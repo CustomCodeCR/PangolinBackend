@@ -253,7 +253,7 @@ function mediaPreviewSrc(item: ManagedMedia): string {
 }
 function newsPreviewSrc(item: ManagedNews): string {
   // Los borradores pueden usar imágenes privadas de S3; el administrador sí puede verlas.
-  const match = /^\\/api\\/content\\/media\\/([0-9a-f-]{36})\\/file$/i.exec(item.image)
+  const match = new RegExp("^/api/content/media/([0-9a-f-]{36})/file$", "i").exec(item.image)
   return match ? `/api/admin/content/media/${match[1]}/file` : item.image
 }
 
