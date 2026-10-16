@@ -93,11 +93,16 @@ check(all(f'{mode}: {{' in app for mode in ('land', 'air', 'maritime', 'multimod
 check('land: {' in app and 'weightKg: 1' not in app
       and 'maritime: {' in app and 'multimodal: {' in app,
       'Frontend no inventa peso y envía detalles por modalidad')
-check('app.MapGet("/api/quotes/mine"' in program and
-      '.RequireAuthorization("client")' in program,
-      'Cotizaciones propias y creación restringida a clientes')
-check("role === 'cliente'" in rootvue and "quoteAccess === 'forbidden'" in rootvue,
-      'El cotizador se muestra únicamente a clientes autenticados')
+quote_post = program.split('app.MapPost("/api/quotes"', 1)[1].split('app.MapGet("/api/quotes/mine"', 1)[0]
+quote_mine = program.split('app.MapGet("/api/quotes/mine"', 1)[1].split('app.MapGet("/api/quotes/{id:guid}"', 1)[0]
+check('.RequireAuthorization("registered")' in quote_post and
+      '.RequireAuthorization("registered")' in quote_mine and
+      'x.UsuarioId == user.UsuarioId' in quote_mine and
+      'IsOwnedByAdminAsync' in program,
+      'Cotizaciones de administradores: acceso registrado y privacidad por usuario')
+check("role === 'cliente' || role === 'administrador'" in rootvue and
+      "authState.user?.role !== 'administrador'" in app,
+      'El cotizador funciona para clientes y administradores autenticados')
 check(all(x in schema for x in ('CREATE TABLE IF NOT EXISTS public.cms_news',
                                    'CREATE TABLE IF NOT EXISTS public.cms_media',
                                    'CREATE TABLE IF NOT EXISTS auth_admin_user_audit')),
