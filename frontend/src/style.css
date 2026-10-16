@@ -4671,7 +4671,7 @@ html:not(.theme-dark) .login-visual__content h1 em { color: var(--login-accent) 
   }
 }
 
-/* Hover sutil en móvil: 4% frente al 12% de escritorio.
+/* Hover sutil en móvil: 5% frente al 10% de escritorio.
    Mantener el origen a la izquierda para que el contenido no sobresalga
    del panel aunque Safari mantenga :hover tras una pulsación. */
 @media (max-width: 1080px) {
@@ -4681,7 +4681,7 @@ html:not(.theme-dark) .login-visual__content h1 em { color: var(--login-accent) 
     transition: transform .16s ease, background-color .16s ease;
   }
   .site-header .header-settings__panel .theme-toggle:is(:hover, :active, :focus-visible) {
-    transform: scale(1.04) !important;
+    transform: scale(1.05) !important;
     background: rgba(178, 11, 45, .08);
   }
   html.theme-dark .site-header .header-settings__panel .theme-toggle:is(:hover, :active, :focus-visible) {
