@@ -381,7 +381,7 @@ export const siteSlotCatalog: SiteSlotDefinition[] = [
     "type": "media",
     "label": "Portada de servicios",
     "help": "Fondo principal de la página Servicios",
-    "fallback": "/images/hero.webp"
+    "fallback": "/images/services-crane.webp"
   },
   {
     "page": "services",
