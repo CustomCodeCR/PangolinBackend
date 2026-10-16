@@ -7,6 +7,7 @@ using CastroFallas.MiniQuote.Api.Data;
 using CastroFallas.MiniQuote.Api.Models;
 using CastroFallas.MiniQuote.Api.Services;
 using CastroFallas.MiniQuote.Api.Services.Auth;
+using CastroFallas.MiniQuote.Api.Services.Realtime;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -86,6 +87,8 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("admin", policy => policy.RequireRole("admin"));
     options.AddPolicy("registered", policy => policy.RequireRole("client", "admin"));
 });
+builder.Services.AddSignalR(options => { options.EnableDetailedErrors = false; options.MaximumReceiveMessageSize = 4 * 1024; });
+builder.Services.AddSingleton<ContentUpdatesPublisher>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<QuoteService>();
 builder.Services.AddScoped<AssistantService>();
@@ -309,13 +312,14 @@ app.MapPost("/api/auth/logout", async (AuthService auth, HttpContext http, Cance
 });
 
 app.MapPost("/api/quotes", async (
-    CreateQuoteRequest input, QuoteService service, AuthService auth, HttpContext http, CancellationToken ct) =>
+    CreateQuoteRequest input, QuoteService service, AuthService auth, ContentUpdatesPublisher updates, HttpContext http, CancellationToken ct) =>
 {
     var user = await auth.GetIdentityAsync(http, ct);
     if (user is null) return Results.Unauthorized();
     try
     {
         var quote = await service.CreateAsync(input, user.ClienteId, user.UsuarioId, ct);
+        await updates.QuoteAsync(user.UsuarioId, user.ClienteId, user.Role == "admin");
         return Results.Created($"/api/quotes/{quote.Id}", quote);
     }
     catch (ArgumentException ex)
@@ -448,5 +452,8 @@ app.MapAdminUsers();
 app.MapManagedContent();
 app.MapManagedMediaObjects();
 app.MapSiteCms();
+// Endpoint público de conexión. Los grupos privados se validan con la cookie JWT
+// revocable al establecer conexión; el hub no permite que clientes emitan eventos.
+app.MapHub<ContentUpdatesHub>(ContentUpdatesHub.Path);
 
 app.Run();
