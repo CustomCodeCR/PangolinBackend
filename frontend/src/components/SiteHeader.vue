@@ -26,24 +26,26 @@ const roleLabel = computed(() =>
     ? t('custom.header.roleAdmin')
     : t('custom.header.roleClient')
 )
-/* Bind the actual saved theme to the profile. Unlike a global html selector,
-   these inline variables remain reliable with Vue scoped styles on mobile. */
+/* Share the frosted-glass palette of the Settings menu. Theme values
+   come from the same reactive switch as the rest of the header. */
 const profileTheme = computed(() => darkMode.value ? {
-  '--profile-bg': '#0a1228',
-  '--profile-ink': '#f4f6fb',
-  '--profile-muted': '#c0c9da',
-  '--profile-heading': '#ffb5c4',
-  '--profile-border': 'rgba(255,255,255,.2)',
-  '--profile-rule': 'rgba(255,255,255,.18)',
-  '--profile-shadow': '0 20px 45px rgba(0,0,0,.45)'
+  '--profile-bg': 'rgba(10,18,40,.48)',
+  '--profile-ink': '#ffffff',
+  '--profile-muted': '#d6d9e4',
+  '--profile-heading': '#ffffff',
+  '--profile-border': '#ffffff38',
+  '--profile-rule': '#ffffff24',
+  '--profile-glow': 'radial-gradient(ellipse at center,rgba(214,14,52,.46) 0%,rgba(178,11,45,.29) 38%,rgba(126,10,34,.13) 58%,transparent 76%)',
+  '--profile-shadow': '0 14px 34px rgba(0,0,0,.25)'
 } : {
-  '--profile-bg': '#ffffff',
-  '--profile-ink': '#25212a',
-  '--profile-muted': '#706971',
-  '--profile-heading': '#a30e29',
-  '--profile-border': '#ecdde2',
-  '--profile-rule': '#eee3e7',
-  '--profile-shadow': '0 20px 45px rgba(24,6,12,.24)'
+  '--profile-bg': 'rgba(255,255,255,.64)',
+  '--profile-ink': '#20242b',
+  '--profile-muted': '#4d4953',
+  '--profile-heading': '#20242b',
+  '--profile-border': '#f0e5e7',
+  '--profile-rule': '#22242b24',
+  '--profile-glow': 'radial-gradient(ellipse at center,rgba(214,14,52,.34) 0%,rgba(178,11,45,.2) 38%,rgba(126,10,34,.08) 58%,transparent 76%)',
+  '--profile-shadow': '0 14px 34px rgba(0,0,0,.13)'
 })
 const rolePreviewSuffix = computed(() => authState.previewRole ? `?previewRole=${authState.previewRole}` : '')
 const administrationHref = computed(() => `/administracion${authState.previewRole ? `?previewRole=${encodeURIComponent(authState.previewRole)}` : ''}`)
@@ -211,8 +213,29 @@ function toggleTheme() {
   align-items: center;
   flex: 0 0 auto;
 }
-.header-profile__trigger[aria-expanded="true"] {
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, .28);
+/* Match the Settings control (size, outline and translucent fill). */
+.header-account-tools .nav-user-icon.header-profile__trigger {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  padding: 0;
+  border: 1px solid #ffffff42;
+  border-radius: 50%;
+  background: #ffffff12;
+  box-shadow: none;
+  color: #fff;
+  cursor: pointer;
+  transition: background .18s;
+}
+.header-account-tools .nav-user-icon.header-profile__trigger:hover,
+.header-account-tools .nav-user-icon.header-profile__trigger[aria-expanded="true"] {
+  background: #ffffff26;
+}
+.header-account-tools .nav-user-icon.header-profile__trigger svg {
+  width: 20px;
+  height: 20px;
 }
 .header-profile__trigger:focus-visible,
 .header-profile__logout:focus-visible {
@@ -224,14 +247,39 @@ function toggleTheme() {
   z-index: 80;
   top: calc(100% + 12px);
   right: 0;
+  display: flex;
+  flex-direction: column;
   width: min(310px, calc(100vw - 32px));
-  padding: 18px;
-  border: 1px solid var(--profile-border, #ecdde2);
-  border-radius: 16px;
-  background: var(--profile-bg, #fff);
-  box-shadow: var(--profile-shadow, 0 20px 45px rgba(24, 6, 12, .24));
-  color: var(--profile-ink, #25212a);
+  min-width: 0;
+  padding: 13px;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid var(--profile-border, #f0e5e7);
+  border-radius: 14px;
+  background: var(--profile-bg, rgba(255,255,255,.64));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--profile-shadow, 0 14px 34px rgba(0,0,0,.13));
+  color: var(--profile-ink, #20242b);
   text-align: left;
+}
+.header-profile__panel::before {
+  position: absolute;
+  z-index: 0;
+  top: -45%;
+  bottom: -45%;
+  left: -32%;
+  width: 72%;
+  border-radius: 50%;
+  background: var(--profile-glow);
+  filter: blur(28px);
+  pointer-events: none;
+  content: "";
+  animation: itinerary-red-sweep 9s ease-in-out infinite alternate;
+}
+.header-profile__panel > * {
+  position: relative;
+  z-index: 1;
 }
 .header-profile__heading {
   display: block;
@@ -283,8 +331,17 @@ function toggleTheme() {
 }
 .header-profile__logout:hover { background: #900a22; }
 .header-profile__logout:disabled { opacity: .65; cursor: wait; }
-/* The profile's colors come from the reactive theme variables above;
-   no global html selector or theme-specific CSS cascade is required. */
+/* The colors of all profile details stay bound to the current theme. */
+@media (max-width: 800px) {
+  .header-account-tools .nav-user-icon.header-profile__trigger {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .header-profile__panel::before { animation: none; }
+}
 
 /* A mobile profile is part of the expanded navigation flow, not an
    absolutely-positioned popover hanging off the user icon. Keep both
@@ -292,8 +349,8 @@ function toggleTheme() {
 @media (max-width: 1080px) {
   .header-account-tools:has(.header-profile--open) {
     display: grid;
-    grid-template-columns: 44px 40px;
-    grid-template-rows: 44px auto;
+    grid-template-columns: 40px 40px;
+    grid-template-rows: 40px auto;
     justify-content: center;
     justify-items: center;
     align-items: center;

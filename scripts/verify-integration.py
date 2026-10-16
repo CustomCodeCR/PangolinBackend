@@ -130,13 +130,23 @@ check('class="nav-user-icon header-profile__trigger"' in header
 profile_styles = read('frontend/src/components/SiteHeader.vue')
 check('const profileTheme = computed(() => darkMode.value ?' in profile_styles
       and ':style="profileTheme"' in profile_styles
-      and "'--profile-bg': '#0a1228'" in profile_styles
-      and "'--profile-ink': '#f4f6fb'" in profile_styles
-      and 'background: var(--profile-bg, #fff)' in profile_styles
-      and 'color: var(--profile-ink, #25212a)' in profile_styles
-      and '.header-account-tools:has(.header-profile--open)' in profile_styles
-      and 'grid-column: 1 / -1;' in profile_styles,
-      'Perfil usa tema reactivo y ocupa una fila centrada en navegación móvil')
+      and "'--profile-bg': 'rgba(10,18,40,.48)'" in profile_styles
+      and "'--profile-bg': 'rgba(255,255,255,.64)'" in profile_styles
+      and "'--profile-ink': '#ffffff'" in profile_styles
+      and 'background: var(--profile-bg, rgba(255,255,255,.64))' in profile_styles
+      and 'backdrop-filter: blur(12px)' in profile_styles
+      and '.header-account-tools .nav-user-icon.header-profile__trigger' in profile_styles
+      and 'background: #ffffff12;' in profile_styles
+      and 'width: 40px;' in profile_styles,
+      'Perfil hereda vidrio traslúcido, contraste reactivo y estilo del botón Configuración')
+shared_mobile_styles = read('frontend/src/style.css')
+check('Shared mobile layout for the account and settings popovers' in shared_mobile_styles
+      and '.site-header.site-header--menu-open .header-settings--open .header-settings__panel' in shared_mobile_styles
+      and '.site-header.site-header--menu-open .header-profile--open .header-profile__panel' in shared_mobile_styles
+      and 'grid-row: 2 !important;' in shared_mobile_styles
+      and 'grid-column: 1 / -1 !important;' in shared_mobile_styles
+      and 'grid-template-columns: 38px 38px !important;' in shared_mobile_styles,
+      'Perfil y Configuración se abren en una fila inferior centrada en pantallas móviles')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
