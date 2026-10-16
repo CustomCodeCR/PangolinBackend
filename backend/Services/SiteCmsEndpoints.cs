@@ -56,8 +56,6 @@ public static class SiteCmsEndpoints
         "home.faq.3.q",
         "home.faq.3.a",
         "about.values.3",
-        "home.faq.4.q",
-        "home.faq.4.a",
         "about.values.4",
         "services.air.title",
         "services.air.detail",
