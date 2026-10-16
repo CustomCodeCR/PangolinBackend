@@ -305,24 +305,6 @@ export const siteSlotCatalog: SiteSlotDefinition[] = [
   {
     "page": "home",
     "pageLabel": "Inicio",
-    "key": "home.faq.4.a",
-    "type": "text",
-    "label": "Respuesta frecuente 5",
-    "help": "Respuesta del desplegable",
-    "fallback": "content.faqs.4.a"
-  },
-  {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.faq.4.q",
-    "type": "text",
-    "label": "Pregunta frecuente 5",
-    "help": "Pregunta del desplegable",
-    "fallback": "content.faqs.4.q"
-  },
-  {
-    "page": "home",
-    "pageLabel": "Inicio",
     "key": "home.faq.heading1",
     "type": "text",
     "label": "Preguntas frecuentes, título 1",
