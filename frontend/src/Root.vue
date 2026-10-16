@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import IconSymbol from './components/IconSymbol.vue'
-import {computed, nextTick, onMounted, ref} from 'vue'
+import {computed, nextTick, onMounted, onUnmounted, ref} from 'vue'
 import Home from './Home.vue'
 import QuoteApp from './App.vue'
 import Login from './pages/Login.vue'
@@ -18,6 +18,7 @@ import AssistantBot from './components/AssistantBot.vue'
 import { authState, currentRole, refreshSession } from './services/auth'
 import { useI18n } from 'vue-i18n'
 import { loadPublishedSiteCms } from './siteCms'
+import { subscribeToChanges } from './services/realtime'
 const { t } = useI18n({ useScope: 'global' })
 const gatedPaths = new Set(['/noticias', '/nosotros', '/servicios', '/tracking', '/itinerario'])
 const seoByPath: Record<string, { title: string; description: string; indexable?: boolean }> = {
@@ -142,6 +143,10 @@ const adminRoute = requestPath === '/administracion' || legacyAdminRoute
 const restrictedRoute = requestPath === '/tracking' || requestPath === '/itinerario' || adminRoute
 const routeAccess = ref<'checking' | 'ready'>(restrictedRoute ? 'checking' : 'ready')
 const loginNextHref = '/bienvenidos?next=' + encodeURIComponent(window.location.pathname + window.location.search)
+// La página pública no recibe borradores: consulta solamente la API publicada.
+const unsubscribeSite = subscribeToChanges('site', () => { void loadPublishedSiteCms(true) })
+const unsubscribeSync = subscribeToChanges('sync', () => { void loadPublishedSiteCms(true) })
+onUnmounted(() => { unsubscribeSite(); unsubscribeSync() })
 onMounted(async () => {
   void loadPublishedSiteCms()
   const user = await refreshSession()
