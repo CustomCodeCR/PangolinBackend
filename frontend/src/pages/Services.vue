@@ -29,10 +29,10 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
     ...service,
     photo: siteVisual(`services.${key.toLowerCase()}.media`, service.photo).src,
     kind: siteVisual(`services.${key.toLowerCase()}.media`, service.photo).kind,
-    title: siteText(`home.services.${key.toLowerCase()}.title`, t(`content.services.${key}.title`), locale.value),
+    title: siteText(`services.${key.toLowerCase()}.title`, t(`content.services.${key}.title`), locale.value),
     label: t(`content.services.${key}.label`),
     description: t(`content.services.${key}.description`),
-    detail: siteText(`home.services.${key.toLowerCase()}.detail`, t(`content.services.${key}.detail`), locale.value)
+    detail: siteText(`services.${key.toLowerCase()}.detail`, t(`content.services.${key}.detail`), locale.value)
   }
 }))
 </script>
