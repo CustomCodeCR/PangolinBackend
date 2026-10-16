@@ -675,6 +675,13 @@
       "settings": "Configuración",
       "dark": "Activar modo oscuro",
       "light": "Activar modo claro",
+      "profile": "Mi perfil",
+      "account": "Cuenta",
+      "accountName": "Nombre de cuenta",
+      "accountRole": "Rol",
+      "accountEmail": "Correo electrónico",
+      "roleAdmin": "Administrador",
+      "roleClient": "Cliente",
       "logout": "Cerrar sesión",
       "logoutError": "No se pudo cerrar sesión. Inténtalo nuevamente."
     },
