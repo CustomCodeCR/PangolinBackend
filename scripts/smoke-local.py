@@ -140,6 +140,33 @@ def main():
     require(status == 200 and isinstance(storage_status.get('enabled'), bool),
             f'Estado de almacenamiento S3 inválido: {status} {storage_status}')
 
+    # Editor visual: borradores jamás públicos, publicación visible y restauración segura.
+    site_key = 'home.hero.title1'
+    admin_route = '/api/admin/content/site/' + site_key
+    status, public_before = call(build_opener(), '/api/content/site')
+    require(status == 200 and isinstance(public_before, list), 'API pública CMS visual no disponible.')
+    temporary = 'SMOKE SITE ' + uuid4().hex[:10]
+    try:
+        status, drafted = call(browser, admin_route,
+                               {'textEs': temporary, 'textEn': 'SMOKE TEST', 'mediaId': None}, 'PUT')
+        require(status == 200 and drafted.get('draftEs') == temporary,
+                f'No se guardó borrador del CMS visual: {status} {drafted}')
+        status, public_draft = call(build_opener(), '/api/content/site')
+        require(status == 200 and all(row.get('textEs') != temporary for row in public_draft),
+                'El CMS visual filtró texto borrador a una sesión pública.')
+        status, invalid_slot = call(browser, '/api/admin/content/site/home.hero.media',
+                                    {'textEs': 'no permitido', 'textEn': None, 'mediaId': None}, 'PUT')
+        require(status == 400, f'Un espacio visual aceptó texto arbitrario: {status}')
+        status, published = call(browser, admin_route + '/publish', method='POST')
+        require(status == 200 and published.get('publishedEs') == temporary,
+                f'No se publicó CMS visual: {status} {published}')
+        status, public_site = call(build_opener(), '/api/content/site')
+        require(status == 200 and any(row.get('key') == site_key and row.get('textEs') == temporary
+                                      for row in public_site), 'No se ve el texto publicado del CMS visual.')
+    finally:
+        status, _ = call(browser, admin_route + '/restore', method='POST')
+        require(status == 200, f'No se restauró el contenido visual predeterminado: {status}')
+
     # CMS real: publicación visible en otra sesión, edición, media y limpieza.
     news = {
         'title': 'SMOKE NEWS ' + uuid4().hex[:10], 'category': 'PRUEBAS',
