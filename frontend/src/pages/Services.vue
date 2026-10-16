@@ -53,8 +53,8 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
       <section id="nuestros-servicios" class="services-section section-spacing">
         <div class="container services-page__transport">
           <p class="section-tag center">{{ $t('phrases.p008') }}</p>
-          <h2 class="section-title centered">{{ $t('phrases.p009') }} <span>{{ $t('phrases.p010') }}</span></h2>
-          <p class="section-desc centered">{{ $t('phrases.p011') }}</p>
+          <h2 class="section-title centered">{{ siteText('services.catalog.heading1', $t('phrases.p009'), locale) }} <span>{{ siteText('services.catalog.heading2', $t('phrases.p010'), locale) }}</span></h2>
+          <p class="section-desc centered">{{ siteText('services.catalog.intro', $t('phrases.p011'), locale) }}</p>
           <div class="services-showcase" :aria-label="$t('phrases.p134')">
             <div class="services-showcase__tabs" role="tablist">
               <button v-for="service in services" :key="service.key" class="services-showcase__tab" :class="{ 'is-active': activeService === service.key }" type="button" role="tab" :aria-selected="activeService === service.key" @click="activeService = service.key">
@@ -98,7 +98,7 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
       </section>
     </main>
     <div v-if="modalService" class="service-modal-backdrop" @click.self="modalService = null">
-      <section class="service-modal" role="dialog" aria-modal="true" :aria-label="serviceInfo[modalService].title" :style="{ '--modal-service-photo': `url('${modalPhoto}')` }">
+      <section class="service-modal" role="dialog" aria-modal="true" :aria-label="serviceInfo[modalService].title" :style="{ '--modal-service-photo': modalPhoto }">
         <button class="service-modal__close" type="button" :aria-label="$t('custom.home.close')" @click="modalService = null"><IconSymbol glyph="×" :size="20" /></button>
         <p class="section-tag">{{ $t('custom.home.modalEyebrow') }}</p>
         <h2>{{ serviceInfo[modalService].title }}</h2>
