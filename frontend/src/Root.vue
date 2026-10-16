@@ -17,6 +17,7 @@ import ScrollProgressButton from './components/ScrollProgressButton.vue'
 import AssistantBot from './components/AssistantBot.vue'
 import { authState, currentRole, refreshSession } from './services/auth'
 import { useI18n } from 'vue-i18n'
+import { loadPublishedSiteCms } from './siteCms'
 const { t } = useI18n({ useScope: 'global' })
 const gatedPaths = new Set(['/noticias', '/nosotros', '/servicios', '/tracking', '/itinerario'])
 const seoByPath: Record<string, { title: string; description: string; indexable?: boolean }> = {
@@ -142,6 +143,7 @@ const restrictedRoute = requestPath === '/tracking' || requestPath === '/itinera
 const routeAccess = ref<'checking' | 'ready'>(restrictedRoute ? 'checking' : 'ready')
 const loginNextHref = '/bienvenidos?next=' + encodeURIComponent(window.location.pathname + window.location.search)
 onMounted(async () => {
+  void loadPublishedSiteCms()
   const user = await refreshSession()
   const role = currentRole()
   if (adminRoute && role !== 'administrador') {
