@@ -1,5 +1,6 @@
 using CastroFallas.MiniQuote.Api.Data;
 using CastroFallas.MiniQuote.Api.Models;
+using CastroFallas.MiniQuote.Api.Services.Realtime;
 using Microsoft.EntityFrameworkCore;
 
 namespace CastroFallas.MiniQuote.Api.Services;
@@ -31,7 +32,7 @@ public static class ContentEndpoints
                 .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published })
                 .ToListAsync(ct)));
 
-        admin.MapPost("/news", async (SaveNewsRequest input, AppDbContext db, CancellationToken ct) =>
+        admin.MapPost("/news", async (SaveNewsRequest input, AppDbContext db, ContentUpdatesPublisher updates, CancellationToken ct) =>
         {
             var validation = ValidateNews(input);
             if (validation is not null) return Results.BadRequest(new { error = validation });
@@ -39,11 +40,13 @@ public static class ContentEndpoints
             ApplyNews(news, input);
             db.ManagedNews.Add(news);
             await db.SaveChangesAsync(ct);
+            await updates.AdminsAsync("news-admin");
+            await updates.PublicAsync("news");
             return Results.Created($"/api/admin/content/news/{news.Id}", NewsView(news));
         });
 
         admin.MapPut("/news/{id:guid}", async (
-            Guid id, SaveNewsRequest input, AppDbContext db, CancellationToken ct) =>
+            Guid id, SaveNewsRequest input, AppDbContext db, ContentUpdatesPublisher updates, CancellationToken ct) =>
         {
             var validation = ValidateNews(input);
             if (validation is not null) return Results.BadRequest(new { error = validation });
@@ -51,15 +54,19 @@ public static class ContentEndpoints
             if (news is null) return Results.NotFound(new { error = "Noticia no encontrada." });
             ApplyNews(news, input);
             await db.SaveChangesAsync(ct);
+            await updates.AdminsAsync("news-admin");
+            await updates.PublicAsync("news");
             return Results.Ok(NewsView(news));
         });
 
-        admin.MapDelete("/news/{id:guid}", async (Guid id, AppDbContext db, CancellationToken ct) =>
+        admin.MapDelete("/news/{id:guid}", async (Guid id, AppDbContext db, ContentUpdatesPublisher updates, CancellationToken ct) =>
         {
             var news = await db.ManagedNews.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (news is null) return Results.NotFound(new { error = "Noticia no encontrada." });
             db.ManagedNews.Remove(news);
             await db.SaveChangesAsync(ct);
+            await updates.AdminsAsync("news-admin");
+            await updates.PublicAsync("news");
             return Results.NoContent();
         });
 
@@ -73,7 +80,7 @@ public static class ContentEndpoints
                 .Select(x => new { x.Id, x.Name, x.Kind, x.Src, x.ObjectKey, x.MimeType, x.SizeBytes })
                 .ToListAsync(ct)));
 
-        admin.MapPost("/media", async (SaveMediaRequest input, AppDbContext db, CancellationToken ct) =>
+        admin.MapPost("/media", async (SaveMediaRequest input, AppDbContext db, ContentUpdatesPublisher updates, CancellationToken ct) =>
         {
             var validation = ValidateMedia(input);
             if (validation is not null) return Results.BadRequest(new { error = validation });
@@ -81,11 +88,12 @@ public static class ContentEndpoints
             ApplyMedia(media, input);
             db.ManagedMedia.Add(media);
             await db.SaveChangesAsync(ct);
+            await updates.AdminsAsync("media");
             return Results.Created($"/api/admin/content/media/{media.Id}", MediaView(media));
         });
 
         admin.MapPut("/media/{id:guid}", async (
-            Guid id, SaveMediaRequest input, AppDbContext db, CancellationToken ct) =>
+            Guid id, SaveMediaRequest input, AppDbContext db, ContentUpdatesPublisher updates, CancellationToken ct) =>
         {
             var validation = ValidateMedia(input);
             if (validation is not null) return Results.BadRequest(new { error = validation });
@@ -96,10 +104,11 @@ public static class ContentEndpoints
                 return Results.Conflict(new { error = "El archivo almacenado en S3 no puede reemplazarse desde el editor de enlaces. Subí otro archivo." });
             ApplyMedia(media, input);
             await db.SaveChangesAsync(ct);
+            await updates.AdminsAsync("media");
             return Results.Ok(MediaView(media));
         });
 
-        admin.MapDelete("/media/{id:guid}", async (Guid id, AppDbContext db, ObjectStorageService storage, ILogger<ManagedMedia> logger, CancellationToken ct) =>
+        admin.MapDelete("/media/{id:guid}", async (Guid id, AppDbContext db, ObjectStorageService storage, ILogger<ManagedMedia> logger, ContentUpdatesPublisher updates, CancellationToken ct) =>
         {
             var media = await db.ManagedMedia.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (media is null) return Results.NotFound(new { error = "Archivo no encontrado." });
@@ -109,6 +118,7 @@ public static class ContentEndpoints
                 return Results.Conflict(new { error = "Este archivo está siendo usado por una noticia. Cambiá la imagen de la noticia antes de eliminarlo." });
             db.ManagedMedia.Remove(media);
             await db.SaveChangesAsync(ct);
+            await updates.AdminsAsync("media");
             if (media.ObjectKey is not null && storage.Enabled)
             {
                 try { await storage.DeleteAsync(media.ObjectKey, ct); }
