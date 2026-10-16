@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import IconSymbol from '../components/IconSymbol.vue'
 import SiteVisualEditor from './SiteVisualEditor.vue'
+import { subscribeToChanges } from '../services/realtime'
 import { authState, refreshSession } from '../services/auth'
 import { deleteManaged, newManagedId, readManagedItineraries, readManagedMedia, readManagedNews, saveManaged, type ManagedItinerary, type ManagedMedia, type ManagedNews } from '../adminContent'
 
@@ -66,6 +67,18 @@ async function checkStorageMode() {
     storageMode.value = 'error'
   }
 }
+function refreshAdminResource(resource: string) {
+  if (!isLiveAdmin.value) return
+  if (resource === 'sync') {
+    void Promise.all([loadNews(), loadMedia(), loadItineraries(), ...(section.value === 'users' ? [loadUsers()] : [])])
+  } else if (resource === 'news-admin') void loadNews()
+  else if (resource === 'media') void loadMedia()
+  else if (resource === 'itineraries') void loadItineraries()
+  else if (resource === 'users' && section.value === 'users') void loadUsers()
+}
+const adminUnsubscribers = ['news-admin', 'media', 'itineraries', 'users', 'sync']
+  .map(resource => subscribeToChanges(resource, () => refreshAdminResource(resource)))
+onUnmounted(() => adminUnsubscribers.forEach(stop => stop()))
 onMounted(async () => {
   await refreshSession()
   if (!isLiveAdmin.value) reload()
