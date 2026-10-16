@@ -147,6 +147,7 @@ def main():
     }
     news_id = None
     media_id = None
+    link_id = None
     try:
         status, created_news = call(browser, '/api/admin/content/news', news)
         require(status == 201 and created_news.get('id'), f'Crear noticia: {status} {created_news}')
@@ -167,6 +168,17 @@ def main():
         status, media_items = call(browser, '/api/admin/content/media')
         require(status == 200 and any(row['id'] == media_id for row in media_items),
                 'El nuevo archivo multimedia no se guardó.')
+        # Tipos diferenciados: enlaces HTTPS son válidos, javascript: y SVG base64 no.
+        status, rejected = call(browser, '/api/admin/content/media',
+                                dict(media, kind='Video (enlace)', src='javascript:alert(1)'))
+        require(status == 400, f'Se aceptó un enlace multimedia inseguro: {status} {rejected}')
+        status, rejected = call(browser, '/api/admin/content/media',
+                                dict(media, src='data:image/svg+xml;base64,PHN2Zz48L3N2Zz4='))
+        require(status == 400, f'Se aceptó SVG como imagen: {status} {rejected}')
+        status, linked = call(browser, '/api/admin/content/media',
+                              dict(media, kind='Documento (enlace)', src='https://example.org/documento.pdf'))
+        require(status == 201 and linked.get('id'), f'No se aceptó enlace HTTPS: {status} {linked}')
+        link_id = linked['id']
     finally:
         if news_id:
             status, _ = call(browser, '/api/admin/content/news/' + news_id, method='DELETE')
@@ -174,6 +186,9 @@ def main():
         if media_id:
             status, _ = call(browser, '/api/admin/content/media/' + media_id, method='DELETE')
             require(status == 204, f'No se limpió multimedia de prueba: {status}')
+        if link_id:
+            status, _ = call(browser, '/api/admin/content/media/' + link_id, method='DELETE')
+            require(status == 204, f'No se limpió el enlace de prueba: {status}')
 
     # CRUD de itinerarios: escritura exclusiva para admin, lectura para usuarios registrados.
     pol = 'SMOKE-' + uuid4().hex[:10]
