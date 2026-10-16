@@ -8,7 +8,7 @@ import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 
 const { t, locale } = useI18n({ useScope: 'global' })
-const values = computed(() => [0, 1, 2, 3, 4].map(index => t(`custom.about.values.${index}`)))
+const values = computed(() => [0, 1, 2, 3, 4].map(index => siteText(`about.values.${index}`, t(`custom.about.values.${index}`), locale.value)))
 const selectedValue = ref<number | null>(null)
 </script>
 
