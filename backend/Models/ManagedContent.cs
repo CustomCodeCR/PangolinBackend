@@ -19,6 +19,9 @@ public sealed class ManagedMedia
     public string Name { get; set; } = "";
     public string Kind { get; set; } = "Imagen";
     public string Src { get; set; } = "";
+    public string? ObjectKey { get; set; }
+    public string? MimeType { get; set; }
+    public long? SizeBytes { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
