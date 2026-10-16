@@ -26,6 +26,7 @@ const itineraryForm = ref<ManagedItinerary>(emptyItinerary())
 const mediaForm = ref<ManagedMedia>(emptyMedia())
 const mediaUploadFile = ref<File | null>(null)
 const newsUploadFile = ref<File | null>(null)
+const storageMode = ref<'checking' | 's3' | 'legacy' | 'error'>('checking')
 const currentList = computed(() => section.value === 'itineraries' ? itineraries.value : section.value === 'news' ? news.value : media.value)
 
 function emptyNews(): ManagedNews { return { id: '', title: '', category: 'LOGÍSTICA', description: '', body: '', image: '', published: false } }
@@ -53,10 +54,21 @@ async function loadMedia() {
     media.value = list
   } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'Error consultando multimedia.' }
 }
+async function checkStorageMode() {
+  try {
+    const response = await fetch('/api/admin/content/media/storage-status', { credentials: 'same-origin', cache: 'no-store' })
+    if (!response.ok) throw new Error('No se puede verificar el almacenamiento multimedia.')
+    const data = await response.json()
+    if (typeof data?.enabled !== 'boolean') throw new Error('La respuesta del almacenamiento es inválida.')
+    storageMode.value = data.enabled ? 's3' : 'legacy'
+  } catch {
+    storageMode.value = 'error'
+  }
+}
 onMounted(async () => {
   await refreshSession()
   if (!isLiveAdmin.value) reload()
-  else await Promise.all([loadItineraries(), loadNews(), loadMedia()])
+  else await Promise.all([loadItineraries(), loadNews(), loadMedia(), checkStorageMode()])
   if (section.value === 'users') await loadUsers()
 })
 
@@ -372,15 +384,23 @@ function selectFile(event: Event, target: 'news' | 'media') {
     notice.value = 'Formato inválido. Para noticias solo imágenes PNG/JPEG/WebP/GIF.'; return
   }
   if (file.size > format.limit) { notice.value = 'El archivo supera el tamaño permitido.'; return }
-  if (isLiveAdmin.value) {
+  if (isLiveAdmin.value && storageMode.value === 's3') {
     if (target === 'news') newsUploadFile.value = file
     else { mediaUploadFile.value = file; mediaForm.value.kind = format.kind; mediaForm.value.name ||= file.name }
     notice.value = `Archivo seleccionado: ${file.name}. Se subirá al guardar.`
     return
   }
-  if (format.kind !== 'Imagen' || file.size > 2_500_000) {
-    notice.value = 'La previsualización solo admite imágenes de hasta 2.5 MB.'; return
+  if (isLiveAdmin.value && storageMode.value !== 'legacy') {
+    notice.value = 'No se pudo verificar el almacenamiento. Recargá la página antes de subir archivos.'
+    return
   }
+  // Docker sin MinIO: preservar el flujo anterior de imágenes pequeñas en PostgreSQL.
+  if (format.kind !== 'Imagen' || file.size > 2_500_000) {
+    notice.value = 'Sin MinIO solo se permiten imágenes de hasta 2.5 MB. Para videos y PDF usá un enlace HTTPS.'
+    return
+  }
+  if (target === 'news') newsUploadFile.value = null
+  else mediaUploadFile.value = null
   const reader = new FileReader()
   reader.onerror = () => { notice.value = 'No se pudo leer la imagen seleccionada.' }
   reader.onload = () => {
@@ -443,7 +463,7 @@ function useMediaForNews(item: ManagedMedia) {
             <label>Categoría<input v-model="newsForm.category" required maxlength="60" placeholder="LOGÍSTICA" /></label>
             <label>Resumen (visible en tarjetas)<textarea v-model="newsForm.description" required maxlength="1200" rows="3" placeholder="Resumen breve de la noticia" /></label>
             <label>Contenido completo<textarea v-model="newsForm.body" maxlength="20000" rows="8" placeholder="Escribe el artículo completo. Si se deja vacío, el lector verá el resumen." /></label>
-            <label>Imagen (archivo, almacenamiento S3)<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="selectFile($event, 'news')" /></label>
+            <label>Imagen ({{ storageMode === 's3' ? 'MinIO' : 'archivo local' }})<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="selectFile($event, 'news')" /></label>
             <p v-if="newsUploadFile" class="manager-publication-hint">Imagen seleccionada: {{ newsUploadFile.name }}. Se subirá a MinIO al guardar.</p>
             <label>o URL de imagen<input v-model="newsForm.image" placeholder="/images/mi-imagen.webp" /></label>
             <label>Estado de publicación<select v-model="newsForm.published">
@@ -456,13 +476,14 @@ function useMediaForNews(item: ManagedMedia) {
           <form v-else @submit.prevent="submitMedia">
             <label>Nombre<input v-model="mediaForm.name" required maxlength="200" placeholder="Imagen de puerto" /></label>
             <label>Tipo<select v-model="mediaForm.kind" :disabled="Boolean(mediaForm.objectKey)">
-              <option>Imagen</option><option>Video</option><option>Documento</option>
+              <option>Imagen</option><option v-if="storageMode === 's3'">Video</option><option v-if="storageMode === 's3'">Documento</option>
               <option>Video (enlace)</option><option>Documento (enlace)</option>
             </select></label>
-            <label v-if="['Imagen','Video','Documento'].includes(mediaForm.kind) && !editingId">
-              Seleccionar archivo (MinIO)
+            <label v-if="(mediaForm.kind === 'Imagen' || storageMode === 's3') && !editingId">
+              Seleccionar archivo ({{ storageMode === 's3' ? 'MinIO' : 'imagen local' }})
               <input type="file" :accept="mediaForm.kind === 'Imagen' ? 'image/png,image/jpeg,image/webp,image/gif' : mediaForm.kind === 'Video' ? 'video/mp4,video/webm' : 'application/pdf'" @change="selectFile($event, 'media')" />
             </label>
+            <p v-if="storageMode === 'legacy' && isLiveAdmin" class="manager-publication-hint">Sin MinIO: las imágenes pequeñas siguen guardándose en PostgreSQL. Los videos y PDF se registran por enlace HTTPS.</p>
             <p v-if="mediaUploadFile" class="manager-publication-hint">Archivo seleccionado: {{ mediaUploadFile.name }} ({{ (mediaUploadFile.size / 1048576).toFixed(2) }} MB). Se almacenará en MinIO.</p>
             <label v-if="!mediaUploadFile">
               {{ mediaForm.objectKey ? 'Referencia del archivo (no editable)' : 'URL del archivo (HTTPS o /images/)' }}
