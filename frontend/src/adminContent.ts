@@ -28,6 +28,9 @@ export type ManagedMedia = {
   name: string
   kind: string
   src: string
+  objectKey?: string | null
+  mimeType?: string | null
+  sizeBytes?: number | null
 }
 
 const keys = {
