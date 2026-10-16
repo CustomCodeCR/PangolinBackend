@@ -26,7 +26,7 @@ const itineraryForm = ref<ManagedItinerary>(emptyItinerary())
 const mediaForm = ref<ManagedMedia>(emptyMedia())
 const currentList = computed(() => section.value === 'itineraries' ? itineraries.value : section.value === 'news' ? news.value : media.value)
 
-function emptyNews(): ManagedNews { return { id: '', title: '', category: 'LOGÍSTICA', description: '', image: '', published: false } }
+function emptyNews(): ManagedNews { return { id: '', title: '', category: 'LOGÍSTICA', description: '', body: '', image: '', published: false } }
 function emptyItinerary(): ManagedItinerary { return { id: '', origin: '', destination: '', transport: 'Marítimo', departure: '', arrival: '', status: 'Programado', closing: '', modality: 'FCL', carrier: '', vessel: '', voyage: '' } }
 function emptyMedia(): ManagedMedia { return { id: '', name: '', kind: 'Imagen', src: '' } }
 function reload() { itineraries.value = readManagedItineraries(); news.value = readManagedNews(); media.value = readManagedMedia() }
@@ -370,7 +370,8 @@ function useMediaForNews(item: ManagedMedia) {
           <form v-else-if="section === 'news'" @submit.prevent="submitNews">
             <label>Título<input v-model="newsForm.title" required maxlength="160" placeholder="Título de la noticia" /></label>
             <label>Categoría<input v-model="newsForm.category" required maxlength="60" placeholder="LOGÍSTICA" /></label>
-            <label>Resumen<textarea v-model="newsForm.description" required maxlength="1200" rows="4" placeholder="Escribe el contenido de la noticia" /></label>
+            <label>Resumen (visible en tarjetas)<textarea v-model="newsForm.description" required maxlength="1200" rows="3" placeholder="Resumen breve de la noticia" /></label>
+            <label>Contenido completo<textarea v-model="newsForm.body" maxlength="20000" rows="8" placeholder="Escribe el artículo completo. Si se deja vacío, el lector verá el resumen." /></label>
             <label>Imagen (archivo)<input type="file" accept="image/*" @change="selectFile($event, 'news')" /></label>
             <label>o URL de imagen<input v-model="newsForm.image" placeholder="/images/mi-imagen.webp" /></label>
             <label>Estado de publicación<select v-model="newsForm.published">
