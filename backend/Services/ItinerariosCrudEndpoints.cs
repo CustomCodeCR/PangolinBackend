@@ -1,5 +1,6 @@
 using CastroFallas.MiniQuote.Api.Data;
 using CastroFallas.MiniQuote.Api.Models;
+using CastroFallas.MiniQuote.Api.Services.Realtime;
 using Microsoft.EntityFrameworkCore;
 
 namespace CastroFallas.MiniQuote.Api.Services;
@@ -39,7 +40,7 @@ public static class ItinerariosCrudEndpoints
     {
         // La consulta individual, igual que el listado existente, admite client y admin.
         app.MapGet("/api/itinerarios/{id:guid}", async (
-            Guid id, AppDbContext db, HttpContext http, CancellationToken ct) =>
+            Guid id, AppDbContext db, ContentUpdatesPublisher updates, HttpContext http, CancellationToken ct) =>
         {
             http.Response.Headers.CacheControl = "no-store";
             var item = await db.Itinerarios.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -53,7 +54,7 @@ public static class ItinerariosCrudEndpoints
         var admin = app.MapGroup("/api/admin/itinerarios").RequireAuthorization("admin");
 
         admin.MapPost("", async (
-            UpsertItinerarioRequest input, AppDbContext db, HttpContext http, CancellationToken ct) =>
+            UpsertItinerarioRequest input, AppDbContext db, ContentUpdatesPublisher updates, HttpContext http, CancellationToken ct) =>
         {
             http.Response.Headers.CacheControl = "no-store";
             var item = new Itinerario { Id = Guid.NewGuid() };
@@ -62,6 +63,7 @@ public static class ItinerariosCrudEndpoints
 
             db.Itinerarios.Add(item);
             await db.SaveChangesAsync(ct);
+            await updates.RegisteredAsync("itineraries");
             return Results.Created($"/api/itinerarios/{item.Id}", ToResponse(item));
         });
 
@@ -80,6 +82,7 @@ public static class ItinerariosCrudEndpoints
             try
             {
                 await db.SaveChangesAsync(ct);
+            await updates.RegisteredAsync("itineraries");
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -99,6 +102,7 @@ public static class ItinerariosCrudEndpoints
             try
             {
                 await db.SaveChangesAsync(ct);
+            await updates.RegisteredAsync("itineraries");
             }
             catch (DbUpdateConcurrencyException)
             {
