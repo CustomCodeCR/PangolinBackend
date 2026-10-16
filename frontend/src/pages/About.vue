@@ -14,8 +14,8 @@ const selectedValue = ref<number | null>(null)
 
 <template>
   <div class="app-site about-reference-page">
-    <section class="inner-hero inner-hero--about" :style="{ '--cms-about-hero': siteCssImage('about.hero.media', '/images/hero.webp') }">
-      <SiteMedia v-if="siteVisual('about.hero.media', '/images/hero.webp').kind.startsWith('Video')" slot-key="about.hero.media" fallback="/images/hero.webp" background />
+    <section class="inner-hero inner-hero--about" :style="{ '--cms-about-hero': siteCssImage('about.hero.media', '/images/about-operations-enhanced.jpg') }">
+      <SiteMedia v-if="siteVisual('about.hero.media', '/images/about-operations-enhanced.jpg').kind.startsWith('Video')" slot-key="about.hero.media" fallback="/images/about-operations-enhanced.jpg" background />
       <SiteHeader active="nosotros" overlay />
       <div class="container inner-hero__copy about-hero__copy">
         <h1>{{ siteText('about.hero.title', $t('custom.about.title'), locale) }}</h1>
