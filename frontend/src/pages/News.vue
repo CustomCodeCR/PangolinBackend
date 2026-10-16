@@ -16,6 +16,7 @@ let emblaApi: EmblaCarouselType | null = null
 // Sólo se muestran publicaciones del CMS; sin noticias predeterminadas.
 const news = computed(() => managedNews.value.filter(article => article.published && article.title.trim()).map(article => ({
   id: article.id, category: article.category, title: article.title, description: article.description,
+  body: article.body?.trim() || article.description,
   image: article.image || '/images/cover-logistics.jpeg'
 })))
 const leadStory = computed(() => news.value[activeStoryIndex.value] ?? news.value[0])
@@ -159,7 +160,7 @@ onUnmounted(() => {
         <div class="news-article-modal__copy">
           <p class="section-tag">{{ activeArticle.category }} · {{ $t('phrases.p074') }}</p>
           <h2>{{ activeArticle.title }}</h2>
-          <p>{{ activeArticle.description }}</p>
+          <p class="news-article-fulltext">{{ activeArticle.body }}</p>
         </div>
       </article>
     </div>
@@ -169,6 +170,7 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.news-article-fulltext { white-space: pre-line; overflow-wrap: anywhere; }
 .news-empty-hero { position: relative; z-index: 2; min-height: 320px; padding-top: 135px; padding-bottom: 95px; color: #fff; }
 .news-empty-hero h1 { font-size: clamp(42px, 6vw, 76px); line-height: 1.1; margin: 18px 0; }
 .news-empty-hero p:last-child { max-width: 640px; font-size: clamp(16px, 1.7vw, 20px); }
