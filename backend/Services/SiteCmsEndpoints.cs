@@ -1,5 +1,6 @@
 using CastroFallas.MiniQuote.Api.Data;
 using CastroFallas.MiniQuote.Api.Models;
+using CastroFallas.MiniQuote.Api.Services.Realtime;
 using Microsoft.EntityFrameworkCore;
 
 namespace CastroFallas.MiniQuote.Api.Services;
@@ -91,7 +92,7 @@ public static class SiteCmsEndpoints
         admin.MapGet("", async (AppDbContext db, CancellationToken ct) =>
             Results.Ok(await db.SiteCmsSlots.AsNoTracking().OrderBy(x => x.Key).ToListAsync(ct)));
 
-        admin.MapPut("/{key}", async Task<IResult> (string key, SaveSiteDraftRequest draft, AppDbContext db, CancellationToken ct) =>
+        admin.MapPut("/{key}", async Task<IResult> (string key, SaveSiteDraftRequest draft, AppDbContext db, ContentUpdatesPublisher updates, CancellationToken ct) =>
         {
             var isMedia = MediaKeys.Contains(key);
             if (!isMedia && !TextKeys.Contains(key)) return Results.NotFound();
@@ -115,10 +116,11 @@ public static class SiteCmsEndpoints
             slot.DraftMediaId = isMedia ? draft.MediaId : null;
             slot.UpdatedAt = DateTime.UtcNow;
             await db.SaveChangesAsync(ct);
+            await updates.AdminsAsync("site-admin");
             return Results.Ok(slot);
         });
 
-        admin.MapPost("/{key}/publish", async Task<IResult> (string key, AppDbContext db, CancellationToken ct) =>
+        admin.MapPost("/{key}/publish", async Task<IResult> (string key, AppDbContext db, ContentUpdatesPublisher updates, CancellationToken ct) =>
         {
             if (!MediaKeys.Contains(key) && !TextKeys.Contains(key)) return Results.NotFound();
             var slot = await db.SiteCmsSlots.FindAsync([key], ct);
@@ -132,6 +134,8 @@ public static class SiteCmsEndpoints
             slot.PublishedAt = DateTime.UtcNow;
             slot.UpdatedAt = DateTime.UtcNow;
             await db.SaveChangesAsync(ct);
+            await updates.AdminsAsync("site-admin");
+            await updates.PublicAsync("site");
             return Results.Ok(slot);
         });
 
@@ -147,6 +151,8 @@ public static class SiteCmsEndpoints
             slot.UpdatedAt = DateTime.UtcNow;
             slot.PublishedAt = DateTime.UtcNow;
             await db.SaveChangesAsync(ct);
+            await updates.AdminsAsync("site-admin");
+            await updates.PublicAsync("site");
             return Results.Ok(slot);
         });
     }
