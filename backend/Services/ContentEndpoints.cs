@@ -19,7 +19,7 @@ public static class ContentEndpoints
             return Results.Ok(await db.ManagedNews.AsNoTracking()
                 .Where(x => x.Published)
                 .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
-                .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Image, x.Published })
+                .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published })
                 .ToListAsync(ct));
         });
 
@@ -28,7 +28,7 @@ public static class ContentEndpoints
         admin.MapGet("/news", async (AppDbContext db, CancellationToken ct) =>
             Results.Ok(await db.ManagedNews.AsNoTracking()
                 .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
-                .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Image, x.Published })
+                .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published })
                 .ToListAsync(ct)));
 
         admin.MapPost("/news", async (SaveNewsRequest input, AppDbContext db, CancellationToken ct) =>
@@ -110,6 +110,8 @@ public static class ContentEndpoints
             return "La categoría debe tener entre 1 y 60 caracteres.";
         if (string.IsNullOrWhiteSpace(x.Description) || x.Description.Trim().Length > 1200)
             return "La descripción debe tener entre 1 y 1200 caracteres.";
+        if ((x.Body?.Trim().Length ?? 0) > 20_000)
+            return "El contenido completo no puede superar 20 000 caracteres.";
         if (!ValidImage(x.Image, allowEmpty: true))
             return "La imagen debe ser HTTPS, /images/ o PNG/JPEG/WebP/GIF hasta 2.5 MB.";
         return null;
@@ -183,6 +185,7 @@ public static class ContentEndpoints
         target.Title = input.Title!.Trim();
         target.Category = input.Category!.Trim();
         target.Description = input.Description!.Trim();
+        target.Body = input.Body?.Trim() ?? "";
         target.Image = input.Image?.Trim() ?? "";
         target.Published = input.Published;
         target.UpdatedAt = DateTime.UtcNow;
@@ -198,7 +201,7 @@ public static class ContentEndpoints
 
     private static object NewsView(ManagedNews x) => new
     {
-        x.Id, x.Title, x.Category, x.Description, x.Image, x.Published
+        x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published
     };
 
     private static object MediaView(ManagedMedia x) => new { x.Id, x.Name, x.Kind, x.Src };
