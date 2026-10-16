@@ -315,7 +315,14 @@ onMounted(load)
 
 /* A diferencia del CSS original, este panel respeta el modo oscuro y el color del texto.
    Especificidad alta: la web contiene reglas globales con !important para dark mode. */
-html.theme-dark .visual-editor{background:#111a2c!important;border-color:#384459!important;color:#f6f8ff!important}
+/* Mismo tratamiento de superficie y barrido rojo que Multimedia. */
+.visual-editor{position:relative;isolation:isolate;overflow:hidden;box-shadow:0 20px 55px rgba(6,16,37,.09);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.visual-editor::before{content:"";position:absolute;z-index:0;inset:0;pointer-events:none;background:linear-gradient(105deg,transparent 5%,rgba(190,12,43,.12) 46%,rgba(190,12,43,.04) 56%,transparent 86%);background-size:220% 100%;background-position:100% 0;animation:visual-editor-red-sweep 8.5s ease-in-out infinite}
+.visual-editor>*{position:relative;z-index:1}
+@keyframes visual-editor-red-sweep{0%,12%{background-position:100% 0}78%,100%{background-position:0 0}}
+html.theme-dark .visual-editor{background:#01081d!important;border-color:rgba(169,190,225,.2)!important;color:#f6f8ff!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 0 22px rgba(255,255,255,.035)}
+html.theme-dark .visual-editor::before{background:linear-gradient(105deg,transparent 0%,rgba(224,12,52,.06) 46%,rgba(224,12,52,.26) 50%,rgba(224,12,52,.08) 54%,transparent 62%);background-size:220% 100%}
+@media(prefers-reduced-motion:reduce){.visual-editor::before{animation:none;background-position:50% 0}}
 html.theme-dark .visual-editor :is(h2,h3,strong,label){color:#f5f7fc!important}
 html.theme-dark .visual-editor :is(.visual-editor__description,.visual-editor__hint,.visual-editor__locations small,.visual-editor__intro p){color:#c1cada!important}
 html.theme-dark .visual-editor .visual-editor__pages{border-color:#3a465b}
