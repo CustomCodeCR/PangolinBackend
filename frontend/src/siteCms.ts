@@ -6,220 +6,94 @@ export interface EditableSiteSlot { key: string; draftEs?: string | null; draftE
 
 export const siteSlotCatalog: SiteSlotDefinition[] = [
   {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.hero.media",
+    "page": "about",
+    "pageLabel": "Sobre nosotros",
+    "key": "about.hero.media",
     "type": "media",
-    "label": "Portada principal",
-    "help": "Fondo de bienvenida, formato horizontal ancho",
+    "label": "Portada de Sobre nosotros",
+    "help": "Fondo de la portada interior",
     "fallback": "/images/hero.webp"
   },
   {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.hero.title1",
+    "page": "about",
+    "pageLabel": "Sobre nosotros",
+    "key": "about.hero.title",
     "type": "text",
-    "label": "Título principal, línea 1",
-    "help": "Texto destacado de la portada",
-    "fallback": "phrases.p000"
+    "label": "Título de la portada",
+    "help": "Encabezado Sobre nosotros",
+    "fallback": "custom.about.title"
   },
   {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.hero.title2",
+    "page": "about",
+    "pageLabel": "Sobre nosotros",
+    "key": "about.intro",
     "type": "text",
-    "label": "Título principal, línea 2",
-    "help": "Segunda línea del título",
-    "fallback": "phrases.p001"
+    "label": "Nuestra historia",
+    "help": "Texto junto a la foto de operaciones",
+    "fallback": "custom.about.introduction"
   },
   {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.hero.intro",
-    "type": "text",
-    "label": "Introducción de portada",
-    "help": "Párrafo debajo del título",
-    "fallback": "phrases.p002"
-  },
-  {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.services.heading1",
-    "type": "text",
-    "label": "Servicios, título 1",
-    "help": "Encabezado de servicios",
-    "fallback": "phrases.p009"
-  },
-  {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.services.heading2",
-    "type": "text",
-    "label": "Servicios, título 2",
-    "help": "Segunda parte del encabezado",
-    "fallback": "phrases.p010"
-  },
-  {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.services.intro",
-    "type": "text",
-    "label": "Introducción de servicios",
-    "help": "Descripción del catálogo de transporte",
-    "fallback": "phrases.p011"
-  },
-  {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.services.air.media",
+    "page": "about",
+    "pageLabel": "Sobre nosotros",
+    "key": "about.operations.media",
     "type": "media",
-    "label": "Servicio Aéreo",
-    "help": "Foto del acordeón de servicios",
-    "fallback": "/images/air-freight.webp"
-  },
-  {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.services.air.title",
-    "type": "text",
-    "label": "Servicio Aéreo, título",
-    "help": "Título dentro de la tarjeta",
-    "fallback": "content.services.Air.title"
-  },
-  {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.services.air.detail",
-    "type": "text",
-    "label": "Servicio Aéreo, descripción",
-    "help": "Texto de detalle del servicio",
-    "fallback": "content.services.Air.detail"
-  },
-  {
-    "page": "services",
-    "pageLabel": "Servicios",
-    "key": "services.air.media",
-    "type": "media",
-    "label": "Servicio Aéreo",
-    "help": "Imagen del panel de servicio",
-    "fallback": "/images/air-freight.webp"
-  },
-  {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.services.maritime.media",
-    "type": "media",
-    "label": "Servicio Marítimo",
-    "help": "Foto del acordeón de servicios",
-    "fallback": "/images/ship.webp"
-  },
-  {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.services.maritime.title",
-    "type": "text",
-    "label": "Servicio Marítimo, título",
-    "help": "Título dentro de la tarjeta",
-    "fallback": "content.services.Maritime.title"
-  },
-  {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.services.maritime.detail",
-    "type": "text",
-    "label": "Servicio Marítimo, descripción",
-    "help": "Texto de detalle del servicio",
-    "fallback": "content.services.Maritime.detail"
-  },
-  {
-    "page": "services",
-    "pageLabel": "Servicios",
-    "key": "services.maritime.media",
-    "type": "media",
-    "label": "Servicio Marítimo",
-    "help": "Imagen del panel de servicio",
-    "fallback": "/images/ship.webp"
-  },
-  {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.services.land.media",
-    "type": "media",
-    "label": "Servicio Terrestre",
-    "help": "Foto del acordeón de servicios",
-    "fallback": "/images/truck.webp"
-  },
-  {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.services.land.title",
-    "type": "text",
-    "label": "Servicio Terrestre, título",
-    "help": "Título dentro de la tarjeta",
-    "fallback": "content.services.Land.title"
-  },
-  {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.services.land.detail",
-    "type": "text",
-    "label": "Servicio Terrestre, descripción",
-    "help": "Texto de detalle del servicio",
-    "fallback": "content.services.Land.detail"
-  },
-  {
-    "page": "services",
-    "pageLabel": "Servicios",
-    "key": "services.land.media",
-    "type": "media",
-    "label": "Servicio Terrestre",
-    "help": "Imagen del panel de servicio",
-    "fallback": "/images/truck.webp"
-  },
-  {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.services.multimodal.media",
-    "type": "media",
-    "label": "Servicio Multimodal",
-    "help": "Foto del acordeón de servicios",
-    "fallback": "/images/cover-logistics.jpeg"
-  },
-  {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.services.multimodal.title",
-    "type": "text",
-    "label": "Servicio Multimodal, título",
-    "help": "Título dentro de la tarjeta",
-    "fallback": "content.services.Multimodal.title"
-  },
-  {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.services.multimodal.detail",
-    "type": "text",
-    "label": "Servicio Multimodal, descripción",
-    "help": "Texto de detalle del servicio",
-    "fallback": "content.services.Multimodal.detail"
-  },
-  {
-    "page": "services",
-    "pageLabel": "Servicios",
-    "key": "services.multimodal.media",
-    "type": "media",
-    "label": "Servicio Multimodal",
-    "help": "Imagen del panel de servicio",
-    "fallback": "/images/cover-logistics.jpeg"
-  },
-  {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.about.media",
-    "type": "media",
-    "label": "Presentación de la empresa",
-    "help": "Imagen de la sección Sobre nosotros",
+    "label": "Fotografía de operaciones",
+    "help": "Imagen junto a la introducción",
     "fallback": "/images/about-operations-enhanced.jpg"
+  },
+  {
+    "page": "about",
+    "pageLabel": "Sobre nosotros",
+    "key": "about.values.0",
+    "type": "text",
+    "label": "Valor corporativo 1",
+    "help": "Texto en la tarjeta de valores",
+    "fallback": "custom.about.values.0"
+  },
+  {
+    "page": "about",
+    "pageLabel": "Sobre nosotros",
+    "key": "about.values.1",
+    "type": "text",
+    "label": "Valor corporativo 2",
+    "help": "Texto en la tarjeta de valores",
+    "fallback": "custom.about.values.1"
+  },
+  {
+    "page": "about",
+    "pageLabel": "Sobre nosotros",
+    "key": "about.values.2",
+    "type": "text",
+    "label": "Valor corporativo 3",
+    "help": "Texto en la tarjeta de valores",
+    "fallback": "custom.about.values.2"
+  },
+  {
+    "page": "about",
+    "pageLabel": "Sobre nosotros",
+    "key": "about.values.3",
+    "type": "text",
+    "label": "Valor corporativo 4",
+    "help": "Texto en la tarjeta de valores",
+    "fallback": "custom.about.values.3"
+  },
+  {
+    "page": "about",
+    "pageLabel": "Sobre nosotros",
+    "key": "about.values.4",
+    "type": "text",
+    "label": "Valor corporativo 5",
+    "help": "Texto en la tarjeta de valores",
+    "fallback": "custom.about.values.4"
+  },
+  {
+    "page": "about",
+    "pageLabel": "Sobre nosotros",
+    "key": "about.values.heading",
+    "type": "text",
+    "label": "Nuestros valores, título",
+    "help": "Encabezado de la sección de valores",
+    "fallback": "custom.about.valuesTitle"
   },
   {
     "page": "home",
@@ -233,38 +107,92 @@ export const siteSlotCatalog: SiteSlotDefinition[] = [
   {
     "page": "home",
     "pageLabel": "Inicio",
-    "key": "home.tracking.media",
+    "key": "home.about.media",
     "type": "media",
-    "label": "Tarjeta de seguimiento",
-    "help": "Fondo de la tarjeta de Tracking",
-    "fallback": "/images/tracking-red.webp"
+    "label": "Presentación de la empresa",
+    "help": "Imagen de la sección Sobre nosotros",
+    "fallback": "/images/about-operations-enhanced.jpg"
   },
   {
     "page": "home",
     "pageLabel": "Inicio",
-    "key": "home.quote.media",
+    "key": "home.digital.card.0.media",
     "type": "media",
-    "label": "Tarjeta de cotizaciones",
-    "help": "Fondo de cotizar en línea",
-    "fallback": "/images/services-crane.webp"
+    "label": "Solución digital 1, fondo",
+    "help": "Imagen o video opcional de la tarjeta digital 1",
+    "fallback": ""
   },
   {
     "page": "home",
     "pageLabel": "Inicio",
-    "key": "home.quote.heading1",
+    "key": "home.digital.card.0.subtitle",
     "type": "text",
-    "label": "Cotización, encabezado 1",
-    "help": "Llamada a la acción",
-    "fallback": "phrases.p036"
+    "label": "Solución digital 1, descripción",
+    "help": "Texto bajo el título",
+    "fallback": "content.promises.0.subtitle"
   },
   {
     "page": "home",
     "pageLabel": "Inicio",
-    "key": "home.quote.heading2",
+    "key": "home.digital.card.0.title",
     "type": "text",
-    "label": "Cotización, encabezado 2",
-    "help": "Llamada a la acción, segunda línea",
-    "fallback": "phrases.p037"
+    "label": "Solución digital 1, título",
+    "help": "Texto principal de la tarjeta",
+    "fallback": "content.promises.0.title"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.digital.card.1.media",
+    "type": "media",
+    "label": "Solución digital 2, fondo",
+    "help": "Imagen o video opcional de la tarjeta digital 2",
+    "fallback": ""
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.digital.card.1.subtitle",
+    "type": "text",
+    "label": "Solución digital 2, descripción",
+    "help": "Texto bajo el título",
+    "fallback": "content.promises.1.subtitle"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.digital.card.1.title",
+    "type": "text",
+    "label": "Solución digital 2, título",
+    "help": "Texto principal de la tarjeta",
+    "fallback": "content.promises.1.title"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.digital.card.2.media",
+    "type": "media",
+    "label": "Solución digital 3, fondo",
+    "help": "Imagen o video opcional de la tarjeta digital 3",
+    "fallback": ""
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.digital.card.2.subtitle",
+    "type": "text",
+    "label": "Solución digital 3, descripción",
+    "help": "Texto bajo el título",
+    "fallback": "content.promises.2.subtitle"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.digital.card.2.title",
+    "type": "text",
+    "label": "Solución digital 3, título",
+    "help": "Texto principal de la tarjeta",
+    "fallback": "content.promises.2.title"
   },
   {
     "page": "home",
@@ -305,11 +233,92 @@ export const siteSlotCatalog: SiteSlotDefinition[] = [
   {
     "page": "home",
     "pageLabel": "Inicio",
-    "key": "home.faq.media",
-    "type": "media",
-    "label": "Preguntas frecuentes, fondo",
-    "help": "Imagen de fondo de FAQ",
-    "fallback": "/images/operation.webp"
+    "key": "home.faq.0.a",
+    "type": "text",
+    "label": "Respuesta frecuente 1",
+    "help": "Respuesta del desplegable",
+    "fallback": "content.faqs.0.a"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.faq.0.q",
+    "type": "text",
+    "label": "Pregunta frecuente 1",
+    "help": "Pregunta del desplegable",
+    "fallback": "content.faqs.0.q"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.faq.1.a",
+    "type": "text",
+    "label": "Respuesta frecuente 2",
+    "help": "Respuesta del desplegable",
+    "fallback": "content.faqs.1.a"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.faq.1.q",
+    "type": "text",
+    "label": "Pregunta frecuente 2",
+    "help": "Pregunta del desplegable",
+    "fallback": "content.faqs.1.q"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.faq.2.a",
+    "type": "text",
+    "label": "Respuesta frecuente 3",
+    "help": "Respuesta del desplegable",
+    "fallback": "content.faqs.2.a"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.faq.2.q",
+    "type": "text",
+    "label": "Pregunta frecuente 3",
+    "help": "Pregunta del desplegable",
+    "fallback": "content.faqs.2.q"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.faq.3.a",
+    "type": "text",
+    "label": "Respuesta frecuente 4",
+    "help": "Respuesta del desplegable",
+    "fallback": "content.faqs.3.a"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.faq.3.q",
+    "type": "text",
+    "label": "Pregunta frecuente 4",
+    "help": "Pregunta del desplegable",
+    "fallback": "content.faqs.3.q"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.faq.4.a",
+    "type": "text",
+    "label": "Respuesta frecuente 5",
+    "help": "Respuesta del desplegable",
+    "fallback": "content.faqs.4.a"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.faq.4.q",
+    "type": "text",
+    "label": "Pregunta frecuente 5",
+    "help": "Pregunta del desplegable",
+    "fallback": "content.faqs.4.q"
   },
   {
     "page": "home",
@@ -330,184 +339,229 @@ export const siteSlotCatalog: SiteSlotDefinition[] = [
     "fallback": "phrases.p033"
   },
   {
-    "page": "about",
-    "pageLabel": "Sobre nosotros",
-    "key": "about.hero.media",
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.faq.media",
     "type": "media",
-    "label": "Portada de Sobre nosotros",
-    "help": "Fondo de la portada interior",
+    "label": "Preguntas frecuentes, fondo",
+    "help": "Imagen de fondo de FAQ",
+    "fallback": "/images/operation.webp"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.hero.intro",
+    "type": "text",
+    "label": "Introducción de portada",
+    "help": "Párrafo debajo del título",
+    "fallback": "phrases.p002"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.hero.media",
+    "type": "media",
+    "label": "Portada principal",
+    "help": "Fondo de bienvenida, formato horizontal ancho",
     "fallback": "/images/hero.webp"
   },
   {
-    "page": "about",
-    "pageLabel": "Sobre nosotros",
-    "key": "about.hero.title",
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.hero.title1",
     "type": "text",
-    "label": "Título de la portada",
-    "help": "Encabezado Sobre nosotros",
-    "fallback": "custom.about.title"
+    "label": "Título principal, línea 1",
+    "help": "Texto destacado de la portada",
+    "fallback": "phrases.p000"
   },
   {
-    "page": "about",
-    "pageLabel": "Sobre nosotros",
-    "key": "about.operations.media",
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.hero.title2",
+    "type": "text",
+    "label": "Título principal, línea 2",
+    "help": "Segunda línea del título",
+    "fallback": "phrases.p001"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.quote.heading1",
+    "type": "text",
+    "label": "Cotización, encabezado 1",
+    "help": "Llamada a la acción",
+    "fallback": "phrases.p036"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.quote.heading2",
+    "type": "text",
+    "label": "Cotización, encabezado 2",
+    "help": "Llamada a la acción, segunda línea",
+    "fallback": "phrases.p037"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.quote.media",
     "type": "media",
-    "label": "Fotografía de operaciones",
-    "help": "Imagen junto a la introducción",
-    "fallback": "/images/about-operations-enhanced.jpg"
-  },
-  {
-    "page": "about",
-    "pageLabel": "Sobre nosotros",
-    "key": "about.intro",
-    "type": "text",
-    "label": "Nuestra historia",
-    "help": "Texto junto a la foto de operaciones",
-    "fallback": "custom.about.introduction"
-  },
-  {
-    "page": "about",
-    "pageLabel": "Sobre nosotros",
-    "key": "about.values.heading",
-    "type": "text",
-    "label": "Nuestros valores, título",
-    "help": "Encabezado de la sección de valores",
-    "fallback": "custom.about.valuesTitle"
-  },
-  {
-    "page": "services",
-    "pageLabel": "Servicios",
-    "key": "services.hero.media",
-    "type": "media",
-    "label": "Portada de servicios",
-    "help": "Fondo principal de la página Servicios",
+    "label": "Tarjeta de cotizaciones",
+    "help": "Fondo de cotizar en línea",
     "fallback": "/images/services-crane.webp"
   },
   {
-    "page": "services",
-    "pageLabel": "Servicios",
-    "key": "services.hero.heading1",
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.services.air.detail",
     "type": "text",
-    "label": "Portada de Servicios, título 1",
-    "help": "Primera línea de portada",
+    "label": "Servicio Aéreo, descripción",
+    "help": "Texto de detalle del servicio",
+    "fallback": "content.services.Air.detail"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.services.air.media",
+    "type": "media",
+    "label": "Servicio Aéreo",
+    "help": "Foto del acordeón de servicios",
+    "fallback": "/images/air-freight.webp"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.services.air.title",
+    "type": "text",
+    "label": "Servicio Aéreo, título",
+    "help": "Título dentro de la tarjeta",
+    "fallback": "content.services.Air.title"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.services.heading1",
+    "type": "text",
+    "label": "Servicios, título 1",
+    "help": "Encabezado de servicios",
     "fallback": "phrases.p009"
   },
   {
-    "page": "services",
-    "pageLabel": "Servicios",
-    "key": "services.hero.heading2",
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.services.heading2",
     "type": "text",
-    "label": "Portada de Servicios, título 2",
-    "help": "Segunda línea de portada",
+    "label": "Servicios, título 2",
+    "help": "Segunda parte del encabezado",
     "fallback": "phrases.p010"
   },
   {
-    "page": "services",
-    "pageLabel": "Servicios",
-    "key": "services.hero.intro",
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.services.intro",
     "type": "text",
-    "label": "Portada de Servicios, descripción",
-    "help": "Párrafo bajo el título",
+    "label": "Introducción de servicios",
+    "help": "Descripción del catálogo de transporte",
     "fallback": "phrases.p011"
   },
   {
-    "page": "services",
-    "pageLabel": "Servicios",
-    "key": "services.complementary.heading1",
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.services.land.detail",
     "type": "text",
-    "label": "Complementarios, título 1",
-    "help": "Primer título",
-    "fallback": "phrases.p049"
+    "label": "Servicio Terrestre, descripción",
+    "help": "Texto de detalle del servicio",
+    "fallback": "content.services.Land.detail"
   },
   {
-    "page": "services",
-    "pageLabel": "Servicios",
-    "key": "services.complementary.heading2",
-    "type": "text",
-    "label": "Complementarios, título 2",
-    "help": "Segundo título",
-    "fallback": "phrases.p050"
-  },
-  {
-    "page": "services",
-    "pageLabel": "Servicios",
-    "key": "services.complementary.intro",
-    "type": "text",
-    "label": "Complementarios, introducción",
-    "help": "Descripción de los servicios extra",
-    "fallback": "phrases.p051"
-  },
-  {
-    "page": "services",
-    "pageLabel": "Servicios",
-    "key": "services.complementary.customs.media",
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.services.land.media",
     "type": "media",
-    "label": "Servicio complementario, aduanas",
-    "help": "Foto de servicios de aduanas",
-    "fallback": "/images/services-crane.webp"
+    "label": "Servicio Terrestre",
+    "help": "Foto del acordeón de servicios",
+    "fallback": "/images/truck.webp"
   },
   {
-    "page": "services",
-    "pageLabel": "Servicios",
-    "key": "services.complementary.customs.title",
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.services.land.title",
     "type": "text",
-    "label": "Servicio aduanal, título",
-    "help": "Título de la primera tarjeta",
-    "fallback": "phrases.p053"
+    "label": "Servicio Terrestre, título",
+    "help": "Título dentro de la tarjeta",
+    "fallback": "content.services.Land.title"
   },
   {
-    "page": "services",
-    "pageLabel": "Servicios",
-    "key": "services.complementary.customs.intro",
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.services.maritime.detail",
     "type": "text",
-    "label": "Servicio aduanal, descripción",
-    "help": "Texto de la primera tarjeta",
-    "fallback": "phrases.p054"
+    "label": "Servicio Marítimo, descripción",
+    "help": "Texto de detalle del servicio",
+    "fallback": "content.services.Maritime.detail"
   },
   {
-    "page": "services",
-    "pageLabel": "Servicios",
-    "key": "services.complementary.warehouse.media",
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.services.maritime.media",
     "type": "media",
-    "label": "Servicio complementario, almacén",
-    "help": "Foto de almacén",
-    "fallback": "/images/warehouse-person.webp"
+    "label": "Servicio Marítimo",
+    "help": "Foto del acordeón de servicios",
+    "fallback": "/images/ship.webp"
   },
   {
-    "page": "services",
-    "pageLabel": "Servicios",
-    "key": "services.complementary.warehouse.title",
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.services.maritime.title",
     "type": "text",
-    "label": "Servicio almacén, título",
-    "help": "Título de la segunda tarjeta",
-    "fallback": "phrases.p057"
+    "label": "Servicio Marítimo, título",
+    "help": "Título dentro de la tarjeta",
+    "fallback": "content.services.Maritime.title"
   },
   {
-    "page": "services",
-    "pageLabel": "Servicios",
-    "key": "services.complementary.warehouse.intro",
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.services.multimodal.detail",
     "type": "text",
-    "label": "Servicio almacén, descripción",
-    "help": "Texto de la segunda tarjeta",
-    "fallback": "phrases.p058"
+    "label": "Servicio Multimodal, descripción",
+    "help": "Texto de detalle del servicio",
+    "fallback": "content.services.Multimodal.detail"
   },
   {
-    "page": "services",
-    "pageLabel": "Servicios",
-    "key": "services.tracking.media",
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.services.multimodal.media",
     "type": "media",
-    "label": "Seguimiento digital",
-    "help": "Imagen del acceso a tracking",
+    "label": "Servicio Multimodal",
+    "help": "Foto del acordeón de servicios",
+    "fallback": "/images/cover-logistics.jpeg"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.services.multimodal.title",
+    "type": "text",
+    "label": "Servicio Multimodal, título",
+    "help": "Título dentro de la tarjeta",
+    "fallback": "content.services.Multimodal.title"
+  },
+  {
+    "page": "home",
+    "pageLabel": "Inicio",
+    "key": "home.tracking.media",
+    "type": "media",
+    "label": "Tarjeta de seguimiento",
+    "help": "Fondo de la tarjeta de Tracking",
     "fallback": "/images/tracking-red.webp"
   },
   {
-    "page": "services",
-    "pageLabel": "Servicios",
-    "key": "services.quote.media",
-    "type": "media",
-    "label": "Cotización digital",
-    "help": "Imagen del acceso a cotizaciones",
-    "fallback": "/images/services-crane.webp"
+    "page": "login",
+    "pageLabel": "Acceso",
+    "key": "login.hero.intro",
+    "type": "text",
+    "label": "Login, introducción",
+    "help": "Descripción de la plataforma",
+    "fallback": "custom.login.visualIntro"
   },
   {
     "page": "login",
@@ -546,13 +600,247 @@ export const siteSlotCatalog: SiteSlotDefinition[] = [
     "fallback": "custom.login.visualTitle3"
   },
   {
-    "page": "login",
-    "pageLabel": "Acceso",
-    "key": "login.hero.intro",
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.air.detail",
     "type": "text",
-    "label": "Login, introducción",
-    "help": "Descripción de la plataforma",
-    "fallback": "custom.login.visualIntro"
+    "label": "Servicio aéreo, descripción",
+    "help": "Párrafo dentro del panel",
+    "fallback": "content.services.Air.detail"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.air.media",
+    "type": "media",
+    "label": "Servicio Aéreo",
+    "help": "Imagen del panel de servicio",
+    "fallback": "/images/air-freight.webp"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.air.title",
+    "type": "text",
+    "label": "Servicio aéreo, título",
+    "help": "Título en el panel de servicios",
+    "fallback": "content.services.Air.title"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.complementary.customs.intro",
+    "type": "text",
+    "label": "Servicio aduanal, descripción",
+    "help": "Texto de la primera tarjeta",
+    "fallback": "phrases.p054"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.complementary.customs.media",
+    "type": "media",
+    "label": "Servicio complementario, aduanas",
+    "help": "Foto de servicios de aduanas",
+    "fallback": "/images/services-crane.webp"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.complementary.customs.title",
+    "type": "text",
+    "label": "Servicio aduanal, título",
+    "help": "Título de la primera tarjeta",
+    "fallback": "phrases.p053"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.complementary.heading1",
+    "type": "text",
+    "label": "Complementarios, título 1",
+    "help": "Primer título",
+    "fallback": "phrases.p049"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.complementary.heading2",
+    "type": "text",
+    "label": "Complementarios, título 2",
+    "help": "Segundo título",
+    "fallback": "phrases.p050"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.complementary.intro",
+    "type": "text",
+    "label": "Complementarios, introducción",
+    "help": "Descripción de los servicios extra",
+    "fallback": "phrases.p051"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.complementary.warehouse.intro",
+    "type": "text",
+    "label": "Servicio almacén, descripción",
+    "help": "Texto de la segunda tarjeta",
+    "fallback": "phrases.p058"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.complementary.warehouse.media",
+    "type": "media",
+    "label": "Servicio complementario, almacén",
+    "help": "Foto de almacén",
+    "fallback": "/images/warehouse-person.webp"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.complementary.warehouse.title",
+    "type": "text",
+    "label": "Servicio almacén, título",
+    "help": "Título de la segunda tarjeta",
+    "fallback": "phrases.p057"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.hero.heading1",
+    "type": "text",
+    "label": "Portada de Servicios, título 1",
+    "help": "Primera línea de portada",
+    "fallback": "phrases.p009"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.hero.heading2",
+    "type": "text",
+    "label": "Portada de Servicios, título 2",
+    "help": "Segunda línea de portada",
+    "fallback": "phrases.p010"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.hero.intro",
+    "type": "text",
+    "label": "Portada de Servicios, descripción",
+    "help": "Párrafo bajo el título",
+    "fallback": "phrases.p011"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.hero.media",
+    "type": "media",
+    "label": "Portada de servicios",
+    "help": "Fondo principal de la página Servicios",
+    "fallback": "/images/services-crane.webp"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.land.detail",
+    "type": "text",
+    "label": "Servicio terrestre, descripción",
+    "help": "Párrafo dentro del panel",
+    "fallback": "content.services.Land.detail"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.land.media",
+    "type": "media",
+    "label": "Servicio Terrestre",
+    "help": "Imagen del panel de servicio",
+    "fallback": "/images/truck.webp"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.land.title",
+    "type": "text",
+    "label": "Servicio terrestre, título",
+    "help": "Título en el panel de servicios",
+    "fallback": "content.services.Land.title"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.maritime.detail",
+    "type": "text",
+    "label": "Servicio marítimo, descripción",
+    "help": "Párrafo dentro del panel",
+    "fallback": "content.services.Maritime.detail"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.maritime.media",
+    "type": "media",
+    "label": "Servicio Marítimo",
+    "help": "Imagen del panel de servicio",
+    "fallback": "/images/ship.webp"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.maritime.title",
+    "type": "text",
+    "label": "Servicio marítimo, título",
+    "help": "Título en el panel de servicios",
+    "fallback": "content.services.Maritime.title"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.multimodal.detail",
+    "type": "text",
+    "label": "Servicio multimodal, descripción",
+    "help": "Párrafo dentro del panel",
+    "fallback": "content.services.Multimodal.detail"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.multimodal.media",
+    "type": "media",
+    "label": "Servicio Multimodal",
+    "help": "Imagen del panel de servicio",
+    "fallback": "/images/cover-logistics.jpeg"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.multimodal.title",
+    "type": "text",
+    "label": "Servicio multimodal, título",
+    "help": "Título en el panel de servicios",
+    "fallback": "content.services.Multimodal.title"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.quote.media",
+    "type": "media",
+    "label": "Cotización digital",
+    "help": "Imagen del acceso a cotizaciones",
+    "fallback": "/images/services-crane.webp"
+  },
+  {
+    "page": "services",
+    "pageLabel": "Servicios",
+    "key": "services.tracking.media",
+    "type": "media",
+    "label": "Seguimiento digital",
+    "help": "Imagen del acceso a tracking",
+    "fallback": "/images/tracking-red.webp"
   },
   {
     "page": "shared",
