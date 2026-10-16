@@ -58,7 +58,11 @@ jobs:
           fi
       - name: Seed test accounts only
         run: docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d login -f /tmp/SeedLocal.sql
-      - name: Test login, roles, CRUD and quote modes
+      - name: Install SignalR test client (test containers only)
+        run: npm ci --prefix frontend --ignore-scripts
+      - name: Test login, SignalR broadcasts, roles, CRUD and quote modes
+        env:
+          SIGNALR_SMOKE: '1'
         run: python3 scripts/smoke-local.py
       - name: Backend logs on failure
         if: failure()
