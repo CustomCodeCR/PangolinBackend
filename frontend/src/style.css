@@ -4720,3 +4720,19 @@ html.theme-dark .about-access .access-card--quote{background-image:linear-gradie
 .access-card>.cms-background-video{z-index:0}
 .access-card:has(>.cms-background-video)::before{z-index:1}
 @media(prefers-reduced-motion:reduce){.home-hero:has(>.cms-background-video),.inner-hero:has(>.cms-background-video),.login-visual:has(>.cms-background-video),.faq-section:has(>.cms-background-video),.access-card:has(>.cms-background-video){background-color:#28364a}}
+
+/* Estas reglas específicas ganan frente a fotografías históricas en CSS más antiguas. */
+.about-reference-page .inner-hero--about{
+  background-image:linear-gradient(105deg,#a30b2dd9 0%,#b51637a8 48%,#5b1d3780 100%),var(--cms-about-hero,url('/images/about-operations-enhanced.jpg'))!important;
+}
+.services-page .inner-hero--services{
+  background-image:linear-gradient(90deg,rgba(163,7,35,.78),rgba(9,29,75,.08)),var(--cms-services-hero,url('/images/services-crane.webp'))!important;
+}
+.about-reference-page .inner-hero--about:has(>.cms-background-video),
+.services-page .inner-hero--services:has(>.cms-background-video){background-image:none!important}
+.service-modal:has(>.cms-background-video){background-image:none!important;isolation:isolate;background-color:#161f33!important}
+.service-modal>.cms-background-video{position:absolute!important;inset:0;width:100%;height:100%;z-index:0;object-fit:cover}
+.service-modal:has(>.cms-background-video)::after{z-index:1;background:linear-gradient(120deg,rgba(255,250,250,.84),rgba(255,250,250,.71))}
+html.theme-dark .service-modal:has(>.cms-background-video)::after{background:linear-gradient(120deg,rgba(8,16,33,.84),rgba(8,16,33,.7))}
+.service-modal:has(>.cms-background-video)>:not(.cms-background-video){position:relative;z-index:2}
+.service-modal:has(>.cms-background-video)>.service-modal__close{position:absolute}
