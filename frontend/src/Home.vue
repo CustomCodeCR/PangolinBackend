@@ -4,23 +4,27 @@ import SiteHeader from './components/SiteHeader.vue'
 import SiteFooter from './components/SiteFooter.vue'
 import WorldGlobe from './components/WorldGlobe.vue'
 import IconSymbol from './components/IconSymbol.vue'
+import SiteMedia from './components/SiteMedia.vue'
+import { siteText, siteVisual, siteCssImage } from './siteCms'
 import { services as baseServices, faqs as baseFaqs, type ServiceKey } from './content'
 import type { ManagedNews } from './adminContent'
 import { useI18n } from 'vue-i18n'
 
-const { t } = useI18n({ useScope: 'global' })
+const { t, locale } = useI18n({ useScope: 'global' })
 const activeService = ref<ServiceKey>('Air')
 const localizedServices = computed(() => baseServices.map(service => ({
   ...service,
-  title: t(`content.services.${service.key}.title`),
+  photo: siteVisual(`home.services.${service.key.toLowerCase()}.media`, service.photo).src,
+  kind: siteVisual(`home.services.${service.key.toLowerCase()}.media`, service.photo).kind,
+  title: siteText(`home.services.${service.key.toLowerCase()}.title`, t(`content.services.${service.key}.title`), locale.value),
   label: t(`content.services.${service.key}.label`),
   description: t(`content.services.${service.key}.description`),
-  detail: t(`content.services.${service.key}.detail`)
+  detail: siteText(`home.services.${service.key.toLowerCase()}.detail`, t(`content.services.${service.key}.detail`), locale.value)
 })))
 const transportServices = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as ServiceKey[]).map(key => localizedServices.value.find(service => service.key === key)!))
 const selectedService = computed(() => localizedServices.value.find(service => service.key === activeService.value) ?? localizedServices.value[0])
 const modalService = ref<ServiceKey | null>(null)
-const modalPhoto = computed(() => baseServices.find(service => service.key === modalService.value)?.photo ?? '/images/hero.webp')
+const modalPhoto = computed(() => siteCssImage(`home.services.${modalService.value?.toLowerCase()}.media`, baseServices.find(service => service.key === modalService.value)?.photo ?? '/images/hero.webp'))
 const modalItemCounts: Record<ServiceKey, number[]> = { Maritime: [5, 4, 3], Land: [4, 4, 3], Air: [4, 3], Multimodal: [3, 3] }
 const serviceInfo = computed(() => Object.fromEntries((['Maritime', 'Land', 'Air', 'Multimodal'] as ServiceKey[]).map(key => {
   const base = `custom.home.modal.${key}`
@@ -113,7 +117,8 @@ onUnmounted(() => {
 
 <template>
   <div class="app-site">
-    <section class="home-hero">
+    <section class="home-hero" :class="{ 'cms-video-hero': siteVisual('home.hero.media', '/images/hero.webp').kind.startsWith('Video') }" :style="{ '--cms-home-hero': siteCssImage('home.hero.media', '/images/hero.webp') }">
+      <SiteMedia v-if="siteVisual('home.hero.media', '/images/hero.webp').kind.startsWith('Video')" slot-key="home.hero.media" fallback="/images/hero.webp" background />
       <SiteHeader overlay active="principal" />
 
       <div class="container home-hero__layout">
@@ -123,10 +128,10 @@ onUnmounted(() => {
             GRUPO CASTRO FALLAS
           </p>
 
-          <h1>{{ $t('phrases.p000') }}<br /><span>{{ $t('phrases.p001') }}</span></h1>
+          <h1>{{ siteText('home.hero.title1', $t('phrases.p000'), locale) }}<br /><span>{{ siteText('home.hero.title2', $t('phrases.p001'), locale) }}</span></h1>
 
           <p>
-            {{ $t('phrases.p002') }}
+            {{ siteText('home.hero.intro', $t('phrases.p002'), locale) }}
           </p>
 
           <div class="hero-actions">
@@ -150,10 +155,10 @@ onUnmounted(() => {
           <div class="services-main">
             <p class="section-tag center">{{ $t('phrases.p008') }}</p>
             <h2 class="section-title centered">
-              {{ $t('phrases.p009') }} <span>{{ $t('phrases.p010') }}</span>
+              {{ siteText('home.services.heading1', $t('phrases.p009'), locale) }} <span>{{ siteText('home.services.heading2', $t('phrases.p010'), locale) }}</span>
             </h2>
             <p class="section-desc centered">
-              {{ $t('phrases.p011') }}
+              {{ siteText('home.services.intro', $t('phrases.p011'), locale) }}
             </p>
 
             <div class="service-accordion" :aria-label="$t('phrases.p134')">
@@ -162,8 +167,9 @@ onUnmounted(() => {
                 :key="service.key"
                 class="service-accordion__item"
                 :class="{ 'is-open': activeService === service.key }"
-                :style="{ '--service-image': `url('${service.photo}')` }"
+                 :style="{ '--service-image': siteCssImage(`home.services.${service.key.toLowerCase()}.media`, baseServices.find(item => item.key === service.key)?.photo ?? '/images/hero.webp') }"
               >
+                <SiteMedia v-if="service.kind.startsWith('Video')" :slot-key="`home.services.${service.key.toLowerCase()}.media`" :fallback="service.photo" background />
                 <button
                   class="service-accordion__trigger"
                   type="button"
@@ -228,10 +234,10 @@ onUnmounted(() => {
         <div class="home-about-preview__copy">
           <p class="section-tag">{{ $t('custom.about.title') }}</p>
           <h2><strong>+48</strong><span>{{ $t('custom.about.years') }}</span></h2>
-          <p class="home-about-preview__description">{{ $t('custom.about.introduction') }}</p>
+          <p class="home-about-preview__description">{{ siteText('home.about.intro', $t('custom.about.introduction'), locale) }}</p>
         </div>
         <div class="home-about-preview__image">
-          <img src="/images/about-operations-enhanced.jpg" :alt="$t('phrases.p139')" loading="lazy" />
+          <SiteMedia slot-key="home.about.media" fallback="/images/about-operations-enhanced.jpg" :alt="$t('phrases.p139')" />
         </div>
       </section>
 
@@ -239,7 +245,7 @@ onUnmounted(() => {
         <div class="container home-last-cta__inner">
           <div>
             <p class="section-tag">{{ $t('phrases.p035') }}</p>
-            <h2>{{ $t('phrases.p036') }}<br /><span>{{ $t('phrases.p037') }}</span></h2>
+            <h2>{{ siteText('home.quote.heading1', $t('phrases.p036'), locale) }}<br /><span>{{ siteText('home.quote.heading2', $t('phrases.p037'), locale) }}</span></h2>
           </div>
           <a href="/cotizaciones" class="btn btn-primary">
             {{ $t('custom.home.quoteNow') }} <IconSymbol glyph="↗" />
@@ -297,8 +303,8 @@ onUnmounted(() => {
             <div>
               <p class="section-tag">{{ $t('phrases.p026') }}</p>
               <h2 class="section-title">
-                {{ $t('phrases.p027') }}<br />
-                {{ $t('phrases.p028') }} <span>{{ $t('phrases.p029') }}</span>
+                {{ siteText('home.digital.heading1', $t('phrases.p027'), locale) }}<br />
+                {{ siteText('home.digital.heading2', $t('phrases.p028'), locale) }} <span>{{ siteText('home.digital.heading3', $t('phrases.p029'), locale) }}</span>
               </h2>
             </div>
           </div>
@@ -330,16 +336,18 @@ onUnmounted(() => {
             {{ $t('phrases.p061') }} <span>{{ $t('phrases.p062') }}</span>
           </h2>
           <p class="section-desc centered">
-            {{ $t('phrases.p063') }}
+            {{ siteText('home.digital.intro', $t('phrases.p063'), locale) }}
           </p>
 
           <div class="access-grid">
-            <a class="access-card access-card--tracking" href="/tracking">
+            <a class="access-card access-card--tracking" href="/tracking" :style="{ '--cms-access-tracking': siteCssImage('home.tracking.media', '/images/tracking-red.webp') }">
+               <SiteMedia v-if="siteVisual('home.tracking.media', '/images/tracking-red.webp').kind.startsWith('Video')" slot-key="home.tracking.media" fallback="/images/tracking-red.webp" background />
               <IconSymbol glyph="→" :size="22" />
               <strong>{{ $t('custom.home.trackingTitle') }}</strong>
               <small>{{ $t('phrases.p064') }}</small>
             </a>
-            <a class="access-card access-card--quote" href="/cotizaciones">
+            <a class="access-card access-card--quote" href="/cotizaciones" :style="{ '--cms-access-quote': siteCssImage('home.quote.media', '/images/services-crane.webp') }">
+               <SiteMedia v-if="siteVisual('home.quote.media', '/images/services-crane.webp').kind.startsWith('Video')" slot-key="home.quote.media" fallback="/images/services-crane.webp" background />
               <IconSymbol glyph="➜" :size="22" />
               <strong>{{ $t('custom.home.quoteCardTitle') }}</strong>
               <small>{{ $t('phrases.p065') }}</small>
@@ -348,12 +356,13 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <section class="faq-section section-spacing">
+      <section class="faq-section section-spacing" :style="{ '--cms-faq': siteCssImage('home.faq.media', '/images/operation.webp') }">
+        <SiteMedia v-if="siteVisual('home.faq.media', '/images/operation.webp').kind.startsWith('Video')" slot-key="home.faq.media" fallback="/images/operation.webp" background />
         <div class="faq-background"></div>
         <div class="container faq-content">
-          <p class="section-tag light-tag center">{{ $t('phrases.p032') }}</p>
+          <p class="section-tag light-tag center">{{ siteText('home.faq.heading1', $t('phrases.p032'), locale) }}</p>
           <h2 class="section-title centered white-title">
-            {{ $t('phrases.p033') }}<br />{{ $t('phrases.p034') }}
+            {{ siteText('home.faq.heading2', $t('phrases.p033'), locale) }}<br />{{ $t('phrases.p034') }}
           </h2>
 
           <div class="faq-list">
