@@ -17,7 +17,8 @@ public static class SiteCmsEndpoints
         "services.land.media", "services.multimodal.media",
         "services.complementary.customs.media", "services.complementary.warehouse.media",
         "services.tracking.media", "services.quote.media",
-        "login.hero.media", "shared.logo.media"
+        "login.hero.media", "shared.logo.media",
+        "home.digital.card.0.media", "home.digital.card.1.media", "home.digital.card.2.media"
     };
     private static readonly HashSet<string> TextKeys = new(StringComparer.Ordinal)
     {
@@ -36,7 +37,36 @@ public static class SiteCmsEndpoints
         "services.complementary.intro", "services.complementary.customs.title",
         "services.complementary.customs.intro", "services.complementary.warehouse.title",
         "services.complementary.warehouse.intro",
-        "login.hero.title1", "login.hero.title2", "login.hero.title3", "login.hero.intro"
+        "login.hero.title1", "login.hero.title2", "login.hero.title3", "login.hero.intro",
+        "home.digital.card.0.title",
+        "home.digital.card.0.subtitle",
+        "home.digital.card.1.title",
+        "home.digital.card.1.subtitle",
+        "home.digital.card.2.title",
+        "home.digital.card.2.subtitle",
+        "home.faq.0.q",
+        "home.faq.0.a",
+        "about.values.0",
+        "home.faq.1.q",
+        "home.faq.1.a",
+        "about.values.1",
+        "home.faq.2.q",
+        "home.faq.2.a",
+        "about.values.2",
+        "home.faq.3.q",
+        "home.faq.3.a",
+        "about.values.3",
+        "home.faq.4.q",
+        "home.faq.4.a",
+        "about.values.4",
+        "services.air.title",
+        "services.air.detail",
+        "services.maritime.title",
+        "services.maritime.detail",
+        "services.land.title",
+        "services.land.detail",
+        "services.multimodal.title",
+        "services.multimodal.detail"
     };
 
     public static void MapSiteCms(this IEndpointRouteBuilder app)
