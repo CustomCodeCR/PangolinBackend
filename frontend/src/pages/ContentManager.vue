@@ -251,6 +251,11 @@ async function uploadToS3(file: File, kind: string, name: string): Promise<Manag
 function mediaPreviewSrc(item: ManagedMedia): string {
   return item.objectKey ? `/api/admin/content/media/${encodeURIComponent(item.id)}/file` : item.src
 }
+function newsPreviewSrc(item: ManagedNews): string {
+  // Los borradores pueden usar imágenes privadas de S3; el administrador sí puede verlas.
+  const match = /^\\/api\\/content\\/media\\/([0-9a-f-]{36})\\/file$/i.exec(item.image)
+  return match ? `/api/admin/content/media/${match[1]}/file` : item.image
+}
 
 async function submitNews() {
   const isPublishing = newsForm.value.published
@@ -474,7 +479,7 @@ function useMediaForNews(item: ManagedMedia) {
           <header><div><p class="manager-eyebrow">REGISTROS GUARDADOS</p><h2>{{ currentList.length }} elementos</h2></div><button class="manager-add" @click="startNew">＋ Nuevo</button></header>
           <p v-if="currentList.length === 0" class="manager-empty">Todavía no hay elementos. Completa el formulario para agregar el primero.</p>
           <article v-for="entry in currentList" :key="entry.id" class="manager-item">
-            <img v-if="section === 'news' && (entry as ManagedNews).image" :src="(entry as ManagedNews).image" alt="" />
+            <img v-if="section === 'news' && (entry as ManagedNews).image" :src="newsPreviewSrc(entry as ManagedNews)" alt="" />
             <img v-else-if="section === 'media' && (entry as ManagedMedia).kind === 'Imagen'" :src="mediaPreviewSrc(entry as ManagedMedia)" alt="" />
             <div class="manager-item-copy">
               <strong v-if="section === 'itineraries'">{{ (entry as ManagedItinerary).origin }} → {{ (entry as ManagedItinerary).destination }}</strong>
