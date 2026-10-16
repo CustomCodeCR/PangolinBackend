@@ -17,8 +17,7 @@ public static class SiteCmsEndpoints
         "services.land.media", "services.multimodal.media",
         "services.complementary.customs.media", "services.complementary.warehouse.media",
         "services.tracking.media", "services.quote.media",
-        "login.hero.media", "shared.logo.media",
-        "home.digital.card.0.media", "home.digital.card.1.media", "home.digital.card.2.media"
+        "login.hero.media", "shared.logo.media"
     };
     private static readonly HashSet<string> TextKeys = new(StringComparer.Ordinal)
     {
@@ -55,6 +54,8 @@ public static class SiteCmsEndpoints
         "about.values.2",
         "home.faq.3.q",
         "home.faq.3.a",
+        "home.faq.heading3",
+        "services.catalog.heading1", "services.catalog.heading2", "services.catalog.intro",
         "about.values.3",
         "about.values.4",
         "services.air.title",
