@@ -3,6 +3,7 @@ export type ManagedNews = {
   title: string
   category: string
   description: string
+  body?: string
   image: string
   published: boolean
 }
