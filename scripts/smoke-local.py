@@ -12,6 +12,8 @@ from urllib.request import Request, build_opener, HTTPCookieProcessor
 from urllib.error import HTTPError
 import http.cookiejar
 import json
+import os
+import subprocess
 import re
 import time
 
@@ -107,6 +109,20 @@ def main():
 
     status, me = call(browser, '/api/auth/me')
     require(status == 200 and me.get('correo') == email and me.get('role') == 'admin', f'Cookie/JWT incorrecta: {status} {me}')
+    # Prueba de extremo a extremo del Hub (opt-in para no exigir Node al correr
+    # este smoke manualmente sin dependencias npm). Nunca imprimir la cookie.
+    if os.environ.get('SIGNALR_SMOKE') == '1':
+        status, slots = call(browser, '/api/admin/content/site')
+        require(status == 200 and isinstance(slots, list), 'No se pudo preparar prueba SignalR.')
+        occupied = {row.get('key') for row in slots}
+        slot = next((key for key in ('login.hero.title3', 'about.values.heading', 'home.digital.card.2.subtitle')
+                     if key not in occupied), None)
+        require(slot is not None, 'No hay ubicación de prueba vacía para SignalR.')
+        env = dict(os.environ)
+        env['SIGNALR_TEST_COOKIE'] = 'cf_session=' + jwt
+        env['SIGNALR_TEST_SLOT'] = slot
+        subprocess.run(['node', 'frontend/scripts/test-signalr-integration.cjs'],
+                       cwd=ROOT, env=env, check=True, timeout=35)
     # Los administradores también pueden cotizar, sin ver solicitudes de otros.
     status, admin_quote = call(browser, '/api/quotes', {
         'serviceType': 'Maritime', 'origin': 'Miami', 'destination': 'San José',
