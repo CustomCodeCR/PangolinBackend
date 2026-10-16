@@ -37,7 +37,9 @@ check(all(ep in program for ep in ['/api/auth/request-otp', '/api/auth/verify-ot
 check('GetIdentityAsync(http, ct)' in program and 'user.ClienteId' in program, 'Cotizaciones autorizadas en servidor y por cliente')
 check(all(x in service for x in ['HMACSHA256', 'FixedTimeEquals', 'HttpOnly = true', 'FOR UPDATE']), 'Backend OTP mantiene controles fundamentales')
 check(all(x in compose for x in ['postgres:', 'redis:', 'mongo:', 'backend:', 'frontend:']), 'Compose incluye 5 servicios')
-check(all(x in compose for x in ['127.0.0.1:${FRONTEND_HOST_PORT', '127.0.0.1:${BACKEND_HOST_PORT', '127.0.0.1:${POSTGRES_HOST_PORT']), 'Puertos host de desarrollo limitados a loopback')
+check('${FRONTEND_BIND_IP:-127.0.0.1}:${FRONTEND_HOST_PORT' in compose and
+      all(x in compose for x in ['127.0.0.1:${BACKEND_HOST_PORT', '127.0.0.1:${POSTGRES_HOST_PORT']),
+      'Frontend LAN opt-in; backend y PostgreSQL permanecen limitados a loopback')
 check((root/'backend/Database/AuthSchema.sql').is_file(), 'Esquema de login disponible')
 check((root/'frontend/public/images/logo.png').is_file(), 'Activos gráficos del rediseño disponibles')
 for language in ('es', 'en'):
