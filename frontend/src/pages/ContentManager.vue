@@ -53,8 +53,8 @@ async function loadMedia() {
 }
 onMounted(async () => {
   await refreshSession()
-  reload()
-  if (isLiveAdmin.value) await Promise.all([loadItineraries(), loadNews(), loadMedia()])
+  if (!isLiveAdmin.value) reload()
+  else await Promise.all([loadItineraries(), loadNews(), loadMedia()])
   if (section.value === 'users') await loadUsers()
 })
 
@@ -140,6 +140,11 @@ async function loadUsers() {
 
 async function updateUser(user: ManagedUser) {
   if (!isLiveAdmin.value) return
+  if (user.id === authState.user?.id) {
+    await loadUsers()
+    usersError.value = 'Tu propia cuenta está protegida: otro administrador debe cambiar tu rol o estado.'
+    return
+  }
   usersError.value = ''
   usersNotice.value = ''
   savingUserId.value = user.id
@@ -162,6 +167,10 @@ async function updateUser(user: ManagedUser) {
   } finally {
     savingUserId.value = null
   }
+}
+
+function onTransportChange() {
+  itineraryForm.value.modality = itineraryForm.value.transport === 'Terrestre' ? 'LTL' : 'FCL'
 }
 
 function startNew() {
@@ -219,6 +228,7 @@ async function submitItinerary() {
 }
 
 async function submitNews() {
+  const isPublishing = newsForm.value.published
   if (!isLiveAdmin.value) {
     const item = { ...newsForm.value, id: editingId.value ?? newManagedId() }
     saveManaged('news', item); reload(); notice.value = 'Noticia de previsualización, solo en este navegador.'; startNew(); return
@@ -238,7 +248,9 @@ async function submitNews() {
     }
     startNew()
     await loadNews()
-    notice.value = 'Noticia guardada en PostgreSQL.'
+    notice.value = isPublishing
+      ? 'Noticia publicada. Ya puede verse en la sección de noticias de la web.'
+      : 'Noticia guardada como borrador. Solo es visible desde administración.'
   } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo guardar la noticia.' }
 }
 async function submitMedia() {
@@ -265,6 +277,7 @@ async function submitMedia() {
   } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo guardar multimedia.' }
 }
 async function remove(id: string) {
+  if (!window.confirm('¿Eliminar este registro? Esta acción no se puede deshacer.')) return
   if (section.value === 'itineraries' && isLiveAdmin.value) {
     notice.value = ''
     try {
@@ -296,16 +309,22 @@ async function remove(id: string) {
 function selectFile(event: Event, target: 'news' | 'media') {
   const file = (event.target as HTMLInputElement).files?.[0]
   if (!file) return
-  if (!file.type.startsWith('image/')) { notice.value = 'Selecciona un archivo de imagen.'; return }
+  if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type)) { notice.value = 'Solo se permiten imágenes PNG, JPEG, WebP o GIF.'; return }
   if (file.size > 2_500_000) { notice.value = 'La imagen debe pesar menos de 2.5 MB para guardarla en este navegador.'; return }
   const reader = new FileReader()
+  reader.onerror = () => { notice.value = 'No se pudo leer la imagen seleccionada.' }
   reader.onload = () => {
     if (target === 'news') newsForm.value.image = String(reader.result)
     else { mediaForm.value.src = String(reader.result); mediaForm.value.name ||= file.name }
   }
   reader.readAsDataURL(file)
 }
-function useMediaForNews(item: ManagedMedia) { section.value = 'news'; newsForm.value.image = item.src; notice.value = `Imagen “${item.name}” seleccionada para la noticia.` }
+function useMediaForNews(item: ManagedMedia) {
+  if (item.kind !== 'Imagen') return
+  selectSection('news')
+  newsForm.value.image = item.src
+  notice.value = `Imagen “${item.name}” seleccionada para la noticia.`
+}
 </script>
 
 <template>
@@ -331,6 +350,7 @@ function useMediaForNews(item: ManagedMedia) { section.value = 'news'; newsForm.
         <header><div><p class="manager-eyebrow">CUENTAS REGISTRADAS</p><h2>{{ usersLoading ? 'Cargando…' : `${users.length} usuarios` }}</h2></div><button class="manager-add" :disabled="usersLoading" @click="loadUsers">Actualizar</button></header>
         <p v-if="usersError" class="manager-users-error" role="alert">{{ usersError }} <button v-if="!authState.previewRole" @click="loadUsers">Reintentar</button></p>
         <p v-if="usersNotice" class="manager-feedback" role="status">{{ usersNotice }}</p>
+        <p class="manager-user-hint">Por seguridad, no puedes modificar tu propia cuenta ni desactivar al último administrador activo. Se mostrará un aviso si lo intentas.</p>
         <div v-if="usersLoading" class="manager-users-empty">Consultando el sistema de usuarios…</div>
         <div v-else-if="!usersError && users.length === 0" class="manager-users-empty">Aún no hay cuentas para mostrar.</div>
         <div v-else-if="users.length" class="manager-users-table-wrap"><table class="manager-users-table"><thead><tr><th>Cuenta</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody><tr v-for="user in users" :key="user.id"><td><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td><td><select v-model="user.role" :disabled="Boolean(authState.previewRole)" :aria-label="`Rol de ${user.correo}`"><option value="cliente">Cliente</option><option value="administrador">Administrador</option></select></td><td><select v-model="user.activo" :disabled="Boolean(authState.previewRole)" :aria-label="`Estado de ${user.correo}`"><option :value="true">Activo</option><option :value="false">Desactivado</option></select></td><td><button class="manager-user-save" :disabled="Boolean(authState.previewRole) || savingUserId === user.id" @click="updateUser(user)">{{ savingUserId === user.id ? 'Guardando…' : 'Guardar' }}</button></td></tr></tbody></table></div>
@@ -342,8 +362,8 @@ function useMediaForNews(item: ManagedMedia) { section.value = 'news'; newsForm.
           <form v-if="section === 'itineraries'" @submit.prevent="submitItinerary">
             <label>Origen<input v-model="itineraryForm.origin" required maxlength="120" placeholder="San José, Costa Rica" /></label>
             <label>Destino<input v-model="itineraryForm.destination" required maxlength="120" placeholder="Miami, Estados Unidos" /></label>
-            <div class="manager-form-row"><label>Transporte<select v-model="itineraryForm.transport"><option>Marítimo</option><option v-if="isLiveAdmin">Terrestre</option><option v-if="!isLiveAdmin">Aéreo</option><option v-if="!isLiveAdmin">Terrestre</option><option v-if="!isLiveAdmin">Multimodal</option></select></label><label>Estado<select v-model="itineraryForm.status"><option>Programado</option><option>En tránsito</option><option>Completado</option><option>Demorado</option></select></label></div>
-            <div class="manager-form-row"><label>Salida<input v-model="itineraryForm.departure" type="date" :required="isLiveAdmin" /></label><label>Llegada<input v-model="itineraryForm.arrival" type="date" :required="isLiveAdmin" /></label></div>
+            <div class="manager-form-row"><label>Transporte<select v-model="itineraryForm.transport" @change="onTransportChange"><option>Marítimo</option><option v-if="isLiveAdmin">Terrestre</option><option v-if="!isLiveAdmin">Aéreo</option><option v-if="!isLiveAdmin">Terrestre</option><option v-if="!isLiveAdmin">Multimodal</option></select></label><label>Estado<select v-model="itineraryForm.status"><option>Programado</option><option>En tránsito</option><option>Completado</option><option>Demorado</option></select></label></div>
+            <div class="manager-form-row"><label>Salida (ETD)<input v-model="itineraryForm.departure" type="date" :required="isLiveAdmin" /></label><label>Llegada (ETA)<input v-model="itineraryForm.arrival" type="date" :required="isLiveAdmin" /></label></div>
             <template v-if="isLiveAdmin"><label>Closing (opcional)<input v-model="itineraryForm.closing" type="date" /></label><label>Modalidad<select v-model="itineraryForm.modality"><option v-for="option in (itineraryForm.transport === 'Terrestre' ? ['LTL'] : ['FCL', 'LCL'])" :key="option" :value="option">{{ option }}</option></select></label><div class="manager-form-row"><label>Transportista (opcional)<input v-model="itineraryForm.carrier" maxlength="150" /></label><label>Buque (opcional)<input v-model="itineraryForm.vessel" maxlength="150" /></label></div><label>Viaje (opcional)<input v-model="itineraryForm.voyage" maxlength="50" /></label></template>
             <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar itinerario' }}</button>
           </form>
@@ -353,14 +373,19 @@ function useMediaForNews(item: ManagedMedia) { section.value = 'news'; newsForm.
             <label>Resumen<textarea v-model="newsForm.description" required maxlength="1200" rows="4" placeholder="Escribe el contenido de la noticia" /></label>
             <label>Imagen (archivo)<input type="file" accept="image/*" @change="selectFile($event, 'news')" /></label>
             <label>o URL de imagen<input v-model="newsForm.image" placeholder="/images/mi-imagen.webp" /></label>
-            <label class="manager-checkbox"><input v-model="newsForm.published" type="checkbox" /> Publicar noticia</label>
+            <label>Estado de publicación<select v-model="newsForm.published">
+              <option :value="false">Borrador (solo administradores)</option>
+              <option :value="true">Publicada (visible en la web)</option>
+            </select></label>
+            <p class="manager-publication-hint" role="status">{{ newsForm.published ? 'Esta noticia aparecerá en la web al guardar los cambios.' : 'Este borrador no aparecerá en la web pública.' }}</p>
             <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar noticia' }}</button>
           </form>
           <form v-else @submit.prevent="submitMedia">
             <label>Nombre<input v-model="mediaForm.name" required maxlength="120" placeholder="Imagen de puerto" /></label>
             <label>Tipo<select v-model="mediaForm.kind"><option>Imagen</option><option>Video (enlace)</option><option>Documento (enlace)</option></select></label>
             <label v-if="mediaForm.kind === 'Imagen'">Seleccionar imagen<input type="file" accept="image/*" @change="selectFile($event, 'media')" /></label>
-            <label>{{ mediaForm.kind === 'Imagen' ? 'o URL del archivo' : 'Enlace del archivo' }}<input v-model="mediaForm.src" required placeholder="/images/archivo.webp" /></label>
+            <label>{{ mediaForm.kind === 'Imagen' ? 'o URL del archivo' : 'Enlace HTTPS del archivo' }}<input v-model="mediaForm.src" :type="mediaForm.kind === 'Imagen' ? 'text' : 'url'" required :placeholder="mediaForm.kind === 'Imagen' ? '/images/archivo.webp' : 'https://ejemplo.com/archivo'" /></label>
+            <p v-if="mediaForm.kind !== 'Imagen'" class="manager-publication-hint">Los videos y documentos se guardan como enlaces HTTPS; no se cargan archivos al servidor.</p>
             <img v-if="mediaForm.src && mediaForm.kind === 'Imagen'" class="manager-image-preview" :src="mediaForm.src" alt="Vista previa" />
             <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar archivo' }}</button>
           </form>
@@ -377,10 +402,10 @@ function useMediaForNews(item: ManagedMedia) { section.value = 'news'; newsForm.
               <strong v-else-if="section === 'news'">{{ (entry as ManagedNews).title }}</strong>
               <strong v-else>{{ (entry as ManagedMedia).name }}</strong>
               <small v-if="section === 'itineraries'">{{ (entry as ManagedItinerary).transport }} · {{ (entry as ManagedItinerary).status }}</small>
-              <small v-else-if="section === 'news'">{{ (entry as ManagedNews).category }} · {{ (entry as ManagedNews).published ? 'Publicada' : 'Borrador' }}</small>
+              <small v-else-if="section === 'news'">{{ (entry as ManagedNews).category }} · <strong :class="(entry as ManagedNews).published ? 'manager-status-published' : 'manager-status-draft'">{{ (entry as ManagedNews).published ? 'Publicada en la web' : 'Borrador privado' }}</strong></small>
               <small v-else>{{ (entry as ManagedMedia).kind }}</small>
             </div>
-            <div class="manager-item-actions"><button aria-label="Editar" title="Editar" @click="edit(entry)">✎</button><button aria-label="Eliminar" title="Eliminar" @click="remove(entry.id)">×</button><button v-if="section === 'media'" aria-label="Usar imagen en noticia" title="Usar en noticia" @click="useMediaForNews(entry as ManagedMedia)">↗</button></div>
+            <div class="manager-item-actions"><button aria-label="Editar" title="Editar" @click="edit(entry)">✎</button><button aria-label="Eliminar" title="Eliminar" @click="remove(entry.id)">×</button><button v-if="section === 'media' && (entry as ManagedMedia).kind === 'Imagen'" aria-label="Usar imagen en noticia" title="Usar en noticia" @click="useMediaForNews(entry as ManagedMedia)">↗</button></div>
           </article>
         </section>
         </template>
@@ -666,4 +691,11 @@ function useMediaForNews(item: ManagedMedia) { section.value = 'news'; newsForm.
   .is-embedded .manager-preview-note::before,
   .is-embedded .manager-users-error::before { animation: none; background-position: 50% 0; }
 }
+</style>
+
+<style scoped>
+.manager-publication-hint,.manager-user-hint { margin: 0 0 14px; font-size: 13px; line-height: 1.5; color: #606775; }
+.manager-user-hint { margin: 8px 0 16px; }
+.manager-status-published { color: #226341; font-weight: 750; }
+.manager-status-draft { color: #805c11; font-weight: 750; }
 </style>
