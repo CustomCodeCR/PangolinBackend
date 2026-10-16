@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:5000',
           // Mantener Host del navegador para pasar la comprobacion de Origin del backend.
           changeOrigin: false,
+          ws: true,
         },
       },
     },

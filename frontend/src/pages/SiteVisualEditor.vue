@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { authState } from '../services/auth'
+import { subscribeToChanges } from '../services/realtime'
 import i18n from '../i18n'
 import { siteSlotCatalog, type EditableSiteSlot, type SiteSlotDefinition } from '../siteCms'
 import type { ManagedMedia } from '../adminContent'
@@ -171,6 +172,24 @@ async function upload(event: Event) {
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'No se pudo subir el archivo.' }
   finally { saving.value = false; input.value = '' }
 }
+async function refreshRemote() {
+  if (!isLiveAdmin.value || loading.value || saving.value) return
+  try {
+    const [slots, library] = await Promise.all([
+      fetch('/api/admin/content/site', { credentials: 'same-origin', cache: 'no-store' }),
+      fetch('/api/admin/content/media', { credentials: 'same-origin', cache: 'no-store' })
+    ])
+    if (!slots.ok || !library.ok) return
+    const [newRows, newMedia] = await Promise.all([slots.json(), library.json()])
+    if (!Array.isArray(newRows) || !Array.isArray(newMedia)) return
+    rows.value = newRows as EditableSiteSlot[]
+    media.value = newMedia as ManagedMedia[]
+    // No reemplazar textEs/textEn/mediaId. Podrían tener ediciones sin guardar.
+  } catch { /* El editor seguirá disponible y se sincronizará al reconectar. */ }
+}
+const stopEditorEvents = ['site-admin', 'media', 'sync']
+  .map(resource => subscribeToChanges(resource, () => { void refreshRemote() }))
+onUnmounted(() => stopEditorEvents.forEach(stop => stop()))
 onMounted(load)
 </script>
 

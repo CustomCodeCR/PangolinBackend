@@ -5,6 +5,7 @@ import EmblaCarousel, { type EmblaCarouselType } from 'embla-carousel'
 import type { ManagedNews } from '../adminContent'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
+import { subscribeToChanges } from '../services/realtime'
 
 const activeArticleIndex = ref<number | null>(null)
 const managedNews = ref<ManagedNews[]>([])
@@ -52,29 +53,37 @@ function closeArticle() {
   startStoryTimer()
 }
 function handleArticleKeydown(event: KeyboardEvent) { if (event.key === 'Escape') closeArticle() }
-onMounted(async () => {
+let disposed = false
+let requestVersion = 0
+async function loadPublicNews() {
+  const request = ++requestVersion
   try {
     const response = await fetch('/api/content/news', { cache: 'no-store' })
     if (!response.ok) throw new Error('No se pudieron consultar las noticias.')
     const items: unknown = await response.json()
     if (!Array.isArray(items)) throw new Error('Respuesta de noticias inválida.')
+    if (disposed || request !== requestVersion) return
     managedNews.value = items as ManagedNews[]
-  } catch {
-    newsError.value = true
-  } finally {
-    newsLoaded.value = true
-  }
-  window.addEventListener('keydown', handleArticleKeydown)
-  // Esperar el render de los artículos antes de iniciar Embla.
-  await nextTick()
-  if (news.value.length && emblaViewport.value) {
-    emblaApi = EmblaCarousel(emblaViewport.value, { align: 'start', loop: news.value.length > 1 })
-    emblaApi.on('select', () => { activeStoryIndex.value = emblaApi?.selectedScrollSnap() ?? 0 })
-  }
-  startStoryTimer()
-})
+    newsError.value = false
+    if (activeStoryIndex.value >= news.value.length) activeStoryIndex.value = 0
+    if (activeArticleIndex.value !== null && activeArticleIndex.value >= news.value.length) closeArticle()
+    await nextTick()
+    if (!news.value.length) { emblaApi?.destroy(); emblaApi = null }
+    else if (!emblaApi && emblaViewport.value) {
+      emblaApi = EmblaCarousel(emblaViewport.value, { align: 'start', loop: news.value.length > 1 })
+      emblaApi.on('select', () => { activeStoryIndex.value = emblaApi?.selectedScrollSnap() ?? 0 })
+    } else { emblaApi?.reInit({ loop: news.value.length > 1 }) }
+    if (activeArticleIndex.value === null) startStoryTimer()
+  } catch { if (!disposed && request === requestVersion) newsError.value = true }
+  finally { if (!disposed && request === requestVersion) newsLoaded.value = true }
+}
+const unsubscribeNews = subscribeToChanges('news', () => { void loadPublicNews() })
+const unsubscribeSync = subscribeToChanges('sync', () => { void loadPublicNews() })
+onMounted(() => { window.addEventListener('keydown', handleArticleKeydown); void loadPublicNews() })
 
 onUnmounted(() => {
+  disposed = true
+  unsubscribeNews(); unsubscribeSync()
   window.removeEventListener('keydown', handleArticleKeydown)
   pauseStoryTimer()
   emblaApi?.destroy()

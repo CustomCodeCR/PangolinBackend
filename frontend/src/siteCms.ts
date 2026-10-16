@@ -929,15 +929,20 @@ export const siteSlotCatalog: SiteSlotDefinition[] = [
 
 const published = reactive<Record<string, PublishedSiteSlot>>({})
 let pending: Promise<void> | null = null
-export function loadPublishedSiteCms(): Promise<void> {
-  if (pending) return pending
-  pending = fetch('/api/content/site', { cache: 'no-store' }).then(async response => {
+let revision = 0
+export function loadPublishedSiteCms(force = false): Promise<void> {
+  if (pending && !force) return pending
+  const requestRevision = ++revision
+  const request = fetch('/api/content/site', { cache: 'no-store' }).then(async response => {
     if (!response.ok) throw new Error('No se pudo cargar el contenido del sitio')
     const data: unknown = await response.json()
     if (!Array.isArray(data)) throw new Error('Respuesta CMS inválida')
+    // Ignorar respuestas viejas cuando llega una publicación durante otra solicitud.
+    if (requestRevision !== revision) return
     for (const key of Object.keys(published)) delete published[key]
     for (const item of data as PublishedSiteSlot[]) if (typeof item.key === 'string') published[item.key] = item
-  }).catch(() => { /* Fallback a imágenes/textos originales del frontend. */ })
+  }).catch(() => { /* Mantener contenido ya cargado ante una caída temporal. */ })
+  pending = request.finally(() => { if (requestRevision === revision) pending = null })
   return pending
 }
 export function siteText(key: string, fallback: string, locale: string): string {

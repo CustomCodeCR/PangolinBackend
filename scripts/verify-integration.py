@@ -37,7 +37,9 @@ check(all(ep in program for ep in ['/api/auth/request-otp', '/api/auth/verify-ot
 check('GetIdentityAsync(http, ct)' in program and 'user.ClienteId' in program, 'Cotizaciones autorizadas en servidor y por cliente')
 check(all(x in service for x in ['HMACSHA256', 'FixedTimeEquals', 'HttpOnly = true', 'FOR UPDATE']), 'Backend OTP mantiene controles fundamentales')
 check(all(x in compose for x in ['postgres:', 'redis:', 'mongo:', 'backend:', 'frontend:']), 'Compose incluye 5 servicios')
-check(all(x in compose for x in ['127.0.0.1:${FRONTEND_HOST_PORT', '127.0.0.1:${BACKEND_HOST_PORT', '127.0.0.1:${POSTGRES_HOST_PORT']), 'Puertos host de desarrollo limitados a loopback')
+check('${FRONTEND_BIND_IP:-127.0.0.1}:${FRONTEND_HOST_PORT' in compose and
+      all(x in compose for x in ['127.0.0.1:${BACKEND_HOST_PORT', '127.0.0.1:${POSTGRES_HOST_PORT']),
+      'Frontend LAN opt-in; backend y PostgreSQL permanecen limitados a loopback')
 check((root/'backend/Database/AuthSchema.sql').is_file(), 'Esquema de login disponible')
 check((root/'frontend/public/images/logo.png').is_file(), 'Activos gráficos del rediseño disponibles')
 for language in ('es', 'en'):
@@ -93,6 +95,19 @@ check(all(f'{mode}: {{' in app for mode in ('land', 'air', 'maritime', 'multimod
 check('land: {' in app and 'weightKg: 1' not in app
       and 'maritime: {' in app and 'multimodal: {' in app,
       'Frontend no inventa peso y envía detalles por modalidad')
+# La infraestructura en tiempo real no debe aceptar notificaciones inventadas por navegadores.
+hub = read('backend/Services/Realtime/ContentUpdatesHub.cs')
+publisher = read('backend/Services/Realtime/ContentUpdatesPublisher.cs')
+signalr_client = read('frontend/src/services/signalr.ts')
+check('app.MapHub<ContentUpdatesHub>' in program and 'AddSignalR(' in program and
+      'Context.GetHttpContext()' in hub and 'SendCoreAsync("DataChanged"' in publisher,
+      'Backend aloja SignalR y solo envía notificaciones desde .NET')
+check("withUrl('/api/hubs/updates'" in signalr_client and
+      'onreconnected(refreshAfterGap)' in signalr_client and
+      'connectSignalR()' in read('frontend/src/main.ts') and
+      'ws: true' in read('frontend/vite.config.ts'),
+      'Frontend usa SignalR con reconexión y proxy WebSockets')
+
 quote_post = program.split('app.MapPost("/api/quotes"', 1)[1].split('app.MapGet("/api/quotes/mine"', 1)[0]
 quote_mine = program.split('app.MapGet("/api/quotes/mine"', 1)[1].split('app.MapGet("/api/quotes/{id:guid}"', 1)[0]
 check('.RequireAuthorization("registered")' in quote_post and
