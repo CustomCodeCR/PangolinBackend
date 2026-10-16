@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import IconSymbol from '../components/IconSymbol.vue'
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import { authState, refreshSession } from '../services/auth'
+import { subscribeToChanges } from '../services/realtime'
 import { readManagedItineraries, type ManagedItinerary } from '../adminContent'
 
 type TransportMode = 'maritime' | 'ground'
@@ -61,6 +62,12 @@ const expandedResultId = ref<string | null>(null)
 const resultados = ref<ItineraryResultado[]>([])
 const publishedItineraries = ref<ManagedItinerary[]>([])
 onMounted(async () => { await refreshSession(); publishedItineraries.value = readManagedItineraries() })
+const stopItineraryEvents = ['itineraries', 'sync'].map(resource =>
+  subscribeToChanges(resource, () => {
+    if (searchPerformed.value && !cargando.value && !authState.previewRole)
+      void searchItineraries(currentPage.value)
+  }))
+onUnmounted(() => stopItineraryEvents.forEach(stop => stop()))
 const cargando = ref(false)
 const errorBusqueda = ref('')
 const currentPage = ref(1)
