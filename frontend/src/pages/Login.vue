@@ -111,7 +111,7 @@ function enterAsGuest() {
         <span aria-hidden="true">←</span> {{ $t('custom.login.back') }}
       </button>
       <div class="login-visual__content">
-        <img src="/images/logo.png" :alt="$t('phrases.p138')" />
+        <SiteMedia slot-key="shared.logo.media" fallback="/images/logo.png" :alt="$t('phrases.p138')" />
         <p class="section-tag light-tag">{{ $t('custom.login.topTag') }}</p>
         <h1>{{ siteText('login.hero.title1', $t('custom.login.visualTitle1'), locale) }}<br />{{ siteText('login.hero.title2', $t('custom.login.visualTitle2'), locale) }}<br /><em>{{ siteText('login.hero.title3', $t('custom.login.visualTitle3'), locale) }}</em></h1>
         <p>{{ siteText('login.hero.intro', $t('custom.login.visualIntro'), locale) }}</p>
