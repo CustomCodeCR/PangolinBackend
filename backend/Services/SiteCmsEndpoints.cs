@@ -11,7 +11,7 @@ public static class SiteCmsEndpoints
     {
         "home.hero.media", "home.services.air.media", "home.services.maritime.media",
         "home.services.land.media", "home.services.multimodal.media",
-        "home.about.media", "home.tracking.media", "home.quote.media", "home.faq.media",
+        "home.about.media", "home.tracking.media", "home.quote.media",
         "about.hero.media", "about.operations.media",
         "services.hero.media", "services.air.media", "services.maritime.media",
         "services.land.media", "services.multimodal.media",
