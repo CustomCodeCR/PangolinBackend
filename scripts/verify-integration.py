@@ -93,6 +93,19 @@ check(all(f'{mode}: {{' in app for mode in ('land', 'air', 'maritime', 'multimod
 check('land: {' in app and 'weightKg: 1' not in app
       and 'maritime: {' in app and 'multimodal: {' in app,
       'Frontend no inventa peso y envía detalles por modalidad')
+# La infraestructura en tiempo real no debe aceptar notificaciones inventadas por navegadores.
+hub = read('backend/Services/Realtime/ContentUpdatesHub.cs')
+publisher = read('backend/Services/Realtime/ContentUpdatesPublisher.cs')
+signalr_client = read('frontend/src/services/signalr.ts')
+check('app.MapHub<ContentUpdatesHub>' in program and 'AddSignalR(' in program and
+      'Context.GetHttpContext()' in hub and 'SendCoreAsync("DataChanged"' in publisher,
+      'Backend aloja SignalR y solo envía notificaciones desde .NET')
+check("withUrl('/api/hubs/updates'" in signalr_client and
+      'onreconnected(refreshAfterGap)' in signalr_client and
+      'connectSignalR()' in read('frontend/src/main.ts') and
+      'ws: true' in read('frontend/vite.config.ts'),
+      'Frontend usa SignalR con reconexión y proxy WebSockets')
+
 quote_post = program.split('app.MapPost("/api/quotes"', 1)[1].split('app.MapGet("/api/quotes/mine"', 1)[0]
 quote_mine = program.split('app.MapGet("/api/quotes/mine"', 1)[1].split('app.MapGet("/api/quotes/{id:guid}"', 1)[0]
 check('.RequireAuthorization("registered")' in quote_post and
