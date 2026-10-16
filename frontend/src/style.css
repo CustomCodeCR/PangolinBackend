@@ -4670,3 +4670,20 @@ html:not(.theme-dark) .login-visual__content h1 em { color: var(--login-accent) 
     grid-template-columns: max-content 38px !important;
   }
 }
+
+/* En menú responsive no ampliar el botón de tema: el hover táctil puede
+   permanecer activo tras el toque y recortar el contenido de la tarjeta.
+   Se conserva el hover original en escritorio. */
+@media (max-width: 1080px) {
+  .site-header .header-settings__panel .theme-toggle {
+    border-radius: 8px;
+    transition: background-color .16s ease;
+  }
+  .site-header .header-settings__panel .theme-toggle:is(:hover, :active, :focus-visible) {
+    transform: none !important;
+    background: rgba(178, 11, 45, .08);
+  }
+  html.theme-dark .site-header .header-settings__panel .theme-toggle:is(:hover, :active, :focus-visible) {
+    background: rgba(255, 255, 255, .08);
+  }
+}
