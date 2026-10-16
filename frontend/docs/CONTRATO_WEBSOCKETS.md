@@ -1,4 +1,15 @@
-# Castro Fallas — Contrato WebSocket para integración entre equipos
+# Contrato WebSocket de pruebas (LEGADO, solo desarrollo)
+
+> **Actualización 2026-10-16:** `main` originalmente tenía un relay Node
+> de pruebas en el puerto 8081. La rama `feature/signalr-live-updates-20261016`
+> usa **SignalR en el backend .NET** por `/api/hubs/updates`, a través del
+> puerto HTTP normal del API. No hay que iniciar `websocket-server.cjs`
+> para la web real. Ver `docs/SIGNALR-REALTIME.md` para contrato,
+> autenticación, recursos, seguridad y pruebas actuales.
+
+## Especificación histórica del relay de desarrollo
+
+
 
 **Estado:** Frontend probado en Mac con `ws://localhost:8081` y `ws://<IP-Mac>:8081`. La difusión y reconexión fueron verificadas manualmente. **Backend remoto NO implementado ni probado**.
 
