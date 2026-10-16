@@ -4720,3 +4720,10 @@ html.theme-dark .about-access .access-card--quote{background-image:linear-gradie
 .access-card>.cms-background-video{z-index:0}
 .access-card:has(>.cms-background-video)::before{z-index:1}
 @media(prefers-reduced-motion:reduce){.home-hero:has(>.cms-background-video),.inner-hero:has(>.cms-background-video),.login-visual:has(>.cms-background-video),.faq-section:has(>.cms-background-video),.access-card:has(>.cms-background-video){background-color:#28364a}}
+
+/* Fondos opcionales para las tres tarjetas digitales: antes solo tenían iconos. */
+.promise-card:has(>.cms-digital-bg){position:relative;isolation:isolate;overflow:hidden}
+.promise-card>.cms-digital-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+.promise-card:has(>.cms-digital-bg)::before{content:"";position:absolute;z-index:1;inset:0;background:rgba(255,255,255,.84);pointer-events:none}
+.promise-card:has(>.cms-digital-bg)>:not(.cms-digital-bg){position:relative;z-index:2}
+html.theme-dark .promise-card:has(>.cms-digital-bg)::before{background:rgba(9,16,31,.78)}
