@@ -188,6 +188,21 @@ CREATE TABLE IF NOT EXISTS public.cms_news (
 );
 ALTER TABLE public.cms_news ADD COLUMN IF NOT EXISTS body TEXT NOT NULL DEFAULT '';
 CREATE INDEX IF NOT EXISTS idx_cms_news_published ON public.cms_news(published, created_at DESC);
+-- Ubicaciones editables del sitio, sin reescribir noticias o archivos ya existentes.
+CREATE TABLE IF NOT EXISTS public.cms_site_slots (
+    key VARCHAR(100) PRIMARY KEY,
+    draft_es TEXT,
+    draft_en TEXT,
+    draft_media_id UUID,
+    published_es TEXT,
+    published_en TEXT,
+    published_media_id UUID,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    published_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_cms_site_slots_published_media ON public.cms_site_slots(published_media_id);
+CREATE INDEX IF NOT EXISTS idx_cms_site_slots_draft_media ON public.cms_site_slots(draft_media_id);
+
 CREATE TABLE IF NOT EXISTS public.cms_media (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(200) NOT NULL,
