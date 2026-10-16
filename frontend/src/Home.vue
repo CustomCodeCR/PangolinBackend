@@ -316,7 +316,6 @@ onUnmounted(() => {
                 :key="index"
                 class="promise-card"
               >
-                <SiteMedia v-if="siteVisual(`home.digital.card.${index % promises.length}.media`, '').src" :slot-key="`home.digital.card.${index % promises.length}.media`" fallback="" class="cms-digital-bg" background />
                 <div class="promise-card__top">
                   <IconSymbol :glyph="promise.icon" :size="22" />
                   <small>0{{ (index % promises.length) + 1 }}</small>
@@ -363,7 +362,7 @@ onUnmounted(() => {
         <div class="container faq-content">
           <p class="section-tag light-tag center">{{ siteText('home.faq.heading1', $t('phrases.p032'), locale) }}</p>
           <h2 class="section-title centered white-title">
-            {{ siteText('home.faq.heading2', $t('phrases.p033'), locale) }}<br />{{ $t('phrases.p034') }}
+            {{ siteText('home.faq.heading2', $t('phrases.p033'), locale) }}<br />{{ siteText('home.faq.heading3', $t('phrases.p034'), locale) }}
           </h2>
 
           <div class="faq-list">
@@ -423,7 +422,7 @@ onUnmounted(() => {
           role="dialog"
           aria-modal="true"
           :aria-label="serviceInfo[modalService].title"
-          :style="{ '--modal-service-photo': `url('${modalPhoto}')` }"
+          :style="{ '--modal-service-photo': modalPhoto }"
         >
           <button class="service-modal__close" type="button" :aria-label="$t('custom.home.close')" @click="modalService = null"><IconSymbol glyph="×" :size="20" /></button>
           <p class="section-tag">{{ $t('custom.home.modalEyebrow') }}</p>
