@@ -19,8 +19,8 @@ services:
   backend:
     environment:
       Storage__Endpoint: http://minio:9000
-      Storage__AccessKey: ${S3_ACCESS_KEY:?Configura S3_ACCESS_KEY en .env}
-      Storage__SecretKey: ${S3_SECRET_KEY:?Configura S3_SECRET_KEY en .env}
+      Storage__AccessKey: ${S3_ACCESS_KEY:-}
+      Storage__SecretKey: ${S3_SECRET_KEY:-}
       Storage__Bucket: ${S3_BUCKET:-castrofallas-media}
     depends_on:
       minio:
