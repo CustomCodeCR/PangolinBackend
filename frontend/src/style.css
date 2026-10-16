@@ -4736,3 +4736,21 @@ html.theme-dark .about-access .access-card--quote{background-image:linear-gradie
 html.theme-dark .service-modal:has(>.cms-background-video)::after{background:linear-gradient(120deg,rgba(8,16,33,.84),rgba(8,16,33,.7))}
 .service-modal:has(>.cms-background-video)>:not(.cms-background-video){position:relative;z-index:2}
 .service-modal:has(>.cms-background-video)>.service-modal__close{position:absolute}
+
+
+/* Los cuatro pictogramas de las tarjetas de cotización van siempre en
+   blanco, tanto en modo claro como oscuro. Acotar esta regla a las tarjetas
+   evita cambiar los SVG de botones, formularios u otras secciones. */
+.quote-flow .quote-choice-card .quote-choice-icon,
+html.theme-dark .quote-flow .quote-choice-card .quote-choice-icon {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+.quote-flow .quote-choice-card .quote-choice-icon svg,
+.quote-flow .quote-choice-card .quote-choice-icon svg *,
+html.theme-dark .quote-flow .quote-choice-card .quote-choice-icon svg,
+html.theme-dark .quote-flow .quote-choice-card .quote-choice-icon svg * {
+  color: #fff !important;
+  stroke: #fff !important;
+  fill: none !important;
+}
