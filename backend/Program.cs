@@ -432,5 +432,6 @@ app.MapAdminUsers();
 
 // Noticias públicas publicadas y mantenimiento de contenido reservado a admins.
 app.MapManagedContent();
+app.MapManagedMediaObjects();
 
 app.Run();
