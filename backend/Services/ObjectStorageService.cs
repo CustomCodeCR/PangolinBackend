@@ -50,10 +50,15 @@ public sealed class ObjectStorageService : IDisposable
         }, ct);
     }
 
-    public Task<GetObjectResponse> DownloadAsync(string key, CancellationToken ct) =>
-        _client is null
-            ? throw new InvalidOperationException("S3 no configurado.")
-            : _client.GetObjectAsync(Bucket, key, ct);
+    public Task<GetObjectResponse> DownloadAsync(string key, CancellationToken ct,
+        long? rangeStart = null, long? rangeEnd = null)
+    {
+        if (_client is null) throw new InvalidOperationException("S3 no configurado.");
+        var request = new GetObjectRequest { BucketName = Bucket, Key = key };
+        if (rangeStart is long start && rangeEnd is long end)
+            request.ByteRange = new ByteRange(start, end);
+        return _client.GetObjectAsync(request, ct);
+    }
 
     public async Task DeleteAsync(string key, CancellationToken ct)
     {
