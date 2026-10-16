@@ -4671,16 +4671,17 @@ html:not(.theme-dark) .login-visual__content h1 em { color: var(--login-accent) 
   }
 }
 
-/* En menú responsive no ampliar el botón de tema: el hover táctil puede
-   permanecer activo tras el toque y recortar el contenido de la tarjeta.
-   Se conserva el hover original en escritorio. */
+/* Hover sutil en móvil: 2.5% frente al 12% de escritorio.
+   Mantener el origen a la izquierda para que el contenido no sobresalga
+   del panel aunque Safari mantenga :hover tras una pulsación. */
 @media (max-width: 1080px) {
   .site-header .header-settings__panel .theme-toggle {
     border-radius: 8px;
-    transition: background-color .16s ease;
+    transform-origin: left center;
+    transition: transform .16s ease, background-color .16s ease;
   }
   .site-header .header-settings__panel .theme-toggle:is(:hover, :active, :focus-visible) {
-    transform: none !important;
+    transform: scale(1.025) !important;
     background: rgba(178, 11, 45, .08);
   }
   html.theme-dark .site-header .header-settings__panel .theme-toggle:is(:hover, :active, :focus-visible) {
