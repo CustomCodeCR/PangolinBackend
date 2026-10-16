@@ -75,17 +75,17 @@ public static class ManagedMediaObjectEndpoints
         }).RequireAuthorization("admin");
 
         app.MapGet("/api/admin/content/media/{id:guid}/file", async Task<IResult> (
-            Guid id, AppDbContext db, ObjectStorageService storage, CancellationToken ct) =>
-            await ReadObject(id, db, storage, onlyPublished: false, ct))
+            Guid id, AppDbContext db, ObjectStorageService storage, HttpContext http, CancellationToken ct) =>
+            await ReadObject(id, db, storage, http, onlyPublished: false, ct))
             .RequireAuthorization("admin");
 
         app.MapGet("/api/content/media/{id:guid}/file", async Task<IResult> (
-            Guid id, AppDbContext db, ObjectStorageService storage, CancellationToken ct) =>
-            await ReadObject(id, db, storage, onlyPublished: true, ct));
+            Guid id, AppDbContext db, ObjectStorageService storage, HttpContext http, CancellationToken ct) =>
+            await ReadObject(id, db, storage, http, onlyPublished: true, ct));
     }
 
     private static async Task<IResult> ReadObject(Guid id, AppDbContext db,
-        ObjectStorageService storage, bool onlyPublished, CancellationToken ct)
+        ObjectStorageService storage, HttpContext http, bool onlyPublished, CancellationToken ct)
     {
         var media = await db.ManagedMedia.AsNoTracking().FirstOrDefaultAsync(m => m.Id == id, ct);
         if (media?.ObjectKey is null || !storage.Enabled)
@@ -103,8 +103,36 @@ public static class ManagedMediaObjectEndpoints
 
         try
         {
-            var response = await storage.DownloadAsync(media.ObjectKey, ct);
+            long? start = null, end = null;
+            var range = http.Request.Headers.Range.ToString();
+            if (media.SizeBytes is long total && total > 0)
+            {
+                http.Response.Headers.AcceptRanges = "bytes";
+                if (!string.IsNullOrWhiteSpace(range))
+                {
+                    var match = System.Text.RegularExpressions.Regex.Match(range, @"^bytes=(\d+)-(\d*)$");
+                    if (!match.Success || !long.TryParse(match.Groups[1].Value, out var first) ||
+                        first >= total || (match.Groups[2].Success &&
+                        match.Groups[2].Length > 0 &&
+                        (!long.TryParse(match.Groups[2].Value, out var last) || last < first)))
+                    {
+                        http.Response.Headers.ContentRange = $"bytes */{total}";
+                        return Results.StatusCode(StatusCodes.Status416RangeNotSatisfiable);
+                    }
+                    start = first;
+                    end = match.Groups[2].Length > 0
+                        ? Math.Min(long.Parse(match.Groups[2].Value), total - 1) : total - 1;
+                }
+            }
+            var response = await storage.DownloadAsync(media.ObjectKey, ct, start, end);
             var contentType = media.MimeType ?? "application/octet-stream";
+            if (start is long a && end is long b && media.SizeBytes is long fileSize)
+            {
+                http.Response.StatusCode = StatusCodes.Status206PartialContent;
+                http.Response.Headers.ContentRange = $"bytes {a}-{b}/{fileSize}";
+            }
+            if (response.ContentLength >= 0)
+                http.Response.ContentLength = response.ContentLength;
             // Documentos se descargan, nunca se ejecutan HTML/SVG desde el dominio de la web.
             return Results.Stream(response.ResponseStream,
                 contentType: contentType,
