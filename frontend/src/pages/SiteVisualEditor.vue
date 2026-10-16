@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { authState } from '../services/auth'
 import i18n from '../i18n'
 import { siteSlotCatalog, type EditableSiteSlot, type SiteSlotDefinition } from '../siteCms'
@@ -7,6 +7,8 @@ import type { ManagedMedia } from '../adminContent'
 
 const page = ref('home')
 const query = ref('')
+const typeFilter = ref<'all' | 'media' | 'text'>('all')
+const previewError = reactive({ published: false, draft: false })
 const currentKey = ref('home.hero.media')
 const rows = ref<EditableSiteSlot[]>([])
 const media = ref<ManagedMedia[]>([])
@@ -20,8 +22,12 @@ const error = ref('')
 const storageEnabled = ref(false)
 const isLiveAdmin = computed(() => authState.user?.role === 'administrador' && !authState.previewRole)
 const pages = [...new Map(siteSlotCatalog.map(slot => [slot.page, { id: slot.page, label: slot.pageLabel }])).values()]
-const visible = computed(() => siteSlotCatalog.filter(slot => slot.page === page.value &&
-  (slot.label + slot.help).toLowerCase().includes(query.value.toLowerCase())))
+const visible = computed(() => siteSlotCatalog.filter(slot =>
+  slot.page === page.value &&
+  (typeFilter.value === 'all' || slot.type === typeFilter.value) &&
+  (slot.label + ' ' + slot.help + ' ' + slot.key + ' ' + slot.fallback).toLocaleLowerCase('es')
+    .includes(query.value.trim().toLocaleLowerCase('es'))))
+const filteredCount = computed(() => visible.value.length)
 const selected = computed<SiteSlotDefinition>(() => siteSlotCatalog.find(x => x.key === currentKey.value) ?? siteSlotCatalog[0])
 const row = computed(() => rows.value.find(x => x.key === selected.value.key))
 const selectableMedia = computed(() => media.value.filter(x => x.kind === 'Imagen' || (selected.value.key !== 'shared.logo.media' && x.kind === 'Video')))
@@ -30,6 +36,9 @@ const publishedMedia = computed(() => media.value.find(x => x.id === row.value?.
 const draftSrc = computed(() => selectedMedia.value ? previewSrc(selectedMedia.value) : selected.value.type === 'media' ? selected.value.fallback : '')
 const draftIsVideo = computed(() => selectedMedia.value?.kind.startsWith('Video') ?? false)
 const publishedSrc = computed(() => publishedMedia.value ? previewSrc(publishedMedia.value) : selected.value.fallback)
+const publishedIsVideo = computed(() => publishedMedia.value?.kind === 'Video')
+const pageHref = computed(() => ({ home: '/home', services: '/servicios', about: '/nosotros', login: '/bienvenidos', shared: '/home' } as Record<string,string>)[selected.value.page] || '/home')
+watch([currentKey, mediaId, rows], () => { previewError.published = false; previewError.draft = false })
 const defaultCopy = computed(() => selected.value.type === 'text' ? i18n.global.t(selected.value.fallback) : '')
 
 function previewSrc(item: ManagedMedia): string {
@@ -43,10 +52,17 @@ function select(slot: SiteSlotDefinition) {
   mediaId.value = current?.draftMediaId ?? ''
   error.value = ''
   notice.value = ''
+  previewError.published = false
+  previewError.draft = false
 }
+watch([query, typeFilter], () => {
+  if (visible.value.length && !visible.value.some(slot => slot.key === currentKey.value))
+    select(visible.value[0])
+})
 function switchPage(next: string) {
   page.value = next
   query.value = ''
+  typeFilter.value = 'all'
   const first = siteSlotCatalog.find(x => x.page === next)
   if (first) select(first)
 }
@@ -176,18 +192,28 @@ onMounted(load)
       </div>
       <div class="visual-editor__columns">
         <aside class="visual-editor__locations">
-          <label>Buscar ubicación <input v-model="query" placeholder="Ej. Portada, servicio aéreo…" /></label>
-          <div v-if="!visible.length">No hay ubicaciones con ese nombre.</div>
+          <label>Buscar ubicación <input v-model="query" type="search" placeholder="Ej. Portada, servicio aéreo…" /></label>
+          <div class="visual-editor__filters" role="group" aria-label="Filtrar ubicaciones por tipo">
+            <button type="button" :aria-pressed="typeFilter === 'all'" :class="{ active: typeFilter === 'all' }" @click="typeFilter = 'all'">Todos</button>
+            <button type="button" :aria-pressed="typeFilter === 'media'" :class="{ active: typeFilter === 'media' }" @click="typeFilter = 'media'">Imágenes / videos</button>
+            <button type="button" :aria-pressed="typeFilter === 'text'" :class="{ active: typeFilter === 'text' }" @click="typeFilter = 'text'">Textos</button>
+          </div>
+          <p class="visual-editor__hint" role="status">{{ filteredCount }} ubicaciones en esta página</p>
+          <div v-if="!visible.length" class="visual-editor__empty">No encontramos ubicaciones con esos filtros.</div>
           <button v-for="slot in visible" :key="slot.key" type="button" :class="{ active: slot.key === selected.key }" @click="select(slot)">
             <span class="visual-editor__slot-type">{{ slot.type === 'media' ? 'Imagen / Video' : 'Texto' }}</span>
             <strong>{{ slot.label }}</strong><small>{{ slot.help }}</small>
             <span v-if="rows.some(x => x.key === slot.key && (x.publishedMediaId || x.publishedEs || x.publishedEn))" class="visual-editor__published">Personalizada</span>
           </button>
         </aside>
-        <div class="visual-editor__details">
+        <div v-if="visible.length" class="visual-editor__details">
           <p class="manager-eyebrow">{{ selected.pageLabel }} / {{ selected.label }}</p>
           <h3>{{ selected.label }}</h3>
           <p class="visual-editor__description">{{ selected.help }}</p>
+          <div class="visual-editor__context">
+            <span><strong>Ubicación:</strong> {{ selected.pageLabel }} / {{ selected.label }}</span>
+            <a :href="pageHref" target="_blank" rel="noopener noreferrer">Ver página real ↗</a>
+          </div>
           <template v-if="selected.type === 'text'">
             <p class="visual-editor__hint">Texto original: {{ defaultCopy }}</p>
             <label>Texto en español <textarea v-model="textEs" maxlength="1600" rows="4" :placeholder="defaultCopy" /></label>
@@ -197,12 +223,20 @@ onMounted(load)
           </template>
           <template v-else>
             <div class="visual-editor__preview-grid">
-              <div><strong>Imagen/video publicado</strong><video v-if="publishedMedia?.kind.startsWith('Video')" :src="publishedSrc" controls muted playsinline preload="metadata" /><img v-else :src="publishedSrc" :alt="selected.label" /></div>
-              <div><strong>Borrador de esta ubicación</strong><video v-if="draftIsVideo" :src="draftSrc" controls muted playsinline preload="metadata" /><img v-else :src="draftSrc" :alt="selected.label" /></div>
+              <div><strong>Contenido publicado</strong>
+                <video v-if="publishedSrc && publishedIsVideo && !previewError.published" :key="publishedSrc" :src="publishedSrc" controls muted playsinline preload="metadata" @error="previewError.published = true" />
+                <img v-else-if="publishedSrc && !publishedIsVideo && !previewError.published" :key="publishedSrc" :src="publishedSrc" :alt="selected.label" @error="previewError.published = true" />
+                <div v-else class="visual-editor__preview-empty">{{ previewError.published ? 'No se pudo cargar este archivo. Revisá su referencia en Multimedia.' : 'Esta ubicación no tiene imagen o video original.' }}</div>
+              </div>
+              <div><strong>Vista de borrador</strong>
+                <video v-if="draftSrc && draftIsVideo && !previewError.draft" :key="draftSrc" :src="draftSrc" controls muted playsinline preload="metadata" @error="previewError.draft = true" />
+                <img v-else-if="draftSrc && !draftIsVideo && !previewError.draft" :key="draftSrc" :src="draftSrc" :alt="selected.label" @error="previewError.draft = true" />
+                <div v-else class="visual-editor__preview-empty">{{ previewError.draft ? 'No fue posible cargar la vista previa. Elegí otro archivo.' : 'Sin archivo asignado todavía.' }}</div>
+              </div>
             </div>
             <label>Archivo de la biblioteca de MinIO
               <select v-model="mediaId">
-                <option value="">Imagen original de esta ubicación</option>
+                <option value="">{{ selected.fallback ? 'Usar imagen original de esta ubicación' : 'Sin imagen asignada' }}</option>
                 <option v-for="file in selectableMedia" :key="file.id" :value="file.id">{{ file.name }} ({{ file.kind }})</option>
               </select>
             </label>
@@ -229,6 +263,13 @@ onMounted(load)
 .visual-editor__intro{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
 .visual-editor__intro h2{margin:4px 0 9px;font-size:clamp(26px,3vw,36px)}
 .visual-editor__intro p{max-width:650px;color:#687078;line-height:1.6}
+.visual-editor__context{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:9px;padding:11px 13px;border:1px solid #e5e7eb;border-radius:10px;font-size:12px;background:#f9fafb}
+.visual-editor__context a{color:#a50c2c;text-decoration:underline;font-weight:700}
+.visual-editor__filters{display:flex;gap:5px;flex-wrap:wrap}
+.visual-editor__filters button{padding:8px 9px;border-radius:9px;border:1px solid #d4d7df;background:#fafafa;color:#25252a;cursor:pointer;font-weight:700;font-size:11px}
+.visual-editor__filters button.active{color:#fff;background:#a60b29;border-color:#a60b29}
+.visual-editor__empty{font-size:13px;color:#67737b;padding:20px;border:1px dashed #cbd1d8;border-radius:12px}
+.visual-editor__preview-empty{display:flex;align-items:center;justify-content:center;text-align:center;min-height:170px;aspect-ratio:16/10;background:#f2f4f7;color:#566371;border:1px dashed #c5ccd5;border-radius:11px;padding:16px;font-size:13px;line-height:1.5}
 .visual-editor__pages{display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid #eee;padding-bottom:14px}
 .visual-editor__pages button,.visual-editor__button{padding:11px 15px;border:1px solid #ddd;border-radius:11px;cursor:pointer;background:white;color:#292a30;font-weight:700}
 .visual-editor__pages button.active{background:#a60b29;color:#fff;border-color:#a60b29}
@@ -258,4 +299,23 @@ onMounted(load)
 .visual-editor__success{background:#eaf7ee;color:#24613c}
 @media(max-width:760px){.visual-editor{padding:14px}.visual-editor__intro{flex-direction:column}.visual-editor__columns{grid-template-columns:1fr}.visual-editor__locations{max-height:300px}.visual-editor__preview-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:460px){.visual-editor__preview-grid{grid-template-columns:1fr}}
+
+/* A diferencia del CSS original, este panel respeta el modo oscuro y el color del texto.
+   Especificidad alta: la web contiene reglas globales con !important para dark mode. */
+:global(html.theme-dark) .visual-editor{background:#111a2c!important;border-color:#384459!important;color:#f6f8ff!important}
+:global(html.theme-dark) .visual-editor :is(h2,h3,strong,label){color:#f5f7fc!important}
+:global(html.theme-dark) .visual-editor :is(.visual-editor__description,.visual-editor__hint,.visual-editor__locations small,.visual-editor__intro p){color:#c1cada!important}
+:global(html.theme-dark) .visual-editor .visual-editor__pages{border-color:#3a465b}
+:global(html.theme-dark) .visual-editor :is(.visual-editor__button,.visual-editor__pages button,.visual-editor__locations button,.visual-editor__filters button){background:#1d2a41!important;border-color:#49576b!important;color:#f5f7fc!important}
+:global(html.theme-dark) .visual-editor :is(.visual-editor__pages button.active,.visual-editor__filters button.active,.visual-editor__publish){background:#b20d30!important;border-color:#ce2146!important;color:#fff!important}
+:global(html.theme-dark) .visual-editor .visual-editor__locations button.active{background:#382137!important;border-color:#e34464!important}
+:global(html.theme-dark) .visual-editor :is(input,select,textarea){color:#f7f9fc!important;background:#141f33!important;border-color:#54647d!important;color-scheme:dark}
+:global(html.theme-dark) .visual-editor :is(input,textarea)::placeholder{color:#adb9ce!important}
+:global(html.theme-dark) .visual-editor :is(.visual-editor__text-preview,.visual-editor__context,.visual-editor__preview-empty,.visual-editor__empty){background:#1c2a41!important;border-color:#445570!important;color:#d1d9e7!important}
+:global(html.theme-dark) .visual-editor .visual-editor__context a{color:#ff8ba1!important}
+:global(html.theme-dark) .visual-editor .visual-editor__slot-type{color:#ff879b!important}
+:global(html.theme-dark) .visual-editor .visual-editor__published{color:#88e4ad!important}
+:global(html.theme-dark) .visual-editor .visual-editor__warning,
+:global(html.theme-dark) .visual-editor .visual-editor__error{background:#3b2531!important;color:#ffd6dc!important}
+:global(html.theme-dark) .visual-editor .visual-editor__success{background:#183a34!important;color:#a5f5c7!important}
 </style>
