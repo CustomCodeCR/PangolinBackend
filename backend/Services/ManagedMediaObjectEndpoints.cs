@@ -93,11 +93,12 @@ public static class ManagedMediaObjectEndpoints
 
         if (onlyPublished)
         {
-            if (media.Kind != "Imagen")
-                return Results.NotFound();
             var link = $"/api/content/media/{id}/file";
-            if (!await db.ManagedNews.AsNoTracking().AnyAsync(n => n.Published && n.Image == link, ct))
-                return Results.NotFound();
+            var isPublishedInNews = media.Kind == "Imagen" &&
+                await db.ManagedNews.AsNoTracking().AnyAsync(n => n.Published && n.Image == link, ct);
+            var isPublishedOnSite = (media.Kind == "Imagen" || media.Kind == "Video") &&
+                await db.SiteCmsSlots.AsNoTracking().AnyAsync(x => x.PublishedMediaId == id, ct);
+            if (!isPublishedInNews && !isPublishedOnSite) return Results.NotFound();
         }
 
         try
