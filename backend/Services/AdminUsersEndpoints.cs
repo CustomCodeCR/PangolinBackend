@@ -1,5 +1,6 @@
 using CastroFallas.MiniQuote.Api.Data;
 using CastroFallas.MiniQuote.Api.Services.Auth;
+using CastroFallas.MiniQuote.Api.Services.Realtime;
 using Microsoft.EntityFrameworkCore;
 
 namespace CastroFallas.MiniQuote.Api.Services;
@@ -46,7 +47,7 @@ public static class AdminUsersEndpoints
         });
 
         group.MapPatch("/{id:guid}", async (
-            Guid id, UpdateUserAccessRequest input, AppDbContext db, AuthService auth,
+            Guid id, UpdateUserAccessRequest input, AppDbContext db, AuthService auth, ContentUpdatesPublisher updates,
             HttpContext http, CancellationToken ct) =>
         {
             var actor = await auth.GetIdentityAsync(http, ct);
@@ -91,6 +92,7 @@ public static class AdminUsersEndpoints
                     """, ct);
             }
             await tx.CommitAsync(ct);
+            await updates.AdminsAsync("users");
             return Results.Ok(new
             {
                 id = user.Uuid, correo = user.Correo, nombre = user.Cliente.Nombre,
