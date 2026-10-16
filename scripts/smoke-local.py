@@ -107,12 +107,20 @@ def main():
 
     status, me = call(browser, '/api/auth/me')
     require(status == 200 and me.get('correo') == email and me.get('role') == 'admin', f'Cookie/JWT incorrecta: {status} {me}')
-    # Las cotizaciones nuevas solo las pueden emitir cuentas con rol client.
-    status, _ = call(browser, '/api/quotes', {
+    # Los administradores también pueden cotizar, sin ver solicitudes de otros.
+    status, admin_quote = call(browser, '/api/quotes', {
         'serviceType': 'Maritime', 'origin': 'Miami', 'destination': 'San José',
         'cargoType': 'Carga general', 'weightKg': 100, 'pieces': 1
     })
-    require(status == 403, f'Un admin pudo crear cotizaciones de cliente: {status}')
+    require(status == 201 and admin_quote.get('id'),
+            f'Admin no pudo crear su propia cotización: {status} {admin_quote}')
+    admin_quote_id = admin_quote['id']
+    status, admin_mine = call(browser, '/api/quotes/mine?page=1&pageSize=20')
+    require(status == 200 and any(q.get('id') == admin_quote_id for q in admin_mine.get('items', [])),
+            'El administrador no ve su cotización recién creada.')
+    status, admin_detail = call(browser, '/api/quotes/' + admin_quote_id)
+    require(status == 200 and admin_detail.get('id') == admin_quote_id,
+            'El administrador no puede consultar el detalle de su cotización.')
     # El nuevo panel lista cuentas reales y audita cambios, sin permitir invitado.
     status, listing = call(browser, '/api/admin/users?page=1&pageSize=100')
     require(status == 200 and isinstance(listing.get('users'), list),
@@ -307,6 +315,12 @@ def main():
             f'El cliente no recibió role=client ({status}).')
     status, client_me = call(client_browser, '/api/auth/me')
     require(status == 200 and client_me.get('role') == 'client', 'JWT cliente no válido.')
+    status, _ = call(client_browser, '/api/quotes/' + admin_quote_id)
+    require(status == 404, 'Un cliente pudo acceder a la cotización privada de un administrador.')
+    status, client_mine_before = call(client_browser, '/api/quotes/mine')
+    require(status == 200 and all(q.get('id') != admin_quote_id
+                                  for q in client_mine_before.get('items', [])),
+            'La lista de clientes expone una cotización de administrador.')
     status, denied_users = call(client_browser, '/api/admin/users')
     require(status == 403, f'Cliente pudo listar cuentas: {status} {denied_users}')
     status, denied_media = call(client_browser, '/api/admin/content/media')
