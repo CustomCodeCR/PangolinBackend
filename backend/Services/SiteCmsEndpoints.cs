@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using CastroFallas.MiniQuote.Api.Data;
 using CastroFallas.MiniQuote.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -75,9 +74,10 @@ public static class SiteCmsEndpoints
                 return Results.BadRequest(new { error = "Los textos no pueden superar 1600 caracteres." });
             if (draft.MediaId is Guid id)
             {
+                var allowedVideo = key != "shared.logo.media";
                 var accepted = await db.ManagedMedia.AsNoTracking().AnyAsync(m => m.Id == id &&
-                    (m.Kind == "Imagen" || m.Kind == "Video" || m.Kind == "Video (enlace)"), ct);
-                if (!accepted) return Results.BadRequest(new { error = "Seleccioná una imagen o video existente en la biblioteca." });
+                    (m.Kind == "Imagen" || (allowedVideo && m.Kind == "Video")), ct);
+                if (!accepted) return Results.BadRequest(new { error = "Seleccioná una imagen o video subido a MinIO. El logo solo admite imágenes." });
             }
             var slot = await db.SiteCmsSlots.FindAsync([key], ct);
             if (slot is null) { slot = new SiteCmsSlot { Key = key }; db.SiteCmsSlots.Add(slot); }
