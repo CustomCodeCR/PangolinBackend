@@ -9,6 +9,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<QuoteRequest> QuoteRequests => Set<QuoteRequest>();
     public DbSet<ManagedNews> ManagedNews => Set<ManagedNews>();
     public DbSet<ManagedMedia> ManagedMedia => Set<ManagedMedia>();
+    public DbSet<SiteCmsSlot> SiteCmsSlots => Set<SiteCmsSlot>();
     public DbSet<QuoteContact> QuoteContacts => Set<QuoteContact>();
     public DbSet<QuoteLandDetail> QuoteLandDetails => Set<QuoteLandDetail>();
     public DbSet<QuoteAirDetail> QuoteAirDetails => Set<QuoteAirDetail>();
@@ -115,6 +116,19 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         news.Property(x => x.Published).HasColumnName("published");
         news.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp with time zone");
         news.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp with time zone");
+
+        var siteSlot = modelBuilder.Entity<SiteCmsSlot>();
+        siteSlot.ToTable("cms_site_slots", "public");
+        siteSlot.HasKey(x => x.Key);
+        siteSlot.Property(x => x.Key).HasColumnName("key").HasMaxLength(100);
+        siteSlot.Property(x => x.DraftEs).HasColumnName("draft_es").HasColumnType("text");
+        siteSlot.Property(x => x.DraftEn).HasColumnName("draft_en").HasColumnType("text");
+        siteSlot.Property(x => x.DraftMediaId).HasColumnName("draft_media_id");
+        siteSlot.Property(x => x.PublishedEs).HasColumnName("published_es").HasColumnType("text");
+        siteSlot.Property(x => x.PublishedEn).HasColumnName("published_en").HasColumnType("text");
+        siteSlot.Property(x => x.PublishedMediaId).HasColumnName("published_media_id");
+        siteSlot.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp with time zone");
+        siteSlot.Property(x => x.PublishedAt).HasColumnName("published_at").HasColumnType("timestamp with time zone");
 
         var media = modelBuilder.Entity<ManagedMedia>();
         media.ToTable("cms_media", "public");
