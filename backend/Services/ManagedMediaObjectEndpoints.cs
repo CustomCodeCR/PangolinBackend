@@ -1,6 +1,7 @@
 using Amazon.S3;
 using CastroFallas.MiniQuote.Api.Data;
 using CastroFallas.MiniQuote.Api.Models;
+using CastroFallas.MiniQuote.Api.Services.Realtime;
 using Microsoft.EntityFrameworkCore;
 
 namespace CastroFallas.MiniQuote.Api.Services;
@@ -16,7 +17,7 @@ public static class ManagedMediaObjectEndpoints
     public static void MapManagedMediaObjects(this IEndpointRouteBuilder app)
     {
         app.MapPost("/api/admin/content/media/upload", async Task<IResult> (
-            HttpRequest request, AppDbContext db, ObjectStorageService storage, CancellationToken ct) =>
+            HttpRequest request, AppDbContext db, ObjectStorageService storage, ContentUpdatesPublisher updates, CancellationToken ct) =>
         {
             if (!storage.Enabled)
                 return Results.Json(new { error = "El almacenamiento S3 no está habilitado." }, statusCode: 503);
@@ -68,6 +69,7 @@ public static class ManagedMediaObjectEndpoints
                 catch { /* La reconciliación de objetos huérfanos debe registrarse en operaciones. */ }
                 throw;
             }
+            await updates.AdminsAsync("media");
             return Results.Created($"/api/admin/content/media/{media.Id}", new {
                 media.Id, media.Name, media.Kind, media.Src,
                 media.ObjectKey, media.MimeType, media.SizeBytes
