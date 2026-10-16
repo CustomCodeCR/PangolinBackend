@@ -153,12 +153,10 @@ check('.theme-toggle:hover{transform:scale(1.12)}' in shared_mobile_styles
       and 'transform: scale(1.025) !important;' in shared_mobile_styles
       and 'transform-origin: left center;' in shared_mobile_styles,
       'El selector de tema mantiene hover sutil en responsive sin cambiar escritorio')
-check('Alinear la flecha del idioma al centro del texto' in shared_mobile_styles
-      and '.site-header .header-settings__panel .language-switcher__chevron::after' in shared_mobile_styles
-      and 'align-self: center;' in shared_mobile_styles
-      and 'font-size: 0;' in shared_mobile_styles
-      and 'transform: translateY(-2px) rotate(45deg);' in shared_mobile_styles,
-      'Flecha del selector de idioma centrada verticalmente en ajustes móviles')
+check('Alinear la flecha del idioma al centro del texto' not in shared_mobile_styles
+      and '⌄' in read('frontend/src/components/LanguageSwitcher.vue')
+      and '.language-switcher__chevron::after' not in shared_mobile_styles,
+      'Flecha del idioma conserva el diseño original')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
