@@ -17,6 +17,11 @@ public sealed class QuoteService(AppDbContext db, ILogger<QuoteService> logger, 
     private static readonly string[] Services = ["Land", "Air", "Maritime", "Multimodal"];
     private static readonly string[] Incoterms = ["EXW", "FCA", "FAS", "FOB", "CFR", "CIF", "CPT", "CIP", "DAP", "DPU", "DDP"];
 
+    // Excluir de las consultas de clientes las cotizaciones hechas por administradores.
+    public async Task<bool> IsOwnedByAdminAsync(Guid? userId, CancellationToken ct) =>
+        userId.HasValue && await db.Usuarios.AsNoTracking()
+            .AnyAsync(user => user.Uuid == userId.Value && user.TipoAcceso == "usuario", ct);
+
     public async Task<QuoteResponse> CreateAsync(CreateQuoteRequest input, Guid clienteId, Guid usuarioId, CancellationToken ct)
     {
         var type = Required(input.ServiceType, "serviceType", 30);
