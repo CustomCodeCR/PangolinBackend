@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import IconSymbol from '../components/IconSymbol.vue'
+import SiteMedia from '../components/SiteMedia.vue'
+import { siteText, siteVisual, siteCssImage } from '../siteCms'
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LanguageSwitcher from '../components/LanguageSwitcher.vue'
 import { refreshSession } from '../services/auth'
-const { t } = useI18n({ useScope: 'global' })
+const { t, locale } = useI18n({ useScope: 'global' })
 const email = ref('')
 const otp = ref('')
 const challengeId = ref('')
@@ -103,15 +105,16 @@ function enterAsGuest() {
 
 <template>
   <main class="login-screen">
-    <div class="login-visual">
+    <div class="login-visual" :style="{ '--cms-login-hero': siteCssImage('login.hero.media', '/images/hero.webp') }">
+      <SiteMedia v-if="siteVisual('login.hero.media', '/images/hero.webp').kind.startsWith('Video')" slot-key="login.hero.media" fallback="/images/hero.webp" background />
       <button class="login-guest-back" type="button" @click="enterAsGuest">
         <span aria-hidden="true">←</span> {{ $t('custom.login.back') }}
       </button>
       <div class="login-visual__content">
         <img src="/images/logo.png" :alt="$t('phrases.p138')" />
         <p class="section-tag light-tag">{{ $t('custom.login.topTag') }}</p>
-        <h1>{{ $t('custom.login.visualTitle1') }}<br />{{ $t('custom.login.visualTitle2') }}<br /><em>{{ $t('custom.login.visualTitle3') }}</em></h1>
-        <p>{{ $t('custom.login.visualIntro') }}</p>
+        <h1>{{ siteText('login.hero.title1', $t('custom.login.visualTitle1'), locale) }}<br />{{ siteText('login.hero.title2', $t('custom.login.visualTitle2'), locale) }}<br /><em>{{ siteText('login.hero.title3', $t('custom.login.visualTitle3'), locale) }}</em></h1>
+        <p>{{ siteText('login.hero.intro', $t('custom.login.visualIntro'), locale) }}</p>
       </div>
       <span class="login-visual__bottom">{{ $t('custom.login.visualBottom') }}</span>
     </div>
