@@ -39,13 +39,13 @@ const serviceInfo = computed(() => Object.fromEntries((['Maritime', 'Land', 'Air
 const expandedFaq = ref<number | null>(0)
 const faqs = computed(() => baseFaqs.map((faq, index) => ({
   ...faq,
-  q: t(`content.faqs.${index}.q`),
-  a: t(`content.faqs.${index}.a`)
+  q: siteText(`home.faq.${index}.q`, t(`content.faqs.${index}.q`), locale.value),
+  a: siteText(`home.faq.${index}.a`, t(`content.faqs.${index}.a`), locale.value)
 })))
 const promises = computed(() => [0, 1, 2].map(index => ({
   icon: ['↗', '◎', '✦'][index],
-  title: t(`content.promises.${index}.title`),
-  subtitle: t(`content.promises.${index}.subtitle`)
+  title: siteText(`home.digital.card.${index}.title`, t(`content.promises.${index}.title`), locale.value),
+  subtitle: siteText(`home.digital.card.${index}.subtitle`, t(`content.promises.${index}.subtitle`), locale.value)
 })))
 const stats = computed(() => [
   { value: '+25', label: t('custom.home.stats.0') },
@@ -316,6 +316,7 @@ onUnmounted(() => {
                 :key="index"
                 class="promise-card"
               >
+                <SiteMedia v-if="siteVisual(`home.digital.card.${index % promises.length}.media`, '').src" :slot-key="`home.digital.card.${index % promises.length}.media`" fallback="" class="cms-digital-bg" background />
                 <div class="promise-card__top">
                   <IconSymbol :glyph="promise.icon" :size="22" />
                   <small>0{{ (index % promises.length) + 1 }}</small>
