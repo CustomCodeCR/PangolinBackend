@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import IconSymbol from '../components/IconSymbol.vue'
+import SiteVisualEditor from './SiteVisualEditor.vue'
 import { authState, refreshSession } from '../services/auth'
 import { deleteManaged, newManagedId, readManagedItineraries, readManagedMedia, readManagedNews, saveManaged, type ManagedItinerary, type ManagedMedia, type ManagedNews } from '../adminContent'
 
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
-type Section = 'itineraries' | 'news' | 'media' | 'users'
+type Section = 'itineraries' | 'news' | 'media' | 'users' | 'site'
 type AppRole = 'cliente' | 'administrador'
 interface ManagedUser { id: string; correo: string; nombre?: string; role: AppRole; activo: boolean }
 const section = ref<Section>(new URLSearchParams(window.location.search).get('tab') === 'usuarios' ? 'users' : 'itineraries')
@@ -436,6 +437,7 @@ function useMediaForNews(item: ManagedMedia) {
         <button :class="{ active: section === 'itineraries' }" @click="selectSection('itineraries')">Itinerarios <span>{{ itineraries.length }}</span></button>
         <button :class="{ active: section === 'news' }" @click="selectSection('news')">Noticias <span>{{ news.length }}</span></button>
         <button :class="{ active: section === 'media' }" @click="selectSection('media')">Multimedia <span>{{ media.length }}</span></button>
+        <button :class="{ active: section === 'site' }" @click="selectSection('site')">Editor visual <span>Nuevo</span></button>
       </nav>
       <section v-if="section === 'users'" class="manager-users-card" aria-label="Cuentas registradas">
         <header><div><p class="manager-eyebrow">CUENTAS REGISTRADAS</p><h2>{{ usersLoading ? 'Cargando…' : `${users.length} usuarios` }}</h2></div><button class="manager-add" :disabled="usersLoading" @click="loadUsers">Actualizar</button></header>
@@ -446,7 +448,8 @@ function useMediaForNews(item: ManagedMedia) {
         <div v-else-if="!usersError && users.length === 0" class="manager-users-empty">Aún no hay cuentas para mostrar.</div>
         <div v-else-if="users.length" class="manager-users-table-wrap"><table class="manager-users-table"><thead><tr><th>Cuenta</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody><tr v-for="user in users" :key="user.id"><td><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td><td><select v-model="user.role" :disabled="Boolean(authState.previewRole)" :aria-label="`Rol de ${user.correo}`"><option value="cliente">Cliente</option><option value="administrador">Administrador</option></select></td><td><select v-model="user.activo" :disabled="Boolean(authState.previewRole)" :aria-label="`Estado de ${user.correo}`"><option :value="true">Activo</option><option :value="false">Desactivado</option></select></td><td><button class="manager-user-save" :disabled="Boolean(authState.previewRole) || savingUserId === user.id" @click="updateUser(user)">{{ savingUserId === user.id ? 'Guardando…' : 'Guardar' }}</button></td></tr></tbody></table></div>
       </section>
-      <div class="manager-layout">
+      <SiteVisualEditor v-if="section === 'site'" />
+      <div v-else class="manager-layout">
         <template v-if="section !== 'users'">
         <section class="manager-form">
           <div class="manager-form-heading"><div><p class="manager-eyebrow">{{ editingId ? 'EDITAR' : 'NUEVO REGISTRO' }}</p><h2>{{ section === 'itineraries' ? 'Itinerario' : section === 'news' ? 'Noticia' : 'Archivo multimedia' }}</h2></div><button v-if="editingId" class="manager-cancel" @click="startNew">Cancelar</button></div>
