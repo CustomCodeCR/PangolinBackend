@@ -31,8 +31,8 @@ export const siteSlotCatalog: SiteSlotDefinition[] = [
     "key": "about.hero.media",
     "type": "media",
     "label": "Portada de Sobre nosotros",
-    "help": "Portada panorámica detrás de «Sobre nosotros» en /nosotros.",
-    "fallback": "/images/hero.webp",
+    "help": "Portada panorámica real de /nosotros, que utiliza la fotografía de operaciones. Puede ser distinta de la foto en el bloque inferior.",
+    "fallback": "/images/about-operations-enhanced.jpg",
     "section": "Portada"
   },
   {
@@ -333,16 +333,6 @@ export const siteSlotCatalog: SiteSlotDefinition[] = [
     "label": "Preguntas frecuentes, segunda línea",
     "help": "Segunda línea del título grande «Información útil para tu operación».",
     "fallback": "phrases.p034",
-    "section": "Preguntas frecuentes"
-  },
-  {
-    "page": "home",
-    "pageLabel": "Inicio",
-    "key": "home.faq.media",
-    "type": "media",
-    "label": "Preguntas frecuentes, fondo",
-    "help": "Imagen de fondo detrás de las preguntas frecuentes en Inicio.",
-    "fallback": "/images/operation.webp",
     "section": "Preguntas frecuentes"
   },
   {
