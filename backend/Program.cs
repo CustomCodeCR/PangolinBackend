@@ -322,7 +322,7 @@ app.MapPost("/api/quotes", async (
     {
         return Results.BadRequest(new { error = ex.Message });
     }
-}).RequireAuthorization("client");
+}).RequireAuthorization("registered");
 
 // La empresa autenticada solo puede enumerar sus propias solicitudes.
 // Límite de página explícito para no devolver registros de otros clientes.
@@ -336,14 +336,19 @@ app.MapGet("/api/quotes/mine", async (
     var size = pageSize ?? 20;
     if (p < 1 || size < 1 || size > 100 || ((long)p - 1) * size > int.MaxValue)
         return Results.BadRequest(new { error = "page debe ser mayor que 0 y pageSize debe estar entre 1 y 100." });
-    var q = db.QuoteRequests.AsNoTracking().Where(x => x.ClienteId == user.ClienteId);
+    // Admin: solo sus solicitudes, nunca las cotizaciones de otros admins o clientes.
+    // Cliente: solicitudes de su empresa, excluyendo las registradas por un administrador.
+    var q = user.Role == "admin"
+        ? db.QuoteRequests.AsNoTracking().Where(x => x.UsuarioId == user.UsuarioId)
+        : db.QuoteRequests.AsNoTracking().Where(x => x.ClienteId == user.ClienteId &&
+            !db.Usuarios.Any(owner => owner.Uuid == x.UsuarioId && owner.TipoAcceso == "usuario"));
     var total = await q.CountAsync(ct);
     var items = await q.OrderByDescending(x => x.CreatedAtUtc).ThenBy(x => x.Id)
         .Skip((p - 1) * size).Take(size)
         .Select(x => new { x.Id, x.ServiceType, x.Origin, x.Destination, x.Status, x.CreatedAtUtc })
         .ToListAsync(ct);
     return Results.Ok(new { items, total, page = p, pageSize = size, totalPages = (int)Math.Ceiling((double)total / size) });
-}).RequireAuthorization("client");
+}).RequireAuthorization("registered");
 
 app.MapGet("/api/quotes/{id:guid}", async (
     Guid id, QuoteService service, AuthService auth, HttpContext http, CancellationToken ct) =>
@@ -351,8 +356,17 @@ app.MapGet("/api/quotes/{id:guid}", async (
     var user = await auth.GetIdentityAsync(http, ct);
     if (user is null) return Results.Unauthorized();
     var result = await service.GetAsync(id, ct);
-    if (result.Quote is null || result.Quote.ClienteId != user.ClienteId)
+    if (result.Quote is null) return Results.NotFound(new { error = "Cotización no encontrada." });
+    if (user.Role == "admin")
+    {
+        if (result.Quote.UsuarioId != user.UsuarioId)
+            return Results.NotFound(new { error = "Cotización no encontrada." });
+    }
+    else if (result.Quote.ClienteId != user.ClienteId ||
+             await service.IsOwnedByAdminAsync(result.Quote.UsuarioId, ct))
+    {
         return Results.NotFound(new { error = "Cotización no encontrada." });
+    }
     http.Response.Headers["X-Data-Source"] = result.Source;
     return Results.Ok(result.Quote);
 }).RequireAuthorization("registered");
