@@ -24,7 +24,7 @@ const visible = computed(() => siteSlotCatalog.filter(slot => slot.page === page
   (slot.label + slot.help).toLowerCase().includes(query.value.toLowerCase())))
 const selected = computed<SiteSlotDefinition>(() => siteSlotCatalog.find(x => x.key === currentKey.value) ?? siteSlotCatalog[0])
 const row = computed(() => rows.value.find(x => x.key === selected.value.key))
-const selectableMedia = computed(() => media.value.filter(x => x.kind === 'Imagen' || x.kind.startsWith('Video')))
+const selectableMedia = computed(() => media.value.filter(x => x.kind === 'Imagen' || (selected.value.key !== 'shared.logo.media' && x.kind === 'Video')))
 const selectedMedia = computed(() => media.value.find(x => x.id === mediaId.value))
 const publishedMedia = computed(() => media.value.find(x => x.id === row.value?.publishedMediaId))
 const draftSrc = computed(() => selectedMedia.value ? previewSrc(selectedMedia.value) : selected.value.type === 'media' ? selected.value.fallback : '')
