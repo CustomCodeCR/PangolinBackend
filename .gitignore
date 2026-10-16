@@ -19,3 +19,6 @@ backend/local-outbox/
 .vs/
 .vscode/
 .DS_Store
+
+# Licencia y secretos locales de MinIO AIStor
+docker-secrets/
