@@ -141,7 +141,12 @@ def main():
             f'Estado de almacenamiento S3 inválido: {status} {storage_status}')
 
     # Editor visual: borradores jamás públicos, publicación visible y restauración segura.
-    site_key = 'home.hero.title1'
+    status, existing_slots = call(browser, '/api/admin/content/site')
+    require(status == 200 and isinstance(existing_slots, list), 'No se consultaron las ubicaciones CMS.')
+    used_keys = {item.get('key') for item in existing_slots}
+    site_key = next((key for key in ('home.hero.title1', 'about.values.heading', 'login.hero.title1')
+                     if key not in used_keys), None)
+    require(site_key is not None, 'No hay ubicación vacía de prueba: se evita sobrescribir contenido real.')
     admin_route = '/api/admin/content/site/' + site_key
     status, public_before = call(build_opener(), '/api/content/site')
     require(status == 200 and isinstance(public_before, list), 'API pública CMS visual no disponible.')
