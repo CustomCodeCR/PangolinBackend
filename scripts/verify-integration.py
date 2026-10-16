@@ -147,6 +147,11 @@ check('Shared mobile layout for the account and settings popovers' in shared_mob
       and 'grid-column: 1 / -1 !important;' in shared_mobile_styles
       and 'grid-template-columns: 38px 38px !important;' in shared_mobile_styles,
       'Perfil y Configuración se abren en una fila inferior centrada en pantallas móviles')
+check('.theme-toggle:hover{transform:scale(1.12)}' in shared_mobile_styles
+      and 'En menú responsive no ampliar el botón de tema' in shared_mobile_styles
+      and '.site-header .header-settings__panel .theme-toggle:is(:hover, :active, :focus-visible)' in shared_mobile_styles
+      and 'transform: none !important;' in shared_mobile_styles,
+      'El hover de tema no amplía el botón en responsive y conserva escritorio')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
