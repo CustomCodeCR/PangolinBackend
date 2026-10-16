@@ -26,6 +26,25 @@ const roleLabel = computed(() =>
     ? t('custom.header.roleAdmin')
     : t('custom.header.roleClient')
 )
+/* Bind the actual saved theme to the profile. Unlike a global html selector,
+   these inline variables remain reliable with Vue scoped styles on mobile. */
+const profileTheme = computed(() => darkMode.value ? {
+  '--profile-bg': '#0a1228',
+  '--profile-ink': '#f4f6fb',
+  '--profile-muted': '#c0c9da',
+  '--profile-heading': '#ffb5c4',
+  '--profile-border': 'rgba(255,255,255,.2)',
+  '--profile-rule': 'rgba(255,255,255,.18)',
+  '--profile-shadow': '0 20px 45px rgba(0,0,0,.45)'
+} : {
+  '--profile-bg': '#ffffff',
+  '--profile-ink': '#25212a',
+  '--profile-muted': '#706971',
+  '--profile-heading': '#a30e29',
+  '--profile-border': '#ecdde2',
+  '--profile-rule': '#eee3e7',
+  '--profile-shadow': '0 20px 45px rgba(24,6,12,.24)'
+})
 const rolePreviewSuffix = computed(() => authState.previewRole ? `?previewRole=${authState.previewRole}` : '')
 const administrationHref = computed(() => `/administracion${authState.previewRole ? `?previewRole=${encodeURIComponent(authState.previewRole)}` : ''}`)
 const baseLinks = [
@@ -149,7 +168,7 @@ function toggleTheme() {
               <UserRound :size="19" aria-hidden="true" />
             </button>
             <div v-if="profileOpen && sessionUser" id="header-profile-panel" class="header-profile__panel"
-              role="region" :aria-label="t('custom.header.profile')">
+              :style="profileTheme" role="region" :aria-label="t('custom.header.profile')">
               <span class="header-profile__heading">{{ t('custom.header.account') }}</span>
               <dl class="header-profile__details">
                 <div>
@@ -207,18 +226,18 @@ function toggleTheme() {
   right: 0;
   width: min(310px, calc(100vw - 32px));
   padding: 18px;
-  border: 1px solid #ecdde2;
+  border: 1px solid var(--profile-border, #ecdde2);
   border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 20px 45px rgba(24, 6, 12, .24);
-  color: #25212a;
+  background: var(--profile-bg, #fff);
+  box-shadow: var(--profile-shadow, 0 20px 45px rgba(24, 6, 12, .24));
+  color: var(--profile-ink, #25212a);
   text-align: left;
 }
 .header-profile__heading {
   display: block;
   padding-bottom: 11px;
-  border-bottom: 1px solid #eee3e7;
-  color: #a30e29;
+  border-bottom: 1px solid var(--profile-rule, #eee3e7);
+  color: var(--profile-heading, #a30e29);
   font-size: 11px;
   font-weight: 900;
   letter-spacing: .08em;
@@ -231,12 +250,13 @@ function toggleTheme() {
 }
 .header-profile__details dt {
   margin-bottom: 3px;
-  color: #706971;
+  color: var(--profile-muted, #706971);
   font-size: 11px;
   font-weight: 700;
 }
 .header-profile__details dd {
   margin: 0;
+  color: var(--profile-ink, #25212a);
   overflow-wrap: anywhere;
   font-size: 13px;
   font-weight: 700;
@@ -263,25 +283,8 @@ function toggleTheme() {
 }
 .header-profile__logout:hover { background: #900a22; }
 .header-profile__logout:disabled { opacity: .65; cursor: wait; }
-/* Use the same dark surface as the site rather than a white card.
-   :global is required because the theme class lives on <html> and this
-   component uses scoped styles. */
-:global(html.theme-dark) .header-profile__panel {
-  background: #0a1228;
-  border-color: rgba(255, 255, 255, .2);
-  box-shadow: 0 20px 45px rgba(0, 0, 0, .45);
-  color: #f4f6fb;
-}
-:global(html.theme-dark) .header-profile__heading {
-  color: #ffb5c4;
-  border-bottom-color: rgba(255, 255, 255, .18);
-}
-:global(html.theme-dark) .header-profile__details dt {
-  color: #c0c9da;
-}
-:global(html.theme-dark) .header-profile__details dd {
-  color: #f4f6fb;
-}
+/* The profile's colors come from the reactive theme variables above;
+   no global html selector or theme-specific CSS cascade is required. */
 
 /* A mobile profile is part of the expanded navigation flow, not an
    absolutely-positioned popover hanging off the user icon. Keep both
