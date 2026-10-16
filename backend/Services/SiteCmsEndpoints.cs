@@ -139,7 +139,7 @@ public static class SiteCmsEndpoints
             return Results.Ok(slot);
         });
 
-        admin.MapPost("/{key}/restore", async Task<IResult> (string key, AppDbContext db, CancellationToken ct) =>
+        admin.MapPost("/{key}/restore", async Task<IResult> (string key, AppDbContext db, ContentUpdatesPublisher updates, CancellationToken ct) =>
         {
             if (!MediaKeys.Contains(key) && !TextKeys.Contains(key)) return Results.NotFound();
             var slot = await db.SiteCmsSlots.FindAsync([key], ct);
