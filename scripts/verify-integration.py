@@ -42,7 +42,7 @@ check((root/'backend/Database/AuthSchema.sql').is_file(), 'Esquema de login disp
 check((root/'frontend/public/images/logo.png').is_file(), 'Activos gráficos del rediseño disponibles')
 for language in ('es', 'en'):
     d=json.loads(read(f'frontend/src/locales/{language}.json'))
-    check(all(x in d['custom']['quote'] for x in ('checkingSession','loginRequired','goToLogin','sessionExpired')) and 'logout' in d['custom']['header'], f'Traducciones integradas: {language}')
+    check(all(x in d['custom']['quote'] for x in ('checkingSession','loginRequired','goToLogin','sessionExpired')) and all(k in d['custom']['header'] for k in ('profile', 'accountName', 'accountRole', 'accountEmail', 'roleAdmin', 'roleClient', 'logout')), f'Traducciones integradas: {language}')
 check('.env' in read('.gitignore').splitlines(), 'Git excluye .env local; no se inspeccionan secretos')
 check('vue-i18n' in json.loads(read('frontend/package.json'))['dependencies'], 'Dependencias originales del rediseño conservadas')
 check('embla-carousel' in json.loads(read('frontend/package.json'))['dependencies'], 'Carrusel de noticias incorporado con su dependencia')
@@ -121,8 +121,19 @@ check("currentRole() === 'administrador'" in header and
       'isAuthenticated = computed(() => !!sessionUser.value)' in header and
       'previewRole' in read('frontend/src/services/auth.ts'),
       'El menú administra rol real y previsualización sin privilegios API')
-check('class="nav-user-icon"' in header and '@click="logout"' in header,
-      'Icono de perfil con cierre de sesión real')
+check('class="nav-user-icon header-profile__trigger"' in header
+      and '@click.stop="toggleProfile"' in header and '@click="logout"' in header
+      and 'sessionUser.nombre?.trim()' in header and 'sessionUser.correo' in header
+      and 'roleLabel' in header and 'handleOutsideClick' in header
+      and 'handleEscapeKey' in header,
+      'Icono de usuario abre perfil con nombre, rol, correo y cierre de sesión explícito')
+profile_styles = read('frontend/src/components/SiteHeader.vue')
+check(':global(html.theme-dark) .header-profile__panel' in profile_styles
+      and ':global(html.theme-dark) .header-profile__details dd' in profile_styles
+      and '.header-account-tools:has(.header-profile--open)' in profile_styles
+      and 'grid-column: 1 / -1;' in profile_styles
+      and 'position: relative;' in profile_styles,
+      'Perfil usa tema oscuro y ocupa una fila centrada en navegación móvil')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
