@@ -147,6 +147,16 @@ check('Shared mobile layout for the account and settings popovers' in shared_mob
       and 'grid-column: 1 / -1 !important;' in shared_mobile_styles
       and 'grid-template-columns: 38px 38px !important;' in shared_mobile_styles,
       'Perfil y Configuración se abren en una fila inferior centrada en pantallas móviles')
+check('.theme-toggle:hover{transform:scale(1.10)}' in shared_mobile_styles
+      and 'Hover sutil en móvil: 5% frente al 10% de escritorio.' in shared_mobile_styles
+      and '.site-header .header-settings__panel .theme-toggle:is(:hover, :active, :focus-visible)' in shared_mobile_styles
+      and 'transform: scale(1.05) !important;' in shared_mobile_styles
+      and 'transform-origin: left center;' in shared_mobile_styles,
+      'El selector de tema mantiene hover sutil en responsive sin cambiar escritorio')
+check('Alinear la flecha del idioma al centro del texto' not in shared_mobile_styles
+      and '⌄' in read('frontend/src/components/LanguageSwitcher.vue')
+      and '.language-switcher__chevron::after' not in shared_mobile_styles,
+      'Flecha del idioma conserva el diseño original')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')

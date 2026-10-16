@@ -83,7 +83,7 @@ html.theme-dark .red-cta::before{background:radial-gradient(ellipse at center,rg
 
 /* Theme switch: a larger symbol without a surrounding button box. */
 .theme-toggle{display:grid;place-items:center;padding:0;border:0;background:transparent;color:#fff;font-size:30px;line-height:1;width:38px;height:42px}
-.theme-toggle:hover{transform:scale(1.12)}
+.theme-toggle:hover{transform:scale(1.10)}
 
 /* Fondo azul oscuro y texto blanco */
 html.theme-dark,
@@ -4668,5 +4668,23 @@ html:not(.theme-dark) .login-visual__content h1 em { color: var(--login-accent) 
   }
   .site-header.site-header--menu-open .header-account-tools:has(.header-settings--open):not(:has(.header-profile)) {
     grid-template-columns: max-content 38px !important;
+  }
+}
+
+/* Hover sutil en móvil: 5% frente al 10% de escritorio.
+   Mantener el origen a la izquierda para que el contenido no sobresalga
+   del panel aunque Safari mantenga :hover tras una pulsación. */
+@media (max-width: 1080px) {
+  .site-header .header-settings__panel .theme-toggle {
+    border-radius: 8px;
+    transform-origin: left center;
+    transition: transform .16s ease, background-color .16s ease;
+  }
+  .site-header .header-settings__panel .theme-toggle:is(:hover, :active, :focus-visible) {
+    transform: scale(1.05) !important;
+    background: rgba(178, 11, 45, .08);
+  }
+  html.theme-dark .site-header .header-settings__panel .theme-toggle:is(:hover, :active, :focus-visible) {
+    background: rgba(255, 255, 255, .08);
   }
 }
