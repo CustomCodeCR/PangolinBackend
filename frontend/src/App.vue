@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import IconSymbol from './components/IconSymbol.vue'
+import { Anchor } from '@lucide/vue'
 import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { authState } from './services/auth'
@@ -229,7 +230,7 @@ async function reloadQuote() {
             <button class="quote-pill quote-pill--navy" type="button" @click="startCargoForm('air')">{{ $t('custom.quote.airButton') }} <IconSymbol glyph="↗" /></button>
           </article>
           <article class="quote-choice-card quote-choice-card--ocean">
-            <div><span class="quote-choice-icon" aria-hidden="true">⚓</span><p class="quote-kicker">{{ $t('custom.quote.maritimeLabel') }}</p><h2>{{ $t('custom.quote.maritimeTitle') }}</h2><p>{{ $t('custom.quote.maritimeDescription') }}</p></div>
+            <div><span class="quote-choice-icon" aria-hidden="true"><Anchor :size="26" :stroke-width="2.4" /></span><p class="quote-kicker">{{ $t('custom.quote.maritimeLabel') }}</p><h2>{{ $t('custom.quote.maritimeTitle') }}</h2><p>{{ $t('custom.quote.maritimeDescription') }}</p></div>
             <button class="quote-pill quote-pill--navy" type="button" @click="startCargoForm('maritime')">{{ $t('custom.quote.maritimeButton') }} <IconSymbol glyph="↗" /></button>
           </article>
           <article class="quote-choice-card quote-choice-card--ocean">
