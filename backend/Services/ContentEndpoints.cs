@@ -63,6 +63,10 @@ public static class ContentEndpoints
             return Results.NoContent();
         });
 
+        // El editor conserva cargas Base64 de imágenes si esta instalación no usa S3.
+        admin.MapGet("/media/storage-status", (ObjectStorageService storage) =>
+            Results.Ok(new { enabled = storage.Enabled }));
+
         admin.MapGet("/media", async (AppDbContext db, CancellationToken ct) =>
             Results.Ok(await db.ManagedMedia.AsNoTracking()
                 .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
