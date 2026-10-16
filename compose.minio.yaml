@@ -23,7 +23,8 @@ services:
       Storage__SecretKey: ${S3_SECRET_KEY:?Configura S3_SECRET_KEY en .env}
       Storage__Bucket: ${S3_BUCKET:-castrofallas-media}
     depends_on:
-      - minio
+      minio:
+        condition: service_started
 
 volumes:
   minio_data:
