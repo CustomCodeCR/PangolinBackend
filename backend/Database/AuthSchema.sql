@@ -180,11 +180,13 @@ CREATE TABLE IF NOT EXISTS public.cms_news (
     title VARCHAR(160) NOT NULL,
     category VARCHAR(60) NOT NULL,
     description VARCHAR(1200) NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
     image TEXT NOT NULL DEFAULT '',
     published BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+ALTER TABLE public.cms_news ADD COLUMN IF NOT EXISTS body TEXT NOT NULL DEFAULT '';
 CREATE INDEX IF NOT EXISTS idx_cms_news_published ON public.cms_news(published, created_at DESC);
 CREATE TABLE IF NOT EXISTS public.cms_media (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

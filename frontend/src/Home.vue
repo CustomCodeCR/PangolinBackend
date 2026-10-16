@@ -4,7 +4,8 @@ import SiteHeader from './components/SiteHeader.vue'
 import SiteFooter from './components/SiteFooter.vue'
 import WorldGlobe from './components/WorldGlobe.vue'
 import IconSymbol from './components/IconSymbol.vue'
-import { homeNews as baseHomeNews, services as baseServices, faqs as baseFaqs, type ServiceKey } from './content'
+import { services as baseServices, faqs as baseFaqs, type ServiceKey } from './content'
+import type { ManagedNews } from './adminContent'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n({ useScope: 'global' })
@@ -48,10 +49,12 @@ const stats = computed(() => [
   { value: '+105', label: t('custom.home.stats.2') },
   { value: '24/7', label: t('custom.home.stats.3') }
 ])
-const homeNews = computed(() => baseHomeNews.map((item, index) => ({
-  ...item,
-  category: t(`content.homeNews.${index}.category`),
-  title: t(`content.homeNews.${index}.title`)
+const managedNews = ref<ManagedNews[]>([])
+const homeNewsLoaded = ref(false)
+const homeNewsError = ref(false)
+const homeNews = computed(() => managedNews.value.filter(article => article.published && article.title.trim()).slice(0, 3).map(article => ({
+  id: article.id, category: article.category, title: article.title,
+  image: article.image || '/images/cover-logistics.jpeg'
 })))
 
 
@@ -86,9 +89,20 @@ function showStat(index: number) {
   activeStat.value = (index + stats.value.length) % stats.value.length
 }
 
-onMounted(() => {
+onMounted(async () => {
   statsTimer = window.setInterval(() => showStat(activeStat.value + 1), 2500)
-  newsTimer = window.setInterval(advanceNews, 3400)
+  try {
+    const response = await fetch('/api/content/news', { cache: 'no-store' })
+    if (!response.ok) throw new Error('No se pudieron consultar las noticias.')
+    const articles: unknown = await response.json()
+    if (!Array.isArray(articles)) throw new Error('Formato de noticias inválido.')
+    managedNews.value = articles as ManagedNews[]
+    if (homeNews.value.length > 1) newsTimer = window.setInterval(advanceNews, 3400)
+  } catch {
+    homeNewsError.value = true
+  } finally {
+    homeNewsLoaded.value = true
+  }
 })
 
 onUnmounted(() => {
@@ -176,7 +190,9 @@ onUnmounted(() => {
               <span>{{ $t('custom.home.newsHeader') }}</span>
               <a href="/noticias">{{ $t('custom.home.allNews') }}</a>
             </div>
+            <p v-if="!homeNews.length" class="home-news-empty" role="status">{{ !homeNewsLoaded ? 'Cargando noticias…' : homeNewsError ? 'No se pudieron cargar las noticias.' : 'Próximamente compartiremos noticias y novedades.' }}</p>
             <div
+              v-else
               ref="newsScroller"
               class="home-news-sidebar__list"
               tabindex="0"
@@ -186,10 +202,10 @@ onUnmounted(() => {
               @focusin="pauseNews"
             >
               <div class="home-news-sidebar__track">
-                <div v-for="copy in 2" :key="copy" class="home-news-sidebar__group" :aria-hidden="copy === 2">
+                <div v-for="copy in (homeNews.length > 1 ? 2 : 1)" :key="copy" class="home-news-sidebar__group" :aria-hidden="copy === 2">
                   <a
-                    v-for="item in homeNews.slice(0, 3)"
-                    :key="`${copy}-${item.title}`"
+                    v-for="item in homeNews"
+                    :key="`${copy}-${item.id}`"
                     class="home-hero-news__card"
                     href="/noticias"
                     :tabindex="copy === 2 ? -1 : 0"
@@ -420,3 +436,7 @@ onUnmounted(() => {
     <SiteFooter />
   </div>
 </template>
+
+<style scoped>
+.home-news-empty { padding: 24px 16px; margin: 0; color: #5d6270; font-size: 14px; line-height: 1.5; }
+</style>

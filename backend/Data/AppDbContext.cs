@@ -110,6 +110,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         news.Property(x => x.Title).HasColumnName("title").HasMaxLength(160).IsRequired();
         news.Property(x => x.Category).HasColumnName("category").HasMaxLength(60).IsRequired();
         news.Property(x => x.Description).HasColumnName("description").HasMaxLength(1200).IsRequired();
+        news.Property(x => x.Body).HasColumnName("body").HasColumnType("text").IsRequired();
         news.Property(x => x.Image).HasColumnName("image").HasColumnType("text").IsRequired();
         news.Property(x => x.Published).HasColumnName("published");
         news.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp with time zone");

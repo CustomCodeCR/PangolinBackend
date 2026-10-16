@@ -6,6 +6,7 @@ public sealed class ManagedNews
     public string Title { get; set; } = "";
     public string Category { get; set; } = "";
     public string Description { get; set; } = "";
+    public string Body { get; set; } = "";
     public string Image { get; set; } = "";
     public bool Published { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -23,6 +24,6 @@ public sealed class ManagedMedia
 }
 
 public sealed record SaveNewsRequest(
-    string? Title, string? Category, string? Description, string? Image, bool Published);
+    string? Title, string? Category, string? Description, string? Image, bool Published, string? Body);
 public sealed record SaveMediaRequest(
     string? Name, string? Kind, string? Src);
