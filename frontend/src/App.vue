@@ -165,7 +165,7 @@ function quotePayload() {
 }
 
 async function submitQuote() {
-  if (authState.user?.role !== 'cliente') {
+  if (authState.user?.role !== 'cliente' && authState.user?.role !== 'administrador') {
     window.location.assign('/bienvenidos?next=' + encodeURIComponent('/cotizaciones'))
     return
   }
