@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import IconSymbol from './components/IconSymbol.vue'
-import { computed, reactive, ref } from 'vue'
+import { computed, onUnmounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { authState } from './services/auth'
+import { subscribeToChanges } from './services/realtime'
 
 type Quote = {
   id: string
@@ -194,6 +195,9 @@ async function submitQuote() {
   }
 }
 
+const stopQuoteEvents = ['quotes', 'sync'].map(resource =>
+  subscribeToChanges(resource, () => { if (quote.value && !loading.value) void reloadQuote() }))
+onUnmounted(() => stopQuoteEvents.forEach(stop => stop()))
 async function reloadQuote() {
   if (!quote.value) return
   loading.value = true
