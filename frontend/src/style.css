@@ -4693,13 +4693,13 @@ html:not(.theme-dark) .login-visual__content h1 em { color: var(--login-accent) 
 .home-hero{background-image:linear-gradient(90deg,rgba(163,7,35,.86) 0%,rgba(160,12,40,.68) 30%,rgba(70,22,78,.3) 64%,rgba(9,29,75,.14) 100%),var(--cms-home-hero,url('/images/hero.webp'))}
 .home-hero.cms-video-hero{background-image:none;background-color:#152440;isolation:isolate}
 .home-hero.cms-video-hero::before{content:"";position:absolute;z-index:1;inset:0;background:linear-gradient(90deg,rgba(163,7,35,.86),rgba(9,29,75,.2));pointer-events:none}
-.home-hero.cms-video-hero>.site-header,.home-hero.cms-video-hero>.container,.home-hero.cms-video-hero>.hero-vertical-text,.home-hero.cms-video-hero>.hero-bottom-gradient{position:relative;z-index:2}
+.home-hero.cms-video-hero>.site-header,.home-hero.cms-video-hero>.container,.home-hero.cms-video-hero>.hero-vertical-text,.home-hero.cms-video-hero>.hero-bottom-gradient{z-index:2}
 .home-hero.cms-video-hero>.hero-bottom-gradient{position:absolute}
 .inner-hero--about{background-image:linear-gradient(90deg,#ac0e2bcc 0%,#bb153270 50%,#15224a30),var(--cms-about-hero,url('/images/hero.webp'))}
 .inner-hero--services{background-image:linear-gradient(90deg,rgba(163,7,35,.86),rgba(9,29,75,.14)),var(--cms-services-hero,url('/images/services-crane.webp'))}
 .inner-hero:has(>.cms-background-video){isolation:isolate;background-image:none;background-color:#1d2841}
 .inner-hero:has(>.cms-background-video)::before{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,#ac0e2bcc,rgba(21,34,74,.4));pointer-events:none}
-.inner-hero:has(>.cms-background-video)>.site-header{position:relative;z-index:3}
+.inner-hero:has(>.cms-background-video)>.site-header{z-index:3}
 .login-visual{background-image:linear-gradient(125deg,#9c092ad9 0%,#9b0c28bf 33%,#1c174347 75%),var(--cms-login-hero,url('/images/hero.webp'))}
 .login-visual:has(>.cms-background-video){isolation:isolate;background-image:none;background-color:#1c243c}
 .login-visual:has(>.cms-background-video)::before{content:"";position:absolute;z-index:1;inset:0;background:linear-gradient(125deg,#9c092ad9,#1c174347);pointer-events:none}
