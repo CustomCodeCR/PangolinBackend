@@ -177,6 +177,14 @@ check('Alinear la flecha del idioma al centro del texto' not in shared_mobile_st
       and '⌄' in read('frontend/src/components/LanguageSwitcher.vue')
       and '.language-switcher__chevron::after' not in shared_mobile_styles,
       'Flecha del idioma conserva el diseño original')
+check("import { Anchor } from '@lucide/vue'" in app
+      and '<Anchor :size="26" :stroke-width="2.4" />' in app
+      and '<span class="quote-choice-icon" aria-hidden="true">⚓</span>' not in app
+      and 'Los cuatro pictogramas de las tarjetas de cotización' in shared_mobile_styles
+      and '.quote-choice-card .quote-choice-icon svg *' in shared_mobile_styles
+      and 'stroke: #fff !important;' in shared_mobile_styles
+      and 'fill: none !important;' in shared_mobile_styles,
+      'Cuatro íconos de cotización blancos, sin emoji azul y con SVG monócromo')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
