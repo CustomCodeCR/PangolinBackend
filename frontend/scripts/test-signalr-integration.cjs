@@ -9,10 +9,10 @@ if (!COOKIE) throw Error('Falta cookie temporal de prueba')
 const testKey = process.env.SIGNALR_TEST_SLOT
 if (!testKey) throw Error('Falta ranura de prueba')
 const admin = new signalR.HubConnectionBuilder()
-  .withUrl(BASE + '/api/hubs/updates', { headers: { Cookie: COOKIE } })
+  .withUrl(BASE + '/api/hubs/updates', { headers: { Cookie: COOKIE }, transport: signalR.HttpTransportType.WebSockets })
   .build()
 const visitor = new signalR.HubConnectionBuilder()
-  .withUrl(BASE + '/api/hubs/updates')
+  .withUrl(BASE + '/api/hubs/updates', { transport: signalR.HttpTransportType.WebSockets })
   .build()
 const adminEvents = []
 const publicEvents = []
@@ -44,6 +44,10 @@ async function main() {
     await admin.start()
     await visitor.start()
     active = true
+    let refused = false
+    try { await visitor.invoke('PublishChange', { resource: 'site-admin' }) }
+    catch { refused = true }
+    assert(refused, 'Un visitante pudo invocar un método de publicación')
     const path = '/api/admin/content/site/' + encodeURIComponent(testKey)
     // Publicación ficticia protegida, nunca un registro real de otro usuario.
     await api(path, 'PUT', { textEs: 'REALTIME SMOKE', textEn: 'REALTIME TEST', mediaId: null })
@@ -52,7 +56,7 @@ async function main() {
     assert(!publicEvents.includes('site-admin'), 'Visitante recibió evento interno')
     assert(!publicEvents.includes('site'), 'Borrador enviado públicamente')
     await api(path + '/publish', 'POST')
-    await Promise.all([waitFor(visitorEventsAlias(), 'site'), waitFor(adminEvents, 'site')])
+    await Promise.all([waitFor(publicEvents, 'site'), waitFor(adminEvents, 'site')])
     console.log('OK: SignalR privado y público desde backend después del guardado')
   } finally {
     if (active) {
@@ -62,5 +66,4 @@ async function main() {
     await Promise.allSettled([admin.stop(), visitor.stop()])
   }
 }
-function visitorEventsAlias() { return publicEvents }
 main().catch(error => { console.error('FAIL SignalR:', error.message); process.exitCode = 1 })
