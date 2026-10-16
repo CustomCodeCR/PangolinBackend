@@ -66,7 +66,7 @@ public static class ContentEndpoints
         admin.MapGet("/media", async (AppDbContext db, CancellationToken ct) =>
             Results.Ok(await db.ManagedMedia.AsNoTracking()
                 .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
-                .Select(x => new { x.Id, x.Name, x.Kind, x.Src })
+                .Select(x => new { x.Id, x.Name, x.Kind, x.Src, x.ObjectKey, x.MimeType, x.SizeBytes })
                 .ToListAsync(ct)));
 
         admin.MapPost("/media", async (SaveMediaRequest input, AppDbContext db, CancellationToken ct) =>
@@ -87,17 +87,27 @@ public static class ContentEndpoints
             if (validation is not null) return Results.BadRequest(new { error = validation });
             var media = await db.ManagedMedia.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (media is null) return Results.NotFound(new { error = "Archivo no encontrado." });
+            if (media.ObjectKey is not null &&
+                (media.Src != input.Src?.Trim() || media.Kind != input.Kind?.Trim()))
+                return Results.Conflict(new { error = "El archivo almacenado en S3 no puede reemplazarse desde el editor de enlaces. Subí otro archivo." });
             ApplyMedia(media, input);
             await db.SaveChangesAsync(ct);
             return Results.Ok(MediaView(media));
         });
 
-        admin.MapDelete("/media/{id:guid}", async (Guid id, AppDbContext db, CancellationToken ct) =>
+        admin.MapDelete("/media/{id:guid}", async (Guid id, AppDbContext db, ObjectStorageService storage, ILogger<ManagedMedia> logger, CancellationToken ct) =>
         {
             var media = await db.ManagedMedia.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (media is null) return Results.NotFound(new { error = "Archivo no encontrado." });
+            if (await db.ManagedNews.AnyAsync(n => n.Image == media.Src, ct))
+                return Results.Conflict(new { error = "Este archivo está siendo usado por una noticia. Cambiá la imagen de la noticia antes de eliminarlo." });
             db.ManagedMedia.Remove(media);
             await db.SaveChangesAsync(ct);
+            if (media.ObjectKey is not null && storage.Enabled)
+            {
+                try { await storage.DeleteAsync(media.ObjectKey, ct); }
+                catch (Exception ex) { logger.LogError(ex, "Objeto S3 huérfano: {ObjectKey}", media.ObjectKey); }
+            }
             return Results.NoContent();
         });
     }
@@ -155,6 +165,12 @@ public static class ContentEndpoints
             !value.Contains("..", StringComparison.Ordinal) &&
             !value.Contains('\\')) return true;
         if (ValidHttpsLink(value)) return true;
+        if (value.StartsWith("/api/content/media/", StringComparison.Ordinal) &&
+            value.EndsWith("/file", StringComparison.Ordinal) && value.Length < 100)
+        {
+            var middle = value["/api/content/media/".Length..^"/file".Length];
+            if (Guid.TryParse(middle, out _)) return true;
+        }
 
         // Sólo aceptamos tipos raster conocidos; nunca data:image/svg+xml.
         string[] prefixes = [
@@ -204,5 +220,5 @@ public static class ContentEndpoints
         x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published
     };
 
-    private static object MediaView(ManagedMedia x) => new { x.Id, x.Name, x.Kind, x.Src };
+    private static object MediaView(ManagedMedia x) => new { x.Id, x.Name, x.Kind, x.Src, x.ObjectKey, x.MimeType, x.SizeBytes };
 }
