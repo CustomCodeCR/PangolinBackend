@@ -123,6 +123,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         media.Property(x => x.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
         media.Property(x => x.Kind).HasColumnName("kind").HasMaxLength(30).IsRequired();
         media.Property(x => x.Src).HasColumnName("src").HasColumnType("text").IsRequired();
+        media.Property(x => x.ObjectKey).HasColumnName("object_key").HasMaxLength(500);
+        media.Property(x => x.MimeType).HasColumnName("mime_type").HasMaxLength(120);
+        media.Property(x => x.SizeBytes).HasColumnName("size_bytes");
         media.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp with time zone");
         media.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp with time zone");
 

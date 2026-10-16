@@ -135,6 +135,11 @@ def main():
         require(status == 200 and restored.get('activo') is True,
                 f'No se pudo restaurar demo cliente: {status} {restored}')
 
+    # La capacidad S3 debe consultarse desde el panel sin exponer credenciales.
+    status, storage_status = call(browser, '/api/admin/content/media/storage-status')
+    require(status == 200 and isinstance(storage_status.get('enabled'), bool),
+            f'Estado de almacenamiento S3 inválido: {status} {storage_status}')
+
     # CMS real: publicación visible en otra sesión, edición, media y limpieza.
     news = {
         'title': 'SMOKE NEWS ' + uuid4().hex[:10], 'category': 'PRUEBAS',
@@ -149,6 +154,7 @@ def main():
     news_id = None
     media_id = None
     link_id = None
+    legacy_id = None
     try:
         status, created_news = call(browser, '/api/admin/content/news', news)
         require(status == 201 and created_news.get('id'), f'Crear noticia: {status} {created_news}')
@@ -167,6 +173,13 @@ def main():
         status, created_media = call(browser, '/api/admin/content/media', media)
         require(status == 201 and created_media.get('id'), f'Crear multimedia: {status} {created_media}')
         media_id = created_media['id']
+        # Compatibilidad: las instalaciones sin S3 aún aceptan imágenes Base64 anteriores.
+        legacy_png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9YmFxTYAAAAASUVORK5CYII='
+        status, legacy_media = call(browser, '/api/admin/content/media',
+                                    dict(media, name='SMOKE LEGACY', src=legacy_png))
+        require(status == 201 and legacy_media.get('src') == legacy_png,
+                f'La carga multimedia Base64 dejó de funcionar: {status} {legacy_media}')
+        legacy_id = legacy_media['id']
         status, media_items = call(browser, '/api/admin/content/media')
         require(status == 200 and any(row['id'] == media_id for row in media_items),
                 'El nuevo archivo multimedia no se guardó.')
@@ -191,6 +204,9 @@ def main():
         if link_id:
             status, _ = call(browser, '/api/admin/content/media/' + link_id, method='DELETE')
             require(status == 204, f'No se limpió el enlace de prueba: {status}')
+        if legacy_id:
+            status, _ = call(browser, '/api/admin/content/media/' + legacy_id, method='DELETE')
+            require(status == 204, f'No se limpió imagen Base64 de prueba: {status}')
 
     # CRUD de itinerarios: escritura exclusiva para admin, lectura para usuarios registrados.
     pol = 'SMOKE-' + uuid4().hex[:10]

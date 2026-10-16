@@ -24,6 +24,9 @@ const isLiveAdmin = computed(() => authState.user?.role === 'administrador' && !
 const newsForm = ref<ManagedNews>(emptyNews())
 const itineraryForm = ref<ManagedItinerary>(emptyItinerary())
 const mediaForm = ref<ManagedMedia>(emptyMedia())
+const mediaUploadFile = ref<File | null>(null)
+const newsUploadFile = ref<File | null>(null)
+const storageMode = ref<'checking' | 's3' | 'legacy' | 'error'>('checking')
 const currentList = computed(() => section.value === 'itineraries' ? itineraries.value : section.value === 'news' ? news.value : media.value)
 
 function emptyNews(): ManagedNews { return { id: '', title: '', category: 'LOGÍSTICA', description: '', body: '', image: '', published: false } }
@@ -51,10 +54,21 @@ async function loadMedia() {
     media.value = list
   } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'Error consultando multimedia.' }
 }
+async function checkStorageMode() {
+  try {
+    const response = await fetch('/api/admin/content/media/storage-status', { credentials: 'same-origin', cache: 'no-store' })
+    if (!response.ok) throw new Error('No se puede verificar el almacenamiento multimedia.')
+    const data = await response.json()
+    if (typeof data?.enabled !== 'boolean') throw new Error('La respuesta del almacenamiento es inválida.')
+    storageMode.value = data.enabled ? 's3' : 'legacy'
+  } catch {
+    storageMode.value = 'error'
+  }
+}
 onMounted(async () => {
   await refreshSession()
   if (!isLiveAdmin.value) reload()
-  else await Promise.all([loadItineraries(), loadNews(), loadMedia()])
+  else await Promise.all([loadItineraries(), loadNews(), loadMedia(), checkStorageMode()])
   if (section.value === 'users') await loadUsers()
 })
 
@@ -175,11 +189,15 @@ function onTransportChange() {
 
 function startNew() {
   editingId.value = null
+  mediaUploadFile.value = null
+  newsUploadFile.value = null
   if (section.value === 'itineraries') itineraryForm.value = emptyItinerary()
   if (section.value === 'news') newsForm.value = emptyNews()
   if (section.value === 'media') mediaForm.value = emptyMedia()
 }
 async function edit(entry: ManagedItinerary | ManagedNews | ManagedMedia) {
+  mediaUploadFile.value = null
+  newsUploadFile.value = null
   editingId.value = entry.id
   if (section.value === 'itineraries') {
     itineraryForm.value = { ...(entry as ManagedItinerary) }
@@ -227,6 +245,30 @@ async function submitItinerary() {
   } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo guardar el itinerario.' }
 }
 
+async function uploadToS3(file: File, kind: string, name: string): Promise<ManagedMedia> {
+  const data = new FormData()
+  data.append('file', file)
+  data.append('kind', kind)
+  data.append('name', name || file.name)
+  const response = await fetch('/api/admin/content/media/upload', {
+    method: 'POST', credentials: 'same-origin', body: data
+  })
+  if (!response.ok) {
+    const problem = await response.json().catch(() => null)
+    throw new Error(problem?.error || `No se pudo subir el archivo (HTTP ${response.status}).`)
+  }
+  return await response.json() as ManagedMedia
+}
+
+function mediaPreviewSrc(item: ManagedMedia): string {
+  return item.objectKey ? `/api/admin/content/media/${encodeURIComponent(item.id)}/file` : item.src
+}
+function newsPreviewSrc(item: ManagedNews): string {
+  // Los borradores pueden usar imágenes privadas de S3; el administrador sí puede verlas.
+  const match = new RegExp("^/api/content/media/([0-9a-f-]{36})/file$", "i").exec(item.image)
+  return match ? `/api/admin/content/media/${match[1]}/file` : item.image
+}
+
 async function submitNews() {
   const isPublishing = newsForm.value.published
   if (!isLiveAdmin.value) {
@@ -234,7 +276,12 @@ async function submitNews() {
     saveManaged('news', item); reload(); notice.value = 'Noticia de previsualización, solo en este navegador.'; startNew(); return
   }
   notice.value = ''
+  let newMedia: ManagedMedia | null = null
   try {
+    if (newsUploadFile.value) {
+      newMedia = await uploadToS3(newsUploadFile.value, 'Imagen', newsForm.value.title.slice(0, 160))
+      newsForm.value.image = newMedia.src
+    }
     const response = await fetch(editingId.value
       ? `/api/admin/content/news/${encodeURIComponent(editingId.value)}`
       : '/api/admin/content/news', {
@@ -251,7 +298,13 @@ async function submitNews() {
     notice.value = isPublishing
       ? 'Noticia publicada. Ya puede verse en la sección de noticias de la web.'
       : 'Noticia guardada como borrador. Solo es visible desde administración.'
-  } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo guardar la noticia.' }
+  } catch (cause) {
+    // Evitar archivos huérfanos si la noticia no pudo guardarse.
+    if (newMedia) await fetch(`/api/admin/content/media/${encodeURIComponent(newMedia.id)}`, {
+      method: 'DELETE', credentials: 'same-origin'
+    }).catch(() => null)
+    notice.value = cause instanceof Error ? cause.message : 'No se pudo guardar la noticia.'
+  }
 }
 async function submitMedia() {
   if (!isLiveAdmin.value) {
@@ -260,6 +313,14 @@ async function submitMedia() {
   }
   notice.value = ''
   try {
+    if (mediaUploadFile.value) {
+      if (editingId.value) throw new Error('Para reemplazar un archivo S3, agregá un archivo nuevo y actualizá primero las noticias que lo usan.')
+      await uploadToS3(mediaUploadFile.value, mediaForm.value.kind, mediaForm.value.name)
+      startNew()
+      await loadMedia()
+      notice.value = 'Archivo almacenado en MinIO y metadatos registrados en PostgreSQL.'
+      return
+    }
     const response = await fetch(editingId.value
       ? `/api/admin/content/media/${encodeURIComponent(editingId.value)}`
       : '/api/admin/content/media', {
@@ -309,8 +370,37 @@ async function remove(id: string) {
 function selectFile(event: Event, target: 'news' | 'media') {
   const file = (event.target as HTMLInputElement).files?.[0]
   if (!file) return
-  if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type)) { notice.value = 'Solo se permiten imágenes PNG, JPEG, WebP o GIF.'; return }
-  if (file.size > 2_500_000) { notice.value = 'La imagen debe pesar menos de 2.5 MB para guardarla en este navegador.'; return }
+  const formats: Record<string, { kind: string; limit: number }> = {
+    'image/png': { kind: 'Imagen', limit: 5_242_880 },
+    'image/jpeg': { kind: 'Imagen', limit: 5_242_880 },
+    'image/webp': { kind: 'Imagen', limit: 5_242_880 },
+    'image/gif': { kind: 'Imagen', limit: 5_242_880 },
+    'application/pdf': { kind: 'Documento', limit: 10_485_760 },
+    'video/mp4': { kind: 'Video', limit: 20_971_520 },
+    'video/webm': { kind: 'Video', limit: 20_971_520 }
+  }
+  const format = formats[file.type]
+  if (!format || (target === 'news' && format.kind !== 'Imagen')) {
+    notice.value = 'Formato inválido. Para noticias solo imágenes PNG/JPEG/WebP/GIF.'; return
+  }
+  if (file.size > format.limit) { notice.value = 'El archivo supera el tamaño permitido.'; return }
+  if (isLiveAdmin.value && storageMode.value === 's3') {
+    if (target === 'news') newsUploadFile.value = file
+    else { mediaUploadFile.value = file; mediaForm.value.kind = format.kind; mediaForm.value.name ||= file.name }
+    notice.value = `Archivo seleccionado: ${file.name}. Se subirá al guardar.`
+    return
+  }
+  if (isLiveAdmin.value && storageMode.value !== 'legacy') {
+    notice.value = 'No se pudo verificar el almacenamiento. Recargá la página antes de subir archivos.'
+    return
+  }
+  // Docker sin MinIO: preservar el flujo anterior de imágenes pequeñas en PostgreSQL.
+  if (format.kind !== 'Imagen' || file.size > 2_500_000) {
+    notice.value = 'Sin MinIO solo se permiten imágenes de hasta 2.5 MB. Para videos y PDF usá un enlace HTTPS.'
+    return
+  }
+  if (target === 'news') newsUploadFile.value = null
+  else mediaUploadFile.value = null
   const reader = new FileReader()
   reader.onerror = () => { notice.value = 'No se pudo leer la imagen seleccionada.' }
   reader.onload = () => {
@@ -322,6 +412,7 @@ function selectFile(event: Event, target: 'news' | 'media') {
 function useMediaForNews(item: ManagedMedia) {
   if (item.kind !== 'Imagen') return
   selectSection('news')
+  newsUploadFile.value = null
   newsForm.value.image = item.src
   notice.value = `Imagen “${item.name}” seleccionada para la noticia.`
 }
@@ -372,7 +463,8 @@ function useMediaForNews(item: ManagedMedia) {
             <label>Categoría<input v-model="newsForm.category" required maxlength="60" placeholder="LOGÍSTICA" /></label>
             <label>Resumen (visible en tarjetas)<textarea v-model="newsForm.description" required maxlength="1200" rows="3" placeholder="Resumen breve de la noticia" /></label>
             <label>Contenido completo<textarea v-model="newsForm.body" maxlength="20000" rows="8" placeholder="Escribe el artículo completo. Si se deja vacío, el lector verá el resumen." /></label>
-            <label>Imagen (archivo)<input type="file" accept="image/*" @change="selectFile($event, 'news')" /></label>
+            <label>Imagen ({{ storageMode === 's3' ? 'MinIO' : 'archivo local' }})<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="selectFile($event, 'news')" /></label>
+            <p v-if="newsUploadFile" class="manager-publication-hint">Imagen seleccionada: {{ newsUploadFile.name }}. Se subirá a MinIO al guardar.</p>
             <label>o URL de imagen<input v-model="newsForm.image" placeholder="/images/mi-imagen.webp" /></label>
             <label>Estado de publicación<select v-model="newsForm.published">
               <option :value="false">Borrador (solo administradores)</option>
@@ -382,12 +474,24 @@ function useMediaForNews(item: ManagedMedia) {
             <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar noticia' }}</button>
           </form>
           <form v-else @submit.prevent="submitMedia">
-            <label>Nombre<input v-model="mediaForm.name" required maxlength="120" placeholder="Imagen de puerto" /></label>
-            <label>Tipo<select v-model="mediaForm.kind"><option>Imagen</option><option>Video (enlace)</option><option>Documento (enlace)</option></select></label>
-            <label v-if="mediaForm.kind === 'Imagen'">Seleccionar imagen<input type="file" accept="image/*" @change="selectFile($event, 'media')" /></label>
-            <label>{{ mediaForm.kind === 'Imagen' ? 'o URL del archivo' : 'Enlace HTTPS del archivo' }}<input v-model="mediaForm.src" :type="mediaForm.kind === 'Imagen' ? 'text' : 'url'" required :placeholder="mediaForm.kind === 'Imagen' ? '/images/archivo.webp' : 'https://ejemplo.com/archivo'" /></label>
-            <p v-if="mediaForm.kind !== 'Imagen'" class="manager-publication-hint">Los videos y documentos se guardan como enlaces HTTPS; no se cargan archivos al servidor.</p>
-            <img v-if="mediaForm.src && mediaForm.kind === 'Imagen'" class="manager-image-preview" :src="mediaForm.src" alt="Vista previa" />
+            <label>Nombre<input v-model="mediaForm.name" required maxlength="200" placeholder="Imagen de puerto" /></label>
+            <label>Tipo<select v-model="mediaForm.kind" :disabled="Boolean(mediaForm.objectKey)">
+              <option>Imagen</option><option v-if="storageMode === 's3'">Video</option><option v-if="storageMode === 's3'">Documento</option>
+              <option>Video (enlace)</option><option>Documento (enlace)</option>
+            </select></label>
+            <label v-if="(mediaForm.kind === 'Imagen' || storageMode === 's3') && !editingId">
+              Seleccionar archivo ({{ storageMode === 's3' ? 'MinIO' : 'imagen local' }})
+              <input type="file" :accept="mediaForm.kind === 'Imagen' ? 'image/png,image/jpeg,image/webp,image/gif' : mediaForm.kind === 'Video' ? 'video/mp4,video/webm' : 'application/pdf'" @change="selectFile($event, 'media')" />
+            </label>
+            <p v-if="storageMode === 'legacy' && isLiveAdmin" class="manager-publication-hint">Sin MinIO: las imágenes pequeñas siguen guardándose en PostgreSQL. Los videos y PDF se registran por enlace HTTPS.</p>
+            <p v-if="mediaUploadFile" class="manager-publication-hint">Archivo seleccionado: {{ mediaUploadFile.name }} ({{ (mediaUploadFile.size / 1048576).toFixed(2) }} MB). Se almacenará en MinIO.</p>
+            <label v-if="!mediaUploadFile">
+              {{ mediaForm.objectKey ? 'Referencia del archivo (no editable)' : 'URL del archivo (HTTPS o /images/)' }}
+              <input v-model="mediaForm.src" :readonly="Boolean(mediaForm.objectKey)" required placeholder="https://ejemplo.com/archivo" />
+            </label>
+            <p v-if="mediaForm.kind.includes('(enlace)')" class="manager-publication-hint">Los enlaces externos se registran en PostgreSQL; los archivos subidos se almacenan en MinIO.</p>
+            <p v-if="editingId && mediaForm.objectKey" class="manager-publication-hint">Este archivo está en S3; para reemplazarlo primero subí uno nuevo.</p>
+            <img v-if="!mediaUploadFile && mediaForm.src && mediaForm.kind === 'Imagen'" class="manager-image-preview" :src="mediaPreviewSrc(mediaForm)" alt="Vista previa" />
             <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar archivo' }}</button>
           </form>
           <p v-if="notice" class="manager-feedback" role="status">{{ notice }}</p>
@@ -396,8 +500,8 @@ function useMediaForNews(item: ManagedMedia) {
           <header><div><p class="manager-eyebrow">REGISTROS GUARDADOS</p><h2>{{ currentList.length }} elementos</h2></div><button class="manager-add" @click="startNew">＋ Nuevo</button></header>
           <p v-if="currentList.length === 0" class="manager-empty">Todavía no hay elementos. Completa el formulario para agregar el primero.</p>
           <article v-for="entry in currentList" :key="entry.id" class="manager-item">
-            <img v-if="section === 'news' && (entry as ManagedNews).image" :src="(entry as ManagedNews).image" alt="" />
-            <img v-else-if="section === 'media' && (entry as ManagedMedia).kind === 'Imagen'" :src="(entry as ManagedMedia).src" alt="" />
+            <img v-if="section === 'news' && (entry as ManagedNews).image" :src="newsPreviewSrc(entry as ManagedNews)" alt="" />
+            <img v-else-if="section === 'media' && (entry as ManagedMedia).kind === 'Imagen'" :src="mediaPreviewSrc(entry as ManagedMedia)" alt="" />
             <div class="manager-item-copy">
               <strong v-if="section === 'itineraries'">{{ (entry as ManagedItinerary).origin }} → {{ (entry as ManagedItinerary).destination }}</strong>
               <strong v-else-if="section === 'news'">{{ (entry as ManagedNews).title }}</strong>

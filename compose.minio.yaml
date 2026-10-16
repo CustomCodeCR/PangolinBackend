@@ -1,0 +1,30 @@
+# MinIO AIStor Free (opcional). Mantiene intacto compose.yaml sin licencia.
+# Activar: docker compose -f compose.yaml -f compose.minio.yaml up -d --build
+# Requiere docker-secrets/minio.license obtenida oficialmente.
+services:
+  minio:
+    image: quay.io/minio/aistor/minio:latest
+    restart: unless-stopped
+    command: ["minio", "server", "/mnt/data", "--console-address", ":9001", "--license", "/minio.license"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Configura MINIO_ROOT_USER en .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Configura MINIO_ROOT_PASSWORD en .env}
+    ports:
+      - "127.0.0.1:${MINIO_API_HOST_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_HOST_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/mnt/data
+      - ./docker-secrets/minio.license:/minio.license:ro
+
+  backend:
+    environment:
+      Storage__Endpoint: http://minio:9000
+      Storage__AccessKey: ${S3_ACCESS_KEY:-}
+      Storage__SecretKey: ${S3_SECRET_KEY:-}
+      Storage__Bucket: ${S3_BUCKET:-castrofallas-media}
+    depends_on:
+      minio:
+        condition: service_started
+
+volumes:
+  minio_data:

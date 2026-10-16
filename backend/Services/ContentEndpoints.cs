@@ -63,10 +63,14 @@ public static class ContentEndpoints
             return Results.NoContent();
         });
 
+        // El editor conserva cargas Base64 de imágenes si esta instalación no usa S3.
+        admin.MapGet("/media/storage-status", (ObjectStorageService storage) =>
+            Results.Ok(new { enabled = storage.Enabled }));
+
         admin.MapGet("/media", async (AppDbContext db, CancellationToken ct) =>
             Results.Ok(await db.ManagedMedia.AsNoTracking()
                 .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
-                .Select(x => new { x.Id, x.Name, x.Kind, x.Src })
+                .Select(x => new { x.Id, x.Name, x.Kind, x.Src, x.ObjectKey, x.MimeType, x.SizeBytes })
                 .ToListAsync(ct)));
 
         admin.MapPost("/media", async (SaveMediaRequest input, AppDbContext db, CancellationToken ct) =>
@@ -87,17 +91,27 @@ public static class ContentEndpoints
             if (validation is not null) return Results.BadRequest(new { error = validation });
             var media = await db.ManagedMedia.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (media is null) return Results.NotFound(new { error = "Archivo no encontrado." });
+            if (media.ObjectKey is not null &&
+                (media.Src != input.Src?.Trim() || media.Kind != input.Kind?.Trim()))
+                return Results.Conflict(new { error = "El archivo almacenado en S3 no puede reemplazarse desde el editor de enlaces. Subí otro archivo." });
             ApplyMedia(media, input);
             await db.SaveChangesAsync(ct);
             return Results.Ok(MediaView(media));
         });
 
-        admin.MapDelete("/media/{id:guid}", async (Guid id, AppDbContext db, CancellationToken ct) =>
+        admin.MapDelete("/media/{id:guid}", async (Guid id, AppDbContext db, ObjectStorageService storage, ILogger<ManagedMedia> logger, CancellationToken ct) =>
         {
             var media = await db.ManagedMedia.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (media is null) return Results.NotFound(new { error = "Archivo no encontrado." });
+            if (await db.ManagedNews.AnyAsync(n => n.Image == media.Src, ct))
+                return Results.Conflict(new { error = "Este archivo está siendo usado por una noticia. Cambiá la imagen de la noticia antes de eliminarlo." });
             db.ManagedMedia.Remove(media);
             await db.SaveChangesAsync(ct);
+            if (media.ObjectKey is not null && storage.Enabled)
+            {
+                try { await storage.DeleteAsync(media.ObjectKey, ct); }
+                catch (Exception ex) { logger.LogError(ex, "Objeto S3 huérfano: {ObjectKey}", media.ObjectKey); }
+            }
             return Results.NoContent();
         });
     }
@@ -122,8 +136,11 @@ public static class ContentEndpoints
         if (string.IsNullOrWhiteSpace(x.Name) || x.Name.Trim().Length > 200)
             return "El nombre debe tener entre 1 y 200 caracteres.";
         var kind = x.Kind?.Trim();
-        if (kind is not ("Imagen" or "Video (enlace)" or "Documento (enlace)"))
-            return "Selecciona Imagen, Video (enlace) o Documento (enlace).";
+        if (kind is not ("Imagen" or "Video" or "Documento" or "Video (enlace)" or "Documento (enlace)"))
+            return "Tipo de archivo multimedia desconocido.";
+        if (kind is "Video" or "Documento")
+            return ValidInternalMediaLink(x.Src)
+                ? null : "Los archivos almacenados en S3 deben conservar su referencia interna.";
 
         if (kind == "Imagen")
             return ValidImage(x.Src, allowEmpty: false)
@@ -145,6 +162,15 @@ public static class ContentEndpoints
             string.IsNullOrEmpty(uri.UserInfo);
     }
 
+    private static bool ValidInternalMediaLink(string? src)
+    {
+        if (string.IsNullOrWhiteSpace(src)) return false;
+        var value = src.Trim();
+        if (!value.StartsWith("/api/content/media/", StringComparison.Ordinal) ||
+            !value.EndsWith("/file", StringComparison.Ordinal) || value.Length > 100) return false;
+        return Guid.TryParse(value["/api/content/media/".Length..^"/file".Length], out _);
+    }
+
     private static bool ValidImage(string? src, bool allowEmpty)
     {
         if (string.IsNullOrWhiteSpace(src)) return allowEmpty;
@@ -155,6 +181,7 @@ public static class ContentEndpoints
             !value.Contains("..", StringComparison.Ordinal) &&
             !value.Contains('\\')) return true;
         if (ValidHttpsLink(value)) return true;
+        if (ValidInternalMediaLink(value)) return true;
 
         // Sólo aceptamos tipos raster conocidos; nunca data:image/svg+xml.
         string[] prefixes = [
@@ -204,5 +231,5 @@ public static class ContentEndpoints
         x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published
     };
 
-    private static object MediaView(ManagedMedia x) => new { x.Id, x.Name, x.Kind, x.Src };
+    private static object MediaView(ManagedMedia x) => new { x.Id, x.Name, x.Kind, x.Src, x.ObjectKey, x.MimeType, x.SizeBytes };
 }

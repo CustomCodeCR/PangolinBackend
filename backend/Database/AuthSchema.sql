@@ -193,9 +193,17 @@ CREATE TABLE IF NOT EXISTS public.cms_media (
     name VARCHAR(200) NOT NULL,
     kind VARCHAR(30) NOT NULL,
     src TEXT NOT NULL,
+    object_key VARCHAR(500) NULL,
+    mime_type VARCHAR(120) NULL,
+    size_bytes BIGINT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+ALTER TABLE public.cms_media ADD COLUMN IF NOT EXISTS object_key VARCHAR(500) NULL;
+ALTER TABLE public.cms_media ADD COLUMN IF NOT EXISTS mime_type VARCHAR(120) NULL;
+ALTER TABLE public.cms_media ADD COLUMN IF NOT EXISTS size_bytes BIGINT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_cms_media_object_key
+  ON public.cms_media(object_key) WHERE object_key IS NOT NULL;
 
 -- Itinerarios provisionales: comparten base login pero NO dependen de usuarios/cotizaciones.
 -- CREATE no sobreescribe tablas existentes; ALTER conserva las filas al añadir Closing y status.
