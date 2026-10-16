@@ -31,9 +31,6 @@ const draftSrc = computed(() => selectedMedia.value ? previewSrc(selectedMedia.v
 const draftIsVideo = computed(() => selectedMedia.value?.kind.startsWith('Video') ?? false)
 const publishedSrc = computed(() => publishedMedia.value ? previewSrc(publishedMedia.value) : selected.value.fallback)
 const defaultCopy = computed(() => selected.value.type === 'text' ? i18n.global.t(selected.value.fallback) : '')
-const changed = computed(() => (textEs.value.trim() || null) !== (row.value?.publishedEs ?? null)
-  || (textEn.value.trim() || null) !== (row.value?.publishedEn ?? null)
-  || (mediaId.value || null) !== (row.value?.publishedMediaId ?? null))
 
 function previewSrc(item: ManagedMedia): string {
   return item.objectKey ? `/api/admin/content/media/${encodeURIComponent(item.id)}/file` : item.src
