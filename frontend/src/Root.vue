@@ -153,7 +153,7 @@ onMounted(async () => {
   }
   if (requestPath === '/cotizaciones') {
     if (!user) quoteAccess.value = 'denied'
-    else quoteAccess.value = role === 'cliente' ? 'allowed' : 'forbidden'
+    else quoteAccess.value = role === 'cliente' || role === 'administrador' ? 'allowed' : 'forbidden'
   }
   if (legacyAdminRoute && role === 'administrador') {
     const params = new URLSearchParams()
@@ -208,8 +208,8 @@ const page = computed(()=> {
       <a class="btn btn-primary" :href="loginNextHref">{{ t('custom.quote.goToLogin') }} <IconSymbol glyph="→" /></a>
     </div>
     <div v-else-if="quoteAccess === 'forbidden'" class="container quote-access-status">
-      <h1>{{ t('custom.quote.clientOnly') }}</h1>
-      <p>{{ t('custom.quote.clientOnlyHelp') }}</p>
+      <h1>{{ t('custom.quote.loginRequired') }}</h1>
+      <p>{{ t('custom.quote.loginRequiredHelp') }}</p>
       <a class="btn btn-primary" href="/home">{{ t('custom.quote.back') }} <IconSymbol glyph="←" /></a>
     </div>
     <QuoteApp v-else/>
