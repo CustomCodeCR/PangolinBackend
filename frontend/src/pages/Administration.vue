@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import ContentManager from './ContentManager.vue'
+const { locale } = useI18n({useScope:'global'})
+const en = computed(() => locale.value.toLowerCase().startsWith('en'))
 </script>
 
 <template>
@@ -9,9 +13,9 @@ import ContentManager from './ContentManager.vue'
     <section class="administration-hero">
       <SiteHeader active="administracion" overlay />
       <div class="container administration-hero__copy">
-        <p class="section-tag light-tag"><span class="tag-line"></span> CASTRO FALLAS · PANEL DE CONTROL</p>
-        <h1>Administración</h1>
-        <p>Gestiona el contenido del sitio y las cuentas desde un solo lugar.</p>
+        <p class="section-tag light-tag"><span class="tag-line"></span> {{ en ? 'CASTRO FALLAS · CONTROL PANEL' : 'CASTRO FALLAS · PANEL DE CONTROL' }}</p>
+        <h1>{{ en ? 'Administration' : 'Administración' }}</h1>
+        <p>{{ en ? 'Manage website content and accounts in one place.' : 'Gestiona el contenido del sitio y las cuentas desde un solo lugar.' }}</p>
       </div>
     </section>
     <main>
