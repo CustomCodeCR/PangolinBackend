@@ -2179,6 +2179,14 @@ html.theme-dark .app-site main>section.stats-band{background:#ad0920!important;c
 .quote-flow-page{display:flex;flex-direction:column}
 .quote-flow-page>.site-footer{margin-top:auto}
 
+/* Keep breathing room between the mobile sign-in action and the footer.
+   Only the access-gated quote screen needs this extra space. */
+@media (max-width: 800px) {
+  .quote-flow-page > .quote-access-status--blocked {
+    padding-bottom: clamp(40px, 7vh, 64px);
+  }
+}
+
 /* Keep the quote-page gradient continuous across the full viewport and scroll. */
 .quote-flow-page{min-height:100vh;background:linear-gradient(110deg,#efd3d8 0%,#f6e5e8 34%,#faeff1 68%,#fff 100%) fixed!important;background-size:cover!important}
 .quote-flow-page>main.quote-flow{background:transparent!important;background-image:none!important}
