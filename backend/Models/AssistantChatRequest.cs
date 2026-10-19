@@ -3,7 +3,8 @@ namespace CastroFallas.MiniQuote.Api.Models;
 // Contrato público de GIO: POST /api/chat recibe message y history.
 public sealed record ChatRequest(
     string? Message,
-    IReadOnlyList<AssistantChatTurn>? History = null
+    IReadOnlyList<AssistantChatTurn>? History = null,
+    string? Language = "es"
 );
 
 // Contrato anterior conservado temporalmente para clientes existentes.
