@@ -352,7 +352,7 @@ async function reloadQuote() {
           <span><IconSymbol :glyph="index === 0 ? '▰' : index === 1 ? '▤' : '✓'" /></span><small>{{ label }}</small>
         </div>
       </div>
-      <form class="quote-cargo-form" @submit.prevent="advanceOrSubmitCargo">
+      <form class="quote-cargo-form" novalidate @submit.prevent="advanceOrSubmitCargo">
         <section v-show="cargoStep === 0" class="cargo-form-section">
           <div class="cargo-form-section__heading"><span>01</span><div><h2>{{ $t('custom.quote.routeService') }}</h2><p>{{ $t('custom.quote.routeHelp') }}</p></div></div>
           <div class="quote-fields quote-fields--two">
