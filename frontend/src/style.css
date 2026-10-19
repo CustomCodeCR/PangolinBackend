@@ -4754,3 +4754,48 @@ html.theme-dark .quote-flow .quote-choice-card .quote-choice-icon svg * {
   stroke: #fff !important;
   fill: none !important;
 }
+
+
+/* Integración visual del frontend del 19 de octubre: GIO y navegación de administración. */
+html .site-assistant .site-assistant__panel {
+  --gio-surface: #fff8f8; --gio-ink: #20242b; --gio-muted: #687080;
+  --gio-line: #ded6dc; --gio-bubble: #fff; --gio-action: #fff; --gio-action-hover: #fff0f2;
+  --gio-input: #fff; --gio-icon: #a80e18; --gio-glow: rgba(214,14,52,.18);
+  isolation: isolate; border-color: var(--gio-line); border-radius: 22px;
+  background: var(--gio-surface); color: var(--gio-ink);
+}
+html.theme-dark .site-assistant .site-assistant__panel {
+  --gio-surface: #171316; --gio-ink: #fff; --gio-muted: #c4c5cf;
+  --gio-line: #565057; --gio-bubble: #211b20; --gio-action: #211b20;
+  --gio-action-hover: #30232c; --gio-input: #11182d;
+  --gio-icon: #a80e18; --gio-glow: rgba(214,14,52,.3);
+}
+.site-assistant__panel::before {
+  content: ''; position: absolute; z-index: 0; top: -30%; bottom: -30%;
+  left: -45%; width: 75%; border-radius: 50%;
+  background: radial-gradient(ellipse at center,var(--gio-glow),transparent 72%);
+  filter: blur(34px); pointer-events: none; animation: gio-frontend-sweep 9s ease-in-out infinite alternate;
+}
+.site-assistant__panel > * { position: relative; z-index: 1; }
+html .site-assistant .site-assistant__header {
+  background: var(--gio-action); color: var(--gio-ink); border-bottom: 1px solid var(--gio-line);
+}
+html .site-assistant .site-assistant__header-icon { background: transparent; color: var(--gio-icon); border-color: var(--gio-line); }
+html .site-assistant .site-assistant__heading strong { color: var(--gio-ink); }
+html .site-assistant .site-assistant__heading small { color: var(--gio-muted); }
+html .site-assistant .site-assistant__close { background: transparent; border: 1px solid var(--gio-line); color: var(--gio-ink); }
+html .site-assistant .site-assistant__message--bot { background: var(--gio-bubble); border: 1px solid var(--gio-line); color: var(--gio-ink); border-radius: 16px; }
+html .site-assistant .site-assistant__message--visitor { background: #b20c2a; color: #fff; }
+html .site-assistant .site-assistant__quick button { position: relative; isolation: isolate; overflow: hidden; border: 1px solid var(--gio-line); border-radius: 14px; background: var(--gio-action); color: var(--gio-ink); box-shadow: none; }
+.site-assistant__quick button::before { content: ''; position: absolute; z-index: 0; top: -75%; bottom: -75%; left: -50%; width: 65%; background: radial-gradient(ellipse at center,var(--gio-glow),transparent 72%); filter: blur(18px); pointer-events: none; animation: gio-frontend-sweep 9s ease-in-out infinite alternate; }
+.site-assistant__quick button > * { position: relative; z-index: 1; }
+html .site-assistant .site-assistant__quick button:hover { background: var(--gio-action-hover); border-color: #b20c2a; transform: none; }
+html .site-assistant .site-assistant__quick button svg,
+html .site-assistant .site-assistant__header-icon svg { color: var(--gio-icon); }
+html .site-assistant .site-assistant__form { border-top: 1px solid var(--gio-line); background: transparent; }
+html .site-assistant .site-assistant__form input { background: var(--gio-input); color: var(--gio-ink); border: 1px solid var(--gio-line); border-radius: 12px; }
+html .site-assistant .site-assistant__form > button { background: #b20c2a; color: #fff; border-radius: 12px; }
+html .site-assistant .site-assistant__form > button svg { color: #fff; }
+html .content-manager .manager-tabs .lucide-symbol svg { color: #a80e18; stroke: #a80e18; }
+@keyframes gio-frontend-sweep { from { transform: translateX(0); } to { transform: translateX(185%); } }
+@media (prefers-reduced-motion: reduce) { .site-assistant__panel::before,.site-assistant__quick button::before { animation: none; } }

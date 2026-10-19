@@ -22,6 +22,10 @@ import ContentManager from './ContentManager.vue'
 </template>
 
 <style scoped>
+.app-site.administration-page { background: #fff8f8 !important; background-image: none !important; color: #20242b; }
+:global(html.theme-dark .app-site.administration-page) { background: #171316 !important; background-image: none !important; color: #fff; }
+:global(html .administration-page > main) { background: transparent !important; background-image: none !important; }
+
 .administration-hero {
   position: relative;
   min-height: 360px;
@@ -33,9 +37,7 @@ import ContentManager from './ContentManager.vue'
   position: absolute;
   z-index: 0;
   inset: 0;
-  background:
-    linear-gradient(100deg, rgba(146, 7, 31, .94), rgba(10, 25, 53, .82)),
-    url('/images/hero.webp') center 48% / cover no-repeat;
+  background: linear-gradient(105deg, rgba(165, 11, 41, .94), rgba(113, 13, 36, .82) 47%, rgba(35, 21, 29, .94));
   -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 42%, rgba(0, 0, 0, .82) 62%, rgba(0, 0, 0, .42) 82%, transparent 100%);
   mask-image: linear-gradient(180deg, #000 0%, #000 42%, rgba(0, 0, 0, .82) 62%, rgba(0, 0, 0, .42) 82%, transparent 100%);
 }

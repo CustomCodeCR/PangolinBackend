@@ -443,14 +443,14 @@ function useMediaForNews(item: ManagedMedia) {
       <div v-if="authState.previewRole" class="manager-preview-note" role="status">Previsualización de desarrollo · Estás viendo el rol {{ authState.previewRole }}. No es una sesión real ni un acceso administrativo de producción.</div>
       <div class="manager-notice" role="note"><strong>Importante:</strong> los itinerarios, usuarios, noticias y multimedia se guardan en PostgreSQL con sesión administradora real. En previsualización los cambios son locales.</div>
       <nav class="manager-tabs" aria-label="Secciones de administración">
-        <button :class="{ active: section !== 'users' }" @click="selectSection('itineraries')">Contenido</button>
-        <button :class="{ active: section === 'users' }" @click="selectSection('users')">Gestión de usuarios <span>{{ users.length }}</span></button>
+        <button :class="{ active: section !== 'users' }" @click="selectSection('itineraries')"><IconSymbol glyph="▤" :size="19" /> Contenido</button>
+        <button :class="{ active: section === 'users' }" @click="selectSection('users')"><IconSymbol glyph="user" :size="19" /> Gestión de usuarios <span>{{ users.length }}</span></button>
       </nav>
       <nav v-if="section !== 'users'" class="manager-tabs manager-subtabs" aria-label="Tipos de contenido">
-        <button :class="{ active: section === 'itineraries' }" @click="selectSection('itineraries')">Itinerarios <span>{{ itineraries.length }}</span></button>
-        <button :class="{ active: section === 'news' }" @click="selectSection('news')">Noticias <span>{{ news.length }}</span></button>
-        <button :class="{ active: section === 'media' }" @click="selectSection('media')">Multimedia <span>{{ media.length }}</span></button>
-        <button :class="{ active: section === 'site' }" @click="selectSection('site')">Editor visual <span>Nuevo</span></button>
+        <button :class="{ active: section === 'itineraries' }" @click="selectSection('itineraries')"><IconSymbol glyph="ship" :size="19" /> Itinerarios <span>{{ itineraries.length }}</span></button>
+        <button :class="{ active: section === 'news' }" @click="selectSection('news')"><IconSymbol glyph="newspaper" :size="19" /> Noticias <span>{{ news.length }}</span></button>
+        <button :class="{ active: section === 'media' }" @click="selectSection('media')"><IconSymbol glyph="image" :size="19" /> Multimedia <span>{{ media.length }}</span></button>
+        <button :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> Editor visual <span>Nuevo</span></button>
       </nav>
       <section v-if="section === 'users'" class="manager-users-card" aria-label="Cuentas registradas">
         <header><div><p class="manager-eyebrow">CUENTAS REGISTRADAS</p><h2>{{ usersLoading ? 'Cargando…' : `${users.length} usuarios` }}</h2></div><button class="manager-add" :disabled="usersLoading" @click="loadUsers">Actualizar</button></header>
