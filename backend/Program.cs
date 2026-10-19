@@ -93,11 +93,6 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<QuoteService>();
 builder.Services.AddScoped<AssistantService>();
 builder.Services.AddSingleton<ObjectStorageService>();
-builder.Services.AddHttpClient("OpenAI", client =>
-{
-    client.BaseAddress = new Uri("https://api.openai.com/v1/");
-    client.Timeout = TimeSpan.FromSeconds(25);
-});
 builder.Services.AddProblemDetails();
 
 // Se utiliza la dirección real de la conexión local; NO se confía en headers
@@ -118,11 +113,17 @@ builder.Services.AddRateLimiter(options =>
         ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
         {
-            PermitLimit = 20,
+            PermitLimit = 8,
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0,
             AutoReplenishment = true
         }));
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new { error = "Demasiadas consultas. Intentá de nuevo en un minuto." }, token);
+    };
 });
 
 var app = builder.Build();
@@ -195,35 +196,75 @@ app.MapGet("/api/health", () => Results.Ok(new
 }));
 
 
-app.MapPost("/api/assistant/chat", async (
+// Contrato usado por el chatbot GIO de Vue. No consulta información privada,
+// no interpreta previewRole y solo utiliza conocimiento público aprobado.
+// La ruta anterior se mantiene para no romper integraciones existentes.
+app.MapPost("/api/chat", (
+    ChatRequest input, AssistantService assistant, CancellationToken ct) =>
+    HandleGioChatAsync(input.Message, input.History, input.Language, assistant, legacy: false, ct))
+    .RequireRateLimiting("assistant");
+
+app.MapPost("/api/assistant/chat", (
     AssistantChatRequest input, AssistantService assistant, CancellationToken ct) =>
+    HandleGioChatAsync(input.Question, input.History, input.Language, assistant, legacy: true, ct))
+    .RequireRateLimiting("assistant");
+
+static async Task<IResult> HandleGioChatAsync(
+    string? message,
+    IReadOnlyList<AssistantChatTurn>? history,
+    string? language,
+    AssistantService assistant,
+    bool legacy,
+    CancellationToken ct)
 {
-    var question = input.Question?.Trim();
-    if (string.IsNullOrWhiteSpace(question))
+    const string unavailable = "El asistente no está disponible en este momento. Inténtalo de nuevo.";
+    var question = message?.Trim();
+    if (string.IsNullOrEmpty(question))
         return Results.BadRequest(new { error = "Escribí una consulta." });
     if (question.Length > 800)
         return Results.BadRequest(new { error = "La consulta debe tener 800 caracteres o menos." });
-    if (!assistant.IsConfigured)
-        return Results.Json(new { error = "El asistente de IA todavía no está configurado.", code = "ai_not_configured" }, statusCode: 503);
 
+    // No aceptar historiales extensos, roles desconocidos ni contenidos vacíos.
+    // El cliente no puede introducir mensajes de system/developer ni instrucciones.
+    if (history is { Count: > 8 })
+        return Results.BadRequest(new { error = "El historial puede tener como máximo 8 mensajes." });
+    var historyCharacters = 0;
+    foreach (var turn in history ?? [])
+    {
+        if (!(string.Equals(turn.Role, "user", StringComparison.OrdinalIgnoreCase) ||
+              string.Equals(turn.Role, "assistant", StringComparison.OrdinalIgnoreCase) ||
+              string.Equals(turn.Role, "visitor", StringComparison.OrdinalIgnoreCase) ||
+              string.Equals(turn.Role, "bot", StringComparison.OrdinalIgnoreCase)) ||
+            string.IsNullOrWhiteSpace(turn.Content) || turn.Content.Length > 1000)
+            return Results.BadRequest(new { error = "El historial contiene mensajes inválidos." });
+        historyCharacters += turn.Content.Length;
+    }
+    if (historyCharacters > 4000)
+        return Results.BadRequest(new { error = "El historial es demasiado largo." });
+
+    if (!assistant.IsConfigured)
+        return Results.Json(new { error = unavailable }, statusCode: StatusCodes.Status503ServiceUnavailable);
     try
     {
-        var answer = await assistant.ReplyAsync(input with { Question = question }, ct);
-        return Results.Ok(new { answer, source = "ai" });
+        var answer = await assistant.ReplyAsync(
+            new AssistantChatRequest(question, language == "en" ? "en" : "es", history), ct);
+        return legacy
+            ? Results.Ok(new { answer, source = "ai" })
+            : Results.Ok(new { reply = answer });
     }
     catch (AssistantProviderException)
     {
-        return Results.Json(new { error = "No se pudo generar la respuesta en este momento.", code = "ai_unavailable" }, statusCode: 502);
+        return Results.Json(new { error = unavailable }, statusCode: StatusCodes.Status502BadGateway);
     }
     catch (HttpRequestException)
     {
-        return Results.Json(new { error = "No se pudo conectar con el asistente de IA.", code = "ai_unavailable" }, statusCode: 502);
+        return Results.Json(new { error = unavailable }, statusCode: StatusCodes.Status502BadGateway);
     }
-    catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+    catch (OperationCanceledException) when (!ct.IsCancellationRequested)
     {
-        return Results.Json(new { error = "El asistente tardó demasiado en responder.", code = "ai_timeout" }, statusCode: 504);
+        return Results.Json(new { error = unavailable }, statusCode: StatusCodes.Status504GatewayTimeout);
     }
-}).RequireRateLimiting("assistant");
+}
 
 app.MapGet("/api/health/ready", async (AppDbContext db, IConfiguration config, CancellationToken ct) =>
 {
