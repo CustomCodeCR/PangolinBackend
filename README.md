@@ -39,9 +39,21 @@ curl.exe -i http://127.0.0.1:5000/api/health/ready
 
 1. Creá una API key de OpenAI y guardala en el `.env` privado de esta carpeta como `OPENAI_API_KEY=...`. No la pongás en el frontend, en el navegador ni en GitHub.
 2. Recreá el backend para cargar la configuración: `docker compose up -d --build backend`.
-3. Vite reenvía `/api/assistant/chat` al backend; por eso funciona desde localhost y desde la IP de red mientras ambos usen ese mismo servidor.
+3. Vite reenvía `POST /api/chat` al backend; por eso funciona desde localhost y desde la IP de red mientras ambos usen ese mismo servidor.
 
-Si ejecutás el backend directamente con .NET, guardá la llave con `dotnet user-secrets set --project backend/CastroFallas.MiniQuote.Api.csproj "Ai:OpenAI:ApiKey" "TU_API_KEY"` y reiniciá el backend. Sin llave o sin backend disponible, GIO muestra orientación local y avisa que no pudo consultar la IA. Las consultas enviadas a GIO se procesan con OpenAI; no ingresés información confidencial de cargas o clientes.
+El frontend conserva el diseño de GIO y envía `message`, un `history` opcional con roles `user`/`assistant` y, opcionalmente, `language` (`es`/`en`). Ejemplo para probar desde Linux:
+
+```bash
+curl -i http://localhost:5000/api/chat \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"¿Qué es FCL y LCL?","history":[{"role":"user","content":"Hola"},{"role":"assistant","content":"Hola, ¿cómo puedo ayudarte?"}]}'
+```
+
+La respuesta es `{"reply":"..."}`. El endpoint anterior `POST /api/assistant/chat` conserva temporalmente el contrato `{"question":"..."}` y `{"answer":"...","source":"ai"}` por compatibilidad.
+
+**Protecciones:** límite de 800 caracteres por pregunta, máximo 8 turnos de historial (1000 caracteres por turno y 4000 en total), 8 consultas por minuto por IP, 280 tokens de salida y respuesta no almacenada por la API (`store:false`). Errores del proveedor o falta de clave se devuelven de forma genérica; GIO usa su guía local si OpenAI no responde. Para producción, configurá también límites de gasto de OpenAI Platform y considerá un cupo global/diario compartido si se implementan varias réplicas.
+
+Si ejecutás el backend directamente con .NET, guardá la llave con `dotnet user-secrets set --project backend/CastroFallas.MiniQuote.Api.csproj "Ai:OpenAI:ApiKey" "TU_API_KEY"` y reiniciá el backend. Sin llave o sin backend disponible, GIO muestra orientación local y avisa que no pudo consultar la IA. Las consultas enviadas a GIO se procesan con OpenAI; no ingresés información confidencial de cargas o clientes. Por ahora GIO **no consulta** datos privados de PostgreSQL ni da información sobre estados reales de embarques.
 
 **No ejecutes `docker compose down -v`**, porque puede destruir los datos de los volúmenes con nombre. El mismo `name: castrofallas` en Compose permite reutilizar esos volúmenes al usar la misma instalación de Docker.
 
