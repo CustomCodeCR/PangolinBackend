@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { driver, type Driver } from 'driver.js'
 import 'driver.js/dist/driver.css'
@@ -14,6 +14,7 @@ const kind = ref('BL')
 const reference = ref('')
 const searched = ref(false)
 let tour: Driver | null = null
+let guideStartTimer: ReturnType<typeof setTimeout> | undefined
 const types = computed(() => en.value ? [
   { id: 'BL', name: 'BL number', help: 'Master Bill of Lading for the shipment.' },
   { id: 'HBL', name: 'HBL number', help: 'House Bill of Lading for your cargo.' },
@@ -71,6 +72,7 @@ const mailto = computed(() => {
   return 'mailto:comercial@castrofallas.com?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body)
 })
 function openGuide() {
+  clearTimeout(guideStartTimer)
   tour?.destroy()
   const targets = ['.tracking-intro .world-globe', '#tracking-guide-type', '#tracking-guide-reference', '#tracking-guide-submit', '.tracking-process__steps']
   tour = driver({
@@ -85,7 +87,24 @@ function openGuide() {
   })
   tour.drive()
 }
-onBeforeUnmount(() => tour?.destroy())
+function handleGuideKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Enter' || event.isComposing || !tour?.isActive()) return
+  event.preventDefault()
+  event.stopImmediatePropagation()
+  if (!event.repeat) tour.moveNext()
+}
+
+onMounted(async () => {
+  window.addEventListener('keydown', handleGuideKeydown, true)
+  await nextTick()
+  guideStartTimer = setTimeout(openGuide, 650)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleGuideKeydown, true)
+  clearTimeout(guideStartTimer)
+  tour?.destroy()
+})
 </script>
 
 <template>
