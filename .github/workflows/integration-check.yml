@@ -41,14 +41,25 @@ jobs:
         run: bash scripts/setup-docker.sh
       - name: Start test containers
         run: |
-          if ! docker compose up -d --build backend; then
-            echo 'Docker dependency startup failed; collecting diagnostics.'
+          docker compose build backend
+          # MongoDB puede salir durante su primer arranque en runners efímeros.
+          # Reintentar dependencias transitorias sin omitir el smoke ni ignorar
+          # fallos persistentes; no se eliminan volúmenes.
+          for attempt in 1 2 3; do
+            if docker compose up -d --no-build backend; then
+              echo "All test containers started successfully (attempt ${attempt})."
+              break
+            fi
+            echo "Container startup attempt ${attempt}/3 failed; collecting diagnostics."
             docker compose ps -a || true
             docker compose logs --tail=100 mongo postgres redis backend || true
             docker inspect castrofallas-mongo-1 \
               --format 'Mongo state={{json .State}}' || true
-            exit 1
-          fi
+            if [ "${attempt}" -eq 3 ]; then
+              exit 1
+            fi
+            sleep 10
+          done
       - name: Wait for backend readiness
         run: |
           ready=0
