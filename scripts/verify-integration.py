@@ -204,6 +204,13 @@ check('type LegalDocument = { title: string; intro: string; sections: LegalSecti
       and 'La razón social, cédula jurídica y domicilio' in legal_page
       and 'licencia comercial válida' in legal_page,
       'Páginas legales ES/EN sin aviso de borrador y con advertencias de datos por confirmar')
+check('class="container quote-access-status quote-access-status--blocked"' in rootvue
+      and rootvue.count('class="container quote-access-status quote-access-status--blocked"') == 2
+      and '.quote-flow-page>.site-footer{margin-top:auto}' in shared_mobile_styles
+      and '@media (max-width: 800px)' in shared_mobile_styles
+      and '.quote-flow-page > .quote-access-status--blocked' in shared_mobile_styles
+      and 'padding-bottom: clamp(40px, 7vh, 64px);' in shared_mobile_styles,
+      'Cotización sin sesión mantiene espacio bajo el botón antes del footer en móvil')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
