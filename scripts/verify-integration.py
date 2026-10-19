@@ -191,7 +191,6 @@ gio_request = read('backend/Models/AssistantChatRequest.cs')
 backend_project = read('backend/CastroFallas.MiniQuote.Api.csproj')
 check('app.MapPost("/api/chat"' in program
       and 'app.MapPost("/api/assistant/chat"' in program
-      and 'return Results.Ok(new { reply = answer });' not in program
       and 'Results.Ok(new { reply = answer })' in program
       and 'RequireRateLimiting("assistant")' in program
       and 'PermitLimit = 8' in program
