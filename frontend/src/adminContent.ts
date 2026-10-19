@@ -33,10 +33,13 @@ export type ManagedMedia = {
   sizeBytes?: number | null
 }
 
+export type ManagedComment = { id: string; author: string; section: string; message: string; published: boolean }
+
 const keys = {
   news: 'castrofallas-admin-news-v1',
   itineraries: 'castrofallas-admin-itineraries-v1',
-  media: 'castrofallas-admin-media-v1'
+  media: 'castrofallas-admin-media-v1',
+  comments: 'castrofallas-admin-comments-v1'
 } as const
 
 function read<T>(key: string): T[] {
@@ -51,6 +54,7 @@ function read<T>(key: string): T[] {
 export const readManagedNews = () => read<ManagedNews>(keys.news)
 export const readManagedItineraries = () => read<ManagedItinerary>(keys.itineraries)
 export const readManagedMedia = () => read<ManagedMedia>(keys.media)
+export const readManagedComments = () => read<ManagedComment>(keys.comments)
 
 export function saveManaged<T extends { id: string }>(kind: keyof typeof keys, entry: T) {
   const entries = read<T>(keys[kind])
