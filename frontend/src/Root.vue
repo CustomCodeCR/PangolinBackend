@@ -207,12 +207,12 @@ const page = computed(()=> {
   <div v-else class="app-site quote-page quote-flow-page">
     <SiteHeader/>
     <div v-if="quoteAccess === 'checking'" class="container quote-access-status" role="status">{{ t('custom.quote.checkingSession') }}</div>
-    <div v-else-if="quoteAccess === 'denied'" class="container quote-access-status">
+    <div v-else-if="quoteAccess === 'denied'" class="container quote-access-status quote-access-status--blocked">
       <h1>{{ t('custom.quote.loginRequired') }}</h1>
       <p>{{ t('custom.quote.loginRequiredHelp') }}</p>
       <a class="btn btn-primary" :href="loginNextHref">{{ t('custom.quote.goToLogin') }} <IconSymbol glyph="→" /></a>
     </div>
-    <div v-else-if="quoteAccess === 'forbidden'" class="container quote-access-status">
+    <div v-else-if="quoteAccess === 'forbidden'" class="container quote-access-status quote-access-status--blocked">
       <h1>{{ t('custom.quote.loginRequired') }}</h1>
       <p>{{ t('custom.quote.loginRequiredHelp') }}</p>
       <a class="btn btn-primary" href="/home">{{ t('custom.quote.back') }} <IconSymbol glyph="←" /></a>
