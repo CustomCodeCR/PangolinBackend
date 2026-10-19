@@ -92,11 +92,12 @@ builder.Services.AddSingleton<ContentUpdatesPublisher>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<QuoteService>();
 builder.Services.AddScoped<AssistantService>();
+builder.Services.AddSingleton<AssistantFreeQuota>();
 builder.Services.AddSingleton<ObjectStorageService>();
-builder.Services.AddHttpClient("OpenAI", client =>
+builder.Services.AddHttpClient("Groq", client =>
 {
-    client.BaseAddress = new Uri("https://api.openai.com/v1/");
-    client.Timeout = TimeSpan.FromSeconds(25);
+    client.BaseAddress = new Uri("https://api.groq.com/openai/v1/");
+    client.Timeout = TimeSpan.FromSeconds(18);
 });
 builder.Services.AddProblemDetails();
 
@@ -118,7 +119,7 @@ builder.Services.AddRateLimiter(options =>
         ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
         {
-            PermitLimit = 20,
+            PermitLimit = 5,
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0,
             AutoReplenishment = true
@@ -195,16 +196,44 @@ app.MapGet("/api/health", () => Results.Ok(new
 }));
 
 
+// Limit incoming public chatbot requests before JSON binding.
+app.Use(async (ctx, next) =>
+{
+    if (ctx.Request.Path == "/api/assistant/chat" && HttpMethods.IsPost(ctx.Request.Method))
+    {
+        const long maxBytes = 12 * 1024;
+        var sizeFeature = ctx.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
+        if (sizeFeature is { IsReadOnly: false }) sizeFeature.MaxRequestBodySize = maxBytes;
+        if (ctx.Request.ContentLength is > maxBytes)
+        {
+            ctx.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+            return;
+        }
+    }
+    await next();
+});
+
 app.MapPost("/api/assistant/chat", async (
-    AssistantChatRequest input, AssistantService assistant, CancellationToken ct) =>
+    AssistantChatRequest input, AssistantService assistant, AssistantFreeQuota budget, CancellationToken ct) =>
 {
     var question = input.Question?.Trim();
     if (string.IsNullOrWhiteSpace(question))
         return Results.BadRequest(new { error = "Escribí una consulta." });
     if (question.Length > 800)
         return Results.BadRequest(new { error = "La consulta debe tener 800 caracteres o menos." });
+    if (input.Language is not null && input.Language is not ("es" or "en"))
+        return Results.BadRequest(new { error = "Idioma no soportado." });
+    if (input.History is { Count: > 6 } || input.History?.Any(turn => turn is null ||
+            turn.Role is null || turn.Content is null || turn.Content.Length > 500 ||
+            !(turn.Role.Equals("visitor", StringComparison.OrdinalIgnoreCase) ||
+              turn.Role.Equals("bot", StringComparison.OrdinalIgnoreCase) ||
+              turn.Role.Equals("user", StringComparison.OrdinalIgnoreCase) ||
+              turn.Role.Equals("assistant", StringComparison.OrdinalIgnoreCase))) == true)
+        return Results.BadRequest(new { error = "El historial supera el límite permitido." });
     if (!assistant.IsConfigured)
-        return Results.Json(new { error = "El asistente de IA todavía no está configurado.", code = "ai_not_configured" }, statusCode: 503);
+        return Results.Json(new { error = "La IA no está configurada; usá las respuestas locales de GIO.", code = "ai_not_configured" }, statusCode: 503);
+    if (!budget.TryConsume())
+        return Results.Json(new { error = "GIO alcanzó temporalmente su cupo de IA.", code = "ai_limited" }, statusCode: 429);
 
     try
     {
