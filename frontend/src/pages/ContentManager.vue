@@ -443,14 +443,14 @@ function useMediaForNews(item: ManagedMedia) {
       <div v-if="authState.previewRole" class="manager-preview-note" role="status">Previsualización de desarrollo · Estás viendo el rol {{ authState.previewRole }}. No es una sesión real ni un acceso administrativo de producción.</div>
       <div class="manager-notice" role="note"><strong>Importante:</strong> los itinerarios, usuarios, noticias y multimedia se guardan en PostgreSQL con sesión administradora real. En previsualización los cambios son locales.</div>
       <nav class="manager-tabs" aria-label="Secciones de administración">
-        <button :class="{ active: section !== 'users' }" @click="selectSection('itineraries')">Contenido</button>
-        <button :class="{ active: section === 'users' }" @click="selectSection('users')">Gestión de usuarios <span>{{ users.length }}</span></button>
+        <button :class="{ active: section !== 'users' }" @click="selectSection('itineraries')"><IconSymbol glyph="▤" :size="19" /> Contenido</button>
+        <button :class="{ active: section === 'users' }" @click="selectSection('users')"><IconSymbol glyph="user" :size="19" /> Gestión de usuarios <span>{{ users.length }}</span></button>
       </nav>
       <nav v-if="section !== 'users'" class="manager-tabs manager-subtabs" aria-label="Tipos de contenido">
-        <button :class="{ active: section === 'itineraries' }" @click="selectSection('itineraries')">Itinerarios <span>{{ itineraries.length }}</span></button>
-        <button :class="{ active: section === 'news' }" @click="selectSection('news')">Noticias <span>{{ news.length }}</span></button>
-        <button :class="{ active: section === 'media' }" @click="selectSection('media')">Multimedia <span>{{ media.length }}</span></button>
-        <button :class="{ active: section === 'site' }" @click="selectSection('site')">Editor visual <span>Nuevo</span></button>
+        <button :class="{ active: section === 'itineraries' }" @click="selectSection('itineraries')"><IconSymbol glyph="ship" :size="19" /> Itinerarios <span>{{ itineraries.length }}</span></button>
+        <button :class="{ active: section === 'news' }" @click="selectSection('news')"><IconSymbol glyph="newspaper" :size="19" /> Noticias <span>{{ news.length }}</span></button>
+        <button :class="{ active: section === 'media' }" @click="selectSection('media')"><IconSymbol glyph="image" :size="19" /> Multimedia <span>{{ media.length }}</span></button>
+        <button :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> Editor visual <span>Nuevo</span></button>
       </nav>
       <section v-if="section === 'users'" class="manager-users-card" aria-label="Cuentas registradas">
         <header><div><p class="manager-eyebrow">CUENTAS REGISTRADAS</p><h2>{{ usersLoading ? 'Cargando…' : `${users.length} usuarios` }}</h2></div><button class="manager-add" :disabled="usersLoading" @click="loadUsers">Actualizar</button></header>
@@ -466,7 +466,7 @@ function useMediaForNews(item: ManagedMedia) {
         <template v-if="section !== 'users'">
         <section class="manager-form">
           <div class="manager-form-heading"><div><p class="manager-eyebrow">{{ editingId ? 'EDITAR' : 'NUEVO REGISTRO' }}</p><h2>{{ section === 'itineraries' ? 'Itinerario' : section === 'news' ? 'Noticia' : 'Archivo multimedia' }}</h2></div><button v-if="editingId" class="manager-cancel" @click="startNew">Cancelar</button></div>
-          <form v-if="section === 'itineraries'" @submit.prevent="submitItinerary">
+          <form v-if="section === 'itineraries'" class="manager-editor--itineraries" @submit.prevent="submitItinerary">
             <label>Origen<input v-model="itineraryForm.origin" required maxlength="120" placeholder="San José, Costa Rica" /></label>
             <label>Destino<input v-model="itineraryForm.destination" required maxlength="120" placeholder="Miami, Estados Unidos" /></label>
             <div class="manager-form-row"><label>Transporte<select v-model="itineraryForm.transport" @change="onTransportChange"><option>Marítimo</option><option v-if="isLiveAdmin">Terrestre</option><option v-if="!isLiveAdmin">Aéreo</option><option v-if="!isLiveAdmin">Terrestre</option><option v-if="!isLiveAdmin">Multimodal</option></select></label><label>Estado<select v-model="itineraryForm.status"><option>Programado</option><option>En tránsito</option><option>Completado</option><option>Demorado</option></select></label></div>
@@ -526,7 +526,7 @@ function useMediaForNews(item: ManagedMedia) {
               <small v-else-if="section === 'news'">{{ (entry as ManagedNews).category }} · <strong :class="(entry as ManagedNews).published ? 'manager-status-published' : 'manager-status-draft'">{{ (entry as ManagedNews).published ? 'Publicada en la web' : 'Borrador privado' }}</strong></small>
               <small v-else>{{ (entry as ManagedMedia).kind }}</small>
             </div>
-            <div class="manager-item-actions"><button aria-label="Editar" title="Editar" @click="edit(entry)">✎</button><button aria-label="Eliminar" title="Eliminar" @click="remove(entry.id)">×</button><button v-if="section === 'media' && (entry as ManagedMedia).kind === 'Imagen'" aria-label="Usar imagen en noticia" title="Usar en noticia" @click="useMediaForNews(entry as ManagedMedia)">↗</button></div>
+            <div class="manager-item-actions"><button aria-label="Editar" title="Editar" @click="edit(entry)"><IconSymbol glyph="pencil" :size="17" /></button><button aria-label="Eliminar" title="Eliminar" @click="remove(entry.id)"><IconSymbol glyph="trash" :size="17" /></button><button v-if="section === 'media' && (entry as ManagedMedia).kind === 'Imagen'" aria-label="Usar imagen en noticia" title="Usar en noticia" @click="useMediaForNews(entry as ManagedMedia)">↗</button></div>
           </article>
         </section>
         </template>
@@ -819,4 +819,154 @@ function useMediaForNews(item: ManagedMedia) {
 .manager-user-hint { margin: 8px 0 16px; }
 .manager-status-published { color: #226341; font-weight: 750; }
 .manager-status-draft { color: #805c11; font-weight: 750; }
+</style>
+
+<style scoped>
+
+/* Fidelidad visual al frontend 19/10, preservando los formularios, CMS y S3 del backend. */
+.content-manager {
+  --manager-bg:#fff8f8; --manager-card:#fff; --manager-ink:#20242b;
+  --manager-muted:#687080; --manager-line:#e5dce0;
+  --manager-input:#fff; --manager-input-line:#d6d2d8;
+  --manager-accent:#b20c2a; --manager-glow:rgba(214,14,52,.18);
+  background:var(--manager-bg); color:var(--manager-ink);
+}
+:global(html.theme-dark .content-manager) {
+  --manager-bg:#171316; --manager-card:#211b20; --manager-ink:#fff;
+  --manager-muted:#c4c5cf; --manager-line:#565057;
+  --manager-input:#11182d; --manager-input-line:#555b6b;
+  --manager-accent:#f03252; --manager-glow:rgba(214,14,52,.37);
+  color-scheme:dark;
+}
+.content-manager.is-embedded { background:transparent; color:var(--manager-ink); padding:20px 0 80px; }
+.is-embedded .manager-shell { width:min(1280px,calc(100% - 64px)); margin:0 auto 40px; }
+.is-embedded .manager-heading {
+  min-height:0; margin:0 0 28px; padding:6px 0 22px;
+  border:0; border-bottom:1px solid var(--manager-line); border-radius:0;
+  background:transparent; box-shadow:none; overflow:visible;
+}
+.is-embedded .manager-heading::after { content:none; display:none; }
+.is-embedded .manager-eyebrow { color:var(--manager-ink); font-size:11px; letter-spacing:.13em; font-weight:850; text-transform:uppercase; }
+.is-embedded .manager-heading h1 { color:var(--manager-ink); font-family:'Arial Black',system-ui,sans-serif; font-size:clamp(32px,4vw,50px); letter-spacing:-.05em; }
+.is-embedded .manager-heading > p:last-child { color:var(--manager-muted); max-width:760px; font-size:15px; }
+.is-embedded .manager-notice,.is-embedded .manager-preview-note {
+  border:1px solid var(--manager-line); border-radius:14px;
+  background:var(--manager-card); color:var(--manager-muted);
+  box-shadow:none; backdrop-filter:none;
+}
+.is-embedded .manager-tabs {
+  display:flex; flex-wrap:wrap; align-items:stretch;
+  width:auto; max-width:100%; gap:10px 24px;
+  margin:26px 0 20px; padding:0;
+  border:0; border-radius:0; background:transparent; box-shadow:none;
+}
+.is-embedded .manager-tabs.manager-subtabs {margin:0 0 24px; gap:8px 24px;}
+.is-embedded .manager-tabs button {
+  position:relative; display:inline-flex; align-items:center; justify-content:center; gap:9px;
+  min-height:48px; padding:10px 12px 16px;
+  border:0; border-radius:0; background:transparent; box-shadow:none;
+  color:var(--manager-ink); font-size:14px; font-weight:800; transform:none;
+}
+.is-embedded .manager-tabs button:hover {color:var(--manager-accent); background:transparent; transform:none;}
+.is-embedded .manager-tabs button.active {color:var(--manager-ink);background:transparent;border:0;box-shadow:none;}
+.is-embedded .manager-tabs button::after {
+  content:''; position:absolute; bottom:0; left:0; right:0; width:auto;
+  height:3px; border-radius:999px; background:transparent; transform:none;
+}
+.is-embedded .manager-tabs button.active::after {background:#b20c2a;transform:none;}
+.is-embedded .manager-tabs button span:not(.lucide-symbol) {
+  min-width:23px; padding:2px 7px; border:1px solid var(--manager-line);
+  border-radius:999px; background:transparent; color:inherit; font-size:11px;
+}
+.is-embedded .manager-layout {display:grid;grid-template-columns:minmax(0,1fr);gap:26px;}
+.is-embedded .manager-form,.is-embedded .manager-list,.is-embedded .manager-users-card {
+  position:relative; isolation:isolate; overflow:hidden; min-width:0;
+  padding:clamp(24px,3vw,34px); border:1px solid var(--manager-line);
+  border-radius:24px; background:var(--manager-card); color:var(--manager-ink); box-shadow:none;
+}
+.is-embedded .manager-form::before,.is-embedded .manager-list::before,.is-embedded .manager-users-card::before {
+  content:''; position:absolute; z-index:0; top:-55%;bottom:-55%;left:-25%;width:60%;
+  border-radius:50%; background:radial-gradient(ellipse at center,var(--manager-glow) 0%,rgba(178,11,45,.1) 38%,transparent 76%);
+  filter:blur(42px);pointer-events:none;animation:manager-zip-glow 9s ease-in-out infinite alternate;
+}
+.is-embedded .manager-form>* ,.is-embedded .manager-list>* ,.is-embedded .manager-users-card>* {position:relative;z-index:1}
+.is-embedded .manager-form-heading,.is-embedded .manager-list > header,.is-embedded .manager-users-card > header {
+  display:flex; align-items:center; justify-content:space-between; gap:18px;
+  padding-bottom:22px; margin-bottom:22px; border-bottom:1px solid var(--manager-line);
+}
+.is-embedded .manager-form h2,.is-embedded .manager-list h2,.is-embedded .manager-users-card h2 {
+  color:var(--manager-ink); font-family:'Arial Black',system-ui,sans-serif;
+  font-size:clamp(24px,3vw,34px);letter-spacing:-.045em;line-height:1.15;overflow-wrap:anywhere;
+}
+.is-embedded .manager-form form {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;}
+.is-embedded .manager-form form.manager-editor--itineraries {grid-template-columns:repeat(4,minmax(0,1fr));}
+.is-embedded .manager-form-row {display:contents;}
+.is-embedded .manager-form label {display:grid;align-content:start;gap:9px;min-width:0;color:var(--manager-ink);font-size:13px;font-weight:750;line-height:1.5}
+.is-embedded .manager-form input,.is-embedded .manager-form select,.is-embedded .manager-form textarea,.is-embedded .manager-users-table select {
+  box-sizing:border-box;width:100%;min-width:0;min-height:46px;
+  padding:11px 14px;border:1px solid var(--manager-input-line);border-radius:10px;
+  background:var(--manager-input);color:var(--manager-ink);font:inherit;font-size:14px;font-weight:500;
+}
+.is-embedded .manager-form textarea {min-height:114px;resize:vertical}
+.is-embedded .manager-form :is(input,select,textarea)::placeholder {color:var(--manager-muted);opacity:.85}
+.is-embedded .manager-form label:has(textarea),.is-embedded .manager-form .manager-checkbox,.is-embedded .manager-form .manager-submit,.is-embedded .manager-form .manager-image-preview {grid-column:1/-1}
+.is-embedded .manager-form input[type=file] {padding:9px;overflow:hidden;font-size:12px;}
+.is-embedded .manager-form input[type=file]::file-selector-button {margin-right:10px;padding:6px 10px;border:0;border-radius:7px;background:#b20c2a;color:#fff;cursor:pointer}
+.is-embedded .manager-submit,.is-embedded .manager-add,.is-embedded .manager-user-save {
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  min-height:46px;padding:10px 22px;border:1px solid #b20c2a;
+  border-radius:12px;background:#b20c2a;color:#fff!important;
+  font:inherit;font-size:13px;font-weight:850;cursor:pointer;box-shadow:none;
+}
+.is-embedded .manager-submit {justify-self:end;min-width:190px;grid-column:1/-1;}
+.is-embedded .manager-submit:hover,.is-embedded .manager-add:hover,.is-embedded .manager-user-save:hover {background:#cc1234;transform:none}
+.is-embedded .manager-cancel,.is-embedded .manager-item-actions button {
+  display:inline-flex;align-items:center;justify-content:center;min-height:38px;
+  padding:8px 12px;border:1px solid var(--manager-line);border-radius:10px;
+  background:transparent;color:var(--manager-ink);box-shadow:none;
+}
+.is-embedded .manager-item-actions button {width:38px;padding:8px}
+.is-embedded .manager-cancel:hover,.is-embedded .manager-item-actions button:hover {border-color:#b20c2a;background:rgba(178,12,42,.1)}
+.is-embedded .manager-form .manager-publication-hint,.is-embedded .manager-user-hint {color:var(--manager-muted)}
+.is-embedded .manager-feedback,.is-embedded .manager-users-error {
+  padding:13px 16px;border:1px solid var(--manager-line);border-left:3px solid #b20c2a;
+  border-radius:10px;background:var(--manager-input);color:var(--manager-ink);box-shadow:none;
+}
+.is-embedded .manager-empty,.is-embedded .manager-users-empty {padding:30px 16px;color:var(--manager-muted);text-align:center}
+.is-embedded .manager-item {display:flex;align-items:center;gap:16px;padding:18px 0;border-top:1px solid var(--manager-line);}
+.is-embedded .manager-item:first-of-type {border-top:0}
+.is-embedded .manager-item > img {width:72px;height:60px;flex:0 0 72px;object-fit:cover;border-radius:10px}
+.is-embedded .manager-item-copy strong {color:var(--manager-ink);font-size:15px;overflow-wrap:anywhere}
+.is-embedded .manager-item-copy small {color:var(--manager-muted);font-size:12px}
+.is-embedded .manager-item-actions {display:flex;flex-shrink:0;gap:7px}
+.is-embedded .manager-users-table-wrap {max-width:100%;overflow-x:auto;border:1px solid var(--manager-line);border-radius:12px}
+.is-embedded .manager-users-table {width:100%;min-width:660px;border-collapse:collapse;text-align:left}
+.is-embedded .manager-users-table th,.is-embedded .manager-users-table td {padding:14px 16px;border-bottom:1px solid var(--manager-line);color:var(--manager-ink)}
+.is-embedded .manager-users-table th {background:var(--manager-input);font-size:11px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
+.is-embedded .manager-users-table tr:last-child td {border-bottom:0}
+.is-embedded .manager-users-table td:first-child strong,.is-embedded .manager-users-table td:first-child small {display:block}
+.is-embedded .manager-users-table td:first-child small {margin-top:5px;color:var(--manager-muted)}
+.is-embedded .manager-users-table select {min-width:135px}
+.is-embedded .manager-tabs button:focus-visible,.is-embedded .manager-cancel:focus-visible,.is-embedded .manager-item-actions button:focus-visible,
+.is-embedded .manager-submit:focus-visible,.is-embedded .manager-add:focus-visible,.is-embedded .manager-user-save:focus-visible {
+  outline:3px solid #b20c2a80;outline-offset:3px
+}
+.is-embedded .manager-form :is(input,select,textarea):focus-visible,.is-embedded .manager-users-table select:focus-visible {outline:2px solid #b20c2a;outline-offset:2px}
+@keyframes manager-zip-glow {from{transform:translateX(0)}to{transform:translateX(133%)}}
+@media(prefers-reduced-motion:reduce){.is-embedded .manager-form::before,.is-embedded .manager-list::before,.is-embedded .manager-users-card::before{animation:none;transform:translateX(65%)}}
+@media(max-width:1000px){.is-embedded .manager-form form.manager-editor--itineraries{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){
+  .is-embedded .manager-shell{width:calc(100% - 32px)}
+  .is-embedded .manager-form,.is-embedded .manager-list,.is-embedded .manager-users-card{padding:22px 16px;border-radius:20px}
+  .is-embedded .manager-tabs{gap:6px 12px}
+  .is-embedded .manager-tabs button{padding:10px 6px 14px;font-size:13px}
+  .is-embedded .manager-tabs.manager-subtabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .is-embedded .manager-form form,.is-embedded .manager-form form.manager-editor--itineraries{grid-template-columns:minmax(0,1fr)}
+  .is-embedded .manager-form :is(input,select,textarea),.is-embedded .manager-users-table select{font-size:16px}
+  .is-embedded .manager-submit{width:100%;min-width:0;justify-self:stretch}
+  .is-embedded .manager-form-heading,.is-embedded .manager-list > header,.is-embedded .manager-users-card > header{align-items:flex-start;gap:12px}
+  .is-embedded .manager-item{flex-wrap:wrap}
+  .is-embedded .manager-item-actions{width:100%;justify-content:flex-end}
+}
+
 </style>

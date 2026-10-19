@@ -213,7 +213,7 @@ onUnmounted(() => {
                     v-for="item in homeNews"
                     :key="`${copy}-${item.id}`"
                     class="home-hero-news__card"
-                    href="/noticias"
+                    :href="'/noticias?article=' + encodeURIComponent(item.id)"
                     :tabindex="copy === 2 ? -1 : 0"
                     :aria-label="`${$t('custom.home.newsAria')}: ${item.title}`"
                   >

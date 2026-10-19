@@ -45,12 +45,29 @@ function selectStory(index: number) {
   startStoryTimer()
 }
 function openArticle(index: number) {
+  const article = news.value[index]
+  if (!article) return
   activeArticleIndex.value = index
+  const url = new URL(window.location.href)
+  url.searchParams.set('article', article.id)
+  window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash)
   pauseStoryTimer()
 }
 function closeArticle() {
   activeArticleIndex.value = null
+  const url = new URL(window.location.href)
+  if (url.searchParams.has('article')) {
+    url.searchParams.delete('article')
+    window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash)
+  }
   startStoryTimer()
+}
+function syncArticleFromUrl() {
+  const id = new URLSearchParams(window.location.search).get('article')
+  const index = id ? news.value.findIndex(article => article.id === id) : -1
+  activeArticleIndex.value = index >= 0 ? index : null
+  if (index >= 0) { activeStoryIndex.value = index; pauseStoryTimer() }
+  else if (news.value.length) startStoryTimer()
 }
 function handleArticleKeydown(event: KeyboardEvent) { if (event.key === 'Escape') closeArticle() }
 let disposed = false
@@ -66,7 +83,8 @@ async function loadPublicNews() {
     managedNews.value = items as ManagedNews[]
     newsError.value = false
     if (activeStoryIndex.value >= news.value.length) activeStoryIndex.value = 0
-    if (activeArticleIndex.value !== null && activeArticleIndex.value >= news.value.length) closeArticle()
+    // Conserva el artículo seleccionado mediante su id durante recargas SignalR.
+    syncArticleFromUrl()
     await nextTick()
     if (!news.value.length) { emblaApi?.destroy(); emblaApi = null }
     else if (!emblaApi && emblaViewport.value) {
@@ -79,12 +97,13 @@ async function loadPublicNews() {
 }
 const unsubscribeNews = subscribeToChanges('news', () => { void loadPublicNews() })
 const unsubscribeSync = subscribeToChanges('sync', () => { void loadPublicNews() })
-onMounted(() => { window.addEventListener('keydown', handleArticleKeydown); void loadPublicNews() })
+onMounted(() => { window.addEventListener('keydown', handleArticleKeydown); window.addEventListener('popstate', syncArticleFromUrl); void loadPublicNews() })
 
 onUnmounted(() => {
   disposed = true
   unsubscribeNews(); unsubscribeSync()
   window.removeEventListener('keydown', handleArticleKeydown)
+  window.removeEventListener('popstate', syncArticleFromUrl)
   pauseStoryTimer()
   emblaApi?.destroy()
   emblaApi = null

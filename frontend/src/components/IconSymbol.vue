@@ -3,7 +3,7 @@ import type { Component } from 'vue'
 import {
   ArrowDown, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight,
   Check, CircleDot, Clock3, List, Mail, MapPin, Menu, MessageCircle, Minus,
-  Moon, Package, Phone, Plane, Plus, Search, Settings, Ship, Sparkles, Sun, Truck, UserRound, X
+  Moon, Newspaper, Image, Package, Pencil, Phone, Plane, Plus, Search, Settings, Ship, Sparkles, Sun, Trash2, Truck, UserRound, X
 } from '@lucide/vue'
 
 const props = withDefaults(defineProps<{ glyph: string; size?: number }>(), { size: 18 })
@@ -13,7 +13,7 @@ const icons: Record<string, Component> = {
   '☎': Phone, '✉': Mail, '◉': MessageCircle, '⌖': MapPin, '◷': Clock3,
   '×': X, '✓': Check, '−': Minus, '+': Plus, '▰': Package, '▤': List,
   '⌕': Search, '⚙': Settings, '☀': Sun, '☾': Moon, '☰': Menu,
-  '◎': CircleDot, '✦': Sparkles, ship: Ship, truck: Truck, user: UserRound
+  '◎': CircleDot, '✦': Sparkles, ship: Ship, truck: Truck, user: UserRound, newspaper: Newspaper, image: Image, pencil: Pencil, trash: Trash2
 }
 </script>
 
