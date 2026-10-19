@@ -96,7 +96,7 @@ watch(locale, () => globe?.setMarkers(markerData()))
 onMounted(() => {
   if (typeof MutationObserver !== 'undefined') {
     themeObserver = new MutationObserver(() => globe?.setTheme({
-      ocean: document.documentElement.classList.contains('theme-dark') ? ['#120000','#000000'] : ['#fffafa','#fffafa'],
+      ocean: (document.documentElement.classList.contains('theme-dark') ? ['#120000','#000000'] : ['#fffafa','#fffafa']) as [string,string],
       land:'#a80e18', marker:'#a80e18', arc:'#a80e18'
     }))
     themeObserver.observe(document.documentElement,{attributes:true,attributeFilter:['class']})
