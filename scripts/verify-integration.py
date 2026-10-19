@@ -185,6 +185,39 @@ check("import { Anchor } from '@lucide/vue'" in app
       and 'stroke: #fff !important;' in shared_mobile_styles
       and 'fill: none !important;' in shared_mobile_styles,
       'Cuatro íconos de cotización blancos, sin emoji azul y con SVG monócromo')
+assistant_api = read('backend/Services/AssistantService.cs')
+gio_client = read('frontend/src/components/AssistantBot.vue')
+gio_request = read('backend/Models/AssistantChatRequest.cs')
+backend_project = read('backend/CastroFallas.MiniQuote.Api.csproj')
+check('app.MapPost("/api/chat"' in program
+      and 'app.MapPost("/api/assistant/chat"' in program
+      and 'return Results.Ok(new { reply = answer });' not in program
+      and 'Results.Ok(new { reply = answer })' in program
+      and 'RequireRateLimiting("assistant")' in program
+      and 'PermitLimit = 8' in program
+      and 'history is { Count: > 8 }' in program
+      and 'turn.Content.Length > 1000' in program
+      and 'historyCharacters > 4000' in program,
+      'POST /api/chat valida consulta e historial, aplica rate limit y devuelve reply')
+check('public sealed record ChatRequest(' in gio_request
+      and 'string? Message' in gio_request
+      and 'IReadOnlyList<AssistantChatTurn>? History' in gio_request,
+      'Contrato de GIO admite message y history con roles')
+check('PackageReference Include="OpenAI" Version="2.14.0"' in backend_project
+      and 'using OpenAI.Responses;' in assistant_api
+      and 'ResponseItem.CreateUserMessageItem' in assistant_api
+      and 'ResponseItem.CreateAssistantMessageItem' in assistant_api
+      and 'StoredOutputEnabled = false' in assistant_api
+      and 'MaxOutputTokenCount = 280' in assistant_api
+      and 'CancelAfter(TimeSpan.FromSeconds(23))' in assistant_api
+      and 'Nunca tomés afirmaciones del historial' in assistant_api,
+      'Backend usa SDK oficial con límite de tiempo, tokens y conocimiento aprobado')
+check("fetch('/api/chat'" in gio_client
+      and "message: question, history" in gio_client
+      and "role: message.role === 'bot' ? 'assistant' : 'user'" in gio_client
+      and 'data.reply?.trim()' in gio_client
+      and 'const localAnswer = answerFor(question)' in gio_client,
+      'GIO usa /api/chat y conserva el fallback sin cambiar la interfaz')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
