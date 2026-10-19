@@ -4489,7 +4489,16 @@ html.theme-dark .quote-page .quote-flow .quote-submit * {
   transition: background .2s ease, transform .2s ease;
 }
 .login-visual .login-guest-back:hover { background: #c20e2b; transform: translateX(-2px); }
-.login-visual .login-guest-back span { font-size: 19px; line-height: 1; }
+.login-visual .login-guest-back .lucide-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  line-height: 0;
+}
+.login-visual .login-guest-back .lucide-symbol svg { display: block; }
 .nav-admin-link { background: #810b1e; }
 
 /* Acento de marca para el login. */

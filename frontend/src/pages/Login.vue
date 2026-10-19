@@ -108,7 +108,7 @@ function enterAsGuest() {
     <div class="login-visual" :style="{ '--cms-login-hero': siteCssImage('login.hero.media', '/images/hero.webp') }">
       <SiteMedia v-if="siteVisual('login.hero.media', '/images/hero.webp').kind.startsWith('Video')" slot-key="login.hero.media" fallback="/images/hero.webp" background />
       <button class="login-guest-back" type="button" @click="enterAsGuest">
-        <span aria-hidden="true">←</span> {{ $t('custom.login.back') }}
+        <IconSymbol glyph="←" :size="20" /> {{ $t('custom.login.back') }}
       </button>
       <div class="login-visual__content">
         <SiteMedia slot-key="shared.logo.media" fallback="/images/logo.png" :alt="$t('phrases.p138')" />
