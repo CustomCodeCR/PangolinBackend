@@ -201,12 +201,12 @@ app.MapGet("/api/health", () => Results.Ok(new
 // La ruta anterior se mantiene para no romper integraciones existentes.
 app.MapPost("/api/chat", (
     ChatRequest input, AssistantService assistant, CancellationToken ct) =>
-    HandleGioChatAsync(input.Message, input.History, input.Language, assistant, legacy: false, ct))
+    HandleGioChatAsync(input.Message, input.History, input.Language, assistant, legacy: false, ct: ct))
     .RequireRateLimiting("assistant");
 
 app.MapPost("/api/assistant/chat", (
     AssistantChatRequest input, AssistantService assistant, CancellationToken ct) =>
-    HandleGioChatAsync(input.Question, input.History, input.Language, assistant, legacy: true, ct))
+    HandleGioChatAsync(input.Question, input.History, input.Language, assistant, legacy: true, ct: ct))
     .RequireRateLimiting("assistant");
 
 static async Task<IResult> HandleGioChatAsync(
@@ -231,7 +231,8 @@ static async Task<IResult> HandleGioChatAsync(
     var historyCharacters = 0;
     foreach (var turn in history ?? [])
     {
-        if (!(string.Equals(turn.Role, "user", StringComparison.OrdinalIgnoreCase) ||
+        if (turn is null ||
+            !(string.Equals(turn.Role, "user", StringComparison.OrdinalIgnoreCase) ||
               string.Equals(turn.Role, "assistant", StringComparison.OrdinalIgnoreCase) ||
               string.Equals(turn.Role, "visitor", StringComparison.OrdinalIgnoreCase) ||
               string.Equals(turn.Role, "bot", StringComparison.OrdinalIgnoreCase)) ||
