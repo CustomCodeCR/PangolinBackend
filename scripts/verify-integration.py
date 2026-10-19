@@ -211,6 +211,12 @@ check('class="container quote-access-status quote-access-status--blocked"' in ro
       and '.quote-flow-page > .quote-access-status--blocked' in shared_mobile_styles
       and 'padding-bottom: clamp(40px, 7vh, 64px);' in shared_mobile_styles,
       'Cotización sin sesión mantiene espacio bajo el botón antes del footer en móvil')
+check('<IconSymbol glyph="←" :size="20" />' in login
+      and '<span aria-hidden="true">←</span>' not in login
+      and '.login-visual .login-guest-back .lucide-symbol {' in shared_mobile_styles
+      and 'flex: 0 0 20px;' in shared_mobile_styles
+      and '.login-visual .login-guest-back .lucide-symbol svg { display: block; }' in shared_mobile_styles,
+      'Flecha del botón Volver usa SVG centrado en una caja de 20 píxeles')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
