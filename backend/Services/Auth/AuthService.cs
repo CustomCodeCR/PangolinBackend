@@ -22,7 +22,8 @@ public sealed class AuthService(
     AppDbContext db,
     IConfiguration configuration,
     IHostEnvironment environment,
-    ILogger<AuthService> logger)
+    ILogger<AuthService> logger,
+    GraphOtpEmailSender graphOtpEmailSender)
 {
     private const int OtpTtlMinutes = 5;
     private const int MaxOtpAttempts = 5;
@@ -271,6 +272,11 @@ public sealed class AuthService(
     private async Task SendMailAsync(string email, string otp, CancellationToken ct)
     {
         var mode = configuration["Email:Mode"] ?? "Smtp";
+        if (mode.Equals("Graph", StringComparison.OrdinalIgnoreCase))
+        {
+            await graphOtpEmailSender.SendAsync(email, otp, ct);
+            return;
+        }
         string from = configuration["Smtp:From"] ?? "pruebas@castrofallas.local";
         var message = new MimeMessage();
         message.From.Add(MailboxAddress.Parse(from));
@@ -297,7 +303,7 @@ public sealed class AuthService(
             return;
         }
         if (!mode.Equals("Smtp", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Email:Mode debe ser Smtp o LocalOutbox.");
+            throw new InvalidOperationException("Email:Mode debe ser Graph, Smtp o LocalOutbox.");
 
         string host = configuration["Smtp:Host"] ?? throw new InvalidOperationException("SMTP sin configurar");
         int port = configuration.GetValue<int>("Smtp:Port");
