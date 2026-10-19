@@ -1,11 +1,12 @@
-using System.Net.Http.Headers;
-using System.Text;
-using System.Text.Json;
+using System.ClientModel;
 using CastroFallas.MiniQuote.Api.Models;
+using OpenAI.Responses;
+
+#pragma warning disable OPENAI001 // ResponsesClient sigue marcado como experimental por el SDK oficial.
 
 namespace CastroFallas.MiniQuote.Api.Services;
 
-public sealed class AssistantService(IHttpClientFactory clients, IConfiguration config, ILogger<AssistantService> logger)
+public sealed class AssistantService(IConfiguration config, ILogger<AssistantService> logger)
 {
     private const string CompanyKnowledge = """
         Empresa: Grupo Castro Fallas, empresa costarricense de logística y aduanas. El sitio informa más de 48 años de experiencia.
@@ -42,62 +43,50 @@ public sealed class AssistantService(IHttpClientFactory clients, IConfiguration 
         if (string.IsNullOrWhiteSpace(apiKey))
             throw new AssistantNotConfiguredException();
 
-        var input = new List<object>();
+        // GIO solo procesa información pública; nunca consulta datos de clientes.
+        // El historial proviene del navegador: se valida en el endpoint y aquí se
+        // traduce a roles conocidos. No se permite alterar las instrucciones.
+        var input = new List<ResponseItem>();
         foreach (var turn in (request.History ?? []).TakeLast(8))
         {
-            var role = turn.Role.Equals("bot", StringComparison.OrdinalIgnoreCase) ||
-                       turn.Role.Equals("assistant", StringComparison.OrdinalIgnoreCase)
-                ? "assistant"
-                : turn.Role.Equals("visitor", StringComparison.OrdinalIgnoreCase) ||
-                  turn.Role.Equals("user", StringComparison.OrdinalIgnoreCase)
-                    ? "user"
-                    : null;
-            var content = turn.Content?.Trim();
-            if (role is not null && !string.IsNullOrWhiteSpace(content))
-                input.Add(new { role, content = content[..Math.Min(content.Length, 1200)] });
+            if (string.IsNullOrWhiteSpace(turn.Content)) continue;
+            var content = turn.Content.Trim();
+            if (turn.Role.Equals("assistant", StringComparison.OrdinalIgnoreCase) ||
+                turn.Role.Equals("bot", StringComparison.OrdinalIgnoreCase))
+                input.Add(ResponseItem.CreateAssistantMessageItem(content));
+            else if (turn.Role.Equals("user", StringComparison.OrdinalIgnoreCase) ||
+                     turn.Role.Equals("visitor", StringComparison.OrdinalIgnoreCase))
+                input.Add(ResponseItem.CreateUserMessageItem(content));
         }
-        input.Add(new { role = "user", content = request.Question.Trim() });
+        input.Add(ResponseItem.CreateUserMessageItem(request.Question.Trim()));
 
         var language = request.Language?.Equals("en", StringComparison.OrdinalIgnoreCase) == true;
-        var payload = new
+        var options = new CreateResponseOptions
         {
-            model = config["Ai:OpenAI:Model"] ?? "gpt-4.1-mini",
-            instructions = $"{(language ? EnglishRules : SpanishRules)}\n\nVerified company knowledge:\n{CompanyKnowledge}",
-            input,
-            max_output_tokens = 280,
-            store = false
+            Model = config["Ai:OpenAI:Model"] ?? "gpt-4.1-mini",
+            Instructions = $"{(language ? EnglishRules : SpanishRules)}\\n\\nInformación aprobada de la empresa:\\n{CompanyKnowledge}",
+            MaxOutputTokenCount = 280,
+            StoredOutputEnabled = false
         };
+        foreach (var item in input) options.InputItems.Add(item);
 
-        using var message = new HttpRequestMessage(HttpMethod.Post, "responses");
-        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        message.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-
-        using var response = await clients.CreateClient("OpenAI").SendAsync(message, cancellationToken);
-        if (!response.IsSuccessStatusCode)
+        // Tiempo y tokens acotados para proteger la experiencia y el presupuesto.
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(23));
+        try
         {
-            logger.LogWarning("OpenAI assistant request failed with status {StatusCode}.", (int)response.StatusCode);
+            var client = new ResponsesClient(apiKey: apiKey);
+            ResponseResult response = await client.CreateResponseAsync(options, timeout.Token);
+            var answer = Limit(response.GetOutputText());
+            if (string.IsNullOrWhiteSpace(answer)) throw new AssistantProviderException();
+            return answer;
+        }
+        catch (ClientResultException ex)
+        {
+            // Nunca devolver el texto del proveedor ni la API key al navegador.
+            logger.LogWarning("OpenAI devolvió HTTP {StatusCode}.", ex.Status);
             throw new AssistantProviderException();
         }
-
-        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-        var root = document.RootElement;
-        if (root.TryGetProperty("output_text", out var outputText) && outputText.ValueKind == JsonValueKind.String)
-            return Limit(outputText.GetString());
-
-        var chunks = new List<string>();
-        if (root.TryGetProperty("output", out var output) && output.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var item in output.EnumerateArray())
-            {
-                if (!item.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Array) continue;
-                foreach (var part in content.EnumerateArray())
-                    if (part.TryGetProperty("text", out var text) && text.ValueKind == JsonValueKind.String)
-                        chunks.Add(text.GetString() ?? "");
-            }
-        }
-        var answer = Limit(string.Join("\n", chunks));
-        if (string.IsNullOrWhiteSpace(answer)) throw new AssistantProviderException();
-        return answer;
     }
 
     private static string Limit(string? text) => (text ?? "").Trim() is { Length: > 1200 } answer
