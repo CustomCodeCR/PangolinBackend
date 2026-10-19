@@ -23,6 +23,9 @@ assert result.get("code") == "ai_not_configured", result
 run({"question": "  "}, 400)
 run({"question": "x" * 801}, 400)
 run({"question": "Hello", "language": "fr"}, 400)
-run({"question": "Hello", "history": [{"role": "visitor", "content": "x" * 501}]}, 400)
+# Oversized content must be rejected before consuming the per-IP request quota.
 run({"question": "Hello", "history": [{"role": "visitor", "content": "x" * 20000}]}, 413)
-print("GIO public API validation passed")
+run({"question": "Hello", "history": [{"role": "visitor", "content": "x" * 501}]}, 400)
+# Five requests consume the window; the next request must be limited.
+run({"question": "Hello again"}, 429)
+print("GIO public API validation and rate limiting passed")
