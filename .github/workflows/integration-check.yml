@@ -40,7 +40,15 @@ jobs:
       - name: Generate local-only development secrets
         run: bash scripts/setup-docker.sh
       - name: Start test containers
-        run: docker compose up -d --build backend
+        run: |
+          if ! docker compose up -d --build backend; then
+            echo 'Docker dependency startup failed; collecting diagnostics.'
+            docker compose ps -a || true
+            docker compose logs --tail=100 mongo postgres redis backend || true
+            docker inspect castrofallas-mongo-1 \
+              --format 'Mongo state={{json .State}}' || true
+            exit 1
+          fi
       - name: Wait for backend readiness
         run: |
           ready=0
