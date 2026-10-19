@@ -4,16 +4,17 @@ import IconSymbol from '../components/IconSymbol.vue'
 import SiteVisualEditor from './SiteVisualEditor.vue'
 import { subscribeToChanges } from '../services/realtime'
 import { authState, refreshSession } from '../services/auth'
-import { deleteManaged, newManagedId, readManagedItineraries, readManagedMedia, readManagedNews, saveManaged, type ManagedItinerary, type ManagedMedia, type ManagedNews } from '../adminContent'
+import { deleteManaged, newManagedId, readManagedComments, readManagedItineraries, readManagedMedia, readManagedNews, saveManaged, type ManagedComment, type ManagedItinerary, type ManagedMedia, type ManagedNews } from '../adminContent'
 
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
-type Section = 'itineraries' | 'news' | 'media' | 'users' | 'site'
+type Section = 'itineraries' | 'news' | 'media' | 'comments' | 'users' | 'site'
 type AppRole = 'cliente' | 'administrador'
 interface ManagedUser { id: string; correo: string; nombre?: string; role: AppRole; activo: boolean }
 const section = ref<Section>(new URLSearchParams(window.location.search).get('tab') === 'usuarios' ? 'users' : 'itineraries')
 const itineraries = ref<ManagedItinerary[]>([])
 const news = ref<ManagedNews[]>([])
 const media = ref<ManagedMedia[]>([])
+const comments = ref<ManagedComment[]>(readManagedComments())
 const editingId = ref<string | null>(null)
 const notice = ref('')
 const users = ref<ManagedUser[]>([])
@@ -26,15 +27,17 @@ const isLiveAdmin = computed(() => authState.user?.role === 'administrador' && !
 const newsForm = ref<ManagedNews>(emptyNews())
 const itineraryForm = ref<ManagedItinerary>(emptyItinerary())
 const mediaForm = ref<ManagedMedia>(emptyMedia())
+const commentForm = ref<ManagedComment>(emptyComment())
 const mediaUploadFile = ref<File | null>(null)
 const newsUploadFile = ref<File | null>(null)
 const storageMode = ref<'checking' | 's3' | 'legacy' | 'error'>('checking')
-const currentList = computed(() => section.value === 'itineraries' ? itineraries.value : section.value === 'news' ? news.value : media.value)
+const currentList = computed(() => section.value === 'itineraries' ? itineraries.value : section.value === 'news' ? news.value : section.value === 'comments' ? comments.value : media.value)
 
 function emptyNews(): ManagedNews { return { id: '', title: '', category: 'LOGÍSTICA', description: '', body: '', image: '', published: false } }
 function emptyItinerary(): ManagedItinerary { return { id: '', origin: '', destination: '', transport: 'Marítimo', departure: '', arrival: '', status: 'Programado', closing: '', modality: 'FCL', carrier: '', vessel: '', voyage: '' } }
+function emptyComment(): ManagedComment { return { id: '', author: '', section: '', message: '', published: false } }
 function emptyMedia(): ManagedMedia { return { id: '', name: '', kind: 'Imagen', src: '' } }
-function reload() { itineraries.value = readManagedItineraries(); news.value = readManagedNews(); media.value = readManagedMedia() }
+function reload() { itineraries.value = readManagedItineraries(); news.value = readManagedNews(); media.value = readManagedMedia(); comments.value = readManagedComments() }
 
 async function loadNews() {
   if (!isLiveAdmin.value) { news.value = readManagedNews(); return }
@@ -208,8 +211,9 @@ function startNew() {
   if (section.value === 'itineraries') itineraryForm.value = emptyItinerary()
   if (section.value === 'news') newsForm.value = emptyNews()
   if (section.value === 'media') mediaForm.value = emptyMedia()
+  if (section.value === 'comments') commentForm.value = emptyComment()
 }
-async function edit(entry: ManagedItinerary | ManagedNews | ManagedMedia) {
+async function edit(entry: ManagedItinerary | ManagedNews | ManagedMedia | ManagedComment) {
   mediaUploadFile.value = null
   newsUploadFile.value = null
   editingId.value = entry.id
@@ -226,6 +230,7 @@ async function edit(entry: ManagedItinerary | ManagedNews | ManagedMedia) {
   }
   if (section.value === 'news') newsForm.value = { ...(entry as ManagedNews) }
   if (section.value === 'media') mediaForm.value = { ...(entry as ManagedMedia) }
+  if (section.value === 'comments') commentForm.value = { ...(entry as ManagedComment) }
   document.querySelector('.manager-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 async function submitItinerary() {
@@ -351,6 +356,14 @@ async function submitMedia() {
     notice.value = 'Multimedia guardada en PostgreSQL.'
   } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo guardar multimedia.' }
 }
+function submitComment() {
+  const item = { ...commentForm.value, author: commentForm.value.author.trim(), message: commentForm.value.message.trim(), section: commentForm.value.section.trim(), id: editingId.value ?? newManagedId() }
+  if (!item.author || !item.message) { notice.value = 'Completa el autor y el comentario.'; return }
+  saveManaged('comments', item)
+  comments.value = readManagedComments()
+  startNew()
+  notice.value = 'Comentario guardado solo en este navegador; no se publica ni se sincroniza con el servidor.'
+}
 async function remove(id: string) {
   if (!window.confirm('¿Eliminar este registro? Esta acción no se puede deshacer.')) return
   if (section.value === 'itineraries' && isLiveAdmin.value) {
@@ -378,7 +391,7 @@ async function remove(id: string) {
     } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'Error eliminando contenido.' }
     return
   }
-  const kind = section.value === 'itineraries' ? 'itineraries' : section.value === 'news' ? 'news' : 'media'
+  const kind = section.value === 'itineraries' ? 'itineraries' : section.value === 'news' ? 'news' : section.value === 'comments' ? 'comments' : 'media'
   deleteManaged(kind, id); reload(); if (editingId.value === id) startNew(); notice.value = 'Elemento eliminado solo en previsualización.'
 }
 function selectFile(event: Event, target: 'news' | 'media') {
@@ -450,6 +463,7 @@ function useMediaForNews(item: ManagedMedia) {
         <button :class="{ active: section === 'itineraries' }" @click="selectSection('itineraries')"><IconSymbol glyph="ship" :size="19" /> Itinerarios <span>{{ itineraries.length }}</span></button>
         <button :class="{ active: section === 'news' }" @click="selectSection('news')"><IconSymbol glyph="newspaper" :size="19" /> Noticias <span>{{ news.length }}</span></button>
         <button :class="{ active: section === 'media' }" @click="selectSection('media')"><IconSymbol glyph="image" :size="19" /> Multimedia <span>{{ media.length }}</span></button>
+        <button :class="{ active: section === 'comments' }" @click="selectSection('comments')"><IconSymbol glyph="◉" :size="19" /> Comentarios <span>{{ comments.length }}</span></button>
         <button :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> Editor visual <span>Nuevo</span></button>
       </nav>
       <section v-if="section === 'users'" class="manager-users-card" aria-label="Cuentas registradas">
@@ -465,7 +479,7 @@ function useMediaForNews(item: ManagedMedia) {
       <div v-else class="manager-layout">
         <template v-if="section !== 'users'">
         <section class="manager-form">
-          <div class="manager-form-heading"><div><p class="manager-eyebrow">{{ editingId ? 'EDITAR' : 'NUEVO REGISTRO' }}</p><h2>{{ section === 'itineraries' ? 'Itinerario' : section === 'news' ? 'Noticia' : 'Archivo multimedia' }}</h2></div><button v-if="editingId" class="manager-cancel" @click="startNew">Cancelar</button></div>
+          <div class="manager-form-heading"><div><p class="manager-eyebrow">{{ editingId ? 'EDITAR' : 'NUEVO REGISTRO' }}</p><h2>{{ section === 'itineraries' ? 'Itinerario' : section === 'news' ? 'Noticia' : section === 'comments' ? 'Comentario' : 'Archivo multimedia' }}</h2></div><button v-if="editingId" class="manager-cancel" @click="startNew">Cancelar</button></div>
           <form v-if="section === 'itineraries'" class="manager-editor--itineraries" @submit.prevent="submitItinerary">
             <label>Origen<input v-model="itineraryForm.origin" required maxlength="120" placeholder="San José, Costa Rica" /></label>
             <label>Destino<input v-model="itineraryForm.destination" required maxlength="120" placeholder="Miami, Estados Unidos" /></label>
@@ -488,6 +502,14 @@ function useMediaForNews(item: ManagedMedia) {
             </select></label>
             <p class="manager-publication-hint" role="status">{{ newsForm.published ? 'Esta noticia aparecerá en la web al guardar los cambios.' : 'Este borrador no aparecerá en la web pública.' }}</p>
             <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar noticia' }}</button>
+          </form>
+          <form v-else-if="section === 'comments'" @submit.prevent="submitComment">
+            <p class="manager-publication-hint">Comentarios locales: solo se guardan en este navegador y no aparecen públicamente en la web.</p>
+            <label>Autor<input v-model.trim="commentForm.author" required maxlength="100" /></label>
+            <label>Sección<input v-model.trim="commentForm.section" maxlength="100" placeholder="Principal, servicios..." /></label>
+            <label>Comentario<textarea v-model.trim="commentForm.message" required maxlength="1200" rows="5" /></label>
+            <label class="manager-checkbox"><input v-model="commentForm.published" type="checkbox" /> Marcado como aprobado (solo local)</label>
+            <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar comentario' }}</button>
           </form>
           <form v-else @submit.prevent="submitMedia">
             <label>Nombre<input v-model="mediaForm.name" required maxlength="200" placeholder="Imagen de puerto" /></label>
@@ -521,9 +543,11 @@ function useMediaForNews(item: ManagedMedia) {
             <div class="manager-item-copy">
               <strong v-if="section === 'itineraries'">{{ (entry as ManagedItinerary).origin }} → {{ (entry as ManagedItinerary).destination }}</strong>
               <strong v-else-if="section === 'news'">{{ (entry as ManagedNews).title }}</strong>
+              <strong v-else-if="section === 'comments'">{{ (entry as ManagedComment).author }}</strong>
               <strong v-else>{{ (entry as ManagedMedia).name }}</strong>
               <small v-if="section === 'itineraries'">{{ (entry as ManagedItinerary).transport }} · {{ (entry as ManagedItinerary).status }}</small>
               <small v-else-if="section === 'news'">{{ (entry as ManagedNews).category }} · <strong :class="(entry as ManagedNews).published ? 'manager-status-published' : 'manager-status-draft'">{{ (entry as ManagedNews).published ? 'Publicada en la web' : 'Borrador privado' }}</strong></small>
+              <small v-else-if="section === 'comments'">{{ (entry as ManagedComment).section || 'General' }} · {{ (entry as ManagedComment).message }}</small>
               <small v-else>{{ (entry as ManagedMedia).kind }}</small>
             </div>
             <div class="manager-item-actions"><button aria-label="Editar" title="Editar" @click="edit(entry)"><IconSymbol glyph="pencil" :size="17" /></button><button aria-label="Eliminar" title="Eliminar" @click="remove(entry.id)"><IconSymbol glyph="trash" :size="17" /></button><button v-if="section === 'media' && (entry as ManagedMedia).kind === 'Imagen'" aria-label="Usar imagen en noticia" title="Usar en noticia" @click="useMediaForNews(entry as ManagedMedia)">↗</button></div>
