@@ -17,11 +17,12 @@ def run(payload, expected):
     assert code == expected, f"Expected {expected}, got {code}: {body[:200]}"
     return json.loads(body) if body else {}
 
+# Check the no-key response before validation cases consume the per-IP window.
+result = run({"question": "What does ETA mean?", "language": "en"}, 503)
+assert result.get("code") == "ai_not_configured", result
 run({"question": "  "}, 400)
 run({"question": "x" * 801}, 400)
 run({"question": "Hello", "language": "fr"}, 400)
 run({"question": "Hello", "history": [{"role": "visitor", "content": "x" * 501}]}, 400)
 run({"question": "Hello", "history": [{"role": "visitor", "content": "x" * 20000}]}, 413)
-result = run({"question": "What does ETA mean?", "language": "en"}, 503)
-assert result.get("code") == "ai_not_configured", result
 print("GIO public API validation passed")
