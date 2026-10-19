@@ -4794,3 +4794,50 @@ html .site-assistant .site-assistant__form > button svg { color: #fff; }
 html .content-manager .manager-tabs .lucide-symbol svg { color: #a80e18; stroke: #a80e18; }
 @keyframes gio-frontend-sweep { from { transform: translateX(0); } to { transform: translateX(185%); } }
 @media (prefers-reduced-motion: reduce) { .site-assistant__panel::before,.site-assistant__quick button::before { animation: none; } }
+
+/* Mobile home copy: centered headings and balanced justified paragraphs. */
+@media (max-width: 800px) {
+  .app-site.home-page main :is(.section-tag,.section-title),
+  .app-site.home-page .home-hero__content h1,
+  .app-site.home-page .promise-card h3 {
+    text-align: center;
+    margin-inline: auto;
+  }
+  .app-site.home-page main .section-desc,
+  .app-site.home-page .home-hero__content > p:not(.section-tag),
+  .app-site.home-page .promise-card > p {
+    text-align: justify;
+    text-align-last: center;
+    hyphens: auto;
+    margin-inline: auto;
+  }
+  .app-site.home-page .tracking-home-copy { text-align: center; }
+  .app-site.home-page .tracking-home-copy .section-desc { max-width: 100%; }
+  .app-site.home-page .tracking-home-copy .btn { margin-inline: auto; }
+  .app-site.home-page .hero-actions { margin-inline: auto; }
+}
+
+@media (max-width: 800px) {
+  .app-site.home-page .home-last-cta__inner {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .app-site.home-page .home-last-cta__inner > div { width: 100%; }
+  .app-site.home-page .home-last-cta h2 { text-align: center; }
+  .app-site.home-page .home-last-cta .btn { align-self: center; margin-inline: auto; }
+}
+
+@media (max-width: 800px) {
+  .app-site.home-page .home-about-preview__copy { text-align: center; }
+  .app-site.home-page .home-about-preview__copy h2 { align-items: center; text-align: center; }
+  .app-site.home-page .home-about-preview__description {
+    text-align: justify;
+    text-align-last: center;
+    hyphens: auto;
+    margin-inline: auto;
+  }
+}
+@media (max-width: 800px) {
+  .app-site.home-page .home-about-preview__copy h2 { width: 100%; max-width: none; margin-inline: auto; }
+}

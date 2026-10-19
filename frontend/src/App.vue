@@ -25,6 +25,7 @@ type TransportKind = 'FTL' | 'LTL'
 const { t, tm } = useI18n({ useScope: 'global' })
 const mode = ref<QuoteMode | null>(null)
 const landStep = ref(0)
+const cargoStep = ref(0)
 const transportKind = ref<TransportKind>('FTL')
 const loading = ref(false)
 const error = ref('')
@@ -55,6 +56,7 @@ function startFlow(selected: QuoteMode) {
 function backToLanding() {
   mode.value = null
   landStep.value = 0
+  cargoStep.value = 0
   quote.value = null
   error.value = ''
 }
@@ -80,6 +82,8 @@ function retreatLand() {
 function startCargoForm(selected: 'air' | 'maritime' | 'multimodal') {
   mode.value = selected
   cargo.entryCountry = ''
+  cargoStep.value = 0
+  quote.value = null
   cargo.shippingType = selected === 'air' ? 'Aéreo' : selected === 'multimodal'
     ? 'Multimodal' : 'Marítimo FCL - Contenedor completo'
   error.value = ''
@@ -87,6 +91,33 @@ function startCargoForm(selected: 'air' | 'maritime' | 'multimodal') {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
+const cargoSteps = computed(() => [t('custom.quote.routeService'), t('custom.quote.detailsGoods'), t('custom.quote.contactDetails')])
+function validateCargoStep(): boolean {
+  error.value = ''
+  if (cargoStep.value === 0 && (!cargo.origin.trim() || !cargo.destination.trim() || !cargo.operation || !cargo.incoterm || !cargo.nationalization || (mode.value === 'multimodal' && !cargo.entryCountry.trim()))) {
+    error.value = 'Completa los datos obligatorios de ruta y servicio.'
+    return false
+  }
+  if (cargoStep.value === 1 && (!cargo.description.trim() || !cargo.containerType || !Number.isFinite(Number(cargo.containers)) || Number(cargo.containers) < 1)) {
+    error.value = 'Completa los detalles obligatorios de la mercancía.'
+    return false
+  }
+  if (cargoStep.value === 2 && (!cargo.company.trim() || !cargo.contactName.trim() || !cargo.email.trim() || !cargo.phone.trim())) {
+    error.value = 'Completa los datos de contacto.'
+    return false
+  }
+  return true
+}
+function moveCargoStep(direction: number) {
+  if (direction > 0 && !validateCargoStep()) return
+  cargoStep.value = Math.max(0, Math.min(2, cargoStep.value + direction))
+  error.value = ''
+}
+function advanceOrSubmitCargo() {
+  if (!validateCargoStep()) return
+  if (cargoStep.value < 2) { moveCargoStep(1); return }
+  void submitQuote()
+}
 function sendQuickContact() {
   const subject = encodeURIComponent(t('custom.quote.emailSubject'))
   const body = encodeURIComponent([
@@ -316,8 +347,13 @@ async function reloadQuote() {
     <section v-else class="quote-ocean-flow">
       <button class="quote-text-back" type="button" @click="backToLanding">{{ $t('custom.quote.back') }}</button>
       <header class="quote-cargo-heading"><p class="quote-kicker">{{ $t('custom.quote.oceanEyebrow') }}</p><h1>{{ mode === 'air' ? $t('custom.quote.airTitle') : mode === 'maritime' ? $t('custom.quote.maritimeTitle') : $t('custom.quote.multimodalTitle') }} <span>{{ $t('custom.quote.withUs') }}</span></h1><p>{{ $t('custom.quote.oceanIntro') }}</p></header>
-      <form class="quote-cargo-form" @submit.prevent="submitQuote">
-        <section class="cargo-form-section">
+      <div class="quote-progress" :aria-label="$t('custom.quote.progressAria')">
+        <div v-for="(label, index) in cargoSteps" :key="index" class="quote-progress-step" :class="{ 'is-active': index <= cargoStep, 'is-current': index === cargoStep }" :aria-current="index === cargoStep ? 'step' : undefined">
+          <span><IconSymbol :glyph="index === 0 ? '▰' : index === 1 ? '▤' : '✓'" /></span><small>{{ label }}</small>
+        </div>
+      </div>
+      <form class="quote-cargo-form" novalidate @submit.prevent="advanceOrSubmitCargo">
+        <section v-show="cargoStep === 0" class="cargo-form-section">
           <div class="cargo-form-section__heading"><span>01</span><div><h2>{{ $t('custom.quote.routeService') }}</h2><p>{{ $t('custom.quote.routeHelp') }}</p></div></div>
           <div class="quote-fields quote-fields--two">
             <label>{{ $t('custom.quote.origin') }} <i>*</i><input v-model="cargo.origin" list="quote-countries" required /></label>
@@ -329,7 +365,7 @@ async function reloadQuote() {
             <label class="quote-field-wide">{{ $t('custom.quote.nationalization') }} <i>*</i><select v-model="cargo.nationalization" required><option disabled value="">{{ $t('custom.quote.choose') }}</option><option value="Sí">{{ $t('custom.quote.yes') }}</option><option value="No">{{ $t('custom.quote.no') }}</option></select></label>
           </div>
         </section>
-        <section class="cargo-form-section">
+        <section v-show="cargoStep === 1" class="cargo-form-section">
           <div class="cargo-form-section__heading"><span>02</span><div><h2>{{ $t('custom.quote.detailsGoods') }}</h2><p>{{ $t('custom.quote.goodsHelp') }}</p></div></div>
           <div class="quote-fields quote-fields--two">
             <label class="quote-field-wide">{{ $t('custom.quote.descriptionGoods') }} <i>*</i><small>{{ $t('custom.quote.goodsExample') }}</small><textarea v-model="cargo.description" rows="2" required /></label>
@@ -340,7 +376,7 @@ async function reloadQuote() {
             <label>{{ $t('custom.quote.moreDetails') }}<textarea v-model="cargo.details" rows="3" /></label>
           </div>
         </section>
-        <section class="cargo-form-section">
+        <section v-show="cargoStep === 2" class="cargo-form-section">
           <div class="cargo-form-section__heading"><span>03</span><div><h2>{{ $t('custom.quote.contactDetails') }}</h2><p>{{ $t('custom.quote.contactSectionHelp') }}</p></div></div>
           <div class="quote-fields quote-fields--two">
             <label>{{ $t('custom.quote.company') }} <i>*</i><input v-model="cargo.company" autocomplete="organization" required /></label>
@@ -351,7 +387,11 @@ async function reloadQuote() {
         </section>
         <datalist id="quote-countries"><option v-for="country in countries" :key="country" :value="country" /></datalist>
         <p v-if="error" class="quote-error">{{ error }}</p>
-        <button class="quote-submit" type="submit" :disabled="loading">{{ loading ? $t('custom.quote.sending') : $t('custom.quote.sendQuote') }} <IconSymbol glyph="↗" /></button>
+        <div class="quote-wizard-actions" v-if="!quote">
+          <button v-if="cargoStep > 0" class="quote-previous" type="button" :disabled="loading" @click="moveCargoStep(-1)">{{ $t('custom.quote.backStep') }}</button>
+          <span v-else></span>
+          <button class="quote-next" type="submit" :disabled="loading">{{ cargoStep < 2 ? $t('custom.quote.next') : loading ? $t('custom.quote.sending') : $t('custom.quote.sendQuote') }} <IconSymbol glyph="↗" /></button>
+        </div>
         <article v-if="quote" class="quote-success quote-success--cargo"><IconSymbol glyph="✓" :size="20" /><h2>{{ $t('custom.quote.successTitle') }}</h2><p>{{ $t('custom.quote.oceanSuccess') }}</p><small>{{ $t('custom.quote.requestNumber') }} {{ quote.id }} · {{ $t('custom.quote.status') }} {{ quote.status }} · {{ source }}</small></article>
       </form>
     </section>

@@ -116,7 +116,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="app-site">
+  <div class="app-site home-page">
     <section class="home-hero" :class="{ 'cms-video-hero': siteVisual('home.hero.media', '/images/hero.webp').kind.startsWith('Video') }" :style="{ '--cms-home-hero': siteCssImage('home.hero.media', '/images/hero.webp') }">
       <SiteMedia v-if="siteVisual('home.hero.media', '/images/hero.webp').kind.startsWith('Video')" slot-key="home.hero.media" fallback="/images/hero.webp" background />
       <SiteHeader overlay active="principal" />
