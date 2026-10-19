@@ -104,21 +104,25 @@ function answerFor(question: string): Omit<Message, 'id' | 'role'> {
 async function sendMessage(value = draft.value) {
   const question = value.trim()
   if (!question || sending.value) return
-  const history = messages.value.slice(-8).map(message => ({ role: message.role, content: message.text }))
+  // Compartir solo las últimas 8 intervenciones; la API admite user/assistant.
+  const history = messages.value.slice(-8).map(message => ({
+    role: message.role === 'bot' ? 'assistant' : 'user',
+    content: message.text.slice(0, 1000)
+  }))
   messages.value.push({ id: nextId++, role: 'visitor', text: question })
   draft.value = ''
   sending.value = true
   try {
-    const response = await fetch('/api/assistant/chat', {
+    const response = await fetch('/api/chat', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, language: isEnglish.value ? 'en' : 'es', history })
+      body: JSON.stringify({ message: question, history, language: isEnglish.value ? 'en' : 'es' })
     })
     if (!response.ok) throw new Error(`Assistant API: ${response.status}`)
-    const data = await response.json() as { answer?: string }
-    if (!data.answer?.trim()) throw new Error('Empty assistant response')
-    messages.value.push({ id: nextId++, role: 'bot', text: data.answer.trim() })
+    const data = await response.json() as { reply?: string }
+    if (!data.reply?.trim()) throw new Error('Empty assistant response')
+    messages.value.push({ id: nextId++, role: 'bot', text: data.reply.trim() })
   } catch {
     const localAnswer = answerFor(question)
     messages.value.push({ id: nextId++, role: 'bot', ...localAnswer, text: `${copy.value.offline}${localAnswer.text}` })
