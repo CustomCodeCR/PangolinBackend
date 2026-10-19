@@ -25,6 +25,9 @@ const copy = computed(() => isEnglish.value ? {
   fclLcl: 'FCL uses a full container for one shipment; LCL consolidates cargo from different shippers in a container. The appropriate option depends on cargo volume, route and schedule; the team can confirm the available service.',
   contact: 'You can contact Castro Fallas at comercial@castrofallas.com or +506 2272-6772. WhatsApp: +506 7078-6860. Office hours shown on the site: Monday to Friday, 7:30 a.m. to 5:15 p.m. Costa Rica time.',
   account: 'Sign in with an authorized account to submit a quote request. Public visitors can explore the site, but quote submission requires an enabled account.',
+  navigation: 'Website guide: Home /home, Services /servicios, About /nosotros, News /noticias, Sign in /bienvenidos. Quotes /cotizaciones, Itineraries /itinerario and Tracking /tracking require an authorized login.',
+  news: 'Read published articles at /noticias. GIO does not fetch live news.',
+  itinerary: 'Visit /itinerario after signing in with an authorized account. GIO cannot view private itineraries.',
   greetingReply: 'Hello! I can explain Castro Fallas services, quote requests, customs support, cargo storage, transport modes or how to contact the team.', fallback: 'I do not have that detail confirmed, so I will not guess. It is best to contact Grupo Castro Fallas directly at comercial@castrofallas.com, +506 2272-6772 or WhatsApp +506 7078-6860. I can also explain the services, quotes, customs, warehousing or transport modes.',
   offline: 'I cannot reach the AI right now, so this is guidance from the site: ', openLink: 'Open section', status: 'Available'
 } : {
@@ -46,6 +49,9 @@ const copy = computed(() => isEnglish.value ? {
   fclLcl: 'FCL utiliza un contenedor completo para un envío; LCL consolida carga de varios clientes en un contenedor. La opción adecuada depende del volumen, la ruta y el itinerario; el equipo puede confirmar qué servicio está disponible.',
   contact: 'Puedes contactar a Castro Fallas en comercial@castrofallas.com o al +506 2272-6772. WhatsApp: +506 7078-6860. El horario publicado es de lunes a viernes, de 7:30 a. m. a 5:15 p. m., hora de Costa Rica.',
   account: 'Inicia sesión con una cuenta autorizada para enviar una solicitud de cotización. Las personas visitantes pueden explorar el sitio; para registrar una cotización se necesita una cuenta habilitada.',
+  navigation: 'Guía de la web: Inicio /home, Servicios /servicios, Nosotros /nosotros, Noticias /noticias, iniciar sesión /bienvenidos. Cotizaciones /cotizaciones, Itinerarios /itinerario y Tracking /tracking requieren cuenta autorizada.',
+  news: 'Las noticias publicadas están en /noticias. GIO no conoce publicaciones en tiempo real.',
+  itinerary: 'Los itinerarios están en /itinerario y requieren sesión autorizada. GIO no puede consultar los itinerarios privados.',
   greetingReply: '¡Hola! Puedo explicarte los servicios de Castro Fallas, cómo pedir una cotización, el apoyo aduanero, el almacenamiento, las modalidades de transporte o cómo contactar al equipo.', fallback: 'No tengo ese dato confirmado, así que no quiero inventarlo. Es mejor comunicarte directamente con Grupo Castro Fallas en comercial@castrofallas.com, al +506 2272-6772 o por WhatsApp al +506 7078-6860. También puedo explicarte los servicios, cotizaciones, aduanas, almacenamiento o modalidades de transporte.',
   offline: 'Ahora no puedo consultar la IA, así que esta es una orientación basada en el sitio: ', openLink: 'Abrir sección', status: 'Disponible'
 })
@@ -65,7 +71,10 @@ function contains(text: string, keywords: string[]) {
 function answerFor(question: string): Omit<Message, 'id' | 'role'> {
   const text = clean(question)
 
-  // Asistente guiado por intenciones y datos confirmados del sitio; responde solo sobre la empresa.
+  // Respuestas verificadas, sin gastar llamadas a la IA en consultas rápidas.
+  if (contains(text, ['guia de la web', 'navegar la web', 'mapa del sitio', 'website guide', 'site map'])) return { text: copy.value.navigation, href: '/servicios', linkText: copy.value.openLink }
+  if (contains(text, ['itinerario', 'itinerarios', 'itinerary'])) return { text: copy.value.itinerary, href: '/bienvenidos', linkText: copy.value.openLink }
+  if (contains(text, ['noticias', 'noticia', 'news'])) return { text: copy.value.news, href: '/noticias', linkText: copy.value.openLink }
   if (contains(text, ['cotiz', 'tarifa', 'precio', 'quote', 'rate', 'cuanto cuesta', 'cuanto vale'])) {
     const mode = contains(text, ['aerea', 'aereo', 'air']) ? 'aérea' : contains(text, ['maritima', 'maritimo', 'ocean', 'ship']) ? 'marítima' : contains(text, ['terrestre', 'camion', 'ground', 'truck']) ? 'terrestre' : contains(text, ['multimodal']) ? 'multimodal' : ''
     const response = mode ? `${copy.value.quote} Modalidad consultada: ${mode}.` : copy.value.quote
@@ -104,9 +113,14 @@ function answerFor(question: string): Omit<Message, 'id' | 'role'> {
 async function sendMessage(value = draft.value) {
   const question = value.trim()
   if (!question || sending.value) return
-  const history = messages.value.slice(-8).map(message => ({ role: message.role, content: message.text }))
+  const history = messages.value.slice(-4).map(message => ({ role: message.role, content: message.text.slice(0, 500) }))
   messages.value.push({ id: nextId++, role: 'visitor', text: question })
   draft.value = ''
+  const simpleGreeting = /^(hola|buenas|hello|hi|hey)[!.? ]*$/.test(clean(question))
+  if (simpleGreeting || copy.value.quick.includes(question)) {
+    messages.value.push({ id: nextId++, role: 'bot', ...answerFor(question) })
+    return
+  }
   sending.value = true
   try {
     const response = await fetch('/api/assistant/chat', {
@@ -154,7 +168,7 @@ function togglePanel() {
         </button>
       </div>
       <form class="site-assistant__form" @submit.prevent="sendMessage()">
-        <input v-model="draft" :placeholder="sending ? (isEnglish ? 'GIO is thinking…' : 'GIO está preparando una respuesta…') : copy.placeholder" :aria-label="copy.placeholder" :disabled="sending" />
+        <input v-model="draft" maxlength="800" :placeholder="sending ? (isEnglish ? 'GIO is thinking…' : 'GIO está preparando una respuesta…') : copy.placeholder" :aria-label="copy.placeholder" :disabled="sending" />
         <button type="submit" :aria-label="copy.send" :disabled="!draft.trim() || sending"><Send :size="17" aria-hidden="true" /></button>
       </form>
     </section>

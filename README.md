@@ -9,7 +9,7 @@ Esta entrega es la fusión de **`castrofallas-rediseno 8.zip` (interfaz principa
 - El menú nuevo usa el servidor para comprobar sesión. El ícono de usuario sirve para cerrar sesión; el modo invitado solo modifica la navegación **pública**, nunca otorga permiso para cotizar.
 - `/cotizaciones` comprueba la sesión y `POST /api/quotes` exige autenticación también en el servidor. Los registros quedan en `login.quote_requests`, vinculados a cliente/usuario.
 - PostgreSQL `login` almacena `clientes`, `usuarios`, OTP, sesiones y cotizaciones. Redis y MongoDB son opcionales/auxiliares para caché y auditoría.
-- GIO puede generar respuestas en español o inglés con OpenAI desde el backend; usa información verificada de la empresa y deriva al contacto cuando falta un dato. La llave de OpenAI se guarda solo en la configuración privada del backend.
+- GIO orienta sobre Grupo Castro Fallas, rutas públicas y conceptos de logística en ES/EN. Usa Groq Free en el backend, con cuota conservadora y respuestas locales al fallar la IA; nunca consulta información privada.
 - Se incorpora al esquema de desarrollo la tabla provisional `public.itinerarios` con `pol`, `pod`, `closing`, `etd`, `eta`, `carrier`, `vessel`, `voyage`, `transporte`, `modalidad`, `id`, `created_at`. El backend incluye consulta y CRUD de itinerarios; la vista pública y la gestión visual del frontend siguen usando el flujo local hasta conectar esas pantallas con los endpoints. El SQL es idempotente y preserva una tabla existente, añadiendo `closing` si falta.
 
 ## Actualizar una instalación de Docker existente en Windows
@@ -37,11 +37,11 @@ curl.exe -i http://127.0.0.1:5000/api/health/ready
 
 ### Activar respuestas de IA en GIO
 
-1. Creá una API key de OpenAI y guardala en el `.env` privado de esta carpeta como `OPENAI_API_KEY=...`. No la pongás en el frontend, en el navegador ni en GitHub.
+1. Creá una API key de Groq en https://console.groq.com/keys y guardala SOLO en tu `.env` privado como `GROQ_API_KEY=...` y `GROQ_MODEL=openai/gpt-oss-20b`. No la pongás en el frontend ni en GitHub.
 2. Recreá el backend para cargar la configuración: `docker compose up -d --build backend`.
 3. Vite reenvía `/api/assistant/chat` al backend; por eso funciona desde localhost y desde la IP de red mientras ambos usen ese mismo servidor.
 
-Si ejecutás el backend directamente con .NET, guardá la llave con `dotnet user-secrets set --project backend/CastroFallas.MiniQuote.Api.csproj "Ai:OpenAI:ApiKey" "TU_API_KEY"` y reiniciá el backend. Sin llave o sin backend disponible, GIO muestra orientación local y avisa que no pudo consultar la IA. Las consultas enviadas a GIO se procesan con OpenAI; no ingresés información confidencial de cargas o clientes.
+Si ejecutás el backend directamente con .NET, guardá la llave con `dotnet user-secrets set --project backend/CastroFallas.MiniQuote.Api.csproj "Ai:Groq:ApiKey" "TU_API_KEY"` y reiniciá el backend. Sin llave o sin backend disponible, GIO muestra orientación local y avisa que no pudo consultar la IA. Las consultas de IA se procesan en Groq. No ingresés datos confidenciales ni OTP. Límites por instancia: 3 consultas/minuto y 70/día (además de 5/minuto por IP); los límites de tokens del proveedor se aplican aparte.
 
 **No ejecutes `docker compose down -v`**, porque puede destruir los datos de los volúmenes con nombre. El mismo `name: castrofallas` en Compose permite reutilizar esos volúmenes al usar la misma instalación de Docker.
 
