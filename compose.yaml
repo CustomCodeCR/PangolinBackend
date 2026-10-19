@@ -63,6 +63,10 @@ services:
       Ai__OpenAI__ApiKey: ${OPENAI_API_KEY:-}
       Ai__OpenAI__Model: ${OPENAI_MODEL:-gpt-4.1-mini}
       Email__Mode: ${EMAIL_MODE:-LocalOutbox}
+      Graph__TenantId: ${GRAPH_TENANT_ID:-}
+      Graph__ClientId: ${GRAPH_CLIENT_ID:-}
+      Graph__ClientSecret: ${GRAPH_CLIENT_SECRET:-}
+      Graph__From: ${GRAPH_FROM:-}
       Smtp__Host: ${SMTP_HOST:-smtp.gmail.com}
       Smtp__Port: ${SMTP_PORT:-587}
       Smtp__Tls: ${SMTP_TLS:-StartTls}
