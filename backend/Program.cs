@@ -89,6 +89,8 @@ builder.Services.AddAuthorization(options =>
 });
 builder.Services.AddSignalR(options => { options.EnableDetailedErrors = false; options.MaximumReceiveMessageSize = 4 * 1024; });
 builder.Services.AddSingleton<ContentUpdatesPublisher>();
+builder.Services.AddHttpClient("PangolinGraphMail", client => client.Timeout = TimeSpan.FromSeconds(20));
+builder.Services.AddScoped<GraphOtpEmailSender>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<QuoteService>();
 builder.Services.AddScoped<AssistantService>();
