@@ -185,17 +185,6 @@ app.Use(async (ctx, next) =>
     await next(ctx);
 });
 
-app.UseRouting();
-app.UseRateLimiter();
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapGet("/api/health", () => Results.Ok(new
-{
-    service = "CastroFallas.MiniQuote.Api", status = "ok", version = "rediseno-auth-otp-v1", utc = DateTime.UtcNow
-}));
-
-
 // Limit incoming public chatbot requests before JSON binding.
 app.Use(async (ctx, next) =>
 {
@@ -212,6 +201,17 @@ app.Use(async (ctx, next) =>
     }
     await next();
 });
+
+app.UseRouting();
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapGet("/api/health", () => Results.Ok(new
+{
+    service = "CastroFallas.MiniQuote.Api", status = "ok", version = "rediseno-auth-otp-v1", utc = DateTime.UtcNow
+}));
+
 
 app.MapPost("/api/assistant/chat", async (
     AssistantChatRequest input, AssistantService assistant, AssistantFreeQuota budget, CancellationToken ct) =>
