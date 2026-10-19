@@ -8,7 +8,8 @@ La base de integración es `main` (`21740d198`), **no** el ZIP aislado. Se conse
 ## Implementación incorporada
 - Tracking: búsqueda visual por BL, HBL, IDTRA, contenedor y PO, español/inglés, estados de error y consulta sin inventar movimientos. Enlaces de contacto.
 - Guía interactiva `driver.js` **opcional** y no automática (mejor usabilidad y accesibilidad).
-- Globo 3D con selección de oficinas y datos suministrados en la entrega frontend. **Direcciones, horarios y correos deben contrastarse con la empresa antes de publicarse**.
+- Globo 3D con pines personalizados iguales al ZIP, ubicación de ventanas siguiendo el marcador, agrupación Costa Rica, animación de zoom y adaptación claro/oscuro. Datos de oficinas basados en la entrega frontend. **Direcciones, horarios y correos deben contrastarse con la empresa antes de publicarse**.
+- Administración: paleta original rosa suave/ciruela, botones, tarjetas con brillo y pestañas subrayadas; formularios de itinerarios en cuatro columnas para escritorio, responsivos en móvil. Se conserva el editor visual y se mantienen los formularios respaldados por API existentes.
 - Noticias: URLs `/noticias?article=<id>`, navegación desde Home, actualizaciones SignalR, control de carruseles vacíos.
 - Iconos y retoques de panel administrativo manteniendo la pestaña Editor visual, MinIO y CRUD.
 - Diseño GIO en modos claro y oscuro y consideración de movimiento reducido.
@@ -40,3 +41,8 @@ En CI se compilan .NET y Vue y se ejecutan guards de integración.
 12. Verificar conexión LAN solo en red privada y funcionamiento de SignalR en otra computadora.
 
 **No marcar la PR como lista ni fusionarla hasta completar las pruebas manuales y validar los datos del mapa con la empresa.**
+
+## Limitaciones visuales conscientes
+- El recorrido del tutorial de Tracking se abre voluntariamente con el botón de guía (no automáticamente como en el ZIP), para respetar navegación por teclado y evitar interrupciones.
+- El frontend original incluía la pestaña `Comentarios`; no se incorpora sin un CRUD y moderación protegidos de backend.
+- Las demás páginas no se han sustituido ciegamente por las del ZIP. Hacer comparación visual con capturas y validación de los cambios restantes antes de la fusión.
