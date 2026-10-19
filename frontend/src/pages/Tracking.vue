@@ -92,10 +92,10 @@ onBeforeUnmount(() => tour?.destroy())
   <div class="app-site tracking-site">
     <SiteHeader active="embarque" />
     <main class="tracking-page">
-      <div class="container">
+      <div class="container tracking-content">
         <a class="back-link" href="/home#embarque">{{ copy.back }}</a>
         <section class="tracking-intro">
-          <div class="tracking-copy">
+          <div class="tracking-copy tracking-intro__copy">
             <p class="section-tag">{{ copy.eyebrow }}</p>
             <h1>{{ copy.title }} <span>{{ copy.accent }}</span></h1>
             <p class="tracking-lead">{{ copy.intro }}</p>
@@ -105,11 +105,12 @@ onBeforeUnmount(() => tour?.destroy())
         <section class="tracking-search-section">
           <form class="tracking-search" @submit.prevent="searched = true" novalidate>
             <div class="tracking-top">
+              <span class="tracking-search__icon" aria-hidden="true"><IconSymbol glyph="⌕" :size="22" /></span>
               <div>
                 <p class="section-tag">{{ copy.type }}</p>
                 <h2>{{ copy.heading }}</h2>
               </div>
-              <button class="tracking-guide" type="button" @click="openGuide">{{ copy.guide }} <IconSymbol glyph="↗" /></button>
+              <button class="tracking-guide tracking-guide-button" type="button" @click="openGuide">{{ copy.guide }} <IconSymbol glyph="↗" /></button>
             </div>
             <p class="tracking-hint">{{ copy.hint }}</p>
             <div class="tracking-fields">
@@ -183,4 +184,67 @@ onBeforeUnmount(() => tour?.destroy())
 .tracking-process__steps p { color: var(--track-muted); margin: 0; line-height: 1.6; font-size: 14px; }
 @media(max-width:850px){.tracking-intro{grid-template-columns:1fr}.tracking-intro :deep(.world-globe){min-height:320px}.tracking-process__steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:580px){.tracking-page{padding:26px 0 70px}.tracking-fields{grid-template-columns:1fr}.tracking-process__steps{grid-template-columns:1fr}.tracking-copy h1{font-size:clamp(38px,11vw,58px)}.tracking-top{align-items:flex-start}.tracking-guide{width:100%}}
+</style>
+
+<style scoped>
+
+/* Reproduce la composición del ZIP, con recorrido guiado voluntario. */
+.tracking-site {--surface-card:#fff;--text-primary:#171923;--text-secondary:#626570;}
+:global(html.theme-dark .tracking-site) {--surface-card:#10182b;--text-primary:#f4f6fb;--text-secondary:#c1cada;}
+.tracking-page {min-height:68vh;padding:38px 0 100px;background:var(--page-bg,#fff);color:var(--text-primary);}
+.tracking-content {max-width:1240px;}
+.back-link {margin:0 0 34px;}
+.tracking-intro {grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);gap:clamp(32px,6vw,84px);}
+.tracking-intro__copy {padding:30px 0;}
+.tracking-intro :deep(.world-globe) {min-height:450px;}
+.tracking-intro__copy h1 {font-family:'Arial Black',system-ui,sans-serif;font-size:clamp(44px,5.4vw,76px);font-weight:900;line-height:1.02;color:var(--text-primary);}
+.tracking-lead {max-width:510px;color:var(--text-secondary);}
+.tracking-lookup,.tracking-search-section {margin-top:30px;}
+.tracking-search {
+  position:relative;isolation:isolate;overflow:hidden;width:100%;box-sizing:border-box;
+  padding:clamp(28px,4.4vw,54px);border:1px solid #b5092840;border-radius:30px;
+  background:var(--surface-card);box-shadow:0 18px 65px #b5092812;
+}
+.tracking-search::before {
+  content:'';position:absolute;z-index:0;top:-35%;bottom:-35%;left:-55%;width:52%;
+  border-radius:50%;background:radial-gradient(ellipse at center,#be0a2b33 0%,#ad09221c 42%,transparent 76%);
+  filter:blur(30px);pointer-events:none;animation:zip-tracking-glow 7s cubic-bezier(.4,0,.2,1) infinite;
+}
+.tracking-search>* {position:relative;z-index:1}
+.tracking-top {display:flex;align-items:center;justify-content:flex-start;gap:14px;}
+.tracking-top > div {flex:1}
+.tracking-search__icon {display:grid;place-items:center;flex:0 0 48px;width:48px;height:48px;border-radius:16px;background:#b50928;color:#fff;}
+.tracking-guide-button {display:inline-flex;align-items:center;justify-content:center;margin-left:auto;border:1px solid #b5092861;border-radius:999px;padding:12px 16px;color:#b50928;background:transparent;font-size:13px;font-weight:800;cursor:pointer;}
+.tracking-guide-button:hover {transform:translateY(-1px);background:transparent;}
+.tracking-top h2,.tracking-process h2 {margin:4px 0;color:var(--text-primary);font-size:clamp(26px,3vw,36px);letter-spacing:-.035em}
+.tracking-hint {color:var(--text-secondary);line-height:1.6}
+.tracking-fields {grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:18px}
+.tracking-fields label {font-size:13px;font-weight:750;color:var(--text-primary)}
+.tracking-fields input,.tracking-fields select {min-height:52px;border:1px solid #96969b60;border-radius:13px;background:var(--surface-card);color:var(--text-primary)}
+.tracking-submit {margin-top:20px}
+.tracking-process {margin-top:clamp(50px,7vw,88px);padding:clamp(26px,5vw,58px);border:1px solid #b5092833;border-radius:30px;background:linear-gradient(125deg,#b509280d,var(--surface-card) 58%);}
+.tracking-process__steps {margin-top:42px;gap:22px}
+.tracking-process__steps li {border-top:1px solid #b5092859;padding-top:23px}
+.tracking-process__steps li > span {font-size:13px;font-weight:900;letter-spacing:.1em;margin-bottom:17px}
+.tracking-unavailable {background:color-mix(in srgb,#b50928 6%,var(--surface-card));}
+:global(html.theme-dark .tracking-search) {background:linear-gradient(112deg,#21111f 0%,#11182b 48%,#08142d 100%);border-color:#e2284561;box-shadow:0 16px 42px #0003}
+:global(html.theme-dark .tracking-field input),:global(html.theme-dark .tracking-fields :is(input,select)) {background:#10182b;color:#fff}
+:global(html.theme-dark .tracking-process) {background:linear-gradient(125deg,#20101f,#10182b 62%)}
+@keyframes zip-tracking-glow {0%{opacity:0;transform:translateX(0)}18%,82%{opacity:1}100%{opacity:0;transform:translateX(340%)}}
+@media(prefers-reduced-motion:reduce){.tracking-search::before{animation:none;transform:translateX(120%);opacity:.5}}
+@media(max-width:850px){.tracking-intro{grid-template-columns:1fr;gap:10px}.tracking-intro__copy{padding:8px 0 12px}.tracking-intro :deep(.world-globe){min-height:390px}}
+@media(max-width:580px){
+  .tracking-page{padding:27px 0 70px}
+  .tracking-intro__copy h1{font-size:clamp(42px,12vw,58px)}
+  .tracking-intro :deep(.world-globe){min-height:290px}
+  .tracking-search-section{margin-top:10px}
+  .tracking-search{padding:22px 18px;border-radius:22px}
+  .tracking-top{flex-wrap:wrap}
+  .tracking-guide-button{width:100%;margin:14px 0 0}
+  .tracking-fields{grid-template-columns:1fr;gap:0}
+  .tracking-process{padding:24px 20px;border-radius:23px}
+  .tracking-process__steps{grid-template-columns:1fr;gap:20px;margin-top:28px}
+  .tracking-process__steps li{display:grid;grid-template-columns:40px 1fr;gap:12px;padding-top:17px}
+}
+
 </style>
