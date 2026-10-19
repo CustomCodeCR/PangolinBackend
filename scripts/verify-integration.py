@@ -185,6 +185,25 @@ check("import { Anchor } from '@lucide/vue'" in app
       and 'stroke: #fff !important;' in shared_mobile_styles
       and 'fill: none !important;' in shared_mobile_styles,
       'Cuatro íconos de cotización blancos, sin emoji azul y con SVG monócromo')
+legal_page = read('frontend/src/pages/Legal.vue')
+check('type LegalDocument = { title: string; intro: string; sections: LegalSection[] }' in legal_page
+      and 'class="legal-draft"' not in legal_page
+      and 'content.draft' not in legal_page
+      and 'Borrador para revisión' not in legal_page
+      and 'Working draft' not in legal_page
+      and 'Este borrador' not in legal_page
+      and 'This draft' not in legal_page
+      and legal_page.count('sections: [') == 8
+      and all(title in legal_page for title in [
+          'Política de privacidad', 'Términos y condiciones',
+          'Política de cookies y almacenamiento local', 'Créditos y licencias',
+          'Privacy policy', 'Terms and conditions',
+          'Cookie and local storage policy', 'Credits and licenses'
+      ])
+      and '.legal-draft' not in shared_mobile_styles
+      and 'La razón social, cédula jurídica y domicilio' in legal_page
+      and 'licencia comercial válida' in legal_page,
+      'Páginas legales ES/EN sin aviso de borrador y con advertencias de datos por confirmar')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')

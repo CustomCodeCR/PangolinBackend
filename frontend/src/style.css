@@ -3359,13 +3359,8 @@ html.theme-dark .legal-header .section-tag{color:#ff5a73}
 .legal-header h1 span{color:#b20c2a}
 .legal-intro{font-size:clamp(17px,2vw,21px);line-height:1.65;color:#565d6a}
 html.theme-dark .legal-intro{color:#c1c8d5}
-.legal-draft{padding:20px 24px;margin:30px 0 46px;border:1px solid #b20c2a55;border-left:4px solid #b20c2a;border-radius:14px;background:#b20c2a0c}
-html.theme-dark .legal-draft{background:#b20c2a20;color:#f3f5fa}
-.legal-draft strong{display:block;margin-bottom:7px;color:#a50926}
-html.theme-dark .legal-draft strong{color:#ff7b8e}
-.legal-draft p,.legal-section p,.legal-section li{font-size:15px;line-height:1.8;color:#515865}
+.legal-section p,.legal-section li{font-size:15px;line-height:1.8;color:#515865}
 html.theme-dark .legal-section p,html.theme-dark .legal-section li{color:#c5cad5}
-.legal-draft p{margin:0}
 .legal-sections{border-top:1px solid #868b9638}
 .legal-section{display:grid;grid-template-columns:54px minmax(0,1fr);gap:18px;padding:30px 0;border-bottom:1px solid #868b9638}
 .legal-section-number{font-size:13px;font-weight:800;letter-spacing:.12em;color:#b20c2a}
@@ -3374,7 +3369,7 @@ html.theme-dark .legal-section p,html.theme-dark .legal-section li{color:#c5cad5
 .legal-section ul{margin:8px 0 0;padding-left:20px}.legal-section li+li{margin-top:8px}
 .legal-reference-links a{color:#a50926;text-decoration:underline;text-underline-offset:3px}
 html.theme-dark .legal-reference-links a{color:#ff8999}
-@media(max-width:580px){.legal-main{padding-top:105px}.legal-draft{padding:17px;margin:24px 0 32px}.legal-section{grid-template-columns:34px minmax(0,1fr);gap:10px;padding:24px 0}.legal-section p,.legal-section li,.legal-draft p{font-size:14px}.footer-legal nav{gap:7px}}
+@media(max-width:580px){.legal-main{padding-top:105px}.legal-section{grid-template-columns:34px minmax(0,1fr);gap:10px;padding:24px 0}.legal-section p,.legal-section li{font-size:14px}.footer-legal nav{gap:7px}}
 
 /* ===========================================================================
    RESPONSIVE HARDENING — 2026-10-12
