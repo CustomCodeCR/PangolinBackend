@@ -34,70 +34,95 @@ public sealed class AssistantService(IHttpClientFactory clients, IConfiguration 
         Return only the visitor-facing answer; do not claim to be a human.
         """;
 
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(config["Ai:OpenAI:ApiKey"]);
+    private const string SiteMap = """
+        Guía de la web de Grupo Castro Fallas. Rutas verificadas:
+        Inicio /home (también /); Servicios /servicios; Nosotros /nosotros; Noticias /noticias;
+        Iniciar sesión /bienvenidos; Cotizaciones /cotizaciones (requiere cuenta autorizada);
+        Tracking /tracking e Itinerarios /itinerario (requieren sesión autorizada);
+        Avisos legales /privacidad, /terminos, /cookies y /licencias.
+        Las noticias publicadas aparecen en /noticias; GIO no consulta artículos en tiempo real.
+        El seguimiento de esta versión es demostrativo y no confirma estados reales de cargas.
+        El panel de administración es privado. GIO no debe guiar visitantes a ese panel.
+        """;
+    private const string NavigationRules = """
+        Tu objetivo adicional es guiar por la web, explicar sus secciones y dar orientación logística general.
+        Indicá rutas que estén en el mapa de la web, nunca inventés enlaces, páginas, noticias ni funcionalidades.
+        GIO NO puede acceder a clientes, cotizaciones guardadas, usuarios, tracking real ni otras bases privadas.
+        Nunca solicités OTP, contraseñas, datos personales ni detalles confidenciales de embarques.
+        Para información empresarial no confirmada, reconocé la limitación y ofrecé contactos oficiales.
+        """;
+
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(config["Ai:Groq:ApiKey"]);
 
     public async Task<string> ReplyAsync(AssistantChatRequest request, CancellationToken cancellationToken)
     {
-        var apiKey = config["Ai:OpenAI:ApiKey"];
-        if (string.IsNullOrWhiteSpace(apiKey))
-            throw new AssistantNotConfiguredException();
-
-        var input = new List<object>();
-        foreach (var turn in (request.History ?? []).TakeLast(8))
+        var apiKey = config["Ai:Groq:ApiKey"];
+        if (string.IsNullOrWhiteSpace(apiKey)) throw new AssistantNotConfiguredException();
+        bool english = request.Language?.Equals("en", StringComparison.OrdinalIgnoreCase) == true;
+        var input = new List<object> {
+            new { role = "system", content = $"{(english ? EnglishRules : SpanishRules)}\n{NavigationRules}\nVerified company facts:\n{CompanyKnowledge}\nWebsite map:\n{SiteMap}" }
+        };
+        foreach (var turn in (request.History ?? []).TakeLast(4))
         {
-            var role = turn.Role.Equals("bot", StringComparison.OrdinalIgnoreCase) ||
-                       turn.Role.Equals("assistant", StringComparison.OrdinalIgnoreCase)
-                ? "assistant"
-                : turn.Role.Equals("visitor", StringComparison.OrdinalIgnoreCase) ||
-                  turn.Role.Equals("user", StringComparison.OrdinalIgnoreCase)
-                    ? "user"
-                    : null;
+            if (turn is null) continue;
+            var role = turn.Role?.ToLowerInvariant() switch
+            {
+                "bot" or "assistant" => "assistant",
+                "visitor" or "user" => "user",
+                _ => null
+            };
             var content = turn.Content?.Trim();
             if (role is not null && !string.IsNullOrWhiteSpace(content))
-                input.Add(new { role, content = content[..Math.Min(content.Length, 1200)] });
+                input.Add(new { role, content = content[..Math.Min(content.Length, 500)] });
         }
         input.Add(new { role = "user", content = request.Question.Trim() });
-
-        var language = request.Language?.Equals("en", StringComparison.OrdinalIgnoreCase) == true;
+        var configuredModel = config["Ai:Groq:Model"];
         var payload = new
         {
-            model = config["Ai:OpenAI:Model"] ?? "gpt-4.1-mini",
-            instructions = $"{(language ? EnglishRules : SpanishRules)}\n\nVerified company knowledge:\n{CompanyKnowledge}",
-            input,
-            max_output_tokens = 280,
-            store = false
+            model = string.IsNullOrWhiteSpace(configuredModel) ? "openai/gpt-oss-20b" : configuredModel,
+            messages = input,
+            max_completion_tokens = 480,
+            reasoning_effort = "low"
         };
-
-        using var message = new HttpRequestMessage(HttpMethod.Post, "responses");
+        using var message = new HttpRequestMessage(HttpMethod.Post, "chat/completions");
         message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         message.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
-        using var response = await clients.CreateClient("OpenAI").SendAsync(message, cancellationToken);
+        using var response = await clients.CreateClient("Groq").SendAsync(message, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
-            logger.LogWarning("OpenAI assistant request failed with status {StatusCode}.", (int)response.StatusCode);
+            // Do not log any secrets, prompts or personally identifiable content.
+            logger.LogWarning("Groq GIO request failed with HTTP {StatusCode}.", (int)response.StatusCode);
             throw new AssistantProviderException();
         }
 
-        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-        var root = document.RootElement;
-        if (root.TryGetProperty("output_text", out var outputText) && outputText.ValueKind == JsonValueKind.String)
-            return Limit(outputText.GetString());
-
-        var chunks = new List<string>();
-        if (root.TryGetProperty("output", out var output) && output.ValueKind == JsonValueKind.Array)
+        try
         {
-            foreach (var item in output.EnumerateArray())
-            {
-                if (!item.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Array) continue;
-                foreach (var part in content.EnumerateArray())
-                    if (part.TryGetProperty("text", out var text) && text.ValueKind == JsonValueKind.String)
-                        chunks.Add(text.GetString() ?? "");
-            }
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+            if (!json.RootElement.TryGetProperty("choices", out var choices) ||
+                choices.ValueKind != JsonValueKind.Array || choices.GetArrayLength() == 0 ||
+                !choices[0].TryGetProperty("message", out var reply) ||
+                !reply.TryGetProperty("content", out var content) ||
+                content.ValueKind != JsonValueKind.String)
+                throw new AssistantProviderException();
+
+            var answer = content.GetString()?.Trim();
+            if (string.IsNullOrWhiteSpace(answer)) throw new AssistantProviderException();
+            return Limit(answer);
         }
-        var answer = Limit(string.Join("\n", chunks));
-        if (string.IsNullOrWhiteSpace(answer)) throw new AssistantProviderException();
-        return answer;
+        catch (JsonException)
+        {
+            logger.LogWarning("Groq returned invalid JSON for GIO.");
+            throw new AssistantProviderException();
+        }
+        catch (InvalidOperationException)
+        {
+            throw new AssistantProviderException();
+        }
+        catch (KeyNotFoundException)
+        {
+            throw new AssistantProviderException();
+        }
     }
 
     private static string Limit(string? text) => (text ?? "").Trim() is { Length: > 1200 } answer
@@ -107,3 +132,36 @@ public sealed class AssistantService(IHttpClientFactory clients, IConfiguration 
 
 public sealed class AssistantNotConfiguredException : Exception { }
 public sealed class AssistantProviderException : Exception { }
+
+/// <summary>Conservative request quota per backend instance; does not enforce Groq token limits.</summary>
+public sealed class AssistantFreeQuota
+{
+    private readonly object _gate = new();
+    private DateTime _minuteStart = DateTime.UtcNow;
+    private DateOnly _day = DateOnly.FromDateTime(DateTime.UtcNow);
+    private int _minuteUsed;
+    private int _dayUsed;
+
+    public bool TryConsume()
+    {
+        lock (_gate)
+        {
+            var now = DateTime.UtcNow;
+            if (now - _minuteStart >= TimeSpan.FromMinutes(1))
+            {
+                _minuteStart = now;
+                _minuteUsed = 0;
+            }
+            var today = DateOnly.FromDateTime(now);
+            if (today != _day)
+            {
+                _day = today;
+                _dayUsed = 0;
+            }
+            if (_minuteUsed >= 3 || _dayUsed >= 70) return false;
+            _minuteUsed++;
+            _dayUsed++;
+            return true;
+        }
+    }
+}
