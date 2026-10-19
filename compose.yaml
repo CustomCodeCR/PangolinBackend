@@ -92,7 +92,7 @@ services:
       VITE_API_PROXY_TARGET: http://backend:5000
       CHOKIDAR_USEPOLLING: "true"
     ports:
-      - "127.0.0.1:${FRONTEND_HOST_PORT:-5173}:5173"
+      - "${FRONTEND_BIND_IP:-127.0.0.1}:${FRONTEND_HOST_PORT:-5173}:5173"
     volumes:
       - ./frontend:/app
       # Impide que node_modules de Windows sobreescriba los modulos Linux del contenedor.
