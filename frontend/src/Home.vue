@@ -160,9 +160,6 @@ onUnmounted(() => {
             <p class="section-desc centered">
               {{ siteText('home.services.intro', $t('phrases.p011'), locale) }}
             </p>
-            <p class="home-route-seo">
-              <a href="/transporte-panama-costa-rica/">Consolidados y transporte terrestre Panamá–Costa Rica <span aria-hidden="true">→</span></a>
-            </p>
 
             <div class="service-accordion" :aria-label="$t('phrases.p134')">
               <article
@@ -452,7 +449,4 @@ onUnmounted(() => {
 
 <style scoped>
 .home-news-empty { padding: 24px 16px; margin: 0; color: #5d6270; font-size: 14px; line-height: 1.5; }
-.home-route-seo { text-align: center; margin: 0 0 1.5rem; }
-.home-route-seo a { color: #af0922; font-weight: 700; text-underline-offset: 4px; }
-.home-route-seo a:hover, .home-route-seo a:focus-visible { color: #8e071d; }
 </style>
