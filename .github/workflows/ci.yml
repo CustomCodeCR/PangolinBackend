@@ -40,3 +40,11 @@ jobs:
           dotnet-version: 10.0.x
       - name: Compilar API
         run: dotnet build backend/CastroFallas.MiniQuote.Api.csproj --configuration Release
+
+  nginx-http-seo:
+    name: Nginx production routing and SEO HTTP
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker frontend and exercise production Nginx
+        run: bash scripts/test-nginx-seo.sh

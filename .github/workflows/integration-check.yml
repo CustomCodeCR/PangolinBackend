@@ -75,6 +75,12 @@ jobs:
         env:
           SIGNALR_SMOKE: '1'
         run: python3 scripts/smoke-local.py
+      - name: Test real UI login and role-gated pages with Chrome
+        run: |
+          python3 -m venv /tmp/cf-ui-e2e-venv
+          /tmp/cf-ui-e2e-venv/bin/pip install --disable-pip-version-check selenium==4.38.0
+          npm run build --prefix frontend
+          /tmp/cf-ui-e2e-venv/bin/python scripts/smoke-browser-live.py
       - name: Diagnose Docker startup failures
         if: failure()
         run: |
