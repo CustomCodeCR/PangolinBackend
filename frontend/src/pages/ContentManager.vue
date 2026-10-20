@@ -453,8 +453,6 @@ function useMediaForNews(item: ManagedMedia) {
     </header>
     <section class="manager-shell">
       <div class="manager-heading"><p class="manager-eyebrow">CASTRO FALLAS · ADMINISTRACIÓN</p><h1>{{ section === 'users' ? 'Gestión de usuarios' : 'Administración del sitio' }}</h1><p>{{ section === 'users' ? 'Consulta las cuentas y administra sus roles desde esta sección.' : 'Administra itinerarios, noticias e imágenes desde esta pantalla.' }}</p></div>
-      <div v-if="authState.previewRole" class="manager-preview-note" role="status">Previsualización de desarrollo · Estás viendo el rol {{ authState.previewRole }}. No es una sesión real ni un acceso administrativo de producción.</div>
-      <div class="manager-notice" role="note"><strong>Importante:</strong> los itinerarios, usuarios, noticias y multimedia se guardan en PostgreSQL con sesión administradora real. En previsualización los cambios son locales.</div>
       <nav class="manager-tabs" aria-label="Secciones de administración">
         <button :class="{ active: section !== 'users' }" @click="selectSection('itineraries')"><IconSymbol glyph="▤" :size="19" /> Contenido</button>
         <button :class="{ active: section === 'users' }" @click="selectSection('users')"><IconSymbol glyph="user" :size="19" /> Gestión de usuarios <span>{{ users.length }}</span></button>
