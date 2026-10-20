@@ -865,9 +865,10 @@ function useMediaForNews(item: ManagedMedia) {
 .content-manager.is-embedded { background:transparent; color:var(--manager-ink); padding:20px 0 80px; }
 .is-embedded .manager-shell { width:min(1280px,calc(100% - 64px)); margin:0 auto 40px; }
 .is-embedded .manager-heading {
-  min-height:0; margin:0 0 28px; padding:6px 0 22px;
-  border:0; border-bottom:1px solid var(--manager-line); border-radius:0;
-  background:transparent; box-shadow:none; overflow:visible;
+  min-height:0; margin:0 0 28px;
+  padding:clamp(20px,2.8vw,34px);
+  border:1px solid var(--manager-line); border-radius:18px;
+  background:var(--admin-surface); box-shadow:none; overflow:hidden;
 }
 .is-embedded .manager-heading::after { content:none; display:none; }
 .is-embedded .manager-eyebrow { color:var(--manager-ink); font-size:11px; letter-spacing:.13em; font-weight:850; text-transform:uppercase; }
@@ -881,8 +882,10 @@ function useMediaForNews(item: ManagedMedia) {
 .is-embedded .manager-tabs {
   display:flex; flex-wrap:wrap; align-items:stretch;
   width:auto; max-width:100%; gap:10px 24px;
-  margin:26px 0 20px; padding:0;
-  border:0; border-radius:0; background:transparent; box-shadow:none;
+  margin:26px 0 20px; padding:6px clamp(12px,1.8vw,20px);
+  border:1px solid var(--manager-line); border-radius:16px;
+  background:var(--admin-surface); box-shadow:none;
+  overflow-x:auto; overflow-y:hidden;
 }
 .is-embedded .manager-tabs.manager-subtabs {margin:0 0 24px; gap:8px 24px;}
 .is-embedded .manager-tabs button {
@@ -981,8 +984,9 @@ function useMediaForNews(item: ManagedMedia) {
 @media(max-width:1000px){.is-embedded .manager-form form.manager-editor--itineraries{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){
   .is-embedded .manager-shell{width:calc(100% - 32px)}
+  .is-embedded .manager-heading{padding:20px 16px;border-radius:16px}
   .is-embedded .manager-form,.is-embedded .manager-list,.is-embedded .manager-users-card{padding:22px 16px;border-radius:20px}
-  .is-embedded .manager-tabs{gap:6px 12px}
+  .is-embedded .manager-tabs{gap:6px 12px;padding:6px 8px;border-radius:14px}
   .is-embedded .manager-tabs button{padding:10px 6px 14px;font-size:13px}
   .is-embedded .manager-tabs.manager-subtabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
   .is-embedded .manager-form form,.is-embedded .manager-form form.manager-editor--itineraries{grid-template-columns:minmax(0,1fr)}
