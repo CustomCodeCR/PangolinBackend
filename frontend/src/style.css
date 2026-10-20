@@ -4880,12 +4880,42 @@ html.theme-dark .app-site.administration-page .content-manager.is-embedded :is(
     linear-gradient(110deg, #321d25 0%, #211b20 70%) !important;
   border-color: rgba(188, 158, 168, .25) !important;
 }
-/* Sustituir el glow animado anterior por el degradado estatico del fondo. */
+/* Ola roja idéntica en ritmo y tonos a Itinerario 01. La capa es solo
+   decorativa y se anima con transform, SIN blur ni backdrop-filter.
+   Z-index negativo dentro de isolation:isolate mantiene nítidos texto y campos. */
 html.theme-dark .app-site.administration-page .content-manager.is-embedded :is(
   .manager-heading, .manager-notice, .manager-preview-note,
   .manager-tabs, .manager-form, .manager-list, .manager-users-card
 )::before {
-  content: none !important;
+  content: "" !important;
+  display: block !important;
+  position: absolute;
+  z-index: -1 !important;
+  top: -55%;
+  bottom: -55%;
+  left: -25%;
+  width: 60%;
+  inset-inline-end: auto;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center,
+    rgba(214, 14, 52, .37) 0%,
+    rgba(178, 11, 45, .23) 38%,
+    rgba(126, 10, 34, .11) 58%,
+    transparent 76%) !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  pointer-events: none;
+  animation: itinerary-red-sweep 9s ease-in-out infinite alternate !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  html.theme-dark .app-site.administration-page .content-manager.is-embedded :is(
+    .manager-heading, .manager-notice, .manager-preview-note,
+    .manager-tabs, .manager-form, .manager-list, .manager-users-card
+  )::before {
+    animation: none !important;
+    transform: translateX(65%);
+  }
 }
 /* Conservar la imagen compartida de Castro Fallas sin marcos decorativos.
    Sigue siendo el mismo SiteHeader/SiteMedia usado en Itinerarios. */
