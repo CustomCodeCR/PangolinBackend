@@ -344,13 +344,11 @@ onUnmounted(() => {
                <SiteMedia v-if="siteVisual('home.tracking.media', '/images/tracking-red.webp').kind.startsWith('Video')" slot-key="home.tracking.media" fallback="/images/tracking-red.webp" background />
               <IconSymbol glyph="→" :size="22" />
               <strong>{{ $t('custom.home.trackingTitle') }}</strong>
-              <small>{{ $t('phrases.p064') }}</small>
             </a>
             <a class="access-card access-card--quote" href="/cotizaciones" :style="{ '--cms-access-quote': siteCssImage('home.quote.media', '/images/services-crane.webp') }">
                <SiteMedia v-if="siteVisual('home.quote.media', '/images/services-crane.webp').kind.startsWith('Video')" slot-key="home.quote.media" fallback="/images/services-crane.webp" background />
               <IconSymbol glyph="➜" :size="22" />
               <strong>{{ $t('custom.home.quoteCardTitle') }}</strong>
-              <small>{{ $t('phrases.p065') }}</small>
             </a>
           </div>
         </div>
