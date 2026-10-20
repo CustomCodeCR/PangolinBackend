@@ -229,6 +229,16 @@ check('class="manager-heading"' in admin_manager
       and '.is-embedded .manager-heading{padding:20px 16px;border-radius:16px}' in admin_final_styles
       and '.is-embedded .manager-tabs{gap:6px 12px;padding:6px 8px;border-radius:14px}' in admin_final_styles,
       'Administración mantiene contenido separado de bordes y esquinas redondeadas en escritorio y móvil')
+admin_manager = read('frontend/src/pages/ContentManager.vue')
+admin_heading_theme = admin_manager.split('/* Mismo gris carbón con luz roja suave que la tarjeta Itinerario 01.', 1)[-1]
+check('background-color: #211b20 !important;' in admin_heading_theme
+      and 'background-image: linear-gradient(105deg, #211b20' in admin_heading_theme
+      and 'animation: itinerary-red-sweep 9s ease-in-out infinite alternate;' in admin_heading_theme
+      and '.content-manager.is-embedded .manager-heading h1' in admin_heading_theme
+      and 'color: #fff !important;' in admin_heading_theme
+      and 'border-color: #514148 !important;' in admin_heading_theme
+      and '.content-manager.is-embedded .manager-heading > p:last-child' in admin_heading_theme,
+      'Encabezado administrativo reproduce el fondo de Itinerario 01 con texto legible')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
