@@ -70,7 +70,7 @@ function switchPage(next: string) {
 async function load() {
   loading.value = true
   try {
-    if (!isLiveAdmin.value) { error.value = 'La edición visual requiere una cuenta administradora real.'; return }
+    if (!isLiveAdmin.value) return
     const [sites, library, status] = await Promise.all([
       fetch('/api/admin/content/site', { credentials: 'same-origin', cache: 'no-store' }),
       fetch('/api/admin/content/media', { credentials: 'same-origin', cache: 'no-store' }),
@@ -197,11 +197,10 @@ onMounted(load)
   <section class="visual-editor" aria-label="Editor visual del sitio">
     <header class="visual-editor__intro">
       <div><p class="manager-eyebrow">CONTENIDO DEL SITIO</p><h2>Editor visual</h2>
-        <p>Elegí una página y una ubicación. Editá los textos en español e inglés, o asigná una imagen o video desde MinIO.</p>
       </div>
       <button type="button" class="visual-editor__button" @click="load" :disabled="loading">Actualizar biblioteca</button>
     </header>
-    <p v-if="!isLiveAdmin" role="status" class="visual-editor__warning">El modo previsualización no guarda cambios en la web pública.</p>
+    
     <p v-if="error" role="alert" class="visual-editor__error">{{ error }}</p>
     <p v-if="notice" role="status" class="visual-editor__success">{{ notice }}</p>
     <div v-if="loading" role="status">Cargando secciones…</div>
@@ -227,7 +226,7 @@ onMounted(load)
           </button>
         </aside>
         <div v-if="visible.length" class="visual-editor__details">
-          <p class="manager-eyebrow">{{ selected.pageLabel }} / {{ selected.section }} / {{ selected.label }}</p>
+          <p class="visual-editor__breadcrumb">{{ selected.pageLabel }} / {{ selected.section }} / {{ selected.label }}</p>
           <h3>{{ selected.label }}</h3>
           <p class="visual-editor__description">{{ selected.help }}</p>
           <div class="visual-editor__context">
@@ -285,7 +284,7 @@ onMounted(load)
   de este bloque quedan limitadas por .visual-editor para no afectar otras páginas.
 -->
 <style>
-.visual-editor{width:100%;display:grid;gap:16px;padding:22px;border:1px solid #e8e1e3;border-radius:20px;background:#fff;color:#25252a}
+.visual-editor{width:100%;display:grid;gap:16px;padding:22px;border:1px solid #ded9dc;border-radius:20px;background:#fff;color:#25252a}
 .visual-editor__intro{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
 .visual-editor__intro h2{margin:4px 0 9px;font-size:clamp(26px,3vw,36px)}
 .visual-editor__intro p{max-width:650px;color:#687078;line-height:1.6}
@@ -296,9 +295,9 @@ onMounted(load)
 .visual-editor__filters button.active{color:#fff;background:#a60b29;border-color:#a60b29}
 .visual-editor :is(.visual-editor__pages button,.visual-editor__filters button,.visual-editor__locations button,.visual-editor__button){transition:background-color .18s ease,color .18s ease,border-color .18s ease}
 .visual-editor :is(.visual-editor__pages button,.visual-editor__filters button,.visual-editor__locations button,.visual-editor__button):focus-visible,
-.visual-editor :is(input,select,textarea):focus-visible{outline:2px solid #e84765;outline-offset:2px}
-.visual-editor__filters button:not(.active):hover,.visual-editor__pages button:not(.active):hover{background:#f6e5e9;border-color:#cd7288}
-.visual-editor__locations button:not(.active):hover{border-color:#cd7288;background:#fff8f9}
+.visual-editor :is(input,select,textarea):focus-visible{outline:2px solid #a80e18;outline-offset:2px}
+.visual-editor__filters button:not(.active):hover,.visual-editor__pages button:not(.active):hover{background:rgba(168,14,24,.07);border-color:#a80e18}
+.visual-editor__locations button:not(.active):hover{border-color:#a80e18;background:rgba(168,14,24,.05)}
 .visual-editor__empty{font-size:13px;color:#67737b;padding:20px;border:1px dashed #cbd1d8;border-radius:12px}
 .visual-editor__preview-empty{display:flex;align-items:center;justify-content:center;text-align:center;min-height:170px;aspect-ratio:16/10;background:#f2f4f7;color:#566371;border:1px dashed #c5ccd5;border-radius:11px;padding:16px;font-size:13px;line-height:1.5}
 .visual-editor__pages{display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid #eee;padding-bottom:14px}
@@ -311,12 +310,13 @@ onMounted(load)
 .visual-editor__locations label,.visual-editor__details label{display:grid;gap:7px;font-weight:750;font-size:13px}
 .visual-editor__locations input,.visual-editor__details textarea,.visual-editor__details input,.visual-editor__details select{min-width:0;width:100%;padding:11px;border-radius:9px;border:1px solid #cbd1d8;font:inherit;background:white;color:#202126}
 .visual-editor__locations button{display:grid;gap:4px;text-align:left;padding:12px;border:1px solid #e1e4e9;border-radius:12px;background:#fff;color:#202126;cursor:pointer}
-.visual-editor__locations button.active{border-color:#a70c2b;background:#fff5f7}
+.visual-editor__locations button.active{border-color:#a70c2b;background:rgba(168,14,24,.08)}
 .visual-editor__locations small,.visual-editor__description,.visual-editor__hint{color:#657079;font-size:12px;line-height:1.5}
 .visual-editor__slot-type{font-size:10px;color:#9c0b28;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
 .visual-editor__section{font-size:11px;color:#4b6179;font-weight:700}
 .visual-editor__published{font-size:11px;color:#276347}
 .visual-editor__details{display:grid;gap:14px;min-width:0}
+.visual-editor__breadcrumb{color:#a80e18!important;font-size:11px;font-weight:850;letter-spacing:.13em;text-transform:uppercase}
 .visual-editor__details h3{font-size:26px;margin:0}
 .visual-editor__details p{margin:0}
 .visual-editor__preview-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -329,7 +329,7 @@ onMounted(load)
 .visual-editor__reset{color:#a70c2b}
 .visual-editor__button:disabled{opacity:.5;cursor:not-allowed}
 .visual-editor__warning,.visual-editor__error,.visual-editor__success{padding:12px;border-radius:9px}
-.visual-editor__warning,.visual-editor__error{background:#fff4eb;color:#91271f}
+.visual-editor__warning,.visual-editor__error{background:rgba(168,14,24,.06);color:#a80e18}
 .visual-editor__success{background:#eaf7ee;color:#24613c}
 @media(max-width:760px){.visual-editor{padding:14px}.visual-editor__intro{flex-direction:column}.visual-editor__columns{grid-template-columns:1fr}.visual-editor__locations{max-height:300px}.visual-editor__preview-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:460px){.visual-editor__preview-grid{grid-template-columns:1fr}}
@@ -348,24 +348,24 @@ html.theme-dark .visual-editor :is(h2,h3,strong,label){color:#f5f7fc!important}
 html.theme-dark .visual-editor :is(.visual-editor__description,.visual-editor__hint,.visual-editor__locations small,.visual-editor__intro p){color:#c1cada!important}
 html.theme-dark .visual-editor .visual-editor__pages{border-color:#3a465b}
 html.theme-dark .visual-editor :is(.visual-editor__button,.visual-editor__pages button,.visual-editor__locations button,.visual-editor__filters button){background:#1d2a41!important;border-color:#49576b!important;color:#f5f7fc!important}
-html.theme-dark .visual-editor :is(.visual-editor__pages button.active,.visual-editor__filters button.active,.visual-editor__publish){background:#b20d30!important;border-color:#ce2146!important;color:#fff!important}
+html.theme-dark .visual-editor :is(.visual-editor__pages button.active,.visual-editor__filters button.active,.visual-editor__publish){background:#b20d30!important;border-color:#a80e18!important;color:#fff!important}
 html.theme-dark .visual-editor :is(.visual-editor__pages button,.visual-editor__filters button):not(.active):hover{background:#304058!important;border-color:#8497b6!important}
 html.theme-dark .visual-editor .visual-editor__locations button:not(.active):hover{background:#273650!important;border-color:#8497b6!important}
-html.theme-dark .visual-editor :is(.visual-editor__pages button.active,.visual-editor__filters button.active):hover{background:#ca1a41!important}
-html.theme-dark .visual-editor .visual-editor__reset{color:#ffb3c1!important}
-html.theme-dark .visual-editor .manager-eyebrow{color:#ff879b!important}
-html.theme-dark .visual-editor .visual-editor__locations button.active{background:#382137!important;border-color:#e34464!important}
+html.theme-dark .visual-editor :is(.visual-editor__pages button.active,.visual-editor__filters button.active):hover{background:#a80e18!important}
+html.theme-dark .visual-editor .visual-editor__reset{color:#ef233c!important}
+html.theme-dark .visual-editor .manager-eyebrow{color:#ef233c!important}
+html.theme-dark .visual-editor .visual-editor__locations button.active{background:#35151c!important;border-color:#a80e18!important}
 html.theme-dark .visual-editor :is(input,select,textarea){color:#f7f9fc!important;background:#141f33!important;border-color:#54647d!important;color-scheme:dark}
 html.theme-dark .visual-editor input[type="file"]::file-selector-button{background:#2b3b58;border:1px solid #7585a0;color:#fff;border-radius:6px;padding:7px 11px;cursor:pointer}
 html.theme-dark .visual-editor .visual-editor__locations{scrollbar-color:#64758e transparent}
 html.theme-dark .visual-editor :is(input,textarea)::placeholder{color:#adb9ce!important}
 html.theme-dark .visual-editor :is(.visual-editor__text-preview,.visual-editor__context,.visual-editor__preview-empty,.visual-editor__empty){background:#1c2a41!important;border-color:#445570!important;color:#d1d9e7!important}
-html.theme-dark .visual-editor .visual-editor__context a{color:#ff8ba1!important}
-html.theme-dark .visual-editor .visual-editor__slot-type{color:#ff879b!important}
+html.theme-dark .visual-editor .visual-editor__context a{color:#ef233c!important}
+html.theme-dark .visual-editor .visual-editor__slot-type{color:#ef233c!important}
 html.theme-dark .visual-editor .visual-editor__section{color:#b6c7e1!important}
 html.theme-dark .visual-editor .visual-editor__published{color:#88e4ad!important}
 html.theme-dark .visual-editor .visual-editor__warning,
-html.theme-dark .visual-editor .visual-editor__error{background:#3b2531!important;color:#ffd6dc!important}
+html.theme-dark .visual-editor .visual-editor__error{background:#35151c!important;color:#ff3347!important}
 html.theme-dark .visual-editor .visual-editor__success{background:#183a34!important;color:#a5f5c7!important}
 
 /* Editor visual dentro de Administración: misma superficie carbón-vino y
@@ -431,18 +431,18 @@ html.theme-dark .app-site.administration-page .visual-editor :is(
   .visual-editor__publish
 ) {
   background: #b20d30 !important;
-  border-color: #ce2146 !important;
+  border-color: #a80e18 !important;
 }
 html.theme-dark .app-site.administration-page .visual-editor .visual-editor__locations button.active {
-  background: #47212e !important;
-  border-color: #e34464 !important;
+  background: #35151c !important;
+  border-color: #a80e18 !important;
 }
 html.theme-dark .app-site.administration-page .visual-editor :is(
   .visual-editor__pages button, .visual-editor__filters button,
   .visual-editor__locations button
 ):not(.active):hover {
-  background: #463038 !important;
-  border-color: #9f6674 !important;
+  background: #2f171c !important;
+  border-color: #a80e18 !important;
 }
 @media (prefers-reduced-motion: reduce) {
   html.theme-dark .app-site.administration-page .visual-editor::before {
