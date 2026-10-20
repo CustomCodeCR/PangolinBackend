@@ -92,6 +92,8 @@ function startCargoForm(selected: 'air' | 'maritime' | 'multimodal') {
 }
 
 const cargoSteps = computed(() => [t('custom.quote.routeService'), t('custom.quote.detailsGoods'), t('custom.quote.contactDetails')])
+const cargoIcon = computed(() => mode.value === 'air' ? '✈' : mode.value === 'maritime' ? 'anchor' : 'multimodal')
+const cargoTitle = computed(() => t(`custom.quote.${mode.value === 'air' ? 'airTitle' : mode.value === 'maritime' ? 'maritimeTitle' : 'multimodalTitle'}`))
 function validateCargoStep(): boolean {
   error.value = ''
   if (cargoStep.value === 0 && (!cargo.origin.trim() || !cargo.destination.trim() || !cargo.operation || !cargo.incoterm || !cargo.nationalization || (mode.value === 'multimodal' && !cargo.entryCountry.trim()))) {
@@ -277,12 +279,12 @@ async function reloadQuote() {
           <p class="quote-kicker">{{ $t('custom.quote.quickEyebrow') }}</p><h2>{{ $t('custom.quote.quickTitle') }}</h2>
           <p class="quote-quick-intro">{{ $t('custom.quote.quickIntro') }}</p>
           <div class="quote-fields quote-fields--two">
-            <label>{{ $t('custom.quote.fullName') }} <i>*</i><input v-model="quickContact.fullName" autocomplete="name" required /></label>
-            <label>{{ $t('custom.quote.company') }} <i>*</i><input v-model="quickContact.company" autocomplete="organization" required /></label>
-            <label>{{ $t('custom.quote.country') }} <i>*</i><input v-model="quickContact.country" list="quote-countries" required /></label>
-            <label>{{ $t('custom.quote.phone') }} <i>*</i><input v-model="quickContact.phone" type="tel" autocomplete="tel" required /></label>
-            <label class="quote-field-wide">{{ $t('custom.quote.email') }} <i>*</i><input v-model="quickContact.email" type="email" autocomplete="email" required /></label>
-            <label class="quote-field-wide">{{ $t('custom.quote.requestLabel') }} <i>*</i><textarea v-model="quickContact.request" rows="3" required /></label>
+            <label><span class="quote-field-caption">{{ $t('custom.quote.fullName') }} <i>*</i></span><input v-model="quickContact.fullName" autocomplete="name" required /></label>
+            <label><span class="quote-field-caption">{{ $t('custom.quote.company') }} <i>*</i></span><input v-model="quickContact.company" autocomplete="organization" required /></label>
+            <label><span class="quote-field-caption">{{ $t('custom.quote.country') }} <i>*</i></span><input v-model="quickContact.country" list="quote-countries" required /></label>
+            <label><span class="quote-field-caption">{{ $t('custom.quote.phone') }} <i>*</i></span><input v-model="quickContact.phone" type="tel" autocomplete="tel" required /></label>
+            <label class="quote-field-wide"><span class="quote-field-caption">{{ $t('custom.quote.email') }} <i>*</i></span><input v-model="quickContact.email" type="email" autocomplete="email" required /></label>
+            <label class="quote-field-wide"><span class="quote-field-caption">{{ $t('custom.quote.requestLabel') }} <i>*</i></span><textarea v-model="quickContact.request" rows="3" required /></label>
           </div>
           <datalist id="quote-countries"><option v-for="country in countries" :key="country" :value="country" /></datalist>
           <button class="quote-submit" type="submit">{{ $t('custom.quote.sendRequest') }} <IconSymbol glyph="↗" /></button>
@@ -306,20 +308,20 @@ async function reloadQuote() {
           <template v-if="landStep === 0">
             <p class="quote-panel-kicker">{{ $t('custom.quote.transportStep') }}</p><h2>{{ $t('custom.quote.chooseTransport') }}</h2><p class="quote-panel-copy">{{ $t('custom.quote.chooseTransportHelp') }}</p>
             <div class="transport-options">
-              <button type="button" class="transport-choice" :class="{ 'is-selected': transportKind === 'FTL' }" @click="transportKind = 'FTL'"><span class="transport-truck" aria-hidden="true">▰</span><strong>{{ $t('custom.quote.ftl') }}</strong><small>{{ $t('custom.quote.ftlDetail') }}</small></button>
-              <button type="button" class="transport-choice" :class="{ 'is-selected': transportKind === 'LTL' }" @click="transportKind = 'LTL'"><span class="transport-truck" aria-hidden="true">▰</span><strong>{{ $t('custom.quote.ltl') }}</strong><small>{{ $t('custom.quote.ltlDetail') }}</small></button>
+              <button type="button" class="transport-choice" :class="{ 'is-selected': transportKind === 'FTL' }" @click="transportKind = 'FTL'"><span class="transport-truck" aria-hidden="true"><IconSymbol glyph="truck" :size="24" /></span><strong>{{ $t('custom.quote.ftl') }}</strong><small>{{ $t('custom.quote.ftlDetail') }}</small></button>
+              <button type="button" class="transport-choice" :class="{ 'is-selected': transportKind === 'LTL' }" @click="transportKind = 'LTL'"><span class="transport-truck" aria-hidden="true"><IconSymbol glyph="truck" :size="24" /></span><strong>{{ $t('custom.quote.ltl') }}</strong><small>{{ $t('custom.quote.ltlDetail') }}</small></button>
             </div>
           </template>
 
           <template v-else-if="landStep === 1">
             <p class="quote-panel-kicker">{{ $t('custom.quote.cargoStep') }}</p><h2>{{ $t('custom.quote.cargoDetails') }}</h2><p class="quote-panel-copy">{{ $t('custom.quote.cargoDetailsHelp') }}</p>
             <div class="quote-fields">
-              <label>{{ $t('custom.quote.equipment') }} <i>*</i><select v-model="land.equipment" required><option disabled value="">{{ $t('custom.quote.select') }}</option><option v-for="equipment in landEquipment" :key="equipment">{{ equipment }}</option></select></label>
+              <label><span class="quote-field-caption">{{ $t('custom.quote.equipment') }} <i>*</i></span><select v-model="land.equipment" required><option disabled value="">{{ $t('custom.quote.select') }}</option><option v-for="equipment in landEquipment" :key="equipment">{{ equipment }}</option></select></label>
               <label class="quote-check"><input v-model="land.insured" type="checkbox" /> {{ $t('custom.quote.insured') }}</label>
               <label>{{ $t('custom.quote.weightKg') }} <input v-model.number="land.weightKg" type="number" min="0.01" step="0.01" /></label>
               <div class="quote-fields--two">
-              <label>{{ $t('custom.quote.origin') }} <i>*</i><select v-model="land.origin" required><option disabled value="">{{ $t('custom.quote.selectCountry') }}</option><option v-for="country in countries" :key="country">{{ country }}</option></select></label>
-              <label>{{ $t('custom.quote.destination') }} <i>*</i><select v-model="land.destination" required><option disabled value="">{{ $t('custom.quote.selectCountry') }}</option><option v-for="country in countries" :key="country">{{ country }}</option></select></label>
+              <label><span class="quote-field-caption">{{ $t('custom.quote.origin') }} <i>*</i></span><select v-model="land.origin" required><option disabled value="">{{ $t('custom.quote.selectCountry') }}</option><option v-for="country in countries" :key="country">{{ country }}</option></select></label>
+              <label><span class="quote-field-caption">{{ $t('custom.quote.destination') }} <i>*</i></span><select v-model="land.destination" required><option disabled value="">{{ $t('custom.quote.selectCountry') }}</option><option v-for="country in countries" :key="country">{{ country }}</option></select></label>
               </div>
             </div>
           </template>
@@ -328,12 +330,12 @@ async function reloadQuote() {
             <p class="quote-panel-kicker">{{ $t('custom.quote.contactStep') }}</p><h2>{{ $t('custom.quote.contactDetails') }}</h2><p class="quote-panel-copy">{{ $t('custom.quote.contactHelp') }}</p>
             <div class="quote-fields">
               <div class="quote-fields--two">
-                <label>{{ $t('custom.quote.legalName') }} <i>*</i><input v-model="contact.company" autocomplete="organization" required /></label>
-                <label>{{ $t('custom.quote.contactName') }} <i>*</i><input v-model="contact.fullName" autocomplete="name" required /></label>
-                <label>{{ $t('custom.quote.email') }} <i>*</i><input v-model="contact.email" type="email" autocomplete="email" required /></label>
-                <label>{{ $t('custom.quote.phone') }} <i>*</i><input v-model="contact.phone" type="tel" autocomplete="tel" required /></label>
+                <label><span class="quote-field-caption">{{ $t('custom.quote.legalName') }} <i>*</i></span><input v-model="contact.company" autocomplete="organization" required /></label>
+                <label><span class="quote-field-caption">{{ $t('custom.quote.contactName') }} <i>*</i></span><input v-model="contact.fullName" autocomplete="name" required /></label>
+                <label><span class="quote-field-caption">{{ $t('custom.quote.email') }} <i>*</i></span><input v-model="contact.email" type="email" autocomplete="email" required /></label>
+                <label><span class="quote-field-caption">{{ $t('custom.quote.phone') }} <i>*</i></span><input v-model="contact.phone" type="tel" autocomplete="tel" required /></label>
               </div>
-              <label>{{ $t('custom.quote.customerType') }} <i>*</i><select v-model="land.customerType" required><option disabled value="">{{ $t('custom.quote.select') }}</option><option>{{ $t('custom.quote.companyType') }}</option><option>{{ $t('custom.quote.individualType') }}</option></select></label>
+              <label><span class="quote-field-caption">{{ $t('custom.quote.customerType') }} <i>*</i></span><select v-model="land.customerType" required><option disabled value="">{{ $t('custom.quote.select') }}</option><option>{{ $t('custom.quote.companyType') }}</option><option>{{ $t('custom.quote.individualType') }}</option></select></label>
             </div>
           </template>
 
@@ -344,33 +346,41 @@ async function reloadQuote() {
       </div>
     </section>
 
-    <section v-else class="quote-ocean-flow">
+    <section v-else class="quote-ocean-flow quote-wizard">
       <button class="quote-text-back" type="button" @click="backToLanding">{{ $t('custom.quote.back') }}</button>
       <header class="quote-cargo-heading"><p class="quote-kicker">{{ $t('custom.quote.oceanEyebrow') }}</p><h1>{{ mode === 'air' ? $t('custom.quote.airTitle') : mode === 'maritime' ? $t('custom.quote.maritimeTitle') : $t('custom.quote.multimodalTitle') }} <span>{{ $t('custom.quote.withUs') }}</span></h1><p>{{ $t('custom.quote.oceanIntro') }}</p></header>
       <div class="quote-progress" :aria-label="$t('custom.quote.progressAria')">
         <div v-for="(label, index) in cargoSteps" :key="index" class="quote-progress-step" :class="{ 'is-active': index <= cargoStep, 'is-current': index === cargoStep }" :aria-current="index === cargoStep ? 'step' : undefined">
-          <span><IconSymbol :glyph="index === 0 ? '▰' : index === 1 ? '▤' : '✓'" /></span><small>{{ label }}</small>
+          <span><IconSymbol :glyph="index === 0 ? cargoIcon : index === 1 ? '▤' : '✓'" /></span><small>{{ label }}</small>
         </div>
       </div>
-      <form class="quote-cargo-form" novalidate @submit.prevent="advanceOrSubmitCargo">
+      <div class="quote-wizard-layout">
+        <aside class="quote-wizard-aside">
+          <div class="quote-map-dots" aria-hidden="true"></div>
+          <span class="quote-truck-art" aria-hidden="true"><IconSymbol :glyph="cargoIcon" :size="128" /></span>
+          <p class="quote-kicker">{{ $t('custom.quote.asideEyebrow') }}</p>
+          <h2>{{ cargoTitle }}</h2>
+          <p>{{ cargoSteps[cargoStep] }}</p>
+        </aside>
+      <form class="quote-cargo-form quote-wizard-panel quote-cargo-wizard-panel" novalidate @submit.prevent="advanceOrSubmitCargo">
         <section v-show="cargoStep === 0" class="cargo-form-section">
           <div class="cargo-form-section__heading"><span>01</span><div><h2>{{ $t('custom.quote.routeService') }}</h2><p>{{ $t('custom.quote.routeHelp') }}</p></div></div>
           <div class="quote-fields quote-fields--two">
-            <label>{{ $t('custom.quote.origin') }} <i>*</i><input v-model="cargo.origin" list="quote-countries" required /></label>
-            <label>{{ $t('custom.quote.destination') }} <i>*</i><input v-model="cargo.destination" list="quote-countries" required /></label>
-            <label v-if="mode === 'maritime'" class="quote-field-wide">{{ $t('custom.quote.service') }} <i>*</i><select v-model="cargo.shippingType" required><option value="Marítimo FCL - Contenedor completo">{{ $t('custom.quote.maritimeFcl') }}</option><option value="Marítimo LCL - Carga consolidada">{{ $t('custom.quote.maritimeLcl') }}</option></select></label>
-            <label v-if="mode === 'multimodal'" class="quote-field-wide">{{ $t('custom.quote.entryCountry') }} <i>*</i><input v-model.trim="cargo.entryCountry" list="quote-countries" required /></label>
-            <label>{{ $t('custom.quote.operation') }} <i>*</i><select v-model="cargo.operation" required><option value="Exportación">{{ $t('custom.quote.export') }}</option><option value="Importación">{{ $t('custom.quote.import') }}</option></select></label>
-            <label>{{ $t('custom.quote.incoterm') }} <i>*</i><select v-model="cargo.incoterm" required><option disabled value="">{{ $t('custom.quote.choose') }}</option><option v-for="term in ['EXW','FCA','FAS','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP']" :key="term">{{ term }}</option></select></label>
-            <label class="quote-field-wide">{{ $t('custom.quote.nationalization') }} <i>*</i><select v-model="cargo.nationalization" required><option disabled value="">{{ $t('custom.quote.choose') }}</option><option value="Sí">{{ $t('custom.quote.yes') }}</option><option value="No">{{ $t('custom.quote.no') }}</option></select></label>
+            <label><span class="quote-field-caption">{{ $t('custom.quote.origin') }} <i>*</i></span><input v-model="cargo.origin" list="quote-countries" required /></label>
+            <label><span class="quote-field-caption">{{ $t('custom.quote.destination') }} <i>*</i></span><input v-model="cargo.destination" list="quote-countries" required /></label>
+            <label v-if="mode === 'maritime'" class="quote-field-wide"><span class="quote-field-caption">{{ $t('custom.quote.service') }} <i>*</i></span><select v-model="cargo.shippingType" required><option value="Marítimo FCL - Contenedor completo">{{ $t('custom.quote.maritimeFcl') }}</option><option value="Marítimo LCL - Carga consolidada">{{ $t('custom.quote.maritimeLcl') }}</option></select></label>
+            <label v-if="mode === 'multimodal'" class="quote-field-wide"><span class="quote-field-caption">{{ $t('custom.quote.entryCountry') }} <i>*</i></span><input v-model.trim="cargo.entryCountry" list="quote-countries" required /></label>
+            <label><span class="quote-field-caption">{{ $t('custom.quote.operation') }} <i>*</i></span><select v-model="cargo.operation" required><option value="Exportación">{{ $t('custom.quote.export') }}</option><option value="Importación">{{ $t('custom.quote.import') }}</option></select></label>
+            <label><span class="quote-field-caption">{{ $t('custom.quote.incoterm') }} <i>*</i></span><select v-model="cargo.incoterm" required><option disabled value="">{{ $t('custom.quote.choose') }}</option><option v-for="term in ['EXW','FCA','FAS','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP']" :key="term">{{ term }}</option></select></label>
+            <label class="quote-field-wide"><span class="quote-field-caption">{{ $t('custom.quote.nationalization') }} <i>*</i></span><select v-model="cargo.nationalization" required><option disabled value="">{{ $t('custom.quote.choose') }}</option><option value="Sí">{{ $t('custom.quote.yes') }}</option><option value="No">{{ $t('custom.quote.no') }}</option></select></label>
           </div>
         </section>
         <section v-show="cargoStep === 1" class="cargo-form-section">
           <div class="cargo-form-section__heading"><span>02</span><div><h2>{{ $t('custom.quote.detailsGoods') }}</h2><p>{{ $t('custom.quote.goodsHelp') }}</p></div></div>
           <div class="quote-fields quote-fields--two">
-            <label class="quote-field-wide">{{ $t('custom.quote.descriptionGoods') }} <i>*</i><small>{{ $t('custom.quote.goodsExample') }}</small><textarea v-model="cargo.description" rows="2" required /></label>
-            <label>{{ mode === 'air' ? $t('custom.quote.airEquipment') : $t('custom.quote.containerType') }} <i>*</i><select v-model="cargo.containerType" required><option disabled value="">{{ $t('custom.quote.choose') }}</option><option>{{ $t('custom.quote.container20') }}</option><option>{{ $t('custom.quote.container40') }}</option><option>{{ $t('custom.quote.container40hc') }}</option><option>{{ $t('custom.quote.refrigerated') }}</option><option>{{ $t('custom.quote.notApplicable') }}</option></select></label>
-            <label>{{ $t('custom.quote.quantity') }} <i>*</i><input v-model.number="cargo.containers" type="number" min="1" required /></label>
+            <label class="quote-field-wide"><span class="quote-field-caption">{{ $t('custom.quote.descriptionGoods') }} <i>*</i></span><small>{{ $t('custom.quote.goodsExample') }}</small><textarea v-model="cargo.description" rows="2" required /></label>
+            <label><span class="quote-field-caption">{{ mode === 'air' ? $t('custom.quote.airEquipment') : $t('custom.quote.containerType') }} <i>*</i></span><select v-model="cargo.containerType" required><option disabled value="">{{ $t('custom.quote.choose') }}</option><option>{{ $t('custom.quote.container20') }}</option><option>{{ $t('custom.quote.container40') }}</option><option>{{ $t('custom.quote.container40hc') }}</option><option>{{ $t('custom.quote.refrigerated') }}</option><option>{{ $t('custom.quote.notApplicable') }}</option></select></label>
+            <label><span class="quote-field-caption">{{ $t('custom.quote.quantity') }} <i>*</i></span><input v-model.number="cargo.containers" type="number" min="1" required /></label>
             <label>{{ $t('custom.quote.weightKg') }} <input v-model.number="cargo.weightKg" type="number" min="0.01" step="0.01" /></label>
             <label>{{ $t('custom.quote.dangerous') }} <select v-model="cargo.dangerous"><option value="">{{ $t('custom.quote.choose') }}</option><option value="Sí">{{ $t('custom.quote.yes') }}</option><option value="No">{{ $t('custom.quote.no') }}</option></select></label>
             <label>{{ $t('custom.quote.moreDetails') }}<textarea v-model="cargo.details" rows="3" /></label>
@@ -379,10 +389,10 @@ async function reloadQuote() {
         <section v-show="cargoStep === 2" class="cargo-form-section">
           <div class="cargo-form-section__heading"><span>03</span><div><h2>{{ $t('custom.quote.contactDetails') }}</h2><p>{{ $t('custom.quote.contactSectionHelp') }}</p></div></div>
           <div class="quote-fields quote-fields--two">
-            <label>{{ $t('custom.quote.company') }} <i>*</i><input v-model="cargo.company" autocomplete="organization" required /></label>
-            <label>{{ $t('custom.quote.name') }} <i>*</i><input v-model="cargo.contactName" autocomplete="name" required /></label>
-            <label>{{ $t('custom.quote.companyEmail') }} <i>*</i><input v-model="cargo.email" type="email" autocomplete="email" required /></label>
-            <label>{{ $t('custom.quote.customerPhone') }} <i>*</i><input v-model="cargo.phone" type="tel" autocomplete="tel" required /></label>
+            <label><span class="quote-field-caption">{{ $t('custom.quote.company') }} <i>*</i></span><input v-model="cargo.company" autocomplete="organization" required /></label>
+            <label><span class="quote-field-caption">{{ $t('custom.quote.name') }} <i>*</i></span><input v-model="cargo.contactName" autocomplete="name" required /></label>
+            <label><span class="quote-field-caption">{{ $t('custom.quote.companyEmail') }} <i>*</i></span><input v-model="cargo.email" type="email" autocomplete="email" required /></label>
+            <label><span class="quote-field-caption">{{ $t('custom.quote.customerPhone') }} <i>*</i></span><input v-model="cargo.phone" type="tel" autocomplete="tel" required /></label>
           </div>
         </section>
         <datalist id="quote-countries"><option v-for="country in countries" :key="country" :value="country" /></datalist>
@@ -394,6 +404,7 @@ async function reloadQuote() {
         </div>
         <article v-if="quote" class="quote-success quote-success--cargo"><IconSymbol glyph="✓" :size="20" /><h2>{{ $t('custom.quote.successTitle') }}</h2><p>{{ $t('custom.quote.oceanSuccess') }}</p><small>{{ $t('custom.quote.requestNumber') }} {{ quote.id }} · {{ $t('custom.quote.status') }} {{ quote.status }} · {{ source }}</small></article>
       </form>
+      </div>
     </section>
   </main>
 </template>
