@@ -462,7 +462,7 @@ function useMediaForNews(item: ManagedMedia) {
         <button :class="{ active: section === 'news' }" @click="selectSection('news')"><IconSymbol glyph="newspaper" :size="19" /> Noticias <span>{{ news.length }}</span></button>
         <button :class="{ active: section === 'media' }" @click="selectSection('media')"><IconSymbol glyph="image" :size="19" /> Multimedia <span>{{ media.length }}</span></button>
         <button :class="{ active: section === 'comments' }" @click="selectSection('comments')"><IconSymbol glyph="◉" :size="19" /> Comentarios <span>{{ comments.length }}</span></button>
-        <button :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> Editor visual <span>Nuevo</span></button>
+        <button :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> Editor visual</button>
       </nav>
       <section v-if="section === 'users'" class="manager-users-card" aria-label="Cuentas registradas">
         <header><div><p class="manager-eyebrow">CUENTAS REGISTRADAS</p><h2>{{ usersLoading ? 'Cargando…' : `${users.length} usuarios` }}</h2></div><button class="manager-add" :disabled="usersLoading" @click="loadUsers">Actualizar</button></header>
@@ -502,7 +502,6 @@ function useMediaForNews(item: ManagedMedia) {
             <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar noticia' }}</button>
           </form>
           <form v-else-if="section === 'comments'" @submit.prevent="submitComment">
-            <p class="manager-publication-hint">Comentarios locales: solo se guardan en este navegador y no aparecen públicamente en la web.</p>
             <label>Autor<input v-model.trim="commentForm.author" required maxlength="100" /></label>
             <label>Sección<input v-model.trim="commentForm.section" maxlength="100" placeholder="Principal, servicios..." /></label>
             <label>Comentario<textarea v-model.trim="commentForm.message" required maxlength="1200" rows="5" /></label>
@@ -811,10 +810,9 @@ function useMediaForNews(item: ManagedMedia) {
 .is-embedded .manager-tabs button,
 .is-embedded .manager-users-table td { color: var(--admin-text); }
 .content-manager.is-embedded .manager-tabs button.active,
-.content-manager.is-embedded .manager-tabs button.active > *,
-.content-manager.is-embedded .manager-tabs button.active span {
-  color: #fff !important;
-  -webkit-text-fill-color: #fff !important;
+.content-manager.is-embedded .manager-tabs button.active span:not(.lucide-symbol) {
+  color: var(--admin-text) !important;
+  -webkit-text-fill-color: var(--admin-text) !important;
 }
 .is-embedded .manager-heading > p:last-child,
 .is-embedded .manager-item-copy small,
@@ -927,6 +925,7 @@ function useMediaForNews(item: ManagedMedia) {
 .is-embedded .manager-form form.manager-editor--itineraries {grid-template-columns:repeat(4,minmax(0,1fr));}
 .is-embedded .manager-form-row {display:contents;}
 .is-embedded .manager-form label {display:grid;align-content:start;gap:9px;min-width:0;color:var(--manager-ink);font-size:13px;font-weight:750;line-height:1.5}
+.is-embedded .manager-form .manager-checkbox {display:flex;align-items:center;justify-self:start;gap:10px}
 .is-embedded .manager-form input,.is-embedded .manager-form select,.is-embedded .manager-form textarea,.is-embedded .manager-users-table select {
   box-sizing:border-box;width:100%;min-width:0;min-height:46px;
   padding:11px 14px;border:1px solid var(--manager-input-line);border-radius:10px;
