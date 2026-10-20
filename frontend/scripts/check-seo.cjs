@@ -69,4 +69,53 @@ if (fs.existsSync(path.join(base, 'dist'))) {
   assert.ok(fs.readFileSync(path.join(dist, '404.html'), 'utf8').includes('noindex,nofollow'), '404 sin noindex')
 }
 
+
+const sourceImage = imagePath => 'https://logisticacastrofallas.com' + imagePath
+const expectedSitemapPaths = [...new Set(Object.entries(routes)
+  .filter(([, seo]) => seo.indexable !== false)
+  .map(([route]) => route === '/home' ? '/' : route))]
+const sitemapExpected = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+  '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+  expectedSitemapPaths.map(route => '  <url>\n    <loc>https://logisticacastrofallas.com' + route + '</loc>\n  </url>').join('\n') + '\n</urlset>\n'
+assert.equal(sitemap, sitemapExpected, 'El sitemap publico no coincide con las rutas indexables (sin duplicados)')
+assert.ok(root.includes("const Administration = defineAsyncComponent("), 'Administracion debe cargar bajo demanda')
+assert.ok(root.includes("const QuoteApp = defineAsyncComponent("), 'Cotizaciones debe cargar bajo demanda')
+if (fs.existsSync(path.join(base, 'dist'))) {
+  assert.equal(read('dist/sitemap.xml'), sitemapExpected, 'El sitemap generado no coincide con rutas indexables')
+  const extractMeta = (html, property, name) => {
+    const tag = html.match(new RegExp('<meta\\b(?=[^>]*\\b' + property + '="' + name + '")[^>]*>', 'i'))
+    return tag ? tag[0].match(/content="([^"]*)"/)?.[1] : undefined
+  }
+  for (const [route, seo] of Object.entries(routes)) {
+    const file = path.join(base, 'dist', route === '/' ? '' : route.slice(1), 'index.html')
+    const html = fs.readFileSync(file, 'utf8')
+    const image = sourceImage(seo.socialImage || '/images/hero.webp')
+    assert.equal(extractMeta(html, 'property', 'og:image'), image, 'og:image incorrecto: ' + route)
+    assert.equal(extractMeta(html, 'name', 'twitter:image'), image, 'twitter:image incorrecta: ' + route)
+    assert.equal(extractMeta(html, 'property', 'og:locale'), 'es_CR', 'Locale incorrecto: ' + route)
+    if (seo.socialImage) assert.ok(fs.existsSync(path.join(base, 'public', seo.socialImage.slice(1))), 'Imagen social no existe: ' + route)
+    if (seo.socialImageAlt) assert.equal(extractMeta(html, 'property', 'og:image:alt'), seo.socialImageAlt, 'Alt de imagen OG incorrecto: ' + route)
+    const blocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)]
+    if (seo.indexable === false) {
+      assert.equal(blocks.length, 0, 'Ruta privada no debe llevar datos estructurados publicos: ' + route)
+      continue
+    }
+    assert.equal(blocks.length, 1, 'Una sola grafica JSON-LD por ruta: ' + route)
+    const parsed = JSON.parse(blocks[0][1])
+    assert.equal(parsed['@context'], 'https://schema.org', 'Contexto Schema invalido: ' + route)
+    const graph = parsed['@graph']
+    const find = type => graph.find(x => x['@type'] === type)
+    assert.ok(find('Organization'), 'Empresa faltante en Schema: ' + route)
+    assert.ok(find('WebSite'), 'WebSite faltante en Schema: ' + route)
+    const page = find(route === '/nosotros' ? 'AboutPage' : route === '/noticias' ? 'CollectionPage' : 'WebPage')
+    assert.ok(page, 'WebPage faltante en Schema: ' + route)
+    assert.equal(page.url, 'https://logisticacastrofallas.com' + (route === '/home' ? '/' : route), 'URL Schema incoherente: ' + route)
+    assert.equal(page.name, seo.title, 'Titulo Schema incoherente: ' + route)
+    assert.equal(page.description, seo.description, 'Descripcion Schema incoherente: ' + route)
+    assert.equal(Boolean(find('BreadcrumbList')), route !== '/' && route !== '/home', 'Breadcrumb Schema incoherente: ' + route)
+    const serviceCount = graph.filter(x => x['@type'] === 'Service').length
+    assert.equal(serviceCount, route === '/servicios' ? 6 : route === '/' || route === '/home' ? 1 : 0, 'Servicios Schema fuera de pagina: ' + route)
+  }
+}
+
 console.log('SEO: rutas, HTML inicial, sitemap y 404 verificados.')
