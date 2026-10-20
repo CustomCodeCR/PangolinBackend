@@ -74,6 +74,18 @@ def assert_public(driver, path, marker):
     assert driver.title.endswith("Castro Fallas") or "Castro Fallas" in driver.title, "SEO title not set: " + path
     print("PASS Chrome + backend: public " + path)
 
+def wait_for_otp_cooldown():
+    # Respect the real security policy: at most one OTP request per account per 60 seconds.
+    outbox = ROOT / 'backend' / 'local-outbox'
+    files = list(outbox.glob('otp-*.eml'))
+    if not files:
+        return
+    last_otp = max(p.stat().st_mtime for p in files)
+    remaining = max(0, 65 - (time.time() - last_otp))
+    if remaining:
+        print('Waiting %.0fs for legitimate OTP cooldown between independent test suites' % remaining, flush=True)
+        time.sleep(remaining)
+
 def main():
     preview = None
     driver = None
@@ -107,6 +119,7 @@ def main():
         await_css(driver, ".login-auth-form")
         print("PASS Chrome + backend: guest administration redirects to login")
 
+        wait_for_otp_cooldown()
         login(driver, "demo.usuario@castrofallas.test", "/administracion")
         await_css(driver, ".manager-heading")
         click(driver, '.manager-tabs button:nth-child(2)')
