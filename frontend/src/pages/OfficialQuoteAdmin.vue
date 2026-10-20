@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import { refreshSession } from '../services/auth'
+const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 type Row = { id:string;customerName:string;mode:string;shipmentType:string;originName:string;destinationName:string;status:string;authorization:string;createdAtUtc:string }
 type Detail = {id:string;customerName:string;mode:string;shipmentType:string;status:string;authorization:string;createdAtUtc:string;form:Record<string,unknown>;history:{action:string;comment:string|null;createdAtUtc:string}[]}
 const rows=ref<Row[]>([])
@@ -81,8 +82,8 @@ function readableValue(value: unknown): string {
 function displayDate(iso: string): string { return new Date(iso).toLocaleString('es-CR') }
 </script>
 <template>
-  <div class="app-site off-admin">
-    <section class="off-admin-hero">
+  <div :class="props.embedded ? 'off-admin off-admin--embedded' : 'app-site off-admin'">
+    <section v-if="!props.embedded" class="off-admin-hero">
       <SiteHeader active="administracion" overlay />
       <div class="container off-admin-hero__copy">
         <p class="off-admin-eyebrow"><span class="off-admin-dash" aria-hidden="true"></span> CASTRO FALLAS · PANEL DE CONTROL</p>
@@ -90,8 +91,8 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
         <p>Consultá y gestioná las solicitudes de tus clientes desde un solo lugar.</p>
       </div>
     </section>
-    <main class="off-admin-shell">
-      <div class="off-admin-toolbar">
+    <div class="off-admin-shell">
+      <div v-if="!props.embedded" class="off-admin-toolbar">
         <a href="/administracion" class="off-admin-back">← Volver a administración</a>
         <span class="off-admin-context">OPERACIONES · COTIZACIONES</span>
       </div>
@@ -191,12 +192,16 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
           </div>
         </section>
       </div>
-    </main>
-    <SiteFooter />
+    </div>
+    <SiteFooter v-if="!props.embedded" />
   </div>
 </template>
 <style scoped>
 /* Identidad del panel de administración existente, aislada en Cotizaciones Oficiales. */
+.off-admin--embedded { min-height: 0; background: transparent !important; }
+.off-admin--embedded .off-admin-shell { width: 100%; margin: 0; padding: 0 0 28px; }
+.off-admin--embedded .off-admin-explainer { margin-top: 3px; }
+:global(html.theme-dark) .off-admin--embedded { background: transparent !important; }
 .off-admin {
   --oq-ink: #20242b;
   --oq-muted: #65707c;

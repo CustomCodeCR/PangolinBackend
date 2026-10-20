@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import IconSymbol from './components/IconSymbol.vue'
 import {computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref} from 'vue'
 import routeSeo from '../seo/routes.json'
 import Home from './Home.vue'
-const QuoteApp = defineAsyncComponent(() => import('./App.vue'))
 const Login = defineAsyncComponent(() => import('./pages/Login.vue'))
 const News = defineAsyncComponent(() => import('./pages/News.vue'))
 import About from './pages/About.vue'
@@ -90,11 +88,7 @@ onMounted(async () => {
     else window.location.replace('/home')
     return
   }
-  if (requestPath === '/cotizaciones/nuevo') {
-    if (!user) quoteAccess.value = 'denied'
-    else quoteAccess.value = role === 'cliente' || role === 'administrador' ? 'allowed' : 'forbidden'
-  }
-  if (requestPath === '/cotizaciones') {
+  if (requestPath === '/cotizaciones' || requestPath === '/cotizaciones/nuevo') {
     if (!user) quoteAccess.value = 'denied'
     else quoteAccess.value = role === 'cliente' || role === 'administrador' ? 'allowed' : 'forbidden'
   }
@@ -126,8 +120,7 @@ const page = computed(()=> {
   if(path==='/servicios') return 'services'
   if(path==='/tracking') return 'tracking'
   if(path==='/itinerario') return 'itinerary'
-  if(path==='/cotizaciones') return 'quote'
-  if(path==='/cotizaciones/nuevo') return 'official-quote'
+  if(path==='/cotizaciones' || path==='/cotizaciones/nuevo') return 'official-quote'
   if(['/privacidad','/terminos','/cookies','/licencias'].includes(path)) return 'legal'
   return 'notFound'
 })
@@ -161,22 +154,6 @@ const page = computed(()=> {
   <Tracking v-else-if="page==='tracking'"/>
   <Itinerary v-else-if="page==='itinerary'"/>
   <Legal v-else-if="page==='legal'" />
-  <div v-else class="app-site quote-page quote-flow-page">
-    <SiteHeader/>
-    <div v-if="quoteAccess === 'checking'" class="container quote-access-status" role="status">{{ t('custom.quote.checkingSession') }}</div>
-    <div v-else-if="quoteAccess === 'denied'" class="container quote-access-status quote-access-status--blocked">
-      <h1>{{ t('custom.quote.loginRequired') }}</h1>
-      <p>{{ t('custom.quote.loginRequiredHelp') }}</p>
-      <a class="btn btn-primary" :href="loginNextHref">{{ t('custom.quote.goToLogin') }} <IconSymbol glyph="→" /></a>
-    </div>
-    <div v-else-if="quoteAccess === 'forbidden'" class="container quote-access-status quote-access-status--blocked">
-      <h1>{{ t('custom.quote.loginRequired') }}</h1>
-      <p>{{ t('custom.quote.loginRequiredHelp') }}</p>
-      <a class="btn btn-primary" href="/home">{{ t('custom.quote.back') }} <IconSymbol glyph="←" /></a>
-    </div>
-    <QuoteApp v-else/>
-    <SiteFooter/>
-  </div>
   <ScrollProgressButton v-if="page !== 'login'" />
   <AssistantBot v-if="page !== 'login'" />
   </template>

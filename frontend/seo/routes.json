@@ -79,5 +79,15 @@
   "/licencias": {
     "title": "Créditos y licencias | Castro Fallas",
     "description": "Créditos y licencias de recursos, bibliotecas y elementos utilizados en el sitio de Castro Fallas."
+  },
+  "/cotizaciones/nuevo": {
+    "title": "Solicitud de cotización | Castro Fallas",
+    "description": "Completá tu solicitud de transporte marítimo, aéreo o terrestre con Grupo Castro Fallas.",
+    "indexable": false
+  },
+  "/administracion/cotizaciones-oficiales": {
+    "title": "Solicitudes oficiales | Administración Castro Fallas",
+    "description": "Gestión interna de solicitudes oficiales de cotización.",
+    "indexable": false
   }
 }

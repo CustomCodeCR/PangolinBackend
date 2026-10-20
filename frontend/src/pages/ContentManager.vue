@@ -2,15 +2,17 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import IconSymbol from '../components/IconSymbol.vue'
 import SiteVisualEditor from './SiteVisualEditor.vue'
+import OfficialQuoteAdmin from './OfficialQuoteAdmin.vue'
 import { subscribeToChanges } from '../services/realtime'
 import { authState, refreshSession } from '../services/auth'
 import { deleteManaged, newManagedId, readManagedComments, readManagedItineraries, readManagedMedia, readManagedNews, saveManaged, type ManagedComment, type ManagedItinerary, type ManagedMedia, type ManagedNews } from '../adminContent'
 
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
-type Section = 'itineraries' | 'news' | 'media' | 'comments' | 'users' | 'site'
+type Section = 'itineraries' | 'news' | 'media' | 'comments' | 'users' | 'site' | 'quotes'
 type AppRole = 'cliente' | 'administrador'
 interface ManagedUser { id: string; correo: string; nombre?: string; role: AppRole; activo: boolean }
-const section = ref<Section>(new URLSearchParams(window.location.search).get('tab') === 'usuarios' ? 'users' : 'itineraries')
+const tabFromUrl = new URLSearchParams(window.location.search).get('tab')
+const section = ref<Section>(tabFromUrl === 'usuarios' ? 'users' : tabFromUrl === 'cotizaciones' ? 'quotes' : 'itineraries')
 const itineraries = ref<ManagedItinerary[]>([])
 const news = ref<ManagedNews[]>([])
 const media = ref<ManagedMedia[]>([])
@@ -94,6 +96,7 @@ function selectSection(next: Section) {
   startNew()
   const url = new URL(window.location.href)
   if (next === 'users') url.searchParams.set('tab', 'usuarios')
+  else if (next === 'quotes') url.searchParams.set('tab', 'cotizaciones')
   else url.searchParams.delete('tab')
   window.history.replaceState({}, '', url)
   if (next === 'users') void loadUsers()
@@ -452,7 +455,7 @@ function useMediaForNews(item: ManagedMedia) {
       <div class="manager-topbar-actions"><a class="manager-back" :href="`/home${previewSuffix}`">Volver al sitio <IconSymbol glyph="↗" /></a></div>
     </header>
     <section class="manager-shell">
-      <div class="manager-heading"><p class="manager-eyebrow">CASTRO FALLAS · ADMINISTRACIÓN</p><h1>{{ section === 'users' ? 'Gestión de usuarios' : 'Administración del sitio' }}</h1><p>{{ section === 'users' ? 'Consulta las cuentas y administra sus roles desde esta sección.' : 'Administra itinerarios, noticias e imágenes desde esta pantalla.' }}</p></div>
+      <div class="manager-heading"><p class="manager-eyebrow">CASTRO FALLAS · ADMINISTRACIÓN</p><h1>{{ section === 'users' ? 'Gestión de usuarios' : section === 'quotes' ? 'Cotizaciones' : 'Administración del sitio' }}</h1><p>{{ section === 'users' ? 'Consulta las cuentas y administra sus roles desde esta sección.' : section === 'quotes' ? 'Revisá y gestioná las solicitudes oficiales de tus clientes.' : 'Administra itinerarios, noticias e imágenes desde esta pantalla.' }}</p></div>
       <nav class="manager-tabs" aria-label="Secciones de administración">
         <button :class="{ active: section !== 'users' }" @click="selectSection('itineraries')"><IconSymbol glyph="▤" :size="19" /> Contenido</button>
         <button :class="{ active: section === 'users' }" @click="selectSection('users')"><IconSymbol glyph="user" :size="19" /> Gestión de usuarios <span>{{ users.length }}</span></button>
@@ -462,6 +465,7 @@ function useMediaForNews(item: ManagedMedia) {
         <button :class="{ active: section === 'news' }" @click="selectSection('news')"><IconSymbol glyph="newspaper" :size="19" /> Noticias <span>{{ news.length }}</span></button>
         <button :class="{ active: section === 'media' }" @click="selectSection('media')"><IconSymbol glyph="image" :size="19" /> Multimedia <span>{{ media.length }}</span></button>
         <button :class="{ active: section === 'comments' }" @click="selectSection('comments')"><IconSymbol glyph="◉" :size="19" /> Comentarios <span>{{ comments.length }}</span></button>
+        <button :class="{ active: section === 'quotes' }" @click="selectSection('quotes')"><IconSymbol glyph="file-text" :size="19" /> Cotizaciones</button>
         <button class="manager-editor-visual-tab" :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> Editor visual <span>0</span></button>
       </nav>
       <section v-if="section === 'users'" class="manager-users-card" aria-label="Cuentas registradas">
@@ -474,6 +478,7 @@ function useMediaForNews(item: ManagedMedia) {
         <div v-else-if="users.length" class="manager-users-table-wrap"><table class="manager-users-table"><thead><tr><th>Cuenta</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody><tr v-for="user in users" :key="user.id"><td><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td><td><select v-model="user.role" :disabled="Boolean(authState.previewRole)" :aria-label="`Rol de ${user.correo}`"><option value="cliente">Cliente</option><option value="administrador">Administrador</option></select></td><td><select v-model="user.activo" :disabled="Boolean(authState.previewRole)" :aria-label="`Estado de ${user.correo}`"><option :value="true">Activo</option><option :value="false">Desactivado</option></select></td><td><button class="manager-user-save" :disabled="Boolean(authState.previewRole) || savingUserId === user.id" @click="updateUser(user)">{{ savingUserId === user.id ? 'Guardando…' : 'Guardar' }}</button></td></tr></tbody></table></div>
       </section>
       <SiteVisualEditor v-if="section === 'site'" />
+      <OfficialQuoteAdmin v-else-if="section === 'quotes'" embedded />
       <div v-else class="manager-layout">
         <template v-if="section !== 'users'">
         <section class="manager-form">
