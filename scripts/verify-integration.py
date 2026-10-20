@@ -252,6 +252,18 @@ check('html.theme-dark .app-site.administration-page .content-manager.is-embedde
       and '.app-site.administration-page .site-header .site-brand img {' in admin_colors
       and '<SiteMedia slot-key="shared.logo.media" fallback="/images/logo.png"' in read('frontend/src/components/SiteHeader.vue'),
       'Administración replica ola roja animada de Itinerarios, sin desenfoque y conservando logo compartido')
+itinerary_inputs = admin_css
+check('html.theme-dark .itinerary-form-line input,html.theme-dark .itinerary-form-line select{border-color:#3b465f;background:#121a30;color:#fff}' in itinerary_inputs
+      and 'html.theme-dark .itinerary-form-line input::placeholder{color:#acb1bd}' in itinerary_inputs
+      and 'background-color: #121a30 !important;' in admin_colors
+      and 'border-color: #3b465f !important;' in admin_colors
+      and 'color: #acb1bd !important;' in admin_colors
+      and 'background-color: #1c2335 !important;' in admin_colors
+      and 'color: #aeb5c4 !important;' in admin_colors
+      and '.manager-users-table select {' in admin_colors
+      and '.manager-form :is(input, select, textarea),' in admin_colors
+      and 'border-color: #b20c2a !important;' in admin_colors,
+      'Campos de Administracion igualan colores reales de Itinerarios y conservan accesibilidad')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
