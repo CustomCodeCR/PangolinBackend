@@ -229,6 +229,61 @@ check('class="manager-heading"' in admin_manager
       and '.is-embedded .manager-heading{padding:20px 16px;border-radius:16px}' in admin_final_styles
       and '.is-embedded .manager-tabs{gap:6px 12px;padding:6px 8px;border-radius:14px}' in admin_final_styles,
       'Administración mantiene contenido separado de bordes y esquinas redondeadas en escritorio y móvil')
+admin_css = read('frontend/src/style.css')
+admin_colors = admin_css.split('/* Administracion: mismo fondo carbon/rojo vino de Itinerario 01.', 1)[-1]
+check('html.theme-dark .app-site.administration-page .content-manager.is-embedded :is(' in admin_colors
+      and all('.' + part in admin_colors for part in [
+          'manager-heading', 'manager-notice', 'manager-preview-note',
+          'manager-tabs', 'manager-form', 'manager-list', 'manager-users-card'
+      ])
+      and 'background-color: #211b20 !important;' in admin_colors
+      and 'rgba(145, 9, 43, .38)' in admin_colors
+      and 'linear-gradient(110deg, #321d25 0%, #211b20 70%) !important;' in admin_colors
+      and 'content: "" !important;' in admin_colors
+      and 'z-index: -1 !important;' in admin_colors
+      and 'rgba(214, 14, 52, .37)' in admin_colors
+      and 'rgba(178, 11, 45, .23)' in admin_colors
+      and 'animation: itinerary-red-sweep 9s ease-in-out infinite alternate !important;' in admin_colors
+      and 'prefers-reduced-motion: reduce' in admin_colors
+      and 'animation: none !important;' in admin_colors
+      and 'filter: none !important;' in admin_colors
+      and 'filter: blur(' not in admin_colors
+      and '-webkit-backdrop-filter: none !important;' in admin_colors
+      and '.app-site.administration-page .site-header .site-brand img {' in admin_colors
+      and '<SiteMedia slot-key="shared.logo.media" fallback="/images/logo.png"' in read('frontend/src/components/SiteHeader.vue'),
+      'Administración replica ola roja animada de Itinerarios, sin desenfoque y conservando logo compartido')
+itinerary_inputs = admin_css
+check('html.theme-dark .itinerary-form-line input,html.theme-dark .itinerary-form-line select{border-color:#3b465f;background:#121a30;color:#fff}' in itinerary_inputs
+      and 'html.theme-dark .itinerary-form-line input::placeholder{color:#acb1bd}' in itinerary_inputs
+      and 'background-color: #121a30 !important;' in admin_colors
+      and 'border-color: #3b465f !important;' in admin_colors
+      and 'color: #acb1bd !important;' in admin_colors
+      and 'background-color: #1c2335 !important;' in admin_colors
+      and 'color: #aeb5c4 !important;' in admin_colors
+      and '.manager-users-table select {' in admin_colors
+      and '.manager-form :is(input, select, textarea),' in admin_colors
+      and 'border-color: #b20c2a !important;' in admin_colors,
+      'Campos de Administracion igualan colores reales de Itinerarios y conservan accesibilidad')
+editor_visual = read('frontend/src/pages/SiteVisualEditor.vue')
+editor_admin_theme = editor_visual.split('/* Editor visual dentro de Administración: misma superficie carbón-vino y', 1)[-1]
+check('html.theme-dark .app-site.administration-page .visual-editor {' in editor_admin_theme
+      and 'background-color: #211b20 !important;' in editor_admin_theme
+      and 'linear-gradient(110deg, #321d25 0%, #211b20 70%) !important;' in editor_admin_theme
+      and 'animation: itinerary-red-sweep 9s ease-in-out infinite alternate;' in editor_admin_theme
+      and 'filter: none;' in editor_admin_theme
+      and 'backdrop-filter: none;' in editor_admin_theme
+      and '-webkit-backdrop-filter: none;' in editor_admin_theme
+      and 'filter: blur(' not in editor_admin_theme
+      and 'prefers-reduced-motion: reduce' in editor_admin_theme
+      and 'animation: none;' in editor_admin_theme
+      and '.visual-editor__context,' in editor_admin_theme
+      and '.visual-editor__preview-empty, .visual-editor__empty' in editor_admin_theme
+      and 'background: #30252a !important;' in editor_admin_theme
+      and 'background: #121a30 !important;' in editor_admin_theme
+      and 'border-color: #3b465f !important;' in editor_admin_theme
+      and 'background: #b20d30 !important;' in editor_admin_theme
+      and 'src="hero.webp"' not in editor_admin_theme,
+      'Editor visual en Administración iguala carbón y ola sin alterar imágenes ni funcionalidad')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
