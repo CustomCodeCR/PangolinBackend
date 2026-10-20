@@ -28,6 +28,8 @@ jobs:
         run: |
           npm ci --prefix frontend
           npm run build --prefix frontend
+      - name: SEO static HTML checks
+        run: npm run seo:check --prefix frontend
       - name: Static integration checks
         run: python3 scripts/verify-integration.py
 

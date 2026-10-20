@@ -24,9 +24,9 @@ for (const publicRoute of ['/', '/noticias', '/nosotros', '/servicios']) {
   assert.ok(sitemap.includes('<loc>https://logisticacastrofallas.com' + publicRoute + '</loc>'), 'Falta ' + publicRoute + ' en sitemap')
 }
 assert.ok(robots.includes('User-agent: OAI-SearchBot'), 'Falta OAI-SearchBot en robots.txt')
-assert.ok(root.includes("const gatedPaths = new Set(['/tracking', '/itinerario'])"), 'Hay noindex en páginas comerciales públicas')
+assert.ok(root.includes("import routeSeo from '../seo/routes.json'"), 'Las rutas no comparten la configuración SEO')
 assert.ok(index.includes('carga consolidada LTL') && index.includes('Panamá'), 'La descripción original no menciona el servicio')
-assert.ok(root.includes('transporte terrestre FTL Panamá–Costa Rica'), 'Falta descripción SEO de la ruta')
+assert.ok(read('seo/routes.json').includes('transporte terrestre FTL Panamá–Costa Rica'), 'Falta descripción SEO de la ruta')
 const jsonLd = index.match(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/)
 assert.ok(jsonLd, 'Faltan datos estructurados en el HTML principal')
 const data = JSON.parse(jsonLd[1])
@@ -41,4 +41,32 @@ assert.ok(transport.areaServed.some((place) => place.name === 'Costa Rica'), 'Ru
 if (fs.existsSync(path.join(base, 'dist'))) {
   assert.equal(fs.existsSync(path.join(base, 'dist', oldRoute, 'index.html')), false, 'El build conserva una landing eliminada')
 }
-console.log('SEO: comprobaciones estáticas aprobadas (web original, sin página nueva).')
+
+const routes = require('../seo/routes.json')
+const expectedIndexable = new Set(['/', '/home', '/noticias', '/nosotros', '/servicios', '/privacidad', '/terminos', '/cookies', '/licencias'])
+for (const [route, seo] of Object.entries(routes)) {
+  assert.ok(seo.title && seo.description, 'Metadatos incompletos: ' + route)
+  assert.equal(seo.indexable !== false, expectedIndexable.has(route), 'Indexación inesperada: ' + route)
+}
+const nginx = read('nginx.conf')
+assert.ok(nginx.includes('try_files $uri $uri/index.html =404;'), 'Nginx debe responder 404 en rutas desconocidas')
+assert.ok(nginx.includes('error_page 404 /404.html;'), 'Nginx debe servir error 404 real')
+assert.ok(root.includes("return 'notFound'"), 'La SPA no debe tratar rutas desconocidas como Inicio')
+assert.ok(root.includes("import routeSeo from '../seo/routes.json'"), 'El cliente y el build deben usar los mismos metadatos')
+if (fs.existsSync(path.join(base, 'dist'))) {
+  const dist = path.join(base, 'dist')
+  for (const [route, seo] of Object.entries(routes)) {
+    const file = path.join(dist, route === '/' ? '' : route.slice(1), 'index.html')
+    assert.ok(fs.existsSync(file), 'Falta HTML de ruta: ' + route)
+    const html = fs.readFileSync(file, 'utf8')
+    assert.ok(html.includes('<title>' + seo.title + '</title>'), 'Título HTML incorrecto: ' + route)
+    assert.ok(html.includes('name="robots" content="' + (seo.indexable === false ? 'noindex,nofollow' : 'index,follow') + '"'), 'Robots HTTP HTML incorrecto: ' + route)
+    assert.ok(html.includes('content="' + seo.description + '"'), 'Descripción ausente en HTML: ' + route)
+    const canonical = '<link rel="canonical" href="https://logisticacastrofallas.com' + (route === '/home' ? '/' : route) + '"'
+    assert.equal(html.includes(canonical), seo.indexable !== false, 'Canonical HTML incorrecto: ' + route)
+    if (seo.indexable === false) assert.ok(!html.includes('rel="canonical"'), 'Canonical en página privada: ' + route)
+  }
+  assert.ok(fs.readFileSync(path.join(dist, '404.html'), 'utf8').includes('noindex,nofollow'), '404 sin noindex')
+}
+
+console.log('SEO: rutas, HTML inicial, sitemap y 404 verificados.')

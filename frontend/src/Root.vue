@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import IconSymbol from './components/IconSymbol.vue'
 import {computed, nextTick, onMounted, onUnmounted, ref} from 'vue'
+import routeSeo from '../seo/routes.json'
 import Home from './Home.vue'
 import QuoteApp from './App.vue'
 import Login from './pages/Login.vue'
@@ -20,80 +21,7 @@ import { useI18n } from 'vue-i18n'
 import { loadPublishedSiteCms } from './siteCms'
 import { subscribeToChanges } from './services/realtime'
 const { t } = useI18n({ useScope: 'global' })
-const gatedPaths = new Set(['/tracking', '/itinerario'])
-const seoByPath: Record<string, { title: string; description: string; indexable?: boolean }> = {
-  '/': {
-    title: 'Castro Fallas | Agencia aduanal y logística en Costa Rica',
-    description: 'Grupo Castro Fallas: carga consolidada LTL y transporte terrestre FTL Panamá–Costa Rica, agenciamiento aduanero y logística internacional.'
-  },
-  '/home': {
-    title: 'Castro Fallas | Agencia aduanal y logística en Costa Rica',
-    description: 'Grupo Castro Fallas: carga consolidada LTL y transporte terrestre FTL Panamá–Costa Rica, agenciamiento aduanero y logística internacional.'
-  },
-  '/noticias': {
-    title: 'Noticias de logística y comercio exterior | Castro Fallas',
-    description: 'Noticias sobre logística, aduanas, transporte internacional y comercio exterior en Costa Rica y Centroamérica.'
-  },
-  '/nosotros': {
-    title: 'Sobre Castro Fallas | Logística internacional en Costa Rica',
-    description: 'Conoce la experiencia de Castro Fallas en logística, gestión aduanera y transporte de mercancías desde Costa Rica hacia el mundo.'
-  },
-  '/servicios': {
-    title: 'Servicios de aduanas y transporte | Castro Fallas Costa Rica',
-    description: 'Servicios de carga consolidada LTL y transporte terrestre FTL Panamá–Costa Rica, logística aérea y marítima, agenciamiento aduanero y almacenamiento fiscal.'
-  },
-  '/tracking': {
-    title: 'Seguimiento de carga | Castro Fallas',
-    description: 'Información de seguimiento de carga y conexiones logísticas de Castro Fallas.',
-    indexable: false
-  },
-  '/itinerario': {
-    title: 'Itinerario de carga | Castro Fallas',
-    description: 'Información de itinerarios y coordinación de carga internacional con Castro Fallas.',
-    indexable: false
-  },
-  '/cotizaciones': {
-    title: 'Cotizar transporte y logística | Castro Fallas Costa Rica',
-    description: 'Solicita una cotización para cargas aéreas, marítimas o terrestres con el equipo de Castro Fallas.',
-    indexable: false
-  },
-  '/bienvenidos': {
-    title: 'Acceso a la plataforma | Castro Fallas',
-    description: 'Accede a la plataforma de Castro Fallas como cliente o usuario autorizado.',
-    indexable: false
-  },
-  '/admin/contenido': {
-    title: 'Administración de contenido | Castro Fallas',
-    description: 'Administración local de itinerarios, noticias y multimedia.',
-    indexable: false
-  },
-  '/admin/usuarios': {
-    title: 'Administración de usuarios | Castro Fallas',
-    description: 'Administración de cuentas y roles autorizados de Castro Fallas.',
-    indexable: false
-  },
-  '/administracion': {
-    title: 'Administración | Castro Fallas',
-    description: 'Administración de contenido y usuarios autorizados de Castro Fallas.',
-    indexable: false
-  },
-  '/privacidad': {
-    title: 'Política de privacidad | Castro Fallas',
-    description: 'Información sobre el tratamiento y la protección de datos personales relacionados con los servicios de Castro Fallas y este sitio web.'
-  },
-  '/terminos': {
-    title: 'Términos y condiciones | Castro Fallas',
-    description: 'Condiciones de uso del sitio web y de los servicios digitales de Castro Fallas.'
-  },
-  '/cookies': {
-    title: 'Política de cookies | Castro Fallas',
-    description: 'Información sobre el uso de cookies y tecnologías necesarias para el funcionamiento de este sitio.'
-  },
-  '/licencias': {
-    title: 'Créditos y licencias | Castro Fallas',
-    description: 'Créditos y licencias de recursos, bibliotecas y elementos utilizados en el sitio de Castro Fallas.'
-  }
-}
+const seoByPath: Record<string, { title: string; description: string; indexable?: boolean }> = routeSeo
 function setMeta(selector: string, attribute: 'name' | 'property', key: string, content: string | null) {
   let element = document.head.querySelector<HTMLMetaElement>(selector)
   if (!content) {
@@ -109,8 +37,8 @@ function setMeta(selector: string, attribute: 'name' | 'property', key: string, 
 }
 function applyPageSeo() {
   const path = window.location.pathname.replace(/\/+$/, '') || '/'
-  const seo = seoByPath[path] ?? seoByPath['/']
-  const indexable = seo.indexable !== false && !gatedPaths.has(path)
+  const seo = seoByPath[path] ?? { title: 'Página no encontrada | Castro Fallas', description: 'La página solicitada no existe.', indexable: false }
+  const indexable = seo.indexable !== false
   document.title = seo.title
   setMeta('meta[name="description"]', 'name', 'description', seo.description)
   setMeta('meta[name="robots"]', 'name', 'robots', indexable ? 'index,follow' : 'noindex,nofollow')
@@ -120,18 +48,20 @@ function applyPageSeo() {
   setMeta('meta[name="twitter:title"]', 'name', 'twitter:title', seo.title)
   setMeta('meta[name="twitter:description"]', 'name', 'twitter:description', seo.description)
 
-  const host = window.location.hostname
-  const isLocalHost = host === 'localhost' || host === '127.0.0.1' || /^192\.168\.|^10\.|^172\.(1[6-9]|2\d|3[01])\./.test(host)
+  const host = window.location.hostname.toLowerCase()
+  const isOfficialHost = host === 'logisticacastrofallas.com' || host === 'www.logisticacastrofallas.com'
   let canonical = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]')
-  if (isLocalHost) canonical?.remove()
-  else {
+  if (!isOfficialHost || !indexable) {
+    canonical?.remove()
+    setMeta('meta[property="og:url"]', 'property', 'og:url', null)
+  } else {
     const canonicalPath = path === '/home' ? '/' : path
     if (!canonical) {
       canonical = document.createElement('link')
       canonical.rel = 'canonical'
       document.head.append(canonical)
     }
-    canonical.href = `${window.location.origin}${canonicalPath}`
+    canonical.href = `https://logisticacastrofallas.com${canonicalPath}`
     setMeta('meta[property="og:url"]', 'property', 'og:url', canonical.href)
   }
 }
@@ -189,7 +119,7 @@ const page = computed(()=> {
   if(path==='/itinerario') return 'itinerary'
   if(path==='/cotizaciones') return 'quote'
   if(['/privacidad','/terminos','/cookies','/licencias'].includes(path)) return 'legal'
-  return 'home'
+  return 'notFound'
 })
 </script>
 <template>
@@ -201,6 +131,15 @@ const page = computed(()=> {
   <News v-else-if="page==='news'"/>
   <About v-else-if="page==='about'"/>
   <Services v-else-if="page==='services'"/>
+  <div v-else-if="page==='notFound'" class="app-site">
+    <SiteHeader />
+    <main class="container" style="min-height:60vh;padding-block:6rem">
+      <h1>404 · Página no encontrada</h1>
+      <p>La dirección que buscás no existe. Podés volver al inicio.</p>
+      <a class="btn btn-primary" href="/">Volver al inicio</a>
+    </main>
+    <SiteFooter />
+  </div>
   <Tracking v-else-if="page==='tracking'"/>
   <Itinerary v-else-if="page==='itinerary'"/>
   <Legal v-else-if="page==='legal'" />
