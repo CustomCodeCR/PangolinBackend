@@ -74,4 +74,85 @@ onMounted(async()=>{const user=await refreshSession();if(user?.role!=='administr
 </template>
 <style scoped>
 .off-admin{background:#faf6f8;color:#282734}.off-admin-shell{width:min(1190px,calc(100% - 30px));margin:auto;padding:48px 0 90px}.off-admin-back{color:#b30d2b;font-size:13px;font-weight:800}.off-admin-kicker{font-size:11px;color:#aa1332;font-weight:900;letter-spacing:.14em}.off-admin-shell header{margin:25px 0}.off-admin-shell header h1{font-size:clamp(32px,4vw,50px);letter-spacing:-.04em;margin:0 0 8px}.off-admin-shell header p{color:#676c79}.off-admin-grid{display:grid;grid-template-columns:minmax(300px,0.8fr) minmax(0,1.2fr);gap:18px;align-items:start}.off-admin-card{background:white;border:1px solid #ece3e7;border-radius:17px;padding:23px;min-width:0}.off-admin-card h2{margin:0 0 18px;font-size:21px}.off-admin-card h3{font-size:16px;margin-top:26px}.off-admin-row{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap}.off-admin-row button,.off-admin-form button{padding:11px 15px;border:1px solid #d1bfc8;background:white;border-radius:9px;color:#a51331;font-weight:800;cursor:pointer}.off-admin-primary{background:#b30d2b!important;color:white!important;border-color:#b30d2b!important}.off-admin-item{width:100%;text-align:left;display:grid;gap:7px;background:#fff;border:1px solid #e2dee4;padding:14px;margin-bottom:9px;border-radius:10px;cursor:pointer;color:#262935}.off-admin-item:hover{border-color:#bd2442;background:#fff6f8}.off-admin-item span,.off-admin-muted{color:#666d7b;font-size:12px}.off-admin-item small{font-size:11px;color:#a31535}.off-admin-data{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.off-admin-data div{background:#f8f6f9;padding:12px;border-radius:9px;min-width:0}.off-admin-data dt{color:#69707c;font-size:11px}.off-admin-data dd{overflow-wrap:anywhere;margin:6px 0 0;font-size:12px;line-height:1.55}.off-admin-form{border-top:1px solid #e4dfe4;padding-top:15px;margin-top:22px;display:grid;gap:12px}.off-admin-form label{display:grid;gap:7px;font-size:12px;font-weight:800}.off-admin-form select,.off-admin-form textarea{padding:12px;border:1px solid #d9d4dd;border-radius:9px;background:white;color:#222;font:inherit}.off-admin-auth{background:#fff4f6;border:1px solid #e9cbd2;padding:15px;border-radius:10px;margin-top:22px}.off-admin-auth p{font-size:12px}.off-admin-event{padding:12px 0;border-top:1px solid #eee;display:grid;gap:6px}.off-admin-event small{font-size:11px;color:#777}.off-admin-alert,.off-admin-ok{background:#fff0f3;border:1px solid #ebbec8;padding:12px;border-radius:10px;color:#972037}.off-admin-ok{background:#ecfff3;border-color:#bfe6d0;color:#17633b}@media(max-width:850px){.off-admin-grid{grid-template-columns:1fr}.off-admin-data{grid-template-columns:1fr}}@media(max-width:460px){.off-admin-card{padding:15px}}
+
+/* Tema oscuro: superficies y controles con contraste legible; no afecta al panel antiguo. */
+:global(html.theme-dark) .off-admin {
+  background: linear-gradient(135deg, #17121c 0%, #11192a 68%, #0c1324 100%) !important;
+  color: #f7f7fb !important;
+  color-scheme: dark;
+}
+:global(html.theme-dark) .off-admin-shell header p { color: #ccd3e0 !important; }
+:global(html.theme-dark) .off-admin-shell .off-admin-kicker,
+:global(html.theme-dark) .off-admin-shell .off-admin-back { color: #ff849b !important; }
+:global(html.theme-dark) .off-admin-shell .off-admin-card {
+  background: #1d2434 !important;
+  color: #f5f7ff !important;
+  border-color: #424c61 !important;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .18);
+}
+:global(html.theme-dark) .off-admin-shell .off-admin-item {
+  background: #151e30 !important;
+  color: #f5f7ff !important;
+  border-color: #48536a !important;
+}
+:global(html.theme-dark) .off-admin-shell .off-admin-item:is(:hover, :focus-visible) {
+  background: #293149 !important;
+  border-color: #fa7792 !important;
+}
+:global(html.theme-dark) .off-admin-shell .off-admin-item span,
+:global(html.theme-dark) .off-admin-shell .off-admin-item small,
+:global(html.theme-dark) .off-admin-shell .off-admin-muted,
+:global(html.theme-dark) .off-admin-shell .off-admin-event small,
+:global(html.theme-dark) .off-admin-shell .off-admin-data dt {
+  color: #c6d0e1 !important;
+}
+:global(html.theme-dark) .off-admin-shell .off-admin-data div {
+  background: #111a2c !important;
+  border: 1px solid #39475d !important;
+}
+:global(html.theme-dark) .off-admin-shell .off-admin-data dd { color: #f5f7fc !important; }
+:global(html.theme-dark) .off-admin-shell .off-admin-form,
+:global(html.theme-dark) .off-admin-shell .off-admin-event {
+  border-color: #465166 !important;
+}
+:global(html.theme-dark) .off-admin-shell .off-admin-form select,
+:global(html.theme-dark) .off-admin-shell .off-admin-form textarea {
+  background: #111a2b !important;
+  color: #f7f9fc !important;
+  border-color: #56647b !important;
+}
+:global(html.theme-dark) .off-admin-shell .off-admin-row button,
+:global(html.theme-dark) .off-admin-shell .off-admin-form button {
+  background: #2b3448 !important;
+  color: #f5f7fc !important;
+  border-color: #68738a !important;
+}
+:global(html.theme-dark) .off-admin-shell .off-admin-primary {
+  background: #b70c32 !important;
+  color: #fff !important;
+  border-color: #dd3b5a !important;
+}
+:global(html.theme-dark) .off-admin-shell button:disabled {
+  opacity: .52;
+  cursor: not-allowed;
+}
+:global(html.theme-dark) .off-admin-shell .off-admin-auth {
+  background: #302433 !important;
+  border-color: #755367 !important;
+}
+:global(html.theme-dark) .off-admin-shell .off-admin-auth p { color: #e0cfda !important; }
+:global(html.theme-dark) .off-admin-shell .off-admin-alert {
+  background: #3b1c2a !important;
+  color: #ffced9 !important;
+  border-color: #a95068 !important;
+}
+:global(html.theme-dark) .off-admin-shell .off-admin-ok {
+  background: #17392c !important;
+  color: #bef5d7 !important;
+  border-color: #457d65 !important;
+}
+:global(html.theme-dark) .off-admin-shell :is(button, select, textarea, a):focus-visible {
+  outline: 3px solid #fa829f;
+  outline-offset: 3px;
+}
 </style>
