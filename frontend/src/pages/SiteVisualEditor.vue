@@ -70,7 +70,7 @@ function switchPage(next: string) {
 async function load() {
   loading.value = true
   try {
-    if (!isLiveAdmin.value) { error.value = 'La edición visual requiere una cuenta administradora real.'; return }
+    if (!isLiveAdmin.value) return
     const [sites, library, status] = await Promise.all([
       fetch('/api/admin/content/site', { credentials: 'same-origin', cache: 'no-store' }),
       fetch('/api/admin/content/media', { credentials: 'same-origin', cache: 'no-store' }),
@@ -201,7 +201,7 @@ onMounted(load)
       </div>
       <button type="button" class="visual-editor__button" @click="load" :disabled="loading">Actualizar biblioteca</button>
     </header>
-    <p v-if="!isLiveAdmin" role="status" class="visual-editor__warning">El modo previsualización no guarda cambios en la web pública.</p>
+    
     <p v-if="error" role="alert" class="visual-editor__error">{{ error }}</p>
     <p v-if="notice" role="status" class="visual-editor__success">{{ notice }}</p>
     <div v-if="loading" role="status">Cargando secciones…</div>
