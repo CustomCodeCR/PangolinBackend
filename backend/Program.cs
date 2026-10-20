@@ -143,6 +143,11 @@ if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("Dev
         await db.Database.ExecuteSqlRawAsync(sql);
         var officialPath = Path.Combine(app.Environment.ContentRootPath, "Database", "OfficialQuotesSchema.sql");
         await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(officialPath));
+        // Ubicaciones ficticias e inequívocamente marcadas como PRUEBA.
+        // Solo se cargan en el ambiente Development cuando se aplica el esquema local.
+        // Nunca se cargan automáticamente en producción ni sustituyen el catálogo oficial.
+        var testLocationsPath = Path.Combine(app.Environment.ContentRootPath, "Database", "OfficialQuotesDevelopmentLocations.sql");
+        await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(testLocationsPath));
         app.Logger.LogInformation("Esquema de login comprobado/aplicado en PostgreSQL ({Database}).",
             new NpgsqlConnectionStringBuilder(postgres).Database);
     }

@@ -199,7 +199,8 @@ async function submit() {
           <template v-else-if="step === 3">
             <p class="official-kicker">PASO 3 DE 4</p><h2>Ruta, equipo y servicios</h2>
             <p class="official-hint">Solo pedimos los datos necesarios para {{ shipmentType }}.</p>
-            <p v-if="!locationLoading && !locations.length" class="official-catalog-alert">Aún no hay ubicaciones oficiales cargadas para esta modalidad. El administrador debe configurar el catálogo antes de poder enviar solicitudes.</p>
+            <p v-if="!locationLoading && !locations.length" class="official-catalog-alert">Aún no hay ubicaciones cargadas para esta modalidad. El administrador debe configurar el catálogo antes de poder enviar solicitudes.</p>
+            <p v-else-if="locations.some(loc => loc.code?.startsWith('DEV-'))" class="official-catalog-alert" role="note">Modo de pruebas: los lugares marcados como PRUEBA son ficticios y sirven únicamente para comprobar el formulario. No corresponden a rutas reales.</p>
             <div class="official-fields">
               <label>Origen <span>*</span><select v-model="form.originLocationId" required><option value="">Seleccionar origen</option><option v-for="loc in locations" :key="loc.id" :value="loc.id">{{ loc.displayName }}</option></select></label>
               <label>Destino <span>*</span><select v-model="form.destinationLocationId" required><option value="">Seleccionar destino</option><option v-for="loc in locations" :key="loc.id" :value="loc.id">{{ loc.displayName }}</option></select></label>
