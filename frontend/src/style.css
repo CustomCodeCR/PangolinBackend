@@ -4863,3 +4863,27 @@ html .content-manager .manager-tabs .lucide-symbol svg { color: #a80e18; stroke:
 @media (max-width: 800px) {
   .app-site.home-page .home-about-preview__copy h2 { width: 100%; max-width: none; margin-inline: auto; }
 }
+
+/* Administración: las tarjetas del panel comparten el azul marino de
+   Itinerario (#01081d). Solo se cambian colores del modo oscuro; no se
+   añaden filtros, desenfoques, animaciones ni lógica de componentes. */
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-heading,
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-notice,
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-preview-note,
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-tabs,
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-form,
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-list,
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-users-card {
+  background-color: #01081d !important;
+  background-image: none !important;
+  border-color: rgba(169, 190, 225, .2) !important;
+}
+
+/* Estos bloques tenían un barrido rojo que ocultaba el mismo fondo.
+   Los formularios y listas mantienen sus efectos originales de main. */
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-heading::before,
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-notice::before,
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-preview-note::before,
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-tabs::before {
+  content: none !important;
+}
