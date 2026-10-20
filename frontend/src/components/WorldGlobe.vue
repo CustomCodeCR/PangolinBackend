@@ -9,6 +9,11 @@ const canvas = ref<HTMLCanvasElement | null>(null)
 const error = ref('')
 const { locale } = useI18n({ useScope: 'global' })
 const english = computed(() => locale.value.toLowerCase().startsWith('en'))
+function gmailComposeHref(email: string) {
+  const params = new URLSearchParams({ view: 'cm', fs: '1', to: email })
+  return `https://mail.google.com/mail/?${params.toString()}`
+}
+
 const selectedId = ref<string | null>(null)
 const popupPosition = ref({ left: 0, top: 0, below: false })
 const offices = [
@@ -252,7 +257,7 @@ onBeforeUnmount(() => {
             <dt>{{ english ? 'Office' : 'Oficina' }} {{ english ? office.en : office.es }}</dt>
             <dd>{{ office.address }}</dd>
           </div>
-          <div><dt>Email</dt><dd><a :href="'mailto:' + selectedOffice.email">{{ selectedOffice.email }}</a></dd></div>
+          <div><dt>Email</dt><dd><a :href="gmailComposeHref(selectedOffice.email)" target="_blank" rel="noopener noreferrer" :aria-label="`${english ? 'Compose in Gmail to' : 'Escribir en Gmail a'} ${selectedOffice.email}`">{{ selectedOffice.email }}</a></dd></div>
         </dl>
       </template>
       <template v-else>
@@ -261,7 +266,7 @@ onBeforeUnmount(() => {
         <dl>
           <div><dt>{{ english ? 'Address' : 'Dirección' }}</dt><dd>{{ selectedOffice.address }}</dd></div>
           <div v-if="selectedHours"><dt>{{ english ? 'Hours (local, to verify)' : 'Horario (local, por confirmar)' }}</dt><dd>{{ selectedHours }}</dd></div>
-          <div><dt>Email</dt><dd><a :href="'mailto:' + selectedOffice.email">{{ selectedOffice.email }}</a></dd></div>
+          <div><dt>Email</dt><dd><a :href="gmailComposeHref(selectedOffice.email)" target="_blank" rel="noopener noreferrer" :aria-label="`${english ? 'Compose in Gmail to' : 'Escribir en Gmail a'} ${selectedOffice.email}`">{{ selectedOffice.email }}</a></dd></div>
         </dl>
       </template>
     </section>
