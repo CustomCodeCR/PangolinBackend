@@ -18,8 +18,18 @@ public static class OfficialQuoteEndpoints
     private static async Task<OfficialQuotePermission?> Permission(
         AppDbContext db, AuthIdentity? user, CancellationToken ct)
     {
+        // Los administradores autenticados pueden consultar y gestionar todas las solicitudes.
+        // La autorización para Dhole es el único permiso especial, asignado explícitamente.
         if (user is null || user.Role != "admin") return null;
-        return await db.OfficialQuotePermissions.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == user.UsuarioId, ct);
+        var specific = await db.OfficialQuotePermissions.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.UserId == user.UsuarioId, ct);
+        return new OfficialQuotePermission
+        {
+            UserId = user.UsuarioId,
+            CanView = true,
+            CanManage = true,
+            CanAuthorize = specific?.CanAuthorize == true
+        };
     }
 
     private static string Required(string? value, string name, int max)
