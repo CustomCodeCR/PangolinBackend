@@ -26,6 +26,7 @@ if (builder.Configuration["Email:Mode"]?.Equals("LocalOutbox", StringComparison.
     && !builder.Environment.IsDevelopment())
     throw new InvalidOperationException("Email:Mode=LocalOutbox no está permitido fuera de Development.");
 
+builder.Services.AddHttpClient<GraphEmailSender>(client => client.Timeout = TimeSpan.FromSeconds(20));
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(postgres));
 // Redis y MongoDB se utilizan SOLO para cache/auditoría de cotizaciones.
 // Si no se configuran, el login y las cotizaciones siguen usando PostgreSQL.
