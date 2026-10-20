@@ -139,6 +139,13 @@ const page = computed(()=> {
   <Home v-else-if="page==='home'" />
   <Administration v-else-if="page==='administration'" />
   <OfficialQuoteAdmin v-else-if="page==='official-admin'" />
+  <div v-else-if="page==='official-quote' && quoteAccess !== 'allowed'" class="app-site quote-page quote-flow-page">
+    <SiteHeader/>
+    <div v-if="quoteAccess === 'checking'" class="container quote-access-status" role="status">{{ t('custom.quote.checkingSession') }}</div>
+    <div v-else class="container quote-access-status quote-access-status--blocked"><h1>Se requiere una sesión activa</h1><p>Iniciá sesión para enviar una solicitud.</p><a class="btn btn-primary" :href="loginNextHref">Iniciar sesión</a></div>
+    <SiteFooter/>
+  </div>
+  <OfficialQuoteWizard v-else-if="page==='official-quote'" />
   <News v-else-if="page==='news'"/>
   <About v-else-if="page==='about'"/>
   <Services v-else-if="page==='services'"/>
@@ -167,7 +174,6 @@ const page = computed(()=> {
       <p>{{ t('custom.quote.loginRequiredHelp') }}</p>
       <a class="btn btn-primary" href="/home">{{ t('custom.quote.back') }} <IconSymbol glyph="←" /></a>
     </div>
-    <OfficialQuoteWizard v-else-if="page==='official-quote'" />
     <QuoteApp v-else/>
     <SiteFooter/>
   </div>

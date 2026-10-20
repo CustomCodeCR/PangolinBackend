@@ -16,6 +16,7 @@ const en = computed(() => locale.value.toLowerCase().startsWith('en'))
         <p class="section-tag light-tag"><span class="tag-line"></span> {{ en ? 'CASTRO FALLAS · CONTROL PANEL' : 'CASTRO FALLAS · PANEL DE CONTROL' }}</p>
         <h1>{{ en ? 'Administration' : 'Administración' }}</h1>
         <p>{{ en ? 'Manage website content and accounts in one place.' : 'Gestiona el contenido del sitio y las cuentas desde un solo lugar.' }}</p>
+        <a class="administration-official-link" href="/administracion/cotizaciones-oficiales">Solicitudes oficiales ↗</a>
       </div>
     </section>
     <main>
@@ -49,6 +50,7 @@ const en = computed(() => locale.value.toLowerCase().startsWith('en'))
 .administration-hero__copy .section-tag { margin-bottom: 17px; }
 .administration-hero__copy h1 { margin: 0; font-size: clamp(42px, 6vw, 76px); line-height: 1; letter-spacing: -.055em; }
 .administration-hero__copy > p:last-child { margin: 20px 0 0; max-width: 600px; color: rgba(255,255,255,.88); font-size: clamp(15px, 1.5vw, 19px); }
+.administration-official-link { display:inline-flex; margin-top:22px; padding:12px 20px; border-radius:99px; background:#fff; color:#ad102d; font-weight:850; font-size:13px; }
 @media (max-width: 800px) {
   .administration-hero { min-height: 300px; }
   .administration-hero__copy { padding-top: 82px; padding-bottom: 40px; }
