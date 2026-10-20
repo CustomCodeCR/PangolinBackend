@@ -1,0 +1,23 @@
+/* Phone-only drawer. Keep the full red surface and the background stationary. */
+.mobile-nav-backdrop { display: none; }
+@media (max-width: 800px) {
+  .mobile-nav-backdrop { display:block; position:fixed; inset:0; z-index:2147482999; width:100%; height:100%; padding:0; border:0; background:rgba(0,0,0,.35); }
+  html .site-header.site-header--menu-open {
+    position:fixed !important; inset:0 0 0 auto !important;
+    width:min(76vw,360px) !important; min-width:0 !important; max-width:100%;
+    height:100vh !important; height:100dvh !important; max-height:100dvh !important;
+    overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain;
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    background:#9f0921 !important; box-sizing:border-box; z-index:2147483000 !important;
+    isolation:isolate; animation:castro-mobile-drawer-in .24s ease-out both;
+  }
+  html .site-header.site-header--menu-open .header-inner {
+    width:100%; min-height:72px; margin:0; padding-inline:18px; box-sizing:border-box;
+    background:transparent; animation:none;
+  }
+  html .site-header.site-header--menu-open .main-nav.main-nav--open { width:100%; min-width:0; }
+  html .app-site .home-hero.home-hero--menu-open,
+  html .app-site .news-editorial-hero:has(> .site-header--menu-open) { padding-top:0 !important; }
+}
+@keyframes castro-mobile-drawer-in { from { transform:translateX(100%); } to { transform:translateX(0); } }
+@media (prefers-reduced-motion:reduce) { html .site-header.site-header--menu-open { animation:none; } }

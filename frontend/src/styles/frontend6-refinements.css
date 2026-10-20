@@ -1,0 +1,150 @@
+/* Ajustes visuales recuperados del frontend local; sin cambios en API o estado. */
+.quote-page .quote-field-caption {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  white-space: nowrap;
+  vertical-align: baseline;
+  max-width: 100%;
+}
+.quote-page .quote-field-caption i { flex: 0 0 auto; font-style: normal; }
+.quote-page .quote-ocean-flow .quote-wizard-layout { min-width: 0; }
+.quote-page .quote-ocean-flow .quote-cargo-wizard-panel {
+  min-width: 0;
+  width: 100%;
+  scroll-margin-top: 95px;
+}
+.quote-page .quote-ocean-flow .quote-cargo-wizard-panel > .cargo-form-section {
+  border: 0;
+  padding-bottom: 0;
+  margin-bottom: 20px;
+}
+.quote-page .quote-ocean-flow .quote-cargo-wizard-panel .quote-fields,
+.quote-page .quote-ocean-flow .quote-cargo-wizard-panel .quote-fields label { min-width: 0; }
+.quote-page .transport-choice .transport-truck { display: inline-flex; align-items: center; justify-content: center; }
+.quote-page .transport-choice .transport-truck .lucide-symbol { line-height: 0; }
+
+/* Cinco etapas de ayuda de tracking, legibles en ambos temas. */
+.driver-popover.tracking-driver-popover {
+  max-width: min(385px, calc(100vw - 28px));
+  padding: 22px;
+  border: 1px solid rgba(181, 9, 40, .2);
+  border-radius: 20px;
+  background: #fff;
+  color: #171923;
+  box-shadow: 0 18px 60px rgba(0,0,0,.2);
+}
+.driver-popover.tracking-driver-popover .driver-popover-title { padding-right: 22px; color: #171923; font-size: 18px; line-height: 1.3; }
+.driver-popover.tracking-driver-popover .driver-popover-description { margin-top: 8px; color: #626570; font-size: 14px; line-height: 1.55; }
+.driver-popover.tracking-driver-popover .driver-popover-progress-text,
+.driver-popover.tracking-driver-popover .driver-popover-close-btn { color: #717584; font-size: 12px; }
+.driver-popover.tracking-driver-popover .driver-popover-footer-btn {
+  padding: 7px 11px;
+  border: 1px solid rgba(181,9,40,.25);
+  border-radius: 999px;
+  font-size: 12px;
+  color: #8e0922;
+}
+.driver-popover.tracking-driver-popover .driver-popover-next-btn { border-color: #b50928; color: #fff; background: #b50928; }
+.driver-popover.tracking-driver-popover .driver-popover-next-btn:hover { background: #970620; }
+html.theme-dark .driver-popover.tracking-driver-popover { border-color: #39435c; background: #10182b; color: #f4f6fb; }
+html.theme-dark .driver-popover.tracking-driver-popover .driver-popover-title,
+html.theme-dark .driver-popover.tracking-driver-popover .driver-popover-close-btn { color: #f4f6fb; }
+html.theme-dark .driver-popover.tracking-driver-popover .driver-popover-description,
+html.theme-dark .driver-popover.tracking-driver-popover .driver-popover-progress-text { color: #c1cada; }
+html.theme-dark .driver-popover.tracking-driver-popover .driver-popover-footer-btn { border-color: #ffffff3d; color: #f4f6fb; background: #ffffff12; }
+html.theme-dark .driver-popover.tracking-driver-popover .driver-popover-next-btn { background: #b50928; border-color: #b50928; }
+html.theme-dark .driver-popover.tracking-driver-popover .driver-popover-arrow-side-left { border-left-color: #10182b; }
+html.theme-dark .driver-popover.tracking-driver-popover .driver-popover-arrow-side-right { border-right-color: #10182b; }
+html.theme-dark .driver-popover.tracking-driver-popover .driver-popover-arrow-side-top { border-top-color: #10182b; }
+html.theme-dark .driver-popover.tracking-driver-popover .driver-popover-arrow-side-bottom { border-bottom-color: #10182b; }
+
+/* GIO ocupa toda la pantalla móvil, respetando tema, teclado y áreas seguras. */
+@media (max-width: 800px) {
+  body:has(.site-assistant--open) { overflow: hidden; }
+  html .site-assistant.site-assistant--open {
+    position: fixed;
+    inset: 0;
+    bottom: 0;
+    height: 100vh;
+    height: 100dvh;
+    width: 100%;
+    overflow: hidden;
+    z-index: 2147482900;
+    pointer-events: none;
+  }
+  html .site-assistant.site-assistant--open .site-assistant__panel {
+    position: absolute;
+    inset: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    max-height: none;
+    padding-top: env(safe-area-inset-top);
+    border: 0;
+    border-radius: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+    background: var(--gio-surface, #fff8f8);
+    color: var(--gio-ink, #20242b);
+    box-shadow: none;
+    pointer-events: auto;
+    transform-origin: 31px calc(100% - 48px - env(safe-area-inset-bottom));
+    clip-path: circle(150vmax at 31px calc(100% - 48px - env(safe-area-inset-bottom)));
+  }
+  html .site-assistant .site-assistant__header { flex: 0 0 auto; min-height: 68px; padding: 10px 16px; }
+  html .site-assistant .site-assistant__close { width: 44px; height: 44px; flex: 0 0 44px; }
+  html .site-assistant .site-assistant__messages {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 18px 16px 12px;
+  }
+  html .site-assistant .site-assistant__quick {
+    flex: 0 0 auto;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 9px 12px 12px;
+  }
+  html .site-assistant .site-assistant__quick button { flex: 0 0 auto; min-width: max-content; min-height: 44px; width: auto; max-width: 230px; padding: 9px 12px; }
+  html .site-assistant .site-assistant__form { flex: 0 0 auto; padding: 12px 14px max(12px, env(safe-area-inset-bottom)); }
+  html .site-assistant .site-assistant__form input { min-width: 0; height: 48px; font-size: 16px; }
+  html .site-assistant .site-assistant__form > button { width: 48px; height: 48px; flex: 0 0 48px; }
+  .site-assistant--settled .site-assistant__mascot,
+  .site-assistant--open:not(.site-assistant--closing) .site-assistant__mascot {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .gio-water-enter-active { animation: gio-water-open .94s cubic-bezier(.22,.72,.22,1) both; }
+  .gio-water-leave-active { animation: gio-water-close .16s cubic-bezier(.4,0,.2,1) both; }
+}
+@keyframes gio-water-open {
+  0% { clip-path: circle(0 at 31px calc(100% - 48px - env(safe-area-inset-bottom))); transform: scale(.08) rotate(-8deg); opacity: .45; filter: blur(3px); }
+  68% { clip-path: circle(150vmax at 31px calc(100% - 48px - env(safe-area-inset-bottom))); transform: scale(1.012); opacity: 1; filter: blur(.15px); }
+  100% { clip-path: circle(150vmax at 31px calc(100% - 48px - env(safe-area-inset-bottom))); transform: scale(1); opacity: 1; filter: none; }
+}
+@keyframes gio-water-close {
+  0% { clip-path: circle(150vmax at 31px calc(100% - 48px - env(safe-area-inset-bottom))); opacity: 1; }
+  100% { clip-path: circle(0 at 31px calc(100% - 48px - env(safe-area-inset-bottom))); opacity: 0; }
+}
+@media (max-width: 600px) {
+  .quote-page .quote-ocean-flow .quote-wizard-aside { min-height: 210px; padding: 26px; }
+  .quote-page .quote-ocean-flow .quote-truck-art { font-size: 110px; }
+  .driver-popover.tracking-driver-popover { padding: 17px; }
+  .driver-popover.tracking-driver-popover .driver-popover-title { font-size: 16px; }
+  .driver-popover.tracking-driver-popover .driver-popover-description { font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gio-water-enter-active, .gio-water-leave-active { animation-duration: .01ms !important; }
+}

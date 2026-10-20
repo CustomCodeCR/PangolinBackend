@@ -77,6 +77,9 @@ function openGuide() {
   const targets = ['.tracking-intro .world-globe', '#tracking-guide-type', '#tracking-guide-reference', '#tracking-guide-submit', '.tracking-process__steps']
   tour = driver({
     animate: true, allowClose: true, overlayOpacity: .65, stagePadding: 9,
+    popoverClass: 'tracking-driver-popover',
+    showProgress: true,
+    progressText: en.value ? '{{current}} of {{total}}' : '{{current}} de {{total}}',
     steps: targets.map((element, index) => ({ element, popover: {
       title: copy.value.tourTitles[index], description: index === 0 ? copy.value.intro :
       index === 1 ? copy.value.hint : index === 2 ? copy.value.placeholder :

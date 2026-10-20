@@ -56,6 +56,8 @@ const copy = computed(() => isEnglish.value ? {
   offline: 'Ahora no puedo consultar la IA, así que esta es una orientación basada en el sitio: ', openLink: 'Abrir sección', status: 'Disponible'
 })
 const isOpen = ref(false)
+const isClosing = ref(false)
+const panelSettled = ref(false)
 const draft = ref('')
 const sending = ref(false)
 const quickIcons = [Ship, PackageSearch, Warehouse, Headphones]
@@ -141,19 +143,32 @@ async function sendMessage(value = draft.value) {
   }
 }
 function togglePanel() {
-  isOpen.value = !isOpen.value
-  if (isOpen.value && messages.value.length === 0) messages.value.push({ id: nextId++, role: 'bot', text: copy.value.greeting })
+  if (isClosing.value) return
+  if (isOpen.value) { closePanel(); return }
+  isClosing.value = false
+  panelSettled.value = false
+  isOpen.value = true
+  if (messages.value.length === 0) messages.value.push({ id: nextId++, role: 'bot', text: copy.value.greeting })
 }
+function closePanel() {
+  if (!isOpen.value) return
+  isClosing.value = true
+  panelSettled.value = false
+  isOpen.value = false
+}
+function finishOpen() { panelSettled.value = true }
+function finishClose() { isClosing.value = false }
 
 </script>
 
 <template>
-  <aside class="site-assistant" :class="{ 'site-assistant--open': isOpen }" aria-label="GIO, asistente logístico">
-    <section v-if="isOpen" class="site-assistant__panel" aria-label="Conversación con GIO">
+  <aside class="site-assistant" :class="{ 'site-assistant--open': isOpen || isClosing, 'site-assistant--settled': panelSettled, 'site-assistant--closing': isClosing }" aria-label="GIO, asistente logístico">
+    <Transition name="gio-water" :duration="{ enter: 940, leave: 160 }" @after-enter="finishOpen" @after-leave="finishClose">
+    <section v-if="isOpen" class="site-assistant__panel" role="dialog" aria-modal="true" aria-label="Conversación con GIO" @keydown.esc="closePanel">
       <header class="site-assistant__header">
         <span class="site-assistant__header-icon"><Bot :size="20" aria-hidden="true" /></span>
         <span class="site-assistant__heading"><strong>{{ copy.title }}</strong><small><i></i>{{ copy.status }}</small></span>
-        <button class="site-assistant__close" type="button" :aria-label="copy.close" @click="isOpen = false"><X :size="20" /></button>
+        <button class="site-assistant__close" type="button" :aria-label="copy.close" @click="closePanel"><X :size="20" /></button>
       </header>
       <div class="site-assistant__messages" aria-live="polite">
         <div v-for="message in messages" :key="message.id" class="site-assistant__message" :class="`site-assistant__message--${message.role}`">
@@ -172,6 +187,7 @@ function togglePanel() {
         <button type="submit" :aria-label="copy.send" :disabled="!draft.trim() || sending"><Send :size="17" aria-hidden="true" /></button>
       </form>
     </section>
+    </Transition>
 
     <button class="site-assistant__mascot" type="button" :aria-label="isOpen ? copy.close : copy.open" :aria-expanded="isOpen" @click="togglePanel">
       <span class="site-assistant__figure" aria-hidden="true">
