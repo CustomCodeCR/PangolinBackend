@@ -152,7 +152,7 @@ function applySystemTheme(event?: MediaQueryListEvent) {
   document.documentElement.classList.toggle('theme-dark', darkMode.value)
 }
 watch(expanded, isOpen => {
-  if (!isOpen) profileOpen.value = false
+  if (!isOpen) { profileOpen.value = false; settingsOpen.value = false; cargoMenuOpen.value = false }
   if (isOpen && mobileMenuQuery.matches) lockMenuBackground()
   else unlockMenuBackground()
 }, { flush: 'post' })
@@ -190,8 +190,8 @@ function toggleTheme() {
   <header ref="headerElement" class="site-header" :class="{ 'site-header--overlay': props.overlay, 'site-header--menu-open': expanded }">
     <div class="header-inner">
       <a class="site-brand" href="/home" :aria-label="$t('phrases.p138')"><SiteMedia slot-key="shared.logo.media" fallback="/images/logo.png" alt="Castro Fallas" /></a>
-      <button ref="menuToggle" class="menu-toggle" type="button" :aria-expanded="expanded" :aria-label="$t('phrases.p137')" @click="expanded = !expanded"><X v-if="expanded" :size="22" aria-hidden="true" /><Menu v-else :size="22" aria-hidden="true" /></button>
-      <nav class="main-nav" :class="{ 'main-nav--open': expanded }" :aria-label="$t('phrases.p136')">
+      <button ref="menuToggle" class="menu-toggle" type="button" :aria-expanded="expanded" aria-controls="site-primary-navigation" :aria-label="expanded ? $t('custom.home.close') : $t('phrases.p137')" @click="expanded = !expanded"><X v-if="expanded" :size="22" aria-hidden="true" /><Menu v-else :size="22" aria-hidden="true" /></button>
+      <nav id="site-primary-navigation" class="main-nav" :class="{ 'main-nav--open': expanded }" :aria-label="$t('phrases.p136')">
         <a v-for="link in visibleLinks" :key="link.id" :class="{ 'is-active': props.active === link.id }" :href="link.url" @click="expanded = false">{{ link.label }}</a>
         <div v-if="canAccessCargo" class="nav-dropdown" :class="{ 'nav-dropdown--open': cargoMenuOpen, 'nav-dropdown--active': cargoLinks.some(link => props.active === link.id) }">
           <button class="nav-dropdown__trigger" type="button" :aria-expanded="cargoMenuOpen" @click="cargoMenuOpen = !cargoMenuOpen">
