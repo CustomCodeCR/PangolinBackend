@@ -197,7 +197,6 @@ onMounted(load)
   <section class="visual-editor" aria-label="Editor visual del sitio">
     <header class="visual-editor__intro">
       <div><p class="manager-eyebrow">CONTENIDO DEL SITIO</p><h2>Editor visual</h2>
-        <p>Elegí una página y una ubicación. Editá los textos en español e inglés, o asigná una imagen o video desde MinIO.</p>
       </div>
       <button type="button" class="visual-editor__button" @click="load" :disabled="loading">Actualizar biblioteca</button>
     </header>
