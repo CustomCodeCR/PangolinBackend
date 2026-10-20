@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
 using CastroFallas.MiniQuote.Api.Data;
+using CastroFallas.MiniQuote.Api.Endpoints;
 using CastroFallas.MiniQuote.Api.Models;
 using CastroFallas.MiniQuote.Api.Services;
 using CastroFallas.MiniQuote.Api.Services.Auth;
@@ -140,6 +141,8 @@ if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("Dev
         var scriptPath = Path.Combine(app.Environment.ContentRootPath, "Database", "AuthSchema.sql");
         var sql = await File.ReadAllTextAsync(scriptPath);
         await db.Database.ExecuteSqlRawAsync(sql);
+        var officialPath = Path.Combine(app.Environment.ContentRootPath, "Database", "OfficialQuotesSchema.sql");
+        await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(officialPath));
         app.Logger.LogInformation("Esquema de login comprobado/aplicado en PostgreSQL ({Database}).",
             new NpgsqlConnectionStringBuilder(postgres).Database);
     }
@@ -357,6 +360,8 @@ app.MapPost("/api/quotes", async (
         return Results.BadRequest(new { error = ex.Message });
     }
 }).RequireAuthorization("registered");
+
+app.MapOfficialQuotes();
 
 // La empresa autenticada solo puede enumerar sus propias solicitudes.
 // Límite de página explícito para no devolver registros de otros clientes.
