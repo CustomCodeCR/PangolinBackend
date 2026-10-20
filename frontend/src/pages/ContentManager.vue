@@ -1087,7 +1087,7 @@ function useMediaForNews(item: ManagedMedia) {
     height:36px;
     margin:0;
   }
-  .is-embedded .manager-tabs.manager-subtabs > button .lucide-symbol svg {
+  .is-embedded .manager-tabs.manager-subtabs > button .lucide-symbol :deep(svg) {
     display:block;
     flex:none;
     width:19px;
