@@ -6,8 +6,8 @@ export const services: {key:ServiceKey;title:string;label:string;description:str
   {key:'Multimodal',title:'Transporte multimodal',label:'MULTIMODAL',description:'Soluciones que integran varios medios de transporte en una sola operación.',detail:'Coordinamos conexiones aéreas, marítimas y terrestres para mover tu carga de origen a destino con una gestión logística integrada.',photo:'/images/cover-logistics.jpeg',icon:'↗'},
 ]
 export const faqs = [
-  {q:'¿Qué servicios ofrece Grupo Castro Fallas?',a:'El diseño presenta soluciones de logística, gestión aduanera y transporte internacional aéreo, marítimo y terrestre. Podemos ayudarte a preparar una solicitud para tu operación.'},
-  {q:'¿Cómo puedo solicitar una cotización?',a:'En “Cotizaciones”, completa los detalles de la carga y selecciona “Enviar a Pricing”. En esta demostración, la solicitud se registra mediante la API existente; no se envía un correo automáticamente.'},
-  {q:'¿Cómo puedo rastrear mi carga?',a:'La sección “Consulta tu embarque” incluye por ahora una visualización 3D demostrativa. El rastreo de embarques real requerirá definir una fuente de datos e integrarla.'},
-  {q:'¿Manejan FCL y LCL?',a:'FCL se refiere a contenedor completo y LCL a carga consolidada. Para confirmar disponibilidad y condiciones de estos servicios, es necesario consultar al equipo comercial.'},
+  {q:'¿Qué servicios ofrece Grupo Castro Fallas?',a:'Ofrecemos soluciones logísticas integrales que incluyen transporte marítimo, aéreo y terrestre, gestión aduanera, almacenamiento fiscal y general, transporte internacional y servicios especializados para facilitar las operaciones de importación y exportación.'},
+  {q:'¿Cómo puedo solicitar una cotización?',a:'Puedes solicitar una cotización desde nuestra sección de cotizaciones en el sitio web. Completa la información de tu carga, incluyendo el origen, destino y características del envío, para que nuestro equipo pueda evaluar tus necesidades y ofrecerte una solución adecuada.'},
+  {q:'¿Cómo puedo rastrear mi carga?',a:'Puedes consultar el estado de tu envío mediante la sección de rastreo de nuestro sitio web, utilizando la información de seguimiento correspondiente a tu operación. Si necesitas asistencia adicional, nuestro equipo estará disponible para ayudarte.'},
+  {q:'¿Manejan FCL y LCL?',a:'Sí. Ofrecemos transporte marítimo FCL (contenedor completo) y LCL (carga consolidada), brindando alternativas flexibles según el volumen de tu mercancía, tus necesidades logísticas y los requerimientos de tu operación.'},
 ]
