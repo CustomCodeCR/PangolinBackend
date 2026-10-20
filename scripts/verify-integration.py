@@ -230,15 +230,22 @@ check('class="manager-heading"' in admin_manager
       and '.is-embedded .manager-tabs{gap:6px 12px;padding:6px 8px;border-radius:14px}' in admin_final_styles,
       'Administración mantiene contenido separado de bordes y esquinas redondeadas en escritorio y móvil')
 admin_manager = read('frontend/src/pages/ContentManager.vue')
-admin_heading_theme = admin_manager.split('/* Mismo gris carbón con luz roja suave que la tarjeta Itinerario 01.', 1)[-1]
-check('background-color: #211b20 !important;' in admin_heading_theme
-      and 'background-image: linear-gradient(105deg, #211b20' in admin_heading_theme
-      and 'animation: itinerary-red-sweep 9s ease-in-out infinite alternate;' in admin_heading_theme
-      and '.content-manager.is-embedded .manager-heading h1' in admin_heading_theme
-      and 'color: #fff !important;' in admin_heading_theme
-      and 'border-color: #514148 !important;' in admin_heading_theme
-      and '.content-manager.is-embedded .manager-heading > p:last-child' in admin_heading_theme,
-      'Encabezado administrativo reproduce el fondo de Itinerario 01 con texto legible')
+admin_unified_theme = admin_manager.split('/* En tema oscuro, todas las superficies de Administración comparten la', 1)[-1]
+check('background-color: #01081d !important;' in admin_unified_theme
+      and 'background-image: none !important;' in admin_unified_theme
+      and ':global(html.theme-dark) .content-manager.is-embedded :is(' in admin_unified_theme
+      and all(f'.{part}' in admin_unified_theme for part in [
+          'manager-heading', 'manager-notice', 'manager-preview-note',
+          'manager-tabs', 'manager-form', 'manager-list', 'manager-users-card'
+      ])
+      and 'animation: manager-zip-glow 9s ease-in-out infinite alternate;' in admin_unified_theme
+      and 'border-color: rgba(169, 190, 225, .2) !important;' in admin_unified_theme
+      and '.content-manager.is-embedded .manager-heading > p:last-child' in admin_unified_theme
+      and 'prefers-reduced-motion: reduce' in admin_unified_theme
+      and 'background-color: #211b20 !important;' not in admin_unified_theme
+      and 'html.theme-dark .visual-editor{background:#01081d!important;' in read('frontend/src/pages/SiteVisualEditor.vue')
+      and '--admin-theme-surface: #fff;' in admin_manager,
+      'Administración en oscuro unifica encabezado, avisos, pestañas y tarjetas con Itinerario sin alterar tema claro')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
