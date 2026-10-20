@@ -906,6 +906,10 @@ function useMediaForNews(item: ManagedMedia) {
   min-width:23px; padding:2px 7px; border:1px solid var(--manager-line);
   border-radius:999px; background:transparent; color:inherit; font-size:11px;
 }
+.is-embedded .manager-tabs button .manager-tab-label {
+  min-width:0; padding:0; margin:0; border:0; border-radius:0;
+  background:transparent; color:inherit; font:inherit; line-height:1.25;
+}
 .is-embedded .manager-layout {display:grid;grid-template-columns:minmax(0,1fr);gap:26px;}
 .is-embedded .manager-form,.is-embedded .manager-list,.is-embedded .manager-users-card {
   position:relative; isolation:isolate; overflow:hidden; min-width:0;
