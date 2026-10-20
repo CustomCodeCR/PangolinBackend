@@ -979,39 +979,35 @@ function useMediaForNews(item: ManagedMedia) {
   outline:3px solid #b20c2a80;outline-offset:3px
 }
 .is-embedded .manager-form :is(input,select,textarea):focus-visible,.is-embedded .manager-users-table select:focus-visible {outline:2px solid #b20c2a;outline-offset:2px}
-/* En tema oscuro, todas las superficies de Administración comparten la
-   misma base azul marino y el mismo resplandor que el formulario Itinerario.
-   En tema claro se conservan las superficies claras del sitio. */
+/* Superficies oscuras uniformes sin filtros de desenfoque animados:
+   varios blur(42px) simultáneos provocaban fallos de renderizado del panel.
+   Una luz roja estática reproduce el tono de Itinerarios sin capas pesadas. */
 :global(html.theme-dark) .content-manager.is-embedded :is(
   .manager-heading, .manager-notice, .manager-preview-note,
   .manager-tabs, .manager-form, .manager-list, .manager-users-card
 ) {
   background-color: #01081d !important;
-  background-image: none !important;
+  background-image: radial-gradient(
+    ellipse at 11% 38%,
+    rgba(178, 11, 45, .18) 0%,
+    rgba(126, 10, 34, .075) 30%,
+    transparent 65%
+  ) !important;
   border-color: rgba(169, 190, 225, .2) !important;
   color: #fff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
+/* Los pseudo-elementos previos también tenían animaciones costosas.
+   Eliminarlos SOLO aquí mantiene nítidos textos, controles y encabezados. */
 :global(html.theme-dark) .content-manager.is-embedded :is(
   .manager-heading, .manager-notice, .manager-preview-note,
   .manager-tabs, .manager-form, .manager-list, .manager-users-card
 )::before {
-  content: "";
-  position: absolute;
-  z-index: 0;
-  inset: auto;
-  top: -55%;
-  bottom: -55%;
-  left: -25%;
-  width: 60%;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at center,
-    rgba(214, 14, 52, .37) 0%,
-    rgba(178, 11, 45, .23) 38%,
-    rgba(126, 10, 34, .11) 58%,
-    transparent 76%);
-  filter: blur(42px);
-  pointer-events: none;
-  animation: manager-zip-glow 9s ease-in-out infinite alternate;
+  content: none !important;
+  display: none !important;
+  filter: none !important;
+  animation: none !important;
 }
 :global(html.theme-dark) .content-manager.is-embedded .manager-heading :is(
   .manager-eyebrow, h1
@@ -1022,15 +1018,6 @@ function useMediaForNews(item: ManagedMedia) {
 :global(html.theme-dark) .content-manager.is-embedded :is(
   .manager-notice, .manager-preview-note
 ) { color: #d1d9e8 !important; }
-@media (prefers-reduced-motion: reduce) {
-  :global(html.theme-dark) .content-manager.is-embedded :is(
-    .manager-heading, .manager-notice, .manager-preview-note,
-    .manager-tabs, .manager-form, .manager-list, .manager-users-card
-  )::before {
-    animation: none;
-    left: 40%;
-  }
-}
 @keyframes manager-zip-glow {from{transform:translateX(0)}to{transform:translateX(133%)}}
 @media(prefers-reduced-motion:reduce){.is-embedded .manager-form::before,.is-embedded .manager-list::before,.is-embedded .manager-users-card::before{animation:none;transform:translateX(65%)}}
 @media(max-width:1000px){.is-embedded .manager-form form.manager-editor--itineraries{grid-template-columns:repeat(2,minmax(0,1fr))}}
