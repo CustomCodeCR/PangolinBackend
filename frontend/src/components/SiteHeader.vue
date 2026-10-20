@@ -21,9 +21,8 @@ let previousBodyTop = ''
 let previousBodyWidth = ''
 let previousBodyLeft = ''
 let previousBodyRight = ''
+let previousBackgroundInert = false
 let backgroundLocked = false
-// The backdrop catches clicks outside the drawer. Keep the scroll lock local to the
-// open mobile menu, without making the entire Vue application inert.
 function lockMenuBackground() {
   if (backgroundLocked) return
   lockedScrollY = window.scrollY
@@ -34,6 +33,9 @@ function lockMenuBackground() {
   previousBodyWidth = document.body.style.width
   previousBodyLeft = document.body.style.left
   previousBodyRight = document.body.style.right
+  const background = document.getElementById('app')
+  previousBackgroundInert = background?.inert ?? false
+  if (background) background.inert = true
   document.body.style.position = 'fixed'
   document.body.style.top = `-${lockedScrollY}px`
   document.body.style.left = '0'
@@ -52,6 +54,8 @@ function unlockMenuBackground() {
   document.body.style.left = previousBodyLeft
   document.body.style.right = previousBodyRight
   document.body.style.width = previousBodyWidth
+  const background = document.getElementById('app')
+  if (background) background.inert = previousBackgroundInert
   backgroundLocked = false
   if (Math.abs(window.scrollY - lockedScrollY) > 1) window.scrollTo(0, lockedScrollY)
 }
@@ -155,10 +159,6 @@ watch(expanded, isOpen => {
 
 onMounted(() => {
   mobileMenuQuery.addEventListener('change', closeMenuOnDesktop)
-  // Recover from a stale inert attribute left by an older hot-reloaded mobile menu.
-  // The drawer now relies on its backdrop and scroll lock, not on app-wide inert state.
-  const root = document.getElementById('app')
-  if (root?.inert) root.inert = false
   if (!authState.loaded) void refreshSession()
   const savedTheme = localStorage.getItem('castrofallas-theme')
   darkMode.value = savedTheme ? savedTheme === 'dark' : !!systemThemeQuery?.matches
@@ -184,7 +184,7 @@ function toggleTheme() {
 
 <template>
   <Teleport to="body">
-    <button v-if="expanded && mobileMenuActive" class="mobile-nav-backdrop" tabindex="-1" type="button" :aria-label="$t('custom.home.close')" @click="expanded = false" />
+    <button v-if="expanded" class="mobile-nav-backdrop" tabindex="-1" type="button" :aria-label="$t('custom.home.close')" @click="expanded = false" />
   </Teleport>
   <Teleport to="body" :disabled="!expanded || !mobileMenuActive">
   <header ref="headerElement" class="site-header" :class="{ 'site-header--overlay': props.overlay, 'site-header--menu-open': expanded }">
