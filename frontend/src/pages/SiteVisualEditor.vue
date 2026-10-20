@@ -226,7 +226,7 @@ onMounted(load)
           </button>
         </aside>
         <div v-if="visible.length" class="visual-editor__details">
-          <p class="manager-eyebrow">{{ selected.pageLabel }} / {{ selected.section }} / {{ selected.label }}</p>
+          <p class="visual-editor__breadcrumb">{{ selected.pageLabel }} / {{ selected.section }} / {{ selected.label }}</p>
           <h3>{{ selected.label }}</h3>
           <p class="visual-editor__description">{{ selected.help }}</p>
           <div class="visual-editor__context">
@@ -316,6 +316,7 @@ onMounted(load)
 .visual-editor__section{font-size:11px;color:#4b6179;font-weight:700}
 .visual-editor__published{font-size:11px;color:#276347}
 .visual-editor__details{display:grid;gap:14px;min-width:0}
+.visual-editor__breadcrumb{color:#a80e18!important;font-size:11px;font-weight:850;letter-spacing:.13em;text-transform:uppercase}
 .visual-editor__details h3{font-size:26px;margin:0}
 .visual-editor__details p{margin:0}
 .visual-editor__preview-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
