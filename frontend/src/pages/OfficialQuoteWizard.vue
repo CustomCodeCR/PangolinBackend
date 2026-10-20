@@ -319,3 +319,61 @@ async function submit() {
 :global(html.theme-dark) .official-page .official-kicker { color:#ff8ca2!important; }
 @media (prefers-reduced-motion:reduce) { .official-page * { scroll-behavior:auto!important; } }
 </style>
+
+<style>
+/* Dark palette scoped by unique wizard root. Override main's global high
+   specificity/important rules without modifying shared administration or theme. */
+html.theme-dark .app-site.official-page {
+  background:linear-gradient(115deg,#21151d 0%,#171316 45%,#01081d 100%) !important;
+  color:#fff!important;
+}
+html.theme-dark .app-site.official-page .official-panel,
+html.theme-dark .app-site.official-page .official-success {
+  background:linear-gradient(115deg,#2b1b25 0%,#171b29 100%) !important;
+  color:#fff !important;border-color:#565057 !important;
+}
+html.theme-dark .app-site.official-page .official-choice,
+html.theme-dark .app-site.official-page .official-line,
+html.theme-dark .app-site.official-page .official-summary {
+  background:#121a30 !important;color:#fff !important;border-color:#3b465f !important;
+}
+html.theme-dark .app-site.official-page .official-choice:is(:hover,.chosen) {
+  background:#352130 !important;border-color:#ef233c!important;
+}
+html.theme-dark .app-site.official-page .official-choice :is(strong,small),
+html.theme-dark .app-site.official-page .official-line strong,
+html.theme-dark .app-site.official-page .official-panel h2,
+html.theme-dark .app-site.official-page .official-success h2 {
+  color:#fff!important;
+}
+html.theme-dark .app-site.official-page .official-choice small,
+html.theme-dark .app-site.official-page .official-hint,
+html.theme-dark .app-site.official-page .official-summary span,
+html.theme-dark .app-site.official-page .official-id {
+  color:#c4c5cf!important;
+}
+html.theme-dark .app-site.official-page .official-progress-item {
+  background:#29252f!important;color:#e6e6eb!important;
+}
+html.theme-dark .app-site.official-page .official-progress-item.current {
+  background:#b20c2a!important;color:#fff!important;
+}
+html.theme-dark .app-site.official-page .official-progress-item span {background:#3b465f!important;color:#fff!important;}
+html.theme-dark .app-site.official-page .official-progress-item.current span {background:#fff!important;color:#b20c2a!important;}
+html.theme-dark .app-site.official-page .official-progress-item.done {background:#224134!important;}
+html.theme-dark .app-site.official-page :is(input,select,textarea) {
+  background:#121a30!important;color:#fff!important;border-color:#3b465f!important;
+}
+html.theme-dark .app-site.official-page :is(.official-ghost,.official-remove,.official-back) {
+  background:#121a30!important;color:#fff!important;border-color:#565b6b!important;
+}
+html.theme-dark .app-site.official-page :is(.official-primary,.official-link) {
+  background:#b20c2a!important;color:#fff!important;
+}
+html.theme-dark .app-site.official-page :is(.official-error,.official-catalog-alert) {
+  background:#321b28!important;color:#ffcfda!important;border-color:#99566c!important;
+}
+html.theme-dark .app-site.official-page .official-success-icon {color:#83e6b1!important;}
+html.theme-dark .app-site.official-page .official-progress-item.current small {color:#fff!important;}
+html.theme-dark .app-site.official-page .official-kicker {color:#ff8ca2!important;}
+</style>

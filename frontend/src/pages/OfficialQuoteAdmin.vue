@@ -370,3 +370,49 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
 @media (max-width:900px) {.off-admin-grid{grid-template-columns:1fr;}.off-admin-hero{min-height:300px;}}
 @media (max-width:650px) {.off-admin-shell{width:calc(100% - 32px);}.off-admin-hero__copy{padding-top:82px;padding-bottom:38px;}.off-admin-card{padding:20px 16px;border-radius:20px;}.off-admin-data{grid-template-columns:1fr;}.off-admin-toolbar{align-items:flex-start;}.off-admin-card-heading{align-items:flex-start;}.off-admin-card-heading .off-admin-button{flex-shrink:0;}}
 </style>
+
+
+<style>
+/* Unscoped intentionally: Vue scoped :global rules were not winning against
+   main's global html.theme-dark .app-site * { color: white!important }.
+   Full selectors target only official quotes, never ContentManager itself. */
+html.theme-dark .app-site .off-admin .off-admin-card,
+html.theme-dark .app-site.off-admin .off-admin-card {
+  background: radial-gradient(ellipse 85% 150% at 6% 78%,rgba(145,9,43,.3),transparent 78%),linear-gradient(110deg,#321d25,#211b20 70%) !important;
+  color:#fff !important;
+  border-color:#565057 !important;
+}
+html.theme-dark .app-site .off-admin .off-admin-item,
+html.theme-dark .app-site.off-admin .off-admin-item {
+  background:#121a30 !important; color:#fff !important;border-color:#3b465f !important;
+}
+html.theme-dark .app-site .off-admin .off-admin-item:is(:hover,.is-selected),
+html.theme-dark .app-site.off-admin .off-admin-item:is(:hover,.is-selected) {
+  background:#35212c !important;border-color:#ef233c !important;
+}
+html.theme-dark .app-site .off-admin .off-admin-data > div,
+html.theme-dark .app-site.off-admin .off-admin-data > div,
+html.theme-dark .app-site .off-admin .off-admin-form :is(select,textarea),
+html.theme-dark .app-site.off-admin .off-admin-form :is(select,textarea),
+html.theme-dark .app-site .off-admin .off-admin-button,
+html.theme-dark .app-site.off-admin .off-admin-button,
+html.theme-dark .app-site .off-admin .off-admin-auth,
+html.theme-dark .app-site.off-admin .off-admin-auth {
+  background:#121a30 !important; color:#fff !important;border-color:#3b465f !important;
+}
+html.theme-dark .app-site .off-admin :is(.off-admin-item strong,.off-admin-card h2,.off-admin-card h3,.off-admin-data dd),
+html.theme-dark .app-site.off-admin :is(.off-admin-item strong,.off-admin-card h2,.off-admin-card h3,.off-admin-data dd) {color:#fff !important;}
+html.theme-dark .app-site .off-admin :is(.off-admin-muted,.off-admin-type,.off-admin-route,.off-admin-data dt,.off-admin-event small,.off-admin-explainer),
+html.theme-dark .app-site.off-admin :is(.off-admin-muted,.off-admin-type,.off-admin-route,.off-admin-data dt,.off-admin-event small,.off-admin-explainer) { color:#c4c5cf !important; }
+html.theme-dark .app-site .off-admin .off-admin-primary,
+html.theme-dark .app-site.off-admin .off-admin-primary {background:#b20c2a !important;color:#fff !important;border-color:#b20c2a !important;}
+html.theme-dark .app-site .off-admin .off-admin-approval,
+html.theme-dark .app-site.off-admin .off-admin-approval {background:#29252f !important;color:#fff !important;border-color:#565057 !important;}
+html.theme-dark .app-site .off-admin .off-admin-status,
+html.theme-dark .app-site.off-admin .off-admin-status {background:#3e2832 !important;color:#fff !important;}
+html.theme-dark .app-site .off-admin .off-admin-card::before,
+html.theme-dark .app-site.off-admin .off-admin-card::before {
+  background:radial-gradient(ellipse at center,rgba(214,14,52,.22) 0%,rgba(178,11,45,.1) 45%,transparent 76%) !important;
+  filter:none !important;
+}
+</style>
