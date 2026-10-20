@@ -24,9 +24,9 @@ for (const publicRoute of ['/', '/noticias', '/nosotros', '/servicios']) {
   assert.ok(sitemap.includes('<loc>https://logisticacastrofallas.com' + publicRoute + '</loc>'), 'Falta ' + publicRoute + ' en sitemap')
 }
 assert.ok(robots.includes('User-agent: OAI-SearchBot'), 'Falta OAI-SearchBot en robots.txt')
-assert.ok(root.includes("const gatedPaths = new Set(['/tracking', '/itinerario'])"), 'Hay noindex en páginas comerciales públicas')
+assert.ok(root.includes("import routeSeo from '../seo/routes.json'"), 'Las rutas no comparten la configuración SEO')
 assert.ok(index.includes('carga consolidada LTL') && index.includes('Panamá'), 'La descripción original no menciona el servicio')
-assert.ok(root.includes('transporte terrestre FTL Panamá–Costa Rica'), 'Falta descripción SEO de la ruta')
+assert.ok(read('seo/routes.json').includes('transporte terrestre FTL Panamá–Costa Rica'), 'Falta descripción SEO de la ruta')
 const jsonLd = index.match(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/)
 assert.ok(jsonLd, 'Faltan datos estructurados en el HTML principal')
 const data = JSON.parse(jsonLd[1])
