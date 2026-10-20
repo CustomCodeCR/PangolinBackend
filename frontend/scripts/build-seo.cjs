@@ -1,13 +1,18 @@
-/* Genera cabeceras SEO por ruta sobre el build Vite sin tocar el diseño Vue.
- * El contenido de la SPA sigue dependiendo de JavaScript: esto NO es SSR.
+/* Construye HEAD SEO por ruta sobre Vite. El body Vue sigue siendo SPA;
+ * esto NO equivale a SSR/prerender completo de contenido del CMS.
  */
 'use strict'
 const fs = require('node:fs')
 const path = require('node:path')
 const routes = require('../seo/routes.json')
+const { makeStructuredData } = require('../seo/structured-data.cjs')
 const dist = path.resolve(__dirname, '../dist')
 const original = fs.readFileSync(path.join(dist, 'index.html'), 'utf8')
 const origin = 'https://logisticacastrofallas.com'
+const sourceSchemaMatch = original.match(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/i)
+if (!sourceSchemaMatch) throw new Error('No se encontro el JSON-LD original de la empresa')
+const sourceGraph = JSON.parse(sourceSchemaMatch[1])['@graph']
+if (!Array.isArray(sourceGraph)) throw new Error('JSON-LD original sin @graph')
 const escapeAttr = value => String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
 function putMeta(html, attribute, key, value) {
   const pattern = new RegExp('<meta\\b(?=[^>]*\\b' + attribute + '="' + key + '")[^>]*>', 'i')
@@ -30,21 +35,41 @@ function buildRoute(route, seo) {
   html = putMeta(html, 'property', 'og:description', seo.description)
   html = putMeta(html, 'name', 'twitter:title', seo.title)
   html = putMeta(html, 'name', 'twitter:description', seo.description)
+  html = putMeta(html, 'property', 'og:locale', 'es_CR')
+  const image = origin + (seo.socialImage || '/images/hero.webp')
+  html = putMeta(html, 'property', 'og:image', image)
+  html = putMeta(html, 'name', 'twitter:image', image)
+  if (seo.socialImageAlt) {
+    html = putMeta(html, 'property', 'og:image:alt', seo.socialImageAlt)
+    html = putMeta(html, 'name', 'twitter:image:alt', seo.socialImageAlt)
+  }
   const canonical = seo.indexable === false ? null : origin + (route === '/home' ? '/' : route)
   html = setLink(html, canonical)
   html = setUrl(html, canonical)
-  // Los datos del servicio terrestre corresponden a Inicio y Servicios.
-  if (!['/', '/home', '/servicios'].includes(route)) {
-    html = html.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>\s*/i, '')
+  // No replicar Schema de servicios a administracion, login o paginas privadas.
+  html = html.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>\s*/ig, '')
+  const structured = makeStructuredData(route, seo, sourceGraph)
+  if (structured) {
+    const serialized = JSON.stringify(structured).replace(/</g, '\\u003c')
+    html = html.replace('</head>', '    <script type="application/ld+json">' + serialized + '</script>\n  </head>')
   }
   const dest = route === '/' ? dist : path.join(dist, route.slice(1))
   fs.mkdirSync(dest, { recursive: true })
   fs.writeFileSync(path.join(dest, 'index.html'), html)
 }
 for (const [route, seo] of Object.entries(routes)) buildRoute(route, seo)
-fs.writeFileSync(path.join(dist, '404.html'), `<!doctype html>
-<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow"><title>404 | Castro Fallas</title></head>
-<body><main><h1>404 · Página no encontrada</h1><p>La página solicitada no existe.</p>
-<a href="/">Volver al inicio de Castro Fallas</a></main></body></html>`)
-console.log('SEO: ' + Object.keys(routes).length + ' rutas HTML con metadatos y página 404 generadas.')
+// Sitemap generado a partir de la misma fuente que los canonicals.
+const publicPaths = [...new Set(Object.entries(routes)
+  .filter(([, seo]) => seo.indexable !== false)
+  .map(([route]) => route === '/home' ? '/' : route))]
+const sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+  '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+  publicPaths.map(route => '  <url>\n    <loc>' + origin + route + '</loc>\n  </url>').join('\n') +
+  '\n</urlset>\n'
+fs.writeFileSync(path.join(dist, 'sitemap.xml'), sitemap)
+fs.writeFileSync(path.join(dist, '404.html'), '<!doctype html>\n' +
+  '<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">\n' +
+  '<meta name="robots" content="noindex,nofollow"><title>404 | Castro Fallas</title></head>\n' +
+  '<body><main><h1>404 · Página no encontrada</h1><p>La página solicitada no existe.</p>\n' +
+  '<a href="/">Volver al inicio de Castro Fallas</a></main></body></html>')
+console.log('SEO: ' + Object.keys(routes).length + ' rutas HTML, JSON-LD por pagina y sitemap generados.')
