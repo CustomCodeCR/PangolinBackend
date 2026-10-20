@@ -284,6 +284,25 @@ check('html.theme-dark .app-site.administration-page .visual-editor {' in editor
       and 'background: #b20d30 !important;' in editor_admin_theme
       and 'src="hero.webp"' not in editor_admin_theme,
       'Editor visual en Administración iguala carbón y ola sin alterar imágenes ni funcionalidad')
+manager_mobile = read('frontend/src/pages/ContentManager.vue')
+icon_symbol = read('frontend/src/components/IconSymbol.vue')
+check('<span class="manager-tab-label">Contenido</span>' in manager_mobile
+      and '<span class="manager-tab-label">Gestión de usuarios</span>' in manager_mobile
+      and '<span class="manager-tab-count">{{ users.length }}</span>' in manager_mobile
+      and '.is-embedded .manager-tabs:not(.manager-subtabs) {' in manager_mobile
+      and 'grid-template-rows:32px minmax(36px,auto) 24px;' in manager_mobile
+      and '.is-embedded .manager-tabs:not(.manager-subtabs) > button::after' in manager_mobile
+      and 'grid-template-columns:repeat(2,minmax(0,1fr));' in manager_mobile,
+      'Administración móvil mantiene Contenido y Usuarios en dos columnas')
+check('<IconSymbol glyph="message-circle" :size="19" /> Comentarios' in manager_mobile
+      and "'message-circle': MessageCircle" in icon_symbol
+      and 'manager-subtab-label' not in manager_mobile
+      and '.is-embedded .manager-tabs.manager-subtabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}' in manager_mobile
+      and 'grid-column:1/-1;justify-self:center;width:max-content;max-width:100%;' in manager_mobile
+      and '.is-embedded .manager-tabs.manager-subtabs button .lucide-symbol {' in manager_mobile
+      and 'flex:0 0 36px;' in manager_mobile
+      and 'min-width:36px;' in manager_mobile,
+      'Administración conserva distribución previa de las cinco pestañas y muestra icono Comentarios')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
