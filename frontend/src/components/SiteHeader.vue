@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import SiteMedia from './SiteMedia.vue'
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ArrowUpRight, ChevronDown, Menu, Moon, Settings, Sun, UserRound, X } from '@lucide/vue'
 import LanguageSwitcher from './LanguageSwitcher.vue'
@@ -10,7 +10,59 @@ const props = defineProps<{ active?: string; overlay?: boolean }>()
 const { t } = useI18n({ useScope: 'global' })
 const expanded = ref(false)
 const headerElement = ref<HTMLElement | null>(null)
-let mobileMenuResizeObserver: ResizeObserver | null = null
+const menuToggle = ref<HTMLButtonElement | null>(null)
+const mobileMenuQuery = window.matchMedia('(max-width: 800px)')
+const mobileMenuActive = ref(mobileMenuQuery.matches)
+let lockedScrollY = 0
+let previousHtmlOverflow = ''
+let previousBodyOverflow = ''
+let previousBodyPosition = ''
+let previousBodyTop = ''
+let previousBodyWidth = ''
+let previousBodyLeft = ''
+let previousBodyRight = ''
+let previousBackgroundInert = false
+let backgroundLocked = false
+function lockMenuBackground() {
+  if (backgroundLocked) return
+  lockedScrollY = window.scrollY
+  previousHtmlOverflow = document.documentElement.style.overflow
+  previousBodyOverflow = document.body.style.overflow
+  previousBodyPosition = document.body.style.position
+  previousBodyTop = document.body.style.top
+  previousBodyWidth = document.body.style.width
+  previousBodyLeft = document.body.style.left
+  previousBodyRight = document.body.style.right
+  const background = document.getElementById('app')
+  previousBackgroundInert = background?.inert ?? false
+  if (background) background.inert = true
+  document.body.style.position = 'fixed'
+  document.body.style.top = `-${lockedScrollY}px`
+  document.body.style.left = '0'
+  document.body.style.right = '0'
+  document.body.style.width = '100%'
+  document.documentElement.style.overflow = 'hidden'
+  document.body.style.overflow = 'hidden'
+  backgroundLocked = true
+}
+function unlockMenuBackground() {
+  if (!backgroundLocked) return
+  document.documentElement.style.overflow = previousHtmlOverflow
+  document.body.style.overflow = previousBodyOverflow
+  document.body.style.position = previousBodyPosition
+  document.body.style.top = previousBodyTop
+  document.body.style.left = previousBodyLeft
+  document.body.style.right = previousBodyRight
+  document.body.style.width = previousBodyWidth
+  const background = document.getElementById('app')
+  if (background) background.inert = previousBackgroundInert
+  backgroundLocked = false
+  if (Math.abs(window.scrollY - lockedScrollY) > 1) window.scrollTo(0, lockedScrollY)
+}
+function closeMenuOnDesktop(event: MediaQueryListEvent) {
+  mobileMenuActive.value = event.matches
+  if (!event.matches) { expanded.value = false; unlockMenuBackground() }
+}
 const cargoMenuOpen = ref(false)
 const darkMode = ref(false)
 const systemThemeQuery = window.matchMedia?.('(prefers-color-scheme: dark)')
@@ -89,6 +141,7 @@ function handleEscapeKey(event: KeyboardEvent) {
     profileButton.value?.focus()
   }
   settingsOpen.value = false
+  if (expanded.value) { expanded.value = false; menuToggle.value?.focus() }
 }
 watch(isAuthenticated, authenticated => {
   if (!authenticated) profileOpen.value = false
@@ -98,27 +151,14 @@ function applySystemTheme(event?: MediaQueryListEvent) {
   darkMode.value = event?.matches ?? !!systemThemeQuery?.matches
   document.documentElement.classList.toggle('theme-dark', darkMode.value)
 }
-watch(expanded, async isOpen => {
+watch(expanded, isOpen => {
   if (!isOpen) profileOpen.value = false
-  const header = headerElement.value
-  const hero = header?.closest<HTMLElement>('.home-hero')
-  if (!header || !hero) return
-  mobileMenuResizeObserver?.disconnect()
-  mobileMenuResizeObserver = null
-  if (!isOpen) {
-    hero.classList.remove('home-hero--menu-open')
-    hero.style.removeProperty('--mobile-open-menu-height')
-    return
-  }
-  await nextTick()
-  const updateMenuHeight = () => hero.style.setProperty('--mobile-open-menu-height', `${header.getBoundingClientRect().height}px`)
-  hero.classList.add('home-hero--menu-open')
-  updateMenuHeight()
-  mobileMenuResizeObserver = new ResizeObserver(updateMenuHeight)
-  mobileMenuResizeObserver.observe(header)
-})
+  if (isOpen && mobileMenuQuery.matches) lockMenuBackground()
+  else unlockMenuBackground()
+}, { flush: 'post' })
 
 onMounted(() => {
+  mobileMenuQuery.addEventListener('change', closeMenuOnDesktop)
   if (!authState.loaded) void refreshSession()
   const savedTheme = localStorage.getItem('castrofallas-theme')
   darkMode.value = savedTheme ? savedTheme === 'dark' : !!systemThemeQuery?.matches
@@ -128,10 +168,8 @@ onMounted(() => {
   document.addEventListener('keydown', handleEscapeKey)
 })
 onUnmounted(() => {
-  mobileMenuResizeObserver?.disconnect()
-  const hero = headerElement.value?.closest<HTMLElement>('.home-hero')
-  hero?.classList.remove('home-hero--menu-open')
-  hero?.style.removeProperty('--mobile-open-menu-height')
+  unlockMenuBackground()
+  mobileMenuQuery.removeEventListener('change', closeMenuOnDesktop)
   systemThemeQuery?.removeEventListener('change', applySystemTheme)
   document.removeEventListener('click', handleOutsideClick)
   document.removeEventListener('keydown', handleEscapeKey)
@@ -145,10 +183,14 @@ function toggleTheme() {
 </script>
 
 <template>
+  <Teleport to="body">
+    <button v-if="expanded" class="mobile-nav-backdrop" tabindex="-1" type="button" :aria-label="$t('custom.home.close')" @click="expanded = false" />
+  </Teleport>
+  <Teleport to="body" :disabled="!expanded || !mobileMenuActive">
   <header ref="headerElement" class="site-header" :class="{ 'site-header--overlay': props.overlay, 'site-header--menu-open': expanded }">
     <div class="header-inner">
       <a class="site-brand" href="/home" :aria-label="$t('phrases.p138')"><SiteMedia slot-key="shared.logo.media" fallback="/images/logo.png" alt="Castro Fallas" /></a>
-      <button class="menu-toggle" type="button" :aria-expanded="expanded" :aria-label="$t('phrases.p137')" @click="expanded = !expanded"><X v-if="expanded" :size="22" aria-hidden="true" /><Menu v-else :size="22" aria-hidden="true" /></button>
+      <button ref="menuToggle" class="menu-toggle" type="button" :aria-expanded="expanded" :aria-label="$t('phrases.p137')" @click="expanded = !expanded"><X v-if="expanded" :size="22" aria-hidden="true" /><Menu v-else :size="22" aria-hidden="true" /></button>
       <nav class="main-nav" :class="{ 'main-nav--open': expanded }" :aria-label="$t('phrases.p136')">
         <a v-for="link in visibleLinks" :key="link.id" :class="{ 'is-active': props.active === link.id }" :href="link.url" @click="expanded = false">{{ link.label }}</a>
         <div v-if="canAccessCargo" class="nav-dropdown" :class="{ 'nav-dropdown--open': cargoMenuOpen, 'nav-dropdown--active': cargoLinks.some(link => props.active === link.id) }">
@@ -204,6 +246,7 @@ function toggleTheme() {
       </nav>
     </div>
   </header>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -386,3 +429,6 @@ function toggleTheme() {
   }
 }
 </style>
+
+
+<style src="../styles/mobile-navigation.css"></style>
