@@ -12,6 +12,8 @@ import Itinerary from './pages/Itinerary.vue'
 import Services from './pages/Services.vue'
 import Legal from './pages/Legal.vue'
 import Administration from './pages/Administration.vue'
+import OfficialQuoteWizard from './pages/OfficialQuoteWizard.vue'
+import OfficialQuoteAdmin from './pages/OfficialQuoteAdmin.vue'
 import SiteHeader from './components/SiteHeader.vue'
 import SiteFooter from './components/SiteFooter.vue'
 import ScrollProgressButton from './components/ScrollProgressButton.vue'
@@ -69,7 +71,8 @@ applyPageSeo()
 const quoteAccess = ref<'checking' | 'allowed' | 'denied' | 'forbidden'>('checking')
 const requestPath = window.location.pathname.replace(/\/+$/, '') || '/'
 const legacyAdminRoute = requestPath === '/admin/contenido' || requestPath === '/admin/usuarios'
-const adminRoute = requestPath === '/administracion' || legacyAdminRoute
+const officialAdminRoute = requestPath === '/administracion/cotizaciones-oficiales'
+const adminRoute = requestPath === '/administracion' || legacyAdminRoute || officialAdminRoute
 const restrictedRoute = requestPath === '/tracking' || requestPath === '/itinerario' || adminRoute
 const routeAccess = ref<'checking' | 'ready'>(restrictedRoute ? 'checking' : 'ready')
 const loginNextHref = '/bienvenidos?next=' + encodeURIComponent(window.location.pathname + window.location.search)
@@ -81,10 +84,15 @@ onMounted(async () => {
   void loadPublishedSiteCms()
   const user = await refreshSession()
   const role = currentRole()
+  if (officialAdminRoute && user?.role !== 'administrador') { window.location.replace(!user ? loginNextHref : '/home'); return }
   if (adminRoute && role !== 'administrador') {
     if (!user && !authState.previewRole) window.location.replace(loginNextHref)
     else window.location.replace('/home')
     return
+  }
+  if (requestPath === '/cotizaciones/nuevo') {
+    if (!user) quoteAccess.value = 'denied'
+    else quoteAccess.value = role === 'cliente' || role === 'administrador' ? 'allowed' : 'forbidden'
   }
   if (requestPath === '/cotizaciones') {
     if (!user) quoteAccess.value = 'denied'
@@ -111,6 +119,7 @@ const page = computed(()=> {
   if(path==='/home' || path==='/') return 'home'
   if(path==='/bienvenidos') return 'login'
   if(path==='/administracion') return 'administration'
+  if(path==='/administracion/cotizaciones-oficiales') return 'official-admin'
   if(path==='/admin/contenido' || path==='/admin/usuarios') return 'administration'
   if(path==='/noticias') return 'news'
   if(path==='/nosotros') return 'about'
@@ -118,6 +127,7 @@ const page = computed(()=> {
   if(path==='/tracking') return 'tracking'
   if(path==='/itinerario') return 'itinerary'
   if(path==='/cotizaciones') return 'quote'
+  if(path==='/cotizaciones/nuevo') return 'official-quote'
   if(['/privacidad','/terminos','/cookies','/licencias'].includes(path)) return 'legal'
   return 'notFound'
 })
@@ -128,6 +138,7 @@ const page = computed(()=> {
   <Login v-if="page==='login'"/>
   <Home v-else-if="page==='home'" />
   <Administration v-else-if="page==='administration'" />
+  <OfficialQuoteAdmin v-else-if="page==='official-admin'" />
   <News v-else-if="page==='news'"/>
   <About v-else-if="page==='about'"/>
   <Services v-else-if="page==='services'"/>
@@ -156,6 +167,7 @@ const page = computed(()=> {
       <p>{{ t('custom.quote.loginRequiredHelp') }}</p>
       <a class="btn btn-primary" href="/home">{{ t('custom.quote.back') }} <IconSymbol glyph="←" /></a>
     </div>
+    <OfficialQuoteWizard v-else-if="page==='official-quote'" />
     <QuoteApp v-else/>
     <SiteFooter/>
   </div>
