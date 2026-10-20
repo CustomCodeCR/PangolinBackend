@@ -367,4 +367,87 @@ html.theme-dark .visual-editor .visual-editor__published{color:#88e4ad!important
 html.theme-dark .visual-editor .visual-editor__warning,
 html.theme-dark .visual-editor .visual-editor__error{background:#3b2531!important;color:#ffd6dc!important}
 html.theme-dark .visual-editor .visual-editor__success{background:#183a34!important;color:#a5f5c7!important}
+
+/* Editor visual dentro de Administración: misma superficie carbón-vino y
+   ola roja que las demás tarjetas. No afecta el editor en otras páginas. */
+html.theme-dark .app-site.administration-page .visual-editor {
+  background-color: #211b20 !important;
+  background-image:
+    radial-gradient(ellipse 85% 150% at 6% 78%,
+      rgba(145, 9, 43, .38) 0%,
+      rgba(145, 9, 43, .14) 46%,
+      transparent 80%),
+    linear-gradient(110deg, #321d25 0%, #211b20 70%) !important;
+  border-color: rgba(188, 158, 168, .25) !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+html.theme-dark .app-site.administration-page .visual-editor::before {
+  content: "";
+  inset: auto;
+  top: -55%;
+  bottom: -55%;
+  left: -25%;
+  right: auto;
+  width: 60%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center,
+    rgba(214, 14, 52, .37) 0%,
+    rgba(178, 11, 45, .23) 38%,
+    rgba(126, 10, 34, .11) 58%,
+    transparent 76%);
+  background-size: auto;
+  background-position: center;
+  filter: none;
+  animation: itinerary-red-sweep 9s ease-in-out infinite alternate;
+}
+/* Recuadros secundarios sin el azul intenso; mantener contraste y estados. */
+html.theme-dark .app-site.administration-page .visual-editor :is(
+  .visual-editor__button, .visual-editor__pages button,
+  .visual-editor__locations button, .visual-editor__filters button
+) {
+  background: #30252a !important;
+  border-color: #55424b !important;
+}
+html.theme-dark .app-site.administration-page .visual-editor :is(
+  .visual-editor__text-preview, .visual-editor__context,
+  .visual-editor__preview-empty, .visual-editor__empty
+) {
+  background: #30252a !important;
+  border-color: #55424b !important;
+  color: #e4dbe0 !important;
+}
+html.theme-dark .app-site.administration-page .visual-editor :is(input, select, textarea) {
+  background: #121a30 !important;
+  border-color: #3b465f !important;
+  color: #fff !important;
+}
+html.theme-dark .app-site.administration-page .visual-editor :is(input, textarea)::placeholder {
+  color: #acb1bd !important;
+}
+html.theme-dark .app-site.administration-page .visual-editor :is(
+  .visual-editor__pages button.active, .visual-editor__filters button.active,
+  .visual-editor__publish
+) {
+  background: #b20d30 !important;
+  border-color: #ce2146 !important;
+}
+html.theme-dark .app-site.administration-page .visual-editor .visual-editor__locations button.active {
+  background: #47212e !important;
+  border-color: #e34464 !important;
+}
+html.theme-dark .app-site.administration-page .visual-editor :is(
+  .visual-editor__pages button, .visual-editor__filters button,
+  .visual-editor__locations button
+):not(.active):hover {
+  background: #463038 !important;
+  border-color: #9f6674 !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  html.theme-dark .app-site.administration-page .visual-editor::before {
+    animation: none;
+    transform: translateX(65%);
+  }
+}
 </style>
