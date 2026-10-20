@@ -979,15 +979,25 @@ function useMediaForNews(item: ManagedMedia) {
   outline:3px solid #b20c2a80;outline-offset:3px
 }
 .is-embedded .manager-form :is(input,select,textarea):focus-visible,.is-embedded .manager-users-table select:focus-visible {outline:2px solid #b20c2a;outline-offset:2px}
-/* Mismo gris carbón con luz roja suave que la tarjeta Itinerario 01.
-   Solo cambia el encabezado del administrador, no sus formularios ni pestañas. */
-.content-manager.is-embedded .manager-heading {
-  background-color: #211b20 !important;
-  background-image: linear-gradient(105deg, #211b20 0%, #211b20 42%, #381a23 72%, #571725 100%) !important;
-  border-color: #514148 !important;
+/* En tema oscuro, todas las superficies de Administración comparten la
+   misma base azul marino y el mismo resplandor que el formulario Itinerario.
+   En tema claro se conservan las superficies claras del sitio. */
+:global(html.theme-dark) .content-manager.is-embedded :is(
+  .manager-heading, .manager-notice, .manager-preview-note,
+  .manager-tabs, .manager-form, .manager-list, .manager-users-card
+) {
+  background-color: #01081d !important;
+  background-image: none !important;
+  border-color: rgba(169, 190, 225, .2) !important;
   color: #fff !important;
 }
-.content-manager.is-embedded .manager-heading::before {
+:global(html.theme-dark) .content-manager.is-embedded :is(
+  .manager-heading, .manager-notice, .manager-preview-note,
+  .manager-tabs, .manager-form, .manager-list, .manager-users-card
+)::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
   inset: auto;
   top: -55%;
   bottom: -55%;
@@ -995,20 +1005,28 @@ function useMediaForNews(item: ManagedMedia) {
   width: 60%;
   border-radius: 50%;
   background: radial-gradient(ellipse at center,
-    rgba(214,14,52,.37) 0%, rgba(178,11,45,.23) 38%,
-    rgba(126,10,34,.11) 58%, transparent 76%);
+    rgba(214, 14, 52, .37) 0%,
+    rgba(178, 11, 45, .23) 38%,
+    rgba(126, 10, 34, .11) 58%,
+    transparent 76%);
   filter: blur(42px);
-  animation: itinerary-red-sweep 9s ease-in-out infinite alternate;
+  pointer-events: none;
+  animation: manager-zip-glow 9s ease-in-out infinite alternate;
 }
-.content-manager.is-embedded .manager-heading .manager-eyebrow,
-.content-manager.is-embedded .manager-heading h1 {
-  color: #fff !important;
+:global(html.theme-dark) .content-manager.is-embedded .manager-heading :is(
+  .manager-eyebrow, h1
+) { color: #fff !important; }
+:global(html.theme-dark) .content-manager.is-embedded .manager-heading > p:last-child {
+  color: rgba(255, 255, 255, .88) !important;
 }
-.content-manager.is-embedded .manager-heading > p:last-child {
-  color: rgba(255,255,255,.88) !important;
-}
+:global(html.theme-dark) .content-manager.is-embedded :is(
+  .manager-notice, .manager-preview-note
+) { color: #d1d9e8 !important; }
 @media (prefers-reduced-motion: reduce) {
-  .content-manager.is-embedded .manager-heading::before {
+  :global(html.theme-dark) .content-manager.is-embedded :is(
+    .manager-heading, .manager-notice, .manager-preview-note,
+    .manager-tabs, .manager-form, .manager-list, .manager-users-card
+  )::before {
     animation: none;
     left: 40%;
   }
