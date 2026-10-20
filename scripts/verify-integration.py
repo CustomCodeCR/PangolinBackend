@@ -230,22 +230,27 @@ check('class="manager-heading"' in admin_manager
       and '.is-embedded .manager-tabs{gap:6px 12px;padding:6px 8px;border-radius:14px}' in admin_final_styles,
       'Administración mantiene contenido separado de bordes y esquinas redondeadas en escritorio y móvil')
 admin_manager = read('frontend/src/pages/ContentManager.vue')
-admin_unified_theme = admin_manager.split('/* En tema oscuro, todas las superficies de Administración comparten la', 1)[-1]
+admin_unified_theme = admin_manager.split('/* Superficies oscuras uniformes sin filtros de desenfoque animados:', 1)[-1]
+admin_unified_theme = admin_unified_theme.split('@keyframes manager-zip-glow', 1)[0]
 check('background-color: #01081d !important;' in admin_unified_theme
-      and 'background-image: none !important;' in admin_unified_theme
+      and 'background-image: radial-gradient(' in admin_unified_theme
       and ':global(html.theme-dark) .content-manager.is-embedded :is(' in admin_unified_theme
       and all(f'.{part}' in admin_unified_theme for part in [
           'manager-heading', 'manager-notice', 'manager-preview-note',
           'manager-tabs', 'manager-form', 'manager-list', 'manager-users-card'
       ])
-      and 'animation: manager-zip-glow 9s ease-in-out infinite alternate;' in admin_unified_theme
-      and 'border-color: rgba(169, 190, 225, .2) !important;' in admin_unified_theme
+      and 'backdrop-filter: none !important;' in admin_unified_theme
+      and '-webkit-backdrop-filter: none !important;' in admin_unified_theme
+      and 'content: none !important;' in admin_unified_theme
+      and 'display: none !important;' in admin_unified_theme
+      and 'filter: none !important;' in admin_unified_theme
+      and 'animation: none !important;' in admin_unified_theme
+      and 'filter: blur(' not in admin_unified_theme
+      and 'animation: manager-zip-glow 9s' not in admin_unified_theme
       and '.content-manager.is-embedded .manager-heading > p:last-child' in admin_unified_theme
-      and 'prefers-reduced-motion: reduce' in admin_unified_theme
-      and 'background-color: #211b20 !important;' not in admin_unified_theme
       and 'html.theme-dark .visual-editor{background:#01081d!important;' in read('frontend/src/pages/SiteVisualEditor.vue')
       and '--admin-theme-surface: #fff;' in admin_manager,
-      'Administración en oscuro unifica encabezado, avisos, pestañas y tarjetas con Itinerario sin alterar tema claro')
+      'Administración oscuro mantiene fondos uniformes sin filtros que desenfoquen el contenido')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
