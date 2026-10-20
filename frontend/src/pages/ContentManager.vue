@@ -458,11 +458,11 @@ function useMediaForNews(item: ManagedMedia) {
         <button :class="{ active: section === 'users' }" @click="selectSection('users')"><IconSymbol glyph="user" :size="19" /> <span class="manager-tab-label">Gestión de usuarios</span> <span class="manager-tab-count">{{ users.length }}</span></button>
       </nav>
       <nav v-if="section !== 'users'" class="manager-tabs manager-subtabs" aria-label="Tipos de contenido">
-        <button :class="{ active: section === 'itineraries' }" @click="selectSection('itineraries')"><IconSymbol glyph="ship" :size="19" /> Itinerarios <span>{{ itineraries.length }}</span></button>
-        <button :class="{ active: section === 'news' }" @click="selectSection('news')"><IconSymbol glyph="newspaper" :size="19" /> Noticias <span>{{ news.length }}</span></button>
-        <button :class="{ active: section === 'media' }" @click="selectSection('media')"><IconSymbol glyph="image" :size="19" /> Multimedia <span>{{ media.length }}</span></button>
-        <button :class="{ active: section === 'comments' }" @click="selectSection('comments')"><IconSymbol glyph="◉" :size="19" /> Comentarios <span>{{ comments.length }}</span></button>
-        <button class="manager-editor-visual-tab" :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> Editor visual <span>0</span></button>
+        <button :class="{ active: section === 'itineraries' }" @click="selectSection('itineraries')"><IconSymbol glyph="ship" :size="19" /> <span class="manager-subtab-label">Itinerarios</span> <span>{{ itineraries.length }}</span></button>
+        <button :class="{ active: section === 'news' }" @click="selectSection('news')"><IconSymbol glyph="newspaper" :size="19" /> <span class="manager-subtab-label">Noticias</span> <span>{{ news.length }}</span></button>
+        <button :class="{ active: section === 'media' }" @click="selectSection('media')"><IconSymbol glyph="image" :size="19" /> <span class="manager-subtab-label">Multimedia</span> <span>{{ media.length }}</span></button>
+        <button :class="{ active: section === 'comments' }" @click="selectSection('comments')"><IconSymbol glyph="message-circle" :size="19" /> <span class="manager-subtab-label">Comentarios</span> <span>{{ comments.length }}</span></button>
+        <button class="manager-editor-visual-tab" :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> <span class="manager-subtab-label">Editor visual</span> <span>0</span></button>
       </nav>
       <section v-if="section === 'users'" class="manager-users-card" aria-label="Cuentas registradas">
         <header><div><p class="manager-eyebrow">CUENTAS REGISTRADAS</p><h2>{{ usersLoading ? 'Cargando…' : `${users.length} usuarios` }}</h2></div><button class="manager-add" :disabled="usersLoading" @click="loadUsers">Actualizar</button></header>
@@ -902,13 +902,17 @@ function useMediaForNews(item: ManagedMedia) {
   background:color-mix(in srgb,#b20c2a 9%,var(--manager-card));
   color:var(--manager-accent);
 }
-.is-embedded .manager-tabs button span:not(.lucide-symbol):not(.manager-tab-label) {
+.is-embedded .manager-tabs button span:not(.lucide-symbol):not(.manager-tab-label):not(.manager-subtab-label) {
   min-width:23px; padding:2px 7px; border:1px solid var(--manager-line);
   border-radius:999px; background:transparent; color:inherit; font-size:11px;
 }
 .is-embedded .manager-tabs button .manager-tab-label {
   min-width:0; padding:0; margin:0; border:0; border-radius:0;
   background:transparent; color:inherit; font:inherit; line-height:1.25;
+}
+.is-embedded .manager-tabs button .manager-subtab-label {
+  min-width:0; padding:0; margin:0; border:0; border-radius:0;
+  background:transparent; color:inherit; font:inherit; line-height:1.3;
 }
 .is-embedded .manager-layout {display:grid;grid-template-columns:minmax(0,1fr);gap:26px;}
 .is-embedded .manager-form,.is-embedded .manager-list,.is-embedded .manager-users-card {
@@ -1051,10 +1055,66 @@ function useMediaForNews(item: ManagedMedia) {
     left:10%;
     right:10%;
   }
-  .is-embedded .manager-tabs.manager-subtabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  /* Categorías en dos columnas regulares, con ícono y contador centrados.
+     El texto queda en su propia fila: no comprime el SVG de Comentarios. */
+  .is-embedded .manager-tabs.manager-subtabs {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+    padding:8px;
+    overflow-x:hidden;
+  }
+  .is-embedded .manager-tabs.manager-subtabs > button {
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    grid-template-rows:36px minmax(24px,auto) 24px;
+    align-items:center;
+    justify-items:center;
+    align-content:center;
+    gap:4px;
+    min-width:0;
+    width:100%;
+    min-height:112px;
+    padding:9px 5px 15px;
+    text-align:center;
+    white-space:normal;
+  }
+  .is-embedded .manager-tabs.manager-subtabs > button .lucide-symbol {
+    grid-column:1;
+    grid-row:1;
+    flex:0 0 36px;
+    width:36px;
+    height:36px;
+    margin:0;
+  }
+  .is-embedded .manager-tabs.manager-subtabs > button .lucide-symbol svg {
+    display:block;
+    flex:none;
+    width:19px;
+    height:19px;
+    color:var(--manager-accent);
+    stroke:currentColor;
+  }
+  .is-embedded .manager-tabs.manager-subtabs > button .manager-subtab-label {
+    grid-column:1;
+    grid-row:2;
+    overflow-wrap:anywhere;
+  }
+  .is-embedded .manager-tabs.manager-subtabs > button > span:not(.lucide-symbol):not(.manager-subtab-label) {
+    grid-column:1;
+    grid-row:3;
+    margin:0;
+  }
+  .is-embedded .manager-tabs.manager-subtabs > button::after {
+    left:10%;
+    right:10%;
+  }
   .is-embedded .manager-tabs.manager-subtabs button.manager-editor-visual-tab {
-    grid-column:1/-1;justify-self:center;width:max-content;max-width:100%;
-    padding-inline:18px;border-radius:14px;
+    grid-column:1/-1;
+    justify-self:center;
+    width:min(100%,230px);
+    max-width:100%;
+    border-radius:14px;
   }
   .is-embedded .manager-form form,.is-embedded .manager-form form.manager-editor--itineraries{grid-template-columns:minmax(0,1fr)}
   .is-embedded .manager-form :is(input,select,textarea),.is-embedded .manager-users-table select{font-size:16px}
