@@ -24,8 +24,8 @@ CREATE TABLE IF NOT EXISTS public.official_quote_requests (
     form_json JSONB NOT NULL,
     status VARCHAR(30) NOT NULL DEFAULT 'Received'
         CHECK (status IN ('Received','InReview','AwaitingInformation','Closed')),
-    authorization VARCHAR(15) NOT NULL DEFAULT 'Pending'
-        CHECK (authorization IN ('Pending','Authorized','Rejected')),
+    approval_status VARCHAR(15) NOT NULL DEFAULT 'Pending'
+        CHECK (approval_status IN ('Pending','Authorized','Rejected')),
     authorized_by_id UUID NULL REFERENCES public.usuarios(uuid) ON DELETE SET NULL,
     authorized_at_utc TIMESTAMPTZ NULL,
     created_at_utc TIMESTAMPTZ NOT NULL DEFAULT now(),
