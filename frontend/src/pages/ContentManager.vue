@@ -462,7 +462,7 @@ function useMediaForNews(item: ManagedMedia) {
         <button :class="{ active: section === 'news' }" @click="selectSection('news')"><IconSymbol glyph="newspaper" :size="19" /> Noticias <span>{{ news.length }}</span></button>
         <button :class="{ active: section === 'media' }" @click="selectSection('media')"><IconSymbol glyph="image" :size="19" /> Multimedia <span>{{ media.length }}</span></button>
         <button :class="{ active: section === 'comments' }" @click="selectSection('comments')"><IconSymbol glyph="◉" :size="19" /> Comentarios <span>{{ comments.length }}</span></button>
-        <button :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> Editor visual</button>
+        <button :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> Editor visual <span>0</span></button>
       </nav>
       <section v-if="section === 'users'" class="manager-users-card" aria-label="Cuentas registradas">
         <header><div><p class="manager-eyebrow">CUENTAS REGISTRADAS</p><h2>{{ usersLoading ? 'Cargando…' : `${users.length} usuarios` }}</h2></div><button class="manager-add" :disabled="usersLoading" @click="loadUsers">Actualizar</button></header>
@@ -505,7 +505,6 @@ function useMediaForNews(item: ManagedMedia) {
             <label>Autor<input v-model.trim="commentForm.author" required maxlength="100" /></label>
             <label>Sección<input v-model.trim="commentForm.section" maxlength="100" placeholder="Principal, servicios..." /></label>
             <label>Comentario<textarea v-model.trim="commentForm.message" required maxlength="1200" rows="5" /></label>
-            <label class="manager-checkbox"><input v-model="commentForm.published" type="checkbox" /> Marcado como aprobado (solo local)</label>
             <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar comentario' }}</button>
           </form>
           <form v-else @submit.prevent="submitMedia">
