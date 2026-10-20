@@ -229,16 +229,26 @@ check('class="manager-heading"' in admin_manager
       and '.is-embedded .manager-heading{padding:20px 16px;border-radius:16px}' in admin_final_styles
       and '.is-embedded .manager-tabs{gap:6px 12px;padding:6px 8px;border-radius:14px}' in admin_final_styles,
       'Administración mantiene contenido separado de bordes y esquinas redondeadas en escritorio y móvil')
-safe_admin_theme = read('frontend/src/style.css').split('/* Administración: las tarjetas del panel comparten el azul marino de', 1)[-1]
-check('html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-heading,' in safe_admin_theme
-      and all('html.theme-dark .app-site.administration-page .content-manager.is-embedded .' + name in safe_admin_theme
-              for name in ['manager-heading', 'manager-notice', 'manager-preview-note',
-                           'manager-tabs', 'manager-form', 'manager-list', 'manager-users-card'])
-      and 'background-color: #01081d !important;' in safe_admin_theme
-      and 'background-image: none !important;' in safe_admin_theme
-      and 'content: none !important;' in safe_admin_theme
-      and not any(flag in safe_admin_theme for flag in ['filter: blur(', 'backdrop-filter:', 'animation:', 'html:not(.theme-dark)']),
-      'Administración usa fondos marino uniformes sin nuevos efectos borrosos y solo en modo oscuro')
+admin_css = read('frontend/src/style.css')
+admin_colors = admin_css.split('/* Administracion: mismo fondo carbon/rojo vino de Itinerario 01.', 1)[-1]
+admin_colors = admin_colors.split("check('localOutbox'", 1)[0]
+check('html.theme-dark .app-site.administration-page .content-manager.is-embedded :is(' in admin_colors
+      and all('.' + part in admin_colors for part in [
+          'manager-heading', 'manager-notice', 'manager-preview-note',
+          'manager-tabs', 'manager-form', 'manager-list', 'manager-users-card'
+      ])
+      and 'background-color: #211b20 !important;' in admin_colors
+      and 'rgba(145, 9, 43, .38)' in admin_colors
+      and 'linear-gradient(110deg, #321d25 0%, #211b20 70%) !important;' in admin_colors
+      and 'background-color: #01081d !important;' not in admin_colors
+      and 'content: none !important;' in admin_colors
+      and 'filter: blur(' not in admin_colors
+      and 'backdrop-filter:' not in admin_colors
+      and 'animation:' not in admin_colors
+      and '.app-site.administration-page .site-header .site-brand img {' in admin_colors
+      and 'border: 0 !important;' in admin_colors
+      and '<SiteMedia slot-key="shared.logo.media" fallback="/images/logo.png"' in read('frontend/src/components/SiteHeader.vue'),
+      'Administracion replica fondo carbon vino de Itinerarios sin blur y conserva logo compartido')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
