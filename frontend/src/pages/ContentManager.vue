@@ -462,7 +462,7 @@ function useMediaForNews(item: ManagedMedia) {
         <button :class="{ active: section === 'news' }" @click="selectSection('news')"><IconSymbol glyph="newspaper" :size="19" /> Noticias <span>{{ news.length }}</span></button>
         <button :class="{ active: section === 'media' }" @click="selectSection('media')"><IconSymbol glyph="image" :size="19" /> Multimedia <span>{{ media.length }}</span></button>
         <button :class="{ active: section === 'comments' }" @click="selectSection('comments')"><IconSymbol glyph="◉" :size="19" /> Comentarios <span>{{ comments.length }}</span></button>
-        <button :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> Editor visual <span>0</span></button>
+        <button class="manager-editor-visual-tab" :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> Editor visual <span>0</span></button>
       </nav>
       <section v-if="section === 'users'" class="manager-users-card" aria-label="Cuentas registradas">
         <header><div><p class="manager-eyebrow">CUENTAS REGISTRADAS</p><h2>{{ usersLoading ? 'Cargando…' : `${users.length} usuarios` }}</h2></div><button class="manager-add" :disabled="usersLoading" @click="loadUsers">Actualizar</button></header>
@@ -897,6 +897,11 @@ function useMediaForNews(item: ManagedMedia) {
   height:3px; border-radius:999px; background:transparent; transform:none;
 }
 .is-embedded .manager-tabs button.active::after {background:#b20c2a;transform:none;}
+.is-embedded .manager-tabs button.manager-editor-visual-tab .lucide-symbol {
+  width:36px;height:32px;border-radius:999px;
+  background:color-mix(in srgb,#b20c2a 9%,var(--manager-card));
+  color:var(--manager-accent);
+}
 .is-embedded .manager-tabs button span:not(.lucide-symbol) {
   min-width:23px; padding:2px 7px; border:1px solid var(--manager-line);
   border-radius:999px; background:transparent; color:inherit; font-size:11px;
@@ -987,6 +992,10 @@ function useMediaForNews(item: ManagedMedia) {
   .is-embedded .manager-tabs{gap:6px 12px;padding:6px 8px;border-radius:14px}
   .is-embedded .manager-tabs button{padding:10px 6px 14px;font-size:13px}
   .is-embedded .manager-tabs.manager-subtabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .is-embedded .manager-tabs.manager-subtabs button.manager-editor-visual-tab {
+    grid-column:1/-1;justify-self:center;width:max-content;max-width:100%;
+    padding-inline:18px;border-radius:14px;
+  }
   .is-embedded .manager-form form,.is-embedded .manager-form form.manager-editor--itineraries{grid-template-columns:minmax(0,1fr)}
   .is-embedded .manager-form :is(input,select,textarea),.is-embedded .manager-users-table select{font-size:16px}
   .is-embedded .manager-submit{width:100%;min-width:0;justify-self:stretch}
