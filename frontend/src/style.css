@@ -4865,7 +4865,7 @@ html .content-manager .manager-tabs .lucide-symbol svg { color: #a80e18; stroke:
 }
 
 /* Administracion: mismo fondo carbon/rojo vino de Itinerario 01.
-   Sin filtros de desenfoque, animaciones ni cambios de imagen/logo.
+   Ola roja animada sin blur ni cambios de imagen/logo.
    El alcance es la pagina administrativa en modo oscuro exclusivamente. */
 html.theme-dark .app-site.administration-page .content-manager.is-embedded :is(
   .manager-heading, .manager-notice, .manager-preview-note,
