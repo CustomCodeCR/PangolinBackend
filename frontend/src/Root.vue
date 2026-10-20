@@ -20,15 +20,15 @@ import { useI18n } from 'vue-i18n'
 import { loadPublishedSiteCms } from './siteCms'
 import { subscribeToChanges } from './services/realtime'
 const { t } = useI18n({ useScope: 'global' })
-const gatedPaths = new Set(['/noticias', '/nosotros', '/servicios', '/tracking', '/itinerario'])
+const gatedPaths = new Set(['/tracking', '/itinerario'])
 const seoByPath: Record<string, { title: string; description: string; indexable?: boolean }> = {
   '/': {
     title: 'Castro Fallas | Agencia aduanal y logística en Costa Rica',
-    description: 'Agencia aduanal en Costa Rica: agenciamiento aduanero, almacén fiscal y transporte internacional aéreo, marítimo y terrestre para empresas.'
+    description: 'Grupo Castro Fallas: carga consolidada LTL y transporte terrestre FTL Panamá–Costa Rica, agenciamiento aduanero y logística internacional.'
   },
   '/home': {
     title: 'Castro Fallas | Agencia aduanal y logística en Costa Rica',
-    description: 'Agencia aduanal en Costa Rica: agenciamiento aduanero, almacén fiscal y transporte internacional aéreo, marítimo y terrestre para empresas.'
+    description: 'Grupo Castro Fallas: carga consolidada LTL y transporte terrestre FTL Panamá–Costa Rica, agenciamiento aduanero y logística internacional.'
   },
   '/noticias': {
     title: 'Noticias de logística y comercio exterior | Castro Fallas',
@@ -40,7 +40,7 @@ const seoByPath: Record<string, { title: string; description: string; indexable?
   },
   '/servicios': {
     title: 'Servicios de aduanas y transporte | Castro Fallas Costa Rica',
-    description: 'Soluciones de agenciamiento aduanero, almacenamiento fiscal y transporte aéreo, marítimo y terrestre para empresas.'
+    description: 'Servicios de carga consolidada LTL y transporte terrestre FTL Panamá–Costa Rica, logística aérea y marítima, agenciamiento aduanero y almacenamiento fiscal.'
   },
   '/tracking': {
     title: 'Seguimiento de carga | Castro Fallas',
