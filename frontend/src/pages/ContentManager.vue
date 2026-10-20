@@ -547,7 +547,7 @@ function useMediaForNews(item: ManagedMedia) {
               <small v-else-if="section === 'comments'">{{ (entry as ManagedComment).section || 'General' }} · {{ (entry as ManagedComment).message }}</small>
               <small v-else>{{ (entry as ManagedMedia).kind }}</small>
             </div>
-            <div class="manager-item-actions"><button aria-label="Editar" title="Editar" @click="edit(entry)"><IconSymbol glyph="pencil" :size="17" /></button><button aria-label="Eliminar" title="Eliminar" @click="remove(entry.id)"><IconSymbol glyph="trash" :size="17" /></button><button v-if="section === 'media' && (entry as ManagedMedia).kind === 'Imagen'" aria-label="Usar imagen en noticia" title="Usar en noticia" @click="useMediaForNews(entry as ManagedMedia)">↗</button></div>
+            <div class="manager-item-actions"><button aria-label="Editar" title="Editar" @click="edit(entry)"><IconSymbol glyph="pencil" :size="17" /></button><button aria-label="Eliminar" title="Eliminar" @click="remove(entry.id)"><IconSymbol glyph="trash" :size="17" /></button><button v-if="section === 'media' && (entry as ManagedMedia).kind === 'Imagen'" aria-label="Usar imagen en noticia" title="Usar en noticia" @click="useMediaForNews(entry as ManagedMedia)"><IconSymbol glyph="↗" :size="17" /></button></div>
           </article>
         </section>
         </template>
@@ -897,7 +897,7 @@ function useMediaForNews(item: ManagedMedia) {
   height:3px; border-radius:999px; background:transparent; transform:none;
 }
 .is-embedded .manager-tabs button.active::after {background:#b20c2a;transform:none;}
-.is-embedded .manager-tabs button.manager-editor-visual-tab .lucide-symbol {
+.is-embedded .manager-tabs button .lucide-symbol {
   width:36px;height:32px;border-radius:999px;
   background:color-mix(in srgb,#b20c2a 9%,var(--manager-card));
   color:var(--manager-accent);
