@@ -299,7 +299,7 @@ check('<IconSymbol glyph="message-circle" :size="19" />' in manager_mobile
       and all(f'<span class="manager-subtab-label">{title}</span>' in manager_mobile
               for title in ['Itinerarios', 'Noticias', 'Multimedia', 'Comentarios', 'Editor visual'])
       and '.is-embedded .manager-tabs.manager-subtabs {' in manager_mobile
-      and '.is-embedded .manager-tabs.manager-subtabs > button .lucide-symbol svg {' in manager_mobile
+      and '.is-embedded .manager-tabs.manager-subtabs > button .lucide-symbol :deep(svg) {' in manager_mobile
       and 'grid-template-rows:36px minmax(24px,auto) 24px;' in manager_mobile
       and 'flex:0 0 36px;' in manager_mobile
       and '.is-embedded .manager-tabs.manager-subtabs button.manager-editor-visual-tab {' in manager_mobile
