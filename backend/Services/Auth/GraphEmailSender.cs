@@ -58,10 +58,60 @@ public sealed class GraphEmailSender(HttpClient client, IConfiguration config)
             Content = JsonContent.Create(payload)
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        // Correlación para Microsoft Support; no incluir token ni OTP en logs.
+        var clientRequestId = Guid.NewGuid();
+        request.Headers.Add("client-request-id", clientRequestId.ToString());
+        request.Headers.Add("return-client-request-id", "true");
         using var response = await client.SendAsync(request, ct);
         if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"Microsoft Graph rechazó sendMail (HTTP {(int)response.StatusCode}).");
+        {
+            // El cuerpo de Graph puede contener datos personales. Registrar solo códigos
+            // estructurados y los identificadores de correlación, nunca el mensaje libre.
+            string? errorCode = null;
+            string? innerCode = null;
+            try
+            {
+                await using var stream = await response.Content.ReadAsStreamAsync(ct);
+                using var errorDocument = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+                if (errorDocument.RootElement.TryGetProperty("error", out var error) &&
+                    error.ValueKind == JsonValueKind.Object)
+                {
+                    errorCode = SafeCode(error);
+                    if ((error.TryGetProperty("innerError", out var inner) ||
+                         error.TryGetProperty("innererror", out inner)) &&
+                        inner.ValueKind == JsonValueKind.Object)
+                        innerCode = SafeCode(inner);
+                }
+            }
+            catch (JsonException)
+            {
+                // Las respuestas intermedias pueden no contener JSON válido.
+            }
+
+            string graphRequestId = "unavailable";
+            if (response.Headers.TryGetValues("request-id", out var requestIds) &&
+                Guid.TryParse(requestIds.FirstOrDefault(), out var parsedRequestId))
+                graphRequestId = parsedRequestId.ToString();
+
+            throw new HttpRequestException(
+                $"Microsoft Graph rechazó sendMail (HTTP {(int)response.StatusCode}, " +
+                $"graphCode={errorCode ?? "unknown"}, innerCode={innerCode ?? "unknown"}, " +
+                $"requestId={graphRequestId}, clientRequestId={clientRequestId}).");
+        }
         // HTTP 202 indica aceptación de Graph, no garantiza entrega final en el buzón.
+    }
+
+    private static string? SafeCode(JsonElement element)
+    {
+        if (!element.TryGetProperty("code", out var prop) || prop.ValueKind != JsonValueKind.String)
+            return null;
+        var code = prop.GetString();
+        if (string.IsNullOrEmpty(code) || code.Length > 96) return null;
+        foreach (var ch in code)
+            if (!((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') ||
+                  (ch >= '0' && ch <= '9') || ch is '_' or '-' or '.'))
+                return null;
+        return code;
     }
 
     private string Require(string key) =>
