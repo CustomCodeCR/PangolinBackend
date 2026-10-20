@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import IconSymbol from './components/IconSymbol.vue'
-import {computed, nextTick, onMounted, onUnmounted, ref} from 'vue'
+import {computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref} from 'vue'
 import routeSeo from '../seo/routes.json'
 import Home from './Home.vue'
-import QuoteApp from './App.vue'
-import Login from './pages/Login.vue'
-import News from './pages/News.vue'
+const QuoteApp = defineAsyncComponent(() => import('./App.vue'))
+const Login = defineAsyncComponent(() => import('./pages/Login.vue'))
+const News = defineAsyncComponent(() => import('./pages/News.vue'))
 import About from './pages/About.vue'
-import Tracking from './pages/Tracking.vue'
-import Itinerary from './pages/Itinerary.vue'
+const Tracking = defineAsyncComponent(() => import('./pages/Tracking.vue'))
+const Itinerary = defineAsyncComponent(() => import('./pages/Itinerary.vue'))
 import Services from './pages/Services.vue'
 import Legal from './pages/Legal.vue'
-import Administration from './pages/Administration.vue'
+const Administration = defineAsyncComponent(() => import('./pages/Administration.vue'))
 import OfficialQuoteWizard from './pages/OfficialQuoteWizard.vue'
 import OfficialQuoteAdmin from './pages/OfficialQuoteAdmin.vue'
 import SiteHeader from './components/SiteHeader.vue'
