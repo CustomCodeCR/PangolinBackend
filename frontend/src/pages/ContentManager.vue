@@ -505,6 +505,7 @@ function useMediaForNews(item: ManagedMedia) {
             <label>Autor<input v-model.trim="commentForm.author" required maxlength="100" /></label>
             <label>Sección<input v-model.trim="commentForm.section" maxlength="100" placeholder="Principal, servicios..." /></label>
             <label>Comentario<textarea v-model.trim="commentForm.message" required maxlength="1200" rows="5" /></label>
+            <label class="manager-checkbox"><input v-model="commentForm.published" type="checkbox" /> Aprobar para publicación</label>
             <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar comentario' }}</button>
           </form>
           <form v-else @submit.prevent="submitMedia">
