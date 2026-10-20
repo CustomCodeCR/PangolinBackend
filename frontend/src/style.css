@@ -4864,26 +4864,37 @@ html .content-manager .manager-tabs .lucide-symbol svg { color: #a80e18; stroke:
   .app-site.home-page .home-about-preview__copy h2 { width: 100%; max-width: none; margin-inline: auto; }
 }
 
-/* Administración: las tarjetas del panel comparten el azul marino de
-   Itinerario (#01081d). Solo se cambian colores del modo oscuro; no se
-   añaden filtros, desenfoques, animaciones ni lógica de componentes. */
-html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-heading,
-html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-notice,
-html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-preview-note,
-html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-tabs,
-html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-form,
-html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-list,
-html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-users-card {
-  background-color: #01081d !important;
-  background-image: none !important;
-  border-color: rgba(169, 190, 225, .2) !important;
+/* Administracion: mismo fondo carbon/rojo vino de Itinerario 01.
+   Sin filtros de desenfoque, animaciones ni cambios de imagen/logo.
+   El alcance es la pagina administrativa en modo oscuro exclusivamente. */
+html.theme-dark .app-site.administration-page .content-manager.is-embedded :is(
+  .manager-heading, .manager-notice, .manager-preview-note,
+  .manager-tabs, .manager-form, .manager-list, .manager-users-card
+) {
+  background-color: #211b20 !important;
+  background-image:
+    radial-gradient(ellipse 85% 150% at 6% 78%,
+      rgba(145, 9, 43, .38) 0%,
+      rgba(145, 9, 43, .14) 46%,
+      transparent 80%),
+    linear-gradient(110deg, #321d25 0%, #211b20 70%) !important;
+  border-color: rgba(188, 158, 168, .25) !important;
 }
-
-/* Estos bloques tenían un barrido rojo que ocultaba el mismo fondo.
-   Los formularios y listas mantienen sus efectos originales de main. */
-html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-heading::before,
-html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-notice::before,
-html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-preview-note::before,
-html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-tabs::before {
+/* Sustituir el glow animado anterior por el degradado estatico del fondo. */
+html.theme-dark .app-site.administration-page .content-manager.is-embedded :is(
+  .manager-heading, .manager-notice, .manager-preview-note,
+  .manager-tabs, .manager-form, .manager-list, .manager-users-card
+)::before {
   content: none !important;
+}
+/* Conservar la imagen compartida de Castro Fallas sin marcos decorativos.
+   Sigue siendo el mismo SiteHeader/SiteMedia usado en Itinerarios. */
+.app-site.administration-page .site-header .site-brand,
+.app-site.administration-page .site-header .site-brand img {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.app-site.administration-page .site-header .site-brand:focus:not(:focus-visible) {
+  outline: none;
 }
