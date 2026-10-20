@@ -55,7 +55,6 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
           <p class="section-tag center">{{ $t('phrases.p008') }}</p>
           <h2 class="section-title centered">{{ siteText('services.catalog.heading1', $t('phrases.p009'), locale) }} <span>{{ siteText('services.catalog.heading2', $t('phrases.p010'), locale) }}</span></h2>
           <p class="section-desc centered">{{ siteText('services.catalog.intro', $t('phrases.p011'), locale) }}</p>
-          <p class="section-desc centered"><a class="route-page-link" href="/transporte-panama-costa-rica/">Conocé el transporte y los consolidados de Panamá hacia Costa Rica</a></p>
           <div class="services-showcase" :aria-label="$t('phrases.p134')">
             <div class="services-showcase__tabs" role="tablist">
               <button v-for="service in services" :key="service.key" class="services-showcase__tab" :class="{ 'is-active': activeService === service.key }" type="button" role="tab" :aria-selected="activeService === service.key" @click="activeService = service.key">
@@ -117,7 +116,3 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
     <SiteFooter />
   </div>
 </template>
-<style scoped>
-.route-page-link { color: #af0922; font-weight: 700; text-underline-offset: 4px; }
-.route-page-link:hover, .route-page-link:focus-visible { color: #8e071d; }
-</style>
