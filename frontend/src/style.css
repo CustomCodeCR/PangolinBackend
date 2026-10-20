@@ -4917,6 +4917,38 @@ html.theme-dark .app-site.administration-page .content-manager.is-embedded :is(
     transform: translateX(65%);
   }
 }
+/* Los controles del administrador usan exactamente los tonos de los
+   campos de Itinerarios (mismo background, borde y placeholder).
+   Solo color: no cambiamos tamaños, padding, fechas ni funcionalidad. */
+html.theme-dark .app-site.administration-page .content-manager.is-embedded
+  .manager-form :is(input, select, textarea),
+html.theme-dark .app-site.administration-page .content-manager.is-embedded
+  .manager-users-table select {
+  background-color: #121a30 !important;
+  border-color: #3b465f !important;
+  color: #fff !important;
+  box-shadow: none;
+}
+html.theme-dark .app-site.administration-page .content-manager.is-embedded
+  .manager-form :is(input, textarea)::placeholder {
+  color: #acb1bd !important;
+  opacity: 1 !important;
+}
+html.theme-dark .app-site.administration-page .content-manager.is-embedded
+  .manager-form :is(input, select, textarea):disabled,
+html.theme-dark .app-site.administration-page .content-manager.is-embedded
+  .manager-users-table select:disabled {
+  background-color: #1c2335 !important;
+  color: #aeb5c4 !important;
+}
+html.theme-dark .app-site.administration-page .content-manager.is-embedded
+  .manager-form :is(input, select, textarea):focus-visible,
+html.theme-dark .app-site.administration-page .content-manager.is-embedded
+  .manager-users-table select:focus-visible {
+  border-color: #b20c2a !important;
+  outline: 2px solid #b20c2a;
+  outline-offset: 2px;
+}
 /* Conservar la imagen compartida de Castro Fallas sin marcos decorativos.
    Sigue siendo el mismo SiteHeader/SiteMedia usado en Itinerarios. */
 .app-site.administration-page .site-header .site-brand,
