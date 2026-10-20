@@ -979,6 +979,40 @@ function useMediaForNews(item: ManagedMedia) {
   outline:3px solid #b20c2a80;outline-offset:3px
 }
 .is-embedded .manager-form :is(input,select,textarea):focus-visible,.is-embedded .manager-users-table select:focus-visible {outline:2px solid #b20c2a;outline-offset:2px}
+/* Mismo gris carbón con luz roja suave que la tarjeta Itinerario 01.
+   Solo cambia el encabezado del administrador, no sus formularios ni pestañas. */
+.content-manager.is-embedded .manager-heading {
+  background-color: #211b20 !important;
+  background-image: linear-gradient(105deg, #211b20 0%, #211b20 42%, #381a23 72%, #571725 100%) !important;
+  border-color: #514148 !important;
+  color: #fff !important;
+}
+.content-manager.is-embedded .manager-heading::before {
+  inset: auto;
+  top: -55%;
+  bottom: -55%;
+  left: -25%;
+  width: 60%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center,
+    rgba(214,14,52,.37) 0%, rgba(178,11,45,.23) 38%,
+    rgba(126,10,34,.11) 58%, transparent 76%);
+  filter: blur(42px);
+  animation: itinerary-red-sweep 9s ease-in-out infinite alternate;
+}
+.content-manager.is-embedded .manager-heading .manager-eyebrow,
+.content-manager.is-embedded .manager-heading h1 {
+  color: #fff !important;
+}
+.content-manager.is-embedded .manager-heading > p:last-child {
+  color: rgba(255,255,255,.88) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .content-manager.is-embedded .manager-heading::before {
+    animation: none;
+    left: 40%;
+  }
+}
 @keyframes manager-zip-glow {from{transform:translateX(0)}to{transform:translateX(133%)}}
 @media(prefers-reduced-motion:reduce){.is-embedded .manager-form::before,.is-embedded .manager-list::before,.is-embedded .manager-users-card::before{animation:none;transform:translateX(65%)}}
 @media(max-width:1000px){.is-embedded .manager-form form.manager-editor--itineraries{grid-template-columns:repeat(2,minmax(0,1fr))}}
