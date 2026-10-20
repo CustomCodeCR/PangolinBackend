@@ -20,7 +20,7 @@ import { useI18n } from 'vue-i18n'
 import { loadPublishedSiteCms } from './siteCms'
 import { subscribeToChanges } from './services/realtime'
 const { t } = useI18n({ useScope: 'global' })
-const gatedPaths = new Set(['/noticias', '/nosotros', '/servicios', '/tracking', '/itinerario'])
+const gatedPaths = new Set(['/tracking', '/itinerario'])
 const seoByPath: Record<string, { title: string; description: string; indexable?: boolean }> = {
   '/': {
     title: 'Castro Fallas | Agencia aduanal y logística en Costa Rica',
