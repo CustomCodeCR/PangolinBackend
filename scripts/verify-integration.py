@@ -217,6 +217,18 @@ check('<IconSymbol glyph="←" :size="20" />' in login
       and 'flex: 0 0 20px;' in shared_mobile_styles
       and '.login-visual .login-guest-back .lucide-symbol svg { display: block; }' in shared_mobile_styles,
       'Flecha del botón Volver usa SVG centrado en una caja de 20 píxeles')
+admin_manager = read('frontend/src/pages/ContentManager.vue')
+admin_final_styles = admin_manager.split('/* Fidelidad visual al frontend 19/10', 1)[-1]
+check('class="manager-heading"' in admin_manager
+      and 'class="manager-tabs manager-subtabs"' in admin_manager
+      and 'padding:clamp(20px,2.8vw,34px);' in admin_final_styles
+      and 'border:1px solid var(--manager-line); border-radius:18px;' in admin_final_styles
+      and 'background:var(--admin-surface); box-shadow:none; overflow:hidden;' in admin_final_styles
+      and 'padding:6px clamp(12px,1.8vw,20px);' in admin_final_styles
+      and 'border:1px solid var(--manager-line); border-radius:16px;' in admin_final_styles
+      and '.is-embedded .manager-heading{padding:20px 16px;border-radius:16px}' in admin_final_styles
+      and '.is-embedded .manager-tabs{gap:6px 12px;padding:6px 8px;border-radius:14px}' in admin_final_styles,
+      'Administración mantiene contenido separado de bordes y esquinas redondeadas en escritorio y móvil')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
