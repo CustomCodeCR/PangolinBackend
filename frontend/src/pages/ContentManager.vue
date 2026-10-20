@@ -925,7 +925,8 @@ function useMediaForNews(item: ManagedMedia) {
 .is-embedded .manager-form form.manager-editor--itineraries {grid-template-columns:repeat(4,minmax(0,1fr));}
 .is-embedded .manager-form-row {display:contents;}
 .is-embedded .manager-form label {display:grid;align-content:start;gap:9px;min-width:0;color:var(--manager-ink);font-size:13px;font-weight:750;line-height:1.5}
-.is-embedded .manager-form .manager-checkbox {display:flex;align-items:center;justify-self:start;gap:10px}
+.is-embedded .manager-form .manager-checkbox {display:flex;align-items:center;justify-self:start;gap:12px;grid-column:1/-1;width:fit-content;color:var(--manager-ink);font-size:14px;font-weight:750;line-height:1.4;cursor:pointer}
+.is-embedded .manager-form .manager-checkbox input[type=checkbox] {flex:0 0 18px;width:18px;height:18px;min-height:18px;margin:0;padding:0;accent-color:#b20c2a;cursor:pointer}
 .is-embedded .manager-form input,.is-embedded .manager-form select,.is-embedded .manager-form textarea,.is-embedded .manager-users-table select {
   box-sizing:border-box;width:100%;min-width:0;min-height:46px;
   padding:11px 14px;border:1px solid var(--manager-input-line);border-radius:10px;
