@@ -1,0 +1,73 @@
+{
+  "/": {
+    "title": "Castro Fallas | Agencia aduanal y logística en Costa Rica",
+    "description": "Grupo Castro Fallas: carga consolidada LTL y transporte terrestre FTL Panamá–Costa Rica, agenciamiento aduanero y logística internacional."
+  },
+  "/home": {
+    "title": "Castro Fallas | Agencia aduanal y logística en Costa Rica",
+    "description": "Grupo Castro Fallas: carga consolidada LTL y transporte terrestre FTL Panamá–Costa Rica, agenciamiento aduanero y logística internacional."
+  },
+  "/noticias": {
+    "title": "Noticias de logística y comercio exterior | Castro Fallas",
+    "description": "Noticias sobre logística, aduanas, transporte internacional y comercio exterior en Costa Rica y Centroamérica."
+  },
+  "/nosotros": {
+    "title": "Sobre Castro Fallas | Logística internacional en Costa Rica",
+    "description": "Conoce la experiencia de Castro Fallas en logística, gestión aduanera y transporte de mercancías desde Costa Rica hacia el mundo."
+  },
+  "/servicios": {
+    "title": "Servicios de aduanas y transporte | Castro Fallas Costa Rica",
+    "description": "Servicios de carga consolidada LTL y transporte terrestre FTL Panamá–Costa Rica, logística aérea y marítima, agenciamiento aduanero y almacenamiento fiscal."
+  },
+  "/tracking": {
+    "title": "Seguimiento de carga | Castro Fallas",
+    "description": "Información de seguimiento de carga y conexiones logísticas de Castro Fallas.",
+    "indexable": false
+  },
+  "/itinerario": {
+    "title": "Itinerario de carga | Castro Fallas",
+    "description": "Información de itinerarios y coordinación de carga internacional con Castro Fallas.",
+    "indexable": false
+  },
+  "/cotizaciones": {
+    "title": "Cotizar transporte y logística | Castro Fallas Costa Rica",
+    "description": "Solicita una cotización para cargas aéreas, marítimas o terrestres con el equipo de Castro Fallas.",
+    "indexable": false
+  },
+  "/bienvenidos": {
+    "title": "Acceso a la plataforma | Castro Fallas",
+    "description": "Accede a la plataforma de Castro Fallas como cliente o usuario autorizado.",
+    "indexable": false
+  },
+  "/admin/contenido": {
+    "title": "Administración de contenido | Castro Fallas",
+    "description": "Administración local de itinerarios, noticias y multimedia.",
+    "indexable": false
+  },
+  "/admin/usuarios": {
+    "title": "Administración de usuarios | Castro Fallas",
+    "description": "Administración de cuentas y roles autorizados de Castro Fallas.",
+    "indexable": false
+  },
+  "/administracion": {
+    "title": "Administración | Castro Fallas",
+    "description": "Administración de contenido y usuarios autorizados de Castro Fallas.",
+    "indexable": false
+  },
+  "/privacidad": {
+    "title": "Política de privacidad | Castro Fallas",
+    "description": "Información sobre el tratamiento y la protección de datos personales relacionados con los servicios de Castro Fallas y este sitio web."
+  },
+  "/terminos": {
+    "title": "Términos y condiciones | Castro Fallas",
+    "description": "Condiciones de uso del sitio web y de los servicios digitales de Castro Fallas."
+  },
+  "/cookies": {
+    "title": "Política de cookies | Castro Fallas",
+    "description": "Información sobre el uso de cookies y tecnologías necesarias para el funcionamiento de este sitio."
+  },
+  "/licencias": {
+    "title": "Créditos y licencias | Castro Fallas",
+    "description": "Créditos y licencias de recursos, bibliotecas y elementos utilizados en el sitio de Castro Fallas."
+  }
+}
