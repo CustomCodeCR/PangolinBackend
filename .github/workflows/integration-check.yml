@@ -67,6 +67,8 @@ jobs:
           fi
       - name: Verify public GIO endpoint with no provider key
         run: python3 scripts/test-gio-public.py
+      - name: Verify PostgreSQL shipment tracking with development-only fixture
+        run: python3 scripts/verify-tracking-live.py
       - name: Seed test accounts only
         run: docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d login -f /tmp/SeedLocal.sql
       - name: Install SignalR test client (test containers only)
