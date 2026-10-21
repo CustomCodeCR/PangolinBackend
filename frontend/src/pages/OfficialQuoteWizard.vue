@@ -215,7 +215,7 @@ async function submit() {
             <p class="official-kicker">PASO 3 DE 4</p><h2>Ruta, equipo y servicios</h2>
             <p class="official-hint">Solo pedimos los datos necesarios para {{ shipmentType }}.</p>
             <p v-if="!locationLoading && (!locations.length || !destinations.length || (shipmentType === 'LCL' && !podOptions.length))" class="official-catalog-alert">Faltan ubicaciones para esta modalidad. El administrador debe completar el catálogo correspondiente.</p>
-            <p v-else-if="[...locations,...destinations,...podOptions].some(loc => loc.code?.startsWith('DEV-'))" class="official-catalog-alert" role="note">Modo de pruebas: los lugares marcados como PRUEBA son ficticios y sirven únicamente para comprobar el formulario. No corresponden a rutas reales.</p>
+            <p v-else-if="[...locations,...destinations,...podOptions].some(loc => loc.code?.startsWith('DEV-'))" class="official-catalog-alert" role="note">Faltan opciones verificadas para al menos uno de los campos. Las opciones PRUEBA son exclusivamente para desarrollo.</p>
             <div class="official-fields">
               <label>Origen <span>*</span><select v-model="form.originLocationId" required><option value="">Seleccionar origen</option><option v-for="loc in locations" :key="loc.id" :value="loc.id">{{ loc.displayName }}</option></select></label>
               <label>Destino <span>*</span><select v-model="form.destinationLocationId" required><option value="">Seleccionar destino</option><option v-for="loc in destinations" :key="loc.id" :value="loc.id">{{ loc.displayName }}</option></select></label>
