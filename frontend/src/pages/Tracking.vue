@@ -13,8 +13,11 @@ const en = computed(() => locale.value.toLowerCase().startsWith('en'))
 const kind = ref('BL')
 const reference = ref('')
 const searched = ref(false)
+const referenceMenuOpen = ref(false)
+const referenceTrigger = ref<HTMLButtonElement | null>(null)
+const referenceMenu = ref<HTMLElement | null>(null)
+const referenceMenuStyle = ref<Record<string, string>>({})
 let tour: Driver | null = null
-let guideStartTimer: ReturnType<typeof setTimeout> | undefined
 const types = computed(() => en.value ? [
   { id: 'BL', name: 'BL number', help: 'Master Bill of Lading for the shipment.' },
   { id: 'HBL', name: 'HBL number', help: 'House Bill of Lading for your cargo.' },
@@ -29,6 +32,78 @@ const types = computed(() => en.value ? [
   { id: 'PO', name: 'Orden de compra (PO)', help: 'Orden de compra vinculada al embarque, si aplica.' }
 ])
 const help = computed(() => types.value.find(item => item.id === kind.value)?.help ?? '')
+const selectedReferenceName = computed(() => types.value.find(item => item.id === kind.value)?.name ?? '')
+
+// Use the same anchored reference listbox on desktop and mobile.
+// It flips above the field when there isn't enough room below.
+function positionReferenceMenu() {
+  const rect = referenceTrigger.value?.getBoundingClientRect()
+  if (!rect) return
+  const viewport = window.visualViewport
+  const topEdge = viewport?.offsetTop ?? 0
+  const bottomEdge = topEdge + (viewport?.height ?? window.innerHeight)
+  const below = Math.max(0, bottomEdge - rect.bottom - 8)
+  const above = Math.max(0, rect.top - topEdge - 8)
+  const openAbove = below < 240 && above > below
+  const available = openAbove ? above : below
+  const height = Math.min(240, Math.max(65, available - 6))
+  const screenWidth = window.innerWidth
+  const width = Math.min(rect.width, screenWidth - 16)
+  const left = Math.max(8, Math.min(rect.left, screenWidth - width - 8))
+  const top = openAbove ? rect.top - height - 6 : rect.bottom + 6
+  referenceMenuStyle.value = {
+    left: left + 'px',
+    top: Math.max(topEdge + 4, top) + 'px',
+    width: width + 'px',
+    maxHeight: height + 'px'
+  }
+}
+function closeReferenceMenu() {
+  referenceMenuOpen.value = false
+}
+function openReferenceMenu(keyboard = false) {
+  referenceMenuOpen.value = true
+  positionReferenceMenu()
+  if (keyboard) {
+    void nextTick(() => {
+      referenceMenu.value?.querySelector<HTMLButtonElement>('[aria-selected="true"]')?.focus({ preventScroll: true })
+    })
+  }
+}
+function toggleReferenceMenu() {
+  if (referenceMenuOpen.value) closeReferenceMenu()
+  else openReferenceMenu()
+}
+function selectReferenceType(id: string, event: MouseEvent) {
+  kind.value = id
+  closeReferenceMenu()
+  if (event.detail === 0) referenceTrigger.value?.focus({ preventScroll: true })
+}
+function handleReferenceMenuKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeReferenceMenu()
+    referenceTrigger.value?.focus({ preventScroll: true })
+  } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+    event.preventDefault()
+    const options = Array.from(referenceMenu.value?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? [])
+    if (!options.length) return
+    const current = options.indexOf(document.activeElement as HTMLButtonElement)
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1 :
+      event.key === 'ArrowDown' ? (current + 1) % options.length : (current + options.length - 1) % options.length
+    options[next]?.focus({ preventScroll: true })
+  }
+}
+function handleReferencePointerDown(event: PointerEvent) {
+  if (!referenceMenuOpen.value || !(event.target instanceof Node)) return
+  if (!referenceTrigger.value?.contains(event.target) && !referenceMenu.value?.contains(event.target)) {
+    closeReferenceMenu()
+  }
+}
+function handleReferenceViewportChange() {
+  if (!referenceMenuOpen.value) return
+  positionReferenceMenu()
+}
 const copy = computed(() => en.value ? {
   eyebrow: 'CASTRO FALLAS · INTERNATIONAL CARGO', title: 'Track your', accent: 'shipment.',
   intro: 'Enter a shipment reference. Online movements are not connected yet; our team can assist you with that reference.',
@@ -72,7 +147,6 @@ const mailto = computed(() => {
   return 'mailto:comercial@castrofallas.com?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body)
 })
 function openGuide() {
-  clearTimeout(guideStartTimer)
   tour?.destroy()
   const targets = ['.tracking-intro .world-globe', '#tracking-guide-type', '#tracking-guide-reference', '#tracking-guide-submit', '.tracking-process__steps']
   tour = driver({
@@ -97,15 +171,23 @@ function handleGuideKeydown(event: KeyboardEvent) {
   if (!event.repeat) tour.moveNext()
 }
 
-onMounted(async () => {
+// The guide is opt-in: auto-opening its overlay can intercept mobile select taps.
+onMounted(() => {
   window.addEventListener('keydown', handleGuideKeydown, true)
-  await nextTick()
-  guideStartTimer = setTimeout(openGuide, 650)
+  document.addEventListener('pointerdown', handleReferencePointerDown, true)
+  window.addEventListener('resize', handleReferenceViewportChange)
+  window.addEventListener('scroll', handleReferenceViewportChange, true)
+  window.visualViewport?.addEventListener('resize', handleReferenceViewportChange)
+  window.visualViewport?.addEventListener('scroll', handleReferenceViewportChange)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleGuideKeydown, true)
-  clearTimeout(guideStartTimer)
+  document.removeEventListener('pointerdown', handleReferencePointerDown, true)
+  window.removeEventListener('resize', handleReferenceViewportChange)
+  window.removeEventListener('scroll', handleReferenceViewportChange, true)
+  window.visualViewport?.removeEventListener('resize', handleReferenceViewportChange)
+  window.visualViewport?.removeEventListener('scroll', handleReferenceViewportChange)
   tour?.destroy()
 })
 </script>
@@ -136,14 +218,30 @@ onBeforeUnmount(() => {
             </div>
             <p class="tracking-hint">{{ copy.hint }}</p>
             <div class="tracking-fields">
-              <label id="tracking-guide-type">{{ copy.type }}
-                <select v-model="kind">
-                  <option v-for="item in types" :key="item.id" :value="item.id">{{ item.name }}</option>
-                </select>
-              </label>
-              <label id="tracking-guide-reference">{{ copy.number }}
-                <input v-model="reference" maxlength="150" autocomplete="off" :placeholder="copy.placeholder" required />
-              </label>
+              <div id="tracking-guide-type" class="tracking-field">
+                <label for="tracking-reference-kind">{{ copy.type }}</label>
+                <button
+                  id="tracking-reference-kind"
+                  ref="referenceTrigger"
+                  class="tracking-reference-select"
+                  type="button"
+                  aria-haspopup="listbox"
+                  aria-controls="tracking-reference-listbox"
+                  :aria-label="copy.type"
+                  :aria-expanded="referenceMenuOpen"
+                  @click.stop="toggleReferenceMenu"
+                  @keydown.down.prevent="openReferenceMenu(true)"
+                  @keydown.up.prevent="openReferenceMenu(true)"
+                  @keydown.esc.prevent="closeReferenceMenu"
+                >
+                  <span>{{ selectedReferenceName }}</span>
+                  <span class="tracking-reference-select__arrow" aria-hidden="true">⌄</span>
+                </button>
+              </div>
+              <div id="tracking-guide-reference" class="tracking-field">
+                <label for="tracking-reference-input">{{ copy.number }}</label>
+                <input id="tracking-reference-input" v-model="reference" maxlength="150" autocomplete="off" :placeholder="copy.placeholder" required />
+              </div>
             </div>
             <p class="tracking-hint">{{ help }}</p>
             <p v-if="searched && !reference.trim()" class="tracking-error" role="alert">{{ copy.required }}</p>
@@ -170,6 +268,29 @@ onBeforeUnmount(() => {
     </main>
     <SiteFooter />
   </div>
+  <Teleport to="body">
+    <div
+      v-if="referenceMenuOpen"
+      id="tracking-reference-listbox"
+      ref="referenceMenu"
+      class="tracking-reference-options"
+      role="listbox"
+      :aria-label="copy.type"
+      :style="referenceMenuStyle"
+      @keydown="handleReferenceMenuKeydown"
+    >
+      <button
+        v-for="item in types"
+        :key="item.id"
+        type="button"
+        role="option"
+        :aria-selected="kind === item.id"
+        :class="{ 'is-selected': kind === item.id }"
+        tabindex="-1"
+        @click="selectReferenceType(item.id, $event)"
+      >{{ item.name }}</button>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -190,8 +311,81 @@ onBeforeUnmount(() => {
 .tracking-guide:focus-visible { outline: 2px solid #a80e18; outline-offset: 3px; }
 .tracking-hint { color: var(--track-muted); line-height: 1.6; }
 .tracking-fields { display: grid; grid-template-columns: .8fr 1.2fr; gap: 17px; margin-top: 20px; }
-.tracking-fields label { display: grid; gap: 9px; font-weight: 700; font-size: 14px; }
-.tracking-fields input,.tracking-fields select { box-sizing: border-box; width: 100%; min-height: 52px; padding: 12px; border: 1px solid #96969b7d; border-radius: 12px; color: var(--track-ink); background: var(--track-surface); font: inherit; }
+.tracking-fields .tracking-field { display:grid; gap:9px; min-width:0; }
+.tracking-fields label { display:block; min-width:0; font-weight:700; font-size:14px; overflow-wrap:break-word; }
+/* Shared reference selector for desktop and mobile; options are teleported
+   outside the clipped form and remain anchored to the trigger. */
+.tracking-fields .tracking-reference-select {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  min-height:52px;
+  width:100%;
+  min-width:0;
+  padding:12px 15px;
+  border:1px solid #96969b60;
+  border-radius:13px;
+  background:var(--surface-card);
+  color:var(--text-primary);
+  text-align:left;
+  font:inherit;
+  font-size:16px;
+  line-height:1.35;
+  cursor:pointer;
+}
+.tracking-reference-select__arrow {flex:none;font-size:20px;line-height:1}
+:global(html.theme-dark .tracking-reference-select) {background:#10182b;color:#fff}
+.tracking-reference-options {
+  position:fixed;
+  z-index:9999;
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  padding:5px;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  border:1px solid #96969b80;
+  border-radius:13px;
+  background:#fff;
+  color:#20242b;
+  box-shadow:0 14px 32px #0005;
+}
+.tracking-reference-options > button {
+  flex:0 0 auto;
+  width:100%;
+  min-height:44px;
+  padding:10px 12px;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:inherit;
+  text-align:left;
+  font:inherit;
+  font-size:15px;
+  cursor:pointer;
+}
+.tracking-reference-options > button.is-selected,
+.tracking-reference-options > button:hover {background:#b5092826}
+.tracking-reference-options > button:focus-visible {outline:2px solid #b50928;outline-offset:-2px}
+/* The listbox is teleported to <body>. Scope the entire dark selector,
+   not just html, so Vue applies dark colors to the detached listbox. */
+:global(html.theme-dark .tracking-reference-options) {
+  background:#10182b;
+  color:#f4f6fb;
+  border-color:#6b6c7b;
+  box-shadow:0 14px 34px #0009;
+}
+:global(html.theme-dark .tracking-reference-options > button) {
+  color:inherit;
+}
+:global(html.theme-dark .tracking-reference-options > button.is-selected),
+:global(html.theme-dark .tracking-reference-options > button:hover) {
+  background:#b5092847;
+  color:#fff;
+}
+.tracking-fields input,.tracking-fields select { box-sizing: border-box; width: 100%; min-width:0; max-width:100%; min-height: 52px; padding: 12px; border: 1px solid #96969b7d; border-radius: 12px; color: var(--track-ink); background: var(--track-surface); font: inherit; }
 .tracking-error { color: #a80e18; font-weight: 700; }
 .tracking-submit { width: 100%; display: flex; justify-content: space-between; margin-top: 22px; }
 .tracking-unavailable { margin-top: 20px; padding: 20px; border-radius: 15px; border: 1px solid #a80e1866; }
@@ -263,7 +457,17 @@ onBeforeUnmount(() => {
   .tracking-search{padding:22px 18px;border-radius:22px}
   .tracking-top{flex-wrap:wrap}
   .tracking-guide-button{width:100%;margin:14px 0 0}
-  .tracking-fields{grid-template-columns:1fr;gap:0}
+  .tracking-fields{grid-template-columns:minmax(0,1fr);gap:20px;margin-top:22px}
+  .tracking-field{min-width:0}
+  .tracking-fields label{font-size:14px;line-height:1.4}
+  .tracking-fields :is(input,select){min-height:54px;padding:13px 15px;font-size:16px;line-height:1.35}
+  .tracking-fields .tracking-reference-select{min-height:54px;padding:13px 15px}
+  .tracking-search .tracking-hint{overflow-wrap:break-word;line-height:1.55}
+  .tracking-search .tracking-fields + .tracking-hint{margin:22px 0 0}
+  .tracking-top > div{min-width:0}
+  .tracking-top h2{overflow-wrap:break-word;font-size:clamp(24px,6.5vw,32px)}
+  .tracking-guide-button{min-height:48px}
+  .tracking-submit{min-height:54px;margin-top:24px}
   .tracking-process{padding:24px 20px;border-radius:23px}
   .tracking-process__steps{grid-template-columns:1fr;gap:20px;margin-top:28px}
   .tracking-process__steps li{display:grid;grid-template-columns:40px 1fr;gap:12px;padding-top:17px}

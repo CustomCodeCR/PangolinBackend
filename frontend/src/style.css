@@ -4900,9 +4900,12 @@ html .content-manager .manager-tabs .lucide-symbol svg { color: #a80e18; stroke:
     hyphens: auto;
     margin-inline: auto;
   }
-  .app-site.home-page .tracking-home-copy { text-align: center; }
-  .app-site.home-page .tracking-home-copy .section-desc { max-width: 100%; }
-  .app-site.home-page .tracking-home-copy .btn { margin-inline: auto; }
+  /* Mantener el botón Rastrear ahora separado del globo. La regla móvil
+     anterior aplica margin-bottom:-35px y provoca una superposición. */
+  .app-site.home-page .tracking-home-grid { row-gap:clamp(28px,6vw,42px); }
+  .app-site.home-page .tracking-home-copy { text-align:center; margin-bottom:0; }
+  .app-site.home-page .tracking-home-copy .section-desc { max-width:100%; }
+  .app-site.home-page .tracking-home-copy .btn { margin-inline:auto; }
   .app-site.home-page .hero-actions { margin-inline: auto; }
 }
 
