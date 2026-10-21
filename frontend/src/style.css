@@ -4914,6 +4914,138 @@ html .content-manager .manager-tabs .lucide-symbol svg { color: #a80e18; stroke:
   .app-site.home-page .home-about-preview__copy h2 { width: 100%; max-width: none; margin-inline: auto; }
 }
 
+
+
+/* Static value cards with a soft red sweep from left to right. */
+.about-value-card {
+  cursor: default !important;
+  transition: none !important;
+}
+.about-value-card:hover,
+.about-value-card:focus-visible,
+html.theme-dark .about-value-card:hover,
+html.theme-dark .about-value-card:focus-visible,
+html.theme-dark .about-value-card.is-selected {
+  transform: none !important;
+  box-shadow: none !important;
+}
+.about-value-card::before {
+  inset: auto;
+  top: -40%;
+  bottom: -40%;
+  left: -70%;
+  width: 140%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent 0%, rgba(190,13,43,.12) 28%, rgba(190,13,43,.64) 50%, rgba(190,13,43,.2) 72%, transparent 100%);
+  filter: blur(22px);
+  opacity: 0;
+  transform: translateX(0);
+  animation: about-values-red-sweep 4.2s ease-in-out infinite;
+}
+.about-value-card:nth-child(2)::before { animation-delay: .35s; }
+.about-value-card:nth-child(3)::before { animation-delay: .7s; }
+.about-value-card:nth-child(4)::before { animation-delay: 1.05s; }
+.about-value-card:nth-child(5)::before { animation-delay: 1.4s; }
+@keyframes about-values-red-sweep {
+  0%, 8% { transform: translateX(0); opacity: 0; }
+  18% { opacity: .95; }
+  82% { transform: translateX(100%); opacity: .95; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+html.theme-dark .about-value-card::before {
+  background: linear-gradient(90deg, transparent 0%, rgba(214,14,52,.18) 28%, rgba(238,40,71,.78) 50%, rgba(178,11,45,.28) 72%, transparent 100%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .about-value-card::before { animation: none; transform: translateX(0); opacity: .5; }
+}
+@media (max-width: 800px) {
+  .about-value-card:last-child { grid-column: 1 / -1; }
+}
+
+/* Keep the active service-card copy inside its panel on desktop and mobile. */
+.app-site.home-page #servicios .service-accordion__panel,
+.app-site.home-page #servicios .service-accordion__copy {
+  box-sizing: border-box;
+  min-width: 0;
+}
+.app-site.home-page #servicios .service-accordion__copy {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.app-site.home-page #servicios .service-accordion__copy h3,
+.app-site.home-page #servicios .service-accordion__copy p {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+  hyphens: none;
+}
+.app-site.home-page #servicios .service-accordion__copy .btn {
+  box-sizing: border-box;
+  max-width: 100%;
+  white-space: normal;
+}
+@media (min-width: 801px) {
+  .app-site.home-page #servicios .service-accordion__panel {
+    overflow: hidden;
+    padding-right: 28px;
+  }
+  .app-site.home-page #servicios .service-accordion__copy {
+    flex: 0 1 460px;
+    width: min(100%, 460px);
+    max-width: min(100%, 460px);
+    margin-right: 28px;
+  }
+}
+
+/* Mobile: four service tabs stay visible in a compact, stable layout. */
+@media (max-width: 800px) {
+  .app-site.home-page #servicios .service-accordion {
+    height: clamp(230px, 60vw, 280px) !important;
+    min-height: clamp(230px, 60vw, 280px) !important;
+    justify-content: stretch !important;
+    overflow: hidden !important;
+    scroll-snap-type: none !important;
+    gap: 5px !important;
+  }
+  .app-site.home-page #servicios .service-accordion__item {
+    flex: 0 0 40px !important;
+    transition: none !important;
+  }
+  .app-site.home-page #servicios .service-accordion__item.is-open {
+    flex: 1 1 0% !important;
+    min-width: 0 !important;
+  }
+  .app-site.home-page #servicios .service-accordion__trigger,
+  .app-site.home-page #servicios .service-accordion__item.is-open > .service-accordion__trigger {
+    width: 40px !important;
+  }
+  .app-site.home-page #servicios .service-accordion__panel {
+    inset: 0 0 0 40px !important;
+    padding: 12px 8px 14px !important;
+  }
+  .app-site.home-page #servicios .service-accordion__copy {
+    flex: 1 1 0% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    margin-right: 0 !important;
+  }
+  .app-site.home-page #servicios .service-accordion__copy h3 {
+    font-size: clamp(14px, 3.8vw, 17px) !important;
+    line-height: 1.15 !important;
+  }
+  .app-site.home-page #servicios .service-accordion__copy p {
+    font-size: clamp(11px, 3vw, 13px) !important;
+    line-height: 1.4 !important;
+  }
+}
+
 /* Administracion: mismo fondo carbon/rojo vino de Itinerario 01.
    Ola roja animada sin blur ni cambios de imagen/logo.
    El alcance es la pagina administrativa en modo oscuro exclusivamente. */
