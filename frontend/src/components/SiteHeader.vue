@@ -70,7 +70,7 @@ const sessionUser = computed(() => authState.user)
 const loggingOut = ref(false)
 const isAuthenticated = computed(() => !!sessionUser.value)
 const isAdministrator = computed(() => currentRole() === 'administrador')
-const canAccessCargo = computed(() => currentRole() === 'cliente' || currentRole() === 'administrador')
+const canAccessCargo = computed(() => currentRole() === 'cliente' || currentRole() === 'administrador' || window.location.pathname.replace(/\/+$/, '') === '/cotizaciones')
 const settingsOpen = ref(false)
 const profileOpen = ref(false)
 const profileButton = ref<HTMLButtonElement | null>(null)
@@ -112,7 +112,8 @@ const links = computed(() => baseLinks.map(link => ({ ...link, label: t(`navLink
 const visibleLinks = computed(() => links.value.map(link => ({ ...link, url: `${link.url}${rolePreviewSuffix.value}` })))
 const cargoLinks = computed(() => [
   { key: 'embarque', id: 'embarque', url: `/tracking${rolePreviewSuffix.value}`, label: t('navLinks.embarque') },
-  { key: 'itinerario', id: 'itinerario', url: `/itinerario${rolePreviewSuffix.value}`, label: t('navLinks.itinerario') }
+  { key: 'itinerario', id: 'itinerario', url: `/itinerario${rolePreviewSuffix.value}`, label: t('navLinks.itinerario') },
+  { key: 'cotizaciones', id: 'cotizaciones', url: `/cotizaciones${rolePreviewSuffix.value}`, label: t('navLinks.cotizaciones') }
 ])
 async function logout() {
   if (loggingOut.value) return
@@ -149,8 +150,11 @@ watch(isAuthenticated, authenticated => {
 function applySystemTheme(event?: MediaQueryListEvent) {
   if (localStorage.getItem('castrofallas-theme')) return
   darkMode.value = event?.matches ?? !!systemThemeQuery?.matches
-  document.documentElement.classList.toggle('theme-dark', darkMode.value)
 }
+watch(darkMode, isDark => {
+  document.documentElement.classList.toggle('theme-dark', isDark)
+  document.documentElement.style.colorScheme = isDark ? 'dark' : 'light'
+}, { flush: 'sync' })
 watch(expanded, isOpen => {
   if (!isOpen) { profileOpen.value = false; settingsOpen.value = false; cargoMenuOpen.value = false }
   if (isOpen && mobileMenuQuery.matches) lockMenuBackground()
@@ -162,7 +166,6 @@ onMounted(() => {
   if (!authState.loaded) void refreshSession()
   const savedTheme = localStorage.getItem('castrofallas-theme')
   darkMode.value = savedTheme ? savedTheme === 'dark' : !!systemThemeQuery?.matches
-  document.documentElement.classList.toggle('theme-dark', darkMode.value)
   systemThemeQuery?.addEventListener('change', applySystemTheme)
   document.addEventListener('click', handleOutsideClick)
   document.addEventListener('keydown', handleEscapeKey)
@@ -177,7 +180,6 @@ onUnmounted(() => {
 
 function toggleTheme() {
   darkMode.value = !darkMode.value
-  document.documentElement.classList.toggle('theme-dark', darkMode.value)
   localStorage.setItem('castrofallas-theme', darkMode.value ? 'dark' : 'light')
 }
 </script>
@@ -238,7 +240,7 @@ function toggleTheme() {
             <button class="header-settings__trigger" type="button" :aria-label="t('custom.header.settings')" :aria-expanded="settingsOpen" @click.stop="settingsOpen = !settingsOpen; profileOpen = false"><Settings :size="20" aria-hidden="true" /></button>
             <div v-if="settingsOpen" class="header-settings__panel">
               <span class="header-settings__label">{{ t('custom.header.settings') }}</span>
-              <button class="theme-toggle" type="button" :aria-label="darkMode ? $t('custom.header.light') : $t('custom.header.dark')" @click="toggleTheme"><Sun v-if="darkMode" :size="18" aria-hidden="true" /><Moon v-else :size="18" aria-hidden="true" /><span>{{ darkMode ? $t('custom.header.light') : $t('custom.header.dark') }}</span></button>
+              <button class="theme-toggle" type="button" :aria-pressed="darkMode" :aria-label="darkMode ? $t('custom.header.light') : $t('custom.header.dark')" @click="toggleTheme"><Sun v-if="darkMode" :size="18" aria-hidden="true" /><Moon v-else :size="18" aria-hidden="true" /><span>{{ darkMode ? $t('custom.header.light') : $t('custom.header.dark') }}</span></button>
               <LanguageSwitcher dropdown />
             </div>
           </div>

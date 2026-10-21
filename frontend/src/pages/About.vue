@@ -2,14 +2,13 @@
 import IconSymbol from '../components/IconSymbol.vue'
 import SiteMedia from '../components/SiteMedia.vue'
 import { siteText, siteVisual, siteCssImage } from '../siteCms'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 
 const { t, locale } = useI18n({ useScope: 'global' })
 const values = computed(() => [0, 1, 2, 3, 4].map(index => siteText(`about.values.${index}`, t(`custom.about.values.${index}`), locale.value)))
-const selectedValue = ref<number | null>(null)
 </script>
 
 <template>
@@ -34,10 +33,10 @@ const selectedValue = ref<number | null>(null)
           <p class="section-tag">{{ $t('custom.about.valuesEyebrow') }}</p>
           <h2 class="about-values-title">{{ siteText('about.values.heading', $t('custom.about.valuesTitle'), locale) }}</h2>
           <div class="about-values-grid">
-            <button v-for="(value, index) in values" :key="value" class="about-value-card" :class="{ 'is-selected': selectedValue === index }" type="button" :aria-pressed="selectedValue === index" @click="selectedValue = selectedValue === index ? null : index">
+            <article v-for="(value, index) in values" :key="value" class="about-value-card">
               <span>{{ String(index + 1).padStart(2, '0') }}</span>
               <strong>{{ value }}</strong>
-            </button>
+            </article>
           </div>
         </div>
       </section>

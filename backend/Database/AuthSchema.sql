@@ -188,6 +188,18 @@ CREATE TABLE IF NOT EXISTS public.cms_news (
 );
 ALTER TABLE public.cms_news ADD COLUMN IF NOT EXISTS body TEXT NOT NULL DEFAULT '';
 CREATE INDEX IF NOT EXISTS idx_cms_news_published ON public.cms_news(published, created_at DESC);
+-- Comentarios moderados: los borradores nunca se exponen en la API pública.
+CREATE TABLE IF NOT EXISTS public.cms_comments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    author VARCHAR(100) NOT NULL,
+    section VARCHAR(100) NOT NULL DEFAULT '',
+    message VARCHAR(1200) NOT NULL,
+    published BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_cms_comments_published ON public.cms_comments(published, created_at DESC);
+
 -- Ubicaciones editables del sitio, sin reescribir noticias o archivos ya existentes.
 CREATE TABLE IF NOT EXISTS public.cms_site_slots (
     key VARCHAR(100) PRIMARY KEY,

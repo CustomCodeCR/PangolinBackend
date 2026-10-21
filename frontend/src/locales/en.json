@@ -25,7 +25,6 @@
     "p022": "shipment.",
     "p023": "Explore our interactive globe and discover how we connect Costa Rica to the world.",
     "p024": "Track now",
-    "p025": "Demo visualization: live tracking integration is pending.",
     "p026": "EXPERIENCE THAT BACKS US",
     "p027": "Experience to",
     "p028": "move your",
@@ -287,7 +286,8 @@
     "nosotros": "About us",
     "soluciones": "Services",
     "embarque": "International shipping",
-    "itinerario": "Itinerary"
+    "itinerario": "Itinerary",
+    "cotizaciones": "Quotes"
   },
   "custom": {
     "about": {

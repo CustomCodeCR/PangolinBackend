@@ -4,6 +4,7 @@ import {computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref} f
 import routeSeo from '../seo/routes.json'
 import Home from './Home.vue'
 const QuoteApp = defineAsyncComponent(() => import('./App.vue'))
+const OfficialQuoteWizard = defineAsyncComponent(() => import('./pages/OfficialQuoteWizard.vue'))
 const Login = defineAsyncComponent(() => import('./pages/Login.vue'))
 const News = defineAsyncComponent(() => import('./pages/News.vue'))
 import About from './pages/About.vue'
@@ -66,6 +67,7 @@ function applyPageSeo() {
   }
 }
 applyPageSeo()
+const officialQuotesEnabled = import.meta.env.VITE_OFFICIAL_QUOTES_ENABLED === 'true'
 const quoteAccess = ref<'checking' | 'allowed' | 'denied' | 'forbidden'>('checking')
 const requestPath = window.location.pathname.replace(/\/+$/, '') || '/'
 const legacyAdminRoute = requestPath === '/admin/contenido' || requestPath === '/admin/usuarios'
@@ -86,7 +88,7 @@ onMounted(async () => {
     else window.location.replace('/home')
     return
   }
-  if (requestPath === '/cotizaciones') {
+  if (requestPath === '/cotizaciones' || requestPath === '/cotizaciones/nuevo') {
     if (!user) quoteAccess.value = 'denied'
     else quoteAccess.value = role === 'cliente' || role === 'administrador' ? 'allowed' : 'forbidden'
   }
@@ -117,7 +119,8 @@ const page = computed(()=> {
   if(path==='/servicios') return 'services'
   if(path==='/tracking') return 'tracking'
   if(path==='/itinerario') return 'itinerary'
-  if(path==='/cotizaciones') return 'quote'
+  if(path==='/cotizaciones') return officialQuotesEnabled ? 'official-quote' : 'quote'
+  if(path==='/cotizaciones/nuevo') return officialQuotesEnabled ? 'official-quote' : 'notFound'
   if(['/privacidad','/terminos','/cookies','/licencias'].includes(path)) return 'legal'
   return 'notFound'
 })
@@ -143,6 +146,7 @@ const page = computed(()=> {
   <Tracking v-else-if="page==='tracking'"/>
   <Itinerary v-else-if="page==='itinerary'"/>
   <Legal v-else-if="page==='legal'" />
+  <OfficialQuoteWizard v-else-if="page==='official-quote'" />
   <div v-else class="app-site quote-page quote-flow-page">
     <SiteHeader/>
     <div v-if="quoteAccess === 'checking'" class="container quote-access-status" role="status">{{ t('custom.quote.checkingSession') }}</div>
