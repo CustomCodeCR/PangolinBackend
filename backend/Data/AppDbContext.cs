@@ -26,6 +26,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<OtpChallenge> OtpChallenges => Set<OtpChallenge>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
     public DbSet<Itinerario> Itinerarios => Set<Itinerario>();
+    public DbSet<ShipmentTracking> ShipmentTrackings => Set<ShipmentTracking>();
+    public DbSet<ShipmentTrackingEvent> ShipmentTrackingEvents => Set<ShipmentTrackingEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -289,5 +291,32 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         itinerario.Property(x => x.Voyage).HasColumnName("voyage").HasMaxLength(50);
         itinerario.Property(x => x.CreatedAt).HasColumnName("created_at")
         .HasColumnType("timestamp with time zone").HasDefaultValueSql("now()");
+        var tracking = modelBuilder.Entity<ShipmentTracking>();
+        tracking.ToTable("shipment_tracking", "public");
+        tracking.HasKey(x => x.Id);
+        tracking.Property(x => x.Id).HasColumnName("id");
+        tracking.Property(x => x.ReferenceKind).HasColumnName("reference_kind").HasMaxLength(12);
+        tracking.Property(x => x.ReferenceNormalized).HasColumnName("reference_normalized").HasMaxLength(100);
+        tracking.HasIndex(x => new { x.ReferenceKind, x.ReferenceNormalized }).IsUnique();
+        tracking.Property(x => x.Status).HasColumnName("status").HasMaxLength(30);
+        tracking.Property(x => x.Origin).HasColumnName("origin").HasMaxLength(120);
+        tracking.Property(x => x.Destination).HasColumnName("destination").HasMaxLength(120);
+        tracking.Property(x => x.Eta).HasColumnName("eta").HasColumnType("date");
+        tracking.Property(x => x.IsPublic).HasColumnName("is_public");
+        tracking.Property(x => x.IsDemo).HasColumnName("is_demo");
+        tracking.Property(x => x.Source).HasColumnName("source").HasMaxLength(20);
+        tracking.Property(x => x.UpdatedAtUtc).HasColumnName("updated_at_utc");
+
+        var trackingEvent = modelBuilder.Entity<ShipmentTrackingEvent>();
+        trackingEvent.ToTable("shipment_tracking_events", "public");
+        trackingEvent.HasKey(x => x.Id);
+        trackingEvent.Property(x => x.Id).HasColumnName("id");
+        trackingEvent.Property(x => x.TrackingId).HasColumnName("tracking_id");
+        trackingEvent.Property(x => x.EventAtUtc).HasColumnName("event_at_utc");
+        trackingEvent.Property(x => x.Status).HasColumnName("status").HasMaxLength(30);
+        trackingEvent.Property(x => x.Location).HasColumnName("location").HasMaxLength(120);
+        trackingEvent.Property(x => x.Description).HasColumnName("description").HasMaxLength(250);
+        trackingEvent.HasOne<ShipmentTracking>().WithMany().HasForeignKey(x => x.TrackingId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
