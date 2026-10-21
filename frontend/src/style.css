@@ -4913,102 +4913,6 @@ html .content-manager .manager-tabs .lucide-symbol svg { color: #a80e18; stroke:
   .app-site.home-page .home-about-preview__copy h2 { width: 100%; max-width: none; margin-inline: auto; }
 }
 
-/* Administracion: mismo fondo carbon/rojo vino de Itinerario 01.
-   Ola roja animada sin blur ni cambios de imagen/logo.
-   El alcance es la pagina administrativa en modo oscuro exclusivamente. */
-html.theme-dark .app-site.administration-page .content-manager.is-embedded :is(
-  .manager-heading, .manager-notice, .manager-preview-note,
-  .manager-tabs, .manager-form, .manager-list, .manager-users-card
-) {
-  background-color: #211b20 !important;
-  background-image:
-    radial-gradient(ellipse 85% 150% at 6% 78%,
-      rgba(145, 9, 43, .38) 0%,
-      rgba(145, 9, 43, .14) 46%,
-      transparent 80%),
-    linear-gradient(110deg, #321d25 0%, #211b20 70%) !important;
-  border-color: rgba(188, 158, 168, .25) !important;
-}
-/* Ola roja idéntica en ritmo y tonos a Itinerario 01. La capa es solo
-   decorativa y se anima con transform, SIN blur ni backdrop-filter.
-   Z-index negativo dentro de isolation:isolate mantiene nítidos texto y campos. */
-html.theme-dark .app-site.administration-page .content-manager.is-embedded :is(
-  .manager-heading, .manager-notice, .manager-preview-note,
-  .manager-tabs, .manager-form, .manager-list, .manager-users-card
-)::before {
-  content: "" !important;
-  display: block !important;
-  position: absolute;
-  z-index: -1 !important;
-  top: -55%;
-  bottom: -55%;
-  left: -25%;
-  width: 60%;
-  inset-inline-end: auto;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at center,
-    rgba(214, 14, 52, .37) 0%,
-    rgba(178, 11, 45, .23) 38%,
-    rgba(126, 10, 34, .11) 58%,
-    transparent 76%) !important;
-  filter: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  pointer-events: none;
-  animation: itinerary-red-sweep 9s ease-in-out infinite alternate !important;
-}
-@media (prefers-reduced-motion: reduce) {
-  html.theme-dark .app-site.administration-page .content-manager.is-embedded :is(
-    .manager-heading, .manager-notice, .manager-preview-note,
-    .manager-tabs, .manager-form, .manager-list, .manager-users-card
-  )::before {
-    animation: none !important;
-    transform: translateX(65%);
-  }
-}
-/* Los controles del administrador usan exactamente los tonos de los
-   campos de Itinerarios (mismo background, borde y placeholder).
-   Solo color: no cambiamos tamaños, padding, fechas ni funcionalidad. */
-html.theme-dark .app-site.administration-page .content-manager.is-embedded
-  .manager-form :is(input, select, textarea),
-html.theme-dark .app-site.administration-page .content-manager.is-embedded
-  .manager-users-table select {
-  background-color: #121a30 !important;
-  border-color: #3b465f !important;
-  color: #fff !important;
-  box-shadow: none;
-}
-html.theme-dark .app-site.administration-page .content-manager.is-embedded
-  .manager-form :is(input, textarea)::placeholder {
-  color: #acb1bd !important;
-  opacity: 1 !important;
-}
-html.theme-dark .app-site.administration-page .content-manager.is-embedded
-  .manager-form :is(input, select, textarea):disabled,
-html.theme-dark .app-site.administration-page .content-manager.is-embedded
-  .manager-users-table select:disabled {
-  background-color: #1c2335 !important;
-  color: #aeb5c4 !important;
-}
-html.theme-dark .app-site.administration-page .content-manager.is-embedded
-  .manager-form :is(input, select, textarea):focus-visible,
-html.theme-dark .app-site.administration-page .content-manager.is-embedded
-  .manager-users-table select:focus-visible {
-  border-color: #b20c2a !important;
-  outline: 2px solid #b20c2a;
-  outline-offset: 2px;
-}
-/* Conservar la imagen compartida de Castro Fallas sin marcos decorativos.
-   Sigue siendo el mismo SiteHeader/SiteMedia usado en Itinerarios. */
-.app-site.administration-page .site-header .site-brand,
-.app-site.administration-page .site-header .site-brand img {
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
-}
-.app-site.administration-page .site-header .site-brand:focus:not(:focus-visible) {
-  outline: none;
-}
 
 
 /* Static value cards with a soft red sweep from left to right. */
@@ -5139,4 +5043,101 @@ html.theme-dark .about-value-card::before {
     font-size: clamp(11px, 3vw, 13px) !important;
     line-height: 1.4 !important;
   }
+}
+
+/* Administracion: mismo fondo carbon/rojo vino de Itinerario 01.
+   Ola roja animada sin blur ni cambios de imagen/logo.
+   El alcance es la pagina administrativa en modo oscuro exclusivamente. */
+html.theme-dark .app-site.administration-page .content-manager.is-embedded :is(
+  .manager-heading, .manager-notice, .manager-preview-note,
+  .manager-tabs, .manager-form, .manager-list, .manager-users-card
+) {
+  background-color: #211b20 !important;
+  background-image:
+    radial-gradient(ellipse 85% 150% at 6% 78%,
+      rgba(145, 9, 43, .38) 0%,
+      rgba(145, 9, 43, .14) 46%,
+      transparent 80%),
+    linear-gradient(110deg, #321d25 0%, #211b20 70%) !important;
+  border-color: rgba(188, 158, 168, .25) !important;
+}
+/* Ola roja idéntica en ritmo y tonos a Itinerario 01. La capa es solo
+   decorativa y se anima con transform, SIN blur ni backdrop-filter.
+   Z-index negativo dentro de isolation:isolate mantiene nítidos texto y campos. */
+html.theme-dark .app-site.administration-page .content-manager.is-embedded :is(
+  .manager-heading, .manager-notice, .manager-preview-note,
+  .manager-tabs, .manager-form, .manager-list, .manager-users-card
+)::before {
+  content: "" !important;
+  display: block !important;
+  position: absolute;
+  z-index: -1 !important;
+  top: -55%;
+  bottom: -55%;
+  left: -25%;
+  width: 60%;
+  inset-inline-end: auto;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center,
+    rgba(214, 14, 52, .37) 0%,
+    rgba(178, 11, 45, .23) 38%,
+    rgba(126, 10, 34, .11) 58%,
+    transparent 76%) !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  pointer-events: none;
+  animation: itinerary-red-sweep 9s ease-in-out infinite alternate !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  html.theme-dark .app-site.administration-page .content-manager.is-embedded :is(
+    .manager-heading, .manager-notice, .manager-preview-note,
+    .manager-tabs, .manager-form, .manager-list, .manager-users-card
+  )::before {
+    animation: none !important;
+    transform: translateX(65%);
+  }
+}
+/* Los controles del administrador usan exactamente los tonos de los
+   campos de Itinerarios (mismo background, borde y placeholder).
+   Solo color: no cambiamos tamaños, padding, fechas ni funcionalidad. */
+html.theme-dark .app-site.administration-page .content-manager.is-embedded
+  .manager-form :is(input, select, textarea),
+html.theme-dark .app-site.administration-page .content-manager.is-embedded
+  .manager-users-table select {
+  background-color: #121a30 !important;
+  border-color: #3b465f !important;
+  color: #fff !important;
+  box-shadow: none;
+}
+html.theme-dark .app-site.administration-page .content-manager.is-embedded
+  .manager-form :is(input, textarea)::placeholder {
+  color: #acb1bd !important;
+  opacity: 1 !important;
+}
+html.theme-dark .app-site.administration-page .content-manager.is-embedded
+  .manager-form :is(input, select, textarea):disabled,
+html.theme-dark .app-site.administration-page .content-manager.is-embedded
+  .manager-users-table select:disabled {
+  background-color: #1c2335 !important;
+  color: #aeb5c4 !important;
+}
+html.theme-dark .app-site.administration-page .content-manager.is-embedded
+  .manager-form :is(input, select, textarea):focus-visible,
+html.theme-dark .app-site.administration-page .content-manager.is-embedded
+  .manager-users-table select:focus-visible {
+  border-color: #b20c2a !important;
+  outline: 2px solid #b20c2a;
+  outline-offset: 2px;
+}
+/* Conservar la imagen compartida de Castro Fallas sin marcos decorativos.
+   Sigue siendo el mismo SiteHeader/SiteMedia usado en Itinerarios. */
+.app-site.administration-page .site-header .site-brand,
+.app-site.administration-page .site-header .site-brand img {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.app-site.administration-page .site-header .site-brand:focus:not(:focus-visible) {
+  outline: none;
 }
