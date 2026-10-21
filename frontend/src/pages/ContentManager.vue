@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import IconSymbol from '../components/IconSymbol.vue'
 import SiteVisualEditor from './SiteVisualEditor.vue'
 import OfficialQuoteAdmin from './OfficialQuoteAdmin.vue'
+const officialQuotesEnabled = import.meta.env.VITE_OFFICIAL_QUOTES_ENABLED === 'true'
 import { subscribeToChanges } from '../services/realtime'
 import { authState, refreshSession } from '../services/auth'
 import { deleteManaged, newManagedId, readManagedComments, readManagedItineraries, readManagedMedia, readManagedNews, saveManaged, type ManagedComment, type ManagedItinerary, type ManagedMedia, type ManagedNews } from '../adminContent'
@@ -12,7 +13,7 @@ type Section = 'itineraries' | 'news' | 'media' | 'comments' | 'users' | 'site' 
 type AppRole = 'cliente' | 'administrador'
 interface ManagedUser { id: string; correo: string; nombre?: string; role: AppRole; activo: boolean }
 const tabFromUrl = new URLSearchParams(window.location.search).get('tab')
-const section = ref<Section>(tabFromUrl === 'usuarios' ? 'users' : tabFromUrl === 'cotizaciones' ? 'quotes' : 'itineraries')
+const section = ref<Section>(tabFromUrl === 'usuarios' ? 'users' : tabFromUrl === 'cotizaciones' && officialQuotesEnabled ? 'quotes' : 'itineraries')
 const itineraries = ref<ManagedItinerary[]>([])
 const news = ref<ManagedNews[]>([])
 const media = ref<ManagedMedia[]>([])
@@ -465,7 +466,7 @@ function useMediaForNews(item: ManagedMedia) {
         <button :class="{ active: section === 'news' }" @click="selectSection('news')"><IconSymbol glyph="newspaper" :size="19" /> Noticias <span>{{ news.length }}</span></button>
         <button :class="{ active: section === 'media' }" @click="selectSection('media')"><IconSymbol glyph="image" :size="19" /> Multimedia <span>{{ media.length }}</span></button>
         <button :class="{ active: section === 'comments' }" @click="selectSection('comments')"><IconSymbol glyph="message-circle" :size="19" /> Comentarios <span>{{ comments.length }}</span></button>
-        <button :class="{ active: section === 'quotes' }" @click="selectSection('quotes')"><IconSymbol glyph="▰" :size="19" /> Cotizaciones</button>
+        <button v-if="officialQuotesEnabled" :class="{ active: section === 'quotes' }" @click="selectSection('quotes')"><IconSymbol glyph="▰" :size="19" /> Cotizaciones</button>
         <button class="manager-editor-visual-tab" :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> Editor visual <span>0</span></button>
       </nav>
       <section v-if="section === 'users'" class="manager-users-card" aria-label="Cuentas registradas">

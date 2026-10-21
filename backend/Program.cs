@@ -368,7 +368,10 @@ app.MapPost("/api/quotes", async (
     }
 }).RequireAuthorization("registered");
 
-app.MapOfficialQuotes();
+// En producción mantener deshabilitada la API nueva hasta que se aplique la
+// migración y se verifique el catálogo. Desarrollo conserva las pruebas locales.
+if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("Features:OfficialQuotesEnabled"))
+    app.MapOfficialQuotes();
 
 // La empresa autenticada solo puede enumerar sus propias solicitudes.
 // Límite de página explícito para no devolver registros de otros clientes.

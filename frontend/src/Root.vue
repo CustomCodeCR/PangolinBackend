@@ -116,7 +116,7 @@ const page = computed(()=> {
   if(path==='/home' || path==='/') return 'home'
   if(path==='/bienvenidos') return 'login'
   if(path==='/administracion') return 'administration'
-  if(path==='/administracion/cotizaciones-oficiales') return 'official-admin'
+  if(path==='/administracion/cotizaciones-oficiales') return officialQuotesEnabled ? 'official-admin' : 'notFound'
   if(path==='/admin/contenido' || path==='/admin/usuarios') return 'administration'
   if(path==='/noticias') return 'news'
   if(path==='/nosotros') return 'about'
@@ -124,7 +124,7 @@ const page = computed(()=> {
   if(path==='/tracking') return 'tracking'
   if(path==='/itinerario') return 'itinerary'
   if(path==='/cotizaciones') return officialQuotesEnabled ? 'official-quote' : 'quote-legacy'
-  if(path==='/cotizaciones/nuevo') return 'official-quote'
+  if(path==='/cotizaciones/nuevo') return officialQuotesEnabled ? 'official-quote' : 'notFound'
   if(['/privacidad','/terminos','/cookies','/licencias'].includes(path)) return 'legal'
   return 'notFound'
 })

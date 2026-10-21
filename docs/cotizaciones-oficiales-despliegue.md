@@ -20,3 +20,6 @@
 
 ## Reversión
 Reconstruir frontend con `VITE_OFFICIAL_QUOTES_ENABLED=false` para devolver la ruta principal al formulario V2. **No borrar tablas nuevas ni solicitudes creadas**. Conservar cualquier copia y auditar las solicitudes nuevas antes de continuar.
+
+## Interruptor backend
+En producción las rutas `/api/quotes/official` y `/api/admin/quotes/official` quedan deshabilitadas salvo que `Features__OfficialQuotesEnabled=true` esté configurado expresamente y se haya aplicado la migración y cargado el catálogo. El interruptor visual `VITE_OFFICIAL_QUOTES_ENABLED` es independiente: ambos deben habilitarse solo después de las pruebas. Por defecto, ambos quedan desactivados en producción. En `Development` el backend permite QA local sin necesitar un interruptor adicional.
