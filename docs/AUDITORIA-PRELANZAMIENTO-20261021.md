@@ -10,6 +10,7 @@ Fecha de inspección de código: 2026-10-21. Base: `main` de CustomCodeCR/Pangol
 | BLOQUEANTE | Seguimiento | `frontend/src/pages/Tracking.vue` antes solo mostraba un aviso, sin backend | Se añadió consulta PostgreSQL con semilla ficticia solo en desarrollo, errores controlados y aprobación `is_public` |
 | BLOQUEANTE | Licencia del globo | `frontend/src/pages/Legal.vue` advierte licencia comercial de `3d-world-map`/CanvasGlobe | Documentar adquisición/autorización o reemplazar el componente antes de publicar |
 | BLOQUEANTE | Derechos de imágenes | `Legal.vue` identifica falta de inventario completo de derechos | Validar autoría, permisos y atribuciones de cada recurso |
+| BLOQUEANTE | Destino API en Nginx | `frontend/nginx.conf` dirige `/api/` a `http://api:8080`; `compose.yaml` de desarrollo usa `backend:5000` | Definir arquitectura de producción, alias/puerto correctos y verificar proxy real de API/SignalR antes de publicar |
 | BLOQUEANTE | Avisos legales | `Legal.vue` aún solicita razón social, cédula y domicilio; políticas requieren visto bueno jurídico | Completar y obtener aprobación legal y de la empresa |
 | ALTA | SEO noticias | `docs/SEO-ORGANICO-PRELANZAMIENTO-20261020.md` indica SPA sin HTML de artículo por URL única | Probar indexación real; considerar prerender/SSR y URLs individuales |
 | ALTA | Seguimiento y confidencialidad | BL/PO/contenedor pueden ser identificadores adivinables | `is_public=false` por defecto; aprobación operativa, respuesta mínima, rate limit; para seguimiento privado exigir acceso autorizado |
