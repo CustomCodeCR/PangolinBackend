@@ -103,7 +103,7 @@ function showStat(index: number) {
 }
 
 onMounted(async () => {
-  await loadPublicComments()
+  void loadPublicComments()
   statsTimer = window.setInterval(() => showStat(activeStat.value + 1), 2500)
   try {
     const response = await fetch('/api/content/news', { cache: 'no-store' })
