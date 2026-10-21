@@ -391,7 +391,7 @@ async function submit() {
   /* El overflow:hidden global de app-site no debe recortar el contenido. */
   overflow-x: clip;
   overflow-y: visible;
-  background: linear-gradient(90deg, #a80e18 0%, #701520 18%, #382026 45%, #181419 78%, #181419 100%) !important;
+  background: linear-gradient(90deg, #491b2b 0%, #281a22 37%, #181419 72%, #181419 100%) !important;
   color: #fff;
 }
 .official-page--mode-selection .official-shell {
@@ -436,7 +436,7 @@ async function submit() {
   color: #fff;
 }
 .official-page--mode-selection .official-progress-item.current {
-  background: rgba(168, 14, 24, .65);
+  background: rgba(178, 12, 42, .65);
   color: #fff;
   border-color: rgba(255, 255, 255, .3);
 }
@@ -454,7 +454,7 @@ async function submit() {
   padding: clamp(28px, 3vw, 52px);
   border-radius: 28px;
   /* Mismo vidrio de referencia, con resplandor vino difuminado hacia la derecha. */
-  background: linear-gradient(90deg, rgba(168, 14, 24, .28) 0%, rgba(34, 26, 33, .70) 46%, rgba(24, 22, 28, .78) 100%) !important;
+  background: linear-gradient(90deg, rgba(92, 28, 48, .42) 0%, rgba(34, 26, 33, .70) 46%, rgba(24, 22, 28, .78) 100%) !important;
   -webkit-backdrop-filter: blur(5px);
   backdrop-filter: blur(5px);
   border: 1px solid rgba(255, 255, 255, .3) !important;
@@ -540,7 +540,7 @@ async function submit() {
   border-color: rgba(255, 255, 255, .6) !important;
 }
 .official-page--mode-selection .official-choice.chosen {
-  background: rgba(168, 14, 24, .22) !important;
+  background: rgba(178, 12, 42, .22) !important;
   border-color: #ff637d !important;
   box-shadow: 0 0 0 2px rgba(255, 99, 125, .18);
 }
@@ -684,10 +684,10 @@ html.theme-dark .app-site.official-page .official-kicker {color:#ff8ca2!importan
 
 /* La selección conserva el mismo fondo Glass al activar el tema oscuro. */
 html.theme-dark .app-site.official-page.official-page--mode-selection {
-  background: linear-gradient(90deg, #a80e18 0%, #701520 18%, #382026 45%, #181419 78%, #181419 100%) !important;
+  background: linear-gradient(90deg, #491b2b 0%, #281a22 37%, #181419 72%, #181419 100%) !important;
 }
 html.theme-dark .app-site.official-page.official-page--mode-selection .official-panel.official-panel--mode-selection {
-  background: linear-gradient(90deg, rgba(168, 14, 24, .28) 0%, rgba(34, 26, 33, .70) 46%, rgba(24, 22, 28, .78) 100%) !important;
+  background: linear-gradient(90deg, rgba(92, 28, 48, .42) 0%, rgba(34, 26, 33, .70) 46%, rgba(24, 22, 28, .78) 100%) !important;
   color: #fff !important;
   border-color: rgba(255, 255, 255, .3) !important;
 }
@@ -701,7 +701,7 @@ html.theme-dark .app-site.official-page.official-page--mode-selection .official-
   border-color: rgba(255, 255, 255, .6) !important;
 }
 html.theme-dark .app-site.official-page.official-page--mode-selection .official-choice.chosen {
-  background: rgba(168, 14, 24, .22) !important;
+  background: rgba(178, 12, 42, .22) !important;
   border-color: #ff637d !important;
 }
 html.theme-dark .app-site.official-page.official-page--mode-selection .official-progress-item {
@@ -713,7 +713,7 @@ html.theme-dark .app-site.official-page.official-page--mode-selection .official-
   color: #fff !important;
 }
 html.theme-dark .app-site.official-page.official-page--mode-selection .official-progress-item.current {
-  background: rgba(168, 14, 24, .65) !important;
+  background: rgba(178, 12, 42, .65) !important;
   color: #fff !important;
 }
 html.theme-dark .app-site.official-page.official-page--mode-selection .official-progress-item.current span {
