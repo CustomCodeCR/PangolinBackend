@@ -316,6 +316,45 @@ onBeforeUnmount(() => {
 .tracking-fields { display: grid; grid-template-columns: .8fr 1.2fr; gap: 17px; margin-top: 20px; }
 .tracking-fields .tracking-field { display:grid; gap:9px; min-width:0; }
 .tracking-fields label { display:block; min-width:0; font-weight:700; font-size:14px; overflow-wrap:break-word; }
+/* Mobile select options are teleported outside the clipped form, so the list can
+   open directly above or below its field without Safari moving it off-screen. */
+.tracking-mobile-select {display:none}
+.tracking-reference-options {
+  position:fixed;
+  z-index:9999;
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  padding:5px;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  border:1px solid #96969b80;
+  border-radius:13px;
+  background:#fff;
+  color:#20242b;
+  box-shadow:0 14px 32px #0005;
+}
+.tracking-reference-options > button {
+  flex:0 0 auto;
+  width:100%;
+  min-height:44px;
+  padding:10px 12px;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:inherit;
+  text-align:left;
+  font:inherit;
+  font-size:15px;
+  cursor:pointer;
+}
+.tracking-reference-options > button.is-selected,
+.tracking-reference-options > button:hover {background:#b5092826}
+.tracking-reference-options > button:focus-visible {outline:2px solid #b50928;outline-offset:-2px}
+:global(html.theme-dark) .tracking-reference-options {background:#10182b;color:#fff;border-color:#6b6c7b}
+:global(html.theme-dark) .tracking-reference-options > button.is-selected,
+:global(html.theme-dark) .tracking-reference-options > button:hover {background:#b5092847}
 .tracking-fields input,.tracking-fields select { box-sizing: border-box; width: 100%; min-width:0; max-width:100%; min-height: 52px; padding: 12px; border: 1px solid #96969b7d; border-radius: 12px; color: var(--track-ink); background: var(--track-surface); font: inherit; }
 .tracking-error { color: #a80e18; font-weight: 700; }
 .tracking-submit { width: 100%; display: flex; justify-content: space-between; margin-top: 22px; }
@@ -392,6 +431,28 @@ onBeforeUnmount(() => {
   .tracking-field{min-width:0}
   .tracking-fields label{font-size:14px;line-height:1.4}
   .tracking-fields :is(input,select){min-height:54px;padding:13px 15px;font-size:16px;line-height:1.35}
+  .tracking-fields .tracking-native-select{display:none}
+  .tracking-fields .tracking-mobile-select{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    min-height:54px;
+    width:100%;
+    min-width:0;
+    padding:13px 15px;
+    border:1px solid #96969b60;
+    border-radius:13px;
+    background:var(--surface-card);
+    color:var(--text-primary);
+    text-align:left;
+    font:inherit;
+    font-size:16px;
+    line-height:1.35;
+    cursor:pointer;
+  }
+  .tracking-mobile-select__arrow{flex:none;font-size:20px;line-height:1}
+  :global(html.theme-dark) .tracking-mobile-select{background:#10182b;color:#fff}
   .tracking-search .tracking-hint{overflow-wrap:break-word;line-height:1.55}
   .tracking-search .tracking-fields + .tracking-hint{margin:22px 0 0}
   .tracking-top > div{min-width:0}
