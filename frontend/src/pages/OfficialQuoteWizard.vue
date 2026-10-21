@@ -346,17 +346,34 @@ async function submit() {
 .official-page--mode-selection {
   min-height: 100dvh;
   height: auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  /* El overflow:hidden global de app-site no debe recortar el contenido. */
+  overflow-x: clip;
+  overflow-y: visible;
   background: linear-gradient(90deg, #181419 0%, #23171d 42%, #451923 100%) !important;
   color: #fff;
 }
 .official-page--mode-selection .official-shell {
-  width: calc(100% - clamp(24px, 3.5vw, 76px));
+  /* Gutter interior en vez de width:calc: mantiene un borde derecho real en Safari. */
+  box-sizing: border-box;
+  width: 100%;
   max-width: none;
+  min-width: 0;
   height: auto;
   min-height: calc(100dvh - 76px);
   margin: 0 auto;
-  padding: clamp(24px, 3vh, 42px) 0 clamp(40px, 5vh, 72px);
+  padding: clamp(24px, 3vh, 42px) clamp(32px, 5.5vw, 108px) clamp(40px, 5vh, 72px);
   overflow: visible;
+}
+.official-page--mode-selection .official-progress,
+.official-page--mode-selection .official-panel--mode-selection,
+.official-page--mode-selection .official-choices {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 .official-page--mode-selection .official-header {
   max-width: 100%;
@@ -478,12 +495,18 @@ async function submit() {
   stroke: currentColor;
 }
 .official-page--mode-selection .official-buttons { border-top-color: rgba(255, 255, 255, .18); }
+@media (max-width: 1040px) and (min-width: 751px) {
+  .official-page--mode-selection .official-shell { padding-inline: clamp(28px, 5vw, 64px); }
+  .official-page--mode-selection .official-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .official-page--mode-selection .official-choice:last-child { grid-column: 1 / -1; }
+}
 @media (max-width: 750px) {
   .official-page--mode-selection .official-shell {
-    width: calc(100% - 32px);
+    width: 100%;
     min-height: calc(100dvh - 72px);
-    padding: 24px 0 54px;
+    padding: 24px 24px 54px;
   }
+  .official-page--mode-selection .official-progress { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .official-page--mode-selection .official-choices { grid-template-columns: 1fr; margin-top: 22px; }
   .official-page--mode-selection .official-panel--mode-selection { min-height: 0; padding: 24px; }
   .official-page--mode-selection .official-choice {
@@ -501,7 +524,7 @@ async function submit() {
   .official-page--mode-selection .official-choice small { grid-column: 2; }
 }
 @media (max-width: 390px) {
-  .official-page--mode-selection .official-shell { width: calc(100% - 24px); }
+  .official-page--mode-selection .official-shell { padding-inline: 16px; }
   .official-page--mode-selection .official-panel--mode-selection { padding: 20px 16px; }
   .official-page--mode-selection .official-progress { gap: 4px; }
   .official-page--mode-selection .official-progress-item { padding: 8px 2px; }
