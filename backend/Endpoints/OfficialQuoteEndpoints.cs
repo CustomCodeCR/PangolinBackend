@@ -163,7 +163,10 @@ public static class OfficialQuoteEndpoints
                 .Where(x => x.Active && (routeRole == "pod" || x.Kind == kind) &&
                     db.OfficialQuoteLocationUsages.Any(u => u.LocationId == x.Id &&
                         u.ShipmentType == shipmentType && u.RouteRole == routeRole))
+                // No mezclar lugares ficticios en una lista que ya contiene opciones verificadas.
                 .OrderBy(x => x.DisplayName).Select(x => new { x.Id, x.DisplayName, x.Code }).Take(500).ToListAsync(ct);
+            if (items.Any(x => x.Code is not null && !x.Code.StartsWith("DEV-", StringComparison.Ordinal)))
+                items = items.Where(x => x.Code is null || !x.Code.StartsWith("DEV-", StringComparison.Ordinal)).ToList();
             return Results.Ok(new { items });
         });
 

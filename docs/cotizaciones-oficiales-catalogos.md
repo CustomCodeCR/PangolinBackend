@@ -15,3 +15,8 @@ Confirmar exhaustivamente origen y destino de Marítimo FCL y LCL; catálogo Aé
 
 ## Ubicaciones terrestres verificadas
 El script de verificación carga 13 lugares terrestres legibles del video en desarrollo para FTL y LTL. Se ejecuta después de aplicar el esquema y los lugares ficticios; no borra esos lugares ni las solicitudes que los usan. No se presume haber completado con ello las listas marítimas o aéreas.
+
+## Actualización de catálogos desde grabaciones (21/10/2026)
+El script `OfficialQuotesVideoLocations.sql` añade 217 ubicaciones distintivas verificadas visualmente: 78 orígenes marítimos legibles, 80 destinos marítimos legibles, 17 opciones POD y 75 lugares aéreos; algunos nombres se reutilizan entre roles. Las listas marítimas y aéreas **son parciales** según el recorrido disponible; en aéreo solo se llega hasta B. No se autoprovisionan en producción.
+
+El script debe ejecutarse **después** del esquema base y de `OfficialQuotesVerifiedLocations.sql`. Las ubicaciones de origen/destino marítimos comparten tipos FCL/LCL únicamente cuando la grabación las muestra en ambos; el puerto Cortés aparece en el POE de LCL. El POD usa ubicaciones `inland` y se asigna a FCL y LCL. La API excluye ubicaciones ficticias `DEV-*` de listas con al menos una real.

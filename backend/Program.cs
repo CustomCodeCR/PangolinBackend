@@ -150,6 +150,8 @@ if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("Dev
         await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(testLocationsPath));
         var verifiedLocationsPath = Path.Combine(app.Environment.ContentRootPath, "Database", "OfficialQuotesVerifiedLocations.sql");
         await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(verifiedLocationsPath));
+        var videoLocationsPath = Path.Combine(app.Environment.ContentRootPath, "Database", "OfficialQuotesVideoLocations.sql");
+        await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(videoLocationsPath));
         app.Logger.LogInformation("Esquema de login comprobado/aplicado en PostgreSQL ({Database}).",
             new NpgsqlConnectionStringBuilder(postgres).Database);
     }
