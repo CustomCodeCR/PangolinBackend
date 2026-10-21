@@ -1044,6 +1044,24 @@ function useMediaForNews(item: ManagedMedia) {
 @keyframes manager-zip-glow {from{transform:translateX(0)}to{transform:translateX(133%)}}
 @media(prefers-reduced-motion:reduce){.is-embedded .manager-form::before,.is-embedded .manager-list::before,.is-embedded .manager-users-card::before{animation:none;transform:translateX(65%)}}
 @media(max-width:1000px){.is-embedded .manager-form form.manager-editor--itineraries{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* En escritorio, Cotizaciones y Editor visual deben ocupar la misma fila.
+   En anchos intermedios se puede desplazar horizontalmente sin partir las pestañas. */
+@media (min-width:651px) {
+  .content-manager.is-embedded .manager-tabs.manager-subtabs {
+    display:flex;
+    flex-wrap:nowrap;
+    justify-content:space-between;
+    gap:clamp(6px,.65vw,14px);
+    overflow-x:auto;
+    overflow-y:hidden;
+  }
+  .content-manager.is-embedded .manager-tabs.manager-subtabs > button {
+    flex:0 0 auto;
+    white-space:nowrap;
+    gap:clamp(4px,.5vw,9px);
+    padding-inline:clamp(3px,.5vw,10px);
+  }
+}
 @media(max-width:650px){
   .is-embedded .manager-shell{width:calc(100% - 32px)}
   .is-embedded .manager-heading{padding:20px 16px;border-radius:16px}
