@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
+import IconSymbol from '../components/IconSymbol.vue'
 import { refreshSession } from '../services/auth'
+
+const { locale } = useI18n({ useScope: 'global' })
+const q = (es: string, en: string) => locale.value === 'en' ? en : es
 
 type Mode = 'Maritime' | 'Air' | 'Land'
 type Type = 'FCL' | 'LCL' | 'AIR_LCL' | 'FTL' | 'LTL'
@@ -32,22 +37,118 @@ const form = reactive({
   observations: '', cargoFlags: [] as string[], destinationHandling: '',
   deliveryAddress: '', pickupAddress: '', fiscalStorageDays: '' as number | ''
 })
-const modeOptions = [
-  { value: 'Maritime' as Mode, title: 'Marítimo', icon: '⚓', text: 'Contenedores completos o carga consolidada' },
-  { value: 'Air' as Mode, title: 'Aéreo', icon: '✈️', text: 'Carga aérea consolidada' },
-  { value: 'Land' as Mode, title: 'Terrestre', icon: '🚚', text: 'Camión completo o carga consolidada' }
-]
+const modeOptions = computed(() => [
+  { value: 'Maritime' as Mode, title: q('Marítimo', 'Ocean'), icon: 'ship', text: q('Contenedores completos o carga consolidada', 'Full containers or consolidated cargo') },
+  { value: 'Air' as Mode, title: q('Aéreo', 'Air'), icon: '✈', text: q('Carga aérea consolidada', 'Consolidated air cargo') },
+  { value: 'Land' as Mode, title: q('Terrestre', 'Ground'), icon: 'truck', text: q('Camión completo o carga consolidada', 'Full truckload or consolidated cargo') }
+])
 const typeOptions = computed(() => mode.value === 'Maritime'
-  ? [{ value: 'FCL' as Type, title: 'FCL', text: 'Contenedor completo' }, { value: 'LCL' as Type, title: 'LCL', text: 'Coloading o propio' }]
+  ? [{ value: 'FCL' as Type, title: 'FCL', text: q('Contenedor completo', 'Full container load') }, { value: 'LCL' as Type, title: 'LCL', text: q('Coloading o propio', 'Consolidated or own cargo') }]
   : mode.value === 'Air'
-    ? [{ value: 'AIR_LCL' as Type, title: 'LCL', text: 'Carga aérea consolidada' }]
-    : [{ value: 'FTL' as Type, title: 'FTL', text: 'Camión completo' }, { value: 'LTL' as Type, title: 'LTL', text: 'Carga terrestre consolidada' }])
+    ? [{ value: 'AIR_LCL' as Type, title: 'LCL', text: q('Carga aérea consolidada', 'Consolidated air cargo') }]
+    : [{ value: 'FTL' as Type, title: 'FTL', text: q('Camión completo', 'Full truckload') }, { value: 'LTL' as Type, title: 'LTL', text: q('Carga terrestre consolidada', 'Consolidated ground cargo') }])
 const equipmentMode = computed(() => shipmentType.value === 'FCL' || shipmentType.value === 'FTL')
 const selectedOrigin = computed(() => locations.value.find(x => x.id === form.originLocationId))
 const selectedDest = computed(() => destinations.value.find(x => x.id === form.destinationLocationId))
+type LocationField = 'origin' | 'destination' | 'pod'
+const locationSearch = reactive<Record<LocationField, string>>({ origin: '', destination: '', pod: '' })
+const openLocation = ref<LocationField | null>(null)
+const activeLocationIndex = ref(0)
+function optionsFor(field: LocationField): Loc[] {
+  const source = field === 'origin' ? locations.value : field === 'destination' ? destinations.value : podOptions.value
+  const query = locationSearch[field].trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase()
+  if (!query) return source
+  return source.filter(loc => loc.displayName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().includes(query)
+    || (loc.code || '').toLocaleLowerCase().includes(query))
+}
+function selectedLocationId(field: LocationField): string {
+  return field === 'origin' ? form.originLocationId : field === 'destination' ? form.destinationLocationId : form.podLocationId
+}
+function setLocationId(field: LocationField, id: string) {
+  if (field === 'origin') form.originLocationId = id
+  else if (field === 'destination') form.destinationLocationId = id
+  else form.podLocationId = id
+}
+function updateLocationSearch(field: LocationField, event: Event) {
+  const value = (event.target as HTMLInputElement).value
+  locationSearch[field] = value
+  const source = field === 'origin' ? locations.value : field === 'destination' ? destinations.value : podOptions.value
+  const selected = source.find(loc => loc.id === selectedLocationId(field))
+  if (selected && selected.displayName !== value) setLocationId(field, '')
+  openLocation.value = field
+  activeLocationIndex.value = 0
+}
+function chooseLocation(field: LocationField, location: Loc) {
+  setLocationId(field, location.id)
+  locationSearch[field] = location.displayName
+  openLocation.value = null
+}
+function closeLocation(field: LocationField) {
+  window.setTimeout(() => {
+    if (openLocation.value === field) openLocation.value = null
+  }, 120)
+}
+function toggleLocation(field: LocationField) {
+  openLocation.value = openLocation.value === field ? null : field
+  activeLocationIndex.value = 0
+}
+function handleLocationKeydown(field: LocationField, event: KeyboardEvent) {
+  const options = optionsFor(field)
+  if (event.key === 'ArrowDown') {
+    event.preventDefault()
+    openLocation.value = field
+    activeLocationIndex.value = Math.min(activeLocationIndex.value + 1, Math.max(options.length - 1, 0))
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault()
+    openLocation.value = field
+    activeLocationIndex.value = Math.max(activeLocationIndex.value - 1, 0)
+  } else if (event.key === 'Enter' && openLocation.value === field && options.length) {
+    event.preventDefault()
+    chooseLocation(field, options[activeLocationIndex.value] || options[0])
+  } else if (event.key === 'Escape') {
+    openLocation.value = null
+  }
+}
 const incoterms = ['EXW','FCA','FAS','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP']
 const serviceOptions = ['Transporte internacional','Agencia de Aduanas CR','Agencia de Aduanas Exterior','Almacenamiento','Control de inventario','Embalaje','Exoneración','Picking Carga','Recepción de carga','Seguro de carga','Transporte entrega','Transporte recolección','Transporte nacional']
 const cargoFlagOptions = ['Carga peligrosa','No estibable','Sobrepeso']
+const stepNames = computed(() => [q('Modalidad', 'Mode'), q('Embarque', 'Shipment'), q('Información', 'Information'), q('Carga y envío', 'Cargo and delivery')])
+function displayMode(value: Mode | null) {
+  if (value === 'Maritime') return q('Marítimo', 'Ocean')
+  if (value === 'Air') return q('Aéreo', 'Air')
+  if (value === 'Land') return q('Terrestre', 'Ground')
+  return ''
+}
+function displayShipmentType(value: Type | null) {
+  if (value === 'FCL') return q('Contenedor completo', 'Full container load')
+  if (value === 'LCL') return q('Carga consolidada', 'Less than container load')
+  if (value === 'AIR_LCL') return q('Carga aérea consolidada', 'Consolidated air cargo')
+  if (value === 'FTL') return q('Camión completo', 'Full truckload')
+  if (value === 'LTL') return q('Carga terrestre consolidada', 'Less than truckload')
+  return value || ''
+}
+function displayService(value: string) {
+  const labels: Record<string, [string, string]> = {
+    'Transporte internacional': ['Transporte internacional', 'International transportation'],
+    'Agencia de Aduanas CR': ['Agencia de Aduanas CR', 'Costa Rica customs brokerage'],
+    'Agencia de Aduanas Exterior': ['Agencia de Aduanas Exterior', 'Foreign customs brokerage'],
+    'Almacenamiento': ['Almacenamiento', 'Warehousing'],
+    'Control de inventario': ['Control de inventario', 'Inventory control'],
+    'Embalaje': ['Embalaje', 'Packing'],
+    'Exoneración': ['Exoneración', 'Duty exemption'],
+    'Picking Carga': ['Picking Carga', 'Cargo picking'],
+    'Recepción de carga': ['Recepción de carga', 'Cargo receiving'],
+    'Seguro de carga': ['Seguro de carga', 'Cargo insurance'],
+    'Transporte entrega': ['Transporte entrega', 'Delivery transportation'],
+    'Transporte recolección': ['Transporte recolección', 'Pickup transportation'],
+    'Transporte nacional': ['Transporte nacional', 'Domestic transportation'],
+    'Carga peligrosa': ['Carga peligrosa', 'Dangerous goods'],
+    'No estibable': ['No estibable', 'Non-stackable'],
+    'Sobrepeso': ['Sobrepeso', 'Overweight']
+  }
+  const pair = labels[value]
+  return pair ? q(pair[0], pair[1]) : value
+}
 function selectMode(value: Mode) {
   if (mode.value !== value) {
     mode.value = value
@@ -78,7 +179,7 @@ async function loadLocations() {
     const fetchRole = async (routeRole: 'origin' | 'destination' | 'pod') => {
       const params = new URLSearchParams({kind,shipmentType:shipmentType.value!,routeRole})
       const response = await fetch('/api/quotes/official/locations?' + params, {credentials:'same-origin',cache:'no-store'})
-      if (!response.ok) throw new Error('No se pudo consultar el catálogo de ' + routeRole + '.')
+      if (!response.ok) throw new Error(q('No se pudo consultar el catálogo de ', 'Could not load the ') + routeRole + q('.', ' catalog.'))
       const result = await response.json() as {items: Loc[]}
       return result.items
     }
@@ -89,29 +190,29 @@ async function loadLocations() {
 }
 onMounted(async () => {
   const user = await refreshSession()
-  if (!user || !['cliente','administrador'].includes(user.role)) { error.value = 'Se requiere sesión real para enviar solicitudes.'; return }
+  if (!user || !['cliente','administrador'].includes(user.role)) return
   sessionOk.value = true
   form.contactEmail = user.correo
 })
 function validate(): string {
-  if (step.value === 1) return mode.value ? '' : 'Seleccioná la modalidad.'
-  if (step.value === 2) return shipmentType.value ? '' : 'Seleccioná el tipo de embarque.'
+  if (step.value === 1) return mode.value ? '' : q('Seleccioná la modalidad.', 'Select a transport mode.')
+  if (step.value === 2) return shipmentType.value ? '' : q('Seleccioná el tipo de embarque.', 'Select a shipment type.')
   if (step.value === 3) {
-    if (!form.originLocationId || !form.destinationLocationId || form.originLocationId === form.destinationLocationId) return 'Elegí origen y destino distintos.'
-    if (shipmentType.value === 'LCL' && !form.podLocationId) return 'Seleccioná el POD requerido en marítimo LCL.'
-    if (!form.incoterm) return 'Seleccioná un Incoterm.'
-    if (!form.cargoReadyDate) return 'Indicá la fecha de carga lista.'
-    if (!form.services.length) return 'Seleccioná al menos un servicio.'
-    if (form.services.includes('Transporte entrega') && !form.deliveryAddress.trim()) return 'Escribí la dirección de entrega.'
-    if (form.services.includes('Transporte recolección') && !form.pickupAddress.trim()) return 'Escribí la dirección de recolección.'
-    if (form.services.includes('Almacenamiento') && (!Number.isInteger(Number(form.fiscalStorageDays)) || Number(form.fiscalStorageDays) < 1 || Number(form.fiscalStorageDays) > 36500)) return 'Indicá los días de almacenaje fiscal.'
-    if (form.incoterm === 'EXW' && (!form.exwCargoStatus || !form.exwPickupAddress.trim())) return 'Completá el tipo de carga y la dirección de recolección EXW.'
-    if (equipmentMode.value && form.equipment.some(x => !x.size || !x.type || !Number.isInteger(Number(x.quantity)) || x.quantity < 1 || x.unitWeightsKg.length !== Number(x.quantity) || x.unitWeightsKg.some(v => Number(v) <= 0))) return 'Completá todos los equipos y el peso de cada unidad.'
+    if (!form.originLocationId || !form.destinationLocationId || form.originLocationId === form.destinationLocationId) return q('Elegí origen y destino distintos.', 'Choose different origin and destination locations.')
+    if (shipmentType.value === 'LCL' && !form.podLocationId) return q('Seleccioná el POD requerido en marítimo LCL.', 'Select the required POD for ocean LCL.')
+    if (!form.incoterm) return q('Seleccioná un Incoterm.', 'Select an Incoterm.')
+    if (!form.cargoReadyDate) return q('Indicá la fecha de carga lista.', 'Enter the cargo ready date.')
+    if (!form.services.length) return q('Seleccioná al menos un servicio.', 'Select at least one service.')
+    if (form.services.includes('Transporte entrega') && !form.deliveryAddress.trim()) return q('Escribí la dirección de entrega.', 'Enter the delivery address.')
+    if (form.services.includes('Transporte recolección') && !form.pickupAddress.trim()) return q('Escribí la dirección de recolección.', 'Enter the pickup address.')
+    if (form.services.includes('Almacenamiento') && (!Number.isInteger(Number(form.fiscalStorageDays)) || Number(form.fiscalStorageDays) < 1 || Number(form.fiscalStorageDays) > 36500)) return q('Indicá los días de almacenaje fiscal.', 'Enter the number of fiscal storage days.')
+    if (form.incoterm === 'EXW' && (!form.exwCargoStatus || !form.exwPickupAddress.trim())) return q('Completá el tipo de carga y la dirección de recolección EXW.', 'Complete the cargo type and EXW pickup address.')
+    if (equipmentMode.value && form.equipment.some(x => !x.size || !x.type || !Number.isInteger(Number(x.quantity)) || x.quantity < 1 || x.unitWeightsKg.length !== Number(x.quantity) || x.unitWeightsKg.some(v => Number(v) <= 0))) return q('Completá todos los equipos y el peso de cada unidad.', 'Complete every equipment item and the weight of each unit.')
     return ''
   }
-  if (!form.contactName.trim() || !form.contactEmail.trim() || !form.contactPhone.trim()) return 'Completá los datos de contacto.'
-  if (!form.cargoDescription.trim()) return 'Describí la carga.'
-  if (!equipmentMode.value && form.packages.some(x => !x.description.trim() || x.quantity < 1 || x.weight <= 0 || x.length <= 0 || x.width <= 0 || x.height <= 0)) return 'Completá todas las medidas y los pesos de cada línea.'
+  if (!form.contactName.trim() || !form.contactEmail.trim() || !form.contactPhone.trim()) return q('Completá los datos de contacto.', 'Complete your contact details.')
+  if (!form.cargoDescription.trim()) return q('Describí la carga.', 'Describe the cargo.')
+  if (!equipmentMode.value && form.packages.some(x => !x.description.trim() || x.quantity < 1 || x.weight <= 0 || x.length <= 0 || x.width <= 0 || x.height <= 0)) return q('Completá todas las medidas y los pesos de cada línea.', 'Complete the dimensions and weight for every cargo line.')
   return ''
 }
 async function next() {
@@ -165,23 +266,23 @@ async function submit() {
 
 <template>
   <div class="app-site official-page">
-    <SiteHeader />
+    <SiteHeader active="cotizaciones" />
     <main class="official-shell">
       <header class="official-header">
-        <p class="official-kicker">CASTRO FALLAS · SOLICITUD DE COTIZACIÓN</p>
-        <h1>Tu carga, <span>más cerca de su destino.</span></h1>
-        <p>Contanos qué necesitás transportar. En cuatro pasos sencillos preparás tu solicitud para nuestro equipo de logística.</p>
+        <p class="official-kicker">{{ q('CASTRO FALLAS · SOLICITUD DE COTIZACIÓN', 'CASTRO FALLAS · QUOTE REQUEST') }}</p>
+        <h1>{{ q('Tu carga,', 'Your cargo,') }} <span>{{ q('más cerca de su destino.', 'closer to its destination.') }}</span></h1>
+        <p>{{ q('Contanos qué necesitás transportar. En cuatro pasos sencillos preparás tu solicitud para nuestro equipo de logística.', 'Tell us what you need to ship. In four simple steps, prepare your request for our logistics team.') }}</p>
       </header>
       <div v-if="createdId" class="official-success" role="status">
         <span class="official-success-icon">✓</span>
-        <h2>¡Solicitud recibida!</h2>
-        <p>Se guardó correctamente y está pendiente de revisión administrativa. Todavía no se ha enviado a Dhole.</p>
-        <p class="official-id">Número de referencia: {{ createdId }}</p>
-        <a class="official-link" href="/home">Volver al inicio</a>
+          <h2>{{ q('¡Solicitud recibida!', 'Request received!') }}</h2>
+          <p>{{ q('Se guardó correctamente y está pendiente de revisión administrativa. Todavía no se ha enviado a Dhole.', 'Your request was saved and is awaiting administrative review. It has not been sent to Dhole.') }}</p>
+          <p class="official-id">{{ q('Número de referencia:', 'Reference number:') }} {{ createdId }}</p>
+          <a class="official-link" href="/home">{{ q('Volver al inicio', 'Back to home') }}</a>
       </div>
       <template v-else>
-        <nav class="official-progress" aria-label="Progreso de la solicitud">
-          <div v-for="(name,i) in ['Modalidad','Embarque','Información','Carga y envío']" :key="name"
+        <nav class="official-progress" :aria-label="q('Progreso de la solicitud', 'Request progress')">
+          <div v-for="(name,i) in stepNames" :key="name"
                class="official-progress-item" :class="{ current: step === i+1, done: step > i+1 }"
                :aria-current="step === i+1 ? 'step' : undefined">
             <span>{{ step > i+1 ? '✓' : i+1 }}</span><small>{{ name }}</small>
@@ -189,20 +290,20 @@ async function submit() {
         </nav>
         <section class="official-panel">
           <template v-if="step === 1">
-            <p class="official-kicker">PASO 1 DE 4</p>
-            <h2>¿Cómo querés transportar tu carga?</h2>
-            <p class="official-hint">Elegí la modalidad que mejor corresponde a tu solicitud.</p>
+            <p class="official-kicker">{{ q('PASO 1 DE 4', 'STEP 1 OF 4') }}</p>
+            <h2>{{ q('¿Cómo querés transportar tu carga?', 'How would you like to ship your cargo?') }}</h2>
+            <p class="official-hint">{{ q('Elegí la modalidad que mejor corresponde a tu solicitud.', 'Choose the transport mode that best fits your request.') }}</p>
             <div class="official-choices">
               <button v-for="choice in modeOptions" :key="choice.value" type="button" class="official-choice"
                 :class="{ chosen: mode === choice.value }" :aria-pressed="mode === choice.value"
                 @click="selectMode(choice.value)">
-                <span class="official-emoji">{{ choice.icon }}</span><strong>{{ choice.title }}</strong><small>{{ choice.text }}</small>
+                <span class="official-emoji"><IconSymbol :glyph="choice.icon" :size="28" /></span><strong>{{ choice.title }}</strong><small>{{ choice.text }}</small>
               </button>
             </div>
           </template>
           <template v-else-if="step === 2">
-            <p class="official-kicker">PASO 2 DE 4</p><h2>Tipo de embarque</h2>
-            <p class="official-hint">Mostramos únicamente las opciones de {{ mode === 'Maritime' ? 'transporte marítimo' : mode === 'Air' ? 'transporte aéreo' : 'transporte terrestre' }}.</p>
+            <p class="official-kicker">{{ q('PASO 2 DE 4', 'STEP 2 OF 4') }}</p><h2>{{ q('Tipo de embarque', 'Shipment type') }}</h2>
+            <p class="official-hint">{{ q('Mostramos únicamente las opciones de', 'Showing only') }} {{ mode === 'Maritime' ? q('transporte marítimo', 'ocean freight') : mode === 'Air' ? q('transporte aéreo', 'air freight') : q('transporte terrestre', 'ground transportation') }}.</p>
             <div class="official-choices">
               <button v-for="choice in typeOptions" :key="choice.value" type="button" class="official-choice"
                 :class="{ chosen: shipmentType === choice.value }" :aria-pressed="shipmentType === choice.value"
@@ -212,83 +313,113 @@ async function submit() {
             </div>
           </template>
           <template v-else-if="step === 3">
-            <p class="official-kicker">PASO 3 DE 4</p><h2>Ruta, equipo y servicios</h2>
-            <p class="official-hint">Solo pedimos los datos necesarios para {{ shipmentType }}.</p>
-            <p v-if="!locationLoading && (!locations.length || !destinations.length || (shipmentType === 'LCL' && !podOptions.length))" class="official-catalog-alert">Faltan ubicaciones para esta modalidad. El administrador debe completar el catálogo correspondiente.</p>
-            <p v-else-if="[...locations,...destinations,...podOptions].some(loc => loc.code?.startsWith('DEV-'))" class="official-catalog-alert" role="note">Faltan opciones verificadas para al menos uno de los campos. Las opciones PRUEBA son exclusivamente para desarrollo.</p>
+            <p class="official-kicker">{{ q('PASO 3 DE 4', 'STEP 3 OF 4') }}</p><h2>{{ q('Ruta, equipo y servicios', 'Route, equipment and services') }}</h2>
+            <p class="official-hint">{{ q('Solo pedimos los datos necesarios para', 'We only ask for the information needed for') }} {{ displayShipmentType(shipmentType) }}.</p>
+            <p v-if="[...locations,...destinations,...podOptions].some(loc => loc.code?.startsWith('DEV-'))" class="official-catalog-alert" role="note">{{ q('Faltan opciones verificadas para al menos uno de los campos. Las opciones PRUEBA son exclusivamente para desarrollo.', 'At least one field has no verified options. TEST options are for development only.') }}</p>
             <div class="official-fields">
-              <label>Origen <span>*</span><select v-model="form.originLocationId" required><option value="">Seleccionar origen</option><option v-for="loc in locations" :key="loc.id" :value="loc.id">{{ loc.displayName }}</option></select></label>
-              <label>Destino <span>*</span><select v-model="form.destinationLocationId" required><option value="">Seleccionar destino</option><option v-for="loc in destinations" :key="loc.id" :value="loc.id">{{ loc.displayName }}</option></select></label>
-              <label v-if="mode === 'Maritime'">POD {{ shipmentType === 'LCL' ? '(requerido)' : '(opcional)' }}<select v-model="form.podLocationId"><option value="">{{ shipmentType === 'LCL' ? 'Seleccionar POD' : 'Sin POD adicional' }}</option><option v-for="loc in podOptions" :key="loc.id" :value="loc.id">{{ loc.displayName }}</option></select></label>
-              <label>Incoterm <span>*</span><select v-model="form.incoterm" required><option value="">Seleccionar Incoterm</option><option v-for="item in incoterms" :key="item">{{ item }}</option></select></label>
-              <label>Fecha de carga lista <span>*</span><input v-model="form.cargoReadyDate" type="date" required /></label>
+              <div class="official-location-field">
+                <label for="quote-origin">{{ q('Origen', 'Origin') }} <span>*</span></label>
+                <div class="official-location-combobox">
+                  <input id="quote-origin" :value="locationSearch.origin" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'origin'" aria-controls="quote-origin-options" autocomplete="off" :placeholder="q('Buscar ciudad o país', 'Search city or country')" required @focus="openLocation = 'origin'; activeLocationIndex = 0" @input="updateLocationSearch('origin', $event)" @keydown="handleLocationKeydown('origin', $event)" @blur="closeLocation('origin')" />
+                  <button type="button" class="official-location-toggle" :aria-label="q('Mostrar ubicaciones de origen', 'Show origin locations')" tabindex="-1" @mousedown.prevent @click="toggleLocation('origin')">⌄</button>
+                  <ul v-if="openLocation === 'origin'" id="quote-origin-options" class="official-location-options" role="listbox">
+                    <li v-for="(loc,index) in optionsFor('origin')" :key="loc.id"><button type="button" role="option" :aria-selected="form.originLocationId === loc.id" :id="`quote-origin-option-${index}`" @mousedown.prevent @click="chooseLocation('origin', loc)"><span>{{ loc.displayName }}</span></button></li>
+                    <li v-if="!optionsFor('origin').length" class="official-location-empty">{{ q('No hay ubicaciones que coincidan.', 'No matching locations.') }}</li>
+                  </ul>
+                </div>
+              </div>
+              <div class="official-location-field">
+                <label for="quote-destination">{{ q('Destino', 'Destination') }} <span>*</span></label>
+                <div class="official-location-combobox">
+                  <input id="quote-destination" :value="locationSearch.destination" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'destination'" aria-controls="quote-destination-options" autocomplete="off" :placeholder="q('Buscar ciudad o país', 'Search city or country')" required @focus="openLocation = 'destination'; activeLocationIndex = 0" @input="updateLocationSearch('destination', $event)" @keydown="handleLocationKeydown('destination', $event)" @blur="closeLocation('destination')" />
+                  <button type="button" class="official-location-toggle" :aria-label="q('Mostrar ubicaciones de destino', 'Show destination locations')" tabindex="-1" @mousedown.prevent @click="toggleLocation('destination')">⌄</button>
+                  <ul v-if="openLocation === 'destination'" id="quote-destination-options" class="official-location-options" role="listbox">
+                    <li v-for="(loc,index) in optionsFor('destination')" :key="loc.id"><button type="button" role="option" :aria-selected="form.destinationLocationId === loc.id" :id="`quote-destination-option-${index}`" @mousedown.prevent @click="chooseLocation('destination', loc)"><span>{{ loc.displayName }}</span></button></li>
+                    <li v-if="!optionsFor('destination').length" class="official-location-empty">{{ q('No hay ubicaciones que coincidan.', 'No matching locations.') }}</li>
+                  </ul>
+                </div>
+              </div>
+              <div v-if="mode === 'Maritime'" class="official-location-field">
+                <label for="quote-pod">POD {{ shipmentType === 'LCL' ? q('(requerido)', '(required)') : q('(opcional)', '(optional)') }}</label>
+                <div class="official-location-combobox">
+                  <input id="quote-pod" :value="locationSearch.pod" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'pod'" aria-controls="quote-pod-options" autocomplete="off" :placeholder="shipmentType === 'LCL' ? q('Buscar ciudad o país', 'Search city or country') : q('Sin POD adicional', 'No additional POD')" @focus="openLocation = 'pod'; activeLocationIndex = 0" @input="updateLocationSearch('pod', $event)" @keydown="handleLocationKeydown('pod', $event)" @blur="closeLocation('pod')" />
+                  <button type="button" class="official-location-toggle" :aria-label="q('Mostrar opciones de POD', 'Show POD options')" tabindex="-1" @mousedown.prevent @click="toggleLocation('pod')">⌄</button>
+                  <ul v-if="openLocation === 'pod'" id="quote-pod-options" class="official-location-options" role="listbox">
+                    <li v-if="shipmentType !== 'LCL'"><button type="button" role="option" :aria-selected="!form.podLocationId" @mousedown.prevent @click="form.podLocationId = ''; locationSearch.pod = ''; openLocation = null">{{ q('Sin POD adicional', 'No additional POD') }}</button></li>
+                    <li v-for="(loc,index) in optionsFor('pod')" :key="loc.id"><button type="button" role="option" :aria-selected="form.podLocationId === loc.id" :id="`quote-pod-option-${index}`" @mousedown.prevent @click="chooseLocation('pod', loc)"><span>{{ loc.displayName }}</span></button></li>
+                    <li v-if="!optionsFor('pod').length && shipmentType === 'LCL'" class="official-location-empty">{{ q('No hay ubicaciones que coincidan.', 'No matching locations.') }}</li>
+                  </ul>
+                </div>
+              </div>
+              <label>Incoterm <span>*</span><select v-model="form.incoterm" required><option value="">{{ q('Seleccionar Incoterm', 'Select Incoterm') }}</option><option v-for="item in incoterms" :key="item">{{ item }}</option></select></label>
+              <label>{{ q('Fecha de carga lista', 'Cargo ready date') }} <span>*</span><input v-model="form.cargoReadyDate" type="date" required /></label>
             </div>
             <div v-if="form.incoterm === 'EXW'" class="official-nested">
-              <h3>Información adicional para EXW</h3>
+              <h3>{{ q('Información adicional para EXW', 'Additional EXW information') }}</h3>
               <div class="official-fields">
-                <label>Tipo de carga <span>*</span><select v-model="form.exwCargoStatus"><option value="">Seleccionar</option><option value="fiscal">Carga fiscal</option><option value="nationalized">Carga nacionalizada</option></select></label>
-                <label>Dirección de recolección <span>*</span><input v-model.trim="form.exwPickupAddress" maxlength="800" placeholder="Indicá la dirección" /></label>
+                <label>{{ q('Tipo de carga', 'Cargo type') }} <span>*</span><select v-model="form.exwCargoStatus"><option value="">{{ q('Seleccionar', 'Select') }}</option><option value="fiscal">{{ q('Carga fiscal', 'Bonded cargo') }}</option><option value="nationalized">{{ q('Carga nacionalizada', 'Nationalized cargo') }}</option></select></label>
+                <label>{{ q('Dirección de recolección', 'Pickup address') }} <span>*</span><input v-model.trim="form.exwPickupAddress" maxlength="800" :placeholder="q('Indicá la dirección', 'Enter the address')" /></label>
               </div>
             </div>
-            <div class="official-nested">
-              <div class="official-headline"><h3>{{ equipmentMode ? 'Distribución de equipos' : 'Servicios solicitados' }}</h3><button v-if="equipmentMode" class="official-ghost" type="button" @click="addEquipment">+ Añadir equipo</button></div>
+            <div v-if="equipmentMode || shipmentType !== 'AIR_LCL'" class="official-nested">
+              <div class="official-headline"><h3>{{ equipmentMode ? q('Distribución de equipos', 'Equipment breakdown') : q('Servicios solicitados', 'Requested services') }}</h3><button v-if="equipmentMode" class="official-ghost official-add-equipment" type="button" @click="addEquipment">+ {{ q('Añadir equipo', 'Add equipment') }}</button></div>
               <template v-if="equipmentMode">
                 <div v-for="(line,i) in form.equipment" :key="i" class="official-line">
-                  <div class="official-headline"><strong>Equipo {{ i+1 }}</strong><button v-if="form.equipment.length>1" type="button" class="official-remove" @click="form.equipment.splice(i,1)">Quitar</button></div>
+                  <div class="official-headline"><strong>{{ q('Equipo', 'Equipment') }} {{ i+1 }}</strong><button v-if="form.equipment.length>1" type="button" class="official-remove" @click="form.equipment.splice(i,1)">{{ q('Quitar', 'Remove') }}</button></div>
                   <div class="official-fields">
-                    <label>{{ shipmentType === 'FCL' ? 'Tamaño del contenedor' : 'Furgón' }} <span>*</span>
-                      <select v-model="line.size"><option value="">Seleccionar</option><template v-if="shipmentType === 'FCL'"><option>20 pies</option><option>40 pies</option><option>45 pies</option><option>48 pies</option></template><template v-else><option>24 pies / 5 TON</option><option>26 pies / 7 TON</option><option>40 pies</option><option>53 pies</option></template></select>
+                    <label>{{ shipmentType === 'FCL' ? q('Tamaño del contenedor', 'Container size') : q('Furgón', 'Truck') }} <span>*</span>
+                      <select v-model="line.size"><option value="">{{ q('Seleccionar', 'Select') }}</option><template v-if="shipmentType === 'FCL'"><option value="20 pies">20 {{ q('pies', 'ft') }}</option><option value="40 pies">40 {{ q('pies', 'ft') }}</option><option value="45 pies">45 {{ q('pies', 'ft') }}</option><option value="48 pies">48 {{ q('pies', 'ft') }}</option></template><template v-else><option value="24 pies / 5 TON">24 {{ q('pies', 'ft') }} / 5 TON</option><option value="26 pies / 7 TON">26 {{ q('pies', 'ft') }} / 7 TON</option><option value="40 pies">40 {{ q('pies', 'ft') }}</option><option value="53 pies">53 {{ q('pies', 'ft') }}</option></template></select>
                     </label>
-                    <label>Tipo <span>*</span><select v-model="line.type"><option value="">Seleccionar</option><template v-if="shipmentType === 'FCL'"><option>Dry Van</option><option>High Cube</option><option>Open Top</option><option>Open Side</option><option>Tank</option><option>Flat Rack</option><option>NOR</option></template><template v-else><option>Furgón</option></template></select></label>
-                    <label>Cantidad <span>*</span><input v-model.number="line.quantity" type="number" min="1" max="25" step="1" @input="syncWeights(line)" /></label>
-                    <label v-for="(weight,wi) in line.unitWeightsKg" :key="wi">Peso {{ wi+1 }} (kg) <span>*</span><input v-model.number="line.unitWeightsKg[wi]" type="number" min="0.001" step="any" /></label>
+                    <label>{{ q('Tipo', 'Type') }} <span>*</span><select v-model="line.type"><option value="">{{ q('Seleccionar', 'Select') }}</option><template v-if="shipmentType === 'FCL'"><option>Dry Van</option><option>High Cube</option><option>Open Top</option><option>Open Side</option><option>Tank</option><option>Flat Rack</option><option>NOR</option></template><template v-else><option value="Furgón">{{ q('Furgón', 'Truck') }}</option></template></select></label>
+                    <label>{{ q('Cantidad', 'Quantity') }} <span>*</span><input v-model.number="line.quantity" type="number" min="1" max="25" step="1" @input="syncWeights(line)" /></label>
+                    <label v-for="(weight,wi) in line.unitWeightsKg" :key="wi">{{ q('Peso', 'Weight') }} {{ wi+1 }} (kg) <span>*</span><input v-model.number="line.unitWeightsKg[wi]" type="number" min="0.001" step="any" /></label>
                   </div>
                 </div>
               </template>
             </div>
-            <div class="official-nested"><h3>Servicios</h3><p class="official-hint">Transporte internacional viene marcado inicialmente. Podés quitarlo o seleccionar varios servicios, pero debe quedar al menos uno.</p><div class="official-checks"><label v-for="s in serviceOptions" :key="s"><input type="checkbox" :checked="form.services.includes(s)" @change="toggle(form.services,s)" />{{ s }}</label></div>
+            <div class="official-nested"><h3>{{ q('Servicios', 'Services') }}</h3><p class="official-hint">{{ q('Transporte internacional viene marcado inicialmente. Podés quitarlo o seleccionar varios servicios, pero debe quedar al menos uno.', 'International transportation is selected by default. You can remove it or select multiple services, but at least one must remain.') }}</p><div class="official-checks"><label v-for="s in serviceOptions" :key="s"><input type="checkbox" :checked="form.services.includes(s)" @change="toggle(form.services,s)" />{{ displayService(s) }}</label></div>
               <div v-if="form.services.includes('Almacenamiento') || form.services.includes('Transporte entrega') || form.services.includes('Transporte recolección')" class="official-fields">
-                <label v-if="form.services.includes('Almacenamiento')">Días de almacenaje fiscal <span>*</span><input v-model.number="form.fiscalStorageDays" type="number" min="1" max="36500" step="1" /></label>
-                <label v-if="form.services.includes('Transporte entrega')" class="full">Dirección de entrega <span>*</span><textarea v-model.trim="form.deliveryAddress" rows="3" maxlength="800" placeholder="Escribí la dirección de entrega"></textarea></label>
-                <label v-if="form.services.includes('Transporte recolección')" class="full">Dirección de recolección <span>*</span><textarea v-model.trim="form.pickupAddress" rows="3" maxlength="800" placeholder="Escribí la dirección de recolección"></textarea></label>
+                <label v-if="form.services.includes('Almacenamiento')">{{ q('Días de almacenaje fiscal', 'Fiscal storage days') }} <span>*</span><input v-model.number="form.fiscalStorageDays" type="number" min="1" max="36500" step="1" /></label>
+                <label v-if="form.services.includes('Transporte entrega')" class="full">{{ q('Dirección de entrega', 'Delivery address') }} <span>*</span><textarea v-model.trim="form.deliveryAddress" rows="3" maxlength="800" :placeholder="q('Escribí la dirección de entrega', 'Enter the delivery address')"></textarea></label>
+                <label v-if="form.services.includes('Transporte recolección')" class="full">{{ q('Dirección de recolección', 'Pickup address') }} <span>*</span><textarea v-model.trim="form.pickupAddress" rows="3" maxlength="800" :placeholder="q('Escribí la dirección de recolección', 'Enter the pickup address')"></textarea></label>
               </div>
             </div>
           </template>
           <template v-else>
-            <p class="official-kicker">PASO 4 DE 4</p><h2>Descripción de carga y contacto</h2>
-            <p class="official-hint">Revisá los detalles. No se piden archivos ni se calculan tarifas.</p>
+            <p class="official-kicker">{{ q('PASO 4 DE 4', 'STEP 4 OF 4') }}</p><h2>{{ q('Descripción de carga y contacto', 'Cargo details and contact') }}</h2>
+            <p class="official-hint">{{ q('Revisá los detalles. No se piden archivos ni se calculan tarifas.', 'Review the details. No files are requested and rates are not calculated.') }}</p>
             <div class="official-fields">
-              <label class="full">Descripción de la carga <span>*</span><textarea v-model.trim="form.cargoDescription" rows="3" maxlength="4000" placeholder="¿Qué productos necesitás transportar?" /></label>
-              <label>Código CABYS (opcional)<input v-model.trim="form.cabysCode" maxlength="40" placeholder="Ingresá el código si lo conocés" /></label>
-              <label>Valor de la carga (si aplica)<input v-model.number="form.cargoValue" type="number" min="0" step="any" /></label>
-              <label>Peso declarado (si aplica)<input v-model.number="form.declaredWeight" type="number" min="0" step="any" /></label>
-              <label>Cantidad de bultos (si aplica)<input v-model.number="form.declaredPackages" type="number" min="0" step="1" /></label>
+              <label class="full">{{ q('Descripción de la carga', 'Cargo description') }} <span>*</span><textarea v-model.trim="form.cargoDescription" rows="3" maxlength="4000" :placeholder="q('¿Qué productos necesitás transportar?', 'What products do you need to ship?')" /></label>
+              <label>{{ q('Código CABYS (opcional)', 'CABYS code (optional)') }}<input v-model.trim="form.cabysCode" maxlength="40" :placeholder="q('Ingresá el código si lo conocés', 'Enter the code if you know it')" /></label>
+              <label>{{ q('Valor de la carga (si aplica)', 'Cargo value (if applicable)') }}<input v-model.number="form.cargoValue" type="number" min="0" step="any" /></label>
+              <label>{{ q('Peso declarado (si aplica)', 'Declared weight (if applicable)') }}<input v-model.number="form.declaredWeight" type="number" min="0" step="any" /></label>
+              <label>{{ q('Cantidad de bultos (si aplica)', 'Number of packages (if applicable)') }}<input v-model.number="form.declaredPackages" type="number" min="0" step="1" /></label>
             </div>
             <div v-if="!equipmentMode" class="official-nested">
-              <div class="official-headline"><h3>Medidas de la carga</h3><button class="official-ghost" type="button" @click="addPackage">+ Añadir línea</button></div>
-              <div class="official-fields"><label>Unidad de dimensiones<select v-model="form.dimensionUnit"><option value="cm">Centímetros (cm)</option><option value="m">Metros (m)</option><option value="in">Pulgadas (in)</option></select></label><label>Unidad de peso<select v-model="form.weightUnit"><option value="kg">Kilogramos (kg)</option><option value="lb">Libras (lb)</option></select></label></div>
+              <div class="official-headline"><h3>{{ q('Medidas de la carga', 'Cargo dimensions') }}</h3><button class="official-ghost" type="button" @click="addPackage">+ {{ q('Añadir línea', 'Add line') }}</button></div>
+              <div class="official-fields"><label>{{ q('Unidad de dimensiones', 'Dimension unit') }}<select v-model="form.dimensionUnit"><option value="cm">{{ q('Centímetros', 'Centimeters') }} (cm)</option><option value="m">{{ q('Metros', 'Meters') }} (m)</option><option value="in">{{ q('Pulgadas', 'Inches') }} (in)</option></select></label><label>{{ q('Unidad de peso', 'Weight unit') }}<select v-model="form.weightUnit"><option value="kg">{{ q('Kilogramos', 'Kilograms') }} (kg)</option><option value="lb">{{ q('Libras', 'Pounds') }} (lb)</option></select></label></div>
               <div v-for="(line,i) in form.packages" :key="i" class="official-line">
-                <div class="official-headline"><strong>Bulto / Línea {{ i+1 }}</strong><button v-if="form.packages.length>1" class="official-remove" type="button" @click="form.packages.splice(i,1)">Quitar</button></div>
+                <div class="official-headline"><strong>{{ q('Bulto / Línea', 'Package / Line') }} {{ i+1 }}</strong><button v-if="form.packages.length>1" class="official-remove" type="button" @click="form.packages.splice(i,1)">{{ q('Quitar', 'Remove') }}</button></div>
                 <div class="official-fields">
-                  <label class="full">Descripción <span>*</span><input v-model.trim="line.description" maxlength="400" /></label>
-                  <label>Cantidad <span>*</span><input v-model.number="line.quantity" min="1" step="1" type="number" /></label>
-                  <label>Peso total <span>*</span><input v-model.number="line.weight" min="0.001" step="any" type="number" /></label>
-                  <label>Largo <span>*</span><input v-model.number="line.length" min="0.001" step="any" type="number" /></label>
-                  <label>Ancho <span>*</span><input v-model.number="line.width" min="0.001" step="any" type="number" /></label>
-                  <label>Alto <span>*</span><input v-model.number="line.height" min="0.001" step="any" type="number" /></label>
-                  <label>Estibabilidad<select v-model="line.stackability"><option value="Stackable">Estibable</option><option value="NonStackable">No estibable</option></select></label>
+                  <label class="full">{{ q('Descripción', 'Description') }} <span>*</span><input v-model.trim="line.description" maxlength="400" /></label>
+                  <label>{{ q('Cantidad', 'Quantity') }} <span>*</span><input v-model.number="line.quantity" min="1" step="1" type="number" /></label>
+                  <label>{{ q('Peso total', 'Total weight') }} <span>*</span><input v-model.number="line.weight" min="0.001" step="any" type="number" /></label>
+                  <label>{{ q('Largo', 'Length') }} <span>*</span><input v-model.number="line.length" min="0.001" step="any" type="number" /></label>
+                  <label>{{ q('Ancho', 'Width') }} <span>*</span><input v-model.number="line.width" min="0.001" step="any" type="number" /></label>
+                  <label>{{ q('Alto', 'Height') }} <span>*</span><input v-model.number="line.height" min="0.001" step="any" type="number" /></label>
+                  <label>{{ q('Estibabilidad', 'Stackability') }}<select v-model="line.stackability"><option value="Stackable">{{ q('Estibable', 'Stackable') }}</option><option value="NonStackable">{{ q('No estibable', 'Non-stackable') }}</option></select></label>
                 </div>
               </div>
             </div>
-            <div class="official-nested"><h3>Opciones de carga</h3><div class="official-checks"><label v-for="flag in cargoFlagOptions" :key="flag"><input type="checkbox" :checked="form.cargoFlags.includes(flag)" @change="toggle(form.cargoFlags,flag)" />{{ flag }}</label></div><label class="official-single">Observaciones<textarea v-model.trim="form.observations" maxlength="4000" rows="3" /></label></div>
-            <div class="official-nested"><h3>Datos de contacto</h3><div class="official-fields"><label>Nombre <span>*</span><input v-model.trim="form.contactName" maxlength="150" autocomplete="name" /></label><label>Correo <span>*</span><input v-model.trim="form.contactEmail" type="email" maxlength="255" autocomplete="email" /></label><label>Teléfono <span>*</span><input v-model.trim="form.contactPhone" maxlength="40" autocomplete="tel" /></label></div></div>
-            <div class="official-summary"><strong>Resumen</strong><span>{{ mode }} · {{ shipmentType }}</span><span>{{ selectedOrigin?.displayName }} → {{ selectedDest?.displayName }}</span><span>{{ form.services.join(', ') }}</span></div>
+            <div class="official-nested"><h3>{{ q('Opciones de carga', 'Cargo options') }}</h3><div class="official-checks"><label v-for="flag in cargoFlagOptions" :key="flag"><input type="checkbox" :checked="form.cargoFlags.includes(flag)" @change="toggle(form.cargoFlags,flag)" />{{ displayService(flag) }}</label></div><label class="official-single">{{ q('Observaciones', 'Notes') }}<textarea v-model.trim="form.observations" maxlength="4000" rows="3" /></label></div>
+            <div class="official-nested"><h3>{{ q('Datos de contacto', 'Contact details') }}</h3><div class="official-fields"><label>{{ q('Nombre', 'Name') }} <span>*</span><input v-model.trim="form.contactName" maxlength="150" autocomplete="name" /></label><label>{{ q('Correo', 'Email') }} <span>*</span><input v-model.trim="form.contactEmail" type="email" maxlength="255" autocomplete="email" /></label><label>{{ q('Teléfono', 'Phone') }} <span>*</span><input v-model.trim="form.contactPhone" maxlength="40" autocomplete="tel" /></label></div></div>
+            <div class="official-summary"><strong>{{ q('Resumen', 'Summary') }}</strong><span>{{ displayMode(mode) }} · {{ displayShipmentType(shipmentType) }}</span><span>{{ selectedOrigin?.displayName }} → {{ selectedDest?.displayName }}</span><span>{{ form.services.map(displayService).join(', ') }}</span></div>
           </template>
           <p v-if="error" class="official-error" role="alert">{{ error }}</p>
           <footer class="official-buttons">
-            <button v-if="step>1" type="button" class="official-back" :disabled="busy" @click="back">← Atrás</button><span v-else></span>
-            <button v-if="step<4" type="button" class="official-primary" @click="next">Continuar →</button>
-            <button v-else type="button" class="official-primary" :disabled="busy || !sessionOk" @click="submit">{{ busy ? 'Enviando…' : 'Enviar solicitud →' }}</button>
+            <button v-if="step>1" type="button" class="official-back" :disabled="busy" @click="back">← {{ q('Atrás', 'Back') }}</button><span v-else></span>
+            <button v-if="step<4" type="button" class="official-primary" @click="next">{{ q('Continuar', 'Continue') }} →</button>
+            <button v-else type="button" class="official-primary" :disabled="busy || !sessionOk" @click="submit">{{ busy ? q('Enviando…', 'Sending…') : q('Enviar solicitud', 'Submit request') + ' →' }}</button>
           </footer>
         </section>
       </template>
@@ -397,4 +528,849 @@ html.theme-dark .app-site.official-page :is(.official-error,.official-catalog-al
 html.theme-dark .app-site.official-page .official-success-icon {color:#83e6b1!important;}
 html.theme-dark .app-site.official-page .official-progress-item.current small {color:#fff!important;}
 html.theme-dark .app-site.official-page .official-kicker {color:#ff8ca2!important;}
+
+/* Indicador de pasos en línea, como el cotizador anterior. */
+.official-page .official-progress {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0;
+  max-width: 820px;
+  margin: 32px auto 34px;
+}
+.official-page .official-progress::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: 12.5%;
+  right: 12.5%;
+  top: 26px;
+  height: 4px;
+  border-radius: 4px;
+  background: #d6d8df;
+}
+.official-page .official-progress-item {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent !important;
+  color: #737887;
+  text-align: center;
+}
+.official-page .official-progress-item span {
+  width: 54px;
+  height: 54px;
+  border: 3px solid #d6d8df;
+  background: #fff;
+  color: #737887;
+  font-size: 18px;
+}
+.official-page .official-progress-item small {
+  color: #737887;
+  font-size: 12px;
+  line-height: 1.3;
+}
+.official-page .official-progress-item.current,
+.official-page .official-progress-item.done {
+  color: #b20c2a;
+  background: transparent !important;
+}
+.official-page .official-progress-item.current span,
+.official-page .official-progress-item.done span {
+  border-color: #b20c2a;
+  background: #b20c2a;
+  color: #fff;
+}
+.official-page .official-progress-item.current small,
+.official-page .official-progress-item.done small {
+  color: #b20c2a;
+}
+html.theme-dark .app-site.official-page .official-progress::before { background: #46546a; }
+html.theme-dark .app-site.official-page .official-progress-item,
+html.theme-dark .app-site.official-page .official-progress-item.current,
+html.theme-dark .app-site.official-page .official-progress-item.done {
+  background: transparent !important;
+  color: #c4c5cf !important;
+}
+html.theme-dark .app-site.official-page .official-progress-item span {
+  border-color: #46546a !important;
+  background: #19243a !important;
+  color: #d3dbea !important;
+}
+html.theme-dark .app-site.official-page .official-progress-item.current span,
+html.theme-dark .app-site.official-page .official-progress-item.done span {
+  border-color: #b20c2a !important;
+  background: #b20c2a !important;
+  color: #fff !important;
+}
+html.theme-dark .app-site.official-page .official-progress-item.current small,
+html.theme-dark .app-site.official-page .official-progress-item.done small { color: #fff !important; }
+@media (max-width: 670px) {
+  .official-page .official-progress { gap: 0; margin: 26px auto; }
+  .official-page .official-progress::before { top: 21px; }
+  .official-page .official-progress-item { gap: 6px; padding: 0 2px; }
+  .official-page .official-progress-item span { width: 44px; height: 44px; font-size: 15px; }
+  .official-page .official-progress-item small { font-size: 10px; overflow-wrap: anywhere; }
+}
+
+
+/* Campos de origen/destino con búsqueda y lista de países. */
+.official-location-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  font-size: 12px;
+  color: #4e5260;
+  font-weight: 800;
+}
+.official-location-field > label { display: block; }
+.official-location-field > label span { color: #ad112f; }
+.official-location-combobox { position: relative; min-width: 0; }
+.official-location-combobox > input { padding-right: 46px !important; }
+.official-location-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 44px;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: #8790a0;
+  font-size: 22px;
+  cursor: pointer;
+}
+.official-location-options {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+  border: 1px solid #55545a;
+  border-radius: 18px;
+  background: #19191c;
+  box-shadow: 0 18px 36px #0005;
+}
+.official-location-options li { margin: 0; padding: 0; }
+.official-location-options li button {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: #fff;
+  text-align: left;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.official-location-options li button:hover,
+.official-location-options li button[aria-selected="true"] { background: #30262d; color: #ff6b50; }
+.official-location-empty { padding: 13px 14px; color: #b9bac2; font-size: 13px; }
+html.theme-dark .app-site.official-page .official-location-field { color: #fff; }
+html.theme-dark .app-site.official-page .official-location-toggle { color: #c4c5cf; }
+html.theme-dark .app-site.official-page .official-location-options {
+  background: #19191c !important;
+  border-color: #55545a !important;
+}
+@media (max-width: 670px) {
+  .official-location-options { max-height: 240px; }
+}
+
+/* Cotizaciones comparte el fondo vino, las tarjetas de vidrio y el brillo rojo
+   ambiental que ya usa el formulario de itinerarios. */
+.app-site.official-page {
+  position: relative;
+  isolation: isolate;
+  background: #fff8f8 !important;
+  background-image: linear-gradient(108deg, rgba(178,12,42,.09), transparent 58%) !important;
+}
+.app-site.official-page .official-shell { width: min(1424px, calc(100% - 48px)); }
+.app-site.official-page .official-header { max-width: none; }
+.app-site.official-page .official-header h1 { font-size: clamp(38px, 6vw, 72px); }
+.app-site.official-page .official-progress {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  max-width: none;
+  margin: 28px 0 22px;
+}
+.app-site.official-page .official-progress::before { display: none; }
+.app-site.official-page .official-progress-item,
+.app-site.official-page .official-progress-item.current,
+.app-site.official-page .official-progress-item.done {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 14px;
+  min-height: 58px;
+  padding: 10px 16px;
+  border: 1px solid #ded4d8;
+  border-radius: 16px;
+  background: #f2eef0 !important;
+  color: #39313a !important;
+  text-align: left;
+}
+.app-site.official-page .official-progress-item span,
+.app-site.official-page .official-progress-item.current span,
+.app-site.official-page .official-progress-item.done span {
+  display: grid;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border: 0 !important;
+  border-radius: 50%;
+  background: #48556f !important;
+  color: #fff !important;
+  font-size: 15px;
+}
+.app-site.official-page .official-progress-item.current {
+  border-color: #b20c2a;
+  background: #b20c2a !important;
+  color: #fff !important;
+}
+.app-site.official-page .official-progress-item.current span,
+.app-site.official-page .official-progress-item.done span { background: #fff !important; color: #b20c2a !important; }
+.app-site.official-page .official-progress-item small,
+.app-site.official-page .official-progress-item.current small,
+.app-site.official-page .official-progress-item.done small {
+  color: inherit !important;
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.25;
+}
+.app-site.official-page .official-panel {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid #d8cbd0;
+  border-radius: 30px;
+  background: #fffdfd !important;
+  box-shadow: 0 18px 46px #34101b14;
+}
+.app-site.official-page .official-panel::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: -48% auto -48% -22%;
+  width: 52%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(214,14,52,.14), rgba(178,11,45,.07) 43%, transparent 75%);
+  filter: blur(38px);
+  pointer-events: none;
+  animation: itinerary-red-sweep 9s ease-in-out infinite alternate;
+}
+.app-site.official-page .official-panel > * { position: relative; z-index: 1; }
+.app-site.official-page .official-choice--mode {
+  border-color: #e0d2d7;
+  border-radius: 19px;
+  background: rgba(255,255,255,.78);
+  box-shadow: 0 10px 28px #34101b0b;
+  transition: border-color .2s, background .2s, transform .2s, box-shadow .2s;
+}
+.app-site.official-page .official-choice:hover,
+.app-site.official-page .official-choice.chosen {
+  border-color: #b20c2a;
+  background: #fff4f5;
+  box-shadow: 0 12px 32px #b20c2a1a;
+  transform: translateY(-2px);
+}
+.app-site.official-page .official-emoji {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border: 1px solid #b20c2a24;
+  border-radius: 16px;
+  background: #b20c2a12;
+  color: #b20c2a;
+}
+.app-site.official-page .official-nested { border-color: #b20c2a30; }
+.app-site.official-page .official-primary { border-radius: 13px; box-shadow: 0 8px 20px #b20c2a27; }
+html.theme-dark .app-site.official-page {
+  background: linear-gradient(105deg, #a50b29 0%, #4d1827 25%, #171316 63%, #080d20 100%) !important;
+  color: #fff !important;
+}
+html.theme-dark .app-site.official-page .official-header h1 span { color: #ffd8df !important; }
+html.theme-dark .app-site.official-page .official-header > p:last-child,
+html.theme-dark .app-site.official-page .official-hint { color: #e4dfe2 !important; }
+html.theme-dark .app-site.official-page .official-progress-item,
+html.theme-dark .app-site.official-page .official-progress-item.done {
+  border-color: #ffffff38;
+  background: #ffffff12 !important;
+  color: #fff !important;
+}
+html.theme-dark .app-site.official-page .official-progress-item.current { border-color: #c10c30; background: #b20c2a !important; }
+html.theme-dark .app-site.official-page .official-progress-item span { background: #45516a !important; color: #fff !important; }
+html.theme-dark .app-site.official-page .official-progress-item.current span,
+html.theme-dark .app-site.official-page .official-progress-item.done span { background: #fff !important; color: #b20c2a !important; }
+html.theme-dark .app-site.official-page .official-progress-item small,
+html.theme-dark .app-site.official-page .official-progress-item.current small,
+html.theme-dark .app-site.official-page .official-progress-item.done small { color: #fff !important; }
+html.theme-dark .app-site.official-page .official-panel {
+  border-color: #ffffff66;
+  background: linear-gradient(112deg, rgba(48,24,34,.96), rgba(23,20,27,.96)) !important;
+  box-shadow: 0 18px 52px #0003;
+}
+html.theme-dark .app-site.official-page .official-panel::before {
+  background: radial-gradient(ellipse at center, rgba(214,14,52,.37), rgba(178,11,45,.22) 43%, transparent 75%);
+}
+html.theme-dark .app-site.official-page .official-choice,
+html.theme-dark .app-site.official-page .official-line,
+html.theme-dark .app-site.official-page .official-summary {
+  border-color: #ffffff40 !important;
+  background: rgba(255,255,255,.055) !important;
+  color: #fff !important;
+}
+html.theme-dark .app-site.official-page .official-choice:hover,
+html.theme-dark .app-site.official-page .official-choice.chosen {
+  border-color: #ff526c !important;
+  background: rgba(178,12,42,.3) !important;
+  box-shadow: 0 12px 30px #0002;
+}
+html.theme-dark .app-site.official-page .official-choice strong,
+html.theme-dark .app-site.official-page .official-line strong,
+html.theme-dark .app-site.official-page .official-panel h2,
+html.theme-dark .app-site.official-page .official-nested h3 { color: #fff !important; }
+html.theme-dark .app-site.official-page .official-choice small,
+html.theme-dark .app-site.official-page .official-summary span { color: #d3cbd0 !important; }
+html.theme-dark .app-site.official-page .official-emoji {
+  border-color: #ffffff38;
+  background: #ffffff16;
+  color: #fff;
+}
+html.theme-dark .app-site.official-page .official-nested { border-color: #ffffff38; }
+html.theme-dark .app-site.official-page .official-fields input,
+html.theme-dark .app-site.official-page .official-fields select,
+html.theme-dark .app-site.official-page .official-fields textarea,
+html.theme-dark .app-site.official-page .official-single textarea,
+html.theme-dark .app-site.official-page .official-location-combobox > input {
+  border-color: #ffffff40 !important;
+  border-radius: 13px;
+  background: #10192c !important;
+}
+html.theme-dark .app-site.official-page .official-location-options { border-color: #ffffff48 !important; background: #19191c !important; }
+@media (max-width: 760px) {
+  .app-site.official-page .official-shell { width: min(100% - 28px, 600px); padding-top: 30px; }
+  .app-site.official-page .official-progress { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 22px 0 16px; }
+  .app-site.official-page .official-progress-item,
+  .app-site.official-page .official-progress-item.current,
+  .app-site.official-page .official-progress-item.done { min-height: 62px; flex-direction: column; justify-content: center; gap: 4px; padding: 6px 3px; border-radius: 11px; text-align: center; }
+  .app-site.official-page .official-progress-item span { flex-basis: 28px; width: 28px; height: 28px; font-size: 12px; }
+  .app-site.official-page .official-progress-item small,
+  .app-site.official-page .official-progress-item.current small,
+  .app-site.official-page .official-progress-item.done small { font-size: 9px; line-height: 1.05; text-align: center; overflow-wrap: anywhere; }
+  .app-site.official-page .official-panel { border-radius: 22px; }
+}
+@media (prefers-reduced-motion: reduce) { .app-site.official-page .official-panel::before { animation: none; } }
+
+/* Ajuste final solicitado: acentos rosados al rojo institucional y encabezado
+   continuo, sin la barra vertical lateral. El diseño de los pasos se conserva. */
+.app-site.official-page .official-header { border-left: 0 !important; padding-left: 0 !important; }
+.app-site.official-page .official-kicker,
+.app-site.official-page .official-header h1 span,
+.app-site.official-page .official-fields label span,
+.app-site.official-page .official-location-field > label span,
+.app-site.official-page .official-back,
+.app-site.official-page .official-location-options li button:hover,
+.app-site.official-page .official-location-options li button[aria-selected="true"] { color: #a80e18 !important; }
+.app-site.official-page .official-progress-item.current { background: #a80e18 !important; border-color: #a80e18 !important; }
+.app-site.official-page .official-progress-item.current span,
+.app-site.official-page .official-progress-item.done span { color: #a80e18 !important; }
+.app-site.official-page .official-choice:hover,
+.app-site.official-page .official-choice.chosen { border-color: #a80e18 !important; background: rgba(168,14,24,.08) !important; }
+.app-site.official-page .official-emoji { border-color: rgba(168,14,24,.22); background: rgba(168,14,24,.08); color: #a80e18; }
+.app-site.official-page .official-fields input:focus,
+.app-site.official-page .official-fields select:focus,
+.app-site.official-page .official-fields textarea:focus { outline-color: #a80e18; }
+.app-site.official-page .official-primary,
+.app-site.official-page .official-link { background: #a80e18 !important; }
+.app-site.official-page .official-ghost,
+.app-site.official-page .official-remove,
+.app-site.official-page .official-back { color: #a80e18 !important; border-color: rgba(168,14,24,.38) !important; }
+.app-site.official-page .official-primary { box-shadow: 0 8px 20px rgba(168,14,24,.18); }
+.app-site.official-page .official-nested { border-color: rgba(168,14,24,.28); }
+.app-site.official-page .official-panel::before { background: radial-gradient(ellipse at center, rgba(168,14,24,.14), rgba(168,14,24,.06) 43%, transparent 75%); }
+.app-site.official-page .official-catalog-alert,
+.app-site.official-page .official-error { border-color: rgba(168,14,24,.48); color: #a80e18; }
+html.theme-dark .app-site.official-page .official-header h1 span { color: #a80e18 !important; -webkit-text-stroke: 0; text-shadow: none; }
+html.theme-dark .app-site.official-page .official-kicker { color: #a80e18 !important; }
+html.theme-dark .app-site.official-page .official-progress-item.current,
+html.theme-dark .app-site.official-page .official-progress-item.current span,
+html.theme-dark .app-site.official-page .official-progress-item.done span { color: #a80e18 !important; }
+html.theme-dark .app-site.official-page .official-progress-item.current { background: #a80e18 !important; border-color: #a80e18 !important; }
+html.theme-dark .app-site.official-page .official-progress-item.current span,
+html.theme-dark .app-site.official-page .official-progress-item.done span { background: #fff !important; }
+html.theme-dark .app-site.official-page .official-choice:hover,
+html.theme-dark .app-site.official-page .official-choice.chosen { border-color: #a80e18 !important; background: rgba(168,14,24,.22) !important; }
+html.theme-dark .app-site.official-page .official-emoji { color: #a80e18; }
+html.theme-dark .app-site.official-page .official-primary,
+html.theme-dark .app-site.official-page .official-link { background: #a80e18 !important; }
+html.theme-dark .app-site.official-page .official-ghost,
+html.theme-dark .app-site.official-page .official-remove,
+html.theme-dark .app-site.official-page .official-back { border-color: #a80e18 !important; }
+html.theme-dark .app-site.official-page .official-panel::before { background: radial-gradient(ellipse at center, rgba(168,14,24,.34), rgba(168,14,24,.18) 43%, transparent 75%); }
+html.theme-dark .app-site.official-page .official-catalog-alert,
+html.theme-dark .app-site.official-page .official-error { border-color: #a80e18; color: #fff !important; }
+
+/* Restaurar el progreso original: cuatro círculos unidos por una línea. */
+.app-site.official-page .official-progress {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0;
+  margin: 28px 0 22px;
+}
+.app-site.official-page .official-progress::before {
+  display: block;
+  position: absolute;
+  z-index: 0;
+  top: 26px;
+  right: 12.5%;
+  left: 12.5%;
+  height: 3px;
+  border-radius: 3px;
+  background: #ded4d8;
+  content: "";
+}
+.app-site.official-page .official-progress-item,
+.app-site.official-page .official-progress-item.current,
+.app-site.official-page .official-progress-item.done {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 0;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  color: #777584 !important;
+  text-align: center;
+}
+.app-site.official-page .official-progress-item.current,
+.app-site.official-page .official-progress-item.done { background: transparent !important; }
+.app-site.official-page .official-progress-item span,
+.app-site.official-page .official-progress-item.current span,
+.app-site.official-page .official-progress-item.done span {
+  display: grid;
+  flex: 0 0 54px;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border: 3px solid #ded4d8 !important;
+  border-radius: 50%;
+  background: #f2eef0 !important;
+  color: #777584 !important;
+  font-size: 17px;
+}
+.app-site.official-page .official-progress-item.current span,
+.app-site.official-page .official-progress-item.done span {
+  border-color: #a80e18 !important;
+  background: #a80e18 !important;
+  color: #fff !important;
+}
+.app-site.official-page .official-progress-item span,
+.app-site.official-page .official-progress-item.current span,
+.app-site.official-page .official-progress-item.done span {
+  box-sizing: border-box !important;
+  flex: 0 0 54px !important;
+  width: 54px !important;
+  min-width: 54px !important;
+  height: 54px !important;
+  min-height: 54px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+}
+.app-site.official-page .official-progress-item small,
+.app-site.official-page .official-progress-item.current small,
+.app-site.official-page .official-progress-item.done small {
+  color: inherit !important;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+html.theme-dark .app-site.official-page .official-progress::before { background: #ffffff45; }
+html.theme-dark .app-site.official-page .official-progress-item,
+html.theme-dark .app-site.official-page .official-progress-item.current,
+html.theme-dark .app-site.official-page .official-progress-item.done { color: #d3cbd0 !important; }
+html.theme-dark .app-site.official-page .official-progress-item.current,
+html.theme-dark .app-site.official-page .official-progress-item.done { background: transparent !important; }
+html.theme-dark .app-site.official-page .official-progress-item span {
+  border-color: #ffffff45 !important;
+  background: #45516a !important;
+  color: #fff !important;
+}
+html.theme-dark .app-site.official-page .official-progress-item.current,
+html.theme-dark .app-site.official-page .official-progress-item.done { color: #fff !important; }
+/* Mantener solamente el recorrido de círculos, sin bandas detrás. */
+.app-site.official-page .official-progress-item,
+.app-site.official-page .official-progress-item.current,
+.app-site.official-page .official-progress-item.done,
+html.theme-dark .app-site.official-page .official-progress-item,
+html.theme-dark .app-site.official-page .official-progress-item.current,
+html.theme-dark .app-site.official-page .official-progress-item.done { background: transparent !important; }
+html.theme-dark .app-site.official-page .official-progress-item.current span,
+html.theme-dark .app-site.official-page .official-progress-item.done span {
+  border-color: #a80e18 !important;
+  background: #a80e18 !important;
+  color: #fff !important;
+}
+html.theme-dark .app-site.official-page {
+  background: linear-gradient(115deg, #271820 0%, #171316 48%, #080d20 100%) !important;
+}
+html.theme-dark .app-site.official-page .official-header h1 span {
+  color: #fff !important;
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+}
+.app-site.official-page .official-shell { width: min(1180px, calc(100% - 40px)); padding-top: 36px; }
+.app-site.official-page .official-header h1 { font-size: clamp(34px, 4.6vw, 58px); }
+.app-site.official-page .official-progress { margin: 22px 0 18px; }
+.app-site.official-page .official-progress::before { top: 21px; }
+.app-site.official-page .official-progress-item span,
+.app-site.official-page .official-progress-item.current span,
+.app-site.official-page .official-progress-item.done span {
+  flex: 0 0 44px !important;
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  font-size: 15px;
+}
+.app-site.official-page .official-panel { padding: clamp(18px, 3vw, 32px); border-radius: 25px; }
+.app-site.official-page .official-choices { gap: 10px; margin-top: 20px; }
+.app-site.official-page .official-choice { min-height: 122px; padding: 17px; gap: 9px; }
+.app-site.official-page .official-emoji { width: 48px; height: 48px; border-radius: 14px; }
+.app-site.official-page .official-panel {
+  overflow: visible;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none;
+}
+html.theme-dark .app-site.official-page .official-panel {
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+/* Full-page quote background: one continuous gradient, without a footer band. */
+.app-site.official-page {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: clip;
+  overflow-y: visible;
+  border: 0 !important;
+  background: transparent !important;
+}
+/* Paint the same viewport-fixed wash on the document canvas, not a centered
+   content box. This removes the visible side seams at wide desktop sizes. */
+html:has(.app-site.official-page),
+body:has(.app-site.official-page),
+#app:has(.app-site.official-page) {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse 118% 92% at -5% 0%, rgba(178, 11, 45, .7) 0%, rgba(135, 14, 40, .48) 39%, rgba(68, 20, 40, .22) 70%, transparent 100%),
+    radial-gradient(ellipse 64% 66% at 3% 33%, rgba(206, 14, 44, .2) 0%, transparent 80%),
+    linear-gradient(105deg, #21171d 0%, #1b171e 48%, #080d20 100%) fixed !important;
+  background-attachment: fixed, fixed !important;
+}
+html:not(.theme-dark):has(.app-site.official-page),
+html:not(.theme-dark) body:has(.app-site.official-page),
+html:not(.theme-dark) #app:has(.app-site.official-page) {
+  background:
+    radial-gradient(ellipse 118% 92% at -5% 0%, rgba(178, 11, 45, .14) 0%, rgba(168, 14, 24, .07) 39%, rgba(168, 14, 24, .025) 70%, transparent 100%),
+    radial-gradient(ellipse 64% 66% at 3% 33%, rgba(206, 14, 44, .045) 0%, transparent 80%),
+    linear-gradient(105deg, #fffafa 0%, #faf8f9 48%, #f5f6fb 100%) fixed !important;
+  background-attachment: fixed, fixed !important;
+}
+.app-site.official-page > * { position: relative; z-index: 1; }
+html.theme-dark .app-site.official-page,
+html:not(.theme-dark) .app-site.official-page { background: transparent !important; }
+.app-site.official-page > main.official-shell { background: transparent !important; background-image: none !important; }
+.app-site.official-page .official-panel::before {
+  content: none !important;
+  display: none !important;
+  animation: none !important;
+}
+/* A soft red highlight sweeps left to right inside selection cards in every step. */
+.app-site.official-page .official-choice {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.app-site.official-page .official-choice::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: -55%;
+  bottom: -55%;
+  left: -38%;
+  width: 62%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(238, 24, 58, .5) 0%, rgba(168, 14, 24, .3) 40%, rgba(126, 10, 34, .12) 62%, transparent 78%);
+  filter: blur(26px);
+  pointer-events: none;
+  /* Keep this requested visual animation even when the site's global reduced-motion rule is active. */
+  animation: quote-option-red-sweep 7s linear infinite !important;
+}
+.app-site.official-page .official-choice > * { position: relative; z-index: 1; }
+.app-site.official-page .official-choice:nth-child(2)::before { animation-delay: -2.3s; }
+.app-site.official-page .official-choice:nth-child(3)::before { animation-delay: -4.6s; }
+.app-site.official-page .official-line {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.app-site.official-page .official-line::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: -55%;
+  bottom: -55%;
+  left: -38%;
+  width: 62%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(238, 24, 58, .5) 0%, rgba(168, 14, 24, .3) 40%, rgba(126, 10, 34, .12) 62%, transparent 78%);
+  filter: blur(26px);
+  pointer-events: none;
+  animation: quote-option-red-sweep 7s linear infinite !important;
+}
+.app-site.official-page .official-line > * { position: relative; z-index: 1; }
+.app-site.official-page .official-add-equipment {
+  background: #a80e18 !important;
+  border-color: #a80e18 !important;
+  color: #fff !important;
+}
+html.theme-dark .app-site.official-page .official-add-equipment {
+  background: #a80e18 !important;
+  border-color: #a80e18 !important;
+  color: #fff !important;
+}
+.app-site.official-page .official-back {
+  background: #a80e18 !important;
+  color: #fff !important;
+  border-color: #a80e18 !important;
+}
+.app-site.official-page .official-fields label {
+  display: block !important;
+}
+.app-site.official-page .official-fields label > span {
+  display: inline-block;
+  margin-left: 3px;
+  vertical-align: baseline;
+}
+.app-site.official-page .official-fields label > :is(input, select, textarea) {
+  display: block;
+  margin-top: 7px;
+}
+.app-site.official-page .official-fields :is(input:not([type="checkbox"]), select, textarea),
+.app-site.official-page .official-single textarea {
+  background: rgba(255, 255, 255, .14) !important;
+  border: 1px solid rgba(255, 255, 255, .34) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 8px 22px rgba(28,16,22,.04);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  backdrop-filter: blur(18px) saturate(135%);
+  transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.app-site.official-page .official-fields :is(input:not([type="checkbox"]), select, textarea):focus-visible,
+.app-site.official-page .official-single textarea:focus-visible {
+  border-color: #a80e18 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 0 0 3px rgba(168,14,24,.2);
+  outline: none;
+}
+html.theme-dark .app-site.official-page .official-fields :is(input:not([type="checkbox"]), select, textarea),
+html.theme-dark .app-site.official-page .official-single textarea {
+  background: rgba(255, 255, 255, .035) !important;
+  border-color: rgba(255, 255, 255, .22) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 8px 22px rgba(0,0,0,.08);
+  color: #fff !important;
+}
+html.theme-dark .app-site.official-page .official-fields :is(input:not([type="checkbox"]), textarea)::placeholder,
+html.theme-dark .app-site.official-page .official-single textarea::placeholder {
+  color: rgba(255,255,255,.62) !important;
+}
+html.theme-dark .app-site.official-page .official-fields :is(input:not([type="checkbox"]), select, textarea):focus-visible,
+html.theme-dark .app-site.official-page .official-single textarea:focus-visible {
+  border-color: #a80e18 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 0 0 3px rgba(168,14,24,.28);
+}
+.app-site.official-page > .site-header {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.app-site.official-page .official-header .official-kicker {
+  color: #fff !important;
+}
+html.theme-dark .app-site.official-page .official-header .official-kicker {
+  color: #fff !important;
+}
+/* La lista de ubicaciones y los controles conservaban colores oscuros incluso
+   al quitar theme-dark. Define su estado claro de forma explícita. */
+html:not(.theme-dark) body:has(.app-site.official-page),
+html:not(.theme-dark) #app:has(.app-site.official-page) {
+  color-scheme: light;
+}
+html:not(.theme-dark) .app-site.official-page {
+  color-scheme: light;
+  color: #242630 !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-header h1,
+html:not(.theme-dark) .app-site.official-page .official-panel h2,
+html:not(.theme-dark) .app-site.official-page .official-nested h3,
+html:not(.theme-dark) .app-site.official-page .official-choice strong,
+html:not(.theme-dark) .app-site.official-page .official-line strong,
+html:not(.theme-dark) .app-site.official-page .official-fields label,
+html:not(.theme-dark) .app-site.official-page .official-single,
+html:not(.theme-dark) .app-site.official-page .official-location-field {
+  color: #242630 !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-header > p:last-child,
+html:not(.theme-dark) .app-site.official-page .official-hint,
+html:not(.theme-dark) .app-site.official-page .official-choice small,
+html:not(.theme-dark) .app-site.official-page .official-summary span,
+html:not(.theme-dark) .app-site.official-page .official-id {
+  color: #626778 !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-panel,
+html:not(.theme-dark) .app-site.official-page .official-success {
+  color: #242630 !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-choice,
+html:not(.theme-dark) .app-site.official-page .official-line,
+html:not(.theme-dark) .app-site.official-page .official-summary {
+  color: #242630 !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-fields :is(input:not([type="checkbox"]), select, textarea),
+html:not(.theme-dark) .app-site.official-page .official-single textarea,
+html:not(.theme-dark) .app-site.official-page .official-location-combobox > input {
+  color: #242630 !important;
+  color-scheme: light;
+}
+html:not(.theme-dark) .app-site.official-page :is(input, textarea)::placeholder {
+  color: #737887 !important;
+  opacity: 1;
+}
+html:not(.theme-dark) .app-site.official-page .official-location-options {
+  background: rgba(255, 255, 255, .96) !important;
+  border-color: #d8cbd0 !important;
+  box-shadow: 0 18px 36px rgba(35, 21, 28, .16);
+}
+html:not(.theme-dark) .app-site.official-page .official-location-options li button {
+  color: #242630 !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-location-options li button:hover,
+html:not(.theme-dark) .app-site.official-page .official-location-options li button[aria-selected="true"] {
+  background: rgba(168, 14, 24, .08) !important;
+  color: #a80e18 !important;
+}
+html:not(.theme-dark) .app-site.official-page > .site-header :is(.main-nav a, .nav-dropdown__trigger, .header-settings__trigger, .menu-toggle) {
+  color: #242630 !important;
+}
+html:not(.theme-dark) .app-site.official-page > .site-header .header-settings__trigger,
+html:not(.theme-dark) .app-site.official-page > .site-header .menu-toggle {
+  border-color: rgba(36, 38, 48, .25) !important;
+  background: rgba(255, 255, 255, .34) !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-header .official-kicker { color: #a80e18 !important; }
+html:not(.theme-dark) .app-site.official-page > .site-header .site-brand img { filter: brightness(0) saturate(100%) invert(13%) sepia(91%) saturate(3356%) hue-rotate(343deg) brightness(83%) contrast(100%); }
+/* Dejar que el resplandor rojo se vea a través de la tarjeta y de sus campos glass. */
+html:not(.theme-dark) .app-site.official-page .official-line {
+  background: #fff !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+html:not(.theme-dark) .app-site.official-page .official-line::before {
+  left: -45%;
+  width: 42%;
+  background: radial-gradient(ellipse at center,
+    rgba(168, 14, 24, .37) 0%,
+    rgba(168, 14, 24, .27) 42%,
+    rgba(168, 14, 24, .12) 66%,
+    transparent 82%);
+  filter: blur(30px);
+  opacity: 0;
+  animation: quote-equipment-glow-pass 6s ease-in-out infinite !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-fields :is(input:not([type="checkbox"]), select, textarea),
+html:not(.theme-dark) .app-site.official-page .official-single textarea {
+  background: #fff !important;
+  border-color: #cfd0d9 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 4px 14px rgba(28, 16, 22, .04);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+@keyframes quote-option-red-sweep {
+  from { transform: translateX(0); }
+  to { transform: translateX(220%); }
+}
+@keyframes quote-equipment-glow-pass {
+  0%, 100% { opacity: 0; transform: translateX(0); }
+  12% { opacity: .92; }
+  76% { opacity: .92; transform: translateX(300%); }
+  90% { opacity: 0; transform: translateX(400%); }
+}
+@media (max-width: 760px) {
+  .app-site.official-page .official-shell { width: min(100% - 28px, 600px); padding-top: 30px; }
+  .app-site.official-page .official-progress { grid-template-columns: none; margin: 22px 0 16px; }
+  .app-site.official-page .official-progress::before { top: 19px; }
+  .app-site.official-page .official-progress-item,
+  .app-site.official-page .official-progress-item.current,
+  .app-site.official-page .official-progress-item.done { flex-direction: column; gap: 5px; min-height: 0; padding: 0 2px; }
+  .app-site.official-page .official-progress-item span,
+  .app-site.official-page .official-progress-item.current span,
+  .app-site.official-page .official-progress-item.done span {
+    flex: 0 0 40px !important;
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    font-size: 14px;
+  }
+  .app-site.official-page .official-progress-item small,
+  .app-site.official-page .official-progress-item.current small,
+  .app-site.official-page .official-progress-item.done small { font-size: 9px; line-height: 1.1; }
+}
+/* En modo claro, los pasos pendientes deben conservar buen contraste. */
+html:not(.theme-dark) .app-site.official-page .official-progress-item:not(.current):not(.done),
+html:not(.theme-dark) .app-site.official-page .official-progress-item:not(.current):not(.done) small {
+  color: #111 !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-progress-item:not(.current):not(.done) span {
+  color: #111 !important;
+}
 </style>
+
