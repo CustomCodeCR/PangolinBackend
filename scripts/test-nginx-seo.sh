@@ -11,8 +11,9 @@ cleanup() {
 trap cleanup EXIT
 docker build -f frontend/Dockerfile -t cf-seo-nginx-test frontend
 docker network create "$network" >/dev/null
-# nginx.conf references the production "api" hostname at nginx startup.
-docker run -d --rm --name cf-seo-dns-api --network "$network" --network-alias api nginx:alpine >/dev/null
+# Fixture nginx listens on port 80, so proxying to backend:5000 must give 502.
+# nginx.conf references the production "backend" hostname at nginx startup.
+docker run -d --rm --name cf-seo-dns-api --network "$network" --network-alias backend nginx:alpine >/dev/null
 docker run -d --rm --name cf-seo-nginx --network "$network" -p 127.0.0.1:$port:80 cf-seo-nginx-test >/dev/null
 base="http://127.0.0.1:$port"
 ready=0

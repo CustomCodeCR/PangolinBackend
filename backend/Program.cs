@@ -181,15 +181,30 @@ app.Use(async (ctx, next) =>
     if (ctx.Request.Path.StartsWithSegments("/api") &&
         (HttpMethods.IsPost(ctx.Request.Method) || HttpMethods.IsPut(ctx.Request.Method) ||
          HttpMethods.IsDelete(ctx.Request.Method) || HttpMethods.IsPatch(ctx.Request.Method)) &&
-        ctx.Request.Headers.TryGetValue("Origin", out var origins) &&
-        Uri.TryCreate(origins.ToString(), UriKind.Absolute, out var origin))
+        ctx.Request.Headers.TryGetValue("Origin", out var origins))
     {
+        // Reject malformed/opaque Origin values rather than accidentally skipping the check.
+        if (!Uri.TryCreate(origins.ToString(), UriKind.Absolute, out var origin) ||
+            (origin.Scheme != Uri.UriSchemeHttp && origin.Scheme != Uri.UriSchemeHttps))
+        {
+            ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return;
+        }
         bool sameOrigin = string.Equals(origin.Authority, ctx.Request.Host.Value, StringComparison.OrdinalIgnoreCase)
             && string.Equals(origin.Scheme, ctx.Request.Scheme, StringComparison.OrdinalIgnoreCase);
         bool localVite = app.Environment.IsDevelopment() && origin.Scheme == "http" && origin.Port == 5173 &&
             (origin.Host == "localhost" || origin.Host == "127.0.0.1") &&
             (ctx.Request.Host.Host == "localhost" || ctx.Request.Host.Host == "127.0.0.1");
-        if (!sameOrigin && !localVite)
+        // TLS terminates at a trusted reverse proxy. The ASP.NET hop is internal HTTP,
+        // so validate the browser against an exact configured HTTPS origin rather than
+        // trusting client-supplied X-Forwarded-Proto/X-Forwarded-Host headers.
+        bool trustedPublicOrigin = !app.Environment.IsDevelopment() &&
+            Uri.TryCreate(builder.Configuration["Security:PublicOrigin"], UriKind.Absolute, out var publicUri) &&
+            publicUri.Scheme == Uri.UriSchemeHttps &&
+            string.Equals(ctx.Request.Host.Host, publicUri.Host, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(origin.GetLeftPart(UriPartial.Authority),
+                publicUri.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase);
+        if (!sameOrigin && !localVite && !trustedPublicOrigin)
         {
             ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
             return;
