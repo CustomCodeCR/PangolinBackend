@@ -68,6 +68,14 @@ def main():
     status, ready = call(browser, '/api/health/ready')
     require(status == 200, f'Esquema/API no listo: {status} {ready}')
     require(ready.get('emailMode', '').lower() == 'localoutbox', 'Activar modo LocalOutbox en Development.')
+    # Un correo inexistente no debe abrir el paso de verificación OTP.
+    fake_email = 'sin-registro-' + uuid4().hex + '@example.invalid'
+    status, unavailable = call(browser, '/api/auth/request-otp', {'correo': fake_email})
+    require(status == 404 and unavailable.get('code') == 'account_unavailable',
+            f'Correo sin registro debe recibir aviso antes del OTP: {status} {unavailable}')
+    require('challengeId' not in unavailable,
+            'No debe generarse un desafío OTP para correos no registrados.')
+
     email = 'demo.usuario@castrofallas.test'
     moment = time.time()
     status, started = call(browser, '/api/auth/request-otp', {
