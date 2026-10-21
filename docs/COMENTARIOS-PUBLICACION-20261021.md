@@ -15,7 +15,7 @@ Los cambios emiten eventos `comments-admin` para el panel y `comments` para el p
 
 ## Esquema SQL y despliegue
 
-El archivo `backend/Database/AuthSchema.sql` crea idempotentemente `public.cms_comments`; en entorno Development se aplica si `Development:ApplySchema` está habilitado. En producción ejecutar previamente el bloque `CREATE TABLE IF NOT EXISTS public.cms_comments` y su índice del mismo script mediante el proceso habitual de migraciones, con respaldo y revisión. `/api/health/ready` verificará la nueva tabla. **No fusionar ni desplegar antes de aplicar la migración en las bases correspondientes.**
+El archivo `backend/Database/AuthSchema.sql` crea idempotentemente `public.cms_comments`. El Docker Compose local usa `ASPNETCORE_ENVIRONMENT=Development` y `Development__ApplySchema=true`, por lo que crea la tabla antes de la comprobación de disponibilidad, sin borrar datos existentes. En instalaciones de producción **la tabla no se crea automáticamente**: antes de desplegar esta versión, ejecutar el bloque `CREATE TABLE IF NOT EXISTS public.cms_comments` y su índice del mismo archivo mediante el procedimiento de migraciones aprobado, con respaldo y verificación. `/api/health/ready` verifica la nueva tabla y responderá `503` si no existe. Fusionar la PR en GitHub no ejecuta por sí solo la migración ni despliega producción.
 
 ## Pruebas
 
@@ -27,5 +27,6 @@ El archivo `backend/Database/AuthSchema.sql` crea idempotentemente `public.cms_c
 6. Comprobar `401/403` en `POST/PUT/DELETE` sin credenciales de administrador, `400` para campos vacíos o demasiado largos y `404` para identificadores inexistentes.
 7. Probar ventanas de escritorio/móvil y ambos temas; comprobar que no se altera la publicación de Noticias.
 8. Confirmar recepción de eventos `comments` y `comments-admin` cuando SignalR esté conectado.
+9. Ejecutar `scripts/smoke-local.py` contra una instalación de pruebas con LocalOutbox y cuentas de demostración; incluye CRUD de comentarios, aislamiento de borradores, campos inválidos y autorización admin/cliente/invitado.
 
 Los comentarios antiguos guardados en el almacenamiento local del navegador no se importan automáticamente; esto evita exponer contenido que nunca fue moderado en el servidor.
