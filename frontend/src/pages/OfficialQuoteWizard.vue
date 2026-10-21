@@ -17,6 +17,8 @@ const sessionOk = ref(false)
 const error = ref('')
 const createdId = ref('')
 const locations = ref<Loc[]>([])
+const destinations = ref<Loc[]>([])
+const podOptions = ref<Loc[]>([])
 const locationLoading = ref(false)
 const form = reactive({
   originLocationId: '', destinationLocationId: '', podLocationId: '',
@@ -42,7 +44,7 @@ const typeOptions = computed(() => mode.value === 'Maritime'
     : [{ value: 'FTL' as Type, title: 'FTL', text: 'Camión completo' }, { value: 'LTL' as Type, title: 'LTL', text: 'Carga terrestre consolidada' }])
 const equipmentMode = computed(() => shipmentType.value === 'FCL' || shipmentType.value === 'FTL')
 const selectedOrigin = computed(() => locations.value.find(x => x.id === form.originLocationId))
-const selectedDest = computed(() => locations.value.find(x => x.id === form.destinationLocationId))
+const selectedDest = computed(() => destinations.value.find(x => x.id === form.destinationLocationId))
 const incoterms = ['EXW','FCA','FAS','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP']
 const serviceOptions = ['Transporte internacional','Agencia de Aduanas CR','Agencia de Aduanas Exterior','Almacenamiento','Control de inventario','Embalaje','Exoneración','Picking Carga','Recepción de carga','Seguro de carga','Transporte entrega','Transporte recolección','Transporte nacional']
 const cargoFlagOptions = ['Carga peligrosa','No estibable','Sobrepeso']
@@ -51,7 +53,7 @@ function selectMode(value: Mode) {
     mode.value = value
     shipmentType.value = null
     form.originLocationId = ''; form.destinationLocationId = ''; form.podLocationId = ''
-    locations.value = []
+    locations.value = []; destinations.value = []; podOptions.value = []
   }
   error.value = ''
 }
@@ -69,14 +71,19 @@ function syncWeights(line: ContainerLine) {
   line.unitWeightsKg.splice(n)
 }
 async function loadLocations() {
-  if (!mode.value) return
+  if (!mode.value || !shipmentType.value) return
   const kind = mode.value === 'Maritime' ? 'seaport' : mode.value === 'Air' ? 'airport' : 'inland'
   locationLoading.value = true
   try {
-    const response = await fetch('/api/quotes/official/locations?kind=' + kind, {credentials:'same-origin',cache:'no-store'})
-    if (!response.ok) throw new Error('No se pudo consultar el catálogo de ubicaciones.')
-    const result = await response.json() as {items: Loc[]}
-    locations.value = result.items
+    const fetchRole = async (routeRole: 'origin' | 'destination' | 'pod') => {
+      const params = new URLSearchParams({kind,shipmentType:shipmentType.value!,routeRole})
+      const response = await fetch('/api/quotes/official/locations?' + params, {credentials:'same-origin',cache:'no-store'})
+      if (!response.ok) throw new Error('No se pudo consultar el catálogo de ' + routeRole + '.')
+      const result = await response.json() as {items: Loc[]}
+      return result.items
+    }
+    const [orig, dest, pod] = await Promise.all([fetchRole('origin'),fetchRole('destination'),mode.value === 'Maritime' ? fetchRole('pod') : Promise.resolve([] as Loc[])])
+    locations.value = orig; destinations.value = dest; podOptions.value = pod
   } catch (e) { error.value = (e as Error).message }
   finally { locationLoading.value = false }
 }
@@ -91,6 +98,7 @@ function validate(): string {
   if (step.value === 2) return shipmentType.value ? '' : 'Seleccioná el tipo de embarque.'
   if (step.value === 3) {
     if (!form.originLocationId || !form.destinationLocationId || form.originLocationId === form.destinationLocationId) return 'Elegí origen y destino distintos.'
+    if (shipmentType.value === 'LCL' && !form.podLocationId) return 'Seleccioná el POD requerido en marítimo LCL.'
     if (!form.incoterm) return 'Seleccioná un Incoterm.'
     if (!form.cargoReadyDate) return 'Indicá la fecha de carga lista.'
     if (!form.services.length) return 'Seleccioná al menos un servicio.'
@@ -206,12 +214,12 @@ async function submit() {
           <template v-else-if="step === 3">
             <p class="official-kicker">PASO 3 DE 4</p><h2>Ruta, equipo y servicios</h2>
             <p class="official-hint">Solo pedimos los datos necesarios para {{ shipmentType }}.</p>
-            <p v-if="!locationLoading && !locations.length" class="official-catalog-alert">Aún no hay ubicaciones cargadas para esta modalidad. El administrador debe configurar el catálogo antes de poder enviar solicitudes.</p>
-            <p v-else-if="locations.some(loc => loc.code?.startsWith('DEV-'))" class="official-catalog-alert" role="note">Modo de pruebas: los lugares marcados como PRUEBA son ficticios y sirven únicamente para comprobar el formulario. No corresponden a rutas reales.</p>
+            <p v-if="!locationLoading && (!locations.length || !destinations.length || (shipmentType === 'LCL' && !podOptions.length))" class="official-catalog-alert">Faltan ubicaciones para esta modalidad. El administrador debe completar el catálogo correspondiente.</p>
+            <p v-else-if="[...locations,...destinations,...podOptions].some(loc => loc.code?.startsWith('DEV-'))" class="official-catalog-alert" role="note">Modo de pruebas: los lugares marcados como PRUEBA son ficticios y sirven únicamente para comprobar el formulario. No corresponden a rutas reales.</p>
             <div class="official-fields">
               <label>Origen <span>*</span><select v-model="form.originLocationId" required><option value="">Seleccionar origen</option><option v-for="loc in locations" :key="loc.id" :value="loc.id">{{ loc.displayName }}</option></select></label>
-              <label>Destino <span>*</span><select v-model="form.destinationLocationId" required><option value="">Seleccionar destino</option><option v-for="loc in locations" :key="loc.id" :value="loc.id">{{ loc.displayName }}</option></select></label>
-              <label v-if="mode === 'Maritime'">POD (opcional)<select v-model="form.podLocationId"><option value="">Sin POD adicional</option><option v-for="loc in locations" :key="loc.id" :value="loc.id">{{ loc.displayName }}</option></select></label>
+              <label>Destino <span>*</span><select v-model="form.destinationLocationId" required><option value="">Seleccionar destino</option><option v-for="loc in destinations" :key="loc.id" :value="loc.id">{{ loc.displayName }}</option></select></label>
+              <label v-if="mode === 'Maritime'">POD {{ shipmentType === 'LCL' ? '(requerido)' : '(opcional)' }}<select v-model="form.podLocationId"><option value="">{{ shipmentType === 'LCL' ? 'Seleccionar POD' : 'Sin POD adicional' }}</option><option v-for="loc in podOptions" :key="loc.id" :value="loc.id">{{ loc.displayName }}</option></select></label>
               <label>Incoterm <span>*</span><select v-model="form.incoterm" required><option value="">Seleccionar Incoterm</option><option v-for="item in incoterms" :key="item">{{ item }}</option></select></label>
               <label>Fecha de carga lista <span>*</span><input v-model="form.cargoReadyDate" type="date" required /></label>
             </div>

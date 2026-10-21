@@ -63,6 +63,8 @@ public static class OfficialQuoteEndpoints
             throw new ArgumentException("Seleccioná origen y destino diferentes.");
         if (s.Mode != "Maritime" && s.PodLocationId is not null)
             throw new ArgumentException("POD solo corresponde a marítimo.");
+        if (s.ShipmentType == "LCL" && s.PodLocationId is null)
+            throw new ArgumentException("Seleccioná el POD requerido para marítimo LCL.");
         if (s.Incoterm is not null && !Incoterms.Contains(s.Incoterm))
             throw new ArgumentException("Incoterm inválido.");
         if (s.CargoReadyDate is null) throw new ArgumentException("Indicá la fecha de carga lista.");
@@ -148,11 +150,19 @@ public static class OfficialQuoteEndpoints
     {
         var group = app.MapGroup("/api/quotes/official").RequireAuthorization("registered");
 
-        group.MapGet("/locations", async (string kind, AppDbContext db, CancellationToken ct) =>
+        group.MapGet("/locations", async (string kind, string shipmentType, string routeRole, AppDbContext db, CancellationToken ct) =>
         {
-            if (kind is not ("seaport" or "airport" or "inland"))
-                return Results.BadRequest(new { error = "Tipo de ubicación inválido." });
-            var items = await db.OfficialQuoteLocations.AsNoTracking().Where(x => x.Active && x.Kind == kind)
+            if (kind is not ("seaport" or "airport" or "inland") ||
+                shipmentType is not ("FCL" or "LCL" or "AIR_LCL" or "FTL" or "LTL") ||
+                routeRole is not ("origin" or "destination" or "pod") ||
+                (routeRole == "pod" && shipmentType is not ("FCL" or "LCL")) ||
+                (shipmentType is "FCL" or "LCL" ? kind != "seaport" :
+                 shipmentType == "AIR_LCL" ? kind != "airport" : kind != "inland"))
+                return Results.BadRequest(new { error = "Selección de catálogo inválida." });
+            var items = await db.OfficialQuoteLocations.AsNoTracking()
+                .Where(x => x.Active && (routeRole == "pod" || x.Kind == kind) &&
+                    db.OfficialQuoteLocationUsages.Any(u => u.LocationId == x.Id &&
+                        u.ShipmentType == shipmentType && u.RouteRole == routeRole))
                 .OrderBy(x => x.DisplayName).Select(x => new { x.Id, x.DisplayName, x.Code }).Take(500).ToListAsync(ct);
             return Results.Ok(new { items });
         });
@@ -169,10 +179,22 @@ public static class OfficialQuoteEndpoints
                 var ids = new[] { input.OriginLocationId!.Value, input.DestinationLocationId!.Value };
                 if (input.PodLocationId.HasValue) ids = [..ids, input.PodLocationId.Value];
                 var locations = await db.OfficialQuoteLocations.AsNoTracking()
-                    .Where(x => ids.Contains(x.Id) && x.Active && x.Kind == kind)
+                    .Where(x => ids.Contains(x.Id) && x.Active && (x.Kind == kind || input.PodLocationId == x.Id && x.Kind == "inland" && kind == "seaport"))
                     .ToDictionaryAsync(x => x.Id, ct);
                 if (locations.Count != ids.Distinct().Count())
                     return Results.BadRequest(new { error = "Seleccioná ubicaciones activas del catálogo." });
+                // Validar el campo específico, no solo que la ubicación exista.
+                var requiredUses = new List<(Guid LocationId, string Role)>
+                {
+                    (input.OriginLocationId.Value, "origin"),
+                    (input.DestinationLocationId.Value, "destination")
+                };
+                if (input.PodLocationId.HasValue) requiredUses.Add((input.PodLocationId.Value, "pod"));
+                var assigned = await db.OfficialQuoteLocationUsages.AsNoTracking()
+                    .Where(x => ids.Contains(x.LocationId) && x.ShipmentType == input.ShipmentType)
+                    .Select(x => new { x.LocationId, x.RouteRole }).ToListAsync(ct);
+                if (requiredUses.Any(u => !assigned.Any(a => a.LocationId == u.LocationId && a.RouteRole == u.Role)))
+                    return Results.BadRequest(new { error = "La ubicación no está habilitada para este campo y modalidad." });
                 var quote = new OfficialQuoteRequest
                 {
                     Id = Guid.NewGuid(), ClienteId = user.ClienteId, UsuarioId = user.UsuarioId,

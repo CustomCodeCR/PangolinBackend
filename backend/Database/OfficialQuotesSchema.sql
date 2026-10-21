@@ -57,3 +57,12 @@ CREATE TABLE IF NOT EXISTS public.official_quote_audit (
 );
 CREATE INDEX IF NOT EXISTS ix_official_quote_audit_history
     ON public.official_quote_audit(quote_id,created_at_utc DESC);
+
+-- POL, POE y POD pueden tener opciones distintas, según la modalidad.
+CREATE TABLE IF NOT EXISTS public.official_quote_location_usage (
+ location_id UUID NOT NULL REFERENCES public.official_quote_locations(id) ON DELETE RESTRICT,
+ shipment_type VARCHAR(12) NOT NULL CHECK (shipment_type IN ('FCL','LCL','AIR_LCL','FTL','LTL')),
+ route_role VARCHAR(12) NOT NULL CHECK (route_role IN ('origin','destination','pod')),
+ PRIMARY KEY (location_id, shipment_type, route_role)
+);
+CREATE INDEX IF NOT EXISTS ix_official_quote_location_usage_lookup ON public.official_quote_location_usage (shipment_type, route_role);

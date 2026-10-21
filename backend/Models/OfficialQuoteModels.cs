@@ -31,6 +31,12 @@ public sealed class OfficialQuoteLocation
     public string? Code { get; set; }
     public bool Active { get; set; } = true;
 }
+public sealed class OfficialQuoteLocationUsage
+{
+    public Guid LocationId { get; set; }
+    public string ShipmentType { get; set; } = "";
+    public string RouteRole { get; set; } = "";
+}
 public sealed class OfficialQuotePermission
 {
     public Guid UserId { get; set; }

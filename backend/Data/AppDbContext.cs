@@ -9,6 +9,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<QuoteRequest> QuoteRequests => Set<QuoteRequest>();
     public DbSet<OfficialQuoteRequest> OfficialQuotes => Set<OfficialQuoteRequest>();
     public DbSet<OfficialQuoteLocation> OfficialQuoteLocations => Set<OfficialQuoteLocation>();
+    public DbSet<OfficialQuoteLocationUsage> OfficialQuoteLocationUsages => Set<OfficialQuoteLocationUsage>();
     public DbSet<OfficialQuotePermission> OfficialQuotePermissions => Set<OfficialQuotePermission>();
     public DbSet<OfficialQuoteAudit> OfficialQuoteAudit => Set<OfficialQuoteAudit>();
     public DbSet<ManagedNews> ManagedNews => Set<ManagedNews>();
@@ -70,6 +71,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         officialLocation.Property(x => x.Code).HasColumnName("code").HasMaxLength(40);
         officialLocation.Property(x => x.Active).HasColumnName("active");
 
+        var usage = modelBuilder.Entity<OfficialQuoteLocationUsage>();
+        usage.ToTable("official_quote_location_usage", "public");
+        usage.HasKey(x => new { x.LocationId, x.ShipmentType, x.RouteRole });
+        usage.Property(x => x.LocationId).HasColumnName("location_id");
+        usage.Property(x => x.ShipmentType).HasColumnName("shipment_type").HasMaxLength(12);
+        usage.Property(x => x.RouteRole).HasColumnName("route_role").HasMaxLength(12);
         var officialPermission = modelBuilder.Entity<OfficialQuotePermission>();
         officialPermission.ToTable("official_quote_permissions", "public");
         officialPermission.HasKey(x => x.UserId);
