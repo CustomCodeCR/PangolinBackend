@@ -221,9 +221,25 @@ onBeforeUnmount(() => {
             <div class="tracking-fields">
               <div id="tracking-guide-type" class="tracking-field">
                 <label for="tracking-reference-kind">{{ copy.type }}</label>
-                <select id="tracking-reference-kind" v-model="kind">
+                <select id="tracking-reference-kind" v-model="kind" class="tracking-native-select">
                   <option v-for="item in types" :key="item.id" :value="item.id">{{ item.name }}</option>
                 </select>
+                <button
+                  ref="referenceTrigger"
+                  class="tracking-mobile-select"
+                  type="button"
+                  aria-haspopup="listbox"
+                  aria-controls="tracking-reference-listbox"
+                  :aria-label="copy.type"
+                  :aria-expanded="referenceMenuOpen"
+                  @click.stop="toggleReferenceMenu"
+                  @keydown.down.prevent="openReferenceMenu(true)"
+                  @keydown.up.prevent="openReferenceMenu(true)"
+                  @keydown.esc.prevent="closeReferenceMenu"
+                >
+                  <span>{{ selectedReferenceName }}</span>
+                  <span class="tracking-mobile-select__arrow" aria-hidden="true">⌄</span>
+                </button>
               </div>
               <div id="tracking-guide-reference" class="tracking-field">
                 <label for="tracking-reference-input">{{ copy.number }}</label>
@@ -255,6 +271,29 @@ onBeforeUnmount(() => {
     </main>
     <SiteFooter />
   </div>
+  <Teleport to="body">
+    <div
+      v-if="referenceMenuOpen"
+      id="tracking-reference-listbox"
+      ref="referenceMenu"
+      class="tracking-reference-options"
+      role="listbox"
+      :aria-label="copy.type"
+      :style="referenceMenuStyle"
+      @keydown="handleReferenceMenuKeydown"
+    >
+      <button
+        v-for="item in types"
+        :key="item.id"
+        type="button"
+        role="option"
+        :aria-selected="kind === item.id"
+        :class="{ 'is-selected': kind === item.id }"
+        tabindex="-1"
+        @click="selectReferenceType(item.id, $event)"
+      >{{ item.name }}</button>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
