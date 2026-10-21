@@ -82,4 +82,13 @@ assert.match(backendProgram, /StatusCodes\.Status404NotFound/, 'Devolver 404 ant
 const tracking = source('src/pages/Tracking.vue')
 assert.match(tracking, /Online tracking is not available yet/, 'No simular seguimiento real')
 assert.doesNotMatch(main, /connectWebSocket\(\)/, 'No activar broker local 8081')
+// El modal de noticias debe respetar el tema y conservar el brillo de Itinerarios.
+const newsStyle = source('src/style.css')
+assert.doesNotMatch(newsStyle, /html\.theme-dark \.news-article-modal\{background:#fff;color:#171923\}/, 'No forzar ventana blanca en tema oscuro')
+assert.match(newsStyle, /html\.theme-dark \.app-site\.news-page \.news-article-modal \{[\s\S]*?background: linear-gradient\([\s\S]*?color: #fff;/, 'El modal debe ser oscuro con texto blanco')
+assert.match(newsStyle, /html\.theme-dark \.app-site\.news-page \.news-article-modal__copy h2,[\s\S]*?color: #fff !important;/, 'Titular y cuerpo deben ser blancos en oscuro')
+assert.match(newsStyle, /\.app-site\.news-page \.news-article-modal__copy::before \{[\s\S]*?filter: blur\(42px\);[\s\S]*?animation: itinerary-red-sweep 9s ease-in-out infinite alternate;/, 'Brillo difuminado y animado también en claro')
+assert.match(newsStyle, /html\.theme-dark \.app-site\.news-page \.news-article-modal__copy::before \{[\s\S]*?radial-gradient\(/, 'Brillo difuminado en oscuro')
+assert.match(newsStyle, /@media \(prefers-reduced-motion: reduce\) \{\s*\.app-site\.news-page \.news-article-modal__copy::before \{\s*animation: none;/, 'Respetar movimiento reducido')
+
 console.log('OK: SignalR, CMS, MinIO, news, itinerary and tracking contracts.')
