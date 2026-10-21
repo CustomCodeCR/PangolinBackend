@@ -7,7 +7,8 @@ import IconSymbol from './components/IconSymbol.vue'
 import SiteMedia from './components/SiteMedia.vue'
 import { siteText, siteVisual, siteCssImage } from './siteCms'
 import { services as baseServices, faqs as baseFaqs, type ServiceKey } from './content'
-import type { ManagedNews } from './adminContent'
+import type { ManagedNews, ManagedComment } from './adminContent'
+import { subscribeToChanges } from './services/realtime'
 import { useI18n } from 'vue-i18n'
 
 const { t, locale } = useI18n({ useScope: 'global' })
