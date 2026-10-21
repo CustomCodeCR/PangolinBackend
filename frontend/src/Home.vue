@@ -53,6 +53,15 @@ const stats = computed(() => [
   { value: '+105', label: t('custom.home.stats.2') },
   { value: '24/7', label: t('custom.home.stats.3') }
 ])
+const publicComments = ref<ManagedComment[]>([])
+async function loadPublicComments() {
+  try {
+    const response = await fetch('/api/content/comments', { cache: 'no-store' })
+    if (!response.ok) throw new Error('No se pudieron consultar comentarios.')
+    const list: unknown = await response.json()
+    publicComments.value = Array.isArray(list) ? (list as ManagedComment[]).filter(item => item.published).slice(0, 6) : []
+  } catch { publicComments.value = [] }
+}
 const managedNews = ref<ManagedNews[]>([])
 const homeNewsLoaded = ref(false)
 const homeNewsError = ref(false)
@@ -94,6 +103,7 @@ function showStat(index: number) {
 }
 
 onMounted(async () => {
+  await loadPublicComments()
   statsTimer = window.setInterval(() => showStat(activeStat.value + 1), 2500)
   try {
     const response = await fetch('/api/content/news', { cache: 'no-store' })
@@ -238,6 +248,20 @@ onUnmounted(() => {
         </div>
         <div class="home-about-preview__image">
           <SiteMedia slot-key="home.about.media" fallback="/images/about-operations-enhanced.jpg" :alt="$t('phrases.p139')" />
+        </div>
+      </section>
+
+      <section v-if="publicComments.length" class="home-comments section-spacing" aria-label="Comentarios publicados">
+        <div class="container">
+          <p class="section-tag center">OPINIONES</p>
+          <h2 class="section-title centered">Comentarios de nuestra comunidad</h2>
+          <div class="home-comments__grid">
+            <article v-for="comment in publicComments" :key="comment.id" class="home-comments__card">
+              <span v-if="comment.section" class="home-comments__section">{{ comment.section }}</span>
+              <p>{{ comment.message }}</p>
+              <strong>{{ comment.author }}</strong>
+            </article>
+          </div>
         </div>
       </section>
 
@@ -447,4 +471,13 @@ onUnmounted(() => {
 
 <style scoped>
 .home-news-empty { padding: 24px 16px; margin: 0; color: #5d6270; font-size: 14px; line-height: 1.5; }
+</style>
+
+<style scoped>
+.home-comments { padding: 70px 0; }
+.home-comments__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 20px; margin-top: 30px; }
+.home-comments__card { border: 1px solid rgba(160, 90, 90, .24); border-radius: 18px; padding: 24px; background: var(--surface, rgba(120, 90, 90, .055)); overflow-wrap: anywhere; }
+.home-comments__card p { line-height: 1.65; white-space: pre-wrap; }
+.home-comments__section { display: block; font-size: 12px; font-weight: 700; letter-spacing: .06em; margin-bottom: 12px; }
+.home-comments__card strong { display: block; margin-top: 20px; }
 </style>
