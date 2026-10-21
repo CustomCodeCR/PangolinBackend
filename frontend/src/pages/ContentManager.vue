@@ -1044,22 +1044,53 @@ function useMediaForNews(item: ManagedMedia) {
 @keyframes manager-zip-glow {from{transform:translateX(0)}to{transform:translateX(133%)}}
 @media(prefers-reduced-motion:reduce){.is-embedded .manager-form::before,.is-embedded .manager-list::before,.is-embedded .manager-users-card::before{animation:none;transform:translateX(65%)}}
 @media(max-width:1000px){.is-embedded .manager-form form.manager-editor--itineraries{grid-template-columns:repeat(2,minmax(0,1fr))}}
-/* En escritorio, Cotizaciones y Editor visual deben ocupar la misma fila.
-   En anchos intermedios se puede desplazar horizontalmente sin partir las pestañas. */
+/* Navegación fija: seis columnas distribuidas sin desplazamiento horizontal.
+   En pantallas intermedias cada acceso se compacta dentro de su propia columna. */
 @media (min-width:651px) {
   .content-manager.is-embedded .manager-tabs.manager-subtabs {
-    display:flex;
-    flex-wrap:nowrap;
-    justify-content:space-between;
-    gap:clamp(6px,.65vw,14px);
-    overflow-x:auto;
+    display:grid;
+    grid-template-columns:repeat(6,minmax(0,1fr));
+    align-items:stretch;
+    gap:clamp(2px,.4vw,12px);
+    overflow-x:hidden;
     overflow-y:hidden;
   }
   .content-manager.is-embedded .manager-tabs.manager-subtabs > button {
-    flex:0 0 auto;
+    width:100%;
+    min-width:0;
+    padding-inline:clamp(2px,.4vw,8px);
+    gap:clamp(2px,.4vw,8px);
+    font-size:clamp(11px,1vw,14px);
     white-space:nowrap;
-    gap:clamp(4px,.5vw,9px);
-    padding-inline:clamp(3px,.5vw,10px);
+  }
+}
+@media (min-width:651px) and (max-width:1250px) {
+  .content-manager.is-embedded .manager-tabs.manager-subtabs > button {
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    grid-template-rows:32px minmax(30px,auto) 24px;
+    justify-items:center;
+    align-content:center;
+    text-align:center;
+    gap:3px;
+    padding-block:8px 12px;
+    white-space:normal;
+  }
+  .content-manager.is-embedded .manager-tabs.manager-subtabs > button .lucide-symbol {
+    grid-column:1;
+    grid-row:1;
+    margin:0;
+  }
+  .content-manager.is-embedded .manager-tabs.manager-subtabs > button .manager-tab-label {
+    grid-column:1;
+    grid-row:2;
+    white-space:normal;
+    overflow-wrap:break-word;
+  }
+  .content-manager.is-embedded .manager-tabs.manager-subtabs > button > span:not(.lucide-symbol):not(.manager-tab-label) {
+    grid-column:1;
+    grid-row:3;
+    margin:0;
   }
 }
 @media(max-width:650px){
