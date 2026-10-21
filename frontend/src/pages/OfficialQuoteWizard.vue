@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { Plane, Ship, Truck } from '@lucide/vue'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import { refreshSession } from '../services/auth'
@@ -33,9 +34,9 @@ const form = reactive({
   deliveryAddress: '', pickupAddress: '', fiscalStorageDays: '' as number | ''
 })
 const modeOptions = [
-  { value: 'Maritime' as Mode, title: 'Marítimo', icon: '⚓', text: 'Contenedores completos o carga consolidada' },
-  { value: 'Air' as Mode, title: 'Aéreo', icon: '✈️', text: 'Carga aérea consolidada' },
-  { value: 'Land' as Mode, title: 'Terrestre', icon: '🚚', text: 'Camión completo o carga consolidada' }
+  { value: 'Maritime' as Mode, title: 'Marítimo', icon: Ship, text: 'Contenedores completos o carga consolidada' },
+  { value: 'Air' as Mode, title: 'Aéreo', icon: Plane, text: 'Carga aérea consolidada' },
+  { value: 'Land' as Mode, title: 'Terrestre', icon: Truck, text: 'Camión completo o carga consolidada' }
 ]
 const typeOptions = computed(() => mode.value === 'Maritime'
   ? [{ value: 'FCL' as Type, title: 'FCL', text: 'Contenedor completo' }, { value: 'LCL' as Type, title: 'LCL', text: 'Coloading o propio' }]
@@ -164,7 +165,7 @@ async function submit() {
 </script>
 
 <template>
-  <div class="app-site official-page">
+  <div class="app-site official-page" :class="{ 'official-page--mode-selection': step === 1 && !createdId }">
     <SiteHeader />
     <main class="official-shell">
       <header class="official-header">
@@ -187,7 +188,7 @@ async function submit() {
             <span>{{ step > i+1 ? '✓' : i+1 }}</span><small>{{ name }}</small>
           </div>
         </nav>
-        <section class="official-panel">
+        <section class="official-panel" :class="{ 'official-panel--mode-selection': step === 1 }">
           <template v-if="step === 1">
             <p class="official-kicker">PASO 1 DE 4</p>
             <h2>¿Cómo querés transportar tu carga?</h2>
@@ -196,7 +197,7 @@ async function submit() {
               <button v-for="choice in modeOptions" :key="choice.value" type="button" class="official-choice"
                 :class="{ chosen: mode === choice.value }" :aria-pressed="mode === choice.value"
                 @click="selectMode(choice.value)">
-                <span class="official-emoji">{{ choice.icon }}</span><strong>{{ choice.title }}</strong><small>{{ choice.text }}</small>
+                <span class="official-mode-icon" aria-hidden="true"><component :is="choice.icon" :size="38" :stroke-width="1.8" /></span><strong>{{ choice.title }}</strong><small>{{ choice.text }}</small>
               </button>
             </div>
           </template>
@@ -339,6 +340,169 @@ async function submit() {
 :global(html.theme-dark) .official-page .official-link { background:#b20c2a!important; color:#fff!important; }
 :global(html.theme-dark) .official-page .official-kicker { color:#ff8ca2!important; }
 @media (prefers-reduced-motion:reduce) { .official-page * { scroll-behavior:auto!important; } }
+
+/* Selección de modalidad: gradiente a pantalla completa y UN solo vidrio para el bloque. */
+.official-page--mode-selection {
+  min-height: 100dvh;
+  background: linear-gradient(105deg, #811a32 0%, #642342 34%, #3e2851 64%, #142b51 100%) !important;
+  color: #fff;
+}
+.official-page--mode-selection .official-shell {
+  width: min(1180px, calc(100% - clamp(32px, 6vw, 112px)));
+  min-height: calc(100dvh - 76px);
+  padding: clamp(32px, 5vh, 65px) 0 clamp(52px, 7vh, 95px);
+}
+.official-page--mode-selection .official-header {
+  max-width: 820px;
+  border-left-color: rgba(255, 255, 255, .8);
+}
+.official-page--mode-selection .official-header h1,
+.official-page--mode-selection .official-header h1 span { color: #fff !important; }
+.official-page--mode-selection .official-header > p:last-child,
+.official-page--mode-selection .official-hint { color: rgba(255, 255, 255, .82) !important; }
+.official-page--mode-selection .official-kicker { color: #ffd3dc !important; }
+.official-page--mode-selection .official-progress-item {
+  background: rgba(255, 255, 255, .09);
+  color: rgba(255, 255, 255, .82);
+  border: 1px solid rgba(255, 255, 255, .12);
+}
+.official-page--mode-selection .official-progress-item span {
+  background: rgba(255, 255, 255, .14);
+  color: #fff;
+}
+.official-page--mode-selection .official-progress-item.current {
+  background: rgba(178, 12, 42, .65);
+  color: #fff;
+  border-color: rgba(255, 255, 255, .3);
+}
+.official-page--mode-selection .official-progress-item.current span {
+  background: #fff;
+  color: #b20c2a;
+}
+.official-page--mode-selection .official-panel--mode-selection {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: clamp(370px, 46vh, 565px);
+  padding: clamp(28px, 4vw, 54px);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, .05) !important;
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, .3) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, .1),
+    inset 0 1px 0 rgba(255, 255, 255, .5),
+    inset 0 -1px 0 rgba(255, 255, 255, .1),
+    inset 0 0 0 0 rgba(255, 255, 255, 0);
+  color: #fff !important;
+}
+.official-page--mode-selection .official-panel--mode-selection::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .8), transparent);
+  pointer-events: none;
+}
+.official-page--mode-selection .official-panel--mode-selection::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  top: 0; left: 0; bottom: 0;
+  width: 1px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .8), transparent, rgba(255, 255, 255, .3));
+  pointer-events: none;
+}
+.official-page--mode-selection .official-panel--mode-selection > * { position: relative; z-index: 1; }
+.official-page--mode-selection .official-panel--mode-selection h2 { color: #fff !important; }
+.official-page--mode-selection .official-choices {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(12px, 2vw, 22px);
+  margin-top: 30px;
+}
+.official-page--mode-selection .official-choice {
+  min-width: 0;
+  min-height: 190px;
+  padding: clamp(20px, 2.4vw, 30px);
+  background: rgba(11, 22, 43, .18) !important;
+  border: 1px solid rgba(255, 255, 255, .24) !important;
+  border-radius: 17px;
+  color: #fff !important;
+  box-shadow: none;
+  transition: transform .2s ease, background-color .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.official-page--mode-selection .official-choice:hover {
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, .12) !important;
+  border-color: rgba(255, 255, 255, .6) !important;
+}
+.official-page--mode-selection .official-choice.chosen {
+  background: rgba(178, 12, 42, .22) !important;
+  border-color: #ff637d !important;
+  box-shadow: 0 0 0 2px rgba(255, 99, 125, .18);
+}
+.official-page--mode-selection .official-choice:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+.official-page--mode-selection .official-choice strong { color: #fff !important; }
+.official-page--mode-selection .official-choice small {
+  color: rgba(255, 255, 255, .82) !important;
+  overflow-wrap: anywhere;
+}
+.official-page--mode-selection .official-mode-icon {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  color: #fff;
+  background: rgba(255, 255, 255, .1);
+  border: 1px solid rgba(255, 255, 255, .18);
+}
+.official-page--mode-selection .official-mode-icon :deep(svg) {
+  display: block;
+  color: #fff;
+  stroke: currentColor;
+}
+.official-page--mode-selection .official-buttons { border-top-color: rgba(255, 255, 255, .18); }
+@media (max-width: 750px) {
+  .official-page--mode-selection .official-shell {
+    width: calc(100% - 32px);
+    min-height: calc(100dvh - 72px);
+    padding: 30px 0 54px;
+  }
+  .official-page--mode-selection .official-choices { grid-template-columns: 1fr; margin-top: 22px; }
+  .official-page--mode-selection .official-panel--mode-selection { min-height: 0; padding: 24px; }
+  .official-page--mode-selection .official-choice {
+    min-height: 108px;
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    gap: 4px 14px;
+    align-content: center;
+    align-items: center;
+    padding: 16px;
+  }
+  .official-page--mode-selection .official-mode-icon { width: 56px; height: 56px; grid-row: 1 / 3; }
+  .official-page--mode-selection .official-choice strong,
+  .official-page--mode-selection .official-choice small { grid-column: 2; }
+}
+@media (max-width: 390px) {
+  .official-page--mode-selection .official-shell { width: calc(100% - 24px); }
+  .official-page--mode-selection .official-panel--mode-selection { padding: 20px 16px; }
+  .official-page--mode-selection .official-progress { gap: 4px; }
+  .official-page--mode-selection .official-progress-item { padding: 8px 2px; }
+  .official-page--mode-selection .official-choice { gap: 4px 10px; padding: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .official-page--mode-selection .official-choice { transition: none; }
+  .official-page--mode-selection .official-choice:hover { transform: none; }
+}
+
 </style>
 
 <style>
@@ -397,4 +561,44 @@ html.theme-dark .app-site.official-page :is(.official-error,.official-catalog-al
 html.theme-dark .app-site.official-page .official-success-icon {color:#83e6b1!important;}
 html.theme-dark .app-site.official-page .official-progress-item.current small {color:#fff!important;}
 html.theme-dark .app-site.official-page .official-kicker {color:#ff8ca2!important;}
+
+/* La selección conserva el mismo fondo Glass al activar el tema oscuro. */
+html.theme-dark .app-site.official-page.official-page--mode-selection {
+  background: linear-gradient(105deg, #811a32 0%, #642342 34%, #3e2851 64%, #142b51 100%) !important;
+}
+html.theme-dark .app-site.official-page.official-page--mode-selection .official-panel.official-panel--mode-selection {
+  background: rgba(255, 255, 255, .05) !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, .3) !important;
+}
+html.theme-dark .app-site.official-page.official-page--mode-selection .official-choice {
+  background: rgba(11, 22, 43, .18) !important;
+  border-color: rgba(255, 255, 255, .24) !important;
+  color: #fff !important;
+}
+html.theme-dark .app-site.official-page.official-page--mode-selection .official-choice:hover {
+  background: rgba(255, 255, 255, .12) !important;
+  border-color: rgba(255, 255, 255, .6) !important;
+}
+html.theme-dark .app-site.official-page.official-page--mode-selection .official-choice.chosen {
+  background: rgba(178, 12, 42, .22) !important;
+  border-color: #ff637d !important;
+}
+html.theme-dark .app-site.official-page.official-page--mode-selection .official-progress-item {
+  background: rgba(255, 255, 255, .09) !important;
+  color: rgba(255, 255, 255, .82) !important;
+}
+html.theme-dark .app-site.official-page.official-page--mode-selection .official-progress-item span {
+  background: rgba(255, 255, 255, .14) !important;
+  color: #fff !important;
+}
+html.theme-dark .app-site.official-page.official-page--mode-selection .official-progress-item.current {
+  background: rgba(178, 12, 42, .65) !important;
+  color: #fff !important;
+}
+html.theme-dark .app-site.official-page.official-page--mode-selection .official-progress-item.current span {
+  background: #fff !important;
+  color: #b20c2a !important;
+}
+
 </style>
