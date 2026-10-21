@@ -219,6 +219,41 @@ def main():
         login(driver, "demo.usuario@castrofallas.test", "/administracion")
         await_css(driver, ".manager-heading")
         screenshot(driver, "10-administracion", "Administración", "/administracion", "Panel real con sesión de demostración")
+
+        # Regression: both account popovers must fit WITHIN the narrow iPhone drawer.
+        driver.set_window_size(390, 844)
+        click(driver, ".site-header .menu-toggle")
+        await_css(driver, ".site-header.site-header--menu-open")
+        def check_drawer_panel(selector):
+            bounds = driver.execute_script("""
+                const drawer = document.querySelector('.site-header.site-header--menu-open');
+                const panel = document.querySelector(arguments[0]);
+                if (!drawer || !panel) return null;
+                const d = drawer.getBoundingClientRect();
+                const p = panel.getBoundingClientRect();
+                return {left: p.left - d.left, right: d.right - p.right,
+                        width: p.width, drawerWidth: d.width};
+            """, selector)
+            assert bounds, "Mobile drawer panel missing: " + selector
+            assert bounds["left"] >= 10 and bounds["right"] >= 10, (
+                "Mobile panel clips drawer edge: " + selector + " " + str(bounds))
+            assert bounds["width"] <= bounds["drawerWidth"] - 20, (
+                "Mobile panel too wide: " + selector + " " + str(bounds))
+
+        click(driver, ".header-profile__trigger")
+        await_css(driver, ".header-profile__panel")
+        check_drawer_panel(".header-profile__panel")
+        screenshot(driver, "10a-cuenta-movil", "Cuenta dentro del menú móvil",
+                   "/administracion", "Panel de cuenta sin recortes, viewport 390 × 844")
+        click(driver, ".header-settings__trigger")
+        await_css(driver, ".header-settings__panel")
+        check_drawer_panel(".header-settings__panel")
+        screenshot(driver, "10b-configuracion-movil", "Configuración dentro del menú móvil",
+                   "/administracion", "Panel de configuración con márgenes, viewport 390 × 844")
+        click(driver, ".site-header .menu-toggle")
+        driver.set_window_size(1440, 1100)
+        print("PASS Chrome mobile drawer: account/settings panels stay inset", flush=True)
+
         click(driver, '.manager-tabs button:nth-child(2)')
         await_css(driver, ".manager-users-card")
         WebDriverWait(driver, WAIT).until(
