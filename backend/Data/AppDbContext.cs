@@ -7,6 +7,11 @@ namespace CastroFallas.MiniQuote.Api.Data;
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<QuoteRequest> QuoteRequests => Set<QuoteRequest>();
+    public DbSet<OfficialQuoteRequest> OfficialQuotes => Set<OfficialQuoteRequest>();
+    public DbSet<OfficialQuoteLocation> OfficialQuoteLocations => Set<OfficialQuoteLocation>();
+    public DbSet<OfficialQuoteLocationUsage> OfficialQuoteLocationUsages => Set<OfficialQuoteLocationUsage>();
+    public DbSet<OfficialQuotePermission> OfficialQuotePermissions => Set<OfficialQuotePermission>();
+    public DbSet<OfficialQuoteAudit> OfficialQuoteAudit => Set<OfficialQuoteAudit>();
     public DbSet<ManagedNews> ManagedNews => Set<ManagedNews>();
     public DbSet<ManagedMedia> ManagedMedia => Set<ManagedMedia>();
     public DbSet<SiteCmsSlot> SiteCmsSlots => Set<SiteCmsSlot>();
@@ -33,6 +38,62 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         quote.Property(x => x.WeightKg).HasPrecision(18, 2);
         quote.Property(x => x.Status).HasMaxLength(30).IsRequired();
         quote.Property(x => x.Notes).HasColumnType("text");
+
+        // Entidades nuevas aisladas de los datos de cotizaciones V2.
+        var official = modelBuilder.Entity<OfficialQuoteRequest>();
+        official.ToTable("official_quote_requests", "public");
+        official.HasKey(x => x.Id);
+        official.Property(x => x.Id).HasColumnName("id");
+        official.Property(x => x.ClienteId).HasColumnName("cliente_id");
+        official.Property(x => x.UsuarioId).HasColumnName("usuario_id");
+        official.Property(x => x.CustomerName).HasColumnName("customer_name").HasMaxLength(200);
+        official.Property(x => x.ContactName).HasColumnName("contact_name").HasMaxLength(150);
+        official.Property(x => x.ContactEmail).HasColumnName("contact_email").HasMaxLength(255);
+        official.Property(x => x.ContactPhone).HasColumnName("contact_phone").HasMaxLength(40);
+        official.Property(x => x.Mode).HasColumnName("mode").HasMaxLength(12);
+        official.Property(x => x.ShipmentType).HasColumnName("shipment_type").HasMaxLength(12);
+        official.Property(x => x.OriginName).HasColumnName("origin_name").HasMaxLength(180);
+        official.Property(x => x.DestinationName).HasColumnName("destination_name").HasMaxLength(180);
+        official.Property(x => x.FormJson).HasColumnName("form_json").HasColumnType("jsonb");
+        official.Property(x => x.Status).HasColumnName("status").HasMaxLength(30);
+        official.Property(x => x.Authorization).HasColumnName("approval_status").HasMaxLength(15);
+        official.Property(x => x.AuthorizedById).HasColumnName("authorized_by_id");
+        official.Property(x => x.AuthorizedAtUtc).HasColumnName("authorized_at_utc");
+        official.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+        official.Property(x => x.UpdatedAtUtc).HasColumnName("updated_at_utc");
+
+        var officialLocation = modelBuilder.Entity<OfficialQuoteLocation>();
+        officialLocation.ToTable("official_quote_locations", "public");
+        officialLocation.HasKey(x => x.Id);
+        officialLocation.Property(x => x.Id).HasColumnName("id");
+        officialLocation.Property(x => x.Kind).HasColumnName("kind").HasMaxLength(10);
+        officialLocation.Property(x => x.DisplayName).HasColumnName("display_name").HasMaxLength(180);
+        officialLocation.Property(x => x.Code).HasColumnName("code").HasMaxLength(40);
+        officialLocation.Property(x => x.Active).HasColumnName("active");
+
+        var usage = modelBuilder.Entity<OfficialQuoteLocationUsage>();
+        usage.ToTable("official_quote_location_usage", "public");
+        usage.HasKey(x => new { x.LocationId, x.ShipmentType, x.RouteRole });
+        usage.Property(x => x.LocationId).HasColumnName("location_id");
+        usage.Property(x => x.ShipmentType).HasColumnName("shipment_type").HasMaxLength(12);
+        usage.Property(x => x.RouteRole).HasColumnName("route_role").HasMaxLength(12);
+        var officialPermission = modelBuilder.Entity<OfficialQuotePermission>();
+        officialPermission.ToTable("official_quote_permissions", "public");
+        officialPermission.HasKey(x => x.UserId);
+        officialPermission.Property(x => x.UserId).HasColumnName("user_id");
+        officialPermission.Property(x => x.CanView).HasColumnName("can_view");
+        officialPermission.Property(x => x.CanManage).HasColumnName("can_manage");
+        officialPermission.Property(x => x.CanAuthorize).HasColumnName("can_authorize");
+
+        var officialAudit = modelBuilder.Entity<OfficialQuoteAudit>();
+        officialAudit.ToTable("official_quote_audit", "public");
+        officialAudit.HasKey(x => x.Id);
+        officialAudit.Property(x => x.Id).HasColumnName("id");
+        officialAudit.Property(x => x.QuoteId).HasColumnName("quote_id");
+        officialAudit.Property(x => x.ActorUserId).HasColumnName("actor_user_id");
+        officialAudit.Property(x => x.Action).HasColumnName("action").HasMaxLength(32);
+        officialAudit.Property(x => x.Comment).HasColumnName("comment").HasMaxLength(2000);
+        officialAudit.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
 
         var contact = modelBuilder.Entity<QuoteContact>();
         contact.ToTable("quote_contacts");

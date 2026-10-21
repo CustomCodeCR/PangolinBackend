@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
 using CastroFallas.MiniQuote.Api.Data;
+using CastroFallas.MiniQuote.Api.Endpoints;
 using CastroFallas.MiniQuote.Api.Models;
 using CastroFallas.MiniQuote.Api.Services;
 using CastroFallas.MiniQuote.Api.Services.Auth;
@@ -140,6 +141,15 @@ if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("Dev
         var scriptPath = Path.Combine(app.Environment.ContentRootPath, "Database", "AuthSchema.sql");
         var sql = await File.ReadAllTextAsync(scriptPath);
         await db.Database.ExecuteSqlRawAsync(sql);
+        var officialPath = Path.Combine(app.Environment.ContentRootPath, "Database", "OfficialQuotesSchema.sql");
+        await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(officialPath));
+        // Ubicaciones ficticias e inequívocamente marcadas como PRUEBA.
+        // Solo se cargan en el ambiente Development cuando se aplica el esquema local.
+        // Nunca se cargan automáticamente en producción ni sustituyen el catálogo oficial.
+        var testLocationsPath = Path.Combine(app.Environment.ContentRootPath, "Database", "OfficialQuotesDevelopmentLocations.sql");
+        await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(testLocationsPath));
+        var verifiedLocationsPath = Path.Combine(app.Environment.ContentRootPath, "Database", "OfficialQuotesVerifiedLocations.sql");
+        await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(verifiedLocationsPath));
         app.Logger.LogInformation("Esquema de login comprobado/aplicado en PostgreSQL ({Database}).",
             new NpgsqlConnectionStringBuilder(postgres).Database);
     }
@@ -357,6 +367,11 @@ app.MapPost("/api/quotes", async (
         return Results.BadRequest(new { error = ex.Message });
     }
 }).RequireAuthorization("registered");
+
+// En producción mantener deshabilitada la API nueva hasta que se aplique la
+// migración y se verifique el catálogo. Desarrollo conserva las pruebas locales.
+if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("Features:OfficialQuotesEnabled"))
+    app.MapOfficialQuotes();
 
 // La empresa autenticada solo puede enumerar sus propias solicitudes.
 // Límite de página explícito para no devolver registros de otros clientes.
