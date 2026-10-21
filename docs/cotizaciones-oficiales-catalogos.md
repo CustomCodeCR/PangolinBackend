@@ -12,3 +12,6 @@ Las consultas del nuevo wizard usan `kind`, `shipmentType` y `routeRole`. La API
 ## Pendientes de publicación
 
 Confirmar exhaustivamente origen y destino de Marítimo FCL y LCL; catálogo Aéreo LCL hasta la letra B; POD FCL y LCL y compatibilidad con lugares interiores. Solo publicar en producción tras verificación humana y respaldo de base. Ninguno de estos scripts debe eliminar registros previos.
+
+## Ubicaciones terrestres verificadas
+El script de verificación carga 13 lugares terrestres legibles del video en desarrollo para FTL y LTL. Se ejecuta después de aplicar el esquema y los lugares ficticios; no borra esos lugares ni las solicitudes que los usan. No se presume haber completado con ello las listas marítimas o aéreas.
