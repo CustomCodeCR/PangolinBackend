@@ -4778,7 +4778,8 @@ html.theme-dark .about-access .access-card--tracking{background-image:linear-gra
 html.theme-dark .about-access .access-card--quote{background-image:linear-gradient(rgba(1,8,29,.62),rgba(1,8,29,.62)),var(--cms-access-quote,url('/images/services-crane.webp'))!important}
 .service-accordion__item{position:relative;isolation:isolate}
 .service-accordion__item>.cms-background-video{z-index:0}
-.service-accordion__item>.service-accordion__trigger,.service-accordion__item>.service-accordion__panel{position:relative;z-index:2}
+/* The video layer must not override the desktop accordion's absolute-positioned panel and active tab. */
+.service-accordion__item>.service-accordion__trigger,.service-accordion__item>.service-accordion__panel{z-index:2}
 .services-showcase__feature>.cms-background-video{z-index:0}
 .about-image-card video,.complementary-card>video{display:block;width:100%;height:100%;object-fit:cover}
 .faq-section:has(>.cms-background-video){background-image:none}
