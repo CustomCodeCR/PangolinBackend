@@ -43,11 +43,6 @@ const faqs = computed(() => baseFaqs.map((faq, index) => ({
   q: siteText(`home.faq.${index}.q`, t(`content.faqs.${index}.q`), locale.value),
   a: siteText(`home.faq.${index}.a`, t(`content.faqs.${index}.a`), locale.value)
 })))
-const promises = computed(() => [0, 1, 2].map(index => ({
-  icon: ['↗', '◎', '✦'][index],
-  title: siteText(`home.digital.card.${index}.title`, t(`content.promises.${index}.title`), locale.value),
-  subtitle: siteText(`home.digital.card.${index}.subtitle`, t(`content.promises.${index}.subtitle`), locale.value)
-})))
 const stats = computed(() => [
   { value: '+25', label: t('custom.home.stats.0') },
   { value: '#1', label: t('custom.home.stats.1') },
@@ -55,6 +50,9 @@ const stats = computed(() => [
   { value: '24/7', label: t('custom.home.stats.3') }
 ])
 const publicComments = ref<ManagedComment[]>([])
+const carouselComments = computed(() => publicComments.value.length > 1
+  ? [...publicComments.value, ...publicComments.value]
+  : publicComments.value)
 async function loadPublicComments() {
   try {
     const response = await fetch('/api/content/comments', { cache: 'no-store' })
@@ -254,20 +252,6 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <section v-if="publicComments.length" class="home-comments section-spacing" aria-label="Comentarios publicados">
-        <div class="container">
-          <p class="section-tag center">OPINIONES</p>
-          <h2 class="section-title centered">Comentarios de nuestra comunidad</h2>
-          <div class="home-comments__grid">
-            <article v-for="comment in publicComments" :key="comment.id" class="home-comments__card">
-              <span v-if="comment.section" class="home-comments__section">{{ comment.section }}</span>
-              <p>{{ comment.message }}</p>
-              <strong>{{ comment.author }}</strong>
-            </article>
-          </div>
-        </div>
-      </section>
-
       <section class="home-last-cta">
         <div class="container home-last-cta__inner">
           <div>
@@ -336,23 +320,32 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="promise-carousel">
-            <div class="promise-track">
+          <div v-if="publicComments.length" class="promise-carousel" aria-label="Comentarios publicados">
+            <div
+              class="promise-track"
+              :class="{ 'promise-track--static': publicComments.length === 1 }"
+              :style="{ animationDuration: `${Math.max(18, publicComments.length * 6)}s` }"
+            >
               <article
-                v-for="(promise, index) in [...promises, ...promises]"
-                :key="index"
-                class="promise-card"
+                v-for="(comment, index) in carouselComments"
+                :key="`${comment.id}-${index}`"
+                class="promise-card promise-card--comment"
+                :aria-hidden="index >= publicComments.length ? 'true' : undefined"
               >
                 <div class="promise-card__top">
-                  <IconSymbol :glyph="promise.icon" :size="22" />
-                  <small>0{{ (index % promises.length) + 1 }}</small>
+                  <IconSymbol glyph="message-circle" :size="22" />
+                  <small>{{ String((index % publicComments.length) + 1).padStart(2, '0') }}</small>
                 </div>
-                <h3>{{ promise.title }}</h3>
-                <p>{{ promise.subtitle }}</p>
+                <div class="promise-card__comment-content">
+                  <span v-if="comment.section" class="promise-card__section">{{ comment.section }}</span>
+                  <p class="promise-card__message" tabindex="0" :aria-label="comment.message">{{ comment.message }}</p>
+                  <h3 :title="comment.author">{{ comment.author }}</h3>
+                </div>
                 <div class="promise-card__dash"></div>
               </article>
             </div>
           </div>
+          <p v-else class="experience-comments-empty" role="status">Todavía no hay comentarios publicados.</p>
         </div>
       </section>
 
@@ -477,10 +470,55 @@ onUnmounted(() => {
 </style>
 
 <style scoped>
-.home-comments { padding: 70px 0; }
-.home-comments__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 20px; margin-top: 30px; }
-.home-comments__card { border: 1px solid rgba(160, 90, 90, .24); border-radius: 18px; padding: 24px; background: var(--surface, rgba(120, 90, 90, .055)); overflow-wrap: anywhere; }
-.home-comments__card p { line-height: 1.65; white-space: pre-wrap; }
-.home-comments__section { display: block; font-size: 12px; font-weight: 700; letter-spacing: .06em; margin-bottom: 12px; }
-.home-comments__card strong { display: block; margin-top: 20px; }
+.experience-comments-empty {
+  margin: 18px 0 26px;
+  color: #8c7480;
+  font-size: 14px;
+}
+.promise-track--static {
+  animation: none !important;
+}
+.promise-track:focus-within {
+  animation-play-state: paused;
+}
+.promise-card--comment .promise-card__comment-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+.promise-card--comment .promise-card__section {
+  font-size: 11px;
+  font-weight: 750;
+  opacity: .85;
+  margin-bottom: 8px;
+  overflow-wrap: anywhere;
+}
+.promise-card--comment .promise-card__message {
+  max-width: none;
+  max-height: 110px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.promise-card--comment h3 {
+  margin: 11px 0 0;
+  font-size: 17px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: reduce) {
+  .promise-track {
+    animation: none !important;
+  }
+  .promise-carousel {
+    overflow-x: auto;
+  }
+}
 </style>
