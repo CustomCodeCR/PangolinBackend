@@ -4273,47 +4273,96 @@ html.theme-dark .app-site.news-page .news-editorial-hero__bottomline-rule {
   }
 }
 
-/* Keep the mobile settings popover beside the welcome action and its gear. */
+/* Mobile side drawer: account/settings controls share one short row.
+   Each panel opens on its own row INSIDE the drawer, never beside the icons.
+   This keeps the content inset at iPhone widths (including smaller screens). */
 @media (max-width: 800px) {
-  .site-header.site-header--menu-open .header-account-tools:has(.header-settings--open) {
+  html .site-header.site-header--menu-open .main-nav.main-nav--open .header-account-tools,
+  html .site-header.site-header--menu-open .main-nav.main-nav--open .header-account-tools:has(.header-settings--open),
+  html .site-header.site-header--menu-open .main-nav.main-nav--open .header-account-tools:has(.header-profile--open) {
     display: grid !important;
-    grid-template-columns: max-content 38px minmax(170px, 220px);
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: 40px auto;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    justify-items: center;
+    column-gap: 12px;
+    row-gap: 12px;
     width: 100%;
-    margin: 10px 0 6px;
+    max-width: 100%;
+    min-width: 0;
+    margin: 12px 0;
+    padding: 0 2px;
+    box-sizing: border-box;
   }
-  .site-header.site-header--menu-open .header-settings--open { display: contents; }
-  .site-header.site-header--menu-open .header-settings--open .header-settings__trigger {
+  /* For logged-out visitors, the sign-in link takes the first icon slot. */
+  html .site-header.site-header--menu-open .main-nav.main-nav--open .header-account-tools:has(> .nav-login) {
+    grid-template-columns: minmax(0, 1fr) 40px !important;
+  }
+  html .site-header.site-header--menu-open .header-account-tools > .nav-login {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: end;
+    max-width: 100%;
+    padding: 10px 12px;
+    white-space: normal;
+    font-size: 11px;
+  }
+  html .site-header.site-header--menu-open .header-account-tools > .header-profile {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: end;
+  }
+  html .site-header.site-header--menu-open .header-account-tools > .header-settings {
     grid-column: 2;
     grid-row: 1;
-    justify-self: center;
+    justify-self: start;
   }
-  .site-header.site-header--menu-open .header-settings--open .header-settings__panel {
-    position: relative;
-    top: auto;
-    right: auto;
-    grid-column: 3;
+  /* display:contents puts the popover directly into the parent grid. */
+  html .site-header.site-header--menu-open .header-account-tools > .header-profile--open,
+  html .site-header.site-header--menu-open .header-account-tools > .header-settings--open {
+    display: contents !important;
+  }
+  html .site-header.site-header--menu-open .header-account-tools .header-profile--open .header-profile__trigger {
+    grid-column: 1;
     grid-row: 1;
-    width: 100%;
-    min-width: 0;
-    max-width: none;
-    margin: 0;
+    justify-self: end;
   }
-  .site-header.site-header--menu-open .header-account-tools > .nav-login {
-    padding: 10px 12px;
-    font-size: 11px;
+  html .site-header.site-header--menu-open .header-account-tools .header-settings--open .header-settings__trigger {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: start;
+  }
+  html .site-header.site-header--menu-open .header-account-tools .header-profile__panel,
+  html .site-header.site-header--menu-open .header-account-tools .header-settings__panel {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    position: relative !important;
+    top: auto !important;
+    right: auto !important;
+    left: auto !important;
+    transform: none !important;
+    justify-self: center !important;
+    width: calc(100% - 16px) !important;
+    max-width: calc(100% - 16px) !important;
+    min-width: 0 !important;
+    margin: 0 0 6px !important;
+    box-sizing: border-box !important;
+  }
+  html .site-header.site-header--menu-open .header-account-tools .header-settings__panel {
+    overflow: hidden;
+  }
+  html .site-header.site-header--menu-open .header-account-tools .header-profile__details,
+  html .site-header.site-header--menu-open .header-account-tools .language-switcher--dropdown {
+    min-width: 0;
+    max-width: 100%;
   }
 }
 @media (max-width: 380px) {
-  .site-header.site-header--menu-open .header-account-tools:has(.header-settings--open) {
-    grid-template-columns: max-content 36px minmax(145px, 1fr);
-    gap: 6px;
+  html .site-header.site-header--menu-open .header-settings__panel .theme-toggle span {
+    font-size: 11px;
   }
-  .site-header.site-header--menu-open .header-settings__panel .theme-toggle span { font-size: 10px; }
 }
-
 
 /* Móvil: mismo rojo sólido de las pestañas de servicios que en escritorio.
    Se aplica en modo claro y oscuro sin alterar la fotografía seleccionada. */
