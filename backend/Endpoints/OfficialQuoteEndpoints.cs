@@ -73,10 +73,9 @@ public static class OfficialQuoteEndpoints
             throw new ArgumentException("Correo inválido.");
         Required(s.ContactPhone, "Teléfono", 40);
         if (s.Services is null || s.Services.Count is < 1 or > 20 ||
-            !s.Services.Contains("Transporte internacional") ||
             s.Services.Any(x => string.IsNullOrWhiteSpace(x) || x.Length > 100) ||
             s.Services.Distinct(StringComparer.OrdinalIgnoreCase).Count() != s.Services.Count)
-            throw new ArgumentException("Seleccioná servicios válidos, incluyendo transporte internacional.");
+            throw new ArgumentException("Seleccioná al menos un servicio válido.");
         if (s.Equipment?.Count > 25 || s.Packages?.Count > 25)
             throw new ArgumentException("Se permiten hasta 25 líneas de carga.");
         bool equipment = s.ShipmentType is "FCL" or "FTL";
@@ -128,6 +127,21 @@ public static class OfficialQuoteEndpoints
         else if (!string.IsNullOrWhiteSpace(s.ExwCargoStatus) || !string.IsNullOrWhiteSpace(s.ExwPickupAddress))
             throw new ArgumentException("La recolección EXW solo aplica a EXW.");
         Optional(s.DestinationHandling, 100);
+        if (s.Services.Contains("Transporte entrega"))
+            Required(s.DeliveryAddress, "Dirección de entrega", 800);
+        else if (!string.IsNullOrWhiteSpace(s.DeliveryAddress))
+            throw new ArgumentException("Dirección de entrega sin servicio de entrega.");
+        if (s.Services.Contains("Transporte recolección"))
+            Required(s.PickupAddress, "Dirección de recolección", 800);
+        else if (!string.IsNullOrWhiteSpace(s.PickupAddress))
+            throw new ArgumentException("Dirección de recolección sin servicio de recolección.");
+        if (s.Services.Contains("Almacenamiento"))
+        {
+            if (s.FiscalStorageDays is null or < 1 or > 36500)
+                throw new ArgumentException("Indicá los días de almacenaje fiscal.");
+        }
+        else if (s.FiscalStorageDays is not null)
+            throw new ArgumentException("Días de almacenaje sin servicio de almacenamiento.");
     }
 
     public static IEndpointRouteBuilder MapOfficialQuotes(this IEndpointRouteBuilder app)

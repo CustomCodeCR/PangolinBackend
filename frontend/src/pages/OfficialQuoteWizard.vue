@@ -27,7 +27,8 @@ const form = reactive({
   packages: [{ description: '', quantity: 1, weight: 0, length: 0, width: 0, height: 0, stackability: 'Stackable' }] as PackageLine[],
   dimensionUnit: 'cm', weightUnit: 'kg', cargoDescription: '', cabysCode: '',
   cargoValue: '' as number | '', declaredWeight: '' as number | '', declaredPackages: '' as number | '',
-  observations: '', cargoFlags: [] as string[], destinationHandling: ''
+  observations: '', cargoFlags: [] as string[], destinationHandling: '',
+  deliveryAddress: '', pickupAddress: '', fiscalStorageDays: '' as number | ''
 })
 const modeOptions = [
   { value: 'Maritime' as Mode, title: 'Marítimo', icon: '⚓', text: 'Contenedores completos o carga consolidada' },
@@ -43,7 +44,7 @@ const equipmentMode = computed(() => shipmentType.value === 'FCL' || shipmentTyp
 const selectedOrigin = computed(() => locations.value.find(x => x.id === form.originLocationId))
 const selectedDest = computed(() => locations.value.find(x => x.id === form.destinationLocationId))
 const incoterms = ['EXW','FCA','FAS','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP']
-const serviceOptions = ['Transporte internacional','Agencia de aduanas','Almacenamiento','Control de inventario','Embalaje de carga','Picking de carga','Recepción de carga','Seguro de carga','Transporte local']
+const serviceOptions = ['Transporte internacional','Agencia de Aduanas CR','Agencia de Aduanas Exterior','Almacenamiento','Control de inventario','Embalaje','Exoneración','Picking Carga','Recepción de carga','Seguro de carga','Transporte entrega','Transporte recolección','Transporte nacional']
 const cargoFlagOptions = ['Carga peligrosa','No estibable','Sobrepeso']
 function selectMode(value: Mode) {
   if (mode.value !== value) {
@@ -55,7 +56,6 @@ function selectMode(value: Mode) {
   error.value = ''
 }
 function toggle(collection: string[], value: string) {
-  if (value === 'Transporte internacional') return
   const at = collection.indexOf(value)
   if (at >= 0) collection.splice(at, 1)
   else collection.push(value)
@@ -93,6 +93,10 @@ function validate(): string {
     if (!form.originLocationId || !form.destinationLocationId || form.originLocationId === form.destinationLocationId) return 'Elegí origen y destino distintos.'
     if (!form.incoterm) return 'Seleccioná un Incoterm.'
     if (!form.cargoReadyDate) return 'Indicá la fecha de carga lista.'
+    if (!form.services.length) return 'Seleccioná al menos un servicio.'
+    if (form.services.includes('Transporte entrega') && !form.deliveryAddress.trim()) return 'Escribí la dirección de entrega.'
+    if (form.services.includes('Transporte recolección') && !form.pickupAddress.trim()) return 'Escribí la dirección de recolección.'
+    if (form.services.includes('Almacenamiento') && (!Number.isInteger(Number(form.fiscalStorageDays)) || Number(form.fiscalStorageDays) < 1 || Number(form.fiscalStorageDays) > 36500)) return 'Indicá los días de almacenaje fiscal.'
     if (form.incoterm === 'EXW' && (!form.exwCargoStatus || !form.exwPickupAddress.trim())) return 'Completá el tipo de carga y la dirección de recolección EXW.'
     if (equipmentMode.value && form.equipment.some(x => !x.size || !x.type || !Number.isInteger(Number(x.quantity)) || x.quantity < 1 || x.unitWeightsKg.length !== Number(x.quantity) || x.unitWeightsKg.some(v => Number(v) <= 0))) return 'Completá todos los equipos y el peso de cada unidad.'
     return ''
@@ -127,7 +131,10 @@ function payload() {
     declaredWeight: form.declaredWeight === '' ? null : Number(form.declaredWeight),
     declaredPackages: form.declaredPackages === '' ? null : Number(form.declaredPackages),
     observations: form.observations || null, cargoFlags: form.cargoFlags,
-    destinationHandling: form.destinationHandling || null
+    destinationHandling: form.destinationHandling || null,
+    deliveryAddress: form.services.includes('Transporte entrega') ? form.deliveryAddress.trim() : null,
+    pickupAddress: form.services.includes('Transporte recolección') ? form.pickupAddress.trim() : null,
+    fiscalStorageDays: form.services.includes('Almacenamiento') ? Number(form.fiscalStorageDays) : null
   }
 }
 async function submit() {
@@ -231,7 +238,13 @@ async function submit() {
                 </div>
               </template>
             </div>
-            <div class="official-nested"><h3>Servicios</h3><p class="official-hint">El transporte internacional viene seleccionado.</p><div class="official-checks"><label v-for="s in serviceOptions" :key="s"><input type="checkbox" :checked="form.services.includes(s)" :disabled="s === 'Transporte internacional'" @change="toggle(form.services,s)" />{{ s }}</label></div></div>
+            <div class="official-nested"><h3>Servicios</h3><p class="official-hint">Transporte internacional viene marcado inicialmente. Podés quitarlo o seleccionar varios servicios, pero debe quedar al menos uno.</p><div class="official-checks"><label v-for="s in serviceOptions" :key="s"><input type="checkbox" :checked="form.services.includes(s)" @change="toggle(form.services,s)" />{{ s }}</label></div>
+              <div v-if="form.services.includes('Almacenamiento') || form.services.includes('Transporte entrega') || form.services.includes('Transporte recolección')" class="official-fields">
+                <label v-if="form.services.includes('Almacenamiento')">Días de almacenaje fiscal <span>*</span><input v-model.number="form.fiscalStorageDays" type="number" min="1" max="36500" step="1" /></label>
+                <label v-if="form.services.includes('Transporte entrega')" class="full">Dirección de entrega <span>*</span><textarea v-model.trim="form.deliveryAddress" rows="3" maxlength="800" placeholder="Escribí la dirección de entrega"></textarea></label>
+                <label v-if="form.services.includes('Transporte recolección')" class="full">Dirección de recolección <span>*</span><textarea v-model.trim="form.pickupAddress" rows="3" maxlength="800" placeholder="Escribí la dirección de recolección"></textarea></label>
+              </div>
+            </div>
           </template>
           <template v-else>
             <p class="official-kicker">PASO 4 DE 4</p><h2>Descripción de carga y contacto</h2>
