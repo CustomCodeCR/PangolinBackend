@@ -303,6 +303,24 @@ check('<IconSymbol glyph="message-circle" :size="19" /> Comentarios' in manager_
       and 'flex:0 0 36px;' in manager_mobile
       and 'min-width:36px;' in manager_mobile,
       'Administración conserva distribución previa de las cinco pestañas y muestra icono Comentarios')
+mobile_drawer_css = read('frontend/src/style.css')
+drawer_fix = mobile_drawer_css.split('/* Mobile side drawer: account/settings controls share one short row.', 1)[-1]
+drawer_fix = drawer_fix.split('/* Móvil: mismo rojo sólido', 1)[0]
+mobile_header = read('frontend/src/components/SiteHeader.vue')
+smoke_chrome = read('scripts/smoke-browser-live.py')
+check('grid-template-columns: repeat(2, minmax(0, 1fr)) !important;' in drawer_fix
+      and 'grid-column: 1 / -1;' in drawer_fix
+      and 'grid-row: 2;' in drawer_fix
+      and 'width: calc(100% - 16px) !important;' in drawer_fix
+      and 'max-width: calc(100% - 16px) !important;' in drawer_fix
+      and '.header-profile--open' in drawer_fix
+      and '.header-settings--open' in drawer_fix
+      and 'grid-template-columns: max-content 38px minmax(170px, 220px)' not in mobile_drawer_css
+      and 'class="header-profile__panel"' in mobile_header
+      and 'class="header-settings__panel"' in mobile_header
+      and 'check_drawer_panel(".header-profile__panel")' in smoke_chrome
+      and 'check_drawer_panel(".header-settings__panel")' in smoke_chrome,
+      'Menú móvil mantiene Cuenta y Configuración dentro de los bordes del drawer')
 check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('frontend/src/style.css'),
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
