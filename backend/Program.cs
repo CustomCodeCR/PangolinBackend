@@ -126,6 +126,15 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
             AutoReplenishment = true
         }));
+    options.AddPolicy("tracking", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 12,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        }));
 });
 
 var app = builder.Build();
@@ -152,6 +161,11 @@ if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("Dev
         await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(verifiedLocationsPath));
         var videoLocationsPath = Path.Combine(app.Environment.ContentRootPath, "Database", "OfficialQuotesVideoLocations.sql");
         await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(videoLocationsPath));
+        // Seguimiento separado de itinerarios y cotizaciones. Demo solo en Development.
+        var trackingSchemaPath = Path.Combine(app.Environment.ContentRootPath, "Database", "TrackingSchema.sql");
+        await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(trackingSchemaPath));
+        var trackingSeedPath = Path.Combine(app.Environment.ContentRootPath, "Database", "TrackingSeedDevelopment.sql");
+        await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(trackingSeedPath));
         app.Logger.LogInformation("Esquema de login comprobado/aplicado en PostgreSQL ({Database}).",
             new NpgsqlConnectionStringBuilder(postgres).Database);
     }
@@ -288,6 +302,8 @@ app.MapGet("/api/health/ready", async (AppDbContext db, IConfiguration config, C
         await db.Database.ExecuteSqlRawAsync("SELECT id, published FROM public.cms_news LIMIT 0", ct);
         await db.Database.ExecuteSqlRawAsync("SELECT id, published FROM public.cms_comments LIMIT 0", ct);
         await db.Database.ExecuteSqlRawAsync("SELECT id, src FROM public.cms_media LIMIT 0", ct);
+        await db.Database.ExecuteSqlRawAsync("SELECT id, reference_kind, is_public FROM public.shipment_tracking LIMIT 0", ct);
+        await db.Database.ExecuteSqlRawAsync("SELECT id, tracking_id FROM public.shipment_tracking_events LIMIT 0", ct);
         return Results.Ok(new
         {
             status = "ready", postgres = "ok", emailMode = config["Email:Mode"] ?? "Smtp"
@@ -503,6 +519,7 @@ app.MapAdminUsers();
 app.MapManagedContent();
 app.MapManagedMediaObjects();
 app.MapSiteCms();
+app.MapShipmentTracking();
 // Endpoint público de conexión. Los grupos privados se validan con la cookie JWT
 // revocable al establecer conexión; el hub no permite que clientes emitan eventos.
 app.MapHub<ContentUpdatesHub>(ContentUpdatesHub.Path);
