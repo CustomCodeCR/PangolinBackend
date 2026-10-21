@@ -391,7 +391,7 @@ async function submit() {
   /* El overflow:hidden global de app-site no debe recortar el contenido. */
   overflow-x: clip;
   overflow-y: visible;
-  background: linear-gradient(90deg, #181419 0%, #23171d 42%, #451923 100%) !important;
+  background: linear-gradient(90deg, #491b2b 0%, #281a22 37%, #181419 72%, #181419 100%) !important;
   color: #fff;
 }
 .official-page--mode-selection .official-shell {
@@ -451,7 +451,7 @@ async function submit() {
   padding: clamp(28px, 3vw, 52px);
   border-radius: 28px;
   /* Mismo vidrio de referencia, con resplandor vino difuminado hacia la derecha. */
-  background: linear-gradient(90deg, rgba(28, 24, 29, .90) 0%, rgba(42, 24, 31, .80) 47%, rgba(96, 21, 39, .72) 100%) !important;
+  background: linear-gradient(90deg, rgba(92, 28, 48, .42) 0%, rgba(34, 26, 33, .70) 46%, rgba(24, 22, 28, .78) 100%) !important;
   -webkit-backdrop-filter: blur(5px);
   backdrop-filter: blur(5px);
   border: 1px solid rgba(255, 255, 255, .3) !important;
@@ -480,8 +480,8 @@ async function submit() {
   pointer-events: none;
 }
 .official-page--mode-selection .official-panel--mode-selection > * { position: relative; z-index: 1; }
-/* Una única franja de luz difusa recorre TODO el panel de izquierda a derecha.
-   A diferencia del degradado de fondo, esta capa sí se anima. */
+/* Una unica fuente de luz nace en la izquierda y se desvanece antes del borde derecho.
+   No queda ningun resplandor vino fijo en la derecha: el fondo termina carbon. */
 .official-page--mode-selection .official-panel--mode-selection > .official-glass-glow {
   position: absolute;
   z-index: 0;
@@ -507,7 +507,8 @@ async function submit() {
 @keyframes official-glass-glow-sweep {
   0% { transform: translate3d(-120%, 0, 0); opacity: 0; }
   12% { opacity: .95; }
-  88% { opacity: .95; }
+  64% { opacity: .85; }
+  83% { opacity: 0; }
   100% { transform: translate3d(235%, 0, 0); opacity: 0; }
 }
 .official-page--mode-selection .official-panel--mode-selection h2 { color: #fff !important; }
@@ -680,10 +681,10 @@ html.theme-dark .app-site.official-page .official-kicker {color:#ff8ca2!importan
 
 /* La selección conserva el mismo fondo Glass al activar el tema oscuro. */
 html.theme-dark .app-site.official-page.official-page--mode-selection {
-  background: linear-gradient(90deg, #181419 0%, #23171d 42%, #451923 100%) !important;
+  background: linear-gradient(90deg, #491b2b 0%, #281a22 37%, #181419 72%, #181419 100%) !important;
 }
 html.theme-dark .app-site.official-page.official-page--mode-selection .official-panel.official-panel--mode-selection {
-  background: linear-gradient(90deg, rgba(28, 24, 29, .90) 0%, rgba(42, 24, 31, .80) 47%, rgba(96, 21, 39, .72) 100%) !important;
+  background: linear-gradient(90deg, rgba(92, 28, 48, .42) 0%, rgba(34, 26, 33, .70) 46%, rgba(24, 22, 28, .78) 100%) !important;
   color: #fff !important;
   border-color: rgba(255, 255, 255, .3) !important;
 }
