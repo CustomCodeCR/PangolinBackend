@@ -73,6 +73,7 @@ const homeNews = computed(() => managedNews.value.filter(article => article.publ
 
 const activeStat = ref(0)
 const newsScroller = ref<HTMLElement | null>(null)
+const unsubscribeComments = subscribeToChanges('comments', () => { void loadPublicComments() })
 let statsTimer: number | undefined
 let newsTimer: number | undefined
 let newsPauseUntil = 0
@@ -120,6 +121,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  unsubscribeComments()
   if (statsTimer) window.clearInterval(statsTimer)
   if (newsTimer) window.clearInterval(newsTimer)
 })
