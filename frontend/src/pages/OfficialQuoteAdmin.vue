@@ -4,6 +4,7 @@ import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import { refreshSession } from '../services/auth'
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
+const emit = defineEmits<{ (event: 'total-change', total: number): void }>()
 type Row = { id:string;customerName:string;mode:string;shipmentType:string;originName:string;destinationName:string;status:string;authorization:string;createdAtUtc:string }
 type Detail = {id:string;customerName:string;mode:string;shipmentType:string;status:string;authorization:string;createdAtUtc:string;form:Record<string,unknown>;history:{action:string;comment:string|null;createdAtUtc:string}[]}
 const rows=ref<Row[]>([])
@@ -26,7 +27,7 @@ async function api<T>(url:string, init:RequestInit={}):Promise<T>{
 }
 async function load(){busy.value=true;error.value='';try{
   const r=await api<{items:Row[];total:number}>('/api/admin/quotes/official?page='+page.value)
-  rows.value=r.items;total.value=r.total
+  rows.value=r.items;total.value=r.total;emit('total-change',r.total)
 }catch(e){error.value=msg(e)}finally{busy.value=false}}
 async function open(id:string){error.value='';detail.value=null;try{
   const r=await api<Detail>('/api/admin/quotes/official/'+id);detail.value=r;state.value=r.status;comment.value=''
@@ -96,7 +97,6 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
         <a href="/administracion" class="off-admin-back">← Volver a administración</a>
         <span class="off-admin-context">OPERACIONES · COTIZACIONES</span>
       </div>
-      <p class="off-admin-explainer">La autorización es interna. La conexión y el envío a Dhole todavía no están disponibles.</p>
       <p v-if="error" class="off-admin-alert" role="alert">{{error}}</p>
       <p v-if="notice" class="off-admin-ok" role="status">{{notice}}</p>
       <section v-if="!permissions.canView" class="off-admin-card off-admin-empty">
@@ -200,7 +200,6 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
 /* Identidad del panel de administración existente, aislada en Cotizaciones Oficiales. */
 .off-admin--embedded { min-height: 0; background: transparent !important; }
 .off-admin--embedded .off-admin-shell { width: 100%; margin: 0; padding: 0 0 28px; }
-.off-admin--embedded .off-admin-explainer { margin-top: 3px; }
 :global(html.theme-dark) .off-admin--embedded { background: transparent !important; }
 .off-admin {
   --oq-ink: #20242b;
@@ -257,7 +256,6 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
 .off-admin-back { color: var(--oq-accent); font-size: 13px; font-weight: 800; text-decoration:none; }
 .off-admin-back:hover { text-decoration:underline; }
 .off-admin-context { color:var(--oq-muted); font-size:10px; font-weight:850; letter-spacing:.13em; }
-.off-admin-explainer { color: var(--oq-muted); font-size: 13px; line-height: 1.6; margin: 0 0 24px; }
 .off-admin-grid { display:grid; grid-template-columns:minmax(295px,.83fr) minmax(0,1.17fr); gap: 24px; align-items:start; }
 .off-admin-card {
   position: relative; isolation: isolate; overflow: hidden; min-width:0;
@@ -402,8 +400,8 @@ html.theme-dark .app-site.off-admin .off-admin-auth {
 }
 html.theme-dark .app-site .off-admin :is(.off-admin-item strong,.off-admin-card h2,.off-admin-card h3,.off-admin-data dd),
 html.theme-dark .app-site.off-admin :is(.off-admin-item strong,.off-admin-card h2,.off-admin-card h3,.off-admin-data dd) {color:#fff !important;}
-html.theme-dark .app-site .off-admin :is(.off-admin-muted,.off-admin-type,.off-admin-route,.off-admin-data dt,.off-admin-event small,.off-admin-explainer),
-html.theme-dark .app-site.off-admin :is(.off-admin-muted,.off-admin-type,.off-admin-route,.off-admin-data dt,.off-admin-event small,.off-admin-explainer) { color:#c4c5cf !important; }
+html.theme-dark .app-site .off-admin :is(.off-admin-muted,.off-admin-type,.off-admin-route,.off-admin-data dt,.off-admin-event small),
+html.theme-dark .app-site.off-admin :is(.off-admin-muted,.off-admin-type,.off-admin-route,.off-admin-data dt,.off-admin-event small) { color:#c4c5cf !important; }
 html.theme-dark .app-site .off-admin .off-admin-primary,
 html.theme-dark .app-site.off-admin .off-admin-primary {background:#b20c2a !important;color:#fff !important;border-color:#b20c2a !important;}
 html.theme-dark .app-site .off-admin .off-admin-approval,
