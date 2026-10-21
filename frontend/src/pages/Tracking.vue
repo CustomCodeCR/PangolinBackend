@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { driver, type Driver } from 'driver.js'
 import 'driver.js/dist/driver.css'
@@ -13,6 +13,10 @@ const en = computed(() => locale.value.toLowerCase().startsWith('en'))
 const kind = ref('BL')
 const reference = ref('')
 const searched = ref(false)
+const referenceMenuOpen = ref(false)
+const referenceTrigger = ref<HTMLButtonElement | null>(null)
+const referenceMenu = ref<HTMLElement | null>(null)
+const referenceMenuStyle = ref<Record<string, string>>({})
 let tour: Driver | null = null
 const types = computed(() => en.value ? [
   { id: 'BL', name: 'BL number', help: 'Master Bill of Lading for the shipment.' },
@@ -28,6 +32,79 @@ const types = computed(() => en.value ? [
   { id: 'PO', name: 'Orden de compra (PO)', help: 'Orden de compra vinculada al embarque, si aplica.' }
 ])
 const help = computed(() => types.value.find(item => item.id === kind.value)?.help ?? '')
+const selectedReferenceName = computed(() => types.value.find(item => item.id === kind.value)?.name ?? '')
+
+// iOS can detach its native select menu from the field while scrolling.
+// On phones position a listbox beside the field, flipping upward when needed.
+function positionReferenceMenu() {
+  const rect = referenceTrigger.value?.getBoundingClientRect()
+  if (!rect) return
+  const viewport = window.visualViewport
+  const topEdge = viewport?.offsetTop ?? 0
+  const bottomEdge = topEdge + (viewport?.height ?? window.innerHeight)
+  const below = Math.max(0, bottomEdge - rect.bottom - 8)
+  const above = Math.max(0, rect.top - topEdge - 8)
+  const openAbove = below < 240 && above > below
+  const available = openAbove ? above : below
+  const height = Math.min(240, Math.max(65, available - 6))
+  const screenWidth = window.innerWidth
+  const width = Math.min(rect.width, screenWidth - 16)
+  const left = Math.max(8, Math.min(rect.left, screenWidth - width - 8))
+  const top = openAbove ? rect.top - height - 6 : rect.bottom + 6
+  referenceMenuStyle.value = {
+    left: left + 'px',
+    top: Math.max(topEdge + 4, top) + 'px',
+    width: width + 'px',
+    maxHeight: height + 'px'
+  }
+}
+function closeReferenceMenu() {
+  referenceMenuOpen.value = false
+}
+function openReferenceMenu(keyboard = false) {
+  referenceMenuOpen.value = true
+  positionReferenceMenu()
+  if (keyboard) {
+    void nextTick(() => {
+      referenceMenu.value?.querySelector<HTMLButtonElement>('[aria-selected="true"]')?.focus({ preventScroll: true })
+    })
+  }
+}
+function toggleReferenceMenu() {
+  if (referenceMenuOpen.value) closeReferenceMenu()
+  else openReferenceMenu()
+}
+function selectReferenceType(id: string, event: MouseEvent) {
+  kind.value = id
+  closeReferenceMenu()
+  if (event.detail === 0) referenceTrigger.value?.focus({ preventScroll: true })
+}
+function handleReferenceMenuKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeReferenceMenu()
+    referenceTrigger.value?.focus({ preventScroll: true })
+  } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+    event.preventDefault()
+    const options = Array.from(referenceMenu.value?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? [])
+    if (!options.length) return
+    const current = options.indexOf(document.activeElement as HTMLButtonElement)
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1 :
+      event.key === 'ArrowDown' ? (current + 1) % options.length : (current + options.length - 1) % options.length
+    options[next]?.focus({ preventScroll: true })
+  }
+}
+function handleReferencePointerDown(event: PointerEvent) {
+  if (!referenceMenuOpen.value || !(event.target instanceof Node)) return
+  if (!referenceTrigger.value?.contains(event.target) && !referenceMenu.value?.contains(event.target)) {
+    closeReferenceMenu()
+  }
+}
+function handleReferenceViewportChange() {
+  if (!referenceMenuOpen.value) return
+  if (window.innerWidth > 580) closeReferenceMenu()
+  else positionReferenceMenu()
+}
 const copy = computed(() => en.value ? {
   eyebrow: 'CASTRO FALLAS · INTERNATIONAL CARGO', title: 'Track your', accent: 'shipment.',
   intro: 'Enter a shipment reference. Online movements are not connected yet; our team can assist you with that reference.',
@@ -98,10 +175,20 @@ function handleGuideKeydown(event: KeyboardEvent) {
 // The guide is opt-in: auto-opening its overlay can intercept mobile select taps.
 onMounted(() => {
   window.addEventListener('keydown', handleGuideKeydown, true)
+  document.addEventListener('pointerdown', handleReferencePointerDown, true)
+  window.addEventListener('resize', handleReferenceViewportChange)
+  window.addEventListener('scroll', handleReferenceViewportChange, true)
+  window.visualViewport?.addEventListener('resize', handleReferenceViewportChange)
+  window.visualViewport?.addEventListener('scroll', handleReferenceViewportChange)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleGuideKeydown, true)
+  document.removeEventListener('pointerdown', handleReferencePointerDown, true)
+  window.removeEventListener('resize', handleReferenceViewportChange)
+  window.removeEventListener('scroll', handleReferenceViewportChange, true)
+  window.visualViewport?.removeEventListener('resize', handleReferenceViewportChange)
+  window.visualViewport?.removeEventListener('scroll', handleReferenceViewportChange)
   tour?.destroy()
 })
 </script>
