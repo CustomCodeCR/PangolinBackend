@@ -68,7 +68,7 @@ Con Docker corriendo, el script `python scripts/smoke-local.py` comprueba un flu
 - Cotizador: integración del guardado a PostgreSQL, sujeta a que Docker/backend/DB estén funcionando.
 - Contacto rápido: abre un `mailto:`, no almacena en PostgreSQL.
 - Itinerarios: el backend ofrece consulta para clientes y CRUD administrativo con JWT. La pantalla personalizada del frontend todavía muestra sus datos locales; la conexión de esa interfaz con el CRUD queda pendiente.
-- Tracking y noticias: interfaz visual, no conexión a un sistema de seguimiento o feed de noticias real.
+- Tracking: consulta registros PostgreSQL expresamente autorizados para visualización pública; el globo sigue siendo ilustrativo y no hay GPS en vivo. La muestra ficticia solo se carga en Development. Noticias: contenido gestionado por CMS.
 - Esta entrega **no** incluye credenciales privadas, secretos, bases de datos locales ni archivos generados de `node_modules`.
 
 Más detalles técnicos en `INTEGRACION.md`. La interfaz requiere verificar licencia de la librería `3d-world-map` antes de publicarla comercialmente.

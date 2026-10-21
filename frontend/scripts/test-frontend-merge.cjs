@@ -80,6 +80,9 @@ assert.match(backendProgram, /code = "account_unavailable"/, 'API debe distingui
 assert.match(backendProgram, /StatusCodes\.Status404NotFound/, 'Devolver 404 antes del formulario OTP')
 
 const tracking = source('src/pages/Tracking.vue')
-assert.match(tracking, /Online tracking is not available yet/, 'No simular seguimiento real')
+assert.match(tracking, /fetch\('\/api\/tracking\/search\?'/, 'Tracking debe consultar la API real')
+assert.match(tracking, /SIMULATED TEST RECORD \(NOT REAL CARGO\)/, 'El resultado demo debe estar marcado como simulado')
+assert.match(tracking, /No es GPS en tiempo real/, 'No presentar el registro como GPS en vivo')
+assert.doesNotMatch(tracking, /searched = true/, 'No usar pantalla simulada en lugar de consulta')
 assert.doesNotMatch(main, /connectWebSocket\(\)/, 'No activar broker local 8081')
 console.log('OK: SignalR, CMS, MinIO, news, itinerary and tracking contracts.')

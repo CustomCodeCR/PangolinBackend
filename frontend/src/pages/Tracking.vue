@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { driver, type Driver } from 'driver.js'
 import 'driver.js/dist/driver.css'
@@ -12,9 +12,63 @@ const { locale } = useI18n({ useScope: 'global' })
 const en = computed(() => locale.value.toLowerCase().startsWith('en'))
 const kind = ref('BL')
 const reference = ref('')
-const searched = ref(false)
+type TrackingEvent = { at: string; status: string; location: string; description: string }
+type TrackingResult = {
+  kind: string; reference: string; status: string; origin: string; destination: string
+  eta: string | null; updatedAt: string; isDemo: boolean; events: TrackingEvent[]
+}
+type SearchError = 'required' | 'invalid' | 'notFound' | 'limited' | 'unavailable'
+const shipment = ref<TrackingResult | null>(null)
+const error = ref<SearchError | null>(null)
+const searching = ref(false)
+let activeController: AbortController | null = null
 let tour: Driver | null = null
-let guideStartTimer: ReturnType<typeof setTimeout> | undefined
+
+function resetSearch() {
+  activeController?.abort()
+  activeController = null
+  searching.value = false
+  shipment.value = null
+  error.value = null
+}
+
+async function searchShipment() {
+  resetSearch()
+  const value = reference.value.trim().toUpperCase()
+  if (!value) { error.value = 'required'; return }
+  if (!/^[A-Z0-9_\/-]{5,100}$/.test(value)) { error.value = 'invalid'; return }
+  const controller = new AbortController()
+  activeController = controller
+  searching.value = true
+  try {
+    const query = new URLSearchParams({ kind: kind.value, reference: value })
+    const response = await fetch('/api/tracking/search?' + query.toString(), {
+      credentials: 'same-origin', cache: 'no-store', signal: controller.signal
+    })
+    if (response.ok) {
+      shipment.value = await response.json() as TrackingResult
+    } else {
+      error.value = response.status === 404 ? 'notFound'
+        : response.status === 429 ? 'limited'
+        : response.status === 400 ? 'invalid' : 'unavailable'
+    }
+  } catch {
+    if (!controller.signal.aborted) error.value = 'unavailable'
+  } finally {
+    if (activeController === controller) {
+      activeController = null
+      searching.value = false
+    }
+  }
+}
+function statusLabel(status: string) {
+  return copy.value.statusNames[status as keyof typeof copy.value.statusNames] ?? status
+}
+function formatDate(value: string, dateOnly = false) {
+  const parsed = new Date(dateOnly ? value + 'T12:00:00' : value)
+  return Number.isNaN(parsed.valueOf()) ? value :
+    new Intl.DateTimeFormat(en.value ? 'en-US' : 'es-CR', { dateStyle: 'medium' }).format(parsed)
+}
 const types = computed(() => en.value ? [
   { id: 'BL', name: 'BL number', help: 'Master Bill of Lading for the shipment.' },
   { id: 'HBL', name: 'HBL number', help: 'House Bill of Lading for your cargo.' },
@@ -31,12 +85,19 @@ const types = computed(() => en.value ? [
 const help = computed(() => types.value.find(item => item.id === kind.value)?.help ?? '')
 const copy = computed(() => en.value ? {
   eyebrow: 'CASTRO FALLAS · INTERNATIONAL CARGO', title: 'Track your', accent: 'shipment.',
-  intro: 'Enter a shipment reference. Online movements are not connected yet; our team can assist you with that reference.',
+  intro: 'Check shipment updates available in our records. This is not live GPS tracking; contact our team to confirm operational details.',
   heading: 'Find your shipment', hint: 'Choose the reference type shown on your shipping documents.',
   guide: 'Step-by-step guide', type: 'Reference type', number: 'Shipment reference',
   placeholder: 'Enter reference', search: 'Search shipment', required: 'Enter a reference to continue.',
-  unavailable: 'Online tracking is not available yet',
-  explanation: 'We cannot retrieve live movements yet. Contact Castro Fallas and include your reference so the team can assist.',
+  unavailable: 'Tracking service is temporarily unavailable.',
+  invalid: 'Enter 5 to 100 letters, digits, hyphens, underscores or slashes.',
+  notFound: 'No shipment was found for public lookup with this reference.',
+  limited: 'Too many searches. Please try again later.',
+  loading: 'Searching...', demo: 'SIMULATED TEST RECORD (NOT REAL CARGO)',
+  updated: 'Last updated', origin: 'Origin', destination: 'Destination', eta: 'Estimated arrival',
+  history: 'Shipment history', noEvents: 'No public movements recorded yet.',
+  statusNames: { registered: 'Registered', at_origin: 'At origin', in_transit: 'In transit', customs: 'Customs', delivered: 'Delivered', on_hold: 'On hold' },
+  explanation: 'The system only displays records authorized for public lookup. Contact our team to verify your shipment.',
   contact: 'Contact Castro Fallas', process: 'How shipment coordination works',
   processIntro: 'Our team works with carriers, customs agents and the other parties involved.',
   steps: [
@@ -49,12 +110,19 @@ const copy = computed(() => en.value ? {
   back: 'Back to home', next: 'Next', previous: 'Back', done: 'Finish'
 } : {
   eyebrow: 'CASTRO FALLAS · CARGA INTERNACIONAL', title: 'Rastrea tu', accent: 'embarque.',
-  intro: 'Ingresa una referencia del embarque. Todavía no hay movimientos en línea; nuestro equipo puede ayudarte con esa referencia.',
+  intro: 'Consultá los movimientos disponibles en nuestros registros. No es GPS en tiempo real; confirmá los detalles operativos con nuestro equipo.',
   heading: 'Busca tu embarque', hint: 'Selecciona el tipo de referencia que aparece en los documentos.',
   guide: 'Guía paso a paso', type: 'Tipo de referencia', number: 'Referencia del embarque',
   placeholder: 'Ingresa la referencia', search: 'Buscar embarque', required: 'Ingresa una referencia para continuar.',
-  unavailable: 'El seguimiento en línea aún no está disponible',
-  explanation: 'Por ahora no podemos consultar movimientos en tiempo real. Contacta a Castro Fallas e incluye la referencia para recibir asistencia.',
+  unavailable: 'El servicio de seguimiento no está disponible temporalmente.',
+  invalid: 'Ingresá entre 5 y 100 letras, números, guiones, guiones bajos o barras.',
+  notFound: 'No encontramos un embarque disponible para consulta pública con esa referencia.',
+  limited: 'Demasiadas búsquedas. Intentá nuevamente más tarde.',
+  loading: 'Buscando...', demo: 'REGISTRO DE PRUEBA SIMULADO (NO ES CARGA REAL)',
+  updated: 'Última actualización', origin: 'Origen', destination: 'Destino', eta: 'Llegada estimada',
+  history: 'Historial del embarque', noEvents: 'Todavía no hay movimientos públicos registrados.',
+  statusNames: { registered: 'Registrado', at_origin: 'En origen', in_transit: 'En tránsito', customs: 'En aduana', delivered: 'Entregado', on_hold: 'En espera' },
+  explanation: 'El sistema solo muestra registros autorizados para consulta pública. Contactá a nuestro equipo para confirmar tu embarque.',
   contact: 'Contactar a Castro Fallas', process: 'Así coordinamos cada embarque',
   processIntro: 'Nuestro equipo coordina con transportistas, agentes aduanales y las demás partes involucradas.',
   steps: [
@@ -72,7 +140,6 @@ const mailto = computed(() => {
   return 'mailto:comercial@castrofallas.com?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body)
 })
 function openGuide() {
-  clearTimeout(guideStartTimer)
   tour?.destroy()
   const targets = ['.tracking-intro .world-globe', '#tracking-guide-type', '#tracking-guide-reference', '#tracking-guide-submit', '.tracking-process__steps']
   tour = driver({
@@ -97,15 +164,13 @@ function handleGuideKeydown(event: KeyboardEvent) {
   if (!event.repeat) tour.moveNext()
 }
 
-onMounted(async () => {
+onMounted(() => {
   window.addEventListener('keydown', handleGuideKeydown, true)
-  await nextTick()
-  guideStartTimer = setTimeout(openGuide, 650)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleGuideKeydown, true)
-  clearTimeout(guideStartTimer)
+  activeController?.abort()
   tour?.destroy()
 })
 </script>
@@ -125,7 +190,7 @@ onBeforeUnmount(() => {
           <WorldGlobe />
         </section>
         <section class="tracking-search-section">
-          <form class="tracking-search" @submit.prevent="searched = true" novalidate>
+          <form class="tracking-search" @submit.prevent="searchShipment" novalidate>
             <div class="tracking-top">
               <span class="tracking-search__icon" aria-hidden="true"><IconSymbol glyph="⌕" :size="22" /></span>
               <div>
@@ -137,22 +202,53 @@ onBeforeUnmount(() => {
             <p class="tracking-hint">{{ copy.hint }}</p>
             <div class="tracking-fields">
               <label id="tracking-guide-type">{{ copy.type }}
-                <select v-model="kind">
+                <select v-model="kind" @change="resetSearch">
                   <option v-for="item in types" :key="item.id" :value="item.id">{{ item.name }}</option>
                 </select>
               </label>
               <label id="tracking-guide-reference">{{ copy.number }}
-                <input v-model="reference" maxlength="150" autocomplete="off" :placeholder="copy.placeholder" required />
+                <input v-model="reference" @input="resetSearch" maxlength="100" autocomplete="off" :placeholder="copy.placeholder" required />
               </label>
             </div>
             <p class="tracking-hint">{{ help }}</p>
-            <p v-if="searched && !reference.trim()" class="tracking-error" role="alert">{{ copy.required }}</p>
-            <button id="tracking-guide-submit" type="submit" class="btn btn-primary tracking-submit">{{ copy.search }} <IconSymbol glyph="→" /></button>
-            <div v-if="searched && reference.trim()" class="tracking-unavailable" role="status">
-              <strong>{{ copy.unavailable }}</strong>
+            <p v-if="error" class="tracking-error" role="alert">{{
+              error === 'required' ? copy.required
+                : error === 'invalid' ? copy.invalid
+                : error === 'notFound' ? copy.notFound
+                : error === 'limited' ? copy.limited : copy.unavailable
+            }}</p>
+            <button id="tracking-guide-submit" type="submit" class="btn btn-primary tracking-submit" :disabled="searching">
+              {{ searching ? copy.loading : copy.search }} <IconSymbol glyph="→" />
+            </button>
+            <div v-if="error === 'notFound' || error === 'unavailable'" class="tracking-unavailable">
               <p>{{ copy.explanation }}</p>
               <a :href="mailto">{{ copy.contact }} <IconSymbol glyph="↗" /></a>
             </div>
+            <section v-if="shipment" class="tracking-result" role="status" aria-live="polite">
+              <p v-if="shipment.isDemo" class="tracking-demo">{{ copy.demo }}</p>
+              <div class="tracking-result__heading">
+                <div>
+                  <p class="section-tag">{{ shipment.kind }} · {{ shipment.reference }}</p>
+                  <h3>{{ statusLabel(shipment.status) }}</h3>
+                </div>
+                <p>{{ copy.updated }}: {{ formatDate(shipment.updatedAt) }}</p>
+              </div>
+              <dl class="tracking-result__details">
+                <div><dt>{{ copy.origin }}</dt><dd>{{ shipment.origin }}</dd></div>
+                <div><dt>{{ copy.destination }}</dt><dd>{{ shipment.destination }}</dd></div>
+                <div v-if="shipment.eta"><dt>{{ copy.eta }}</dt><dd>{{ formatDate(shipment.eta, true) }}</dd></div>
+              </dl>
+              <h4>{{ copy.history }}</h4>
+              <ol v-if="shipment.events.length" class="tracking-result__events">
+                <li v-for="(event, index) in shipment.events" :key="index">
+                  <strong>{{ statusLabel(event.status) }}</strong>
+                  <span>{{ formatDate(event.at) }} · {{ event.location }}</span>
+                  <p>{{ event.description }}</p>
+                </li>
+              </ol>
+              <p v-else>{{ copy.noEvents }}</p>
+              <p class="tracking-disclaimer">{{ copy.explanation }}</p>
+            </section>
           </form>
         </section>
         <section class="tracking-process">
@@ -206,6 +302,20 @@ onBeforeUnmount(() => {
 .tracking-process__steps p { color: var(--track-muted); margin: 0; line-height: 1.6; font-size: 14px; }
 @media(max-width:850px){.tracking-intro{grid-template-columns:1fr}.tracking-intro :deep(.world-globe){min-height:320px}.tracking-process__steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:580px){.tracking-page{padding:26px 0 70px}.tracking-fields{grid-template-columns:1fr}.tracking-process__steps{grid-template-columns:1fr}.tracking-copy h1{font-size:clamp(38px,11vw,58px)}.tracking-top{align-items:flex-start}.tracking-guide{width:100%}}
+ .tracking-submit:disabled { opacity: .65; cursor: progress; }
+.tracking-result { margin-top: 24px; padding: clamp(18px, 3vw, 30px); background: var(--track-surface); border: 1px solid #b5092840; border-radius: 18px; overflow-wrap: anywhere; }
+.tracking-demo { padding: 10px 12px; color: #81200d; background: #fff0c9; border-radius: 8px; font-weight: 800; }
+.tracking-result__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.tracking-result__heading h3 { margin: 6px 0; font-size: clamp(22px, 3vw, 32px); }
+.tracking-result__heading > p, .tracking-disclaimer { color: var(--track-muted); }
+.tracking-result__details { display: flex; gap: 18px; flex-wrap: wrap; margin: 24px 0; }
+.tracking-result__details > div { min-width: 160px; flex: 1; }
+.tracking-result dt { color: var(--track-muted); font-size: 13px; }
+.tracking-result dd { margin: 6px 0 0; font-weight: 750; }
+.tracking-result__events { padding-left: 20px; }
+.tracking-result__events li { margin: 0 0 16px; }
+.tracking-result__events span { display: block; color: var(--track-muted); font-size: 14px; margin-top: 3px; }
+.tracking-result__events p { margin: 4px 0 0; }
 </style>
 
 <style scoped>
