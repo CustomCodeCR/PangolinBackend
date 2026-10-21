@@ -308,7 +308,7 @@ drawer_fix = mobile_drawer_css.split('/* Mobile side drawer: account/settings co
 drawer_fix = drawer_fix.split('/* Móvil: mismo rojo sólido', 1)[0]
 mobile_header = read('frontend/src/components/SiteHeader.vue')
 smoke_chrome = read('scripts/smoke-browser-live.py')
-check('grid-template-columns: repeat(2, 40px) !important;' in drawer_fix
+check('grid-template-columns: repeat(2, minmax(0, 1fr)) !important;' in drawer_fix
       and 'grid-column: 1 / -1;' in drawer_fix
       and 'grid-row: 2;' in drawer_fix
       and 'width: calc(100% - 16px) !important;' in drawer_fix
