@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { driver, type Driver } from 'driver.js'
 import 'driver.js/dist/driver.css'
@@ -14,7 +14,6 @@ const kind = ref('BL')
 const reference = ref('')
 const searched = ref(false)
 let tour: Driver | null = null
-let guideStartTimer: ReturnType<typeof setTimeout> | undefined
 const types = computed(() => en.value ? [
   { id: 'BL', name: 'BL number', help: 'Master Bill of Lading for the shipment.' },
   { id: 'HBL', name: 'HBL number', help: 'House Bill of Lading for your cargo.' },
@@ -72,7 +71,6 @@ const mailto = computed(() => {
   return 'mailto:comercial@castrofallas.com?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body)
 })
 function openGuide() {
-  clearTimeout(guideStartTimer)
   tour?.destroy()
   const targets = ['.tracking-intro .world-globe', '#tracking-guide-type', '#tracking-guide-reference', '#tracking-guide-submit', '.tracking-process__steps']
   tour = driver({
@@ -97,15 +95,13 @@ function handleGuideKeydown(event: KeyboardEvent) {
   if (!event.repeat) tour.moveNext()
 }
 
-onMounted(async () => {
+// The guide is opt-in: auto-opening its overlay can intercept mobile select taps.
+onMounted(() => {
   window.addEventListener('keydown', handleGuideKeydown, true)
-  await nextTick()
-  guideStartTimer = setTimeout(openGuide, 650)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleGuideKeydown, true)
-  clearTimeout(guideStartTimer)
   tour?.destroy()
 })
 </script>
@@ -136,14 +132,16 @@ onBeforeUnmount(() => {
             </div>
             <p class="tracking-hint">{{ copy.hint }}</p>
             <div class="tracking-fields">
-              <label id="tracking-guide-type">{{ copy.type }}
-                <select v-model="kind">
+              <div id="tracking-guide-type" class="tracking-field">
+                <label for="tracking-reference-kind">{{ copy.type }}</label>
+                <select id="tracking-reference-kind" v-model="kind">
                   <option v-for="item in types" :key="item.id" :value="item.id">{{ item.name }}</option>
                 </select>
-              </label>
-              <label id="tracking-guide-reference">{{ copy.number }}
-                <input v-model="reference" maxlength="150" autocomplete="off" :placeholder="copy.placeholder" required />
-              </label>
+              </div>
+              <div id="tracking-guide-reference" class="tracking-field">
+                <label for="tracking-reference-input">{{ copy.number }}</label>
+                <input id="tracking-reference-input" v-model="reference" maxlength="150" autocomplete="off" :placeholder="copy.placeholder" required />
+              </div>
             </div>
             <p class="tracking-hint">{{ help }}</p>
             <p v-if="searched && !reference.trim()" class="tracking-error" role="alert">{{ copy.required }}</p>
@@ -190,8 +188,9 @@ onBeforeUnmount(() => {
 .tracking-guide:focus-visible { outline: 2px solid #a80e18; outline-offset: 3px; }
 .tracking-hint { color: var(--track-muted); line-height: 1.6; }
 .tracking-fields { display: grid; grid-template-columns: .8fr 1.2fr; gap: 17px; margin-top: 20px; }
-.tracking-fields label { display: grid; gap: 9px; font-weight: 700; font-size: 14px; }
-.tracking-fields input,.tracking-fields select { box-sizing: border-box; width: 100%; min-height: 52px; padding: 12px; border: 1px solid #96969b7d; border-radius: 12px; color: var(--track-ink); background: var(--track-surface); font: inherit; }
+.tracking-fields .tracking-field { display:grid; gap:9px; min-width:0; }
+.tracking-fields label { display:block; min-width:0; font-weight:700; font-size:14px; overflow-wrap:break-word; }
+.tracking-fields input,.tracking-fields select { box-sizing: border-box; width: 100%; min-width:0; max-width:100%; min-height: 52px; padding: 12px; border: 1px solid #96969b7d; border-radius: 12px; color: var(--track-ink); background: var(--track-surface); font: inherit; }
 .tracking-error { color: #a80e18; font-weight: 700; }
 .tracking-submit { width: 100%; display: flex; justify-content: space-between; margin-top: 22px; }
 .tracking-unavailable { margin-top: 20px; padding: 20px; border-radius: 15px; border: 1px solid #a80e1866; }
@@ -263,7 +262,16 @@ onBeforeUnmount(() => {
   .tracking-search{padding:22px 18px;border-radius:22px}
   .tracking-top{flex-wrap:wrap}
   .tracking-guide-button{width:100%;margin:14px 0 0}
-  .tracking-fields{grid-template-columns:1fr;gap:0}
+  .tracking-fields{grid-template-columns:minmax(0,1fr);gap:20px;margin-top:22px}
+  .tracking-field{min-width:0}
+  .tracking-fields label{font-size:14px;line-height:1.4}
+  .tracking-fields :is(input,select){min-height:54px;padding:13px 15px;font-size:16px;line-height:1.35}
+  .tracking-search .tracking-hint{overflow-wrap:break-word;line-height:1.55}
+  .tracking-search .tracking-fields + .tracking-hint{margin:22px 0 0}
+  .tracking-top > div{min-width:0}
+  .tracking-top h2{overflow-wrap:break-word;font-size:clamp(24px,6.5vw,32px)}
+  .tracking-guide-button{min-height:48px}
+  .tracking-submit{min-height:54px;margin-top:24px}
   .tracking-process{padding:24px 20px;border-radius:23px}
   .tracking-process__steps{grid-template-columns:1fr;gap:20px;margin-top:28px}
   .tracking-process__steps li{display:grid;grid-template-columns:40px 1fr;gap:12px;padding-top:17px}
