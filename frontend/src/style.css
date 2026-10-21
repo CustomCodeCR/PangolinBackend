@@ -4281,7 +4281,7 @@ html.theme-dark .app-site.news-page .news-editorial-hero__bottomline-rule {
   html .site-header.site-header--menu-open .main-nav.main-nav--open .header-account-tools:has(.header-settings--open),
   html .site-header.site-header--menu-open .main-nav.main-nav--open .header-account-tools:has(.header-profile--open) {
     display: grid !important;
-    grid-template-columns: repeat(2, 40px) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     grid-template-rows: 40px auto;
     align-items: center;
     justify-content: center;
@@ -4297,11 +4297,12 @@ html.theme-dark .app-site.news-page .news-editorial-hero__bottomline-rule {
   }
   /* For logged-out visitors, the sign-in link takes the first icon slot. */
   html .site-header.site-header--menu-open .main-nav.main-nav--open .header-account-tools:has(> .nav-login) {
-    grid-template-columns: minmax(0, max-content) 40px !important;
+    grid-template-columns: minmax(0, 1fr) 40px !important;
   }
   html .site-header.site-header--menu-open .header-account-tools > .nav-login {
     grid-column: 1;
     grid-row: 1;
+    justify-self: end;
     max-width: 100%;
     padding: 10px 12px;
     white-space: normal;
@@ -4310,12 +4311,12 @@ html.theme-dark .app-site.news-page .news-editorial-hero__bottomline-rule {
   html .site-header.site-header--menu-open .header-account-tools > .header-profile {
     grid-column: 1;
     grid-row: 1;
-    justify-self: center;
+    justify-self: end;
   }
   html .site-header.site-header--menu-open .header-account-tools > .header-settings {
     grid-column: 2;
     grid-row: 1;
-    justify-self: center;
+    justify-self: start;
   }
   /* display:contents puts the popover directly into the parent grid. */
   html .site-header.site-header--menu-open .header-account-tools > .header-profile--open,
@@ -4325,10 +4326,12 @@ html.theme-dark .app-site.news-page .news-editorial-hero__bottomline-rule {
   html .site-header.site-header--menu-open .header-account-tools .header-profile--open .header-profile__trigger {
     grid-column: 1;
     grid-row: 1;
+    justify-self: end;
   }
   html .site-header.site-header--menu-open .header-account-tools .header-settings--open .header-settings__trigger {
     grid-column: 2;
     grid-row: 1;
+    justify-self: start;
   }
   html .site-header.site-header--menu-open .header-account-tools .header-profile__panel,
   html .site-header.site-header--menu-open .header-account-tools .header-settings__panel {
