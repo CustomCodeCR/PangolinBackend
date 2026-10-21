@@ -18,6 +18,7 @@ const itineraries = ref<ManagedItinerary[]>([])
 const news = ref<ManagedNews[]>([])
 const media = ref<ManagedMedia[]>([])
 const comments = ref<ManagedComment[]>(readManagedComments())
+const quotesTotal = ref(0)
 const editingId = ref<string | null>(null)
 const notice = ref('')
 const users = ref<ManagedUser[]>([])
@@ -41,6 +42,21 @@ function emptyItinerary(): ManagedItinerary { return { id: '', origin: '', desti
 function emptyComment(): ManagedComment { return { id: '', author: '', section: '', message: '', published: false } }
 function emptyMedia(): ManagedMedia { return { id: '', name: '', kind: 'Imagen', src: '' } }
 function reload() { itineraries.value = readManagedItineraries(); news.value = readManagedNews(); media.value = readManagedMedia(); comments.value = readManagedComments() }
+
+// The official quote count comes from the protected admin API, not from a local placeholder.
+async function loadQuotesTotal() {
+  if (!officialQuotesEnabled || !isLiveAdmin.value) return
+  try {
+    const response = await fetch('/api/admin/quotes/official?page=1', { credentials: 'same-origin', cache: 'no-store' })
+    if (!response.ok) return
+    const data = await response.json() as { total?: unknown }
+    if (typeof data.total === 'number' && Number.isSafeInteger(data.total) && data.total >= 0) {
+      quotesTotal.value = data.total
+    }
+  } catch {
+    // The quotations view handles API errors; don't interrupt the other admin tabs.
+  }
+}
 
 async function loadNews() {
   if (!isLiveAdmin.value) { news.value = readManagedNews(); return }
@@ -88,7 +104,7 @@ onUnmounted(() => adminUnsubscribers.forEach(stop => stop()))
 onMounted(async () => {
   await refreshSession()
   if (!isLiveAdmin.value) reload()
-  else await Promise.all([loadItineraries(), loadNews(), loadMedia(), checkStorageMode()])
+  else await Promise.all([loadItineraries(), loadNews(), loadMedia(), checkStorageMode(), loadQuotesTotal()])
   if (section.value === 'users') await loadUsers()
 })
 
@@ -466,7 +482,7 @@ function useMediaForNews(item: ManagedMedia) {
         <button :class="{ active: section === 'news' }" @click="selectSection('news')"><IconSymbol glyph="newspaper" :size="19" /> <span class="manager-tab-label">Noticias</span> <span>{{ news.length }}</span></button>
         <button :class="{ active: section === 'media' }" @click="selectSection('media')"><IconSymbol glyph="image" :size="19" /> <span class="manager-tab-label">Multimedia</span> <span>{{ media.length }}</span></button>
         <button :class="{ active: section === 'comments' }" @click="selectSection('comments')"><IconSymbol glyph="message-circle" :size="19" /> <span class="manager-tab-label">Comentarios</span> <span>{{ comments.length }}</span></button>
-        <button v-if="officialQuotesEnabled" :class="{ active: section === 'quotes' }" @click="selectSection('quotes')"><IconSymbol glyph="▰" :size="19" /> <span class="manager-tab-label">Cotizaciones</span></button>
+        <button v-if="officialQuotesEnabled" :class="{ active: section === 'quotes' }" @click="selectSection('quotes')"><IconSymbol glyph="▰" :size="19" /> <span class="manager-tab-label">Cotizaciones</span> <span>{{ quotesTotal }}</span></button>
         <button class="manager-editor-visual-tab" :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> <span class="manager-tab-label">Editor visual</span> <span>0</span></button>
       </nav>
       <section v-if="section === 'users'" class="manager-users-card" aria-label="Cuentas registradas">
@@ -479,7 +495,7 @@ function useMediaForNews(item: ManagedMedia) {
         <div v-else-if="users.length" class="manager-users-table-wrap"><table class="manager-users-table"><thead><tr><th>Cuenta</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody><tr v-for="user in users" :key="user.id"><td><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td><td><select v-model="user.role" :disabled="Boolean(authState.previewRole)" :aria-label="`Rol de ${user.correo}`"><option value="cliente">Cliente</option><option value="administrador">Administrador</option></select></td><td><select v-model="user.activo" :disabled="Boolean(authState.previewRole)" :aria-label="`Estado de ${user.correo}`"><option :value="true">Activo</option><option :value="false">Desactivado</option></select></td><td><button class="manager-user-save" :disabled="Boolean(authState.previewRole) || savingUserId === user.id" @click="updateUser(user)">{{ savingUserId === user.id ? 'Guardando…' : 'Guardar' }}</button></td></tr></tbody></table></div>
       </section>
       <SiteVisualEditor v-if="section === 'site'" />
-      <OfficialQuoteAdmin v-else-if="section === 'quotes'" embedded />
+      <OfficialQuoteAdmin v-else-if="section === 'quotes'" embedded @total-change="quotesTotal = $event" />
       <div v-else class="manager-layout">
         <template v-if="section !== 'users'">
         <section class="manager-form">
