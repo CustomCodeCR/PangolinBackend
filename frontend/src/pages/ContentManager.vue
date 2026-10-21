@@ -52,6 +52,16 @@ async function loadNews() {
     news.value = list
   } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'Error consultando noticias.' }
 }
+async function loadComments() {
+  if (!isLiveAdmin.value) { comments.value = readManagedComments(); return }
+  try {
+    const response = await fetch('/api/admin/content/comments', { credentials: 'same-origin', cache: 'no-store' })
+    if (!response.ok) throw new Error(`No se pudieron cargar los comentarios (HTTP ${response.status}).`)
+    const list: unknown = await response.json()
+    if (!Array.isArray(list)) throw new Error('Listado de comentarios inválido.')
+    comments.value = list as ManagedComment[]
+  } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'Error consultando comentarios.' }
+}
 async function loadMedia() {
   if (!isLiveAdmin.value) { media.value = readManagedMedia(); return }
   try {
@@ -76,19 +86,20 @@ async function checkStorageMode() {
 function refreshAdminResource(resource: string) {
   if (!isLiveAdmin.value) return
   if (resource === 'sync') {
-    void Promise.all([loadNews(), loadMedia(), loadItineraries(), ...(section.value === 'users' ? [loadUsers()] : [])])
+    void Promise.all([loadNews(), loadComments(), loadMedia(), loadItineraries(), ...(section.value === 'users' ? [loadUsers()] : [])])
   } else if (resource === 'news-admin') void loadNews()
+  else if (resource === 'comments-admin') void loadComments()
   else if (resource === 'media') void loadMedia()
   else if (resource === 'itineraries') void loadItineraries()
   else if (resource === 'users' && section.value === 'users') void loadUsers()
 }
-const adminUnsubscribers = ['news-admin', 'media', 'itineraries', 'users', 'sync']
+const adminUnsubscribers = ['news-admin', 'comments-admin', 'media', 'itineraries', 'users', 'sync']
   .map(resource => subscribeToChanges(resource, () => refreshAdminResource(resource)))
 onUnmounted(() => adminUnsubscribers.forEach(stop => stop()))
 onMounted(async () => {
   await refreshSession()
   if (!isLiveAdmin.value) reload()
-  else await Promise.all([loadItineraries(), loadNews(), loadMedia(), checkStorageMode()])
+  else await Promise.all([loadItineraries(), loadNews(), loadComments(), loadMedia(), checkStorageMode()])
   if (section.value === 'users') await loadUsers()
 })
 
@@ -103,6 +114,7 @@ function selectSection(next: Section) {
   if (next === 'users') void loadUsers()
   else if (next === 'itineraries') void loadItineraries()
   else if (next === 'news') void loadNews()
+  else if (next === 'comments') void loadComments()
   else if (next === 'media') void loadMedia()
 }
 
@@ -360,13 +372,29 @@ async function submitMedia() {
     notice.value = 'Multimedia guardada en PostgreSQL.'
   } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo guardar multimedia.' }
 }
-function submitComment() {
-  const item = { ...commentForm.value, author: commentForm.value.author.trim(), message: commentForm.value.message.trim(), section: commentForm.value.section.trim(), id: editingId.value ?? newManagedId() }
+async function submitComment() {
+  const item = { ...commentForm.value, author: commentForm.value.author.trim(), message: commentForm.value.message.trim(), section: commentForm.value.section.trim() }
   if (!item.author || !item.message) { notice.value = 'Completa el autor y el comentario.'; return }
-  saveManaged('comments', item)
-  comments.value = readManagedComments()
-  startNew()
-  notice.value = 'Comentario guardado solo en este navegador; no se publica ni se sincroniza con el servidor.'
+  if (!isLiveAdmin.value) {
+    saveManaged('comments', { ...item, id: editingId.value ?? newManagedId() })
+    comments.value = readManagedComments()
+    startNew()
+    notice.value = 'Comentario de previsualización guardado solo en este navegador.'
+    return
+  }
+  try {
+    const response = await fetch(editingId.value ? `/api/admin/content/comments/${encodeURIComponent(editingId.value)}` : '/api/admin/content/comments', {
+      method: editingId.value ? 'PUT' : 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item)
+    })
+    if (!response.ok) {
+      const detail = await response.json().catch(() => null)
+      throw new Error(detail?.error || `No se pudo guardar el comentario (HTTP ${response.status}).`)
+    }
+    startNew()
+    await loadComments()
+    notice.value = item.published ? 'Comentario publicado en la web.' : 'Comentario guardado como borrador privado.'
+  } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo guardar el comentario.' }
 }
 async function remove(id: string) {
   if (!window.confirm('¿Eliminar este registro? Esta acción no se puede deshacer.')) return
@@ -381,7 +409,7 @@ async function remove(id: string) {
     } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo eliminar el itinerario.' }
     return
   }
-  if (isLiveAdmin.value && (section.value === 'news' || section.value === 'media')) {
+  if (isLiveAdmin.value && (section.value === 'news' || section.value === 'media' || section.value === 'comments')) {
     try {
       const kind = section.value
       const response = await fetch(`/api/admin/content/${kind}/${encodeURIComponent(id)}`, {
@@ -390,6 +418,7 @@ async function remove(id: string) {
       if (!response.ok) throw new Error(`No se pudo eliminar (HTTP ${response.status}).`)
       if (editingId.value === id) startNew()
       if (kind === 'news') await loadNews()
+      else if (kind === 'comments') await loadComments()
       else await loadMedia()
       notice.value = 'Elemento eliminado de PostgreSQL.'
     } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'Error eliminando contenido.' }
@@ -511,7 +540,11 @@ function useMediaForNews(item: ManagedMedia) {
             <label>Autor<input v-model.trim="commentForm.author" required maxlength="100" /></label>
             <label>Sección<input v-model.trim="commentForm.section" maxlength="100" placeholder="Principal, servicios..." /></label>
             <label>Comentario<textarea v-model.trim="commentForm.message" required maxlength="1200" rows="5" /></label>
-            <label class="manager-checkbox"><input v-model="commentForm.published" type="checkbox" /> Aprobar para publicación</label>
+            <label>Estado de publicación<select v-model="commentForm.published">
+              <option :value="false">Borrador (solo administradores)</option>
+              <option :value="true">Publicado (visible en la web)</option>
+            </select></label>
+            <p class="manager-publication-hint" role="status">{{ commentForm.published ? 'El comentario aparecerá en la web al guardar.' : 'El borrador no aparecerá en la web pública.' }}</p>
             <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar comentario' }}</button>
           </form>
           <form v-else @submit.prevent="submitMedia">
@@ -550,7 +583,7 @@ function useMediaForNews(item: ManagedMedia) {
               <strong v-else>{{ (entry as ManagedMedia).name }}</strong>
               <small v-if="section === 'itineraries'">{{ (entry as ManagedItinerary).transport }} · {{ (entry as ManagedItinerary).status }}</small>
               <small v-else-if="section === 'news'">{{ (entry as ManagedNews).category }} · <strong :class="(entry as ManagedNews).published ? 'manager-status-published' : 'manager-status-draft'">{{ (entry as ManagedNews).published ? 'Publicada en la web' : 'Borrador privado' }}</strong></small>
-              <small v-else-if="section === 'comments'">{{ (entry as ManagedComment).section || 'General' }} · {{ (entry as ManagedComment).message }}</small>
+              <small v-else-if="section === 'comments'">{{ (entry as ManagedComment).section || 'General' }} · <strong :class="(entry as ManagedComment).published ? 'manager-status-published' : 'manager-status-draft'">{{ (entry as ManagedComment).published ? 'Publicado en la web' : 'Borrador privado' }}</strong> · {{ (entry as ManagedComment).message }}</small>
               <small v-else>{{ (entry as ManagedMedia).kind }}</small>
             </div>
             <div class="manager-item-actions"><button aria-label="Editar" title="Editar" @click="edit(entry)"><IconSymbol glyph="pencil" :size="17" /></button><button aria-label="Eliminar" title="Eliminar" @click="remove(entry.id)"><IconSymbol glyph="trash" :size="17" /></button><button v-if="section === 'media' && (entry as ManagedMedia).kind === 'Imagen'" aria-label="Usar imagen en noticia" title="Usar en noticia" @click="useMediaForNews(entry as ManagedMedia)"><IconSymbol glyph="↗" :size="17" /></button></div>
