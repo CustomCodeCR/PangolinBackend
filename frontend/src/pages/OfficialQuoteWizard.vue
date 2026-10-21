@@ -405,6 +405,9 @@ async function submit() {
   margin: 0 auto;
   padding: clamp(24px, 3vh, 42px) clamp(32px, 5.5vw, 108px) clamp(40px, 5vh, 72px);
   overflow: visible;
+  /* Anula el gradiente generico de main que dejaba un tono fijo a la derecha. */
+  background: transparent !important;
+  background-image: none !important;
 }
 .official-page--mode-selection .official-progress,
 .official-page--mode-selection .official-panel--mode-selection,
