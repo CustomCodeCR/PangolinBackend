@@ -1,0 +1,105 @@
+# First-deploy production candidate. Not a replacement for compose.yaml (development).
+# Requires a separate .env.production and an HTTPS reverse proxy on the host.
+# No application/database volumes are mounted from the developer machine.
+name: castrofallas-production
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: login
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configurar POSTGRES_PASSWORD en .env.production}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d login"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  # Optional cache/audit dependency. Enable only if the host supports MongoDB 8:
+  #   MONGO_CONNECTION_STRING=mongodb://mongo:27017 docker compose --profile audit ...
+  mongo:
+    profiles: ["audit"]
+    image: mongo:8
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.production
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5000
+      Development__ApplySchema: "false"
+      Features__OfficialQuotesEnabled: "false"
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=login;Username=postgres;Password=${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD}"
+      Auth__OtpPepper: ${AUTH_OTP_PEPPER:?Falta AUTH_OTP_PEPPER}
+      Auth__JwtSigningKey: ${AUTH_JWT_SIGNING_KEY:?Falta AUTH_JWT_SIGNING_KEY}
+      Auth__SecureCookie: "true"
+      Security__PublicOrigin: ${PUBLIC_ORIGIN:?Configurar URL publica HTTPS}
+      Email__Mode: ${EMAIL_MODE:?Elegir Smtp o Graph; nunca LocalOutbox en produccion}
+      Smtp__Host: ${SMTP_HOST:-}
+      Smtp__Port: ${SMTP_PORT:-587}
+      Smtp__Tls: ${SMTP_TLS:-StartTls}
+      Smtp__From: ${SMTP_FROM:-}
+      Smtp__Username: ${SMTP_USERNAME:-}
+      Smtp__Password: ${SMTP_PASSWORD:-}
+      Graph__TenantId: ${GRAPH_TENANT_ID:-}
+      Graph__ClientId: ${GRAPH_CLIENT_ID:-}
+      Graph__ClientSecret: ${GRAPH_CLIENT_SECRET:-}
+      Graph__From: ${GRAPH_FROM:-}
+      Redis__ConnectionString: redis:6379
+      Mongo__ConnectionString: ${MONGO_CONNECTION_STRING:-}
+      Mongo__Database: castrofallas_logs
+      Ai__Groq__ApiKey: ${GROQ_API_KEY:-}
+      Ai__Groq__Model: ${GROQ_MODEL:-openai/gpt-oss-20b}
+      Storage__Endpoint: ${S3_ENDPOINT:-}
+      Storage__AccessKey: ${S3_ACCESS_KEY:-}
+      Storage__SecretKey: ${S3_SECRET_KEY:-}
+      Storage__Bucket: ${S3_BUCKET:-castrofallas-media}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_OFFICIAL_QUOTES_ENABLED: "false"
+    restart: unless-stopped
+    # Intended for a host-side TLS reverse proxy; never publish plain HTTP on 0.0.0.0.
+    ports:
+      - "127.0.0.1:${PRODUCTION_HTTP_PORT:-8080}:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:
+  mongo_data:
