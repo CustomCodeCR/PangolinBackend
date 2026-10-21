@@ -45,6 +45,65 @@ const typeOptions = computed(() => mode.value === 'Maritime'
 const equipmentMode = computed(() => shipmentType.value === 'FCL' || shipmentType.value === 'FTL')
 const selectedOrigin = computed(() => locations.value.find(x => x.id === form.originLocationId))
 const selectedDest = computed(() => destinations.value.find(x => x.id === form.destinationLocationId))
+type LocationField = 'origin' | 'destination' | 'pod'
+const locationSearch = reactive<Record<LocationField, string>>({ origin: '', destination: '', pod: '' })
+const openLocation = ref<LocationField | null>(null)
+const activeLocationIndex = ref(0)
+function optionsFor(field: LocationField): Loc[] {
+  const source = field === 'origin' ? locations.value : field === 'destination' ? destinations.value : podOptions.value
+  const query = locationSearch[field].trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase()
+  if (!query) return source
+  return source.filter(loc => loc.displayName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().includes(query)
+    || (loc.code || '').toLocaleLowerCase().includes(query))
+}
+function selectedLocationId(field: LocationField): string {
+  return field === 'origin' ? form.originLocationId : field === 'destination' ? form.destinationLocationId : form.podLocationId
+}
+function setLocationId(field: LocationField, id: string) {
+  if (field === 'origin') form.originLocationId = id
+  else if (field === 'destination') form.destinationLocationId = id
+  else form.podLocationId = id
+}
+function updateLocationSearch(field: LocationField, event: Event) {
+  const value = (event.target as HTMLInputElement).value
+  locationSearch[field] = value
+  const source = field === 'origin' ? locations.value : field === 'destination' ? destinations.value : podOptions.value
+  const selected = source.find(loc => loc.id === selectedLocationId(field))
+  if (selected && selected.displayName !== value) setLocationId(field, '')
+  openLocation.value = field
+  activeLocationIndex.value = 0
+}
+function chooseLocation(field: LocationField, location: Loc) {
+  setLocationId(field, location.id)
+  locationSearch[field] = location.displayName
+  openLocation.value = null
+}
+function closeLocation(field: LocationField) {
+  window.setTimeout(() => {
+    if (openLocation.value === field) openLocation.value = null
+  }, 120)
+}
+function toggleLocation(field: LocationField) {
+  openLocation.value = openLocation.value === field ? null : field
+  activeLocationIndex.value = 0
+}
+function handleLocationKeydown(field: LocationField, event: KeyboardEvent) {
+  const options = optionsFor(field)
+  if (event.key === 'ArrowDown') {
+    event.preventDefault()
+    openLocation.value = field
+    activeLocationIndex.value = Math.min(activeLocationIndex.value + 1, Math.max(options.length - 1, 0))
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault()
+    openLocation.value = field
+    activeLocationIndex.value = Math.max(activeLocationIndex.value - 1, 0)
+  } else if (event.key === 'Enter' && openLocation.value === field && options.length) {
+    event.preventDefault()
+    chooseLocation(field, options[activeLocationIndex.value] || options[0])
+  } else if (event.key === 'Escape') {
+    openLocation.value = null
+  }
+}
 const incoterms = ['EXW','FCA','FAS','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP']
 const serviceOptions = ['Transporte internacional','Agencia de Aduanas CR','Agencia de Aduanas Exterior','Almacenamiento','Control de inventario','Embalaje','Exoneración','Picking Carga','Recepción de carga','Seguro de carga','Transporte entrega','Transporte recolección','Transporte nacional']
 const cargoFlagOptions = ['Carga peligrosa','No estibable','Sobrepeso']
@@ -217,9 +276,40 @@ async function submit() {
             <p v-if="!locationLoading && (!locations.length || !destinations.length || (shipmentType === 'LCL' && !podOptions.length))" class="official-catalog-alert">Faltan ubicaciones para esta modalidad. El administrador debe completar el catálogo correspondiente.</p>
             <p v-else-if="[...locations,...destinations,...podOptions].some(loc => loc.code?.startsWith('DEV-'))" class="official-catalog-alert" role="note">Faltan opciones verificadas para al menos uno de los campos. Las opciones PRUEBA son exclusivamente para desarrollo.</p>
             <div class="official-fields">
-              <label>Origen <span>*</span><select v-model="form.originLocationId" required><option value="">Seleccionar origen</option><option v-for="loc in locations" :key="loc.id" :value="loc.id">{{ loc.displayName }}</option></select></label>
-              <label>Destino <span>*</span><select v-model="form.destinationLocationId" required><option value="">Seleccionar destino</option><option v-for="loc in destinations" :key="loc.id" :value="loc.id">{{ loc.displayName }}</option></select></label>
-              <label v-if="mode === 'Maritime'">POD {{ shipmentType === 'LCL' ? '(requerido)' : '(opcional)' }}<select v-model="form.podLocationId"><option value="">{{ shipmentType === 'LCL' ? 'Seleccionar POD' : 'Sin POD adicional' }}</option><option v-for="loc in podOptions" :key="loc.id" :value="loc.id">{{ loc.displayName }}</option></select></label>
+              <div class="official-location-field">
+                <label for="quote-origin">Origen <span>*</span></label>
+                <div class="official-location-combobox">
+                  <input id="quote-origin" :value="locationSearch.origin" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'origin'" aria-controls="quote-origin-options" autocomplete="off" placeholder="Buscar ciudad o país" required @focus="openLocation = 'origin'; activeLocationIndex = 0" @input="updateLocationSearch('origin', $event)" @keydown="handleLocationKeydown('origin', $event)" @blur="closeLocation('origin')" />
+                  <button type="button" class="official-location-toggle" aria-label="Mostrar ubicaciones de origen" tabindex="-1" @mousedown.prevent @click="toggleLocation('origin')">⌄</button>
+                  <ul v-if="openLocation === 'origin'" id="quote-origin-options" class="official-location-options" role="listbox">
+                    <li v-for="(loc,index) in optionsFor('origin')" :key="loc.id"><button type="button" role="option" :aria-selected="form.originLocationId === loc.id" :id="`quote-origin-option-${index}`" @mousedown.prevent @click="chooseLocation('origin', loc)"><span>{{ loc.displayName }}</span></button></li>
+                    <li v-if="!optionsFor('origin').length" class="official-location-empty">No hay ubicaciones que coincidan.</li>
+                  </ul>
+                </div>
+              </div>
+              <div class="official-location-field">
+                <label for="quote-destination">Destino <span>*</span></label>
+                <div class="official-location-combobox">
+                  <input id="quote-destination" :value="locationSearch.destination" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'destination'" aria-controls="quote-destination-options" autocomplete="off" placeholder="Buscar ciudad o país" required @focus="openLocation = 'destination'; activeLocationIndex = 0" @input="updateLocationSearch('destination', $event)" @keydown="handleLocationKeydown('destination', $event)" @blur="closeLocation('destination')" />
+                  <button type="button" class="official-location-toggle" aria-label="Mostrar ubicaciones de destino" tabindex="-1" @mousedown.prevent @click="toggleLocation('destination')">⌄</button>
+                  <ul v-if="openLocation === 'destination'" id="quote-destination-options" class="official-location-options" role="listbox">
+                    <li v-for="(loc,index) in optionsFor('destination')" :key="loc.id"><button type="button" role="option" :aria-selected="form.destinationLocationId === loc.id" :id="`quote-destination-option-${index}`" @mousedown.prevent @click="chooseLocation('destination', loc)"><span>{{ loc.displayName }}</span></button></li>
+                    <li v-if="!optionsFor('destination').length" class="official-location-empty">No hay ubicaciones que coincidan.</li>
+                  </ul>
+                </div>
+              </div>
+              <div v-if="mode === 'Maritime'" class="official-location-field">
+                <label for="quote-pod">POD {{ shipmentType === 'LCL' ? '(requerido)' : '(opcional)' }}</label>
+                <div class="official-location-combobox">
+                  <input id="quote-pod" :value="locationSearch.pod" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'pod'" aria-controls="quote-pod-options" autocomplete="off" :placeholder="shipmentType === 'LCL' ? 'Buscar ciudad o país' : 'Sin POD adicional'" @focus="openLocation = 'pod'; activeLocationIndex = 0" @input="updateLocationSearch('pod', $event)" @keydown="handleLocationKeydown('pod', $event)" @blur="closeLocation('pod')" />
+                  <button type="button" class="official-location-toggle" aria-label="Mostrar opciones de POD" tabindex="-1" @mousedown.prevent @click="toggleLocation('pod')">⌄</button>
+                  <ul v-if="openLocation === 'pod'" id="quote-pod-options" class="official-location-options" role="listbox">
+                    <li v-if="shipmentType !== 'LCL'"><button type="button" role="option" :aria-selected="!form.podLocationId" @mousedown.prevent @click="form.podLocationId = ''; locationSearch.pod = ''; openLocation = null">Sin POD adicional</button></li>
+                    <li v-for="(loc,index) in optionsFor('pod')" :key="loc.id"><button type="button" role="option" :aria-selected="form.podLocationId === loc.id" :id="`quote-pod-option-${index}`" @mousedown.prevent @click="chooseLocation('pod', loc)"><span>{{ loc.displayName }}</span></button></li>
+                    <li v-if="!optionsFor('pod').length && shipmentType === 'LCL'" class="official-location-empty">No hay ubicaciones que coincidan.</li>
+                  </ul>
+                </div>
+              </div>
               <label>Incoterm <span>*</span><select v-model="form.incoterm" required><option value="">Seleccionar Incoterm</option><option v-for="item in incoterms" :key="item">{{ item }}</option></select></label>
               <label>Fecha de carga lista <span>*</span><input v-model="form.cargoReadyDate" type="date" required /></label>
             </div>
@@ -397,4 +487,170 @@ html.theme-dark .app-site.official-page :is(.official-error,.official-catalog-al
 html.theme-dark .app-site.official-page .official-success-icon {color:#83e6b1!important;}
 html.theme-dark .app-site.official-page .official-progress-item.current small {color:#fff!important;}
 html.theme-dark .app-site.official-page .official-kicker {color:#ff8ca2!important;}
+
+/* Indicador de pasos en línea, como el cotizador anterior. */
+.official-page .official-progress {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0;
+  max-width: 820px;
+  margin: 32px auto 34px;
+}
+.official-page .official-progress::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: 12.5%;
+  right: 12.5%;
+  top: 26px;
+  height: 4px;
+  border-radius: 4px;
+  background: #d6d8df;
+}
+.official-page .official-progress-item {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent !important;
+  color: #737887;
+  text-align: center;
+}
+.official-page .official-progress-item span {
+  width: 54px;
+  height: 54px;
+  border: 3px solid #d6d8df;
+  background: #fff;
+  color: #737887;
+  font-size: 18px;
+}
+.official-page .official-progress-item small {
+  color: #737887;
+  font-size: 12px;
+  line-height: 1.3;
+}
+.official-page .official-progress-item.current,
+.official-page .official-progress-item.done {
+  color: #b20c2a;
+  background: transparent !important;
+}
+.official-page .official-progress-item.current span,
+.official-page .official-progress-item.done span {
+  border-color: #b20c2a;
+  background: #b20c2a;
+  color: #fff;
+}
+.official-page .official-progress-item.current small,
+.official-page .official-progress-item.done small {
+  color: #b20c2a;
+}
+html.theme-dark .app-site.official-page .official-progress::before { background: #46546a; }
+html.theme-dark .app-site.official-page .official-progress-item,
+html.theme-dark .app-site.official-page .official-progress-item.current,
+html.theme-dark .app-site.official-page .official-progress-item.done {
+  background: transparent !important;
+  color: #c4c5cf !important;
+}
+html.theme-dark .app-site.official-page .official-progress-item span {
+  border-color: #46546a !important;
+  background: #19243a !important;
+  color: #d3dbea !important;
+}
+html.theme-dark .app-site.official-page .official-progress-item.current span,
+html.theme-dark .app-site.official-page .official-progress-item.done span {
+  border-color: #b20c2a !important;
+  background: #b20c2a !important;
+  color: #fff !important;
+}
+html.theme-dark .app-site.official-page .official-progress-item.current small,
+html.theme-dark .app-site.official-page .official-progress-item.done small { color: #fff !important; }
+@media (max-width: 670px) {
+  .official-page .official-progress { gap: 0; margin: 26px auto; }
+  .official-page .official-progress::before { top: 21px; }
+  .official-page .official-progress-item { gap: 6px; padding: 0 2px; }
+  .official-page .official-progress-item span { width: 44px; height: 44px; font-size: 15px; }
+  .official-page .official-progress-item small { font-size: 10px; overflow-wrap: anywhere; }
+}
+
+
+/* Campos de origen/destino con búsqueda y lista de países. */
+.official-location-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  font-size: 12px;
+  color: #4e5260;
+  font-weight: 800;
+}
+.official-location-field > label { display: block; }
+.official-location-field > label span { color: #ad112f; }
+.official-location-combobox { position: relative; min-width: 0; }
+.official-location-combobox > input { padding-right: 46px !important; }
+.official-location-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 44px;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: #8790a0;
+  font-size: 22px;
+  cursor: pointer;
+}
+.official-location-options {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+  border: 1px solid #55545a;
+  border-radius: 18px;
+  background: #19191c;
+  box-shadow: 0 18px 36px #0005;
+}
+.official-location-options li { margin: 0; padding: 0; }
+.official-location-options li button {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: #fff;
+  text-align: left;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.official-location-options li button:hover,
+.official-location-options li button[aria-selected="true"] { background: #30262d; color: #ff6b50; }
+.official-location-empty { padding: 13px 14px; color: #b9bac2; font-size: 13px; }
+html.theme-dark .app-site.official-page .official-location-field { color: #fff; }
+html.theme-dark .app-site.official-page .official-location-toggle { color: #c4c5cf; }
+html.theme-dark .app-site.official-page .official-location-options {
+  background: #19191c !important;
+  border-color: #55545a !important;
+}
+@media (max-width: 670px) {
+  .official-location-options { max-height: 240px; }
+}
 </style>
