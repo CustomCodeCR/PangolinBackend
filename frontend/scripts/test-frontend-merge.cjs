@@ -63,7 +63,7 @@ assert.match(officialQuote, /@media \(max-width: 1040px\) and \(min-width: 751px
 assert.match(officialQuote, /@media \(max-width: 750px\) \{[\s\S]*?\.official-page--mode-selection \.official-shell \{\s*width: 100%;[\s\S]*?padding: 24px 24px 54px;/, 'Mantener márgenes de seguridad en movil')
 assert.match(officialQuote, /backdrop-filter:\s*blur\(5px\)/, 'Conservar Glass del contenedor')
 assert.match(officialQuote, /linear-gradient\(90deg, #181419/, 'Conservar difuminado horizontal carbon a vino')
-assert.match(officialQuote, /\.official-page--mode-selection \.official-choices \{ grid-template-columns: 1fr/, 'Modalidades apiladas en celular')
+assert.match(officialQuote, /\.official-page--mode-selection \.official-choices,\s*\.official-page--mode-selection \.official-choices--shipment-type \{\s*grid-template-columns: 1fr/, 'Modalidades apiladas en celular')
 assert.match(officialQuote, /official-page--mode-selection \.official-choice:focus-visible/, 'Conservar enfoque visible para teclado')
 const tracking = source('src/pages/Tracking.vue')
 assert.match(tracking, /Online tracking is not available yet/, 'No simular seguimiento real')
