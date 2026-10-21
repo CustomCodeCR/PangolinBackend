@@ -54,6 +54,7 @@ assert.match(officialQuote, /83% \{ opacity: 0; \}/, 'El brillo animado debe des
 assert.doesNotMatch(officialQuote, /#451923 100%/, 'No dejar un rojo-vino fijo en el lado derecho')
 assert.doesNotMatch(officialQuote, /rgba\(96, 21, 39, \.72\) 100%/, 'No dejar resplandor rojo-vino permanente a la derecha del panel')
 assert.match(officialQuote, /rgba\(24, 22, 28, \.78\) 100%/, 'Glass neutro en el borde derecho')
+assert.match(officialQuote, /background: transparent !important;\s*background-image: none !important;/, 'El fondo generico no debe recrear un brillo fijo a la derecha')
 
 assert.match(officialQuote, /animation: official-glass-glow-sweep 8s linear infinite/, 'Animar el difuminado de izquierda a derecha')
 assert.match(officialQuote, /translate3d\(-120%, 0, 0\)/, 'El resplandor debe iniciar fuera del borde izquierdo')
