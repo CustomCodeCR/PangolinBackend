@@ -307,6 +307,15 @@ check('<IconSymbol glyph="message-circle" :size="19" /> <span class="manager-tab
       and "'comments-admin'" in manager_mobile,
       'Administración conserva CRUD de Comentarios y distribuye seis pestañas en móvil')
 
+check('@media (min-width:651px) {' in manager_mobile
+      and '.content-manager.is-embedded .manager-tabs.manager-subtabs {' in manager_mobile
+      and 'flex-wrap:nowrap;' in manager_mobile
+      and 'justify-content:space-between;' in manager_mobile
+      and 'overflow-x:auto;' in manager_mobile
+      and '.content-manager.is-embedded .manager-tabs.manager-subtabs > button {' in manager_mobile
+      and 'white-space:nowrap;' in manager_mobile,
+      'Administración mantiene Cotizaciones y Editor visual juntos en escritorio')
+
 mobile_drawer_css = read('frontend/src/style.css')
 drawer_fix = mobile_drawer_css.split('/* Mobile side drawer: account/settings controls share one short row.', 1)[-1]
 drawer_fix = drawer_fix.split('/* Móvil: mismo rojo sólido', 1)[0]
