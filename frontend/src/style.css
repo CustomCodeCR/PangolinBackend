@@ -5009,3 +5009,47 @@ html.theme-dark .app-site.administration-page .content-manager.is-embedded
 .app-site.administration-page .site-header .site-brand:focus:not(:focus-visible) {
   outline: none;
 }
+
+
+/* Mobile service cards: show all four tabs in a compact, stable layout. */
+@media (max-width: 800px) {
+  .app-site.home-page #servicios .service-accordion {
+    height: clamp(230px, 60vw, 280px) !important;
+    min-height: clamp(230px, 60vw, 280px) !important;
+    justify-content: stretch !important;
+    overflow: hidden !important;
+    scroll-snap-type: none !important;
+    gap: 5px !important;
+  }
+  .app-site.home-page #servicios .service-accordion__item {
+    flex: 0 0 40px !important;
+    transition: none !important;
+  }
+  .app-site.home-page #servicios .service-accordion__item.is-open {
+    flex: 1 1 0% !important;
+    min-width: 0 !important;
+  }
+  .app-site.home-page #servicios .service-accordion__trigger,
+  .app-site.home-page #servicios .service-accordion__item.is-open > .service-accordion__trigger {
+    width: 40px !important;
+  }
+  .app-site.home-page #servicios .service-accordion__panel {
+    inset: 0 0 0 40px !important;
+    padding: 12px 8px 14px !important;
+  }
+  .app-site.home-page #servicios .service-accordion__copy {
+    flex: 1 1 0% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    margin-right: 0 !important;
+  }
+  .app-site.home-page #servicios .service-accordion__copy h3 {
+    font-size: clamp(14px, 3.8vw, 17px) !important;
+    line-height: 1.15 !important;
+  }
+  .app-site.home-page #servicios .service-accordion__copy p {
+    font-size: clamp(11px, 3vw, 13px) !important;
+    line-height: 1.4 !important;
+  }
+}
