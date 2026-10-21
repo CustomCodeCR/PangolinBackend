@@ -294,15 +294,19 @@ check('<span class="manager-tab-label">Contenido</span>' in manager_mobile
       and '.is-embedded .manager-tabs:not(.manager-subtabs) > button::after' in manager_mobile
       and 'grid-template-columns:repeat(2,minmax(0,1fr));' in manager_mobile,
       'Administración móvil mantiene Contenido y Usuarios en dos columnas')
-check('<IconSymbol glyph="message-circle" :size="19" /> Comentarios' in manager_mobile
+check('<IconSymbol glyph="message-circle" :size="19" /> <span class="manager-tab-label">Comentarios</span>' in manager_mobile
       and "'message-circle': MessageCircle" in icon_symbol
-      and 'manager-subtab-label' not in manager_mobile
-      and '.is-embedded .manager-tabs.manager-subtabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}' in manager_mobile
-      and 'grid-column:1/-1;justify-self:center;width:max-content;max-width:100%;' in manager_mobile
-      and '.is-embedded .manager-tabs.manager-subtabs button .lucide-symbol {' in manager_mobile
-      and 'flex:0 0 36px;' in manager_mobile
-      and 'min-width:36px;' in manager_mobile,
-      'Administración conserva distribución previa de las cinco pestañas y muestra icono Comentarios')
+      and '<span class="manager-tab-label">Cotizaciones</span> <span>{{ quotesTotal }}</span>' in manager_mobile
+      and '<span class="manager-tab-label">Editor visual</span> <span>0</span>' in manager_mobile
+      and 'manager-subtabs--with-quotes' in manager_mobile
+      and '.is-embedded .manager-tabs.manager-subtabs {' in manager_mobile
+      and 'grid-template-columns:clamp(28px,8vw,34px) minmax(0,1fr) auto;' in manager_mobile
+      and '.is-embedded .manager-tabs.manager-subtabs:not(.manager-subtabs--with-quotes) > button.manager-editor-visual-tab {' in manager_mobile
+      and '.is-embedded .manager-tabs.manager-subtabs > button .lucide-symbol {' in manager_mobile
+      and 'async function loadComments()' in manager_mobile
+      and "'comments-admin'" in manager_mobile,
+      'Administración conserva CRUD de Comentarios y distribuye seis pestañas en móvil')
+
 mobile_drawer_css = read('frontend/src/style.css')
 drawer_fix = mobile_drawer_css.split('/* Mobile side drawer: account/settings controls share one short row.', 1)[-1]
 drawer_fix = drawer_fix.split('/* Móvil: mismo rojo sólido', 1)[0]

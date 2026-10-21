@@ -53,6 +53,27 @@ assert.match(visualEditor, /visual-editor__breadcrumb\{color:#a80e18!important/,
 assert.match(admin, /--manager-card:#211b20/, 'Conservar paleta ciruela oscura de frontend')
 assert.match(admin, /manager-editor--itineraries/, 'Conservar composición de 4 columnas')
 assert.match(admin, /SiteVisualEditor/, 'El estilo no puede borrar el editor visual')
+// Login: neutral email wording, no testing banner, and actionable validation before OTP.
+const login = source('src/pages/Login.vue')
+const esLogin = JSON.parse(source('src/locales/es.json')).custom.login
+const enLogin = JSON.parse(source('src/locales/en.json')).custom.login
+const authService = source('../backend/Services/Auth/AuthService.cs')
+const backendProgram = source('../backend/Program.cs')
+assert.match(login, /body\?\.code === 'account_unavailable'/, 'Login debe identificar correo no habilitado')
+assert.match(login, /custom\.login\.accountUnavailable/, 'El aviso usa el idioma actual')
+assert.doesNotMatch(login, /custom\.login\.footer/, 'No mostrar texto de acceso de prueba')
+assert.match(login, /if \(!response\.ok\) throw new Error\(await parseError\(response\)\)/, 'Error de correo debe detener el paso OTP')
+assert.match(login, /step\.value = 'otp'/, 'Conservar flujo OTP cuando el correo está habilitado')
+assert.equal(esLogin.intro, 'Ingresa tu dirección de correo electrónico para recibir un código de un solo uso.')
+assert.equal(enLogin.intro, 'Enter your email address to receive a one-time code.')
+assert.ok(esLogin.accountUnavailable && enLogin.accountUnavailable, 'Aviso traducido en ambos idiomas')
+assert.equal(esLogin.footer, undefined, 'Quitar aviso de pruebas en español')
+assert.equal(enLogin.footer, undefined, 'Quitar aviso de pruebas en inglés')
+assert.doesNotMatch(esLogin.emailPlaceholder, /gmail\.com/i, 'No restringir dominio de correo a Gmail')
+assert.match(authService, /if \(user is null\)\s*return \(null, false, true\);/, 'No generar OTP ficticio para cuenta desconocida')
+assert.match(backendProgram, /code = "account_unavailable"/, 'API debe distinguir la cuenta no habilitada')
+assert.match(backendProgram, /StatusCodes\.Status404NotFound/, 'Devolver 404 antes del formulario OTP')
+
 const tracking = source('src/pages/Tracking.vue')
 assert.match(tracking, /Online tracking is not available yet/, 'No simular seguimiento real')
 assert.doesNotMatch(main, /connectWebSocket\(\)/, 'No activar broker local 8081')
