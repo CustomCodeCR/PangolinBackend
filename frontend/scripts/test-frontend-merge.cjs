@@ -54,6 +54,9 @@ assert.match(officialQuote, /83% \{ opacity: 0; \}/, 'El brillo animado debe des
 assert.doesNotMatch(officialQuote, /#451923 100%/, 'No dejar un rojo-vino fijo en el lado derecho')
 assert.doesNotMatch(officialQuote, /rgba\(96, 21, 39, \.72\) 100%/, 'No dejar resplandor rojo-vino permanente a la derecha del panel')
 assert.match(officialQuote, /rgba\(24, 22, 28, \.78\) 100%/, 'Glass neutro en el borde derecho')
+assert.match(officialQuote, /rgba\(168, 14, 24, \.72\) 48%/, 'El resplandor en movimiento debe ser #a80e18, no rosado')
+assert.match(officialQuote, /rgba\(168, 14, 24, \.28\) 0%/, 'El vidrio debe tener rojo institucional del lado izquierdo')
+assert.doesNotMatch(officialQuote, /rgba\(247, 77, 111/, 'No volver al rosado anterior')
 assert.match(officialQuote, /background: transparent !important;\s*background-image: none !important;/, 'El fondo generico no debe recrear un brillo fijo a la derecha')
 
 assert.match(officialQuote, /animation: official-glass-glow-sweep 8s linear infinite/, 'Animar el difuminado de izquierda a derecha')
@@ -76,7 +79,7 @@ assert.match(officialQuote, /\.official-page--mode-selection \.official-progress
 assert.match(officialQuote, /@media \(max-width: 1040px\) and \(min-width: 751px\)/, 'Tablet debe adaptar tarjetas al ancho disponible')
 assert.match(officialQuote, /@media \(max-width: 750px\) \{[\s\S]*?\.official-page--mode-selection \.official-shell \{\s*width: 100%;[\s\S]*?padding: 24px 24px 54px;/, 'Mantener márgenes de seguridad en movil')
 assert.match(officialQuote, /backdrop-filter:\s*blur\(5px\)/, 'Conservar Glass del contenedor')
-assert.match(officialQuote, /linear-gradient\(90deg, #491b2b 0%, #281a22 37%, #181419 72%, #181419 100%\)/, 'Degradado debe partir del lado izquierdo y terminar carbon a la derecha')
+assert.match(officialQuote, /linear-gradient\(90deg, #a80e18 0%, #701520 18%, #382026 45%, #181419 78%, #181419 100%\)/, 'El fondo debe comenzar en rojo institucional #a80e18 y terminar carbon a la derecha')
 assert.match(officialQuote, /\.official-page--mode-selection \.official-choices,\s*\.official-page--mode-selection \.official-choices--shipment-type \{\s*grid-template-columns: 1fr/, 'Modalidades apiladas en celular')
 assert.match(officialQuote, /official-page--mode-selection \.official-choice:focus-visible/, 'Conservar enfoque visible para teclado')
 const tracking = source('src/pages/Tracking.vue')
