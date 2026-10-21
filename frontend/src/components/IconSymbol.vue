@@ -14,7 +14,7 @@ const icons: Record<string, Component> = {
   '×': X, '✓': Check, '−': Minus, '+': Plus, '▰': Package, '▤': List,
   '⌕': Search, '⚙': Settings, '☀': Sun, '☾': Moon, '☰': Menu,
   '◎': CircleDot, '✦': Sparkles, '⚓': Ship, '⇄': ArrowLeftRight,
-  ship: Ship, anchor: Anchor, truck: Truck, multimodal: ArrowLeftRight, user: UserRound, newspaper: Newspaper, image: Image, pencil: Pencil, trash: Trash2
+  ship: Ship, anchor: Anchor, truck: Truck, multimodal: ArrowLeftRight, user: UserRound, newspaper: Newspaper, image: Image, 'message-circle': MessageCircle, pencil: Pencil, trash: Trash2
 }
 </script>
 

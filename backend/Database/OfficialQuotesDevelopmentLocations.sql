@@ -17,4 +17,3 @@ SELECT l.id, p.shipment_type, p.route_role FROM public.official_quote_locations 
 CROSS JOIN (VALUES ('FCL','origin'),('FCL','destination'),('FCL','pod'),('LCL','origin'),('LCL','destination'),('LCL','pod'),('AIR_LCL','origin'),('AIR_LCL','destination'),('FTL','origin'),('FTL','destination'),('LTL','origin'),('LTL','destination')) p(shipment_type,route_role)
 WHERE l.code LIKE 'DEV-%' AND ((l.kind='seaport' AND p.shipment_type IN ('FCL','LCL')) OR (l.kind='airport' AND p.shipment_type='AIR_LCL') OR (l.kind='inland' AND p.shipment_type IN ('FTL','LTL')))
 ON CONFLICT DO NOTHING;
-

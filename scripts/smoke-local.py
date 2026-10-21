@@ -68,6 +68,14 @@ def main():
     status, ready = call(browser, '/api/health/ready')
     require(status == 200, f'Esquema/API no listo: {status} {ready}')
     require(ready.get('emailMode', '').lower() == 'localoutbox', 'Activar modo LocalOutbox en Development.')
+    # Un correo inexistente no debe abrir el paso de verificación OTP.
+    fake_email = 'sin-registro-' + uuid4().hex + '@example.invalid'
+    status, unavailable = call(browser, '/api/auth/request-otp', {'correo': fake_email})
+    require(status == 404 and unavailable.get('code') == 'account_unavailable',
+            f'Correo sin registro debe recibir aviso antes del OTP: {status} {unavailable}')
+    require('challengeId' not in unavailable,
+            'No debe generarse un desafío OTP para correos no registrados.')
+
     email = 'demo.usuario@castrofallas.test'
     moment = time.time()
     status, started = call(browser, '/api/auth/request-otp', {
@@ -195,6 +203,63 @@ def main():
     finally:
         status, _ = call(browser, admin_route + '/restore', method='POST')
         require(status == 200, f'No se restauró el contenido visual predeterminado: {status}')
+
+    # Comentarios: autorizar solo administradores, nunca filtrar borradores,
+    # publicar/retirar/editar y eliminar sin dejar datos de prueba.
+    visitor = build_opener()
+    prefix = 'SMOKE COMMENT ' + uuid4().hex[:10]
+    draft = {'author': prefix, 'section': 'Principal',
+             'message': 'Comentario de prueba privado', 'published': False}
+    status, anonymous_public = call(visitor, '/api/content/comments')
+    require(status == 200 and isinstance(anonymous_public, list),
+            f'API pública de comentarios: {status} {anonymous_public}')
+    status, _ = call(visitor, '/api/admin/content/comments')
+    require(status == 401, f'Un visitante pudo consultar borradores: {status}')
+    status, _ = call(visitor, '/api/admin/content/comments', draft)
+    require(status == 401, f'Un visitante pudo crear comentarios: {status}')
+    status, _ = call(browser, '/api/admin/content/comments',
+                     dict(draft, author='  '))
+    require(status == 400, f'Comentario sin autor fue aceptado: {status}')
+    status, _ = call(browser, '/api/admin/content/comments',
+                     dict(draft, message='x' * 1201))
+    require(status == 400, f'Comentario demasiado largo fue aceptado: {status}')
+    comment_id = None
+    try:
+        status, created = call(browser, '/api/admin/content/comments', draft)
+        require(status == 201 and created.get('id') and created.get('published') is False,
+                f'No se creó borrador: {status} {created}')
+        comment_id = created['id']
+        comment_route = '/api/admin/content/comments/' + comment_id
+        status, all_admin_comments = call(browser, '/api/admin/content/comments')
+        require(status == 200 and any(row.get('id') == comment_id and row.get('published') is False
+                                      for row in all_admin_comments),
+                'Un borrador no aparece en el panel administrativo.')
+        status, listing = call(visitor, '/api/content/comments')
+        require(status == 200 and all(row['id'] != comment_id for row in listing),
+                'El borrador se filtró en la API pública.')
+        status, approved = call(browser, comment_route,
+                                dict(draft, message='Comentario de prueba público', published=True), 'PUT')
+        require(status == 200 and approved.get('published') is True,
+                f'No se publicó el comentario: {status} {approved}')
+        status, listing = call(visitor, '/api/content/comments')
+        require(status == 200 and any(row.get('id') == comment_id and
+                                      row.get('message') == 'Comentario de prueba público'
+                                      for row in listing),
+                'El comentario publicado no es visible para visitantes.')
+        status, hidden_comment = call(browser, comment_route, draft, 'PUT')
+        require(status == 200 and hidden_comment.get('published') is False,
+                f'No se retiró de publicación: {status} {hidden_comment}')
+        status, listing = call(visitor, '/api/content/comments')
+        require(status == 200 and all(row['id'] != comment_id for row in listing),
+                'El comentario retirado sigue publicado.')
+        status, _ = call(visitor, comment_route, draft, 'PUT')
+        require(status == 401, 'Un visitante pudo editar comentarios.')
+        status, _ = call(visitor, comment_route, method='DELETE')
+        require(status == 401, 'Un visitante pudo eliminar comentarios.')
+    finally:
+        if comment_id:
+            status, _ = call(browser, '/api/admin/content/comments/' + comment_id, method='DELETE')
+            require(status == 204, f'No se limpió comentario temporal: {status}')
 
     # CMS real: publicación visible en otra sesión, edición, media y limpieza.
     news = {
@@ -341,6 +406,12 @@ def main():
     require(status == 403, f'Cliente pudo listar cuentas: {status} {denied_users}')
     status, denied_media = call(client_browser, '/api/admin/content/media')
     require(status == 403, f'Cliente pudo ver biblioteca privada: {status} {denied_media}')
+    status, denied_comments = call(client_browser, '/api/admin/content/comments')
+    require(status == 403, f'Cliente pudo ver comentarios privados: {status} {denied_comments}')
+    status, denied_comment_creation = call(client_browser, '/api/admin/content/comments',
+                                            {'author': 'Cliente', 'section': '', 'message': 'No permitido',
+                                             'published': True})
+    require(status == 403, f'Cliente pudo publicar comentario: {status} {denied_comment_creation}')
     status, page = call(client_browser, '/api/itinerarios?page=1&pageSize=1')
     require(status == 200 and 'items' in page, 'Cliente no puede leer itinerarios.')
     status, forbidden = call(client_browser, '/api/admin/itinerarios', itinerary)
@@ -413,7 +484,7 @@ def main():
     status, _ = call(build_opener(), '/api/admin/itinerarios', itinerary)
     require(status == 401, 'Un invitado pudo crear itinerarios.')
 
-    print('OK: login por correo, OTP/JWT, roles, usuarios admin, CMS, itinerarios y 4 cotizaciones.')
+    print('OK: login por correo, OTP/JWT, roles, usuarios admin, CMS, comentarios moderados, itinerarios y 4 cotizaciones.')
 
 if __name__ == '__main__':
     try:

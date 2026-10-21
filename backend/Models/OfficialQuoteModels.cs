@@ -73,4 +73,3 @@ public sealed record OfficialQuoteSubmit(
     string? DestinationHandling,
     string? DeliveryAddress = null, string? PickupAddress = null, int? FiscalStorageDays = null);
 public sealed record OfficialReviewUpdate(string? Status, string? Comment);
-

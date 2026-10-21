@@ -337,4 +337,3 @@ public static class OfficialQuoteEndpoints
         return app;
     }
 }
-

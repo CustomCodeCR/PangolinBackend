@@ -2,19 +2,23 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import IconSymbol from '../components/IconSymbol.vue'
 import SiteVisualEditor from './SiteVisualEditor.vue'
+import OfficialQuoteAdmin from './OfficialQuoteAdmin.vue'
+const officialQuotesEnabled = import.meta.env.VITE_OFFICIAL_QUOTES_ENABLED === 'true'
 import { subscribeToChanges } from '../services/realtime'
 import { authState, refreshSession } from '../services/auth'
 import { deleteManaged, newManagedId, readManagedComments, readManagedItineraries, readManagedMedia, readManagedNews, saveManaged, type ManagedComment, type ManagedItinerary, type ManagedMedia, type ManagedNews } from '../adminContent'
 
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
-type Section = 'itineraries' | 'news' | 'media' | 'comments' | 'users' | 'site'
+type Section = 'itineraries' | 'news' | 'media' | 'comments' | 'users' | 'site' | 'quotes'
 type AppRole = 'cliente' | 'administrador'
 interface ManagedUser { id: string; correo: string; nombre?: string; role: AppRole; activo: boolean }
-const section = ref<Section>(new URLSearchParams(window.location.search).get('tab') === 'usuarios' ? 'users' : 'itineraries')
+const tabFromUrl = new URLSearchParams(window.location.search).get('tab')
+const section = ref<Section>(tabFromUrl === 'usuarios' ? 'users' : tabFromUrl === 'cotizaciones' && officialQuotesEnabled ? 'quotes' : 'itineraries')
 const itineraries = ref<ManagedItinerary[]>([])
 const news = ref<ManagedNews[]>([])
 const media = ref<ManagedMedia[]>([])
 const comments = ref<ManagedComment[]>(readManagedComments())
+const quotesTotal = ref(0)
 const editingId = ref<string | null>(null)
 const notice = ref('')
 const users = ref<ManagedUser[]>([])
@@ -39,6 +43,21 @@ function emptyComment(): ManagedComment { return { id: '', author: '', section: 
 function emptyMedia(): ManagedMedia { return { id: '', name: '', kind: 'Imagen', src: '' } }
 function reload() { itineraries.value = readManagedItineraries(); news.value = readManagedNews(); media.value = readManagedMedia(); comments.value = readManagedComments() }
 
+// The official quote count comes from the protected admin API, not from a local placeholder.
+async function loadQuotesTotal() {
+  if (!officialQuotesEnabled || !isLiveAdmin.value) return
+  try {
+    const response = await fetch('/api/admin/quotes/official?page=1', { credentials: 'same-origin', cache: 'no-store' })
+    if (!response.ok) return
+    const data = await response.json() as { total?: unknown }
+    if (typeof data.total === 'number' && Number.isSafeInteger(data.total) && data.total >= 0) {
+      quotesTotal.value = data.total
+    }
+  } catch {
+    // The quotations view handles API errors; don't interrupt the other admin tabs.
+  }
+}
+
 async function loadNews() {
   if (!isLiveAdmin.value) { news.value = readManagedNews(); return }
   try {
@@ -48,6 +67,16 @@ async function loadNews() {
     if (!Array.isArray(list)) throw new Error('Listado de noticias inválido.')
     news.value = list
   } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'Error consultando noticias.' }
+}
+async function loadComments() {
+  if (!isLiveAdmin.value) { comments.value = readManagedComments(); return }
+  try {
+    const response = await fetch('/api/admin/content/comments', { credentials: 'same-origin', cache: 'no-store' })
+    if (!response.ok) throw new Error(`No se pudieron cargar los comentarios (HTTP ${response.status}).`)
+    const list: unknown = await response.json()
+    if (!Array.isArray(list)) throw new Error('Listado de comentarios inválido.')
+    comments.value = list as ManagedComment[]
+  } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'Error consultando comentarios.' }
 }
 async function loadMedia() {
   if (!isLiveAdmin.value) { media.value = readManagedMedia(); return }
@@ -73,19 +102,20 @@ async function checkStorageMode() {
 function refreshAdminResource(resource: string) {
   if (!isLiveAdmin.value) return
   if (resource === 'sync') {
-    void Promise.all([loadNews(), loadMedia(), loadItineraries(), ...(section.value === 'users' ? [loadUsers()] : [])])
+    void Promise.all([loadNews(), loadComments(), loadMedia(), loadItineraries(), ...(section.value === 'users' ? [loadUsers()] : [])])
   } else if (resource === 'news-admin') void loadNews()
+  else if (resource === 'comments-admin') void loadComments()
   else if (resource === 'media') void loadMedia()
   else if (resource === 'itineraries') void loadItineraries()
   else if (resource === 'users' && section.value === 'users') void loadUsers()
 }
-const adminUnsubscribers = ['news-admin', 'media', 'itineraries', 'users', 'sync']
+const adminUnsubscribers = ['news-admin', 'comments-admin', 'media', 'itineraries', 'users', 'sync']
   .map(resource => subscribeToChanges(resource, () => refreshAdminResource(resource)))
 onUnmounted(() => adminUnsubscribers.forEach(stop => stop()))
 onMounted(async () => {
   await refreshSession()
   if (!isLiveAdmin.value) reload()
-  else await Promise.all([loadItineraries(), loadNews(), loadMedia(), checkStorageMode()])
+  else await Promise.all([loadItineraries(), loadNews(), loadComments(), loadMedia(), checkStorageMode(), loadQuotesTotal()])
   if (section.value === 'users') await loadUsers()
 })
 
@@ -94,11 +124,13 @@ function selectSection(next: Section) {
   startNew()
   const url = new URL(window.location.href)
   if (next === 'users') url.searchParams.set('tab', 'usuarios')
+  else if (next === 'quotes') url.searchParams.set('tab', 'cotizaciones')
   else url.searchParams.delete('tab')
   window.history.replaceState({}, '', url)
   if (next === 'users') void loadUsers()
   else if (next === 'itineraries') void loadItineraries()
   else if (next === 'news') void loadNews()
+  else if (next === 'comments') void loadComments()
   else if (next === 'media') void loadMedia()
 }
 
@@ -356,13 +388,29 @@ async function submitMedia() {
     notice.value = 'Multimedia guardada en PostgreSQL.'
   } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo guardar multimedia.' }
 }
-function submitComment() {
-  const item = { ...commentForm.value, author: commentForm.value.author.trim(), message: commentForm.value.message.trim(), section: commentForm.value.section.trim(), id: editingId.value ?? newManagedId() }
+async function submitComment() {
+  const item = { ...commentForm.value, author: commentForm.value.author.trim(), message: commentForm.value.message.trim(), section: commentForm.value.section.trim() }
   if (!item.author || !item.message) { notice.value = 'Completa el autor y el comentario.'; return }
-  saveManaged('comments', item)
-  comments.value = readManagedComments()
-  startNew()
-  notice.value = 'Comentario guardado solo en este navegador; no se publica ni se sincroniza con el servidor.'
+  if (!isLiveAdmin.value) {
+    saveManaged('comments', { ...item, id: editingId.value ?? newManagedId() })
+    comments.value = readManagedComments()
+    startNew()
+    notice.value = 'Comentario de previsualización guardado solo en este navegador.'
+    return
+  }
+  try {
+    const response = await fetch(editingId.value ? `/api/admin/content/comments/${encodeURIComponent(editingId.value)}` : '/api/admin/content/comments', {
+      method: editingId.value ? 'PUT' : 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item)
+    })
+    if (!response.ok) {
+      const detail = await response.json().catch(() => null)
+      throw new Error(detail?.error || `No se pudo guardar el comentario (HTTP ${response.status}).`)
+    }
+    startNew()
+    await loadComments()
+    notice.value = item.published ? 'Comentario publicado en la web.' : 'Comentario guardado como borrador privado.'
+  } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo guardar el comentario.' }
 }
 async function remove(id: string) {
   if (!window.confirm('¿Eliminar este registro? Esta acción no se puede deshacer.')) return
@@ -377,7 +425,7 @@ async function remove(id: string) {
     } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo eliminar el itinerario.' }
     return
   }
-  if (isLiveAdmin.value && (section.value === 'news' || section.value === 'media')) {
+  if (isLiveAdmin.value && (section.value === 'news' || section.value === 'media' || section.value === 'comments')) {
     try {
       const kind = section.value
       const response = await fetch(`/api/admin/content/${kind}/${encodeURIComponent(id)}`, {
@@ -386,6 +434,7 @@ async function remove(id: string) {
       if (!response.ok) throw new Error(`No se pudo eliminar (HTTP ${response.status}).`)
       if (editingId.value === id) startNew()
       if (kind === 'news') await loadNews()
+      else if (kind === 'comments') await loadComments()
       else await loadMedia()
       notice.value = 'Elemento eliminado de PostgreSQL.'
     } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'Error eliminando contenido.' }
@@ -452,17 +501,18 @@ function useMediaForNews(item: ManagedMedia) {
       <div class="manager-topbar-actions"><a class="manager-back" :href="`/home${previewSuffix}`">Volver al sitio <IconSymbol glyph="↗" /></a></div>
     </header>
     <section class="manager-shell">
-      <div class="manager-heading"><p class="manager-eyebrow">CASTRO FALLAS · ADMINISTRACIÓN</p><h1>{{ section === 'users' ? 'Gestión de usuarios' : 'Administración del sitio' }}</h1><p>{{ section === 'users' ? 'Consulta las cuentas y administra sus roles desde esta sección.' : 'Administra itinerarios, noticias e imágenes desde esta pantalla.' }}</p></div>
+      <div class="manager-heading"><p class="manager-eyebrow">CASTRO FALLAS · ADMINISTRACIÓN</p><h1>{{ section === 'users' ? 'Gestión de usuarios' : section === 'quotes' ? 'Cotizaciones' : 'Administración del sitio' }}</h1><p>{{ section === 'users' ? 'Consulta las cuentas y administra sus roles desde esta sección.' : section === 'quotes' ? 'Revisá y gestioná las solicitudes oficiales de tus clientes.' : 'Administra itinerarios, noticias e imágenes desde esta pantalla.' }}</p></div>
       <nav class="manager-tabs" aria-label="Secciones de administración">
-        <button :class="{ active: section !== 'users' }" @click="selectSection('itineraries')"><IconSymbol glyph="▤" :size="19" /> Contenido</button>
-        <button :class="{ active: section === 'users' }" @click="selectSection('users')"><IconSymbol glyph="user" :size="19" /> Gestión de usuarios <span>{{ users.length }}</span></button>
+        <button :class="{ active: section !== 'users' }" @click="selectSection('itineraries')"><IconSymbol glyph="▤" :size="19" /> <span class="manager-tab-label">Contenido</span></button>
+        <button :class="{ active: section === 'users' }" @click="selectSection('users')"><IconSymbol glyph="user" :size="19" /> <span class="manager-tab-label">Gestión de usuarios</span> <span class="manager-tab-count">{{ users.length }}</span></button>
       </nav>
-      <nav v-if="section !== 'users'" class="manager-tabs manager-subtabs" aria-label="Tipos de contenido">
-        <button :class="{ active: section === 'itineraries' }" @click="selectSection('itineraries')"><IconSymbol glyph="ship" :size="19" /> Itinerarios <span>{{ itineraries.length }}</span></button>
-        <button :class="{ active: section === 'news' }" @click="selectSection('news')"><IconSymbol glyph="newspaper" :size="19" /> Noticias <span>{{ news.length }}</span></button>
-        <button :class="{ active: section === 'media' }" @click="selectSection('media')"><IconSymbol glyph="image" :size="19" /> Multimedia <span>{{ media.length }}</span></button>
-        <button :class="{ active: section === 'comments' }" @click="selectSection('comments')"><IconSymbol glyph="◉" :size="19" /> Comentarios <span>{{ comments.length }}</span></button>
-        <button class="manager-editor-visual-tab" :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> Editor visual <span>0</span></button>
+      <nav v-if="section !== 'users'" class="manager-tabs manager-subtabs" :class="{ 'manager-subtabs--with-quotes': officialQuotesEnabled }" aria-label="Tipos de contenido">
+        <button :class="{ active: section === 'itineraries' }" @click="selectSection('itineraries')"><IconSymbol glyph="ship" :size="19" /> <span class="manager-tab-label">Itinerarios</span> <span>{{ itineraries.length }}</span></button>
+        <button :class="{ active: section === 'news' }" @click="selectSection('news')"><IconSymbol glyph="newspaper" :size="19" /> <span class="manager-tab-label">Noticias</span> <span>{{ news.length }}</span></button>
+        <button :class="{ active: section === 'media' }" @click="selectSection('media')"><IconSymbol glyph="image" :size="19" /> <span class="manager-tab-label">Multimedia</span> <span>{{ media.length }}</span></button>
+        <button :class="{ active: section === 'comments' }" @click="selectSection('comments')"><IconSymbol glyph="message-circle" :size="19" /> <span class="manager-tab-label">Comentarios</span> <span>{{ comments.length }}</span></button>
+        <button v-if="officialQuotesEnabled" :class="{ active: section === 'quotes' }" @click="selectSection('quotes')"><IconSymbol glyph="▰" :size="19" /> <span class="manager-tab-label">Cotizaciones</span> <span>{{ quotesTotal }}</span></button>
+        <button class="manager-editor-visual-tab" :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> <span class="manager-tab-label">Editor visual</span> <span>0</span></button>
       </nav>
       <section v-if="section === 'users'" class="manager-users-card" aria-label="Cuentas registradas">
         <header><div><p class="manager-eyebrow">CUENTAS REGISTRADAS</p><h2>{{ usersLoading ? 'Cargando…' : `${users.length} usuarios` }}</h2></div><button class="manager-add" :disabled="usersLoading" @click="loadUsers">Actualizar</button></header>
@@ -474,6 +524,7 @@ function useMediaForNews(item: ManagedMedia) {
         <div v-else-if="users.length" class="manager-users-table-wrap"><table class="manager-users-table"><thead><tr><th>Cuenta</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody><tr v-for="user in users" :key="user.id"><td><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td><td><select v-model="user.role" :disabled="Boolean(authState.previewRole)" :aria-label="`Rol de ${user.correo}`"><option value="cliente">Cliente</option><option value="administrador">Administrador</option></select></td><td><select v-model="user.activo" :disabled="Boolean(authState.previewRole)" :aria-label="`Estado de ${user.correo}`"><option :value="true">Activo</option><option :value="false">Desactivado</option></select></td><td><button class="manager-user-save" :disabled="Boolean(authState.previewRole) || savingUserId === user.id" @click="updateUser(user)">{{ savingUserId === user.id ? 'Guardando…' : 'Guardar' }}</button></td></tr></tbody></table></div>
       </section>
       <SiteVisualEditor v-if="section === 'site'" />
+      <OfficialQuoteAdmin v-else-if="section === 'quotes'" embedded @total-change="quotesTotal = $event" />
       <div v-else class="manager-layout">
         <template v-if="section !== 'users'">
         <section class="manager-form">
@@ -505,7 +556,11 @@ function useMediaForNews(item: ManagedMedia) {
             <label>Autor<input v-model.trim="commentForm.author" required maxlength="100" /></label>
             <label>Sección<input v-model.trim="commentForm.section" maxlength="100" placeholder="Principal, servicios..." /></label>
             <label>Comentario<textarea v-model.trim="commentForm.message" required maxlength="1200" rows="5" /></label>
-            <label class="manager-checkbox"><input v-model="commentForm.published" type="checkbox" /> Aprobar para publicación</label>
+            <label>Estado de publicación<select v-model="commentForm.published">
+              <option :value="false">Borrador (solo administradores)</option>
+              <option :value="true">Publicado (visible en la web)</option>
+            </select></label>
+            <p class="manager-publication-hint" role="status">{{ commentForm.published ? 'El comentario aparecerá en la web al guardar.' : 'El borrador no aparecerá en la web pública.' }}</p>
             <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar comentario' }}</button>
           </form>
           <form v-else @submit.prevent="submitMedia">
@@ -544,7 +599,7 @@ function useMediaForNews(item: ManagedMedia) {
               <strong v-else>{{ (entry as ManagedMedia).name }}</strong>
               <small v-if="section === 'itineraries'">{{ (entry as ManagedItinerary).transport }} · {{ (entry as ManagedItinerary).status }}</small>
               <small v-else-if="section === 'news'">{{ (entry as ManagedNews).category }} · <strong :class="(entry as ManagedNews).published ? 'manager-status-published' : 'manager-status-draft'">{{ (entry as ManagedNews).published ? 'Publicada en la web' : 'Borrador privado' }}</strong></small>
-              <small v-else-if="section === 'comments'">{{ (entry as ManagedComment).section || 'General' }} · {{ (entry as ManagedComment).message }}</small>
+              <small v-else-if="section === 'comments'">{{ (entry as ManagedComment).section || 'General' }} · <strong :class="(entry as ManagedComment).published ? 'manager-status-published' : 'manager-status-draft'">{{ (entry as ManagedComment).published ? 'Publicado en la web' : 'Borrador privado' }}</strong> · {{ (entry as ManagedComment).message }}</small>
               <small v-else>{{ (entry as ManagedMedia).kind }}</small>
             </div>
             <div class="manager-item-actions"><button aria-label="Editar" title="Editar" @click="edit(entry)"><IconSymbol glyph="pencil" :size="17" /></button><button aria-label="Eliminar" title="Eliminar" @click="remove(entry.id)"><IconSymbol glyph="trash" :size="17" /></button><button v-if="section === 'media' && (entry as ManagedMedia).kind === 'Imagen'" aria-label="Usar imagen en noticia" title="Usar en noticia" @click="useMediaForNews(entry as ManagedMedia)"><IconSymbol glyph="↗" :size="17" /></button></div>
@@ -902,9 +957,13 @@ function useMediaForNews(item: ManagedMedia) {
   background:color-mix(in srgb,#b20c2a 9%,var(--manager-card));
   color:var(--manager-accent);
 }
-.is-embedded .manager-tabs button span:not(.lucide-symbol) {
+.is-embedded .manager-tabs button span:not(.lucide-symbol):not(.manager-tab-label) {
   min-width:23px; padding:2px 7px; border:1px solid var(--manager-line);
   border-radius:999px; background:transparent; color:inherit; font-size:11px;
+}
+.is-embedded .manager-tabs button .manager-tab-label {
+  min-width:0; padding:0; margin:0; border:0; border-radius:0;
+  background:transparent; color:inherit; font:inherit; line-height:1.25;
 }
 .is-embedded .manager-layout {display:grid;grid-template-columns:minmax(0,1fr);gap:26px;}
 .is-embedded .manager-form,.is-embedded .manager-list,.is-embedded .manager-users-card {
@@ -985,16 +1044,181 @@ function useMediaForNews(item: ManagedMedia) {
 @keyframes manager-zip-glow {from{transform:translateX(0)}to{transform:translateX(133%)}}
 @media(prefers-reduced-motion:reduce){.is-embedded .manager-form::before,.is-embedded .manager-list::before,.is-embedded .manager-users-card::before{animation:none;transform:translateX(65%)}}
 @media(max-width:1000px){.is-embedded .manager-form form.manager-editor--itineraries{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* El espacio libre se reparte entre los seis grupos, no dentro de
+   columnas de ancho fijo: así las separaciones visibles son iguales. */
+@media (min-width:651px) {
+  .content-manager.is-embedded .manager-tabs.manager-subtabs {
+    display:grid;
+    grid-template-columns:repeat(6,max-content);
+    justify-content:space-between;
+    align-items:stretch;
+    gap:8px;
+    overflow-x:hidden;
+    overflow-y:hidden;
+  }
+  .content-manager.is-embedded .manager-tabs.manager-subtabs > button {
+    width:max-content;
+    min-width:0;
+    padding-inline:clamp(2px,.4vw,8px);
+    gap:clamp(2px,.4vw,8px);
+    font-size:clamp(11px,1vw,14px);
+    white-space:nowrap;
+  }
+}
+@media (min-width:651px) and (max-width:1250px) {
+  .content-manager.is-embedded .manager-tabs.manager-subtabs {
+    grid-template-columns:repeat(6,minmax(0,1fr));
+    justify-content:stretch;
+    gap:clamp(2px,.4vw,12px);
+  }
+  .content-manager.is-embedded .manager-tabs.manager-subtabs > button {
+    width:100%;
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    grid-template-rows:32px minmax(30px,auto) 24px;
+    justify-items:center;
+    align-content:center;
+    text-align:center;
+    gap:3px;
+    padding-block:8px 12px;
+    white-space:normal;
+  }
+  .content-manager.is-embedded .manager-tabs.manager-subtabs > button .lucide-symbol {
+    grid-column:1;
+    grid-row:1;
+    margin:0;
+  }
+  .content-manager.is-embedded .manager-tabs.manager-subtabs > button .manager-tab-label {
+    grid-column:1;
+    grid-row:2;
+    white-space:normal;
+    overflow-wrap:break-word;
+  }
+  .content-manager.is-embedded .manager-tabs.manager-subtabs > button > span:not(.lucide-symbol):not(.manager-tab-label) {
+    grid-column:1;
+    grid-row:3;
+    margin:0;
+  }
+}
 @media(max-width:650px){
   .is-embedded .manager-shell{width:calc(100% - 32px)}
   .is-embedded .manager-heading{padding:20px 16px;border-radius:16px}
   .is-embedded .manager-form,.is-embedded .manager-list,.is-embedded .manager-users-card{padding:22px 16px;border-radius:20px}
   .is-embedded .manager-tabs{gap:6px 12px;padding:6px 8px;border-radius:14px}
   .is-embedded .manager-tabs button{padding:10px 6px 14px;font-size:13px}
-  .is-embedded .manager-tabs.manager-subtabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
-  .is-embedded .manager-tabs.manager-subtabs button.manager-editor-visual-tab {
-    grid-column:1/-1;justify-self:center;width:max-content;max-width:100%;
-    padding-inline:18px;border-radius:14px;
+
+  /* Dos pestañas principales de igual ancho en teléfono, sin saltos de fila
+     ni subrayados que invadan la otra opción. Los submenús mantienen su grid. */
+  .is-embedded .manager-tabs:not(.manager-subtabs) {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    align-items:stretch;
+    gap:8px;
+    padding:8px;
+    overflow-x:hidden;
+  }
+  .is-embedded .manager-tabs:not(.manager-subtabs) > button {
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    grid-template-rows:32px minmax(36px,auto) 24px;
+    justify-items:center;
+    align-items:center;
+    align-content:center;
+    gap:3px;
+    width:100%;
+    min-width:0;
+    min-height:116px;
+    padding:8px 5px 13px;
+    text-align:center;
+    white-space:normal;
+  }
+  .is-embedded .manager-tabs:not(.manager-subtabs) > button .lucide-symbol {
+    grid-row:1;
+    grid-column:1;
+    margin:0;
+  }
+  .is-embedded .manager-tabs button .manager-tab-label {
+    min-width:0;
+    padding:0;
+    margin:0;
+    border:0;
+    border-radius:0;
+    background:transparent;
+    color:inherit;
+    font-size:inherit;
+    line-height:1.25;
+    overflow-wrap:break-word;
+  }
+  .is-embedded .manager-tabs:not(.manager-subtabs) > button .manager-tab-label {
+    grid-row:2;
+    grid-column:1;
+  }
+  .is-embedded .manager-tabs:not(.manager-subtabs) > button .manager-tab-count {
+    grid-row:3;
+    grid-column:1;
+    margin:0;
+  }
+  .is-embedded .manager-tabs:not(.manager-subtabs) > button::after {
+    left:10%;
+    right:10%;
+  }
+  /* Todas las subpestañas móviles comparten el mismo renglón de icono,
+     etiqueta y contador. La última pareja (Cotizaciones / Editor) va junta. */
+  .is-embedded .manager-tabs.manager-subtabs {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    align-items:stretch;
+    gap:6px 10px;
+    padding:8px 10px 10px;
+    overflow-x:hidden;
+  }
+  .is-embedded .manager-tabs.manager-subtabs > button {
+    display:grid;
+    grid-template-columns:clamp(28px,8vw,34px) minmax(0,1fr) auto;
+    align-items:center;
+    justify-items:start;
+    column-gap:clamp(3px,1.1vw,6px);
+    min-width:0;
+    width:100%;
+    min-height:68px;
+    padding:8px 3px 12px;
+    font-size:clamp(11px,3.15vw,13px);
+    line-height:1.2;
+    text-align:left;
+    white-space:normal;
+  }
+  .is-embedded .manager-tabs.manager-subtabs > button .lucide-symbol {
+    grid-column:1;
+    width:clamp(28px,8vw,34px);
+    height:32px;
+    min-width:0;
+    min-height:32px;
+    flex:none;
+    margin:0;
+  }
+  .is-embedded .manager-tabs.manager-subtabs > button .manager-tab-label {
+    grid-column:2;
+    min-width:0;
+    margin:0;
+    white-space:normal;
+    overflow-wrap:normal;
+  }
+  .is-embedded .manager-tabs.manager-subtabs > button > span:not(.lucide-symbol):not(.manager-tab-label) {
+    grid-column:3;
+    margin:0;
+    min-width:24px;
+    padding:2px 5px;
+    text-align:center;
+    white-space:nowrap;
+  }
+  /* Cuando no hay Cotizaciones, Editor visual sigue centrado en la última fila. */
+  .is-embedded .manager-tabs.manager-subtabs:not(.manager-subtabs--with-quotes) > button.manager-editor-visual-tab {
+    grid-column:1/-1;
+    justify-self:center;
+    width:max-content;
+    max-width:100%;
+    padding-inline:18px;
+    border-radius:14px;
   }
   .is-embedded .manager-form form,.is-embedded .manager-form form.manager-editor--itineraries{grid-template-columns:minmax(0,1fr)}
   .is-embedded .manager-form :is(input,select,textarea),.is-embedded .manager-users-table select{font-size:16px}

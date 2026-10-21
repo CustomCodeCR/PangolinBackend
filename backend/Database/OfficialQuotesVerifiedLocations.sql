@@ -23,4 +23,3 @@ CROSS JOIN (VALUES ('FTL'),('LTL')) type(shipment_type)
 CROSS JOIN (VALUES ('origin'),('destination')) role(route_role)
 WHERE l.kind='inland' AND l.code LIKE 'VID-LAND-%'
 ON CONFLICT DO NOTHING;
-

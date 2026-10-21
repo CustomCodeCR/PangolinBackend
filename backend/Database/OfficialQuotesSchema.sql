@@ -66,4 +66,3 @@ CREATE TABLE IF NOT EXISTS public.official_quote_location_usage (
  PRIMARY KEY (location_id, shipment_type, route_role)
 );
 CREATE INDEX IF NOT EXISTS ix_official_quote_location_usage_lookup ON public.official_quote_location_usage (shipment_type, route_role);
-
