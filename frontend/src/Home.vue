@@ -338,7 +338,7 @@ onUnmounted(() => {
                 </div>
                 <div class="promise-card__comment-content">
                   <span v-if="comment.section" class="promise-card__section">{{ comment.section }}</span>
-                  <p class="promise-card__message" tabindex="0" :aria-label="comment.message">{{ comment.message }}</p>
+                  <p class="promise-card__message" :tabindex="index >= publicComments.length ? -1 : 0" :aria-label="comment.message">{{ comment.message }}</p>
                   <h3 :title="comment.author">{{ comment.author }}</h3>
                 </div>
                 <div class="promise-card__dash"></div>
@@ -481,6 +481,9 @@ onUnmounted(() => {
 .promise-track:focus-within {
   animation-play-state: paused;
 }
+.promise-track .promise-card--comment {
+  height: 265px;
+}
 .promise-card--comment .promise-card__comment-content {
   display: flex;
   flex: 1;
@@ -490,6 +493,10 @@ onUnmounted(() => {
   margin-top: 14px;
 }
 .promise-card--comment .promise-card__section {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 11px;
   font-weight: 750;
   opacity: .85;
@@ -508,6 +515,10 @@ onUnmounted(() => {
   overflow-wrap: anywhere;
 }
 .promise-card--comment h3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   margin: 11px 0 0;
   font-size: 17px;
   line-height: 1.3;
