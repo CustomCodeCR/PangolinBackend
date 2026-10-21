@@ -251,19 +251,19 @@
     "faqs": [
       {
         "q": "What services does Grupo Castro Fallas offer?",
-        "a": "The website presents logistics, customs management and international air, ocean and land transport solutions. We can help prepare a request for your operation."
+        "a": "We offer comprehensive logistics solutions, including ocean, air and land transportation, customs management, bonded and general warehousing, international transportation and specialized services to support import and export operations."
       },
       {
         "q": "How can I request a quote?",
-        "a": "Select Quotes, complete the cargo details and click Send to Pricing. In this demo, the request is recorded through the existing API; no email is sent automatically."
+        "a": "You can request a quote from the Quotes section of our website. Share your cargo details, including origin, destination and shipment characteristics, so our team can assess your needs and offer a suitable solution."
       },
       {
         "q": "How can I track my shipment?",
-        "a": "The Track your shipment section currently includes a 3D demo visualization. Live shipment tracking requires a data source and integration."
+        "a": "You can check your shipment status in the Tracking section of our website using the tracking information for your operation. If you need further assistance, our team is available to help."
       },
       {
         "q": "Do you handle FCL and LCL?",
-        "a": "FCL means full container load and LCL means less than container load. Contact our commercial team to confirm availability and terms."
+        "a": "Yes. We offer ocean freight FCL (full container load) and LCL (less than container load), with flexible options based on your cargo volume, logistics needs and operational requirements."
       }
     ],
     "promises": [
