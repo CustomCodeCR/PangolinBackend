@@ -232,7 +232,7 @@ check('class="manager-heading"' in admin_manager
 admin_css = read('frontend/src/style.css')
 # Comprobar solo el bloque administrativo: otros módulos sí pueden usar blur.
 admin_colors = (admin_css.split('/* Administracion: mismo fondo carbon/rojo vino de Itinerario 01.', 1)[-1]
-                .split('/* Conservar la imagen compartida de Castro Fallas', 1)[0])
+                .split('/* Noticias: modal acorde con el tema, con el brillo rojo difuminado de Itinerarios.', 1)[0])
 check('html.theme-dark .app-site.administration-page .content-manager.is-embedded :is(' in admin_colors
       and all('.' + part in admin_colors for part in [
           'manager-heading', 'manager-notice', 'manager-preview-note',
