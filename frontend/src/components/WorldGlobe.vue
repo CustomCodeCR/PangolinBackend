@@ -42,12 +42,6 @@ const selectedCity = computed(() => selectedOffice.value ? (english.value ? sele
 const selectedCountry = computed(() => selectedOffice.value ? (english.value ? selectedOffice.value.countryEn : selectedOffice.value.countryEs) : '')
 const markerData = () => offices.map(office => ({...office, label:(english.value ? office.en : office.es) + ', ' + (english.value ? office.countryEn : office.countryEs), color:'#a80e18',count:1,size:4}))
 const costaRicaCenter = { lat: 9.9417, lon: -84.0583 }
-const infoHours: Record<string,string> = {
-  curridabat:'08:00–16:00',tibas:'08:00–16:00',panama:'08:00–16:00',barcelona:'08:00–16:00',
-  miami:'09:00–16:00','new-york':'09:00–16:00',houston:'09:00–16:00','los-angeles':'09:00–16:00',hueneme:'09:00–16:00',
-  xiamen:'12:00–20:00',fuzhou:'12:00–20:00',ningbo:'08:00–19:00',dalian:'09:00–18:00',qingdao:'08:00–19:00',xingang:'08:00–19:00',shenzhen:'09:00–22:00',guangzhou:'08:00–22:00'
-}
-const selectedHours = computed(() => selectedOffice.value ? infoHours[selectedOffice.value.id] : undefined)
 
 
 
@@ -265,7 +259,6 @@ onBeforeUnmount(() => {
         <h3>{{ selectedCity }}</h3>
         <dl>
           <div><dt>{{ english ? 'Address' : 'Dirección' }}</dt><dd>{{ selectedOffice.address }}</dd></div>
-          <div v-if="selectedHours"><dt>{{ english ? 'Hours (local, to verify)' : 'Horario (local, por confirmar)' }}</dt><dd>{{ selectedHours }}</dd></div>
           <div><dt>Email</dt><dd><a :href="gmailComposeHref(selectedOffice.email)" target="_blank" rel="noopener noreferrer" :aria-label="`${english ? 'Compose in Gmail to' : 'Escribir en Gmail a'} ${selectedOffice.email}`">{{ selectedOffice.email }}</a></dd></div>
         </dl>
       </template>
