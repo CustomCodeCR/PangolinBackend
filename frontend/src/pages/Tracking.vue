@@ -34,8 +34,8 @@ const types = computed(() => en.value ? [
 const help = computed(() => types.value.find(item => item.id === kind.value)?.help ?? '')
 const selectedReferenceName = computed(() => types.value.find(item => item.id === kind.value)?.name ?? '')
 
-// iOS can detach its native select menu from the field while scrolling.
-// On phones position a listbox beside the field, flipping upward when needed.
+// Use the same anchored reference listbox on desktop and mobile.
+// It flips above the field when there isn't enough room below.
 function positionReferenceMenu() {
   const rect = referenceTrigger.value?.getBoundingClientRect()
   if (!rect) return
@@ -102,8 +102,7 @@ function handleReferencePointerDown(event: PointerEvent) {
 }
 function handleReferenceViewportChange() {
   if (!referenceMenuOpen.value) return
-  if (window.innerWidth > 580) closeReferenceMenu()
-  else positionReferenceMenu()
+  positionReferenceMenu()
 }
 const copy = computed(() => en.value ? {
   eyebrow: 'CASTRO FALLAS · INTERNATIONAL CARGO', title: 'Track your', accent: 'shipment.',
@@ -221,12 +220,10 @@ onBeforeUnmount(() => {
             <div class="tracking-fields">
               <div id="tracking-guide-type" class="tracking-field">
                 <label for="tracking-reference-kind">{{ copy.type }}</label>
-                <select id="tracking-reference-kind" v-model="kind" class="tracking-native-select">
-                  <option v-for="item in types" :key="item.id" :value="item.id">{{ item.name }}</option>
-                </select>
                 <button
+                  id="tracking-reference-kind"
                   ref="referenceTrigger"
-                  class="tracking-mobile-select"
+                  class="tracking-reference-select"
                   type="button"
                   aria-haspopup="listbox"
                   aria-controls="tracking-reference-listbox"
@@ -238,7 +235,7 @@ onBeforeUnmount(() => {
                   @keydown.esc.prevent="closeReferenceMenu"
                 >
                   <span>{{ selectedReferenceName }}</span>
-                  <span class="tracking-mobile-select__arrow" aria-hidden="true">⌄</span>
+                  <span class="tracking-reference-select__arrow" aria-hidden="true">⌄</span>
                 </button>
               </div>
               <div id="tracking-guide-reference" class="tracking-field">
@@ -316,9 +313,29 @@ onBeforeUnmount(() => {
 .tracking-fields { display: grid; grid-template-columns: .8fr 1.2fr; gap: 17px; margin-top: 20px; }
 .tracking-fields .tracking-field { display:grid; gap:9px; min-width:0; }
 .tracking-fields label { display:block; min-width:0; font-weight:700; font-size:14px; overflow-wrap:break-word; }
-/* Mobile select options are teleported outside the clipped form, so the list can
-   open directly above or below its field without Safari moving it off-screen. */
-.tracking-mobile-select {display:none}
+/* Shared reference selector for desktop and mobile; options are teleported
+   outside the clipped form and remain anchored to the trigger. */
+.tracking-fields .tracking-reference-select {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  min-height:52px;
+  width:100%;
+  min-width:0;
+  padding:12px 15px;
+  border:1px solid #96969b60;
+  border-radius:13px;
+  background:var(--surface-card);
+  color:var(--text-primary);
+  text-align:left;
+  font:inherit;
+  font-size:16px;
+  line-height:1.35;
+  cursor:pointer;
+}
+.tracking-reference-select__arrow {flex:none;font-size:20px;line-height:1}
+:global(html.theme-dark .tracking-reference-select) {background:#10182b;color:#fff}
 .tracking-reference-options {
   position:fixed;
   z-index:9999;
@@ -444,28 +461,7 @@ onBeforeUnmount(() => {
   .tracking-field{min-width:0}
   .tracking-fields label{font-size:14px;line-height:1.4}
   .tracking-fields :is(input,select){min-height:54px;padding:13px 15px;font-size:16px;line-height:1.35}
-  .tracking-fields .tracking-native-select{display:none}
-  .tracking-fields .tracking-mobile-select{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    min-height:54px;
-    width:100%;
-    min-width:0;
-    padding:13px 15px;
-    border:1px solid #96969b60;
-    border-radius:13px;
-    background:var(--surface-card);
-    color:var(--text-primary);
-    text-align:left;
-    font:inherit;
-    font-size:16px;
-    line-height:1.35;
-    cursor:pointer;
-  }
-  .tracking-mobile-select__arrow{flex:none;font-size:20px;line-height:1}
-  :global(html.theme-dark) .tracking-mobile-select{background:#10182b;color:#fff}
+  .tracking-fields .tracking-reference-select{min-height:54px;padding:13px 15px}
   .tracking-search .tracking-hint{overflow-wrap:break-word;line-height:1.55}
   .tracking-search .tracking-fields + .tracking-hint{margin:22px 0 0}
   .tracking-top > div{min-width:0}
