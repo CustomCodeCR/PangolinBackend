@@ -1044,6 +1044,62 @@ function useMediaForNews(item: ManagedMedia) {
 @keyframes manager-zip-glow {from{transform:translateX(0)}to{transform:translateX(133%)}}
 @media(prefers-reduced-motion:reduce){.is-embedded .manager-form::before,.is-embedded .manager-list::before,.is-embedded .manager-users-card::before{animation:none;transform:translateX(65%)}}
 @media(max-width:1000px){.is-embedded .manager-form form.manager-editor--itineraries{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* El espacio libre se reparte entre los seis grupos, no dentro de
+   columnas de ancho fijo: así las separaciones visibles son iguales. */
+@media (min-width:651px) {
+  .content-manager.is-embedded .manager-tabs.manager-subtabs {
+    display:grid;
+    grid-template-columns:repeat(6,max-content);
+    justify-content:space-between;
+    align-items:stretch;
+    gap:8px;
+    overflow-x:hidden;
+    overflow-y:hidden;
+  }
+  .content-manager.is-embedded .manager-tabs.manager-subtabs > button {
+    width:max-content;
+    min-width:0;
+    padding-inline:clamp(2px,.4vw,8px);
+    gap:clamp(2px,.4vw,8px);
+    font-size:clamp(11px,1vw,14px);
+    white-space:nowrap;
+  }
+}
+@media (min-width:651px) and (max-width:1250px) {
+  .content-manager.is-embedded .manager-tabs.manager-subtabs {
+    grid-template-columns:repeat(6,minmax(0,1fr));
+    justify-content:stretch;
+    gap:clamp(2px,.4vw,12px);
+  }
+  .content-manager.is-embedded .manager-tabs.manager-subtabs > button {
+    width:100%;
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    grid-template-rows:32px minmax(30px,auto) 24px;
+    justify-items:center;
+    align-content:center;
+    text-align:center;
+    gap:3px;
+    padding-block:8px 12px;
+    white-space:normal;
+  }
+  .content-manager.is-embedded .manager-tabs.manager-subtabs > button .lucide-symbol {
+    grid-column:1;
+    grid-row:1;
+    margin:0;
+  }
+  .content-manager.is-embedded .manager-tabs.manager-subtabs > button .manager-tab-label {
+    grid-column:1;
+    grid-row:2;
+    white-space:normal;
+    overflow-wrap:break-word;
+  }
+  .content-manager.is-embedded .manager-tabs.manager-subtabs > button > span:not(.lucide-symbol):not(.manager-tab-label) {
+    grid-column:1;
+    grid-row:3;
+    margin:0;
+  }
+}
 @media(max-width:650px){
   .is-embedded .manager-shell{width:calc(100% - 32px)}
   .is-embedded .manager-heading{padding:20px 16px;border-radius:16px}

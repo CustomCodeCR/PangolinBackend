@@ -307,6 +307,17 @@ check('<IconSymbol glyph="message-circle" :size="19" /> <span class="manager-tab
       and "'comments-admin'" in manager_mobile,
       'Administración conserva CRUD de Comentarios y distribuye seis pestañas en móvil')
 
+check('@media (min-width:651px) {' in manager_mobile
+      and '.content-manager.is-embedded .manager-tabs.manager-subtabs {' in manager_mobile
+      and 'grid-template-columns:repeat(6,max-content);' in manager_mobile
+      and 'justify-content:space-between;' in manager_mobile
+      and 'overflow-x:hidden;' in manager_mobile
+      and '@media (min-width:651px) and (max-width:1250px) {' in manager_mobile
+      and 'grid-template-columns:repeat(6,minmax(0,1fr));' in manager_mobile
+      and '.content-manager.is-embedded .manager-tabs.manager-subtabs > button {' in manager_mobile
+      and 'grid-template-rows:32px minmax(30px,auto) 24px;' in manager_mobile,
+      'Administración mantiene espacios uniformes y sin desplazamiento horizontal en escritorio')
+
 mobile_drawer_css = read('frontend/src/style.css')
 drawer_fix = mobile_drawer_css.split('/* Mobile side drawer: account/settings controls share one short row.', 1)[-1]
 drawer_fix = drawer_fix.split('/* Móvil: mismo rojo sólido', 1)[0]
