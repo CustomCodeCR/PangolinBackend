@@ -138,7 +138,7 @@ onUnmounted(() => {
             <a href="#servicios" class="btn btn-primary">
               {{ $t('phrases.p003') }} <IconSymbol glyph="↗" />
             </a>
-            <a href="mailto:comercial@castrofallas.com" class="btn btn-outline-light">
+            <a href="#contacto" class="btn btn-outline-light">
               {{ $t('phrases.p004') }} <IconSymbol glyph="↗" />
             </a>
           </div>
@@ -288,9 +288,6 @@ onUnmounted(() => {
             <a class="btn btn-primary" href="/tracking">
               {{ $t('phrases.p024') }} <IconSymbol glyph="↗" />
             </a>
-            <small>
-              {{ $t('phrases.p025') }}
-            </small>
           </div>
 
           <WorldGlobe />
@@ -383,7 +380,7 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <section class="home-contact-details" :aria-label="$t('custom.home.contactAria')">
+      <section id="contacto" class="home-contact-details" :aria-label="$t('custom.home.contactAria')">
         <div class="container home-contact-grid">
           <a class="home-contact-card" href="tel:+50622726772">
             <IconSymbol class="home-contact-icon" glyph="☎" :size="24" />
