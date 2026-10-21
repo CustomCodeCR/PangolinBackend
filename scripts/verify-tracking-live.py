@@ -35,6 +35,10 @@ status, body, _ = get({"kind": "BL", "reference": "NO-EXISTE-2026-XYZ"})
 assert status == 404, f"Esperado HTTP 404: {status} {body}"
 print("OK: referencia no encontrada devuelve 404")
 
+status, body, _ = get({"kind": "HBL", "reference": "DEMO-HBL-PRIVATE-001"})
+assert status == 404, f"Un embarque privado se expuso: {status} {body}"
+print("OK: registro privado devuelve el mismo 404")
+
 status, body, _ = get({"kind": "BL", "reference": "abc"})
 assert status == 400, f"Esperado HTTP 400: {status} {body}"
 print("OK: validación de referencias")
