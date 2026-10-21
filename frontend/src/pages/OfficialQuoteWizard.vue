@@ -483,36 +483,33 @@ async function submit() {
   pointer-events: none;
 }
 .official-page--mode-selection .official-panel--mode-selection > * { position: relative; z-index: 1; }
-/* Una unica fuente de luz nace en la izquierda y se desvanece antes del borde derecho.
-   No queda ningun resplandor vino fijo en la derecha: el fondo termina carbon. */
+/* Mismo movimiento que el formulario de Itinerarios: resplandor radial,
+   grande y difuso, oscilando suavemente sin saltar ni encenderse de golpe.
+   El único color de la luz es el rojo institucional #A80E18. */
 .official-page--mode-selection .official-panel--mode-selection > .official-glass-glow {
   position: absolute;
   z-index: 0;
-  left: 0;
-  top: -22%;
-  bottom: -22%;
-  width: 47%;
+  top: -55%;
+  bottom: -55%;
+  left: -25%;
+  width: 60%;
   height: auto;
+  border-radius: 50%;
   pointer-events: none;
-  background: linear-gradient(90deg,
-    transparent 0%,
-    rgba(168, 14, 24, .20) 18%,
-    rgba(168, 14, 24, .72) 48%,
-    rgba(168, 14, 24, .22) 76%,
-    transparent 100%);
-  filter: blur(38px);
-  -webkit-filter: blur(38px);
-  opacity: 0;
-  transform: translate3d(-120%, 0, 0);
-  will-change: transform, opacity;
-  animation: official-glass-glow-sweep 8s linear infinite;
+  background: radial-gradient(ellipse at center,
+    rgba(168, 14, 24, .45) 0%,
+    rgba(168, 14, 24, .29) 38%,
+    rgba(168, 14, 24, .12) 62%,
+    transparent 76%);
+  filter: blur(42px);
+  -webkit-filter: blur(42px);
+  transform: translateX(0);
+  will-change: transform;
+  animation: official-glass-glow-sweep 9s ease-in-out infinite alternate;
 }
 @keyframes official-glass-glow-sweep {
-  0% { transform: translate3d(-120%, 0, 0); opacity: 0; }
-  12% { opacity: .95; }
-  64% { opacity: .85; }
-  83% { opacity: 0; }
-  100% { transform: translate3d(235%, 0, 0); opacity: 0; }
+  from { transform: translateX(0); }
+  to { transform: translateX(133%); }
 }
 .official-page--mode-selection .official-panel--mode-selection h2 { color: #fff !important; }
 .official-page--mode-selection .official-choices {
@@ -617,8 +614,7 @@ async function submit() {
   .official-page--mode-selection .official-choice:hover { transform: none; }
   .official-page--mode-selection .official-panel--mode-selection > .official-glass-glow {
     animation: none;
-    transform: translate3d(70%, 0, 0);
-    opacity: .45;
+    transform: translateX(0);
     will-change: auto;
   }
 }
