@@ -341,19 +341,25 @@ async function submit() {
 :global(html.theme-dark) .official-page .official-kicker { color:#ff8ca2!important; }
 @media (prefers-reduced-motion:reduce) { .official-page * { scroll-behavior:auto!important; } }
 
-/* Selección de modalidad: gradiente a pantalla completa y UN solo vidrio para el bloque. */
+/* Paso 1: ampliar la página sin recortar contenido; el degradado tipo itinerario
+   fluye horizontalmente de carbón a vino. Glass sólo sobre el panel principal. */
 .official-page--mode-selection {
   min-height: 100dvh;
-  background: linear-gradient(105deg, #811a32 0%, #642342 34%, #3e2851 64%, #142b51 100%) !important;
+  height: auto;
+  background: linear-gradient(90deg, #181419 0%, #23171d 42%, #451923 100%) !important;
   color: #fff;
 }
 .official-page--mode-selection .official-shell {
-  width: min(1180px, calc(100% - clamp(32px, 6vw, 112px)));
+  width: calc(100% - clamp(24px, 3.5vw, 76px));
+  max-width: none;
+  height: auto;
   min-height: calc(100dvh - 76px);
-  padding: clamp(32px, 5vh, 65px) 0 clamp(52px, 7vh, 95px);
+  margin: 0 auto;
+  padding: clamp(24px, 3vh, 42px) 0 clamp(40px, 5vh, 72px);
+  overflow: visible;
 }
 .official-page--mode-selection .official-header {
-  max-width: 820px;
+  max-width: 100%;
   border-left-color: rgba(255, 255, 255, .8);
 }
 .official-page--mode-selection .official-header h1,
@@ -383,10 +389,13 @@ async function submit() {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  min-height: clamp(370px, 46vh, 565px);
-  padding: clamp(28px, 4vw, 54px);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, .05) !important;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  padding: clamp(28px, 3vw, 52px);
+  border-radius: 28px;
+  /* Mismo vidrio de referencia, con resplandor vino difuminado hacia la derecha. */
+  background: linear-gradient(90deg, rgba(28, 24, 29, .90) 0%, rgba(42, 24, 31, .80) 47%, rgba(96, 21, 39, .72) 100%) !important;
   -webkit-backdrop-filter: blur(5px);
   backdrop-filter: blur(5px);
   border: 1px solid rgba(255, 255, 255, .3) !important;
@@ -425,7 +434,7 @@ async function submit() {
   min-width: 0;
   min-height: 190px;
   padding: clamp(20px, 2.4vw, 30px);
-  background: rgba(11, 22, 43, .18) !important;
+  background: rgba(255, 255, 255, .035) !important;
   border: 1px solid rgba(255, 255, 255, .24) !important;
   border-radius: 17px;
   color: #fff !important;
@@ -473,7 +482,7 @@ async function submit() {
   .official-page--mode-selection .official-shell {
     width: calc(100% - 32px);
     min-height: calc(100dvh - 72px);
-    padding: 30px 0 54px;
+    padding: 24px 0 54px;
   }
   .official-page--mode-selection .official-choices { grid-template-columns: 1fr; margin-top: 22px; }
   .official-page--mode-selection .official-panel--mode-selection { min-height: 0; padding: 24px; }
@@ -564,15 +573,15 @@ html.theme-dark .app-site.official-page .official-kicker {color:#ff8ca2!importan
 
 /* La selección conserva el mismo fondo Glass al activar el tema oscuro. */
 html.theme-dark .app-site.official-page.official-page--mode-selection {
-  background: linear-gradient(105deg, #811a32 0%, #642342 34%, #3e2851 64%, #142b51 100%) !important;
+  background: linear-gradient(90deg, #181419 0%, #23171d 42%, #451923 100%) !important;
 }
 html.theme-dark .app-site.official-page.official-page--mode-selection .official-panel.official-panel--mode-selection {
-  background: rgba(255, 255, 255, .05) !important;
+  background: linear-gradient(90deg, rgba(28, 24, 29, .90) 0%, rgba(42, 24, 31, .80) 47%, rgba(96, 21, 39, .72) 100%) !important;
   color: #fff !important;
   border-color: rgba(255, 255, 255, .3) !important;
 }
 html.theme-dark .app-site.official-page.official-page--mode-selection .official-choice {
-  background: rgba(11, 22, 43, .18) !important;
+  background: rgba(255, 255, 255, .035) !important;
   border-color: rgba(255, 255, 255, .24) !important;
   color: #fff !important;
 }
