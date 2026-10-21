@@ -462,12 +462,12 @@ function useMediaForNews(item: ManagedMedia) {
         <button :class="{ active: section === 'users' }" @click="selectSection('users')"><IconSymbol glyph="user" :size="19" /> <span class="manager-tab-label">Gestión de usuarios</span> <span class="manager-tab-count">{{ users.length }}</span></button>
       </nav>
       <nav v-if="section !== 'users'" class="manager-tabs manager-subtabs" :class="{ 'manager-subtabs--with-quotes': officialQuotesEnabled }" aria-label="Tipos de contenido">
-        <button :class="{ active: section === 'itineraries' }" @click="selectSection('itineraries')"><IconSymbol glyph="ship" :size="19" /> Itinerarios <span>{{ itineraries.length }}</span></button>
-        <button :class="{ active: section === 'news' }" @click="selectSection('news')"><IconSymbol glyph="newspaper" :size="19" /> Noticias <span>{{ news.length }}</span></button>
-        <button :class="{ active: section === 'media' }" @click="selectSection('media')"><IconSymbol glyph="image" :size="19" /> Multimedia <span>{{ media.length }}</span></button>
-        <button :class="{ active: section === 'comments' }" @click="selectSection('comments')"><IconSymbol glyph="message-circle" :size="19" /> Comentarios <span>{{ comments.length }}</span></button>
-        <button v-if="officialQuotesEnabled" :class="{ active: section === 'quotes' }" @click="selectSection('quotes')"><IconSymbol glyph="▰" :size="19" /> Cotizaciones</button>
-        <button class="manager-editor-visual-tab" :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> Editor visual <span>0</span></button>
+        <button :class="{ active: section === 'itineraries' }" @click="selectSection('itineraries')"><IconSymbol glyph="ship" :size="19" /> <span class="manager-tab-label">Itinerarios</span> <span>{{ itineraries.length }}</span></button>
+        <button :class="{ active: section === 'news' }" @click="selectSection('news')"><IconSymbol glyph="newspaper" :size="19" /> <span class="manager-tab-label">Noticias</span> <span>{{ news.length }}</span></button>
+        <button :class="{ active: section === 'media' }" @click="selectSection('media')"><IconSymbol glyph="image" :size="19" /> <span class="manager-tab-label">Multimedia</span> <span>{{ media.length }}</span></button>
+        <button :class="{ active: section === 'comments' }" @click="selectSection('comments')"><IconSymbol glyph="message-circle" :size="19" /> <span class="manager-tab-label">Comentarios</span> <span>{{ comments.length }}</span></button>
+        <button v-if="officialQuotesEnabled" :class="{ active: section === 'quotes' }" @click="selectSection('quotes')"><IconSymbol glyph="▰" :size="19" /> <span class="manager-tab-label">Cotizaciones</span></button>
+        <button class="manager-editor-visual-tab" :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> <span class="manager-tab-label">Editor visual</span> <span>0</span></button>
       </nav>
       <section v-if="section === 'users'" class="manager-users-card" aria-label="Cuentas registradas">
         <header><div><p class="manager-eyebrow">CUENTAS REGISTRADAS</p><h2>{{ usersLoading ? 'Cargando…' : `${users.length} usuarios` }}</h2></div><button class="manager-add" :disabled="usersLoading" @click="loadUsers">Actualizar</button></header>
@@ -1057,23 +1057,56 @@ function useMediaForNews(item: ManagedMedia) {
     left:10%;
     right:10%;
   }
-  /* El último par comparte fila cuando Cotizaciones está habilitado.
-     Sin Cotizaciones, Editor visual permanece centrado en su propia fila. */
+  /* Todas las subpestañas móviles comparten el mismo renglón de icono,
+     etiqueta y contador. La última pareja (Cotizaciones / Editor) va junta. */
   .is-embedded .manager-tabs.manager-subtabs {
     display:grid;
     grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:4px 10px;
-    padding:8px 10px 10px;
     align-items:stretch;
+    gap:6px 10px;
+    padding:8px 10px 10px;
+    overflow-x:hidden;
   }
   .is-embedded .manager-tabs.manager-subtabs > button {
+    display:grid;
+    grid-template-columns:clamp(28px,8vw,34px) minmax(0,1fr) auto;
+    align-items:center;
+    justify-items:start;
+    column-gap:clamp(3px,1.1vw,6px);
     min-width:0;
     width:100%;
-    padding:8px 4px 12px;
-    gap:6px;
-    line-height:1.25;
+    min-height:68px;
+    padding:8px 3px 12px;
+    font-size:clamp(11px,3.15vw,13px);
+    line-height:1.2;
+    text-align:left;
     white-space:normal;
   }
+  .is-embedded .manager-tabs.manager-subtabs > button .lucide-symbol {
+    grid-column:1;
+    width:clamp(28px,8vw,34px);
+    height:32px;
+    min-width:0;
+    min-height:32px;
+    flex:none;
+    margin:0;
+  }
+  .is-embedded .manager-tabs.manager-subtabs > button .manager-tab-label {
+    grid-column:2;
+    min-width:0;
+    margin:0;
+    white-space:normal;
+    overflow-wrap:normal;
+  }
+  .is-embedded .manager-tabs.manager-subtabs > button > span:not(.lucide-symbol):not(.manager-tab-label) {
+    grid-column:3;
+    margin:0;
+    min-width:24px;
+    padding:2px 5px;
+    text-align:center;
+    white-space:nowrap;
+  }
+  /* Cuando no hay Cotizaciones, Editor visual sigue centrado en la última fila. */
   .is-embedded .manager-tabs.manager-subtabs:not(.manager-subtabs--with-quotes) > button.manager-editor-visual-tab {
     grid-column:1/-1;
     justify-self:center;
@@ -1081,17 +1114,6 @@ function useMediaForNews(item: ManagedMedia) {
     max-width:100%;
     padding-inline:18px;
     border-radius:14px;
-  }
-  .is-embedded .manager-tabs.manager-subtabs--with-quotes > button.manager-editor-visual-tab {
-    grid-column:auto;
-    flex-wrap:wrap;
-    row-gap:3px;
-  }
-  /* Evita que el dibujo de Comentarios desaparezca por compresión del flex. */
-  .is-embedded .manager-tabs.manager-subtabs button .lucide-symbol {
-    flex:0 0 36px;
-    min-width:36px;
-    min-height:32px;
   }
   .is-embedded .manager-form form,.is-embedded .manager-form form.manager-editor--itineraries{grid-template-columns:minmax(0,1fr)}
   .is-embedded .manager-form :is(input,select,textarea),.is-embedded .manager-users-table select{font-size:16px}
