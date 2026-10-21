@@ -306,10 +306,13 @@ app.MapPost("/api/auth/request-otp", async (
 {
     try
     {
-        var (result, limited) = await auth.RequestOtpAsync(input, ct);
-        if (limited) return Results.Json(new { error = "Demasiados intentos. Esperá antes de solicitar otro código." }, statusCode: 429);
-        if (result is null) return Results.BadRequest(new { error = "Revisá el correo, tipo de acceso y código Dynamics." });
+        var (result, limited, accountUnavailable) = await auth.RequestOtpAsync(input, ct);
         http.Response.Headers.CacheControl = "no-store";
+        if (limited) return Results.Json(new { error = "Demasiados intentos. Esperá antes de solicitar otro código." }, statusCode: 429);
+        if (accountUnavailable) return Results.Json(
+            new { error = "No se pudo iniciar sesión con ese correo. Verificá que esté registrado y habilitado.", code = "account_unavailable" },
+            statusCode: StatusCodes.Status404NotFound);
+        if (result is null) return Results.BadRequest(new { error = "Revisá el correo, tipo de acceso y código Dynamics." });
         return Results.Ok(result);
     }
     catch (EmailDeliveryException ex)
