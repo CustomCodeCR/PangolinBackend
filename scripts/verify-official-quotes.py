@@ -16,7 +16,7 @@ verified = (ROOT / "backend/Database/OfficialQuotesVerifiedLocations.sql").read_
 
 # Contar solo filas VALUES, no ocurrencias de 'inland' en el WHERE/SELECT.
 land_rows = re.findall(
-    r"(?m)^\\s*\\('([0-9a-fA-F-]{36})'\\s*,\\s*'inland'\\s*,\\s*'([^']+)'\\s*,\\s*'(VID-LAND-[0-9]{2})'\\s*,\\s*TRUE\\)\\s*,?\\s*$",
+    r"(?m)^[ \t]*\('([0-9a-fA-F-]{36})'[ \t]*,[ \t]*'inland'[ \t]*,[ \t]*'([^']+)'[ \t]*,[ \t]*'(VID-LAND-[0-9]{2})'[ \t]*,[ \t]*TRUE\),?[ \t]*$",
     verified,
 )
 unique_land_rows = (
