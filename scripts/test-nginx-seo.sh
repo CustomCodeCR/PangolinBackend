@@ -11,6 +11,7 @@ cleanup() {
 trap cleanup EXIT
 docker build -f frontend/Dockerfile -t cf-seo-nginx-test frontend
 docker network create "$network" >/dev/null
+# Fixture nginx listens on port 80, so proxying to backend:5000 must give 502.
 # nginx.conf references the production "backend" hostname at nginx startup.
 docker run -d --rm --name cf-seo-dns-api --network "$network" --network-alias backend nginx:alpine >/dev/null
 docker run -d --rm --name cf-seo-nginx --network "$network" -p 127.0.0.1:$port:80 cf-seo-nginx-test >/dev/null
@@ -60,7 +61,7 @@ test_http "/robots.txt" 200
 test_http "/sitemap.xml" 200
 test_http "/images/logo.png" 200
 test_http "/favicon.png" 200
-test_http "/api/not-a-real-route" 404
+test_http "/api/not-a-real-route" 502
 curl --fail --silent "$base/sitemap.xml" | grep -q 'https://logisticacastrofallas.com/servicios'
 curl --fail --silent "$base/robots.txt" | grep -q 'Sitemap: https://logisticacastrofallas.com/sitemap.xml'
 echo 'PASS: nginx production HTTP routes, assets, sitemap, robots, 404, private noindex and canonical'
