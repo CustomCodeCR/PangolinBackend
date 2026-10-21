@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="es" class="theme-dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vista previa · Noticias Castro Fallas</title>
+  <style>
+    :root { font-family: Inter, "Segoe UI", Arial, sans-serif; background: #0d1424; color:#fff; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height:100dvh; }
+    button { cursor:pointer; font:inherit; }
+    .app-site.news-page { min-height:100dvh; position:relative; overflow:hidden; }
+    .mock-news-page { min-height:100dvh; padding: 120px max(28px, calc((100vw - 1050px)/2)); background:linear-gradient(135deg,#3b0b1a,#0c182d 68%); }
+    .mock-news-page h1 { margin:0 0 22px; font-size:clamp(48px,8vw,90px); line-height:1; letter-spacing:-.06em; font-weight:900; }
+    .mock-news-page p { max-width:700px; opacity:.72; line-height:1.65; }
+    .mock-news-card { border:1px solid #ffffff40; border-radius:20px; margin-top:32px; max-width:650px; padding:30px; background:#ffffff13; -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); }
+    .mock-news-card h2 { margin:8px 0; font-size:28px; }
+    .mock-news-card button { margin-top:15px; padding:12px 18px; border:1px solid #ffffff7d; border-radius:100px; color:white; background:#a50a28; }
+    .preview-control { position:fixed; z-index:1200; top:16px; left:50%; transform:translateX(-50%); display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:8px; width:max-content; max-width:calc(100vw - 20px); padding:8px 10px; background:rgba(11,17,31,.93); color:#fff; border:1px solid rgba(255,255,255,.34); border-radius:100px; box-shadow:0 8px 30px #0006; }
+    .preview-control span { font-size:11px; letter-spacing:.07em; font-weight:700; padding:0 7px; }
+    .preview-control button { border:1px solid rgba(255,255,255,.3); border-radius:100px; padding:7px 12px; font-size:12px; color:#fff; background:transparent; }
+    .preview-control button[aria-pressed="true"] { background:#a70e27; border-color:#e65f74; }
+    .preview-control button:focus-visible,.news-article-modal__close:focus-visible{outline:3px solid #e95a70;outline-offset:3px}
+    @keyframes itinerary-red-sweep { from {transform:translateX(0)} to {transform:translateX(133%)} }
+    .news-article-fulltext { white-space:pre-line; overflow-wrap:anywhere; }
+    /* Reglas originales del modal de la web (PR #55) */
+    .news-article-modal-backdrop{position:fixed;z-index:1100;inset:0;display:grid;place-items:center;padding:22px;background:rgba(2,6,18,.76);backdrop-filter:blur(9px)}
+.news-article-modal{position:relative;width:min(760px,100%);max-height:min(88vh,900px);overflow:auto;border:1px solid rgba(211,29,58,.5);border-radius:23px;background:#fff;color:#171923;box-shadow:0 30px 90px rgba(0,0,0,.4)}
+.news-article-modal>img{display:block;width:100%;height:clamp(190px,32vh,310px);object-fit:cover}
+.news-article-modal__copy{padding:clamp(22px,4vw,38px)}
+.news-article-modal__copy .section-tag{margin:0 0 12px;color:#b20b2d;font-size:10px}
+.news-article-modal__copy h2{margin:0 46px 14px 0;color:#171923;font-family:"Arial Black",system-ui,sans-serif;font-size:clamp(25px,4vw,40px);letter-spacing:-.045em;line-height:1.1}
+.news-article-modal__copy>p:not(.section-tag){margin:0;color:#4d5360;font-size:15px;line-height:1.75}
+.news-article-modal__copy small{display:block;margin-top:22px;color:#9a5d68;font-size:10px;font-weight:800;letter-spacing:.06em}
+.news-article-modal__close{position:absolute;z-index:1;top:14px;right:14px;display:grid;place-items:center;width:42px;height:42px;border:1px solid rgba(255,255,255,.7);border-radius:50%;background:rgba(8,13,25,.72);color:#fff;font-size:28px;line-height:1;cursor:pointer;backdrop-filter:blur(8px)}
+
+
+    /* Cambios reales de la PR #55: apariencia adaptativa y luz roja. */
+    /* Noticias: modal acorde con el tema, con el brillo rojo difuminado de Itinerarios.
+   El efecto se queda detrás del texto y no altera la imagen, el scroll ni el cierre. */
+.app-site.news-page .news-article-modal {
+  isolation: isolate;
+  background: linear-gradient(110deg, #fff 0%, #fff9fa 100%);
+  color: #171923;
+  border-color: rgba(178, 11, 45, .3);
+}
+.app-site.news-page .news-article-modal__copy {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: rgba(255, 255, 255, .88);
+  color: #171923;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.app-site.news-page .news-article-modal__copy::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: -55%;
+  bottom: -55%;
+  left: -25%;
+  width: 60%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center,
+    rgba(214, 14, 52, .18) 0%,
+    rgba(178, 11, 45, .10) 38%,
+    rgba(126, 10, 34, .04) 58%,
+    transparent 76%);
+  filter: blur(42px);
+  pointer-events: none;
+  animation: itinerary-red-sweep 9s ease-in-out infinite alternate;
+}
+.app-site.news-page .news-article-modal__copy > * {
+  position: relative;
+  z-index: 1;
+}
+.app-site.news-page .news-article-modal__copy h2 { color: #171923 !important; }
+.app-site.news-page .news-article-modal__copy > p:not(.section-tag) { color: #4d5360 !important; }
+.app-site.news-page .news-article-modal__copy .section-tag { color: #b20b2d !important; }
+
+html.theme-dark .app-site.news-page .news-article-modal {
+  background: linear-gradient(110deg, #27131b 0%, #17131a 42%, #10192c 100%);
+  color: #fff;
+  border-color: rgba(255, 255, 255, .2);
+}
+html.theme-dark .app-site.news-page .news-article-modal__copy {
+  background: rgba(18, 20, 33, .86);
+  color: #fff;
+}
+html.theme-dark .app-site.news-page .news-article-modal__copy::before {
+  background: radial-gradient(ellipse at center,
+    rgba(214, 14, 52, .37) 0%,
+    rgba(178, 11, 45, .23) 38%,
+    rgba(126, 10, 34, .11) 58%,
+    transparent 76%);
+}
+html.theme-dark .app-site.news-page .news-article-modal__copy h2,
+html.theme-dark .app-site.news-page .news-article-modal__copy > p:not(.section-tag),
+html.theme-dark .app-site.news-page .news-article-modal__copy .section-tag {
+  color: #fff !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-site.news-page .news-article-modal__copy::before {
+    animation: none;
+    transform: translateX(65%);
+  }
+}
+
+
+    @media (max-width:560px) {
+      .news-article-modal-backdrop{padding:12px}
+      .news-article-modal{border-radius:18px}
+      .news-article-modal>img{height:210px}
+      .news-article-modal__copy{padding:22px 19px}
+      .news-article-modal__copy>p:not(.section-tag){font-size:14px}
+      .preview-control { border-radius:18px; top:8px; }
+      .preview-control span { flex-basis:100%; text-align:center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-control" role="group" aria-label="Controles de la demostración">
+    <span>VISTA PREVIA · NOTICIAS</span>
+    <button type="button" id="darkButton" aria-pressed="true">Modo oscuro</button>
+    <button type="button" id="lightButton" aria-pressed="false">Modo claro</button>
+  </div>
+  <div class="app-site news-page">
+    <main class="mock-news-page">
+      <p>ACTUALIDAD E INNOVACIÓN / GRUPO CASTRO FALLAS</p>
+      <h1>Noticias de logística<br>y comercio exterior</h1>
+      <p>Demostración visual de la ventana de noticias. Los datos de esta pantalla son de ejemplo; no se consulta PostgreSQL ni se modifica el sitio publicado.</p>
+      <article class="mock-news-card">
+        <small>LOGÍSTICA Y SERVICIOS ASOCIADOS · NOTICIA</small>
+        <h2>Noticia de prueba 2</h2>
+        <p>Consulta de ejemplo para comprobar cómo se ve la ventana al abrir una noticia.</p>
+        <button type="button" id="openArticle">Abrir noticia ↗</button>
+      </article>
+    </main>
+    <div class="news-article-modal-backdrop" id="backdrop">
+      <article class="news-article-modal" role="dialog" aria-modal="true" aria-label="Noticia de prueba 2">
+        <button type="button" class="news-article-modal__close" id="closeArticle" aria-label="Cerrar noticia">×</button>
+        <img src="https://raw.githubusercontent.com/CustomCodeCR/PangolinBackend/main/frontend/public/images/cover-logistics.jpeg" alt="Contenedores y operaciones logísticas" />
+        <div class="news-article-modal__copy">
+          <p class="section-tag">LOGÍSTICA Y SERVICIOS ASOCIADOS · NOTICIA</p>
+          <h2>Noticia de prueba 2</h2>
+          <p class="news-article-fulltext">Contenido de prueba 2, distinto - Contenido de prueba 2, distinto - Contenido de prueba 2, distinto - Contenido de prueba 2, distinto - Contenido de prueba 2, distinto - Contenido de prueba 2, distinto - Contenido de prueba 2, distinto.</p>
+        </div>
+      </article>
+    </div>
+  </div>
+  <script>
+    const root = document.documentElement;
+    const darkButton = document.getElementById('darkButton');
+    const lightButton = document.getElementById('lightButton');
+    const backdrop = document.getElementById('backdrop');
+    function setTheme(dark) {
+      root.classList.toggle('theme-dark', dark);
+      darkButton.setAttribute('aria-pressed', String(dark));
+      lightButton.setAttribute('aria-pressed', String(!dark));
+    }
+    darkButton.addEventListener('click', () => setTheme(true));
+    lightButton.addEventListener('click', () => setTheme(false));
+    document.getElementById('closeArticle').addEventListener('click', () => backdrop.hidden = true);
+    document.getElementById('openArticle').addEventListener('click', () => backdrop.hidden = false);
+    backdrop.addEventListener('click', event => { if(event.target === backdrop) backdrop.hidden = true; });
+    document.addEventListener('keydown', event => { if(event.key === 'Escape') backdrop.hidden = true; });
+  </script>
+  <style>[hidden]{display:none!important}</style>
+</body>
+</html>
