@@ -483,9 +483,8 @@ async function submit() {
   pointer-events: none;
 }
 .official-page--mode-selection .official-panel--mode-selection > * { position: relative; z-index: 1; }
-/* Mismo movimiento que el formulario de Itinerarios: resplandor radial,
-   grande y difuso, oscilando suavemente sin saltar ni encenderse de golpe.
-   El único color de la luz es el rojo institucional #A80E18. */
+/* Replica los tonos y el movimiento de .itinerary-form-card::before.
+   Mantiene intacto el fondo del formulario y los controles de ambas pantallas. */
 .official-page--mode-selection .official-panel--mode-selection > .official-glass-glow {
   position: absolute;
   z-index: 0;
@@ -497,15 +496,30 @@ async function submit() {
   border-radius: 50%;
   pointer-events: none;
   background: radial-gradient(ellipse at center,
-    rgba(168, 14, 24, .45) 0%,
-    rgba(168, 14, 24, .29) 38%,
-    rgba(168, 14, 24, .12) 62%,
+    rgba(214, 14, 52, .29) 0%,
+    rgba(178, 11, 45, .17) 38%,
+    rgba(126, 10, 34, .07) 58%,
     transparent 76%);
   filter: blur(42px);
   -webkit-filter: blur(42px);
   transform: translateX(0);
   will-change: transform;
   animation: official-glass-glow-sweep 9s ease-in-out infinite alternate;
+}
+/* Valores exactos de Itinerarios, incluido el tono mas oscuro en tema oscuro. */
+:global(html:not(.theme-dark)) .official-page--mode-selection .official-panel--mode-selection > .official-glass-glow {
+  background: radial-gradient(ellipse at center,
+    rgba(214, 14, 52, .18) 0%,
+    rgba(178, 11, 45, .10) 38%,
+    rgba(126, 10, 34, .04) 58%,
+    transparent 76%);
+}
+:global(html.theme-dark) .official-page--mode-selection .official-panel--mode-selection > .official-glass-glow {
+  background: radial-gradient(ellipse at center,
+    rgba(214, 14, 52, .37) 0%,
+    rgba(178, 11, 45, .23) 38%,
+    rgba(126, 10, 34, .11) 58%,
+    transparent 76%);
 }
 @keyframes official-glass-glow-sweep {
   from { transform: translateX(0); }
