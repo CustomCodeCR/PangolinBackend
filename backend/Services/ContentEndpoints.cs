@@ -24,7 +24,61 @@ public static class ContentEndpoints
                 .ToListAsync(ct));
         });
 
+        app.MapGet("/api/content/comments", async (AppDbContext db, HttpContext http, CancellationToken ct) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+            return Results.Ok(await db.ManagedComments.AsNoTracking()
+                .Where(x => x.Published)
+                .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
+                .Select(x => new { x.Id, x.Author, x.Section, x.Message, x.Published })
+                .Take(100).ToListAsync(ct));
+        });
+
         var admin = app.MapGroup("/api/admin/content").RequireAuthorization("admin");
+
+        admin.MapGet("/comments", async (AppDbContext db, CancellationToken ct) =>
+            Results.Ok(await db.ManagedComments.AsNoTracking()
+                .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
+                .Select(x => new { x.Id, x.Author, x.Section, x.Message, x.Published })
+                .ToListAsync(ct)));
+
+        admin.MapPost("/comments", async (SaveCommentRequest input, AppDbContext db, ContentUpdatesPublisher updates, CancellationToken ct) =>
+        {
+            var error = ValidateComment(input);
+            if (error is not null) return Results.BadRequest(new { error });
+            var comment = new ManagedComment();
+            ApplyComment(comment, input);
+            db.ManagedComments.Add(comment);
+            await db.SaveChangesAsync(ct);
+            await updates.AdminsAsync("comments-admin");
+            if (comment.Published) await updates.PublicAsync("comments");
+            return Results.Created($"/api/admin/content/comments/{comment.Id}", CommentView(comment));
+        });
+
+        admin.MapPut("/comments/{id:guid}", async (Guid id, SaveCommentRequest input, AppDbContext db, ContentUpdatesPublisher updates, CancellationToken ct) =>
+        {
+            var error = ValidateComment(input);
+            if (error is not null) return Results.BadRequest(new { error });
+            var comment = await db.ManagedComments.FirstOrDefaultAsync(x => x.Id == id, ct);
+            if (comment is null) return Results.NotFound(new { error = "Comentario no encontrado." });
+            var wasPublished = comment.Published;
+            ApplyComment(comment, input);
+            await db.SaveChangesAsync(ct);
+            await updates.AdminsAsync("comments-admin");
+            if (wasPublished || comment.Published) await updates.PublicAsync("comments");
+            return Results.Ok(CommentView(comment));
+        });
+
+        admin.MapDelete("/comments/{id:guid}", async (Guid id, AppDbContext db, ContentUpdatesPublisher updates, CancellationToken ct) =>
+        {
+            var comment = await db.ManagedComments.FirstOrDefaultAsync(x => x.Id == id, ct);
+            if (comment is null) return Results.NotFound(new { error = "Comentario no encontrado." });
+            db.ManagedComments.Remove(comment);
+            await db.SaveChangesAsync(ct);
+            await updates.AdminsAsync("comments-admin");
+            if (comment.Published) await updates.PublicAsync("comments");
+            return Results.NoContent();
+        });
 
         admin.MapGet("/news", async (AppDbContext db, CancellationToken ct) =>
             Results.Ok(await db.ManagedNews.AsNoTracking()
@@ -128,6 +182,28 @@ public static class ContentEndpoints
             return Results.NoContent();
         });
     }
+
+    private static string? ValidateComment(SaveCommentRequest x)
+    {
+        if (string.IsNullOrWhiteSpace(x.Author) || x.Author.Trim().Length > 100)
+            return "El autor debe tener entre 1 y 100 caracteres.";
+        if ((x.Section?.Trim().Length ?? 0) > 100)
+            return "La sección no puede superar 100 caracteres.";
+        if (string.IsNullOrWhiteSpace(x.Message) || x.Message.Trim().Length > 1200)
+            return "El comentario debe tener entre 1 y 1200 caracteres.";
+        return null;
+    }
+
+    private static void ApplyComment(ManagedComment target, SaveCommentRequest input)
+    {
+        target.Author = input.Author!.Trim();
+        target.Section = input.Section?.Trim() ?? "";
+        target.Message = input.Message!.Trim();
+        target.Published = input.Published;
+        target.UpdatedAt = DateTime.UtcNow;
+    }
+
+    private static object CommentView(ManagedComment x) => new { x.Id, x.Author, x.Section, x.Message, x.Published };
 
     private static string? ValidateNews(SaveNewsRequest x)
     {

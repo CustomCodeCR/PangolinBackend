@@ -30,3 +30,16 @@ public sealed record SaveNewsRequest(
     string? Title, string? Category, string? Description, string? Image, bool Published, string? Body);
 public sealed record SaveMediaRequest(
     string? Name, string? Kind, string? Src);
+
+public sealed class ManagedComment
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Author { get; set; } = "";
+    public string Section { get; set; } = "";
+    public string Message { get; set; } = "";
+    public bool Published { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public sealed record SaveCommentRequest(string? Author, string? Section, string? Message, bool Published);

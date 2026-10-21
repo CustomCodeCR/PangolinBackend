@@ -33,8 +33,9 @@ public sealed class AuthService(
     private readonly string _pepper = configuration["Auth:OtpPepper"]
         ?? throw new InvalidOperationException("Falta Auth:OtpPepper");
 
-    // Se mantiene una respuesta uniforme para no enumerar correos registrados.
-    public async Task<(OtpStarted? Result, bool TooMany)> RequestOtpAsync(RequestOtpDto input, CancellationToken ct)
+    // El login necesita distinguir un correo no habilitado antes de abrir el formulario OTP.
+    // Esta respuesta expone una diferencia de existencia; conservar los límites por IP y correo.
+    public async Task<(OtpStarted? Result, bool TooMany, bool AccountUnavailable)> RequestOtpAsync(RequestOtpDto input, CancellationToken ct)
     {
         var suppliedRole = (input.TipoAcceso ?? "").Trim().ToLowerInvariant();
         var automaticRole = suppliedRole.Length == 0;
@@ -49,7 +50,7 @@ public sealed class AuthService(
             !string.Equals(address.Address, email, StringComparison.OrdinalIgnoreCase) ||
             (!automaticRole && suppliedRole == "cliente" && string.IsNullOrWhiteSpace(dynamics)) ||
             dynamics.Length > 200)
-            return (null, false);
+            return (null, false, false);
 
         // Límite por dirección incluso cuando no existe el usuario. El registro
         // es atómico en PostgreSQL: funciona sin Redis y entre varias instancias.
@@ -68,7 +69,7 @@ public sealed class AuthService(
                 OR (otp_rate_limits.request_count < 3
                     AND otp_rate_limits.last_requested_at <= NOW() - INTERVAL '60 seconds');
             """, ct);
-        if (allowed == 0) return (null, true);
+        if (allowed == 0) return (null, true, false);
 
         var user = await db.Usuarios.Include(u => u.Cliente)
             .FirstOrDefaultAsync(u => u.Correo.ToLower() == email &&
@@ -77,10 +78,10 @@ public sealed class AuthService(
                 u.Status && u.DeletedAt == null && u.Cliente.Status && u.Cliente.DeletedAt == null &&
                 (automaticRole || suppliedRole != "cliente" || u.Cliente.CodigoDynamics == dynamics), ct);
 
-        // Una cuenta inexistente o deshabilitada recibe una respuesta uniforme,
-        // sin correo ni OTP; nunca se revela su rol ni su existencia.
+        // No generar un challenge ficticio: el navegador debe permanecer en el paso del correo.
+        // Se agrupan cuentas inexistentes, inactivas y clientes deshabilitados.
         if (user is null)
-            return (new OtpStarted(Guid.NewGuid(), GenericMessage, 300), false);
+            return (null, false, true);
 
         // El rol real de la cuenta determina el challenge, el JWT y los permisos.
         var role = user.TipoAcceso;
@@ -88,7 +89,7 @@ public sealed class AuthService(
         var now = DateTime.UtcNow;
         var cooldown = await db.OtpChallenges.AsNoTracking()
             .AnyAsync(x => x.UsuarioId == user.Uuid && x.CreatedAt > now.AddSeconds(-60), ct);
-        if (cooldown) return (null, true);
+        if (cooldown) return (null, true, false);
 
         var id = Guid.NewGuid();
         var otp = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
@@ -116,7 +117,7 @@ public sealed class AuthService(
             await db.SaveChangesAsync(ct);
             throw new EmailDeliveryException();
         }
-        return (new OtpStarted(id, GenericMessage, 300), false);
+        return (new OtpStarted(id, GenericMessage, 300), false, false);
     }
 
     public async Task<(string Token, AuthIdentity Identity)?> VerifyOtpAsync(VerifyOtpDto input, CancellationToken ct)

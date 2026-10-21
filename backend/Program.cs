@@ -150,6 +150,8 @@ if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("Dev
         await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(testLocationsPath));
         var verifiedLocationsPath = Path.Combine(app.Environment.ContentRootPath, "Database", "OfficialQuotesVerifiedLocations.sql");
         await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(verifiedLocationsPath));
+        var videoLocationsPath = Path.Combine(app.Environment.ContentRootPath, "Database", "OfficialQuotesVideoLocations.sql");
+        await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(videoLocationsPath));
         app.Logger.LogInformation("Esquema de login comprobado/aplicado en PostgreSQL ({Database}).",
             new NpgsqlConnectionStringBuilder(postgres).Database);
     }
@@ -284,6 +286,7 @@ app.MapGet("/api/health/ready", async (AppDbContext db, IConfiguration config, C
         await db.Database.ExecuteSqlRawAsync("SELECT quote_id, entry_country FROM quote_multimodal_details LIMIT 0", ct);
         await db.Database.ExecuteSqlRawAsync("SELECT id FROM auth_admin_user_audit LIMIT 0", ct);
         await db.Database.ExecuteSqlRawAsync("SELECT id, published FROM public.cms_news LIMIT 0", ct);
+        await db.Database.ExecuteSqlRawAsync("SELECT id, published FROM public.cms_comments LIMIT 0", ct);
         await db.Database.ExecuteSqlRawAsync("SELECT id, src FROM public.cms_media LIMIT 0", ct);
         return Results.Ok(new
         {
@@ -303,10 +306,13 @@ app.MapPost("/api/auth/request-otp", async (
 {
     try
     {
-        var (result, limited) = await auth.RequestOtpAsync(input, ct);
-        if (limited) return Results.Json(new { error = "Demasiados intentos. Esperá antes de solicitar otro código." }, statusCode: 429);
-        if (result is null) return Results.BadRequest(new { error = "Revisá el correo, tipo de acceso y código Dynamics." });
+        var (result, limited, accountUnavailable) = await auth.RequestOtpAsync(input, ct);
         http.Response.Headers.CacheControl = "no-store";
+        if (limited) return Results.Json(new { error = "Demasiados intentos. Esperá antes de solicitar otro código." }, statusCode: 429);
+        if (accountUnavailable) return Results.Json(
+            new { error = "No se pudo iniciar sesión con ese correo. Verificá que esté registrado y habilitado.", code = "account_unavailable" },
+            statusCode: StatusCodes.Status404NotFound);
+        if (result is null) return Results.BadRequest(new { error = "Revisá el correo, tipo de acceso y código Dynamics." });
         return Results.Ok(result);
     }
     catch (EmailDeliveryException ex)

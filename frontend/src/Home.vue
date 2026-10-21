@@ -7,7 +7,8 @@ import IconSymbol from './components/IconSymbol.vue'
 import SiteMedia from './components/SiteMedia.vue'
 import { siteText, siteVisual, siteCssImage } from './siteCms'
 import { services as baseServices, faqs as baseFaqs, type ServiceKey } from './content'
-import type { ManagedNews } from './adminContent'
+import type { ManagedNews, ManagedComment } from './adminContent'
+import { subscribeToChanges } from './services/realtime'
 import { useI18n } from 'vue-i18n'
 
 const { t, locale } = useI18n({ useScope: 'global' })
@@ -42,17 +43,24 @@ const faqs = computed(() => baseFaqs.map((faq, index) => ({
   q: siteText(`home.faq.${index}.q`, t(`content.faqs.${index}.q`), locale.value),
   a: siteText(`home.faq.${index}.a`, t(`content.faqs.${index}.a`), locale.value)
 })))
-const promises = computed(() => [0, 1, 2].map(index => ({
-  icon: ['↗', '◎', '✦'][index],
-  title: siteText(`home.digital.card.${index}.title`, t(`content.promises.${index}.title`), locale.value),
-  subtitle: siteText(`home.digital.card.${index}.subtitle`, t(`content.promises.${index}.subtitle`), locale.value)
-})))
 const stats = computed(() => [
   { value: '+25', label: t('custom.home.stats.0') },
   { value: '#1', label: t('custom.home.stats.1') },
   { value: '+105', label: t('custom.home.stats.2') },
   { value: '24/7', label: t('custom.home.stats.3') }
 ])
+const publicComments = ref<ManagedComment[]>([])
+const carouselComments = computed(() => publicComments.value.length > 1
+  ? [...publicComments.value, ...publicComments.value]
+  : publicComments.value)
+async function loadPublicComments() {
+  try {
+    const response = await fetch('/api/content/comments', { cache: 'no-store' })
+    if (!response.ok) throw new Error('No se pudieron consultar comentarios.')
+    const list: unknown = await response.json()
+    publicComments.value = Array.isArray(list) ? (list as ManagedComment[]).filter(item => item.published).slice(0, 6) : []
+  } catch { publicComments.value = [] }
+}
 const managedNews = ref<ManagedNews[]>([])
 const homeNewsLoaded = ref(false)
 const homeNewsError = ref(false)
@@ -64,6 +72,7 @@ const homeNews = computed(() => managedNews.value.filter(article => article.publ
 
 const activeStat = ref(0)
 const newsScroller = ref<HTMLElement | null>(null)
+const unsubscribeComments = subscribeToChanges('comments', () => { void loadPublicComments() })
 let statsTimer: number | undefined
 let newsTimer: number | undefined
 let newsPauseUntil = 0
@@ -94,6 +103,7 @@ function showStat(index: number) {
 }
 
 onMounted(async () => {
+  void loadPublicComments()
   statsTimer = window.setInterval(() => showStat(activeStat.value + 1), 2500)
   try {
     const response = await fetch('/api/content/news', { cache: 'no-store' })
@@ -110,6 +120,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  unsubscribeComments()
   if (statsTimer) window.clearInterval(statsTimer)
   if (newsTimer) window.clearInterval(newsTimer)
 })
@@ -309,23 +320,32 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="promise-carousel">
-            <div class="promise-track">
+          <div v-if="publicComments.length" class="promise-carousel" aria-label="Comentarios publicados">
+            <div
+              class="promise-track"
+              :class="{ 'promise-track--static': publicComments.length === 1 }"
+              :style="{ animationDuration: `${Math.max(18, publicComments.length * 6)}s` }"
+            >
               <article
-                v-for="(promise, index) in [...promises, ...promises]"
-                :key="index"
-                class="promise-card"
+                v-for="(comment, index) in carouselComments"
+                :key="`${comment.id}-${index}`"
+                class="promise-card promise-card--comment"
+                :aria-hidden="index >= publicComments.length ? 'true' : undefined"
               >
                 <div class="promise-card__top">
-                  <IconSymbol :glyph="promise.icon" :size="22" />
-                  <small>0{{ (index % promises.length) + 1 }}</small>
+                  <IconSymbol glyph="message-circle" :size="22" />
+                  <small>{{ String((index % publicComments.length) + 1).padStart(2, '0') }}</small>
                 </div>
-                <h3>{{ promise.title }}</h3>
-                <p>{{ promise.subtitle }}</p>
+                <div class="promise-card__comment-content">
+                  <span v-if="comment.section" class="promise-card__section">{{ comment.section }}</span>
+                  <p class="promise-card__message" :tabindex="index >= publicComments.length ? -1 : 0" :aria-label="comment.message">{{ comment.message }}</p>
+                  <h3 :title="comment.author">{{ comment.author }}</h3>
+                </div>
                 <div class="promise-card__dash"></div>
               </article>
             </div>
           </div>
+          <p v-else class="experience-comments-empty" role="status">Todavía no hay comentarios publicados.</p>
         </div>
       </section>
 
@@ -447,4 +467,69 @@ onUnmounted(() => {
 
 <style scoped>
 .home-news-empty { padding: 24px 16px; margin: 0; color: #5d6270; font-size: 14px; line-height: 1.5; }
+</style>
+
+<style scoped>
+.experience-comments-empty {
+  margin: 18px 0 26px;
+  color: #8c7480;
+  font-size: 14px;
+}
+.promise-track--static {
+  animation: none !important;
+}
+.promise-track:focus-within {
+  animation-play-state: paused;
+}
+.promise-track .promise-card--comment {
+  height: 265px;
+}
+.promise-card--comment .promise-card__comment-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+.promise-card--comment .promise-card__section {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  font-weight: 750;
+  opacity: .85;
+  margin-bottom: 8px;
+  overflow-wrap: anywhere;
+}
+.promise-card--comment .promise-card__message {
+  max-width: none;
+  max-height: 110px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.promise-card--comment h3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin: 11px 0 0;
+  font-size: 17px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: reduce) {
+  .promise-track {
+    animation: none !important;
+  }
+  .promise-carousel {
+    overflow-x: auto;
+  }
+}
 </style>

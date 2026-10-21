@@ -13,6 +13,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<OfficialQuotePermission> OfficialQuotePermissions => Set<OfficialQuotePermission>();
     public DbSet<OfficialQuoteAudit> OfficialQuoteAudit => Set<OfficialQuoteAudit>();
     public DbSet<ManagedNews> ManagedNews => Set<ManagedNews>();
+    public DbSet<ManagedComment> ManagedComments => Set<ManagedComment>();
     public DbSet<ManagedMedia> ManagedMedia => Set<ManagedMedia>();
     public DbSet<SiteCmsSlot> SiteCmsSlots => Set<SiteCmsSlot>();
     public DbSet<QuoteContact> QuoteContacts => Set<QuoteContact>();
@@ -177,6 +178,17 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         news.Property(x => x.Published).HasColumnName("published");
         news.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp with time zone");
         news.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp with time zone");
+
+        var comment = modelBuilder.Entity<ManagedComment>();
+        comment.ToTable("cms_comments", "public");
+        comment.HasKey(x => x.Id);
+        comment.Property(x => x.Id).HasColumnName("id");
+        comment.Property(x => x.Author).HasColumnName("author").HasMaxLength(100).IsRequired();
+        comment.Property(x => x.Section).HasColumnName("section").HasMaxLength(100).IsRequired();
+        comment.Property(x => x.Message).HasColumnName("message").HasMaxLength(1200).IsRequired();
+        comment.Property(x => x.Published).HasColumnName("published");
+        comment.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp with time zone");
+        comment.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp with time zone");
 
         var siteSlot = modelBuilder.Entity<SiteCmsSlot>();
         siteSlot.ToTable("cms_site_slots", "public");

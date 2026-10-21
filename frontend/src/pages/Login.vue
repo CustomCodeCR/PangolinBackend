@@ -39,6 +39,7 @@ onUnmounted(() => systemThemeQuery?.removeEventListener('change', syncSystemThem
 async function parseError(response: Response): Promise<string> {
   try {
     const body = await response.json()
+    if (body?.code === 'account_unavailable') return t('custom.login.accountUnavailable')
     const detail = body.error || (response.status === 401 ? t('custom.login.invalidOtp') : t('custom.login.loginError'))
     const marker = body.code ? ` [${body.code}]` : ''
     return `${detail}${marker}${body.traceId ? ` (ref. ${body.traceId})` : ''}`
@@ -145,7 +146,6 @@ function enterAsGuest() {
         </form>
 
         <p v-if="error" class="login-auth-error" role="alert">{{ error }}</p>
-        <p class="login-auth-footer">{{ $t('custom.login.footer') }}</p>
       </section>
       <div class="login-end">© {{ new Date().getFullYear() }} Castro Fallas · {{ $t('custom.login.end') }}</div>
     </div>
