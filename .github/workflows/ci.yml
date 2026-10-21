@@ -48,3 +48,33 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build Docker frontend and exercise production Nginx
         run: bash scripts/test-nginx-seo.sh
+
+  production-compose:
+    name: Production Docker candidate and environment checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate safe CI-only production fixture
+        run: |
+          cat > .env.production <<'EOF'
+          POSTGRES_PASSWORD=ci_only_random_example_123456789012
+          AUTH_OTP_PEPPER=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          AUTH_JWT_SIGNING_KEY=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+          PUBLIC_ORIGIN=https://example.test
+          PRODUCTION_HTTP_PORT=8080
+          EMAIL_MODE=Smtp
+          SMTP_HOST=smtp.example.test
+          SMTP_PORT=587
+          SMTP_TLS=StartTls
+          SMTP_FROM=no-reply@example.test
+          SMTP_USERNAME=ci@example.test
+          SMTP_PASSWORD=ci-password
+          EOF
+          chmod 600 .env.production
+      - name: Preflight and Docker Compose validation
+        run: |
+          python3 -m py_compile scripts/preflight-production.py
+          python3 scripts/preflight-production.py .env.production
+          docker compose --env-file .env.production -f compose.production.yaml config --quiet
+      - name: Build production frontend and non-dev backend images
+        run: docker compose --env-file .env.production -f compose.production.yaml build frontend backend
