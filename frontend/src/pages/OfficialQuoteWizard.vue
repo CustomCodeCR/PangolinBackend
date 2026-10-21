@@ -165,7 +165,7 @@ async function submit() {
 </script>
 
 <template>
-  <div class="app-site official-page" :class="{ 'official-page--mode-selection': step === 1 && !createdId }">
+  <div class="app-site official-page" :class="{ 'official-page--wide-wizard': !createdId, 'official-page--mode-selection': step <= 2 && !createdId }">
     <SiteHeader />
     <main class="official-shell">
       <header class="official-header">
@@ -188,7 +188,7 @@ async function submit() {
             <span>{{ step > i+1 ? '✓' : i+1 }}</span><small>{{ name }}</small>
           </div>
         </nav>
-        <section class="official-panel" :class="{ 'official-panel--mode-selection': step === 1 }">
+        <section class="official-panel" :class="{ 'official-panel--mode-selection': step <= 2 }">
           <template v-if="step === 1">
             <p class="official-kicker">PASO 1 DE 4</p>
             <h2>¿Cómo querés transportar tu carga?</h2>
@@ -204,7 +204,7 @@ async function submit() {
           <template v-else-if="step === 2">
             <p class="official-kicker">PASO 2 DE 4</p><h2>Tipo de embarque</h2>
             <p class="official-hint">Mostramos únicamente las opciones de {{ mode === 'Maritime' ? 'transporte marítimo' : mode === 'Air' ? 'transporte aéreo' : 'transporte terrestre' }}.</p>
-            <div class="official-choices">
+            <div class="official-choices official-choices--shipment-type">
               <button v-for="choice in typeOptions" :key="choice.value" type="button" class="official-choice"
                 :class="{ chosen: shipmentType === choice.value }" :aria-pressed="shipmentType === choice.value"
                 @click="shipmentType = choice.value">
@@ -341,8 +341,45 @@ async function submit() {
 :global(html.theme-dark) .official-page .official-kicker { color:#ff8ca2!important; }
 @media (prefers-reduced-motion:reduce) { .official-page * { scroll-behavior:auto!important; } }
 
-/* Paso 1: ampliar la página sin recortar contenido; el degradado tipo itinerario
-   fluye horizontalmente de carbón a vino. Glass sólo sobre el panel principal. */
+/* Pasos 1 y 2 comparten el Glass y el degradado carbon a vino. 
+   Los pasos 3 y 4 conservan el layout ancho sin alterar los formularios. */
+.official-page--wide-wizard:not(.official-page--mode-selection) {
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+  overflow-y: visible;
+}
+.official-page--wide-wizard:not(.official-page--mode-selection) .official-shell {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin-inline: auto;
+  padding-inline: clamp(32px, 5.5vw, 108px);
+}
+.official-page--wide-wizard .official-progress,
+.official-page--wide-wizard .official-panel {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+@media (max-width: 1040px) and (min-width: 751px) {
+  .official-page--wide-wizard:not(.official-page--mode-selection) .official-shell {
+    padding-inline: clamp(28px, 5vw, 64px);
+  }
+}
+@media (max-width: 750px) {
+  .official-page--wide-wizard:not(.official-page--mode-selection) .official-shell {
+    padding-inline: 24px;
+  }
+}
+@media (max-width: 390px) {
+  .official-page--wide-wizard:not(.official-page--mode-selection) .official-shell {
+    padding-inline: 16px;
+  }
+}
 .official-page--mode-selection {
   min-height: 100dvh;
   height: auto;
@@ -447,6 +484,9 @@ async function submit() {
   gap: clamp(12px, 2vw, 22px);
   margin-top: 30px;
 }
+.official-page--mode-selection .official-choices--shipment-type {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 .official-page--mode-selection .official-choice {
   min-width: 0;
   min-height: 190px;
@@ -498,7 +538,9 @@ async function submit() {
 @media (max-width: 1040px) and (min-width: 751px) {
   .official-page--mode-selection .official-shell { padding-inline: clamp(28px, 5vw, 64px); }
   .official-page--mode-selection .official-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .official-page--mode-selection .official-choice:last-child { grid-column: 1 / -1; }
+  .official-page--mode-selection .official-choices:not(.official-choices--shipment-type) .official-choice:last-child {
+    grid-column: 1 / -1;
+  }
 }
 @media (max-width: 750px) {
   .official-page--mode-selection .official-shell {
@@ -507,7 +549,11 @@ async function submit() {
     padding: 24px 24px 54px;
   }
   .official-page--mode-selection .official-progress { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .official-page--mode-selection .official-choices { grid-template-columns: 1fr; margin-top: 22px; }
+  .official-page--mode-selection .official-choices,
+  .official-page--mode-selection .official-choices--shipment-type {
+    grid-template-columns: 1fr;
+    margin-top: 22px;
+  }
   .official-page--mode-selection .official-panel--mode-selection { min-height: 0; padding: 24px; }
   .official-page--mode-selection .official-choice {
     min-height: 108px;
