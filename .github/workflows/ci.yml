@@ -57,7 +57,7 @@ jobs:
       - name: Generate safe CI-only production fixture
         run: |
           cat > .env.production <<'EOF'
-          POSTGRES_PASSWORD=ci_only_random_example_123456789012
+          POSTGRES_PASSWORD=ci_fixture_secret_98765432101234567890
           AUTH_OTP_PEPPER=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
           AUTH_JWT_SIGNING_KEY=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
           PUBLIC_ORIGIN=https://example.test
