@@ -189,6 +189,8 @@ async function submit() {
           </div>
         </nav>
         <section class="official-panel" :class="{ 'official-panel--mode-selection': step <= 2 }">
+          <!-- El reflejo se desplaza detrás del contenido y nunca intercepta clics. -->
+          <div v-if="step <= 2" class="official-glass-glow" aria-hidden="true"></div>
           <template v-if="step === 1">
             <p class="official-kicker">PASO 1 DE 4</p>
             <h2>¿Cómo querés transportar tu carga?</h2>
@@ -478,6 +480,36 @@ async function submit() {
   pointer-events: none;
 }
 .official-page--mode-selection .official-panel--mode-selection > * { position: relative; z-index: 1; }
+/* Una única franja de luz difusa recorre TODO el panel de izquierda a derecha.
+   A diferencia del degradado de fondo, esta capa sí se anima. */
+.official-page--mode-selection .official-panel--mode-selection > .official-glass-glow {
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  top: -22%;
+  bottom: -22%;
+  width: 47%;
+  height: auto;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(216, 46, 81, .10) 18%,
+    rgba(247, 77, 111, .35) 48%,
+    rgba(222, 55, 93, .14) 76%,
+    transparent 100%);
+  filter: blur(38px);
+  -webkit-filter: blur(38px);
+  opacity: 0;
+  transform: translate3d(-120%, 0, 0);
+  will-change: transform, opacity;
+  animation: official-glass-glow-sweep 8s linear infinite;
+}
+@keyframes official-glass-glow-sweep {
+  0% { transform: translate3d(-120%, 0, 0); opacity: 0; }
+  12% { opacity: .95; }
+  88% { opacity: .95; }
+  100% { transform: translate3d(235%, 0, 0); opacity: 0; }
+}
 .official-page--mode-selection .official-panel--mode-selection h2 { color: #fff !important; }
 .official-page--mode-selection .official-choices {
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -579,6 +611,12 @@ async function submit() {
 @media (prefers-reduced-motion: reduce) {
   .official-page--mode-selection .official-choice { transition: none; }
   .official-page--mode-selection .official-choice:hover { transform: none; }
+  .official-page--mode-selection .official-panel--mode-selection > .official-glass-glow {
+    animation: none;
+    transform: translate3d(70%, 0, 0);
+    opacity: .45;
+    will-change: auto;
+  }
 }
 
 </style>
