@@ -42,20 +42,6 @@ assert.match(admin, /--manager-card:#211b20/, 'Conservar paleta ciruela oscura d
 assert.match(admin, /manager-editor--itineraries/, 'Conservar composición de 4 columnas')
 assert.match(admin, /SiteVisualEditor/, 'El estilo no puede borrar el editor visual')
 // Step-one visual design must stay isolated from the other three quote steps.
-
-const login = source('src/pages/Login.vue')
-const esLocale = JSON.parse(source('src/locales/es.json'))
-const enLocale = JSON.parse(source('src/locales/en.json'))
-assert.doesNotMatch(login, /custom\.login\.footer/, 'No mostrar textos de acceso de prueba')
-assert.match(login, /login-auth-register-notice" role="status"/, 'Mostrar aviso de registro al solicitar OTP')
-assert.match(login, /custom\.login\.unregisteredNotice/, 'El aviso debe traducirse')
-assert.equal(esLocale.custom.login.intro, 'Ingresa tu dirección de correo electrónico para recibir un código de un solo uso.')
-assert.equal(enLocale.custom.login.intro, 'Enter your email address to receive a one-time code.')
-assert.ok(esLocale.custom.login.unregisteredNotice && enLocale.custom.login.unregisteredNotice, 'El aviso debe existir en ambos idiomas')
-assert.equal(esLocale.custom.login.footer, undefined, 'Quitar texto antiguo de prueba')
-assert.equal(enLocale.custom.login.footer, undefined, 'Remove old test-access wording')
-assert.doesNotMatch(esLocale.custom.login.emailPlaceholder, /gmail\.com/i, 'No exigir Gmail en el placeholder')
-
 const officialQuote = source('src/pages/OfficialQuoteWizard.vue')
 assert.match(officialQuote, /import \{ Plane, Ship, Truck \} from '@lucide\/vue'/, 'Usar iconos Lucide en modalidades')
 assert.match(officialQuote, /:is="choice\.icon"/, 'Mostrar iconos dinamicos en vez de emojis')

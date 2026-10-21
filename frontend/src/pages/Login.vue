@@ -136,7 +136,6 @@ function enterAsGuest() {
 
         <form v-else class="login-auth-form" @submit.prevent="verifyCode">
           <p class="login-auth-help">{{ message || $t('custom.login.otpMessage') }}</p>
-          <p class="login-auth-help login-auth-register-notice" role="status">{{ $t('custom.login.unregisteredNotice') }}</p>
           <label>{{ $t('custom.login.otpLabel') }}
             <input v-model="otp" required minlength="6" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" />
           </label>
@@ -146,18 +145,9 @@ function enterAsGuest() {
         </form>
 
         <p v-if="error" class="login-auth-error" role="alert">{{ error }}</p>
+        <p class="login-auth-footer">{{ $t('custom.login.footer') }}</p>
       </section>
       <div class="login-end">© {{ new Date().getFullYear() }} Castro Fallas · {{ $t('custom.login.end') }}</div>
     </div>
   </main>
 </template>
-
-<style scoped>
-/* Informational guidance, not an account-existence confirmation. */
-.login-auth-register-notice {
-  border-left: 3px solid #ad0922;
-  border-radius: 8px;
-  padding: 10px 12px;
-  background: rgba(173, 9, 34, .08);
-}
-</style>
