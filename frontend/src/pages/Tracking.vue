@@ -352,9 +352,22 @@ onBeforeUnmount(() => {
 .tracking-reference-options > button.is-selected,
 .tracking-reference-options > button:hover {background:#b5092826}
 .tracking-reference-options > button:focus-visible {outline:2px solid #b50928;outline-offset:-2px}
-:global(html.theme-dark) .tracking-reference-options {background:#10182b;color:#fff;border-color:#6b6c7b}
-:global(html.theme-dark) .tracking-reference-options > button.is-selected,
-:global(html.theme-dark) .tracking-reference-options > button:hover {background:#b5092847}
+/* The listbox is teleported to <body>. Scope the entire dark selector,
+   not just html, so Vue applies dark colors to the detached listbox. */
+:global(html.theme-dark .tracking-reference-options) {
+  background:#10182b;
+  color:#f4f6fb;
+  border-color:#6b6c7b;
+  box-shadow:0 14px 34px #0009;
+}
+:global(html.theme-dark .tracking-reference-options > button) {
+  color:inherit;
+}
+:global(html.theme-dark .tracking-reference-options > button.is-selected),
+:global(html.theme-dark .tracking-reference-options > button:hover) {
+  background:#b5092847;
+  color:#fff;
+}
 .tracking-fields input,.tracking-fields select { box-sizing: border-box; width: 100%; min-width:0; max-width:100%; min-height: 52px; padding: 12px; border: 1px solid #96969b7d; border-radius: 12px; color: var(--track-ink); background: var(--track-surface); font: inherit; }
 .tracking-error { color: #a80e18; font-weight: 700; }
 .tracking-submit { width: 100%; display: flex; justify-content: space-between; margin-top: 22px; }
