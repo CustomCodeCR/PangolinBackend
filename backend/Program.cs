@@ -201,6 +201,7 @@ app.Use(async (ctx, next) =>
         bool trustedPublicOrigin = !app.Environment.IsDevelopment() &&
             Uri.TryCreate(builder.Configuration["Security:PublicOrigin"], UriKind.Absolute, out var publicUri) &&
             publicUri.Scheme == Uri.UriSchemeHttps &&
+            string.Equals(ctx.Request.Host.Host, publicUri.Host, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(origin.GetLeftPart(UriPartial.Authority),
                 publicUri.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase);
         if (!sameOrigin && !localVite && !trustedPublicOrigin)
