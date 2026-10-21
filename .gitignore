@@ -22,3 +22,21 @@ backend/local-outbox/
 
 # Licencia y secretos locales de MinIO AIStor
 docker-secrets/
+
+# Cachés generadas que nunca deben versionarse
+**/.vite/
+**/.cache/
+**/.turbo/
+**/.nuxt/
+**/.output/
+**/coverage/
+*.tsbuildinfo
+*.pyc
+__pycache__/
+artifacts/
+*.sqlite
+*.sqlite3
+*.pem
+*.key
+*.p12
+*.pfx
