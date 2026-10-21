@@ -81,5 +81,12 @@ assert.match(backendProgram, /StatusCodes\.Status404NotFound/, 'Devolver 404 ant
 
 const tracking = source('src/pages/Tracking.vue')
 assert.match(tracking, /Online tracking is not available yet/, 'No simular seguimiento real')
+assert.match(tracking, /<label for="tracking-reference-kind">/, 'Tipo de referencia debe tener una etiqueta separada del select')
+assert.match(tracking, /<select id="tracking-reference-kind" v-model="kind">/, 'Conservar selección nativa accesible de los cinco tipos')
+assert.match(tracking, /<label for="tracking-reference-input">/, 'Referencia debe conservar una etiqueta explícita')
+assert.doesNotMatch(tracking, /setTimeout\(openGuide/, 'La guía no debe abrirse automáticamente sobre el selector táctil')
+assert.match(tracking, /@click="openGuide"/, 'Conservar la guía a solicitud del usuario')
+assert.match(tracking, /\.tracking-fields\{grid-template-columns:minmax\(0,1fr\);gap:20px;/, 'Separar los campos en móvil')
+assert.match(tracking, /\.tracking-fields :is\(input,select\)\{min-height:54px;padding:13px 15px;font-size:16px;/, 'Controles táctiles con fuente legible en móvil')
 assert.doesNotMatch(main, /connectWebSocket\(\)/, 'No activar broker local 8081')
 console.log('OK: SignalR, CMS, MinIO, news, itinerary and tracking contracts.')
