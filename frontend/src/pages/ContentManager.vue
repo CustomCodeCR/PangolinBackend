@@ -1044,19 +1044,20 @@ function useMediaForNews(item: ManagedMedia) {
 @keyframes manager-zip-glow {from{transform:translateX(0)}to{transform:translateX(133%)}}
 @media(prefers-reduced-motion:reduce){.is-embedded .manager-form::before,.is-embedded .manager-list::before,.is-embedded .manager-users-card::before{animation:none;transform:translateX(65%)}}
 @media(max-width:1000px){.is-embedded .manager-form form.manager-editor--itineraries{grid-template-columns:repeat(2,minmax(0,1fr))}}
-/* Navegación fija: seis columnas distribuidas sin desplazamiento horizontal.
-   En pantallas intermedias cada acceso se compacta dentro de su propia columna. */
+/* El espacio libre se reparte entre los seis grupos, no dentro de
+   columnas de ancho fijo: así las separaciones visibles son iguales. */
 @media (min-width:651px) {
   .content-manager.is-embedded .manager-tabs.manager-subtabs {
     display:grid;
-    grid-template-columns:repeat(6,minmax(0,1fr));
+    grid-template-columns:repeat(6,max-content);
+    justify-content:space-between;
     align-items:stretch;
-    gap:clamp(2px,.4vw,12px);
+    gap:8px;
     overflow-x:hidden;
     overflow-y:hidden;
   }
   .content-manager.is-embedded .manager-tabs.manager-subtabs > button {
-    width:100%;
+    width:max-content;
     min-width:0;
     padding-inline:clamp(2px,.4vw,8px);
     gap:clamp(2px,.4vw,8px);
@@ -1065,7 +1066,13 @@ function useMediaForNews(item: ManagedMedia) {
   }
 }
 @media (min-width:651px) and (max-width:1250px) {
+  .content-manager.is-embedded .manager-tabs.manager-subtabs {
+    grid-template-columns:repeat(6,minmax(0,1fr));
+    justify-content:stretch;
+    gap:clamp(2px,.4vw,12px);
+  }
   .content-manager.is-embedded .manager-tabs.manager-subtabs > button {
+    width:100%;
     display:grid;
     grid-template-columns:minmax(0,1fr);
     grid-template-rows:32px minmax(30px,auto) 24px;
