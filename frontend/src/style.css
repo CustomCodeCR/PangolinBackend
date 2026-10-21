@@ -5009,3 +5009,32 @@ html.theme-dark .app-site.administration-page .content-manager.is-embedded
 .app-site.administration-page .site-header .site-brand:focus:not(:focus-visible) {
   outline: none;
 }
+
+
+/* Fix: readable news details on the white modal in both themes. */
+html.theme-dark .app-site .news-article-modal,
+html.theme-dark .app-site .news-article-modal__copy {
+  background-color: #fff;
+  color: #171923;
+}
+html.theme-dark .app-site .news-article-modal__copy h2 {
+  color: #171923 !important;
+}
+html.theme-dark .app-site .news-article-modal__copy > p:not(.section-tag) {
+  color: #4d5360 !important;
+}
+html.theme-dark .app-site .news-article-modal__copy .section-tag {
+  color: #b20b2d !important;
+}
+
+/* Fix: balanced text gutters for expanded cargo cards, without touching mobile. */
+@media (min-width: 681px) {
+  .app-site #servicios .service-accordion__panel {
+    padding-right: clamp(24px, 3vw, 42px);
+    box-sizing: border-box;
+  }
+  .app-site #servicios .service-accordion__copy {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
