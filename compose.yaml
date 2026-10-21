@@ -94,6 +94,7 @@ services:
     restart: unless-stopped
     environment:
       VITE_API_PROXY_TARGET: http://backend:5000
+      VITE_OFFICIAL_QUOTES_ENABLED: ${VITE_OFFICIAL_QUOTES_ENABLED:-true}
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - "${FRONTEND_BIND_IP:-127.0.0.1}:${FRONTEND_HOST_PORT:-5173}:5173"

@@ -2,6 +2,7 @@
 import {computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref} from 'vue'
 import routeSeo from '../seo/routes.json'
 import Home from './Home.vue'
+const QuoteApp = defineAsyncComponent(() => import('./App.vue'))
 const Login = defineAsyncComponent(() => import('./pages/Login.vue'))
 const News = defineAsyncComponent(() => import('./pages/News.vue'))
 import About from './pages/About.vue'
@@ -66,6 +67,8 @@ function applyPageSeo() {
   }
 }
 applyPageSeo()
+// Conserva el cotizador V2 como alternativa segura hasta verificar catálogo y migración.
+const officialQuotesEnabled = import.meta.env.VITE_OFFICIAL_QUOTES_ENABLED === 'true'
 const quoteAccess = ref<'checking' | 'allowed' | 'denied' | 'forbidden'>('checking')
 const requestPath = window.location.pathname.replace(/\/+$/, '') || '/'
 const legacyAdminRoute = requestPath === '/admin/contenido' || requestPath === '/admin/usuarios'
@@ -120,7 +123,8 @@ const page = computed(()=> {
   if(path==='/servicios') return 'services'
   if(path==='/tracking') return 'tracking'
   if(path==='/itinerario') return 'itinerary'
-  if(path==='/cotizaciones' || path==='/cotizaciones/nuevo') return 'official-quote'
+  if(path==='/cotizaciones') return officialQuotesEnabled ? 'official-quote' : 'quote-legacy'
+  if(path==='/cotizaciones/nuevo') return 'official-quote'
   if(['/privacidad','/terminos','/cookies','/licencias'].includes(path)) return 'legal'
   return 'notFound'
 })
@@ -139,6 +143,17 @@ const page = computed(()=> {
     <SiteFooter/>
   </div>
   <OfficialQuoteWizard v-else-if="page==='official-quote'" />
+  <div v-else-if="page==='quote-legacy'" class="app-site quote-page quote-flow-page">
+    <SiteHeader/>
+    <div v-if="quoteAccess === 'checking'" class="container quote-access-status" role="status">{{ t('custom.quote.checkingSession') }}</div>
+    <div v-else-if="quoteAccess !== 'allowed'" class="container quote-access-status quote-access-status--blocked">
+      <h1>Se requiere una sesión activa</h1>
+      <p>Iniciá sesión para enviar una solicitud.</p>
+      <a class="btn btn-primary" :href="loginNextHref">Iniciar sesión</a>
+    </div>
+    <QuoteApp v-else />
+    <SiteFooter/>
+  </div>
   <News v-else-if="page==='news'"/>
   <About v-else-if="page==='about'"/>
   <Services v-else-if="page==='services'"/>
