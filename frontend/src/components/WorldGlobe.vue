@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import IconSymbol from './IconSymbol.vue'
+import type { TrackingDemoShipment, TrackingPoint } from '../types/tracking'
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createGlobe, type Marker, type ClusterMarker, type HexBinMarker } from '3d-world-map'
 
+const props = defineProps<{ shipment?: TrackingDemoShipment | null }>()
 const holder = ref<HTMLElement | null>(null)
 const canvas = ref<HTMLCanvasElement | null>(null)
 const error = ref('')
@@ -41,6 +43,45 @@ const selectedCostaRica = computed(() => selectedOffice.value?.countryEs === 'Co
 const selectedCity = computed(() => selectedOffice.value ? (english.value ? selectedOffice.value.en : selectedOffice.value.es) : '')
 const selectedCountry = computed(() => selectedOffice.value ? (english.value ? selectedOffice.value.countryEn : selectedOffice.value.countryEs) : '')
 const markerData = () => offices.map(office => ({...office, label:(english.value ? office.en : office.es) + ', ' + (english.value ? office.countryEn : office.countryEs), color:'#a80e18',count:1,size:4}))
+// Posición interpolada sobre un círculo máximo: avance ficticio, NO una lectura GPS.
+function illustrativePosition(start: TrackingPoint, end: TrackingPoint, percentage: number) {
+  const toRad = Math.PI / 180
+  const vector = (p: TrackingPoint) => {
+    const lat = p.lat * toRad, lon = p.lon * toRad
+    return [Math.cos(lat) * Math.cos(lon), Math.cos(lat) * Math.sin(lon), Math.sin(lat)]
+  }
+  const a = vector(start), b = vector(end)
+  const angle = Math.acos(Math.max(-1, Math.min(1, a.reduce((sum, value, i) => sum + value * b[i], 0))))
+  const t = Math.max(0, Math.min(1, percentage / 100))
+  if (angle < 1e-6) return { lat: start.lat, lon: start.lon }
+  const f = Math.sin((1 - t) * angle) / Math.sin(angle)
+  const g = Math.sin(t * angle) / Math.sin(angle)
+  const x = f * a[0] + g * b[0], y = f * a[1] + g * b[1], z = f * a[2] + g * b[2]
+  return { lat: Math.atan2(z, Math.hypot(x, y)) / toRad, lon: Math.atan2(y, x) / toRad }
+}
+
+const demoMarkers = () => {
+  const shipment = props.shipment
+  if (!shipment) return markerData()
+  const progress = illustrativePosition(shipment.origin, shipment.destination, shipment.progressPercent)
+  const points = [
+    { id: 'route-origin', ...shipment.origin, label: shipment.origin.name, color: '#1677d2', count: 1, size: 7 },
+    { id: 'route-destination', ...shipment.destination, label: shipment.destination.name, color: '#18a86d', count: 1, size: 7 }
+  ]
+  if (shipment.progressPercent > 0 && shipment.progressPercent < 100) {
+    points.push({ id: 'route-progress', name: 'Progreso DEMO', ...progress, label: 'DEMO · ' + shipment.progressPercent + '%', color: '#f5b700', count: 1, size: 8 })
+  }
+  return points
+}
+const demoArcs = () => props.shipment ? [{
+  from: { lat: props.shipment.origin.lat, lon: props.shipment.origin.lon },
+  to: { lat: props.shipment.destination.lat, lon: props.shipment.destination.lon },
+  color: '#b50928', width: 2, duration: 4000
+}] : offices.filter(item => item.countryEs !== 'Costa Rica').map(item => ({
+  from: { lat: 9.9167, lon: -84.0333 },
+  to: { lat: item.lat, lon: item.lon },
+  color: '#a80e18', width: 1.15
+}))
 const costaRicaCenter = { lat: 9.9417, lon: -84.0583 }
 
 
@@ -145,18 +186,19 @@ function start() {
       labels: 'markers',
 
       // Movimiento e interacción
-      autoRotate: true,
+      autoRotate: !props.shipment,
       rotateSpeed: 0.09,
       zoomable: true,
       maxZoom: 800,
       interactive: true,
 
       // Oficinas internacionales del material del equipo frontend (a validar antes de producción).
-      markers: markerData(),
+      markers: demoMarkers(),
       // Pines negros en claro y rojo en oscuro, igual que el ZIP del frontend.
       renderMarker(ctx, marker, {x,y,depth,scale}) {
         const dark = document.documentElement.classList.contains('theme-dark')
-        const selected = 'id' in marker && String(marker.id) === selectedId.value
+        const markerId = 'id' in marker ? String(marker.id) : ''
+        const selected = markerId === selectedId.value
         const radius = (selected ? 9 : 8)*depth*scale
         const height = radius*2.45
         ctx.save()
@@ -170,7 +212,7 @@ function start() {
         ctx.arc(0,-radius*.95,radius*1.28,Math.PI,0,true)
         ctx.bezierCurveTo(radius*1.28,-radius*.2,radius*.42,radius*.42,0,height*.48)
         ctx.closePath()
-        ctx.fillStyle=dark?'#ad0922':'#000000'
+        ctx.fillStyle = markerId.startsWith('route-') ? ('color' in marker ? String(marker.color) : '#f5b700') : dark ? '#ad0922' : '#000000'
         ctx.fill()
         ctx.shadowColor='transparent'
         ctx.lineWidth=Math.max(1,scale)
@@ -184,11 +226,7 @@ function start() {
         return height*.65
       },
       onClick: selectWarehouse,
-      arcs: offices.filter(item => item.countryEs !== 'Costa Rica').map(item => ({
-        from: { lat: 9.9167, lon: -84.0333 },
-        to: { lat:item.lat, lon:item.lon },
-        color:'#a80e18', width:1.15
-      })),
+      arcs: demoArcs(),
     })
   } catch (e) {
     error.value =
@@ -196,7 +234,22 @@ function start() {
   }
 }
 
-watch(locale, () => globe?.setMarkers(markerData()))
+watch(locale, () => globe?.setMarkers(demoMarkers()))
+watch(() => props.shipment, (shipment) => {
+  if (!globe) return
+  cancelAnimationFrame(popupFollowFrame)
+  selectedId.value = null
+  globe.setMarkers(demoMarkers())
+  globe.setArcs(demoArcs())
+  globe.setOptions({ autoRotate: !shipment })
+  if (shipment) {
+    const point = illustrativePosition(shipment.origin, shipment.destination, shipment.progressPercent)
+    globe.flyTo(point.lon, point.lat)
+    animateZoom(1.45)
+  } else {
+    animateZoom(1)
+  }
+})
 onMounted(() => {
   if (typeof MutationObserver !== 'undefined') {
     themeObserver = new MutationObserver(() => globe?.setTheme(themePalette()))
