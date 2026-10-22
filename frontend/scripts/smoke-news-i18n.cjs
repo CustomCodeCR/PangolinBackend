@@ -54,7 +54,8 @@ const server = http.createServer((req, res) => {
   res.end(body)
 })
 function chromeBinary() {
-  for (const name of [process.env.CHROME_BIN, 'google-chrome','google-chrome-stable','chromium','chromium-browser'].filter(Boolean)) {
+  for (const name of [process.env.CHROME_BIN, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Chromium.app/Contents/MacOS/Chromium', 'google-chrome','google-chrome-stable','chromium','chromium-browser'].filter(Boolean)) {
+    if (path.isAbsolute(name) && fs.existsSync(name)) return name
     const result = spawnSync('which',[name],{encoding:'utf8'})
     if (result.status === 0) return result.stdout.trim()
   }
