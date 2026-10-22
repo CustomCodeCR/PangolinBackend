@@ -41,6 +41,11 @@ for (const item of ['24 pies / 5 TON', '26 pies / 7 TON', '53 pies', 'Dry Van', 
   assert.ok(officialQuote.includes(item), 'Se conserva la opción de equipo: ' + item)
 }
 assert.match(officialQuote, /\.official-line:has\(\.official-equipment-options\)/, 'Lista de equipo se dibuja sobre campos adyacentes')
+assert.match(officialQuote, /\.official-panel > \.official-nested:has\(\.official-equipment-options\)[\s\S]*?z-index: 1000 !important;/, 'El contenedor del menú FCL o FTL queda por delante de Servicios')
+assert.match(officialQuote, /\.official-panel > \.official-fields:has\(\.official-incoterm-options\)[\s\S]*?z-index: 1000 !important;/, 'Incoterm queda por delante de Distribución de equipos')
+assert.match(officialQuote, /html:not\(\.theme-dark\) \.app-site\.official-page \.official-incoterm-options\s*\{\s*background: #fff !important;\s*opacity: 1 !important;\s*-webkit-backdrop-filter: none !important;/, 'El menú claro debe ser opaco para ocultar texto inferior')
+assert.match(officialQuote, /html\.theme-dark \.app-site\.official-page \.official-incoterm-options\s*\{\s*background: #19191c !important;\s*color: #fff !important;\s*opacity: 1 !important;/, 'El menú oscuro debe ser opaco y legible')
+
 assert.doesNotMatch(officialQuote, /<select v-model="line\.(size|type)">/, 'FCL y FTL ya no usan selector nativo')
 assert.match(officialQuote, /if \(target\.closest\('\.official-equipment-wrap'\)\)/, 'Toques dentro del menú no lo cierran')
 const officialQuoteAdmin = source('src/pages/OfficialQuoteAdmin.vue')
