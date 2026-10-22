@@ -627,7 +627,7 @@ function useMediaForNews(item: ManagedMedia) {
               <small v-else-if="section === 'comments'">{{ (entry as ManagedComment).section || 'General' }} · <strong :class="(entry as ManagedComment).published ? 'manager-status-published' : 'manager-status-draft'">{{ (entry as ManagedComment).published ? 'Publicado en la web' : 'Borrador privado' }}</strong> · {{ (entry as ManagedComment).message }}</small>
               <small v-else>{{ (entry as ManagedMedia).kind }}</small>
             </div>
-            <div class="manager-item-actions"><button v-if="section === 'news'" :aria-label="`Vista previa de ${(entry as ManagedNews).title}`" title="Vista previa" @click="openNewsPreview(entry as ManagedNews)"><IconSymbol glyph="eye" :size="17" /></button><button aria-label="Editar" title="Editar" @click="edit(entry)"><IconSymbol glyph="pencil" :size="17" /></button><button aria-label="Eliminar" title="Eliminar" @click="remove(entry.id)"><IconSymbol glyph="trash" :size="17" /></button><button v-if="section === 'media' && (entry as ManagedMedia).kind === 'Imagen'" aria-label="Usar imagen en noticia" title="Usar en noticia" @click="useMediaForNews(entry as ManagedMedia)"><IconSymbol glyph="↗" :size="17" /></button></div>
+            <div class="manager-item-actions"><button v-if="section === 'news'" :aria-label="`Vista previa de ${(entry as ManagedNews).title}`" title="Vista previa" @click="openNewsPreview(entry as ManagedNews)"><IconSymbol glyph="image" :size="17" /></button><button aria-label="Editar" title="Editar" @click="edit(entry)"><IconSymbol glyph="pencil" :size="17" /></button><button aria-label="Eliminar" title="Eliminar" @click="remove(entry.id)"><IconSymbol glyph="trash" :size="17" /></button><button v-if="section === 'media' && (entry as ManagedMedia).kind === 'Imagen'" aria-label="Usar imagen en noticia" title="Usar en noticia" @click="useMediaForNews(entry as ManagedMedia)"><IconSymbol glyph="↗" :size="17" /></button></div>
           </article>
         </section>
         </template>
@@ -644,6 +644,7 @@ function useMediaForNews(item: ManagedMedia) {
           <button type="button" aria-label="Cerrar vista previa" @click="closeNewsPreview">Cerrar ×</button>
         </div>
         <article class="news-article-modal">
+          <button type="button" class="news-article-modal__close" aria-label="Cerrar vista previa" @click="closeNewsPreview"><IconSymbol glyph="×" :size="20" /></button>
           <img :src="newsPreviewImage" :alt="newsPreviewItem.title || 'Imagen de noticia'" />
           <div class="news-article-modal__copy">
             <p class="section-tag">{{ newsPreviewItem.category || 'LOGÍSTICA' }} · NOTICIA</p>
@@ -945,11 +946,11 @@ function useMediaForNews(item: ManagedMedia) {
 /* Vista previa del mismo modal público; elección del tema independiente de la web. */
 .manager-news-preview-backdrop { position:fixed; inset:0; z-index:2500; display:grid; place-items:center; padding:20px; background:rgba(2,6,18,.76); backdrop-filter:blur(9px); -webkit-backdrop-filter:blur(9px); }
 .manager-news-preview { width:min(760px,100%); max-height:96vh; overflow:auto; border-radius:23px; box-shadow:0 30px 90px rgba(0,0,0,.42); }
-.manager-news-preview-toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; background:#15223b; color:#fff; padding:12px 16px; font-size:12px; font-weight:800; }
+.manager-news-preview-toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; background:#15223b; color:#fff; padding:12px 16px; border-radius:16px; margin-bottom:12px; font-size:12px; font-weight:800; }
 .manager-news-preview-toolbar>div { display:flex; gap:5px; }
 .manager-news-preview-toolbar button { cursor:pointer; border:1px solid #8591aa; border-radius:999px; padding:7px 11px; background:transparent; color:#fff; font:inherit; }
 .manager-news-preview-toolbar button[aria-pressed="true"] { color:#101827; background:#fff; border-color:#fff; }
-.manager-news-preview .news-article-modal { width:100%; max-height:none; overflow:visible; border-radius:0 0 23px 23px; box-shadow:none; }
+.manager-news-preview .news-article-modal { width:100%; max-height:none; overflow:visible; border-radius:23px; box-shadow:none; }
 .manager-news-preview .news-article-modal__copy { text-align:left; }
 .manager-news-preview .news-article-fulltext { white-space:pre-line; overflow-wrap:anywhere; }
 .manager-news-preview--dark .news-article-modal { background:#01081D!important; color:#fff!important; }
