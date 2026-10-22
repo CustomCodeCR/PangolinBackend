@@ -34,9 +34,10 @@ El scope de Microsoft Graph Mail.Send debe incluir el buzon indicado en `GRAPH_F
 Abrir `PangolinBackend → Actions → Pangolin - Build GHCR and Deploy Images → Run workflow`, rama `main`.
 
 Seleccionar:
-- `deploy=true`: publicar y desplegar imagenes.
-- `initialize_schema=true`: **solo primera vez** y solo con base Pangolin completamente vacia.
-- `image_tag` vacio: utilizar la imagen de este commit.
+- `deploy=true`: publicar y desplegar ambas imagenes.
+- `image_tag` vacio: utilizar las imagenes versionadas del commit en curso.
+
+**La base de datos y el esquema se crean automaticamente en el primer despliegue** cuando el volumen dedicado esta vacio. No hay que marcar una opcion de inicializacion ni cargar scripts en el servidor. En los siguientes despliegues se conserva el volumen, se verifica la presencia del esquema y no se borra informacion.
 
 La automatizacion publica:
 - `ghcr.io/customcodecr/pangolinbackend/frontend:sha-<12digitos>`
@@ -46,7 +47,7 @@ Publica tambien `:latest` para cada imagen. En produccion despliega el tag de co
 
 El `deploy` descarga solo `docker-compose.images.yml` como artefacto en el directorio TEMPORAL del runner; ese archivo es infraestructura, no codigo fuente. No hay copias de `backend/` ni `frontend/` en el servidor realizadas por este workflow.
 
-La primera vez se levantan las dependencias PostgreSQL 16 y Redis, luego se ejecutan explicitamente `AuthSchema.sql` y `OfficialQuotesSchema.sql` que vienen dentro de la IMAGEN del backend. Se niega la inicializacion si ya existe `usuarios`. Nunca importa semillas de Development. No aplicar SQL sin respaldo ni sobre una base existente.
+El Compose crea un PostgreSQL 16 exclusivo para Pangolin, con base `login`, usuario `pangolin` y volumen persistente `pangolin-production_postgres_data`. No usa la base de datos de Dhole. En el primer arranque y SOLO si no hay tablas en `public`, el workflow lee `AuthSchema.sql` y `OfficialQuotesSchema.sql` del contenedor del backend y los ejecuta en una sola transaccion. Si las tablas ya existen, no aplica SQL: comprueba las entidades principales y falla sin destruir datos cuando detecta un esquema incompleto. No ejecuta semillas de Development. Los cambios futuros de SQL sobre bases pobladas requieren migraciones revisadas y respaldos.
 
 ## 3. Validacion antes del cambio
 Con `PANGOLIN_TRAEFIK_ENABLED=false`, Fennec debe permanecer en produccion.
@@ -70,15 +71,15 @@ Solo despues de pruebas satisfactorias y copia de respaldo:
 2. Modificar la version FUENTE de DholeSystem para retirar `website` de los despliegues normales (por ejemplo usando `profiles: [fennec-legacy]`). No confiar solo en detener el contenedor, pues un deploy posterior podria reactivarlo. Coordinar tambien el workflow de `FennecWeb` que despliega `website` automaticamente.
 3. Detener UNICAMENTE Fennec (`website`) mediante Compose de Dhole, nunca detener el proyecto completo.
 4. Cambiar `PANGOLIN_TRAEFIK_ENABLED=true` en `/opt/dhole/pangolin.env`.
-5. Volver a ejecutar el mismo workflow con `deploy=true` e `initialize_schema=false`. Traefik debera servir `logisticacastrofallas.com` y redirigir www hacia el origen canonico.
+5. Volver a ejecutar el mismo workflow con `deploy=true`. Traefik debera servir `logisticacastrofallas.com` y redirigir www hacia el origen canonico.
 6. Confirmar salud, sesion, envios Graph y CDN/Cloudflare.
 
 **No activar ambos routers Fennec y Pangolin para el mismo Host simultaneamente**: produce enrutamiento ambiguo.
 
 ## 5. Despliegues futuros y rollback
-- Cada push a `main` publica automaticamente nuevas imagenes versionadas sin tocar produccion (modo seguro inicial).
-- Para desplegar un commit: ejecutar manualmente el workflow con `deploy=true`, `initialize_schema=false`.
-- Una vez validado el primer despliegue, establecer la variable de repositorio `PANGOLIN_AUTO_DEPLOY=true` en GitHub Actions para que cada push a `main` despliegue automaticamente. No activarla antes del cutover.
+- Cada push a `main` en rutas `backend/**`, `frontend/**` o `deploy/**` publica nuevas imagenes y **tambien ejecuta el trabajo de despliegue** (si la configuracion privada del runner existe y es valida). Mantener `PANGOLIN_TRAEFIK_ENABLED=false` mientras Fennec este activo; el deploy inicial solo quedara accesible en localhost.
+- Se puede ejecutar el workflow manualmente con `deploy=true` para repetir o verificar la instalacion.
+- No habilitar Pangolin en Traefik hasta detener el router Fennec y desactivar su workflow de redeploy.
 - Para volver a una version anterior de la aplicacion, ejecutar `workflow_dispatch` con `deploy=true` e `image_tag=sha-<12digitos-del-commit-anterior>`. Las migraciones de datos no se revierten automaticamente.
 - Para emergencia: deshabilitar router Pangolin, restaurar `website` y su router de Fennec y repetir pruebas. No borrar volumenes.
 
