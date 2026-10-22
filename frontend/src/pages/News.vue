@@ -57,17 +57,26 @@ async function translateNewsToEnglish() {
     if (!job) {
       job = (async () => {
         let translated: EnglishNews
-        if (import.meta.env.DEV && article.id === 'demo-prueba-3') {
-          // Ejemplo local incluido únicamente en la rama de demostración.
-          translated = { title: 'test 3', category: 'LOGISTICS', description: 'test 3', body: 'test 3' }
-        } else {
+        const source = fingerprint(article)
+        for (let attempt = 0; attempt < 4; attempt++) {
+          if (disposed || locale.value !== 'en') throw new Error('Translation stopped')
           const response = await fetch(`/api/content/news/${encodeURIComponent(article.id)}/translation?lang=en`, { cache: 'no-store' })
-          if (!response.ok) throw new Error(`Translation unavailable: ${response.status}`)
-          const result: unknown = await response.json()
-          if (!validEnglish(result)) throw new Error('Invalid news translation')
-          translated = result
+          if (response.ok) {
+            const result: unknown = await response.json()
+            if (!validEnglish(result)) throw new Error('Invalid news translation')
+            translated = result
+            englishNews.value = { ...englishNews.value, [article.id]: { source, translated } }
+            return
+          }
+          // 503 = provider not configured: retrying cannot help. 429 can be temporary.
+          if (![429, 502, 504].includes(response.status) || attempt === 3)
+            throw new Error(`Translation unavailable: ${response.status}`)
+          const retryAfter = Number(response.headers.get('retry-after'))
+          const delayMs = response.status === 429
+            ? (Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, 90000) : 65000)
+            : (attempt + 1) * 6000
+          await new Promise(resolve => setTimeout(resolve, delayMs))
         }
-        englishNews.value = { ...englishNews.value, [article.id]: { source: fingerprint(article), translated } }
       })()
       translating.set(key, job)
       void job.finally(() => translating.delete(key)).catch(() => {})
