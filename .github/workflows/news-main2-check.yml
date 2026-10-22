@@ -1,0 +1,68 @@
+name: Noticias ES/EN y modal - main-2
+
+on:
+  pull_request:
+    branches: [main-2]
+    paths:
+      - "frontend/src/pages/News.vue"
+      - "frontend/src/pages/ContentManager.vue"
+      - "frontend/src/pages/Services.vue"
+      - "frontend/src/style.css"
+      - "frontend/scripts/smoke-news-i18n.cjs"
+      - "backend/Program.cs"
+      - "backend/Services/ContentEndpoints.cs"
+      - "backend/Services/NewsTranslationService.cs"
+      - ".github/workflows/news-main2-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-news:
+    name: Noticias ES/EN, diseño y rutas (Chrome en GitHub)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Confirmar navegador del runner
+        run: |
+          command -v google-chrome || command -v chromium || command -v chromium-browser
+      - name: Instalar dependencias del frontend
+        run: npm ci --prefix frontend
+      - name: Compilar aplicación Vue
+        run: npm run build --prefix frontend
+      - name: Verificar tarjetas complementarias sin enlaces y mantener demás accesos
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs')
+          const assert = require('node:assert/strict')
+          const html = fs.readFileSync('frontend/src/pages/Services.vue', 'utf8')
+          assert.ok(!html.includes('href="/cotizaciones">{{ $t(\'phrases.p055\') }}'), 'Se mantiene enlace Conocer más')
+          assert.ok(!html.includes('href="/cotizaciones">{{ $t(\'phrases.p059\') }}'), 'Se mantiene enlace Solicitar cotización')
+          assert.ok(html.includes('services.complementary.customs.media'), 'Falta imagen de operaciones de carga')
+          assert.ok(html.includes('services.complementary.warehouse.media'), 'Falta imagen de acompañamiento integral')
+          assert.ok(html.includes('class="access-card access-card--quote" href="/cotizaciones"'), 'Se eliminó acceso general a cotizaciones')
+          assert.ok(html.includes('modalService = service.key'), 'Se cambió el botón de información modal')
+          console.log('PASS: tarjetas complementarias sin dos enlaces; otros accesos intactos')
+          NODE
+      - name: Comprobar las dos traducciones y temas de Noticias
+        run: node frontend/scripts/smoke-news-i18n.cjs
+      - name: Verificar página de Noticias y rutas existentes
+        run: node frontend/scripts/smoke-browser.cjs
+      - name: Verificar contratos de integración del frontend
+        run: node frontend/scripts/test-frontend-merge.cjs
+  backend:
+    name: Backend .NET 10 de Noticias
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Compilar API
+        run: dotnet build backend/CastroFallas.MiniQuote.Api.csproj --configuration Release

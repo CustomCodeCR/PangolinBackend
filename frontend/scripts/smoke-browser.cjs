@@ -10,16 +10,25 @@ const os = require('node:os')
 const root = path.resolve(__dirname, '..')
 const host = '127.0.0.1'
 const previewPort = 4178
-const apiPort = 5000
+const apiPort = Number(process.env.SMOKE_API_PORT || 5000)
 let activeRole = null
 let sessionCalls = 0
 function findChrome() {
-  const options = [process.env.CHROME_BIN, 'google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser'].filter(Boolean)
+  const windowsPaths = process.platform === 'win32'
+    ? ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+       'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+       'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+       'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe']
+    : []
+  const options = [process.env.CHROME_BIN, ...windowsPaths,
+    'google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser'].filter(Boolean)
+  const lookup = process.platform === 'win32' ? 'where.exe' : 'which'
   for (const name of options) {
-    const r = spawnSync('which', [name], { encoding: 'utf8' })
-    if (r.status === 0) return r.stdout.trim()
+    if (path.isAbsolute(name) && fs.existsSync(name)) return name
+    const r = spawnSync(lookup, [name], { encoding: 'utf8' })
+    if (r.status === 0) return r.stdout.split(/\r?\n/)[0].trim()
   }
-  throw Error('Se requiere Chrome/Chromium en el runner para validar rutas en navegador.')
+  throw Error('Se requiere Chrome/Chromium para validar rutas en navegador.')
 }
 function listen(server, port) {
   return new Promise((resolve, reject) => {

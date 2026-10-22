@@ -49,7 +49,7 @@ jobs:
       - name: Build backend test container
         run: docker compose build backend
       - name: Start backend without optional MongoDB
-        run: docker compose run -d --no-deps --service-ports -e Mongo__ConnectionString= backend
+        run: docker compose run -d --no-deps --service-ports -e Mongo__ConnectionString= backend dotnet run --project CastroFallas.MiniQuote.Api.csproj --no-launch-profile
       - name: Wait for backend readiness
         run: |
           ready=0
@@ -67,6 +67,8 @@ jobs:
           fi
       - name: Verify public GIO endpoint with no provider key
         run: python3 scripts/test-gio-public.py
+      - name: Test fictitious shipment tracking API
+        run: python3 scripts/smoke-tracking-demo.py
       - name: Seed test accounts only
         run: docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d login -f /tmp/SeedLocal.sql
       - name: Install SignalR test client (test containers only)
