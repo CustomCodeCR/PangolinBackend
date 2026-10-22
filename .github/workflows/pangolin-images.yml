@@ -120,134 +120,32 @@ jobs:
           test -r "$PANGOLIN_ENV_FILE"
           test -r "$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml"
 
-          # Reject example credentials without exposing their values.
           read_var() {
-            local key="$1"
-            local value
-            value="$(grep -m1 "^$key=" "$PANGOLIN_ENV_FILE" | cut -d= -f2- || true)"
-            value="${value%
-          docker compose version
-          docker network inspect "$DHOLE_NETWORK" >/dev/null
-          docker compose --env-file "$PANGOLIN_ENV_FILE" \
-            -f "$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml" \
-            -p pangolin-production config --quiet
-
-      - name: Prevent parallel Fennec and Pangolin domain routers
-        shell: bash
-        run: |
-          set -euo pipefail
-          if grep -Eq '^PANGOLIN_TRAEFIK_ENABLED="?true"?[[:space:]]*$' "$PANGOLIN_ENV_FILE"; then
-            fennec_running="$(docker ps -q --filter label=com.docker.compose.project=dhole --filter label=com.docker.compose.service=website)"
-            if [[ -n "$fennec_running" ]]; then
-              echo "::error::Stop Fennec website and disable its automatic redeploy before enabling Pangolin Traefik."
-              exit 1
-            fi
-          fi
-
-      - name: Login to GHCR for pulling
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Pull prebuilt images (never build on server)
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production \
-            pull postgres redis backend frontend
-
-      - name: Start database and Redis only
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production \
-            up -d --no-build postgres redis
-
-      - name: Create Pangolin database schema on empty first deploy
-        shell: bash
-        run: |
-          set -euo pipefail
-          dc() { docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production "$@"; }
-
-          # POSTGRES_DB=login creates the dedicated Pangolin DB on an empty named volume.
-          # Never reinitialize an existing or partially migrated application database.
-          table_count="$(dc exec -T postgres psql -X -q -U pangolin -d login -Atc \
-            "SELECT count(*) FROM pg_tables WHERE schemaname = 'public'")"
-          if [[ "$table_count" == "0" ]]; then
-            echo "New isolated Pangolin DB detected; applying both schemas atomically."
-            {
-              for schema in AuthSchema.sql OfficialQuotesSchema.sql; do
-                echo "Loading schema from backend Docker image: $schema" >&2
-                docker run --rm --entrypoint cat \
-                  "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" \
-                  "/app/Database/$schema"
-              done
-            } | dc exec -T postgres psql -X -v ON_ERROR_STOP=1 --single-transaction -U pangolin -d login
-          else
-            echo "Pangolin database already has tables; no initialization or destructive changes."
-            required_count="$(dc exec -T postgres psql -X -q -U pangolin -d login -Atc \
-              "SELECT count(*) FROM (VALUES ('public.clientes'), ('public.usuarios'), ('public.otp_challenges'), ('public.auth_sessions'), ('public.cms_news'), ('public.cms_comments'), ('public.itinerarios'), ('public.quote_requests'), ('public.official_quote_requests')) AS t(tab) WHERE to_regclass(t.tab) IS NOT NULL")"
-            if [[ "$required_count" != "9" ]]; then
-              echo "::error::Database exists but its schema is incomplete. Backup and apply a reviewed migration; refusing to overwrite it."
-              exit 1
-            fi
-          fi
-
-      - name: Deploy backend and frontend using images only
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production \
-            up -d --no-build backend frontend
-
-      - name: Verify Pangolin readiness through localhost
-        shell: bash
-        run: |
-          set -euo pipefail
-          local_port="$(grep -m1 '^PANGOLIN_LOCAL_PORT=' "$PANGOLIN_ENV_FILE" | cut -d= -f2- | tr -d '\r' || true)"
-          local_port="${local_port:-8180}"
-          for attempt in $(seq 1 30); do
-            if curl -fsS --max-time 5 "http://127.0.0.1:$local_port/api/health/ready" >/dev/null; then
-              echo "Pangolin frontend and backend ready at localhost:$local_port."
-              docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production ps
-              exit 0
-            fi
-            sleep 5
-          done
-          docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production ps
-          docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production logs --tail 80 backend frontend
-          exit 1
-\\r'}"
-            if [[ "$value" == \"*\" && "$value" == *\" ]]; then
-              value="${value:1:${#value}-2}"
-            fi
-            printf '%s' "$value"
+            sed -n "s/^$1=//p" "$PANGOLIN_ENV_FILE" | head -n 1
           }
           pass="$(read_var PANGOLIN_POSTGRES_PASSWORD)"
           otp="$(read_var AUTH_OTP_PEPPER)"
           jwt="$(read_var AUTH_JWT_SIGNING_KEY)"
           if (( ${#pass} < 20 )) || [[ "${pass^^}" == *CAMBIAR* || "${pass^^}" == *REEMPLAZAR* ]]; then
-            echo "::error::Set a secure PANGOLIN_POSTGRES_PASSWORD (20+ characters)."
+            echo "::error::Set a strong PANGOLIN_POSTGRES_PASSWORD (20+ characters)."
             exit 1
           fi
           if [[ ! "$otp" =~ ^[[:xdigit:]]{64}$ || ! "$jwt" =~ ^[[:xdigit:]]{64}$ || "$otp" == "$jwt" ]]; then
-            echo "::error::AUTH_OTP_PEPPER and AUTH_JWT_SIGNING_KEY must be distinct 64-character hexadecimal secrets."
+            echo "::error::AUTH_OTP_PEPPER and AUTH_JWT_SIGNING_KEY must be different 64-character hexadecimal secrets."
             exit 1
           fi
           email_mode="$(read_var EMAIL_MODE)"
           if [[ "$email_mode" == "Graph" ]]; then
             for key in GRAPH_TENANT_ID GRAPH_CLIENT_ID GRAPH_CLIENT_SECRET GRAPH_FROM; do
               if [[ -z "$(read_var "$key")" ]]; then
-                echo "::error::Missing mandatory Microsoft Graph setting: $key"
+                echo "::error::Missing Microsoft Graph setting: $key"
                 exit 1
               fi
             done
           elif [[ "$email_mode" == "Smtp" ]]; then
             for key in SMTP_HOST SMTP_FROM SMTP_USERNAME SMTP_PASSWORD; do
               if [[ -z "$(read_var "$key")" ]]; then
-                echo "::error::Missing mandatory SMTP setting: $key"
+                echo "::error::Missing SMTP setting: $key"
                 exit 1
               fi
             done
@@ -255,7 +153,6 @@ jobs:
             echo "::error::EMAIL_MODE must be Graph or Smtp in production."
             exit 1
           fi
-
           docker version
           docker compose version
           docker network inspect "$DHOLE_NETWORK" >/dev/null
