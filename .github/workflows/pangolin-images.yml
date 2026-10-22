@@ -16,7 +16,7 @@ on:
         required: true
         default: false
       initialize_schema:
-        description: "FIRST DEPLOY ONLY: initialize empty Pangolin PostgreSQL schema"
+        description: "Legacy option (schema now initializes automatically if DB is empty)"
         type: boolean
         required: true
         default: false
@@ -100,7 +100,7 @@ jobs:
   deploy:
     name: Pull images and deploy on AlmaLinux (no checkout or build)
     needs: publish
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy) || (github.event_name == 'push' && vars.PANGOLIN_AUTO_DEPLOY == 'true') }}
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy) }}
     runs-on: [self-hosted, linux, x64, dhole]
     environment: production
     permissions:
@@ -110,7 +110,6 @@ jobs:
       PANGOLIN_ENV_FILE: /opt/dhole/pangolin.env
       PANGOLIN_IMAGE_TAG: ${{ (inputs.image_tag != '' && inputs.image_tag) || needs.publish.outputs.image_tag }}
       DHOLE_NETWORK: dhole
-      INITIALIZE_SCHEMA: ${{ inputs.initialize_schema || 'false' }}
     steps:
       - name: Download Docker Compose configuration (not source code)
         uses: actions/download-artifact@v4
@@ -165,24 +164,35 @@ jobs:
           docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production \
             up -d --no-build postgres redis
 
-      - name: Initialize schema explicitly on first deployment (opt-in, empty database only)
-        if: ${{ inputs.initialize_schema == true }}
+      - name: Create Pangolin database schema on empty first deploy
         shell: bash
         run: |
           set -euo pipefail
           dc() { docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production "$@"; }
-          initialized="$(dc exec -T postgres psql -U pangolin -d login -Atqc "SELECT to_regclass('public.usuarios') IS NOT NULL")"
-          if [[ "$initialized" != "f" ]]; then
-            echo "::error::Pangolin DB already contains the usuarios table. Never auto-apply initial SQL to existing data."
-            exit 1
+
+          # POSTGRES_DB=login creates the dedicated Pangolin DB on an empty named volume.
+          # Never reinitialize an existing or partially migrated application database.
+          table_count="$(dc exec -T postgres psql -X -q -U pangolin -d login -Atc \
+            "SELECT count(*) FROM pg_tables WHERE schemaname = 'public'")"
+          if [[ "$table_count" == "0" ]]; then
+            echo "New isolated Pangolin DB detected; applying both schemas atomically."
+            {
+              for schema in AuthSchema.sql OfficialQuotesSchema.sql; do
+                echo "Loading schema from backend Docker image: $schema" >&2
+                docker run --rm --entrypoint cat \
+                  "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" \
+                  "/app/Database/$schema"
+              done
+            } | dc exec -T postgres psql -X -v ON_ERROR_STOP=1 --single-transaction -U pangolin -d login
+          else
+            echo "Pangolin database already has tables; no initialization or destructive changes."
+            required_count="$(dc exec -T postgres psql -X -q -U pangolin -d login -Atc \
+              "SELECT count(*) FROM (VALUES ('public.clientes'), ('public.usuarios'), ('public.otp_challenges'), ('public.auth_sessions'), ('public.cms_news'), ('public.cms_comments'), ('public.itinerarios'), ('public.quote_requests'), ('public.official_quote_requests')) AS t(tab) WHERE to_regclass(t.tab) IS NOT NULL")"
+            if [[ "$required_count" != "9" ]]; then
+              echo "::error::Database exists but its schema is incomplete. Backup and apply a reviewed migration; refusing to overwrite it."
+              exit 1
+            fi
           fi
-          for schema in AuthSchema.sql OfficialQuotesSchema.sql; do
-            echo "Applying packaged initialization schema: $schema"
-            docker run --rm --entrypoint cat \
-              "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" \
-              "/app/Database/$schema" \
-              | dc exec -T postgres psql -v ON_ERROR_STOP=1 -U pangolin -d login
-          done
 
       - name: Deploy backend and frontend using images only
         shell: bash
@@ -199,7 +209,7 @@ jobs:
           local_port="${local_port:-8180}"
           for attempt in $(seq 1 30); do
             if curl -fsS --max-time 5 "http://127.0.0.1:$local_port/api/health/ready" >/dev/null; then
-              echo "Pangolin ready at localhost:$local_port. Public Fennec routing was not altered."
+              echo "Pangolin frontend and backend ready at localhost:$local_port."
               docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production ps
               exit 0
             fi
