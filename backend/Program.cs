@@ -103,6 +103,11 @@ builder.Services.AddHttpClient("Groq", client =>
     client.BaseAddress = new Uri("https://api.groq.com/openai/v1/");
     client.Timeout = TimeSpan.FromSeconds(18);
 });
+builder.Services.AddHttpClient("GroqNews", client =>
+{
+    client.BaseAddress = new Uri("https://api.groq.com/openai/v1/");
+    client.Timeout = TimeSpan.FromSeconds(75);
+});
 builder.Services.AddProblemDetails();
 
 // Se utiliza la dirección real de la conexión local; NO se confía en headers
