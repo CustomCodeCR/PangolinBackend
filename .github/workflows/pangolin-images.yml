@@ -105,6 +105,9 @@ jobs:
       DHOLE_ENV_FILE: /opt/dhole/.env
       PANGOLIN_IMAGE_TAG: ${{ (inputs.image_tag != '' && inputs.image_tag) || needs.publish.outputs.image_tag }}
       DHOLE_NETWORK: dhole
+      # WWW cutover explicitly requested: enable Pangolin router while preserving Fennec apex.
+      # Environment override takes precedence over /opt/dhole/.env for Compose interpolation.
+      PANGOLIN_TRAEFIK_ENABLED: "true"
     steps:
       - name: Download only Compose configuration (not application source)
         uses: actions/download-artifact@v4
@@ -168,17 +171,18 @@ jobs:
           docker network inspect "$DHOLE_NETWORK" >/dev/null
           docker compose --env-file "$DHOLE_ENV_FILE" -f "$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml" -p pangolin-production config --quiet
 
-      - name: Ensure Fennec does not conflict with public Pangolin route
+      - name: Enforce WWW-only cutover without touching Fennec apex
         shell: bash
         run: |
           set -euo pipefail
-          if grep -Eq '^PANGOLIN_TRAEFIK_ENABLED="?true"?[[:space:]]*$' "$DHOLE_ENV_FILE"; then
-            fennec_running="$(docker ps -q --filter label=com.docker.compose.project=dhole --filter label=com.docker.compose.service=website)"
-            if [[ -n "$fennec_running" ]]; then
-              echo "::error::Fennec website is still running. Keep PANGOLIN_TRAEFIK_ENABLED=false until cutover."
-              exit 1
-            fi
+          # A safety assertion: the Pangolin router must never claim the apex.
+          grep -Fq -- 'pangolin-www.rule=Host(' "$COMPOSE_FILE"
+          grep -Fq -- 'pangolin-www.priority=1000' "$COMPOSE_FILE"
+          if grep -Eq -- 'pangolin.rule=Host\(|redirectregex' "$COMPOSE_FILE"; then
+            echo "::error::Pangolin Compose tries to claim or redirect the Fennec apex domain."
+            exit 1
           fi
+          echo "Pangolin will serve WWW only, with higher priority than the legacy Fennec route."
 
       - name: Login to GHCR to pull prebuilt images
         uses: docker/login-action@v3
@@ -275,13 +279,33 @@ jobs:
           set -euo pipefail
           local_port="$(grep -m1 '^PANGOLIN_LOCAL_PORT=' "$DHOLE_ENV_FILE" | cut -d= -f2- || true)"
           local_port="${local_port:-8180}"
+          ready=false
           for attempt in $(seq 1 30); do
             if curl -fsS --max-time 5 "http://127.0.0.1:$local_port/api/health/ready" >/dev/null; then
               echo "Pangolin API and frontend are ready on localhost:$local_port."
-              docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production ps
-              exit 0
+              ready=true
+              break
             fi
             sleep 5
           done
-          docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production logs --tail 80 backend frontend
-          exit 1
+          if [[ "$ready" != true ]]; then
+            docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production logs --tail 80 backend frontend
+            exit 1
+          fi
+
+          host="$(grep -m1 '^FENNEC_WWW_HOST=' "$DHOLE_ENV_FILE" | cut -d= -f2- | tr -d '\r')"
+          test -n "$host"
+          routed=false
+          for attempt in $(seq 1 20); do
+            if curl -fsS --max-time 5 -H "Host: $host" http://127.0.0.1/api/health/ready >/dev/null; then
+              echo "Pangolin verified through Traefik using Host: $host"
+              routed=true
+              break
+            fi
+            sleep 2
+          done
+          if [[ "$routed" != true ]]; then
+            echo "::error::Traefik WWW route did not return Pangolin backend readiness."
+            exit 1
+          fi
+          docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production ps
