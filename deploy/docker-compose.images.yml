@@ -1,4 +1,6 @@
 # Pangolin production: SOLO imagenes construidas por GitHub Actions.
+# Despliegue GHCR: backend + frontend sobre /opt/dhole/.env; crea base pangolin en postgres existente.
+# Inicio seguro: traefik.enable=false mantiene Fennec sin cambios hasta el corte planificado.
 # Reutiliza PostgreSQL, Redis, MinIO (opcional) y Traefik de Dhole.
 # Requiere /opt/dhole/.env como entorno. NUNCA usar `build:` en AlmaLinux.
 name: pangolin-production
