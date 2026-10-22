@@ -132,6 +132,83 @@ jobs:
             -f "$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml" \
             -p pangolin-production config --quiet
 
+      - name: Prevent parallel Fennec and Pangolin domain routers
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Eq '^PANGOLIN_TRAEFIK_ENABLED="?true"?[[:space:]]*
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull prebuilt images (never build on server)
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production \
+            pull postgres redis backend frontend
+
+      - name: Start database and Redis only
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production \
+            up -d --no-build postgres redis
+
+      - name: Initialize schema explicitly on first deployment (opt-in, empty database only)
+        if: ${{ inputs.initialize_schema == true }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          dc() { docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production "$@"; }
+          initialized="$(dc exec -T postgres psql -U pangolin -d login -Atqc "SELECT to_regclass('public.usuarios') IS NOT NULL")"
+          if [[ "$initialized" != "f" ]]; then
+            echo "::error::Pangolin DB already contains the usuarios table. Never auto-apply initial SQL to existing data."
+            exit 1
+          fi
+          for schema in AuthSchema.sql OfficialQuotesSchema.sql; do
+            echo "Applying packaged initialization schema: $schema"
+            docker run --rm --entrypoint cat \
+              "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" \
+              "/app/Database/$schema" \
+              | dc exec -T postgres psql -v ON_ERROR_STOP=1 -U pangolin -d login
+          done
+
+      - name: Deploy backend and frontend using images only
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production \
+            up -d --no-build backend frontend
+
+      - name: Verify Pangolin readiness through localhost
+        shell: bash
+        run: |
+          set -euo pipefail
+          local_port="$(grep -m1 '^PANGOLIN_LOCAL_PORT=' "$PANGOLIN_ENV_FILE" | cut -d= -f2- | tr -d '\r' || true)"
+          local_port="${local_port:-8180}"
+          for attempt in $(seq 1 30); do
+            if curl -fsS --max-time 5 "http://127.0.0.1:$local_port/api/health/ready" >/dev/null; then
+              echo "Pangolin ready at localhost:$local_port. Public Fennec routing was not altered."
+              docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production ps
+              exit 0
+            fi
+            sleep 5
+          done
+          docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production ps
+          docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production logs --tail 80 backend frontend
+          exit 1
+ "$PANGOLIN_ENV_FILE"; then
+            fennec_running="$(docker ps -q \
+              --filter 'label=com.docker.compose.project=dhole' \
+              --filter 'label=com.docker.compose.service=website')"
+            if [[ -n "$fennec_running" ]]; then
+              echo "::error::Stop Fennec website and disable its automatic redeploy before enabling Pangolin Traefik."
+              exit 1
+            fi
+          fi
+
       - name: Login to GHCR for pulling
         uses: docker/login-action@v3
         with:
