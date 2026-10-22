@@ -77,7 +77,11 @@ const expectedSitemapPaths = [...new Set(Object.entries(routes)
 const sitemapExpected = '<?xml version="1.0" encoding="UTF-8"?>\n' +
   '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
   expectedSitemapPaths.map(route => '  <url>\n    <loc>https://www.logisticacastrofallas.com' + route + '</loc>\n  </url>').join('\n') + '\n</urlset>\n'
-assert.equal(sitemap, sitemapExpected, 'El sitemap publico no coincide con las rutas indexables (sin duplicados)')
+assert.equal(
+  sitemap.replace(/\r\n/g, '\n'),
+  sitemapExpected,
+  'El sitemap publico no coincide con las rutas indexables (sin duplicados)'
+)
 assert.ok(root.includes("const Administration = defineAsyncComponent("), 'Administracion debe cargar bajo demanda')
 assert.ok(root.includes("const QuoteApp = defineAsyncComponent("), 'Cotizaciones debe cargar bajo demanda')
 if (fs.existsSync(path.join(base, 'dist'))) {
