@@ -3,7 +3,7 @@ import IconSymbol from './IconSymbol.vue'
 import type { TrackingDemoShipment, TrackingPoint } from '../types/tracking'
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { createGlobe, type Marker, type ClusterMarker, type HexBinMarker } from '3d-world-map'
+import { createGlobe, type Marker, type ClusterMarker } from '../lib/castroGlobe'
 
 const props = defineProps<{ shipment?: TrackingDemoShipment | null }>()
 const holder = ref<HTMLElement | null>(null)
@@ -97,9 +97,13 @@ let zoomFrame = 0
 function themePalette() {
   const dark = document.documentElement.classList.contains('theme-dark')
   return {
-    ocean: (dark ? ['#120000','#000000'] : ['#fffafa','#fffafa']) as [string,string],
+    ocean: (dark ? ['#3d424b','#141820'] : ['#fffafa','#fffafa']) as [string,string],
     land:'#a80e18', marker:'#a80e18', arc:'#a80e18',
-    label: dark ? '#ffffff' : '#41434b'
+    label: dark ? '#ffffff' : '#30333c',
+    labelStroke: dark ? 'rgba(10,12,18,.93)' : 'rgba(255,255,255,.98)',
+    graticule: dark ? 'rgba(203,212,231,.22)' : 'rgba(0,0,0,0)',
+    showGraticule: dark,
+    shadeStrength: dark ? .67 : .20
   }
 }
 function animateZoom(target: number) {
@@ -118,9 +122,11 @@ function animateZoom(target: number) {
 }
 function closeLocation() {
   cancelAnimationFrame(popupFollowFrame)
+  popupFollowFrame = 0
   selectedId.value = null
-  globe?.setOptions({autoRotate:true})
-  animateZoom(1)
+  globe?.setOptions({autoRotate: !props.shipment})
+  // Vuelve al minimo real admitido por el motor (0.8), no al zoom de la oficina.
+  animateZoom(0.8)
 }
 function positionPopup(point: {x:number;y:number}) {
   if (!holder.value || !canvas.value) return
@@ -142,15 +148,20 @@ function positionPopup(point: {x:number;y:number}) {
 }
 function followSelectedPin(id: string,lon:number,lat:number) {
   cancelAnimationFrame(popupFollowFrame)
-  const update = () => {
+  // La ficha sigue al marcador a 20 Hz; evita actualizaciones DOM innecesarias a 60 Hz.
+  let lastPositionUpdate = -Infinity
+  const update = (now: number) => {
     if (!globe || selectedId.value !== id) return
-    const point = globe.project(lon,lat)
-    if (point?.visible) positionPopup(point)
+    if (!document.hidden && now - lastPositionUpdate >= 50) {
+      const point = globe.project(lon,lat)
+      if (point?.visible) positionPopup(point)
+      lastPositionUpdate = now
+    }
     popupFollowFrame=requestAnimationFrame(update)
   }
   popupFollowFrame=requestAnimationFrame(update)
 }
-function selectWarehouse(marker: Marker | ClusterMarker | HexBinMarker,point: {x:number;y:number}) {
+function selectWarehouse(marker: Marker | ClusterMarker,point: {x:number;y:number}) {
   const id = 'id' in marker ? String(marker.id ?? '') : ''
   const office = offices.find(x=>x.id===id)
   if (!office || !holder.value || !canvas.value) return
@@ -296,7 +307,7 @@ onBeforeUnmount(() => {
       :style="{left: popupPosition.left + 'px', top: popupPosition.top + 'px'}"
       role="region"
       :aria-label="selectedCity + ', ' + selectedCountry">
-      <button type="button" class="world-globe__location-close" :aria-label="english ? 'Close location' : 'Cerrar ubicación'" @click="closeLocation">×</button>
+      <button type="button" class="world-globe__location-close" :aria-label="english ? 'Close location' : 'Cerrar ubicación'" @click.stop="closeLocation">×</button>
       <template v-if="selectedCostaRica">
         <h3>Grupo Castro Fallas · Costa Rica</h3>
         <dl class="world-globe__offices">
@@ -326,15 +337,12 @@ onBeforeUnmount(() => {
 :global(html.theme-dark .world-globe) { --surface-card:#10182b; --text-primary:#f4f6fb; }
 .world-globe__location-card {
   position:absolute; z-index:12; width:min(270px,calc(100% - 28px)); max-height:min(290px,calc(100% - 25px));
-  overflow:auto; padding:17px 19px; box-sizing:border-box;
-  border:1px solid #d1d5db; border-radius:16px; background:rgba(255,255,255,.97); color:#171923;
+  overflow-x:hidden; overflow-y:auto; padding:17px 19px; box-sizing:border-box;
+  border:1px solid #d1d5db; border-radius:16px;
+  background:radial-gradient(ellipse at 35% 20%,rgba(194,24,57,.10),transparent 68%),rgba(255,255,255,.97); color:#171923;
   transform:translate(-50%,-100%); box-shadow:0 14px 40px #0005; text-align:left;
 }
-.world-globe__location-card::before {
-  content:''; position:absolute; z-index:0; inset:-40%; border-radius:50%;
-  background:radial-gradient(ellipse at center,rgba(194,24,57,.11),transparent 65%);
-  pointer-events:none;
-}
+
 .world-globe__location-card > * {position:relative; z-index:1}
 .world-globe__location-card--below { transform:translate(-50%,0) }
 .world-globe__location-card--costa-rica {width:min(290px,calc(100% - 28px)); max-height:calc(100% - 28px)}
@@ -345,10 +353,25 @@ onBeforeUnmount(() => {
 .world-globe__location-card dt {font-size:10px; color:#687286; font-weight:850; text-transform:uppercase; letter-spacing:.06em}
 .world-globe__location-card dd {margin:0; font-size:11px; line-height:1.45; overflow-wrap:anywhere}
 .world-globe__location-card a { color:inherit; overflow-wrap:anywhere }
-.world-globe__location-close {position:absolute; z-index:3; top:8px; right:8px; width:30px; height:30px; border:0; border-radius:50%; background:#e5e7eb; color:#171923; cursor:pointer; font-size:22px}
+.world-globe__location-close {
+  position:absolute; z-index:3; top:8px; right:8px; width:30px; height:30px;
+  display:grid; place-items:center; padding:0; box-sizing:border-box;
+  border:0; border-radius:50%; background:#e5e7eb; color:#171923;
+  cursor:pointer; font-size:0; line-height:1;
+}
+.world-globe__location-close::before,.world-globe__location-close::after {
+  content:''; position:absolute; left:50%; top:50%; width:13px; height:2px;
+  background:currentColor; border-radius:2px; pointer-events:none;
+  transform:translate(-50%,-50%) rotate(45deg);
+}
+.world-globe__location-close::after {transform:translate(-50%,-50%) rotate(-45deg)}
 .world-globe__offices > div + div {padding-top:6px; border-top:1px solid #8991a233}
 .world-globe__offices dt {font-size:11px; letter-spacing:0; text-transform:none; color:inherit}
-:global(html.theme-dark .world-globe__location-card) {border-color:#ffffff33; background:rgba(1,8,29,.96); color:#f4f6fb}
+:global(html.theme-dark .world-globe__location-card) {
+  border-color:#ffffff33;
+  background:radial-gradient(ellipse at 35% 20%,rgba(194,24,57,.12),transparent 68%),rgba(1,8,29,.96);
+  color:#f4f6fb;
+}
 :global(html.theme-dark .world-globe__location-card dt) {color:#b8c3d6}
 :global(html.theme-dark .world-globe__location-close) {background:#ffffff23;color:#fff}
 .world-globe__location-card a:focus-visible,.world-globe__location-close:focus-visible {outline:2px solid #b20c2a;outline-offset:3px}
