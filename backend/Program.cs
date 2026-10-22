@@ -94,12 +94,19 @@ builder.Services.AddSingleton<ContentUpdatesPublisher>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<QuoteService>();
 builder.Services.AddScoped<AssistantService>();
+builder.Services.AddSingleton<NewsTranslationService>();
+builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<AssistantFreeQuota>();
 builder.Services.AddSingleton<ObjectStorageService>();
 builder.Services.AddHttpClient("Groq", client =>
 {
     client.BaseAddress = new Uri("https://api.groq.com/openai/v1/");
     client.Timeout = TimeSpan.FromSeconds(18);
+});
+builder.Services.AddHttpClient("GroqNews", client =>
+{
+    client.BaseAddress = new Uri("https://api.groq.com/openai/v1/");
+    client.Timeout = TimeSpan.FromSeconds(75);
 });
 builder.Services.AddProblemDetails();
 
@@ -122,6 +129,15 @@ builder.Services.AddRateLimiter(options =>
         _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 20,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        }));
+    options.AddPolicy("news-translation", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 12,
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0,
             AutoReplenishment = true
