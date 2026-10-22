@@ -1,0 +1,113 @@
+# Runtime de Pangolin: solo imagenes precompiladas por GitHub Actions.
+# Este archivo se distribuye como artefacto de configuracion, nunca se compila en AlmaLinux.
+name: pangolin-production
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: login
+      POSTGRES_USER: pangolin
+      POSTGRES_PASSWORD: ${PANGOLIN_POSTGRES_PASSWORD:?Definir PANGOLIN_POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pangolin -d login"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  backend:
+    image: ghcr.io/customcodecr/pangolinbackend/backend:${PANGOLIN_IMAGE_TAG:?Definir PANGOLIN_IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: "http://+:5000"
+      Development__ApplySchema: "false"
+      Features__OfficialQuotesEnabled: "false"
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=login;Username=pangolin;Password=${PANGOLIN_POSTGRES_PASSWORD:?Definir PANGOLIN_POSTGRES_PASSWORD}"
+      Auth__OtpPepper: ${AUTH_OTP_PEPPER:?Definir AUTH_OTP_PEPPER}
+      Auth__JwtSigningKey: ${AUTH_JWT_SIGNING_KEY:?Definir AUTH_JWT_SIGNING_KEY}
+      Auth__SecureCookie: "true"
+      Security__PublicOrigin: ${PUBLIC_ORIGIN:?Definir PUBLIC_ORIGIN}
+      Email__Mode: ${EMAIL_MODE:?Elegir Smtp o Graph}
+      Graph__TenantId: ${GRAPH_TENANT_ID:-}
+      Graph__ClientId: ${GRAPH_CLIENT_ID:-}
+      Graph__ClientSecret: ${GRAPH_CLIENT_SECRET:-}
+      Graph__From: ${GRAPH_FROM:-}
+      Smtp__Host: ${SMTP_HOST:-}
+      Smtp__Port: ${SMTP_PORT:-587}
+      Smtp__Tls: ${SMTP_TLS:-StartTls}
+      Smtp__From: ${SMTP_FROM:-}
+      Smtp__Username: ${SMTP_USERNAME:-}
+      Smtp__Password: ${SMTP_PASSWORD:-}
+      Redis__ConnectionString: "redis:6379"
+      Mongo__ConnectionString: ${MONGO_CONNECTION_STRING:-}
+      Mongo__Database: castrofallas_logs
+      Ai__Groq__ApiKey: ${GROQ_API_KEY:-}
+      Ai__Groq__Model: ${GROQ_MODEL:-openai/gpt-oss-20b}
+      Storage__Endpoint: ${S3_ENDPOINT:-}
+      Storage__AccessKey: ${S3_ACCESS_KEY:-}
+      Storage__SecretKey: ${S3_SECRET_KEY:-}
+      Storage__Bucket: ${S3_BUCKET:-castrofallas-media}
+    networks:
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    image: ghcr.io/customcodecr/pangolinbackend/frontend:${PANGOLIN_IMAGE_TAG:?Definir PANGOLIN_IMAGE_TAG}
+    restart: unless-stopped
+    networks:
+      - internal
+      - dhole
+    ports:
+      # Preview local antes de migrar el dominio Fennec.
+      - "127.0.0.1:${PANGOLIN_LOCAL_PORT:-8180}:80"
+    depends_on:
+      - backend
+    labels:
+      - "traefik.enable=${PANGOLIN_TRAEFIK_ENABLED:-false}"
+      - "traefik.docker.network=${DHOLE_NETWORK:-dhole}"
+      - "traefik.http.routers.prod-pangolin.rule=Host(`${PANGOLIN_HOST:-logisticacastrofallas.com}`)"
+      - "traefik.http.routers.prod-pangolin.entrypoints=web"
+      - "traefik.http.routers.prod-pangolin.service=prod-pangolin"
+      - "traefik.http.services.prod-pangolin.loadbalancer.server.port=80"
+      # El backend exige PUBLIC_ORIGIN canonico, por eso www redirige al host sin www.
+      - "traefik.http.routers.prod-pangolin-www.rule=Host(`${PANGOLIN_WWW_HOST:-www.logisticacastrofallas.com}`)"
+      - "traefik.http.routers.prod-pangolin-www.entrypoints=web"
+      - "traefik.http.routers.prod-pangolin-www.service=prod-pangolin"
+      - "traefik.http.routers.prod-pangolin-www.middlewares=prod-pangolin-www-redirect"
+      - "traefik.http.middlewares.prod-pangolin-www-redirect.redirectregex.regex=^https?://www[.]logisticacastrofallas[.]com(.*)"
+      - "traefik.http.middlewares.prod-pangolin-www-redirect.redirectregex.replacement=https://logisticacastrofallas.com$${1}"
+
+networks:
+  internal:
+    internal: false
+  dhole:
+    external: true
+    name: ${DHOLE_NETWORK:-dhole}
+
+volumes:
+  postgres_data:
+  redis_data:
