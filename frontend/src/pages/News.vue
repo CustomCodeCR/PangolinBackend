@@ -3,7 +3,7 @@ import IconSymbol from '../components/IconSymbol.vue'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import EmblaCarousel, { type EmblaCarouselType } from 'embla-carousel'
-import type { ManagedNews } from '../adminContent'
+import { readManagedNews, type ManagedNews } from '../adminContent'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import { subscribeToChanges } from '../services/realtime'
@@ -148,9 +148,17 @@ let requestVersion = 0
 async function loadPublicNews() {
   const request = ++requestVersion
   try {
-    const response = await fetch('/api/content/news', { cache: 'no-store' })
-    if (!response.ok) throw new Error('No se pudieron consultar las noticias.')
-    const items: unknown = await response.json()
+    // Las noticias creadas en el administrador de demostración solo existen en este navegador.
+    // Vite Development muestra esas noticias localmente; producción siempre usa PostgreSQL.
+    const localPreview = import.meta.env.DEV ? readManagedNews() : []
+    let items: unknown
+    if (localPreview.length) {
+      items = localPreview
+    } else {
+      const response = await fetch('/api/content/news', { cache: 'no-store' })
+      if (!response.ok) throw new Error('No se pudieron consultar las noticias.')
+      items = await response.json()
+    }
     if (!Array.isArray(items)) throw new Error('Respuesta de noticias inválida.')
     if (disposed || request !== requestVersion) return
     managedNews.value = items as ManagedNews[]
