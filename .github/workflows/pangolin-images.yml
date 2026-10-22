@@ -1,6 +1,13 @@
 name: Pangolin - Build GHCR and Deploy Images
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "deploy/**"
+      - ".github/workflows/pangolin-images.yml"
   workflow_dispatch:
     inputs:
       deploy:
@@ -88,7 +95,7 @@ jobs:
   deploy:
     name: Deploy images using existing Dhole infrastructure
     needs: publish
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy }}
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy) }}
     runs-on: [self-hosted, linux, x64, dhole]
     environment: production
     permissions:
