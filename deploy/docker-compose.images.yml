@@ -20,6 +20,9 @@ services:
       Auth__JwtSigningKey: "${PANGOLIN_AUTH_JWT_SIGNING_KEY:?Definir PANGOLIN_AUTH_JWT_SIGNING_KEY}"
       Auth__SecureCookie: "true"
       Security__PublicOrigin: "https://${FENNEC_WWW_HOST:?Definir FENNEC_WWW_HOST}"
+      # El acceso al dominio raiz tambien debe pasar validacion Origin/Host.
+      # No cambia la ruta Traefik: la raiz sigue en Fennec hasta su corte.
+      Security__AdditionalPublicOrigin: "https://${FENNEC_HOST:?Definir FENNEC_HOST}"
       Email__Mode: "${PANGOLIN_EMAIL_MODE:-Graph}"
       Graph__TenantId: "${PANGOLIN_GRAPH_TENANT_ID:-}"
       Graph__ClientId: "${PANGOLIN_GRAPH_CLIENT_ID:-}"

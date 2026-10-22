@@ -308,4 +308,28 @@ jobs:
             echo "::error::Traefik WWW route did not return Pangolin backend readiness."
             exit 1
           fi
+          # Reproducir un POST real de navegador con TLS terminado en Traefik:
+          # Logout sin cookie no revoca sesiones ni envía OTP.
+          # Ambas variantes del dominio deben validar su propio Origin y Host.
+          root_host="$(grep -m1 '^FENNEC_HOST=' "$DHOLE_ENV_FILE" | cut -d= -f2- | tr -d '\r')"
+          test -n "$root_host"
+          for public_host in "$host" "$root_host"; do
+            status="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 -X POST \
+              -H "Host: $public_host" -H "Origin: https://$public_host" \
+              "http://127.0.0.1:$local_port/api/auth/logout")"
+            if [[ "$status" != "204" ]]; then
+              echo "::error::Pangolin rejects valid POST Origin for $public_host (HTTP $status)."
+              exit 1
+            fi
+            echo "Pangolin accepts valid same-host HTTPS Origin: $public_host"
+          done
+          blocked="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 -X POST \
+            -H "Host: $host" -H "Origin: https://outside.example" \
+            "http://127.0.0.1:$local_port/api/auth/logout")"
+          if [[ "$blocked" != "403" ]]; then
+            echo "::error::Pangolin must reject cross-site POST Origin (HTTP $blocked)."
+            exit 1
+          fi
+          echo "Cross-site POST Origin correctly rejected."
+
           docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production ps
