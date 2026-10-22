@@ -283,16 +283,6 @@ function toggleTheme() {
   width: 20px;
   height: 20px;
 }
-/* The quotation page header is light: match the readable settings icon
-   instead of using the white-on-white profile appearance. */
-:global(html:not(.theme-dark)) .site-header--quotes .header-account-tools .nav-user-icon.header-profile__trigger {
-  border-color: rgba(32, 36, 43, .26);
-  background: rgba(255, 255, 255, .12);
-  color: #20242b;
-}
-:global(html:not(.theme-dark)) .site-header--quotes .header-account-tools .nav-user-icon.header-profile__trigger:is(:hover, [aria-expanded="true"]) {
-  background: rgba(32, 36, 43, .08);
-}
 .header-profile__trigger:focus-visible,
 .header-profile__logout:focus-visible {
   outline: 3px solid #e8a0ae;
@@ -443,4 +433,22 @@ function toggleTheme() {
 </style>
 
 
+<!-- Unscoped on purpose: the quotes page has strong global header styles.
+     Target the actual quoted header element and not a partial :global()
+     selector inside the scoped component style. -->
+<style>
+html:not(.theme-dark) .app-site.official-page > .site-header.site-header--quotes .header-account-tools .nav-user-icon.header-profile__trigger {
+  color: #20242b !important;
+  border: 1px solid rgba(32, 36, 43, .26) !important;
+  background: rgba(255, 255, 255, .16) !important;
+  box-shadow: none !important;
+}
+html:not(.theme-dark) .app-site.official-page > .site-header.site-header--quotes .header-account-tools .nav-user-icon.header-profile__trigger svg {
+  color: #20242b !important;
+  stroke: currentColor !important;
+}
+html:not(.theme-dark) .app-site.official-page > .site-header.site-header--quotes .header-account-tools .nav-user-icon.header-profile__trigger:is(:hover, [aria-expanded="true"]) {
+  background: rgba(32, 36, 43, .08) !important;
+}
+</style>
 <style src="../styles/mobile-navigation.css"></style>
