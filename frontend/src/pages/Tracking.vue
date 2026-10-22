@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { driver, type Driver } from 'driver.js'
 import 'driver.js/dist/driver.css'
@@ -7,12 +7,73 @@ import IconSymbol from '../components/IconSymbol.vue'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import WorldGlobe from '../components/WorldGlobe.vue'
+import type { TrackingDemoShipment } from '../types/tracking'
 
 const { locale } = useI18n({ useScope: 'global' })
 const en = computed(() => locale.value.toLowerCase().startsWith('en'))
 const kind = ref('BL')
 const reference = ref('')
 const searched = ref(false)
+const loading = ref(false)
+const shipment = ref<TrackingDemoShipment | null>(null)
+const globeSection = ref<HTMLElement | null>(null)
+function showDemoRoute() {
+  globeSection.value?.scrollIntoView({
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    block: 'start'
+  })
+}
+const lookupFailure = ref<'none' | 'missing' | 'invalid' | 'limited' | 'error'>('none')
+let lookupRevision = 0
+watch([kind, reference], () => {
+  lookupRevision++
+  searched.value = false
+  loading.value = false
+  shipment.value = null
+  lookupFailure.value = 'none'
+})
+async function searchShipment() {
+  const revision = ++lookupRevision
+  const code = reference.value.trim()
+  searched.value = true
+  shipment.value = null
+  lookupFailure.value = 'none'
+  if (!code) return
+  if (code.length < 3 || code.length > 64 || !/^[a-z0-9_-]+$/i.test(code)) {
+    lookupFailure.value = 'invalid'
+    return
+  }
+  loading.value = true
+  try {
+    const params = new URLSearchParams({ type: kind.value, reference: code })
+    const response = await fetch('/api/tracking/demo?' + params.toString(), {
+      headers: { Accept: 'application/json' }, cache: 'no-store'
+    })
+    if (revision !== lookupRevision) return
+    if (response.status === 404) { lookupFailure.value = 'missing'; return }
+    if (response.status === 429) { lookupFailure.value = 'limited'; return }
+    if (!response.ok) { lookupFailure.value = 'error'; return }
+    const data = await response.json() as TrackingDemoShipment
+    if (data.demo !== true || !data.origin || !data.destination ||
+        !Number.isFinite(data.progressPercent)) throw new Error('Invalid demo response')
+    shipment.value = data
+  } catch {
+    if (revision === lookupRevision) lookupFailure.value = 'error'
+  } finally {
+    if (revision === lookupRevision) loading.value = false
+  }
+}
+const statusLabels = computed<Record<string, string>>(() => en.value ? ({
+  planned: 'Planned', in_transit: 'In transit', arrived: 'Arrived', delivered: 'Delivered'
+}) : ({
+  planned: 'Planificado', in_transit: 'En tránsito', arrived: 'Llegó a destino', delivered: 'Entregado'
+}))
+function formatDate(value: string) {
+  const date = new Date(value + 'T12:00:00Z')
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(en.value ? 'en-US' : 'es-CR', {
+    day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'
+  }).format(date)
+}
 const referenceMenuOpen = ref(false)
 const referenceTrigger = ref<HTMLButtonElement | null>(null)
 const referenceMenu = ref<HTMLElement | null>(null)
@@ -106,11 +167,20 @@ function handleReferenceViewportChange() {
 }
 const copy = computed(() => en.value ? {
   eyebrow: 'CASTRO FALLAS · INTERNATIONAL CARGO', title: 'Track your', accent: 'shipment.',
-  intro: 'Enter a shipment reference. Online movements are not connected yet; our team can assist you with that reference.',
+  intro: 'Explore sample shipments with an interactive route. Live cargo tracking is not connected yet.',
   heading: 'Find your shipment', hint: 'Choose the reference type shown on your shipping documents.',
   guide: 'Step-by-step guide', type: 'Reference type', number: 'Shipment reference',
   placeholder: 'Enter reference', search: 'Search shipment', required: 'Enter a reference to continue.',
   unavailable: 'Online tracking is not available yet',
+  demoLabel: 'DEMO · Fictitious shipment', result: 'Shipment summary',
+  origin: 'Origin', destination: 'Destination', status: 'Status',
+  estimatedDeparture: 'Sample departure', estimatedArrival: 'Sample arrival',
+  progress: 'Illustrative progress', loading: 'Searching demo shipments…', viewRoute: 'View route on globe',
+  demoNotice: 'Illustrative data only. The moving route marker is not GPS and does not show real shipment positions.',
+  notFound: 'No sample shipment found', notFoundInfo: 'Check the selected reference type and the sample code.',
+  invalid: 'Enter 3–64 letters, digits, hyphens or underscores.',
+  limited: 'Too many searches. Please retry shortly.',
+  failed: 'Could not connect to demo tracking. Check the backend and try again.',
   explanation: 'We cannot retrieve live movements yet. Contact Castro Fallas and include your reference so the team can assist.',
   contact: 'Contact Castro Fallas', process: 'How shipment coordination works',
   processIntro: 'Our team works with carriers, customs agents and the other parties involved.',
@@ -124,11 +194,20 @@ const copy = computed(() => en.value ? {
   back: 'Back to home', next: 'Next', previous: 'Back', done: 'Finish'
 } : {
   eyebrow: 'CASTRO FALLAS · CARGA INTERNACIONAL', title: 'Rastrea tu', accent: 'embarque.',
-  intro: 'Ingresa una referencia del embarque. Todavía no hay movimientos en línea; nuestro equipo puede ayudarte con esa referencia.',
+  intro: 'Explora embarques ficticios y sus rutas interactivas. El seguimiento real todavía no está conectado.',
   heading: 'Busca tu embarque', hint: 'Selecciona el tipo de referencia que aparece en los documentos.',
   guide: 'Guía paso a paso', type: 'Tipo de referencia', number: 'Referencia del embarque',
   placeholder: 'Ingresa la referencia', search: 'Buscar embarque', required: 'Ingresa una referencia para continuar.',
   unavailable: 'El seguimiento en línea aún no está disponible',
+  demoLabel: 'DEMO · Embarque ficticio', result: 'Resumen del embarque',
+  origin: 'Origen', destination: 'Destino', status: 'Estado',
+  estimatedDeparture: 'Salida estimada de prueba', estimatedArrival: 'Llegada estimada de prueba',
+  progress: 'Avance ilustrativo', loading: 'Buscando embarque de prueba…', viewRoute: 'Ver ruta en el globo',
+  demoNotice: 'Datos ficticios. El marcador de avance no es GPS ni representa la ubicación real de un embarque.',
+  notFound: 'No se encontró el embarque de prueba', notFoundInfo: 'Verificá el tipo de referencia y el código de demostración.',
+  invalid: 'Ingresá de 3 a 64 letras, números, guiones o guiones bajos.',
+  limited: 'Demasiadas consultas. Intentá de nuevo dentro de un momento.',
+  failed: 'No se pudo conectar con el rastreo de prueba. Revisá el backend e intentá nuevamente.',
   explanation: 'Por ahora no podemos consultar movimientos en tiempo real. Contacta a Castro Fallas e incluye la referencia para recibir asistencia.',
   contact: 'Contactar a Castro Fallas', process: 'Así coordinamos cada embarque',
   processIntro: 'Nuestro equipo coordina con transportistas, agentes aduanales y las demás partes involucradas.',
@@ -182,6 +261,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  lookupRevision++
   window.removeEventListener('keydown', handleGuideKeydown, true)
   document.removeEventListener('pointerdown', handleReferencePointerDown, true)
   window.removeEventListener('resize', handleReferenceViewportChange)
@@ -198,16 +278,16 @@ onBeforeUnmount(() => {
     <main class="tracking-page">
       <div class="container tracking-content">
         <a class="back-link" href="/home#embarque">{{ copy.back }}</a>
-        <section class="tracking-intro">
+        <section ref="globeSection" class="tracking-intro">
           <div class="tracking-copy tracking-intro__copy">
             <p class="section-tag">{{ copy.eyebrow }}</p>
             <h1>{{ copy.title }} <span>{{ copy.accent }}</span></h1>
             <p class="tracking-lead">{{ copy.intro }}</p>
           </div>
-          <WorldGlobe />
+          <WorldGlobe :shipment="shipment" />
         </section>
         <section class="tracking-search-section">
-          <form class="tracking-search" @submit.prevent="searched = true" novalidate>
+          <form class="tracking-search" @submit.prevent="searchShipment" novalidate>
             <div class="tracking-top">
               <span class="tracking-search__icon" aria-hidden="true"><IconSymbol glyph="⌕" :size="22" /></span>
               <div>
@@ -240,14 +320,40 @@ onBeforeUnmount(() => {
               </div>
               <div id="tracking-guide-reference" class="tracking-field">
                 <label for="tracking-reference-input">{{ copy.number }}</label>
-                <input id="tracking-reference-input" v-model="reference" maxlength="150" autocomplete="off" :placeholder="copy.placeholder" required />
+                <input id="tracking-reference-input" v-model="reference" maxlength="64" autocomplete="off" :placeholder="copy.placeholder" required />
               </div>
             </div>
             <p class="tracking-hint">{{ help }}</p>
             <p v-if="searched && !reference.trim()" class="tracking-error" role="alert">{{ copy.required }}</p>
-            <button id="tracking-guide-submit" type="submit" class="btn btn-primary tracking-submit">{{ copy.search }} <IconSymbol glyph="→" /></button>
-            <div v-if="searched && reference.trim()" class="tracking-unavailable" role="status">
-              <strong>{{ copy.unavailable }}</strong>
+            <button id="tracking-guide-submit" type="submit" class="btn btn-primary tracking-submit" :disabled="loading" :aria-busy="loading">{{ loading ? copy.loading : copy.search }} <IconSymbol glyph="→" /></button>
+            <p v-if="loading" class="tracking-hint" role="status">{{ copy.loading }}</p>
+            <section v-else-if="shipment" class="tracking-demo-result" role="status" aria-live="polite">
+              <div class="tracking-demo-result__heading">
+                <div>
+                  <span class="tracking-demo-result__label">{{ copy.demoLabel }}</span>
+                  <h3>{{ copy.result }} · {{ shipment.referenceCode }}</h3>
+                </div>
+                <strong class="tracking-demo-result__status">{{ statusLabels[shipment.status] ?? shipment.status }}</strong>
+              </div>
+              <dl class="tracking-demo-result__grid">
+                <div><dt>{{ copy.origin }}</dt><dd>{{ shipment.origin.name }}</dd></div>
+                <div><dt>{{ copy.destination }}</dt><dd>{{ shipment.destination.name }}</dd></div>
+                <div><dt>{{ copy.estimatedDeparture }}</dt><dd>{{ formatDate(shipment.etd) }}</dd></div>
+                <div><dt>{{ copy.estimatedArrival }}</dt><dd>{{ formatDate(shipment.eta) }}</dd></div>
+              </dl>
+              <div class="tracking-demo-result__progress">
+                <div><strong>{{ copy.progress }}</strong><span>{{ shipment.progressPercent }}%</span></div>
+                <div class="tracking-demo-result__track" role="progressbar" :aria-label="copy.progress"
+                  :aria-valuenow="shipment.progressPercent" aria-valuemin="0" aria-valuemax="100">
+                  <span :style="{ width: shipment.progressPercent + '%' }"></span>
+                </div>
+              </div>
+              <p class="tracking-demo-result__disclaimer">{{ copy.demoNotice }}</p>
+              <button type="button" class="tracking-demo-result__view" @click="showDemoRoute">{{ copy.viewRoute }} ↑</button>
+            </section>
+            <div v-else-if="searched && reference.trim()" class="tracking-unavailable" role="status">
+              <strong>{{ lookupFailure === 'missing' ? copy.notFound : copy.unavailable }}</strong>
+              <p>{{ lookupFailure === 'missing' ? copy.notFoundInfo : lookupFailure === 'invalid' ? copy.invalid : lookupFailure === 'limited' ? copy.limited : copy.failed }}</p>
               <p>{{ copy.explanation }}</p>
               <a :href="mailto">{{ copy.contact }} <IconSymbol glyph="↗" /></a>
             </div>
@@ -473,4 +579,38 @@ onBeforeUnmount(() => {
   .tracking-process__steps li{display:grid;grid-template-columns:40px 1fr;gap:12px;padding-top:17px}
 }
 
+</style>
+
+<style scoped>
+.tracking-demo-result {
+  margin-top: 24px; padding: clamp(18px,3vw,26px); border: 1px solid #b5092845;
+  border-radius: 20px; background: var(--track-surface, #fff); color: inherit;
+  box-shadow: 0 12px 32px #4b142110;
+}
+.tracking-demo-result__heading { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+.tracking-demo-result__label { display:inline-block; margin-bottom:10px; font-size:11px; font-weight:800; letter-spacing:.06em; color:#b50928; }
+.tracking-demo-result__heading h3 { margin:0; font-size:clamp(16px,2vw,21px); line-height:1.35; overflow-wrap:anywhere; }
+.tracking-demo-result__status { padding:7px 11px; border-radius:20px; font-size:12px; background:#b5092817; color:#b50928; }
+.tracking-demo-result__grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:19px 24px; margin:22px 0; }
+.tracking-demo-result__grid div { min-width:0; }
+.tracking-demo-result__grid dt { font-size:12px; opacity:.75; font-weight:700; }
+.tracking-demo-result__grid dd { margin:6px 0 0; font-size:14px; font-weight:750; overflow-wrap:anywhere; }
+.tracking-demo-result__progress > div:first-child { display:flex; justify-content:space-between; gap:14px; margin:0 0 8px; font-size:13px; }
+.tracking-demo-result__track { height:11px; overflow:hidden; border-radius:12px; background:#a3a3a34a; }
+.tracking-demo-result__track span { display:block; height:100%; border-radius:12px; background:#b50928; transition:width .5s ease; }
+.tracking-demo-result__disclaimer { margin:17px 0 0; font-size:12px; line-height:1.65; opacity:.85; }
+@media(max-width:580px) {
+  .tracking-demo-result__grid { grid-template-columns:minmax(0,1fr); }
+  .tracking-demo-result__heading { flex-direction:column; }
+}
+@media(prefers-reduced-motion:reduce) { .tracking-demo-result__track span { transition:none; } }
+:global(html.theme-dark) .tracking-demo-result__label,
+:global(html.theme-dark) .tracking-demo-result__status { color:#ff8697; }
+:global(html.theme-dark) .tracking-demo-result__status { background:#b509283a; }
+</style>
+
+<style scoped>
+.tracking-demo-result__view { margin-top:14px; border:1px solid #b50928; border-radius:12px; padding:10px 15px; background:transparent; color:#b50928; font-weight:750; cursor:pointer; }
+.tracking-demo-result__view:focus-visible { outline:2px solid #b50928; outline-offset:3px; }
+:global(html.theme-dark) .tracking-demo-result__view { color:#ff8697; border-color:#ff8697; }
 </style>

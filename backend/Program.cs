@@ -117,6 +117,15 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
             AutoReplenishment = true
         }));
+    options.AddPolicy("tracking", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 20,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        }));
     options.AddPolicy("assistant", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
@@ -152,6 +161,9 @@ if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("Dev
         await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(verifiedLocationsPath));
         var videoLocationsPath = Path.Combine(app.Environment.ContentRootPath, "Database", "OfficialQuotesVideoLocations.sql");
         await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(videoLocationsPath));
+        // Datos de rastreo ficticios: cargar exclusivamente en Development.
+        var trackingDemoPath = Path.Combine(app.Environment.ContentRootPath, "Database", "TrackingDemoSchema.sql");
+        await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(trackingDemoPath));
         app.Logger.LogInformation("Esquema de login comprobado/aplicado en PostgreSQL ({Database}).",
             new NpgsqlConnectionStringBuilder(postgres).Database);
     }
@@ -235,6 +247,7 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapTrackingDemo();
 app.MapGet("/api/health", () => Results.Ok(new
 {
     service = "CastroFallas.MiniQuote.Api", status = "ok", version = "rediseno-auth-otp-v1", utc = DateTime.UtcNow
