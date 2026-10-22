@@ -21,7 +21,7 @@ for (const [name, text] of [['Inicio', home], ['Servicios', services], ['Footer'
 }
 assert.equal(sitemap.includes(oldRoute), false, 'El sitemap no debe anunciar la ruta eliminada')
 for (const publicRoute of ['/', '/noticias', '/nosotros', '/servicios']) {
-  assert.ok(sitemap.includes('<loc>https://logisticacastrofallas.com' + publicRoute + '</loc>'), 'Falta ' + publicRoute + ' en sitemap')
+  assert.ok(sitemap.includes('<loc>https://www.logisticacastrofallas.com' + publicRoute + '</loc>'), 'Falta ' + publicRoute + ' en sitemap')
 }
 assert.ok(robots.includes('User-agent: OAI-SearchBot'), 'Falta OAI-SearchBot en robots.txt')
 assert.ok(root.includes("import routeSeo from '../seo/routes.json'"), 'Las rutas no comparten la configuración SEO')
@@ -62,7 +62,7 @@ if (fs.existsSync(path.join(base, 'dist'))) {
     assert.ok(html.includes('<title>' + seo.title + '</title>'), 'Título HTML incorrecto: ' + route)
     assert.ok(html.includes('name="robots" content="' + (seo.indexable === false ? 'noindex,nofollow' : 'index,follow') + '"'), 'Robots HTTP HTML incorrecto: ' + route)
     assert.ok(html.includes('content="' + seo.description + '"'), 'Descripción ausente en HTML: ' + route)
-    const canonical = '<link rel="canonical" href="https://logisticacastrofallas.com' + (route === '/home' ? '/' : route) + '"'
+    const canonical = '<link rel="canonical" href="https://www.logisticacastrofallas.com' + (route === '/home' ? '/' : route) + '"'
     assert.equal(html.includes(canonical), seo.indexable !== false, 'Canonical HTML incorrecto: ' + route)
     if (seo.indexable === false) assert.ok(!html.includes('rel="canonical"'), 'Canonical en página privada: ' + route)
   }
@@ -70,13 +70,13 @@ if (fs.existsSync(path.join(base, 'dist'))) {
 }
 
 
-const sourceImage = imagePath => 'https://logisticacastrofallas.com' + imagePath
+const sourceImage = imagePath => 'https://www.logisticacastrofallas.com' + imagePath
 const expectedSitemapPaths = [...new Set(Object.entries(routes)
   .filter(([, seo]) => seo.indexable !== false)
   .map(([route]) => route === '/home' ? '/' : route))]
 const sitemapExpected = '<?xml version="1.0" encoding="UTF-8"?>\n' +
   '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-  expectedSitemapPaths.map(route => '  <url>\n    <loc>https://logisticacastrofallas.com' + route + '</loc>\n  </url>').join('\n') + '\n</urlset>\n'
+  expectedSitemapPaths.map(route => '  <url>\n    <loc>https://www.logisticacastrofallas.com' + route + '</loc>\n  </url>').join('\n') + '\n</urlset>\n'
 assert.equal(sitemap, sitemapExpected, 'El sitemap publico no coincide con las rutas indexables (sin duplicados)')
 assert.ok(root.includes("const Administration = defineAsyncComponent("), 'Administracion debe cargar bajo demanda')
 assert.ok(root.includes("const QuoteApp = defineAsyncComponent("), 'Cotizaciones debe cargar bajo demanda')
@@ -109,7 +109,7 @@ if (fs.existsSync(path.join(base, 'dist'))) {
     assert.ok(find('WebSite'), 'WebSite faltante en Schema: ' + route)
     const page = find(route === '/nosotros' ? 'AboutPage' : route === '/noticias' ? 'CollectionPage' : 'WebPage')
     assert.ok(page, 'WebPage faltante en Schema: ' + route)
-    assert.equal(page.url, 'https://logisticacastrofallas.com' + (route === '/home' ? '/' : route), 'URL Schema incoherente: ' + route)
+    assert.equal(page.url, 'https://www.logisticacastrofallas.com' + (route === '/home' ? '/' : route), 'URL Schema incoherente: ' + route)
     assert.equal(page.name, seo.title, 'Titulo Schema incoherente: ' + route)
     assert.equal(page.description, seo.description, 'Descripcion Schema incoherente: ' + route)
     assert.equal(Boolean(find('BreadcrumbList')), route !== '/' && route !== '/home', 'Breadcrumb Schema incoherente: ' + route)

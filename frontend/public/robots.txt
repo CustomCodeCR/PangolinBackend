@@ -6,4 +6,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://logisticacastrofallas.com/sitemap.xml
+Sitemap: https://www.logisticacastrofallas.com/sitemap.xml

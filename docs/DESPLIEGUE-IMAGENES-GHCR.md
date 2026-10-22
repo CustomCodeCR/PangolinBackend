@@ -71,17 +71,24 @@ curl -I http://127.0.0.1:8180/home/
 ```
 Antes de abrir el dominio real verificar login OTP, correo Graph, permisos de usuarios, CMS (noticias/comentarios), cotizaciones e itinerarios, cookies Secure, SignalR y S3 si se configura. La UI localhost no equivale a una prueba completa HTTPS.
 
-## Paso 5: cambiar Fennec a Pangolin (corte planificado)
-1. Respaldar la configuracion fuente y runtime del servicio Dhole `website`.
-2. Desactivar despliegue automatico del repo FennecWeb y ajustar el Compose FUENTE de DholeSystem para que `website` no vuelva a arrancar despues.
-3. Detener solo el servicio `website`; no reiniciar Dhole.
-4. Cambiar `PANGOLIN_TRAEFIK_ENABLED=true` en el `/opt/dhole/.env`.
-5. Ejecutar el GitHub Action de Pangolin `deploy=true` y verificar el dominio principal y WWW.
+## Paso 5: publicar Pangolin en WWW sin interrumpir Fennec
 
-El Action se niega a habilitar el router Pangolin si Fennec `website` sigue corriendo. No borrar volumenes ni usar `docker compose down -v`.
+Destino solicitado: `https://www.logisticacastrofallas.com` = Pangolin.
+El dominio sin WWW (`https://logisticacastrofallas.com`) permanece en Fennec de momento.
+
+1. El Compose incluye SOLO el router `prod-pangolin-www` y NO contiene un router Pangolin para el dominio raiz.
+2. Su regla es `Host(\`www.logisticacastrofallas.com\`)`, con prioridad `1000`, mayor que la regla combinada raiz/www del router anterior de Fennec.
+3. Ya no hay middleware que redirija WWW al dominio sin WWW.
+4. El backend Pangolin valida `Security__PublicOrigin=https://www.logisticacastrofallas.com`, imprescindible para formularios y POST desde el nuevo host.
+5. GitHub Actions activa Traefik para Pangolin usando `PANGOLIN_TRAEFIK_ENABLED=true` en su entorno de despliegue; NO exige editar ni exponer el .env. Se verifica el endpoint `/api/health/ready` tanto por `localhost:8180` como a traves del Traefik del servidor con cabecera `Host: www.logisticacastrofallas.com`.
+6. Comprobar tambien el resultado externo de Cloudflare (DNS, HTTPS, reglas de redireccion o cache). Si hay una regla de Cloudflare `www -> apex`, quitarla para que WWW pueda llegar al router de Pangolin.
+
+No es necesario detener Fennec, ni reiniciar Dhole, ni borrar datos para este corte solo de WWW. Evitar desplegar automaticamente Fennec al WWW despues del cambio; la prioridad 1000 impide que su regla combinada lo recupere mientras el router Pangolin este activo.
+
+Si en el futuro se quiere reemplazar TAMBIEN el dominio raiz, se hara un cambio independiente con su propio control de riesgo.
 
 ## Recuperacion
-- Deshabilitar enrutamiento Pangolin y restaurar `website` si el cutover falla.
+- Para revertir solo WWW, deshabilitar el router Pangolin y verificar que Fennec vuelva a resolver tanto raiz como WWW. No eliminar ni reiniciar las bases.
 - Para rollback del codigo (no de SQL), ejecutar Action con `image_tag=sha-<commit-previo>`.
 - La base de datos `pangolin` es independiente, pero comparte servidor PostgreSQL: sigue siendo obligatorio hacer respaldos y vigilar recursos.
 - El bucket S3, el correo y los catalogos oficiales no quedan validados solo porque el estado HTTP sea 200.

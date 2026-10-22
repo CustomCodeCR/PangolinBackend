@@ -8,7 +8,7 @@ const routes = require('../seo/routes.json')
 const { makeStructuredData } = require('../seo/structured-data.cjs')
 const dist = path.resolve(__dirname, '../dist')
 const original = fs.readFileSync(path.join(dist, 'index.html'), 'utf8')
-const origin = 'https://logisticacastrofallas.com'
+const origin = 'https://www.logisticacastrofallas.com'
 const sourceSchemaMatch = original.match(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/i)
 if (!sourceSchemaMatch) throw new Error('No se encontro el JSON-LD original de la empresa')
 const sourceGraph = JSON.parse(sourceSchemaMatch[1])['@graph']
