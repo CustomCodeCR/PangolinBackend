@@ -5174,20 +5174,17 @@ html.theme-dark .app-site.administration-page .content-manager.is-embedded
 }
 
 
-/* Fix: readable news details on the white modal in both themes. */
+/* Noticias: en tema oscuro el panel completo usa azul marino y texto blanco.
+   El tema claro conserva los estilos originales de la captura. */
 html.theme-dark .app-site .news-article-modal,
 html.theme-dark .app-site .news-article-modal__copy {
-  background-color: #fff;
-  color: #171923;
+  background-color: #01081D;
+  color: #fff;
 }
-html.theme-dark .app-site .news-article-modal__copy h2 {
-  color: #171923 !important;
-}
-html.theme-dark .app-site .news-article-modal__copy > p:not(.section-tag) {
-  color: #4d5360 !important;
-}
+html.theme-dark .app-site .news-article-modal__copy h2,
+html.theme-dark .app-site .news-article-modal__copy > p:not(.section-tag),
 html.theme-dark .app-site .news-article-modal__copy .section-tag {
-  color: #b20b2d !important;
+  color: #fff !important;
 }
 
 /* Fix: balanced text gutters for expanded cargo cards, without touching mobile. */
