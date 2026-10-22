@@ -1,0 +1,198 @@
+name: Pangolin - Build GHCR and Deploy Images
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "deploy/**"
+      - ".github/workflows/pangolin-images.yml"
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Deploy images to AlmaLinux after publishing them"
+        type: boolean
+        required: true
+        default: false
+      initialize_schema:
+        description: "FIRST DEPLOY ONLY: initialize empty Pangolin PostgreSQL schema"
+        type: boolean
+        required: true
+        default: false
+      image_tag:
+        description: "Optional existing GHCR image tag to deploy (rollback)"
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: pangolin-production-pipeline
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build and publish images on GitHub-hosted runner
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Checkout code on GitHub-hosted runner only
+        uses: actions/checkout@v4
+
+      - name: Compute immutable commit tag
+        id: version
+        shell: bash
+        run: echo "tag=sha-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR for publishing
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish Pangolin frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          build-args: |
+            VITE_OFFICIAL_QUOTES_ENABLED=false
+          tags: |
+            ghcr.io/customcodecr/pangolinbackend/frontend:latest
+            ghcr.io/customcodecr/pangolinbackend/frontend:${{ steps.version.outputs.tag }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/CustomCodeCR/PangolinBackend
+          cache-from: type=gha,scope=pangolin-frontend
+          cache-to: type=gha,mode=max,scope=pangolin-frontend
+
+      - name: Build and publish Pangolin backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.production
+          push: true
+          tags: |
+            ghcr.io/customcodecr/pangolinbackend/backend:latest
+            ghcr.io/customcodecr/pangolinbackend/backend:${{ steps.version.outputs.tag }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/CustomCodeCR/PangolinBackend
+          cache-from: type=gha,scope=pangolin-backend
+          cache-to: type=gha,mode=max,scope=pangolin-backend
+
+      - name: Package Compose configuration only (no application source)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pangolin-compose
+          path: deploy/docker-compose.images.yml
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    name: Pull images and deploy on AlmaLinux (no checkout or build)
+    needs: publish
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy) || (github.event_name == 'push' && vars.PANGOLIN_AUTO_DEPLOY == 'true') }}
+    runs-on: [self-hosted, linux, x64, dhole]
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    env:
+      PANGOLIN_ENV_FILE: /opt/dhole/pangolin.env
+      PANGOLIN_IMAGE_TAG: ${{ (inputs.image_tag != '' && inputs.image_tag) || needs.publish.outputs.image_tag }}
+      DHOLE_NETWORK: dhole
+      INITIALIZE_SCHEMA: ${{ inputs.initialize_schema || 'false' }}
+    steps:
+      - name: Download Docker Compose configuration (not source code)
+        uses: actions/download-artifact@v4
+        with:
+          name: pangolin-compose
+          path: ${{ runner.temp }}/pangolin-runtime
+
+      - name: Validate runtime and environment without printing secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "COMPOSE_FILE=$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml" >> "$GITHUB_ENV"
+          test -r "$PANGOLIN_ENV_FILE"
+          test -r "$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml"
+          docker version
+          docker compose version
+          docker network inspect "$DHOLE_NETWORK" >/dev/null
+          docker compose --env-file "$PANGOLIN_ENV_FILE" \
+            -f "$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml" \
+            -p pangolin-production config --quiet
+
+      - name: Login to GHCR for pulling
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull prebuilt images (never build on server)
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production \
+            pull postgres redis backend frontend
+
+      - name: Start database and Redis only
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production \
+            up -d --no-build postgres redis
+
+      - name: Initialize schema explicitly on first deployment (opt-in, empty database only)
+        if: ${{ inputs.initialize_schema == true }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          dc() { docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production "$@"; }
+          initialized="$(dc exec -T postgres psql -U pangolin -d login -Atqc "SELECT to_regclass('public.usuarios') IS NOT NULL")"
+          if [[ "$initialized" != "f" ]]; then
+            echo "::error::Pangolin DB already contains the usuarios table. Never auto-apply initial SQL to existing data."
+            exit 1
+          fi
+          for schema in AuthSchema.sql OfficialQuotesSchema.sql; do
+            echo "Applying packaged initialization schema: $schema"
+            docker run --rm --entrypoint cat \
+              "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" \
+              "/app/Database/$schema" \
+              | dc exec -T postgres psql -v ON_ERROR_STOP=1 -U pangolin -d login
+          done
+
+      - name: Deploy backend and frontend using images only
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production \
+            up -d --no-build backend frontend
+
+      - name: Verify Pangolin readiness through localhost
+        shell: bash
+        run: |
+          set -euo pipefail
+          local_port="$(grep -m1 '^PANGOLIN_LOCAL_PORT=' "$PANGOLIN_ENV_FILE" | cut -d= -f2- | tr -d '\r' || true)"
+          local_port="${local_port:-8180}"
+          for attempt in $(seq 1 30); do
+            if curl -fsS --max-time 5 "http://127.0.0.1:$local_port/api/health/ready" >/dev/null; then
+              echo "Pangolin ready at localhost:$local_port. Public Fennec routing was not altered."
+              docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production ps
+              exit 0
+            fi
+            sleep 5
+          done
+          docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production ps
+          docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production logs --tail 80 backend frontend
+          exit 1
