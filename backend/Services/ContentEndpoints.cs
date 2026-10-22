@@ -24,6 +24,29 @@ public static class ContentEndpoints
                 .ToListAsync(ct));
         });
 
+        // Traducción pública exclusivamente de artículos publicados. Almacena en caché
+        // por ID + versión para no volver a cobrar por cada cambio del idioma.
+        app.MapGet("/api/content/news/{id:guid}/translation", async (
+            Guid id, string? lang, AppDbContext db, NewsTranslationService translator, CancellationToken ct) =>
+        {
+            if (!string.Equals(lang, "en", StringComparison.OrdinalIgnoreCase))
+                return Results.BadRequest(new { error = "Solo se admite lang=en." });
+            var article = await db.ManagedNews.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == id && x.Published, ct);
+            if (article is null) return Results.NotFound();
+            if (!translator.IsConfigured)
+                return Results.Problem("Traducción al inglés no configurada en el servidor.", statusCode: 503);
+            try
+            {
+                var english = await translator.TranslateAsync(article, ct);
+                return Results.Ok(english);
+            }
+            catch (NewsTranslationException)
+            {
+                return Results.Problem("No fue posible traducir la noticia en este momento.", statusCode: 502);
+            }
+        }).RequireRateLimiting("news-translation");
+
         app.MapGet("/api/content/comments", async (AppDbContext db, HttpContext http, CancellationToken ct) =>
         {
             http.Response.Headers.CacheControl = "no-store";
