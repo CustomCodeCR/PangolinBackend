@@ -51,7 +51,22 @@ function read<T>(key: string): T[] {
   }
 }
 
-export const readManagedNews = () => read<ManagedNews>(keys.news)
+// Solo para la vista previa de desarrollo: noticia de demostración que reproduce
+// los textos de la captura y nunca se envía al backend ni se publica.
+export const readManagedNews = (): ManagedNews[] => {
+  const saved = read<ManagedNews>(keys.news)
+  if (!import.meta.env.DEV || new URLSearchParams(window.location.search).get('previewRole') !== 'administrador') return saved
+  try { if (localStorage.getItem(keys.news) !== null) return saved } catch { return saved }
+  return [{
+    id: 'demo-prueba-3',
+    title: 'prueba 3',
+    category: 'LOGÍSTICA',
+    description: 'prueba 3',
+    body: 'prueba 3',
+    image: '/images/cover-logistics.jpeg',
+    published: true
+  }]
+}
 export const readManagedItineraries = () => read<ManagedItinerary>(keys.itineraries)
 export const readManagedMedia = () => read<ManagedMedia>(keys.media)
 export const readManagedComments = () => read<ManagedComment>(keys.comments)
