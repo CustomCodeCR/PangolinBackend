@@ -2,7 +2,7 @@
 import IconSymbol from '../components/IconSymbol.vue'
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import EmblaCarousel, { type EmblaCarouselType } from 'embla-carousel'
-import type { ManagedNews } from '../adminContent'
+import { readManagedNews, type ManagedNews } from '../adminContent'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import { subscribeToChanges } from '../services/realtime'
@@ -75,10 +75,17 @@ let requestVersion = 0
 async function loadPublicNews() {
   const request = ++requestVersion
   try {
-    const response = await fetch('/api/content/news', { cache: 'no-store' })
-    if (!response.ok) throw new Error('No se pudieron consultar las noticias.')
-    const items: unknown = await response.json()
-    if (!Array.isArray(items)) throw new Error('Respuesta de noticias inválida.')
+    let items: unknown
+    try {
+      const response = await fetch('/api/content/news', { cache: 'no-store' })
+      if (!response.ok) throw new Error('No se pudieron consultar las noticias.')
+      items = await response.json()
+      if (!Array.isArray(items)) throw new Error('Respuesta de noticias inválida.')
+    } catch (apiError) {
+      // Codespaces de vista previa: solo datos del navegador, nunca producción.
+      if (!import.meta.env.DEV || new URLSearchParams(window.location.search).get('previewRole') !== 'administrador') throw apiError
+      items = readManagedNews()
+    }
     if (disposed || request !== requestVersion) return
     managedNews.value = items as ManagedNews[]
     newsError.value = false
