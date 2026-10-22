@@ -93,7 +93,7 @@ jobs:
           retention-days: 7
 
   deploy:
-    name: Pull images and deploy on AlmaLinux (no checkout or build)
+    name: Deploy images using existing Dhole infrastructure
     needs: publish
     if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy) }}
     runs-on: [self-hosted, linux, x64, dhole]
@@ -102,148 +102,186 @@ jobs:
       contents: read
       packages: read
     env:
-      PANGOLIN_ENV_FILE: /opt/dhole/pangolin.env
+      DHOLE_ENV_FILE: /opt/dhole/.env
       PANGOLIN_IMAGE_TAG: ${{ (inputs.image_tag != '' && inputs.image_tag) || needs.publish.outputs.image_tag }}
       DHOLE_NETWORK: dhole
     steps:
-      - name: Download Docker Compose configuration (not source code)
+      - name: Download only Compose configuration (not application source)
         uses: actions/download-artifact@v4
         with:
           name: pangolin-compose
           path: ${{ runner.temp }}/pangolin-runtime
 
-      - name: Validate runtime and environment without printing secrets
+      - name: Check Dhole configuration and Pangolin secrets
         shell: bash
         run: |
           set -euo pipefail
           echo "COMPOSE_FILE=$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml" >> "$GITHUB_ENV"
-          test -r "$PANGOLIN_ENV_FILE"
+          test -r "$DHOLE_ENV_FILE"
           test -r "$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml"
-
-          read_var() {
-            sed -n "s/^$1=//p" "$PANGOLIN_ENV_FILE" | head -n 1
-          }
-          pass="$(read_var PANGOLIN_POSTGRES_PASSWORD)"
-          otp="$(read_var AUTH_OTP_PEPPER)"
-          jwt="$(read_var AUTH_JWT_SIGNING_KEY)"
-          if (( ${#pass} < 20 )) || [[ "${pass^^}" == *CAMBIAR* || "${pass^^}" == *REEMPLAZAR* ]]; then
-            echo "::error::Set a strong PANGOLIN_POSTGRES_PASSWORD (20+ characters)."
+          read_var() { grep -m1 "^$1=" "$DHOLE_ENV_FILE" | cut -d= -f2- || true; }
+          pgpass="$(read_var PANGOLIN_POSTGRES_PASSWORD)"
+          otp="$(read_var PANGOLIN_AUTH_OTP_PEPPER)"
+          jwt="$(read_var PANGOLIN_AUTH_JWT_SIGNING_KEY)"
+          if [[ ! "$pgpass" =~ ^[[:xdigit:]]{48,}$ ]]; then
+            echo "::error::PANGOLIN_POSTGRES_PASSWORD must be a freshly generated 48+ character hex secret."
             exit 1
           fi
           if [[ ! "$otp" =~ ^[[:xdigit:]]{64}$ || ! "$jwt" =~ ^[[:xdigit:]]{64}$ || "$otp" == "$jwt" ]]; then
-            echo "::error::AUTH_OTP_PEPPER and AUTH_JWT_SIGNING_KEY must be different 64-character hexadecimal secrets."
+            echo "::error::Pangolin OTP/JWT secrets must be distinct random 64-character hexadecimal values."
             exit 1
           fi
-          email_mode="$(read_var EMAIL_MODE)"
-          if [[ "$email_mode" == "Graph" ]]; then
-            for key in GRAPH_TENANT_ID GRAPH_CLIENT_ID GRAPH_CLIENT_SECRET GRAPH_FROM; do
+          mode="$(read_var PANGOLIN_EMAIL_MODE)"
+          mode="${mode:-Graph}"
+          if [[ "$mode" == "Graph" ]]; then
+            for key in PANGOLIN_GRAPH_TENANT_ID PANGOLIN_GRAPH_CLIENT_ID PANGOLIN_GRAPH_CLIENT_SECRET PANGOLIN_GRAPH_FROM; do
               if [[ -z "$(read_var "$key")" ]]; then
-                echo "::error::Missing Microsoft Graph setting: $key"
+                echo "::error::Missing required Pangolin Graph variable $key."
                 exit 1
               fi
             done
-          elif [[ "$email_mode" == "Smtp" ]]; then
-            for key in SMTP_HOST SMTP_FROM SMTP_USERNAME SMTP_PASSWORD; do
+          elif [[ "$mode" == "Smtp" ]]; then
+            for key in PANGOLIN_SMTP_HOST PANGOLIN_SMTP_FROM PANGOLIN_SMTP_USERNAME PANGOLIN_SMTP_PASSWORD; do
               if [[ -z "$(read_var "$key")" ]]; then
-                echo "::error::Missing SMTP setting: $key"
+                echo "::error::Missing required Pangolin SMTP variable $key."
                 exit 1
               fi
             done
           else
-            echo "::error::EMAIL_MODE must be Graph or Smtp in production."
+            echo "::error::PANGOLIN_EMAIL_MODE must be Graph or Smtp."
             exit 1
           fi
-          docker version
-          docker compose version
+          if [[ -n "$(read_var PANGOLIN_S3_ENDPOINT)" ]]; then
+            for key in PANGOLIN_S3_ACCESS_KEY PANGOLIN_S3_SECRET_KEY PANGOLIN_S3_BUCKET; do
+              if [[ -z "$(read_var "$key")" ]]; then
+                echo "::error::Missing MinIO/S3 setting $key."
+                exit 1
+              fi
+            done
+          fi
+          for key in POSTGRES_HOST POSTGRES_PORT POSTGRES_USER POSTGRES_PASSWORD FENNEC_HOST FENNEC_WWW_HOST FENNEC_PUBLIC_URL; do
+            if [[ -z "$(read_var "$key")" ]]; then
+              echo "::error::Missing existing Dhole variable $key."
+              exit 1
+            fi
+          done
           docker network inspect "$DHOLE_NETWORK" >/dev/null
-          docker compose --env-file "$PANGOLIN_ENV_FILE" \
-            -f "$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml" \
-            -p pangolin-production config --quiet
+          docker compose --env-file "$DHOLE_ENV_FILE" -f "$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml" -p pangolin-production config --quiet
 
-      - name: Prevent parallel Fennec and Pangolin domain routers
+      - name: Ensure Fennec does not conflict with public Pangolin route
         shell: bash
         run: |
           set -euo pipefail
-          if grep -Eq '^PANGOLIN_TRAEFIK_ENABLED="?true"?[[:space:]]*$' "$PANGOLIN_ENV_FILE"; then
+          if grep -Eq '^PANGOLIN_TRAEFIK_ENABLED="?true"?[[:space:]]*$' "$DHOLE_ENV_FILE"; then
             fennec_running="$(docker ps -q --filter label=com.docker.compose.project=dhole --filter label=com.docker.compose.service=website)"
             if [[ -n "$fennec_running" ]]; then
-              echo "::error::Stop Fennec website and disable its automatic redeploy before enabling Pangolin Traefik."
+              echo "::error::Fennec website is still running. Keep PANGOLIN_TRAEFIK_ENABLED=false until cutover."
               exit 1
             fi
           fi
 
-      - name: Login to GHCR for pulling
+      - name: Login to GHCR to pull prebuilt images
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull prebuilt images (never build on server)
+      - name: Pull precompiled frontend and backend images
         shell: bash
         run: |
           set -euo pipefail
-          docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production \
-            pull postgres redis backend frontend
+          docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production pull backend frontend
+          docker image inspect postgres:16-alpine >/dev/null 2>&1 || docker pull postgres:16-alpine
 
-      - name: Start database and Redis only
+      - name: Provision isolated pangolin PostgreSQL role and database on Dhole postgres
         shell: bash
         run: |
           set -euo pipefail
-          docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production \
-            up -d --no-build postgres redis
+          read_var() { grep -m1 "^$1=" "$DHOLE_ENV_FILE" | cut -d= -f2- || true; }
+          export PGHOST="$(read_var POSTGRES_HOST)"
+          export PGPORT="$(read_var POSTGRES_PORT)"
+          export PGUSER="$(read_var POSTGRES_USER)"
+          export PGPASSWORD="$(read_var POSTGRES_PASSWORD)"
+          export PANGOLIN_DB_PASSWORD="$(read_var PANGOLIN_POSTGRES_PASSWORD)"
+          # Only the already running shared Dhole DB is used; no new postgres container persists.
+          docker run --rm --network "$DHOLE_NETWORK" \
+            -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD -e PANGOLIN_DB_PASSWORD \
+            postgres:16-alpine sh -eu -c '
+              role_exists="$(psql -X -d postgres -Atqc "SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname=\x27pangolin\x27)")"
+              if [ "$role_exists" = "f" ]; then
+                printf "CREATE ROLE pangolin WITH LOGIN PASSWORD \x27%s\x27;\\n" "$PANGOLIN_DB_PASSWORD" \
+                  | psql -X -v ON_ERROR_STOP=1 -d postgres >/dev/null
+                echo "Pangolin PostgreSQL role created."
+              fi
+              db_exists="$(psql -X -d postgres -Atqc "SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname=\x27pangolin\x27)")"
+              if [ "$db_exists" = "f" ]; then
+                psql -X -v ON_ERROR_STOP=1 -d postgres -c "CREATE DATABASE pangolin OWNER pangolin" >/dev/null
+                echo "Pangolin PostgreSQL database created."
+              else
+                owner="$(psql -X -d postgres -Atqc "SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname=\x27pangolin\x27")"
+                if [ "$owner" != "pangolin" ]; then
+                  echo "Existing pangolin database has unexpected owner; refusing to modify."
+                  exit 1
+                fi
+                echo "Pangolin PostgreSQL database already exists; preserving all data."
+              fi
+              PGPASSWORD="$PANGOLIN_DB_PASSWORD" PGUSER=pangolin psql -X -d pangolin -Atqc "SELECT 1" >/dev/null
+            '
+          unset PGPASSWORD PANGOLIN_DB_PASSWORD
 
-      - name: Create Pangolin database schema on empty first deploy
+      - name: Initialize Pangolin tables only for a clean database
         shell: bash
         run: |
           set -euo pipefail
-          dc() { docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production "$@"; }
-
-          # POSTGRES_DB=login creates the dedicated Pangolin DB on an empty named volume.
-          # Never reinitialize an existing or partially migrated application database.
-          table_count="$(dc exec -T postgres psql -X -q -U pangolin -d login -Atc \
-            "SELECT count(*) FROM pg_tables WHERE schemaname = 'public'")"
+          read_var() { grep -m1 "^$1=" "$DHOLE_ENV_FILE" | cut -d= -f2- || true; }
+          export PGHOST="$(read_var POSTGRES_HOST)"
+          export PGPORT="$(read_var POSTGRES_PORT)"
+          export PGUSER=pangolin
+          export PGPASSWORD="$(read_var PANGOLIN_POSTGRES_PASSWORD)"
+          pg_query() {
+            docker run --rm --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD \
+              postgres:16-alpine psql -X -d pangolin -Atqc "$1"
+          }
+          table_count="$(pg_query "SELECT COUNT(*) FROM pg_tables WHERE schemaname = 'public'")"
           if [[ "$table_count" == "0" ]]; then
-            echo "New isolated Pangolin DB detected; applying both schemas atomically."
+            echo "Fresh Pangolin database: applying schema from backend image."
             {
-              for schema in AuthSchema.sql OfficialQuotesSchema.sql; do
-                echo "Loading schema from backend Docker image: $schema" >&2
-                docker run --rm --entrypoint cat \
-                  "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" \
-                  "/app/Database/$schema"
-              done
-            } | dc exec -T postgres psql -X -v ON_ERROR_STOP=1 --single-transaction -U pangolin -d login
+              docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/AuthSchema.sql
+              docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/OfficialQuotesSchema.sql
+            } | docker run --rm -i --network "$DHOLE_NETWORK" \
+              -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD \
+              postgres:16-alpine psql -X -d pangolin --single-transaction -v ON_ERROR_STOP=1 >/dev/null
           else
-            echo "Pangolin database already has tables; no initialization or destructive changes."
-            required_count="$(dc exec -T postgres psql -X -q -U pangolin -d login -Atc \
-              "SELECT count(*) FROM (VALUES ('public.clientes'), ('public.usuarios'), ('public.otp_challenges'), ('public.auth_sessions'), ('public.cms_news'), ('public.cms_comments'), ('public.itinerarios'), ('public.quote_requests'), ('public.official_quote_requests')) AS t(tab) WHERE to_regclass(t.tab) IS NOT NULL")"
-            if [[ "$required_count" != "9" ]]; then
-              echo "::error::Database exists but its schema is incomplete. Backup and apply a reviewed migration; refusing to overwrite it."
+            required="$(pg_query "SELECT COUNT(*) FROM (VALUES ('public.clientes'), ('public.usuarios'), ('public.otp_challenges'), ('public.auth_sessions'), ('public.cms_news'), ('public.cms_comments'), ('public.itinerarios'), ('public.quote_requests'), ('public.official_quote_requests')) AS t(tab) WHERE to_regclass(t.tab) IS NOT NULL")"
+            if [[ "$required" != "9" ]]; then
+              echo "::error::Existing Pangolin schema is incomplete. Backup and perform a reviewed migration."
               exit 1
             fi
+            echo "Existing Pangolin schema verified: no migration applied."
           fi
+          unset PGPASSWORD
 
-      - name: Deploy backend and frontend using images only
+      - name: Deploy backend and frontend (images only)
         shell: bash
         run: |
           set -euo pipefail
-          docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production \
-            up -d --no-build backend frontend
+          docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production \
+            up -d --no-build --no-deps backend frontend
 
-      - name: Verify Pangolin readiness through localhost
+      - name: Check frontend proxy and backend health
         shell: bash
         run: |
           set -euo pipefail
-          local_port="$(grep -m1 '^PANGOLIN_LOCAL_PORT=' "$PANGOLIN_ENV_FILE" | cut -d= -f2- | tr -d '\r' || true)"
+          local_port="$(grep -m1 '^PANGOLIN_LOCAL_PORT=' "$DHOLE_ENV_FILE" | cut -d= -f2- || true)"
           local_port="${local_port:-8180}"
           for attempt in $(seq 1 30); do
             if curl -fsS --max-time 5 "http://127.0.0.1:$local_port/api/health/ready" >/dev/null; then
-              echo "Pangolin frontend and backend ready at localhost:$local_port."
-              docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production ps
+              echo "Pangolin API and frontend are ready on localhost:$local_port."
+              docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production ps
               exit 0
             fi
             sleep 5
           done
-          docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production ps
-          docker compose --env-file "$PANGOLIN_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production logs --tail 80 backend frontend
+          docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production logs --tail 80 backend frontend
           exit 1
