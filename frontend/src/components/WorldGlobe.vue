@@ -69,7 +69,7 @@ const demoMarkers = () => {
     { id: 'route-destination', ...shipment.destination, label: shipment.destination.name, color: '#18a86d', count: 1, size: 7 }
   ]
   if (shipment.progressPercent > 0 && shipment.progressPercent < 100) {
-    points.push({ id: 'route-progress', ...progress, label: 'DEMO · ' + shipment.progressPercent + '%', color: '#f5b700', count: 1, size: 8 })
+    points.push({ id: 'route-progress', name: 'Progreso DEMO', ...progress, label: 'DEMO · ' + shipment.progressPercent + '%', color: '#f5b700', count: 1, size: 8 })
   }
   return points
 }
