@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import IconSymbol from '../components/IconSymbol.vue'
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import EmblaCarousel, { type EmblaCarouselType } from 'embla-carousel'
 import type { ManagedNews } from '../adminContent'
 import SiteHeader from '../components/SiteHeader.vue'
@@ -15,11 +16,74 @@ const activeStoryIndex = ref(0)
 const emblaViewport = ref<HTMLElement | null>(null)
 let emblaApi: EmblaCarouselType | null = null
 // Sólo se muestran publicaciones del CMS; sin noticias predeterminadas.
-const news = computed(() => managedNews.value.filter(article => article.published && article.title.trim()).map(article => ({
-  id: article.id, category: article.category, title: article.title, description: article.description,
-  body: article.body?.trim() || article.description,
-  image: article.image || '/images/cover-logistics.jpeg'
-})))
+type EnglishNews = Pick<ManagedNews, 'title' | 'category' | 'description' | 'body'>
+const { locale } = useI18n({ useScope: 'global' })
+const englishNews = ref<Record<string, { source: string; translated: EnglishNews }>>({})
+const englishLoading = ref(false)
+const englishError = ref(false)
+const translating = new Map<string, Promise<void>>()
+const fingerprint = (article: ManagedNews) =>
+  JSON.stringify([article.title, article.category, article.description, article.body])
+function validEnglish(value: unknown): value is EnglishNews {
+  if (!value || typeof value !== 'object') return false
+  const row = value as Record<string, unknown>
+  return ['title', 'category', 'description', 'body'].every(key =>
+    typeof row[key] === 'string' && (row[key] as string).trim().length > 0)
+}
+// El cambio de idioma no modifica el contenido original en español.
+const news = computed(() => managedNews.value.filter(article => article.published && article.title.trim()).map(article => {
+  const cached = englishNews.value[article.id]
+  const english = locale.value === 'en' && cached?.source === fingerprint(article) ? cached.translated : null
+  return {
+    id: article.id,
+    category: english?.category ?? article.category,
+    title: english?.title ?? article.title,
+    description: english?.description ?? article.description,
+    body: english?.body ?? (article.body?.trim() || article.description),
+    image: article.image || '/images/cover-logistics.jpeg'
+  }
+}))
+// Traducción bajo demanda; el backend cachea cada artículo y jamás expone la clave IA.
+async function translateNewsToEnglish() {
+  if (locale.value !== 'en') return
+  const pending = managedNews.value.filter(article => article.published && article.title.trim() &&
+    englishNews.value[article.id]?.source !== fingerprint(article))
+  if (!pending.length) return
+  englishLoading.value = true
+  englishError.value = false
+  async function translateOne(article: ManagedNews) {
+    const key = article.id + ':' + fingerprint(article)
+    let job = translating.get(key)
+    if (!job) {
+      job = (async () => {
+        let translated: EnglishNews
+        if (import.meta.env.DEV && article.id === 'demo-prueba-3') {
+          // Ejemplo local incluido únicamente en la rama de demostración.
+          translated = { title: 'test 3', category: 'LOGISTICS', description: 'test 3', body: 'test 3' }
+        } else {
+          const response = await fetch(`/api/content/news/${encodeURIComponent(article.id)}/translation?lang=en`, { cache: 'no-store' })
+          if (!response.ok) throw new Error(`Translation unavailable: ${response.status}`)
+          const result: unknown = await response.json()
+          if (!validEnglish(result)) throw new Error('Invalid news translation')
+          translated = result
+        }
+        englishNews.value = { ...englishNews.value, [article.id]: { source: fingerprint(article), translated } }
+      })()
+      translating.set(key, job)
+      void job.finally(() => translating.delete(key)).catch(() => {})
+    }
+    try { await job }
+    catch { englishError.value = true }
+  }
+  // Limitar concurrencia para proteger el proveedor y respetar su cuota.
+  const workers = Array.from({ length: Math.min(3, pending.length) }, async (_, i) => {
+    for (let index = i; index < pending.length; index += Math.min(3, pending.length))
+      await translateOne(pending[index])
+  })
+  await Promise.all(workers)
+  englishLoading.value = false
+}
+watch(locale, () => { if (locale.value === 'en') void translateNewsToEnglish() })
 const leadStory = computed(() => news.value[activeStoryIndex.value] ?? news.value[0])
 const carouselStories = computed(() => news.value.map((article, index) => ({ ...article, index })))
 const activeArticle = computed(() => activeArticleIndex.value === null ? null : news.value[activeArticleIndex.value])
@@ -82,6 +146,7 @@ async function loadPublicNews() {
     if (disposed || request !== requestVersion) return
     managedNews.value = items as ManagedNews[]
     newsError.value = false
+    if (locale.value === 'en') void translateNewsToEnglish()
     if (activeStoryIndex.value >= news.value.length) activeStoryIndex.value = 0
     // Conserva el artículo seleccionado mediante su id durante recargas SignalR.
     syncArticleFromUrl()
@@ -157,6 +222,9 @@ onUnmounted(() => {
     </section>
 
     <main id="historias-destacadas" class="news-editorial-content section-spacing">
+      <div v-if="locale === 'en' && (englishLoading || englishError)" class="container news-translation-feedback" role="status">
+        {{ englishLoading ? 'Translating news into English…' : 'English translation is temporarily unavailable for some articles.' }}
+      </div>
       <div class="container">
         <div v-if="news.length" class="news-editorial-section-heading">
           <div>
@@ -198,6 +266,7 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.news-translation-feedback { padding-block: 10px; font-size: 13px; color: #aab8d0; }
 .news-article-fulltext { white-space: pre-line; overflow-wrap: anywhere; }
 .news-empty-hero { position: relative; z-index: 2; min-height: 320px; padding-top: 135px; padding-bottom: 95px; color: #fff; }
 .news-empty-hero h1 { font-size: clamp(42px, 6vw, 76px); line-height: 1.1; margin: 18px 0; }
