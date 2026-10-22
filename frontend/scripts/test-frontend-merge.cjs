@@ -36,7 +36,8 @@ assert.match(officialQuote, /toggleEquipmentDropdown\(i, 'type'\)/, 'Selector de
 assert.match(officialQuote, /chooseEquipment\(i, 'size', option\.value\)/, 'Seleccionar tamaño actualiza la línea')
 assert.match(officialQuote, /chooseEquipment\(i, 'type', option\.value\)/, 'Seleccionar tipo actualiza la línea')
 assert.match(officialQuote, /equipmentSizeOptions = computed<EquipmentOption\[\]>/, 'Equipos FCL y FTL mantienen opciones distintas')
-for (const item of ['20 pies', '40 pies', '45 pies', '48 pies', '24 pies / 5 TON', '26 pies / 7 TON', '53 pies', 'Dry Van', 'High Cube', 'Open Top', 'Open Side', 'Tank', 'Flat Rack', 'NOR', 'Furgón']) {
+assert.match(officialQuote, /\['20', '40', '45', '48'\]\.map\(n => \(\{ value: n \+ ' pies'/, 'Conservar tamaños FCL: 20, 40, 45 y 48 pies')
+for (const item of ['24 pies / 5 TON', '26 pies / 7 TON', '53 pies', 'Dry Van', 'High Cube', 'Open Top', 'Open Side', 'Tank', 'Flat Rack', 'NOR', 'Furgón']) {
   assert.ok(officialQuote.includes(item), 'Se conserva la opción de equipo: ' + item)
 }
 assert.match(officialQuote, /\.official-line:has\(\.official-equipment-options\)/, 'Lista de equipo se dibuja sobre campos adyacentes')
