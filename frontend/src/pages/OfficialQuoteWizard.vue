@@ -1761,5 +1761,37 @@ html:not(.theme-dark) .app-site.official-page .official-incoterm-options button[
   background: rgba(168, 14, 24, .08) !important;
   color: #a80e18 !important;
 }
+/* An open Incoterm/equipment menu must be above the NEXT form sections.
+   The equipment card uses isolation:isolate and later siblings have their own
+   painted layers, so lifting only the list's z-index is not enough. */
+.app-site.official-page .official-panel > .official-fields:has(.official-incoterm-options),
+.app-site.official-page .official-panel > .official-nested:has(.official-equipment-options) {
+  position: relative !important;
+  z-index: 1000 !important;
+  overflow: visible !important;
+}
+.app-site.official-page .official-panel .official-line:has(.official-equipment-options),
+.app-site.official-page .official-panel .official-fields:has(.official-equipment-options) {
+  position: relative !important;
+  z-index: 1010 !important;
+  overflow: visible !important;
+}
+/* Opaque menus prevent underlying captions, input values and checkboxes
+   from bleeding through. The menu styling is shared by FCL, FTL and Incoterm. */
+html:not(.theme-dark) .app-site.official-page .official-incoterm-options {
+  background: #fff !important;
+  opacity: 1 !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: 0 18px 38px rgba(35, 21, 28, .24) !important;
+}
+html.theme-dark .app-site.official-page .official-incoterm-options {
+  background: #19191c !important;
+  color: #fff !important;
+  opacity: 1 !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, .45) !important;
+}
 </style>
 
