@@ -189,7 +189,7 @@ function toggleTheme() {
     <button v-if="expanded" class="mobile-nav-backdrop" tabindex="-1" type="button" :aria-label="$t('custom.home.close')" @click="expanded = false" />
   </Teleport>
   <Teleport to="body" :disabled="!expanded || !mobileMenuActive">
-  <header ref="headerElement" class="site-header" :class="{ 'site-header--overlay': props.overlay, 'site-header--menu-open': expanded }">
+  <header ref="headerElement" class="site-header" :class="{ 'site-header--overlay': props.overlay, 'site-header--menu-open': expanded, 'site-header--quotes': props.active === 'cotizaciones' }">
     <div class="header-inner">
       <a class="site-brand" href="/home" :aria-label="$t('phrases.p138')"><SiteMedia slot-key="shared.logo.media" fallback="/images/logo.png" alt="Castro Fallas" /></a>
       <button ref="menuToggle" class="menu-toggle" type="button" :aria-expanded="expanded" aria-controls="site-primary-navigation" :aria-label="expanded ? $t('custom.home.close') : $t('phrases.p137')" @click="expanded = !expanded"><X v-if="expanded" :size="22" aria-hidden="true" /><Menu v-else :size="22" aria-hidden="true" /></button>
@@ -282,6 +282,16 @@ function toggleTheme() {
 .header-account-tools .nav-user-icon.header-profile__trigger svg {
   width: 20px;
   height: 20px;
+}
+/* The quotation page header is light: match the readable settings icon
+   instead of using the white-on-white profile appearance. */
+:global(html:not(.theme-dark)) .site-header--quotes .header-account-tools .nav-user-icon.header-profile__trigger {
+  border-color: rgba(32, 36, 43, .26);
+  background: rgba(255, 255, 255, .12);
+  color: #20242b;
+}
+:global(html:not(.theme-dark)) .site-header--quotes .header-account-tools .nav-user-icon.header-profile__trigger:is(:hover, [aria-expanded="true"]) {
+  background: rgba(32, 36, 43, .08);
 }
 .header-profile__trigger:focus-visible,
 .header-profile__logout:focus-visible {
