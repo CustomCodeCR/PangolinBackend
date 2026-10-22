@@ -208,18 +208,18 @@ jobs:
           docker run --rm --network "$DHOLE_NETWORK" \
             -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD -e PANGOLIN_DB_PASSWORD \
             postgres:16-alpine sh -eu -c '
-              role_exists="$(psql -X -d postgres -Atqc "SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname=\x27pangolin\x27)")"
+              role_exists="$(psql -X -d postgres -Atqc "SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='\''pangolin'\'')")"
               if [ "$role_exists" = "f" ]; then
-                printf "CREATE ROLE pangolin WITH LOGIN PASSWORD \x27%s\x27;\\n" "$PANGOLIN_DB_PASSWORD" \
+                printf "CREATE ROLE pangolin WITH LOGIN PASSWORD '\''%s'\'';\\n" "$PANGOLIN_DB_PASSWORD" \
                   | psql -X -v ON_ERROR_STOP=1 -d postgres >/dev/null
                 echo "Pangolin PostgreSQL role created."
               fi
-              db_exists="$(psql -X -d postgres -Atqc "SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname=\x27pangolin\x27)")"
+              db_exists="$(psql -X -d postgres -Atqc "SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname='\''pangolin'\'')")"
               if [ "$db_exists" = "f" ]; then
                 psql -X -v ON_ERROR_STOP=1 -d postgres -c "CREATE DATABASE pangolin OWNER pangolin" >/dev/null
                 echo "Pangolin PostgreSQL database created."
               else
-                owner="$(psql -X -d postgres -Atqc "SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname=\x27pangolin\x27")"
+                owner="$(psql -X -d postgres -Atqc "SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname='\''pangolin'\''")"
                 if [ "$owner" != "pangolin" ]; then
                   echo "Existing pangolin database has unexpected owner; refusing to modify."
                   exit 1
