@@ -2,11 +2,35 @@
 """Smoke del endpoint DEMO de Docker local (sin consultar embarques reales)."""
 import json
 import sys
+import time
+from http.client import RemoteDisconnected
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import urlopen
 
 BASE = "http://127.0.0.1:5000/api/tracking/demo"
+HEALTH = "http://127.0.0.1:5000/api/health/ready"
+
+
+def wait_until_ready(timeout_seconds=120):
+    """Aguardar a dotnet watch y a que PostgreSQL responda antes del primer test."""
+    deadline = time.monotonic() + timeout_seconds
+    last_error = "sin respuesta"
+    while time.monotonic() < deadline:
+        try:
+            with urlopen(HEALTH, timeout=5) as resp:
+                payload = json.load(resp)
+                if resp.status == 200 and payload.get("status") == "ready":
+                    print("Backend y PostgreSQL listos para pruebas.")
+                    return
+                last_error = "respuesta sin estado ready"
+        except (HTTPError, URLError, TimeoutError, ConnectionError, RemoteDisconnected, OSError, ValueError) as exc:
+            last_error = str(exc)
+        time.sleep(2)
+    raise RuntimeError(
+        "Backend no quedó listo para ejecutar rastreo DEMO: " + last_error +
+        "\nRevisá: docker compose -f compose.yaml -f compose.minio.yaml logs --tail=100 backend"
+    )
 
 
 def request(kind, reference):
@@ -19,6 +43,7 @@ def request(kind, reference):
 
 
 def main():
+    wait_until_ready()
     cases = [
         ("BL", "BL-TEST-001", "in_transit"),
         ("HBL", "HBL-TEST-002", "arrived"),
@@ -48,6 +73,6 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except (AssertionError, URLError, TimeoutError) as exc:
+    except (AssertionError, URLError, TimeoutError, RemoteDisconnected, OSError, RuntimeError) as exc:
         print("FAIL", exc, file=sys.stderr)
         raise SystemExit(1) from exc
