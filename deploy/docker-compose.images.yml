@@ -19,7 +19,7 @@ services:
       Auth__OtpPepper: "${PANGOLIN_AUTH_OTP_PEPPER:?Definir PANGOLIN_AUTH_OTP_PEPPER}"
       Auth__JwtSigningKey: "${PANGOLIN_AUTH_JWT_SIGNING_KEY:?Definir PANGOLIN_AUTH_JWT_SIGNING_KEY}"
       Auth__SecureCookie: "true"
-      Security__PublicOrigin: "${FENNEC_PUBLIC_URL:?Definir FENNEC_PUBLIC_URL}"
+      Security__PublicOrigin: "https://${FENNEC_WWW_HOST:?Definir FENNEC_WWW_HOST}"
       Email__Mode: "${PANGOLIN_EMAIL_MODE:-Graph}"
       Graph__TenantId: "${PANGOLIN_GRAPH_TENANT_ID:-}"
       Graph__ClientId: "${PANGOLIN_GRAPH_CLIENT_ID:-}"
@@ -57,16 +57,13 @@ services:
     labels:
       - "traefik.enable=${PANGOLIN_TRAEFIK_ENABLED:-false}"
       - "traefik.docker.network=${DHOLE_NETWORK:-dhole}"
-      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin.rule=Host(`${FENNEC_HOST:?Definir FENNEC_HOST}`)"
-      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin.entrypoints=web"
-      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin.service=${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin"
-      - "traefik.http.services.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin.loadbalancer.server.port=80"
+      # Publicar SOLO www para Pangolin. El dominio raiz sigue con Fennec.
+      # Fennec tiene una regla Host(root) || Host(www). Priorizamos Pangolin en www.
       - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-www.rule=Host(`${FENNEC_WWW_HOST:?Definir FENNEC_WWW_HOST}`)"
       - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-www.entrypoints=web"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-www.priority=1000"
       - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-www.service=${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin"
-      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-www.middlewares=${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-www-redirect"
-      - "traefik.http.middlewares.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-www-redirect.redirectregex.regex=^https?://www[.]logisticacastrofallas[.]com(.*)"
-      - "traefik.http.middlewares.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-www-redirect.redirectregex.replacement=https://logisticacastrofallas.com$${1}"
+      - "traefik.http.services.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin.loadbalancer.server.port=80"
 
 networks:
   pangolin-internal: {}
