@@ -26,9 +26,31 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<OtpChallenge> OtpChallenges => Set<OtpChallenge>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
     public DbSet<Itinerario> Itinerarios => Set<Itinerario>();
+    public DbSet<TrackingDemoShipment> TrackingDemoShipments => Set<TrackingDemoShipment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Rastreo ficticio independiente de itinerarios y datos de clientes.
+        var tracking = modelBuilder.Entity<TrackingDemoShipment>();
+        tracking.ToTable("tracking_demo_shipments", "public");
+        tracking.HasKey(x => x.Id);
+        tracking.HasIndex(x => new { x.ReferenceType, x.ReferenceCode }).IsUnique();
+        tracking.Property(x => x.Id).HasColumnName("id");
+        tracking.Property(x => x.ReferenceType).HasColumnName("reference_type").HasMaxLength(10);
+        tracking.Property(x => x.ReferenceCode).HasColumnName("reference_code").HasMaxLength(64);
+        tracking.Property(x => x.OriginName).HasColumnName("origin_name").HasMaxLength(120);
+        tracking.Property(x => x.OriginLat).HasColumnName("origin_lat");
+        tracking.Property(x => x.OriginLon).HasColumnName("origin_lon");
+        tracking.Property(x => x.DestinationName).HasColumnName("destination_name").HasMaxLength(120);
+        tracking.Property(x => x.DestinationLat).HasColumnName("destination_lat");
+        tracking.Property(x => x.DestinationLon).HasColumnName("destination_lon");
+        tracking.Property(x => x.Status).HasColumnName("status").HasMaxLength(20);
+        tracking.Property(x => x.ProgressPercent).HasColumnName("progress_percent");
+        tracking.Property(x => x.Etd).HasColumnName("etd");
+        tracking.Property(x => x.Eta).HasColumnName("eta");
+        tracking.Property(x => x.UpdatedAtUtc).HasColumnName("updated_at");
+        tracking.Property(x => x.IsDemo).HasColumnName("is_demo");
+
         var quote = modelBuilder.Entity<QuoteRequest>();
         quote.ToTable("quote_requests");
         quote.HasKey(x => x.Id);
