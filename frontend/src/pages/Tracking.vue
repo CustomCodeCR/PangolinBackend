@@ -16,6 +16,13 @@ const reference = ref('')
 const searched = ref(false)
 const loading = ref(false)
 const shipment = ref<TrackingDemoShipment | null>(null)
+const globeSection = ref<HTMLElement | null>(null)
+function showDemoRoute() {
+  globeSection.value?.scrollIntoView({
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    block: 'start'
+  })
+}
 const lookupFailure = ref<'none' | 'missing' | 'invalid' | 'limited' | 'error'>('none')
 let lookupRevision = 0
 watch([kind, reference], () => {
@@ -168,7 +175,7 @@ const copy = computed(() => en.value ? {
   demoLabel: 'DEMO · Fictitious shipment', result: 'Shipment summary',
   origin: 'Origin', destination: 'Destination', status: 'Status',
   estimatedDeparture: 'Sample departure', estimatedArrival: 'Sample arrival',
-  progress: 'Illustrative progress', loading: 'Searching demo shipments…',
+  progress: 'Illustrative progress', loading: 'Searching demo shipments…', viewRoute: 'View route on globe',
   demoNotice: 'Illustrative data only. The moving route marker is not GPS and does not show real shipment positions.',
   notFound: 'No sample shipment found', notFoundInfo: 'Check the selected reference type and the sample code.',
   invalid: 'Enter 3–64 letters, digits, hyphens or underscores.',
@@ -195,7 +202,7 @@ const copy = computed(() => en.value ? {
   demoLabel: 'DEMO · Embarque ficticio', result: 'Resumen del embarque',
   origin: 'Origen', destination: 'Destino', status: 'Estado',
   estimatedDeparture: 'Salida estimada de prueba', estimatedArrival: 'Llegada estimada de prueba',
-  progress: 'Avance ilustrativo', loading: 'Buscando embarque de prueba…',
+  progress: 'Avance ilustrativo', loading: 'Buscando embarque de prueba…', viewRoute: 'Ver ruta en el globo',
   demoNotice: 'Datos ficticios. El marcador de avance no es GPS ni representa la ubicación real de un embarque.',
   notFound: 'No se encontró el embarque de prueba', notFoundInfo: 'Verificá el tipo de referencia y el código de demostración.',
   invalid: 'Ingresá de 3 a 64 letras, números, guiones o guiones bajos.',
@@ -271,7 +278,7 @@ onBeforeUnmount(() => {
     <main class="tracking-page">
       <div class="container tracking-content">
         <a class="back-link" href="/home#embarque">{{ copy.back }}</a>
-        <section class="tracking-intro">
+        <section ref="globeSection" class="tracking-intro">
           <div class="tracking-copy tracking-intro__copy">
             <p class="section-tag">{{ copy.eyebrow }}</p>
             <h1>{{ copy.title }} <span>{{ copy.accent }}</span></h1>
@@ -342,6 +349,7 @@ onBeforeUnmount(() => {
                 </div>
               </div>
               <p class="tracking-demo-result__disclaimer">{{ copy.demoNotice }}</p>
+              <button type="button" class="tracking-demo-result__view" @click="showDemoRoute">{{ copy.viewRoute }} ↑</button>
             </section>
             <div v-else-if="searched && reference.trim()" class="tracking-unavailable" role="status">
               <strong>{{ lookupFailure === 'missing' ? copy.notFound : copy.unavailable }}</strong>
@@ -599,4 +607,10 @@ onBeforeUnmount(() => {
 :global(html.theme-dark) .tracking-demo-result__label,
 :global(html.theme-dark) .tracking-demo-result__status { color:#ff8697; }
 :global(html.theme-dark) .tracking-demo-result__status { background:#b509283a; }
+</style>
+
+<style scoped>
+.tracking-demo-result__view { margin-top:14px; border:1px solid #b50928; border-radius:12px; padding:10px 15px; background:transparent; color:#b50928; font-weight:750; cursor:pointer; }
+.tracking-demo-result__view:focus-visible { outline:2px solid #b50928; outline-offset:3px; }
+:global(html.theme-dark) .tracking-demo-result__view { color:#ff8697; border-color:#ff8697; }
 </style>

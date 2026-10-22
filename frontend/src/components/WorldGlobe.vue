@@ -197,7 +197,8 @@ function start() {
       // Pines negros en claro y rojo en oscuro, igual que el ZIP del frontend.
       renderMarker(ctx, marker, {x,y,depth,scale}) {
         const dark = document.documentElement.classList.contains('theme-dark')
-        const selected = 'id' in marker && String(marker.id) === selectedId.value
+        const markerId = 'id' in marker ? String(marker.id) : ''
+        const selected = markerId === selectedId.value
         const radius = (selected ? 9 : 8)*depth*scale
         const height = radius*2.45
         ctx.save()
@@ -211,7 +212,7 @@ function start() {
         ctx.arc(0,-radius*.95,radius*1.28,Math.PI,0,true)
         ctx.bezierCurveTo(radius*1.28,-radius*.2,radius*.42,radius*.42,0,height*.48)
         ctx.closePath()
-        ctx.fillStyle = id.startsWith('route-') ? ('color' in marker ? String(marker.color) : '#f5b700') : dark ? '#ad0922' : '#000000'
+        ctx.fillStyle = markerId.startsWith('route-') ? ('color' in marker ? String(marker.color) : '#f5b700') : dark ? '#ad0922' : '#000000'
         ctx.fill()
         ctx.shadowColor='transparent'
         ctx.lineWidth=Math.max(1,scale)
