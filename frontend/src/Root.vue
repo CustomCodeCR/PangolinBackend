@@ -92,7 +92,10 @@ onMounted(async () => {
     return
   }
   if (requestPath === '/cotizaciones' || requestPath === '/cotizaciones/nuevo') {
-    if (!user) quoteAccess.value = 'denied'
+    // En desarrollo, permite mostrar el cotizador para revisión visual sin sesión.
+    // El asistente mantiene bloqueado el envío porque sessionOk depende de una sesión real.
+    if (!user && import.meta.env.DEV && authState.previewRole === 'cliente') quoteAccess.value = 'allowed'
+    else if (!user) quoteAccess.value = 'denied'
     else quoteAccess.value = role === 'cliente' || role === 'administrador' ? 'allowed' : 'forbidden'
   }
   if (legacyAdminRoute && role === 'administrador') {
