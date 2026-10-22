@@ -62,7 +62,7 @@ function applyPageSeo() {
       canonical.rel = 'canonical'
       document.head.append(canonical)
     }
-    canonical.href = `https://logisticacastrofallas.com${canonicalPath}`
+    canonical.href = `https://www.logisticacastrofallas.com${canonicalPath}`
     setMeta('meta[property="og:url"]', 'property', 'og:url', canonical.href)
   }
 }

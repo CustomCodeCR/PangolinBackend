@@ -2,7 +2,7 @@
  * No marcar noticias del CMS como NewsArticle: no se prerenderizan por articulo.
  */
 'use strict'
-const origin = 'https://logisticacastrofallas.com'
+const origin = 'https://www.logisticacastrofallas.com'
 const organizationId = origin + '/#organizacion'
 const siteId = origin + '/#sitio-web'
 const pageLabels = {
