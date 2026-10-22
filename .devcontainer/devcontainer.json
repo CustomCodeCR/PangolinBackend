@@ -12,12 +12,14 @@
     }
   },
   "postCreateCommand": "cd frontend && npm ci",
-  "postStartCommand": "bash -lc 'cd frontend && (nohup npm run dev -- --host 0.0.0.0 > /tmp/castrofallas-vite-preview.log 2>&1 < /dev/null &)'",
+  "postStartCommand": "bash .devcontainer/start-preview.sh",
   "customizations": {
     "vscode": {
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash"
       }
     }
-  }
+  },
+  "postAttachCommand": "bash .devcontainer/start-preview.sh",
+  "waitFor": "postCreateCommand"
 }
