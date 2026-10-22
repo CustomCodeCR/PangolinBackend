@@ -13,6 +13,8 @@ type Mode = 'Maritime' | 'Air' | 'Land'
 type Type = 'FCL' | 'LCL' | 'AIR_LCL' | 'FTL' | 'LTL'
 type Loc = { id: string; displayName: string; code: string | null }
 type ContainerLine = { size: string; type: string; quantity: number; unitWeightsKg: number[] }
+type EquipmentField = 'size' | 'type'
+type EquipmentOption = { value: string; label: string }
 type PackageLine = { description: string; quantity: number; weight: number; length: number; width: number; height: number; stackability: 'Stackable' | 'NonStackable' }
 const localQuotePreview = import.meta.env.DEV && new URLSearchParams(window.location.search).get('previewRole') === 'cliente'
 const previewLocations: Loc[] = [
@@ -59,6 +61,38 @@ const typeOptions = computed(() => mode.value === 'Maritime'
 const equipmentMode = computed(() => shipmentType.value === 'FCL' || shipmentType.value === 'FTL')
 type LocationField = 'origin' | 'destination' | 'pod'
 const activeDropdown = ref<LocationField | 'incoterm' | null>(null)
+// Only one equipment dropdown can be open, even with multiple equipment lines.
+const equipmentDropdown = ref<string | null>(null)
+const equipmentDropdownKey = (index: number, field: EquipmentField) => index + '-' + field
+const equipmentSizeOptions = computed<EquipmentOption[]>(() => shipmentType.value === 'FCL'
+  ? ['20', '40', '45', '48'].map(n => ({ value: n + ' pies', label: n + ' ' + q('pies', 'ft') }))
+  : [
+      { value: '24 pies / 5 TON', label: '24 ' + q('pies', 'ft') + ' / 5 TON' },
+      { value: '26 pies / 7 TON', label: '26 ' + q('pies', 'ft') + ' / 7 TON' },
+      { value: '40 pies', label: '40 ' + q('pies', 'ft') },
+      { value: '53 pies', label: '53 ' + q('pies', 'ft') }
+    ])
+const equipmentTypeOptions = computed<EquipmentOption[]>(() => shipmentType.value === 'FCL'
+  ? ['Dry Van', 'High Cube', 'Open Top', 'Open Side', 'Tank', 'Flat Rack', 'NOR'].map(value => ({ value, label: value }))
+  : [{ value: 'Furgón', label: q('Furgón', 'Truck') }])
+const equipmentOptions = (field: EquipmentField) => field === 'size' ? equipmentSizeOptions.value : equipmentTypeOptions.value
+const equipmentLabel = (field: EquipmentField, value: string) =>
+  equipmentOptions(field).find(option => option.value === value)?.label || value || q('Seleccionar', 'Select')
+function toggleEquipmentDropdown(index: number, field: EquipmentField) {
+  const key = equipmentDropdownKey(index, field)
+  const opening = equipmentDropdown.value !== key
+  equipmentDropdown.value = opening ? key : null
+  if (opening) {
+    incotermMenuOpen.value = false
+    openLocation.value = null
+  }
+}
+function chooseEquipment(index: number, field: EquipmentField, value: string) {
+  const line = form.equipment[index]
+  if (!line) return
+  line[field] = value
+  equipmentDropdown.value = null
+}
 const incotermMenuOpen = computed({
   get: () => activeDropdown.value === 'incoterm',
   set: (isOpen: boolean) => {
@@ -76,6 +110,12 @@ const openLocation = computed<LocationField | null>({
 function closeOtherDropdowns(event: Event) {
   const target = event.target instanceof Element ? event.target : null
   if (!target) return
+  if (target.closest('.official-equipment-wrap')) {
+    incotermMenuOpen.value = false
+    openLocation.value = null
+    return
+  }
+  equipmentDropdown.value = null
   if (target.closest('.official-incoterm-wrap')) {
     openLocation.value = null
     return
@@ -88,6 +128,7 @@ function closeOtherDropdowns(event: Event) {
   openLocation.value = null
 }
 function toggleIncotermMenu() {
+  equipmentDropdown.value = null
   const willOpen = !incotermMenuOpen.value
   if (willOpen) openLocation.value = null
   incotermMenuOpen.value = willOpen
@@ -457,10 +498,38 @@ async function submit() {
                 <div v-for="(line,i) in form.equipment" :key="i" class="official-line">
                   <div class="official-headline"><strong>{{ q('Equipo', 'Equipment') }} {{ i+1 }}</strong><button v-if="form.equipment.length>1" type="button" class="official-remove" @click="form.equipment.splice(i,1)">{{ q('Quitar', 'Remove') }}</button></div>
                   <div class="official-fields">
-                    <label>{{ shipmentType === 'FCL' ? q('Tamaño del contenedor', 'Container size') : q('Furgón', 'Truck') }} <span>*</span>
-                      <div class="official-select-wrap"><select v-model="line.size"><option value="">{{ q('Seleccionar', 'Select') }}</option><template v-if="shipmentType === 'FCL'"><option value="20 pies">20 {{ q('pies', 'ft') }}</option><option value="40 pies">40 {{ q('pies', 'ft') }}</option><option value="45 pies">45 {{ q('pies', 'ft') }}</option><option value="48 pies">48 {{ q('pies', 'ft') }}</option></template><template v-else><option value="24 pies / 5 TON">24 {{ q('pies', 'ft') }} / 5 TON</option><option value="26 pies / 7 TON">26 {{ q('pies', 'ft') }} / 7 TON</option><option value="40 pies">40 {{ q('pies', 'ft') }}</option><option value="53 pies">53 {{ q('pies', 'ft') }}</option></template></select></div>
-                    </label>
-                    <label>{{ q('Tipo', 'Type') }} <span>*</span><div class="official-select-wrap"><select v-model="line.type"><option value="">{{ q('Seleccionar', 'Select') }}</option><template v-if="shipmentType === 'FCL'"><option>Dry Van</option><option>High Cube</option><option>Open Top</option><option>Open Side</option><option>Tank</option><option>Flat Rack</option><option>NOR</option></template><template v-else><option value="Furgón">{{ q('Furgón', 'Truck') }}</option></template></select></div></label>
+                    <div class="official-custom-field official-incoterm-field official-equipment-field">
+                      <label :id="'quote-equipment-size-label-' + i">{{ shipmentType === 'FCL' ? q('Tamaño del contenedor', 'Container size') : q('Furgón', 'Truck') }} <span>*</span></label>
+                      <div class="official-select-wrap official-incoterm-wrap official-equipment-wrap" @keydown.esc.stop="equipmentDropdown = null">
+                        <button :id="'quote-equipment-size-' + i" type="button" class="official-incoterm-trigger" role="combobox"
+                          :aria-labelledby="'quote-equipment-size-label-' + i" aria-haspopup="listbox"
+                          :aria-expanded="equipmentDropdown === equipmentDropdownKey(i, 'size')"
+                          :aria-controls="'quote-equipment-size-options-' + i" aria-required="true"
+                          @click="toggleEquipmentDropdown(i, 'size')">{{ equipmentLabel('size', line.size) }}</button>
+                        <ul v-if="equipmentDropdown === equipmentDropdownKey(i, 'size')" :id="'quote-equipment-size-options-' + i"
+                          class="official-incoterm-options official-equipment-options" role="listbox">
+                          <li><button type="button" role="option" :aria-selected="line.size === ''" @click="chooseEquipment(i, 'size', '')">{{ q('Seleccionar', 'Select') }}</button></li>
+                          <li v-for="option in equipmentSizeOptions" :key="option.value"><button type="button" role="option"
+                            :aria-selected="line.size === option.value" @click="chooseEquipment(i, 'size', option.value)">{{ option.label }}</button></li>
+                        </ul>
+                      </div>
+                    </div>
+                    <div class="official-custom-field official-incoterm-field official-equipment-field">
+                      <label :id="'quote-equipment-type-label-' + i">{{ q('Tipo', 'Type') }} <span>*</span></label>
+                      <div class="official-select-wrap official-incoterm-wrap official-equipment-wrap" @keydown.esc.stop="equipmentDropdown = null">
+                        <button :id="'quote-equipment-type-' + i" type="button" class="official-incoterm-trigger" role="combobox"
+                          :aria-labelledby="'quote-equipment-type-label-' + i" aria-haspopup="listbox"
+                          :aria-expanded="equipmentDropdown === equipmentDropdownKey(i, 'type')"
+                          :aria-controls="'quote-equipment-type-options-' + i" aria-required="true"
+                          @click="toggleEquipmentDropdown(i, 'type')">{{ equipmentLabel('type', line.type) }}</button>
+                        <ul v-if="equipmentDropdown === equipmentDropdownKey(i, 'type')" :id="'quote-equipment-type-options-' + i"
+                          class="official-incoterm-options official-equipment-options" role="listbox">
+                          <li><button type="button" role="option" :aria-selected="line.type === ''" @click="chooseEquipment(i, 'type', '')">{{ q('Seleccionar', 'Select') }}</button></li>
+                          <li v-for="option in equipmentTypeOptions" :key="option.value"><button type="button" role="option"
+                            :aria-selected="line.type === option.value" @click="chooseEquipment(i, 'type', option.value)">{{ option.label }}</button></li>
+                        </ul>
+                      </div>
+                    </div>
                     <label>{{ q('Cantidad', 'Quantity') }} <span>*</span><input v-model.number="line.quantity" type="number" min="1" max="25" step="1" @input="syncWeights(line)" /></label>
                     <label v-for="(weight,wi) in line.unitWeightsKg" :key="wi">{{ q('Peso', 'Weight') }} {{ wi+1 }} (kg) <span>*</span><input v-model.number="line.unitWeightsKg[wi]" type="number" min="0.001" step="any" /></label>
                   </div>
@@ -1660,6 +1729,17 @@ html.theme-dark .app-site.official-page .official-incoterm-options button[aria-s
 .app-site.official-page .official-fields:has(.official-incoterm-options) {
   position: relative !important;
   z-index: 105 !important;
+}
+/* Equipment selectors reuse the Incoterm appearance in FCL and FTL.
+   Raise the active equipment line above neighbouring controls and lines. */
+.app-site.official-page .official-line:has(.official-equipment-options) {
+  position: relative !important;
+  z-index: 145 !important;
+  overflow: visible;
+}
+.app-site.official-page .official-equipment-wrap:has(.official-equipment-options) {
+  position: relative !important;
+  z-index: 150 !important;
 }
 .app-site.official-page .official-panel > .official-nested:has(.official-fields:has(.official-location-options)),
 .app-site.official-page .official-panel > .official-nested:has(.official-fields:has(.official-incoterm-options)) {
