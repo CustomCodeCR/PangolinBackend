@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
@@ -14,6 +14,15 @@ type Type = 'FCL' | 'LCL' | 'AIR_LCL' | 'FTL' | 'LTL'
 type Loc = { id: string; displayName: string; code: string | null }
 type ContainerLine = { size: string; type: string; quantity: number; unitWeightsKg: number[] }
 type PackageLine = { description: string; quantity: number; weight: number; length: number; width: number; height: number; stackability: 'Stackable' | 'NonStackable' }
+const localQuotePreview = import.meta.env.DEV && new URLSearchParams(window.location.search).get('previewRole') === 'cliente'
+const previewLocations: Loc[] = [
+  { id: 'preview-acajutla', displayName: 'Acajutla, El Salvador', code: null },
+  { id: 'preview-algeciras', displayName: 'Algeciras, España', code: null },
+  { id: 'preview-altamira', displayName: 'Altamira, México', code: null },
+  { id: 'preview-ambarli', displayName: 'Ambarli / Estambul, Turquía', code: null },
+  { id: 'preview-anqing', displayName: 'Anqing, China', code: null },
+  { id: 'preview-antwerp', displayName: 'Antwerp / Amberes, Bélgica', code: null }
+]
 const step = ref(1)
 const mode = ref<Mode | null>(null)
 const shipmentType = ref<Type | null>(null)
@@ -48,14 +57,52 @@ const typeOptions = computed(() => mode.value === 'Maritime'
     ? [{ value: 'AIR_LCL' as Type, title: 'LCL', text: q('Carga aérea consolidada', 'Consolidated air cargo') }]
     : [{ value: 'FTL' as Type, title: 'FTL', text: q('Camión completo', 'Full truckload') }, { value: 'LTL' as Type, title: 'LTL', text: q('Carga terrestre consolidada', 'Consolidated ground cargo') }])
 const equipmentMode = computed(() => shipmentType.value === 'FCL' || shipmentType.value === 'FTL')
+type LocationField = 'origin' | 'destination' | 'pod'
+const activeDropdown = ref<LocationField | 'incoterm' | null>(null)
+const incotermMenuOpen = computed({
+  get: () => activeDropdown.value === 'incoterm',
+  set: (isOpen: boolean) => {
+    if (isOpen) activeDropdown.value = 'incoterm'
+    else if (activeDropdown.value === 'incoterm') activeDropdown.value = null
+  }
+})
+const openLocation = computed<LocationField | null>({
+  get: () => activeDropdown.value === 'incoterm' ? null : activeDropdown.value,
+  set: (field) => {
+    if (field) activeDropdown.value = field
+    else if (activeDropdown.value !== 'incoterm') activeDropdown.value = null
+  }
+})
+function closeOtherDropdowns(event: Event) {
+  const target = event.target instanceof Element ? event.target : null
+  if (!target) return
+  if (target.closest('.official-incoterm-wrap')) {
+    openLocation.value = null
+    return
+  }
+  if (target.closest('.official-location-combobox')) {
+    incotermMenuOpen.value = false
+    return
+  }
+  incotermMenuOpen.value = false
+  openLocation.value = null
+}
+function toggleIncotermMenu() {
+  const willOpen = !incotermMenuOpen.value
+  if (willOpen) openLocation.value = null
+  incotermMenuOpen.value = willOpen
+}
+function chooseIncoterm(item: string) {
+  form.incoterm = item
+  incotermMenuOpen.value = false
+}
 const selectedOrigin = computed(() => locations.value.find(x => x.id === form.originLocationId))
 const selectedDest = computed(() => destinations.value.find(x => x.id === form.destinationLocationId))
-type LocationField = 'origin' | 'destination' | 'pod'
 const locationSearch = reactive<Record<LocationField, string>>({ origin: '', destination: '', pod: '' })
-const openLocation = ref<LocationField | null>(null)
 const activeLocationIndex = ref(0)
 function optionsFor(field: LocationField): Loc[] {
-  const source = field === 'origin' ? locations.value : field === 'destination' ? destinations.value : podOptions.value
+  let source = field === 'origin' ? locations.value : field === 'destination' ? destinations.value : podOptions.value
+  if (localQuotePreview && !source.length) source = previewLocations
   const query = locationSearch[field].trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase()
   if (!query) return source
   return source.filter(loc => loc.displayName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().includes(query)
@@ -75,6 +122,12 @@ function updateLocationSearch(field: LocationField, event: Event) {
   const source = field === 'origin' ? locations.value : field === 'destination' ? destinations.value : podOptions.value
   const selected = source.find(loc => loc.id === selectedLocationId(field))
   if (selected && selected.displayName !== value) setLocationId(field, '')
+  incotermMenuOpen.value = false
+  openLocation.value = field
+  activeLocationIndex.value = 0
+}
+function focusLocation(field: LocationField) {
+  incotermMenuOpen.value = false
   openLocation.value = field
   activeLocationIndex.value = 0
 }
@@ -89,6 +142,7 @@ function closeLocation(field: LocationField) {
   }, 120)
 }
 function toggleLocation(field: LocationField) {
+  incotermMenuOpen.value = false
   openLocation.value = openLocation.value === field ? null : field
   activeLocationIndex.value = 0
 }
@@ -112,6 +166,10 @@ function handleLocationKeydown(field: LocationField, event: KeyboardEvent) {
 const incoterms = ['EXW','FCA','FAS','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP']
 const serviceOptions = ['Transporte internacional','Agencia de Aduanas CR','Agencia de Aduanas Exterior','Almacenamiento','Control de inventario','Embalaje','Exoneración','Picking Carga','Recepción de carga','Seguro de carga','Transporte entrega','Transporte recolección','Transporte nacional']
 const cargoFlagOptions = ['Carga peligrosa','No estibable','Sobrepeso']
+const visibleCargoFlagOptions = computed(() => shipmentType.value === 'FCL' ? cargoFlagOptions.filter(flag => flag !== 'No estibable') : cargoFlagOptions)
+watch(() => shipmentType.value === 'FCL', (isFullContainer) => {
+  if (isFullContainer) form.cargoFlags = form.cargoFlags.filter(flag => flag !== 'No estibable')
+})
 const stepNames = computed(() => [q('Modalidad', 'Mode'), q('Embarque', 'Shipment'), q('Información', 'Information'), q('Carga y envío', 'Cargo and delivery')])
 function displayMode(value: Mode | null) {
   if (value === 'Maritime') return q('Marítimo', 'Ocean')
@@ -175,6 +233,14 @@ async function loadLocations() {
   if (!mode.value || !shipmentType.value) return
   const kind = mode.value === 'Maritime' ? 'seaport' : mode.value === 'Air' ? 'airport' : 'inland'
   locationLoading.value = true
+  if (localQuotePreview) {
+    locations.value = previewLocations
+    destinations.value = previewLocations
+    podOptions.value = previewLocations
+    error.value = ''
+    locationLoading.value = false
+    return
+  }
   try {
     const fetchRole = async (routeRole: 'origin' | 'destination' | 'pod') => {
       const params = new URLSearchParams({kind,shipmentType:shipmentType.value!,routeRole})
@@ -184,8 +250,21 @@ async function loadLocations() {
       return result.items
     }
     const [orig, dest, pod] = await Promise.all([fetchRole('origin'),fetchRole('destination'),mode.value === 'Maritime' ? fetchRole('pod') : Promise.resolve([] as Loc[])])
-    locations.value = orig; destinations.value = dest; podOptions.value = pod
-  } catch (e) { error.value = (e as Error).message }
+    const usePreviewData = localQuotePreview && (!orig.length || !dest.length)
+    locations.value = usePreviewData ? previewLocations : orig
+    destinations.value = usePreviewData ? previewLocations : dest
+    podOptions.value = usePreviewData ? previewLocations : pod
+    if (usePreviewData) error.value = ''
+  } catch (e) {
+    if (localQuotePreview) {
+      locations.value = previewLocations
+      destinations.value = previewLocations
+      podOptions.value = previewLocations
+      error.value = ''
+    } else {
+      error.value = (e as Error).message
+    }
+  }
   finally { locationLoading.value = false }
 }
 onMounted(async () => {
@@ -288,7 +367,7 @@ async function submit() {
             <span>{{ step > i+1 ? '✓' : i+1 }}</span><small>{{ name }}</small>
           </div>
         </nav>
-        <section class="official-panel">
+        <section class="official-panel" @pointerdown.capture="closeOtherDropdowns" @focusin="closeOtherDropdowns">
           <template v-if="step === 1">
             <p class="official-kicker">{{ q('PASO 1 DE 4', 'STEP 1 OF 4') }}</p>
             <h2>{{ q('¿Cómo querés transportar tu carga?', 'How would you like to ship your cargo?') }}</h2>
@@ -320,7 +399,7 @@ async function submit() {
               <div class="official-location-field">
                 <label for="quote-origin">{{ q('Origen', 'Origin') }} <span>*</span></label>
                 <div class="official-location-combobox">
-                  <input id="quote-origin" :value="locationSearch.origin" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'origin'" aria-controls="quote-origin-options" autocomplete="off" :placeholder="q('Buscar ciudad o país', 'Search city or country')" required @focus="openLocation = 'origin'; activeLocationIndex = 0" @input="updateLocationSearch('origin', $event)" @keydown="handleLocationKeydown('origin', $event)" @blur="closeLocation('origin')" />
+                  <input id="quote-origin" :value="locationSearch.origin" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'origin'" aria-controls="quote-origin-options" autocomplete="off" :placeholder="q('Buscar ciudad o país', 'Search city or country')" required @focus="focusLocation('origin')" @input="updateLocationSearch('origin', $event)" @keydown="handleLocationKeydown('origin', $event)" @blur="closeLocation('origin')" />
                   <button type="button" class="official-location-toggle" :aria-label="q('Mostrar ubicaciones de origen', 'Show origin locations')" tabindex="-1" @mousedown.prevent @click="toggleLocation('origin')">⌄</button>
                   <ul v-if="openLocation === 'origin'" id="quote-origin-options" class="official-location-options" role="listbox">
                     <li v-for="(loc,index) in optionsFor('origin')" :key="loc.id"><button type="button" role="option" :aria-selected="form.originLocationId === loc.id" :id="`quote-origin-option-${index}`" @mousedown.prevent @click="chooseLocation('origin', loc)"><span>{{ loc.displayName }}</span></button></li>
@@ -331,7 +410,7 @@ async function submit() {
               <div class="official-location-field">
                 <label for="quote-destination">{{ q('Destino', 'Destination') }} <span>*</span></label>
                 <div class="official-location-combobox">
-                  <input id="quote-destination" :value="locationSearch.destination" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'destination'" aria-controls="quote-destination-options" autocomplete="off" :placeholder="q('Buscar ciudad o país', 'Search city or country')" required @focus="openLocation = 'destination'; activeLocationIndex = 0" @input="updateLocationSearch('destination', $event)" @keydown="handleLocationKeydown('destination', $event)" @blur="closeLocation('destination')" />
+                  <input id="quote-destination" :value="locationSearch.destination" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'destination'" aria-controls="quote-destination-options" autocomplete="off" :placeholder="q('Buscar ciudad o país', 'Search city or country')" required @focus="focusLocation('destination')" @input="updateLocationSearch('destination', $event)" @keydown="handleLocationKeydown('destination', $event)" @blur="closeLocation('destination')" />
                   <button type="button" class="official-location-toggle" :aria-label="q('Mostrar ubicaciones de destino', 'Show destination locations')" tabindex="-1" @mousedown.prevent @click="toggleLocation('destination')">⌄</button>
                   <ul v-if="openLocation === 'destination'" id="quote-destination-options" class="official-location-options" role="listbox">
                     <li v-for="(loc,index) in optionsFor('destination')" :key="loc.id"><button type="button" role="option" :aria-selected="form.destinationLocationId === loc.id" :id="`quote-destination-option-${index}`" @mousedown.prevent @click="chooseLocation('destination', loc)"><span>{{ loc.displayName }}</span></button></li>
@@ -342,7 +421,7 @@ async function submit() {
               <div v-if="mode === 'Maritime'" class="official-location-field">
                 <label for="quote-pod">POD {{ shipmentType === 'LCL' ? q('(requerido)', '(required)') : q('(opcional)', '(optional)') }}</label>
                 <div class="official-location-combobox">
-                  <input id="quote-pod" :value="locationSearch.pod" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'pod'" aria-controls="quote-pod-options" autocomplete="off" :placeholder="shipmentType === 'LCL' ? q('Buscar ciudad o país', 'Search city or country') : q('Sin POD adicional', 'No additional POD')" @focus="openLocation = 'pod'; activeLocationIndex = 0" @input="updateLocationSearch('pod', $event)" @keydown="handleLocationKeydown('pod', $event)" @blur="closeLocation('pod')" />
+                  <input id="quote-pod" :value="locationSearch.pod" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'pod'" aria-controls="quote-pod-options" autocomplete="off" :placeholder="shipmentType === 'LCL' ? q('Buscar ciudad o país', 'Search city or country') : q('Sin POD adicional', 'No additional POD')" @focus="focusLocation('pod')" @input="updateLocationSearch('pod', $event)" @keydown="handleLocationKeydown('pod', $event)" @blur="closeLocation('pod')" />
                   <button type="button" class="official-location-toggle" :aria-label="q('Mostrar opciones de POD', 'Show POD options')" tabindex="-1" @mousedown.prevent @click="toggleLocation('pod')">⌄</button>
                   <ul v-if="openLocation === 'pod'" id="quote-pod-options" class="official-location-options" role="listbox">
                     <li v-if="shipmentType !== 'LCL'"><button type="button" role="option" :aria-selected="!form.podLocationId" @mousedown.prevent @click="form.podLocationId = ''; locationSearch.pod = ''; openLocation = null">{{ q('Sin POD adicional', 'No additional POD') }}</button></li>
@@ -351,13 +430,24 @@ async function submit() {
                   </ul>
                 </div>
               </div>
-              <label>Incoterm <span>*</span><select v-model="form.incoterm" required><option value="">{{ q('Seleccionar Incoterm', 'Select Incoterm') }}</option><option v-for="item in incoterms" :key="item">{{ item }}</option></select></label>
+              <div class="official-custom-field official-incoterm-field">
+                <label id="quote-incoterm-label">Incoterm <span>*</span></label>
+                <div class="official-select-wrap official-incoterm-wrap" @keydown.esc="incotermMenuOpen = false">
+                  <button id="quote-incoterm" type="button" class="official-incoterm-trigger" role="combobox" aria-labelledby="quote-incoterm-label" aria-haspopup="listbox" :aria-expanded="incotermMenuOpen" aria-controls="quote-incoterm-options" aria-required="true" @click="toggleIncotermMenu">
+                    {{ form.incoterm || q('Seleccionar Incoterm', 'Select Incoterm') }}
+                  </button>
+                  <ul v-if="incotermMenuOpen" id="quote-incoterm-options" class="official-incoterm-options" role="listbox">
+                    <li><button type="button" role="option" aria-selected="false" @click="form.incoterm = ''; incotermMenuOpen = false">{{ q('Seleccionar Incoterm', 'Select Incoterm') }}</button></li>
+                    <li v-for="item in incoterms" :key="item"><button type="button" role="option" :aria-selected="form.incoterm === item" @click="chooseIncoterm(item)">{{ item }}</button></li>
+                  </ul>
+                </div>
+              </div>
               <label>{{ q('Fecha de carga lista', 'Cargo ready date') }} <span>*</span><input v-model="form.cargoReadyDate" type="date" required /></label>
             </div>
             <div v-if="form.incoterm === 'EXW'" class="official-nested">
               <h3>{{ q('Información adicional para EXW', 'Additional EXW information') }}</h3>
               <div class="official-fields">
-                <label>{{ q('Tipo de carga', 'Cargo type') }} <span>*</span><select v-model="form.exwCargoStatus"><option value="">{{ q('Seleccionar', 'Select') }}</option><option value="fiscal">{{ q('Carga fiscal', 'Bonded cargo') }}</option><option value="nationalized">{{ q('Carga nacionalizada', 'Nationalized cargo') }}</option></select></label>
+                <label>{{ q('Tipo de carga', 'Cargo type') }} <span>*</span><div class="official-select-wrap"><select v-model="form.exwCargoStatus"><option value="">{{ q('Seleccionar', 'Select') }}</option><option value="fiscal">{{ q('Carga fiscal', 'Bonded cargo') }}</option><option value="nationalized">{{ q('Carga nacionalizada', 'Nationalized cargo') }}</option></select></div></label>
                 <label>{{ q('Dirección de recolección', 'Pickup address') }} <span>*</span><input v-model.trim="form.exwPickupAddress" maxlength="800" :placeholder="q('Indicá la dirección', 'Enter the address')" /></label>
               </div>
             </div>
@@ -368,9 +458,9 @@ async function submit() {
                   <div class="official-headline"><strong>{{ q('Equipo', 'Equipment') }} {{ i+1 }}</strong><button v-if="form.equipment.length>1" type="button" class="official-remove" @click="form.equipment.splice(i,1)">{{ q('Quitar', 'Remove') }}</button></div>
                   <div class="official-fields">
                     <label>{{ shipmentType === 'FCL' ? q('Tamaño del contenedor', 'Container size') : q('Furgón', 'Truck') }} <span>*</span>
-                      <select v-model="line.size"><option value="">{{ q('Seleccionar', 'Select') }}</option><template v-if="shipmentType === 'FCL'"><option value="20 pies">20 {{ q('pies', 'ft') }}</option><option value="40 pies">40 {{ q('pies', 'ft') }}</option><option value="45 pies">45 {{ q('pies', 'ft') }}</option><option value="48 pies">48 {{ q('pies', 'ft') }}</option></template><template v-else><option value="24 pies / 5 TON">24 {{ q('pies', 'ft') }} / 5 TON</option><option value="26 pies / 7 TON">26 {{ q('pies', 'ft') }} / 7 TON</option><option value="40 pies">40 {{ q('pies', 'ft') }}</option><option value="53 pies">53 {{ q('pies', 'ft') }}</option></template></select>
+                      <div class="official-select-wrap"><select v-model="line.size"><option value="">{{ q('Seleccionar', 'Select') }}</option><template v-if="shipmentType === 'FCL'"><option value="20 pies">20 {{ q('pies', 'ft') }}</option><option value="40 pies">40 {{ q('pies', 'ft') }}</option><option value="45 pies">45 {{ q('pies', 'ft') }}</option><option value="48 pies">48 {{ q('pies', 'ft') }}</option></template><template v-else><option value="24 pies / 5 TON">24 {{ q('pies', 'ft') }} / 5 TON</option><option value="26 pies / 7 TON">26 {{ q('pies', 'ft') }} / 7 TON</option><option value="40 pies">40 {{ q('pies', 'ft') }}</option><option value="53 pies">53 {{ q('pies', 'ft') }}</option></template></select></div>
                     </label>
-                    <label>{{ q('Tipo', 'Type') }} <span>*</span><select v-model="line.type"><option value="">{{ q('Seleccionar', 'Select') }}</option><template v-if="shipmentType === 'FCL'"><option>Dry Van</option><option>High Cube</option><option>Open Top</option><option>Open Side</option><option>Tank</option><option>Flat Rack</option><option>NOR</option></template><template v-else><option value="Furgón">{{ q('Furgón', 'Truck') }}</option></template></select></label>
+                    <label>{{ q('Tipo', 'Type') }} <span>*</span><div class="official-select-wrap"><select v-model="line.type"><option value="">{{ q('Seleccionar', 'Select') }}</option><template v-if="shipmentType === 'FCL'"><option>Dry Van</option><option>High Cube</option><option>Open Top</option><option>Open Side</option><option>Tank</option><option>Flat Rack</option><option>NOR</option></template><template v-else><option value="Furgón">{{ q('Furgón', 'Truck') }}</option></template></select></div></label>
                     <label>{{ q('Cantidad', 'Quantity') }} <span>*</span><input v-model.number="line.quantity" type="number" min="1" max="25" step="1" @input="syncWeights(line)" /></label>
                     <label v-for="(weight,wi) in line.unitWeightsKg" :key="wi">{{ q('Peso', 'Weight') }} {{ wi+1 }} (kg) <span>*</span><input v-model.number="line.unitWeightsKg[wi]" type="number" min="0.001" step="any" /></label>
                   </div>
@@ -397,7 +487,7 @@ async function submit() {
             </div>
             <div v-if="!equipmentMode" class="official-nested">
               <div class="official-headline"><h3>{{ q('Medidas de la carga', 'Cargo dimensions') }}</h3><button class="official-ghost" type="button" @click="addPackage">+ {{ q('Añadir línea', 'Add line') }}</button></div>
-              <div class="official-fields"><label>{{ q('Unidad de dimensiones', 'Dimension unit') }}<select v-model="form.dimensionUnit"><option value="cm">{{ q('Centímetros', 'Centimeters') }} (cm)</option><option value="m">{{ q('Metros', 'Meters') }} (m)</option><option value="in">{{ q('Pulgadas', 'Inches') }} (in)</option></select></label><label>{{ q('Unidad de peso', 'Weight unit') }}<select v-model="form.weightUnit"><option value="kg">{{ q('Kilogramos', 'Kilograms') }} (kg)</option><option value="lb">{{ q('Libras', 'Pounds') }} (lb)</option></select></label></div>
+              <div class="official-fields"><label>{{ q('Unidad de dimensiones', 'Dimension unit') }}<div class="official-select-wrap"><select v-model="form.dimensionUnit"><option value="cm">{{ q('Centímetros', 'Centimeters') }} (cm)</option><option value="m">{{ q('Metros', 'Meters') }} (m)</option><option value="in">{{ q('Pulgadas', 'Inches') }} (in)</option></select></div></label><label>{{ q('Unidad de peso', 'Weight unit') }}<div class="official-select-wrap"><select v-model="form.weightUnit"><option value="kg">{{ q('Kilogramos', 'Kilograms') }} (kg)</option><option value="lb">{{ q('Libras', 'Pounds') }} (lb)</option></select></div></label></div>
               <div v-for="(line,i) in form.packages" :key="i" class="official-line">
                 <div class="official-headline"><strong>{{ q('Bulto / Línea', 'Package / Line') }} {{ i+1 }}</strong><button v-if="form.packages.length>1" class="official-remove" type="button" @click="form.packages.splice(i,1)">{{ q('Quitar', 'Remove') }}</button></div>
                 <div class="official-fields">
@@ -407,18 +497,18 @@ async function submit() {
                   <label>{{ q('Largo', 'Length') }} <span>*</span><input v-model.number="line.length" min="0.001" step="any" type="number" /></label>
                   <label>{{ q('Ancho', 'Width') }} <span>*</span><input v-model.number="line.width" min="0.001" step="any" type="number" /></label>
                   <label>{{ q('Alto', 'Height') }} <span>*</span><input v-model.number="line.height" min="0.001" step="any" type="number" /></label>
-                  <label>{{ q('Estibabilidad', 'Stackability') }}<select v-model="line.stackability"><option value="Stackable">{{ q('Estibable', 'Stackable') }}</option><option value="NonStackable">{{ q('No estibable', 'Non-stackable') }}</option></select></label>
+                  <label>{{ q('Estibabilidad', 'Stackability') }}<div class="official-select-wrap"><select v-model="line.stackability"><option value="Stackable">{{ q('Estibable', 'Stackable') }}</option><option value="NonStackable">{{ q('No estibable', 'Non-stackable') }}</option></select></div></label>
                 </div>
               </div>
             </div>
-            <div class="official-nested"><h3>{{ q('Opciones de carga', 'Cargo options') }}</h3><div class="official-checks"><label v-for="flag in cargoFlagOptions" :key="flag"><input type="checkbox" :checked="form.cargoFlags.includes(flag)" @change="toggle(form.cargoFlags,flag)" />{{ displayService(flag) }}</label></div><label class="official-single">{{ q('Observaciones', 'Notes') }}<textarea v-model.trim="form.observations" maxlength="4000" rows="3" /></label></div>
+            <div class="official-nested"><h3>{{ q('Opciones de carga', 'Cargo options') }}</h3><div class="official-checks"><label v-for="flag in visibleCargoFlagOptions" :key="flag"><input type="checkbox" :checked="form.cargoFlags.includes(flag)" @change="toggle(form.cargoFlags,flag)" />{{ displayService(flag) }}</label></div><label class="official-single">{{ q('Observaciones', 'Notes') }}<textarea v-model.trim="form.observations" maxlength="4000" rows="3" /></label></div>
             <div class="official-nested"><h3>{{ q('Datos de contacto', 'Contact details') }}</h3><div class="official-fields"><label>{{ q('Nombre', 'Name') }} <span>*</span><input v-model.trim="form.contactName" maxlength="150" autocomplete="name" /></label><label>{{ q('Correo', 'Email') }} <span>*</span><input v-model.trim="form.contactEmail" type="email" maxlength="255" autocomplete="email" /></label><label>{{ q('Teléfono', 'Phone') }} <span>*</span><input v-model.trim="form.contactPhone" maxlength="40" autocomplete="tel" /></label></div></div>
             <div class="official-summary"><strong>{{ q('Resumen', 'Summary') }}</strong><span>{{ displayMode(mode) }} · {{ displayShipmentType(shipmentType) }}</span><span>{{ selectedOrigin?.displayName }} → {{ selectedDest?.displayName }}</span><span>{{ form.services.map(displayService).join(', ') }}</span></div>
           </template>
           <p v-if="error" class="official-error" role="alert">{{ error }}</p>
           <footer class="official-buttons">
-            <button v-if="step>1" type="button" class="official-back" :disabled="busy" @click="back">← {{ q('Atrás', 'Back') }}</button><span v-else></span>
-            <button v-if="step<4" type="button" class="official-primary" @click="next">{{ q('Continuar', 'Continue') }} →</button>
+            <button v-if="step>1" type="button" class="official-back" :disabled="busy" @click="back">{{ q('Atrás', 'Back') }}</button><span v-else></span>
+            <button v-if="step<4" type="button" class="official-primary" @click="next">{{ q('Continuar', 'Continue') }}</button>
             <button v-else type="button" class="official-primary" :disabled="busy || !sessionOk" @click="submit">{{ busy ? q('Enviando…', 'Sending…') : q('Enviar solicitud', 'Submit request') + ' →' }}</button>
           </footer>
         </section>
@@ -640,12 +730,16 @@ html.theme-dark .app-site.official-page .official-progress-item.done small { col
   position: absolute;
   top: 0;
   right: 0;
+  display: grid;
+  place-items: center;
   width: 44px;
   height: 100%;
+  padding: 0;
   border: 0;
   background: transparent;
   color: #8790a0;
   font-size: 22px;
+  line-height: 1;
   cursor: pointer;
 }
 .official-location-options {
@@ -661,8 +755,14 @@ html.theme-dark .app-site.official-page .official-progress-item.done small { col
   list-style: none;
   border: 1px solid #55545a;
   border-radius: 18px;
-  background: #19191c;
+  background: #19191c !important;
+  opacity: 1;
   box-shadow: 0 18px 36px #0005;
+}
+/* Keep the open location list above later rows such as equipment and services. */
+.official-panel > .official-fields:has(.official-location-options) {
+  position: relative;
+  z-index: 5 !important;
 }
 .official-location-options li { margin: 0; padding: 0; }
 .official-location-options li button {
@@ -1285,7 +1385,7 @@ html:not(.theme-dark) .app-site.official-page :is(input, textarea)::placeholder 
   opacity: 1;
 }
 html:not(.theme-dark) .app-site.official-page .official-location-options {
-  background: rgba(255, 255, 255, .96) !important;
+  background: #fff !important;
   border-color: #d8cbd0 !important;
   box-shadow: 0 18px 36px rgba(35, 21, 28, .16);
 }
@@ -1296,6 +1396,20 @@ html:not(.theme-dark) .app-site.official-page .official-location-options li butt
 html:not(.theme-dark) .app-site.official-page .official-location-options li button[aria-selected="true"] {
   background: rgba(168, 14, 24, .08) !important;
   color: #a80e18 !important;
+}
+/* Keep the active location menu above following form sections. Raise the
+   containing field as well as the list so sibling sections cannot cover it. */
+.app-site.official-page .official-panel:has(.official-location-options) .official-fields {
+  position: relative !important;
+  z-index: 100 !important;
+}
+.app-site.official-page .official-panel .official-location-field:has(.official-location-options),
+.app-site.official-page .official-panel .official-location-combobox:has(.official-location-options) {
+  position: relative !important;
+  z-index: 130 !important;
+}
+.app-site.official-page .official-panel .official-location-options {
+  z-index: 131 !important;
 }
 html:not(.theme-dark) .app-site.official-page > .site-header :is(.main-nav a, .nav-dropdown__trigger, .header-settings__trigger, .menu-toggle) {
   color: #242630 !important;
@@ -1371,6 +1485,201 @@ html:not(.theme-dark) .app-site.official-page .official-progress-item:not(.curre
 }
 html:not(.theme-dark) .app-site.official-page .official-progress-item:not(.current):not(.done) span {
   color: #111 !important;
+}
+/* Normalize all dropdown chevrons across searchable locations and native selects. */
+.app-site.official-page .official-location-toggle {
+  top: 50% !important;
+  right: 16px !important;
+  width: 24px !important;
+  height: 24px !important;
+  transform: translateY(-50%) !important;
+  display: grid !important;
+  place-items: center !important;
+  color: #f2f3f6 !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+}
+.app-site.official-page .official-location-toggle::before {
+  content: "";
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+.app-site.official-page .official-fields select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  padding-right: 64px !important;
+  background-image: none !important;
+}
+.app-site.official-page .official-select-wrap {
+  position: relative !important;
+  display: block;
+  width: 100%;
+  margin-top: 7px;
+}
+.app-site.official-page .official-select-wrap select {
+  display: block;
+  width: 100%;
+  margin-top: 0 !important;
+}
+.app-site.official-page .official-select-wrap::after {
+  content: "";
+  position: absolute;
+  right: 24px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #f2f3f6;
+  border-bottom: 2px solid #f2f3f6;
+  transform: translateY(-50%) rotate(45deg);
+  pointer-events: none;
+}
+html:not(.theme-dark) .app-site.official-page .official-location-toggle {
+  color: #414550 !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-select-wrap::after {
+  border-color: #414550;
+}
+/* Glass surface for the searchable location dropdowns, matching the quote selects. */
+.app-site.official-page .official-location-options {
+  background: rgba(25, 25, 28, .76) !important;
+  border-color: rgba(255, 255, 255, .3) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  backdrop-filter: blur(18px) saturate(145%);
+  box-shadow: 0 18px 38px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255, 255, 255, .12);
+}
+html:not(.theme-dark) .app-site.official-page .official-location-options {
+  background: rgba(255, 255, 255, .76) !important;
+  border-color: rgba(255, 255, 255, .72) !important;
+  box-shadow: 0 18px 38px rgba(35, 21, 28, .18), inset 0 1px 0 rgba(255, 255, 255, .8);
+}
+html.theme-dark .app-site.official-page .official-location-options {
+  background: rgba(25, 25, 28, .76) !important;
+  border-color: rgba(255, 255, 255, .3) !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-fields select {
+  color-scheme: light !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-fields select option {
+  color: #242630 !important;
+  background-color: #fff !important;
+}
+.app-site.official-page .official-incoterm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+.app-site.official-page .official-incoterm-wrap { z-index: auto !important; }
+.app-site.official-page .official-incoterm-wrap:has(.official-incoterm-options) {
+  position: relative !important;
+  z-index: 140 !important;
+}
+.app-site.official-page .official-incoterm-wrap::after { border-color: #414550; }
+.app-site.official-page .official-incoterm-trigger {
+  display: block;
+  width: 100%;
+  min-height: 45px;
+  margin: 0;
+  padding: 12px 64px 12px 16px;
+  border: 1px solid #cfd2dc;
+  border-radius: 13px;
+  background: #fff;
+  color: #242630;
+  text-align: left;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+.app-site.official-page .official-incoterm-options {
+  position: absolute;
+  z-index: 120;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+  border: 1px solid rgba(255, 255, 255, .3);
+  border-radius: 18px;
+  background: rgba(25, 25, 28, .76) !important;
+  opacity: 1 !important;
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  backdrop-filter: blur(18px) saturate(145%);
+  box-shadow: 0 18px 38px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255, 255, 255, .12);
+}
+.app-site.official-page .official-incoterm-options li { margin: 0; padding: 0; }
+.app-site.official-page .official-incoterm-options button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: #242630;
+  text-align: left;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.app-site.official-page .official-incoterm-options button:hover,
+.app-site.official-page .official-incoterm-options button[aria-selected="true"] {
+  background: #30262d;
+  color: #ff6b50;
+}
+html.theme-dark .app-site.official-page .official-incoterm-wrap::after { border-color: #f2f3f6; }
+html.theme-dark .app-site.official-page .official-incoterm-trigger {
+  border-color: rgba(255, 255, 255, .22);
+  background: rgba(255, 255, 255, .035) !important;
+  color: #fff;
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  backdrop-filter: blur(18px) saturate(135%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 8px 22px rgba(0, 0, 0, .08);
+}
+html.theme-dark .app-site.official-page .official-incoterm-options {
+  border-color: rgba(255, 255, 255, .3) !important;
+  background: rgba(25, 25, 28, .76) !important;
+  color: #fff !important;
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  backdrop-filter: blur(18px) saturate(145%);
+}
+html.theme-dark .app-site.official-page .official-incoterm-options button { color: #fff !important; }
+html.theme-dark .app-site.official-page .official-incoterm-options button[aria-selected="true"] {
+  background: #30262d !important;
+  color: #ff6b50 !important;
+}
+.app-site.official-page .official-fields:has(.official-incoterm-options) {
+  position: relative !important;
+  z-index: 105 !important;
+}
+.app-site.official-page .official-panel > .official-nested:has(.official-fields:has(.official-location-options)),
+.app-site.official-page .official-panel > .official-nested:has(.official-fields:has(.official-incoterm-options)) {
+  position: relative !important;
+  z-index: 20 !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-incoterm-options {
+  border-color: rgba(255, 255, 255, .72) !important;
+  background: rgba(255, 255, 255, .76) !important;
+  color: #242630 !important;
+  opacity: 1 !important;
+  box-shadow: 0 18px 38px rgba(35, 21, 28, .18), inset 0 1px 0 rgba(255, 255, 255, .8);
+}
+html:not(.theme-dark) .app-site.official-page .official-incoterm-options button {
+  color: #242630 !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-incoterm-options button:hover,
+html:not(.theme-dark) .app-site.official-page .official-incoterm-options button[aria-selected="true"] {
+  background: rgba(168, 14, 24, .08) !important;
+  color: #a80e18 !important;
 }
 </style>
 

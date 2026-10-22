@@ -25,7 +25,7 @@ onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
 <template>
   <div ref="root" class="language-switcher" :class="{ 'language-switcher--compact': props.compact, 'language-switcher--vertical': props.vertical, 'language-switcher--dropdown': props.dropdown }" role="group" :aria-label="t('custom.header.language')">
     <template v-if="props.dropdown">
-      <button class="language-switcher__current" type="button" :aria-label="`${t('custom.header.language')}: ${locale === 'es' ? 'Español' : 'English'}`" :aria-expanded="open" @click.stop="open = !open"><span class="language-switcher__flag" aria-hidden="true">{{ locale === 'es' ? '🇪🇸' : '🇬🇧' }}</span><span class="language-switcher__name">{{ locale === 'es' ? 'Español' : 'English' }}</span><span class="language-switcher__chevron" aria-hidden="true">⌄</span></button>
+      <button class="language-switcher__current" type="button" :aria-label="`${t('custom.header.language')}: ${locale === 'es' ? 'Español' : 'English'}`" :aria-expanded="open" @click.stop="open = !open"><span class="language-switcher__flag" aria-hidden="true">{{ locale === 'es' ? '🇪🇸' : '🇬🇧' }}</span><span class="language-switcher__name">{{ locale === 'es' ? 'Español' : 'English' }}</span><span class="language-switcher__chevron" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false"><path d="m4 6 4 4 4-4" /></svg></span></button>
       <div v-if="open" class="language-switcher__menu">
         <button type="button" :class="{ active: locale === 'es' }" :aria-pressed="locale === 'es'" lang="es" @click="setLanguage('es')"><span aria-hidden="true">🇪🇸</span> Español</button>
         <button type="button" :class="{ active: locale === 'en' }" :aria-pressed="locale === 'en'" lang="en" @click="setLanguage('en')"><span aria-hidden="true">🇬🇧</span> English</button>
@@ -55,7 +55,9 @@ onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
 .language-switcher--dropdown .language-switcher__current{display:flex;align-items:center;justify-content:center;gap:2px;width:100%;padding:5px 2px;border:0;border-radius:8px;color:inherit;font-size:14px;font-weight:800;opacity:1}
 .language-switcher__flag{font-size:20px;line-height:1}
 .language-switcher__name{font-size:12px;font-weight:750;white-space:nowrap}
-.language-switcher__chevron{font-size:14px;transition:transform .18s}
+.language-switcher__chevron{display:inline-flex;flex:0 0 16px;align-items:center;justify-content:center;width:16px;height:16px;line-height:0;transition:transform .18s}
+.language-switcher__chevron svg{display:block;width:12px;height:12px;overflow:visible}
+.language-switcher__chevron path{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .language-switcher--dropdown:has(.language-switcher__menu) .language-switcher__chevron{transform:rotate(180deg)}
 .language-switcher--dropdown .language-switcher__menu{position:absolute;z-index:40;top:calc(100% + 5px);right:0;display:grid;gap:3px;min-width:130px;padding:6px;border:1px solid #ffffff50;border-radius:10px;background:#080808;box-shadow:0 10px 24px #0005}
 .language-switcher--dropdown .language-switcher__menu button{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;border:0;border-radius:6px;background:transparent;color:#fff;text-align:left;font-size:12px;opacity:1}
