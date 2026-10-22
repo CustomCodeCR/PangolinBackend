@@ -13,7 +13,7 @@ type Section = 'itineraries' | 'news' | 'media' | 'comments' | 'users' | 'site' 
 type AppRole = 'cliente' | 'administrador'
 interface ManagedUser { id: string; correo: string; nombre?: string; role: AppRole; activo: boolean }
 const tabFromUrl = new URLSearchParams(window.location.search).get('tab')
-const section = ref<Section>(tabFromUrl === 'usuarios' ? 'users' : tabFromUrl === 'cotizaciones' && officialQuotesEnabled ? 'quotes' : 'itineraries')
+const section = ref<Section>(tabFromUrl === 'usuarios' ? 'users' : tabFromUrl === 'noticias' ? 'news' : tabFromUrl === 'cotizaciones' && officialQuotesEnabled ? 'quotes' : 'itineraries')
 const itineraries = ref<ManagedItinerary[]>([])
 const news = ref<ManagedNews[]>([])
 const media = ref<ManagedMedia[]>([])
@@ -29,6 +29,28 @@ const savingUserId = ref<string | null>(null)
 const previewSuffix = computed(() => authState.previewRole ? `?previewRole=${authState.previewRole}` : '')
 const isLiveAdmin = computed(() => authState.user?.role === 'administrador' && !authState.previewRole)
 const newsForm = ref<ManagedNews>(emptyNews())
+const newsPreviewItem = ref<ManagedNews | null>(null)
+const newsPreviewTheme = ref<'light' | 'dark'>('light')
+let previewObjectUrl: string | null = null
+function closeNewsPreview() {
+  newsPreviewItem.value = null
+  if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl)
+  previewObjectUrl = null
+}
+function openNewsPreview(item: ManagedNews = newsForm.value) {
+  closeNewsPreview()
+  newsPreviewItem.value = { ...item }
+  if (item === newsForm.value && newsUploadFile.value) previewObjectUrl = URL.createObjectURL(newsUploadFile.value)
+  newsPreviewTheme.value = document.documentElement.classList.contains('theme-dark') ? 'dark' : 'light'
+}
+const newsPreviewImage = computed(() =>
+  previewObjectUrl || (newsPreviewItem.value?.image ? newsPreviewSrc(newsPreviewItem.value) : '/images/cover-logistics.jpeg')
+)
+function newsPreviewKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && newsPreviewItem.value) closeNewsPreview()
+}
+onMounted(() => window.addEventListener('keydown', newsPreviewKeydown))
+onUnmounted(() => { window.removeEventListener('keydown', newsPreviewKeydown); closeNewsPreview() })
 const itineraryForm = ref<ManagedItinerary>(emptyItinerary())
 const mediaForm = ref<ManagedMedia>(emptyMedia())
 const commentForm = ref<ManagedComment>(emptyComment())
@@ -122,9 +144,11 @@ onMounted(async () => {
 function selectSection(next: Section) {
   section.value = next
   startNew()
+  closeNewsPreview()
   const url = new URL(window.location.href)
   if (next === 'users') url.searchParams.set('tab', 'usuarios')
   else if (next === 'quotes') url.searchParams.set('tab', 'cotizaciones')
+  else if (next === 'news') url.searchParams.set('tab', 'noticias')
   else url.searchParams.delete('tab')
   window.history.replaceState({}, '', url)
   if (next === 'users') void loadUsers()
@@ -550,7 +574,8 @@ function useMediaForNews(item: ManagedMedia) {
               <option :value="true">Publicada (visible en la web)</option>
             </select></label>
             <p class="manager-publication-hint" role="status">{{ newsForm.published ? 'Esta noticia aparecerá en la web al guardar los cambios.' : 'Este borrador no aparecerá en la web pública.' }}</p>
-            <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar noticia' }}</button>
+            <button type="button" class="manager-news-preview-trigger" @click="openNewsPreview()">Vista previa · Modo claro / oscuro</button>
+             <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar noticia' }}</button>
           </form>
           <form v-else-if="section === 'comments'" @submit.prevent="submitComment">
             <label>Autor<input v-model.trim="commentForm.author" required maxlength="100" /></label>
@@ -602,12 +627,32 @@ function useMediaForNews(item: ManagedMedia) {
               <small v-else-if="section === 'comments'">{{ (entry as ManagedComment).section || 'General' }} · <strong :class="(entry as ManagedComment).published ? 'manager-status-published' : 'manager-status-draft'">{{ (entry as ManagedComment).published ? 'Publicado en la web' : 'Borrador privado' }}</strong> · {{ (entry as ManagedComment).message }}</small>
               <small v-else>{{ (entry as ManagedMedia).kind }}</small>
             </div>
-            <div class="manager-item-actions"><button aria-label="Editar" title="Editar" @click="edit(entry)"><IconSymbol glyph="pencil" :size="17" /></button><button aria-label="Eliminar" title="Eliminar" @click="remove(entry.id)"><IconSymbol glyph="trash" :size="17" /></button><button v-if="section === 'media' && (entry as ManagedMedia).kind === 'Imagen'" aria-label="Usar imagen en noticia" title="Usar en noticia" @click="useMediaForNews(entry as ManagedMedia)"><IconSymbol glyph="↗" :size="17" /></button></div>
+            <div class="manager-item-actions"><button v-if="section === 'news'" :aria-label="`Vista previa de ${(entry as ManagedNews).title}`" title="Vista previa" @click="openNewsPreview(entry as ManagedNews)"><IconSymbol glyph="eye" :size="17" /></button><button aria-label="Editar" title="Editar" @click="edit(entry)"><IconSymbol glyph="pencil" :size="17" /></button><button aria-label="Eliminar" title="Eliminar" @click="remove(entry.id)"><IconSymbol glyph="trash" :size="17" /></button><button v-if="section === 'media' && (entry as ManagedMedia).kind === 'Imagen'" aria-label="Usar imagen en noticia" title="Usar en noticia" @click="useMediaForNews(entry as ManagedMedia)"><IconSymbol glyph="↗" :size="17" /></button></div>
           </article>
         </section>
         </template>
       </div>
     </section>
+    <div v-if="newsPreviewItem" class="manager-news-preview-backdrop" @click.self="closeNewsPreview">
+      <div class="manager-news-preview" :class="`manager-news-preview--${newsPreviewTheme}`" role="dialog" aria-modal="true" aria-label="Vista previa privada de noticia">
+        <div class="manager-news-preview-toolbar">
+          <span>VISTA PREVIA · Sin publicar</span>
+          <div role="group" aria-label="Tema de la vista previa">
+            <button type="button" :aria-pressed="newsPreviewTheme === 'light'" @click="newsPreviewTheme = 'light'">Claro</button>
+            <button type="button" :aria-pressed="newsPreviewTheme === 'dark'" @click="newsPreviewTheme = 'dark'">Oscuro</button>
+          </div>
+          <button type="button" aria-label="Cerrar vista previa" @click="closeNewsPreview">Cerrar ×</button>
+        </div>
+        <article class="news-article-modal">
+          <img :src="newsPreviewImage" :alt="newsPreviewItem.title || 'Imagen de noticia'" />
+          <div class="news-article-modal__copy">
+            <p class="section-tag">{{ newsPreviewItem.category || 'LOGÍSTICA' }} · NOTICIA</p>
+            <h2>{{ newsPreviewItem.title || 'Título de noticia' }}</h2>
+            <p class="news-article-fulltext">{{ newsPreviewItem.body?.trim() || newsPreviewItem.description || 'Contenido de la noticia' }}</p>
+          </div>
+        </article>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -897,6 +942,27 @@ function useMediaForNews(item: ManagedMedia) {
 </style>
 
 <style scoped>
+/* Vista previa del mismo modal público; elección del tema independiente de la web. */
+.manager-news-preview-backdrop { position:fixed; inset:0; z-index:2500; display:grid; place-items:center; padding:20px; background:rgba(2,6,18,.76); backdrop-filter:blur(9px); -webkit-backdrop-filter:blur(9px); }
+.manager-news-preview { width:min(760px,100%); max-height:96vh; overflow:auto; border-radius:23px; box-shadow:0 30px 90px rgba(0,0,0,.42); }
+.manager-news-preview-toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; background:#15223b; color:#fff; padding:12px 16px; font-size:12px; font-weight:800; }
+.manager-news-preview-toolbar>div { display:flex; gap:5px; }
+.manager-news-preview-toolbar button { cursor:pointer; border:1px solid #8591aa; border-radius:999px; padding:7px 11px; background:transparent; color:#fff; font:inherit; }
+.manager-news-preview-toolbar button[aria-pressed="true"] { color:#101827; background:#fff; border-color:#fff; }
+.manager-news-preview .news-article-modal { width:100%; max-height:none; overflow:visible; border-radius:0 0 23px 23px; box-shadow:none; }
+.manager-news-preview .news-article-modal__copy { text-align:left; }
+.manager-news-preview .news-article-fulltext { white-space:pre-line; overflow-wrap:anywhere; }
+.manager-news-preview--dark .news-article-modal { background:#01081D!important; color:#fff!important; }
+.manager-news-preview--dark .news-article-modal__copy .section-tag,
+.manager-news-preview--dark .news-article-modal__copy h2,
+.manager-news-preview--dark .news-article-modal__copy p:not(.section-tag) { color:#fff!important; }
+.manager-news-preview--light .news-article-modal { background:#fff!important; color:#171923!important; }
+.manager-news-preview--light .news-article-modal__copy .section-tag { color:#b20b2d!important; }
+.manager-news-preview--light .news-article-modal__copy h2 { color:#171923!important; }
+.manager-news-preview--light .news-article-modal__copy p:not(.section-tag) { color:#4d5360!important; }
+.manager-news-preview-trigger { padding:12px 16px; background:transparent; border:1px solid #ad0b26; border-radius:999px; color:#ad0b26; font:inherit; font-weight:750; cursor:pointer; }
+@media(max-width:560px){ .manager-news-preview-backdrop{padding:10px}.manager-news-preview-toolbar{padding:11px}.manager-news-preview .news-article-modal>img{height:210px} }
+
 
 /* Fidelidad visual al frontend 19/10, preservando los formularios, CMS y S3 del backend. */
 .content-manager {
