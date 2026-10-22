@@ -199,7 +199,6 @@ async function searchItineraries(pageNumber = 1) {
         <p class="section-tag light-tag">{{ t('custom.itinerary.eyebrow') }}</p>
         <h1>{{ t('custom.itinerary.titleStart') }} <span>{{ t('custom.itinerary.titleEnd') }}</span></h1>
         <p class="itinerary-intro">{{ t('custom.itinerary.intro') }}</p>
-        <span class="itinerary-demo">{{ t('custom.itinerary.demoTag') }}</span>
       </div>
     </section>
 

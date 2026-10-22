@@ -1520,6 +1520,7 @@ html.theme-dark .home-contact-details{background:#01081D!important}
 html.theme-dark .home-contact-card,html.theme-dark .home-contact-card *{color:#fff!important}
 @media(max-width:1050px){.home-contact-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:650px){.home-contact-details{padding:18px 0 55px}.home-contact-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.home-contact-card{min-height:180px;padding:20px 12px}.home-contact-card strong{font-size:12px}.home-contact-card small{font-size:11px}}
+@media(min-width:391px) and (max-width:650px){.home-contact-grid>.home-contact-card:last-child{grid-column:1/-1}}
 @media(max-width:390px){.home-contact-grid{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.faq-background:after{animation:none;left:20%;opacity:.55}}
 
@@ -2631,8 +2632,8 @@ html.theme-dark .inner-hero--news::after{background:linear-gradient(180deg,trans
 .itinerary-hero{position:relative;min-height:410px;color:#fff;background:linear-gradient(105deg,#a50b29ed 0%,#b20e32ca 44%,#161a2cdd 100%),url('/images/services-crane.webp') center 46%/cover}
 .itinerary-hero::after{content:"";position:absolute;inset:auto 0 -1px;height:90px;background:linear-gradient(transparent,var(--itinerary-bg));pointer-events:none}
 .itinerary-hero__content{position:relative;z-index:2;padding-top:140px;padding-bottom:74px}
-.itinerary-hero h1{max-width:850px;margin:14px 0;font-family:"Arial Black",Impact,system-ui,sans-serif;font-size:clamp(45px,7vw,88px);line-height:.98;letter-spacing:-.06em}
-.itinerary-hero h1 span{color:#ffd8df}
+.itinerary-hero h1{max-width:850px;margin:14px 0;font-family:"Arial Black",Impact,system-ui,sans-serif;font-size:clamp(45px,7vw,88px);line-height:.98;letter-spacing:-.06em;color:#fff}
+.itinerary-hero h1 span{color:#fff}
 .itinerary-intro{max-width:640px;font-size:16px;line-height:1.7;color:#fff}
 .itinerary-demo{display:inline-block;margin-top:12px;padding:8px 12px;border:1px solid #ffffff80;border-radius:30px;color:#fff;font-size:9px;font-weight:900;letter-spacing:.14em}
 .itinerary-content{padding-top:38px;padding-bottom:72px;color:var(--itinerary-ink)}
@@ -3162,7 +3163,17 @@ html.theme-dark .news-editorial-section-heading__count{color:#aeb7c7}
 .news-article-modal__copy>p:not(.section-tag){margin:0;color:#4d5360;font-size:15px;line-height:1.75}
 .news-article-modal__copy small{display:block;margin-top:22px;color:#9a5d68;font-size:10px;font-weight:800;letter-spacing:.06em}
 .news-article-modal__close{position:absolute;z-index:1;top:14px;right:14px;display:grid;place-items:center;width:42px;height:42px;border:1px solid rgba(255,255,255,.7);border-radius:50%;background:rgba(8,13,25,.72);color:#fff;font-size:28px;line-height:1;cursor:pointer;backdrop-filter:blur(8px)}
-html.theme-dark .news-article-modal{background:#fff;color:#171923}
+/* La ventana de noticias conserva su estilo claro original; solo cambia en tema oscuro. */
+html.theme-dark .news-article-modal {
+  background: #01081D;
+  color: #fff;
+}
+html.theme-dark .news-article-modal__copy .section-tag,
+html.theme-dark .news-article-modal__copy h2,
+html.theme-dark .news-article-modal__copy > p:not(.section-tag),
+html.theme-dark .news-article-modal__copy small {
+  color: #fff;
+}
 @media(max-width:800px){.news-editorial-hero{min-height:730px;padding:110px 0 145px}.news-editorial-hero__fade{height:180px}.news-editorial-hero__layout{grid-template-columns:1fr;gap:32px;min-height:0}.news-editorial-hero__lead{max-width:640px}.news-editorial-hero__sidebar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 20px;padding:0;border:0}.news-editorial-hero__sidebar-title{grid-column:1/-1;margin-bottom:0}.news-editorial-hero__teaser{padding:13px 23px 13px 0}.news-editorial-hero__bottomline{bottom:-112px}.news-editorial-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.news-editorial-card--lead{grid-column:1/-1}}
 @media(max-width:560px){.news-editorial-hero{min-height:780px;padding:105px 0 130px}.news-editorial-hero__lead{min-width:0;width:100%}.news-editorial-hero__lead .section-tag{margin-bottom:20px}.news-editorial-hero__index{margin-bottom:17px}.news-editorial-hero__lead h1{max-width:100%;font-size:clamp(30px,8.5vw,40px);overflow-wrap:anywhere}.news-editorial-hero__description{font-size:14px}.news-editorial-hero__sidebar{grid-template-columns:1fr;gap:0}.news-editorial-hero__sidebar-title{margin-bottom:3px}.news-editorial-hero__teaser{padding:11px 24px 11px 0}.news-editorial-hero__teaser strong{font-size:15px}.news-editorial-hero__bottomline{bottom:-99px;gap:10px;font-size:8px}.news-editorial-content{padding-top:54px}.news-editorial-section-heading{align-items:flex-start;flex-direction:column;margin-bottom:22px}.news-editorial-section-heading__count{padding:0}.news-editorial-grid{grid-template-columns:1fr;gap:13px}.news-editorial-card--lead{grid-column:auto;grid-template-columns:1fr}.news-editorial-card--lead .news-editorial-card__image{height:215px;min-height:0}.news-editorial-card__image{height:195px}.news-editorial-card__copy,.news-editorial-card--lead .news-editorial-card__copy{padding:20px}.news-editorial-card__copy h3,.news-editorial-card--lead .news-editorial-card__copy h3{font-size:21px}}
 @media(max-width:560px){.news-article-modal-backdrop{padding:12px}.news-article-modal{border-radius:18px}.news-article-modal>img{height:210px}.news-article-modal__copy{padding:22px 19px}.news-article-modal__copy>p:not(.section-tag){font-size:14px}}
@@ -5164,20 +5175,17 @@ html.theme-dark .app-site.administration-page .content-manager.is-embedded
 }
 
 
-/* Fix: readable news details on the white modal in both themes. */
+/* Noticias: en tema oscuro el panel completo usa azul marino y texto blanco.
+   El tema claro conserva los estilos originales de la captura. */
 html.theme-dark .app-site .news-article-modal,
 html.theme-dark .app-site .news-article-modal__copy {
-  background-color: #fff;
-  color: #171923;
+  background-color: #01081D;
+  color: #fff;
 }
-html.theme-dark .app-site .news-article-modal__copy h2 {
-  color: #171923 !important;
-}
-html.theme-dark .app-site .news-article-modal__copy > p:not(.section-tag) {
-  color: #4d5360 !important;
-}
+html.theme-dark .app-site .news-article-modal__copy h2,
+html.theme-dark .app-site .news-article-modal__copy > p:not(.section-tag),
 html.theme-dark .app-site .news-article-modal__copy .section-tag {
-  color: #b20b2d !important;
+  color: #fff !important;
 }
 
 /* Fix: balanced text gutters for expanded cargo cards, without touching mobile. */

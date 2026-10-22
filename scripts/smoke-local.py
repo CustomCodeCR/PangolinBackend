@@ -175,7 +175,13 @@ def main():
     # Editor visual: borradores jamás públicos, publicación visible y restauración segura.
     status, existing_slots = call(browser, '/api/admin/content/site')
     require(status == 200 and isinstance(existing_slots, list), 'No se consultaron las ubicaciones CMS.')
-    used_keys = {item.get('key') for item in existing_slots}
+    used_keys = {
+        item.get('key') for item in existing_slots
+        if any(item.get(field) is not None for field in (
+            'draftEs', 'draftEn', 'draftMediaId',
+            'publishedEs', 'publishedEn', 'publishedMediaId'
+        ))
+    }
     site_key = next((key for key in ('home.hero.title1', 'about.values.heading', 'login.hero.title1')
                      if key not in used_keys), None)
     require(site_key is not None, 'No hay ubicación vacía de prueba: se evita sobrescribir contenido real.')
@@ -270,7 +276,7 @@ def main():
     }
     media = {
         'name': 'SMOKE MEDIA ' + uuid4().hex[:10],
-        'kind': 'Imagen', 'src': '/images/cover-logistics.jpeg'
+        'kind': 'Imagen', 'src': '/images/cover-logistics.jpeg?qa=' + uuid4().hex
     }
     news_id = None
     media_id = None
