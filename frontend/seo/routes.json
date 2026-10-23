@@ -1,13 +1,13 @@
 {
   "/": {
     "title": "Castro Fallas | Agencia aduanal y logística en Costa Rica",
-    "description": "Agencia aduanal en Costa Rica, transporte marítimo, aéreo y terrestre Panamá–Costa Rica. Consolidado LCL/LTL, FCL/FTL. Cotizá con Castro Fallas.",
+    "description": "Agencia aduanal en Costa Rica, transporte marítimo FCL, consolidado LCL, transporte aéreo y carga terrestre LTL/FTL Panamá–Costa Rica con Grupo Castro Fallas.",
     "socialImage": "/images/hero.webp",
     "socialImageAlt": "Transporte y logística internacional de Grupo Castro Fallas"
   },
   "/home": {
     "title": "Castro Fallas | Agencia aduanal y logística en Costa Rica",
-    "description": "Agencia aduanal en Costa Rica, transporte marítimo, aéreo y terrestre Panamá–Costa Rica. Consolidado LCL/LTL, FCL/FTL. Cotizá con Castro Fallas.",
+    "description": "Agencia aduanal en Costa Rica, transporte marítimo FCL, consolidado LCL, transporte aéreo y carga terrestre LTL/FTL Panamá–Costa Rica con Grupo Castro Fallas.",
     "socialImage": "/images/hero.webp",
     "socialImageAlt": "Transporte y logística internacional de Grupo Castro Fallas"
   },
@@ -19,51 +19,15 @@
   },
   "/nosotros": {
     "title": "Nosotros | Grupo Castro Fallas, logística en Costa Rica",
-    "description": "Conocé a Grupo Castro Fallas, empresa de logística en Costa Rica con experiencia en transporte internacional de carga y servicios aduaneros.",
+    "description": "Conocé a Grupo Castro Fallas, empresa de logística internacional en Costa Rica: servicios aduaneros, transporte marítimo, aéreo y terrestre.",
     "socialImage": "/images/about-operations-enhanced.jpg",
     "socialImageAlt": "Equipo y operaciones logísticas de Castro Fallas"
   },
   "/servicios": {
     "title": "Transporte de carga y servicios aduaneros | Castro Fallas Costa Rica",
-    "description": "Servicios de transporte de carga Panamá–Costa Rica LTL y FTL, logística aérea y marítima, trámites aduaneros y almacenamiento con Grupo Castro Fallas.",
+    "description": "Servicios de agencia aduanal, transporte marítimo FCL, carga consolidada LCL, transporte aéreo, terrestre LTL/FTL Panamá–Costa Rica y logística internacional.",
     "socialImage": "/images/services-crane.webp",
     "socialImageAlt": "Operaciones de transporte y servicios logísticos de Castro Fallas"
-  },
-  "/servicios/agencia-aduanal": {
-    "title": "Agencia aduanal en Costa Rica | Grupo Castro Fallas",
-    "description": "Agencia aduanal en Costa Rica para importaciones y exportaciones. Coordinación de trámites, documentos y transporte internacional con Grupo Castro Fallas.",
-    "socialImage": "/images/services-crane.webp",
-    "socialImageAlt": "Agencia aduanal de Grupo Castro Fallas"
-  },
-  "/servicios/transporte-maritimo": {
-    "title": "Transporte marítimo FCL y LCL | Castro Fallas Costa Rica",
-    "description": "Transporte marítimo internacional en Costa Rica con modalidades FCL y LCL. Coordinamos carga, importaciones, exportaciones y cotizaciones logísticas.",
-    "socialImage": "/images/services-crane.webp",
-    "socialImageAlt": "Transporte marítimo de Grupo Castro Fallas"
-  },
-  "/servicios/transporte-terrestre": {
-    "title": "Transporte terrestre FTL y LTL en Costa Rica | Castro Fallas",
-    "description": "Transporte terrestre regional FTL y LTL en Costa Rica. Coordinamos carga consolidada y camiones completos entre Panamá y Costa Rica.",
-    "socialImage": "/images/services-crane.webp",
-    "socialImageAlt": "Transporte terrestre de Grupo Castro Fallas"
-  },
-  "/servicios/transporte-aereo": {
-    "title": "Transporte aéreo de carga en Costa Rica | Castro Fallas",
-    "description": "Transporte aéreo internacional en Costa Rica. Coordinación de embarques, documentación aduanera y soluciones logísticas para importar o exportar.",
-    "socialImage": "/images/services-crane.webp",
-    "socialImageAlt": "Transporte aéreo de Grupo Castro Fallas"
-  },
-  "/servicios/consolidado-lcl": {
-    "title": "Consolidado marítimo LCL en Costa Rica | Castro Fallas",
-    "description": "Consolidado de carga marítima LCL en Costa Rica. Transporte internacional para mercancías que no requieren contenedor completo. Solicitá una cotización.",
-    "socialImage": "/images/services-crane.webp",
-    "socialImageAlt": "Consolidado marítimo LCL de Grupo Castro Fallas"
-  },
-  "/servicios/consolidado-terrestre-panama-costa-rica": {
-    "title": "Consolidado Panamá–Costa Rica LTL | Grupo Castro Fallas",
-    "description": "Carga consolidada terrestre LTL Panamá–Costa Rica y transporte FTL. Coordinación logística, trámites aduaneros y cotizaciones con Castro Fallas.",
-    "socialImage": "/images/services-crane.webp",
-    "socialImageAlt": "Consolidado terrestre Panamá–Costa Rica de Grupo Castro Fallas"
   },
   "/tracking": {
     "title": "Seguimiento de carga | Castro Fallas",

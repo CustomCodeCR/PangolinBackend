@@ -9,8 +9,6 @@ import About from './pages/About.vue'
 const Tracking = defineAsyncComponent(() => import('./pages/Tracking.vue'))
 const Itinerary = defineAsyncComponent(() => import('./pages/Itinerary.vue'))
 import Services from './pages/Services.vue'
-import SeoService from './pages/SeoService.vue'
-import servicePages from '../seo/service-pages.json'
 import Legal from './pages/Legal.vue'
 const Administration = defineAsyncComponent(() => import('./pages/Administration.vue'))
 import OfficialQuoteWizard from './pages/OfficialQuoteWizard.vue'
@@ -126,7 +124,6 @@ const page = computed(()=> {
   if(path==='/noticias') return 'news'
   if(path==='/nosotros') return 'about'
   if(path==='/servicios') return 'services'
-  if(path in servicePages) return 'seo-service'
   if(path==='/tracking') return 'tracking'
   if(path==='/itinerario') return 'itinerary'
   if(path==='/cotizaciones') return officialQuotesEnabled ? 'official-quote' : 'quote-legacy'
@@ -163,7 +160,6 @@ const page = computed(()=> {
   <News v-else-if="page==='news'"/>
   <About v-else-if="page==='about'"/>
   <Services v-else-if="page==='services'"/>
-  <SeoService v-else-if="page==='seo-service'" />
   <div v-else-if="page==='notFound'" class="app-site">
     <SiteHeader />
     <main class="container" style="min-height:60vh;padding-block:6rem">

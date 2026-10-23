@@ -5,13 +5,11 @@ import { siteText, siteVisual, siteCssImage } from '../siteCms'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { services as baseServices, type ServiceKey } from '../content'
-import servicePages from '../../seo/service-pages.json'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 
 const { t, locale } = useI18n({ useScope: 'global' })
 const activeService = ref<ServiceKey>('Air')
-const seoServiceLinks = Object.entries(servicePages).map(([url, page]) => ({ url, name: page.shortName }))
 const modalService = ref<ServiceKey | null>(null)
 const modalPhoto = computed(() => siteCssImage(`services.${modalService.value?.toLowerCase()}.media`, baseServices.find(service => service.key === modalService.value)?.photo ?? '/images/hero.webp'))
 const modalItemCounts: Record<ServiceKey, number[]> = { Maritime: [5, 4, 3], Land: [4, 4, 3], Air: [4, 3], Multimodal: [3, 3] }
@@ -76,16 +74,6 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
         </div>
       </section>
 
-      <section class="seo-services-directory section-spacing" aria-labelledby="seo-services-directory-title">
-        <div class="container">
-          <h2 id="seo-services-directory-title" class="section-title centered">Explorá nuestros servicios en detalle</h2>
-          <p class="section-desc centered">Conocé las alternativas de transporte y gestión aduanera para tu operación.</p>
-          <nav class="seo-services-directory__links" aria-label="Servicios de Grupo Castro Fallas">
-            <a v-for="item in seoServiceLinks" :key="item.url" :href="item.url">{{ item.name }} <span aria-hidden="true">↗</span></a>
-          </nav>
-        </div>
-      </section>
-
       <section class="complementary section-spacing" id="servicios-complementarios">
         <div class="container">
           <p class="section-tag center">{{ $t('phrases.p048') }}</p>
@@ -128,12 +116,3 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
     <SiteFooter />
   </div>
 </template>
-
-<style scoped>
-.seo-services-directory { background: #f8f9fb; }
-.seo-services-directory__links { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 34px; }
-.seo-services-directory__links a { background: #fff; border: 1px solid #e8e9eb; border-radius: 14px; padding: 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; font-weight: 750; color: #28303b; transition: border-color .2s, transform .2s; }
-.seo-services-directory__links a:hover, .seo-services-directory__links a:focus-visible { border-color: #b50925; transform: translateY(-2px); }
-@media (max-width: 800px) { .seo-services-directory__links { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 500px) { .seo-services-directory__links { grid-template-columns: 1fr; } }
-</style>
