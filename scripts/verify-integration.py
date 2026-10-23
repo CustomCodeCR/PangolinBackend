@@ -205,12 +205,13 @@ check('type LegalDocument = { title: string; intro: string; sections: LegalSecti
       and '/licenses/globe-third-party-notices.txt' in legal_page and (root / 'frontend/public/licenses/globe-third-party-notices.txt').is_file(),
       'Páginas legales ES/EN sin aviso de borrador y con advertencias de datos por confirmar')
 check('class="container quote-access-status quote-access-status--blocked"' in rootvue
-      and rootvue.count('class="container quote-access-status quote-access-status--blocked"') == 2
+      and rootvue.count('class="container quote-access-status quote-access-status--blocked"') == 3
+      and 'trackingSessionRequiredHelp' in rootvue
       and '.quote-flow-page>.site-footer{margin-top:auto}' in shared_mobile_styles
       and '@media (max-width: 800px)' in shared_mobile_styles
       and '.quote-flow-page > .quote-access-status--blocked' in shared_mobile_styles
       and 'padding-bottom: clamp(40px, 7vh, 64px);' in shared_mobile_styles,
-      'Cotización sin sesión mantiene espacio bajo el botón antes del footer en móvil')
+      'Cotizaciones y rastreo sin sesión conservan aviso, acceso al login y espacio antes del footer en móvil')
 check('<IconSymbol glyph="←" :size="20" />' in login
       and '<span aria-hidden="true">←</span>' not in login
       and '.login-visual .login-guest-back .lucide-symbol {' in shared_mobile_styles
