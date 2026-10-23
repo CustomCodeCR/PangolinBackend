@@ -84,7 +84,7 @@ assert.match(news, /news\.length/, 'Debe contemplar carrusel vacío')
 assert.match(news, /const q = \(es: string, en: string\) => locale\.value === 'en' \? en : es/, 'La sección de noticias debe reaccionar al idioma')
 for (const translation of [
   "q('CASTRO FALLAS · ACTUALIDAD', 'CASTRO FALLAS · LATEST UPDATES')",
-  "q('Noticias', 'News')",
+  "q('Noticias de logística y comercio exterior', 'Logistics and foreign trade news')",
   "q('Cargando publicaciones…', 'Loading news…')",
   "q('No pudimos cargar las noticias en este momento. Inténtalo de nuevo más tarde.', 'We could not load the news right now. Please try again later.')",
   "q('Aún no hay noticias publicadas. Pronto compartiremos novedades.', 'No news has been published yet. We will share updates soon.')"
