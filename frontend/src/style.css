@@ -5200,6 +5200,19 @@ html.theme-dark .app-site .news-article-modal__copy .section-tag {
   }
 }
 
+/* Tracking hero on larger screens: keep floating captions away from the
+   globe and location pins without changing the globe or city labels. The
+   mobile layout below still gives each caption its own row. */
+@media (min-width: 801px) {
+  .app-site.tracking-site .tracking-intro .world-globe .globe-floating-tag.tag-global {
+    top: 5%;
+  }
+  .app-site.tracking-site .tracking-intro .world-globe .globe-floating-tag.tag-cr {
+    bottom: 7%;
+    left: 1%;
+  }
+}
+
 /* Mobile globe: the two captions sit in dedicated rows instead of being
    absolutely positioned over the rendered countries and office labels. */
 @media (max-width: 800px) {
