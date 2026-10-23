@@ -7,6 +7,7 @@ const props = defineProps<{
   options: DropdownChoice[]
   ariaLabel: string
   id?: string
+  disabled?: boolean
 }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 const uid = useId()
@@ -39,13 +40,14 @@ function positionMenu() {
 }
 function closeMenu() { isOpen.value = false }
 function openMenu(focusOption = false) {
+  if (props.disabled) return
   positionMenu()
   isOpen.value = true
   if (focusOption) void nextTick(() => {
     (menu.value?.querySelector('[aria-selected="true"]') as HTMLButtonElement | null)?.focus({ preventScroll: true })
   })
 }
-function toggleMenu() { if (isOpen.value) closeMenu(); else openMenu() }
+function toggleMenu() { if (props.disabled) return; if (isOpen.value) closeMenu(); else openMenu() }
 function choose(value: string) {
   emit('update:modelValue', value)
   closeMenu()
@@ -72,6 +74,7 @@ function handleKeydown(event: KeyboardEvent) {
     items[next]?.focus({ preventScroll: true })
   } else if (event.key === 'Tab') closeMenu()
 }
+watch(() => props.disabled, (disabled) => { if (disabled) closeMenu() })
 watch(isOpen, (open) => {
   if (open) {
     document.addEventListener('pointerdown', outsidePointer, true)
@@ -94,7 +97,7 @@ onBeforeUnmount(removeListeners)
 <template>
   <div class="cf-dropdown">
     <button :id="id" ref="trigger" type="button" class="cf-dropdown__trigger"
-      role="combobox" :aria-label="ariaLabel" aria-haspopup="listbox"
+      role="combobox" :aria-label="ariaLabel" :disabled="disabled" aria-haspopup="listbox"
       :aria-controls="listId" :aria-expanded="isOpen"
       @click="toggleMenu" @keydown.down.prevent="openMenu(true)"
       @keydown.up.prevent="openMenu(true)" @keydown.esc.prevent="closeMenu">
@@ -124,6 +127,7 @@ onBeforeUnmount(removeListeners)
   font-size:14px; font-weight:600; line-height:1.35; cursor:pointer;
 }
 .cf-dropdown__trigger:focus-visible { outline:2px solid #b20c2a; outline-offset:2px; }
+.cf-dropdown__trigger:disabled {cursor:not-allowed;opacity:.6;}
 .cf-dropdown__value { min-width:0; overflow-wrap:anywhere; }
 .cf-dropdown__chevron { flex:none; width:8px; height:8px; border-right:2px solid currentColor; border-bottom:2px solid currentColor; transform:translateY(-3px) rotate(45deg); }
 .cf-dropdown__menu {
@@ -152,10 +156,58 @@ html.theme-dark .cf-dropdown__menu {
 html.theme-dark .cf-dropdown__menu > button:is(:hover,:focus-visible,.cf-dropdown__option--selected) {
   background:#30262d; color:#ff806f;
 }
+/* Itinerary controls follow the quote palette in both themes. */
+.app-site.itinerary-page .itinerary-form-line input,
+.app-site.itinerary-page .itinerary-form-line .cf-dropdown__trigger {
+  box-sizing:border-box;
+  width:100%;
+  min-height:42px;
+  border:1px solid #cfd2dc;
+  border-radius:13px;
+  background:#fff;
+  color:#242630;
+  font-size:14px;
+  font-weight:600;
+  box-shadow:none;
+}
+.app-site.itinerary-page .itinerary-form-line input::placeholder {color:#92939b;opacity:1;}
+html.theme-dark .app-site.itinerary-page .itinerary-form-line input,
+html.theme-dark .app-site.itinerary-page .itinerary-form-line .cf-dropdown__trigger {
+  border-color:rgba(255,255,255,.22);
+  background:#121a30;
+  color:#fff;
+}
+html.theme-dark .app-site.itinerary-page .itinerary-form-line input::placeholder {color:#acb1bd;}
+/* The administrator uses the same surface and text sizing as quotation fields. */
+.content-manager .cf-dropdown__trigger {
+  background:var(--manager-input,#fff);
+  color:var(--manager-ink,#242630);
+  border-color:var(--manager-input-line,#cfd2dc);
+  border-radius:10px;
+  min-height:46px;
+  font-size:14px;
+}
+html.theme-dark .content-manager .cf-dropdown__trigger {
+  background:#121a30;
+  border-color:#3b465f;
+  color:#fff;
+}
+.off-admin-form .cf-dropdown__trigger {
+  min-height:46px;
+  background:var(--oq-input,#fff);
+  border-color:var(--oq-input-border,#cfd2dc);
+  color:var(--oq-ink,#242630);
+}
+html.theme-dark .off-admin-form .cf-dropdown__trigger {
+  background:#121a30;
+  border-color:#3b465f;
+  color:#fff;
+}
 /* Itinerary filters use the same type size as their date fields on desktop. */
-.app-site.itinerary-page .cf-dropdown__trigger { min-height:42px; font-size:12px; }
+.app-site.itinerary-page .cf-dropdown__trigger { min-height:42px; font-size:14px; }
 @media(max-width:650px) {
   .cf-dropdown__trigger, .app-site.itinerary-page .cf-dropdown__trigger { min-height:46px; font-size:16px; }
+  .app-site.itinerary-page .itinerary-form-line input {font-size:16px;}
   .cf-dropdown__menu > button { font-size:16px; }
 }
 </style>
