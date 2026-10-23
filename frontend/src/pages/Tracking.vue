@@ -199,7 +199,7 @@ onBeforeUnmount(() => {
             <h1>{{ copy.title }} <span>{{ copy.accent }}</span></h1>
             <p class="tracking-lead">{{ copy.intro }}</p>
           </div>
-          <WorldGlobe :shipment="shipment" />
+          <WorldGlobe :shipment="shipment" :initial-zoom="0.8" />
         </section>
         <section class="tracking-search-section">
           <form class="tracking-search" @submit.prevent="searchShipment" novalidate>
