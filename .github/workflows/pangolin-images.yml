@@ -61,7 +61,7 @@ jobs:
           file: ./frontend/Dockerfile
           push: true
           build-args: |
-            VITE_OFFICIAL_QUOTES_ENABLED=false
+            VITE_OFFICIAL_QUOTES_ENABLED=true
           tags: |
             ghcr.io/customcodecr/pangolinbackend/frontend:latest
             ghcr.io/customcodecr/pangolinbackend/frontend:${{ steps.version.outputs.tag }}
@@ -234,7 +234,7 @@ jobs:
             '
           unset PGPASSWORD PANGOLIN_DB_PASSWORD
 
-      - name: Initialize Pangolin tables only for a clean database
+      - name: Initialize base schema and prepare official quotes catalog
         shell: bash
         run: |
           set -euo pipefail
@@ -252,18 +252,52 @@ jobs:
             echo "Fresh Pangolin database: applying schema from backend image."
             {
               docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/AuthSchema.sql
-              docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/OfficialQuotesSchema.sql
             } | docker run --rm -i --network "$DHOLE_NETWORK" \
               -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD \
               postgres:16-alpine psql -X -d pangolin --single-transaction -v ON_ERROR_STOP=1 >/dev/null
           else
-            required="$(pg_query "SELECT COUNT(*) FROM (VALUES ('public.clientes'), ('public.usuarios'), ('public.otp_challenges'), ('public.auth_sessions'), ('public.cms_news'), ('public.cms_comments'), ('public.itinerarios'), ('public.quote_requests'), ('public.official_quote_requests')) AS t(tab) WHERE to_regclass(t.tab) IS NOT NULL")"
-            if [[ "$required" != "9" ]]; then
-              echo "::error::Existing Pangolin schema is incomplete. Backup and perform a reviewed migration."
+            required="$(pg_query "SELECT COUNT(*) FROM (VALUES ('public.clientes'), ('public.usuarios'), ('public.otp_challenges'), ('public.auth_sessions'), ('public.cms_news'), ('public.cms_comments'), ('public.itinerarios'), ('public.quote_requests')) AS t(tab) WHERE to_regclass(t.tab) IS NOT NULL")"
+            if [[ "$required" != "8" ]]; then
+              echo "::error::Existing Pangolin base schema is incomplete. Stop and perform a reviewed migration."
               exit 1
             fi
-            echo "Existing Pangolin schema verified: no migration applied."
+            echo "Existing Pangolin base schema verified; official schema will be checked and upgraded additively."
           fi
+          # Solo archivos oficiales sin datos DEV; DDL IF NOT EXISTS e INSERT ON CONFLICT.
+          # Una sola transacción, con ON_ERROR_STOP: un error impide el despliegue.
+          echo "Applying additive official quote tables and verified location catalogs."
+          {
+            docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/OfficialQuotesSchema.sql
+            docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/OfficialQuotesVerifiedLocations.sql
+            docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/OfficialQuotesVideoLocations.sql
+          } | docker run --rm -i --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD postgres:16-alpine psql -X -d pangolin --single-transaction -v ON_ERROR_STOP=1 >/dev/null
+          # Verificar cada combinación usada por el asistente antes de mostrarlo al cliente.
+          ready_roles="$(pg_query "SELECT COUNT(*) FROM (VALUES
+            ('seaport','FCL','origin'),('seaport','FCL','destination'),('seaport','FCL','pod'),
+            ('seaport','LCL','origin'),('seaport','LCL','destination'),('seaport','LCL','pod'),
+            ('airport','AIR_LCL','origin'),('airport','AIR_LCL','destination'),
+            ('inland','FTL','origin'),('inland','FTL','destination'),
+            ('inland','LTL','origin'),('inland','LTL','destination')
+          ) AS needed(kind, shipment_type, route_role) WHERE EXISTS (
+            SELECT 1 FROM public.official_quote_locations loc
+            JOIN public.official_quote_location_usage usage ON usage.location_id=loc.id
+            WHERE loc.active AND loc.kind=needed.kind
+              AND usage.shipment_type=needed.shipment_type AND usage.route_role=needed.route_role
+          )")"
+          if [[ "$ready_roles" != "12" ]]; then
+            echo "::error::Official quote location catalog incomplete (ready roles: $ready_roles/12). Refusing to deploy."
+            exit 1
+          fi
+          required_tables="$(pg_query "SELECT COUNT(*) FROM (VALUES
+            ('public.official_quote_locations'),('public.official_quote_location_usage'),
+            ('public.official_quote_requests'),('public.official_quote_permissions'),
+            ('public.official_quote_audit')
+          ) AS t(tab) WHERE to_regclass(t.tab) IS NOT NULL")"
+          if [[ "$required_tables" != "5" ]]; then
+            echo "::error::Missing official quotes tables after migration."
+            exit 1
+          fi
+          echo "Official quote schema and all 12 location roles verified. No development fixtures loaded."
           unset PGPASSWORD
 
       - name: Deploy backend and frontend (images only)
@@ -308,6 +342,15 @@ jobs:
             echo "::error::Traefik WWW route did not return Pangolin backend readiness."
             exit 1
           fi
+          # Sin cookie, la API protegida debe responder 401/403 (no 404 ni 5xx).
+          for protected_path in '/api/quotes/official/locations?kind=seaport&shipmentType=FCL&routeRole=origin' '/api/admin/quotes/official/permissions/me'; do
+            quote_http="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$local_port$protected_path")"
+            if [[ "$quote_http" != "401" && "$quote_http" != "403" ]]; then
+              echo "::error::Protected official quotes API unexpected response (HTTP $quote_http)."
+              exit 1
+            fi
+          done
+          echo "Official quote and admin routes respond with authentication required."
           # Reproducir un POST real de navegador con TLS terminado en Traefik:
           # Logout sin cookie no revoca sesiones ni envía OTP.
           # Ambas variantes del dominio deben validar su propio Origin y Host.
