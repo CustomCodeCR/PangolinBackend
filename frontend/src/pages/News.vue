@@ -287,7 +287,8 @@ onUnmounted(() => {
 .news-article-page__empty { padding:80px 0 130px; }
 .news-article-page__empty h1 { font-size:clamp(30px,4vw,48px); }
 .news-article-page__empty a { color:#ad0b26; }
-:global(html.theme-dark) .news-article-page { background:#01081d; color:#fff; }
+/* Override the site's broad `html.theme-dark .app-site main` gradient only on article pages. */
+:global(html.theme-dark .app-site.news-page main.news-article-page) { background:#01081d; color:#fff; }
 :global(html.theme-dark) .news-article-page__heading, :global(html.theme-dark) .news-article-page__back { border-color:rgba(255,255,255,.18); }
 :global(html.theme-dark) .news-article-page__navigation a, :global(html.theme-dark) .news-article-page__back, :global(html.theme-dark) .news-article-page__empty a { color:#ff5570; }
 :global(html.theme-dark) .news-article-page__heading .section-tag { color:#ff5570; }
