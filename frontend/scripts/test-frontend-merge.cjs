@@ -209,6 +209,16 @@ assert.match(tracking, /@click="openGuide"/, 'Conservar la guía a solicitud del
 assert.match(tracking, /\.tracking-fields\{grid-template-columns:minmax\(0,1fr\);gap:20px;/, 'Separar los campos en móvil')
 assert.match(tracking, /\.tracking-fields :is\(input,select\)\{min-height:54px;padding:13px 15px;font-size:16px;/, 'Controles táctiles con fuente legible en móvil')
 const homeStyles = source('src/style.css')
+
+const serviceOverlayCss = homeStyles.split('.service-modal-backdrop{')[1]?.split('}')[0] ?? ''
+const serviceCardCss = homeStyles.split('.service-modal__sections section{')[1]?.split('}')[0] ?? ''
+const serviceGlowCss = homeStyles.split('.service-modal::before{')[1]?.split('}')[0] ?? ''
+assert.ok(serviceOverlayCss.includes('backdrop-filter:none'), 'El fondo fuera del modal no debe desenfocarse')
+assert.ok(!serviceOverlayCss.includes('blur('), 'No aplicar blur al fondo de pantalla')
+assert.ok(serviceCardCss.includes('backdrop-filter:blur(14px)'), 'Desenfocar solo los recuadros de detalles')
+assert.ok(serviceCardCss.includes('-webkit-backdrop-filter:blur(14px)'), 'Soportar blur solo en los recuadros de Safari')
+assert.ok(!serviceGlowCss.includes('filter:blur('), 'No desenfocar el efecto decorativo del modal')
+
 const trackingDesktopGlobe = homeStyles.slice(homeStyles.indexOf('/* Tracking hero on larger screens: keep floating captions'), homeStyles.indexOf('/* Mobile globe: the two captions'))
 assert.match(trackingDesktopGlobe, /@media \(min-width: 801px\)/, 'Separación de rótulos limitada a escritorio')
 assert.match(trackingDesktopGlobe, /\.app-site\.tracking-site \.tracking-intro \.world-globe \.globe-floating-tag\.tag-global\s*\{\s*top: 5%;/, 'Conexiones globales no queda pegada a la esfera')
