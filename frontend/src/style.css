@@ -5199,3 +5199,60 @@ html.theme-dark .app-site .news-article-modal__copy .section-tag {
     max-width: 100%;
   }
 }
+
+/* Mobile globe: the two captions sit in dedicated rows instead of being
+   absolutely positioned over the rendered countries and office labels. */
+@media (max-width: 800px) {
+  .app-site.home-page .tracking-home-grid .world-globe,
+  .app-site.tracking-site .tracking-intro .world-globe {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-start;
+    gap:clamp(18px,4vw,26px);
+    box-sizing:border-box;
+    width:100%;
+    min-height:0;
+    aspect-ratio:auto;
+    padding:16px 8px 24px;
+    overflow:visible;
+  }
+  .app-site.home-page .tracking-home-grid .world-globe__canvas,
+  .app-site.tracking-site .tracking-intro .world-globe__canvas {
+    order:2;
+    display:block;
+    flex:0 0 auto;
+    width:min(100%,520px);
+    height:auto;
+    max-height:none;
+    aspect-ratio:1;
+    margin-inline:auto;
+  }
+  .app-site.home-page .tracking-home-grid .globe-floating-tag,
+  .app-site.tracking-site .tracking-intro .globe-floating-tag {
+    position:static;
+    inset:auto;
+    z-index:2;
+    box-sizing:border-box;
+    max-width:100%;
+    width:auto;
+    margin:0;
+    padding:0 4px;
+    line-height:1.4;
+    font-size:clamp(10px,2.6vw,13px);
+    letter-spacing:.09em;
+    overflow-wrap:break-word;
+  }
+  .app-site.home-page .tracking-home-grid .globe-floating-tag.tag-global,
+  .app-site.tracking-site .tracking-intro .globe-floating-tag.tag-global {
+    order:1;
+    align-self:flex-end;
+    text-align:right;
+  }
+  .app-site.home-page .tracking-home-grid .globe-floating-tag.tag-cr,
+  .app-site.tracking-site .tracking-intro .globe-floating-tag.tag-cr {
+    order:3;
+    align-self:flex-start;
+    text-align:left;
+  }
+}
