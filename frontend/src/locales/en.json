@@ -440,7 +440,7 @@
       "seeMore": "Learn more",
       "trackingTitle": "Track your cargo",
       "quoteCardTitle": "Quote your cargo",
-      "officeAddress": "Across from Café Volio, Barrio San José, Curridabat, Costa Rica"
+      "officeAddress": "WX83+2PJ, María Auxiliadora, Curridabat, San José, 11801, Costa Rica"
     },
     "news": {
       "readArticle": "Read story",
@@ -665,6 +665,10 @@
       "sourceUpdated": "request updated",
       "checkError": "Could not retrieve the request.",
       "checkingSession": "Checking your session…",
+      "sessionRequiredTitle": "An active session is required",
+      "quoteSessionRequiredHelp": "Sign in to submit a request.",
+      "trackingSessionRequiredHelp": "Sign in with an authorized account to track your shipments.",
+      "sessionRequiredAction": "Sign in",
       "loginRequired": "Sign in to request a quote.",
       "loginRequiredHelp": "You can browse as a guest, but requesting a quote requires an authorized account.",
       "goToLogin": "Sign in",

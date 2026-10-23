@@ -417,7 +417,7 @@ onUnmounted(() => {
             <strong>{{ $t('custom.home.contact.2') }}</strong>
             <small>+506 7078-6860</small>
           </a>
-          <a class="home-contact-card" href="https://maps.google.com/?q=Frente+a+Caf%C3%A9+Volio,+Curridabat,+Costa+Rica" target="_blank" rel="noopener noreferrer">
+          <a class="home-contact-card" href="https://www.google.com/maps?cid=4581825598564937253" target="_blank" rel="noopener noreferrer">
             <IconSymbol class="home-contact-icon" glyph="⌖" :size="24" />
             <strong>{{ $t('custom.home.contact.3') }}</strong>
             <small>{{ $t('custom.home.officeAddress') }}</small>

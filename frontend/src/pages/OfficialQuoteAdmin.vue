@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
+import FieldDropdown from '../components/FieldDropdown.vue'
 import { refreshSession } from '../services/auth'
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 const emit = defineEmits<{ (event: 'total-change', total: number): void }>()
@@ -157,11 +158,11 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
             </dl>
             <form v-if="permissions.canManage" class="off-admin-form" @submit.prevent="review">
               <h3>Revisión administrativa</h3>
-              <label>Estado de la solicitud
-                <select v-model="state">
-                  <option v-for="s in statuses" :key="s[0]" :value="s[0]">{{s[1]}}</option>
-                </select>
-              </label>
+              <div class="off-admin-select-field">
+                <label>Estado de la solicitud</label>
+                <FieldDropdown v-model="state" aria-label="Estado de la solicitud"
+                  :options="statuses.map(s => ({value:s[0], label:s[1]}))" />
+              </div>
               <label>Comentario interno
                 <textarea v-model="comment" maxlength="2000" rows="3" placeholder="Agregá un comentario para el historial"></textarea>
               </label>
@@ -316,6 +317,8 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
 .off-admin-form {display:grid;gap:15px;border-top:1px solid var(--oq-line);padding-top:16px;margin-top:30px;}
 .off-admin-form h3 {margin:0 0 4px;}
 .off-admin-form label {display:grid;gap:8px;color:var(--oq-ink);font-size:13px;font-weight:750;}
+.off-admin-select-field {display:grid;gap:8px;min-width:0;}
+.off-admin-select-field > label {color:var(--oq-ink);font-size:13px;font-weight:750;}
 .off-admin-form :is(select,textarea) {
   width:100%;min-width:0;min-height:46px;padding:11px 14px;
   background:var(--oq-input);color:var(--oq-ink);

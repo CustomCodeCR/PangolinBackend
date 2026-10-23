@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import IconSymbol from '../components/IconSymbol.vue'
+import FieldDropdown from '../components/FieldDropdown.vue'
 import { refreshSession } from '../services/auth'
 
 const { locale } = useI18n({ useScope: 'global' })
@@ -13,7 +14,6 @@ type Mode = 'Maritime' | 'Air' | 'Land'
 type Type = 'FCL' | 'LCL' | 'AIR_LCL' | 'FTL' | 'LTL'
 type Loc = { id: string; displayName: string; code: string | null }
 type ContainerLine = { size: string; type: string; quantity: number; unitWeightsKg: number[] }
-type EquipmentField = 'size' | 'type'
 type EquipmentOption = { value: string; label: string }
 type PackageLine = { description: string; quantity: number; weight: number; length: number; width: number; height: number; stackability: 'Stackable' | 'NonStackable' }
 const localQuotePreview = import.meta.env.DEV && new URLSearchParams(window.location.search).get('previewRole') === 'cliente'
@@ -60,10 +60,7 @@ const typeOptions = computed(() => mode.value === 'Maritime'
     : [{ value: 'FTL' as Type, title: 'FTL', text: q('Camión completo', 'Full truckload') }, { value: 'LTL' as Type, title: 'LTL', text: q('Carga terrestre consolidada', 'Consolidated ground cargo') }])
 const equipmentMode = computed(() => shipmentType.value === 'FCL' || shipmentType.value === 'FTL')
 type LocationField = 'origin' | 'destination' | 'pod'
-const activeDropdown = ref<LocationField | 'incoterm' | null>(null)
-// Only one equipment dropdown can be open, even with multiple equipment lines.
-const equipmentDropdown = ref<string | null>(null)
-const equipmentDropdownKey = (index: number, field: EquipmentField) => index + '-' + field
+const openLocation = ref<LocationField | null>(null)
 const equipmentSizeOptions = computed<EquipmentOption[]>(() => shipmentType.value === 'FCL'
   ? ['20', '40', '45', '48'].map(n => ({ value: n + ' pies', label: n + ' ' + q('pies', 'ft') }))
   : [
@@ -75,67 +72,10 @@ const equipmentSizeOptions = computed<EquipmentOption[]>(() => shipmentType.valu
 const equipmentTypeOptions = computed<EquipmentOption[]>(() => shipmentType.value === 'FCL'
   ? ['Dry Van', 'High Cube', 'Open Top', 'Open Side', 'Tank', 'Flat Rack', 'NOR'].map(value => ({ value, label: value }))
   : [{ value: 'Furgón', label: q('Furgón', 'Truck') }])
-const equipmentOptions = (field: EquipmentField) => field === 'size' ? equipmentSizeOptions.value : equipmentTypeOptions.value
-const equipmentLabel = (field: EquipmentField, value: string) =>
-  equipmentOptions(field).find(option => option.value === value)?.label || value || q('Seleccionar', 'Select')
-function toggleEquipmentDropdown(index: number, field: EquipmentField) {
-  const key = equipmentDropdownKey(index, field)
-  const opening = equipmentDropdown.value !== key
-  equipmentDropdown.value = opening ? key : null
-  if (opening) {
-    incotermMenuOpen.value = false
-    openLocation.value = null
-  }
-}
-function chooseEquipment(index: number, field: EquipmentField, value: string) {
-  const line = form.equipment[index]
-  if (!line) return
-  line[field] = value
-  equipmentDropdown.value = null
-}
-const incotermMenuOpen = computed({
-  get: () => activeDropdown.value === 'incoterm',
-  set: (isOpen: boolean) => {
-    if (isOpen) activeDropdown.value = 'incoterm'
-    else if (activeDropdown.value === 'incoterm') activeDropdown.value = null
-  }
-})
-const openLocation = computed<LocationField | null>({
-  get: () => activeDropdown.value === 'incoterm' ? null : activeDropdown.value,
-  set: (field) => {
-    if (field) activeDropdown.value = field
-    else if (activeDropdown.value !== 'incoterm') activeDropdown.value = null
-  }
-})
 function closeOtherDropdowns(event: Event) {
   const target = event.target instanceof Element ? event.target : null
-  if (!target) return
-  if (target.closest('.official-equipment-wrap')) {
-    incotermMenuOpen.value = false
-    openLocation.value = null
-    return
-  }
-  equipmentDropdown.value = null
-  if (target.closest('.official-incoterm-wrap')) {
-    openLocation.value = null
-    return
-  }
-  if (target.closest('.official-location-combobox')) {
-    incotermMenuOpen.value = false
-    return
-  }
-  incotermMenuOpen.value = false
+  if (!target || target.closest('.official-location-combobox')) return
   openLocation.value = null
-}
-function toggleIncotermMenu() {
-  equipmentDropdown.value = null
-  const willOpen = !incotermMenuOpen.value
-  if (willOpen) openLocation.value = null
-  incotermMenuOpen.value = willOpen
-}
-function chooseIncoterm(item: string) {
-  form.incoterm = item
-  incotermMenuOpen.value = false
 }
 const selectedOrigin = computed(() => locations.value.find(x => x.id === form.originLocationId))
 const selectedDest = computed(() => destinations.value.find(x => x.id === form.destinationLocationId))
@@ -163,12 +103,10 @@ function updateLocationSearch(field: LocationField, event: Event) {
   const source = field === 'origin' ? locations.value : field === 'destination' ? destinations.value : podOptions.value
   const selected = source.find(loc => loc.id === selectedLocationId(field))
   if (selected && selected.displayName !== value) setLocationId(field, '')
-  incotermMenuOpen.value = false
   openLocation.value = field
   activeLocationIndex.value = 0
 }
 function focusLocation(field: LocationField) {
-  incotermMenuOpen.value = false
   openLocation.value = field
   activeLocationIndex.value = 0
 }
@@ -177,13 +115,19 @@ function chooseLocation(field: LocationField, location: Loc) {
   locationSearch[field] = location.displayName
   openLocation.value = null
 }
+function clearLocation(field: LocationField) {
+  // Clear both the visible search and the ID used for validation/submission.
+  setLocationId(field, '')
+  locationSearch[field] = ''
+  if (openLocation.value === field) openLocation.value = null
+  activeLocationIndex.value = 0
+}
 function closeLocation(field: LocationField) {
   window.setTimeout(() => {
     if (openLocation.value === field) openLocation.value = null
   }, 120)
 }
 function toggleLocation(field: LocationField) {
-  incotermMenuOpen.value = false
   openLocation.value = openLocation.value === field ? null : field
   activeLocationIndex.value = 0
 }
@@ -441,7 +385,7 @@ async function submit() {
                 <label for="quote-origin">{{ q('Origen', 'Origin') }} <span>*</span></label>
                 <div class="official-location-combobox">
                   <input id="quote-origin" :value="locationSearch.origin" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'origin'" aria-controls="quote-origin-options" autocomplete="off" :placeholder="q('Buscar ciudad o país', 'Search city or country')" required @focus="focusLocation('origin')" @input="updateLocationSearch('origin', $event)" @keydown="handleLocationKeydown('origin', $event)" @blur="closeLocation('origin')" />
-                  <button type="button" class="official-location-toggle" :aria-label="q('Mostrar ubicaciones de origen', 'Show origin locations')" tabindex="-1" @mousedown.prevent @click="toggleLocation('origin')">⌄</button>
+                  <button type="button" class="official-location-toggle" :class="{ 'official-location-toggle--clear': !!form.originLocationId }" :aria-label="form.originLocationId ? q('Limpiar origen', 'Clear origin') : q('Mostrar ubicaciones de origen', 'Show origin locations')" @mousedown.prevent @click="form.originLocationId ? clearLocation('origin') : toggleLocation('origin')">⌄</button>
                   <ul v-if="openLocation === 'origin'" id="quote-origin-options" class="official-location-options" role="listbox">
                     <li v-for="(loc,index) in optionsFor('origin')" :key="loc.id"><button type="button" role="option" :aria-selected="form.originLocationId === loc.id" :id="`quote-origin-option-${index}`" @mousedown.prevent @click="chooseLocation('origin', loc)"><span>{{ loc.displayName }}</span></button></li>
                     <li v-if="!optionsFor('origin').length" class="official-location-empty">{{ q('No hay ubicaciones que coincidan.', 'No matching locations.') }}</li>
@@ -452,7 +396,7 @@ async function submit() {
                 <label for="quote-destination">{{ q('Destino', 'Destination') }} <span>*</span></label>
                 <div class="official-location-combobox">
                   <input id="quote-destination" :value="locationSearch.destination" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'destination'" aria-controls="quote-destination-options" autocomplete="off" :placeholder="q('Buscar ciudad o país', 'Search city or country')" required @focus="focusLocation('destination')" @input="updateLocationSearch('destination', $event)" @keydown="handleLocationKeydown('destination', $event)" @blur="closeLocation('destination')" />
-                  <button type="button" class="official-location-toggle" :aria-label="q('Mostrar ubicaciones de destino', 'Show destination locations')" tabindex="-1" @mousedown.prevent @click="toggleLocation('destination')">⌄</button>
+                  <button type="button" class="official-location-toggle" :class="{ 'official-location-toggle--clear': !!form.destinationLocationId }" :aria-label="form.destinationLocationId ? q('Limpiar destino', 'Clear destination') : q('Mostrar ubicaciones de destino', 'Show destination locations')" @mousedown.prevent @click="form.destinationLocationId ? clearLocation('destination') : toggleLocation('destination')">⌄</button>
                   <ul v-if="openLocation === 'destination'" id="quote-destination-options" class="official-location-options" role="listbox">
                     <li v-for="(loc,index) in optionsFor('destination')" :key="loc.id"><button type="button" role="option" :aria-selected="form.destinationLocationId === loc.id" :id="`quote-destination-option-${index}`" @mousedown.prevent @click="chooseLocation('destination', loc)"><span>{{ loc.displayName }}</span></button></li>
                     <li v-if="!optionsFor('destination').length" class="official-location-empty">{{ q('No hay ubicaciones que coincidan.', 'No matching locations.') }}</li>
@@ -463,7 +407,7 @@ async function submit() {
                 <label for="quote-pod">POD {{ shipmentType === 'LCL' ? q('(requerido)', '(required)') : q('(opcional)', '(optional)') }}</label>
                 <div class="official-location-combobox">
                   <input id="quote-pod" :value="locationSearch.pod" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'pod'" aria-controls="quote-pod-options" autocomplete="off" :placeholder="shipmentType === 'LCL' ? q('Buscar ciudad o país', 'Search city or country') : q('Sin POD adicional', 'No additional POD')" @focus="focusLocation('pod')" @input="updateLocationSearch('pod', $event)" @keydown="handleLocationKeydown('pod', $event)" @blur="closeLocation('pod')" />
-                  <button type="button" class="official-location-toggle" :aria-label="q('Mostrar opciones de POD', 'Show POD options')" tabindex="-1" @mousedown.prevent @click="toggleLocation('pod')">⌄</button>
+                  <button type="button" class="official-location-toggle" :class="{ 'official-location-toggle--clear': !!form.podLocationId }" :aria-label="form.podLocationId ? q('Limpiar POD', 'Clear POD') : q('Mostrar opciones de POD', 'Show POD options')" @mousedown.prevent @click="form.podLocationId ? clearLocation('pod') : toggleLocation('pod')">⌄</button>
                   <ul v-if="openLocation === 'pod'" id="quote-pod-options" class="official-location-options" role="listbox">
                     <li v-if="shipmentType !== 'LCL'"><button type="button" role="option" :aria-selected="!form.podLocationId" @mousedown.prevent @click="form.podLocationId = ''; locationSearch.pod = ''; openLocation = null">{{ q('Sin POD adicional', 'No additional POD') }}</button></li>
                     <li v-for="(loc,index) in optionsFor('pod')" :key="loc.id"><button type="button" role="option" :aria-selected="form.podLocationId === loc.id" :id="`quote-pod-option-${index}`" @mousedown.prevent @click="chooseLocation('pod', loc)"><span>{{ loc.displayName }}</span></button></li>
@@ -472,23 +416,26 @@ async function submit() {
                 </div>
               </div>
               <div class="official-custom-field official-incoterm-field">
-                <label id="quote-incoterm-label">Incoterm <span>*</span></label>
-                <div class="official-select-wrap official-incoterm-wrap" @keydown.esc="incotermMenuOpen = false">
-                  <button id="quote-incoterm" type="button" class="official-incoterm-trigger" role="combobox" aria-labelledby="quote-incoterm-label" aria-haspopup="listbox" :aria-expanded="incotermMenuOpen" aria-controls="quote-incoterm-options" aria-required="true" @click="toggleIncotermMenu">
-                    {{ form.incoterm || q('Seleccionar Incoterm', 'Select Incoterm') }}
-                  </button>
-                  <ul v-if="incotermMenuOpen" id="quote-incoterm-options" class="official-incoterm-options" role="listbox">
-                    <li><button type="button" role="option" aria-selected="false" @click="form.incoterm = ''; incotermMenuOpen = false">{{ q('Seleccionar Incoterm', 'Select Incoterm') }}</button></li>
-                    <li v-for="item in incoterms" :key="item"><button type="button" role="option" :aria-selected="form.incoterm === item" @click="chooseIncoterm(item)">{{ item }}</button></li>
-                  </ul>
-                </div>
+                <label for="quote-incoterm">Incoterm <span>*</span></label>
+                <FieldDropdown id="quote-incoterm" v-model="form.incoterm" aria-label="Incoterm"
+                  :options="[
+                    {value:'', label:q('Seleccionar Incoterm', 'Select Incoterm')},
+                    ...incoterms.map(value => ({value, label:value}))
+                  ]" />
               </div>
               <label>{{ q('Fecha de carga lista', 'Cargo ready date') }} <span>*</span><input v-model="form.cargoReadyDate" type="date" required /></label>
             </div>
             <div v-if="form.incoterm === 'EXW'" class="official-nested">
               <h3>{{ q('Información adicional para EXW', 'Additional EXW information') }}</h3>
               <div class="official-fields">
-                <label>{{ q('Tipo de carga', 'Cargo type') }} <span>*</span><div class="official-select-wrap"><select v-model="form.exwCargoStatus"><option value="">{{ q('Seleccionar', 'Select') }}</option><option value="fiscal">{{ q('Carga fiscal', 'Bonded cargo') }}</option><option value="nationalized">{{ q('Carga nacionalizada', 'Nationalized cargo') }}</option></select></div></label>
+                <div class="official-custom-field official-incoterm-field">
+  <label>{{ q('Tipo de carga', 'Cargo type') }} <span>*</span></label>
+  <FieldDropdown v-model="form.exwCargoStatus" :aria-label="q('Tipo de carga', 'Cargo type')" :options="[
+    {value:'', label:q('Seleccionar', 'Select')},
+    {value:'fiscal', label:q('Carga fiscal', 'Bonded cargo')},
+    {value:'nationalized', label:q('Carga nacionalizada', 'Nationalized cargo')}
+  ]" />
+</div>
                 <label>{{ q('Dirección de recolección', 'Pickup address') }} <span>*</span><input v-model.trim="form.exwPickupAddress" maxlength="800" :placeholder="q('Indicá la dirección', 'Enter the address')" /></label>
               </div>
             </div>
@@ -499,36 +446,15 @@ async function submit() {
                   <div class="official-headline"><strong>{{ q('Equipo', 'Equipment') }} {{ i+1 }}</strong><button v-if="form.equipment.length>1" type="button" class="official-remove" @click="form.equipment.splice(i,1)">{{ q('Quitar', 'Remove') }}</button></div>
                   <div class="official-fields">
                     <div class="official-custom-field official-incoterm-field official-equipment-field">
-                      <label :id="'quote-equipment-size-label-' + i">{{ shipmentType === 'FCL' ? q('Tamaño del contenedor', 'Container size') : q('Furgón', 'Truck') }} <span>*</span></label>
-                      <div class="official-select-wrap official-incoterm-wrap official-equipment-wrap" @keydown.esc.stop="equipmentDropdown = null">
-                        <button :id="'quote-equipment-size-' + i" type="button" class="official-incoterm-trigger" role="combobox"
-                          :aria-labelledby="'quote-equipment-size-label-' + i" aria-haspopup="listbox"
-                          :aria-expanded="equipmentDropdown === equipmentDropdownKey(i, 'size')"
-                          :aria-controls="'quote-equipment-size-options-' + i" aria-required="true"
-                          @click="toggleEquipmentDropdown(i, 'size')">{{ equipmentLabel('size', line.size) }}</button>
-                        <ul v-if="equipmentDropdown === equipmentDropdownKey(i, 'size')" :id="'quote-equipment-size-options-' + i"
-                          class="official-incoterm-options official-equipment-options" role="listbox">
-                          <li><button type="button" role="option" :aria-selected="line.size === ''" @click="chooseEquipment(i, 'size', '')">{{ q('Seleccionar', 'Select') }}</button></li>
-                          <li v-for="option in equipmentSizeOptions" :key="option.value"><button type="button" role="option"
-                            :aria-selected="line.size === option.value" @click="chooseEquipment(i, 'size', option.value)">{{ option.label }}</button></li>
-                        </ul>
-                      </div>
+                      <label :for="'quote-equipment-size-' + i">{{ shipmentType === 'FCL' ? q('Tamaño del contenedor', 'Container size') : q('Furgón', 'Truck') }} <span>*</span></label>
+                      <FieldDropdown :id="'quote-equipment-size-' + i" v-model="line.size"
+                        :aria-label="shipmentType === 'FCL' ? q('Tamaño del contenedor', 'Container size') : q('Furgón', 'Truck')"
+                        :options="[{value:'', label:q('Seleccionar','Select')}, ...equipmentSizeOptions]" />
                     </div>
                     <div class="official-custom-field official-incoterm-field official-equipment-field">
-                      <label :id="'quote-equipment-type-label-' + i">{{ q('Tipo', 'Type') }} <span>*</span></label>
-                      <div class="official-select-wrap official-incoterm-wrap official-equipment-wrap" @keydown.esc.stop="equipmentDropdown = null">
-                        <button :id="'quote-equipment-type-' + i" type="button" class="official-incoterm-trigger" role="combobox"
-                          :aria-labelledby="'quote-equipment-type-label-' + i" aria-haspopup="listbox"
-                          :aria-expanded="equipmentDropdown === equipmentDropdownKey(i, 'type')"
-                          :aria-controls="'quote-equipment-type-options-' + i" aria-required="true"
-                          @click="toggleEquipmentDropdown(i, 'type')">{{ equipmentLabel('type', line.type) }}</button>
-                        <ul v-if="equipmentDropdown === equipmentDropdownKey(i, 'type')" :id="'quote-equipment-type-options-' + i"
-                          class="official-incoterm-options official-equipment-options" role="listbox">
-                          <li><button type="button" role="option" :aria-selected="line.type === ''" @click="chooseEquipment(i, 'type', '')">{{ q('Seleccionar', 'Select') }}</button></li>
-                          <li v-for="option in equipmentTypeOptions" :key="option.value"><button type="button" role="option"
-                            :aria-selected="line.type === option.value" @click="chooseEquipment(i, 'type', option.value)">{{ option.label }}</button></li>
-                        </ul>
-                      </div>
+                      <label :for="'quote-equipment-type-' + i">{{ q('Tipo', 'Type') }} <span>*</span></label>
+                      <FieldDropdown :id="'quote-equipment-type-' + i" v-model="line.type" :aria-label="q('Tipo', 'Type')"
+                        :options="[{value:'',label:q('Seleccionar','Select')}, ...equipmentTypeOptions]" />
                     </div>
                     <label>{{ q('Cantidad', 'Quantity') }} <span>*</span><input v-model.number="line.quantity" type="number" min="1" max="25" step="1" @input="syncWeights(line)" /></label>
                     <label v-for="(weight,wi) in line.unitWeightsKg" :key="wi">{{ q('Peso', 'Weight') }} {{ wi+1 }} (kg) <span>*</span><input v-model.number="line.unitWeightsKg[wi]" type="number" min="0.001" step="any" /></label>
@@ -556,7 +482,23 @@ async function submit() {
             </div>
             <div v-if="!equipmentMode" class="official-nested">
               <div class="official-headline"><h3>{{ q('Medidas de la carga', 'Cargo dimensions') }}</h3><button class="official-ghost" type="button" @click="addPackage">+ {{ q('Añadir línea', 'Add line') }}</button></div>
-              <div class="official-fields"><label>{{ q('Unidad de dimensiones', 'Dimension unit') }}<div class="official-select-wrap"><select v-model="form.dimensionUnit"><option value="cm">{{ q('Centímetros', 'Centimeters') }} (cm)</option><option value="m">{{ q('Metros', 'Meters') }} (m)</option><option value="in">{{ q('Pulgadas', 'Inches') }} (in)</option></select></div></label><label>{{ q('Unidad de peso', 'Weight unit') }}<div class="official-select-wrap"><select v-model="form.weightUnit"><option value="kg">{{ q('Kilogramos', 'Kilograms') }} (kg)</option><option value="lb">{{ q('Libras', 'Pounds') }} (lb)</option></select></div></label></div>
+              <div class="official-fields">
+  <div class="official-custom-field official-incoterm-field">
+    <label>{{ q('Unidad de dimensiones', 'Dimension unit') }}</label>
+    <FieldDropdown v-model="form.dimensionUnit" :aria-label="q('Unidad de dimensiones', 'Dimension unit')" :options="[
+      {value:'cm',label:q('Centímetros','Centimeters')+' (cm)'},
+      {value:'m',label:q('Metros','Meters')+' (m)'},
+      {value:'in',label:q('Pulgadas','Inches')+' (in)'}
+    ]" />
+  </div>
+  <div class="official-custom-field official-incoterm-field">
+    <label>{{ q('Unidad de peso', 'Weight unit') }}</label>
+    <FieldDropdown v-model="form.weightUnit" :aria-label="q('Unidad de peso', 'Weight unit')" :options="[
+      {value:'kg',label:q('Kilogramos','Kilograms')+' (kg)'},
+      {value:'lb',label:q('Libras','Pounds')+' (lb)'}
+    ]" />
+  </div>
+</div>
               <div v-for="(line,i) in form.packages" :key="i" class="official-line">
                 <div class="official-headline"><strong>{{ q('Bulto / Línea', 'Package / Line') }} {{ i+1 }}</strong><button v-if="form.packages.length>1" class="official-remove" type="button" @click="form.packages.splice(i,1)">{{ q('Quitar', 'Remove') }}</button></div>
                 <div class="official-fields">
@@ -566,7 +508,13 @@ async function submit() {
                   <label>{{ q('Largo', 'Length') }} <span>*</span><input v-model.number="line.length" min="0.001" step="any" type="number" /></label>
                   <label>{{ q('Ancho', 'Width') }} <span>*</span><input v-model.number="line.width" min="0.001" step="any" type="number" /></label>
                   <label>{{ q('Alto', 'Height') }} <span>*</span><input v-model.number="line.height" min="0.001" step="any" type="number" /></label>
-                  <label>{{ q('Estibabilidad', 'Stackability') }}<div class="official-select-wrap"><select v-model="line.stackability"><option value="Stackable">{{ q('Estibable', 'Stackable') }}</option><option value="NonStackable">{{ q('No estibable', 'Non-stackable') }}</option></select></div></label>
+                  <div class="official-custom-field official-incoterm-field">
+  <label>{{ q('Estibabilidad', 'Stackability') }}</label>
+  <FieldDropdown :model-value="line.stackability" :aria-label="q('Estibabilidad', 'Stackability')" :options="[
+    {value:'Stackable',label:q('Estibable','Stackable')},
+    {value:'NonStackable',label:q('No estibable','Non-stackable')}
+  ]" @update:model-value="value => line.stackability = value === 'NonStackable' ? 'NonStackable' : 'Stackable'" />
+</div>
                 </div>
               </div>
             </div>
@@ -1483,6 +1431,17 @@ html:not(.theme-dark) .app-site.official-page .official-location-options li butt
 html:not(.theme-dark) .app-site.official-page > .site-header :is(.main-nav a, .nav-dropdown__trigger, .header-settings__trigger, .menu-toggle) {
   color: #242630 !important;
 }
+/* On the light quotes page the active Cargo menu must retain the same
+   institutional red pill and white text it has on Itinerarios. */
+html:not(.theme-dark) .app-site.official-page > .site-header .main-nav .nav-dropdown--active .nav-dropdown__trigger {
+  background:#ad0922 !important;
+  color:#fff !important;
+  border-color:transparent !important;
+}
+html:not(.theme-dark) .app-site.official-page > .site-header .main-nav .nav-dropdown--active .nav-dropdown__trigger:is(:hover,[aria-expanded="true"]) {
+  background:#c20e2b !important;
+  color:#fff !important;
+}
 html:not(.theme-dark) .app-site.official-page > .site-header .header-settings__trigger,
 html:not(.theme-dark) .app-site.official-page > .site-header .menu-toggle {
   border-color: rgba(36, 38, 48, .25) !important;
@@ -1577,6 +1536,23 @@ html:not(.theme-dark) .app-site.official-page .official-progress-item:not(.curre
   border-bottom: 2px solid currentColor;
   transform: rotate(45deg);
 }
+/* A selected location replaces the chevron with a clear X, in the same place. */
+.app-site.official-page .official-location-toggle--clear::before {
+  content: "×";
+  width: auto;
+  height: auto;
+  border: 0;
+  transform: none;
+  font-size: 25px;
+  font-weight: 400;
+  line-height: 1;
+}
+.app-site.official-page .official-location-toggle:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  border-radius: 5px;
+}
+
 .app-site.official-page .official-fields select {
   appearance: none !important;
   -webkit-appearance: none !important;
@@ -1792,6 +1768,19 @@ html.theme-dark .app-site.official-page .official-incoterm-options {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   box-shadow: 0 18px 38px rgba(0, 0, 0, .45) !important;
+}
+/* Match the typography of the date field across every quote input/select. */
+.app-site.official-page .official-fields :is(input:not([type="checkbox"]),select,textarea),
+.app-site.official-page .official-incoterm-trigger,
+.app-site.official-page .official-location-combobox input {
+  font-size:14px !important;
+}
+@media (max-width:650px) {
+  .app-site.official-page .official-fields :is(input:not([type="checkbox"]),select,textarea),
+  .app-site.official-page .official-incoterm-trigger,
+  .app-site.official-page .official-location-combobox input {
+    font-size:16px !important;
+  }
 }
 </style>
 

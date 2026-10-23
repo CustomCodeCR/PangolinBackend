@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import IconSymbol from '../components/IconSymbol.vue'
+import FieldDropdown from '../components/FieldDropdown.vue'
 import { authState, type AppRole } from '../services/auth'
 
 interface ManagedUser {
@@ -121,8 +122,8 @@ onMounted(loadUsers)
             <tbody>
               <tr v-for="user in users" :key="user.id">
                 <td><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td>
-                <td><select v-model="user.role" :aria-label="`Rol de ${user.correo}`"><option value="cliente">Cliente</option><option value="administrador">Administrador</option></select></td>
-                <td><select v-model="user.activo" :aria-label="`Estado de ${user.correo}`"><option :value="true">Activo</option><option :value="false">Desactivado</option></select></td>
+                <td><FieldDropdown :model-value="user.role" :aria-label="`Rol de ${user.correo}`" :options="[{value:'cliente',label:'Cliente'},{value:'administrador',label:'Administrador'}]" @update:model-value="value => user.role = value === 'administrador' ? 'administrador' : 'cliente'" /></td>
+                <td><FieldDropdown :model-value="String(user.activo)" :aria-label="`Estado de ${user.correo}`" :options="[{value:'true',label:'Activo'},{value:'false',label:'Desactivado'}]" @update:model-value="value => user.activo = value === 'true'" /></td>
                 <td><button class="admin-users-save" type="button" :disabled="savingId === user.id" @click="updateUser(user)">{{ savingId === user.id ? 'Guardando…' : 'Guardar' }}</button></td>
               </tr>
             </tbody>
