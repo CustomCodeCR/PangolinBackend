@@ -122,6 +122,12 @@ assert.match(globe, /renderMarker\(/, 'Conservar los pines personalizados del ZI
 assert.match(globe, /followSelectedPin\(/, 'El popup debe seguir la posición del marcador')
 assert.match(globe, /world-globe__location-card--costa-rica/, 'Agrupar oficinas Costa Rica')
 assert.match(globe, /animateZoom\(/, 'Conservar zoom animado')
+assert.match(globe, /initialZoom\?: number/, 'El globo acepta una escala inicial por sección')
+assert.match(globe, /zoom: props\.initialZoom \?\? 1,/, 'La escala inicial conserva el comportamiento de Home sin cambiarlo')
+assert.match(globe, /animateZoom\(props\.initialZoom \?\? 1\)/, 'Volver a la escala elegida al retirar un embarque')
+assert.match(tracking, /<WorldGlobe :shipment="shipment" :initial-zoom="0\.8"\s*\/>/, 'Rastrear ahora abre el globo completo, sin acercamiento inicial')
+assert.match(home, /<WorldGlobe\s*\/>/, 'La página principal mantiene su globo original')
+
 assert.match(globe, /<Teleport to="body" :disabled="!mobileLocationPopup">/, 'La ficha móvil puede salir del contenedor sin modificar el comportamiento de escritorio')
 assert.match(globe, /const markerX = selectedCostaRica\.value \? rect\.left \+ rect\.width \/ 2 : rect\.left \+ point\.x/, 'Ubicar la ficha junto a la ubicación del marcador y el globo')
 assert.match(globe, /const markerY = selectedCostaRica\.value \? rect\.top \+ 18 : rect\.top \+ point\.y/, 'Ubicar la ficha según la altura del marcador')
