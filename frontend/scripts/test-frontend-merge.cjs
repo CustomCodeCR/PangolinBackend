@@ -10,6 +10,25 @@ function source(relative) {
   return fs.readFileSync(filename, 'utf8')
 }
 const main = source('src/main.ts')
+// Session-required screens (quote v1/v2 and tracking) must translate without changing the login redirect.
+const authRoot = source('src/Root.vue')
+const authEs = JSON.parse(source('src/locales/es.json'))
+const authEn = JSON.parse(source('src/locales/en.json'))
+for (const [key, esText, enText] of [
+  ['sessionRequiredTitle', 'Se requiere una sesión activa', 'An active session is required'],
+  ['quoteSessionRequiredHelp', 'Iniciá sesión para enviar una solicitud.', 'Sign in to submit a request.'],
+  ['trackingSessionRequiredHelp', 'Iniciá sesión con una cuenta autorizada para rastrear tus embarques.', 'Sign in with an authorized account to track your shipments.'],
+  ['sessionRequiredAction', 'Iniciar sesión', 'Sign in']
+]) {
+  assert.equal(authEs.custom.quote[key], esText, 'Texto español del aviso: ' + key)
+  assert.equal(authEn.custom.quote[key], enText, 'Texto inglés del aviso: ' + key)
+}
+for (const [key, count] of [['sessionRequiredTitle', 3], ['quoteSessionRequiredHelp', 2], ['trackingSessionRequiredHelp', 1], ['sessionRequiredAction', 3]]) {
+  assert.equal(authRoot.split(`t('custom.quote.${key}')`).length - 1, count, 'Avisos de cotizaciones y tracking traducidos: ' + key)
+}
+assert.match(authRoot, /const loginNextHref = '\/bienvenidos\?next=' \+ encodeURIComponent/, 'Se conserva el destino de inicio de sesión')
+assert.doesNotMatch(authRoot, /<h1>Se requiere una sesión activa<\/h1>/, 'No deben quedar avisos de sesión en español fijo')
+
 assert.match(main, /connectSignalR\(\)/, 'SignalR no debe ser sustituido por WebSocket legado')
 source('src/services/signalr.ts')
 source('src/services/realtime.ts')
