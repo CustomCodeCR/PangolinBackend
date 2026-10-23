@@ -139,10 +139,10 @@ onUnmounted(() => {
             GRUPO CASTRO FALLAS
           </p>
 
-          <h1>{{ siteText('home.hero.title1', $t('phrases.p000'), locale) }}<br /><span>{{ siteText('home.hero.title2', $t('phrases.p001'), locale) }}</span></h1>
+          <h1>{{ locale === 'en' ? 'Customs brokerage and logistics' : 'Agencia aduanal y logística' }}<br /><span>{{ locale === 'en' ? 'in Costa Rica' : 'en Costa Rica' }}</span></h1>
 
           <p>
-            {{ siteText('home.hero.intro', $t('phrases.p002'), locale) }}
+            {{ siteText('home.hero.title1', $t('phrases.p000'), locale) }} {{ siteText('home.hero.title2', $t('phrases.p001'), locale) }}
           </p>
 
           <div class="hero-actions">
@@ -530,3 +530,4 @@ onUnmounted(() => {
   }
 }
 </style>
+
