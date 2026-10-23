@@ -25,7 +25,7 @@ for (const publicRoute of ['/', '/noticias', '/nosotros', '/servicios']) {
 }
 assert.ok(robots.includes('User-agent: OAI-SearchBot'), 'Falta OAI-SearchBot en robots.txt')
 assert.ok(root.includes("import routeSeo from '../seo/routes.json'"), 'Las rutas no comparten la configuración SEO')
-assert.ok(index.includes('carga consolidada LTL') && index.includes('Panamá'), 'La descripción original no menciona el servicio')
+assert.ok(index.includes('Consolidado LCL/LTL') && index.includes('Panamá–Costa Rica'), 'La descripción SEO inicial debe incluir los servicios y la ruta')
 assert.ok(JSON.parse(read('seo/routes.json'))['/'].description.includes('Panamá–Costa Rica') && JSON.parse(read('seo/routes.json'))['/'].description.includes('FTL') && JSON.parse(read('seo/routes.json'))['/'].description.includes('LTL'), 'La descripcion SEO debe identificar la ruta y las modalidades')
 const jsonLd = index.match(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/)
 assert.ok(jsonLd, 'Faltan datos estructurados en el HTML principal')
@@ -34,6 +34,15 @@ const graph = data['@graph'] || []
 const organization = graph.find((item) => item['@type'] === 'Organization')
 const transport = graph.find((item) => item['@type'] === 'Service')
 assert.ok(organization && organization.name === 'Grupo Castro Fallas', 'La identidad de la empresa debe ser coherente')
+const expectedAddress = {
+  '@type': 'PostalAddress',
+  streetAddress: 'WX83+2PJ, María Auxiliadora',
+  addressLocality: 'Curridabat',
+  addressRegion: 'San José',
+  postalCode: '11801',
+  addressCountry: 'CR'
+}
+assert.deepEqual(organization.address, expectedAddress, 'La dirección estructurada debe coincidir con main-2')
 assert.ok(transport && transport.provider['@id'] === organization['@id'], 'Servicio sin vinculación a la empresa')
 assert.ok(transport.serviceType.includes('LTL') && transport.serviceType.includes('FTL'), 'Modalidades no descritas')
 assert.ok(transport.areaServed.some((place) => place.name === 'Panamá'), 'Ruta de Panamá no identificada')
@@ -115,6 +124,7 @@ if (fs.existsSync(path.join(base, 'dist'))) {
     assert.ok(find('Organization'), 'Empresa faltante en Schema: ' + route)
     const business = find('LocalBusiness')
     assert.ok(business && business.address && business.telephone && business.email, 'LocalBusiness incompleto: ' + route)
+    assert.deepEqual(business.address, expectedAddress, 'La dirección LocalBusiness debe coincidir: ' + route)
     assert.ok(find('WebSite'), 'WebSite faltante en Schema: ' + route)
     const page = find(route === '/nosotros' ? 'AboutPage' : route === '/noticias' ? 'CollectionPage' : 'WebPage')
     assert.ok(page, 'WebPage faltante en Schema: ' + route)
