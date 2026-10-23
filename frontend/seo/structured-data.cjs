@@ -29,6 +29,16 @@ function makeStructuredData(route, seo, sourceGraph) {
   const graph = [
     organizationWithoutContext,
     {
+      '@type': 'LocalBusiness',
+      '@id': origin + '/#sede-curridabat',
+      name: organization.name,
+      url: origin + '/',
+      telephone: organization.telephone,
+      email: organization.email,
+      address: organization.address,
+      parentOrganization: { '@id': organizationId }
+    },
+    {
       '@type': 'WebSite',
       '@id': siteId,
       url: origin + '/',
