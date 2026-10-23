@@ -8,7 +8,9 @@ import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import { subscribeToChanges } from '../services/realtime'
 
-const activeArticleIndex = ref<number | null>(null)
+// Article links already use this URL from Inicio; render their content as a full page.
+const requestedArticleId = new URLSearchParams(window.location.search).get('article')
+const articleHref = (id: string) => '/noticias?article=' + encodeURIComponent(id)
 const managedNews = ref<ManagedNews[]>([])
 const newsLoaded = ref(false)
 const newsError = ref(false)
@@ -96,7 +98,10 @@ async function translateNewsToEnglish() {
 watch(locale, () => { if (locale.value === 'en') void translateNewsToEnglish() })
 const leadStory = computed(() => news.value[activeStoryIndex.value] ?? news.value[0])
 const carouselStories = computed(() => news.value.map((article, index) => ({ ...article, index })))
-const activeArticle = computed(() => activeArticleIndex.value === null ? null : news.value[activeArticleIndex.value])
+const activeArticle = computed(() => requestedArticleId ? news.value.find(article => article.id === requestedArticleId) ?? null : null)
+watch(activeArticle, article => {
+  if (article) document.title = article.title + ' | Noticias | Grupo Castro Fallas'
+})
 let storyTimer: number | undefined
 function startStoryTimer() {
   if (storyTimer !== undefined) window.clearInterval(storyTimer)
@@ -111,39 +116,13 @@ function pauseStoryTimer() {
   storyTimer = undefined
 }
 function resumeStoryTimer() {
-  if (activeArticleIndex.value === null && storyTimer === undefined) startStoryTimer()
+  if (!requestedArticleId && storyTimer === undefined) startStoryTimer()
 }
 function selectStory(index: number) {
   activeStoryIndex.value = index
   emblaApi?.scrollTo(index)
   startStoryTimer()
 }
-function openArticle(index: number) {
-  const article = news.value[index]
-  if (!article) return
-  activeArticleIndex.value = index
-  const url = new URL(window.location.href)
-  url.searchParams.set('article', article.id)
-  window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash)
-  pauseStoryTimer()
-}
-function closeArticle() {
-  activeArticleIndex.value = null
-  const url = new URL(window.location.href)
-  if (url.searchParams.has('article')) {
-    url.searchParams.delete('article')
-    window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash)
-  }
-  startStoryTimer()
-}
-function syncArticleFromUrl() {
-  const id = new URLSearchParams(window.location.search).get('article')
-  const index = id ? news.value.findIndex(article => article.id === id) : -1
-  activeArticleIndex.value = index >= 0 ? index : null
-  if (index >= 0) { activeStoryIndex.value = index; pauseStoryTimer() }
-  else if (news.value.length) startStoryTimer()
-}
-function handleArticleKeydown(event: KeyboardEvent) { if (event.key === 'Escape') closeArticle() }
 let disposed = false
 let requestVersion = 0
 async function loadPublicNews() {
@@ -158,27 +137,23 @@ async function loadPublicNews() {
     newsError.value = false
     if (locale.value === 'en') void translateNewsToEnglish()
     if (activeStoryIndex.value >= news.value.length) activeStoryIndex.value = 0
-    // Conserva el artículo seleccionado mediante su id durante recargas SignalR.
-    syncArticleFromUrl()
     await nextTick()
     if (!news.value.length) { emblaApi?.destroy(); emblaApi = null }
     else if (!emblaApi && emblaViewport.value) {
       emblaApi = EmblaCarousel(emblaViewport.value, { align: 'start', loop: news.value.length > 1 })
       emblaApi.on('select', () => { activeStoryIndex.value = emblaApi?.selectedScrollSnap() ?? 0 })
     } else { emblaApi?.reInit({ loop: news.value.length > 1 }) }
-    if (activeArticleIndex.value === null) startStoryTimer()
+    if (!requestedArticleId) startStoryTimer()
   } catch { if (!disposed && request === requestVersion) newsError.value = true }
   finally { if (!disposed && request === requestVersion) newsLoaded.value = true }
 }
 const unsubscribeNews = subscribeToChanges('news', () => { void loadPublicNews() })
 const unsubscribeSync = subscribeToChanges('sync', () => { void loadPublicNews() })
-onMounted(() => { window.addEventListener('keydown', handleArticleKeydown); window.addEventListener('popstate', syncArticleFromUrl); void loadPublicNews() })
+onMounted(() => { void loadPublicNews() })
 
 onUnmounted(() => {
   disposed = true
   unsubscribeNews(); unsubscribeSync()
-  window.removeEventListener('keydown', handleArticleKeydown)
-  window.removeEventListener('popstate', syncArticleFromUrl)
   pauseStoryTimer()
   emblaApi?.destroy()
   emblaApi = null
@@ -187,6 +162,8 @@ onUnmounted(() => {
 
 <template>
   <div class="app-site news-page">
+    <SiteHeader v-if="requestedArticleId" active="noticias" />
+    <template v-if="!requestedArticleId">
     <section class="news-editorial-hero" @mouseenter="pauseStoryTimer" @mouseleave="resumeStoryTimer">
       <SiteHeader active="noticias" overlay />
       <template v-if="news.length">
@@ -203,8 +180,7 @@ onUnmounted(() => {
           <p class="section-tag light-tag">{{ $t('phrases.p066') }} <span>· {{ leadStory.category }}</span></p>
           <p class="news-editorial-hero__index">{{ String(activeStoryIndex + 1).padStart(2, '0') }} <span>/ {{ String(news.length).padStart(2, '0') }}</span></p>
           <h1>{{ leadStory.title }}</h1>
-          <p class="news-editorial-hero__description">{{ leadStory.description }}</p>
-          <button type="button" class="news-editorial-hero__read" @click="openArticle(activeStoryIndex)"><IconSymbol glyph="↘" />{{ $t('custom.news.readArticle') }}</button>
+          <a class="news-editorial-hero__read" :href="articleHref(leadStory.id)"><IconSymbol glyph="↘" />{{ $t('custom.news.readArticle') }}</a>
         </div>
         <aside class="news-editorial-hero__sidebar" :aria-label="$t('phrases.p133')">
           <p class="news-editorial-hero__sidebar-title">{{ $t('phrases.p133') }}</p>
@@ -249,27 +225,44 @@ onUnmounted(() => {
             <div class="news-editorial-card__copy">
               <p class="section-tag">{{ article.category }} · {{ $t('phrases.p074') }}</p>
               <h3>{{ article.title }}</h3>
-              <p>{{ article.description }}</p>
-              <button type="button" @click="openArticle(index)">{{ $t('custom.news.readArticle') }} <IconSymbol glyph="↗" /></button>
+              <a :href="articleHref(article.id)">{{ $t('custom.news.readArticle') }} <IconSymbol glyph="↗" /></a>
             </div>
           </article>
         </div>
       </div>
     </main>
 
-    <div v-if="activeArticle" class="news-article-modal-backdrop" @click.self="closeArticle">
-      <article class="news-article-modal" role="dialog" aria-modal="true" :aria-label="activeArticle.title">
-        <button class="news-article-modal__close" type="button" :aria-label="$t('custom.news.closeArticle')" @click="closeArticle">
-          <IconSymbol glyph="×" :size="20" />
-        </button>
-        <img :src="activeArticle.image" :alt="activeArticle.title" />
-        <div class="news-article-modal__copy">
-          <p class="section-tag">{{ activeArticle.category }} · {{ $t('phrases.p074') }}</p>
-          <h2>{{ activeArticle.title }}</h2>
-          <p class="news-article-fulltext">{{ activeArticle.body }}</p>
-        </div>
-      </article>
-    </div>
+    </template>
+
+    <!-- A requested article is a normal, full-height document section, not a modal. -->
+    <main v-else id="noticia-completa" class="news-article-page">
+      <template v-if="activeArticle">
+        <nav class="container news-article-page__navigation" :aria-label="q('Navegación de noticias', 'News navigation')">
+          <a href="/noticias"><IconSymbol glyph="←" /> {{ q('Volver a noticias', 'Back to news') }}</a>
+        </nav>
+        <article class="news-article-page__article">
+          <div class="news-article-page__cover">
+            <img :src="activeArticle.image" :alt="activeArticle.title" fetchpriority="high" />
+          </div>
+          <div class="container news-article-page__layout">
+            <header class="news-article-page__heading">
+              <p class="section-tag">{{ activeArticle.category }} · {{ $t('phrases.p074') }}</p>
+              <h1>{{ activeArticle.title }}</h1>
+            </header>
+            <div class="news-article-page__content">
+              <p v-if="activeArticle.description?.trim() && activeArticle.description.trim() !== activeArticle.body.trim()" class="news-article-page__summary">{{ activeArticle.description }}</p>
+              <div class="news-article-page__body">{{ activeArticle.body }}</div>
+            </div>
+            <a class="news-article-page__back" href="/noticias"><IconSymbol glyph="←" /> {{ q('Ver todas las noticias', 'View all news') }}</a>
+          </div>
+        </article>
+      </template>
+      <div v-else class="container news-article-page__empty" role="status">
+        <h1>{{ !newsLoaded ? q('Cargando noticia…', 'Loading article…') : newsError ? q('No pudimos cargar la noticia.', 'We could not load this article.') : q('Noticia no disponible', 'Article unavailable') }}</h1>
+        <p v-if="newsLoaded">{{ newsError ? q('Intentá nuevamente más tarde.', 'Please try again later.') : q('La noticia solicitada no existe o ya no está publicada.', 'The requested article does not exist or is no longer published.') }}</p>
+        <a href="/noticias">{{ q('Volver a noticias', 'Back to news') }}</a>
+      </div>
+    </main>
 
     <SiteFooter />
   </div>
@@ -277,7 +270,28 @@ onUnmounted(() => {
 
 <style scoped>
 .news-translation-feedback { padding-block: 10px; font-size: 13px; color: #aab8d0; }
-.news-article-fulltext { white-space: pre-line; overflow-wrap: anywhere; }
+.news-article-page { min-height:70vh; padding:24px 0 90px; background:#fff; color:#20242b; }
+.news-article-page__navigation { padding-bottom:23px; }
+.news-article-page__navigation a, .news-article-page__back { display:inline-flex; align-items:center; gap:10px; color:#ad0b26; text-decoration:none; font-size:13px; font-weight:850; }
+.news-article-page__navigation a:hover, .news-article-page__back:hover { text-decoration:underline; }
+.news-article-page__cover { height:clamp(240px,38vw,510px); overflow:hidden; background:#111a30; }
+.news-article-page__cover img { display:block; width:100%; height:100%; object-fit:cover; }
+.news-article-page__layout { max-width:1040px; padding-top:clamp(38px,5vw,70px); }
+.news-article-page__heading { max-width:940px; padding-bottom:28px; border-bottom:1px solid rgba(23,35,54,.16); }
+.news-article-page__heading .section-tag { margin:0 0 17px; color:#ad0b26; }
+.news-article-page__heading h1 { margin:0; font-family:'Arial Black',system-ui,sans-serif; font-size:clamp(34px,5.5vw,70px); letter-spacing:-.045em; line-height:1.13; overflow-wrap:anywhere; }
+.news-article-page__content { max-width:870px; padding:30px 0 48px; }
+.news-article-page__summary { margin:0 0 30px; font-size:clamp(18px,2vw,23px); font-weight:600; line-height:1.65; }
+.news-article-page__body { font-size:clamp(16px,1.5vw,19px); line-height:1.95; white-space:pre-line; overflow-wrap:anywhere; }
+.news-article-page__back { padding-top:24px; border-top:1px solid rgba(23,35,54,.16); }
+.news-article-page__empty { padding:80px 0 130px; }
+.news-article-page__empty h1 { font-size:clamp(30px,4vw,48px); }
+.news-article-page__empty a { color:#ad0b26; }
+:global(html.theme-dark) .news-article-page { background:#01081d; color:#fff; }
+:global(html.theme-dark) .news-article-page__heading, :global(html.theme-dark) .news-article-page__back { border-color:rgba(255,255,255,.18); }
+:global(html.theme-dark) .news-article-page__navigation a, :global(html.theme-dark) .news-article-page__back, :global(html.theme-dark) .news-article-page__empty a { color:#ff5570; }
+:global(html.theme-dark) .news-article-page__heading .section-tag { color:#ff5570; }
+@media (max-width:600px) { .news-article-page { padding-bottom:60px; } .news-article-page__navigation { padding-bottom:16px; } .news-article-page__cover { height:230px; } .news-article-page__layout { padding-top:30px; } .news-article-page__heading { padding-bottom:23px; } .news-article-page__content { padding-top:24px; } }
 .news-empty-hero { position: relative; z-index: 2; min-height: 320px; padding-top: 135px; padding-bottom: 95px; color: #fff; }
 .news-empty-hero h1 { font-size: clamp(42px, 6vw, 76px); line-height: 1.1; margin: 18px 0; }
 .news-empty-hero p:last-child { max-width: 640px; font-size: clamp(16px, 1.7vw, 20px); }
