@@ -65,7 +65,8 @@ assert.ok(nginx.includes('try_files $uri $uri/index.html =404;'), 'Nginx debe re
 assert.ok(nginx.includes('error_page 404 /404.html;'), 'Nginx debe servir error 404 real')
 assert.ok(root.includes("return 'notFound'"), 'La SPA no debe tratar rutas desconocidas como Inicio')
 assert.ok(root.includes("import routeSeo from '../seo/routes.json'"), 'El cliente y el build deben usar los mismos metadatos')
-assert.ok(nginx.includes('return 301 https://www.logisticacastrofallas.com$request_uri'), 'Falta canonicalizacion hacia www')
+assert.ok(!nginx.includes('if ($host = logisticacastrofallas.com)'), 'El dominio raiz pertenece a Fennec y no debe redirigirse desde Pangolin')
+assert.ok(!nginx.includes('return 301 https://www.logisticacastrofallas.com$request_uri'), 'La canonicalizacion del dominio raiz no debe ocurrir en Pangolin')
 assert.ok(nginx.includes('location = /home'), 'Falta redirect de /home')
 assert.ok(read('nginx.conf').includes('Permissions-Policy "camera=(), microphone=(), geolocation=()"'), 'Falta restringir permisos del navegador que el sitio no utiliza')
 if (fs.existsSync(path.join(base, 'dist'))) {
