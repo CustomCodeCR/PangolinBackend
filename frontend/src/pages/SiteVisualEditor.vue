@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { authState } from '../services/auth'
+import FieldDropdown from '../components/FieldDropdown.vue'
 import { subscribeToChanges } from '../services/realtime'
 import i18n from '../i18n'
 import { siteSlotCatalog, type EditableSiteSlot, type SiteSlotDefinition } from '../siteCms'
@@ -254,12 +255,13 @@ onMounted(load)
                 <div v-else class="visual-editor__preview-empty">{{ previewError.draft ? 'No fue posible cargar la vista previa. Elegí otro archivo.' : 'Sin archivo asignado todavía.' }}</div>
               </div>
             </div>
-            <label>Archivo de la biblioteca de MinIO
-              <select v-model="mediaId">
-                <option value="">{{ selected.fallback ? 'Usar imagen original de esta ubicación' : 'Sin imagen asignada' }}</option>
-                <option v-for="file in selectableMedia" :key="file.id" :value="file.id">{{ file.name }} ({{ file.kind }})</option>
-              </select>
-            </label>
+            <div class="visual-editor__library-field">
+              <label>Archivo de la biblioteca de MinIO</label>
+              <FieldDropdown v-model="mediaId" aria-label="Archivo de la biblioteca de MinIO" :options="[
+                { value:'', label:selected.fallback ? 'Usar imagen original de esta ubicación' : 'Sin imagen asignada' },
+                ...selectableMedia.map(file => ({value:file.id,label:file.name + ' (' + file.kind + ')'}))
+              ]" />
+            </div>
             <label v-if="storageEnabled">O subir un archivo nuevo (imagen o video)
               <input type="file" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm" @change="upload" :disabled="saving" />
             </label>
@@ -308,6 +310,8 @@ onMounted(load)
 .visual-editor__locations{display:grid;align-content:start;gap:9px;max-height:760px;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;padding:0 12px 0 0;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:#9aa4b4 transparent}
 .visual-editor__locations>button,.visual-editor__locations>label,.visual-editor__locations>.visual-editor__filters{min-width:0}
 .visual-editor__locations label,.visual-editor__details label{display:grid;gap:7px;font-weight:750;font-size:13px}
+.visual-editor__library-field{display:grid;gap:7px;min-width:0}
+.visual-editor__library-field > label{font-size:13px;font-weight:750}
 .visual-editor__locations input,.visual-editor__details textarea,.visual-editor__details input,.visual-editor__details select{min-width:0;width:100%;padding:11px;border-radius:9px;border:1px solid #cbd1d8;font:inherit;background:white;color:#202126}
 .visual-editor__locations button{display:grid;gap:4px;text-align:left;padding:12px;border:1px solid #e1e4e9;border-radius:12px;background:#fff;color:#202126;cursor:pointer}
 .visual-editor__locations button.active{border-color:#a70c2b;background:rgba(168,14,24,.08)}

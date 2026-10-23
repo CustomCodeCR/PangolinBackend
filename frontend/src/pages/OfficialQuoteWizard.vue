@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import IconSymbol from '../components/IconSymbol.vue'
+import FieldDropdown from '../components/FieldDropdown.vue'
 import { refreshSession } from '../services/auth'
 
 const { locale } = useI18n({ useScope: 'global' })
@@ -488,7 +489,14 @@ async function submit() {
             <div v-if="form.incoterm === 'EXW'" class="official-nested">
               <h3>{{ q('Información adicional para EXW', 'Additional EXW information') }}</h3>
               <div class="official-fields">
-                <label>{{ q('Tipo de carga', 'Cargo type') }} <span>*</span><div class="official-select-wrap"><select v-model="form.exwCargoStatus"><option value="">{{ q('Seleccionar', 'Select') }}</option><option value="fiscal">{{ q('Carga fiscal', 'Bonded cargo') }}</option><option value="nationalized">{{ q('Carga nacionalizada', 'Nationalized cargo') }}</option></select></div></label>
+                <div class="official-custom-field official-incoterm-field">
+  <label>{{ q('Tipo de carga', 'Cargo type') }} <span>*</span></label>
+  <FieldDropdown v-model="form.exwCargoStatus" :aria-label="q('Tipo de carga', 'Cargo type')" :options="[
+    {value:'', label:q('Seleccionar', 'Select')},
+    {value:'fiscal', label:q('Carga fiscal', 'Bonded cargo')},
+    {value:'nationalized', label:q('Carga nacionalizada', 'Nationalized cargo')}
+  ]" />
+</div>
                 <label>{{ q('Dirección de recolección', 'Pickup address') }} <span>*</span><input v-model.trim="form.exwPickupAddress" maxlength="800" :placeholder="q('Indicá la dirección', 'Enter the address')" /></label>
               </div>
             </div>
@@ -556,7 +564,23 @@ async function submit() {
             </div>
             <div v-if="!equipmentMode" class="official-nested">
               <div class="official-headline"><h3>{{ q('Medidas de la carga', 'Cargo dimensions') }}</h3><button class="official-ghost" type="button" @click="addPackage">+ {{ q('Añadir línea', 'Add line') }}</button></div>
-              <div class="official-fields"><label>{{ q('Unidad de dimensiones', 'Dimension unit') }}<div class="official-select-wrap"><select v-model="form.dimensionUnit"><option value="cm">{{ q('Centímetros', 'Centimeters') }} (cm)</option><option value="m">{{ q('Metros', 'Meters') }} (m)</option><option value="in">{{ q('Pulgadas', 'Inches') }} (in)</option></select></div></label><label>{{ q('Unidad de peso', 'Weight unit') }}<div class="official-select-wrap"><select v-model="form.weightUnit"><option value="kg">{{ q('Kilogramos', 'Kilograms') }} (kg)</option><option value="lb">{{ q('Libras', 'Pounds') }} (lb)</option></select></div></label></div>
+              <div class="official-fields">
+  <div class="official-custom-field official-incoterm-field">
+    <label>{{ q('Unidad de dimensiones', 'Dimension unit') }}</label>
+    <FieldDropdown v-model="form.dimensionUnit" :aria-label="q('Unidad de dimensiones', 'Dimension unit')" :options="[
+      {value:'cm',label:q('Centímetros','Centimeters')+' (cm)'},
+      {value:'m',label:q('Metros','Meters')+' (m)'},
+      {value:'in',label:q('Pulgadas','Inches')+' (in)'}
+    ]" />
+  </div>
+  <div class="official-custom-field official-incoterm-field">
+    <label>{{ q('Unidad de peso', 'Weight unit') }}</label>
+    <FieldDropdown v-model="form.weightUnit" :aria-label="q('Unidad de peso', 'Weight unit')" :options="[
+      {value:'kg',label:q('Kilogramos','Kilograms')+' (kg)'},
+      {value:'lb',label:q('Libras','Pounds')+' (lb)'}
+    ]" />
+  </div>
+</div>
               <div v-for="(line,i) in form.packages" :key="i" class="official-line">
                 <div class="official-headline"><strong>{{ q('Bulto / Línea', 'Package / Line') }} {{ i+1 }}</strong><button v-if="form.packages.length>1" class="official-remove" type="button" @click="form.packages.splice(i,1)">{{ q('Quitar', 'Remove') }}</button></div>
                 <div class="official-fields">
@@ -566,7 +590,13 @@ async function submit() {
                   <label>{{ q('Largo', 'Length') }} <span>*</span><input v-model.number="line.length" min="0.001" step="any" type="number" /></label>
                   <label>{{ q('Ancho', 'Width') }} <span>*</span><input v-model.number="line.width" min="0.001" step="any" type="number" /></label>
                   <label>{{ q('Alto', 'Height') }} <span>*</span><input v-model.number="line.height" min="0.001" step="any" type="number" /></label>
-                  <label>{{ q('Estibabilidad', 'Stackability') }}<div class="official-select-wrap"><select v-model="line.stackability"><option value="Stackable">{{ q('Estibable', 'Stackable') }}</option><option value="NonStackable">{{ q('No estibable', 'Non-stackable') }}</option></select></div></label>
+                  <div class="official-custom-field official-incoterm-field">
+  <label>{{ q('Estibabilidad', 'Stackability') }}</label>
+  <FieldDropdown :model-value="line.stackability" :aria-label="q('Estibabilidad', 'Stackability')" :options="[
+    {value:'Stackable',label:q('Estibable','Stackable')},
+    {value:'NonStackable',label:q('No estibable','Non-stackable')}
+  ]" @update:model-value="value => line.stackability = value === 'NonStackable' ? 'NonStackable' : 'Stackable'" />
+</div>
                 </div>
               </div>
             </div>
@@ -1483,6 +1513,17 @@ html:not(.theme-dark) .app-site.official-page .official-location-options li butt
 html:not(.theme-dark) .app-site.official-page > .site-header :is(.main-nav a, .nav-dropdown__trigger, .header-settings__trigger, .menu-toggle) {
   color: #242630 !important;
 }
+/* On the light quotes page the active Cargo menu must retain the same
+   institutional red pill and white text it has on Itinerarios. */
+html:not(.theme-dark) .app-site.official-page > .site-header .main-nav .nav-dropdown--active .nav-dropdown__trigger {
+  background:#ad0922 !important;
+  color:#fff !important;
+  border-color:transparent !important;
+}
+html:not(.theme-dark) .app-site.official-page > .site-header .main-nav .nav-dropdown--active .nav-dropdown__trigger:is(:hover,[aria-expanded="true"]) {
+  background:#c20e2b !important;
+  color:#fff !important;
+}
 html:not(.theme-dark) .app-site.official-page > .site-header .header-settings__trigger,
 html:not(.theme-dark) .app-site.official-page > .site-header .menu-toggle {
   border-color: rgba(36, 38, 48, .25) !important;
@@ -1792,6 +1833,19 @@ html.theme-dark .app-site.official-page .official-incoterm-options {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   box-shadow: 0 18px 38px rgba(0, 0, 0, .45) !important;
+}
+/* Match the typography of the date field across every quote input/select. */
+.app-site.official-page .official-fields :is(input:not([type="checkbox"]),select,textarea),
+.app-site.official-page .official-incoterm-trigger,
+.app-site.official-page .official-location-combobox input {
+  font-size:14px !important;
+}
+@media (max-width:650px) {
+  .app-site.official-page .official-fields :is(input:not([type="checkbox"]),select,textarea),
+  .app-site.official-page .official-incoterm-trigger,
+  .app-site.official-page .official-location-combobox input {
+    font-size:16px !important;
+  }
 }
 </style>
 
