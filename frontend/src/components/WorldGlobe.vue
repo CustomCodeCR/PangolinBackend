@@ -5,7 +5,7 @@ import { computed, nextTick, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createGlobe, type Marker, type ClusterMarker } from '../lib/castroGlobe'
 
-const props = defineProps<{ shipment?: TrackingDemoShipment | null }>()
+const props = defineProps<{ shipment?: TrackingDemoShipment | null; initialZoom?: number }>()
 const holder = ref<HTMLElement | null>(null)
 const canvas = ref<HTMLCanvasElement | null>(null)
 const error = ref('')
@@ -243,6 +243,9 @@ function start() {
   try {
     globe = createGlobe(canvas.value, {
       mode: 'globe',
+      // /tracking should begin at the full-world reset view, not a close-up.
+      // The home globe keeps its existing default zoom.
+      zoom: props.initialZoom ?? 1,
       transparentBackground: true,
       // Colores corporativos Castro Fallas
       theme: themePalette(),
@@ -319,7 +322,7 @@ watch(() => props.shipment, (shipment) => {
     globe.flyTo(point.lon, point.lat)
     animateZoom(1.45)
   } else {
-    animateZoom(1)
+    animateZoom(props.initialZoom ?? 1)
   }
 })
 onMounted(() => {
