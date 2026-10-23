@@ -18,6 +18,7 @@ let emblaApi: EmblaCarouselType | null = null
 // Sólo se muestran publicaciones del CMS; sin noticias predeterminadas.
 type EnglishNews = Pick<ManagedNews, 'title' | 'category' | 'description' | 'body'>
 const { locale } = useI18n({ useScope: 'global' })
+const q = (es: string, en: string) => locale.value === 'en' ? en : es
 const englishNews = ref<Record<string, { source: string; translated: EnglishNews }>>({})
 const englishLoading = ref(false)
 const englishError = ref(false)
@@ -223,11 +224,11 @@ onUnmounted(() => {
       </div>
       </template>
       <div v-else class="container news-empty-hero" role="status">
-        <p class="section-tag light-tag">CASTRO FALLAS · ACTUALIDAD</p>
-        <h1>{{ locale === 'en' ? 'Logistics and foreign trade news' : 'Noticias de logística y comercio exterior' }}</h1>
-        <p v-if="!newsLoaded">Cargando publicaciones…</p>
-        <p v-else-if="newsError">No pudimos cargar las noticias en este momento. Inténtalo de nuevo más tarde.</p>
-        <p v-else>Aún no hay noticias publicadas. Pronto compartiremos novedades.</p>
+        <p class="section-tag light-tag">{{ q('CASTRO FALLAS · ACTUALIDAD', 'CASTRO FALLAS · LATEST UPDATES') }}</p>
+        <h1>{{ q('Noticias de logística y comercio exterior', 'Logistics and foreign trade news') }}</h1>
+        <p v-if="!newsLoaded">{{ q('Cargando publicaciones…', 'Loading news…') }}</p>
+        <p v-else-if="newsError">{{ q('No pudimos cargar las noticias en este momento. Inténtalo de nuevo más tarde.', 'We could not load the news right now. Please try again later.') }}</p>
+        <p v-else>{{ q('Aún no hay noticias publicadas. Pronto compartiremos novedades.', 'No news has been published yet. We will share updates soon.') }}</p>
       </div>
     </section>
 

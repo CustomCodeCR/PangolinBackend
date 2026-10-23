@@ -42,6 +42,8 @@ export interface GlobeOptions {
   autoRotate?: boolean;
   rotateSpeed?: number;
   zoomable?: boolean;
+  /** Initial globe scale; the renderer defaults to 1 and clamps at 0.8. */
+  zoom?: number;
   maxZoom?: number;
   interactive?: boolean;
   stars?: boolean;
