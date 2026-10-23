@@ -37,12 +37,7 @@ function makeStructuredData(route, seo, sourceGraph) {
       telephone: organization.telephone,
       email: organization.email,
       address: organization.address,
-      parentOrganization: { '@id': organizationId },
-      openingHoursSpecification: [{
-        '@type': 'OpeningHoursSpecification',
-        dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-        opens: '07:30', closes: '17:15'
-      }]
+      parentOrganization: { '@id': organizationId }
     },
     {
       '@type': 'WebSite',
