@@ -18,14 +18,24 @@ function gmailComposeHref(email: string) {
 
 const selectedId = ref<string | null>(null)
 const popupPosition = ref({ left: 0, top: 0, below: false })
-const mobileLocationDialog = ref(false)
+const mobileLocationPopup = ref(false)
+const locationCard = ref<HTMLElement | null>(null)
 const locationCloseButton = ref<HTMLButtonElement | null>(null)
+const mobilePopupPosition = ref({ left: 0, top: 0, below: false, visible: false })
 let locationMedia: MediaQueryList | undefined
 function syncLocationLayout() {
-  mobileLocationDialog.value = locationMedia?.matches ?? false
+  mobileLocationPopup.value = locationMedia?.matches ?? false
+  mobilePopupPosition.value.visible = false
+  if (selectedOffice.value) {
+    void nextTick(() => {
+      const office = selectedOffice.value
+      const point = office && globe?.project(office.lon, office.lat)
+      if (point?.visible) positionPopup(point)
+    })
+  }
 }
 function onLocationKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && selectedId.value && mobileLocationDialog.value) {
+  if (event.key === 'Escape' && selectedId.value && mobileLocationPopup.value) {
     event.preventDefault()
     closeLocation()
   }
@@ -136,6 +146,7 @@ function closeLocation() {
   cancelAnimationFrame(popupFollowFrame)
   popupFollowFrame = 0
   selectedId.value = null
+  mobilePopupPosition.value.visible = false
   globe?.setOptions({autoRotate: !props.shipment})
   // Vuelve al minimo real admitido por el motor (0.8), no al zoom de la oficina.
   animateZoom(0.8)
@@ -144,6 +155,37 @@ function positionPopup(point: {x:number;y:number}) {
   if (!holder.value || !canvas.value) return
   const root = holder.value.getBoundingClientRect()
   const rect = canvas.value.getBoundingClientRect()
+
+  if (mobileLocationPopup.value) {
+    const card = locationCard.value
+    if (!card) return
+    // The card is teleported to body, outside the clipping/stacking context of
+    // the globe. Coordinates therefore must be in viewport, not globe, space.
+    const vv = window.visualViewport
+    const edgeLeft = vv?.offsetLeft ?? 0
+    const edgeTop = vv?.offsetTop ?? 0
+    const edgeRight = edgeLeft + (vv?.width ?? window.innerWidth)
+    const edgeBottom = edgeTop + (vv?.height ?? window.innerHeight)
+    const margin = 12
+    const gap = 14
+    const width = card.getBoundingClientRect().width
+    const height = card.getBoundingClientRect().height
+    const markerX = selectedCostaRica.value ? rect.left + rect.width / 2 : rect.left + point.x
+    const markerY = selectedCostaRica.value ? rect.top + 18 : rect.top + point.y
+    const left = Math.max(edgeLeft + margin + width / 2,
+      Math.min(markerX, edgeRight - margin - width / 2))
+    const spaceAbove = Math.max(0, markerY - edgeTop - margin - gap)
+    const spaceBelow = Math.max(0, edgeBottom - markerY - margin - gap)
+    const below = spaceAbove < height && spaceBelow > spaceAbove
+    // Place the card adjacent to the pin. Flip if there isn't room above,
+    // then clamp to the visible viewport so other sections never cover it.
+    const top = below
+      ? Math.max(edgeTop + margin, Math.min(markerY + gap, edgeBottom - margin - height))
+      : Math.max(edgeTop + margin + height, Math.min(markerY - gap, edgeBottom - margin))
+    mobilePopupPosition.value = { left, top, below, visible: true }
+    return
+  }
+
   if (selectedCostaRica.value) {
     popupPosition.value = {left:root.width / 2,top:14,below:true}
     return
@@ -178,8 +220,12 @@ function selectWarehouse(marker: Marker | ClusterMarker,point: {x:number;y:numbe
   const office = offices.find(x=>x.id===id)
   if (!office || !holder.value || !canvas.value) return
   selectedId.value=id
-  if (mobileLocationDialog.value) {
-    void nextTick(() => locationCloseButton.value?.focus({ preventScroll: true }))
+  mobilePopupPosition.value.visible = false
+  if (mobileLocationPopup.value) {
+    void nextTick(() => {
+      positionPopup(point)
+      locationCloseButton.value?.focus({ preventScroll: true })
+    })
   }
   globe?.setOptions({autoRotate:false})
   positionPopup(point)
@@ -323,15 +369,16 @@ onBeforeUnmount(() => {
     <canvas ref="canvas" class="world-globe__canvas" :aria-label="$t('custom.tracking.mapAria')"></canvas>
     <!-- On phones the location dialog escapes the clipped canvas and the
          surrounding tracking sections via Teleport and a full-screen layer. -->
-    <Teleport to="body" :disabled="!mobileLocationDialog">
-      <div v-if="selectedOffice && mobileLocationDialog" class="world-globe__location-backdrop" aria-hidden="true" @click="closeLocation"></div>
+    <Teleport to="body" :disabled="!mobileLocationPopup">
     <section
       v-if="selectedOffice"
+      ref="locationCard"
       class="world-globe__location-card"
-      :class="{ 'world-globe__location-card--below': popupPosition.below, 'world-globe__location-card--costa-rica': selectedCostaRica }"
-      :style="mobileLocationDialog ? undefined : {left: popupPosition.left + 'px', top: popupPosition.top + 'px'}"
-      :role="mobileLocationDialog ? 'dialog' : 'region'"
-      :aria-modal="mobileLocationDialog ? 'true' : undefined"
+      :class="{ 'world-globe__location-card--below': mobileLocationPopup ? mobilePopupPosition.below : popupPosition.below, 'world-globe__location-card--costa-rica': selectedCostaRica }"
+      :style="mobileLocationPopup
+        ? { left: mobilePopupPosition.left + 'px', top: mobilePopupPosition.top + 'px', visibility: mobilePopupPosition.visible ? 'visible' : 'hidden' }
+        : { left: popupPosition.left + 'px', top: popupPosition.top + 'px' }"
+      role="region"
       :aria-label="selectedCity + ', ' + selectedCountry">
       <button ref="locationCloseButton" type="button" class="world-globe__location-close" :aria-label="english ? 'Close location' : 'Cerrar ubicación'" @click.stop="closeLocation">×</button>
       <template v-if="selectedCostaRica">
@@ -370,10 +417,6 @@ onBeforeUnmount(() => {
   transform:translate(-50%,-100%); box-shadow:0 14px 40px #0005; text-align:left;
 }
 
-.world-globe__location-backdrop {
-  position:fixed; inset:0; z-index:2147483000;
-  background:rgba(9,12,25,.56); backdrop-filter:blur(3px);
-}
 .world-globe__location-card > * {position:relative; z-index:1}
 .world-globe__location-card--below { transform:translate(-50%,0) }
 .world-globe__location-card--costa-rica {width:min(290px,calc(100% - 28px)); max-height:calc(100% - 28px)}
@@ -407,18 +450,23 @@ onBeforeUnmount(() => {
 :global(html.theme-dark .world-globe__location-close) {background:#ffffff23;color:#fff}
 .world-globe__location-card a:focus-visible,.world-globe__location-close:focus-visible {outline:2px solid #b20c2a;outline-offset:3px}
 @media (max-width:800px) {
-  /* The office panel is a viewport dialog, not a canvas child, on phones/tablets. */
-  .world-globe__location-card,
+  /* Same compact, pin-anchored card as before; only its stacking changes.
+     Teleport ensures later sections cannot clip it or cover it. */
+  .world-globe__location-card {
+    position:fixed;
+    z-index:2147483001;
+    width:min(270px,calc(100vw - 24px));
+    max-height:min(290px,calc(100dvh - 24px));
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    transform:translate(-50%,-100%);
+  }
   .world-globe__location-card--below {
-    position:fixed; left:50%; top:50%; z-index:2147483001;
-    width:min(420px,calc(100vw - 36px));
-    max-height:min(78dvh,610px);
-    transform:translate(-50%,-50%);
-    overflow-y:auto; overscroll-behavior:contain;
+    transform:translate(-50%,0);
   }
   .world-globe__location-card--costa-rica {
-    width:min(420px,calc(100vw - 36px));
-    max-height:min(78dvh,610px);
+    width:min(290px,calc(100vw - 24px));
+    max-height:min(290px,calc(100dvh - 24px));
   }
 }
 
