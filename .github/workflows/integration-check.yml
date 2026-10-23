@@ -27,11 +27,13 @@ jobs:
       - name: Build frontend
         run: |
           npm ci --prefix frontend
-          npm run build --prefix frontend
+          VITE_OFFICIAL_QUOTES_ENABLED=true npm run build --prefix frontend
       - name: SEO static HTML checks
         run: npm run seo:check --prefix frontend
       - name: Static integration checks
         run: python3 scripts/verify-integration.py
+      - name: Official quotes deployment and API contract checks
+        run: python3 scripts/verify-official-quotes.py
 
   smoke:
     name: PostgreSQL OTP CRUD CMS smoke
