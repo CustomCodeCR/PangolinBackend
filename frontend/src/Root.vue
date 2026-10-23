@@ -13,6 +13,7 @@ import Legal from './pages/Legal.vue'
 const Administration = defineAsyncComponent(() => import('./pages/Administration.vue'))
 import OfficialQuoteWizard from './pages/OfficialQuoteWizard.vue'
 import OfficialQuoteAdmin from './pages/OfficialQuoteAdmin.vue'
+import ServiceLanding from './pages/ServiceLanding.vue'
 import SiteHeader from './components/SiteHeader.vue'
 import SiteFooter from './components/SiteFooter.vue'
 import ScrollProgressButton from './components/ScrollProgressButton.vue'
@@ -124,6 +125,7 @@ const page = computed(()=> {
   if(path==='/noticias') return 'news'
   if(path==='/nosotros') return 'about'
   if(path==='/servicios') return 'services'
+  if(seoByPath[path] && 'landing' in seoByPath[path]) return 'service-landing'
   if(path==='/tracking') return 'tracking'
   if(path==='/itinerario') return 'itinerary'
   if(path==='/cotizaciones') return officialQuotesEnabled ? 'official-quote' : 'quote-legacy'
@@ -160,6 +162,7 @@ const page = computed(()=> {
   <News v-else-if="page==='news'"/>
   <About v-else-if="page==='about'"/>
   <Services v-else-if="page==='services'"/>
+  <ServiceLanding v-else-if="page==='service-landing'" />
   <div v-else-if="page==='notFound'" class="app-site">
     <SiteHeader />
     <main class="container" style="min-height:60vh;padding-block:6rem">
