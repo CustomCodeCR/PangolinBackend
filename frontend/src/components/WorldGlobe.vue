@@ -374,21 +374,6 @@ onBeforeUnmount(() => {
   position:fixed; inset:0; z-index:2147483000;
   background:rgba(9,12,25,.56); backdrop-filter:blur(3px);
 }
-@media (max-width:800px) {
-  /* The office panel is a viewport dialog, not a canvas child, on phones/tablets. */
-  .world-globe__location-card,
-  .world-globe__location-card--below {
-    position:fixed; left:50%; top:50%; z-index:2147483001;
-    width:min(420px,calc(100vw - 36px));
-    max-height:min(78dvh,610px);
-    transform:translate(-50%,-50%);
-    overflow-y:auto; overscroll-behavior:contain;
-  }
-  .world-globe__location-card--costa-rica {
-    width:min(420px,calc(100vw - 36px));
-    max-height:min(78dvh,610px);
-  }
-}
 .world-globe__location-card > * {position:relative; z-index:1}
 .world-globe__location-card--below { transform:translate(-50%,0) }
 .world-globe__location-card--costa-rica {width:min(290px,calc(100% - 28px)); max-height:calc(100% - 28px)}
@@ -421,7 +406,20 @@ onBeforeUnmount(() => {
 :global(html.theme-dark .world-globe__location-card dt) {color:#b8c3d6}
 :global(html.theme-dark .world-globe__location-close) {background:#ffffff23;color:#fff}
 .world-globe__location-card a:focus-visible,.world-globe__location-close:focus-visible {outline:2px solid #b20c2a;outline-offset:3px}
-@media(max-width:580px){
-  .world-globe__location-card {max-height:min(78dvh,610px);}
+@media (max-width:800px) {
+  /* The office panel is a viewport dialog, not a canvas child, on phones/tablets. */
+  .world-globe__location-card,
+  .world-globe__location-card--below {
+    position:fixed; left:50%; top:50%; z-index:2147483001;
+    width:min(420px,calc(100vw - 36px));
+    max-height:min(78dvh,610px);
+    transform:translate(-50%,-50%);
+    overflow-y:auto; overscroll-behavior:contain;
+  }
+  .world-globe__location-card--costa-rica {
+    width:min(420px,calc(100vw - 36px));
+    max-height:min(78dvh,610px);
+  }
 }
+
 </style>
