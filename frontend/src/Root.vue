@@ -70,6 +70,7 @@ applyPageSeo()
 // Conserva el cotizador V2 como alternativa segura hasta verificar catálogo y migración.
 const officialQuotesEnabled = import.meta.env.VITE_OFFICIAL_QUOTES_ENABLED === 'true'
 const quoteAccess = ref<'checking' | 'allowed' | 'denied' | 'forbidden'>('checking')
+const trackingAccess = ref<'checking' | 'allowed' | 'denied'>('checking')
 const requestPath = window.location.pathname.replace(/\/+$/, '') || '/'
 const legacyAdminRoute = requestPath === '/admin/contenido' || requestPath === '/admin/usuarios'
 const officialAdminRoute = requestPath === '/administracion/cotizaciones-oficiales'
@@ -105,7 +106,10 @@ onMounted(async () => {
     window.location.replace(`/administracion${params.size ? `?${params.toString()}` : ''}`)
     return
   }
-  if ((requestPath === '/tracking' || requestPath === '/itinerario') && role !== 'cliente' && role !== 'administrador') {
+  if (requestPath === '/tracking') {
+    trackingAccess.value = user && (role === 'cliente' || role === 'administrador') ? 'allowed' : 'denied'
+  }
+  if (requestPath === '/itinerario' && role !== 'cliente' && role !== 'administrador') {
     window.location.replace('/home?acceso=cliente')
     return
   }
@@ -168,6 +172,16 @@ const page = computed(()=> {
       <a class="btn btn-primary" href="/">Volver al inicio</a>
     </main>
     <SiteFooter />
+  </div>
+  <div v-else-if="page==='tracking' && trackingAccess !== 'allowed'" class="app-site quote-page quote-flow-page">
+    <SiteHeader/>
+    <div v-if="trackingAccess === 'checking'" class="container quote-access-status" role="status">{{ t('custom.quote.checkingSession') }}</div>
+    <div v-else class="container quote-access-status quote-access-status--blocked">
+      <h1>Se requiere una sesión activa</h1>
+      <p>Iniciá sesión con una cuenta autorizada para rastrear tus embarques.</p>
+      <a class="btn btn-primary" :href="loginNextHref">Iniciar sesión</a>
+    </div>
+    <SiteFooter/>
   </div>
   <Tracking v-else-if="page==='tracking'"/>
   <Itinerary v-else-if="page==='itinerary'"/>
