@@ -174,7 +174,7 @@ check('.theme-toggle:hover{transform:scale(1.10)}' in shared_mobile_styles
       and 'transform-origin: left center;' in shared_mobile_styles,
       'El selector de tema mantiene hover sutil en responsive sin cambiar escritorio')
 check('Alinear la flecha del idioma al centro del texto' not in shared_mobile_styles
-      and '⌄' in read('frontend/src/components/LanguageSwitcher.vue')
+      and '<svg viewBox="0 0 16 16"' in read('frontend/src/components/LanguageSwitcher.vue') and '<path d="m4 6 4 4 4-4"' in read('frontend/src/components/LanguageSwitcher.vue')
       and '.language-switcher__chevron::after' not in shared_mobile_styles,
       'Flecha del idioma conserva el diseño original')
 check("import { Anchor } from '@lucide/vue'" in app
@@ -202,15 +202,16 @@ check('type LegalDocument = { title: string; intro: string; sections: LegalSecti
       ])
       and '.legal-draft' not in shared_mobile_styles
       and 'La razón social, cédula jurídica y domicilio' in legal_page
-      and 'licencia comercial válida' in legal_page,
+      and '/licenses/globe-third-party-notices.txt' in legal_page and (root / 'frontend/public/licenses/globe-third-party-notices.txt').is_file(),
       'Páginas legales ES/EN sin aviso de borrador y con advertencias de datos por confirmar')
 check('class="container quote-access-status quote-access-status--blocked"' in rootvue
-      and rootvue.count('class="container quote-access-status quote-access-status--blocked"') == 2
+      and rootvue.count('class="container quote-access-status quote-access-status--blocked"') == (3 if 'trackingSessionRequiredHelp' in rootvue else 2)
+      and ('trackingSessionRequiredHelp' not in rootvue or "page==='tracking' && trackingAccess !== 'allowed'" in rootvue)
       and '.quote-flow-page>.site-footer{margin-top:auto}' in shared_mobile_styles
       and '@media (max-width: 800px)' in shared_mobile_styles
       and '.quote-flow-page > .quote-access-status--blocked' in shared_mobile_styles
       and 'padding-bottom: clamp(40px, 7vh, 64px);' in shared_mobile_styles,
-      'Cotización sin sesión mantiene espacio bajo el botón antes del footer en móvil')
+      'Cotizaciones y rastreo sin sesión conservan aviso, acceso al login y espacio antes del footer en móvil')
 check('<IconSymbol glyph="←" :size="20" />' in login
       and '<span aria-hidden="true">←</span>' not in login
       and '.login-visual .login-guest-back .lucide-symbol {' in shared_mobile_styles
