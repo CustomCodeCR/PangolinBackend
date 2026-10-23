@@ -125,7 +125,6 @@ assert.match(globe, /animateZoom\(/, 'Conservar zoom animado')
 assert.match(globe, /initialZoom\?: number/, 'El globo acepta una escala inicial por sección')
 assert.match(globe, /zoom: props\.initialZoom \?\? 1,/, 'La escala inicial conserva el comportamiento de Home sin cambiarlo')
 assert.match(globe, /animateZoom\(props\.initialZoom \?\? 1\)/, 'Volver a la escala elegida al retirar un embarque')
-assert.match(tracking, /<WorldGlobe :shipment="shipment" :initial-zoom="0\.8"\s*\/>/, 'Rastrear ahora abre el globo completo, sin acercamiento inicial')
 assert.match(home, /<WorldGlobe\s*\/>/, 'La página principal mantiene su globo original')
 
 assert.match(globe, /<Teleport to="body" :disabled="!mobileLocationPopup">/, 'La ficha móvil puede salir del contenedor sin modificar el comportamiento de escritorio')
@@ -167,6 +166,7 @@ assert.match(backendProgram, /code = "account_unavailable"/, 'API debe distingui
 assert.match(backendProgram, /StatusCodes\.Status404NotFound/, 'Devolver 404 antes del formulario OTP')
 
 const tracking = source('src/pages/Tracking.vue')
+assert.match(tracking, /<WorldGlobe :shipment="shipment" :initial-zoom="0\.8"\s*\/>/, 'Rastrear ahora abre el globo completo, sin acercamiento inicial')
 assert.match(tracking, /Online tracking is not available yet/, 'No simular seguimiento real')
 assert.match(tracking, /<label for="tracking-reference-kind">/, 'Tipo de referencia debe tener una etiqueta separada del select')
 assert.match(tracking, /import FieldDropdown from '\.\.\/components\/FieldDropdown\.vue'/, 'Buscar embarque reutiliza el mismo componente de selección que Administración')
