@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { driver, type Driver } from 'driver.js'
 import 'driver.js/dist/driver.css'
@@ -7,6 +7,7 @@ import IconSymbol from '../components/IconSymbol.vue'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import WorldGlobe from '../components/WorldGlobe.vue'
+import FieldDropdown from '../components/FieldDropdown.vue'
 import type { TrackingDemoShipment } from '../types/tracking'
 
 const { locale } = useI18n({ useScope: 'global' })
@@ -74,10 +75,6 @@ function formatDate(value: string) {
     day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'
   }).format(date)
 }
-const referenceMenuOpen = ref(false)
-const referenceTrigger = ref<HTMLButtonElement | null>(null)
-const referenceMenu = ref<HTMLElement | null>(null)
-const referenceMenuStyle = ref<Record<string, string>>({})
 let tour: Driver | null = null
 const types = computed(() => en.value ? [
   { id: 'BL', name: 'BL number', help: 'Master Bill of Lading for the shipment.' },
@@ -93,78 +90,6 @@ const types = computed(() => en.value ? [
   { id: 'PO', name: 'Orden de compra (PO)', help: 'Orden de compra vinculada al embarque, si aplica.' }
 ])
 const help = computed(() => types.value.find(item => item.id === kind.value)?.help ?? '')
-const selectedReferenceName = computed(() => types.value.find(item => item.id === kind.value)?.name ?? '')
-
-// Use the same anchored reference listbox on desktop and mobile.
-// It flips above the field when there isn't enough room below.
-function positionReferenceMenu() {
-  const rect = referenceTrigger.value?.getBoundingClientRect()
-  if (!rect) return
-  const viewport = window.visualViewport
-  const topEdge = viewport?.offsetTop ?? 0
-  const bottomEdge = topEdge + (viewport?.height ?? window.innerHeight)
-  const below = Math.max(0, bottomEdge - rect.bottom - 8)
-  const above = Math.max(0, rect.top - topEdge - 8)
-  const openAbove = below < 240 && above > below
-  const available = openAbove ? above : below
-  const height = Math.min(240, Math.max(65, available - 6))
-  const screenWidth = window.innerWidth
-  const width = Math.min(rect.width, screenWidth - 16)
-  const left = Math.max(8, Math.min(rect.left, screenWidth - width - 8))
-  const top = openAbove ? rect.top - height - 6 : rect.bottom + 6
-  referenceMenuStyle.value = {
-    left: left + 'px',
-    top: Math.max(topEdge + 4, top) + 'px',
-    width: width + 'px',
-    maxHeight: height + 'px'
-  }
-}
-function closeReferenceMenu() {
-  referenceMenuOpen.value = false
-}
-function openReferenceMenu(keyboard = false) {
-  referenceMenuOpen.value = true
-  positionReferenceMenu()
-  if (keyboard) {
-    void nextTick(() => {
-      referenceMenu.value?.querySelector<HTMLButtonElement>('[aria-selected="true"]')?.focus({ preventScroll: true })
-    })
-  }
-}
-function toggleReferenceMenu() {
-  if (referenceMenuOpen.value) closeReferenceMenu()
-  else openReferenceMenu()
-}
-function selectReferenceType(id: string, event: MouseEvent) {
-  kind.value = id
-  closeReferenceMenu()
-  if (event.detail === 0) referenceTrigger.value?.focus({ preventScroll: true })
-}
-function handleReferenceMenuKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    closeReferenceMenu()
-    referenceTrigger.value?.focus({ preventScroll: true })
-  } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
-    event.preventDefault()
-    const options = Array.from(referenceMenu.value?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? [])
-    if (!options.length) return
-    const current = options.indexOf(document.activeElement as HTMLButtonElement)
-    const next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1 :
-      event.key === 'ArrowDown' ? (current + 1) % options.length : (current + options.length - 1) % options.length
-    options[next]?.focus({ preventScroll: true })
-  }
-}
-function handleReferencePointerDown(event: PointerEvent) {
-  if (!referenceMenuOpen.value || !(event.target instanceof Node)) return
-  if (!referenceTrigger.value?.contains(event.target) && !referenceMenu.value?.contains(event.target)) {
-    closeReferenceMenu()
-  }
-}
-function handleReferenceViewportChange() {
-  if (!referenceMenuOpen.value) return
-  positionReferenceMenu()
-}
 const copy = computed(() => en.value ? {
   eyebrow: 'CASTRO FALLAS · INTERNATIONAL CARGO', title: 'Track your', accent: 'shipment.',
   intro: 'Explore sample shipments with an interactive route. Live cargo tracking is not connected yet.',
@@ -253,21 +178,11 @@ function handleGuideKeydown(event: KeyboardEvent) {
 // The guide is opt-in: auto-opening its overlay can intercept mobile select taps.
 onMounted(() => {
   window.addEventListener('keydown', handleGuideKeydown, true)
-  document.addEventListener('pointerdown', handleReferencePointerDown, true)
-  window.addEventListener('resize', handleReferenceViewportChange)
-  window.addEventListener('scroll', handleReferenceViewportChange, true)
-  window.visualViewport?.addEventListener('resize', handleReferenceViewportChange)
-  window.visualViewport?.addEventListener('scroll', handleReferenceViewportChange)
 })
 
 onBeforeUnmount(() => {
   lookupRevision++
   window.removeEventListener('keydown', handleGuideKeydown, true)
-  document.removeEventListener('pointerdown', handleReferencePointerDown, true)
-  window.removeEventListener('resize', handleReferenceViewportChange)
-  window.removeEventListener('scroll', handleReferenceViewportChange, true)
-  window.visualViewport?.removeEventListener('resize', handleReferenceViewportChange)
-  window.visualViewport?.removeEventListener('scroll', handleReferenceViewportChange)
   tour?.destroy()
 })
 </script>
@@ -300,23 +215,12 @@ onBeforeUnmount(() => {
             <div class="tracking-fields">
               <div id="tracking-guide-type" class="tracking-field">
                 <label for="tracking-reference-kind">{{ copy.type }}</label>
-                <button
+                <FieldDropdown
                   id="tracking-reference-kind"
-                  ref="referenceTrigger"
-                  class="tracking-reference-select"
-                  type="button"
-                  aria-haspopup="listbox"
-                  aria-controls="tracking-reference-listbox"
+                  v-model="kind"
                   :aria-label="copy.type"
-                  :aria-expanded="referenceMenuOpen"
-                  @click.stop="toggleReferenceMenu"
-                  @keydown.down.prevent="openReferenceMenu(true)"
-                  @keydown.up.prevent="openReferenceMenu(true)"
-                  @keydown.esc.prevent="closeReferenceMenu"
-                >
-                  <span>{{ selectedReferenceName }}</span>
-                  <span class="tracking-reference-select__arrow" aria-hidden="true">⌄</span>
-                </button>
+                  :options="types.map(item => ({ value: item.id, label: item.name }))"
+                />
               </div>
               <div id="tracking-guide-reference" class="tracking-field">
                 <label for="tracking-reference-input">{{ copy.number }}</label>
@@ -374,29 +278,6 @@ onBeforeUnmount(() => {
     </main>
     <SiteFooter />
   </div>
-  <Teleport to="body">
-    <div
-      v-if="referenceMenuOpen"
-      id="tracking-reference-listbox"
-      ref="referenceMenu"
-      class="tracking-reference-options"
-      role="listbox"
-      :aria-label="copy.type"
-      :style="referenceMenuStyle"
-      @keydown="handleReferenceMenuKeydown"
-    >
-      <button
-        v-for="item in types"
-        :key="item.id"
-        type="button"
-        role="option"
-        :aria-selected="kind === item.id"
-        :class="{ 'is-selected': kind === item.id }"
-        tabindex="-1"
-        @click="selectReferenceType(item.id, $event)"
-      >{{ item.name }}</button>
-    </div>
-  </Teleport>
 </template>
 
 <style scoped>
@@ -419,78 +300,9 @@ onBeforeUnmount(() => {
 .tracking-fields { display: grid; grid-template-columns: .8fr 1.2fr; gap: 17px; margin-top: 20px; }
 .tracking-fields .tracking-field { display:grid; gap:9px; min-width:0; }
 .tracking-fields label { display:block; min-width:0; font-weight:700; font-size:14px; overflow-wrap:break-word; }
-/* Shared reference selector for desktop and mobile; options are teleported
-   outside the clipped form and remain anchored to the trigger. */
-.tracking-fields .tracking-reference-select {
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  min-height:52px;
-  width:100%;
-  min-width:0;
-  padding:12px 15px;
-  border:1px solid #96969b60;
-  border-radius:13px;
-  background:var(--surface-card);
-  color:var(--text-primary);
-  text-align:left;
-  font:inherit;
-  font-size:16px;
-  line-height:1.35;
-  cursor:pointer;
-}
-.tracking-reference-select__arrow {flex:none;font-size:20px;line-height:1}
-:global(html.theme-dark .tracking-reference-select) {background:#10182b;color:#fff}
-.tracking-reference-options {
-  position:fixed;
-  z-index:9999;
-  box-sizing:border-box;
-  display:flex;
-  flex-direction:column;
-  gap:2px;
-  padding:5px;
-  overflow-y:auto;
-  overscroll-behavior:contain;
-  border:1px solid #96969b80;
-  border-radius:13px;
-  background:#fff;
-  color:#20242b;
-  box-shadow:0 14px 32px #0005;
-}
-.tracking-reference-options > button {
-  flex:0 0 auto;
-  width:100%;
-  min-height:44px;
-  padding:10px 12px;
-  border:0;
-  border-radius:8px;
-  background:transparent;
-  color:inherit;
-  text-align:left;
-  font:inherit;
-  font-size:15px;
-  cursor:pointer;
-}
-.tracking-reference-options > button.is-selected,
-.tracking-reference-options > button:hover {background:#b5092826}
-.tracking-reference-options > button:focus-visible {outline:2px solid #b50928;outline-offset:-2px}
-/* The listbox is teleported to <body>. Scope the entire dark selector,
-   not just html, so Vue applies dark colors to the detached listbox. */
-:global(html.theme-dark .tracking-reference-options) {
-  background:#10182b;
-  color:#f4f6fb;
-  border-color:#6b6c7b;
-  box-shadow:0 14px 34px #0009;
-}
-:global(html.theme-dark .tracking-reference-options > button) {
-  color:inherit;
-}
-:global(html.theme-dark .tracking-reference-options > button.is-selected),
-:global(html.theme-dark .tracking-reference-options > button:hover) {
-  background:#b5092847;
-  color:#fff;
-}
+/* Reuse the exact same light/dark dropdown styling and popup placement
+   as Itinerarios and Administración. Only match the tracking field height. */
+.tracking-fields .cf-dropdown__trigger { min-height:52px; }
 .tracking-fields input,.tracking-fields select { box-sizing: border-box; width: 100%; min-width:0; max-width:100%; min-height: 52px; padding: 12px; border: 1px solid #96969b7d; border-radius: 12px; color: var(--track-ink); background: var(--track-surface); font: inherit; }
 .tracking-error { color: #a80e18; font-weight: 700; }
 .tracking-submit { width: 100%; display: flex; justify-content: space-between; margin-top: 22px; }
@@ -567,7 +379,7 @@ onBeforeUnmount(() => {
   .tracking-field{min-width:0}
   .tracking-fields label{font-size:14px;line-height:1.4}
   .tracking-fields :is(input,select){min-height:54px;padding:13px 15px;font-size:16px;line-height:1.35}
-  .tracking-fields .tracking-reference-select{min-height:54px;padding:13px 15px}
+  .tracking-fields .cf-dropdown__trigger{min-height:54px;padding:13px 15px;font-size:16px}
   .tracking-search .tracking-hint{overflow-wrap:break-word;line-height:1.55}
   .tracking-search .tracking-fields + .tracking-hint{margin:22px 0 0}
   .tracking-top > div{min-width:0}
