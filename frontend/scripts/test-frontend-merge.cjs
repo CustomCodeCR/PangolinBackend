@@ -157,7 +157,7 @@ assert.match(tracking, /import FieldDropdown from '\.\.\/components\/FieldDropdo
 assert.match(tracking, /id="tracking-reference-kind"[\s\S]*?v-model="kind"[\s\S]*?:aria-label="copy\.type"/, 'Tipo de referencia mantiene etiqueta y selección accesibles')
 assert.match(tracking, /types\.map\(item => \(\{ value: item\.id, label: item\.name \}\)\)/, 'Las cinco referencias mantienen sus valores originales')
 assert.doesNotMatch(tracking, /tracking-reference-select|tracking-reference-options|referenceMenuOpen/, 'No duplicar componentes de dropdown con estilos propios')
-assert.match(tracking, /\.tracking-fields \.cf-dropdown__trigger\{min-height:54px;padding:13px 15px;font-size:16px\}/, 'Tipo de referencia conserva tamaño táctil apropiado en móvil')
+assert.match(tracking, /\.tracking-fields :deep\(\.cf-dropdown__trigger\)\{min-height:54px;padding:13px 15px;font-size:16px\}/, 'Tipo de referencia conserva tamaño táctil y estilo del componente hijo en móvil')
 assert.match(fieldDropdown, /html\.theme-dark \.cf-dropdown__menu\s*\{\s*background:#19191c; color:#fff;/, 'Menú de referencia respeta el modo oscuro compartido')
 assert.match(tracking, /<label for="tracking-reference-input">/, 'Referencia debe conservar una etiqueta explícita')
 assert.doesNotMatch(tracking, /setTimeout\(openGuide/, 'La guía no debe abrirse automáticamente sobre el selector táctil')
