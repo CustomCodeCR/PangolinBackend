@@ -9,6 +9,15 @@ const { makeStructuredData } = require('../seo/structured-data.cjs')
 const dist = path.resolve(__dirname, '../dist')
 const original = fs.readFileSync(path.join(dist, 'index.html'), 'utf8')
 const origin = 'https://www.logisticacastrofallas.com'
+const imageDimensions = {
+  '/images/hero.webp': [1200, 685],
+  '/images/cover-logistics.jpeg': [1024, 576],
+  '/images/about-operations-enhanced.jpg': [1448, 1086],
+  '/images/services-crane.webp': [960, 538],
+  '/images/ship.webp': [480, 480],
+  '/images/truck.webp': [750, 422],
+  '/images/air-freight.webp': [1120, 630]
+}
 const sourceSchemaMatch = original.match(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/i)
 if (!sourceSchemaMatch) throw new Error('No se encontro el JSON-LD original de la empresa')
 const sourceGraph = JSON.parse(sourceSchemaMatch[1])['@graph']
@@ -39,6 +48,11 @@ function buildRoute(route, seo) {
   const image = origin + (seo.socialImage || '/images/hero.webp')
   html = putMeta(html, 'property', 'og:image', image)
   html = putMeta(html, 'name', 'twitter:image', image)
+  const dimensions = imageDimensions[seo.socialImage || '/images/hero.webp']
+  if (dimensions) {
+    html = putMeta(html, 'property', 'og:image:width', dimensions[0])
+    html = putMeta(html, 'property', 'og:image:height', dimensions[1])
+  }
   if (seo.socialImageAlt) {
     html = putMeta(html, 'property', 'og:image:alt', seo.socialImageAlt)
     html = putMeta(html, 'name', 'twitter:image:alt', seo.socialImageAlt)
@@ -52,6 +66,18 @@ function buildRoute(route, seo) {
   if (structured) {
     const serialized = JSON.stringify(structured).replace(/</g, '\\u003c')
     html = html.replace('</head>', '    <script type="application/ld+json">' + serialized + '</script>\n  </head>')
+  }
+  if (seo.landing || seo.pageContent) {
+    const landing = seo.landing || seo.pageContent
+    const safeText = value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    const details = landing.details ? '<ul>' + landing.details.map(item => '<li>' + safeText(item) + '</li>').join('') + '</ul>' : ''
+    const image = landing.image ? '<img src="' + safeText(landing.image) + '" alt="' + safeText(landing.imageAlt) + '" width="' + landing.imageWidth + '" height="' + landing.imageHeight + '" />' : ''
+    const links = (landing.links || [['Ver todos los servicios', '/servicios'], ['Solicitar cotización', '/cotizaciones']])
+      .map(([label, href]) => '<a href="' + safeText(href) + '">' + safeText(label) + '</a>').join(' · ')
+    const staticContent = '<main class="seo-prerender container"><p class="section-tag">Grupo Castro Fallas · Costa Rica</p>' +
+      '<h1>' + safeText(landing.heading) + '</h1><p>' + safeText(landing.intro) + '</p>' + image + details +
+      '<p>' + links + '</p></main>'
+    html = html.replace(/(<div\s+id="app"\s*>)[\s\S]*?(<\/div>)/i, '$1' + staticContent + '$2')
   }
   const dest = route === '/' ? dist : path.join(dist, route.slice(1))
   fs.mkdirSync(dest, { recursive: true })
@@ -73,3 +99,4 @@ fs.writeFileSync(path.join(dist, '404.html'), '<!doctype html>\n' +
   '<body><main><h1>404 · Página no encontrada</h1><p>La página solicitada no existe.</p>\n' +
   '<a href="/">Volver al inicio de Castro Fallas</a></main></body></html>')
 console.log('SEO: ' + Object.keys(routes).length + ' rutas HTML, JSON-LD por pagina y sitemap generados.')
+
