@@ -202,8 +202,7 @@ onUnmounted(() => {
         <div class="news-editorial-hero__lead" aria-live="polite">
           <p class="section-tag light-tag">{{ $t('phrases.p066') }} <span>· {{ leadStory.category }}</span></p>
           <p class="news-editorial-hero__index">{{ String(activeStoryIndex + 1).padStart(2, '0') }} <span>/ {{ String(news.length).padStart(2, '0') }}</span></p>
-          <h1 class="news-editorial-hero__page-title">{{ locale === 'en' ? 'Logistics and foreign trade news' : 'Noticias de logística y comercio exterior' }}</h1>
-          <h2 class="news-editorial-hero__story-title">{{ leadStory.title }}</h2>
+          <h1>{{ leadStory.title }}</h1>
           <p class="news-editorial-hero__description">{{ leadStory.description }}</p>
           <button type="button" class="news-editorial-hero__read" @click="openArticle(activeStoryIndex)"><IconSymbol glyph="↘" />{{ $t('custom.news.readArticle') }}</button>
         </div>
@@ -225,7 +224,7 @@ onUnmounted(() => {
       </template>
       <div v-else class="container news-empty-hero" role="status">
         <p class="section-tag light-tag">{{ q('CASTRO FALLAS · ACTUALIDAD', 'CASTRO FALLAS · LATEST UPDATES') }}</p>
-        <h1>{{ q('Noticias de logística y comercio exterior', 'Logistics and foreign trade news') }}</h1>
+        <h1>{{ q('Noticias', 'News') }}</h1>
         <p v-if="!newsLoaded">{{ q('Cargando publicaciones…', 'Loading news…') }}</p>
         <p v-else-if="newsError">{{ q('No pudimos cargar las noticias en este momento. Inténtalo de nuevo más tarde.', 'We could not load the news right now. Please try again later.') }}</p>
         <p v-else>{{ q('Aún no hay noticias publicadas. Pronto compartiremos novedades.', 'No news has been published yet. We will share updates soon.') }}</p>

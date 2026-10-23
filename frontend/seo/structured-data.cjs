@@ -70,18 +70,6 @@ function makeStructuredData(route, seo, sourceGraph) {
       ]
     })
   }
-  if (seo.landing) {
-    graph.push({
-      '@type': 'Service',
-      '@id': canonical + '#servicio',
-      name: seo.landing.heading,
-      serviceType: seo.title.split('|')[0].trim(),
-      description: seo.description,
-      provider: { '@id': organizationId },
-      areaServed: organization.areaServed,
-      url: canonical
-    })
-  }
   graph.push(page)
   if (canonicalPath === '/' || route === '/servicios') graph.push(landService)
   if (route === '/servicios') {

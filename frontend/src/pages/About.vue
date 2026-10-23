@@ -17,7 +17,7 @@ const values = computed(() => [0, 1, 2, 3, 4].map(index => siteText(`about.value
       <SiteMedia v-if="siteVisual('about.hero.media', '/images/about-operations-enhanced.jpg').kind.startsWith('Video')" slot-key="about.hero.media" fallback="/images/about-operations-enhanced.jpg" background />
       <SiteHeader active="nosotros" overlay />
       <div class="container inner-hero__copy about-hero__copy">
-        <h1>{{ siteText('about.hero.title', $t('custom.about.seoTitle'), locale) }}</h1>
+        <h1>{{ siteText('about.hero.title', $t('custom.about.title'), locale) }}</h1>
         <div class="big-years"><strong>+48</strong><span>{{ $t('custom.about.years') }}</span></div>
       </div>
     </section>

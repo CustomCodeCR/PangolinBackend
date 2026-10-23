@@ -290,13 +290,8 @@
     "cotizaciones": "Cotizaciones"
   },
   "custom": {
-    "services": {
-      "seoHeading1": "Transporte y servicios",
-      "seoHeading2": "aduaneros"
-    },
     "about": {
       "title": "Sobre Nosotros",
-      "seoTitle": "Sobre Grupo Castro Fallas",
       "years": "AÑOS DE EXPERIENCIA",
       "introduction": "Castro Fallas Logística Internacional es una compañía creada hace 48 años, con el fin de satisfacer las necesidades de los diferentes eslabones de la cadena logística y los diferentes actores que en ella intervienen, a través de la gestión, coordinación y supervisión del transporte de mercancías con los diferentes medios a nivel nacional e internacional, para carga de importación y exportación.",
       "valuesEyebrow": "LO QUE NOS DEFINE",

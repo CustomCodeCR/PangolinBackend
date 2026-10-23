@@ -44,7 +44,7 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
       <SiteHeader active="soluciones" overlay />
       <div class="container inner-hero__copy">
         <p class="section-tag light-tag">{{ $t('phrases.p008') }}</p>
-        <h1>{{ siteText('services.hero.heading1', $t('custom.services.seoHeading1'), locale) }}<br /><span>{{ siteText('services.hero.heading2', $t('custom.services.seoHeading2'), locale) }}</span></h1>
+        <h1>{{ siteText('services.hero.heading1', $t('phrases.p009'), locale) }}<br /><span>{{ siteText('services.hero.heading2', $t('phrases.p010'), locale) }}</span></h1>
         <p>{{ siteText('services.hero.intro', $t('phrases.p011'), locale) }}</p>
         <a href="#nuestros-servicios" class="btn btn-primary">{{ $t('phrases.p003') }} <IconSymbol glyph="↓" /></a>
       </div>
@@ -71,13 +71,6 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
               </div>
             </article>
           </div>
-          <nav class="service-landing-links" aria-label="Páginas de servicios">
-            <a href="/servicios/agencia-aduanal">Agencia aduanal</a>
-            <a href="/servicios/transporte-maritimo">Transporte marítimo</a>
-            <a href="/servicios/transporte-terrestre">Transporte terrestre</a>
-            <a href="/servicios/transporte-aereo">Transporte aéreo</a>
-            <a href="/servicios/consolidado-lcl">Carga consolidada LCL</a>
-          </nav>
         </div>
       </section>
 

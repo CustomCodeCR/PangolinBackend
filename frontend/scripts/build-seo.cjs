@@ -67,18 +67,6 @@ function buildRoute(route, seo) {
     const serialized = JSON.stringify(structured).replace(/</g, '\\u003c')
     html = html.replace('</head>', '    <script type="application/ld+json">' + serialized + '</script>\n  </head>')
   }
-  if (seo.landing || seo.pageContent) {
-    const landing = seo.landing || seo.pageContent
-    const safeText = value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    const details = landing.details ? '<ul>' + landing.details.map(item => '<li>' + safeText(item) + '</li>').join('') + '</ul>' : ''
-    const image = landing.image ? '<img src="' + safeText(landing.image) + '" alt="' + safeText(landing.imageAlt) + '" width="' + landing.imageWidth + '" height="' + landing.imageHeight + '" />' : ''
-    const links = (landing.links || [['Ver todos los servicios', '/servicios'], ['Solicitar cotización', '/cotizaciones']])
-      .map(([label, href]) => '<a href="' + safeText(href) + '">' + safeText(label) + '</a>').join(' · ')
-    const staticContent = '<main class="seo-prerender container"><p class="section-tag">Grupo Castro Fallas · Costa Rica</p>' +
-      '<h1>' + safeText(landing.heading) + '</h1><p>' + safeText(landing.intro) + '</p>' + image + details +
-      '<p>' + links + '</p></main>'
-    html = html.replace(/(<div\s+id="app"\s*>)[\s\S]*?(<\/div>)/i, '$1' + staticContent + '$2')
-  }
   const dest = route === '/' ? dist : path.join(dist, route.slice(1))
   fs.mkdirSync(dest, { recursive: true })
   fs.writeFileSync(path.join(dest, 'index.html'), html)
