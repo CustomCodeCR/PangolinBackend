@@ -42,7 +42,7 @@ export const siteSlotCatalog: SiteSlotDefinition[] = [
     "type": "text",
     "label": "Título de la portada",
     "help": "Encabezado Sobre nosotros",
-    "fallback": "custom.about.title",
+    "fallback": "custom.about.seoTitle",
     "section": "Portada"
   },
   {
@@ -792,7 +792,7 @@ export const siteSlotCatalog: SiteSlotDefinition[] = [
     "type": "text",
     "label": "Portada de Servicios, título 1",
     "help": "Primera línea del título grande de la portada de /servicios.",
-    "fallback": "phrases.p009",
+    "fallback": "custom.services.seoHeading1",
     "section": "Portada"
   },
   {
@@ -802,7 +802,7 @@ export const siteSlotCatalog: SiteSlotDefinition[] = [
     "type": "text",
     "label": "Portada de Servicios, título 2",
     "help": "Segunda parte del título grande de la portada de /servicios.",
-    "fallback": "phrases.p010",
+    "fallback": "custom.services.seoHeading2",
     "section": "Portada"
   },
   {

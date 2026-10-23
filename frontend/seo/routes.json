@@ -46,7 +46,7 @@
     "socialImageAlt": "Equipo y operaciones logísticas de Castro Fallas"
   },
   "/servicios": {
-    "title": "Transporte de carga y servicios aduaneros | Castro Fallas Costa Rica",
+    "title": "Servicios de transporte y aduanas | Castro Fallas",
     "description": "Servicios de agencia aduanal, transporte marítimo FCL, carga consolidada LCL, transporte aéreo, terrestre LTL/FTL Panamá–Costa Rica y logística internacional.",
     "socialImage": "/images/services-crane.webp",
     "socialImageAlt": "Operaciones de transporte y servicios logísticos de Castro Fallas"
@@ -98,7 +98,7 @@
   },
   "/servicios/transporte-aereo": {
     "title": "Transporte aéreo de carga | Grupo Castro Fallas Costa Rica",
-    "description": "Alternativas de transporte aéreo internacional para cargas que requieren coordinación y acompañamiento aduanero con Grupo Castro Fallas.",
+    "description": "Alternativas de transporte aéreo internacional en Costa Rica, con coordinación logística y acompañamiento aduanero de Grupo Castro Fallas.",
     "socialImage": "/images/air-freight.webp",
     "socialImageAlt": "Carga preparada para transporte aéreo internacional",
     "landing": {
