@@ -3192,7 +3192,8 @@ html:not(.theme-dark) .news-editorial-hero__fade{background:linear-gradient(90de
 .news-editorial-card__copy h3{margin:11px 0 9px;color:#191d27;font-family:"Arial Black",system-ui,sans-serif;font-size:clamp(18px,2vw,25px);letter-spacing:-.035em;line-height:1.2}
 .news-editorial-card--lead .news-editorial-card__copy h3{font-size:clamp(24px,2.6vw,34px)}
 .news-editorial-card__copy>p:not(.section-tag){margin:0 0 18px;color:#606776;font-size:13px;line-height:1.65}
-.news-editorial-card__copy>button{display:inline-flex;align-items:center;gap:10px;margin-top:auto;padding:0;border:0;background:transparent;color:#a90b27;font:inherit;font-size:11px;font-weight:900;text-decoration:none;cursor:pointer}
+.news-editorial-card__copy>a{display:inline-flex;align-items:center;gap:10px;margin-top:auto;padding:0;color:#a90b27;font:inherit;font-size:11px;font-weight:900;text-decoration:none;cursor:pointer}
+.news-editorial-card__copy>a:hover,.news-editorial-card__copy>a:focus-visible{text-decoration:underline}
 html.theme-dark .news-editorial-content{background:transparent!important}
 html.theme-dark .news-editorial-card{border-color:rgba(255,255,255,.12);background:rgba(9,17,36,.82);box-shadow:0 12px 36px rgba(0,0,0,.16)}
 html.theme-dark .news-editorial-card__copy h3{color:#fff}
