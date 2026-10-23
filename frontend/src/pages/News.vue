@@ -234,26 +234,62 @@ onUnmounted(() => {
 
     </template>
 
-    <!-- A requested article is a normal, full-height document section, not a modal. -->
+    <!-- Detalle editorial: página completa, sin alterar la portada. -->
     <main v-else id="noticia-completa" class="news-article-page">
       <template v-if="activeArticle">
         <nav class="container news-article-page__navigation" :aria-label="q('Navegación de noticias', 'News navigation')">
           <a href="/noticias"><IconSymbol glyph="←" /> {{ q('Volver a noticias', 'Back to news') }}</a>
+          <span>{{ q('GRUPO CASTRO FALLAS / ACTUALIDAD', 'GRUPO CASTRO FALLAS / NEWS') }}</span>
         </nav>
         <article class="news-article-page__article">
-          <div class="news-article-page__cover">
-            <img :src="activeArticle.image" :alt="activeArticle.title" fetchpriority="high" />
+          <div class="container news-article-page__stage">
+            <div class="news-article-page__panel">
+              <div class="news-article-page__hero">
+                <figure class="news-article-page__visual">
+                  <img :src="activeArticle.image" :alt="activeArticle.title" fetchpriority="high" decoding="async" />
+                  <figcaption class="news-article-page__visual-mark">
+                    <span class="news-article-page__visual-dot" aria-hidden="true"></span>
+                    {{ q('HISTORIAS QUE NOS CONECTAN', 'STORIES THAT CONNECT US') }}
+                  </figcaption>
+                </figure>
+                <header class="news-article-page__heading">
+                  <div class="news-article-page__eyebrow">
+                    <span>CF <span aria-hidden="true">/</span> {{ q('NOTICIAS', 'NEWS') }}</span>
+                    <span>{{ q('EDICIÓN DIGITAL', 'DIGITAL EDITION') }}</span>
+                  </div>
+                  <div class="news-article-page__headline">
+                    <p class="news-article-page__overline">{{ activeArticle.category }}</p>
+                    <h1>{{ activeArticle.title }}</h1>
+                    <p v-if="activeArticle.description?.trim() && activeArticle.description.trim() !== activeArticle.body.trim()" class="news-article-page__teaser">{{ activeArticle.description }}</p>
+                  </div>
+                  <a class="news-article-page__read" href="#contenido-noticia">
+                    {{ q('Leer noticia completa', 'Read full article') }}
+                    <span aria-hidden="true"><IconSymbol glyph="↘" /></span>
+                  </a>
+                </header>
+              </div>
+              <div class="news-article-page__panel-footer">
+                <span>GRUPO CASTRO FALLAS <span class="news-article-page__footer-divider" aria-hidden="true">/</span> {{ q('ACTUALIDAD', 'LATEST') }}</span>
+                <span class="news-article-page__panel-category">{{ activeArticle.category }}</span>
+                <a href="#contenido-noticia">{{ q('EXPLORAR ARTÍCULO', 'EXPLORE ARTICLE') }} <IconSymbol glyph="↓" /></a>
+              </div>
+            </div>
           </div>
           <div class="container news-article-page__layout">
-            <header class="news-article-page__heading">
-              <p class="section-tag">{{ activeArticle.category }} · {{ $t('phrases.p074') }}</p>
-              <h1>{{ activeArticle.title }}</h1>
-            </header>
-            <div class="news-article-page__content">
-              <p v-if="activeArticle.description?.trim() && activeArticle.description.trim() !== activeArticle.body.trim()" class="news-article-page__summary">{{ activeArticle.description }}</p>
+            <aside class="news-article-page__rail" :aria-label="q('Información de la publicación', 'Publication information')">
+              <p class="news-article-page__rail-index">01 <span>/</span> {{ q('EN DETALLE', 'IN DETAIL') }}</p>
+              <div class="news-article-page__rail-rule" aria-hidden="true"></div>
+              <p>{{ q('Información y novedades del mundo logístico.', 'Updates and insights from the logistics world.') }}</p>
+            </aside>
+            <section id="contenido-noticia" class="news-article-page__content" :aria-label="q('Contenido de la noticia', 'Article content')">
+              <p class="news-article-page__content-kicker">{{ activeArticle.category }} <span aria-hidden="true">/</span> {{ q('ARTÍCULO COMPLETO', 'FULL ARTICLE') }}</p>
               <div class="news-article-page__body">{{ activeArticle.body }}</div>
-            </div>
-            <a class="news-article-page__back" href="/noticias"><IconSymbol glyph="←" /> {{ q('Ver todas las noticias', 'View all news') }}</a>
+              <div class="news-article-page__closing">
+                <span class="news-article-page__closing-line" aria-hidden="true"></span>
+                <span>{{ q('FIN DEL ARTÍCULO', 'END OF ARTICLE') }}</span>
+              </div>
+              <a class="news-article-page__back" href="/noticias"><IconSymbol glyph="←" /> {{ q('Ver todas las noticias', 'View all news') }}</a>
+            </section>
           </div>
         </article>
       </template>
@@ -270,29 +306,99 @@ onUnmounted(() => {
 
 <style scoped>
 .news-translation-feedback { padding-block: 10px; font-size: 13px; color: #aab8d0; }
-.news-article-page { min-height:70vh; padding:24px 0 90px; background:#fff; color:#20242b; }
-.news-article-page__navigation { padding-bottom:23px; }
-.news-article-page__navigation a, .news-article-page__back { display:inline-flex; align-items:center; gap:10px; color:#ad0b26; text-decoration:none; font-size:13px; font-weight:850; }
-.news-article-page__navigation a:hover, .news-article-page__back:hover { text-decoration:underline; }
-.news-article-page__cover { height:clamp(240px,38vw,510px); overflow:hidden; background:#111a30; }
-.news-article-page__cover img { display:block; width:100%; height:100%; object-fit:cover; }
-.news-article-page__layout { max-width:1040px; padding-top:clamp(38px,5vw,70px); }
-.news-article-page__heading { max-width:940px; padding-bottom:28px; border-bottom:1px solid rgba(23,35,54,.16); }
-.news-article-page__heading .section-tag { margin:0 0 17px; color:#ad0b26; }
-.news-article-page__heading h1 { margin:0; font-family:'Arial Black',system-ui,sans-serif; font-size:clamp(34px,5.5vw,70px); letter-spacing:-.045em; line-height:1.13; overflow-wrap:anywhere; }
-.news-article-page__content { max-width:870px; padding:30px 0 48px; }
-.news-article-page__summary { margin:0 0 30px; font-size:clamp(18px,2vw,23px); font-weight:600; line-height:1.65; }
-.news-article-page__body { font-size:clamp(16px,1.5vw,19px); line-height:1.95; white-space:pre-line; overflow-wrap:anywhere; }
-.news-article-page__back { padding-top:24px; border-top:1px solid rgba(23,35,54,.16); }
-.news-article-page__empty { padding:80px 0 130px; }
-.news-article-page__empty h1 { font-size:clamp(30px,4vw,48px); }
-.news-article-page__empty a { color:#ad0b26; }
-/* Override the site's broad `html.theme-dark .app-site main` gradient only on article pages. */
-:global(html.theme-dark .app-site.news-page main.news-article-page) { background:#01081d; color:#fff; }
-:global(html.theme-dark) .news-article-page__heading, :global(html.theme-dark) .news-article-page__back { border-color:rgba(255,255,255,.18); }
-:global(html.theme-dark) .news-article-page__navigation a, :global(html.theme-dark) .news-article-page__back, :global(html.theme-dark) .news-article-page__empty a { color:#ff5570; }
-:global(html.theme-dark) .news-article-page__heading .section-tag { color:#ff5570; }
-@media (max-width:600px) { .news-article-page { padding-bottom:60px; } .news-article-page__navigation { padding-bottom:16px; } .news-article-page__cover { height:230px; } .news-article-page__layout { padding-top:30px; } .news-article-page__heading { padding-bottom:23px; } .news-article-page__content { padding-top:24px; } }
+
+/* Vista editorial exclusiva del detalle de noticias, sin modificar la portada. */
+.news-article-page{
+  --article-ink:#192439;--article-muted:#647084;--article-line:rgba(21,35,55,.14);--article-accent:#ad1230;
+  min-height:70vh;padding:23px 0 clamp(76px,9vw,132px);background:#fff;color:var(--article-ink);
+}
+.news-article-page__navigation,.news-article-page__stage,.news-article-page__layout{
+  width:min(1320px,calc(100% - 64px));max-width:none;margin-inline:auto;
+}
+.news-article-page__navigation{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-bottom:23px}
+.news-article-page__navigation a,.news-article-page__back{display:inline-flex;align-items:center;gap:10px;color:var(--article-accent);font-size:12px;font-weight:800;text-decoration:none}
+.news-article-page__navigation>span{color:var(--article-muted);font-size:10px;font-weight:800;letter-spacing:.13em}
+.news-article-page__navigation a:hover,.news-article-page__back:hover{text-decoration:underline}
+.news-article-page__panel{overflow:hidden;border:1px solid var(--article-line);border-radius:5px;background:#fafbfc;box-shadow:0 24px 75px rgba(20,30,46,.09)}
+.news-article-page__hero{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,.88fr);min-height:485px}
+.news-article-page__visual{position:relative;min-width:0;min-height:485px;margin:0;overflow:hidden;background:#182339}
+.news-article-page__visual::after{position:absolute;inset:45% 0 0;content:"";background:linear-gradient(180deg,transparent,rgba(0,10,25,.54));pointer-events:none}
+.news-article-page__visual img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;object-position:center}
+.news-article-page__visual-mark{position:absolute;z-index:1;right:24px;bottom:24px;left:26px;display:flex;align-items:center;gap:9px;margin:0;color:#fff;font-size:10px;font-weight:800;letter-spacing:.13em;text-shadow:0 1px 6px rgba(0,0,0,.35)}
+.news-article-page__visual-dot{width:7px;height:7px;flex:none;border-radius:50%;background:#eb3656}
+.news-article-page__heading{position:relative;display:flex;min-width:0;flex-direction:column;justify-content:space-between;gap:36px;padding:clamp(28px,3.8vw,62px);border-right:7px solid var(--article-accent);background:#fafbfc}
+.news-article-page__eyebrow{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;color:#677185;font-size:9px;font-weight:850;letter-spacing:.13em}
+.news-article-page__eyebrow>span:first-child{color:var(--article-ink)}
+.news-article-page__eyebrow span[aria-hidden]{margin:0 7px;color:var(--article-accent)}
+.news-article-page__headline{min-width:0;margin-block:auto}
+.news-article-page__overline{margin:0 0 18px;color:var(--article-accent);font-size:11px;font-weight:850;letter-spacing:.12em;text-transform:uppercase;overflow-wrap:anywhere}
+.news-article-page__heading h1{margin:0;color:var(--article-ink);font-family:Inter,"Helvetica Neue",Arial,system-ui,sans-serif;font-size:clamp(32px,3.7vw,60px);font-weight:700;letter-spacing:-.053em;line-height:1.075;overflow-wrap:anywhere}
+.news-article-page__teaser{max-width:43ch;margin:24px 0 0;color:#576377;font-size:clamp(14px,1.24vw,17px);line-height:1.65;white-space:pre-line;overflow-wrap:anywhere}
+.news-article-page__read{display:inline-flex;align-items:center;align-self:flex-start;gap:16px;color:var(--article-ink);font-size:11px;font-weight:800;text-decoration:none}
+.news-article-page__read>span{display:grid;width:38px;height:38px;flex:none;place-items:center;border:1px solid var(--article-line);border-radius:50%;color:var(--article-accent);font-size:19px;transition:transform .2s ease,background .2s ease}
+.news-article-page__read:hover>span{transform:translate(2px,2px);background:rgba(175,18,50,.09)}
+.news-article-page__panel-footer{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:64px;padding:17px clamp(24px,3.5vw,48px);border-top:1px solid var(--article-line);color:#606d81;font-size:10px;font-weight:850;letter-spacing:.095em}
+.news-article-page__footer-divider{margin-inline:9px;color:var(--article-accent)}
+.news-article-page__panel-category{max-width:32ch;overflow-wrap:anywhere;text-align:center}
+.news-article-page__panel-footer a{display:inline-flex;align-items:center;gap:12px;color:var(--article-ink);text-decoration:none}
+.news-article-page__panel-footer a:hover{color:var(--article-accent)}
+.news-article-page__layout{display:grid;grid-template-columns:minmax(170px,.34fr) minmax(0,1fr);gap:clamp(38px,6vw,100px);padding-top:clamp(66px,8vw,122px)}
+.news-article-page__rail{max-width:220px;padding-top:7px}
+.news-article-page__rail-index,.news-article-page__content-kicker{margin:0;color:var(--article-accent);font-size:11px;font-weight:850;letter-spacing:.12em;text-transform:uppercase}
+.news-article-page__rail-index span{margin-inline:7px;color:#a9b2c1}
+.news-article-page__rail-rule{width:min(100%,150px);height:1px;margin:23px 0;background:var(--article-line)}
+.news-article-page__rail>p:last-child{max-width:20ch;color:var(--article-muted);font-size:13px;line-height:1.7}
+.news-article-page__content{min-width:0;max-width:850px;scroll-margin-top:100px}
+.news-article-page__content-kicker{margin-bottom:29px}
+.news-article-page__content-kicker span{margin-inline:10px;color:#a9b2c1}
+.news-article-page__body{color:var(--article-ink);font-size:clamp(17px,1.45vw,19px);font-weight:400;line-height:1.95;white-space:pre-line;overflow-wrap:anywhere}
+.news-article-page__closing{display:flex;align-items:center;gap:20px;margin-top:clamp(48px,7vw,92px);color:var(--article-muted);font-size:10px;font-weight:800;letter-spacing:.12em;white-space:nowrap}
+.news-article-page__closing-line{width:64px;height:2px;background:var(--article-accent)}
+.news-article-page__back{margin-top:27px;padding-top:20px;border-top:1px solid var(--article-line)}
+.news-article-page__empty{padding:80px 0 130px}
+.news-article-page__empty h1{font-size:clamp(30px,4vw,48px)}
+.news-article-page__empty a{color:var(--article-accent)}
+.news-article-page a:focus-visible{outline:2px solid var(--article-accent);outline-offset:5px}
+/* Fondo de dark mode preservado para compatibilidad con la página actual. */
+:global(html.theme-dark .app-site.news-page main.news-article-page){--article-ink:#f4f6fa;--article-muted:#abb7cc;--article-line:rgba(235,241,252,.17);--article-accent:#ff5a76;background:#01081d;color:var(--article-ink)}
+:global(html.theme-dark) .news-article-page__panel{background:#101a30;box-shadow:0 24px 75px rgba(0,0,0,.24)}
+:global(html.theme-dark) .news-article-page__heading{background:#101a30}
+:global(html.theme-dark) .news-article-page__eyebrow{color:#a3afc4}
+:global(html.theme-dark) .news-article-page__teaser{color:#bac4d5}
+:global(html.theme-dark) .news-article-page__panel-footer{color:#b4bfd1}
+:global(html.theme-dark) .news-article-page__empty a{color:#ff5a76}
+@media(max-width:1000px){
+  .news-article-page__hero{grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:415px}
+  .news-article-page__visual{min-height:415px}
+  .news-article-page__heading{padding:28px}
+  .news-article-page__heading h1{font-size:clamp(30px,4.2vw,44px)}
+  .news-article-page__layout{grid-template-columns:150px minmax(0,1fr);gap:32px}
+}
+@media(max-width:720px){
+  .news-article-page{padding-top:16px;padding-bottom:64px}
+  .news-article-page__navigation,.news-article-page__stage,.news-article-page__layout{width:calc(100% - 32px)}
+  .news-article-page__navigation{padding-bottom:17px}
+  .news-article-page__navigation>span{display:none}
+  .news-article-page__hero{display:block;min-height:0}
+  .news-article-page__visual{height:clamp(230px,63vw,380px);min-height:0}
+  .news-article-page__visual-mark{right:18px;bottom:18px;left:18px;font-size:9px}
+  .news-article-page__heading{gap:30px;padding:28px 25px 32px;border-right-width:5px}
+  .news-article-page__heading h1{font-size:clamp(30px,8vw,48px)}
+  .news-article-page__teaser{margin-top:18px}
+  .news-article-page__panel-footer{min-height:58px;padding:17px 22px}
+  .news-article-page__panel-category{display:none}
+  .news-article-page__layout{display:block;padding-top:52px}
+  .news-article-page__rail{display:none}
+  .news-article-page__content-kicker{margin-bottom:25px}
+  .news-article-page__body{font-size:17px;line-height:1.85}
+}
+@media(max-width:380px){
+  .news-article-page__panel-footer{flex-wrap:wrap;row-gap:10px;font-size:9px}
+  .news-article-page__eyebrow{font-size:8px}
+  .news-article-page__visual-mark{letter-spacing:.07em}
+}
+@media(prefers-reduced-motion:reduce){.news-article-page__read>span{transition:none}}
+
 .news-empty-hero { position: relative; z-index: 2; min-height: 320px; padding-top: 135px; padding-bottom: 95px; color: #fff; }
 .news-empty-hero h1 { font-size: clamp(42px, 6vw, 76px); line-height: 1.1; margin: 18px 0; }
 .news-empty-hero p:last-child { max-width: 640px; font-size: clamp(16px, 1.7vw, 20px); }
