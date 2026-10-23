@@ -273,8 +273,8 @@ jobs:
           } | docker run --rm -i --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD postgres:16-alpine psql -X -d pangolin --single-transaction -v ON_ERROR_STOP=1 -f - >/dev/null
           # Verificar cada combinación usada por el asistente antes de mostrarlo al cliente.
           ready_roles="$(pg_query "SELECT COUNT(*) FROM (VALUES
-            ('seaport','FCL','origin'),('seaport','FCL','destination'),('seaport','FCL','pod'),
-            ('seaport','LCL','origin'),('seaport','LCL','destination'),('seaport','LCL','pod'),
+            ('seaport','FCL','origin'),('seaport','FCL','destination'),('inland','FCL','pod'),
+            ('seaport','LCL','origin'),('seaport','LCL','destination'),('inland','LCL','pod'),
             ('airport','AIR_LCL','origin'),('airport','AIR_LCL','destination'),
             ('inland','FTL','origin'),('inland','FTL','destination'),
             ('inland','LTL','origin'),('inland','LTL','destination')
