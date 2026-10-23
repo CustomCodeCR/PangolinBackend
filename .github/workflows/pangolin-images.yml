@@ -254,7 +254,7 @@ jobs:
               docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/AuthSchema.sql
             } | docker run --rm -i --network "$DHOLE_NETWORK" \
               -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD \
-              postgres:16-alpine psql -X -d pangolin --single-transaction -v ON_ERROR_STOP=1 >/dev/null
+              postgres:16-alpine psql -X -d pangolin --single-transaction -v ON_ERROR_STOP=1 -f - >/dev/null
           else
             required="$(pg_query "SELECT COUNT(*) FROM (VALUES ('public.clientes'), ('public.usuarios'), ('public.otp_challenges'), ('public.auth_sessions'), ('public.cms_news'), ('public.cms_comments'), ('public.itinerarios'), ('public.quote_requests')) AS t(tab) WHERE to_regclass(t.tab) IS NOT NULL")"
             if [[ "$required" != "8" ]]; then
@@ -270,7 +270,7 @@ jobs:
             docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/OfficialQuotesSchema.sql
             docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/OfficialQuotesVerifiedLocations.sql
             docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/OfficialQuotesVideoLocations.sql
-          } | docker run --rm -i --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD postgres:16-alpine psql -X -d pangolin --single-transaction -v ON_ERROR_STOP=1 >/dev/null
+          } | docker run --rm -i --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD postgres:16-alpine psql -X -d pangolin --single-transaction -v ON_ERROR_STOP=1 -f - >/dev/null
           # Verificar cada combinación usada por el asistente antes de mostrarlo al cliente.
           ready_roles="$(pg_query "SELECT COUNT(*) FROM (VALUES
             ('seaport','FCL','origin'),('seaport','FCL','destination'),('seaport','FCL','pod'),
@@ -280,9 +280,9 @@ jobs:
             ('inland','LTL','origin'),('inland','LTL','destination')
           ) AS needed(kind, shipment_type, route_role) WHERE EXISTS (
             SELECT 1 FROM public.official_quote_locations loc
-            JOIN public.official_quote_location_usage usage ON usage.location_id=loc.id
+            JOIN public.official_quote_location_usage u ON u.location_id=loc.id
             WHERE loc.active AND loc.kind=needed.kind
-              AND usage.shipment_type=needed.shipment_type AND usage.route_role=needed.route_role
+              AND u.shipment_type=needed.shipment_type AND u.route_role=needed.route_role
           )")"
           if [[ "$ready_roles" != "12" ]]; then
             echo "::error::Official quote location catalog incomplete (ready roles: $ready_roles/12). Refusing to deploy."
