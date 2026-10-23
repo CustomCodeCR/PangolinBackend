@@ -302,7 +302,7 @@ onBeforeUnmount(() => {
 .tracking-fields label { display:block; min-width:0; font-weight:700; font-size:14px; overflow-wrap:break-word; }
 /* Reuse the exact same light/dark dropdown styling and popup placement
    as Itinerarios and Administración. Only match the tracking field height. */
-.tracking-fields .cf-dropdown__trigger { min-height:52px; }
+.tracking-fields :deep(.cf-dropdown__trigger) { min-height:52px; }
 .tracking-fields input,.tracking-fields select { box-sizing: border-box; width: 100%; min-width:0; max-width:100%; min-height: 52px; padding: 12px; border: 1px solid #96969b7d; border-radius: 12px; color: var(--track-ink); background: var(--track-surface); font: inherit; }
 .tracking-error { color: #a80e18; font-weight: 700; }
 .tracking-submit { width: 100%; display: flex; justify-content: space-between; margin-top: 22px; }
@@ -379,7 +379,7 @@ onBeforeUnmount(() => {
   .tracking-field{min-width:0}
   .tracking-fields label{font-size:14px;line-height:1.4}
   .tracking-fields :is(input,select){min-height:54px;padding:13px 15px;font-size:16px;line-height:1.35}
-  .tracking-fields .cf-dropdown__trigger{min-height:54px;padding:13px 15px;font-size:16px}
+  .tracking-fields :deep(.cf-dropdown__trigger){min-height:54px;padding:13px 15px;font-size:16px}
   .tracking-search .tracking-hint{overflow-wrap:break-word;line-height:1.55}
   .tracking-search .tracking-fields + .tracking-hint{margin:22px 0 0}
   .tracking-top > div{min-width:0}
