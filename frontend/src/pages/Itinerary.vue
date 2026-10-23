@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import IconSymbol from '../components/IconSymbol.vue'
+import FieldDropdown from '../components/FieldDropdown.vue'
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
@@ -48,6 +49,11 @@ const { t, tm } = useI18n({ useScope: 'global' })
 const modes = computed(() => tm('custom.itinerary.modes') as string[])
 const statusValues: ItineraryStatus[] = ['planning', 'transit', 'delivered', 'delayed']
 const statuses = computed(() => (tm('custom.itinerary.form.statuses') as string[]).map((label, index) => ({ value: statusValues[index], label })))
+const statusChoices = computed(() => [{ value: '', label: 'Todos' }, ...statuses.value])
+const modalityChoices = (item: Itinerary) => [{value:'',label:'Todas'}, ...optionsFor(item).map(value => ({value,label:value}))]
+function chooseStatus(item: Itinerary, value: string) {
+  item.status = statusValues.includes(value as ItineraryStatus) ? value as ItineraryStatus : ''
+}
 const labels = computed(() => tm('custom.itinerary.table.fields') as Record<string, string>)
 const placeholders = computed(() => tm('custom.itinerary.table.values') as Record<string, string>)
 const transportDetails = computed(() => tm('custom.itinerary.table.transportDetails') as Array<{ pol: string; pod: string }>)
@@ -221,13 +227,13 @@ async function searchItineraries(pageNumber = 1) {
         </header>
 
         <div class="itinerary-form-lines">
-          <label class="itinerary-form-line"><strong>{{ t('custom.itinerary.form.status') }}</strong><select v-model="item.status"><option value="">Todos</option><option v-for="status in statuses" :key="status.value" :value="status.value">{{ status.label }}</option></select></label>
+          <div class="itinerary-form-line"><strong>{{ t('custom.itinerary.form.status') }}</strong><FieldDropdown :model-value="item.status" :options="statusChoices" :aria-label="t('custom.itinerary.form.status')" @update:model-value="value => chooseStatus(item, value)" /></div>
           <label class="itinerary-form-line"><strong>POL</strong><input v-model="item.pol" type="text" :placeholder="portPlaceholder(item, 'pol')" /></label>
           <label class="itinerary-form-line"><strong>POD</strong><input v-model="item.pod" type="text" :placeholder="portPlaceholder(item, 'pod')" /></label>
           <label class="itinerary-form-line"><strong>Closing</strong><input v-model="item.closing" type="date" /></label>
           <label class="itinerary-form-line"><strong>ETD</strong><input v-model="item.etd" type="date" /></label>
           <label class="itinerary-form-line"><strong>ETA</strong><input v-model="item.eta" type="date" /></label>
-          <label class="itinerary-form-line"><strong>{{ labels.modality }}</strong><select v-model="item.modality"><option value="">Todas</option><option v-for="option in optionsFor(item)" :key="option" :value="option">{{ option }}</option></select></label>
+          <div class="itinerary-form-line"><strong>{{ labels.modality }}</strong><FieldDropdown v-model="item.modality" :options="modalityChoices(item)" :aria-label="labels.modality" /></div>
         </div>
         </template>
 
