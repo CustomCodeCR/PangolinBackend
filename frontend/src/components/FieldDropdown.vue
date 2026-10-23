@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 
-export type DropdownChoice = { value: string; label: string }
+type DropdownChoice = { value: string; label: string }
 const props = defineProps<{
   modelValue: string
   options: DropdownChoice[]
