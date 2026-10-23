@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import IconSymbol from '../components/IconSymbol.vue'
+import FieldDropdown from '../components/FieldDropdown.vue'
 import SiteVisualEditor from './SiteVisualEditor.vue'
 import OfficialQuoteAdmin from './OfficialQuoteAdmin.vue'
 const officialQuotesEnabled = import.meta.env.VITE_OFFICIAL_QUOTES_ENABLED === 'true'
@@ -232,6 +233,10 @@ async function updateUser(user: ManagedUser) {
   }
 }
 
+function selectAdminTransport(value: string) {
+  itineraryForm.value.transport = value
+  onTransportChange()
+}
 function onTransportChange() {
   itineraryForm.value.modality = itineraryForm.value.transport === 'Terrestre' ? 'LTL' : 'FCL'
 }
@@ -521,7 +526,7 @@ function useMediaForNews(item: ManagedMedia) {
         <p class="manager-user-hint">Por seguridad, no puedes modificar tu propia cuenta ni desactivar al último administrador activo. Se mostrará un aviso si lo intentas.</p>
         <div v-if="usersLoading" class="manager-users-empty">Consultando el sistema de usuarios…</div>
         <div v-else-if="!usersError && users.length === 0" class="manager-users-empty">Aún no hay cuentas para mostrar.</div>
-        <div v-else-if="users.length" class="manager-users-table-wrap"><table class="manager-users-table"><thead><tr><th>Cuenta</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody><tr v-for="user in users" :key="user.id"><td><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td><td><select v-model="user.role" :disabled="Boolean(authState.previewRole)" :aria-label="`Rol de ${user.correo}`"><option value="cliente">Cliente</option><option value="administrador">Administrador</option></select></td><td><select v-model="user.activo" :disabled="Boolean(authState.previewRole)" :aria-label="`Estado de ${user.correo}`"><option :value="true">Activo</option><option :value="false">Desactivado</option></select></td><td><button class="manager-user-save" :disabled="Boolean(authState.previewRole) || savingUserId === user.id" @click="updateUser(user)">{{ savingUserId === user.id ? 'Guardando…' : 'Guardar' }}</button></td></tr></tbody></table></div>
+        <div v-else-if="users.length" class="manager-users-table-wrap"><table class="manager-users-table"><thead><tr><th>Cuenta</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody><tr v-for="user in users" :key="user.id"><td><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td><td><FieldDropdown :model-value="user.role" :disabled="Boolean(authState.previewRole)" :aria-label="`Rol de ${user.correo}`" :options="[{value:'cliente',label:'Cliente'},{value:'administrador',label:'Administrador'}]" @update:model-value="value => user.role = value === 'administrador' ? 'administrador' : 'cliente'" /></td><td><FieldDropdown :model-value="String(user.activo)" :disabled="Boolean(authState.previewRole)" :aria-label="`Estado de ${user.correo}`" :options="[{value:'true',label:'Activo'},{value:'false',label:'Desactivado'}]" @update:model-value="value => user.activo = value === 'true'" /></td><td><button class="manager-user-save" :disabled="Boolean(authState.previewRole) || savingUserId === user.id" @click="updateUser(user)">{{ savingUserId === user.id ? 'Guardando…' : 'Guardar' }}</button></td></tr></tbody></table></div>
       </section>
       <SiteVisualEditor v-if="section === 'site'" />
       <OfficialQuoteAdmin v-else-if="section === 'quotes'" embedded @total-change="quotesTotal = $event" />
@@ -532,9 +537,14 @@ function useMediaForNews(item: ManagedMedia) {
           <form v-if="section === 'itineraries'" class="manager-editor--itineraries" @submit.prevent="submitItinerary">
             <label>Origen<input v-model="itineraryForm.origin" required maxlength="120" placeholder="San José, Costa Rica" /></label>
             <label>Destino<input v-model="itineraryForm.destination" required maxlength="120" placeholder="Miami, Estados Unidos" /></label>
-            <div class="manager-form-row"><label>Transporte<select v-model="itineraryForm.transport" @change="onTransportChange"><option>Marítimo</option><option v-if="isLiveAdmin">Terrestre</option><option v-if="!isLiveAdmin">Aéreo</option><option v-if="!isLiveAdmin">Terrestre</option><option v-if="!isLiveAdmin">Multimodal</option></select></label><label>Estado<select v-model="itineraryForm.status"><option>Programado</option><option>En tránsito</option><option>Completado</option><option>Demorado</option></select></label></div>
+            <div class="manager-form-row"><div class="manager-select-field"><label>Transporte</label><FieldDropdown :model-value="itineraryForm.transport" aria-label="Transporte" :options="[
+  {value:'Marítimo',label:'Marítimo'},
+  {value:'Terrestre',label:'Terrestre'},
+  ...(!isLiveAdmin ? [{value:'Aéreo',label:'Aéreo'},{value:'Multimodal',label:'Multimodal'}] : [])
+]" @update:model-value="selectAdminTransport" /></div>
+<div class="manager-select-field"><label>Estado</label><FieldDropdown v-model="itineraryForm.status" aria-label="Estado" :options="['Programado','En tránsito','Completado','Demorado'].map(value => ({value,label:value}))" /></div></div>
             <div class="manager-form-row"><label>Salida (ETD)<input v-model="itineraryForm.departure" type="date" :required="isLiveAdmin" /></label><label>Llegada (ETA)<input v-model="itineraryForm.arrival" type="date" :required="isLiveAdmin" /></label></div>
-            <template v-if="isLiveAdmin"><label>Closing (opcional)<input v-model="itineraryForm.closing" type="date" /></label><label>Modalidad<select v-model="itineraryForm.modality"><option v-for="option in (itineraryForm.transport === 'Terrestre' ? ['LTL'] : ['FCL', 'LCL'])" :key="option" :value="option">{{ option }}</option></select></label><div class="manager-form-row"><label>Transportista (opcional)<input v-model="itineraryForm.carrier" maxlength="150" /></label><label>Buque (opcional)<input v-model="itineraryForm.vessel" maxlength="150" /></label></div><label>Viaje (opcional)<input v-model="itineraryForm.voyage" maxlength="50" /></label></template>
+            <template v-if="isLiveAdmin"><label>Closing (opcional)<input v-model="itineraryForm.closing" type="date" /></label><div class="manager-select-field"><label>Modalidad</label><FieldDropdown v-model="itineraryForm.modality" aria-label="Modalidad" :options="(itineraryForm.transport === 'Terrestre' ? ['LTL'] : ['FCL', 'LCL']).map(value => ({value,label:value}))" /></div><div class="manager-form-row"><label>Transportista (opcional)<input v-model="itineraryForm.carrier" maxlength="150" /></label><label>Buque (opcional)<input v-model="itineraryForm.vessel" maxlength="150" /></label></div><label>Viaje (opcional)<input v-model="itineraryForm.voyage" maxlength="50" /></label></template>
             <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar itinerario' }}</button>
           </form>
           <form v-else-if="section === 'news'" @submit.prevent="submitNews">
@@ -545,10 +555,7 @@ function useMediaForNews(item: ManagedMedia) {
             <label>Imagen ({{ storageMode === 's3' ? 'MinIO' : 'archivo local' }})<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="selectFile($event, 'news')" /></label>
             <p v-if="newsUploadFile" class="manager-publication-hint">Imagen seleccionada: {{ newsUploadFile.name }}. Se subirá a MinIO al guardar.</p>
             <label>o URL de imagen<input v-model="newsForm.image" placeholder="/images/mi-imagen.webp" /></label>
-            <label>Estado de publicación<select v-model="newsForm.published">
-              <option :value="false">Borrador (solo administradores)</option>
-              <option :value="true">Publicada (visible en la web)</option>
-            </select></label>
+            <div class="manager-select-field"><label>Estado de publicación</label><FieldDropdown :model-value="String(newsForm.published)" aria-label="Estado de publicación de noticia" :options="[{value:'false',label:'Borrador (solo administradores)'},{value:'true',label:'Publicada (visible en la web)'}]" @update:model-value="value => newsForm.published = value === 'true'" /></div>
             <p class="manager-publication-hint" role="status">{{ newsForm.published ? 'Esta noticia aparecerá en la web al guardar los cambios.' : 'Este borrador no aparecerá en la web pública.' }}</p>
             <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar noticia' }}</button>
           </form>
@@ -556,19 +563,18 @@ function useMediaForNews(item: ManagedMedia) {
             <label>Autor<input v-model.trim="commentForm.author" required maxlength="100" /></label>
             <label>Sección<input v-model.trim="commentForm.section" maxlength="100" placeholder="Principal, servicios..." /></label>
             <label>Comentario<textarea v-model.trim="commentForm.message" required maxlength="1200" rows="5" /></label>
-            <label>Estado de publicación<select v-model="commentForm.published">
-              <option :value="false">Borrador (solo administradores)</option>
-              <option :value="true">Publicado (visible en la web)</option>
-            </select></label>
+            <div class="manager-select-field"><label>Estado de publicación</label><FieldDropdown :model-value="String(commentForm.published)" aria-label="Estado de publicación de comentario" :options="[{value:'false',label:'Borrador (solo administradores)'},{value:'true',label:'Publicado (visible en la web)'}]" @update:model-value="value => commentForm.published = value === 'true'" /></div>
             <p class="manager-publication-hint" role="status">{{ commentForm.published ? 'El comentario aparecerá en la web al guardar.' : 'El borrador no aparecerá en la web pública.' }}</p>
             <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar comentario' }}</button>
           </form>
           <form v-else @submit.prevent="submitMedia">
             <label>Nombre<input v-model="mediaForm.name" required maxlength="200" placeholder="Imagen de puerto" /></label>
-            <label>Tipo<select v-model="mediaForm.kind" :disabled="Boolean(mediaForm.objectKey)">
-              <option>Imagen</option><option v-if="storageMode === 's3'">Video</option><option v-if="storageMode === 's3'">Documento</option>
-              <option>Video (enlace)</option><option>Documento (enlace)</option>
-            </select></label>
+            <div class="manager-select-field"><label>Tipo</label><FieldDropdown v-model="mediaForm.kind" aria-label="Tipo de multimedia" :disabled="Boolean(mediaForm.objectKey)" :options="[
+  {value:'Imagen',label:'Imagen'},
+  ...(storageMode === 's3' ? [{value:'Video',label:'Video'},{value:'Documento',label:'Documento'}] : []),
+  {value:'Video (enlace)',label:'Video (enlace)'},
+  {value:'Documento (enlace)',label:'Documento (enlace)'}
+]" /></div>
             <label v-if="(mediaForm.kind === 'Imagen' || storageMode === 's3') && !editingId">
               Seleccionar archivo ({{ storageMode === 's3' ? 'MinIO' : 'imagen local' }})
               <input type="file" :accept="mediaForm.kind === 'Imagen' ? 'image/png,image/jpeg,image/webp,image/gif' : mediaForm.kind === 'Video' ? 'video/mp4,video/webm' : 'application/pdf'" @change="selectFile($event, 'media')" />
@@ -989,6 +995,8 @@ function useMediaForNews(item: ManagedMedia) {
 .is-embedded .manager-form form.manager-editor--itineraries {grid-template-columns:repeat(4,minmax(0,1fr));}
 .is-embedded .manager-form-row {display:contents;}
 .is-embedded .manager-form label {display:grid;align-content:start;gap:9px;min-width:0;color:var(--manager-ink);font-size:13px;font-weight:750;line-height:1.5}
+.is-embedded .manager-form .manager-select-field {display:grid;align-content:start;gap:9px;min-width:0;}
+.is-embedded .manager-form .manager-select-field > label {font-size:13px;font-weight:750;color:var(--manager-ink)}
 .is-embedded .manager-form .manager-checkbox {display:flex;align-items:center;justify-self:start;gap:12px;grid-column:1/-1;width:fit-content;color:var(--manager-ink);font-size:14px;font-weight:750;line-height:1.4;cursor:pointer}
 .is-embedded .manager-form .manager-checkbox input[type=checkbox] {flex:0 0 18px;width:18px;height:18px;min-height:18px;margin:0;padding:0;accent-color:#b20c2a;cursor:pointer}
 .is-embedded .manager-form input,.is-embedded .manager-form select,.is-embedded .manager-form textarea,.is-embedded .manager-users-table select {
