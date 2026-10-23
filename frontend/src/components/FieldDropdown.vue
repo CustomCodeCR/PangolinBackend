@@ -152,8 +152,10 @@ html.theme-dark .cf-dropdown__menu {
 html.theme-dark .cf-dropdown__menu > button:is(:hover,:focus-visible,.cf-dropdown__option--selected) {
   background:#30262d; color:#ff806f;
 }
+/* Itinerary filters use the same type size as their date fields on desktop. */
+.app-site.itinerary-page .cf-dropdown__trigger { min-height:42px; font-size:12px; }
 @media(max-width:650px) {
-  .cf-dropdown__trigger { min-height:46px; font-size:16px; }
+  .cf-dropdown__trigger, .app-site.itinerary-page .cf-dropdown__trigger { min-height:46px; font-size:16px; }
   .cf-dropdown__menu > button { font-size:16px; }
 }
 </style>
