@@ -105,7 +105,7 @@ onBeforeUnmount(removeListeners)
     </button>
     <Teleport to="body">
       <div v-if="isOpen" :id="listId" ref="menu" class="cf-dropdown__menu" role="listbox"
-        :aria-label="ariaLabel" :style="popupStyle" @keydown="handleKeydown">
+        :aria-label="props['aria-label']" :style="popupStyle" @keydown="handleKeydown">
         <button v-for="option in options" :key="option.value" type="button" role="option"
           :aria-selected="modelValue === option.value" tabindex="-1"
           :class="{ 'cf-dropdown__option--selected': modelValue === option.value }"
