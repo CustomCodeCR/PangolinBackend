@@ -447,10 +447,9 @@ async function submit() {
             <div class="official-fields">
               <div class="official-location-field">
                 <label for="quote-origin">{{ q('Origen', 'Origin') }} <span>*</span></label>
-                <div class="official-location-combobox" :class="{ 'official-location-combobox--clearable': locationSearch.origin || form.originLocationId }">
+                <div class="official-location-combobox">
                   <input id="quote-origin" :value="locationSearch.origin" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'origin'" aria-controls="quote-origin-options" autocomplete="off" :placeholder="q('Buscar ciudad o país', 'Search city or country')" required @focus="focusLocation('origin')" @input="updateLocationSearch('origin', $event)" @keydown="handleLocationKeydown('origin', $event)" @blur="closeLocation('origin')" />
-                  <button v-if="locationSearch.origin || form.originLocationId" type="button" class="official-location-clear" :aria-label="q('Limpiar origen', 'Clear origin')" :title="q('Limpiar origen', 'Clear origin')" @mousedown.prevent @click="clearLocation('origin')"><span aria-hidden="true">×</span></button>
-                  <button type="button" class="official-location-toggle" :aria-label="q('Mostrar ubicaciones de origen', 'Show origin locations')" tabindex="-1" @mousedown.prevent @click="toggleLocation('origin')">⌄</button>
+                  <button type="button" class="official-location-toggle" :class="{ 'official-location-toggle--clear': !!form.originLocationId }" :aria-label="form.originLocationId ? q('Limpiar origen', 'Clear origin') : q('Mostrar ubicaciones de origen', 'Show origin locations')" @mousedown.prevent @click="form.originLocationId ? clearLocation('origin') : toggleLocation('origin')">⌄</button>
                   <ul v-if="openLocation === 'origin'" id="quote-origin-options" class="official-location-options" role="listbox">
                     <li v-for="(loc,index) in optionsFor('origin')" :key="loc.id"><button type="button" role="option" :aria-selected="form.originLocationId === loc.id" :id="`quote-origin-option-${index}`" @mousedown.prevent @click="chooseLocation('origin', loc)"><span>{{ loc.displayName }}</span></button></li>
                     <li v-if="!optionsFor('origin').length" class="official-location-empty">{{ q('No hay ubicaciones que coincidan.', 'No matching locations.') }}</li>
@@ -459,10 +458,9 @@ async function submit() {
               </div>
               <div class="official-location-field">
                 <label for="quote-destination">{{ q('Destino', 'Destination') }} <span>*</span></label>
-                <div class="official-location-combobox" :class="{ 'official-location-combobox--clearable': locationSearch.destination || form.destinationLocationId }">
+                <div class="official-location-combobox">
                   <input id="quote-destination" :value="locationSearch.destination" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'destination'" aria-controls="quote-destination-options" autocomplete="off" :placeholder="q('Buscar ciudad o país', 'Search city or country')" required @focus="focusLocation('destination')" @input="updateLocationSearch('destination', $event)" @keydown="handleLocationKeydown('destination', $event)" @blur="closeLocation('destination')" />
-                  <button v-if="locationSearch.destination || form.destinationLocationId" type="button" class="official-location-clear" :aria-label="q('Limpiar destino', 'Clear destination')" :title="q('Limpiar destino', 'Clear destination')" @mousedown.prevent @click="clearLocation('destination')"><span aria-hidden="true">×</span></button>
-                  <button type="button" class="official-location-toggle" :aria-label="q('Mostrar ubicaciones de destino', 'Show destination locations')" tabindex="-1" @mousedown.prevent @click="toggleLocation('destination')">⌄</button>
+                  <button type="button" class="official-location-toggle" :class="{ 'official-location-toggle--clear': !!form.destinationLocationId }" :aria-label="form.destinationLocationId ? q('Limpiar destino', 'Clear destination') : q('Mostrar ubicaciones de destino', 'Show destination locations')" @mousedown.prevent @click="form.destinationLocationId ? clearLocation('destination') : toggleLocation('destination')">⌄</button>
                   <ul v-if="openLocation === 'destination'" id="quote-destination-options" class="official-location-options" role="listbox">
                     <li v-for="(loc,index) in optionsFor('destination')" :key="loc.id"><button type="button" role="option" :aria-selected="form.destinationLocationId === loc.id" :id="`quote-destination-option-${index}`" @mousedown.prevent @click="chooseLocation('destination', loc)"><span>{{ loc.displayName }}</span></button></li>
                     <li v-if="!optionsFor('destination').length" class="official-location-empty">{{ q('No hay ubicaciones que coincidan.', 'No matching locations.') }}</li>
@@ -471,10 +469,9 @@ async function submit() {
               </div>
               <div v-if="mode === 'Maritime'" class="official-location-field">
                 <label for="quote-pod">POD {{ shipmentType === 'LCL' ? q('(requerido)', '(required)') : q('(opcional)', '(optional)') }}</label>
-                <div class="official-location-combobox" :class="{ 'official-location-combobox--clearable': locationSearch.pod || form.podLocationId }">
+                <div class="official-location-combobox">
                   <input id="quote-pod" :value="locationSearch.pod" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'pod'" aria-controls="quote-pod-options" autocomplete="off" :placeholder="shipmentType === 'LCL' ? q('Buscar ciudad o país', 'Search city or country') : q('Sin POD adicional', 'No additional POD')" @focus="focusLocation('pod')" @input="updateLocationSearch('pod', $event)" @keydown="handleLocationKeydown('pod', $event)" @blur="closeLocation('pod')" />
-                  <button v-if="locationSearch.pod || form.podLocationId" type="button" class="official-location-clear" :aria-label="q('Limpiar POD', 'Clear POD')" :title="q('Limpiar POD', 'Clear POD')" @mousedown.prevent @click="clearLocation('pod')"><span aria-hidden="true">×</span></button>
-                  <button type="button" class="official-location-toggle" :aria-label="q('Mostrar opciones de POD', 'Show POD options')" tabindex="-1" @mousedown.prevent @click="toggleLocation('pod')">⌄</button>
+                  <button type="button" class="official-location-toggle" :class="{ 'official-location-toggle--clear': !!form.podLocationId }" :aria-label="form.podLocationId ? q('Limpiar POD', 'Clear POD') : q('Mostrar opciones de POD', 'Show POD options')" @mousedown.prevent @click="form.podLocationId ? clearLocation('pod') : toggleLocation('pod')">⌄</button>
                   <ul v-if="openLocation === 'pod'" id="quote-pod-options" class="official-location-options" role="listbox">
                     <li v-if="shipmentType !== 'LCL'"><button type="button" role="option" :aria-selected="!form.podLocationId" @mousedown.prevent @click="form.podLocationId = ''; locationSearch.pod = ''; openLocation = null">{{ q('Sin POD adicional', 'No additional POD') }}</button></li>
                     <li v-for="(loc,index) in optionsFor('pod')" :key="loc.id"><button type="button" role="option" :aria-selected="form.podLocationId === loc.id" :id="`quote-pod-option-${index}`" @mousedown.prevent @click="chooseLocation('pod', loc)"><span>{{ loc.displayName }}</span></button></li>
@@ -1606,47 +1603,6 @@ html:not(.theme-dark) .app-site.official-page .official-progress-item:not(.curre
 html:not(.theme-dark) .app-site.official-page .official-progress-item:not(.current):not(.done) span {
   color: #111 !important;
 }
-/* Only location selectors have an independent clear control beside the arrow. */
-.app-site.official-page .official-location-combobox--clearable > input {
-  padding-right: 94px !important;
-}
-.app-site.official-page .official-location-clear {
-  position: absolute;
-  top: 50%;
-  right: 52px;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 32px;
-  padding: 0;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: #f2f3f6;
-  font: inherit;
-  font-size: 24px;
-  font-weight: 400;
-  line-height: 1;
-  cursor: pointer;
-  transform: translateY(-50%);
-}
-.app-site.official-page .official-location-clear:hover {
-  background: rgba(255,255,255,.1);
-}
-.app-site.official-page .official-location-clear:focus-visible {
-  outline: 2px solid #f2f3f6;
-  outline-offset: 1px;
-}
-html:not(.theme-dark) .app-site.official-page .official-location-clear {
-  color: #414550;
-}
-html:not(.theme-dark) .app-site.official-page .official-location-clear:hover {
-  background: rgba(34,40,50,.08);
-}
-html:not(.theme-dark) .app-site.official-page .official-location-clear:focus-visible {
-  outline-color: #a80e18;
-}
 /* Normalize all dropdown chevrons across searchable locations and native selects. */
 .app-site.official-page .official-location-toggle {
   top: 50% !important;
@@ -1668,6 +1624,22 @@ html:not(.theme-dark) .app-site.official-page .official-location-clear:focus-vis
   border-right: 2px solid currentColor;
   border-bottom: 2px solid currentColor;
   transform: rotate(45deg);
+}
+/* A selected location replaces the chevron with a clear X, in the same place. */
+.app-site.official-page .official-location-toggle--clear::before {
+  content: "×";
+  width: auto;
+  height: auto;
+  border: 0;
+  transform: none;
+  font-size: 25px;
+  font-weight: 400;
+  line-height: 1;
+}
+.app-site.official-page .official-location-toggle:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  border-radius: 5px;
 }
 .app-site.official-page .official-fields select {
   appearance: none !important;

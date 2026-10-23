@@ -34,16 +34,16 @@ assert.match(manager, /manager-tabs\.manager-subtabs:not\(\.manager-subtabs--wit
 assert.match(manager, /manager-tabs\.manager-subtabs > button\s*\{\s*display:grid;\s*grid-template-columns:clamp\(28px,8vw,34px\) minmax\(0,1fr\) auto;/, 'Las subpestañas móviles deben alinear icono, texto y contador en tres columnas')
 assert.match(manager, /class="manager-tab-label">Editor visual<\/span> <span>0<\/span>/, 'El contador de Editor visual queda como tercera columna junto al texto')
 const officialQuote = source('src/pages/OfficialQuoteWizard.vue')
+// A chosen location uses the existing arrow position as a clear X; an empty one shows the arrow.
 for (const [field, id] of [['origin', 'originLocationId'], ['destination', 'destinationLocationId'], ['pod', 'podLocationId']]) {
-  assert.ok(
-    officialQuote.includes(`v-if="locationSearch.${field} || form.${id}" type="button" class="official-location-clear"`),
-    'El botón de limpiar solo debe aparecer con valor en ' + field
-  )
-  assert.ok(officialQuote.includes(`@click="clearLocation('${field}')"`), 'No se puede limpiar ' + field)
+  assert.ok(officialQuote.includes(`'official-location-toggle--clear': !!form.${id}`), 'X reemplaza la flecha solo al seleccionar ' + field)
+  assert.ok(officialQuote.includes(`@click="form.${id} ? clearLocation('${field}') : toggleLocation('${field}')"`), 'Alternar limpiar/abrir ubicaciones en ' + field)
+  assert.ok(officialQuote.includes(`form.${id} ? q('Limpiar`), 'Etiqueta accesible al limpiar ' + field)
 }
-assert.match(officialQuote, /function clearLocation\(field: LocationField\) \{[\s\S]*?setLocationId\(field, ''\)[\s\S]*?locationSearch\[field\] = ''/, 'Limpiar debe borrar ID y texto')
-assert.ok(officialQuote.includes('.official-location-combobox--clearable > input'), 'La X necesita espacio independiente de la flecha')
-assert.ok(officialQuote.includes('id="quote-incoterm" type="button" class="official-incoterm-trigger"'), 'El selector Incoterm debe permanecer intacto')
+assert.match(officialQuote, /function clearLocation\(field: LocationField\) \{[\s\S]*?setLocationId\(field, ''\)[\s\S]*?locationSearch\[field\] = ''/, 'Limpiar borra identificador y texto')
+assert.ok(officialQuote.includes('.official-location-toggle--clear::before'), 'Estilo de X visible en lugar de la flecha')
+assert.ok(!officialQuote.includes('class="official-location-clear"'), 'No debe existir X separada de la flecha')
+assert.ok(officialQuote.includes('id="quote-incoterm" type="button" class="official-incoterm-trigger"'), 'Incoterm permanece intacto')
 
 // FCL and FTL equipment selectors reuse Incoterm glass dropdown and keep API values.
 assert.match(officialQuote, /class="official-select-wrap official-incoterm-wrap official-equipment-wrap"/, 'Equipo usa el desplegable con estilo Incoterm')
