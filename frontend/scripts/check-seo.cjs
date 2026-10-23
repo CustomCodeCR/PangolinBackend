@@ -1,4 +1,4 @@
-/* SEO de la web original, sin páginas nuevas ni elementos visibles.
+/* SEO de la web publica. Pruebas de rutas, metadatos, Schema y HTML inicial.
  * Uso: desde frontend, ejecutar npm run seo:check.
  */
 const assert = require('node:assert/strict')
@@ -25,7 +25,7 @@ for (const publicRoute of ['/', '/noticias', '/nosotros', '/servicios']) {
 }
 assert.ok(robots.includes('User-agent: OAI-SearchBot'), 'Falta OAI-SearchBot en robots.txt')
 assert.ok(root.includes("import routeSeo from '../seo/routes.json'"), 'Las rutas no comparten la configuración SEO')
-assert.ok(index.includes('carga consolidada LTL') && index.includes('Panamá'), 'La descripción original no menciona el servicio')
+assert.ok(index.includes('Consolidado LCL/LTL') && index.includes('Panamá'), 'La descripción de portada debe reflejar las modalidades del servicio')
 assert.ok(JSON.parse(read('seo/routes.json'))['/'].description.includes('Panamá–Costa Rica') && JSON.parse(read('seo/routes.json'))['/'].description.includes('FTL') && JSON.parse(read('seo/routes.json'))['/'].description.includes('LTL'), 'La descripcion SEO debe identificar la ruta y las modalidades')
 const jsonLd = index.match(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/)
 assert.ok(jsonLd, 'Faltan datos estructurados en el HTML principal')
@@ -43,7 +43,8 @@ if (fs.existsSync(path.join(base, 'dist'))) {
 }
 
 const routes = require('../seo/routes.json')
-const expectedIndexable = new Set(['/', '/home', '/noticias', '/nosotros', '/servicios', '/privacidad', '/terminos', '/cookies', '/licencias'])
+const servicePages = require('../seo/service-pages.json')
+const expectedIndexable = new Set(['/', '/home', '/noticias', '/nosotros', '/servicios', '/privacidad', '/terminos', '/cookies', '/licencias', ...Object.keys(servicePages)])
 for (const [route, seo] of Object.entries(routes)) {
   assert.ok(seo.title && seo.description, 'Metadatos incompletos: ' + route)
   assert.equal(seo.indexable !== false, expectedIndexable.has(route), 'Indexación inesperada: ' + route)
@@ -52,6 +53,9 @@ const nginx = read('nginx.conf')
 assert.ok(nginx.includes('try_files $uri $uri/index.html =404;'), 'Nginx debe responder 404 en rutas desconocidas')
 assert.ok(nginx.includes('error_page 404 /404.html;'), 'Nginx debe servir error 404 real')
 assert.ok(root.includes("return 'notFound'"), 'La SPA no debe tratar rutas desconocidas como Inicio')
+assert.ok(root.includes("if(path in servicePages) return 'seo-service'"), 'Falta router para paginas SEO')
+assert.ok(read('nginx.conf').includes('return 301 https://www.logisticacastrofallas.com$request_uri'), 'Falta redirect dominio raiz')
+assert.ok(read('nginx.conf').includes('location = /home'), 'Falta redirect home')
 assert.ok(root.includes("import routeSeo from '../seo/routes.json'"), 'El cliente y el build deben usar los mismos metadatos')
 if (fs.existsSync(path.join(base, 'dist'))) {
   const dist = path.join(base, 'dist')
@@ -118,7 +122,12 @@ if (fs.existsSync(path.join(base, 'dist'))) {
     assert.equal(page.description, seo.description, 'Descripcion Schema incoherente: ' + route)
     assert.equal(Boolean(find('BreadcrumbList')), route !== '/' && route !== '/home', 'Breadcrumb Schema incoherente: ' + route)
     const serviceCount = graph.filter(x => x['@type'] === 'Service').length
-    assert.equal(serviceCount, route === '/servicios' ? 6 : route === '/' || route === '/home' ? 1 : 0, 'Servicios Schema fuera de pagina: ' + route)
+    assert.ok(find('LocalBusiness'), 'LocalBusiness faltante: ' + route)
+    assert.equal(serviceCount, route === '/servicios' ? 6 : route === '/' || route === '/home' || servicePages[route] ? 1 : 0, 'Servicios Schema fuera de pagina: ' + route)
+    if (servicePages[route]) {
+      assert.ok(html.includes('<h1>' + servicePages[route].heading + '</h1>'), 'Falta H1 en HTML prerenderizado: ' + route)
+      assert.ok(html.includes(servicePages[route].intro), 'Falta contenido en HTML inicial: ' + route)
+    }
   }
 }
 
