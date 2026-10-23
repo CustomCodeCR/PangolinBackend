@@ -2666,9 +2666,24 @@ html.theme-dark .itinerary-page{--itinerary-bg:#01081d;--itinerary-card:#0a1228;
 html.theme-dark .itinerary-mode__options button{border-color:#3a465f}
 html.theme-dark .itinerary-mode__options button.is-active{border-color:#b20c2a}
 html.theme-dark .itinerary-stop{border-color:#29334c;box-shadow:0 12px 35px #0003}
-html.theme-dark .nav-dropdown__menu{background:#fff!important;border-color:#f0dfe2!important}
-html.theme-dark .nav-dropdown__menu a{color:#29232a!important}
-html.theme-dark .nav-dropdown__menu a:hover{background:#fff0f2!important;color:#b20c2a!important}
+/* Carga internacional: use the actual site theme instead of forcing a white menu. */
+html.theme-dark .site-header .nav-dropdown__menu{
+  background:#211b24!important;
+  border-color:rgba(255,255,255,.18)!important;
+  box-shadow:0 16px 36px rgba(0,0,0,.42);
+}
+html.theme-dark .site-header .nav-dropdown__menu a{color:#f5f3f7!important}
+html.theme-dark .site-header .nav-dropdown__menu a:is(:hover,:focus-visible){
+  background:rgba(255,255,255,.10)!important;
+  color:#fff!important;
+}
+/* Preserve the translucent look of the expanded mobile navigation. */
+@media(max-width:800px){
+  html.theme-dark .site-header.site-header--menu-open .main-nav.main-nav--open .nav-dropdown__menu{
+    background:rgba(255,255,255,.12)!important;
+    border-color:rgba(255,255,255,.20)!important;
+  }
+}
 html.theme-dark .language-switcher--dropdown .language-switcher__menu{background:var(--itinerary-card,#211b20)!important;border-color:#55414a!important}
 html.theme-dark .language-switcher--dropdown .language-switcher__menu button{color:var(--itinerary-ink,#fff)!important}
 html.theme-dark .language-switcher--dropdown .language-switcher__menu button:hover,html.theme-dark .language-switcher--dropdown .language-switcher__menu button.active{background:#b20c2a!important;color:#fff!important}
