@@ -215,8 +215,14 @@ const serviceCardCss = homeStyles.split('.service-modal__sections section{')[1]?
 const serviceGlowCss = homeStyles.split('.service-modal::before{')[1]?.split('}')[0] ?? ''
 assert.ok(serviceOverlayCss.includes('backdrop-filter:none'), 'El fondo fuera del modal no debe desenfocarse')
 assert.ok(!serviceOverlayCss.includes('blur('), 'No aplicar blur al fondo de pantalla')
-assert.ok(serviceCardCss.includes('backdrop-filter:blur(14px)'), 'Desenfocar solo los recuadros de detalles')
-assert.ok(serviceCardCss.includes('-webkit-backdrop-filter:blur(14px)'), 'Soportar blur solo en los recuadros de Safari')
+const serviceCardSurfaceCss = homeStyles.split('.service-modal__sections section::before{')[1]?.split('}')[0] ?? ''
+const serviceCardContentCss = homeStyles.split('.service-modal__sections section > *{')[1]?.split('}')[0] ?? ''
+assert.ok(serviceCardCss.includes('backdrop-filter:none'), 'Las tarjetas no deben desenfocar la foto del servicio')
+assert.ok(serviceCardCss.includes('-webkit-backdrop-filter:none'), 'Safari no debe desenfocar la fotografía')
+assert.ok(!serviceCardCss.includes('backdrop-filter:blur('), 'No aplicar blur a la imagen detrás de las tarjetas')
+assert.ok(serviceCardSurfaceCss.includes('filter:blur(18px)'), 'Solo suavizar el fondo decorativo de las dos tarjetas')
+assert.ok(serviceCardSurfaceCss.includes('inset:-18px'), 'Recortar el difuminado dentro de cada tarjeta')
+assert.ok(serviceCardContentCss.includes('z-index:1'), 'El texto de las tarjetas permanece nítido')
 assert.ok(!serviceGlowCss.includes('filter:blur('), 'No desenfocar el efecto decorativo del modal')
 
 const trackingDesktopGlobe = homeStyles.slice(homeStyles.indexOf('/* Tracking hero on larger screens: keep floating captions'), homeStyles.indexOf('/* Mobile globe: the two captions'))

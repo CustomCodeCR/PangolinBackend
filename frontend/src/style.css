@@ -1869,7 +1869,10 @@ html.theme-dark .service-accordion__toggle{background:rgba(237,23,55,.18);color:
 .service-modal__close{position:absolute;top:16px;right:17px;display:grid;place-items:center;width:40px;height:40px;border:0;border-radius:50%;background:#f3e9eb;color:#151722;font-size:28px;line-height:1}
 .service-modal h2{margin:6px 52px 24px 0;color:#171923;font-family:"Arial Black",system-ui,sans-serif;font-size:clamp(28px,4vw,42px);line-height:1.1}
 .service-modal__sections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:24px}
-.service-modal__sections section{padding:18px;border:1px solid rgba(177,13,42,.15);border-radius:15px;background:rgba(255,255,255,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+/* The service photo stays sharp: soften only a decorative layer INSIDE both blue cards. */
+.service-modal__sections section{position:relative;isolation:isolate;overflow:hidden;padding:18px;border:1px solid rgba(177,13,42,.15);border-radius:15px;background:rgba(255,255,255,.72);backdrop-filter:none;-webkit-backdrop-filter:none}
+.service-modal__sections section::before{content:"";position:absolute;inset:-18px;z-index:0;pointer-events:none;background:radial-gradient(ellipse at 12% 12%,rgba(191,35,73,.29),transparent 66%),radial-gradient(ellipse at 88% 86%,rgba(53,115,179,.34),transparent 68%);filter:blur(18px)}
+.service-modal__sections section > *{position:relative;z-index:1}
 .service-modal__sections h3{margin:0 0 10px;color:#a90b27;font-size:15px}
 .service-modal__sections ul{display:grid;gap:8px;padding-left:18px;margin:0;color:#444a54;font-size:13px;line-height:1.55}
 html.theme-dark .service-modal{background:linear-gradient(120deg,rgba(36,21,26,.58) 0%,rgba(20,20,29,.48) 48%,rgba(8,18,38,.42) 100%),var(--modal-service-photo)!important;background-position:center!important;background-size:cover!important;background-repeat:no-repeat!important;border-color:rgba(237,23,55,.42);color:#fff!important}
