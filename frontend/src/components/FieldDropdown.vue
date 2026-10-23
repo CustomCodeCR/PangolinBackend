@@ -177,6 +177,20 @@ onBeforeUnmount(removeListeners)
 html.theme-dark .cf-dropdown__trigger {
   border-color:#4f5365; background:#121a30; color:#fff;
 }
+/* Quotation fields must share their glass surface with the adjacent date and
+   location inputs. Override the generic navy trigger ONLY inside quotes. */
+html.theme-dark .app-site.official-page .cf-dropdown__trigger {
+  background:rgba(255,255,255,.035);
+  border-color:rgba(255,255,255,.22);
+  color:#fff;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.1), 0 8px 22px rgba(0,0,0,.08);
+  -webkit-backdrop-filter:blur(18px) saturate(135%);
+  backdrop-filter:blur(18px) saturate(135%);
+}
+html.theme-dark .app-site.official-page .cf-dropdown__trigger:focus-visible {
+  border-color:#a80e18;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14), 0 0 0 3px rgba(168,14,24,.28);
+}
 html.theme-dark .cf-dropdown__menu {
   background:#19191c; color:#fff; border-color:#52505b;
   box-shadow:0 18px 38px rgba(0,0,0,.48);
