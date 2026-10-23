@@ -34,6 +34,15 @@ assert.match(manager, /manager-tabs\.manager-subtabs:not\(\.manager-subtabs--wit
 assert.match(manager, /manager-tabs\.manager-subtabs > button\s*\{\s*display:grid;\s*grid-template-columns:clamp\(28px,8vw,34px\) minmax\(0,1fr\) auto;/, 'Las subpestañas móviles deben alinear icono, texto y contador en tres columnas')
 assert.match(manager, /class="manager-tab-label">Editor visual<\/span> <span>0<\/span>/, 'El contador de Editor visual queda como tercera columna junto al texto')
 const officialQuote = source('src/pages/OfficialQuoteWizard.vue')
+// Preserve the independent clear-in-place behavior merged in main-2 PR #78.
+for (const [field, id] of [['origin', 'originLocationId'], ['destination', 'destinationLocationId'], ['pod', 'podLocationId']]) {
+  assert.ok(officialQuote.includes(`'official-location-toggle--clear': !!form.${id}`), 'X reemplaza la flecha solo al seleccionar ' + field)
+  assert.ok(officialQuote.includes(`@click="form.${id} ? clearLocation('${field}') : toggleLocation('${field}')"`), 'Alternar limpiar/abrir ubicaciones en ' + field)
+  assert.ok(officialQuote.includes(`form.${id} ? q('Limpiar`), 'Etiqueta accesible al limpiar ' + field)
+}
+assert.match(officialQuote, /function clearLocation\(field: LocationField\) \{[\s\S]*?setLocationId\(field, ''\)[\s\S]*?locationSearch\[field\] = ''/, 'Limpiar borra identificador y texto')
+assert.ok(officialQuote.includes('.official-location-toggle--clear::before'), 'Estilo de X visible en lugar de la flecha')
+assert.ok(!officialQuote.includes('class="official-location-clear"'), 'No debe existir X separada de la flecha')
 // Incoterm, FCL and FTL use the same solid, anchored popup as other fields.
 assert.match(officialQuote, /<FieldDropdown id="quote-incoterm" v-model="form\.incoterm"/, 'Incoterm uses shared dropdown')
 assert.match(officialQuote, /\.\.\.incoterms\.map\(value => \(\{value, label:value\}\)\)/, 'Incoterm retains all eleven official codes')
