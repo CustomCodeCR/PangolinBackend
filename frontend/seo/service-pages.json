@@ -1,0 +1,122 @@
+{
+  "/servicios/agencia-aduanal": {
+    "shortName": "Agencia aduanal",
+    "kicker": "Comercio exterior y gestión aduanera",
+    "heading": "Agencia aduanal en Costa Rica",
+    "intro": "Coordinamos trámites aduaneros de importación y exportación y acompañamos a tu empresa con la documentación y los procesos necesarios para movilizar su carga.",
+    "sectionTitle": "Gestión aduanera integrada a tu operación",
+    "paragraphs": [
+      "Un proceso de importación o exportación requiere coordinación entre documentos comerciales, transporte y requerimientos aduaneros. Grupo Castro Fallas integra estos elementos para facilitar la gestión de cada embarque en Costa Rica.",
+      "Nuestro equipo acompaña la planificación y el seguimiento de operaciones internacionales, desde la revisión de los datos de la mercancía hasta la coordinación de los trámites de ingreso o salida.",
+      "El alcance y los requisitos específicos dependen del tipo de mercancía, el régimen aplicable y las condiciones de la operación. Podemos revisar tu caso y preparar una cotización acorde con tus necesidades."
+    ],
+    "highlights": [
+      "Trámites aduaneros de importación y exportación",
+      "Coordinación documental y logística",
+      "Atención de operaciones comerciales en Costa Rica"
+    ],
+    "serviceType": "Agenciamiento aduanero de importación y exportación",
+    "metaTitle": "Agencia aduanal en Costa Rica | Grupo Castro Fallas",
+    "metaDescription": "Agencia aduanal en Costa Rica para importaciones y exportaciones. Coordinación de trámites, documentos y transporte internacional con Grupo Castro Fallas."
+  },
+  "/servicios/transporte-maritimo": {
+    "shortName": "Transporte marítimo",
+    "kicker": "Carga marítima internacional",
+    "heading": "Transporte marítimo de carga en Costa Rica",
+    "intro": "Soluciones de transporte marítimo internacional para importar o exportar mercancías con opciones de contenedor completo FCL y carga consolidada LCL.",
+    "sectionTitle": "Alternativas marítimas para diferentes volúmenes de carga",
+    "paragraphs": [
+      "El transporte marítimo permite planificar embarques internacionales según el volumen, el destino y los requerimientos operativos. Coordinamos opciones para contenedores completos y cargas que comparten espacio de consolidación.",
+      "En la modalidad FCL se utiliza un contenedor completo, mientras que la modalidad LCL permite transportar mercancía consolidada junto con otras cargas cuando no se necesita un contenedor exclusivo.",
+      "Podemos ayudarte a revisar origen, destino, fechas estimadas, tipo de carga y documentación para definir una alternativa logística y una cotización de transporte."
+    ],
+    "highlights": [
+      "Carga de contenedor completo FCL",
+      "Carga marítima consolidada LCL",
+      "Coordinación logística de importaciones y exportaciones"
+    ],
+    "serviceType": "Transporte marítimo internacional FCL y LCL",
+    "metaTitle": "Transporte marítimo FCL y LCL | Castro Fallas Costa Rica",
+    "metaDescription": "Transporte marítimo internacional en Costa Rica con modalidades FCL y LCL. Coordinamos carga, importaciones, exportaciones y cotizaciones logísticas."
+  },
+  "/servicios/transporte-terrestre": {
+    "shortName": "Transporte terrestre",
+    "kicker": "Transporte de carga regional",
+    "heading": "Transporte terrestre de carga en Costa Rica",
+    "intro": "Coordinamos transporte terrestre regional con modalidades de camión completo FTL y carga parcial LTL, incluyendo operaciones entre Panamá y Costa Rica.",
+    "sectionTitle": "FTL y LTL de acuerdo con tu operación",
+    "paragraphs": [
+      "El transporte terrestre es una alternativa para mover mercancías dentro de Costa Rica y en rutas regionales. La elección del servicio depende del volumen, la ruta, el tipo de equipo y las condiciones de entrega.",
+      "FTL permite planificar una unidad de transporte completa para la carga, mientras que LTL se orienta a embarques parciales o consolidados. Evaluamos la modalidad según las características de tu mercancía.",
+      "Para las rutas Panamá–Costa Rica coordinamos los detalles de origen, destino y tránsito con los aspectos documentales y aduaneros correspondientes. Cada servicio se cotiza según el trayecto y la carga."
+    ],
+    "highlights": [
+      "Transporte terrestre completo FTL",
+      "Consolidado terrestre LTL",
+      "Operaciones regionales Panamá–Costa Rica"
+    ],
+    "serviceType": "Transporte terrestre de carga FTL y LTL",
+    "metaTitle": "Transporte terrestre FTL y LTL en Costa Rica | Castro Fallas",
+    "metaDescription": "Transporte terrestre regional FTL y LTL en Costa Rica. Coordinamos carga consolidada y camiones completos entre Panamá y Costa Rica."
+  },
+  "/servicios/transporte-aereo": {
+    "shortName": "Transporte aéreo",
+    "kicker": "Logística aérea internacional",
+    "heading": "Transporte aéreo de carga en Costa Rica",
+    "intro": "Opciones de transporte aéreo internacional para mercancías que requieren planificación ágil, coordinación documental y seguimiento de su traslado.",
+    "sectionTitle": "Alternativas para embarques aéreos internacionales",
+    "paragraphs": [
+      "El transporte aéreo puede ser adecuado para determinadas mercancías y operaciones que priorizan tiempos de traslado. Cada embarque requiere analizar destino, dimensiones, peso, naturaleza de la carga y disponibilidad de transporte.",
+      "Grupo Castro Fallas acompaña la coordinación logística del envío, con atención al proceso documental y aduanero asociado a las operaciones de importación y exportación.",
+      "Consultanos por rutas y requisitos específicos para preparar una propuesta ajustada al tipo de carga y a las condiciones de servicio disponibles."
+    ],
+    "highlights": [
+      "Coordinación de carga aérea internacional",
+      "Revisión de peso, volumen y tipo de mercancía",
+      "Acompañamiento logístico y aduanero"
+    ],
+    "serviceType": "Transporte aéreo internacional de mercancías",
+    "metaTitle": "Transporte aéreo de carga en Costa Rica | Castro Fallas",
+    "metaDescription": "Transporte aéreo internacional en Costa Rica. Coordinación de embarques, documentación aduanera y soluciones logísticas para importar o exportar."
+  },
+  "/servicios/consolidado-lcl": {
+    "shortName": "Consolidado marítimo LCL",
+    "kicker": "Transporte marítimo consolidado",
+    "heading": "Consolidado de carga marítima LCL en Costa Rica",
+    "intro": "Importá o exportá mercancías por vía marítima en modalidad LCL cuando no necesitás contratar un contenedor completo.",
+    "sectionTitle": "¿Cuándo conviene utilizar un consolidado LCL?",
+    "paragraphs": [
+      "LCL significa Less than Container Load: una modalidad marítima en la que diferentes embarques comparten espacio dentro de un contenedor. Puede ser una alternativa cuando el volumen de la mercancía no requiere una unidad FCL exclusiva.",
+      "El costo y las condiciones dependen de factores como origen, destino, medidas, volumen y peso, además de los cargos logísticos y aduaneros aplicables.",
+      "Te ayudamos a revisar la información de tu carga y la coordinación de los servicios involucrados para preparar una cotización adecuada."
+    ],
+    "highlights": [
+      "Modalidad marítima para carga parcial",
+      "Coordinación de consolidación internacional",
+      "Alternativas para importación y exportación"
+    ],
+    "serviceType": "Transporte marítimo de carga consolidada LCL",
+    "metaTitle": "Consolidado marítimo LCL en Costa Rica | Castro Fallas",
+    "metaDescription": "Consolidado de carga marítima LCL en Costa Rica. Transporte internacional para mercancías que no requieren contenedor completo. Solicitá una cotización."
+  },
+  "/servicios/consolidado-terrestre-panama-costa-rica": {
+    "shortName": "Consolidado terrestre Panamá–Costa Rica",
+    "kicker": "Ruta terrestre Panamá–Costa Rica",
+    "heading": "Carga consolidada terrestre de Panamá a Costa Rica",
+    "intro": "Soluciones de consolidado terrestre LTL y transporte completo FTL para mercancías que se movilizan entre Panamá y Costa Rica.",
+    "sectionTitle": "Transporte regional y coordinación aduanera",
+    "paragraphs": [
+      "En la ruta terrestre Panamá–Costa Rica, la modalidad LTL permite evaluar el envío de cargas parciales consolidadas, mientras que FTL se utiliza para operaciones que requieren un equipo completo.",
+      "La planificación debe considerar puntos de recolección y entrega, características de la mercancía, peso, volumen, condiciones de tránsito y documentación aplicable.",
+      "Grupo Castro Fallas coordina soluciones de transporte y gestión aduanera para estas operaciones. El precio y la disponibilidad se confirman de acuerdo con los datos de cada embarque."
+    ],
+    "highlights": [
+      "Consolidado terrestre LTL Panamá–Costa Rica",
+      "Camión completo FTL según la carga",
+      "Coordinación de transporte y trámites aduaneros"
+    ],
+    "serviceType": "Carga consolidada terrestre LTL Panamá Costa Rica",
+    "metaTitle": "Consolidado Panamá–Costa Rica LTL | Grupo Castro Fallas",
+    "metaDescription": "Carga consolidada terrestre LTL Panamá–Costa Rica y transporte FTL. Coordinación logística, trámites aduaneros y cotizaciones con Castro Fallas."
+  }
+}
