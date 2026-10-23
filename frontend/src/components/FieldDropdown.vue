@@ -13,38 +13,66 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 const uid = useId()
 const listId = computed(() => props.id ? props.id + '-options' : uid + '-options')
 const isOpen = ref(false)
+const isPositioned = ref(false)
 const trigger = ref<HTMLButtonElement | null>(null)
 const menu = ref<HTMLElement | null>(null)
 const popupStyle = ref<Record<string, string>>({})
 const selected = computed(() => props.options.find(option => option.value === props.modelValue)?.label ?? props.options[0]?.label ?? '')
 
+// Measure the rendered list before placing it above the trigger. Previously
+// top was calculated from maxHeight (300px), leaving a large visible gap whenever
+// the list contained fewer options and its actual height was smaller.
 function positionMenu() {
   const rect = trigger.value?.getBoundingClientRect()
-  if (!rect) return
+  const list = menu.value
+  if (!rect || !list) return
+
   const viewport = window.visualViewport
-  const top = viewport?.offsetTop ?? 0
-  const bottom = top + (viewport?.height ?? window.innerHeight)
-  const below = Math.max(0, bottom - rect.bottom - 12)
-  const above = Math.max(0, rect.top - top - 12)
-  const flip = below < 240 && above > below
+  const topEdge = viewport?.offsetTop ?? 0
+  const bottomEdge = topEdge + (viewport?.height ?? window.innerHeight)
+  const leftEdge = viewport?.offsetLeft ?? 0
+  const rightEdge = leftEdge + (viewport?.width ?? window.innerWidth)
+  const gap = 6
+  const below = Math.max(0, bottomEdge - rect.bottom - gap - 4)
+  const above = Math.max(0, rect.top - topEdge - gap - 4)
+  const width = Math.max(1, Math.min(rect.width, rightEdge - leftEdge - 16))
+  const left = Math.max(leftEdge + 8, Math.min(rect.left, rightEdge - width - 8))
+
+  // Set width first, because wrapped option labels change the list's height.
+  list.style.width = width + 'px'
+  list.style.maxHeight = '300px'
+  const naturalHeight = list.scrollHeight + (list.offsetHeight - list.clientHeight)
+  const flip = below < Math.min(300, naturalHeight) && above > below
   const available = flip ? above : below
-  const maxHeight = Math.max(44, Math.min(300, available - 6))
-  const width = Math.max(1, Math.min(rect.width, window.innerWidth - 16))
-  const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8))
+  const maxHeight = Math.max(44, Math.min(300, available))
+  list.style.maxHeight = maxHeight + 'px'
+  const renderedHeight = list.getBoundingClientRect().height
+  const desiredTop = flip ? rect.top - renderedHeight - gap : rect.bottom + gap
+  const top = Math.max(topEdge + 4, Math.min(desiredTop, bottomEdge - renderedHeight - 4))
+
   popupStyle.value = {
-    top: Math.max(top + 4, flip ? rect.top - maxHeight - 6 : rect.bottom + 6) + 'px',
+    top: top + 'px',
     left: left + 'px',
     width: width + 'px',
     maxHeight: maxHeight + 'px',
   }
+  isPositioned.value = true
 }
-function closeMenu() { isOpen.value = false }
+function closeMenu() {
+  isOpen.value = false
+  isPositioned.value = false
+}
 function openMenu(focusOption = false) {
   if (props.disabled) return
-  positionMenu()
+  isPositioned.value = false
   isOpen.value = true
-  if (focusOption) void nextTick(() => {
-    (menu.value?.querySelector('[aria-selected="true"]') as HTMLButtonElement | null)?.focus({ preventScroll: true })
+  // Teleport must mount the options before their actual height can be measured.
+  void nextTick(() => {
+    if (!isOpen.value) return
+    positionMenu()
+    if (focusOption) {
+      (menu.value?.querySelector('[aria-selected="true"]') as HTMLButtonElement | null)?.focus({ preventScroll: true })
+    }
   })
 }
 function toggleMenu() { if (props.disabled) return; if (isOpen.value) closeMenu(); else openMenu() }
@@ -105,7 +133,7 @@ onBeforeUnmount(removeListeners)
     </button>
     <Teleport to="body">
       <div v-if="isOpen" :id="listId" ref="menu" class="cf-dropdown__menu" role="listbox"
-        :aria-label="props['aria-label']" :style="popupStyle" @keydown="handleKeydown">
+        :aria-label="props['aria-label']" :style="{ ...popupStyle, visibility: isPositioned ? 'visible' : 'hidden' }" @keydown="handleKeydown">
         <button v-for="option in options" :key="option.value" type="button" role="option"
           :aria-selected="modelValue === option.value" tabindex="-1"
           :class="{ 'cf-dropdown__option--selected': modelValue === option.value }"
