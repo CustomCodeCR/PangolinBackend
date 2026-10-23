@@ -71,6 +71,13 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
               </div>
             </article>
           </div>
+          <nav class="service-landing-links" aria-label="Páginas de servicios">
+            <a href="/servicios/agencia-aduanal">Agencia aduanal</a>
+            <a href="/servicios/transporte-maritimo">Transporte marítimo</a>
+            <a href="/servicios/transporte-terrestre">Transporte terrestre</a>
+            <a href="/servicios/transporte-aereo">Transporte aéreo</a>
+            <a href="/servicios/consolidado-lcl">Carga consolidada LCL</a>
+          </nav>
         </div>
       </section>
 
@@ -116,3 +123,4 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
     <SiteFooter />
   </div>
 </template>
+
