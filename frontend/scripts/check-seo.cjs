@@ -143,4 +143,3 @@ if (fs.existsSync(path.join(base, 'dist'))) {
 }
 
 console.log('SEO: rutas, HTML inicial, sitemap y 404 verificados.')
-

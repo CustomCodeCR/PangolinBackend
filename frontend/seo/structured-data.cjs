@@ -92,4 +92,3 @@ function makeStructuredData(route, seo, sourceGraph) {
   return { '@context': 'https://schema.org', '@graph': graph }
 }
 module.exports = { makeStructuredData }
-

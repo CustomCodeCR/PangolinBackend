@@ -87,4 +87,3 @@ fs.writeFileSync(path.join(dist, '404.html'), '<!doctype html>\n' +
   '<body><main><h1>404 · Página no encontrada</h1><p>La página solicitada no existe.</p>\n' +
   '<a href="/">Volver al inicio de Castro Fallas</a></main></body></html>')
 console.log('SEO: ' + Object.keys(routes).length + ' rutas HTML, JSON-LD por pagina y sitemap generados.')
-
