@@ -213,27 +213,16 @@ const homeStyles = source('src/style.css')
 const serviceOverlayCss = homeStyles.split('.service-modal-backdrop{')[1]?.split('}')[0] ?? ''
 const serviceCardCss = homeStyles.split('.service-modal__sections section{')[1]?.split('}')[0] ?? ''
 const serviceGlowCss = homeStyles.split('.service-modal::before{')[1]?.split('}')[0] ?? ''
-assert.ok(serviceOverlayCss.includes('backdrop-filter:none'), 'El fondo fuera del modal no debe desenfocarse')
-assert.ok(!serviceOverlayCss.includes('blur('), 'No aplicar blur al fondo de pantalla')
-const serviceCardSurfaceCss = homeStyles.split('.service-modal__sections section::before{')[1]?.split('}')[0] ?? ''
-const serviceCardContentCss = homeStyles.split('.service-modal__sections section > *{')[1]?.split('}')[0] ?? ''
-assert.ok(serviceCardCss.includes('backdrop-filter:none'), 'Las tarjetas no deben desenfocar la foto del servicio')
-assert.ok(serviceCardCss.includes('-webkit-backdrop-filter:none'), 'Safari no debe desenfocar la fotografía')
-assert.ok(!serviceCardCss.includes('backdrop-filter:blur('), 'No aplicar blur a la imagen detrás de las tarjetas')
-assert.ok(serviceCardSurfaceCss.includes('filter:blur(42px)'), 'Difuminado de luz roja como el de Itinerario, solo en las tarjetas')
-assert.ok(serviceCardSurfaceCss.includes('background:radial-gradient(ellipse at center,rgba(214,14,52,'), 'Resplandor de tarjeta únicamente rojo')
-assert.ok(serviceCardSurfaceCss.includes('top:-55%;bottom:-55%;left:-25%;width:60%'), 'Barrido estrecho en línea dentro de las tarjetas')
-assert.ok(serviceCardSurfaceCss.includes('animation:itinerary-red-sweep 9s'), 'Reutilizar la animación horizontal de Itinerario')
-assert.ok(!serviceCardSurfaceCss.includes('53,115,179'), 'No añadir resplandor azul')
-assert.ok(homeStyles.includes('html.theme-dark .service-modal__sections section{background:rgba(33,27,32,.78)!important'), 'Tarjetas oscuras de color neutro sin azul')
-assert.ok(serviceCardContentCss.includes('z-index:1'), 'El texto de las tarjetas permanece nítido')
-assert.ok(!serviceGlowCss.includes('filter:blur('), 'No desenfocar el efecto decorativo del modal')
-assert.ok(serviceGlowCss.includes('content:none'), 'Eliminar el barrido global del modal')
-assert.ok(!serviceGlowCss.includes('animation:'), 'El modal completo no debe tener animación de barrido')
-assert.ok(!homeStyles.includes('service-modal-card-glow'), 'No agregar barrido alternativo distinto a Itinerario')
-assert.ok(homeStyles.includes('html.theme-dark .service-modal__sections section::before{background:radial-gradient(ellipse at center,rgba(214,14,52,'), 'Luz roja en modo oscuro')
-assert.ok(homeStyles.includes('@media(prefers-reduced-motion:reduce){.service-modal__sections section::before{animation:none}}'), 'Respetar reducción de movimiento')
-
+assert.ok(serviceOverlayCss.includes('backdrop-filter:none'), 'El fondo del modal no debe desenfocarse')
+assert.ok(!serviceOverlayCss.includes('blur('), 'La página detrás del modal permanece nítida')
+assert.ok(serviceCardCss.includes('backdrop-filter:none'), 'Las tarjetas no difuminan la fotografía')
+assert.ok(serviceCardCss.includes('-webkit-backdrop-filter:none'), 'Safari conserva la fotografía nítida')
+assert.ok(!serviceCardCss.includes('filter:blur('), 'Las tarjetas no tienen efecto de desenfoque')
+assert.ok(serviceGlowCss.includes('content:none'), 'No mostrar el resplandor rojo global del modal')
+assert.ok(!serviceGlowCss.includes('animation:'), 'No animar todo el modal')
+assert.ok(!homeStyles.includes('.service-modal__sections section::before{'), 'Los recuadros no tienen capa de luz roja difuminada')
+assert.ok(!homeStyles.includes('service-modal-card-glow'), 'Eliminar el barrido rojo interno')
+assert.ok(homeStyles.includes('html.theme-dark .service-modal__sections section{background:rgba(33,27,32,.78)!important'), 'Mantener fondos neutros sin tonos azules')
 
 const trackingDesktopGlobe = homeStyles.slice(homeStyles.indexOf('/* Tracking hero on larger screens: keep floating captions'), homeStyles.indexOf('/* Mobile globe: the two captions'))
 assert.match(trackingDesktopGlobe, /@media \(min-width: 801px\)/, 'Separación de rótulos limitada a escritorio')

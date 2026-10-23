@@ -1868,12 +1868,8 @@ html.theme-dark .service-accordion__toggle{background:rgba(237,23,55,.18);color:
 .service-modal__close{position:absolute;top:16px;right:17px;display:grid;place-items:center;width:40px;height:40px;border:0;border-radius:50%;background:#f3e9eb;color:#151722;font-size:28px;line-height:1}
 .service-modal h2{margin:6px 52px 24px 0;color:#171923;font-family:"Arial Black",system-ui,sans-serif;font-size:clamp(28px,4vw,42px);line-height:1.1}
 .service-modal__sections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:24px}
-/* The service photo stays sharp: soften only a decorative layer INSIDE both blue cards. */
+/* Keep the photo and service detail cards sharp, without glow or blur. */
 .service-modal__sections section{position:relative;isolation:isolate;overflow:hidden;padding:18px;border:1px solid rgba(177,13,42,.15);border-radius:15px;background:rgba(255,255,255,.72);backdrop-filter:none;-webkit-backdrop-filter:none}
-.service-modal__sections section::before{content:"";position:absolute;z-index:0;top:-55%;bottom:-55%;left:-25%;width:60%;border-radius:50%;background:radial-gradient(ellipse at center,rgba(214,14,52,.29) 0%,rgba(178,11,45,.17) 38%,rgba(126,10,34,.07) 58%,transparent 76%);filter:blur(42px);pointer-events:none;animation:itinerary-red-sweep 9s ease-in-out infinite alternate}
-.service-modal__sections section > *{position:relative;z-index:1}
-html:not(.theme-dark) .service-modal__sections section::before{background:radial-gradient(ellipse at center,rgba(214,14,52,.18) 0%,rgba(178,11,45,.10) 38%,rgba(126,10,34,.04) 58%,transparent 76%)}
-html.theme-dark .service-modal__sections section::before{background:radial-gradient(ellipse at center,rgba(214,14,52,.37) 0%,rgba(178,11,45,.23) 38%,rgba(126,10,34,.11) 58%,transparent 76%)}
 .service-modal__sections h3{margin:0 0 10px;color:#a90b27;font-size:15px}
 .service-modal__sections ul{display:grid;gap:8px;padding-left:18px;margin:0;color:#444a54;font-size:13px;line-height:1.55}
 html.theme-dark .service-modal{background:linear-gradient(120deg,rgba(36,21,26,.58) 0%,rgba(20,20,29,.48) 48%,rgba(8,18,38,.42) 100%),var(--modal-service-photo)!important;background-position:center!important;background-size:cover!important;background-repeat:no-repeat!important;border-color:rgba(237,23,55,.42);color:#fff!important}
@@ -1883,7 +1879,6 @@ html.theme-dark .service-modal__sections section{background:rgba(33,27,32,.78)!i
 html.theme-dark .service-modal .section-tag,html.theme-dark .service-modal__sections h3{color:#ff526e!important}
 html.theme-dark .service-modal__close{background:#17243e!important;color:#fff!important;border:1px solid rgba(255,255,255,.16)}
 html.theme-dark .service-modal .btn-primary{color:#fff!important}
-@media(prefers-reduced-motion:reduce){.service-modal__sections section::before{animation:none}}
 @media(max-width:800px){.service-accordion__panel{grid-template-columns:1fr}.service-accordion__panel img{height:220px}.service-modal__sections{grid-template-columns:1fr}}
 @media(max-width:580px){.service-accordion__trigger{grid-template-columns:42px minmax(0,1fr) 30px;gap:11px;min-height:78px;padding:12px}.service-accordion__icon{width:40px;height:40px;font-size:19px}.service-accordion__label strong{font-size:16px}.service-accordion__panel{padding:0 12px 14px}.service-accordion__panel img{height:170px}.service-modal{padding:27px 19px 22px;border-radius:19px}.service-modal__sections section{padding:14px}}
 
