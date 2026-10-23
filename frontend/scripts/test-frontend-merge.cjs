@@ -209,6 +209,21 @@ assert.match(tracking, /@click="openGuide"/, 'Conservar la guía a solicitud del
 assert.match(tracking, /\.tracking-fields\{grid-template-columns:minmax\(0,1fr\);gap:20px;/, 'Separar los campos en móvil')
 assert.match(tracking, /\.tracking-fields :is\(input,select\)\{min-height:54px;padding:13px 15px;font-size:16px;/, 'Controles táctiles con fuente legible en móvil')
 const homeStyles = source('src/style.css')
+
+const serviceOverlayCss = homeStyles.split('.service-modal-backdrop{')[1]?.split('}')[0] ?? ''
+const serviceCardCss = homeStyles.split('.service-modal__sections section{')[1]?.split('}')[0] ?? ''
+const serviceGlowCss = homeStyles.split('.service-modal::before{')[1]?.split('}')[0] ?? ''
+assert.ok(serviceOverlayCss.includes('backdrop-filter:none'), 'El fondo del modal no debe desenfocarse')
+assert.ok(!serviceOverlayCss.includes('blur('), 'La página detrás del modal permanece nítida')
+assert.ok(serviceCardCss.includes('backdrop-filter:none'), 'Las tarjetas no difuminan la fotografía')
+assert.ok(serviceCardCss.includes('-webkit-backdrop-filter:none'), 'Safari conserva la fotografía nítida')
+assert.ok(!serviceCardCss.includes('filter:blur('), 'Las tarjetas no tienen efecto de desenfoque')
+assert.ok(serviceGlowCss.includes('content:none'), 'No mostrar el resplandor rojo global del modal')
+assert.ok(!serviceGlowCss.includes('animation:'), 'No animar todo el modal')
+assert.ok(!homeStyles.includes('.service-modal__sections section::before{'), 'Los recuadros no tienen capa de luz roja difuminada')
+assert.ok(!homeStyles.includes('service-modal-card-glow'), 'Eliminar el barrido rojo interno')
+assert.ok(homeStyles.includes('html.theme-dark .service-modal__sections section{background:rgba(33,27,32,.78)!important'), 'Mantener fondos neutros sin tonos azules')
+
 const trackingDesktopGlobe = homeStyles.slice(homeStyles.indexOf('/* Tracking hero on larger screens: keep floating captions'), homeStyles.indexOf('/* Mobile globe: the two captions'))
 assert.match(trackingDesktopGlobe, /@media \(min-width: 801px\)/, 'Separación de rótulos limitada a escritorio')
 assert.match(trackingDesktopGlobe, /\.app-site\.tracking-site \.tracking-intro \.world-globe \.globe-floating-tag\.tag-global\s*\{\s*top: 5%;/, 'Conexiones globales no queda pegada a la esfera')
