@@ -250,6 +250,12 @@ html.theme-dark .content-manager .cf-dropdown__trigger {
   border-color:#3b465f;
   color:#fff;
 }
+html.theme-dark .content-manager.is-embedded .manager-form .cf-dropdown__trigger,
+html.theme-dark .content-manager.is-embedded .manager-users-table .cf-dropdown__trigger {
+  background-color:#121a30 !important;
+  border-color:#3b465f !important;
+  color:#fff !important;
+}
 .off-admin-form .cf-dropdown__trigger {
   min-height:46px;
   background:var(--oq-input,#fff);
