@@ -157,6 +157,12 @@ html.theme-dark .cf-dropdown__menu > button:is(:hover,:focus-visible,.cf-dropdow
   background:#30262d; color:#ff806f;
 }
 /* Itinerary controls follow the quote palette in both themes. */
+.app-site.itinerary-page .itinerary-form-line > strong {
+  color:#242630;
+  font-size:13px;
+  font-weight:750;
+}
+html.theme-dark .app-site.itinerary-page .itinerary-form-line > strong {color:#fff;}
 .app-site.itinerary-page .itinerary-form-line input,
 .app-site.itinerary-page .itinerary-form-line .cf-dropdown__trigger {
   box-sizing:border-box;
