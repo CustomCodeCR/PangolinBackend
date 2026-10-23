@@ -9,6 +9,15 @@ const { makeStructuredData } = require('../seo/structured-data.cjs')
 const dist = path.resolve(__dirname, '../dist')
 const original = fs.readFileSync(path.join(dist, 'index.html'), 'utf8')
 const origin = 'https://www.logisticacastrofallas.com'
+const imageDimensions = {
+  '/images/hero.webp': [1200, 685],
+  '/images/cover-logistics.jpeg': [1024, 576],
+  '/images/about-operations-enhanced.jpg': [1448, 1086],
+  '/images/services-crane.webp': [960, 538],
+  '/images/ship.webp': [480, 480],
+  '/images/truck.webp': [750, 422],
+  '/images/air-freight.webp': [1120, 630]
+}
 const sourceSchemaMatch = original.match(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/i)
 if (!sourceSchemaMatch) throw new Error('No se encontro el JSON-LD original de la empresa')
 const sourceGraph = JSON.parse(sourceSchemaMatch[1])['@graph']
@@ -39,6 +48,11 @@ function buildRoute(route, seo) {
   const image = origin + (seo.socialImage || '/images/hero.webp')
   html = putMeta(html, 'property', 'og:image', image)
   html = putMeta(html, 'name', 'twitter:image', image)
+  const dimensions = imageDimensions[seo.socialImage || '/images/hero.webp']
+  if (dimensions) {
+    html = putMeta(html, 'property', 'og:image:width', dimensions[0])
+    html = putMeta(html, 'property', 'og:image:height', dimensions[1])
+  }
   if (seo.socialImageAlt) {
     html = putMeta(html, 'property', 'og:image:alt', seo.socialImageAlt)
     html = putMeta(html, 'name', 'twitter:image:alt', seo.socialImageAlt)
