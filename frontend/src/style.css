@@ -2672,7 +2672,7 @@ html.theme-dark .site-header .nav-dropdown__menu{
   border-color:rgba(255,255,255,.18)!important;
   box-shadow:0 16px 36px rgba(0,0,0,.42);
 }
-html.theme-dark .site-header .nav-dropdown__menu a{color:#f5f3f7!important}
+html.theme-dark .site-header .nav-dropdown__menu a{color:#f5f3f7!important;}
 html.theme-dark .site-header .nav-dropdown__menu a:is(:hover,:focus-visible){
   background:rgba(255,255,255,.10)!important;
   color:#fff!important;
