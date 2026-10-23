@@ -14,7 +14,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: "http://+:5000"
       Development__ApplySchema: "false"
-      Features__OfficialQuotesEnabled: "false"
+      Features__OfficialQuotesEnabled: "true"
       ConnectionStrings__Postgres: "Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=pangolin;Username=pangolin;Password=${PANGOLIN_POSTGRES_PASSWORD:?Definir PANGOLIN_POSTGRES_PASSWORD}"
       Auth__OtpPepper: "${PANGOLIN_AUTH_OTP_PEPPER:?Definir PANGOLIN_AUTH_OTP_PEPPER}"
       Auth__JwtSigningKey: "${PANGOLIN_AUTH_JWT_SIGNING_KEY:?Definir PANGOLIN_AUTH_JWT_SIGNING_KEY}"
