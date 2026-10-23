@@ -5,7 +5,7 @@ type DropdownChoice = { value: string; label: string }
 const props = defineProps<{
   modelValue: string
   options: DropdownChoice[]
-  ariaLabel: string
+  'aria-label': string
   id?: string
   disabled?: boolean
 }>()
@@ -97,7 +97,7 @@ onBeforeUnmount(removeListeners)
 <template>
   <div class="cf-dropdown">
     <button :id="id" ref="trigger" type="button" class="cf-dropdown__trigger"
-      role="combobox" :aria-label="ariaLabel" :disabled="disabled" aria-haspopup="listbox"
+      role="combobox" :aria-label="props['aria-label']" :disabled="disabled" aria-haspopup="listbox"
       :aria-controls="listId" :aria-expanded="isOpen"
       @click="toggleMenu" @keydown.down.prevent="openMenu(true)"
       @keydown.up.prevent="openMenu(true)" @keydown.esc.prevent="closeMenu">
