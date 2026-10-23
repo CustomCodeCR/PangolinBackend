@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import IconSymbol from './IconSymbol.vue'
 import type { TrackingDemoShipment, TrackingPoint } from '../types/tracking'
-import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { computed, nextTick, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createGlobe, type Marker, type ClusterMarker } from '../lib/castroGlobe'
 
@@ -18,6 +18,18 @@ function gmailComposeHref(email: string) {
 
 const selectedId = ref<string | null>(null)
 const popupPosition = ref({ left: 0, top: 0, below: false })
+const mobileLocationDialog = ref(false)
+const locationCloseButton = ref<HTMLButtonElement | null>(null)
+let locationMedia: MediaQueryList | undefined
+function syncLocationLayout() {
+  mobileLocationDialog.value = locationMedia?.matches ?? false
+}
+function onLocationKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && selectedId.value && mobileLocationDialog.value) {
+    event.preventDefault()
+    closeLocation()
+  }
+}
 const offices = [
   { id:'curridabat', lat:9.9167, lon:-84.0333, es:'Curridabat', en:'Curridabat', countryEs:'Costa Rica',countryEn:'Costa Rica',address:'Frente a Café Volio, Barrio San José, Curridabat',email:'costarica@grupocastrofallas.com' },
   { id:'tibas', lat:9.9667, lon:-84.0833, es:'Tibás', en:'Tibas', countryEs:'Costa Rica',countryEn:'Costa Rica',address:'Detrás del Hotel El Edén, Tibás',email:'costarica@grupocastrofallas.com' },
@@ -166,6 +178,9 @@ function selectWarehouse(marker: Marker | ClusterMarker,point: {x:number;y:numbe
   const office = offices.find(x=>x.id===id)
   if (!office || !holder.value || !canvas.value) return
   selectedId.value=id
+  if (mobileLocationDialog.value) {
+    void nextTick(() => locationCloseButton.value?.focus({ preventScroll: true }))
+  }
   globe?.setOptions({autoRotate:false})
   positionPopup(point)
   if (globe) {
@@ -262,6 +277,10 @@ watch(() => props.shipment, (shipment) => {
   }
 })
 onMounted(() => {
+  locationMedia = window.matchMedia('(max-width: 800px)')
+  syncLocationLayout()
+  locationMedia.addEventListener('change', syncLocationLayout)
+  window.addEventListener('keydown', onLocationKeydown)
   if (typeof MutationObserver !== 'undefined') {
     themeObserver = new MutationObserver(() => globe?.setTheme(themePalette()))
     themeObserver.observe(document.documentElement,{attributes:true,attributeFilter:['class']})
@@ -285,6 +304,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  locationMedia?.removeEventListener('change', syncLocationLayout)
+  window.removeEventListener('keydown', onLocationKeydown)
   observer?.disconnect()
   themeObserver?.disconnect()
   cancelAnimationFrame(popupFollowFrame)
@@ -300,14 +321,19 @@ onBeforeUnmount(() => {
   <div ref="holder" class="world-globe" :aria-label="$t('custom.tracking.globeAria')">
     <div class="world-globe__halo"></div>
     <canvas ref="canvas" class="world-globe__canvas" :aria-label="$t('custom.tracking.mapAria')"></canvas>
+    <!-- On phones the location dialog escapes the clipped canvas and the
+         surrounding tracking sections via Teleport and a full-screen layer. -->
+    <Teleport to="body" :disabled="!mobileLocationDialog">
+      <div v-if="selectedOffice && mobileLocationDialog" class="world-globe__location-backdrop" aria-hidden="true" @click="closeLocation"></div>
     <section
       v-if="selectedOffice"
       class="world-globe__location-card"
       :class="{ 'world-globe__location-card--below': popupPosition.below, 'world-globe__location-card--costa-rica': selectedCostaRica }"
-      :style="{left: popupPosition.left + 'px', top: popupPosition.top + 'px'}"
-      role="region"
+      :style="mobileLocationDialog ? undefined : {left: popupPosition.left + 'px', top: popupPosition.top + 'px'}"
+      :role="mobileLocationDialog ? 'dialog' : 'region'"
+      :aria-modal="mobileLocationDialog ? 'true' : undefined"
       :aria-label="selectedCity + ', ' + selectedCountry">
-      <button type="button" class="world-globe__location-close" :aria-label="english ? 'Close location' : 'Cerrar ubicación'" @click.stop="closeLocation">×</button>
+      <button ref="locationCloseButton" type="button" class="world-globe__location-close" :aria-label="english ? 'Close location' : 'Cerrar ubicación'" @click.stop="closeLocation">×</button>
       <template v-if="selectedCostaRica">
         <h3>Grupo Castro Fallas · Costa Rica</h3>
         <dl class="world-globe__offices">
@@ -327,6 +353,7 @@ onBeforeUnmount(() => {
         </dl>
       </template>
     </section>
+    </Teleport>
     <div class="globe-floating-tag tag-cr"><span></span> {{ $t('custom.tracking.regionalHub') }}</div>
     <div class="globe-floating-tag tag-global">{{ $t('custom.tracking.globalConnections') }} <IconSymbol glyph="↗" /></div>
     <p v-if="error" class="globe-error">{{ $t('custom.tracking.mapUnavailable') }}</p>
@@ -343,6 +370,25 @@ onBeforeUnmount(() => {
   transform:translate(-50%,-100%); box-shadow:0 14px 40px #0005; text-align:left;
 }
 
+.world-globe__location-backdrop {
+  position:fixed; inset:0; z-index:2147483000;
+  background:rgba(9,12,25,.56); backdrop-filter:blur(3px);
+}
+@media (max-width:800px) {
+  /* The office panel is a viewport dialog, not a canvas child, on phones/tablets. */
+  .world-globe__location-card,
+  .world-globe__location-card--below {
+    position:fixed; left:50%; top:50%; z-index:2147483001;
+    width:min(420px,calc(100vw - 36px));
+    max-height:min(78dvh,610px);
+    transform:translate(-50%,-50%);
+    overflow-y:auto; overscroll-behavior:contain;
+  }
+  .world-globe__location-card--costa-rica {
+    width:min(420px,calc(100vw - 36px));
+    max-height:min(78dvh,610px);
+  }
+}
 .world-globe__location-card > * {position:relative; z-index:1}
 .world-globe__location-card--below { transform:translate(-50%,0) }
 .world-globe__location-card--costa-rica {width:min(290px,calc(100% - 28px)); max-height:calc(100% - 28px)}
@@ -375,5 +421,7 @@ onBeforeUnmount(() => {
 :global(html.theme-dark .world-globe__location-card dt) {color:#b8c3d6}
 :global(html.theme-dark .world-globe__location-close) {background:#ffffff23;color:#fff}
 .world-globe__location-card a:focus-visible,.world-globe__location-close:focus-visible {outline:2px solid #b20c2a;outline-offset:3px}
-@media(max-width:580px){.world-globe__location-card {max-height:65%;}}
+@media(max-width:580px){
+  .world-globe__location-card {max-height:min(78dvh,610px);}
+}
 </style>
