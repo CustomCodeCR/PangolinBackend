@@ -34,6 +34,17 @@ assert.match(manager, /manager-tabs\.manager-subtabs:not\(\.manager-subtabs--wit
 assert.match(manager, /manager-tabs\.manager-subtabs > button\s*\{\s*display:grid;\s*grid-template-columns:clamp\(28px,8vw,34px\) minmax\(0,1fr\) auto;/, 'Las subpestañas móviles deben alinear icono, texto y contador en tres columnas')
 assert.match(manager, /class="manager-tab-label">Editor visual<\/span> <span>0<\/span>/, 'El contador de Editor visual queda como tercera columna junto al texto')
 const officialQuote = source('src/pages/OfficialQuoteWizard.vue')
+for (const [field, id] of [['origin', 'originLocationId'], ['destination', 'destinationLocationId'], ['pod', 'podLocationId']]) {
+  assert.ok(
+    officialQuote.includes(`v-if="locationSearch.${field} || form.${id}" type="button" class="official-location-clear"`),
+    'El botón de limpiar solo debe aparecer con valor en ' + field
+  )
+  assert.ok(officialQuote.includes(`@click="clearLocation('${field}')"`), 'No se puede limpiar ' + field)
+}
+assert.match(officialQuote, /function clearLocation\(field: LocationField\) \{[\s\S]*?setLocationId\(field, ''\)[\s\S]*?locationSearch\[field\] = ''/, 'Limpiar debe borrar ID y texto')
+assert.ok(officialQuote.includes('.official-location-combobox--clearable > input'), 'La X necesita espacio independiente de la flecha')
+assert.ok(officialQuote.includes('id="quote-incoterm" type="button" class="official-incoterm-trigger"'), 'El selector Incoterm debe permanecer intacto')
+
 // FCL and FTL equipment selectors reuse Incoterm glass dropdown and keep API values.
 assert.match(officialQuote, /class="official-select-wrap official-incoterm-wrap official-equipment-wrap"/, 'Equipo usa el desplegable con estilo Incoterm')
 assert.match(officialQuote, /class="official-incoterm-options official-equipment-options"/, 'Equipo conserva lista glass con soporte de tema')
