@@ -227,13 +227,23 @@ html.theme-dark .app-site.itinerary-page .itinerary-form-line .cf-dropdown__trig
 }
 html.theme-dark .app-site.itinerary-page .itinerary-form-line input::placeholder {color:#acb1bd;}
 /* The administrator uses the same surface and text sizing as quotation fields. */
+/* The embedded admin controls already define --admin-input, --admin-text
+   and --admin-border. Use those same tokens for dropdowns as for text/date
+   inputs, rather than unrelated --manager-* fallback values (white). */
 .content-manager .cf-dropdown__trigger {
-  background:var(--manager-input,#fff);
-  color:var(--manager-ink,#242630);
-  border-color:var(--manager-input-line,#cfd2dc);
-  border-radius:10px;
+  background:var(--admin-input,#f7f9fd);
+  color:var(--admin-text,#101b32);
+  border-color:var(--admin-border,#cfd3dd);
+  border-radius:12px;
   min-height:46px;
   font-size:14px;
+  font-weight:400;
+}
+.content-manager.is-embedded .manager-form .cf-dropdown__trigger,
+.content-manager.is-embedded .manager-users-table .cf-dropdown__trigger {
+  background-color:var(--admin-input) !important;
+  color:var(--admin-text) !important;
+  border-color:var(--admin-border) !important;
 }
 html.theme-dark .content-manager .cf-dropdown__trigger {
   background:#121a30;
