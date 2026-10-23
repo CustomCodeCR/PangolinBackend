@@ -224,6 +224,12 @@ assert.ok(serviceCardSurfaceCss.includes('filter:blur(18px)'), 'Solo suavizar el
 assert.ok(serviceCardSurfaceCss.includes('inset:-18px'), 'Recortar el difuminado dentro de cada tarjeta')
 assert.ok(serviceCardContentCss.includes('z-index:1'), 'El texto de las tarjetas permanece nítido')
 assert.ok(!serviceGlowCss.includes('filter:blur('), 'No desenfocar el efecto decorativo del modal')
+assert.ok(serviceGlowCss.includes('content:none'), 'Eliminar el barrido global del modal')
+assert.ok(!serviceGlowCss.includes('animation:'), 'El modal completo no debe tener animación de barrido')
+assert.ok(serviceCardSurfaceCss.includes('animation:service-modal-card-glow 10s'), 'El barrido ocurre solamente en el fondo de las dos tarjetas')
+assert.ok(homeStyles.includes('@keyframes service-modal-card-glow'), 'Conservar la animación dentro de las tarjetas')
+assert.ok(homeStyles.includes('@media(prefers-reduced-motion:reduce){.service-modal__sections section::before{animation:none}}'), 'Respetar reducción de movimiento')
+
 
 const trackingDesktopGlobe = homeStyles.slice(homeStyles.indexOf('/* Tracking hero on larger screens: keep floating captions'), homeStyles.indexOf('/* Mobile globe: the two captions'))
 assert.match(trackingDesktopGlobe, /@media \(min-width: 801px\)/, 'Separación de rótulos limitada a escritorio')
