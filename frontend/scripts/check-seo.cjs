@@ -25,7 +25,7 @@ for (const publicRoute of ['/', '/noticias', '/nosotros', '/servicios']) {
 }
 assert.ok(robots.includes('User-agent: OAI-SearchBot'), 'Falta OAI-SearchBot en robots.txt')
 assert.ok(root.includes("import routeSeo from '../seo/routes.json'"), 'Las rutas no comparten la configuración SEO')
-assert.ok(index.includes('carga consolidada LTL') && index.includes('Panamá'), 'La descripción original no menciona el servicio')
+assert.ok(index.includes('Consolidado LCL/LTL') && index.includes('Panamá'), 'La descripción de portada debe reflejar las modalidades del servicio')
 assert.ok(JSON.parse(read('seo/routes.json'))['/'].description.includes('Panamá–Costa Rica') && JSON.parse(read('seo/routes.json'))['/'].description.includes('FTL') && JSON.parse(read('seo/routes.json'))['/'].description.includes('LTL'), 'La descripcion SEO debe identificar la ruta y las modalidades')
 const jsonLd = index.match(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/)
 assert.ok(jsonLd, 'Faltan datos estructurados en el HTML principal')
