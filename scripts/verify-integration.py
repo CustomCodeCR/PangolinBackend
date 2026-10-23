@@ -205,8 +205,8 @@ check('type LegalDocument = { title: string; intro: string; sections: LegalSecti
       and '/licenses/globe-third-party-notices.txt' in legal_page and (root / 'frontend/public/licenses/globe-third-party-notices.txt').is_file(),
       'Páginas legales ES/EN sin aviso de borrador y con advertencias de datos por confirmar')
 check('class="container quote-access-status quote-access-status--blocked"' in rootvue
-      and rootvue.count('class="container quote-access-status quote-access-status--blocked"') == 3
-      and 'trackingSessionRequiredHelp' in rootvue
+      and rootvue.count('class="container quote-access-status quote-access-status--blocked"') == (3 if 'trackingSessionRequiredHelp' in rootvue else 2)
+      and ('trackingSessionRequiredHelp' not in rootvue or "page==='tracking' && trackingAccess !== 'allowed'" in rootvue)
       and '.quote-flow-page>.site-footer{margin-top:auto}' in shared_mobile_styles
       and '@media (max-width: 800px)' in shared_mobile_styles
       and '.quote-flow-page > .quote-access-status--blocked' in shared_mobile_styles
