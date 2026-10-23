@@ -2666,9 +2666,54 @@ html.theme-dark .itinerary-page{--itinerary-bg:#01081d;--itinerary-card:#0a1228;
 html.theme-dark .itinerary-mode__options button{border-color:#3a465f}
 html.theme-dark .itinerary-mode__options button.is-active{border-color:#b20c2a}
 html.theme-dark .itinerary-stop{border-color:#29334c;box-shadow:0 12px 35px #0003}
-html.theme-dark .nav-dropdown__menu{background:#fff!important;border-color:#f0dfe2!important}
-html.theme-dark .nav-dropdown__menu a{color:#29232a!important}
-html.theme-dark .nav-dropdown__menu a:hover{background:#fff0f2!important;color:#b20c2a!important}
+/* Same dark glass surface used when the Configuración panel opens. */
+html.theme-dark .site-header .nav-dropdown__menu {
+  position:absolute;
+  isolation:isolate;
+  overflow:hidden;
+  background:rgba(10,18,40,.96)!important;
+  border:1px solid #ffffff55!important;
+  border-radius:14px;
+  -webkit-backdrop-filter:blur(18px);
+  backdrop-filter:blur(18px);
+  box-shadow:0 14px 34px #0005!important;
+}
+html.theme-dark .site-header .nav-dropdown__menu::before {
+  content:"";
+  position:absolute;
+  z-index:0;
+  top:-45%;
+  bottom:-45%;
+  left:-32%;
+  width:72%;
+  border-radius:50%;
+  background:radial-gradient(ellipse at center,rgba(214,14,52,.46) 0%,rgba(178,11,45,.29) 38%,rgba(126,10,34,.13) 58%,transparent 76%);
+  filter:blur(28px);
+  pointer-events:none;
+  animation:itinerary-red-sweep 9s ease-in-out infinite alternate;
+}
+html.theme-dark .site-header .nav-dropdown__menu a {
+  position:relative;
+  z-index:1;
+  color:#fff!important;
+}
+html.theme-dark .site-header .nav-dropdown__menu a:is(:hover,:focus-visible) {
+  background:rgba(255,255,255,.10)!important;
+  color:#fff!important;
+}
+@media (max-width:800px) {
+  html.theme-dark .site-header.site-header--menu-open .main-nav.main-nav--open .nav-dropdown__menu {
+    position:relative;
+    background:rgba(10,18,40,.96)!important;
+    border:1px solid #ffffff55!important;
+    box-shadow:0 14px 34px #0005!important;
+    -webkit-backdrop-filter:blur(18px);
+    backdrop-filter:blur(18px);
+  }
+}
+@media (prefers-reduced-motion:reduce) {
+  html.theme-dark .site-header .nav-dropdown__menu::before { animation:none; }
+}
 html.theme-dark .language-switcher--dropdown .language-switcher__menu{background:var(--itinerary-card,#211b20)!important;border-color:#55414a!important}
 html.theme-dark .language-switcher--dropdown .language-switcher__menu button{color:var(--itinerary-ink,#fff)!important}
 html.theme-dark .language-switcher--dropdown .language-switcher__menu button:hover,html.theme-dark .language-switcher--dropdown .language-switcher__menu button.active{background:#b20c2a!important;color:#fff!important}
