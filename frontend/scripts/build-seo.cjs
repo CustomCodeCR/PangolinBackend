@@ -5,6 +5,7 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const routes = require('../seo/routes.json')
+const servicePages = require('../seo/service-pages.json')
 const { makeStructuredData } = require('../seo/structured-data.cjs')
 const dist = path.resolve(__dirname, '../dist')
 const original = fs.readFileSync(path.join(dist, 'index.html'), 'utf8')
@@ -27,6 +28,24 @@ function setUrl(html, url) {
   html = html.replace(/<meta\b(?=[^>]*\bproperty="og:url")[^>]*>\s*/ig, '')
   return url ? putMeta(html, 'property', 'og:url', url) : html
 }
+
+/**
+ * El HTML inicial contiene texto util aun con JavaScript deshabilitado.
+ * Vue reemplaza este contenido al montar la SPA para conservar interactividad.
+ * Se usa una sola fuente de contenido para el build y la pagina Vue.
+ */
+function renderServiceHtml(service) {
+  const paragraphs = service.paragraphs.map(text => '<p>' + escapeAttr(text) + '</p>').join('')
+  const benefits = service.highlights.map(text => '<li>' + escapeAttr(text) + '</li>').join('')
+  return '<div id="app"><main class="seo-prerendered-service">' +
+    '<nav aria-label="Ruta de navegacion"><a href="/">Inicio</a> / <a href="/servicios">Servicios</a></nav>' +
+    '<section><p>' + escapeAttr(service.kicker) + '</p><h1>' + escapeAttr(service.heading) + '</h1>' +
+    '<p>' + escapeAttr(service.intro) + '</p><p><a href="/cotizaciones">Solicitar cotizacion</a></p></section>' +
+    '<section><h2>' + escapeAttr(service.sectionTitle) + '</h2>' + paragraphs +
+    '<h2>Servicios de coordinacion</h2><ul>' + benefits + '</ul></section>' +
+    '<p><a href="/servicios">Ver todos los servicios</a></p></main></div>'
+}
+
 function buildRoute(route, seo) {
   let html = original.replace(/<title>[\s\S]*?<\/title>/i, '<title>' + escapeAttr(seo.title) + '</title>')
   html = putMeta(html, 'name', 'description', seo.description)
@@ -52,6 +71,11 @@ function buildRoute(route, seo) {
   if (structured) {
     const serialized = JSON.stringify(structured).replace(/</g, '\\u003c')
     html = html.replace('</head>', '    <script type="application/ld+json">' + serialized + '</script>\n  </head>')
+  }
+  if (servicePages[route]) {
+    const marker = '<div id="app"></div>'
+    if (!html.includes(marker)) throw new Error('No existe el contenedor Vue en HTML para prerender')
+    html = html.replace(marker, renderServiceHtml(servicePages[route]))
   }
   const dest = route === '/' ? dist : path.join(dist, route.slice(1))
   fs.mkdirSync(dest, { recursive: true })
