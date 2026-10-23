@@ -146,7 +146,7 @@ const page = computed(()=> {
   <div v-else-if="page==='official-quote' && quoteAccess !== 'allowed'" class="app-site quote-page quote-flow-page">
     <SiteHeader/>
     <div v-if="quoteAccess === 'checking'" class="container quote-access-status" role="status">{{ t('custom.quote.checkingSession') }}</div>
-    <div v-else class="container quote-access-status quote-access-status--blocked"><h1>Se requiere una sesión activa</h1><p>Iniciá sesión para enviar una solicitud.</p><a class="btn btn-primary" :href="loginNextHref">Iniciar sesión</a></div>
+    <div v-else class="container quote-access-status quote-access-status--blocked"><h1>{{ t('custom.quote.sessionRequiredTitle') }}</h1><p>{{ t('custom.quote.quoteSessionRequiredHelp') }}</p><a class="btn btn-primary" :href="loginNextHref">{{ t('custom.quote.sessionRequiredAction') }}</a></div>
     <SiteFooter/>
   </div>
   <OfficialQuoteWizard v-else-if="page==='official-quote'" />
@@ -154,9 +154,9 @@ const page = computed(()=> {
     <SiteHeader/>
     <div v-if="quoteAccess === 'checking'" class="container quote-access-status" role="status">{{ t('custom.quote.checkingSession') }}</div>
     <div v-else-if="quoteAccess !== 'allowed'" class="container quote-access-status quote-access-status--blocked">
-      <h1>Se requiere una sesión activa</h1>
-      <p>Iniciá sesión para enviar una solicitud.</p>
-      <a class="btn btn-primary" :href="loginNextHref">Iniciar sesión</a>
+      <h1>{{ t('custom.quote.sessionRequiredTitle') }}</h1>
+      <p>{{ t('custom.quote.quoteSessionRequiredHelp') }}</p>
+      <a class="btn btn-primary" :href="loginNextHref">{{ t('custom.quote.sessionRequiredAction') }}</a>
     </div>
     <QuoteApp v-else />
     <SiteFooter/>
@@ -177,9 +177,9 @@ const page = computed(()=> {
     <SiteHeader/>
     <div v-if="trackingAccess === 'checking'" class="container quote-access-status" role="status">{{ t('custom.quote.checkingSession') }}</div>
     <div v-else class="container quote-access-status quote-access-status--blocked">
-      <h1>Se requiere una sesión activa</h1>
-      <p>Iniciá sesión con una cuenta autorizada para rastrear tus embarques.</p>
-      <a class="btn btn-primary" :href="loginNextHref">Iniciar sesión</a>
+      <h1>{{ t('custom.quote.sessionRequiredTitle') }}</h1>
+      <p>{{ t('custom.quote.trackingSessionRequiredHelp') }}</p>
+      <a class="btn btn-primary" :href="loginNextHref">{{ t('custom.quote.sessionRequiredAction') }}</a>
     </div>
     <SiteFooter/>
   </div>
