@@ -3,6 +3,7 @@
  */
 'use strict'
 const origin = 'https://www.logisticacastrofallas.com'
+const servicePages = require('./service-pages.json')
 const organizationId = origin + '/#organizacion'
 const siteId = origin + '/#sitio-web'
 const pageLabels = {
@@ -29,6 +30,21 @@ function makeStructuredData(route, seo, sourceGraph) {
   const graph = [
     organizationWithoutContext,
     {
+      '@type': 'LocalBusiness',
+      '@id': origin + '/#sede-curridabat',
+      name: organization.name,
+      url: origin + '/',
+      telephone: organization.telephone,
+      email: organization.email,
+      address: organization.address,
+      parentOrganization: { '@id': organizationId },
+      openingHoursSpecification: [{
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+        opens: '07:30', closes: '17:15'
+      }]
+    },
+    {
       '@type': 'WebSite',
       '@id': siteId,
       url: origin + '/',
@@ -54,14 +70,33 @@ function makeStructuredData(route, seo, sourceGraph) {
     graph.push({
       '@type': 'BreadcrumbList',
       '@id': breadcrumbsId,
-      itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'Inicio', item: origin + '/' },
-        { '@type': 'ListItem', position: 2, name: pageLabels[route] || seo.title, item: canonical }
-      ]
+      itemListElement: servicePages[route]
+        ? [
+            { '@type': 'ListItem', position: 1, name: 'Inicio', item: origin + '/' },
+            { '@type': 'ListItem', position: 2, name: 'Servicios', item: origin + '/servicios' },
+            { '@type': 'ListItem', position: 3, name: servicePages[route].shortName, item: canonical }
+          ]
+        : [
+            { '@type': 'ListItem', position: 1, name: 'Inicio', item: origin + '/' },
+            { '@type': 'ListItem', position: 2, name: pageLabels[route] || seo.title, item: canonical }
+          ]
     })
   }
   graph.push(page)
   if (canonicalPath === '/' || route === '/servicios') graph.push(landService)
+  if (servicePages[route]) {
+    const service = servicePages[route]
+    graph.push({
+      '@type': 'Service',
+      '@id': canonical + '#servicio',
+      name: service.shortName,
+      serviceType: service.serviceType,
+      description: seo.description,
+      provider: { '@id': organizationId },
+      areaServed: { '@type': 'Country', name: 'Costa Rica' },
+      url: canonical
+    })
+  }
   if (route === '/servicios') {
     const services = [
       ['aereo', 'Transporte aéreo de carga', 'Transporte aéreo internacional'],
