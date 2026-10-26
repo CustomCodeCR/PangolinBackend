@@ -22,7 +22,7 @@ public static class DholeTrackingEndpoints
             DholeTrackingSearchInput input, IConfiguration config, IHttpClientFactory clients,
             HttpContext http, CancellationToken ct) =>
             SearchAsync(input, config, clients, http, true, ct))
-            .RequireRateLimiting("tracking-public");
+            .RequireRateLimiting("tracking");
 
         return app;
     }
