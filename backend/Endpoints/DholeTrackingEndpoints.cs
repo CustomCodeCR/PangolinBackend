@@ -4,14 +4,15 @@ using System.Text.Json;
 namespace CastroFallas.MiniQuote.Api.Endpoints;
 
 // Experimental, read-only Dynamics integration. Admin authorization is enforced by the endpoint.
+public sealed record DholeTrackingSearchInput(string? Type, string? Reference);
+
 public static class DholeTrackingEndpoints
 {
-    private sealed record SearchInput(string? Type, string? Reference);
 
     public static IEndpointRouteBuilder MapDholeTracking(this IEndpointRouteBuilder app)
     {
         app.MapPost("/api/tracking/dynamics/search", async (
-            SearchInput input, IConfiguration config, IHttpClientFactory clients,
+            DholeTrackingSearchInput input, IConfiguration config, IHttpClientFactory clients,
             HttpContext http, CancellationToken cancellationToken) =>
         {
             http.Response.Headers.CacheControl = "no-store";
