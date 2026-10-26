@@ -18,9 +18,9 @@ const slugifyNewsTitle = (title: string) => title.normalize('NFD')
   .toLowerCase()
   .replace(/[^a-z0-9]+/g, '-')
   .replace(/^-+|-+$/g, '') || 'noticia'
-const articleSlug = (article: { id: string; title: string }) =>
-  `${slugifyNewsTitle(article.title)}-${article.id.replace(/-/g, '').slice(-8).toLowerCase()}`
-const articlePath = (article: { id: string; title: string }) => `/noticias/${articleSlug(article)}`
+const articleSlug = (article: { id: string; title: string; publishedAt?: string | null }) =>
+  `${article.publishedAt?.slice(0,10) || 'sin-fecha'}-${slugifyNewsTitle(article.title)}-${article.id.replace(/-/g, '').slice(-8).toLowerCase()}`
+const articlePath = (article: { id: string; title: string; publishedAt?: string | null }) => `/noticias/${articleSlug(article)}`
 const articleHref = (id: string) => {
   const article = managedNews.value.find(item => item.id === id)
   return article ? articlePath(article) : '/noticias'
@@ -56,7 +56,9 @@ const news = computed(() => managedNews.value.filter(article => article.publishe
     title: english?.title ?? article.title,
     description: english?.description ?? article.description,
     body: english?.body ?? (article.body?.trim() || article.description),
-    image: article.image || '/images/cover-logistics.jpeg'
+    image: article.image || '/images/cover-logistics.jpeg',
+    author: article.author || '',
+    publishedAt: article.publishedAt || null
   }
 }))
 // Traducción bajo demanda; el backend cachea cada artículo y jamás expone la clave IA.
@@ -109,6 +111,8 @@ async function translateNewsToEnglish() {
   englishLoading.value = false
 }
 watch(locale, () => { if (locale.value === 'en') void translateNewsToEnglish() })
+const formatArticleDate = (iso: string | null | undefined) => iso
+  ? new Intl.DateTimeFormat(locale.value === 'en' ? 'en-US' : 'es-CR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(iso)) : ''
 const leadStory = computed(() => news.value[activeStoryIndex.value] ?? news.value[0])
 const carouselStories = computed(() => news.value.map((article, index) => ({ ...article, index })))
 const activeArticle = computed(() => {
@@ -498,6 +502,7 @@ onUnmounted(() => {
               @click="toggleArticleText"
             ><span aria-hidden="true"></span></button>
             <header class="news-article-page__story-heading">
+              <time v-if="activeArticle.publishedAt" class="news-article-page__date" :datetime="activeArticle.publishedAt">{{ formatArticleDate(activeArticle.publishedAt) }}</time>
               <p class="news-article-page__overline">{{ activeArticle.category }}</p>
               <h1>{{ activeArticle.title }}</h1>
             </header>
@@ -512,6 +517,7 @@ onUnmounted(() => {
                 <div class="news-article-page__body">
                   <p v-for="(paragraph, index) in activeArticleParagraphs" :key="index">{{ paragraph }}</p>
                 </div>
+                <p v-if="activeArticle.author" class="news-article-page__author">{{ q('Autor:', 'Author:') }} <strong>{{ activeArticle.author }}</strong></p>
                 <div class="news-article-page__closing">
                   <span class="news-article-page__closing-line" aria-hidden="true"></span>
                   <span>{{ q('FIN DEL ARTÍCULO', 'END OF ARTICLE') }}</span>
@@ -585,6 +591,10 @@ onUnmounted(() => {
 .news-article-page__side-image img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 42%}
 .news-article-page__closing{display:flex;align-items:center;gap:16px;margin-top:clamp(42px,6vw,76px);color:var(--article-muted);font-size:10px;font-weight:800;letter-spacing:.12em;white-space:nowrap}
 .news-article-page__closing-line{width:56px;height:2px;background:#c8102e}
+.news-article-page__story-heading{position:relative;min-height:50px}
+.news-article-page__date{display:block;width:max-content;max-width:100%;margin:0 0 18px auto;color:var(--article-muted);font-size:12px;font-weight:800;letter-spacing:.035em;text-align:right}
+.news-article-page__author{margin:35px 0 0;padding-top:20px;border-top:1px solid var(--article-line);color:var(--article-muted);font-size:14px}
+.news-article-page__author strong{color:var(--article-ink);font-weight:800}
 .news-article-page__back{margin-top:25px;padding-top:19px;border-top:1px solid var(--article-line)}
 .news-article-page__empty{padding:80px 0 130px}
 .news-article-page__empty h1{font-size:clamp(30px,4vw,48px)}
