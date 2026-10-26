@@ -4,6 +4,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import EmblaCarousel, { type EmblaCarouselType } from 'embla-carousel'
 import type { ManagedNews } from '../adminContent'
+import { newsArticlePath } from '../lib/newsArticlePath'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import { subscribeToChanges } from '../services/realtime'
@@ -13,14 +14,7 @@ const requestedArticleId = new URLSearchParams(window.location.search).get('arti
 const requestedArticleSlug = window.location.pathname.match(/^\/noticias\/([^/]+)\/?$/)?.[1] ?? null
 const isArticlePage = Boolean(requestedArticleId || requestedArticleSlug)
 const managedNews = ref<ManagedNews[]>([])
-const slugifyNewsTitle = (title: string) => title.normalize('NFD')
-  .replace(/[\u0300-\u036f]/g, '')
-  .toLowerCase()
-  .replace(/[^a-z0-9]+/g, '-')
-  .replace(/^-+|-+$/g, '') || 'noticia'
-const articleSlug = (article: { id: string; title: string }) =>
-  `${slugifyNewsTitle(article.title)}-${article.id.replace(/-/g, '').slice(-8).toLowerCase()}`
-const articlePath = (article: { id: string; title: string }) => `/noticias/${articleSlug(article)}`
+const articlePath = (article: ManagedNews) => newsArticlePath(article)
 const articleHref = (id: string) => {
   const article = managedNews.value.find(item => item.id === id)
   return article ? articlePath(article) : '/noticias'
@@ -34,6 +28,12 @@ let emblaApi: EmblaCarouselType | null = null
 type EnglishNews = Pick<ManagedNews, 'title' | 'category' | 'description' | 'body'>
 const { locale } = useI18n({ useScope: 'global' })
 const q = (es: string, en: string) => locale.value === 'en' ? en : es
+function formattedNewsDate(value: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return ''
+  return new Intl.DateTimeFormat(locale.value === 'en' ? 'en-US' : 'es-CR', {
+    year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC'
+  }).format(new Date(value + 'T12:00:00Z'))
+}
 const englishNews = ref<Record<string, { source: string; translated: EnglishNews }>>({})
 const englishLoading = ref(false)
 const englishError = ref(false)
@@ -56,7 +56,9 @@ const news = computed(() => managedNews.value.filter(article => article.publishe
     title: english?.title ?? article.title,
     description: english?.description ?? article.description,
     body: english?.body ?? (article.body?.trim() || article.description),
-    image: article.image || '/images/cover-logistics.jpeg'
+    image: article.image || '/images/cover-logistics.jpeg',
+    author: article.author?.trim() || 'Grupo Castro Fallas',
+    publicationDate: article.publicationDate || ''
   }
 }))
 // Traducción bajo demanda; el backend cachea cada artículo y jamás expone la clave IA.
@@ -295,6 +297,7 @@ watch(activeArticle, article => {
   setNewsMeta('property', 'og:title', title)
   setNewsMeta('property', 'og:description', article.description)
   setNewsMeta('property', 'og:type', 'article')
+  setNewsMeta('property', 'article:published_time', article.publicationDate ? `${article.publicationDate}T00:00:00-06:00` : null)
   setNewsMeta('property', 'og:site_name', 'Grupo Castro Fallas')
   setNewsMeta('name', 'twitter:title', title)
   setNewsMeta('name', 'twitter:description', article.description)
@@ -470,7 +473,7 @@ onUnmounted(() => {
       <template v-if="activeArticle">
         <nav class="container news-article-page__navigation" :aria-label="q('Navegación de noticias', 'News navigation')">
           <a href="/noticias"><IconSymbol glyph="←" /> {{ q('Volver a noticias', 'Back to news') }}</a>
-          <span>{{ q('GRUPO CASTRO FALLAS / ACTUALIDAD', 'GRUPO CASTRO FALLAS / NEWS') }}</span>
+          <time v-if="activeArticle.publicationDate" class="news-article-page__date" :datetime="activeArticle.publicationDate">{{ formattedNewsDate(activeArticle.publicationDate) }}</time>
         </nav>
         <article class="news-article-page__article">
           <div ref="articleStage" class="container news-article-page__stage">
@@ -512,6 +515,7 @@ onUnmounted(() => {
                 <div class="news-article-page__body">
                   <p v-for="(paragraph, index) in activeArticleParagraphs" :key="index">{{ paragraph }}</p>
                 </div>
+                <p class="news-article-page__author"><span>{{ q('Autor', 'Author') }}</span><strong>{{ activeArticle.author }}</strong></p>
                 <div class="news-article-page__closing">
                   <span class="news-article-page__closing-line" aria-hidden="true"></span>
                   <span>{{ q('FIN DEL ARTÍCULO', 'END OF ARTICLE') }}</span>
@@ -547,6 +551,7 @@ onUnmounted(() => {
 .news-article-page__back{color:#16181d}
 .news-article-page__navigation>span{color:var(--article-muted);font-size:10px;font-weight:800;letter-spacing:.13em}
 .news-article-page__navigation a:hover,.news-article-page__back:hover{text-decoration:underline}
+.news-article-page__navigation .news-article-page__date{display:block;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.65);font-size:clamp(11px,1.2vw,14px);font-weight:850;letter-spacing:.03em;text-align:right;white-space:nowrap}
 .news-article-page__panel{height:100%;overflow:hidden;border:0;border-radius:0;background:#f3f3f3;box-shadow:none}
 .news-article-page__hero{position:relative;display:flex;align-items:flex-end;height:100%;min-height:0}
 .news-article-page__visual{position:absolute;z-index:0;inset:0;min-width:0;min-height:0;margin:0;overflow:hidden;background:#182339}
@@ -583,6 +588,8 @@ onUnmounted(() => {
 .news-article-page__body p{margin:0 0 1.35em;white-space:pre-line}
 .news-article-page__side-image{position:relative;align-self:start;top:auto;min-width:0;margin:0;overflow:hidden;aspect-ratio:1.55;border-radius:20px;background:#131c2b}
 .news-article-page__side-image img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 42%}
+.news-article-page__author{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:baseline;gap:10px;margin:40px 0 0;font-size:14px;line-height:1.6;color:var(--article-muted)}
+.news-article-page__author strong{font-size:16px;color:var(--article-ink)}
 .news-article-page__closing{display:flex;align-items:center;gap:16px;margin-top:clamp(42px,6vw,76px);color:var(--article-muted);font-size:10px;font-weight:800;letter-spacing:.12em;white-space:nowrap}
 .news-article-page__closing-line{width:56px;height:2px;background:#c8102e}
 .news-article-page__back{margin-top:25px;padding-top:19px;border-top:1px solid var(--article-line)}
@@ -616,6 +623,7 @@ onUnmounted(() => {
   .news-article-page__handle{display:grid;width:100%;height:26px;margin-bottom:10px}
   .news-article-page__navigation{padding-block:17px}
   .news-article-page__navigation>span{display:none}
+  .news-article-page__navigation .news-article-page__date{display:block;max-width:54%;font-size:11px;white-space:normal;line-height:1.35}
   .news-article-page__panel{border-radius:14px}
   .news-article-page__visual-mark{bottom:clamp(98px,14vh,132px);left:22px;font-size:8px;letter-spacing:.08em}
   .news-article-page__story-heading{margin-bottom:6px}
