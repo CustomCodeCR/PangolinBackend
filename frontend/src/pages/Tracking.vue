@@ -238,7 +238,7 @@ onBeforeUnmount(() => {
             <h1>{{ copy.title }} <span>{{ copy.accent }}</span></h1>
             <p class="tracking-lead">{{ copy.intro }}</p>
           </div>
-          <WorldGlobe :shipment="shipment" :initial-zoom="0.8" />
+          <WorldGlobe :shipment="globeRoute" :initial-zoom="0.8" />
         </section>
         <section class="tracking-search-section">
           <form class="tracking-search" @submit.prevent="searchShipment" novalidate>
@@ -274,25 +274,37 @@ onBeforeUnmount(() => {
               <div class="tracking-demo-result__heading">
                 <div>
                   <span class="tracking-demo-result__label">{{ copy.demoLabel }}</span>
-                  <h3>{{ copy.result }} · {{ shipment.referenceCode }}</h3>
+                  <h3>{{ copy.result }} · {{ shipment.title || reference.trim() }}</h3>
                 </div>
-                <strong class="tracking-demo-result__status">{{ statusLabels[shipment.status] ?? shipment.status }}</strong>
+                <strong class="tracking-demo-result__status">{{ shipment.status || '—' }}</strong>
               </div>
+              <div v-if="matches.length > 1" class="tracking-results-select">
+                <strong>{{ en ? 'Matching shipments' : 'Embarques encontrados' }}: {{ selectedIndex + 1 }} / {{ matches.length }}</strong>
+                <div>
+                  <button type="button" :disabled="selectedIndex === 0" @click="chooseMatch(selectedIndex - 1)">{{ en ? 'Previous' : 'Anterior' }}</button>
+                  <button type="button" :disabled="selectedIndex >= matches.length - 1" @click="chooseMatch(selectedIndex + 1)">{{ en ? 'Next' : 'Siguiente' }}</button>
+                </div>
+              </div>
+              <p v-if="truncated" class="tracking-hint">{{ en ? 'Additional matches may be available.' : 'Podrían existir más coincidencias.' }}</p>
               <dl class="tracking-demo-result__grid">
-                <div><dt>{{ copy.origin }}</dt><dd>{{ shipment.origin.name }}</dd></div>
-                <div><dt>{{ copy.destination }}</dt><dd>{{ shipment.destination.name }}</dd></div>
+                <div><dt>{{ copy.origin }}</dt><dd>{{ shipment.origin || '—' }}</dd></div>
+                <div><dt>{{ copy.destination }}</dt><dd>{{ shipment.destination || '—' }}</dd></div>
+                <div><dt>{{ en ? 'Transport' : 'Transporte' }}</dt><dd>{{ shipment.mode || '—' }}</dd></div>
+                <div><dt>{{ copy.status }}</dt><dd>{{ shipment.status || '—' }}</dd></div>
+                <div><dt>{{ en ? 'Port of loading' : 'Puerto de salida' }}</dt><dd>{{ shipment.portOfLoading || '—' }}</dd></div>
+                <div><dt>{{ en ? 'Port of entry' : 'Puerto de entrada' }}</dt><dd>{{ shipment.portOfEntry || '—' }}</dd></div>
                 <div><dt>{{ copy.estimatedDeparture }}</dt><dd>{{ formatDate(shipment.etd) }}</dd></div>
                 <div><dt>{{ copy.estimatedArrival }}</dt><dd>{{ formatDate(shipment.eta) }}</dd></div>
+                <div><dt>{{ en ? 'Vessel' : 'Buque' }}</dt><dd>{{ shipment.vessel || '—' }}</dd></div>
+                <div><dt>{{ en ? 'Container' : 'Contenedor' }}</dt><dd>{{ shipment.container || '—' }}</dd></div>
+                <div><dt>BCF</dt><dd>{{ shipment.bcf || '—' }}</dd></div>
+                <div><dt>{{ en ? 'Last updated' : 'Última actualización' }}</dt><dd>{{ formatDate(shipment.updatedAtUtc) }}</dd></div>
               </dl>
-              <div class="tracking-demo-result__progress">
-                <div><strong>{{ copy.progress }}</strong><span>{{ shipment.progressPercent }}%</span></div>
-                <div class="tracking-demo-result__track" role="progressbar" :aria-label="copy.progress"
-                  :aria-valuenow="shipment.progressPercent" aria-valuemin="0" aria-valuemax="100">
-                  <span :style="{ width: shipment.progressPercent + '%' }"></span>
-                </div>
-              </div>
-              <p class="tracking-demo-result__disclaimer">{{ copy.demoNotice }}</p>
-              <button type="button" class="tracking-demo-result__view" @click="showDemoRoute">{{ copy.viewRoute }} ↑</button>
+              <p class="tracking-demo-result__disclaimer">
+                {{ globeRoute ? copy.demoNotice :
+                  (en ? 'Approximate route unavailable for these locations. The globe stays in its default view.' : 'No hay una ruta aproximada reconocida para estos lugares. El globo mantiene su vista predeterminada.') }}
+              </p>
+              <button v-if="globeRoute" type="button" class="tracking-demo-result__view" @click="showDemoRoute">{{ copy.viewRoute }} ↑</button>
             </section>
             <div v-else-if="searched && reference.trim()" class="tracking-unavailable" role="status">
               <strong>{{ lookupFailure === 'missing' ? copy.notFound : copy.unavailable }}</strong>
@@ -301,7 +313,6 @@ onBeforeUnmount(() => {
               <a :href="mailto">{{ copy.contact }} <IconSymbol glyph="↗" /></a>
             </div>
           </form>
-          <DholeTrackingPreview />
         </section>
         <section class="tracking-process">
           <p class="section-tag">{{ copy.eyebrow }}</p>
@@ -465,4 +476,11 @@ onBeforeUnmount(() => {
 .tracking-demo-result__view { margin-top:14px; border:1px solid #b50928; border-radius:12px; padding:10px 15px; background:transparent; color:#b50928; font-weight:750; cursor:pointer; }
 .tracking-demo-result__view:focus-visible { outline:2px solid #b50928; outline-offset:3px; }
 :global(html.theme-dark) .tracking-demo-result__view { color:#ff8697; border-color:#ff8697; }
+</style>
+
+<style scoped>
+.tracking-results-select { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin:16px 0; }
+.tracking-results-select > div { display:flex; gap:8px; }
+.tracking-results-select button { border:1px solid #b5092866; background:transparent; color:inherit; padding:8px 13px; border-radius:10px; cursor:pointer; }
+.tracking-results-select button:disabled { opacity:.45; cursor:not-allowed; }
 </style>
