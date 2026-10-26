@@ -226,8 +226,11 @@ assert.match(backendProgram, /code = "account_unavailable"/, 'API debe distingui
 assert.match(backendProgram, /StatusCodes\.Status404NotFound/, 'Devolver 404 antes del formulario OTP')
 
 const tracking = source('src/pages/Tracking.vue')
-assert.match(tracking, /<WorldGlobe :shipment="shipment" :initial-zoom="0\.8"\s*\/>/, 'Rastrear ahora abre el globo completo, sin acercamiento inicial')
-assert.match(tracking, /Online tracking is not available yet/, 'No simular seguimiento real')
+assert.match(tracking, /<WorldGlobe :shipment="globeRoute" :initial-zoom="0\.8"\s*\/>/, 'El globo conserva el zoom inicial y utiliza rutas ilustrativas')
+assert.match(tracking, /\/api\/tracking\/dynamics\/search/, 'Se consultan datos de Dynamics desde el backend')
+assert.match(tracking, /credentials: 'same-origin'/, 'La consulta utiliza la sesión autenticada')
+assert.match(tracking, /Illustrative route only, not a live GPS position/, 'El globo advierte que no es un GPS')
+assert.doesNotMatch(tracking, /\/api\/tracking\/demo\?/, 'La interfaz pública ya no consulta embarques ficticios')
 assert.match(tracking, /<label for="tracking-reference-kind">/, 'Tipo de referencia debe tener una etiqueta separada del select')
 assert.match(tracking, /import FieldDropdown from '\.\.\/components\/FieldDropdown\.vue'/, 'Buscar embarque reutiliza el mismo componente de selección que Administración')
 assert.match(tracking, /id="tracking-reference-kind"[\s\S]*?v-model="kind"[\s\S]*?:aria-label="copy\.type"/, 'Tipo de referencia mantiene etiqueta y selección accesibles')
