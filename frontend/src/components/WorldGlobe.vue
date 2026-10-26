@@ -474,3 +474,5 @@ onBeforeUnmount(() => {
 }
 
 </style>
+
+<!-- route rendering notes: see docs/DHOLE-TRACKING-PREVIEW.md -->
