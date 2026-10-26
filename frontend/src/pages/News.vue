@@ -10,8 +10,21 @@ import { subscribeToChanges } from '../services/realtime'
 
 // Article links already use this URL from Inicio; render their content as a full page.
 const requestedArticleId = new URLSearchParams(window.location.search).get('article')
-const articleHref = (id: string) => '/noticias?article=' + encodeURIComponent(id)
+const requestedArticleSlug = window.location.pathname.match(/^\/noticias\/([^/]+)\/?$/)?.[1] ?? null
+const isArticlePage = Boolean(requestedArticleId || requestedArticleSlug)
 const managedNews = ref<ManagedNews[]>([])
+const slugifyNewsTitle = (title: string) => title.normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '') || 'noticia'
+const articleSlug = (article: { id: string; title: string }) =>
+  `${slugifyNewsTitle(article.title)}-${article.id.replace(/-/g, '').slice(-8).toLowerCase()}`
+const articlePath = (article: { id: string; title: string }) => `/noticias/${articleSlug(article)}`
+const articleHref = (id: string) => {
+  const article = managedNews.value.find(item => item.id === id)
+  return article ? articlePath(article) : '/noticias'
+}
 const newsLoaded = ref(false)
 const newsError = ref(false)
 const activeStoryIndex = ref(0)
@@ -98,7 +111,14 @@ async function translateNewsToEnglish() {
 watch(locale, () => { if (locale.value === 'en') void translateNewsToEnglish() })
 const leadStory = computed(() => news.value[activeStoryIndex.value] ?? news.value[0])
 const carouselStories = computed(() => news.value.map((article, index) => ({ ...article, index })))
-const activeArticle = computed(() => requestedArticleId ? news.value.find(article => article.id === requestedArticleId) ?? null : null)
+const activeArticle = computed(() => {
+  if (requestedArticleId) return news.value.find(article => article.id === requestedArticleId) ?? null
+  if (!requestedArticleSlug) return null
+  return news.value.find(article => {
+    const sourceArticle = managedNews.value.find(item => item.id === article.id)
+    return sourceArticle && articleSlug(sourceArticle) === requestedArticleSlug
+  }) ?? null
+})
 function setNewsMeta(attribute: 'name' | 'property', key: string, content: string | null) {
   const selector = `meta[${attribute}="${key}"]`
   let element = document.head.querySelector<HTMLMetaElement>(selector)
@@ -133,8 +153,9 @@ watch(activeArticle, article => {
     setNewsMeta('property', 'og:url', null)
     return
   }
-  const canonicalUrl = new URL('/noticias', 'https://www.logisticacastrofallas.com')
-  canonicalUrl.searchParams.set('article', article.id)
+  const sourceArticle = managedNews.value.find(item => item.id === article.id)
+  const canonicalPath = sourceArticle ? articlePath(sourceArticle) : window.location.pathname
+  const canonicalUrl = new URL(canonicalPath, 'https://www.logisticacastrofallas.com')
   if (!canonical) {
     canonical = document.createElement('link')
     canonical.rel = 'canonical'
@@ -142,6 +163,13 @@ watch(activeArticle, article => {
   }
   canonical.href = canonicalUrl.href
   setNewsMeta('property', 'og:url', canonicalUrl.href)
+
+  if (window.location.pathname !== canonicalPath || new URLSearchParams(window.location.search).has('article')) {
+    const query = new URLSearchParams(window.location.search)
+    query.delete('article')
+    const queryString = query.toString()
+    window.history.replaceState(window.history.state, '', canonicalPath + (queryString ? `?${queryString}` : '') + window.location.hash)
+  }
 })
 let storyTimer: number | undefined
 function startStoryTimer() {
@@ -157,7 +185,7 @@ function pauseStoryTimer() {
   storyTimer = undefined
 }
 function resumeStoryTimer() {
-  if (!requestedArticleId && storyTimer === undefined) startStoryTimer()
+  if (!isArticlePage && storyTimer === undefined) startStoryTimer()
 }
 function selectStory(index: number) {
   activeStoryIndex.value = index
@@ -184,7 +212,7 @@ async function loadPublicNews() {
       emblaApi = EmblaCarousel(emblaViewport.value, { align: 'start', loop: news.value.length > 1 })
       emblaApi.on('select', () => { activeStoryIndex.value = emblaApi?.selectedScrollSnap() ?? 0 })
     } else { emblaApi?.reInit({ loop: news.value.length > 1 }) }
-    if (!requestedArticleId) startStoryTimer()
+    if (!isArticlePage) startStoryTimer()
   } catch { if (!disposed && request === requestVersion) newsError.value = true }
   finally { if (!disposed && request === requestVersion) newsLoaded.value = true }
 }
@@ -203,8 +231,8 @@ onUnmounted(() => {
 
 <template>
   <div class="app-site news-page">
-    <SiteHeader v-if="requestedArticleId" active="noticias" />
-    <template v-if="!requestedArticleId">
+    <SiteHeader v-if="isArticlePage" active="noticias" />
+    <template v-if="!isArticlePage">
     <section class="news-editorial-hero" @mouseenter="pauseStoryTimer" @mouseleave="resumeStoryTimer">
       <SiteHeader active="noticias" overlay />
       <template v-if="news.length">
