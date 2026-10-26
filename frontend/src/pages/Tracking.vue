@@ -7,25 +7,9 @@ import IconSymbol from '../components/IconSymbol.vue'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import WorldGlobe from '../components/WorldGlobe.vue'
+import DholeTrackingPreview from '../components/DholeTrackingPreview.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
-import { illustrativeRoute } from '../lib/trackingRoute'
-
-interface PublicTrackingRecord {
-  status: string | null
-  origin: string | null
-  destination: string | null
-  mode: string | null
-  portOfLoading: string | null
-  portOfEntry: string | null
-  etd: string | null
-  eta: string | null
-}
-
-interface PublicTrackingResponse {
-  source: 'dynamics'
-  records: PublicTrackingRecord[]
-  truncated: boolean
-}
+import type { TrackingDemoShipment } from '../types/tracking'
 
 const { locale } = useI18n({ useScope: 'global' })
 const en = computed(() => locale.value.toLowerCase().startsWith('en'))
@@ -33,124 +17,98 @@ const kind = ref('BL')
 const reference = ref('')
 const searched = ref(false)
 const loading = ref(false)
-const results = ref<PublicTrackingRecord[]>([])
-const selectedIndex = ref(0)
-const truncated = ref(false)
-const shipment = computed(() => results.value[selectedIndex.value] ?? null)
-const globeShipment = computed(() => shipment.value ? illustrativeRoute(shipment.value) : null)
+const shipment = ref<TrackingDemoShipment | null>(null)
 const globeSection = ref<HTMLElement | null>(null)
-const lookupFailure = ref<'none' | 'missing' | 'invalid' | 'limited' | 'error'>('none')
-let lookupRevision = 0
-let lookupController: AbortController | null = null
-
-function showRoute() {
+function showDemoRoute() {
   globeSection.value?.scrollIntoView({
     behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
     block: 'start'
   })
 }
+const lookupFailure = ref<'none' | 'missing' | 'invalid' | 'limited' | 'error'>('none')
+let lookupRevision = 0
 watch([kind, reference], () => {
   lookupRevision++
-  lookupController?.abort()
-  loading.value = false
   searched.value = false
-  results.value = []
-  selectedIndex.value = 0
-  truncated.value = false
+  loading.value = false
+  shipment.value = null
   lookupFailure.value = 'none'
 })
-
 async function searchShipment() {
-  lookupController?.abort()
   const revision = ++lookupRevision
   const code = reference.value.trim()
   searched.value = true
-  results.value = []
-  selectedIndex.value = 0
-  truncated.value = false
+  shipment.value = null
   lookupFailure.value = 'none'
   if (!code) return
-  if (!/^[a-z0-9_-]{3,64}$/i.test(code)) {
+  if (code.length < 3 || code.length > 64 || !/^[a-z0-9_-]+$/i.test(code)) {
     lookupFailure.value = 'invalid'
     return
   }
-  const controller = new AbortController()
-  lookupController = controller
   loading.value = true
   try {
-    const response = await fetch('/api/tracking/search', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-      cache: 'no-store',
-      body: JSON.stringify({ type: kind.value, reference: code }),
-      signal: controller.signal
+    const params = new URLSearchParams({ type: kind.value, reference: code })
+    const response = await fetch('/api/tracking/demo?' + params.toString(), {
+      headers: { Accept: 'application/json' }, cache: 'no-store'
     })
     if (revision !== lookupRevision) return
+    if (response.status === 404) { lookupFailure.value = 'missing'; return }
     if (response.status === 429) { lookupFailure.value = 'limited'; return }
-    if (response.status === 400) { lookupFailure.value = 'invalid'; return }
     if (!response.ok) { lookupFailure.value = 'error'; return }
-    const data: PublicTrackingResponse = await response.json()
-    if (revision !== lookupRevision) return
-    if (data.source !== 'dynamics' || !Array.isArray(data.records)) throw new Error('Invalid tracking response')
-    results.value = data.records
-    truncated.value = data.truncated === true
-    if (!data.records.length) lookupFailure.value = 'missing'
+    const data = await response.json() as TrackingDemoShipment
+    if (data.demo !== true || !data.origin || !data.destination ||
+        !Number.isFinite(data.progressPercent)) throw new Error('Invalid demo response')
+    shipment.value = data
   } catch {
-    if (revision === lookupRevision && !controller.signal.aborted) lookupFailure.value = 'error'
+    if (revision === lookupRevision) lookupFailure.value = 'error'
   } finally {
     if (revision === lookupRevision) loading.value = false
-    if (lookupController === controller) lookupController = null
   }
 }
-
-function formatDate(value: string | null) {
-  if (!value) return '—'
-  const date = new Date(value)
+const statusLabels = computed<Record<string, string>>(() => en.value ? ({
+  planned: 'Planned', in_transit: 'In transit', arrived: 'Arrived', delivered: 'Delivered'
+}) : ({
+  planned: 'Planificado', in_transit: 'En tránsito', arrived: 'Llegó a destino', delivered: 'Entregado'
+}))
+function formatDate(value: string) {
+  const date = new Date(value + 'T12:00:00Z')
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(en.value ? 'en-US' : 'es-CR', {
     day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'
   }).format(date)
 }
-
 let tour: Driver | null = null
 const types = computed(() => en.value ? [
-  { id: 'BL', name: 'BL (BCF reference)', help: 'BL searches the BCF reference registered by Castro Fallas.' },
-  { id: 'HBL', name: 'HBL (BCF reference)', help: 'HBL searches the same BCF reference; check your documentation.' },
-  { id: 'BCF', name: 'BCF reference', help: 'BCF operation reference registered by Castro Fallas.' },
-  { id: 'IDTRA', name: 'IDTRA', help: 'Castro Fallas tracking reference.' },
-  { id: 'CONTAINER', name: 'Container number', help: 'Identifier printed on the shipping container.' },
-  { id: 'PO', name: 'Purchase order (PO)', help: 'Purchase order linked to the shipment.' }
+  { id: 'BL', name: 'BL number', help: 'Master Bill of Lading for the shipment.' },
+  { id: 'HBL', name: 'HBL number', help: 'House Bill of Lading for your cargo.' },
+  { id: 'IDTRA', name: 'IDTRA', help: 'Castro Fallas reference, when assigned.' },
+  { id: 'CONTAINER', name: 'Container number', help: 'Identifier printed on the container.' },
+  { id: 'PO', name: 'Purchase order (PO)', help: 'Purchase order reference, if linked to a shipment.' }
 ] : [
-  { id: 'BL', name: 'Número BL (BCF)', help: 'Esta opción consulta el BCF registrado por Castro Fallas.' },
-  { id: 'HBL', name: 'Número HBL (BCF)', help: 'Esta opción también consulta el BCF; verificá el código con logística.' },
-  { id: 'BCF', name: 'Referencia BCF', help: 'Referencia BCF registrada para la operación.' },
-  { id: 'IDTRA', name: 'IDTRA', help: 'Referencia de rastreo asignada por Castro Fallas.' },
+  { id: 'BL', name: 'Número BL', help: 'Conocimiento de embarque marítimo principal.' },
+  { id: 'HBL', name: 'Número HBL', help: 'Conocimiento de embarque individual.' },
+  { id: 'IDTRA', name: 'IDTRA', help: 'Referencia de Castro Fallas, si fue asignada.' },
   { id: 'CONTAINER', name: 'Número de contenedor', help: 'Código impreso en el contenedor.' },
-  { id: 'PO', name: 'Orden de compra (PO)', help: 'Orden de compra vinculada a la operación.' }
+  { id: 'PO', name: 'Orden de compra (PO)', help: 'Orden de compra vinculada al embarque, si aplica.' }
 ])
 const help = computed(() => types.value.find(item => item.id === kind.value)?.help ?? '')
 const copy = computed(() => en.value ? {
   eyebrow: 'CASTRO FALLAS · INTERNATIONAL CARGO', title: 'Track your', accent: 'shipment.',
-  intro: 'Check your shipment information using the reference registered by Castro Fallas.',
-  heading: 'Find your shipment', hint: 'Choose a reference type and enter its number.',
+  intro: 'Explore sample shipments with an interactive route. Live cargo tracking is not connected yet.',
+  heading: 'Find your shipment', hint: 'Choose the reference type shown on your shipping documents.',
   guide: 'Step-by-step guide', type: 'Reference type', number: 'Shipment reference',
   placeholder: 'Enter reference', search: 'Search shipment', required: 'Enter a reference to continue.',
-  unavailable: 'Tracking is temporarily unavailable',
-  resultLabel: 'SHIPMENT TRACKING', result: 'Shipment summary',
-  origin: 'Origin', destination: 'Destination', status: 'Status', mode: 'Transport',
-  pol: 'Port of loading', poe: 'Port of entry',
-  estimatedDeparture: 'Estimated departure', estimatedArrival: 'Estimated arrival',
-  loading: 'Looking up your shipment…', viewRoute: 'View route on globe',
-  routeNotice: 'Illustrative route between known locations. This is not GPS or a live vessel position.',
-  noRoute: 'No verified approximate route is available for the locations in this record.',
-  notFound: 'No shipment found', notFoundInfo: 'Check the reference type and number and try again.',
+  unavailable: 'Online tracking is not available yet',
+  demoLabel: 'DEMO · Fictitious shipment', result: 'Shipment summary',
+  origin: 'Origin', destination: 'Destination', status: 'Status',
+  estimatedDeparture: 'Sample departure', estimatedArrival: 'Sample arrival',
+  progress: 'Illustrative progress', loading: 'Searching demo shipments…', viewRoute: 'View route on globe',
+  demoNotice: 'Illustrative data only. The moving route marker is not GPS and does not show real shipment positions.',
+  notFound: 'No sample shipment found', notFoundInfo: 'Check the selected reference type and the sample code.',
   invalid: 'Enter 3–64 letters, digits, hyphens or underscores.',
-  limited: 'Too many searches. Please try again shortly.',
-  failed: 'Unable to retrieve shipment information. Please try again later.',
-  explanation: 'For additional details, please contact Castro Fallas using your reference.',
-  contact: 'Contact Castro Fallas', multiple: 'Matching shipments', partial: 'Other matches may exist.',
-  previous: 'Previous', nextResult: 'Next',
-  process: 'How shipment coordination works',
+  limited: 'Too many searches. Please retry shortly.',
+  failed: 'Could not connect to demo tracking. Check the backend and try again.',
+  explanation: 'We cannot retrieve live movements yet. Contact Castro Fallas and include your reference so the team can assist.',
+  contact: 'Contact Castro Fallas', process: 'How shipment coordination works',
   processIntro: 'Our team works with carriers, customs agents and the other parties involved.',
   steps: [
     ['Review details', 'Identify the operation with its reference and documents.'],
@@ -159,29 +117,25 @@ const copy = computed(() => en.value ? {
     ['Coordinate at destination', 'Arrange the next steps for the agreed service.']
   ],
   tourTitles: ['Explore the globe', 'Choose reference type', 'Enter the reference', 'Search shipment', 'The logistics process'],
-  back: 'Back to home', next: 'Next', previousTour: 'Back', done: 'Finish'
+  back: 'Back to home', next: 'Next', previous: 'Back', done: 'Finish'
 } : {
   eyebrow: 'CASTRO FALLAS · CARGA INTERNACIONAL', title: 'Rastrea tu', accent: 'embarque.',
-  intro: 'Consultá la información de tus embarques con la referencia registrada por Castro Fallas.',
-  heading: 'Busca tu embarque', hint: 'Seleccioná el tipo de referencia e ingresá su número.',
+  intro: 'Explora embarques ficticios y sus rutas interactivas. El seguimiento real todavía no está conectado.',
+  heading: 'Busca tu embarque', hint: 'Selecciona el tipo de referencia que aparece en los documentos.',
   guide: 'Guía paso a paso', type: 'Tipo de referencia', number: 'Referencia del embarque',
   placeholder: 'Ingresa la referencia', search: 'Buscar embarque', required: 'Ingresa una referencia para continuar.',
-  unavailable: 'El rastreo no está disponible temporalmente',
-  resultLabel: 'RASTREO DE EMBARQUE', result: 'Resumen del embarque',
-  origin: 'Origen', destination: 'Destino', status: 'Estado', mode: 'Transporte',
-  pol: 'Puerto de salida', poe: 'Puerto de entrada',
-  estimatedDeparture: 'Salida estimada', estimatedArrival: 'Llegada estimada',
-  loading: 'Consultando tu embarque…', viewRoute: 'Ver ruta en el globo',
-  routeNotice: 'Ruta ilustrativa entre lugares conocidos. No representa GPS ni la posición actual del buque.',
-  noRoute: 'Aún no contamos con una ruta aproximada verificada para los lugares de este embarque.',
-  notFound: 'No se encontró el embarque', notFoundInfo: 'Revisá el tipo de referencia y el código ingresado.',
+  unavailable: 'El seguimiento en línea aún no está disponible',
+  demoLabel: 'DEMO · Embarque ficticio', result: 'Resumen del embarque',
+  origin: 'Origen', destination: 'Destino', status: 'Estado',
+  estimatedDeparture: 'Salida estimada de prueba', estimatedArrival: 'Llegada estimada de prueba',
+  progress: 'Avance ilustrativo', loading: 'Buscando embarque de prueba…', viewRoute: 'Ver ruta en el globo',
+  demoNotice: 'Datos ficticios. El marcador de avance no es GPS ni representa la ubicación real de un embarque.',
+  notFound: 'No se encontró el embarque de prueba', notFoundInfo: 'Verificá el tipo de referencia y el código de demostración.',
   invalid: 'Ingresá de 3 a 64 letras, números, guiones o guiones bajos.',
-  limited: 'Demasiadas consultas. Intentá nuevamente dentro de un momento.',
-  failed: 'No pudimos recuperar la información del embarque. Intentá más tarde.',
-  explanation: 'Si necesitás más detalles, contactá a Castro Fallas e incluí la referencia.',
-  contact: 'Contactar a Castro Fallas', multiple: 'Embarques encontrados', partial: 'Podrían existir más coincidencias.',
-  previous: 'Anterior', nextResult: 'Siguiente',
-  process: 'Así coordinamos cada embarque',
+  limited: 'Demasiadas consultas. Intentá de nuevo dentro de un momento.',
+  failed: 'No se pudo conectar con el rastreo de prueba. Revisá el backend e intentá nuevamente.',
+  explanation: 'Por ahora no podemos consultar movimientos en tiempo real. Contacta a Castro Fallas e incluye la referencia para recibir asistencia.',
+  contact: 'Contactar a Castro Fallas', process: 'Así coordinamos cada embarque',
   processIntro: 'Nuestro equipo coordina con transportistas, agentes aduanales y las demás partes involucradas.',
   steps: [
     ['Revisamos los datos', 'Identificamos la operación con la referencia y sus documentos.'],
@@ -189,8 +143,8 @@ const copy = computed(() => en.value ? {
     ['Transporte y aduanas', 'Coordinamos el tránsito y las gestiones aduaneras aplicables.'],
     ['Coordinamos el destino', 'Organizamos las siguientes gestiones del servicio acordado.']
   ],
-  tourTitles: ['Explora el globo', 'Elige el tipo de referencia', 'Ingresa la referencia', 'Busca el embarque', 'Cómo funciona la coordinación'],
-  back: 'Volver al inicio', next: 'Siguiente', previousTour: 'Anterior', done: 'Finalizar'
+  tourTitles: ['Explora el globo', 'Elige el tipo de referencia', 'Ingresa tu referencia', 'Busca el embarque', 'Cómo funciona la coordinación'],
+  back: 'Volver al inicio', next: 'Siguiente', previous: 'Anterior', done: 'Finalizar'
 })
 const mailto = computed(() => {
   const title = en.value ? 'Shipment tracking request' : 'Consulta de seguimiento de embarque'
@@ -210,7 +164,7 @@ function openGuide() {
       index === 1 ? copy.value.hint : index === 2 ? copy.value.placeholder :
       index === 3 ? copy.value.explanation : copy.value.processIntro
     } })),
-    nextBtnText: copy.value.next, prevBtnText: copy.value.previousTour,
+    nextBtnText: copy.value.next, prevBtnText: copy.value.previous,
     doneBtnText: copy.value.done, onDestroyed: () => { tour = null }
   })
   tour.drive()
@@ -221,10 +175,14 @@ function handleGuideKeydown(event: KeyboardEvent) {
   event.stopImmediatePropagation()
   if (!event.repeat) tour.moveNext()
 }
-onMounted(() => window.addEventListener('keydown', handleGuideKeydown, true))
+
+// The guide is opt-in: auto-opening its overlay can intercept mobile select taps.
+onMounted(() => {
+  window.addEventListener('keydown', handleGuideKeydown, true)
+})
+
 onBeforeUnmount(() => {
   lookupRevision++
-  lookupController?.abort()
   window.removeEventListener('keydown', handleGuideKeydown, true)
   tour?.destroy()
 })
