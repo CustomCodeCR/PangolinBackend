@@ -9,19 +9,11 @@ public static class DholeTrackingEndpoints
 {
     public static IEndpointRouteBuilder MapDholeTracking(this IEndpointRouteBuilder app)
     {
-        // Full record preview: authenticated administrators only.
+        // Authenticated customers and administrators can search with a shipment reference.
         app.MapPost("/api/tracking/dynamics/search", (
             DholeTrackingSearchInput input, IConfiguration config, IHttpClientFactory clients,
             HttpContext http, CancellationToken ct) =>
-            SearchAsync(input, config, clients, http, false, ct))
-            .RequireAuthorization("registered").RequireRateLimiting("tracking");
-
-        // Public lookup: only a small allowlist of logistics fields. Disabled by default.
-        // A known shipment reference is NOT proof of ownership.
-        app.MapPost("/api/tracking/search", (
-            DholeTrackingSearchInput input, IConfiguration config, IHttpClientFactory clients,
-            HttpContext http, CancellationToken ct) =>
-            SearchAsync(input, config, clients, http, true, ct))
+            SearchAsync(input, config, clients, http, ct))
             .RequireAuthorization("registered").RequireRateLimiting("tracking");
 
         return app;
@@ -29,13 +21,12 @@ public static class DholeTrackingEndpoints
 
     private static async Task<IResult> SearchAsync(
         DholeTrackingSearchInput input, IConfiguration config, IHttpClientFactory clients,
-        HttpContext http, bool publicLookup, CancellationToken ct)
+        HttpContext http, CancellationToken ct)
     {
         http.Response.Headers.CacheControl = "no-store";
         http.Response.Headers["Pragma"] = "no-cache";
 
-        if (!config.GetValue<bool>("DholeTracking:Enabled") ||
-            (publicLookup && !config.GetValue<bool>("DholeTracking:PublicEnabled")))
+        if (!config.GetValue<bool>("DholeTracking:Enabled"))
             return Results.Json(new { code = "tracking_disabled", error = "El rastreo no está habilitado." },
                 statusCode: StatusCodes.Status503ServiceUnavailable);
 
@@ -92,24 +83,6 @@ public static class DholeTrackingEndpoints
                     truncatedNode.ValueKind == JsonValueKind.True) ||
                 (doc.RootElement.TryGetProperty("nextCursor", out var cursor) &&
                     cursor.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(cursor.GetString()));
-
-            if (publicLookup)
-            {
-                // Never return account names, private identifiers, containers, BCF, vessel or raw Dynamics rows.
-                var publicRecords = items.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.Object)
-                    .Take(25).Select(item => new
-                    {
-                        status = GetFormatted(item, "new_preestado2"),
-                        origin = GetFormatted(item, "new_origen"),
-                        destination = GetFormatted(item, "new_destino"),
-                        mode = GetFormatted(item, "new_transporte"),
-                        portOfLoading = GetFormatted(item, "new_pol"),
-                        portOfEntry = GetFormatted(item, "new_poe"),
-                        etd = Get(item, "new_etd1"),
-                        eta = Get(item, "new_eta")
-                    }).ToArray();
-                return Results.Ok(new { source = "dynamics", records = publicRecords, truncated });
-            }
 
             var adminRecords = items.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.Object)
                 .Take(25).Select(item => new
