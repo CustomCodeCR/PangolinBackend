@@ -1,3 +1,19 @@
+# Dhole Dynamics tracking - authenticated clients
+
+La pantalla de /tracking conserva el diseño original y consulta Dynamics con la sesión del cliente o administrador.
+Los datos de los embarques se obtienen de Dhole con el código de referencia que introduce la persona.
+Los identificadores BL y HBL usan provisionalmente la consulta BCF.
+
+El globo dibuja rutas geográficas ilustrativas cuando se reconocen ambos puertos. No muestra GPS, posición real ni porcentajes calculados.
+
+La API interna requiere autenticación con política registered para permitir clientes y administradores. La ruta pública alternativa también requiere autenticación y está deshabilitada por defecto.
+
+Precaución: tener una cuenta y conocer una referencia no demuestra ser propietario de un embarque. La empresa debe confirmar que esta modalidad de acceso es apropiada para los campos visibles. Los límites por IP no sustituyen la autorización por cliente.
+
+Validar ambos roles, resultados múltiples y vacíos, el globo de home, los idiomas, modo oscuro y diseño móvil antes de fusionar esta PR. El rastreo de demostración se conserva únicamente como herramienta de desarrollo.
+
+---
+
 # Rastreo Dhole / Microsoft Dynamics (vista de administración)
 
 Primera fase de integración, creada desde `main-2`. No reemplaza el rastreo de demostración ni habilita el acceso público a los embarques de clientes.
