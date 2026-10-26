@@ -14,7 +14,7 @@ public static class DholeTrackingEndpoints
             DholeTrackingSearchInput input, IConfiguration config, IHttpClientFactory clients,
             HttpContext http, CancellationToken ct) =>
             SearchAsync(input, config, clients, http, false, ct))
-            .RequireAuthorization("admin").RequireRateLimiting("tracking");
+            .RequireAuthorization("registered").RequireRateLimiting("tracking");
 
         // Public lookup: only a small allowlist of logistics fields. Disabled by default.
         // A known shipment reference is NOT proof of ownership.
