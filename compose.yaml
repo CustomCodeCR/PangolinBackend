@@ -60,6 +60,8 @@ services:
       Redis__ConnectionString: redis:6379
       Mongo__ConnectionString: mongodb://mongo:27017
       Mongo__Database: castrofallas_logs
+      DholeTracking__Enabled: ${DHOLE_TRACKING_ENABLED:-false}
+      DholeTracking__ApiKey: ${DHOLE_TRACKING_API_KEY:-}
       Ai__Groq__ApiKey: ${GROQ_API_KEY:-}
       Ai__Groq__Model: ${GROQ_MODEL:-openai/gpt-oss-20b}
       Email__Mode: ${EMAIL_MODE:-LocalOutbox}
