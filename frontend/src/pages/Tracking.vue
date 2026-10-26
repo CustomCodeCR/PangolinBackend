@@ -7,6 +7,7 @@ import IconSymbol from '../components/IconSymbol.vue'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import WorldGlobe from '../components/WorldGlobe.vue'
+import DholeTrackingPreview from '../components/DholeTrackingPreview.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import type { TrackingDemoShipment } from '../types/tracking'
 
@@ -262,6 +263,7 @@ onBeforeUnmount(() => {
               <a :href="mailto">{{ copy.contact }} <IconSymbol glyph="↗" /></a>
             </div>
           </form>
+          <DholeTrackingPreview />
         </section>
         <section class="tracking-process">
           <p class="section-tag">{{ copy.eyebrow }}</p>
