@@ -333,7 +333,7 @@ app.MapGet("/api/health/ready", async (AppDbContext db, IConfiguration config, C
         await db.Database.ExecuteSqlRawAsync("SELECT quote_id, shipping_type FROM quote_maritime_details LIMIT 0", ct);
         await db.Database.ExecuteSqlRawAsync("SELECT quote_id, entry_country FROM quote_multimodal_details LIMIT 0", ct);
         await db.Database.ExecuteSqlRawAsync("SELECT id FROM auth_admin_user_audit LIMIT 0", ct);
-        await db.Database.ExecuteSqlRawAsync("SELECT id, published FROM public.cms_news LIMIT 0", ct);
+        await db.Database.ExecuteSqlRawAsync("SELECT id, published, author, publication_date FROM public.cms_news LIMIT 0", ct);
         await db.Database.ExecuteSqlRawAsync("SELECT id, published FROM public.cms_comments LIMIT 0", ct);
         await db.Database.ExecuteSqlRawAsync("SELECT id, src FROM public.cms_media LIMIT 0", ct);
         return Results.Ok(new
