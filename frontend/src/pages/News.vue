@@ -99,6 +99,163 @@ watch(locale, () => { if (locale.value === 'en') void translateNewsToEnglish() }
 const leadStory = computed(() => news.value[activeStoryIndex.value] ?? news.value[0])
 const carouselStories = computed(() => news.value.map((article, index) => ({ ...article, index })))
 const activeArticle = computed(() => requestedArticleId ? news.value.find(article => article.id === requestedArticleId) ?? null : null)
+const relatedArticles = computed(() => news.value.filter(article => article.id !== activeArticle.value?.id).slice(0, 2))
+const articleTextOpen = ref(false)
+const articleDragging = ref(false)
+const articleDragOffset = ref(0)
+const articleScrollProgress = ref(0)
+const articleStage = ref<HTMLElement | null>(null)
+const articleStoryPanel = ref<HTMLElement | null>(null)
+const articleRevealProgress = computed(() => {
+  if (!articleDragging.value) {
+    if (window.matchMedia('(max-width: 720px)').matches) return articleTextOpen.value ? 1 : 0
+    return articleScrollProgress.value
+  }
+  const progress = articleTextOpen.value
+    ? 1 - articleDragOffset.value / 220
+    : -articleDragOffset.value / 220
+  return Math.max(0, Math.min(1, progress))
+})
+let articleScrollFrame = 0
+function updateArticleScrollProgress() {
+  if (window.matchMedia('(max-width: 720px)').matches) {
+    articleScrollProgress.value = 0
+    return
+  }
+  const stage = articleStage.value
+  const storyPanel = articleStoryPanel.value
+  if (!stage || !storyPanel) {
+    articleScrollProgress.value = 0
+    return
+  }
+  const revealDistance = Math.max(0, stage.getBoundingClientRect().height - 86 - storyPanel.getBoundingClientRect().top)
+  const revealRange = Math.max(1, stage.getBoundingClientRect().height - 86)
+  articleScrollProgress.value = Math.max(0, Math.min(1, revealDistance / revealRange))
+}
+function scheduleArticleScrollProgress() {
+  if (articleScrollFrame) return
+  articleScrollFrame = window.requestAnimationFrame(() => {
+    articleScrollFrame = 0
+    updateArticleScrollProgress()
+  })
+}
+const articlePanelMarginTop = computed(() => {
+  const base = window.matchMedia('(max-width: 720px)').matches ? -52 : -86
+  const offset = articleDragging.value
+    ? (articleTextOpen.value ? -220 + articleDragOffset.value : articleDragOffset.value)
+    : articleTextOpen.value ? -220 : 0
+  return `${base + offset}px`
+})
+const articleVisualStyle = computed(() => ({
+  '--article-reveal-progress': articleRevealProgress.value.toFixed(3),
+  '--article-visual-filter': `blur(${(articleRevealProgress.value * 12).toFixed(1)}px)`,
+  '--article-visual-opacity': `${(1 - articleRevealProgress.value * 0.22).toFixed(3)}`
+}))
+const articleReadingDragMaxHeight = computed(() => {
+  if (!articleDragging.value) return undefined
+  const collapsedHeight = window.matchMedia('(max-width: 720px)').matches ? 250 : 235
+  const revealDistance = articleTextOpen.value
+    ? Math.max(0, articleDragOffset.value)
+    : Math.max(0, -articleDragOffset.value)
+  const height = articleTextOpen.value
+    ? Math.max(collapsedHeight, 5000 - revealDistance * 26)
+    : Math.min(5000, collapsedHeight + revealDistance * 26)
+  return `${height}px`
+})
+let articleDragStartY = 0
+let articleDragPointerId = -1
+let articleDidDrag = false
+let suppressArticleHandleClick = false
+function startArticlePanelDrag(event: PointerEvent) {
+  // Mouse has its own fallback below: this keeps desktop dragging reliable in
+  // browsers that stop delivering pointer moves after a transformed handle.
+  if (event.pointerType === 'mouse' || articleDragging.value) return
+  beginArticlePanelDrag(event.clientY)
+  articleDragPointerId = event.pointerId
+  ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+  // Track movement on the window so the panel keeps following the cursor even
+  // if the handle moves away from underneath it while the panel is dragged.
+  window.addEventListener('pointermove', moveArticlePanelDrag, { capture: true, passive: true })
+  window.addEventListener('pointerup', finishArticlePanelDrag, true)
+  window.addEventListener('pointercancel', cancelArticlePanelDrag, true)
+}
+function moveArticlePanelDrag(event: PointerEvent) {
+  if (!articleDragging.value || event.pointerId !== articleDragPointerId) return
+  updateArticlePanelDrag(event.clientY)
+}
+function beginArticlePanelDrag(clientY: number) {
+  if (articleDragging.value) return
+  articleDragStartY = clientY
+  articleDragOffset.value = 0
+  articleDragging.value = true
+  articleDidDrag = false
+}
+function updateArticlePanelDrag(clientY: number) {
+  if (!articleDragging.value) return
+  const distance = clientY - articleDragStartY
+  articleDidDrag ||= Math.abs(distance) > 8
+  articleDragOffset.value = articleTextOpen.value
+    ? Math.max(-55, Math.min(190, distance))
+    : Math.max(-190, Math.min(55, distance))
+}
+function finishArticlePanelDrag(event: PointerEvent) {
+  if (!articleDragging.value || event.pointerId !== articleDragPointerId) return
+  const distance = event.clientY - articleDragStartY
+  stopArticlePanelDragTracking()
+  settleArticlePanelDrag(distance)
+}
+function settleArticlePanelDrag(distance: number) {
+  articleDragging.value = false
+  articleDragOffset.value = 0
+  if (!articleDidDrag) return
+  suppressArticleHandleClick = true
+  if (!articleTextOpen.value && distance < -45) articleTextOpen.value = true
+  else if (articleTextOpen.value && distance > 45) articleTextOpen.value = false
+  window.setTimeout(() => { suppressArticleHandleClick = false }, 250)
+}
+function cancelArticlePanelDrag(event: PointerEvent) {
+  if (!articleDragging.value || event.pointerId !== articleDragPointerId) return
+  stopArticlePanelDragTracking()
+  articleDragging.value = false
+  articleDragOffset.value = 0
+}
+function stopArticlePanelDragTracking() {
+  articleDragPointerId = -1
+  window.removeEventListener('pointermove', moveArticlePanelDrag, true)
+  window.removeEventListener('pointerup', finishArticlePanelDrag, true)
+  window.removeEventListener('pointercancel', cancelArticlePanelDrag, true)
+}
+function startArticlePanelMouseDrag(event: MouseEvent) {
+  if (event.button !== 0 || articleDragging.value) return
+  event.preventDefault()
+  beginArticlePanelDrag(event.clientY)
+  window.addEventListener('mousemove', moveArticlePanelMouseDrag, true)
+  window.addEventListener('mouseup', finishArticlePanelMouseDrag, true)
+}
+function moveArticlePanelMouseDrag(event: MouseEvent) {
+  updateArticlePanelDrag(event.clientY)
+}
+function finishArticlePanelMouseDrag(event: MouseEvent) {
+  if (!articleDragging.value) return
+  const distance = event.clientY - articleDragStartY
+  window.removeEventListener('mousemove', moveArticlePanelMouseDrag, true)
+  window.removeEventListener('mouseup', finishArticlePanelMouseDrag, true)
+  settleArticlePanelDrag(distance)
+}
+function toggleArticleText() {
+  if (suppressArticleHandleClick) { suppressArticleHandleClick = false; return }
+  articleTextOpen.value = !articleTextOpen.value
+}
+onUnmounted(() => {
+  stopArticlePanelDragTracking()
+  window.removeEventListener('mousemove', moveArticlePanelMouseDrag, true)
+  window.removeEventListener('mouseup', finishArticlePanelMouseDrag, true)
+})
+// Render the CMS plain text as readable HTML paragraphs without changing its wording.
+const activeArticleParagraphs = computed(() => (activeArticle.value?.body ?? '')
+  .split(/\n\s*\n/)
+  .map(paragraph => paragraph.trim())
+  .filter(Boolean))
 watch(activeArticle, article => {
   if (article) document.title = article.title + ' | Noticias | Grupo Castro Fallas'
 })
@@ -138,6 +295,7 @@ async function loadPublicNews() {
     if (locale.value === 'en') void translateNewsToEnglish()
     if (activeStoryIndex.value >= news.value.length) activeStoryIndex.value = 0
     await nextTick()
+    updateArticleScrollProgress()
     if (!news.value.length) { emblaApi?.destroy(); emblaApi = null }
     else if (!emblaApi && emblaViewport.value) {
       emblaApi = EmblaCarousel(emblaViewport.value, { align: 'start', loop: news.value.length > 1 })
@@ -149,9 +307,16 @@ async function loadPublicNews() {
 }
 const unsubscribeNews = subscribeToChanges('news', () => { void loadPublicNews() })
 const unsubscribeSync = subscribeToChanges('sync', () => { void loadPublicNews() })
-onMounted(() => { void loadPublicNews() })
+onMounted(() => {
+  window.addEventListener('scroll', scheduleArticleScrollProgress, { passive: true })
+  window.addEventListener('resize', scheduleArticleScrollProgress, { passive: true })
+  void loadPublicNews()
+})
 
 onUnmounted(() => {
+  window.removeEventListener('scroll', scheduleArticleScrollProgress)
+  window.removeEventListener('resize', scheduleArticleScrollProgress)
+  if (articleScrollFrame) window.cancelAnimationFrame(articleScrollFrame)
   disposed = true
   unsubscribeNews(); unsubscribeSync()
   pauseStoryTimer()
@@ -161,8 +326,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="app-site news-page">
-    <SiteHeader v-if="requestedArticleId" active="noticias" />
+  <div class="app-site news-page" :class="{ 'news-article-mode': Boolean(requestedArticleId) }">
+    <SiteHeader v-if="requestedArticleId" active="noticias" overlay />
     <template v-if="!requestedArticleId">
     <section class="news-editorial-hero" @mouseenter="pauseStoryTimer" @mouseleave="resumeStoryTimer">
       <SiteHeader active="noticias" overlay />
@@ -235,14 +400,14 @@ onUnmounted(() => {
     </template>
 
     <!-- Detalle editorial: página completa, sin alterar la portada. -->
-    <main v-else id="noticia-completa" class="news-article-page">
+    <main v-else id="noticia-completa" class="news-article-page" :class="{ 'is-article-dragging': articleDragging }" :style="articleVisualStyle">
       <template v-if="activeArticle">
         <nav class="container news-article-page__navigation" :aria-label="q('Navegación de noticias', 'News navigation')">
           <a href="/noticias"><IconSymbol glyph="←" /> {{ q('Volver a noticias', 'Back to news') }}</a>
           <span>{{ q('GRUPO CASTRO FALLAS / ACTUALIDAD', 'GRUPO CASTRO FALLAS / NEWS') }}</span>
         </nav>
         <article class="news-article-page__article">
-          <div class="container news-article-page__stage">
+          <div ref="articleStage" class="container news-article-page__stage">
             <div class="news-article-page__panel">
               <div class="news-article-page__hero">
                 <figure class="news-article-page__visual">
@@ -252,44 +417,55 @@ onUnmounted(() => {
                     {{ q('HISTORIAS QUE NOS CONECTAN', 'STORIES THAT CONNECT US') }}
                   </figcaption>
                 </figure>
-                <header class="news-article-page__heading">
-                  <div class="news-article-page__eyebrow">
-                    <span>CF <span aria-hidden="true">/</span> {{ q('NOTICIAS', 'NEWS') }}</span>
-                    <span>{{ q('EDICIÓN DIGITAL', 'DIGITAL EDITION') }}</span>
-                  </div>
-                  <div class="news-article-page__headline">
-                    <p class="news-article-page__overline">{{ activeArticle.category }}</p>
-                    <h1>{{ activeArticle.title }}</h1>
-                    <p v-if="activeArticle.description?.trim() && activeArticle.description.trim() !== activeArticle.body.trim()" class="news-article-page__teaser">{{ activeArticle.description }}</p>
-                  </div>
-                  <a class="news-article-page__read" href="#contenido-noticia">
-                    {{ q('Leer noticia completa', 'Read full article') }}
-                    <span aria-hidden="true"><IconSymbol glyph="↘" /></span>
-                  </a>
-                </header>
-              </div>
-              <div class="news-article-page__panel-footer">
-                <span>GRUPO CASTRO FALLAS <span class="news-article-page__footer-divider" aria-hidden="true">/</span> {{ q('ACTUALIDAD', 'LATEST') }}</span>
-                <span class="news-article-page__panel-category">{{ activeArticle.category }}</span>
-                <a href="#contenido-noticia">{{ q('EXPLORAR ARTÍCULO', 'EXPLORE ARTICLE') }} <IconSymbol glyph="↓" /></a>
               </div>
             </div>
           </div>
-          <div class="container news-article-page__layout">
-            <aside class="news-article-page__rail" :aria-label="q('Información de la publicación', 'Publication information')">
-              <p class="news-article-page__rail-index">01 <span>/</span> {{ q('EN DETALLE', 'IN DETAIL') }}</p>
-              <div class="news-article-page__rail-rule" aria-hidden="true"></div>
-              <p>{{ q('Información y novedades del mundo logístico.', 'Updates and insights from the logistics world.') }}</p>
-            </aside>
-            <section id="contenido-noticia" class="news-article-page__content" :aria-label="q('Contenido de la noticia', 'Article content')">
-              <p class="news-article-page__content-kicker">{{ activeArticle.category }} <span aria-hidden="true">/</span> {{ q('ARTÍCULO COMPLETO', 'FULL ARTICLE') }}</p>
-              <div class="news-article-page__body">{{ activeArticle.body }}</div>
-              <div class="news-article-page__closing">
-                <span class="news-article-page__closing-line" aria-hidden="true"></span>
-                <span>{{ q('FIN DEL ARTÍCULO', 'END OF ARTICLE') }}</span>
+          <div ref="articleStoryPanel" class="news-article-page__story-panel" :class="{ 'is-expanded': articleTextOpen, 'is-dragging': articleDragging }" :style="{ marginTop: articlePanelMarginTop }">
+            <button
+              class="news-article-page__handle"
+              type="button"
+              :aria-expanded="articleTextOpen"
+              aria-controls="contenido-noticia"
+              :aria-label="articleTextOpen ? q('Cerrar texto de la noticia', 'Close article text') : q('Deslizá hacia arriba para leer la noticia', 'Drag up to read the article')"
+              @pointerdown="startArticlePanelDrag"
+              @mousedown="startArticlePanelMouseDrag"
+              @click="toggleArticleText"
+            ><span aria-hidden="true"></span></button>
+            <header class="news-article-page__story-heading">
+              <p class="news-article-page__overline">{{ activeArticle.category }}</p>
+              <h1>{{ activeArticle.title }}</h1>
+            </header>
+            <div class="container news-article-page__meta" :aria-label="q('Datos de la noticia', 'Article details')">
+              <p class="news-article-page__publisher"><span aria-hidden="true">CF</span>{{ q('GRUPO CASTRO FALLAS', 'GRUPO CASTRO FALLAS') }}</p>
+              <p class="news-article-page__meta-category"><span aria-hidden="true"></span>{{ activeArticle.category }}</p>
+            </div>
+            <div class="news-article-page__reading" :class="{ 'is-expanded': articleTextOpen, 'is-dragging': articleDragging }" :style="{ maxHeight: articleReadingDragMaxHeight }">
+              <section id="contenido-noticia" class="news-article-page__content" :aria-label="q('Contenido de la noticia', 'Article content')">
+                <p class="news-article-page__content-kicker">{{ activeArticle.category }} <span aria-hidden="true">/</span> {{ q('ARTÍCULO COMPLETO', 'FULL ARTICLE') }}</p>
+                <p v-if="activeArticle.description?.trim() && activeArticle.description.trim() !== activeArticle.body?.trim()" class="news-article-page__standfirst">{{ activeArticle.description }}</p>
+                <div class="news-article-page__body">
+                  <p v-for="(paragraph, index) in activeArticleParagraphs" :key="index">{{ paragraph }}</p>
+                </div>
+                <div class="news-article-page__closing">
+                  <span class="news-article-page__closing-line" aria-hidden="true"></span>
+                  <span>{{ q('FIN DEL ARTÍCULO', 'END OF ARTICLE') }}</span>
+                </div>
+                <a class="news-article-page__back" href="/noticias"><IconSymbol glyph="←" /> {{ q('Ver todas las noticias', 'View all news') }}</a>
+              </section>
+              <figure class="news-article-page__side-image" aria-hidden="true">
+                <img :src="activeArticle.image" alt="" loading="lazy" />
+              </figure>
+            </div>
+            <div v-if="relatedArticles.length" class="news-article-page__related" :aria-label="q('Más noticias', 'More news')">
+              <h2>{{ q('Más noticias', 'More news') }}</h2>
+              <div class="news-article-page__related-list">
+                <a v-for="story in relatedArticles" :key="story.id" class="news-article-page__related-card" :href="articleHref(story.id)">
+                  <img :src="story.image" :alt="story.title" loading="lazy" />
+                  <span>{{ story.category }}</span>
+                  <strong>{{ story.title }}</strong>
+                </a>
               </div>
-              <a class="news-article-page__back" href="/noticias"><IconSymbol glyph="←" /> {{ q('Ver todas las noticias', 'View all news') }}</a>
-            </section>
+            </div>
           </div>
         </article>
       </template>
@@ -306,98 +482,110 @@ onUnmounted(() => {
 
 <style scoped>
 .news-translation-feedback { padding-block: 10px; font-size: 13px; color: #aab8d0; }
-
-/* Vista editorial exclusiva del detalle de noticias, sin modificar la portada. */
-.news-article-page{
-  --article-ink:#192439;--article-muted:#647084;--article-line:rgba(21,35,55,.14);--article-accent:#ad1230;
-  min-height:70vh;padding:23px 0 clamp(76px,9vw,132px);background:#fff;color:var(--article-ink);
-}
-.news-article-page__navigation,.news-article-page__stage,.news-article-page__layout{
-  width:min(1320px,calc(100% - 64px));max-width:none;margin-inline:auto;
-}
-.news-article-page__navigation{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-bottom:23px}
-.news-article-page__navigation a,.news-article-page__back{display:inline-flex;align-items:center;gap:10px;color:var(--article-accent);font-size:12px;font-weight:800;text-decoration:none}
+.news-article-page{--article-ink:#16181d;--article-muted:#626873;--article-line:rgba(20,24,32,.15);--article-accent:#c8102e;position:relative;min-height:0;padding:0 0 0;background:#fff;color:var(--article-ink)}
+.news-article-page__navigation{position:absolute;z-index:6;top:clamp(88px,10vh,112px);left:0;right:0;display:flex;align-items:center;justify-content:space-between;gap:20px;width:min(1480px,calc(100% - 64px));max-width:none;margin-inline:auto;padding-block:15px 20px}
+.news-article-page__stage{--article-hero-flow-height:clamp(430px,58vh,680px);position:sticky;top:0;z-index:0;width:100%;max-width:none;height:var(--article-hero-flow-height);margin:0 auto}
+.news-article-page__navigation a,.news-article-page__back{display:inline-flex;align-items:center;gap:10px;font-size:12px;font-weight:800;text-decoration:none}
+.news-article-page__navigation a{color:#fff!important;text-shadow:0 1px 8px rgba(0,0,0,.65)}
+.news-article-page__navigation>span{color:#fff!important;text-shadow:0 1px 8px rgba(0,0,0,.65)}
+.news-article-page__back{color:#16181d}
 .news-article-page__navigation>span{color:var(--article-muted);font-size:10px;font-weight:800;letter-spacing:.13em}
 .news-article-page__navigation a:hover,.news-article-page__back:hover{text-decoration:underline}
-.news-article-page__panel{overflow:hidden;border:1px solid var(--article-line);border-radius:5px;background:#fafbfc;box-shadow:0 24px 75px rgba(20,30,46,.09)}
-.news-article-page__hero{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,.88fr);min-height:485px}
-.news-article-page__visual{position:relative;min-width:0;min-height:485px;margin:0;overflow:hidden;background:#182339}
-.news-article-page__visual::after{position:absolute;inset:45% 0 0;content:"";background:linear-gradient(180deg,transparent,rgba(0,10,25,.54));pointer-events:none}
-.news-article-page__visual img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;object-position:center}
-.news-article-page__visual-mark{position:absolute;z-index:1;right:24px;bottom:24px;left:26px;display:flex;align-items:center;gap:9px;margin:0;color:#fff;font-size:10px;font-weight:800;letter-spacing:.13em;text-shadow:0 1px 6px rgba(0,0,0,.35)}
-.news-article-page__visual-dot{width:7px;height:7px;flex:none;border-radius:50%;background:#eb3656}
-.news-article-page__heading{position:relative;display:flex;min-width:0;flex-direction:column;justify-content:space-between;gap:36px;padding:clamp(28px,3.8vw,62px);border-right:7px solid var(--article-accent);background:#fafbfc}
-.news-article-page__eyebrow{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;color:#677185;font-size:9px;font-weight:850;letter-spacing:.13em}
-.news-article-page__eyebrow>span:first-child{color:var(--article-ink)}
-.news-article-page__eyebrow span[aria-hidden]{margin:0 7px;color:var(--article-accent)}
-.news-article-page__headline{min-width:0;margin-block:auto}
-.news-article-page__overline{margin:0 0 18px;color:var(--article-accent);font-size:11px;font-weight:850;letter-spacing:.12em;text-transform:uppercase;overflow-wrap:anywhere}
-.news-article-page__heading h1{margin:0;color:var(--article-ink);font-family:Inter,"Helvetica Neue",Arial,system-ui,sans-serif;font-size:clamp(32px,3.7vw,60px);font-weight:700;letter-spacing:-.053em;line-height:1.075;overflow-wrap:anywhere}
-.news-article-page__teaser{max-width:43ch;margin:24px 0 0;color:#576377;font-size:clamp(14px,1.24vw,17px);line-height:1.65;white-space:pre-line;overflow-wrap:anywhere}
-.news-article-page__read{display:inline-flex;align-items:center;align-self:flex-start;gap:16px;color:var(--article-ink);font-size:11px;font-weight:800;text-decoration:none}
-.news-article-page__read>span{display:grid;width:38px;height:38px;flex:none;place-items:center;border:1px solid var(--article-line);border-radius:50%;color:var(--article-accent);font-size:19px;transition:transform .2s ease,background .2s ease}
-.news-article-page__read:hover>span{transform:translate(2px,2px);background:rgba(175,18,50,.09)}
-.news-article-page__panel-footer{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:64px;padding:17px clamp(24px,3.5vw,48px);border-top:1px solid var(--article-line);color:#606d81;font-size:10px;font-weight:850;letter-spacing:.095em}
-.news-article-page__footer-divider{margin-inline:9px;color:var(--article-accent)}
-.news-article-page__panel-category{max-width:32ch;overflow-wrap:anywhere;text-align:center}
-.news-article-page__panel-footer a{display:inline-flex;align-items:center;gap:12px;color:var(--article-ink);text-decoration:none}
-.news-article-page__panel-footer a:hover{color:var(--article-accent)}
-.news-article-page__layout{display:grid;grid-template-columns:minmax(170px,.34fr) minmax(0,1fr);gap:clamp(38px,6vw,100px);padding-top:clamp(66px,8vw,122px)}
-.news-article-page__rail{max-width:220px;padding-top:7px}
-.news-article-page__rail-index,.news-article-page__content-kicker{margin:0;color:var(--article-accent);font-size:11px;font-weight:850;letter-spacing:.12em;text-transform:uppercase}
-.news-article-page__rail-index span{margin-inline:7px;color:#a9b2c1}
-.news-article-page__rail-rule{width:min(100%,150px);height:1px;margin:23px 0;background:var(--article-line)}
-.news-article-page__rail>p:last-child{max-width:20ch;color:var(--article-muted);font-size:13px;line-height:1.7}
-.news-article-page__content{min-width:0;max-width:850px;scroll-margin-top:100px}
-.news-article-page__content-kicker{margin-bottom:29px}
-.news-article-page__content-kicker span{margin-inline:10px;color:#a9b2c1}
-.news-article-page__body{color:var(--article-ink);font-size:clamp(17px,1.45vw,19px);font-weight:400;line-height:1.95;white-space:pre-line;overflow-wrap:anywhere}
-.news-article-page__closing{display:flex;align-items:center;gap:20px;margin-top:clamp(48px,7vw,92px);color:var(--article-muted);font-size:10px;font-weight:800;letter-spacing:.12em;white-space:nowrap}
-.news-article-page__closing-line{width:64px;height:2px;background:var(--article-accent)}
-.news-article-page__back{margin-top:27px;padding-top:20px;border-top:1px solid var(--article-line)}
+.news-article-page__panel{height:100%;overflow:hidden;border:0;border-radius:0;background:#f3f3f3;box-shadow:none}
+.news-article-page__hero{position:relative;display:flex;align-items:flex-end;height:100%;min-height:0}
+.news-article-page__visual{position:absolute;z-index:0;inset:0;min-width:0;min-height:0;margin:0;overflow:hidden;background:#182339}
+.news-article-page__visual::after{position:absolute;inset:0;content:"";background:linear-gradient(0deg,rgba(3,7,16,.56) 0%,rgba(3,7,16,.2) 23%,transparent 58%),linear-gradient(90deg,rgba(200,16,46,calc(var(--article-reveal-progress,0)*.16)) 0%,transparent 82%);pointer-events:none;transition:background .22s linear}
+.news-article-page__visual img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;object-position:center 42%;filter:var(--article-visual-filter,blur(0));opacity:var(--article-visual-opacity,1);transform:scale(1.04);transition:filter .22s linear,opacity .22s linear}
+.news-article-page.is-article-dragging .news-article-page__visual img{transition:none}
+.news-article-page__visual-mark{position:absolute;z-index:1;top:26px;right:28px;display:flex;align-items:center;gap:9px;margin:0;color:#fff;font-size:10px;font-weight:800;letter-spacing:.13em;text-shadow:0 1px 6px rgba(0,0,0,.45)}
+.news-article-page__visual-mark{top:auto;right:auto;bottom:clamp(105px,12vh,155px);left:clamp(24px,5vw,72px)}
+.news-article-page__visual-dot{width:7px;height:7px;flex:none;border-radius:50%;background:#c8102e}
+.news-article-page__overline{display:flex;align-items:center;gap:10px;margin:0 0 15px;color:#fff;font-size:11px;font-weight:850;letter-spacing:.15em;text-transform:uppercase;text-shadow:0 1px 8px rgba(0,0,0,.55);overflow-wrap:anywhere}
+.news-article-page__overline::before{width:23px;height:2px;flex:none;background:#c8102e;content:""}
+.news-article-page__story-panel{position:relative;z-index:4;width:100%;max-width:1600px;margin:-86px auto 0;padding:20px clamp(28px,5.5vw,88px) 70px;overflow:hidden;border:1px solid rgba(20,24,32,.12);border-radius:42px 42px 0 0;background:radial-gradient(ellipse 72% 60% at 0% 0%,rgba(200,16,46,.12),transparent 74%),#fff;box-shadow:0 -22px 72px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.7);transition:margin-top .45s cubic-bezier(.2,.72,.25,1)}
+.news-article-page__story-panel.is-dragging{transition:none}
+.news-article-page__handle{display:none;position:relative;z-index:2;width:100%;height:30px;place-items:center;margin:0 auto 16px;padding:0;border:0;border-radius:99px;background:transparent;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.news-article-page__handle:active{cursor:grabbing}
+.news-article-page__handle span{display:none}
+.news-article-page__handle:focus-visible{outline:2px solid rgba(237,41,70,.75);outline-offset:3px}
+.news-article-page__story-heading{max-width:1000px;margin:0 0 8px}
+.news-article-page__story-heading .news-article-page__overline{margin-bottom:13px;color:var(--article-accent);text-shadow:none}
+.news-article-page__story-heading h1{max-width:1000px;margin:0;color:var(--article-ink);font-family:"Arial Black",Impact,system-ui,sans-serif;font-size:clamp(36px,5.2vw,70px);font-weight:900;letter-spacing:-.055em;line-height:1.02;overflow-wrap:anywhere}
+.news-article-page__story-panel>.news-article-page__meta{width:100%;margin-inline:auto}
+.news-article-page__meta{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-block:19px;border-bottom:1px solid var(--article-line)}
+.news-article-page__publisher,.news-article-page__meta-category{display:flex;align-items:center;gap:10px;margin:0;color:var(--article-muted);font-size:10px;font-weight:850;letter-spacing:.1em}
+.news-article-page__publisher>span{display:grid;width:30px;height:30px;place-items:center;border-radius:50%;background:#c8102e;color:#fff;font-size:9px;letter-spacing:0}
+.news-article-page__meta-category>span{width:7px;height:7px;border-radius:50%;background:#c8102e}
+.news-article-page__reading{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,.8fr);align-items:start;gap:clamp(30px,5vw,66px);max-height:none;overflow:visible;padding-top:clamp(27px,3.2vw,42px)}
+.news-article-page__reading.is-expanded{max-height:none}
+.news-article-page__reading.is-dragging{transition:none}
+.news-article-page__content{min-width:0;max-width:700px;scroll-margin-top:100px}
+.news-article-page__content-kicker{margin:0 0 25px;color:var(--article-accent);font-size:10px;font-weight:850;letter-spacing:.13em;text-transform:uppercase}
+.news-article-page__content-kicker span{margin-inline:9px;color:#a9b2c1}
+.news-article-page__standfirst{margin:0 0 27px;color:#202329;font-size:clamp(21px,2.3vw,29px);font-weight:750;letter-spacing:-.035em;line-height:1.35;overflow-wrap:anywhere}
+.news-article-page__body{color:var(--article-ink);font-size:clamp(16px,1.3vw,18px);font-weight:400;line-height:1.85;overflow-wrap:anywhere}
+.news-article-page__body p{margin:0 0 1.35em;white-space:pre-line}
+.news-article-page__side-image{position:relative;align-self:start;top:auto;min-width:0;margin:0;overflow:hidden;aspect-ratio:1.55;border-radius:20px;background:#131c2b}
+.news-article-page__side-image img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 42%}
+.news-article-page__closing{display:flex;align-items:center;gap:16px;margin-top:clamp(42px,6vw,76px);color:var(--article-muted);font-size:10px;font-weight:800;letter-spacing:.12em;white-space:nowrap}
+.news-article-page__closing-line{width:56px;height:2px;background:#c8102e}
+.news-article-page__back{margin-top:25px;padding-top:19px;border-top:1px solid var(--article-line)}
+.news-article-page__related{margin-top:42px;padding-top:25px;border-top:1px solid var(--article-line)}
+.news-article-page__related h2{margin:0 0 19px;color:var(--article-ink);font-family:"Arial Black",Impact,system-ui,sans-serif;font-size:20px;letter-spacing:-.04em}
+.news-article-page__related-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:20px}
+.news-article-page__related-card{display:grid;gap:9px;margin:0 0 20px;color:var(--article-ink);text-decoration:none}
+.news-article-page__related-card img{display:block;width:100%;aspect-ratio:1.55;object-fit:cover;border-radius:9px}
+.news-article-page__related-card span{margin-top:3px;color:var(--article-accent);font-size:9px;font-weight:850;letter-spacing:.12em;text-transform:uppercase}
+.news-article-page__related-card strong{font-size:14px;line-height:1.4}
+.news-article-page__related-card:hover strong{color:var(--article-accent)}
 .news-article-page__empty{padding:80px 0 130px}
 .news-article-page__empty h1{font-size:clamp(30px,4vw,48px)}
 .news-article-page__empty a{color:var(--article-accent)}
 .news-article-page a:focus-visible{outline:2px solid var(--article-accent);outline-offset:5px}
-/* Fondo de dark mode preservado para compatibilidad con la página actual. */
-:global(html.theme-dark .app-site.news-page main.news-article-page){--article-ink:#f4f6fa;--article-muted:#abb7cc;--article-line:rgba(235,241,252,.17);--article-accent:#ff5a76;background:#01081d;color:var(--article-ink)}
-:global(html.theme-dark) .news-article-page__panel{background:#101a30;box-shadow:0 24px 75px rgba(0,0,0,.24)}
-:global(html.theme-dark) .news-article-page__heading{background:#101a30}
-:global(html.theme-dark) .news-article-page__eyebrow{color:#a3afc4}
-:global(html.theme-dark) .news-article-page__teaser{color:#bac4d5}
-:global(html.theme-dark) .news-article-page__panel-footer{color:#b4bfd1}
-:global(html.theme-dark) .news-article-page__empty a{color:#ff5a76}
-@media(max-width:1000px){
-  .news-article-page__hero{grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:415px}
-  .news-article-page__visual{min-height:415px}
-  .news-article-page__heading{padding:28px}
-  .news-article-page__heading h1{font-size:clamp(30px,4.2vw,44px)}
-  .news-article-page__layout{grid-template-columns:150px minmax(0,1fr);gap:32px}
-}
+:global(html:not(.theme-dark) .app-site.news-page.news-article-mode){background:radial-gradient(ellipse 68% 520px at 0% 0%,rgba(200,16,46,.12) 0%,rgba(200,16,46,.055) 38%,rgba(200,16,46,.02) 60%,transparent 80%),#fff fixed!important;background-attachment:fixed!important;color:#16181d}
+:global(html:not(.theme-dark) .app-site.news-page main.news-article-page){--article-ink:#16181d;--article-muted:#626873;--article-line:rgba(20,24,32,.15);--article-accent:#c8102e;background:transparent!important;color:var(--article-ink)}
+:global(html:not(.theme-dark) .app-site.news-page .news-article-page__navigation a),:global(html:not(.theme-dark) .app-site.news-page .news-article-page__navigation>span){color:#fff!important;text-shadow:0 1px 8px rgba(0,0,0,.65)!important}
+:global(html:not(.theme-dark) .news-article-page__visual-mark){color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.65)}
+:global(html.theme-dark .app-site.news-page main.news-article-page){--article-ink:#f2f3f6;--article-muted:#b5bac6;--article-line:rgba(235,241,252,.16);--article-accent:#ed2946;background:transparent!important;color:var(--article-ink)}
+:global(html.theme-dark .app-site.news-page.news-article-mode){background:radial-gradient(ellipse 68% 520px at 0% 0%,rgba(214,14,52,.3) 0%,rgba(178,11,45,.16) 38%,rgba(126,10,34,.06) 60%,transparent 80%),linear-gradient(90deg,#211018 0%,#160d17 46%,#01081d 100%) fixed!important;background-attachment:fixed!important}
+:global(html.theme-dark .site-header.site-header--overlay){position:absolute!important;top:0;left:0;width:100%;background:linear-gradient(180deg,rgba(1,8,29,.72),rgba(1,8,29,.2) 72%,transparent)!important}
+:global(body:has(.news-article-page) .site-header.site-header--overlay .menu-toggle){border:1px solid rgba(255,255,255,.46)!important;border-radius:50%!important;background:rgba(255,255,255,.12)!important;box-shadow:none!important;color:#fff!important;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+:global(html.theme-dark .news-article-page__navigation a),:global(html.theme-dark .news-article-page__navigation>span){color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.55)}
+:global(html.theme-dark .news-article-page__meta){border-color:rgba(235,241,252,.16)}
+:global(html.theme-dark .news-article-page__visual::after){background:linear-gradient(0deg,rgba(3,7,16,.56) 0%,rgba(3,7,16,.2) 23%,transparent 58%),linear-gradient(90deg,rgba(3,9,24,calc(var(--article-reveal-progress,0)*.3)) 0%,transparent 82%)}
+:global(html.theme-dark .news-article-page__story-panel){border-color:rgba(235,241,252,.16);background:radial-gradient(ellipse 78% 75% at 0% 0%,rgba(178,11,45,.25),transparent 72%),linear-gradient(110deg,rgba(10,14,29,.98) 0%,rgba(3,11,32,.98) 72%);box-shadow:0 -24px 72px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.1);-webkit-backdrop-filter:blur(16px) saturate(135%);backdrop-filter:blur(16px) saturate(135%)}
+:global(html.theme-dark .news-article-page__story-heading .news-article-page__overline){color:#ff687c}
+:global(html.theme-dark .news-article-page__story-heading h1){color:#f7f8fb}
+:global(html.theme-dark .news-article-page__publisher>span){background:#c8102e}
+:global(html.theme-dark .news-article-page__standfirst){color:#e9edf4}
+:global(html.theme-dark .news-article-page__empty a){color:#ff5a76}
 @media(max-width:720px){
-  .news-article-page{padding-top:16px;padding-bottom:64px}
-  .news-article-page__navigation,.news-article-page__stage,.news-article-page__layout{width:calc(100% - 32px)}
-  .news-article-page__navigation{padding-bottom:17px}
+  .news-article-page{padding-bottom:0}
+  .news-article-page__stage{--article-hero-flow-height:clamp(430px,62vh,560px)}
+  .news-article-page__navigation{top:82px;width:calc(100% - 32px);padding-block:12px 16px}
+  .news-article-page__navigation>span{font-size:8px;letter-spacing:.08em}
+  .news-article-page__story-panel{width:100%;margin-top:-52px;padding:14px 22px 48px;border-radius:30px 30px 0 0}
+  .news-article-page__handle{display:grid;width:100%;height:26px;margin-bottom:10px}
+  .news-article-page__navigation{padding-block:17px}
   .news-article-page__navigation>span{display:none}
-  .news-article-page__hero{display:block;min-height:0}
-  .news-article-page__visual{height:clamp(230px,63vw,380px);min-height:0}
-  .news-article-page__visual-mark{right:18px;bottom:18px;left:18px;font-size:9px}
-  .news-article-page__heading{gap:30px;padding:28px 25px 32px;border-right-width:5px}
-  .news-article-page__heading h1{font-size:clamp(30px,8vw,48px)}
-  .news-article-page__teaser{margin-top:18px}
-  .news-article-page__panel-footer{min-height:58px;padding:17px 22px}
-  .news-article-page__panel-category{display:none}
-  .news-article-page__layout{display:block;padding-top:52px}
-  .news-article-page__rail{display:none}
-  .news-article-page__content-kicker{margin-bottom:25px}
-  .news-article-page__body{font-size:17px;line-height:1.85}
+  .news-article-page__panel{border-radius:14px}
+  .news-article-page__visual-mark{bottom:clamp(98px,14vh,132px);left:22px;font-size:8px;letter-spacing:.08em}
+  .news-article-page__story-heading{margin-bottom:6px}
+  .news-article-page__story-heading h1{font-size:clamp(34px,9vw,48px)}
+  .news-article-page__meta{align-items:center;justify-content:flex-end;gap:16px;padding-block:16px}
+  .news-article-page__publisher,.news-article-page__meta-category{gap:7px;font-size:8px;letter-spacing:.07em}
+  .news-article-page__publisher>span{width:25px;height:25px}
+  .news-article-page__reading{grid-template-columns:minmax(0,1fr);gap:22px;max-height:250px;overflow:hidden;padding-top:22px;transition:max-height .55s cubic-bezier(.2,.72,.25,1)}
+  .news-article-page__reading.is-expanded{max-height:5000px}
+  .news-article-page__content-kicker{margin-bottom:17px}
+  .news-article-page__standfirst{margin-bottom:21px;font-size:23px}
+  .news-article-page__body{font-size:16px;line-height:1.8}
+  .news-article-page__side-image{position:static;aspect-ratio:1.35;border-radius:15px}
+  .news-article-page__related{margin-top:34px;padding-top:22px}
+  .news-article-page__related-card img{max-width:320px}
 }
-@media(max-width:380px){
-  .news-article-page__panel-footer{flex-wrap:wrap;row-gap:10px;font-size:9px}
-  .news-article-page__eyebrow{font-size:8px}
-  .news-article-page__visual-mark{letter-spacing:.07em}
-}
-@media(prefers-reduced-motion:reduce){.news-article-page__read>span{transition:none}}
+@media(max-width:380px){.news-article-page__visual-mark{font-size:7px}.news-article-page__story-heading h1{font-size:32px}}
+@media(prefers-reduced-motion:reduce){.news-article-page__story-panel,.news-article-page__visual img,.news-article-page__reading{transition:none}}
 
 .news-empty-hero { position: relative; z-index: 2; min-height: 320px; padding-top: 135px; padding-bottom: 95px; color: #fff; }
 .news-empty-hero h1 { font-size: clamp(42px, 6vw, 76px); line-height: 1.1; margin: 18px 0; }
