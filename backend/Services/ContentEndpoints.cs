@@ -20,7 +20,7 @@ public static class ContentEndpoints
             return Results.Ok(await db.ManagedNews.AsNoTracking()
                 .Where(x => x.Published)
                 .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
-                .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published })
+                .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published, x.Author, x.PublishedAt })
                 .ToListAsync(ct));
         });
 
@@ -106,7 +106,7 @@ public static class ContentEndpoints
         admin.MapGet("/news", async (AppDbContext db, CancellationToken ct) =>
             Results.Ok(await db.ManagedNews.AsNoTracking()
                 .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
-                .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published })
+                .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published, x.Author, x.PublishedAt })
                 .ToListAsync(ct)));
 
         admin.MapPost("/news", async (SaveNewsRequest input, AppDbContext db, ContentUpdatesPublisher updates, CancellationToken ct) =>
@@ -238,6 +238,10 @@ public static class ContentEndpoints
             return "La descripción debe tener entre 1 y 1200 caracteres.";
         if ((x.Body?.Trim().Length ?? 0) > 20_000)
             return "El contenido completo no puede superar 20 000 caracteres.";
+        if ((x.Author?.Trim().Length ?? 0) > 160)
+            return "El autor no puede superar 160 caracteres.";
+        if (x.PublishedAt.HasValue && (x.PublishedAt.Value.Year < 2000 || x.PublishedAt.Value.Year > 2100))
+            return "La fecha de publicación no es válida.";
         if (!ValidImage(x.Image, allowEmpty: true))
             return "La imagen debe ser HTTPS, /images/ o PNG/JPEG/WebP/GIF hasta 2.5 MB.";
         return null;
@@ -326,6 +330,12 @@ public static class ContentEndpoints
         target.Description = input.Description!.Trim();
         target.Body = input.Body?.Trim() ?? "";
         target.Image = input.Image?.Trim() ?? "";
+        target.Author = input.Author?.Trim() ?? "";
+        target.PublishedAt = input.PublishedAt.HasValue
+            ? (input.PublishedAt.Value.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(input.PublishedAt.Value, DateTimeKind.Utc)
+                : input.PublishedAt.Value.ToUniversalTime())
+            : target.PublishedAt ?? (input.Published ? DateTime.UtcNow : null);
         target.Published = input.Published;
         target.UpdatedAt = DateTime.UtcNow;
     }
@@ -340,7 +350,7 @@ public static class ContentEndpoints
 
     private static object NewsView(ManagedNews x) => new
     {
-        x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published
+        x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published, x.Author, x.PublishedAt
     };
 
     private static object MediaView(ManagedMedia x) => new { x.Id, x.Name, x.Kind, x.Src, x.ObjectKey, x.MimeType, x.SizeBytes };

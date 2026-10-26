@@ -38,7 +38,7 @@ const newsUploadFile = ref<File | null>(null)
 const storageMode = ref<'checking' | 's3' | 'legacy' | 'error'>('checking')
 const currentList = computed(() => section.value === 'itineraries' ? itineraries.value : section.value === 'news' ? news.value : section.value === 'comments' ? comments.value : media.value)
 
-function emptyNews(): ManagedNews { return { id: '', title: '', category: 'LOGÍSTICA', description: '', body: '', image: '', published: false } }
+function emptyNews(): ManagedNews { return { id: '', title: '', category: 'LOGÍSTICA', description: '', body: '', image: '', published: false, author: '', publishedAt: new Date().toISOString().slice(0,10) } }
 function emptyItinerary(): ManagedItinerary { return { id: '', origin: '', destination: '', transport: 'Marítimo', departure: '', arrival: '', status: 'Programado', closing: '', modality: 'FCL', carrier: '', vessel: '', voyage: '' } }
 function emptyComment(): ManagedComment { return { id: '', author: '', section: '', message: '', published: false } }
 function emptyMedia(): ManagedMedia { return { id: '', name: '', kind: 'Imagen', src: '' } }
@@ -265,7 +265,7 @@ async function edit(entry: ManagedItinerary | ManagedNews | ManagedMedia | Manag
       } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo cargar el itinerario.'; return }
     }
   }
-  if (section.value === 'news') newsForm.value = { ...(entry as ManagedNews) }
+  if (section.value === 'news') newsForm.value = { ...(entry as ManagedNews), publishedAt: (entry as ManagedNews).publishedAt?.slice(0,10) ?? '' }
   if (section.value === 'media') mediaForm.value = { ...(entry as ManagedMedia) }
   if (section.value === 'comments') commentForm.value = { ...(entry as ManagedComment) }
   document.querySelector('.manager-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -343,7 +343,7 @@ async function submitNews() {
       : '/api/admin/content/news', {
       method: editingId.value ? 'PUT' : 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newsForm.value)
+      body: JSON.stringify({ ...newsForm.value, publishedAt: newsForm.value.publishedAt ? newsForm.value.publishedAt + 'T12:00:00Z' : null })
     })
     if (!response.ok) {
       const data = await response.json().catch(() => null)
@@ -550,6 +550,7 @@ function useMediaForNews(item: ManagedMedia) {
           <form v-else-if="section === 'news'" @submit.prevent="submitNews">
             <label>Título<input v-model="newsForm.title" required maxlength="160" placeholder="Título de la noticia" /></label>
             <label>Categoría<input v-model="newsForm.category" required maxlength="60" placeholder="LOGÍSTICA" /></label>
+            <div class="manager-form-row"><label>Autor<input v-model.trim="newsForm.author" maxlength="160" placeholder="Nombre del autor" /></label><label>Fecha de publicación<input v-model="newsForm.publishedAt" type="date" /></label></div>
             <label>Resumen (visible en tarjetas)<textarea v-model="newsForm.description" required maxlength="1200" rows="3" placeholder="Resumen breve de la noticia" /></label>
             <label>Contenido completo<textarea v-model="newsForm.body" maxlength="20000" rows="8" placeholder="Escribe el artículo completo. Si se deja vacío, el lector verá el resumen." /></label>
             <label>Imagen ({{ storageMode === 's3' ? 'MinIO' : 'archivo local' }})<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="selectFile($event, 'news')" /></label>
