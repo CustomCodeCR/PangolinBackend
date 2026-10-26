@@ -111,6 +111,11 @@ for (const translation of [
 
 
 assert.match(news, /const articleSlug = \(article: \{ id: string; title: string \}\) =>/, 'Cada noticia tiene un slug legible')
+assert.match(news, /publishedAt\\?\\.slice\\(0,10\\)/, 'La URL empieza por fecha de publicación')
+assert.match(news, /news-article-page__date/, 'La noticia muestra la fecha arriba a la derecha')
+assert.match(news, /news-article-page__author/, 'La noticia muestra su autor al finalizar el texto')
+assert.match(manager, /v-model.trim="newsForm.author"/, 'El editor permite añadir autor')
+assert.match(manager, /v-model="newsForm.publishedAt"/, 'El editor permite añadir fecha de publicación')
 assert.match(news, /const articleHref = \(id: string\) => \{[\s\S]*?return article \? articlePath\(article\) : '\/noticias'/, 'Las noticias enlazan a su ruta legible')
 assert.match(news, /new URLSearchParams\(window\.location\.search\)\.get\('article'\)/, 'Los enlaces antiguos con article=ID siguen siendo compatibles')
 assert.match(news, /const title = `Grupo Castro Fallas \| \$\{article\.title\}`/, 'El título SEO de cada noticia empieza con la marca')
