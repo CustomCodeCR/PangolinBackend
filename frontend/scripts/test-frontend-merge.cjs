@@ -110,7 +110,9 @@ for (const translation of [
 ]) assert.ok(news.includes(translation), 'Todos los estados de noticias deben traducirse: ' + translation)
 
 
-assert.match(news, /const articleSlug = \(article: \{ id: string; title: string \}\) =>/, 'Cada noticia tiene un slug legible')
+const newsSlugs = source('src/lib/newsArticlePath.ts')
+assert.match(newsSlugs, /return `\/noticias\/\$\{date\}-\$\{title\}-\$\{article\.id\.replace/, 'La URL comienza con fecha y luego el nombre, conservando el identificador estable')
+assert.match(newsSlugs, /publicationDate/, 'El slug usa la fecha persistida')
 assert.match(news, /const articleHref = \(id: string\) => \{[\s\S]*?return article \? articlePath\(article\) : '\/noticias'/, 'Las noticias enlazan a su ruta legible')
 assert.match(news, /new URLSearchParams\(window\.location\.search\)\.get\('article'\)/, 'Los enlaces antiguos con article=ID siguen siendo compatibles')
 assert.match(news, /const title = `Grupo Castro Fallas \| \$\{article\.title\}`/, 'El título SEO de cada noticia empieza con la marca')
@@ -125,7 +127,23 @@ assert.match(news, /<SiteHeader v-if="isArticlePage" active="noticias" overlay\s
 assert.doesNotMatch(news, /news-article-modal|aria-modal="true"/, 'Noticias no abre un modal')
 assert.match(news, /href="\/noticias"/, 'El usuario puede volver a la lista de noticias')
 const home = source('src/Home.vue')
-assert.match(home, /encodeURIComponent\(item\.id\)/, 'Home debe enlazar la noticia específica')
+assert.match(home, /:href="newsArticlePath\(item\)"/, 'Inicio enlaza al artículo con fecha y nombre')
+assert.match(home, /publicationDate: article\.publicationDate/, 'Inicio conserva la fecha original en los enlaces')
+const authorDateChecks = [
+  [manager, /v-model\.trim="newsForm\.author"/, 'El editor permite guardar autor'],
+  [manager, /v-model="newsForm\.publicationDate" type="date"/, 'El editor permite escoger fecha'],
+  [news, /class="news-article-page__date" :datetime="activeArticle\.publicationDate"/, 'Fecha visible arriba a la derecha'],
+  [news, /class="news-article-page__author"/, 'Autor mostrado al final del artículo'],
+  [news, /'article:published_time'/, 'Los metadatos SEO incluyen la fecha de publicación']
+]
+for (const [content, regex, description] of authorDateChecks) assert.match(content, regex, description)
+const newsSchema = source('../backend/Database/NewsPublicationMetadata.sql')
+assert.match(newsSchema, /ADD COLUMN IF NOT EXISTS author/, 'Migración idempotente de autor')
+assert.match(newsSchema, /ADD COLUMN IF NOT EXISTS publication_date/, 'Migración idempotente de fecha')
+assert.match(newsSchema, /created_at AT TIME ZONE 'America\/Costa_Rica'/, 'La fecha histórica proviene de created_at para no sobrescribir noticias')
+const newsApi = source('../backend/Services/ContentEndpoints.cs')
+assert.match(newsApi, /x\.Author, x\.PublicationDate/, 'API pública y administración devuelven los nuevos datos')
+assert.match(newsApi, /input\.PublicationDate/, 'El backend acepta fecha del editor')
 const itinerary = source('src/pages/Itinerary.vue')
 assert.match(itinerary, /closing/, 'Conservar Closing, ETD y ETA')
 const fieldDropdown = source('src/components/FieldDropdown.vue')
