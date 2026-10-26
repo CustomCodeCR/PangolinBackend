@@ -166,6 +166,10 @@ if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("Dev
         var scriptPath = Path.Combine(app.Environment.ContentRootPath, "Database", "AuthSchema.sql");
         var sql = await File.ReadAllTextAsync(scriptPath);
         await db.Database.ExecuteSqlRawAsync(sql);
+        // Idempotent migration for existing CMS news; also install on production
+        // before deploying the new API (see NewsPublicationMetadata.sql).
+        var newsMetadataPath = Path.Combine(app.Environment.ContentRootPath, "Database", "NewsPublicationMetadata.sql");
+        await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(newsMetadataPath));
         var officialPath = Path.Combine(app.Environment.ContentRootPath, "Database", "OfficialQuotesSchema.sql");
         await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(officialPath));
         // Ubicaciones ficticias e inequívocamente marcadas como PRUEBA.
