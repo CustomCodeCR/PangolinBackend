@@ -222,12 +222,6 @@ public static class ContentEndpoints
         target.Author = input.Author!.Trim();
         target.Section = input.Section?.Trim() ?? "";
         target.Message = input.Message!.Trim();
-        target.Author = input.Author?.Trim() ?? "";
-        target.PublishedAt = input.PublishedAt.HasValue
-            ? (input.PublishedAt.Value.Kind == DateTimeKind.Unspecified
-                ? DateTime.SpecifyKind(input.PublishedAt.Value, DateTimeKind.Utc)
-                : input.PublishedAt.Value.ToUniversalTime())
-            : target.PublishedAt ?? (input.Published ? DateTime.UtcNow : null);
         target.Published = input.Published;
         target.UpdatedAt = DateTime.UtcNow;
     }
@@ -336,6 +330,12 @@ public static class ContentEndpoints
         target.Description = input.Description!.Trim();
         target.Body = input.Body?.Trim() ?? "";
         target.Image = input.Image?.Trim() ?? "";
+        target.Author = input.Author?.Trim() ?? "";
+        target.PublishedAt = input.PublishedAt.HasValue
+            ? (input.PublishedAt.Value.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(input.PublishedAt.Value, DateTimeKind.Utc)
+                : input.PublishedAt.Value.ToUniversalTime())
+            : target.PublishedAt ?? (input.Published ? DateTime.UtcNow : null);
         target.Published = input.Published;
         target.UpdatedAt = DateTime.UtcNow;
     }
