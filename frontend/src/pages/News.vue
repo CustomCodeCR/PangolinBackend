@@ -99,7 +99,6 @@ watch(locale, () => { if (locale.value === 'en') void translateNewsToEnglish() }
 const leadStory = computed(() => news.value[activeStoryIndex.value] ?? news.value[0])
 const carouselStories = computed(() => news.value.map((article, index) => ({ ...article, index })))
 const activeArticle = computed(() => requestedArticleId ? news.value.find(article => article.id === requestedArticleId) ?? null : null)
-const relatedArticles = computed(() => news.value.filter(article => article.id !== activeArticle.value?.id).slice(0, 2))
 const articleTextOpen = ref(false)
 const articleDragging = ref(false)
 const articleDragOffset = ref(0)
@@ -456,16 +455,6 @@ onUnmounted(() => {
                 <img :src="activeArticle.image" alt="" loading="lazy" />
               </figure>
             </div>
-            <div v-if="relatedArticles.length" class="news-article-page__related" :aria-label="q('Más noticias', 'More news')">
-              <h2>{{ q('Más noticias', 'More news') }}</h2>
-              <div class="news-article-page__related-list">
-                <a v-for="story in relatedArticles" :key="story.id" class="news-article-page__related-card" :href="articleHref(story.id)">
-                  <img :src="story.image" :alt="story.title" loading="lazy" />
-                  <span>{{ story.category }}</span>
-                  <strong>{{ story.title }}</strong>
-                </a>
-              </div>
-            </div>
           </div>
         </article>
       </template>
@@ -530,14 +519,6 @@ onUnmounted(() => {
 .news-article-page__closing{display:flex;align-items:center;gap:16px;margin-top:clamp(42px,6vw,76px);color:var(--article-muted);font-size:10px;font-weight:800;letter-spacing:.12em;white-space:nowrap}
 .news-article-page__closing-line{width:56px;height:2px;background:#c8102e}
 .news-article-page__back{margin-top:25px;padding-top:19px;border-top:1px solid var(--article-line)}
-.news-article-page__related{margin-top:42px;padding-top:25px;border-top:1px solid var(--article-line)}
-.news-article-page__related h2{margin:0 0 19px;color:var(--article-ink);font-family:"Arial Black",Impact,system-ui,sans-serif;font-size:20px;letter-spacing:-.04em}
-.news-article-page__related-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:20px}
-.news-article-page__related-card{display:grid;gap:9px;margin:0 0 20px;color:var(--article-ink);text-decoration:none}
-.news-article-page__related-card img{display:block;width:100%;aspect-ratio:1.55;object-fit:cover;border-radius:9px}
-.news-article-page__related-card span{margin-top:3px;color:var(--article-accent);font-size:9px;font-weight:850;letter-spacing:.12em;text-transform:uppercase}
-.news-article-page__related-card strong{font-size:14px;line-height:1.4}
-.news-article-page__related-card:hover strong{color:var(--article-accent)}
 .news-article-page__empty{padding:80px 0 130px}
 .news-article-page__empty h1{font-size:clamp(30px,4vw,48px)}
 .news-article-page__empty a{color:var(--article-accent)}
@@ -581,8 +562,6 @@ onUnmounted(() => {
   .news-article-page__standfirst{margin-bottom:21px;font-size:23px}
   .news-article-page__body{font-size:16px;line-height:1.8}
   .news-article-page__side-image{position:static;aspect-ratio:1.35;border-radius:15px}
-  .news-article-page__related{margin-top:34px;padding-top:22px}
-  .news-article-page__related-card img{max-width:320px}
 }
 @media(max-width:380px){.news-article-page__visual-mark{font-size:7px}.news-article-page__story-heading h1{font-size:32px}}
 @media(prefers-reduced-motion:reduce){.news-article-page__story-panel,.news-article-page__visual img,.news-article-page__reading{transition:none}}
