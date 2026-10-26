@@ -32,5 +32,4 @@ El globo de inicio `/home` no cambia.
 - Ejecutar compilación del frontend y backend y revisar la CI.
 
 El endpoint anterior `/api/tracking/demo` queda solo para pruebas de desarrollo.
-La alternativa reducida `/api/tracking/search` permanece deshabilitada por defecto
-y también exige inicio de sesión. No se deben eliminar volúmenes de bases de datos.
+No existe una segunda consulta pública anónima. No se deben eliminar volúmenes de bases de datos.
