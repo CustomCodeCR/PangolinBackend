@@ -1,0 +1,40 @@
+name: Dhole tracking integration - main-2
+on:
+  pull_request:
+    branches: [main-2]
+    paths:
+      - "backend/Endpoints/DholeTrackingEndpoints.cs"
+      - "backend/Program.cs"
+      - "frontend/src/pages/Tracking.vue"
+      - "frontend/src/components/WorldGlobe.vue"
+      - "frontend/src/lib/trackingRoute.ts"
+      - "frontend/src/types/tracking.ts"
+      - "frontend/scripts/test-frontend-merge.cjs"
+      - ".github/workflows/tracking-dhole-main2-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build tracking backend and frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build .NET API
+        run: dotnet build backend/CastroFallas.MiniQuote.Api.csproj --configuration Release
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+      - name: Build Vue frontend
+        run: npm run build --prefix frontend
+      - name: Preserve existing frontend and tracking contracts
+        run: node frontend/scripts/test-frontend-merge.cjs
