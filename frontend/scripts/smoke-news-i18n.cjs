@@ -89,10 +89,11 @@ async function main(){
     const listing = await dump(origin + '/noticias?testLocale=es&testTheme=light')
     assert.ok(listing.includes('Puerto de Caldera') && listing.includes('Exportaciones de Costa Rica'), 'Both published titles must appear in listing')
     assert.ok(!listing.includes('Llegaron nuevos contenedores.') && !listing.includes('Crecieron las exportaciones.'), 'Listing shows titles without summaries')
-    assert.ok(listing.includes('/noticias?article=' + articles[0].id), 'Each article must have a direct link')
+    const articlePath = '/noticias/puerto-de-caldera-' + articles[0].id.replace(/-/g, '').slice(-8).toLowerCase()
+    assert.ok(listing.includes(articlePath), 'Each article must link to its readable article URL')
 
-    const base = origin + '/noticias?article=' + articles[0].id
-    const spanish = await dump(base + '&testLocale=es&testTheme=light')
+    const base = origin + articlePath
+    const spanish = await dump(base + '?testLocale=es&testTheme=light')
     assert.ok(spanish.includes('class="news-article-page"'), 'Article must render in a dedicated full-page section')
     assert.ok(spanish.includes('Puerto de Caldera') && spanish.includes('Segunda línea en español.'), 'Spanish article must show entire body')
     assert.ok(spanish.includes('href="/noticias"'), 'Article must allow returning to News')
@@ -101,7 +102,10 @@ async function main(){
     assert.ok(spanish.includes('id="tested-article-bg">rgb(255, 255, 255)'), 'Light article must use normal page background')
     assert.equal(translatedCalls, 0, 'Spanish page should not request translations')
 
-    const english = await dump(base + '&testLocale=en&testTheme=dark')
+    const legacy = await dump(origin + '/noticias?article=' + articles[0].id + '&testLocale=es&testTheme=light')
+    assert.ok(legacy.includes('Puerto de Caldera') && legacy.includes('Segunda línea en español.'), 'Legacy article links must keep working')
+
+    const english = await dump(origin + '/noticias?article=' + articles[0].id + '&testLocale=en&testTheme=dark')
     for (const expected of ['Port of Caldera', 'New containers arrived.', 'Second line in English.', 'Back to news'])
       assert.ok(english.includes(expected), 'English full article missing: ' + expected)
     assert.ok(english.includes('id="tested-article-bg">rgb(1, 8, 29)'), 'Dark full article must use site navy background')

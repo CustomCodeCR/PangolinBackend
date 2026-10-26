@@ -38,7 +38,8 @@ function setMeta(selector: string, attribute: 'name' | 'property', key: string, 
 }
 function applyPageSeo() {
   const path = window.location.pathname.replace(/\/+$/, '') || '/'
-  const seo = seoByPath[path] ?? { title: 'Página no encontrada | Castro Fallas', description: 'La página solicitada no existe.', indexable: false }
+  const seoPath = path.startsWith('/noticias/') ? '/noticias' : path
+  const seo = seoByPath[seoPath] ?? { title: 'Página no encontrada | Castro Fallas', description: 'La página solicitada no existe.', indexable: false }
   const indexable = seo.indexable !== false
   document.title = seo.title
   setMeta('meta[name="description"]', 'name', 'description', seo.description)
@@ -125,7 +126,7 @@ const page = computed(()=> {
   if(path==='/administracion') return 'administration'
   if(path==='/administracion/cotizaciones-oficiales') return officialQuotesEnabled ? 'official-admin' : 'notFound'
   if(path==='/admin/contenido' || path==='/admin/usuarios') return 'administration'
-  if(path==='/noticias') return 'news'
+  if(path==='/noticias' || path.startsWith('/noticias/')) return 'news'
   if(path==='/nosotros') return 'about'
   if(path==='/servicios') return 'services'
   if(path==='/tracking') return 'tracking'
