@@ -9,8 +9,8 @@ const { spawn, spawnSync } = require('node:child_process')
 const root = path.resolve(__dirname, '..')
 const dist = path.join(root, 'dist')
 const articles = [
-  { id: 'f6e837c0-8b2e-4c63-8907-9051dc71921a', title: 'Puerto de Caldera', category: 'LOGÍSTICA', description: 'Llegaron nuevos contenedores.', body: 'El puerto recibió carga.\nSegunda línea en español.', image: '/images/cover-logistics.jpeg', published: true },
-  { id: '5c6bb714-5b7d-437b-bbb6-d6d1ea5e6bf5', title: 'Exportaciones de Costa Rica', category: 'COMERCIO', description: 'Crecieron las exportaciones.', body: 'Costa Rica exporta productos.', image: '/images/news-ports.webp', published: true }
+  { id: 'f6e837c0-8b2e-4c63-8907-9051dc71921a', title: 'Puerto de Caldera', category: 'LOGÍSTICA', description: 'Llegaron nuevos contenedores.', body: 'El puerto recibió carga.\nSegunda línea en español.', author: 'Equipo Editorial CF', publicationDate: '2026-10-20', image: '/images/cover-logistics.jpeg', published: true },
+  { id: '5c6bb714-5b7d-437b-bbb6-d6d1ea5e6bf5', title: 'Exportaciones de Costa Rica', category: 'COMERCIO', description: 'Crecieron las exportaciones.', body: 'Costa Rica exporta productos.', author: 'Departamento de Comunicación', publicationDate: '2026-10-23', image: '/images/news-ports.webp', published: true }
 ]
 const translated = {
   [articles[0].id]: { title: 'Port of Caldera', category: 'LOGISTICS', description: 'New containers arrived.', body: 'The port received cargo.\nSecond line in English.' },
@@ -89,19 +89,23 @@ async function main(){
     const listing = await dump(origin + '/noticias?testLocale=es&testTheme=light')
     assert.ok(listing.includes('Puerto de Caldera') && listing.includes('Exportaciones de Costa Rica'), 'Both published titles must appear in listing')
     assert.ok(!listing.includes('Llegaron nuevos contenedores.') && !listing.includes('Crecieron las exportaciones.'), 'Listing shows titles without summaries')
-    const articlePath = '/noticias/puerto-de-caldera-' + articles[0].id.replace(/-/g, '').slice(-8).toLowerCase()
+    const articlePath = '/noticias/2026-10-20-puerto-de-caldera-' + articles[0].id.replace(/-/g, '').slice(-8).toLowerCase()
     assert.ok(listing.includes(articlePath), 'Each article must link to its readable article URL')
 
     const base = origin + articlePath
     const spanish = await dump(base + '?testLocale=es&testTheme=light')
     assert.ok(spanish.includes('class="news-article-page"'), 'Article must render in a dedicated full-page section')
     assert.ok(spanish.includes('Puerto de Caldera') && spanish.includes('Segunda línea en español.'), 'Spanish article must show entire body')
+    assert.ok(spanish.includes('datetime="2026-10-20"'), 'Publication date must be visible at upper-right of article')
+    assert.ok(spanish.includes('Equipo Editorial CF'), 'Article must display its author at the end')
     assert.ok(spanish.includes('href="/noticias"'), 'Article must allow returning to News')
     assert.ok(!spanish.includes('class="news-article-modal-backdrop"'), 'Do not render old modal')
     assert.ok(!spanish.includes('Exportaciones de Costa Rica'), 'Article page must not show the listing beneath the article')
     assert.ok(spanish.includes('id="tested-article-bg">rgb(255, 255, 255)'), 'Light article must use normal page background')
     assert.equal(translatedCalls, 0, 'Spanish page should not request translations')
 
+    const oldSlug = await dump(origin + '/noticias/puerto-de-caldera-' + articles[0].id.replace(/-/g, '').slice(-8).toLowerCase() + '?testLocale=es&testTheme=light')
+    assert.ok(oldSlug.includes('Equipo Editorial CF'), 'Prior slug without date must still render article')
     const legacy = await dump(origin + '/noticias?article=' + articles[0].id + '&testLocale=es&testTheme=light')
     assert.ok(legacy.includes('Puerto de Caldera') && legacy.includes('Segunda línea en español.'), 'Legacy article links must keep working')
 
@@ -111,7 +115,7 @@ async function main(){
     assert.ok(english.includes('id="tested-article-bg">rgb(1, 8, 29)'), 'Dark full article must use site navy background')
     assert.equal(translatedCalls, 2, 'All published articles must request translations')
     assert.equal(spanishTranslationCalls, 0, 'Spanish should not request translations')
-    console.log('PASS: title-only listing, direct full article URLs, body and back navigation, ES/EN, light/dark')
+    console.log('PASS: date-first article URL, author, publication date, historic slug/ID routes, ES/EN, light/dark')
   } finally {await new Promise(resolve=>server.close(resolve))}
 }
 main().catch(err=>{console.error('FAIL:',err.message);process.exitCode=1})
