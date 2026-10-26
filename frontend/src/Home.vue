@@ -8,6 +8,7 @@ import SiteMedia from './components/SiteMedia.vue'
 import { siteText, siteVisual, siteCssImage } from './siteCms'
 import { services as baseServices, faqs as baseFaqs, type ServiceKey } from './content'
 import type { ManagedNews, ManagedComment } from './adminContent'
+import { newsArticlePath } from './lib/newsArticlePath'
 import { subscribeToChanges } from './services/realtime'
 import { useI18n } from 'vue-i18n'
 
@@ -66,6 +67,7 @@ const homeNewsLoaded = ref(false)
 const homeNewsError = ref(false)
 const homeNews = computed(() => managedNews.value.filter(article => article.published && article.title.trim()).slice(0, 3).map(article => ({
   id: article.id, category: article.category, title: article.title,
+  publicationDate: article.publicationDate,
   image: article.image || '/images/cover-logistics.jpeg'
 })))
 
@@ -224,7 +226,7 @@ onUnmounted(() => {
                     v-for="item in homeNews"
                     :key="`${copy}-${item.id}`"
                     class="home-hero-news__card"
-                    :href="'/noticias?article=' + encodeURIComponent(item.id)"
+                    :href="newsArticlePath(item)"
                     :tabindex="copy === 2 ? -1 : 0"
                     :aria-label="`${$t('custom.home.newsAria')}: ${item.title}`"
                   >

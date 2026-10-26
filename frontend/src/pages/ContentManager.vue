@@ -38,7 +38,13 @@ const newsUploadFile = ref<File | null>(null)
 const storageMode = ref<'checking' | 's3' | 'legacy' | 'error'>('checking')
 const currentList = computed(() => section.value === 'itineraries' ? itineraries.value : section.value === 'news' ? news.value : section.value === 'comments' ? comments.value : media.value)
 
-function emptyNews(): ManagedNews { return { id: '', title: '', category: 'LOGÍSTICA', description: '', body: '', image: '', published: false } }
+// Use Costa Rica's calendar day for publication dates, independently of device timezone.
+function newsTodayCostaRica(): string {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Costa_Rica', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date())
+  const value = (type: string) => parts.find(part => part.type === type)?.value ?? ''
+  return [value('year'), value('month'), value('day')].join('-')
+}
+function emptyNews(): ManagedNews { return { id: '', title: '', category: 'LOGÍSTICA', description: '', body: '', image: '', author: 'Grupo Castro Fallas', publicationDate: newsTodayCostaRica(), published: false } }
 function emptyItinerary(): ManagedItinerary { return { id: '', origin: '', destination: '', transport: 'Marítimo', departure: '', arrival: '', status: 'Programado', closing: '', modality: 'FCL', carrier: '', vessel: '', voyage: '' } }
 function emptyComment(): ManagedComment { return { id: '', author: '', section: '', message: '', published: false } }
 function emptyMedia(): ManagedMedia { return { id: '', name: '', kind: 'Imagen', src: '' } }
@@ -265,7 +271,7 @@ async function edit(entry: ManagedItinerary | ManagedNews | ManagedMedia | Manag
       } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo cargar el itinerario.'; return }
     }
   }
-  if (section.value === 'news') newsForm.value = { ...(entry as ManagedNews) }
+  if (section.value === 'news') newsForm.value = { author: 'Grupo Castro Fallas', publicationDate: newsTodayCostaRica(), ...(entry as ManagedNews) }
   if (section.value === 'media') mediaForm.value = { ...(entry as ManagedMedia) }
   if (section.value === 'comments') commentForm.value = { ...(entry as ManagedComment) }
   document.querySelector('.manager-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -550,7 +556,11 @@ function useMediaForNews(item: ManagedMedia) {
           <form v-else-if="section === 'news'" @submit.prevent="submitNews">
             <label>Título<input v-model="newsForm.title" required maxlength="160" placeholder="Título de la noticia" /></label>
             <label>Categoría<input v-model="newsForm.category" required maxlength="60" placeholder="LOGÍSTICA" /></label>
-            <label>Resumen (visible en tarjetas)<textarea v-model="newsForm.description" required maxlength="1200" rows="3" placeholder="Resumen breve de la noticia" /></label>
+            <div class="manager-form-row">
+              <label>Autor<input v-model.trim="newsForm.author" required maxlength="100" placeholder="Nombre del autor o de la empresa" /></label>
+              <label>Fecha de publicación<input v-model="newsForm.publicationDate" type="date" required min="1900-01-01" max="2100-12-31" /></label>
+            </div>
+            <label>Resumen (introducción del artículo)<textarea v-model="newsForm.description" required maxlength="1200" rows="3" placeholder="Resumen breve de la noticia" /></label>
             <label>Contenido completo<textarea v-model="newsForm.body" maxlength="20000" rows="8" placeholder="Escribe el artículo completo. Si se deja vacío, el lector verá el resumen." /></label>
             <label>Imagen ({{ storageMode === 's3' ? 'MinIO' : 'archivo local' }})<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="selectFile($event, 'news')" /></label>
             <p v-if="newsUploadFile" class="manager-publication-hint">Imagen seleccionada: {{ newsUploadFile.name }}. Se subirá a MinIO al guardar.</p>
@@ -604,7 +614,7 @@ function useMediaForNews(item: ManagedMedia) {
               <strong v-else-if="section === 'comments'">{{ (entry as ManagedComment).author }}</strong>
               <strong v-else>{{ (entry as ManagedMedia).name }}</strong>
               <small v-if="section === 'itineraries'">{{ (entry as ManagedItinerary).transport }} · {{ (entry as ManagedItinerary).status }}</small>
-              <small v-else-if="section === 'news'">{{ (entry as ManagedNews).category }} · <strong :class="(entry as ManagedNews).published ? 'manager-status-published' : 'manager-status-draft'">{{ (entry as ManagedNews).published ? 'Publicada en la web' : 'Borrador privado' }}</strong></small>
+              <small v-else-if="section === 'news'">{{ (entry as ManagedNews).category }} · {{ (entry as ManagedNews).publicationDate || 'Sin fecha' }} · {{ (entry as ManagedNews).author || 'Grupo Castro Fallas' }} · <strong :class="(entry as ManagedNews).published ? 'manager-status-published' : 'manager-status-draft'">{{ (entry as ManagedNews).published ? 'Publicada en la web' : 'Borrador privado' }}</strong></small>
               <small v-else-if="section === 'comments'">{{ (entry as ManagedComment).section || 'General' }} · <strong :class="(entry as ManagedComment).published ? 'manager-status-published' : 'manager-status-draft'">{{ (entry as ManagedComment).published ? 'Publicado en la web' : 'Borrador privado' }}</strong> · {{ (entry as ManagedComment).message }}</small>
               <small v-else>{{ (entry as ManagedMedia).kind }}</small>
             </div>

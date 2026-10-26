@@ -19,8 +19,8 @@ public static class ContentEndpoints
             http.Response.Headers.CacheControl = "no-store";
             return Results.Ok(await db.ManagedNews.AsNoTracking()
                 .Where(x => x.Published)
-                .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
-                .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published })
+                .OrderByDescending(x => x.PublicationDate).ThenByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
+                .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published, x.Author, x.PublicationDate })
                 .ToListAsync(ct));
         });
 
@@ -105,8 +105,8 @@ public static class ContentEndpoints
 
         admin.MapGet("/news", async (AppDbContext db, CancellationToken ct) =>
             Results.Ok(await db.ManagedNews.AsNoTracking()
-                .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
-                .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published })
+                .OrderByDescending(x => x.PublicationDate).ThenByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
+                .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published, x.Author, x.PublicationDate })
                 .ToListAsync(ct)));
 
         admin.MapPost("/news", async (SaveNewsRequest input, AppDbContext db, ContentUpdatesPublisher updates, CancellationToken ct) =>
@@ -238,6 +238,10 @@ public static class ContentEndpoints
             return "La descripción debe tener entre 1 y 1200 caracteres.";
         if ((x.Body?.Trim().Length ?? 0) > 20_000)
             return "El contenido completo no puede superar 20 000 caracteres.";
+        if (x.Author is not null && x.Author.Trim().Length > 100)
+            return "El autor no puede superar 100 caracteres.";
+        if (x.PublicationDate is { } date && (date.Year < 1900 || date.Year > 2100))
+            return "La fecha de publicación debe estar entre 1900 y 2100.";
         if (!ValidImage(x.Image, allowEmpty: true))
             return "La imagen debe ser HTTPS, /images/ o PNG/JPEG/WebP/GIF hasta 2.5 MB.";
         return null;
@@ -326,6 +330,9 @@ public static class ContentEndpoints
         target.Description = input.Description!.Trim();
         target.Body = input.Body?.Trim() ?? "";
         target.Image = input.Image?.Trim() ?? "";
+        // Old editors can omit these fields; do not overwrite existing publication data.
+        if (input.Author is not null) target.Author = string.IsNullOrWhiteSpace(input.Author) ? "Grupo Castro Fallas" : input.Author.Trim();
+        if (input.PublicationDate is { } publicationDate) target.PublicationDate = publicationDate;
         target.Published = input.Published;
         target.UpdatedAt = DateTime.UtcNow;
     }
@@ -340,7 +347,7 @@ public static class ContentEndpoints
 
     private static object NewsView(ManagedNews x) => new
     {
-        x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published
+        x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published, x.Author, x.PublicationDate
     };
 
     private static object MediaView(ManagedMedia x) => new { x.Id, x.Name, x.Kind, x.Src, x.ObjectKey, x.MimeType, x.SizeBytes };

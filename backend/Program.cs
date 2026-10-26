@@ -166,6 +166,10 @@ if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("Dev
         var scriptPath = Path.Combine(app.Environment.ContentRootPath, "Database", "AuthSchema.sql");
         var sql = await File.ReadAllTextAsync(scriptPath);
         await db.Database.ExecuteSqlRawAsync(sql);
+        // Idempotent migration for existing CMS news; also install on production
+        // before deploying the new API (see NewsPublicationMetadata.sql).
+        var newsMetadataPath = Path.Combine(app.Environment.ContentRootPath, "Database", "NewsPublicationMetadata.sql");
+        await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(newsMetadataPath));
         var officialPath = Path.Combine(app.Environment.ContentRootPath, "Database", "OfficialQuotesSchema.sql");
         await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(officialPath));
         // Ubicaciones ficticias e inequívocamente marcadas como PRUEBA.
@@ -329,7 +333,7 @@ app.MapGet("/api/health/ready", async (AppDbContext db, IConfiguration config, C
         await db.Database.ExecuteSqlRawAsync("SELECT quote_id, shipping_type FROM quote_maritime_details LIMIT 0", ct);
         await db.Database.ExecuteSqlRawAsync("SELECT quote_id, entry_country FROM quote_multimodal_details LIMIT 0", ct);
         await db.Database.ExecuteSqlRawAsync("SELECT id FROM auth_admin_user_audit LIMIT 0", ct);
-        await db.Database.ExecuteSqlRawAsync("SELECT id, published FROM public.cms_news LIMIT 0", ct);
+        await db.Database.ExecuteSqlRawAsync("SELECT id, published, author, publication_date FROM public.cms_news LIMIT 0", ct);
         await db.Database.ExecuteSqlRawAsync("SELECT id, published FROM public.cms_comments LIMIT 0", ct);
         await db.Database.ExecuteSqlRawAsync("SELECT id, src FROM public.cms_media LIMIT 0", ct);
         return Results.Ok(new
