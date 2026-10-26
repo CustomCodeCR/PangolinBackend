@@ -110,13 +110,15 @@ for (const translation of [
 ]) assert.ok(news.includes(translation), 'Todos los estados de noticias deben traducirse: ' + translation)
 
 
-assert.match(news, /const articleHref = \(id: string\) => '\/noticias\?article=' \+ encodeURIComponent\(id\)/, 'Las noticias conservan enlaces directos compatibles con Inicio')
+assert.match(news, /const articleSlug = \(article: \{ id: string; title: string \}\) =>/, 'Cada noticia tiene un slug legible')
+assert.match(news, /const articleHref = \(id: string\) => \{[\s\S]*?return article \? articlePath\(article\) : '\/noticias'/, 'Las noticias enlazan a su ruta legible')
+assert.match(news, /new URLSearchParams\(window\.location\.search\)\.get\('article'\)/, 'Los enlaces antiguos con article=ID siguen siendo compatibles')
 assert.match(news, /<a class="news-editorial-hero__read" :href="articleHref\(leadStory\.id\)"/, 'La noticia destacada abre una página completa')
 assert.match(news, /<a :href="articleHref\(article\.id\)"/, 'Las tarjetas de noticias también abren artículos completos')
 assert.doesNotMatch(news, /news-editorial-hero__description|\{\{ article\.description \}\}/, 'La portada y las tarjetas no muestran resúmenes')
 assert.match(news, /<main v-else id="noticia-completa" class="news-article-page">/, 'Artículo ocupa una sección completa del sitio')
 assert.match(news, /<div class="news-article-page__body">\{\{ activeArticle\.body \}\}<\/div>/, 'Se muestra íntegro el cuerpo del CMS sin cortar líneas')
-assert.match(news, /<SiteHeader v-if="requestedArticleId" active="noticias"\s*\/>/, 'Página completa mantiene encabezado de la web')
+assert.match(news, /<SiteHeader v-if="isArticlePage" active="noticias"\s*\/>/, 'La ruta legible y la anterior mantienen el encabezado de la web')
 assert.doesNotMatch(news, /news-article-modal|aria-modal="true"/, 'Noticias no abre un modal')
 assert.match(news, /href="\/noticias"/, 'El usuario puede volver a la lista de noticias')
 const home = source('src/Home.vue')
