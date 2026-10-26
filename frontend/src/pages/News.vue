@@ -359,13 +359,39 @@ onUnmounted(() => {
 .news-article-page__empty h1{font-size:clamp(30px,4vw,48px)}
 .news-article-page__empty a{color:var(--article-accent)}
 .news-article-page a:focus-visible{outline:2px solid var(--article-accent);outline-offset:5px}
-/* Fondo de dark mode preservado para compatibilidad con la página actual. */
-:global(html.theme-dark .app-site.news-page main.news-article-page){--article-ink:#f4f6fa;--article-muted:#abb7cc;--article-line:rgba(235,241,252,.17);--article-accent:#ff5a76;background:#01081d;color:var(--article-ink)}
-:global(html.theme-dark) .news-article-page__panel{background:#101a30;box-shadow:0 24px 75px rgba(0,0,0,.24)}
-:global(html.theme-dark) .news-article-page__heading{background:#101a30}
+/* En dark mode, el encabezado del artículo usa vidrio oscuro traslúcido. */
+:global(html.theme-dark .app-site.news-page main.news-article-page){
+  --article-ink:#f4f6fa;
+  --article-muted:#abb7cc;
+  --article-line:rgba(235,241,252,.2);
+  --article-accent:#ff5a76;
+  background:
+    radial-gradient(ellipse at 84% 8%, rgba(173,18,48,.2), transparent 34%),
+    radial-gradient(ellipse at 18% 56%, rgba(80,120,180,.13), transparent 42%),
+    linear-gradient(145deg,#071329 0%,#01081d 68%);
+  color:var(--article-ink);
+}
+:global(html.theme-dark) .news-article-page__panel{
+  border-color:rgba(235,241,252,.2);
+  background:rgba(10,20,39,.48);
+  box-shadow:0 24px 75px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.12);
+  -webkit-backdrop-filter:blur(18px) saturate(145%);
+  backdrop-filter:blur(18px) saturate(145%);
+}
+:global(html.theme-dark) .news-article-page__heading{
+  background:linear-gradient(135deg,rgba(255,255,255,.105),rgba(255,255,255,.045) 54%,rgba(255,255,255,.025));
+  -webkit-backdrop-filter:blur(24px) saturate(155%);
+  backdrop-filter:blur(24px) saturate(155%);
+}
 :global(html.theme-dark) .news-article-page__eyebrow{color:#a3afc4}
 :global(html.theme-dark) .news-article-page__teaser{color:#bac4d5}
-:global(html.theme-dark) .news-article-page__panel-footer{color:#b4bfd1}
+:global(html.theme-dark) .news-article-page__panel-footer{
+  border-color:rgba(235,241,252,.16);
+  background:rgba(255,255,255,.035);
+  color:#b4bfd1;
+  -webkit-backdrop-filter:blur(18px) saturate(140%);
+  backdrop-filter:blur(18px) saturate(140%);
+}
 :global(html.theme-dark) .news-article-page__empty a{color:#ff5a76}
 @media(max-width:1000px){
   .news-article-page__hero{grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:415px}
