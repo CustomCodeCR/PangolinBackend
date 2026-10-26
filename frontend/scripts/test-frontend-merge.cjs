@@ -111,7 +111,7 @@ for (const translation of [
 
 
 assert.match(news, /const articleSlug = \(article: \{ id: string; title: string; publishedAt\?: string \| null \}\) =>/, 'Cada noticia tiene un slug con fecha y título legibles')
-assert.match(news, /publishedAt\\?\\.slice\\(0,10\\)/, 'La URL empieza por fecha de publicación')
+assert.ok(news.includes("article.publishedAt?.slice(0,10)"), 'La URL empieza por fecha de publicación')
 assert.match(news, /news-article-page__date/, 'La noticia muestra la fecha arriba a la derecha')
 assert.match(news, /news-article-page__author/, 'La noticia muestra su autor al finalizar el texto')
 assert.match(manager, /v-model.trim="newsForm.author"/, 'El editor permite añadir autor')
