@@ -99,8 +99,49 @@ watch(locale, () => { if (locale.value === 'en') void translateNewsToEnglish() }
 const leadStory = computed(() => news.value[activeStoryIndex.value] ?? news.value[0])
 const carouselStories = computed(() => news.value.map((article, index) => ({ ...article, index })))
 const activeArticle = computed(() => requestedArticleId ? news.value.find(article => article.id === requestedArticleId) ?? null : null)
+function setNewsMeta(attribute: 'name' | 'property', key: string, content: string | null) {
+  const selector = `meta[${attribute}="${key}"]`
+  let element = document.head.querySelector<HTMLMetaElement>(selector)
+  if (!content) {
+    element?.remove()
+    return
+  }
+  if (!element) {
+    element = document.createElement('meta')
+    element.setAttribute(attribute, key)
+    document.head.append(element)
+  }
+  element.content = content
+}
 watch(activeArticle, article => {
-  if (article) document.title = article.title + ' | Noticias | Grupo Castro Fallas'
+  if (!article) return
+  const title = `Grupo Castro Fallas | ${article.title}`
+  document.title = title
+  setNewsMeta('name', 'description', article.description)
+  setNewsMeta('property', 'og:title', title)
+  setNewsMeta('property', 'og:description', article.description)
+  setNewsMeta('property', 'og:type', 'article')
+  setNewsMeta('property', 'og:site_name', 'Grupo Castro Fallas')
+  setNewsMeta('name', 'twitter:title', title)
+  setNewsMeta('name', 'twitter:description', article.description)
+
+  const host = window.location.hostname.toLowerCase()
+  const isOfficialHost = host === 'logisticacastrofallas.com' || host === 'www.logisticacastrofallas.com'
+  let canonical = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]')
+  if (!isOfficialHost) {
+    canonical?.remove()
+    setNewsMeta('property', 'og:url', null)
+    return
+  }
+  const canonicalUrl = new URL('/noticias', 'https://www.logisticacastrofallas.com')
+  canonicalUrl.searchParams.set('article', article.id)
+  if (!canonical) {
+    canonical = document.createElement('link')
+    canonical.rel = 'canonical'
+    document.head.append(canonical)
+  }
+  canonical.href = canonicalUrl.href
+  setNewsMeta('property', 'og:url', canonicalUrl.href)
 })
 let storyTimer: number | undefined
 function startStoryTimer() {
