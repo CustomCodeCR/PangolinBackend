@@ -5,6 +5,8 @@ export type ManagedNews = {
   description: string
   body?: string
   image: string
+  author?: string
+  publicationDate?: string
   published: boolean
 }
 
