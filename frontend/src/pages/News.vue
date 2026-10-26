@@ -113,11 +113,9 @@ const leadStory = computed(() => news.value[activeStoryIndex.value] ?? news.valu
 const carouselStories = computed(() => news.value.map((article, index) => ({ ...article, index })))
 const activeArticle = computed(() => {
   if (requestedArticleId) return news.value.find(article => article.id === requestedArticleId) ?? null
-  if (!requestedArticleSlug) return null
-  return news.value.find(article => {
-    const sourceArticle = managedNews.value.find(item => item.id === article.id)
-    return sourceArticle && articleSlug(sourceArticle) === requestedArticleSlug
-  }) ?? null
+  const idSuffix = requestedArticleSlug?.match(/-([a-f0-9]{8})$/i)?.[1]
+  if (!idSuffix) return null
+  return news.value.find(article => article.id.replace(/-/g, '').toLowerCase().endsWith(idSuffix.toLowerCase())) ?? null
 })
 function setNewsMeta(attribute: 'name' | 'property', key: string, content: string | null) {
   const selector = `meta[${attribute}="${key}"]`
