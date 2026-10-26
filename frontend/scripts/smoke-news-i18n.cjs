@@ -9,7 +9,7 @@ const { spawn, spawnSync } = require('node:child_process')
 const root = path.resolve(__dirname, '..')
 const dist = path.join(root, 'dist')
 const articles = [
-  { id: 'f6e837c0-8b2e-4c63-8907-9051dc71921a', title: 'Puerto de Caldera', category: 'LOGÍSTICA', description: 'Llegaron nuevos contenedores.', body: 'El puerto recibió carga.\nSegunda línea en español.', image: '/images/cover-logistics.jpeg', published: true },
+  { id: 'f6e837c0-8b2e-4c63-8907-9051dc71921a', title: 'Puerto de Caldera', category: 'LOGÍSTICA', description: 'Llegaron nuevos contenedores.', body: 'El puerto recibió carga.\nSegunda línea en español.', image: '/images/cover-logistics.jpeg', published: true, author: 'Equipo Editorial', publishedAt: '2026-10-26T12:00:00Z' },
   { id: '5c6bb714-5b7d-437b-bbb6-d6d1ea5e6bf5', title: 'Exportaciones de Costa Rica', category: 'COMERCIO', description: 'Crecieron las exportaciones.', body: 'Costa Rica exporta productos.', image: '/images/news-ports.webp', published: true }
 ]
 const translated = {
@@ -89,13 +89,14 @@ async function main(){
     const listing = await dump(origin + '/noticias?testLocale=es&testTheme=light')
     assert.ok(listing.includes('Puerto de Caldera') && listing.includes('Exportaciones de Costa Rica'), 'Both published titles must appear in listing')
     assert.ok(!listing.includes('Llegaron nuevos contenedores.') && !listing.includes('Crecieron las exportaciones.'), 'Listing shows titles without summaries')
-    const articlePath = '/noticias/puerto-de-caldera-' + articles[0].id.replace(/-/g, '').slice(-8).toLowerCase()
+    const articlePath = '/noticias/2026-10-26-puerto-de-caldera-' + articles[0].id.replace(/-/g, '').slice(-8).toLowerCase()
     assert.ok(listing.includes(articlePath), 'Each article must link to its readable article URL')
 
     const base = origin + articlePath
     const spanish = await dump(base + '?testLocale=es&testTheme=light')
     assert.ok(spanish.includes('class="news-article-page"'), 'Article must render in a dedicated full-page section')
     assert.ok(spanish.includes('Puerto de Caldera') && spanish.includes('Segunda línea en español.'), 'Spanish article must show entire body')
+    assert.ok(spanish.includes('Equipo Editorial') && spanish.includes('26 de octubre de 2026'), 'Author and publication date must appear in article')
     assert.ok(spanish.includes('href="/noticias"'), 'Article must allow returning to News')
     assert.ok(!spanish.includes('class="news-article-modal-backdrop"'), 'Do not render old modal')
     assert.ok(!spanish.includes('Exportaciones de Costa Rica'), 'Article page must not show the listing beneath the article')
