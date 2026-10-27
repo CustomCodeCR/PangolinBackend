@@ -1327,7 +1327,7 @@ function useMediaForNews(item: ManagedMedia) {
 
 <style scoped>
 /* The destructive action sits immediately beside Guardar without changing the table layout. */
-.manager-user-actions{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.manager-user-actions{display:flex;align-items:center;justify-content:flex-end;width:100%;gap:8px;white-space:nowrap}
 .manager-user-delete{min-height:42px;border:1px solid #d21b3b;border-radius:11px;padding:9px 13px;background:transparent;color:#cf1737;font:inherit;font-weight:750;cursor:pointer}
 .manager-user-delete:hover{background:rgba(210,27,59,.09)}
 .manager-user-delete:focus-visible{outline:2px solid #d21b3b;outline-offset:2px}
