@@ -93,6 +93,9 @@ function advanceNews() {
   if (step <= 0 || scroller.scrollWidth <= scroller.clientWidth) return
 
   const cycleWidth = step * cards.length
+  // Si todas las noticias originales caben, no desplazar hacia la copia duplicada:
+  // scrollLeft jamás alcanzaría cycleWidth y el carrusel quedaría detenido al final.
+  if (cycleWidth <= scroller.clientWidth + 2) return
   if (scroller.scrollLeft >= cycleWidth - 2) scroller.scrollLeft -= cycleWidth
   const index = Math.round(scroller.scrollLeft / step)
   scroller.scrollTo({ left: Math.min(scroller.scrollWidth - scroller.clientWidth, (index + 1) * step), behavior: 'smooth' })
