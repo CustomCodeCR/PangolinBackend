@@ -1,0 +1,126 @@
+name: Delete inactive users safely - main-2
+on:
+  pull_request:
+    branches: [main-2]
+    paths:
+      - "backend/Services/AdminUsersEndpoints.cs"
+      - "frontend/src/pages/ContentManager.vue"
+      - "frontend/src/pages/AdminUsers.vue"
+      - "frontend/src/components/FieldDropdown.vue"
+      - "scripts/test-admin-users-mobile.py"
+      - "frontend/scripts/test-frontend-merge.cjs"
+      - "scripts/smoke-local.py"
+      - ".github/workflows/admin-delete-main2-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build admin frontend and backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Compile .NET API
+        run: dotnet build backend/CastroFallas.MiniQuote.Api.csproj --configuration Release
+      - name: Compile Vue frontend
+        run: |
+          npm ci --prefix frontend
+          npm run build --prefix frontend
+      - name: Verify unchanged frontend contracts
+        run: node frontend/scripts/test-frontend-merge.cjs
+      - name: "Admin user management: Chrome mobile and desktop column alignment"
+        run: |
+          python3 -m venv /tmp/cf-admin-mobile
+          /tmp/cf-admin-mobile/bin/pip install --disable-pip-version-check selenium==4.38.0
+          /tmp/cf-admin-mobile/bin/python scripts/test-admin-users-mobile.py
+      - name: Upload admin mobile layout evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-users-responsive
+          path: artifacts/admin-users-mobile/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Verify deletion UI and server guards
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          backend = Path('backend/Services/AdminUsersEndpoints.cs').read_text()
+          manager = Path('frontend/src/pages/ContentManager.vue').read_text()
+          standalone = Path('frontend/src/pages/AdminUsers.vue').read_text()
+          assert 'group.MapDelete("/{id:guid}"' in backend
+          assert 'actor.UsuarioId == id' in backend
+          assert 'if (user.Status)' in backend
+          assert 'user.DeletedAt =' in backend
+          assert 'db.AuthSessions.Where' in backend
+          assert 'db.OtpChallenges.Where' in backend
+          assert 'auth_admin_user_audit' in backend
+          assert 'db.Usuarios.Remove(' not in backend
+          dropdown = Path('frontend/src/components/FieldDropdown.vue').read_text()
+          assert 'props.minMenuWidth ?? 0' in dropdown
+          assert 'overflow-y:auto; overflow-x:hidden' in dropdown
+          for ui in (manager, standalone):
+              assert 'data-label="Estado"' in ui
+              assert ':min-menu-width="190"' in ui
+              assert '@media (max-width:1180px)' in ui
+              assert '@media (min-width:1181px)' in ui
+              assert 'action-heading' in ui
+              assert 'grid-template-columns:minmax(0,1fr)' in ui
+              assert 'user.activo || user.savedActive' in ui
+              assert 'v-if="!user.activo && !user.savedActive' not in ui
+              assert 'min-width:96px' in ui
+              assert 'Primero desactivá y guardá la cuenta' in ui
+              assert 'window.confirm(' in ui
+              assert "method: 'DELETE'" in ui
+              assert '@click="deleteUser(user)"' in ui
+          print('PASS: always-visible disabled delete control, confirmation, audit and session revocation')
+          PY
+
+  smoke:
+    name: PostgreSQL role and deletion smoke
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate ephemeral development secrets
+        run: bash scripts/setup-docker.sh
+      - name: Start ephemeral PostgreSQL and Redis
+        run: docker compose up -d --wait postgres redis
+      - name: Build backend test container
+        run: docker compose build backend
+      - name: Start backend without MongoDB
+        run: docker compose run -d --no-deps --service-ports -e Mongo__ConnectionString= backend
+      - name: Wait for backend readiness
+        run: |
+          ready=0
+          for i in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:5000/api/health/ready >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 5
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker compose logs --tail=80 backend
+            exit 1
+          fi
+      - name: Seed only disposable test accounts
+        run: docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d login -f /tmp/SeedLocal.sql
+      - name: Test login, access, soft deletion and history-preserving CRUD
+        run: python3 scripts/smoke-local.py
+      - name: Troubleshoot failures
+        if: failure()
+        run: docker compose logs --tail=100 backend postgres
+      - name: Stop ephemeral containers without deleting volumes
+        if: always()
+        run: docker compose down

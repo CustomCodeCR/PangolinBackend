@@ -168,5 +168,43 @@ public static class AdminUsersEndpoints
                 activo = newStatus, createdAt = user.CreatedAt
             });
         });
+        // Soft-delete only a persisted inactive account. Preserve quotes and audit
+        // references; never cascade through customer or business data.
+        group.MapDelete("/{id:guid}", async (
+            Guid id, AppDbContext db, AuthService auth, ContentUpdatesPublisher updates,
+            HttpContext http, CancellationToken ct) =>
+        {
+            var actor = await auth.GetIdentityAsync(http, ct);
+            if (actor is null) return Results.Unauthorized();
+            if (actor.UsuarioId == id)
+                return Results.Conflict(new { error = "No puedes eliminar tu propia cuenta." });
+
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            // Same lock as role/status changes: an inactive account cannot become
+            // active between checking its state and retiring it.
+            await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(20261015)", ct);
+            var user = await db.Usuarios.FirstOrDefaultAsync(u => u.Uuid == id && u.DeletedAt == null, ct);
+            if (user is null) return Results.NotFound(new { error = "Cuenta no encontrada." });
+            if (user.Status)
+                return Results.Conflict(new { error = "Primero desactiva la cuenta y guarda ese cambio antes de eliminarla." });
+
+            var now = DateTime.UtcNow;
+            // usuarios.deleted_at is timestamp without time zone in the existing schema.
+            user.DeletedAt = DateTime.SpecifyKind(now, DateTimeKind.Unspecified);
+            await db.SaveChangesAsync(ct);
+            await db.AuthSessions.Where(s => s.UsuarioId == id && s.RevokedAt == null)
+                .ExecuteUpdateAsync(set => set.SetProperty(s => s.RevokedAt, now), ct);
+            await db.OtpChallenges.Where(o => o.UsuarioId == id && o.UsedAt == null)
+                .ExecuteUpdateAsync(set => set.SetProperty(o => o.UsedAt, now), ct);
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO auth_admin_user_audit
+                    (actor_usuario_id, target_usuario_id, old_role, new_role, old_active, new_active)
+                VALUES ({actor.UsuarioId}, {id}, {user.TipoAcceso}, {"eliminado"}, {false}, {false})
+                """, ct);
+            await tx.CommitAsync(ct);
+            await updates.AdminsAsync("users");
+            return Results.NoContent();
+        });
+
     }
 }
