@@ -13,6 +13,8 @@ root = (ROOT / "frontend/src/Root.vue").read_text(encoding="utf-8")
 admin = (ROOT / "frontend/src/pages/ContentManager.vue").read_text(encoding="utf-8")
 schema = (ROOT / "backend/Database/OfficialQuotesSchema.sql").read_text(encoding="utf-8")
 verified = (ROOT / "backend/Database/OfficialQuotesVerifiedLocations.sql").read_text(encoding="utf-8")
+prod_compose = (ROOT / "deploy/docker-compose.images.yml").read_text(encoding="utf-8")
+prod_workflow = (ROOT / ".github/workflows/pangolin-images.yml").read_text(encoding="utf-8")
 
 # Contar solo filas VALUES, no ocurrencias de 'inland' en el WHERE/SELECT.
 land_rows = re.findall(
@@ -43,6 +45,16 @@ checks = {
     "Cotizaciones en Contenido": "OfficialQuoteAdmin v-else-if" in admin,
     "13 ubicaciones terrestres": unique_land_rows,
     "no borrar registros": all(x not in verified.upper() for x in ("DELETE FROM", "DROP TABLE", "TRUNCATE")),
+    "frontend oficial habilitado en producción": "VITE_OFFICIAL_QUOTES_ENABLED=true" in prod_workflow,
+    "API oficial habilitada en producción": 'Features__OfficialQuotesEnabled: "true"' in prod_compose,
+    "migración y catálogo no ficticio preparados": all(
+        sql in prod_workflow for sql in
+        ("OfficialQuotesSchema.sql", "OfficialQuotesVerifiedLocations.sql",
+         "OfficialQuotesVideoLocations.sql", "--single-transaction",
+         'ready_roles" != "12"')
+    ),
+    "semillas de Development excluidas de producción": "OfficialQuotesDevelopmentLocations.sql" not in prod_workflow,
+    "prueba de autorización posterior al despliegue": "/api/admin/quotes/official/permissions/me" in prod_workflow,
 }
 for title, ok in checks.items():
     print(f"{'OK' if ok else 'ERROR'}: {title}")

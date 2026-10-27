@@ -27,11 +27,13 @@ jobs:
       - name: Build frontend
         run: |
           npm ci --prefix frontend
-          npm run build --prefix frontend
+          VITE_OFFICIAL_QUOTES_ENABLED=true npm run build --prefix frontend
       - name: SEO static HTML checks
         run: npm run seo:check --prefix frontend
       - name: Static integration checks
         run: python3 scripts/verify-integration.py
+      - name: Official quotes deployment and API contract checks
+        run: python3 scripts/verify-official-quotes.py
 
   smoke:
     name: PostgreSQL OTP CRUD CMS smoke
@@ -51,7 +53,7 @@ jobs:
       - name: Build backend test container
         run: docker compose build backend
       - name: Start backend without optional MongoDB
-        run: docker compose run -d --no-deps --service-ports -e Mongo__ConnectionString= backend
+        run: docker compose run -d --no-deps --service-ports -e Mongo__ConnectionString= backend dotnet run --project CastroFallas.MiniQuote.Api.csproj --no-launch-profile
       - name: Wait for backend readiness
         run: |
           ready=0
