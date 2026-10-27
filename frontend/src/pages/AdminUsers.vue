@@ -150,7 +150,7 @@ onMounted(loadUsers)
           <label>Nombre o empresa<input v-model.trim="newUser.nombre" required minlength="2" maxlength="500" autocomplete="organization" /></label>
           <label>Correo electrónico<input v-model.trim="newUser.correo" type="email" required maxlength="255" autocomplete="email" /></label>
           <label>Rol<select v-model="newUser.role"><option value="cliente">Cliente</option><option value="administrador">Administrador</option></select></label>
-          <label v-if="newUser.role === 'cliente'">Código Dynamics de la empresa<input v-model.trim="newUser.codigoDynamics" required maxlength="200" placeholder="Código asignado a la empresa" /></label>
+          <label v-if="newUser.role === 'cliente'">Código Dynamics de la empresa (opcional)<input v-model.trim="newUser.codigoDynamics" maxlength="200" placeholder="Código asignado a la empresa" /></label>
           <p class="admin-users-create-hint">El cliente se vincula a su empresa mediante el código Dynamics. Los administradores reciben una entidad interna independiente.</p>
           <button class="admin-users-save" type="submit" :disabled="creating">{{ creating ? 'Creando…' : 'Crear cuenta' }}</button>
         </form>
