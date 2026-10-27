@@ -1424,12 +1424,12 @@ html.theme-dark .manager-user-delete:disabled{color:#929baa;border-color:#485068
 }
 
 
-/* Encabezados de Gestión de usuarios: mismo azul oscuro de los selectores. */
+/* Encabezados de Gestión de usuarios: usan exactamente el fondo de los campos. */
 .content-manager .manager-users-table thead th,
 .content-manager.is-embedded .manager-users-table thead th,
 .is-embedded .manager-users-table th {
-  background: #111d35 !important;
-  background-color: #111d35 !important;
+  background: var(--admin-input, #060f21) !important;
+  background-color: var(--admin-input, #060f21) !important;
   color: #fff !important;
 }
 </style>
