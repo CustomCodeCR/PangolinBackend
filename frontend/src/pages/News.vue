@@ -648,6 +648,19 @@ onUnmounted(() => {
 .news-empty-hero p:last-child { max-width: 640px; font-size: clamp(16px, 1.7vw, 20px); }
 .news-editorial-hero:has(.news-empty-hero) { min-height: 0; background: linear-gradient(120deg, #980c26, #142240); }
 
+/* En móvil el artículo completo se muestra de entrada, sin abrir una pestaña. */
+@media (max-width:720px) {
+  .news-article-page__handle { display:none; }
+  .news-article-page__reading,
+  .news-article-page__reading.is-expanded,
+  .news-article-page__reading.is-dragging {
+    max-height:none !important;
+    overflow:visible !important;
+    transition:none;
+  }
+  .news-article-page__story-panel { margin-top:-52px !important; }
+}
+
 /* El texto rodea la imagen y aprovecha todo el ancho debajo de ella. */
 @media (min-width:721px) {
   .news-article-page__reading { display:flow-root; }
