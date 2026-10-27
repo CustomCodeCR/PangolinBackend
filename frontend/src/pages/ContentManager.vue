@@ -1341,19 +1341,19 @@ html.theme-dark .manager-user-delete:disabled{color:#929baa;border-color:#485068
    los selectores y del grupo de botones, sin alterar las tarjetas móviles. */
 @media (min-width:821px) {
   .manager-users-table {table-layout:fixed;width:100%}
-  .manager-users-table th:nth-child(1) {width:35.5%}
+  .manager-users-table th:nth-child(1) {width:32%}
   .manager-users-table th:nth-child(2) {width:22%}
   .manager-users-table th:nth-child(3) {width:22%}
-  .manager-users-table th:nth-child(4) {width:20.5%}
+  .manager-users-table th:nth-child(4) {width:24%}
   .manager-users-table td:first-child small {overflow-wrap:anywhere;white-space:normal}
   .manager-users-table th:last-child .manager-user-action-heading {
-    display:block;width:min(200px,100%);margin-left:auto;text-align:left;
+    display:block;width:100%;margin-left:auto;text-align:left;
   }
   .manager-user-actions {
-    width:min(200px,100%);margin-left:auto;justify-content:flex-start;
+    width:100%;margin-left:auto;justify-content:flex-start;
   }
   .manager-user-actions > button {
-    flex:1 1 0;min-width:0;padding-inline:8px;
+    flex:1 1 auto;min-width:max-content;padding-inline:10px;font-size:clamp(12px,.95vw,14px);white-space:nowrap;
   }
 }
 
