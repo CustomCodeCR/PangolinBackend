@@ -427,6 +427,34 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
               "Los derechos de propiedad intelectual relacionados con el sitio web se regirán por la legislación vigente de la República de Costa Rica y por los instrumentos internacionales que resulten aplicables.",
               "Cualquier controversia será sometida a las autoridades competentes conforme al ordenamiento jurídico correspondiente."
             ]
+          },
+          {
+            "title": "Avisos de licencias de terceros",
+            "paragraphs": [
+              "Los componentes cartográficos de terceros utilizados en el sitio, incluidos d3-geo, topojson-client y world-atlas, conservan sus avisos de licencia y derechos de autor. Los datos geográficos de Natural Earth mantienen sus propias condiciones de uso. Estas referencias se incluyen para facilitar el cumplimiento de las atribuciones aplicables."
+            ],
+            "links": [
+              {
+                "label": "Avisos de licencias del globo",
+                "href": "/licenses/globe-third-party-notices.txt"
+              },
+              {
+                "label": "Licencia y código de D3-Geo",
+                "href": "https://github.com/d3/d3-geo"
+              },
+              {
+                "label": "Licencia y código de TopoJSON",
+                "href": "https://github.com/topojson/topojson-client"
+              },
+              {
+                "label": "Datos de World Atlas",
+                "href": "https://github.com/topojson/world-atlas"
+              },
+              {
+                "label": "Condiciones de Natural Earth",
+                "href": "https://www.naturalearthdata.com/about/terms-of-use/"
+              }
+            ]
           }
         ]
       }
@@ -844,11 +872,38 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
               "Intellectual property rights relating to the website are governed by the laws of the Republic of Costa Rica and applicable international instruments.",
               "Any dispute shall be submitted to the competent authorities under the applicable legal framework."
             ]
+          },
+          {
+            "title": "Third-party license notices",
+            "paragraphs": [
+              "Third-party mapping components used on the website, including d3-geo, topojson-client, and world-atlas, retain their license and copyright notices. Natural Earth geographic data remains subject to its own terms of use. These references are provided to support compliance with applicable attribution obligations."
+            ],
+            "links": [
+              {
+                "label": "Globe third-party notices",
+                "href": "/licenses/globe-third-party-notices.txt"
+              },
+              {
+                "label": "D3-Geo license and source",
+                "href": "https://github.com/d3/d3-geo"
+              },
+              {
+                "label": "TopoJSON license and source",
+                "href": "https://github.com/topojson/topojson-client"
+              },
+              {
+                "label": "World Atlas data",
+                "href": "https://github.com/topojson/world-atlas"
+              },
+              {
+                "label": "Natural Earth terms",
+                "href": "https://www.naturalearthdata.com/about/terms-of-use/"
+              }
+            ]
           }
         ]
       }
     }
-
 }
 const content = computed(() => documents[locale.value === 'en' ? 'en' : 'es'][documentType.value])
 </script>
