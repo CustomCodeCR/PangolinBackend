@@ -12,7 +12,7 @@ import { deleteManaged, newManagedId, readManagedComments, readManagedItinerarie
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 type Section = 'itineraries' | 'news' | 'media' | 'comments' | 'users' | 'site' | 'quotes'
 type AppRole = 'cliente' | 'administrador'
-interface ManagedUser { id: string; correo: string; nombre?: string; role: AppRole; activo: boolean }
+interface ManagedUser { id: string; correo: string; nombre?: string; role: AppRole; activo: boolean; savedActive: boolean }
 const tabFromUrl = new URLSearchParams(window.location.search).get('tab')
 const section = ref<Section>(tabFromUrl === 'usuarios' ? 'users' : tabFromUrl === 'cotizaciones' && officialQuotesEnabled ? 'quotes' : 'itineraries')
 const itineraries = ref<ManagedItinerary[]>([])
@@ -27,6 +27,7 @@ const usersLoading = ref(false)
 const usersError = ref('')
 const usersNotice = ref('')
 const savingUserId = ref<string | null>(null)
+const deletingUserId = ref<string | null>(null)
 const creatingUser = ref(false)
 const newUserForm = ref({ nombre: '', correo: '', role: 'cliente' as AppRole, codigoDynamics: '' })
 const previewSuffix = computed(() => authState.previewRole ? `?previewRole=${authState.previewRole}` : '')
@@ -191,7 +192,8 @@ async function loadUsers() {
         correo: item.correo,
         nombre: item.nombre,
         role: item.role,
-        activo: item.activo
+        activo: item.activo,
+        savedActive: item.activo
       })))
       totalPages = data.totalPages
       page++
@@ -257,6 +259,37 @@ async function updateUser(user: ManagedUser) {
     usersError.value = cause instanceof Error ? cause.message : 'No se pudo modificar la cuenta.'
   } finally {
     savingUserId.value = null
+  }
+}
+
+
+async function deleteUser(user: ManagedUser) {
+  // A dropdown change does not deactivate the real account until Guardar succeeds.
+  if (!isLiveAdmin.value || user.activo || user.savedActive || savingUserId.value || deletingUserId.value) return
+  if (user.id === authState.user?.id) {
+    usersError.value = 'No puedes eliminar tu propia cuenta.'
+    return
+  }
+  if (!window.confirm(`¿Eliminar la cuenta ${user.correo}? Dejará de tener acceso y desaparecerá de Gestión. Se conservarán las cotizaciones y el historial por seguridad. Esta acción no se puede deshacer desde esta pantalla.`)) return
+  usersError.value = ''
+  usersNotice.value = ''
+  deletingUserId.value = user.id
+  try {
+    const response = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
+      method: 'DELETE', credentials: 'same-origin', headers: { Accept: 'application/json' }
+    })
+    if (!response.ok) {
+      const problem = await response.json().catch(() => null)
+      throw new Error(problem?.error || `No se pudo eliminar la cuenta (HTTP ${response.status}).`)
+    }
+    await loadUsers()
+    usersNotice.value = `Cuenta ${user.correo} eliminada de Gestión. Su historial se conserva.`
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : 'No se pudo eliminar la cuenta.'
+    await loadUsers()
+    usersError.value = message
+  } finally {
+    deletingUserId.value = null
   }
 }
 
@@ -560,10 +593,10 @@ function useMediaForNews(item: ManagedMedia) {
         <header><div><p class="manager-eyebrow">CUENTAS REGISTRADAS</p><h2>{{ usersLoading ? 'Cargando…' : `${users.length} usuarios` }}</h2></div><button class="manager-add" :disabled="usersLoading" @click="loadUsers">Actualizar</button></header>
         <p v-if="usersError" class="manager-users-error" role="alert">{{ usersError }} <button v-if="!authState.previewRole" @click="loadUsers">Reintentar</button></p>
         <p v-if="usersNotice" class="manager-feedback" role="status">{{ usersNotice }}</p>
-        <p class="manager-user-hint">Por seguridad, no puedes modificar tu propia cuenta ni desactivar al último administrador activo. Se mostrará un aviso si lo intentas.</p>
+        <p class="manager-user-hint">Por seguridad, no puedes modificar tu propia cuenta ni desactivar al último administrador activo. Para eliminar una cuenta, primero seleccioná Desactivado y guardá el cambio.</p>
         <div v-if="usersLoading" class="manager-users-empty">Consultando el sistema de usuarios…</div>
         <div v-else-if="!usersError && users.length === 0" class="manager-users-empty">Aún no hay cuentas para mostrar.</div>
-        <div v-else-if="users.length" class="manager-users-table-wrap"><table class="manager-users-table"><thead><tr><th>Cuenta</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody><tr v-for="user in users" :key="user.id"><td><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td><td><FieldDropdown :model-value="user.role" :disabled="Boolean(authState.previewRole)" :aria-label="`Rol de ${user.correo}`" :options="[{value:'cliente',label:'Cliente'},{value:'administrador',label:'Administrador'}]" @update:model-value="value => user.role = value === 'administrador' ? 'administrador' : 'cliente'" /></td><td><FieldDropdown :model-value="String(user.activo)" :disabled="Boolean(authState.previewRole)" :aria-label="`Estado de ${user.correo}`" :options="[{value:'true',label:'Activo'},{value:'false',label:'Desactivado'}]" @update:model-value="value => user.activo = value === 'true'" /></td><td><button class="manager-user-save" :disabled="Boolean(authState.previewRole) || savingUserId === user.id" @click="updateUser(user)">{{ savingUserId === user.id ? 'Guardando…' : 'Guardar' }}</button></td></tr></tbody></table></div>
+        <div v-else-if="users.length" class="manager-users-table-wrap"><table class="manager-users-table"><thead><tr><th>Cuenta</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody><tr v-for="user in users" :key="user.id"><td><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td><td><FieldDropdown :model-value="user.role" :disabled="Boolean(authState.previewRole)" :aria-label="`Rol de ${user.correo}`" :options="[{value:'cliente',label:'Cliente'},{value:'administrador',label:'Administrador'}]" @update:model-value="value => user.role = value === 'administrador' ? 'administrador' : 'cliente'" /></td><td><FieldDropdown :model-value="String(user.activo)" :disabled="Boolean(authState.previewRole)" :aria-label="`Estado de ${user.correo}`" :options="[{value:'true',label:'Activo'},{value:'false',label:'Desactivado'}]" @update:model-value="value => user.activo = value === 'true'" /></td><td><div class="manager-user-actions"><button class="manager-user-save" type="button" :disabled="Boolean(authState.previewRole) || savingUserId === user.id || deletingUserId === user.id" @click="updateUser(user)">{{ savingUserId === user.id ? 'Guardando…' : 'Guardar' }}</button><button v-if="!user.activo && !user.savedActive && isLiveAdmin" class="manager-user-delete" type="button" :aria-label="`Eliminar cuenta de ${user.correo}`" :disabled="Boolean(savingUserId) || Boolean(deletingUserId)" @click="deleteUser(user)">{{ deletingUserId === user.id ? 'Eliminando…' : 'Eliminar' }}</button></div></td></tr></tbody></table></div>
       </section>
       <SiteVisualEditor v-if="section === 'site'" />
       <OfficialQuoteAdmin v-else-if="section === 'quotes'" embedded @total-change="quotesTotal = $event" />
@@ -1290,4 +1323,14 @@ function useMediaForNews(item: ManagedMedia) {
   .is-embedded .manager-item-actions{width:100%;justify-content:flex-end}
 }
 
+</style>
+
+<style scoped>
+/* The destructive action sits immediately beside Guardar without changing the table layout. */
+.manager-user-actions{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.manager-user-delete{min-height:42px;border:1px solid #d21b3b;border-radius:11px;padding:9px 13px;background:transparent;color:#cf1737;font:inherit;font-weight:750;cursor:pointer}
+.manager-user-delete:hover{background:rgba(210,27,59,.09)}
+.manager-user-delete:focus-visible{outline:2px solid #d21b3b;outline-offset:2px}
+.manager-user-delete:disabled{opacity:.55;cursor:not-allowed}
+html.theme-dark .manager-user-delete{color:#ff8fa5;border-color:#ee617b}
 </style>
