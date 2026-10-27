@@ -1,23 +1,30 @@
 // Illustrative port coordinates only. Never interpret these points as vessel GPS positions.
+// quoteCatalogName entries correspond to the verified official quote seaport names.
+// This lightweight mapping does not change the official quotes database, selections or API.
 import type { TrackingPoint } from '../types/tracking'
-
-const portCatalog: ReadonlyArray<{ keys: string[]; point: TrackingPoint }> = [
-  { keys: ['qingdao'], point: { name: 'Qingdao, China', lat: 36.0671, lon: 120.3826 } },
-  { keys: ['pto. caldera', 'puerto caldera', 'caldera'], point: { name: 'Caldera, Costa Rica', lat: 9.912, lon: -84.72 } },
-  { keys: ['mundra'], point: { name: 'Mundra, India', lat: 22.74, lon: 69.70 } },
-  { keys: ['cristobal', 'colon, panama'], point: { name: 'Cristóbal, Panamá', lat: 9.35, lon: -79.90 } },
-  { keys: ['san jose, costa rica'], point: { name: 'San José, Costa Rica', lat: 9.93, lon: -84.09 } }
-]
+import trackingPorts from './trackingPorts.json'
 
 function normalize(value: string): string {
-  return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+  return value.toLowerCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[.,/()\-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function containsLocation(haystack: string, needle: string): boolean {
+  const normalized = normalize(needle)
+  return normalized.length > 0 && (` ${haystack} `).includes(` ${normalized} `)
 }
 
 function locate(value: string | null | undefined): TrackingPoint | null {
   if (!value) return null
   const normalized = normalize(value)
-  for (const port of portCatalog) {
-    if (port.keys.some(key => normalized.includes(key))) return port.point
+  for (const port of trackingPorts) {
+    const names = [port.name, port.quoteCatalogName, ...port.aliases]
+    if (names.some(name => name && containsLocation(normalized, name))) {
+      return { name: port.name, lat: port.lat, lon: port.lon }
+    }
   }
   return null
 }
