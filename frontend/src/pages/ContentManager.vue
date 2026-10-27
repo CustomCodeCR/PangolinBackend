@@ -549,10 +549,10 @@ function useMediaForNews(item: ManagedMedia) {
       <section v-if="section === 'users' && isLiveAdmin" class="manager-users-card manager-users-create" aria-label="Agregar usuario">
         <header class="manager-create-title"><div><h2><span class="manager-create-plus" aria-hidden="true">+</span> Agregar usuario</h2><p>Crea una nueva cuenta para que pueda acceder al sistema.</p></div></header>
         <form class="manager-create-form" @submit.prevent="createUser">
-          <label>Nombre <span aria-hidden="true">*</span><input v-model.trim="newUserForm.nombre" required minlength="2" maxlength="500" placeholder="Ej. Juan Pérez" autocomplete="name" /></label>
-          <label>Correo electrónico <span aria-hidden="true">*</span><input v-model.trim="newUserForm.correo" required type="email" maxlength="255" placeholder="Ej. usuario@empresa.com" autocomplete="email" /></label>
-          <label>Rol <span aria-hidden="true">*</span><select v-model="newUserForm.role"><option value="cliente">Cliente</option><option value="administrador">Administrador</option></select></label>
-          <label v-if="newUserForm.role === 'cliente'">Código Dynamics <span aria-hidden="true">*</span><input v-model.trim="newUserForm.codigoDynamics" required maxlength="200" placeholder="Ej. C001234" autocomplete="off" /></label>
+          <label>Nombre<input v-model.trim="newUserForm.nombre" required minlength="2" maxlength="500" placeholder="Ej. Juan Pérez" autocomplete="name" /></label>
+          <label>Correo electrónico<input v-model.trim="newUserForm.correo" required type="email" maxlength="255" placeholder="Ej. usuario@empresa.com" autocomplete="email" /></label>
+          <label>Rol<select v-model="newUserForm.role"><option value="cliente">Cliente</option><option value="administrador">Administrador</option></select></label>
+          <label v-if="newUserForm.role === 'cliente'">Código Dynamics (opcional)<input v-model.trim="newUserForm.codigoDynamics" maxlength="200" placeholder="Ej. C001234" autocomplete="off" /></label>
           <button class="manager-user-save manager-create-submit" type="submit" :disabled="creatingUser">{{ creatingUser ? 'Creando…' : 'Crear usuario' }}</button>
         </form>
       </section>
