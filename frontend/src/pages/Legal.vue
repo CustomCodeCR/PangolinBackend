@@ -22,7 +22,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
           {
             "title": "Responsable del tratamiento",
             "paragraphs": [
-              "Aduanera Castro Fallas S.A., cédula jurídica 3-101-035767, con domicilio en Barrio San José, Curridabat, San José, Costa Rica, frente a Café Volio, en adelante denominada «Castro Fallas», es responsable del tratamiento de los datos personales que reciba y administre a través del presente sitio web, en los términos establecidos por la legislación aplicable.",
+              "Aduanera Castro Fallas S.A., cédula jurídica 3-101-035767, con domicilio en Barrio San José, Curridabat, San José, Costa Rica, frente a Café Volio, es responsable del tratamiento de los datos personales que reciba y administre a través del presente sitio web, en los términos establecidos por la legislación aplicable.",
               "Los titulares podrán presentar consultas o solicitudes relacionadas con sus datos personales mediante los canales de contacto oficiales de la empresa.",
               "Contacto para solicitudes de privacidad: comercial@castrofallas.com; teléfono +506 2272-6772. El titular podrá ejercer sus derechos por estos medios, sin perjuicio de otros canales habilitados."
             ]
@@ -162,7 +162,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
           {
             "title": "Identificación del titular",
             "paragraphs": [
-              "El presente sitio web es operado bajo el nombre comercial Castro Fallas, por Aduanera Castro Fallas S.A., cédula jurídica 3-101-035767, con domicilio en Barrio San José, Curridabat, San José, Costa Rica, frente a Café Volio, en adelante denominada «Castro Fallas».",
+              "El presente sitio web es operado bajo el nombre comercial Castro Fallas, por Aduanera Castro Fallas S.A., cédula jurídica 3-101-035767, con domicilio en Barrio San José, Curridabat, San José, Costa Rica, frente a Café Volio.",
               "Para consultas relacionadas con estos Términos y Condiciones, los usuarios podrán escribir al correo electrónico comercial@castrofallas.com o llamar al teléfono +506 2272-6772."
             ]
           },
@@ -479,7 +479,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
           {
             "title": "Data controller",
             "paragraphs": [
-              "Aduanera Castro Fallas S.A., corporate registration number 3-101-035767, located at Barrio San José, Curridabat, San José, Costa Rica, opposite Café Volio, hereinafter “Castro Fallas”, is responsible for processing the personal data it receives and manages through this website, as provided by applicable law.",
+              "Aduanera Castro Fallas S.A., corporate registration number 3-101-035767, located at Barrio San José, Curridabat, San José, Costa Rica, opposite Café Volio, is responsible for processing the personal data it receives and manages through this website, as provided by applicable law.",
               "Data subjects may submit inquiries or requests regarding their personal information through the company's official contact channels.",
               "Contact for privacy requests: comercial@castrofallas.com; telephone +506 2272-6772. Individuals may use these contact details to exercise their rights, without prejudice to other available channels."
             ]
@@ -619,7 +619,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
           {
             "title": "Website operator",
             "paragraphs": [
-              "This website is operated under the trade name Castro Fallas by Aduanera Castro Fallas S.A., corporate registration number 3-101-035767, located at Barrio San José, Curridabat, San José, Costa Rica, opposite Café Volio, hereinafter “Castro Fallas”.",
+              "This website is operated under the trade name Castro Fallas by Aduanera Castro Fallas S.A., corporate registration number 3-101-035767, located at Barrio San José, Curridabat, San José, Costa Rica, opposite Café Volio.",
               "For inquiries related to these Terms and Conditions, users may write to comercial@castrofallas.com or call +506 2272-6772."
             ]
           },
