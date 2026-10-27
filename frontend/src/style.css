@@ -5350,3 +5350,12 @@ html.theme-dark .app-site.administration-page .off-admin .off-admin-form :is(sel
 html.theme-dark .app-site.off-admin .off-admin-form.off-admin-form :is(select, textarea) {
   background-color: #060f21 !important;
 }
+
+
+/* PR #94: cargas de Noticias y Multimedia en la paleta azul oscuro. */
+/* El editor de Contenido mantiene su botón de archivo rojo; solo se
+   oscurece el fondo de la caja de carga en modo oscuro. */
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-form input[type="file"],
+html.theme-dark .content-manager .manager-form input[type="file"] {
+  background-color:#060f21 !important;
+}
