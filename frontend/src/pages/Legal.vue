@@ -288,7 +288,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
           {
             "title": "Categorías de cookies",
             "paragraphs": [
-              "En la versión del sitio cuyo código se ha revisado, la autenticación utiliza la cookie propia «cf_session», configurada con HttpOnly, SameSite Strict y una duración máxima de ocho horas. El atributo Secure depende de la configuración del servidor y debe verificarse en el entorno de producción con HTTPS. Los ajustes de idioma pueden guardarse mediante almacenamiento local del navegador, que no es una cookie.",
+              "Para mantener las sesiones de usuarios autenticados, el sitio utiliza la cookie propia «cf_session», con una duración máxima de ocho horas y mecanismos de protección frente al acceso no autorizado. Las preferencias de idioma pueden almacenarse localmente en el navegador, mediante un mecanismo distinto de las cookies.",
               "Cookies estrictamente necesarias: permiten el funcionamiento técnico y seguro del sitio web, incluyendo, cuando corresponda, la gestión de sesiones, autenticación y protección de funcionalidades. Su utilización se limitará a las necesidades legítimas de funcionamiento y seguridad.",
               "Cookies de preferencias: permiten conservar determinadas opciones del usuario, como el idioma o las preferencias de visualización, cuando dichas funcionalidades estén implementadas.",
               "Cookies analíticas: cuando sean utilizadas, permiten obtener información estadística sobre la navegación y utilización del sitio web. Su implementación y tratamiento estarán sujetos a las obligaciones de información y consentimiento aplicables.",
@@ -299,7 +299,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
             "title": "Finalidades de utilización",
             "paragraphs": [
               "Las cookies y tecnologías similares que efectivamente se implementen se utilizarán exclusivamente para las finalidades informadas al usuario.",
-              "La cookie de sesión permite reconocer al usuario autenticado y proteger el acceso a funciones privadas; el almacenamiento local permite recordar preferencias del navegador. La política no afirma que existan cookies de publicidad o analítica de terceros mientras dichas herramientas no sean verificadas como efectivamente activas."
+              "La cookie de sesión permite reconocer al usuario autenticado y proteger el acceso a funciones privadas; el almacenamiento local permite recordar preferencias del navegador. Las cookies analíticas o publicitarias, si fueran incorporadas, deberán identificarse y utilizarse conforme a las obligaciones legales de información y consentimiento aplicables."
             ],
             "bullets": [
               "Garantizar el funcionamiento y la seguridad del sitio.",
@@ -316,7 +316,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
               "Las cookies de sesión se utilizan durante la navegación y dejan de estar disponibles conforme a las condiciones de cierre o expiración correspondientes.",
               "Las cookies persistentes permanecen almacenadas por el período establecido para su finalidad o hasta que el usuario las elimine.",
               "El plazo concreto de conservación dependerá de las tecnologías efectivamente utilizadas y de su configuración.",
-              "La cookie técnica «cf_session» tiene en el código revisado una duración máxima de ocho horas. El almacenamiento local de preferencias puede mantenerse hasta que el usuario lo borre o cambie su configuración. Otros plazos solo deberán indicarse tras verificar las tecnologías realmente utilizadas."
+              "La cookie técnica «cf_session» tiene una duración máxima de ocho horas. Los datos de preferencias guardados en almacenamiento local pueden permanecer hasta que el usuario los elimine o modifique la configuración correspondiente."
             ]
           },
           {
@@ -746,7 +746,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
           {
             "title": "Cookie categories",
             "paragraphs": [
-              "In the reviewed website code, authentication uses the first-party “cf_session” cookie, configured with HttpOnly, SameSite Strict, and a maximum lifetime of eight hours. The Secure attribute depends on server configuration and must be verified in the HTTPS production environment. Language preferences may be saved in browser local storage, which is not a cookie.",
+              "To maintain authenticated user sessions, the website uses the first-party “cf_session” cookie, with a maximum lifetime of eight hours and protections against unauthorized access. Language preferences may be stored locally in the browser through a mechanism distinct from cookies.",
               "Strictly necessary cookies: support technical and secure operation, including session management, authentication, and protection of website functionality where applicable. Their use is limited to legitimate security and functional needs.",
               "Preference cookies: remember user choices such as language or display settings where those features exist.",
               "Analytics cookies: where used, collect statistical information about website navigation and use, subject to applicable notice and consent duties.",
@@ -757,7 +757,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
             "title": "Purposes of use",
             "paragraphs": [
               "Cookies and similar technologies that are actually implemented will be used only for purposes disclosed to users.",
-              "The session cookie recognizes authenticated users and helps protect access to private functions; local storage can remember browser preferences. This policy does not claim that third-party advertising or analytics cookies are present unless those tools have been verified as actively deployed."
+              "The session cookie recognizes authenticated users and helps protect access to private functions; local storage can remember browser preferences. Any analytics or advertising cookies introduced in the future must be identified and used in accordance with applicable notice and consent requirements."
             ],
             "bullets": [
               "Ensure website functionality and security.",
@@ -774,7 +774,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
               "Session cookies are used during browsing and expire under the applicable session or closure settings.",
               "Persistent cookies remain stored for the period established for their purpose or until deleted by the user.",
               "Specific retention periods depend on the technologies used and their configurations.",
-              "In the reviewed code, the technical “cf_session” cookie has a maximum lifetime of eight hours. Preference data in browser local storage may remain until the user clears it or changes the relevant settings. Other retention periods should only be stated after verifying technologies actually used."
+              "The technical “cf_session” cookie has a maximum lifetime of eight hours. Preference data in local browser storage may remain until users delete it or change the relevant settings."
             ]
           },
           {
