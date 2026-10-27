@@ -139,8 +139,10 @@ def main():
             status_trigger = browser.find_element(
                 By.CSS_SELECTOR, '.manager-users-table tbody tr:first-child td[data-label="Estado"] .cf-dropdown__trigger'
             )
-            browser.execute_script("arguments[0].scrollIntoView({block:'center'});", status_trigger)
-            status_trigger.click()
+            # ChromeDriver device emulation sometimes translates a scrolled click
+            # into an off-screen physical coordinate; dispatch the DOM click directly.
+            browser.execute_script("arguments[0].scrollIntoView({block:'center',behavior:'instant'});", status_trigger)
+            browser.execute_script("arguments[0].click();", status_trigger)
             WebDriverWait(browser, 5).until(
                 lambda d: bool(d.find_elements(By.CSS_SELECTOR, ".cf-dropdown__menu"))
             )
