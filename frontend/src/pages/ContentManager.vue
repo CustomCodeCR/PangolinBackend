@@ -596,7 +596,7 @@ function useMediaForNews(item: ManagedMedia) {
         <p class="manager-user-hint">Por seguridad, no puedes modificar tu propia cuenta ni desactivar al último administrador activo. Para eliminar una cuenta, primero seleccioná Desactivado y guardá el cambio.</p>
         <div v-if="usersLoading" class="manager-users-empty">Consultando el sistema de usuarios…</div>
         <div v-else-if="!usersError && users.length === 0" class="manager-users-empty">Aún no hay cuentas para mostrar.</div>
-        <div v-else-if="users.length" class="manager-users-table-wrap"><table class="manager-users-table"><thead><tr><th>Cuenta</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody><tr v-for="user in users" :key="user.id"><td><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td><td><FieldDropdown :model-value="user.role" :disabled="Boolean(authState.previewRole)" :aria-label="`Rol de ${user.correo}`" :options="[{value:'cliente',label:'Cliente'},{value:'administrador',label:'Administrador'}]" @update:model-value="value => user.role = value === 'administrador' ? 'administrador' : 'cliente'" /></td><td><FieldDropdown :model-value="String(user.activo)" :disabled="Boolean(authState.previewRole)" :aria-label="`Estado de ${user.correo}`" :options="[{value:'true',label:'Activo'},{value:'false',label:'Desactivado'}]" @update:model-value="value => user.activo = value === 'true'" /></td><td><div class="manager-user-actions"><button class="manager-user-save" type="button" :disabled="Boolean(authState.previewRole) || savingUserId === user.id || deletingUserId === user.id" @click="updateUser(user)">{{ savingUserId === user.id ? 'Guardando…' : 'Guardar' }}</button><button class="manager-user-delete" type="button" :aria-label="`Eliminar cuenta de ${user.correo}`" :disabled="!isLiveAdmin || user.activo || user.savedActive || user.id === authState.user?.id || Boolean(savingUserId) || Boolean(deletingUserId)" :title="user.activo || user.savedActive ? 'Primero desactivá y guardá la cuenta para poder eliminarla.' : 'Eliminar cuenta desactivada'" @click="deleteUser(user)">{{ deletingUserId === user.id ? 'Eliminando…' : 'Eliminar' }}</button></div></td></tr></tbody></table></div>
+        <div v-else-if="users.length" class="manager-users-table-wrap"><table class="manager-users-table"><thead><tr><th>Cuenta</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody><tr v-for="user in users" :key="user.id"><td data-label="Cuenta"><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td><td data-label="Rol"><FieldDropdown :min-menu-width="190" :model-value="user.role" :disabled="Boolean(authState.previewRole)" :aria-label="`Rol de ${user.correo}`" :options="[{value:'cliente',label:'Cliente'},{value:'administrador',label:'Administrador'}]" @update:model-value="value => user.role = value === 'administrador' ? 'administrador' : 'cliente'" /></td><td data-label="Estado"><FieldDropdown :min-menu-width="190" :model-value="String(user.activo)" :disabled="Boolean(authState.previewRole)" :aria-label="`Estado de ${user.correo}`" :options="[{value:'true',label:'Activo'},{value:'false',label:'Desactivado'}]" @update:model-value="value => user.activo = value === 'true'" /></td><td data-label="Acción"><div class="manager-user-actions"><button class="manager-user-save" type="button" :disabled="Boolean(authState.previewRole) || savingUserId === user.id || deletingUserId === user.id" @click="updateUser(user)">{{ savingUserId === user.id ? 'Guardando…' : 'Guardar' }}</button><button class="manager-user-delete" type="button" :aria-label="`Eliminar cuenta de ${user.correo}`" :disabled="!isLiveAdmin || user.activo || user.savedActive || user.id === authState.user?.id || Boolean(savingUserId) || Boolean(deletingUserId)" :title="user.activo || user.savedActive ? 'Primero desactivá y guardá la cuenta para poder eliminarla.' : 'Eliminar cuenta desactivada'" @click="deleteUser(user)">{{ deletingUserId === user.id ? 'Eliminando…' : 'Eliminar' }}</button></div></td></tr></tbody></table></div>
       </section>
       <SiteVisualEditor v-if="section === 'site'" />
       <OfficialQuoteAdmin v-else-if="section === 'quotes'" embedded @total-change="quotesTotal = $event" />
@@ -1335,4 +1335,71 @@ function useMediaForNews(item: ManagedMedia) {
 .manager-user-delete:disabled{opacity:.65;cursor:not-allowed;color:var(--admin-muted,#9296a2);border-color:var(--admin-border,#646a78);background:transparent}
 html.theme-dark .manager-user-delete:not(:disabled){color:#ff8fa5;border-color:#ee617b}
 html.theme-dark .manager-user-delete:disabled{color:#929baa;border-color:#485068}
+
+/* Gestión de usuarios: layout responsivo sin tabla con scroll lateral.
+   A partir de tablet cada registro se convierte en tarjeta legible. */
+@media (max-width:1050px) {
+  .content-manager .manager-users-table-wrap,
+  .content-manager.is-embedded .manager-users-table-wrap {
+    width:100%; max-width:100%; overflow:visible;
+    border:0; border-radius:0; background:transparent;
+  }
+  .content-manager .manager-users-table,
+  .content-manager.is-embedded .manager-users-table {
+    display:block; width:100%; min-width:0; border-collapse:separate;
+  }
+  .content-manager .manager-users-table thead {display:none}
+  .content-manager .manager-users-table tbody {display:grid; gap:12px; min-width:0}
+  .content-manager .manager-users-table tbody tr {
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:14px 12px; min-width:0; padding:16px;
+    border:1px solid var(--admin-border,#d5d7dd);
+    border-radius:14px; background:var(--admin-input,rgba(255,255,255,.035));
+  }
+  .content-manager .manager-users-table tbody td,
+  .content-manager.is-embedded .manager-users-table tbody td,
+  .content-manager .manager-users-table tbody td:first-child {
+    display:flex; flex-direction:column; gap:7px; width:100%;
+    min-width:0; max-width:100%; box-sizing:border-box; padding:0;
+    border:0; white-space:normal; overflow-wrap:anywhere;
+  }
+  .content-manager .manager-users-table tbody td:first-child,
+  .content-manager .manager-users-table tbody td:last-child {grid-column:1/-1}
+  .content-manager .manager-users-table tbody td::before {
+    content:attr(data-label); display:block; font-size:11px;
+    line-height:1.2; font-weight:800; letter-spacing:.05em;
+    text-transform:uppercase; color:var(--admin-muted,#9198a5);
+  }
+  .content-manager .manager-users-table tbody td:first-child strong {
+    font-size:15px; line-height:1.3;
+  }
+  .content-manager .manager-users-table tbody td:first-child small {
+    margin:0; overflow-wrap:anywhere; white-space:normal;
+  }
+  .content-manager .manager-users-table tbody td .cf-dropdown,
+  .content-manager .manager-users-table tbody td .cf-dropdown__trigger {
+    box-sizing:border-box; width:100%; min-width:0;
+  }
+  .content-manager .manager-users-table tbody td .cf-dropdown__value {
+    overflow-wrap:normal; white-space:normal;
+  }
+  .content-manager .manager-users-table .manager-user-actions {
+    justify-content:flex-start; width:100%; min-width:0;
+  }
+  .content-manager .manager-users-table .manager-user-actions > button {
+    flex:1 1 0; min-width:0; min-height:44px;
+  }
+}
+@media (max-width:650px) {
+  .content-manager .manager-users-table tbody tr {
+    grid-template-columns:minmax(0,1fr); padding:13px;
+  }
+  .content-manager .manager-users-table tbody td:first-child,
+  .content-manager .manager-users-table tbody td:last-child {
+    grid-column:auto;
+  }
+  .content-manager .manager-users-card,
+  .content-manager.is-embedded .manager-users-card {min-width:0}
+}
+
 </style>
