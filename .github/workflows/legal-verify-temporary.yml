@@ -1,0 +1,52 @@
+name: Prueba temporal de legales sin cambios visuales
+on:
+  push:
+    branches:
+      - legal/textos-juridicos-20261027
+    paths:
+      - frontend/src/pages/Legal.vue
+      - .github/workflows/legal-verify-temporary.yml
+permissions:
+  contents: read
+jobs:
+  legal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Instalar dependencias
+        working-directory: frontend
+        run: npm ci
+      - name: Validar TypeScript, Vue, build y SEO generado
+        working-directory: frontend
+        run: |
+          npm run build
+          npm run seo:check
+      - name: Contratos de frontend existentes
+        working-directory: frontend
+        run: node scripts/test-frontend-merge.cjs
+      - name: Smoke Chrome de rutas publicas
+        working-directory: frontend
+        run: node scripts/smoke-browser.cjs
+      - name: Comprobar legales sin fecha y rutas
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const assert = require('node:assert/strict');
+          const s=fs.readFileSync('frontend/src/pages/Legal.vue','utf8');
+          assert.equal(s.includes('Última actualización'),false);
+          assert.equal(s.includes('Last updated'),false);
+          assert.equal(s.includes('en adelante denominada'),false);
+          assert.equal(s.includes('hereinafter'),false);
+          assert.equal(s.includes('class="legal-intro"'),false);
+          assert.equal((s.match(/"title":/g)||[]).length>8,true);
+          for(const p of ['/privacidad','/terminos','/cookies','/licencias']){
+            assert.ok(fs.readFileSync('frontend/src/Root.vue','utf8').includes(p));
+          }
+          console.log('PASS legal routes, content and date removal');
+          NODE
