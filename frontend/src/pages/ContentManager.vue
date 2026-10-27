@@ -1339,7 +1339,7 @@ html.theme-dark .manager-user-delete:disabled{color:#929baa;border-color:#485068
 
 /* Tabla de escritorio: los títulos siguen exactamente la posición de
    los selectores y del grupo de botones, sin alterar las tarjetas móviles. */
-@media (min-width:821px) {
+@media (min-width:1001px) {
   .manager-users-table {table-layout:fixed;width:100%}
   .manager-users-table th:nth-child(1) {width:32%}
   .manager-users-table th:nth-child(2) {width:22%}
@@ -1358,8 +1358,8 @@ html.theme-dark .manager-user-delete:disabled{color:#929baa;border-color:#485068
 }
 
 /* Gestión de usuarios: layout responsivo sin tabla con scroll lateral.
-   A partir de tablet cada registro se convierte en tarjeta legible. */
-@media (max-width:820px) {
+   Bajo 1001px cada registro se convierte en tarjeta legible, sin desbordar botones ni menús. */
+@media (max-width:1000px) {
   .content-manager .manager-users-table-wrap,
   .content-manager.is-embedded .manager-users-table-wrap {
     width:100%; max-width:100%; overflow:visible;
