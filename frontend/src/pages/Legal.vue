@@ -23,7 +23,8 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
             "title": "Responsable del tratamiento",
             "paragraphs": [
               "Aduanera Castro Fallas S.A., cédula jurídica 3-101-035767, con domicilio en Barrio San José, Curridabat, San José, Costa Rica, frente a Café Volio, en adelante denominada «Castro Fallas», es responsable del tratamiento de los datos personales que reciba y administre a través del presente sitio web, en los términos establecidos por la legislación aplicable.",
-              "Los titulares podrán presentar consultas o solicitudes relacionadas con sus datos personales mediante los canales de contacto oficiales de la empresa."
+              "Los titulares podrán presentar consultas o solicitudes relacionadas con sus datos personales mediante los canales de contacto oficiales de la empresa.",
+              "Contacto para solicitudes de privacidad: comercial@castrofallas.com; teléfono +506 2272-6772. El titular podrá ejercer sus derechos por estos medios, sin perjuicio de otros canales habilitados."
             ]
           },
           {
@@ -50,7 +51,8 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
           {
             "title": "Finalidades del tratamiento",
             "paragraphs": [
-              "Los datos personales podrán ser tratados para las siguientes finalidades, según corresponda:"
+              "Los datos personales podrán ser tratados para las siguientes finalidades, según corresponda:",
+              "Estas finalidades se aplican según la relación concreta: un visitante que consulta el sitio, una persona que solicita una cotización, un usuario con cuenta de seguimiento de carga o un representante de cliente o proveedor no necesariamente proporcionan las mismas categorías de datos."
             ],
             "bullets": [
               "Atender consultas, solicitudes de información y comunicaciones remitidas mediante el sitio web.",
@@ -68,7 +70,8 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
             "paragraphs": [
               "Los datos personales podrán obtenerse directamente de los titulares a través de formularios, comunicaciones electrónicas, solicitudes de cotización, procesos de registro o documentación entregada para la prestación de servicios.",
               "Cuando resulte legalmente procedente, también podrán recibirse datos de representantes, clientes, proveedores u otros terceros legítimamente autorizados.",
-              "Castro Fallas procurará informar al titular sobre las finalidades y condiciones del tratamiento en el momento de su recopilación."
+              "Castro Fallas procurará informar al titular sobre las finalidades y condiciones del tratamiento en el momento de su recopilación.",
+              "En las cotizaciones y operaciones de transporte, los datos podrán comprender la identificación del contacto, origen y destino, datos de la mercancía, fechas, documentos de embarque y referencias operativas que el usuario suministre. En el seguimiento de carga, la información se utilizará según los permisos de acceso y las necesidades legítimas de la operación."
             ]
           },
           {
@@ -117,14 +120,16 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
               "Los titulares podrán ejercer los derechos reconocidos por la legislación costarricense, incluidos, según proceda, el acceso, la rectificación, la actualización, la supresión de datos y los demás mecanismos de tutela de su autodeterminación informativa.",
               "Las solicitudes deberán permitir la identificación razonable del titular y señalar el derecho que se pretende ejercer.",
               "Castro Fallas atenderá las solicitudes dentro de los plazos y condiciones previstos por la normativa aplicable.",
-              "Cuando la empresa no pueda acceder a una solicitud por existir una obligación legal de conservación u otra causa legítima, comunicará los motivos correspondientes."
+              "Cuando la empresa no pueda acceder a una solicitud por existir una obligación legal de conservación u otra causa legítima, comunicará los motivos correspondientes.",
+              "Las solicitudes de acceso, rectificación o supresión de datos personales deberán resolverse gratuitamente en un plazo de cinco días hábiles a partir de su recepción, conforme al artículo 7 de la Ley N.º 8968 y las reglas reglamentarias aplicables, sin perjuicio de los supuestos en que proceda requerir información adicional."
             ]
           },
           {
             "title": "Ejercicio de derechos y reclamaciones",
             "paragraphs": [
               "Las consultas y solicitudes relacionadas con el tratamiento de datos personales podrán dirigirse a Castro Fallas mediante sus canales oficiales de contacto.",
-              "Sin perjuicio de los mecanismos de atención de la empresa, los titulares podrán acudir ante la Agencia de Protección de Datos de los Habitantes (PRODHAB) cuando consideren vulnerados sus derechos y resulte procedente conforme a la legislación aplicable."
+              "Sin perjuicio de los mecanismos de atención de la empresa, los titulares podrán acudir ante la Agencia de Protección de Datos de los Habitantes (PRODHAB) cuando consideren vulnerados sus derechos y resulte procedente conforme a la legislación aplicable.",
+              "Para facilitar la identificación y respuesta, la solicitud podrá indicar el nombre del titular, un medio de respuesta, los datos objeto de la gestión y una descripción del derecho ejercido. Solo se solicitará la información adicional que resulte necesaria para verificar su identidad y tramitar la gestión."
             ]
           },
           {
@@ -158,7 +163,8 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
             "title": "Identificación del titular",
             "paragraphs": [
               "El presente sitio web es operado bajo el nombre comercial Castro Fallas, por Aduanera Castro Fallas S.A., cédula jurídica 3-101-035767, con domicilio en Barrio San José, Curridabat, San José, Costa Rica, frente a Café Volio, en adelante denominada «Castro Fallas».",
-              "Para consultas relacionadas con estos Términos y Condiciones, los usuarios podrán utilizar los medios de contacto oficiales publicados en el sitio web."
+              "Para consultas relacionadas con estos Términos y Condiciones, los usuarios podrán utilizar los medios de contacto oficiales publicados en el sitio web.",
+              "Para ejercer derechos o presentar consultas relacionadas con estos términos, el usuario podrá escribir a comercial@castrofallas.com o llamar al +506 2272-6772, sin perjuicio de los demás canales oficiales publicados por la empresa."
             ]
           },
           {
@@ -182,7 +188,8 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
             "paragraphs": [
               "Cuando determinadas funcionalidades requieran registro o autenticación, el usuario será responsable de proporcionar información veraz y mantener la confidencialidad de sus credenciales.",
               "El usuario deberá comunicar oportunamente cualquier acceso no autorizado del que tenga conocimiento.",
-              "Castro Fallas podrá restringir el acceso a cuentas cuando existan motivos razonables relacionados con la seguridad, el fraude o el incumplimiento de estas condiciones, respetando las disposiciones legales aplicables."
+              "Castro Fallas podrá restringir el acceso a cuentas cuando existan motivos razonables relacionados con la seguridad, el fraude o el incumplimiento de estas condiciones, respetando las disposiciones legales aplicables.",
+              "Quien utilice una cuenta en representación de una empresa deberá contar con las facultades necesarias para actuar en su nombre. El acceso digital no autoriza, por sí mismo, la contratación de servicios ni sustituye las autorizaciones requeridas para cada operación."
             ]
           },
           {
@@ -191,7 +198,8 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
               "Los formularios de cotización disponibles en el sitio web permiten solicitar información y propuestas relacionadas con los servicios ofrecidos por Castro Fallas.",
               "La presentación de una solicitud no constituye, por sí misma, aceptación contractual, reserva de espacio, confirmación de transporte ni obligación de prestación del servicio.",
               "Las cotizaciones emitidas por Castro Fallas estarán sujetas a su vigencia, alcance, condiciones comerciales, disponibilidad y demás estipulaciones expresamente comunicadas.",
-              "La contratación de un servicio requerirá el cumplimiento de las condiciones particulares aplicables y la aceptación correspondiente."
+              "La contratación de un servicio requerirá el cumplimiento de las condiciones particulares aplicables y la aceptación correspondiente.",
+              "Las condiciones de transporte, despacho aduanero, almacenamiento, seguros, impuestos, recargos, reclamaciones y demás aspectos de cada servicio, cuando correspondan, se regirán por la propuesta aceptada y por los documentos contractuales aplicables, no únicamente por estas condiciones de uso del sitio."
             ]
           },
           {
@@ -280,6 +288,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
           {
             "title": "Categorías de cookies",
             "paragraphs": [
+              "En la versión del sitio cuyo código se ha revisado, la autenticación utiliza la cookie propia «cf_session», configurada con HttpOnly, SameSite Strict y una duración máxima de ocho horas. El atributo Secure depende de la configuración del servidor y debe verificarse en el entorno de producción con HTTPS. Los ajustes de idioma pueden guardarse mediante almacenamiento local del navegador, que no es una cookie.",
               "Cookies estrictamente necesarias: permiten el funcionamiento técnico y seguro del sitio web, incluyendo, cuando corresponda, la gestión de sesiones, autenticación y protección de funcionalidades. Su utilización se limitará a las necesidades legítimas de funcionamiento y seguridad.",
               "Cookies de preferencias: permiten conservar determinadas opciones del usuario, como el idioma o las preferencias de visualización, cuando dichas funcionalidades estén implementadas.",
               "Cookies analíticas: cuando sean utilizadas, permiten obtener información estadística sobre la navegación y utilización del sitio web. Su implementación y tratamiento estarán sujetos a las obligaciones de información y consentimiento aplicables.",
@@ -289,7 +298,8 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
           {
             "title": "Finalidades de utilización",
             "paragraphs": [
-              "Las cookies y tecnologías similares que efectivamente se implementen se utilizarán exclusivamente para las finalidades informadas al usuario."
+              "Las cookies y tecnologías similares que efectivamente se implementen se utilizarán exclusivamente para las finalidades informadas al usuario.",
+              "La cookie de sesión permite reconocer al usuario autenticado y proteger el acceso a funciones privadas; el almacenamiento local permite recordar preferencias del navegador. La política no afirma que existan cookies de publicidad o analítica de terceros mientras dichas herramientas no sean verificadas como efectivamente activas."
             ],
             "bullets": [
               "Garantizar el funcionamiento y la seguridad del sitio.",
@@ -305,7 +315,8 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
               "Las cookies pueden ser de sesión o persistentes.",
               "Las cookies de sesión se utilizan durante la navegación y dejan de estar disponibles conforme a las condiciones de cierre o expiración correspondientes.",
               "Las cookies persistentes permanecen almacenadas por el período establecido para su finalidad o hasta que el usuario las elimine.",
-              "El plazo concreto de conservación dependerá de las tecnologías efectivamente utilizadas y de su configuración."
+              "El plazo concreto de conservación dependerá de las tecnologías efectivamente utilizadas y de su configuración.",
+              "La cookie técnica «cf_session» tiene en el código revisado una duración máxima de ocho horas. El almacenamiento local de preferencias puede mantenerse hasta que el usuario lo borre o cambie su configuración. Otros plazos solo deberán indicarse tras verificar las tecnologías realmente utilizadas."
             ]
           },
           {
@@ -313,7 +324,8 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
             "paragraphs": [
               "Cuando el uso de cookies o tecnologías similares implique un tratamiento de datos personales sujeto a consentimiento, Castro Fallas solicitará la autorización correspondiente conforme a la legislación aplicable.",
               "El usuario podrá administrar las preferencias que la plataforma ponga a su disposición y modificar o retirar el consentimiento cuando legalmente proceda.",
-              "La desactivación de determinados mecanismos estrictamente necesarios puede afectar el funcionamiento de funcionalidades esenciales del sitio web."
+              "La desactivación de determinados mecanismos estrictamente necesarios puede afectar el funcionamiento de funcionalidades esenciales del sitio web.",
+              "La existencia de esta política no sustituye un mecanismo de consentimiento cuando legalmente resulte necesario. Si se incorporan cookies no esenciales sujetas a consentimiento, deberán identificarse y gestionarse antes de su utilización conforme a la normativa aplicable."
             ]
           },
           {
@@ -395,7 +407,8 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
               "El sitio web podrá utilizar programas, bibliotecas, componentes o herramientas desarrolladas por terceros y distribuidas bajo licencias de software libre, de código abierto o comerciales.",
               "Los derechos sobre dichos componentes permanecerán en sus respectivos titulares.",
               "Su utilización se regirá por las condiciones de cada licencia, incluidas las obligaciones de atribución, conservación de avisos legales, distribución o disponibilidad de información cuando resulten aplicables.",
-              "Las licencias de terceros no alterarán por sí mismas la titularidad de los contenidos originales de Castro Fallas."
+              "Las licencias de terceros no alterarán por sí mismas la titularidad de los contenidos originales de Castro Fallas.",
+              "En relación con el globo geográfico, el proyecto utiliza d3-geo, topojson-client y world-atlas. Sus licencias y los avisos de atribución aplicables deben conservarse y mantenerse disponibles; los datos geográficos procedentes de Natural Earth conservan sus propias condiciones."
             ]
           },
           {
@@ -468,7 +481,8 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
             "title": "Data controller",
             "paragraphs": [
               "Aduanera Castro Fallas S.A., corporate registration number 3-101-035767, located at Barrio San José, Curridabat, San José, Costa Rica, opposite Café Volio, hereinafter “Castro Fallas”, is responsible for processing the personal data it receives and manages through this website, as provided by applicable law.",
-              "Data subjects may submit inquiries or requests regarding their personal information through the company's official contact channels."
+              "Data subjects may submit inquiries or requests regarding their personal information through the company's official contact channels.",
+              "Contact for privacy requests: comercial@castrofallas.com; telephone +506 2272-6772. Individuals may use these contact details to exercise their rights, without prejudice to other available channels."
             ]
           },
           {
@@ -495,7 +509,8 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
           {
             "title": "Purposes of processing",
             "paragraphs": [
-              "Personal data may be processed for the following purposes, as applicable:"
+              "Personal data may be processed for the following purposes, as applicable:",
+              "These purposes depend on the actual relationship: a website visitor, an individual requesting a quotation, a registered cargo-tracking user, and a representative of a customer or supplier do not necessarily provide the same categories of personal information."
             ],
             "bullets": [
               "Responding to inquiries, information requests, and communications submitted through the website.",
@@ -513,7 +528,8 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
             "paragraphs": [
               "Personal data may be collected directly from individuals through forms, electronic messages, quotation requests, registration procedures, or documents submitted for service provision.",
               "Where legally permitted, information may also be obtained from representatives, customers, suppliers, or other duly authorized third parties.",
-              "Castro Fallas will endeavor to inform individuals of the purposes and conditions of processing at the time of collection."
+              "Castro Fallas will endeavor to inform individuals of the purposes and conditions of processing at the time of collection.",
+              "For quotations and transport operations, relevant information may include contact identification, origin and destination, cargo details, dates, shipping documents, and operational references submitted by the user. Cargo-tracking information will be used in accordance with access permissions and the operation's legitimate needs."
             ]
           },
           {
@@ -562,14 +578,16 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
               "Individuals may exercise their rights under Costa Rican law, including, where applicable, access, correction, updating, deletion, and other safeguards of their informational self-determination.",
               "Requests must allow reasonable verification of the individual's identity and identify the right being exercised.",
               "Castro Fallas will respond within the periods and under the conditions provided by applicable law.",
-              "If a request cannot be granted because of a legal retention obligation or other legitimate ground, the company will communicate the relevant reasons."
+              "If a request cannot be granted because of a legal retention obligation or other legitimate ground, the company will communicate the relevant reasons.",
+              "Requests to access, correct, or delete personal data must be resolved free of charge within five business days of receipt under Article 7 of Costa Rican Law No. 8968 and the applicable regulations, without prejudice to situations in which additional information may lawfully be requested."
             ]
           },
           {
             "title": "Exercising rights and complaints",
             "paragraphs": [
               "Inquiries and requests regarding personal information may be submitted to Castro Fallas through its official contact channels.",
-              "Without prejudice to the company's own procedures, individuals may contact the Data Protection Agency of the Inhabitants (PRODHAB) where their rights may have been infringed and the claim is admissible under applicable law."
+              "Without prejudice to the company's own procedures, individuals may contact the Data Protection Agency of the Inhabitants (PRODHAB) where their rights may have been infringed and the claim is admissible under applicable law.",
+              "To facilitate identification and response, requests may include the individual's name, a reply channel, the information concerned, and the right being exercised. Only additional information reasonably necessary for identity verification and the request will be sought."
             ]
           },
           {
@@ -603,7 +621,8 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
             "title": "Website operator",
             "paragraphs": [
               "This website is operated under the trade name Castro Fallas by Aduanera Castro Fallas S.A., corporate registration number 3-101-035767, located at Barrio San José, Curridabat, San José, Costa Rica, opposite Café Volio, hereinafter “Castro Fallas”.",
-              "Inquiries concerning these Terms and Conditions may be submitted through the official contact channels published on the website."
+              "Inquiries concerning these Terms and Conditions may be submitted through the official contact channels published on the website.",
+              "For rights requests or inquiries regarding these terms, users may write to comercial@castrofallas.com or call +506 2272-6772, without prejudice to the company's other published official channels."
             ]
           },
           {
@@ -627,7 +646,8 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
             "paragraphs": [
               "Where particular features require registration or authentication, users are responsible for providing accurate information and keeping credentials confidential.",
               "Users must promptly report any unauthorized account access of which they become aware.",
-              "Castro Fallas may restrict account access for reasonable security, fraud-prevention, or terms-enforcement purposes, subject to applicable law."
+              "Castro Fallas may restrict account access for reasonable security, fraud-prevention, or terms-enforcement purposes, subject to applicable law.",
+              "Anyone using an account on behalf of a business must have appropriate authority to act for it. Digital access does not, by itself, authorize the engagement of services or replace authorizations required for an operation."
             ]
           },
           {
@@ -636,7 +656,8 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
               "Website quotation forms allow users to request information and proposals regarding services offered by Castro Fallas.",
               "Submitting a request does not, in itself, constitute contractual acceptance, a booking, transportation confirmation, or an obligation to provide a service.",
               "Quotations issued by Castro Fallas are subject to their validity period, scope, commercial conditions, availability, and other expressly communicated provisions.",
-              "Engagement of a service requires compliance with applicable specific conditions and the relevant acceptance."
+              "Engagement of a service requires compliance with applicable specific conditions and the relevant acceptance.",
+              "The conditions applicable to transportation, customs clearance, storage, insurance, duties, surcharges, claims, and other service-specific matters, when relevant, are governed by the accepted proposal and applicable contractual documents, rather than solely by these website terms."
             ]
           },
           {
@@ -725,6 +746,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
           {
             "title": "Cookie categories",
             "paragraphs": [
+              "In the reviewed website code, authentication uses the first-party “cf_session” cookie, configured with HttpOnly, SameSite Strict, and a maximum lifetime of eight hours. The Secure attribute depends on server configuration and must be verified in the HTTPS production environment. Language preferences may be saved in browser local storage, which is not a cookie.",
               "Strictly necessary cookies: support technical and secure operation, including session management, authentication, and protection of website functionality where applicable. Their use is limited to legitimate security and functional needs.",
               "Preference cookies: remember user choices such as language or display settings where those features exist.",
               "Analytics cookies: where used, collect statistical information about website navigation and use, subject to applicable notice and consent duties.",
@@ -734,7 +756,8 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
           {
             "title": "Purposes of use",
             "paragraphs": [
-              "Cookies and similar technologies that are actually implemented will be used only for purposes disclosed to users."
+              "Cookies and similar technologies that are actually implemented will be used only for purposes disclosed to users.",
+              "The session cookie recognizes authenticated users and helps protect access to private functions; local storage can remember browser preferences. This policy does not claim that third-party advertising or analytics cookies are present unless those tools have been verified as actively deployed."
             ],
             "bullets": [
               "Ensure website functionality and security.",
@@ -750,7 +773,8 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
               "Cookies may be session-based or persistent.",
               "Session cookies are used during browsing and expire under the applicable session or closure settings.",
               "Persistent cookies remain stored for the period established for their purpose or until deleted by the user.",
-              "Specific retention periods depend on the technologies used and their configurations."
+              "Specific retention periods depend on the technologies used and their configurations.",
+              "In the reviewed code, the technical “cf_session” cookie has a maximum lifetime of eight hours. Preference data in browser local storage may remain until the user clears it or changes the relevant settings. Other retention periods should only be stated after verifying technologies actually used."
             ]
           },
           {
@@ -758,7 +782,8 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
             "paragraphs": [
               "Where the use of cookies or similar technologies involves personal-data processing subject to consent, Castro Fallas will request authorization under applicable law.",
               "Users may manage available preferences and change or withdraw consent where legally permitted.",
-              "Disabling certain strictly necessary technologies may affect essential website features."
+              "Disabling certain strictly necessary technologies may affect essential website features.",
+              "Publishing this policy does not replace a consent mechanism where one is legally required. If non-essential cookies requiring consent are introduced, they must be identified and managed in accordance with applicable law before being used."
             ]
           },
           {
@@ -840,7 +865,8 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
               "The website may use software, libraries, components, or tools developed by third parties and distributed under free software, open-source, or commercial licenses.",
               "Rights in those components remain with their respective holders.",
               "Their use is governed by the corresponding licenses, including attribution, preservation of notices, distribution, or information-availability requirements where applicable.",
-              "Third-party licenses do not by themselves alter ownership of original Castro Fallas content."
+              "Third-party licenses do not by themselves alter ownership of original Castro Fallas content.",
+              "For the geographic globe, the project uses d3-geo, topojson-client, and world-atlas. Their applicable licenses and attribution notices must be preserved and made available; geographic data from Natural Earth remains subject to its own terms."
             ]
           },
           {
