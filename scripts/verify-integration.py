@@ -341,4 +341,7 @@ check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('fro
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
 check('VITE_API_PROXY_TARGET' in read('frontend/vite.config.ts'), 'Proxy Docker conservado')
+# Verifica coordenadas ilustrativas y correspondencias con el catálogo oficial de Cotizaciones.
+import subprocess
+subprocess.run([sys.executable, str(root / 'scripts/verify-tracking-ports.py')], check=True)
 print('Comprobaciones estáticas de integración finalizadas.')
