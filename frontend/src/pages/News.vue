@@ -511,6 +511,9 @@ onUnmounted(() => {
               <p class="news-article-page__meta-category"><span aria-hidden="true"></span>{{ activeArticle.category }}</p>
             </div>
             <div class="news-article-page__reading" :class="{ 'is-expanded': articleTextOpen, 'is-dragging': articleDragging }" :style="{ maxHeight: articleReadingDragMaxHeight }">
+              <figure class="news-article-page__side-image" aria-hidden="true">
+                <img :src="activeArticle.image" alt="" loading="lazy" />
+              </figure>
               <section id="contenido-noticia" class="news-article-page__content" :aria-label="q('Contenido de la noticia', 'Article content')">
                 <p class="news-article-page__content-kicker">{{ activeArticle.category }} <span aria-hidden="true">/</span> {{ q('ARTÍCULO COMPLETO', 'FULL ARTICLE') }}</p>
                 <p v-if="activeArticle.description?.trim() && activeArticle.description.trim() !== activeArticle.body?.trim()" class="news-article-page__standfirst">{{ activeArticle.description }}</p>
@@ -524,9 +527,6 @@ onUnmounted(() => {
                 </div>
                 <a class="news-article-page__back" href="/noticias"><IconSymbol glyph="←" /> {{ q('Ver todas las noticias', 'View all news') }}</a>
               </section>
-              <figure class="news-article-page__side-image" aria-hidden="true">
-                <img :src="activeArticle.image" alt="" loading="lazy" />
-              </figure>
             </div>
           </div>
         </article>
@@ -647,4 +647,33 @@ onUnmounted(() => {
 .news-empty-hero h1 { font-size: clamp(42px, 6vw, 76px); line-height: 1.1; margin: 18px 0; }
 .news-empty-hero p:last-child { max-width: 640px; font-size: clamp(16px, 1.7vw, 20px); }
 .news-editorial-hero:has(.news-empty-hero) { min-height: 0; background: linear-gradient(120deg, #980c26, #142240); }
+
+/* En móvil el artículo completo se muestra de entrada, sin abrir una pestaña. */
+@media (max-width:720px) {
+  .news-article-page__handle { display:none; }
+  .news-article-page__reading,
+  .news-article-page__reading.is-expanded,
+  .news-article-page__reading.is-dragging {
+    max-height:none !important;
+    overflow:visible !important;
+    transition:none;
+  }
+  .news-article-page__story-panel { margin-top:-52px !important; }
+}
+
+/* El texto rodea la imagen y aprovecha todo el ancho debajo de ella. */
+@media (min-width:721px) {
+  .news-article-page__reading { display:flow-root; }
+  .news-article-page__side-image {
+    float:right;
+    width: min(42%, 650px);
+    margin:0 0 28px clamp(24px, 4vw, 66px);
+  }
+  .news-article-page__content { max-width:none; }
+}
+@media (max-width:720px) {
+  .news-article-page__reading { display:flow-root; }
+  .news-article-page__side-image { float:none; width:100%; margin:0 0 24px; }
+  .news-article-page__content { max-width:none; }
+}
 </style>
