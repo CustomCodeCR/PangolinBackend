@@ -596,7 +596,7 @@ function useMediaForNews(item: ManagedMedia) {
         <p class="manager-user-hint">Por seguridad, no puedes modificar tu propia cuenta ni desactivar al último administrador activo. Para eliminar una cuenta, primero seleccioná Desactivado y guardá el cambio.</p>
         <div v-if="usersLoading" class="manager-users-empty">Consultando el sistema de usuarios…</div>
         <div v-else-if="!usersError && users.length === 0" class="manager-users-empty">Aún no hay cuentas para mostrar.</div>
-        <div v-else-if="users.length" class="manager-users-table-wrap"><table class="manager-users-table"><thead><tr><th>Cuenta</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody><tr v-for="user in users" :key="user.id"><td data-label="Cuenta"><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td><td data-label="Rol"><FieldDropdown :min-menu-width="190" :model-value="user.role" :disabled="Boolean(authState.previewRole)" :aria-label="`Rol de ${user.correo}`" :options="[{value:'cliente',label:'Cliente'},{value:'administrador',label:'Administrador'}]" @update:model-value="value => user.role = value === 'administrador' ? 'administrador' : 'cliente'" /></td><td data-label="Estado"><FieldDropdown :min-menu-width="190" :model-value="String(user.activo)" :disabled="Boolean(authState.previewRole)" :aria-label="`Estado de ${user.correo}`" :options="[{value:'true',label:'Activo'},{value:'false',label:'Desactivado'}]" @update:model-value="value => user.activo = value === 'true'" /></td><td data-label="Acción"><div class="manager-user-actions"><button class="manager-user-save" type="button" :disabled="Boolean(authState.previewRole) || savingUserId === user.id || deletingUserId === user.id" @click="updateUser(user)">{{ savingUserId === user.id ? 'Guardando…' : 'Guardar' }}</button><button class="manager-user-delete" type="button" :aria-label="`Eliminar cuenta de ${user.correo}`" :disabled="!isLiveAdmin || user.activo || user.savedActive || user.id === authState.user?.id || Boolean(savingUserId) || Boolean(deletingUserId)" :title="user.activo || user.savedActive ? 'Primero desactivá y guardá la cuenta para poder eliminarla.' : 'Eliminar cuenta desactivada'" @click="deleteUser(user)">{{ deletingUserId === user.id ? 'Eliminando…' : 'Eliminar' }}</button></div></td></tr></tbody></table></div>
+        <div v-else-if="users.length" class="manager-users-table-wrap"><table class="manager-users-table"><thead><tr><th>Cuenta</th><th>Rol</th><th>Estado</th><th><span class="manager-user-action-heading">Acción</span></th></tr></thead><tbody><tr v-for="user in users" :key="user.id"><td data-label="Cuenta"><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td><td data-label="Rol"><FieldDropdown :min-menu-width="190" :model-value="user.role" :disabled="Boolean(authState.previewRole)" :aria-label="`Rol de ${user.correo}`" :options="[{value:'cliente',label:'Cliente'},{value:'administrador',label:'Administrador'}]" @update:model-value="value => user.role = value === 'administrador' ? 'administrador' : 'cliente'" /></td><td data-label="Estado"><FieldDropdown :min-menu-width="190" :model-value="String(user.activo)" :disabled="Boolean(authState.previewRole)" :aria-label="`Estado de ${user.correo}`" :options="[{value:'true',label:'Activo'},{value:'false',label:'Desactivado'}]" @update:model-value="value => user.activo = value === 'true'" /></td><td data-label="Acción"><div class="manager-user-actions"><button class="manager-user-save" type="button" :disabled="Boolean(authState.previewRole) || savingUserId === user.id || deletingUserId === user.id" @click="updateUser(user)">{{ savingUserId === user.id ? 'Guardando…' : 'Guardar' }}</button><button class="manager-user-delete" type="button" :aria-label="`Eliminar cuenta de ${user.correo}`" :disabled="!isLiveAdmin || user.activo || user.savedActive || user.id === authState.user?.id || Boolean(savingUserId) || Boolean(deletingUserId)" :title="user.activo || user.savedActive ? 'Primero desactivá y guardá la cuenta para poder eliminarla.' : 'Eliminar cuenta desactivada'" @click="deleteUser(user)">{{ deletingUserId === user.id ? 'Eliminando…' : 'Eliminar' }}</button></div></td></tr></tbody></table></div>
       </section>
       <SiteVisualEditor v-if="section === 'site'" />
       <OfficialQuoteAdmin v-else-if="section === 'quotes'" embedded @total-change="quotesTotal = $event" />
@@ -1336,9 +1336,30 @@ function useMediaForNews(item: ManagedMedia) {
 html.theme-dark .manager-user-delete:not(:disabled){color:#ff8fa5;border-color:#ee617b}
 html.theme-dark .manager-user-delete:disabled{color:#929baa;border-color:#485068}
 
+
+/* Tabla de escritorio: los títulos siguen exactamente la posición de
+   los selectores y del grupo de botones, sin alterar las tarjetas móviles. */
+@media (min-width:1181px) {
+  .manager-users-table {table-layout:fixed;width:100%}
+  .manager-users-table th:nth-child(1) {width:35.5%}
+  .manager-users-table th:nth-child(2) {width:22%}
+  .manager-users-table th:nth-child(3) {width:22%}
+  .manager-users-table th:nth-child(4) {width:20.5%}
+  .manager-users-table td:first-child small {overflow-wrap:anywhere;white-space:normal}
+  .manager-users-table th:last-child .manager-user-action-heading {
+    display:block;width:min(200px,100%);margin-left:auto;text-align:left;
+  }
+  .manager-user-actions {
+    width:min(200px,100%);margin-left:auto;justify-content:flex-start;
+  }
+  .manager-user-actions > button {
+    flex:1 1 0;min-width:0;padding-inline:8px;
+  }
+}
+
 /* Gestión de usuarios: layout responsivo sin tabla con scroll lateral.
    A partir de tablet cada registro se convierte en tarjeta legible. */
-@media (max-width:1050px) {
+@media (max-width:1180px) {
   .content-manager .manager-users-table-wrap,
   .content-manager.is-embedded .manager-users-table-wrap {
     width:100%; max-width:100%; overflow:visible;
