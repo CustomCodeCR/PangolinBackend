@@ -167,6 +167,26 @@ def main():
         require(status == 200 and restored.get('activo') is True,
                 f'No se pudo restaurar demo cliente: {status} {restored}')
 
+    # Alta de cuentas solo en BD efímera/local. Dynamics es opcional.
+    created_accounts = []
+    for role in ('cliente', 'administrador'):
+        managed_email = f'smoke-gestion-{role}-{uuid4().hex[:12]}@castrofallas.test'
+        form = {'nombre': f'Prueba gestión {role}', 'correo': managed_email,
+                'role': role, 'codigoDynamics': ''}
+        status, created_user = call(browser, '/api/admin/users', form)
+        require(status == 201 and created_user.get('correo') == managed_email
+                and created_user.get('role') == role and created_user.get('activo') is True,
+                f'No se pudo crear {role} sin Dynamics: {status} {created_user}')
+        created_accounts.append(managed_email)
+        status, duplicate = call(browser, '/api/admin/users', form)
+        require(status == 409, f'Se permitió correo duplicado: {status} {duplicate}')
+
+    status, managed_list = call(browser, '/api/admin/users?page=1&pageSize=100')
+    require(status == 200 and all(any(u.get('correo') == email for u in managed_list.get('users', []))
+                                  for email in created_accounts),
+            'Cuentas nuevas no aparecen en Gestión de usuarios.')
+    print('OK Creación administrativa de cliente y administrador sin Dynamics; duplicados bloqueados.')
+
     # La capacidad S3 debe consultarse desde el panel sin exponer credenciales.
     status, storage_status = call(browser, '/api/admin/content/media/storage-status')
     require(status == 200 and isinstance(storage_status.get('enabled'), bool),
@@ -404,6 +424,10 @@ def main():
             'La lista de clientes expone una cotización de administrador.')
     status, denied_users = call(client_browser, '/api/admin/users')
     require(status == 403, f'Cliente pudo listar cuentas: {status} {denied_users}')
+    status, denied_create = call(client_browser, '/api/admin/users',
+                                 {'nombre': 'No autorizado', 'correo': 'no-admin@example.test',
+                                  'role': 'administrador', 'codigoDynamics': ''})
+    require(status == 403, f'Cliente pudo crear un administrador: {status} {denied_create}')
     status, denied_media = call(client_browser, '/api/admin/content/media')
     require(status == 403, f'Cliente pudo ver biblioteca privada: {status} {denied_media}')
     status, denied_comments = call(client_browser, '/api/admin/content/comments')
