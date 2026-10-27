@@ -8,6 +8,7 @@ const props = defineProps<{
   'aria-label': string
   id?: string
   disabled?: boolean
+  minMenuWidth?: number
 }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 const uid = useId()
@@ -69,7 +70,9 @@ function positionMenu() {
   const gap = 6
   const below = Math.max(0, bottomEdge - rect.bottom - gap - 4)
   const above = Math.max(0, rect.top - topEdge - gap - 4)
-  const width = Math.max(1, Math.min(rect.width, rightEdge - leftEdge - 16))
+  // Some admin fields are narrow on mobile: keep all option text readable,
+  // but never let the portal extend beyond the visible viewport.
+  const width = Math.max(1, Math.min(Math.max(rect.width, props.minMenuWidth ?? 0), rightEdge - leftEdge - 16))
   const left = Math.max(leftEdge + 8, Math.min(rect.left, rightEdge - width - 8))
 
   // Width affects wrapping/height; measure the rendered options, not an
@@ -209,7 +212,7 @@ onBeforeUnmount(removeListeners)
 .cf-dropdown__menu {
   position:fixed; z-index:2147483000; box-sizing:border-box; margin:0;
   padding:8px; display:flex; flex-direction:column; gap:2px;
-  overflow-y:auto; overscroll-behavior:contain; border-radius:16px;
+  overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; border-radius:16px;
   border:1px solid #e5dce0; background:#fff; color:#242630;
   box-shadow:0 18px 38px rgba(35,21,28,.26);
 }
@@ -217,6 +220,7 @@ onBeforeUnmount(removeListeners)
   flex:0 0 auto; width:100%; min-height:44px; padding:10px 14px;
   border:0; border-radius:11px; text-align:left; background:transparent;
   color:inherit; font:inherit; font-size:14px; font-weight:600; cursor:pointer;
+  overflow-wrap:anywhere; white-space:normal;
 }
 .cf-dropdown__menu > button:is(:hover,:focus-visible,.cf-dropdown__option--selected) {
   background:#f7e8eb; color:#a80e18;
