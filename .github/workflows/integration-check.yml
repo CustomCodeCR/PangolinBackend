@@ -47,6 +47,16 @@ jobs:
           path: artifacts/admin-users-mobile/
           if-no-files-found: warn
           retention-days: 14
+      - name: Chrome regression for news layout and mobile articles (390-1440px)
+        run: /tmp/cf-admin-responsive/bin/python scripts/test-news-responsive.py
+      - name: Attach news responsive screenshot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cf-news-responsive-review
+          path: artifacts/news-responsive/
+          if-no-files-found: warn
+          retention-days: 14
 
   smoke:
     name: PostgreSQL OTP CRUD CMS smoke
