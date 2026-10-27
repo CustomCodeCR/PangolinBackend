@@ -432,51 +432,423 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
       }
     },
   en: {
-    privacy: {
-      title: 'Privacy policy', intro: 'This policy explains how Castro Fallas uses personal information needed to respond to inquiries and provide logistics, international transportation, and customs services.',
-      sections: [
-        { title: 'Data controller', paragraphs: ['The company provides its services under the trade name Castro Fallas. The legal entity, corporate identification number, and address of the responsible entity must be completed and confirmed before the final version is published. For privacy inquiries, contact comercial@castrofallas.com or +506 2272-6772.'] },
-        { title: 'Information we may request', paragraphs: ['To respond to an inquiry or provide a service, Castro Fallas may request identification and contact details such as name, email, phone number, company, and country; commercial information needed to prepare a quote or coordinate an operation; and information about the transportation or customs clearance of goods, such as origin, destination, service type, cargo characteristics, and expected dates. Where the nature of a procedure or applicable rules require it, documents or details about people authorized to represent the customer, consignee, exporter, or importer may also be requested.', 'Information should be limited to what is needed for the inquiry, quote, coordination, or service. Do not include sensitive information or documents that the Castro Fallas team has not requested.'] },
-        { title: 'How we use the information', bullets: ['Respond to inquiries and requests for information or quotes for air, maritime, land, customs, and international logistics services.', 'Assess transportation needs and coordinate itineraries, bookings, collection, delivery, and cargo tracking.', 'Manage procedures and communications with carriers, customs brokers, terminals, authorities, and other participants in an operation.', 'Maintain the commercial relationship, provide customer service, and handle questions, complaints, or service incidents.', 'Prepare and administer proposals, service orders, contracts, invoicing, and operational documents.', 'Meet applicable legal, customs, tax, accounting, and security obligations, and protect the rights of the company and its customers.'] },
-        { title: 'Who we may share it with', paragraphs: ['Castro Fallas personnel handling a request may access information needed for their work. To quote, coordinate, or complete an operation, relevant details may also need to be shared with carriers and their agents, airlines or shipping lines, customs brokers, bonded warehouses, ports, airports, terminals, transportation and delivery providers, insurers, professional advisers, and competent authorities.', 'Information is shared only as needed for the requested service, to meet applicable obligations, or to protect rights. International operations may involve sharing certain data with companies or authorities in the countries where cargo originates, transits, or is delivered. The company should confirm which third parties participate in its services and explain the applicable terms before approving this policy. Castro Fallas does not sell personal data.'] },
-        { title: 'Retention and protection', paragraphs: ['Castro Fallas seeks to limit access to information to people who need it to assist the customer and manage the service, and to adopt reasonable safeguards against loss, unauthorized use, or improper disclosure. The company should confirm and document the specific safeguards it applies.', 'Information will be retained for as long as needed to respond to an inquiry, maintain the commercial relationship, and complete the relevant operations. Some documents may need to be retained for periods required by customs, tax, accounting, contractual obligations, or the handling of claims and legal proceedings. The company and its legal adviser should confirm the specific periods and criteria.'] },
-        { title: 'Your rights and how to contact us', paragraphs: ['You may ask how your information is handled and request the exercise of rights provided by applicable law, including access and correction and, where appropriate, deletion or restriction of use. To submit a request, email comercial@castrofallas.com with the subject “Privacy and personal data” or call +506 2272-6772. Tell us how to contact you and describe your request; reasonable information may be requested to confirm your identity and protect your data. The procedure and response times should be confirmed before the final version is published.'] },
-        { title: 'Updates to this policy', paragraphs: ['This policy may be updated if Castro Fallas services, customer practices, or applicable obligations change. The current version should state its update date. This document refers to Costa Rican personal data protection legislation, including Law No. 8968, and should be reviewed by a legal professional before final publication.'] }
-      ]
-    },
-    terms: {
-      title: 'Terms and conditions', intro: 'These working rules describe use of the Castro Fallas website and its digital tools.',
-      sections: [
-        { title: 'Identity and acceptance', paragraphs: ['The website is operated under the trade name Castro Fallas. Its legal entity, registration number, and address must be added once confirmed. By browsing public pages, you agree to use the website lawfully and respectfully. Terms for a specific engagement must be communicated separately and expressly accepted before a service agreement is formed.'] },
-        { title: 'Website use', bullets: ['Provide accurate and current information when completing a form.', 'Use account access only if authorized and protect the temporary code you receive.', 'Do not attempt unauthorized access to accounts, systems, data, or services, or interfere with website security or availability.', 'Do not submit unlawful, malicious, or rights-infringing content.'] },
-        { title: 'Quotes and services', paragraphs: ['Submitting a website request allows the team to review the information and prepare a response. A request alone is not an accepted quote, reservation, space confirmation, or transportation contract. Service, price, scope, deadlines, responsibilities, and other conditions will be set out in a proposal or document confirmed by the parties.', 'The website does not process payments. Some options may open your email application so you can send an inquiry. Do not include unnecessary personal information.'] },
-        { title: 'Informational content and availability', paragraphs: ['Some news, route, itinerary, or tracking content is identified as illustrative, demonstrative, or pending confirmation. It should not be treated as confirmation of a real operation, date, or status. The company will seek to keep the website available, but interruptions may occur due to maintenance, connectivity issues, or causes outside its control.'] },
-        { title: 'Intellectual property', paragraphs: ['Website text, brands, designs, photographs, and other materials belong to Castro Fallas or are used with permission. Commercial copying, modification, or exploitation is not allowed without permission, except as permitted by law.'] },
-        { title: 'Liability and inquiries', paragraphs: ['Nothing in these terms limits non-waivable consumer rights or liabilities that cannot legally be excluded. For questions, requests, or complaints, contact comercial@castrofallas.com or +506 2272-6772. The complaint handling process and response period must be defined before approval.'] },
-        { title: 'Applicable law and changes', paragraphs: ['These terms refer to Costa Rican law, without prejudice to applicable consumer protection rules. Castro Fallas may update these terms; the current version should remain available and be retained where required.'] }
-      ]
-    },
-    cookies: {
-      title: 'Cookie and local storage policy', intro: 'This page explains the cookies and similar technologies used by this version of the website.',
-      sections: [
-        { title: 'What the website currently uses', paragraphs: ['No third-party analytics or advertising tools were found in the reviewed code. The website uses browser local storage to remember preferences such as language, visual theme, and guest mode. These values stay in that browser and are not cookies.', 'When a person signs in, the server uses its own “cf_session” cookie to maintain the authenticated session. It is configured as HttpOnly and SameSite Strict; the Secure option depends on the environment and must be enabled in production with HTTPS. It is a technical cookie needed to provide the requested sign-in feature.'] },
-        { title: 'What they are used for', bullets: ['The session cookie recognizes an authenticated session and protects account requests.', 'Local storage remembers language, theme, and guest status so the same browser can retain those preferences.', 'These values are not used to build advertising profiles in the reviewed version of the code.'] },
-        { title: 'Managing or deleting preferences', paragraphs: ['You can clear local storage and cookies in your browser privacy settings. Removing the session cookie means you will need to sign in again. Clearing language or theme preferences resets them to their initial values. Blocking storage may prevent session or preference features from working.'] },
-        { title: 'Third-party services and changes', paragraphs: ['An email provider may be involved when an access code is sent. Hosting or infrastructure providers may use their own technical logs; the company should confirm this with each provider. If analytics, maps, video, advertising, or other non-essential technologies are added, this policy should be reviewed and the required notice or consent mechanism implemented before activation.'] }
-      ]
-    },
-    licenses: {
-      title: 'Credits and licenses',
-      intro: 'Information about licenses and attributions for visual resources and third-party tools used on this website.',
-      sections: [
-        { title: 'Interactive globe', paragraphs: ['The interactive globe uses an independent Canvas 2D implementation developed for Castro Fallas. It uses d3-geo 3.1.1, topojson-client 3.1.0, and world-atlas 2.0.2 under permissive ISC licenses. It does not use CanvasGlobe or 3d-world-map. Copyright and permission notices are preserved in the third-party license document.'], links: [{ label: 'Globe third-party notices', href: '/licenses/globe-third-party-notices.txt' }, { label: 'D3-Geo source', href: 'https://github.com/d3/d3-geo' }, { label: 'TopoJSON source', href: 'https://github.com/topojson/topojson-client' }] },
-        { title: 'Map geographic data', paragraphs: ['The globe outlines come from world-atlas, a TopoJSON dataset derived from Natural Earth. Natural Earth geographic data is made available in the public domain.'], links: [{ label: 'Natural Earth terms', href: 'https://www.naturalearthdata.com/about/terms-of-use/' }, { label: 'World Atlas repository', href: 'https://github.com/topojson/world-atlas' }] },
-        { title: 'Photographs and illustrations', paragraphs: ['The website displays images of air, maritime, and land transport, logistics operations, warehouses, and ports. The project files do not include a complete author or license record for each image. Before publication, Castro Fallas should confirm whether each resource is owned, purchased, or used with permission, and record its author, source, license, and required attribution.'] },
-        { title: 'Logo and brand', paragraphs: ['The website uses the Castro Fallas name and logo. The company should confirm that it holds the rights or permissions required for their use and for any versions or adaptations displayed on these pages.'] },
-        { title: 'Other third-party tools', paragraphs: ['Third-party tools and components are used under their respective licenses. This list should be updated whenever components that form part of the website are added, replaced, or removed.'] }
-      ]
+      "privacy": {
+        "title": "Privacy Policy",
+        "intro": "Last updated: October 27, 2026.",
+        "sections": [
+          {
+            "title": "Data controller",
+            "paragraphs": [
+              "Aduanera Castro Fallas S.A., corporate registration number 3-101-035767, located at Barrio San José, Curridabat, San José, Costa Rica, opposite Café Volio, hereinafter “Castro Fallas”, is responsible for processing the personal data it receives and manages through this website, as provided by applicable law.",
+              "Data subjects may submit inquiries or requests regarding their personal information through the company's official contact channels."
+            ]
+          },
+          {
+            "title": "Applicable legislation",
+            "paragraphs": [
+              "Personal data will be processed in accordance with Costa Rica's Law No. 8968, the Law on Protection of Persons Regarding the Processing of Their Personal Data, its regulations, and any other applicable provisions.",
+              "Castro Fallas recognizes the right to informational self-determination and commits to lawful, fair processing consistent with the legitimate, disclosed purposes of collection."
+            ]
+          },
+          {
+            "title": "Categories of personal data",
+            "paragraphs": [
+              "Depending on the website functions used and the relationship with the data subject, Castro Fallas may process the following categories:"
+            ],
+            "bullets": [
+              "Identification information: first name, surname, and identification details when necessary.",
+              "Contact information: email address, telephone number, mailing address, and other contact details voluntarily provided.",
+              "Commercial and operational information: details included in inquiries, quotations, documents, and communications concerning customs or logistics services.",
+              "Account information: details associated with registration, user profiles, and authentication.",
+              "Technical information: IP address, access logs, and information required for website security and operation, when collected.",
+              "Collection shall be limited to information that is adequate, relevant, and necessary for each purpose. Sensitive information will not be requested through general forms unless justified by a legitimate purpose and lawful basis and subject to the applicable specific safeguards."
+            ]
+          },
+          {
+            "title": "Purposes of processing",
+            "paragraphs": [
+              "Personal data may be processed for the following purposes, as applicable:"
+            ],
+            "bullets": [
+              "Responding to inquiries, information requests, and communications submitted through the website.",
+              "Preparing, managing, and following up on quotation requests and commercial proposals.",
+              "Managing contractual relationships and providing requested services.",
+              "Managing accounts, verifying access, and protecting platform security.",
+              "Responding to legal or administrative requirements and requests from competent authorities.",
+              "Maintaining records required for traceability and legitimate operations.",
+              "Sending commercial communications only when a lawful basis exists and applicable objection or consent-withdrawal mechanisms are respected.",
+              "Data shall not be used for purposes incompatible with those disclosed unless a valid legal authorization or required consent exists."
+            ]
+          },
+          {
+            "title": "Collection of personal data",
+            "paragraphs": [
+              "Personal data may be collected directly from individuals through forms, electronic messages, quotation requests, registration procedures, or documents submitted for service provision.",
+              "Where legally permitted, information may also be obtained from representatives, customers, suppliers, or other duly authorized third parties.",
+              "Castro Fallas will endeavor to inform individuals of the purposes and conditions of processing at the time of collection."
+            ]
+          },
+          {
+            "title": "Consent and legal grounds",
+            "paragraphs": [
+              "Where consent is required by law, it will be requested freely, expressly, specifically, and on an informed basis, in accordance with the applicable legal requirements.",
+              "Processing may also be based on legal obligations or other expressly recognized legal grounds where permitted by law.",
+              "Consent may be withdrawn through legally available procedures, without prejudice to obligations that authorize or require the retention or processing of particular information."
+            ]
+          },
+          {
+            "title": "Disclosure to third parties",
+            "paragraphs": [
+              "Personal information may be processed by technology providers or service providers lawfully assisting Castro Fallas, only to the extent necessary for the disclosed purposes.",
+              "For a specific operation, relevant information may be disclosed to carriers, agents, logistics operators, and other parties involved in the requested service, provided that a valid legal basis exists and applicable requirements are met.",
+              "Castro Fallas will require appropriate confidentiality, security, and purpose-limitation safeguards from its processors.",
+              "Personal databases will not be sold to third parties without an appropriate lawful authorization."
+            ]
+          },
+          {
+            "title": "International transfers",
+            "paragraphs": [
+              "Where service provision or technology providers involve international transfers of personal information, Castro Fallas must verify and comply with the requirements of Costa Rican law.",
+              "Such transfers will be limited to information needed for legitimate purposes and subject to the applicable authorizations, notices, and safeguards."
+            ]
+          },
+          {
+            "title": "Data retention",
+            "paragraphs": [
+              "Personal information will be retained for as long as necessary for its original purposes and for periods required or permitted by applicable law.",
+              "Retention periods will take into account the purpose of processing, the contractual relationship, legal obligations, and legitimate needs to handle claims or exercise rights.",
+              "Once those requirements are satisfied, the information will be deleted, anonymized, or otherwise handled as legally appropriate."
+            ]
+          },
+          {
+            "title": "Security and confidentiality",
+            "paragraphs": [
+              "Castro Fallas will take reasonable technical and organizational measures to protect personal information against unauthorized access, loss, alteration, improper disclosure, or destruction.",
+              "Access will be limited according to the responsibilities of authorized personnel.",
+              "The company will take legally required action if incidents compromising the security of personal information are identified."
+            ]
+          },
+          {
+            "title": "Data subject rights",
+            "paragraphs": [
+              "Individuals may exercise their rights under Costa Rican law, including, where applicable, access, correction, updating, deletion, and other safeguards of their informational self-determination.",
+              "Requests must allow reasonable verification of the individual's identity and identify the right being exercised.",
+              "Castro Fallas will respond within the periods and under the conditions provided by applicable law.",
+              "If a request cannot be granted because of a legal retention obligation or other legitimate ground, the company will communicate the relevant reasons."
+            ]
+          },
+          {
+            "title": "Exercising rights and complaints",
+            "paragraphs": [
+              "Inquiries and requests regarding personal information may be submitted to Castro Fallas through its official contact channels.",
+              "Without prejudice to the company's own procedures, individuals may contact the Data Protection Agency of the Inhabitants (PRODHAB) where their rights may have been infringed and the claim is admissible under applicable law."
+            ]
+          },
+          {
+            "title": "Cookies and similar technologies",
+            "paragraphs": [
+              "The website may use cookies or other technical mechanisms to operate correctly, maintain sessions, or remember preferences.",
+              "Details about these technologies, their purposes, and available management mechanisms are provided in the Cookie Policy."
+            ],
+            "links": [
+              {
+                "label": "Read the Cookie Policy",
+                "href": "/cookies"
+              }
+            ]
+          },
+          {
+            "title": "Policy changes",
+            "paragraphs": [
+              "Castro Fallas may update this Privacy Policy following changes in law, processing purposes or methods, or its operations.",
+              "Changes will be published on the website with the corresponding update date.",
+              "Where changes require renewed notice to individuals or fresh consent, the company will act in accordance with applicable law."
+            ]
+          }
+        ]
+      },
+      "terms": {
+        "title": "Terms and Conditions of Use",
+        "intro": "Last updated: October 27, 2026.",
+        "sections": [
+          {
+            "title": "Website operator",
+            "paragraphs": [
+              "This website is operated under the trade name Castro Fallas by Aduanera Castro Fallas S.A., corporate registration number 3-101-035767, located at Barrio San José, Curridabat, San José, Costa Rica, opposite Café Volio, hereinafter “Castro Fallas”.",
+              "Inquiries concerning these Terms and Conditions may be submitted through the official contact channels published on the website."
+            ]
+          },
+          {
+            "title": "Purpose and scope",
+            "paragraphs": [
+              "These Terms and Conditions govern access to, browsing of, and use of the Castro Fallas website and its content, forms, and digital functionality.",
+              "Use of the website implies awareness of these terms, without prejudice to non-waivable rights under applicable law.",
+              "These terms do not replace the specific provisions governing the engagement of customs, logistics, or international transportation services."
+            ]
+          },
+          {
+            "title": "Access and authorized use",
+            "paragraphs": [
+              "Users undertake to use the website lawfully, in good faith, and with respect for third-party rights.",
+              "Fraud, knowingly false submissions, unauthorized system or account access, interference with website operation, and introduction of malicious software are prohibited.",
+              "Castro Fallas may adopt reasonable, proportionate measures to prevent misuse, in accordance with applicable law."
+            ]
+          },
+          {
+            "title": "User accounts",
+            "paragraphs": [
+              "Where particular features require registration or authentication, users are responsible for providing accurate information and keeping credentials confidential.",
+              "Users must promptly report any unauthorized account access of which they become aware.",
+              "Castro Fallas may restrict account access for reasonable security, fraud-prevention, or terms-enforcement purposes, subject to applicable law."
+            ]
+          },
+          {
+            "title": "Quotation requests",
+            "paragraphs": [
+              "Website quotation forms allow users to request information and proposals regarding services offered by Castro Fallas.",
+              "Submitting a request does not, in itself, constitute contractual acceptance, a booking, transportation confirmation, or an obligation to provide a service.",
+              "Quotations issued by Castro Fallas are subject to their validity period, scope, commercial conditions, availability, and other expressly communicated provisions.",
+              "Engagement of a service requires compliance with applicable specific conditions and the relevant acceptance."
+            ]
+          },
+          {
+            "title": "Website information",
+            "paragraphs": [
+              "Castro Fallas will endeavor to keep service information and website content clear and current.",
+              "General information about routes, itineraries, availability, rates, and estimated transit times is informative unless expressly included in a binding contractual obligation.",
+              "Website information does not replace confirmation of the specific terms of an operation."
+            ]
+          },
+          {
+            "title": "Liability",
+            "paragraphs": [
+              "Liability related to website use and contracted services will be determined by applicable law and validly assumed contractual obligations.",
+              "Castro Fallas will not be responsible for disruptions or losses attributable exclusively to circumstances beyond its control, without prejudice to its legal obligations.",
+              "Nothing in these terms excludes liability for intentional misconduct, gross negligence, or other circumstances where legal restrictions on liability are prohibited.",
+              "Nor do these terms waive consumers' non-waivable rights."
+            ]
+          },
+          {
+            "title": "Intellectual property",
+            "paragraphs": [
+              "Website text, designs, photographs, distinctive signs, logos, and other elements are protected by applicable intellectual property law.",
+              "These rights belong to Castro Fallas or their respective holders, as applicable.",
+              "Unauthorized reproduction, distribution, modification, or commercial use is prohibited except where permitted by law or an applicable license."
+            ]
+          },
+          {
+            "title": "Third-party links and services",
+            "paragraphs": [
+              "The website may contain links or functionality provided by third parties.",
+              "Access to third-party platforms is subject to their respective terms and policies.",
+              "Castro Fallas does not assume obligations arising from independent relationships between users and those third parties, unless law or contract provides otherwise."
+            ]
+          },
+          {
+            "title": "Personal data protection",
+            "paragraphs": [
+              "Personal information collected through the website will be handled in accordance with Costa Rica's Law No. 8968, its regulations, and other applicable provisions.",
+              "Purposes of processing, data subject rights, and procedures for exercising those rights are described in the Privacy Policy."
+            ],
+            "links": [
+              {
+                "label": "Read the Privacy Policy",
+                "href": "/privacidad"
+              }
+            ]
+          },
+          {
+            "title": "Amendments",
+            "paragraphs": [
+              "Castro Fallas may update these Terms and Conditions following changes in legislation, website features, or legitimate operational requirements.",
+              "Amendments will be published with an update date.",
+              "Changes will not retroactively alter previously acquired contractual obligations unless the parties validly agree otherwise or applicable law so provides."
+            ]
+          },
+          {
+            "title": "Governing law and disputes",
+            "paragraphs": [
+              "These Terms and Conditions shall be interpreted in accordance with the laws of the Republic of Costa Rica.",
+              "Disputes concerning their interpretation or application shall be submitted to the competent judicial or administrative authorities and legally available dispute-resolution mechanisms.",
+              "This is without prejudice to mandatory rules on consumer protection, jurisdiction, and competence."
+            ]
+          }
+        ]
+      },
+      "cookies": {
+        "title": "Cookie Policy",
+        "intro": "Last updated: October 27, 2026.",
+        "sections": [
+          {
+            "title": "Purpose",
+            "paragraphs": [
+              "This Cookie Policy addresses the use of cookies and similar technologies on the Castro Fallas website, operated by Aduanera Castro Fallas S.A., corporate registration number 3-101-035767, located at Barrio San José, Curridabat, San José, Costa Rica, opposite Café Volio.",
+              "Its purpose is to explain the technologies that may be used, their categories, and available ways to manage user preferences."
+            ]
+          },
+          {
+            "title": "What cookies are",
+            "paragraphs": [
+              "Cookies are information files that a website may store on a user's device through a browser.",
+              "They may enable website functions, maintain sessions and preferences, or, where implemented, collect statistical usage information.",
+              "The website may also use equivalent technical mechanisms, such as browser local storage, where necessary for its features."
+            ]
+          },
+          {
+            "title": "Cookie categories",
+            "paragraphs": [
+              "Strictly necessary cookies: support technical and secure operation, including session management, authentication, and protection of website functionality where applicable. Their use is limited to legitimate security and functional needs.",
+              "Preference cookies: remember user choices such as language or display settings where those features exist.",
+              "Analytics cookies: where used, collect statistical information about website navigation and use, subject to applicable notice and consent duties.",
+              "Third-party cookies: integrated services may require technologies managed by third parties, subject to the relevant contractual terms and applicable personal-data obligations."
+            ]
+          },
+          {
+            "title": "Purposes of use",
+            "paragraphs": [
+              "Cookies and similar technologies that are actually implemented will be used only for purposes disclosed to users."
+            ],
+            "bullets": [
+              "Ensure website functionality and security.",
+              "Maintain sessions and enable authorized features.",
+              "Remember user preferences.",
+              "Collect website usage statistics when relevant tools are enabled and legal requirements are met.",
+              "Data will not be used for incompatible purposes unless a valid legal basis or required consent exists."
+            ]
+          },
+          {
+            "title": "Duration",
+            "paragraphs": [
+              "Cookies may be session-based or persistent.",
+              "Session cookies are used during browsing and expire under the applicable session or closure settings.",
+              "Persistent cookies remain stored for the period established for their purpose or until deleted by the user.",
+              "Specific retention periods depend on the technologies used and their configurations."
+            ]
+          },
+          {
+            "title": "Consent and preferences",
+            "paragraphs": [
+              "Where the use of cookies or similar technologies involves personal-data processing subject to consent, Castro Fallas will request authorization under applicable law.",
+              "Users may manage available preferences and change or withdraw consent where legally permitted.",
+              "Disabling certain strictly necessary technologies may affect essential website features."
+            ]
+          },
+          {
+            "title": "Browser settings",
+            "paragraphs": [
+              "Users may configure their browsers to restrict, block, or delete cookies and locally stored data.",
+              "Available options depend on the user's browser and device.",
+              "Deleting cookies may end sessions or remove saved preferences."
+            ]
+          },
+          {
+            "title": "Personal information",
+            "paragraphs": [
+              "Where cookies or similar technologies can identify a person directly or indirectly, related data will be processed in accordance with Costa Rica's Law No. 8968, its regulations, and other applicable provisions.",
+              "Information about data subject rights and personal-data processing is available in the Privacy Policy."
+            ],
+            "links": [
+              {
+                "label": "Read the Privacy Policy",
+                "href": "/privacidad"
+              }
+            ]
+          },
+          {
+            "title": "Third-party services",
+            "paragraphs": [
+              "Where third-party technologies are used, Castro Fallas must provide the identification, purpose, and relevant conditions required by law.",
+              "Their use will be subject to the applicable personal-data protection obligations and safeguards."
+            ]
+          },
+          {
+            "title": "Policy changes",
+            "paragraphs": [
+              "Castro Fallas may amend this Cookie Policy following legislative changes, changes in implemented technologies, or updates to website features.",
+              "Updates will be published with their corresponding date.",
+              "Where renewed notice or consent is required, the company will comply with applicable law."
+            ]
+          }
+        ]
+      },
+      "licenses": {
+        "title": "Credits and Licenses",
+        "intro": "Last updated: October 27, 2026.",
+        "sections": [
+          {
+            "title": "Website operator",
+            "paragraphs": [
+              "This website is operated by Aduanera Castro Fallas S.A., corporate registration number 3-101-035767, under the trade name Castro Fallas.",
+              "Intellectual property rights in website elements remain with their respective holders under applicable law and contractual provisions."
+            ]
+          },
+          {
+            "title": "Intellectual property",
+            "paragraphs": [
+              "Original website text, graphics, photographs, illustrations, designs, logos, distinctive signs, and other content are protected by applicable Costa Rican intellectual property law.",
+              "Publication does not grant third parties a general license to exploit such content.",
+              "Unauthorized reproduction, distribution, modification, or commercial use is prohibited unless expressly authorized or permitted by law."
+            ]
+          },
+          {
+            "title": "Trademarks and distinctive signs",
+            "paragraphs": [
+              "Trademarks, trade names, logos, and other distinctive signs displayed on the website belong to their respective holders.",
+              "Their display does not imply any transfer of ownership, general permission to use them, or a commercial or contractual relationship beyond what applies in the particular case.",
+              "Third-party signs are used with respect for their owners' rights."
+            ]
+          },
+          {
+            "title": "Photographs and audiovisual materials",
+            "paragraphs": [
+              "Photographs, videos, illustrations, and other audiovisual material may be company-owned, licensed, or used with their owners' authorization.",
+              "Each item remains subject to its applicable license or authorization.",
+              "Where a license requires attribution, source identification, or other notices, those requirements must be followed."
+            ]
+          },
+          {
+            "title": "Third-party software and components",
+            "paragraphs": [
+              "The website may use software, libraries, components, or tools developed by third parties and distributed under free software, open-source, or commercial licenses.",
+              "Rights in those components remain with their respective holders.",
+              "Their use is governed by the corresponding licenses, including attribution, preservation of notices, distribution, or information-availability requirements where applicable.",
+              "Third-party licenses do not by themselves alter ownership of original Castro Fallas content."
+            ]
+          },
+          {
+            "title": "External resources and services",
+            "paragraphs": [
+              "External resources used on the website, including third-party services, fonts, icons, and other protected elements, remain subject to the legal conditions established by their owners.",
+              "Castro Fallas will comply with identification and attribution duties required by applicable licenses."
+            ]
+          },
+          {
+            "title": "Third-party use of content",
+            "paragraphs": [
+              "Browsing the website does not grant users exploitation rights in its content, trademarks, or other protected elements.",
+              "Use beyond the limits permitted by law requires authorization from the corresponding rights holder.",
+              "Requests for use of content may be submitted through Castro Fallas's official contact channels."
+            ]
+          },
+          {
+            "title": "Third-party rights and complaints",
+            "paragraphs": [
+              "Rights holders who believe that content on the website infringes their intellectual property may report it through Castro Fallas's official channels.",
+              "A request should reasonably identify the material concerned and the allegedly affected right.",
+              "Castro Fallas will assess such notices and take action required by applicable law."
+            ]
+          },
+          {
+            "title": "Applicable law",
+            "paragraphs": [
+              "Intellectual property rights relating to the website are governed by the laws of the Republic of Costa Rica and applicable international instruments.",
+              "Any dispute shall be submitted to the competent authorities under the applicable legal framework."
+            ]
+          }
+        ]
+      }
     }
-  }
+
 }
 const content = computed(() => documents[locale.value === 'en' ? 'en' : 'es'][documentType.value])
 </script>
