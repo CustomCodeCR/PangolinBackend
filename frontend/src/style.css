@@ -5370,7 +5370,7 @@ html.theme-dark .content-manager .manager-form input[type="file"] {
   }
   .app-site #servicios .home-news-sidebar {
     align-self: stretch;
-    height: 340px;
+    height: 340px !important;
     min-height: 0;
     padding: 14px 16px;
     border: 1px solid rgba(177, 13, 42, .24);
@@ -5378,8 +5378,8 @@ html.theme-dark .content-manager .manager-form input[type="file"] {
   }
   .app-site #servicios .home-news-sidebar__list {
     flex: 1 1 auto;
-    height: 0;
-    min-height: 0;
+    height: 0 !important;
+    min-height: 0 !important;
     overflow: hidden;
   }
 }
