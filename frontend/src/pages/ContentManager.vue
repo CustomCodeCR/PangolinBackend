@@ -27,6 +27,8 @@ const usersLoading = ref(false)
 const usersError = ref('')
 const usersNotice = ref('')
 const savingUserId = ref<string | null>(null)
+const creatingUser = ref(false)
+const newUserForm = ref({ nombre: '', correo: '', role: 'cliente' as AppRole, codigoDynamics: '' })
 const previewSuffix = computed(() => authState.previewRole ? `?previewRole=${authState.previewRole}` : '')
 const isLiveAdmin = computed(() => authState.user?.role === 'administrador' && !authState.previewRole)
 const newsForm = ref<ManagedNews>(emptyNews())
@@ -199,6 +201,31 @@ async function loadUsers() {
     usersError.value = cause instanceof Error ? cause.message : 'No se pudieron cargar usuarios.'
   } finally {
     usersLoading.value = false
+  }
+}
+
+
+async function createUser() {
+  if (!isLiveAdmin.value || creatingUser.value) return
+  usersError.value = ''
+  usersNotice.value = ''
+  creatingUser.value = true
+  try {
+    const response = await fetch('/api/admin/users', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(newUserForm.value)
+    })
+    const problem = await response.json().catch(() => null)
+    if (!response.ok) throw new Error(problem?.error || `No se pudo crear el usuario (HTTP ${response.status}).`)
+    newUserForm.value = { nombre: '', correo: '', role: 'cliente', codigoDynamics: '' }
+    await loadUsers()
+    usersNotice.value = 'Usuario creado correctamente. Ya puede iniciar sesión mediante el código enviado a su correo.'
+  } catch (cause) {
+    usersError.value = cause instanceof Error ? cause.message : 'No se pudo crear el usuario.'
+  } finally {
+    creatingUser.value = false
   }
 }
 
@@ -519,6 +546,16 @@ function useMediaForNews(item: ManagedMedia) {
         <button v-if="officialQuotesEnabled" :class="{ active: section === 'quotes' }" @click="selectSection('quotes')"><IconSymbol glyph="▰" :size="19" /> <span class="manager-tab-label">Cotizaciones</span> <span>{{ quotesTotal }}</span></button>
         <button class="manager-editor-visual-tab" :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> <span class="manager-tab-label">Editor visual</span> <span>0</span></button>
       </nav>
+      <section v-if="section === 'users' && isLiveAdmin" class="manager-users-card manager-users-create" aria-label="Agregar usuario">
+        <header class="manager-create-title"><div><h2><span class="manager-create-plus" aria-hidden="true">+</span> Agregar usuario</h2><p>Crea una nueva cuenta para que pueda acceder al sistema.</p></div></header>
+        <form class="manager-create-form" @submit.prevent="createUser">
+          <label>Nombre<input v-model.trim="newUserForm.nombre" required minlength="2" maxlength="500" placeholder="Ej. Juan Pérez" autocomplete="name" /></label>
+          <label>Correo electrónico<input v-model.trim="newUserForm.correo" required type="email" maxlength="255" placeholder="Ej. usuario@empresa.com" autocomplete="email" /></label>
+          <div class="manager-select-field manager-create-role"><label>Rol</label><FieldDropdown v-model="newUserForm.role" aria-label="Rol del nuevo usuario" :options="[{value:'cliente',label:'Cliente'},{value:'administrador',label:'Administrador'}]" /></div>
+          <label v-if="newUserForm.role === 'cliente'">Código Dynamics (opcional)<input v-model.trim="newUserForm.codigoDynamics" maxlength="200" placeholder="Ej. C001234" autocomplete="off" /></label>
+          <button class="manager-user-save manager-create-submit" type="submit" :disabled="creatingUser">{{ creatingUser ? 'Creando…' : 'Crear usuario' }}</button>
+        </form>
+      </section>
       <section v-if="section === 'users'" class="manager-users-card" aria-label="Cuentas registradas">
         <header><div><p class="manager-eyebrow">CUENTAS REGISTRADAS</p><h2>{{ usersLoading ? 'Cargando…' : `${users.length} usuarios` }}</h2></div><button class="manager-add" :disabled="usersLoading" @click="loadUsers">Actualizar</button></header>
         <p v-if="usersError" class="manager-users-error" role="alert">{{ usersError }} <button v-if="!authState.previewRole" @click="loadUsers">Reintentar</button></p>
@@ -894,6 +931,22 @@ function useMediaForNews(item: ManagedMedia) {
   .is-embedded .manager-preview-note::before,
   .is-embedded .manager-users-error::before { animation: none; background-position: 50% 0; }
 }
+
+/* Crear usuarios: panel nativo dentro de Gestión de usuarios. */
+.manager-users-create{margin-bottom:20px}
+.manager-users-create .manager-create-title{margin-bottom:16px}
+.manager-users-create .manager-create-title h2{display:flex;align-items:center;gap:12px}
+.manager-create-plus{width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:#bb0b2b;color:#fff;font-size:27px;font-weight:400;flex-shrink:0}
+.manager-users-create .manager-create-title p{margin:7px 0 0;color:var(--admin-muted,#737a87);font-size:14px}
+.manager-create-form{display:grid;grid-template-columns:1.2fr 1.25fr 1fr 1.1fr auto;align-items:end;gap:15px}
+.manager-create-form label{display:flex;flex-direction:column;gap:8px;min-width:0;font-size:13px;font-weight:700;color:var(--admin-text,#171923)}
+.manager-create-form label span{color:#e52c4f}
+.manager-create-form input,.manager-create-form select{height:47px;width:100%;box-sizing:border-box;border:1px solid var(--admin-border,#cfd3dd);border-radius:11px;padding:0 13px;background:var(--admin-input,#fff);color:var(--admin-text,#171923);font:inherit;font-weight:400}
+.manager-create-form input::placeholder{color:var(--admin-muted,#788091);opacity:1}
+.manager-create-form input:focus-visible,.manager-create-form select:focus-visible{outline:2px solid #cc1635;outline-offset:2px}
+.manager-create-form .manager-create-role{min-width:0;display:flex;flex-direction:column;gap:8px}\n.manager-create-form .manager-create-role>label{font-size:13px;font-weight:700}\n.manager-create-form .manager-create-role :deep(.field-dropdown){width:100%;min-width:0}\n.manager-create-form .manager-create-role :deep(.field-dropdown__trigger){min-height:47px}\n.manager-create-form .manager-create-submit{height:47px;white-space:nowrap;border-radius:11px;padding:0 22px}
+@media(max-width:1100px){.manager-create-form{grid-template-columns:repeat(2,minmax(0,1fr))}.manager-create-submit{justify-self:start}}
+@media(max-width:580px){.manager-create-form{grid-template-columns:minmax(0,1fr)}}
 </style>
 
 <style scoped>

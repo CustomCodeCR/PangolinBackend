@@ -5314,3 +5314,48 @@ html.theme-dark .app-site .news-article-modal__copy .section-tag {
     text-align:left;
   }
 }
+
+/* Corrección puntual: solo fondo de campos y dropdowns CERRADOS.
+   Hay reglas más específicas para admin embebido, por eso el cambio previo
+   no alcanzaba Rol/Estado en la tabla ni los formularios de Contenido.
+   No modificar .cf-dropdown__menu ni los botones de sus opciones. */
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-users-card .manager-create-form :is(input:not([type="file"]):not([type="checkbox"]), select, textarea),
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-users-card .manager-create-form .cf-dropdown__trigger,
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-users-table .cf-dropdown__trigger,
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-form :is(input:not([type="file"]):not([type="checkbox"]), select, textarea),
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-form .cf-dropdown__trigger,
+html.theme-dark .content-manager .manager-create-form :is(input:not([type="file"]):not([type="checkbox"]), select, textarea),
+html.theme-dark .content-manager .manager-create-form .cf-dropdown__trigger,
+html.theme-dark .content-manager .manager-users-table .cf-dropdown__trigger,
+html.theme-dark .content-manager .manager-form :is(input:not([type="file"]):not([type="checkbox"]), select, textarea),
+html.theme-dark .content-manager .manager-form .cf-dropdown__trigger,
+html.theme-dark .admin-users-page .admin-users-create-form :is(input:not([type="file"]):not([type="checkbox"]), select, textarea),
+html.theme-dark .admin-users-page .admin-users-table .cf-dropdown__trigger {
+  background-color: #060f21 !important;
+}
+
+/* Itinerarios y rastreo: mismo azul en cajas cerradas y campos de texto. */
+html.theme-dark .app-site.itinerary-page .itinerary-form-line .cf-dropdown__trigger,
+html.theme-dark .app-site.itinerary-page .itinerary-form-line :is(input, select),
+html.theme-dark .app-site.itinerary-page .itinerary-input-with-icon i,
+html.theme-dark .tracking-site .tracking-fields .cf-dropdown__trigger,
+html.theme-dark .tracking-site .tracking-fields :is(input, select) {
+  background-color: #060f21 !important;
+}
+
+/* Otros formularios de administración: editor visual y cotizaciones.
+   Excluir los menús emergentes, superficies de tarjetas y botones. */
+html.theme-dark .app-site.administration-page .visual-editor.visual-editor :is(input:not([type="file"]):not([type="checkbox"]), select, textarea),
+html.theme-dark .app-site.administration-page .off-admin .off-admin-form :is(select, textarea),
+html.theme-dark .app-site.off-admin .off-admin-form.off-admin-form :is(select, textarea) {
+  background-color: #060f21 !important;
+}
+
+
+/* PR #94: cargas de Noticias y Multimedia en la paleta azul oscuro. */
+/* El editor de Contenido mantiene su botón de archivo rojo; solo se
+   oscurece el fondo de la caja de carga en modo oscuro. */
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-form input[type="file"],
+html.theme-dark .content-manager .manager-form input[type="file"] {
+  background-color:#060f21 !important;
+}
