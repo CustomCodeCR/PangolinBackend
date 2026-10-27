@@ -1,4 +1,6 @@
+using System.Net.Mail;
 using CastroFallas.MiniQuote.Api.Data;
+using CastroFallas.MiniQuote.Api.Models.Auth;
 using CastroFallas.MiniQuote.Api.Services.Auth;
 using CastroFallas.MiniQuote.Api.Services.Realtime;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +10,7 @@ namespace CastroFallas.MiniQuote.Api.Services;
 // Administradores gestionan cuentas ya registradas; no hay autorregistro público.
 // Los invitados no tienen usuario ni rol persistente en PostgreSQL.
 public sealed record UpdateUserAccessRequest(string? Role, bool? Activo);
+public sealed record CreateManagedUserRequest(string? Nombre, string? Correo, string? Role, string? CodigoDynamics);
 
 public static class AdminUsersEndpoints
 {
@@ -43,6 +46,71 @@ public static class AdminUsersEndpoints
                 page = currentPage,
                 pageSize = size,
                 totalPages = (int)Math.Ceiling((double)total / size)
+            });
+        });
+
+
+        group.MapPost("", async (
+            CreateManagedUserRequest input, AppDbContext db, AuthService auth,
+            ContentUpdatesPublisher updates, HttpContext http, CancellationToken ct) =>
+        {
+            var actor = await auth.GetIdentityAsync(http, ct);
+            if (actor is null) return Results.Unauthorized();
+
+            var email = input.Correo?.Trim().ToLowerInvariant() ?? "";
+            var name = input.Nombre?.Trim() ?? "";
+            var role = input.Role?.Trim().ToLowerInvariant();
+            var code = input.CodigoDynamics?.Trim() ?? "";
+            if (name.Length is < 2 or > 500 || email.Length is < 3 or > 255 ||
+                !MailAddress.TryCreate(email, out var address) ||
+                !string.Equals(address.Address, email, StringComparison.OrdinalIgnoreCase) ||
+                role is not ("administrador" or "cliente") ||
+                code.Length > 200 || (role == "cliente" && code.Length == 0))
+                return Results.BadRequest(new { error = "Indica nombre, correo válido y rol. Para clientes también se requiere el código Dynamics." });
+
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            // Serializa altas concurrentes de correo y de empresa.
+            await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(20261027)", ct);
+            if (await db.Usuarios.AnyAsync(u => u.Correo.ToLower() == email, ct))
+                return Results.Conflict(new { error = "Ya existe una cuenta con ese correo." });
+
+            Cliente? customer = null;
+            if (role == "cliente")
+            {
+                customer = await db.Clientes.FirstOrDefaultAsync(c => c.CodigoDynamics == code, ct);
+                if (customer is not null && (!customer.Status || customer.DeletedAt != null))
+                    return Results.Conflict(new { error = "La empresa asociada está desactivada." });
+            }
+            if (customer is null)
+            {
+                customer = new Cliente
+                {
+                    Nombre = name,
+                    CodigoDynamics = role == "administrador" ? "ADMIN-" + Guid.NewGuid().ToString("N") : code
+                };
+                db.Clientes.Add(customer);
+            }
+
+            var user = new Usuario
+            {
+                Correo = email,
+                TipoAcceso = role == "administrador" ? "usuario" : "cliente",
+                Cliente = customer,
+                Status = true
+            };
+            db.Usuarios.Add(user);
+            await db.SaveChangesAsync(ct);
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO auth_admin_user_audit
+                    (actor_usuario_id, target_usuario_id, old_role, new_role, old_active, new_active)
+                VALUES ({actor.UsuarioId}, {user.Uuid}, {"creado"}, {role}, {false}, {true})
+                """, ct);
+            await tx.CommitAsync(ct);
+            await updates.AdminsAsync("users");
+            return Results.Created($"/api/admin/users/{user.Uuid}", new
+            {
+                id = user.Uuid, correo = user.Correo, nombre = customer.Nombre,
+                role, activo = true, createdAt = user.CreatedAt
             });
         });
 
