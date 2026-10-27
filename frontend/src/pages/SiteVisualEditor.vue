@@ -466,4 +466,11 @@ html.theme-dark .visual-editor input[type="file"]::file-selector-button,
 html.theme-dark .app-site.administration-page .visual-editor input[type="file"]::file-selector-button {
   background-color:#060f21 !important;
 }
+
+/* PR #94: fondo del selector cerrado para la biblioteca de MinIO. */
+/* No altera el menú teletransportado ni la apariencia de sus opciones. */
+html.theme-dark .visual-editor .visual-editor__library-field .cf-dropdown__trigger,
+html.theme-dark .app-site.administration-page .visual-editor .visual-editor__library-field .cf-dropdown__trigger {
+  background-color: #060f21 !important;
+}
 </style>
