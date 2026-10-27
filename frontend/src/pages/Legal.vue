@@ -17,7 +17,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
   es: {
       "privacy": {
         "title": "Política de privacidad",
-        "intro": "Última actualización: 27 de octubre de 2026.",
+        "intro": "",
         "sections": [
           {
             "title": "Responsable del tratamiento",
@@ -89,7 +89,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
       },
       "terms": {
         "title": "Términos y condiciones de uso",
-        "intro": "Última actualización: 27 de octubre de 2026.",
+        "intro": "",
         "sections": [
           {
             "title": "Identificación del titular",
@@ -181,7 +181,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
       },
       "cookies": {
         "title": "Política de cookies y almacenamiento local",
-        "intro": "Última actualización: 27 de octubre de 2026.",
+        "intro": "",
         "sections": [
           {
             "title": "Responsable y contacto",
@@ -234,7 +234,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
       },
       "licenses": {
         "title": "Créditos y licencias",
-        "intro": "Última actualización: 27 de octubre de 2026.",
+        "intro": "",
         "sections": [
           {
             "title": "Titular del sitio",
@@ -309,7 +309,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
   en: {
       "privacy": {
         "title": "Privacy Policy",
-        "intro": "Last updated: October 27, 2026.",
+        "intro": "",
         "sections": [
           {
             "title": "Data controller",
@@ -381,7 +381,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
       },
       "terms": {
         "title": "Terms and Conditions of Use",
-        "intro": "Last updated: October 27, 2026.",
+        "intro": "",
         "sections": [
           {
             "title": "Website operator",
@@ -473,7 +473,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
       },
       "cookies": {
         "title": "Cookie and Local Storage Policy",
-        "intro": "Last updated: October 27, 2026.",
+        "intro": "",
         "sections": [
           {
             "title": "Operator and contact",
@@ -526,7 +526,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
       },
       "licenses": {
         "title": "Credits and Licenses",
-        "intro": "Last updated: October 27, 2026.",
+        "intro": "",
         "sections": [
           {
             "title": "Website operator",
