@@ -611,7 +611,7 @@ const content = computed(() => documents[locale.value === 'en' ? 'en' : 'es'][do
         <header class="legal-header">
           <p class="section-tag">{{ locale === 'en' ? 'CASTRO FALLAS · LEGAL' : 'CASTRO FALLAS · LEGAL' }}</p>
           <h1>{{ content.title }}<span>.</span></h1>
-          <p class="legal-intro">{{ content.intro }}</p>
+          <p v-if="content.intro" class="legal-intro">{{ content.intro }}</p>
         </header>
         <article class="legal-sections">
           <section v-for="(section, index) in content.sections" :key="section.title" class="legal-section">
