@@ -195,7 +195,7 @@ onMounted(loadUsers)
         <div v-else-if="!error && users.length === 0" class="admin-users-empty">Aún no hay cuentas para mostrar.</div>
         <div v-else-if="users.length" class="admin-users-table-wrap">
           <table class="admin-users-table">
-            <thead><tr><th>Cuenta</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead>
+            <thead><tr><th>Cuenta</th><th>Rol</th><th>Estado</th><th><span class="admin-users-action-heading">Acción</span></th></tr></thead>
             <tbody>
               <tr v-for="user in users" :key="user.id">
                 <td data-label="Cuenta"><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td>
@@ -224,8 +224,29 @@ onMounted(loadUsers)
 .admin-users-actions > button{min-width:96px;flex-shrink:0}
 .admin-users-delete:disabled{opacity:.7;cursor:not-allowed;color:#8a909d;border-color:#ccd0d9;background:#f4f5f7}
 
+
+/* Tabla de escritorio: los títulos siguen exactamente la posición de
+   los selectores y del grupo de botones, sin alterar las tarjetas móviles. */
+@media (min-width:1181px) {
+  .admin-users-table {table-layout:fixed;width:100%}
+  .admin-users-table th:nth-child(1) {width:35.5%}
+  .admin-users-table th:nth-child(2) {width:22%}
+  .admin-users-table th:nth-child(3) {width:22%}
+  .admin-users-table th:nth-child(4) {width:20.5%}
+  .admin-users-table td:first-child small {overflow-wrap:anywhere;white-space:normal}
+  .admin-users-table th:last-child .admin-users-action-heading {
+    display:block;width:min(200px,100%);margin-left:auto;text-align:left;
+  }
+  .admin-users-actions {
+    width:min(200px,100%);margin-left:auto;justify-content:flex-start;
+  }
+  .admin-users-actions > button {
+    flex:1 1 0;min-width:0;padding-inline:8px;
+  }
+}
+
 /* En móvil y tablet las cuentas son tarjetas; nunca una tabla desplazable. */
-@media (max-width:1050px) {
+@media (max-width:1180px) {
   .admin-users-table-wrap {width:100%;max-width:100%;overflow:visible;border:0}
   .admin-users-table {display:block;width:100%;min-width:0;border-collapse:separate}
   .admin-users-table thead {display:none}
