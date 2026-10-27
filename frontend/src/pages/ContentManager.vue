@@ -1423,4 +1423,13 @@ html.theme-dark .manager-user-delete:disabled{color:#929baa;border-color:#485068
   .content-manager.is-embedded .manager-users-card {min-width:0}
 }
 
+
+/* Encabezados de Gestión de usuarios: usan exactamente el fondo de los campos. */
+.content-manager .manager-users-table thead th,
+.content-manager.is-embedded .manager-users-table thead th,
+.is-embedded .manager-users-table th {
+  background: var(--admin-input, #060f21) !important;
+  background-color: var(--admin-input, #060f21) !important;
+  color: #fff !important;
+}
 </style>
