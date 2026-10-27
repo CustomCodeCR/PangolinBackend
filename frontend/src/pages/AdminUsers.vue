@@ -198,10 +198,10 @@ onMounted(loadUsers)
             <thead><tr><th>Cuenta</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead>
             <tbody>
               <tr v-for="user in users" :key="user.id">
-                <td><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td>
-                <td><FieldDropdown :model-value="user.role" :aria-label="`Rol de ${user.correo}`" :options="[{value:'cliente',label:'Cliente'},{value:'administrador',label:'Administrador'}]" @update:model-value="value => user.role = value === 'administrador' ? 'administrador' : 'cliente'" /></td>
-                <td><FieldDropdown :model-value="String(user.activo)" :aria-label="`Estado de ${user.correo}`" :options="[{value:'true',label:'Activo'},{value:'false',label:'Desactivado'}]" @update:model-value="value => user.activo = value === 'true'" /></td>
-                <td><div class="admin-users-actions"><button class="admin-users-save" type="button" :disabled="savingId === user.id || deletingId === user.id" @click="updateUser(user)">{{ savingId === user.id ? 'Guardando…' : 'Guardar' }}</button><button class="admin-users-delete" type="button" :aria-label="`Eliminar cuenta de ${user.correo}`" :disabled="Boolean(authState.previewRole) || user.activo || user.savedActive || user.id === authState.user?.id || Boolean(savingId) || Boolean(deletingId)" :title="user.activo || user.savedActive ? 'Primero desactivá y guardá la cuenta para poder eliminarla.' : 'Eliminar cuenta desactivada'" @click="deleteUser(user)">{{ deletingId === user.id ? 'Eliminando…' : 'Eliminar' }}</button></div></td>
+                <td data-label="Cuenta"><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td>
+                <td data-label="Rol"><FieldDropdown :min-menu-width="190" :model-value="user.role" :aria-label="`Rol de ${user.correo}`" :options="[{value:'cliente',label:'Cliente'},{value:'administrador',label:'Administrador'}]" @update:model-value="value => user.role = value === 'administrador' ? 'administrador' : 'cliente'" /></td>
+                <td data-label="Estado"><FieldDropdown :min-menu-width="190" :model-value="String(user.activo)" :aria-label="`Estado de ${user.correo}`" :options="[{value:'true',label:'Activo'},{value:'false',label:'Desactivado'}]" @update:model-value="value => user.activo = value === 'true'" /></td>
+                <td data-label="Acción"><div class="admin-users-actions"><button class="admin-users-save" type="button" :disabled="savingId === user.id || deletingId === user.id" @click="updateUser(user)">{{ savingId === user.id ? 'Guardando…' : 'Guardar' }}</button><button class="admin-users-delete" type="button" :aria-label="`Eliminar cuenta de ${user.correo}`" :disabled="Boolean(authState.previewRole) || user.activo || user.savedActive || user.id === authState.user?.id || Boolean(savingId) || Boolean(deletingId)" :title="user.activo || user.savedActive ? 'Primero desactivá y guardá la cuenta para poder eliminarla.' : 'Eliminar cuenta desactivada'" @click="deleteUser(user)">{{ deletingId === user.id ? 'Eliminando…' : 'Eliminar' }}</button></div></td>
               </tr>
             </tbody>
           </table>
@@ -223,4 +223,41 @@ onMounted(loadUsers)
 .admin-users-delete:focus-visible{outline:2px solid #cf1737;outline-offset:2px}
 .admin-users-actions > button{min-width:96px;flex-shrink:0}
 .admin-users-delete:disabled{opacity:.7;cursor:not-allowed;color:#8a909d;border-color:#ccd0d9;background:#f4f5f7}
+
+/* En móvil y tablet las cuentas son tarjetas; nunca una tabla desplazable. */
+@media (max-width:1050px) {
+  .admin-users-table-wrap {width:100%;max-width:100%;overflow:visible;border:0}
+  .admin-users-table {display:block;width:100%;min-width:0;border-collapse:separate}
+  .admin-users-table thead {display:none}
+  .admin-users-table tbody {display:grid;gap:12px;min-width:0;padding:14px}
+  .admin-users-table tbody tr {
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    min-width:0;gap:14px 12px;padding:16px;
+    border:1px solid #d9dde6;border-radius:14px;background:#fff;
+  }
+  .admin-users-table tbody td,
+  .admin-users-table tbody td:first-child {
+    display:flex;flex-direction:column;gap:7px;width:100%;max-width:100%;
+    min-width:0;box-sizing:border-box;padding:0;border:0;white-space:normal;
+    overflow-wrap:anywhere;
+  }
+  .admin-users-table tbody td:first-child,
+  .admin-users-table tbody td:last-child {grid-column:1/-1}
+  .admin-users-table tbody td::before {
+    content:attr(data-label);display:block;font-size:11px;font-weight:800;
+    line-height:1.2;letter-spacing:.05em;text-transform:uppercase;color:#717786;
+  }
+  .admin-users-table tbody td:first-child small {margin:0;overflow-wrap:anywhere;white-space:normal}
+  .admin-users-table tbody td .cf-dropdown {width:100%;min-width:0}
+  .admin-users-table .admin-users-actions {justify-content:flex-start;width:100%;min-width:0}
+  .admin-users-table .admin-users-actions > button {flex:1 1 0;min-width:0;min-height:44px}
+}
+@media (max-width:650px) {
+  .admin-users-table tbody {padding:12px}
+  .admin-users-table tbody tr {grid-template-columns:minmax(0,1fr);padding:13px}
+  .admin-users-table tbody td:first-child,
+  .admin-users-table tbody td:last-child {grid-column:auto}
+  .admin-users-card {min-width:0}
+}
+
 </style>
