@@ -217,7 +217,7 @@ onMounted(loadUsers)
 </style>
 
 <style scoped>
-.admin-users-actions{display:flex;align-items:center;gap:8px}
+.admin-users-actions{display:flex;align-items:center;justify-content:flex-end;width:100%;gap:8px}
 .admin-users-delete{min-height:41px;border:1px solid #cf1737;border-radius:11px;padding:9px 13px;background:transparent;color:#b20c2a;font:inherit;font-weight:750;cursor:pointer}
 .admin-users-delete:hover{background:#fff0f2}
 .admin-users-delete:focus-visible{outline:2px solid #cf1737;outline-offset:2px}
