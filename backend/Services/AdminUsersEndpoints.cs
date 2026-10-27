@@ -65,8 +65,8 @@ public static class AdminUsersEndpoints
                 !MailAddress.TryCreate(email, out var address) ||
                 !string.Equals(address.Address, email, StringComparison.OrdinalIgnoreCase) ||
                 role is not ("administrador" or "cliente") ||
-                code.Length > 200 || (role == "cliente" && code.Length == 0))
-                return Results.BadRequest(new { error = "Indica nombre, correo válido y rol. Para clientes también se requiere el código Dynamics." });
+                code.Length > 200)
+                return Results.BadRequest(new { error = "Indica nombre, correo válido y rol. El código Dynamics es opcional." });
 
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             // Serializa altas concurrentes de correo y de empresa.
@@ -75,7 +75,7 @@ public static class AdminUsersEndpoints
                 return Results.Conflict(new { error = "Ya existe una cuenta con ese correo." });
 
             Cliente? customer = null;
-            if (role == "cliente")
+            if (role == "cliente" && code.Length > 0)
             {
                 customer = await db.Clientes.FirstOrDefaultAsync(c => c.CodigoDynamics == code, ct);
                 if (customer is not null && (!customer.Status || customer.DeletedAt != null))
@@ -86,7 +86,7 @@ public static class AdminUsersEndpoints
                 customer = new Cliente
                 {
                     Nombre = name,
-                    CodigoDynamics = role == "administrador" ? "ADMIN-" + Guid.NewGuid().ToString("N") : code
+                    CodigoDynamics = code.Length > 0 && role == "cliente" ? code : "INTERNO-" + Guid.NewGuid().ToString("N")
                 };
                 db.Clientes.Add(customer);
             }
