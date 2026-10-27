@@ -16,12 +16,27 @@ const isOpen = ref(false)
 const isPositioned = ref(false)
 const trigger = ref<HTMLButtonElement | null>(null)
 const menu = ref<HTMLElement | null>(null)
-const popupStyle = ref<Record<string, string>>({})
+// Keep the teleported list above overflow-hidden cards, but follow the actual
+// field on every animation frame. Safari can scroll the page asynchronously,
+// ahead of scroll events, so event-only repositioning leaves the list floating.
+let trackingFrame = 0
+let lastGeometry = ''
+let placement: 'above' | 'below' | null = null
+let clippingAncestors: HTMLElement[] = []
 const selected = computed(() => props.options.find(option => option.value === props.modelValue)?.label ?? props.options[0]?.label ?? '')
 
-// Measure the rendered list before placing it above the trigger. Previously
-// top was calculated from maxHeight (300px), leaving a large visible gap whenever
-// the list contained fewer options and its actual height was smaller.
+// A list teleported to <body> does not inherit the field's scrolling position.
+// Keep the actual DOM list aligned with the trigger (including during momentum
+// scrolling), without moving it back into a card that could clip the options.
+function findClippingAncestors() {
+  clippingAncestors = []
+  for (let parent = trigger.value?.parentElement; parent; parent = parent.parentElement) {
+    const style = window.getComputedStyle(parent)
+    if (/(auto|scroll|hidden|clip)/.test(style.overflowX + ' ' + style.overflowY)) {
+      clippingAncestors.push(parent)
+    }
+  }
+}
 function positionMenu() {
   const rect = trigger.value?.getBoundingClientRect()
   const list = menu.value
@@ -32,35 +47,64 @@ function positionMenu() {
   const bottomEdge = topEdge + (viewport?.height ?? window.innerHeight)
   const leftEdge = viewport?.offsetLeft ?? 0
   const rightEdge = leftEdge + (viewport?.width ?? window.innerWidth)
+
+  // Do not leave an orphaned floating menu when its field scrolls out of view,
+  // including within independently scrollable panels.
+  const outsideViewport = rect.bottom <= topEdge || rect.top >= bottomEdge ||
+    rect.right <= leftEdge || rect.left >= rightEdge
+  const clipped = clippingAncestors.some(parent => {
+    const bounds = parent.getBoundingClientRect()
+    return rect.bottom <= bounds.top || rect.top >= bounds.bottom ||
+      rect.right <= bounds.left || rect.left >= bounds.right
+  })
+  if (outsideViewport || clipped) { closeMenu(); return }
+
+  // Skip writes while nothing has moved. Checking once per frame keeps the
+  // popup attached even during Safari's asynchronous / momentum scrolling.
+  const geometry = [rect.top, rect.bottom, rect.left, rect.width,
+    topEdge, bottomEdge, leftEdge, rightEdge, list.scrollHeight].join('|')
+  if (geometry === lastGeometry) return
+  lastGeometry = geometry
+
   const gap = 6
   const below = Math.max(0, bottomEdge - rect.bottom - gap - 4)
   const above = Math.max(0, rect.top - topEdge - gap - 4)
   const width = Math.max(1, Math.min(rect.width, rightEdge - leftEdge - 16))
   const left = Math.max(leftEdge + 8, Math.min(rect.left, rightEdge - width - 8))
 
-  // Set width first, because wrapped option labels change the list's height.
+  // Width affects wrapping/height; measure the rendered options, not an
+  // assumed 300px height, so a short menu sits directly next to its field.
   list.style.width = width + 'px'
   list.style.maxHeight = '300px'
   const naturalHeight = list.scrollHeight + (list.offsetHeight - list.clientHeight)
-  const flip = below < Math.min(300, naturalHeight) && above > below
-  const available = flip ? above : below
-  const maxHeight = Math.max(44, Math.min(300, available))
+  if (!placement) placement = below < Math.min(300, naturalHeight) && above > below ? 'above' : 'below'
+  const available = placement === 'above' ? above : below
+  if (available < 44) { closeMenu(); return }
+
+  const maxHeight = Math.min(300, available)
   list.style.maxHeight = maxHeight + 'px'
   const renderedHeight = list.getBoundingClientRect().height
-  const desiredTop = flip ? rect.top - renderedHeight - gap : rect.bottom + gap
+  const desiredTop = placement === 'above' ? rect.top - renderedHeight - gap : rect.bottom + gap
   const top = Math.max(topEdge + 4, Math.min(desiredTop, bottomEdge - renderedHeight - 4))
 
-  popupStyle.value = {
-    top: top + 'px',
-    left: left + 'px',
-    width: width + 'px',
-    maxHeight: maxHeight + 'px',
-  }
-  isPositioned.value = true
+  // Write straight to the fixed portal element instead of waiting for a
+  // Vue render cycle, which can lag one frame behind scroll.
+  list.style.top = top + 'px'
+  list.style.left = left + 'px'
+  if (!isPositioned.value) isPositioned.value = true
+}
+function trackMenu() {
+  trackingFrame = 0
+  if (!isOpen.value) return
+  positionMenu()
+  if (isOpen.value) trackingFrame = window.requestAnimationFrame(trackMenu)
 }
 function closeMenu() {
   isOpen.value = false
   isPositioned.value = false
+  lastGeometry = ''
+  placement = null
+  clippingAncestors = []
 }
 function openMenu(focusOption = false) {
   if (props.disabled) return
@@ -105,11 +149,13 @@ function handleKeydown(event: KeyboardEvent) {
 watch(() => props.disabled, (disabled) => { if (disabled) closeMenu() })
 watch(isOpen, (open) => {
   if (open) {
+    findClippingAncestors()
     document.addEventListener('pointerdown', outsidePointer, true)
     window.addEventListener('resize', reposition)
     window.addEventListener('scroll', reposition, true)
     window.visualViewport?.addEventListener('resize', reposition)
     window.visualViewport?.addEventListener('scroll', reposition)
+    if (!trackingFrame) trackingFrame = window.requestAnimationFrame(trackMenu)
   } else removeListeners()
 })
 function removeListeners() {
@@ -118,6 +164,8 @@ function removeListeners() {
   window.removeEventListener('scroll', reposition, true)
   window.visualViewport?.removeEventListener('resize', reposition)
   window.visualViewport?.removeEventListener('scroll', reposition)
+  if (trackingFrame) window.cancelAnimationFrame(trackingFrame)
+  trackingFrame = 0
 }
 onBeforeUnmount(removeListeners)
 </script>
@@ -133,7 +181,7 @@ onBeforeUnmount(removeListeners)
     </button>
     <Teleport to="body">
       <div v-if="isOpen" :id="listId" ref="menu" class="cf-dropdown__menu" role="listbox"
-        :aria-label="props['aria-label']" :style="{ ...popupStyle, visibility: isPositioned ? 'visible' : 'hidden' }" @keydown="handleKeydown">
+        :aria-label="props['aria-label']" :style="{ visibility: isPositioned ? 'visible' : 'hidden' }" @keydown="handleKeydown">
         <button v-for="option in options" :key="option.value" type="button" role="option"
           :aria-selected="modelValue === option.value" tabindex="-1"
           :class="{ 'cf-dropdown__option--selected': modelValue === option.value }"
