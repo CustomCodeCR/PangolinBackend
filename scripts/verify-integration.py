@@ -51,7 +51,7 @@ check('embla-carousel' in json.loads(read('frontend/package.json'))['dependencie
 check('node_modules/embla-carousel' in json.loads(read('frontend/package-lock.json'))['packages'], 'Lockfile actualizado para carrusel')
 check("if(path==='/servicios') return 'services'" in rootvue and '<Services v-else-if' in rootvue, 'Nueva página Servicios registrada y conservada con autenticación')
 check("url: '/servicios'" in header and 'logoutSession' in header, 'Menú actualizado sin perder logout')
-check('EmblaCarousel' in read('frontend/src/pages/News.vue') and 'news-article-modal' in read('frontend/src/pages/News.vue'), 'Nueva página Noticias y modal disponible')
+check('EmblaCarousel' in read('frontend/src/pages/News.vue') and ('news-article-modal' in read('frontend/src/pages/News.vue') or ('news-article-page' in read('frontend/src/pages/News.vue') and 'articlePath' in read('frontend/src/pages/News.vue'))), 'Página de Noticias conserva carrusel y lectura de artículos (modal o página completa)')
 check((root/'frontend/src/pages/Services.vue').is_file(), 'Página Servicios incluida')
 check('selectTransport' in read('frontend/src/pages/Itinerary.vue'), 'Mejoras de transporte incorporadas')
 # Protección frente a las regresiones introducidas por la integración del frontend.
