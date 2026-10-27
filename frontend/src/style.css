@@ -5359,3 +5359,41 @@ html.theme-dark .app-site.administration-page .content-manager.is-embedded .mana
 html.theme-dark .content-manager .manager-form input[type="file"] {
   background-color:#060f21 !important;
 }
+
+
+/* Ajuste localizado: evitar la columna de servicios estrecha en tablet.
+   Conserva el acordeón original y el carrusel vertical, sin alterarlos. */
+@media (min-width: 651px) and (max-width: 1100px) {
+  .app-site #servicios .services-news-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 26px;
+  }
+  .app-site #servicios .home-news-sidebar {
+    align-self: stretch;
+    height: 340px;
+    min-height: 0;
+    padding: 14px 16px;
+    border: 1px solid rgba(177, 13, 42, .24);
+    border-radius: 18px;
+  }
+  .app-site #servicios .home-news-sidebar__list {
+    flex: 1 1 auto;
+    height: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+/* De 651 a 800 px no transformar noticias en fila dentro de un lateral. */
+@media (min-width: 651px) and (max-width: 800px) {
+  .app-site #servicios .home-news-sidebar__track,
+  .app-site #servicios .home-news-sidebar__group {
+    flex-direction: column;
+    width: 100%;
+  }
+  .app-site #servicios .home-news-sidebar__group .home-hero-news__card {
+    flex: 0 0 158px;
+    width: min(100%, 230px);
+    height: 158px;
+    min-height: 158px;
+  }
+}
