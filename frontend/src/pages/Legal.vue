@@ -6,7 +6,7 @@ import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 
 type LegalSection = { title: string; paragraphs?: string[]; bullets?: string[]; links?: { label: string; href: string }[] }
-type LegalDocument = { title: string; intro: string; sections: LegalSection[] }
+type LegalDocument = { title: string; sections: LegalSection[] }
 const { locale } = useI18n({ useScope: 'global' })
 const documentType = computed(() => {
   const path = window.location.pathname.replace(/\/+$/, '')
@@ -17,8 +17,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
   es: {
       "privacy": {
         "title": "Política de privacidad",
-        "intro": "",
-        "sections": [
+                "sections": [
           {
             "title": "Responsable del tratamiento",
             "paragraphs": [
@@ -89,8 +88,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
       },
       "terms": {
         "title": "Términos y condiciones de uso",
-        "intro": "",
-        "sections": [
+                "sections": [
           {
             "title": "Identificación del titular",
             "paragraphs": [
@@ -181,8 +179,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
       },
       "cookies": {
         "title": "Política de cookies y almacenamiento local",
-        "intro": "",
-        "sections": [
+                "sections": [
           {
             "title": "Responsable y contacto",
             "paragraphs": [
@@ -234,8 +231,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
       },
       "licenses": {
         "title": "Créditos y licencias",
-        "intro": "",
-        "sections": [
+                "sections": [
           {
             "title": "Titular del sitio",
             "paragraphs": [
@@ -309,8 +305,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
   en: {
       "privacy": {
         "title": "Privacy Policy",
-        "intro": "",
-        "sections": [
+                "sections": [
           {
             "title": "Data controller",
             "paragraphs": [
@@ -381,8 +376,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
       },
       "terms": {
         "title": "Terms and Conditions of Use",
-        "intro": "",
-        "sections": [
+                "sections": [
           {
             "title": "Website operator",
             "paragraphs": [
@@ -473,8 +467,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
       },
       "cookies": {
         "title": "Cookie and Local Storage Policy",
-        "intro": "",
-        "sections": [
+                "sections": [
           {
             "title": "Operator and contact",
             "paragraphs": [
@@ -526,8 +519,7 @@ const documents: Record<'es' | 'en', Record<'privacy' | 'terms' | 'cookies' | 'l
       },
       "licenses": {
         "title": "Credits and Licenses",
-        "intro": "",
-        "sections": [
+                "sections": [
           {
             "title": "Website operator",
             "paragraphs": [
@@ -611,7 +603,6 @@ const content = computed(() => documents[locale.value === 'en' ? 'en' : 'es'][do
         <header class="legal-header">
           <p class="section-tag">{{ locale === 'en' ? 'CASTRO FALLAS · LEGAL' : 'CASTRO FALLAS · LEGAL' }}</p>
           <h1>{{ content.title }}<span>.</span></h1>
-          <p v-if="content.intro" class="legal-intro">{{ content.intro }}</p>
         </header>
         <article class="legal-sections">
           <section v-for="(section, index) in content.sections" :key="section.title" class="legal-section">
