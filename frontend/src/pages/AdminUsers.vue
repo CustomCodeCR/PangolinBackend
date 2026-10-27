@@ -201,7 +201,7 @@ onMounted(loadUsers)
                 <td><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td>
                 <td><FieldDropdown :model-value="user.role" :aria-label="`Rol de ${user.correo}`" :options="[{value:'cliente',label:'Cliente'},{value:'administrador',label:'Administrador'}]" @update:model-value="value => user.role = value === 'administrador' ? 'administrador' : 'cliente'" /></td>
                 <td><FieldDropdown :model-value="String(user.activo)" :aria-label="`Estado de ${user.correo}`" :options="[{value:'true',label:'Activo'},{value:'false',label:'Desactivado'}]" @update:model-value="value => user.activo = value === 'true'" /></td>
-                <td><div class="admin-users-actions"><button class="admin-users-save" type="button" :disabled="savingId === user.id || deletingId === user.id" @click="updateUser(user)">{{ savingId === user.id ? 'Guardando…' : 'Guardar' }}</button><button v-if="!user.activo && !user.savedActive && !authState.previewRole" class="admin-users-delete" type="button" :aria-label="`Eliminar cuenta de ${user.correo}`" :disabled="Boolean(savingId) || Boolean(deletingId)" @click="deleteUser(user)">{{ deletingId === user.id ? 'Eliminando…' : 'Eliminar' }}</button></div></td>
+                <td><div class="admin-users-actions"><button class="admin-users-save" type="button" :disabled="savingId === user.id || deletingId === user.id" @click="updateUser(user)">{{ savingId === user.id ? 'Guardando…' : 'Guardar' }}</button><button class="admin-users-delete" type="button" :aria-label="`Eliminar cuenta de ${user.correo}`" :disabled="Boolean(authState.previewRole) || user.activo || user.savedActive || user.id === authState.user?.id || Boolean(savingId) || Boolean(deletingId)" :title="user.activo || user.savedActive ? 'Primero desactivá y guardá la cuenta para poder eliminarla.' : 'Eliminar cuenta desactivada'" @click="deleteUser(user)">{{ deletingId === user.id ? 'Eliminando…' : 'Eliminar' }}</button></div></td>
               </tr>
             </tbody>
           </table>
@@ -219,7 +219,8 @@ onMounted(loadUsers)
 <style scoped>
 .admin-users-actions{display:flex;align-items:center;justify-content:flex-end;width:100%;gap:8px}
 .admin-users-delete{min-height:41px;border:1px solid #cf1737;border-radius:11px;padding:9px 13px;background:transparent;color:#b20c2a;font:inherit;font-weight:750;cursor:pointer}
-.admin-users-delete:hover{background:#fff0f2}
+.admin-users-delete:not(:disabled):hover{background:#fff0f2}
 .admin-users-delete:focus-visible{outline:2px solid #cf1737;outline-offset:2px}
-.admin-users-delete:disabled{opacity:.55;cursor:not-allowed}
+.admin-users-actions > button{min-width:96px;flex-shrink:0}
+.admin-users-delete:disabled{opacity:.7;cursor:not-allowed;color:#8a909d;border-color:#ccd0d9;background:#f4f5f7}
 </style>
