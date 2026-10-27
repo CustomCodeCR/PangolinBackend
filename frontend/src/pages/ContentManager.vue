@@ -551,7 +551,7 @@ function useMediaForNews(item: ManagedMedia) {
         <form class="manager-create-form" @submit.prevent="createUser">
           <label>Nombre<input v-model.trim="newUserForm.nombre" required minlength="2" maxlength="500" placeholder="Ej. Juan Pérez" autocomplete="name" /></label>
           <label>Correo electrónico<input v-model.trim="newUserForm.correo" required type="email" maxlength="255" placeholder="Ej. usuario@empresa.com" autocomplete="email" /></label>
-          <label>Rol<select v-model="newUserForm.role"><option value="cliente">Cliente</option><option value="administrador">Administrador</option></select></label>
+          <div class="manager-select-field manager-create-role"><label>Rol</label><FieldDropdown v-model="newUserForm.role" aria-label="Rol del nuevo usuario" :options="[{value:'cliente',label:'Cliente'},{value:'administrador',label:'Administrador'}]" /></div>
           <label v-if="newUserForm.role === 'cliente'">Código Dynamics (opcional)<input v-model.trim="newUserForm.codigoDynamics" maxlength="200" placeholder="Ej. C001234" autocomplete="off" /></label>
           <button class="manager-user-save manager-create-submit" type="submit" :disabled="creatingUser">{{ creatingUser ? 'Creando…' : 'Crear usuario' }}</button>
         </form>
@@ -944,7 +944,7 @@ function useMediaForNews(item: ManagedMedia) {
 .manager-create-form input,.manager-create-form select{height:47px;width:100%;box-sizing:border-box;border:1px solid var(--admin-border,#cfd3dd);border-radius:11px;padding:0 13px;background:var(--admin-input,#fff);color:var(--admin-text,#171923);font:inherit;font-weight:400}
 .manager-create-form input::placeholder{color:var(--admin-muted,#788091);opacity:1}
 .manager-create-form input:focus-visible,.manager-create-form select:focus-visible{outline:2px solid #cc1635;outline-offset:2px}
-.manager-create-form .manager-create-submit{height:47px;white-space:nowrap;border-radius:11px;padding:0 22px}
+.manager-create-form .manager-create-role{min-width:0;display:flex;flex-direction:column;gap:8px}\n.manager-create-form .manager-create-role>label{font-size:13px;font-weight:700}\n.manager-create-form .manager-create-role :deep(.field-dropdown){width:100%;min-width:0}\n.manager-create-form .manager-create-role :deep(.field-dropdown__trigger){min-height:47px}\n.manager-create-form .manager-create-submit{height:47px;white-space:nowrap;border-radius:11px;padding:0 22px}
 @media(max-width:1100px){.manager-create-form{grid-template-columns:repeat(2,minmax(0,1fr))}.manager-create-submit{justify-self:start}}
 @media(max-width:580px){.manager-create-form{grid-template-columns:minmax(0,1fr)}}
 </style>
