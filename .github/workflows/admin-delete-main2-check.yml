@@ -52,11 +52,14 @@ jobs:
           assert 'auth_admin_user_audit' in backend
           assert 'db.Usuarios.Remove(' not in backend
           for ui in (manager, standalone):
-              assert "!user.activo && !user.savedActive" in ui
+              assert 'user.activo || user.savedActive' in ui
+              assert 'v-if="!user.activo && !user.savedActive' not in ui
+              assert 'min-width:96px' in ui
+              assert 'Primero desactivá y guardá la cuenta' in ui
               assert 'window.confirm(' in ui
               assert "method: 'DELETE'" in ui
               assert '@click="deleteUser(user)"' in ui
-          print('PASS: saved-inactive-only confirmed delete, audit and session revocation')
+          print('PASS: always-visible disabled delete control, confirmation, audit and session revocation')
           PY
 
   smoke:
