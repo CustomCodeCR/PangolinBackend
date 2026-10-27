@@ -34,6 +34,19 @@ jobs:
         run: python3 scripts/verify-integration.py
       - name: Official quotes deployment and API contract checks
         run: python3 scripts/verify-official-quotes.py
+      - name: Chrome responsive regression for administration (320-1440px)
+        run: |
+          python3 -m venv /tmp/cf-admin-responsive
+          /tmp/cf-admin-responsive/bin/pip install --disable-pip-version-check selenium==4.38.0
+          /tmp/cf-admin-responsive/bin/python scripts/test-admin-users-mobile.py
+      - name: Attach administration responsive screenshot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cf-admin-responsive-review
+          path: artifacts/admin-users-mobile/
+          if-no-files-found: warn
+          retention-days: 14
 
   smoke:
     name: PostgreSQL OTP CRUD CMS smoke

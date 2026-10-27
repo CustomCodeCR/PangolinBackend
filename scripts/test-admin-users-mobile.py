@@ -120,7 +120,7 @@ def main():
     try:
         browser = webdriver.Chrome(options=options)
         SHOTS.mkdir(parents=True, exist_ok=True)
-        for width in (320, 375, 430, 768, 1024, 1120, 1181, 1280, 1440):
+        for width in (320, 375, 430, 650, 768, 820, 821, 900, 1024, 1100, 1120, 1181, 1280, 1440):
             browser.execute_cdp_cmd("Emulation.setDeviceMetricsOverride", {
                 "width": width, "height": 870, "deviceScaleFactor": 1,
                 "mobile": width < 1100
@@ -137,7 +137,7 @@ def main():
             assert all(right <= width + 2 for right in measurement["rowRight"]), measurement
             assert measurement["disabledDelete"] and measurement["enabledDelete"], measurement
             assert measurement["triggerWidth"] >= 160, measurement
-            if width <= 1180:
+            if width <= 820:
                 assert len(measurement["gridColumns"].split()) in (1, 2), measurement
             else:
                 assert measurement["gridColumns"] == "none", measurement
@@ -147,7 +147,7 @@ def main():
                 assert abs(measurement["statusHeadingLeft"] + 16 - measurement["statusDropdownLeft"]) <= 2, measurement
                 assert abs(measurement["actionHeadingLeft"] - measurement["actionButtonLeft"]) <= 2, measurement
                 assert 10 <= measurement["lastTableRight"] - measurement["actionButtonRight"] <= 30, measurement
-            if width in (320, 375, 768, 1280, 1440):
+            if width in (320, 375, 768, 820, 821, 1024, 1100, 1280, 1440):
                 browser.save_screenshot(str(SHOTS / f"usuarios-{width}.png"))
 
             status_trigger = browser.find_element(
