@@ -46,6 +46,8 @@ jobs:
       # the backend without requiring MongoDB for this integration smoke.
       - name: Start required test dependencies (PostgreSQL and Redis)
         run: docker compose up -d --wait postgres redis
+      - name: Exercise additive CMS news migration three times in isolated PostgreSQL
+        run: python3 scripts/test-cms-news-migration.py
       - name: Build backend test container
         run: docker compose build backend
       - name: Start backend without optional MongoDB
