@@ -28,6 +28,12 @@ if (builder.Configuration["Email:Mode"]?.Equals("LocalOutbox", StringComparison.
     throw new InvalidOperationException("Email:Mode=LocalOutbox no está permitido fuera de Development.");
 
 builder.Services.AddHttpClient<GraphEmailSender>(client => client.Timeout = TimeSpan.FromSeconds(20));
+// Fixed destination and redirects disabled so the Dhole API key cannot be forwarded elsewhere.
+builder.Services.AddHttpClient("DholeTracking", client =>
+{
+    client.BaseAddress = new Uri("https://api.logisticacastrofallas.com/");
+    client.Timeout = TimeSpan.FromSeconds(12);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(postgres));
 // Redis y MongoDB se utilizan SOLO para cache/auditoría de cotizaciones.
 // Si no se configuran, el login y las cotizaciones siguen usando PostgreSQL.
@@ -273,6 +279,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapTrackingDemo();
+app.MapDholeTracking();
 app.MapGet("/api/health", () => Results.Ok(new
 {
     service = "CastroFallas.MiniQuote.Api", status = "ok", version = "rediseno-auth-otp-v1", utc = DateTime.UtcNow

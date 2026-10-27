@@ -187,6 +187,10 @@ CREATE TABLE IF NOT EXISTS public.cms_news (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ALTER TABLE public.cms_news ADD COLUMN IF NOT EXISTS body TEXT NOT NULL DEFAULT '';
+-- Additive metadata: older published posts keep their original creation date.
+ALTER TABLE public.cms_news ADD COLUMN IF NOT EXISTS author VARCHAR(160) NOT NULL DEFAULT '';
+ALTER TABLE public.cms_news ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ NULL;
+UPDATE public.cms_news SET published_at = created_at WHERE published = TRUE AND published_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_cms_news_published ON public.cms_news(published, created_at DESC);
 -- Comentarios moderados: los borradores nunca se exponen en la API pública.
 CREATE TABLE IF NOT EXISTS public.cms_comments (

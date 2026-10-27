@@ -1,4 +1,4 @@
-name: Noticias ES/EN y modal - main-2
+name: Noticias ES/EN y artículos completos - main-2
 
 on:
   pull_request:
@@ -50,7 +50,7 @@ jobs:
           assert.ok(html.includes('modalService = service.key'), 'Se cambió el botón de información modal')
           console.log('PASS: tarjetas complementarias sin dos enlaces; otros accesos intactos')
           NODE
-      - name: Comprobar las dos traducciones y temas de Noticias
+      - name: Comprobar lectura de noticias completas, traducciones y temas
         run: node frontend/scripts/smoke-news-i18n.cjs
       - name: Verificar página de Noticias y rutas existentes
         run: node frontend/scripts/smoke-browser.cjs

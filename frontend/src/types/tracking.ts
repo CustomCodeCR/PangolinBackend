@@ -17,3 +17,5 @@ export interface TrackingDemoShipment {
   eta: string
   updatedAtUtc: string
 }
+
+// Route geometry is illustrative, not a satellite position.

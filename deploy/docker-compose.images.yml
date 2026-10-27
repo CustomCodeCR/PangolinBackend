@@ -23,6 +23,9 @@ services:
       # El acceso al dominio raiz tambien debe pasar validacion Origin/Host.
       # No cambia la ruta Traefik: la raiz sigue en Fennec hasta su corte.
       Security__AdditionalPublicOrigin: "https://${FENNEC_HOST:?Definir FENNEC_HOST}"
+      # Dynamics is opt-in on the production host and never exposes its API key to Vite/browser.
+      DholeTracking__Enabled: "${PANGOLIN_DHOLE_TRACKING_ENABLED:-false}"
+      DholeTracking__ApiKey: "${PANGOLIN_DHOLE_TRACKING_API_KEY:-}"
       Email__Mode: "${PANGOLIN_EMAIL_MODE:-Graph}"
       Graph__TenantId: "${PANGOLIN_GRAPH_TENANT_ID:-}"
       Graph__ClientId: "${PANGOLIN_GRAPH_CLIENT_ID:-}"

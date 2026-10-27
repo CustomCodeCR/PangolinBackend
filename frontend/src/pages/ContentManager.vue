@@ -12,7 +12,7 @@ import { deleteManaged, newManagedId, readManagedComments, readManagedItinerarie
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 type Section = 'itineraries' | 'news' | 'media' | 'comments' | 'users' | 'site' | 'quotes'
 type AppRole = 'cliente' | 'administrador'
-interface ManagedUser { id: string; correo: string; nombre?: string; role: AppRole; activo: boolean }
+interface ManagedUser { id: string; correo: string; nombre?: string; role: AppRole; activo: boolean; savedActive: boolean }
 const tabFromUrl = new URLSearchParams(window.location.search).get('tab')
 const section = ref<Section>(tabFromUrl === 'usuarios' ? 'users' : tabFromUrl === 'cotizaciones' && officialQuotesEnabled ? 'quotes' : 'itineraries')
 const itineraries = ref<ManagedItinerary[]>([])
@@ -27,6 +27,9 @@ const usersLoading = ref(false)
 const usersError = ref('')
 const usersNotice = ref('')
 const savingUserId = ref<string | null>(null)
+const deletingUserId = ref<string | null>(null)
+const creatingUser = ref(false)
+const newUserForm = ref({ nombre: '', correo: '', role: 'cliente' as AppRole, codigoDynamics: '' })
 const previewSuffix = computed(() => authState.previewRole ? `?previewRole=${authState.previewRole}` : '')
 const isLiveAdmin = computed(() => authState.user?.role === 'administrador' && !authState.previewRole)
 const newsForm = ref<ManagedNews>(emptyNews())
@@ -38,7 +41,7 @@ const newsUploadFile = ref<File | null>(null)
 const storageMode = ref<'checking' | 's3' | 'legacy' | 'error'>('checking')
 const currentList = computed(() => section.value === 'itineraries' ? itineraries.value : section.value === 'news' ? news.value : section.value === 'comments' ? comments.value : media.value)
 
-function emptyNews(): ManagedNews { return { id: '', title: '', category: 'LOGÍSTICA', description: '', body: '', image: '', published: false } }
+function emptyNews(): ManagedNews { return { id: '', title: '', category: 'LOGÍSTICA', description: '', body: '', image: '', published: false, author: '', publishedAt: new Date().toISOString().slice(0,10) } }
 function emptyItinerary(): ManagedItinerary { return { id: '', origin: '', destination: '', transport: 'Marítimo', departure: '', arrival: '', status: 'Programado', closing: '', modality: 'FCL', carrier: '', vessel: '', voyage: '' } }
 function emptyComment(): ManagedComment { return { id: '', author: '', section: '', message: '', published: false } }
 function emptyMedia(): ManagedMedia { return { id: '', name: '', kind: 'Imagen', src: '' } }
@@ -189,7 +192,8 @@ async function loadUsers() {
         correo: item.correo,
         nombre: item.nombre,
         role: item.role,
-        activo: item.activo
+        activo: item.activo,
+        savedActive: item.activo
       })))
       totalPages = data.totalPages
       page++
@@ -199,6 +203,31 @@ async function loadUsers() {
     usersError.value = cause instanceof Error ? cause.message : 'No se pudieron cargar usuarios.'
   } finally {
     usersLoading.value = false
+  }
+}
+
+
+async function createUser() {
+  if (!isLiveAdmin.value || creatingUser.value) return
+  usersError.value = ''
+  usersNotice.value = ''
+  creatingUser.value = true
+  try {
+    const response = await fetch('/api/admin/users', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(newUserForm.value)
+    })
+    const problem = await response.json().catch(() => null)
+    if (!response.ok) throw new Error(problem?.error || `No se pudo crear el usuario (HTTP ${response.status}).`)
+    newUserForm.value = { nombre: '', correo: '', role: 'cliente', codigoDynamics: '' }
+    await loadUsers()
+    usersNotice.value = 'Usuario creado correctamente. Ya puede iniciar sesión mediante el código enviado a su correo.'
+  } catch (cause) {
+    usersError.value = cause instanceof Error ? cause.message : 'No se pudo crear el usuario.'
+  } finally {
+    creatingUser.value = false
   }
 }
 
@@ -230,6 +259,37 @@ async function updateUser(user: ManagedUser) {
     usersError.value = cause instanceof Error ? cause.message : 'No se pudo modificar la cuenta.'
   } finally {
     savingUserId.value = null
+  }
+}
+
+
+async function deleteUser(user: ManagedUser) {
+  // A dropdown change does not deactivate the real account until Guardar succeeds.
+  if (!isLiveAdmin.value || user.activo || user.savedActive || savingUserId.value || deletingUserId.value) return
+  if (user.id === authState.user?.id) {
+    usersError.value = 'No puedes eliminar tu propia cuenta.'
+    return
+  }
+  if (!window.confirm(`¿Eliminar la cuenta ${user.correo}? Dejará de tener acceso y desaparecerá de Gestión. Se conservarán las cotizaciones y el historial por seguridad. Esta acción no se puede deshacer desde esta pantalla.`)) return
+  usersError.value = ''
+  usersNotice.value = ''
+  deletingUserId.value = user.id
+  try {
+    const response = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
+      method: 'DELETE', credentials: 'same-origin', headers: { Accept: 'application/json' }
+    })
+    if (!response.ok) {
+      const problem = await response.json().catch(() => null)
+      throw new Error(problem?.error || `No se pudo eliminar la cuenta (HTTP ${response.status}).`)
+    }
+    await loadUsers()
+    usersNotice.value = `Cuenta ${user.correo} eliminada de Gestión. Su historial se conserva.`
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : 'No se pudo eliminar la cuenta.'
+    await loadUsers()
+    usersError.value = message
+  } finally {
+    deletingUserId.value = null
   }
 }
 
@@ -265,7 +325,7 @@ async function edit(entry: ManagedItinerary | ManagedNews | ManagedMedia | Manag
       } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo cargar el itinerario.'; return }
     }
   }
-  if (section.value === 'news') newsForm.value = { ...(entry as ManagedNews) }
+  if (section.value === 'news') newsForm.value = { ...(entry as ManagedNews), publishedAt: (entry as ManagedNews).publishedAt?.slice(0,10) ?? '' }
   if (section.value === 'media') mediaForm.value = { ...(entry as ManagedMedia) }
   if (section.value === 'comments') commentForm.value = { ...(entry as ManagedComment) }
   document.querySelector('.manager-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -343,7 +403,7 @@ async function submitNews() {
       : '/api/admin/content/news', {
       method: editingId.value ? 'PUT' : 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newsForm.value)
+      body: JSON.stringify({ ...newsForm.value, publishedAt: newsForm.value.publishedAt ? newsForm.value.publishedAt + 'T12:00:00Z' : null })
     })
     if (!response.ok) {
       const data = await response.json().catch(() => null)
@@ -519,14 +579,24 @@ function useMediaForNews(item: ManagedMedia) {
         <button v-if="officialQuotesEnabled" :class="{ active: section === 'quotes' }" @click="selectSection('quotes')"><IconSymbol glyph="▰" :size="19" /> <span class="manager-tab-label">Cotizaciones</span> <span>{{ quotesTotal }}</span></button>
         <button class="manager-editor-visual-tab" :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> <span class="manager-tab-label">Editor visual</span> <span>0</span></button>
       </nav>
+      <section v-if="section === 'users' && isLiveAdmin" class="manager-users-card manager-users-create" aria-label="Agregar usuario">
+        <header class="manager-create-title"><div><h2><span class="manager-create-plus" aria-hidden="true">+</span> Agregar usuario</h2><p>Crea una nueva cuenta para que pueda acceder al sistema.</p></div></header>
+        <form class="manager-create-form" @submit.prevent="createUser">
+          <label>Nombre<input v-model.trim="newUserForm.nombre" required minlength="2" maxlength="500" placeholder="Ej. Juan Pérez" autocomplete="name" /></label>
+          <label>Correo electrónico<input v-model.trim="newUserForm.correo" required type="email" maxlength="255" placeholder="Ej. usuario@empresa.com" autocomplete="email" /></label>
+          <div class="manager-select-field manager-create-role"><label>Rol</label><FieldDropdown v-model="newUserForm.role" aria-label="Rol del nuevo usuario" :options="[{value:'cliente',label:'Cliente'},{value:'administrador',label:'Administrador'}]" /></div>
+          <label v-if="newUserForm.role === 'cliente'">Código Dynamics (opcional)<input v-model.trim="newUserForm.codigoDynamics" maxlength="200" placeholder="Ej. C001234" autocomplete="off" /></label>
+          <button class="manager-user-save manager-create-submit" type="submit" :disabled="creatingUser">{{ creatingUser ? 'Creando…' : 'Crear usuario' }}</button>
+        </form>
+      </section>
       <section v-if="section === 'users'" class="manager-users-card" aria-label="Cuentas registradas">
         <header><div><p class="manager-eyebrow">CUENTAS REGISTRADAS</p><h2>{{ usersLoading ? 'Cargando…' : `${users.length} usuarios` }}</h2></div><button class="manager-add" :disabled="usersLoading" @click="loadUsers">Actualizar</button></header>
         <p v-if="usersError" class="manager-users-error" role="alert">{{ usersError }} <button v-if="!authState.previewRole" @click="loadUsers">Reintentar</button></p>
         <p v-if="usersNotice" class="manager-feedback" role="status">{{ usersNotice }}</p>
-        <p class="manager-user-hint">Por seguridad, no puedes modificar tu propia cuenta ni desactivar al último administrador activo. Se mostrará un aviso si lo intentas.</p>
+        <p class="manager-user-hint">Por seguridad, no puedes modificar tu propia cuenta ni desactivar al último administrador activo. Para eliminar una cuenta, primero seleccioná Desactivado y guardá el cambio.</p>
         <div v-if="usersLoading" class="manager-users-empty">Consultando el sistema de usuarios…</div>
         <div v-else-if="!usersError && users.length === 0" class="manager-users-empty">Aún no hay cuentas para mostrar.</div>
-        <div v-else-if="users.length" class="manager-users-table-wrap"><table class="manager-users-table"><thead><tr><th>Cuenta</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody><tr v-for="user in users" :key="user.id"><td><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td><td><FieldDropdown :model-value="user.role" :disabled="Boolean(authState.previewRole)" :aria-label="`Rol de ${user.correo}`" :options="[{value:'cliente',label:'Cliente'},{value:'administrador',label:'Administrador'}]" @update:model-value="value => user.role = value === 'administrador' ? 'administrador' : 'cliente'" /></td><td><FieldDropdown :model-value="String(user.activo)" :disabled="Boolean(authState.previewRole)" :aria-label="`Estado de ${user.correo}`" :options="[{value:'true',label:'Activo'},{value:'false',label:'Desactivado'}]" @update:model-value="value => user.activo = value === 'true'" /></td><td><button class="manager-user-save" :disabled="Boolean(authState.previewRole) || savingUserId === user.id" @click="updateUser(user)">{{ savingUserId === user.id ? 'Guardando…' : 'Guardar' }}</button></td></tr></tbody></table></div>
+        <div v-else-if="users.length" class="manager-users-table-wrap"><table class="manager-users-table"><thead><tr><th>Cuenta</th><th>Rol</th><th>Estado</th><th><span class="manager-user-action-heading">Acción</span></th></tr></thead><tbody><tr v-for="user in users" :key="user.id"><td data-label="Cuenta"><strong>{{ user.nombre || user.correo }}</strong><small v-if="user.nombre">{{ user.correo }}</small></td><td data-label="Rol"><FieldDropdown :min-menu-width="190" :model-value="user.role" :disabled="Boolean(authState.previewRole)" :aria-label="`Rol de ${user.correo}`" :options="[{value:'cliente',label:'Cliente'},{value:'administrador',label:'Administrador'}]" @update:model-value="value => user.role = value === 'administrador' ? 'administrador' : 'cliente'" /></td><td data-label="Estado"><FieldDropdown :min-menu-width="190" :model-value="String(user.activo)" :disabled="Boolean(authState.previewRole)" :aria-label="`Estado de ${user.correo}`" :options="[{value:'true',label:'Activo'},{value:'false',label:'Desactivado'}]" @update:model-value="value => user.activo = value === 'true'" /></td><td data-label="Acción"><div class="manager-user-actions"><button class="manager-user-save" type="button" :disabled="Boolean(authState.previewRole) || savingUserId === user.id || deletingUserId === user.id" @click="updateUser(user)">{{ savingUserId === user.id ? 'Guardando…' : 'Guardar' }}</button><button class="manager-user-delete" type="button" :aria-label="`Eliminar cuenta de ${user.correo}`" :disabled="!isLiveAdmin || user.activo || user.savedActive || user.id === authState.user?.id || Boolean(savingUserId) || Boolean(deletingUserId)" :title="user.activo || user.savedActive ? 'Primero desactivá y guardá la cuenta para poder eliminarla.' : 'Eliminar cuenta desactivada'" @click="deleteUser(user)">{{ deletingUserId === user.id ? 'Eliminando…' : 'Eliminar' }}</button></div></td></tr></tbody></table></div>
       </section>
       <SiteVisualEditor v-if="section === 'site'" />
       <OfficialQuoteAdmin v-else-if="section === 'quotes'" embedded @total-change="quotesTotal = $event" />
@@ -550,6 +620,7 @@ function useMediaForNews(item: ManagedMedia) {
           <form v-else-if="section === 'news'" @submit.prevent="submitNews">
             <label>Título<input v-model="newsForm.title" required maxlength="160" placeholder="Título de la noticia" /></label>
             <label>Categoría<input v-model="newsForm.category" required maxlength="60" placeholder="LOGÍSTICA" /></label>
+            <div class="manager-form-row"><label>Autor<input v-model.trim="newsForm.author" maxlength="160" placeholder="Nombre del autor" /></label><label>Fecha de publicación<input v-model="newsForm.publishedAt" type="date" /></label></div>
             <label>Resumen (visible en tarjetas)<textarea v-model="newsForm.description" required maxlength="1200" rows="3" placeholder="Resumen breve de la noticia" /></label>
             <label>Contenido completo<textarea v-model="newsForm.body" maxlength="20000" rows="8" placeholder="Escribe el artículo completo. Si se deja vacío, el lector verá el resumen." /></label>
             <label>Imagen ({{ storageMode === 's3' ? 'MinIO' : 'archivo local' }})<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="selectFile($event, 'news')" /></label>
@@ -893,6 +964,22 @@ function useMediaForNews(item: ManagedMedia) {
   .is-embedded .manager-preview-note::before,
   .is-embedded .manager-users-error::before { animation: none; background-position: 50% 0; }
 }
+
+/* Crear usuarios: panel nativo dentro de Gestión de usuarios. */
+.manager-users-create{margin-bottom:20px}
+.manager-users-create .manager-create-title{margin-bottom:16px}
+.manager-users-create .manager-create-title h2{display:flex;align-items:center;gap:12px}
+.manager-create-plus{width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:#bb0b2b;color:#fff;font-size:27px;font-weight:400;flex-shrink:0}
+.manager-users-create .manager-create-title p{margin:7px 0 0;color:var(--admin-muted,#737a87);font-size:14px}
+.manager-create-form{display:grid;grid-template-columns:1.2fr 1.25fr 1fr 1.1fr auto;align-items:end;gap:15px}
+.manager-create-form label{display:flex;flex-direction:column;gap:8px;min-width:0;font-size:13px;font-weight:700;color:var(--admin-text,#171923)}
+.manager-create-form label span{color:#e52c4f}
+.manager-create-form input,.manager-create-form select{height:47px;width:100%;box-sizing:border-box;border:1px solid var(--admin-border,#cfd3dd);border-radius:11px;padding:0 13px;background:var(--admin-input,#fff);color:var(--admin-text,#171923);font:inherit;font-weight:400}
+.manager-create-form input::placeholder{color:var(--admin-muted,#788091);opacity:1}
+.manager-create-form input:focus-visible,.manager-create-form select:focus-visible{outline:2px solid #cc1635;outline-offset:2px}
+.manager-create-form .manager-create-role{min-width:0;display:flex;flex-direction:column;gap:8px}\n.manager-create-form .manager-create-role>label{font-size:13px;font-weight:700}\n.manager-create-form .manager-create-role :deep(.field-dropdown){width:100%;min-width:0}\n.manager-create-form .manager-create-role :deep(.field-dropdown__trigger){min-height:47px}\n.manager-create-form .manager-create-submit{height:47px;white-space:nowrap;border-radius:11px;padding:0 22px}
+@media(max-width:1100px){.manager-create-form{grid-template-columns:repeat(2,minmax(0,1fr))}.manager-create-submit{justify-self:start}}
+@media(max-width:580px){.manager-create-form{grid-template-columns:minmax(0,1fr)}}
 </style>
 
 <style scoped>
@@ -1236,4 +1323,113 @@ function useMediaForNews(item: ManagedMedia) {
   .is-embedded .manager-item-actions{width:100%;justify-content:flex-end}
 }
 
+</style>
+
+<style scoped>
+/* The destructive action sits immediately beside Guardar without changing the table layout. */
+.manager-user-actions{display:flex;align-items:center;justify-content:flex-end;width:100%;gap:8px;white-space:nowrap}
+.manager-user-delete{min-height:42px;border:1px solid #d21b3b;border-radius:11px;padding:9px 13px;background:transparent;color:#cf1737;font:inherit;font-weight:750;cursor:pointer}
+.manager-user-delete:not(:disabled):hover{background:rgba(210,27,59,.09)}
+.manager-user-delete:focus-visible{outline:2px solid #d21b3b;outline-offset:2px}
+.manager-user-actions > button{min-width:96px;flex-shrink:0}
+.manager-user-delete:disabled{opacity:.65;cursor:not-allowed;color:var(--admin-muted,#9296a2);border-color:var(--admin-border,#646a78);background:transparent}
+html.theme-dark .manager-user-delete:not(:disabled){color:#ff8fa5;border-color:#ee617b}
+html.theme-dark .manager-user-delete:disabled{color:#929baa;border-color:#485068}
+
+
+/* Tabla de escritorio: los títulos siguen exactamente la posición de
+   los selectores y del grupo de botones, sin alterar las tarjetas móviles. */
+@media (min-width:1181px) {
+  .manager-users-table {table-layout:fixed;width:100%}
+  .manager-users-table th:nth-child(1) {width:35.5%}
+  .manager-users-table th:nth-child(2) {width:22%}
+  .manager-users-table th:nth-child(3) {width:22%}
+  .manager-users-table th:nth-child(4) {width:20.5%}
+  .manager-users-table td:first-child small {overflow-wrap:anywhere;white-space:normal}
+  .manager-users-table th:last-child .manager-user-action-heading {
+    display:block;width:min(200px,100%);margin-left:auto;text-align:left;
+  }
+  .manager-user-actions {
+    width:min(200px,100%);margin-left:auto;justify-content:flex-start;
+  }
+  .manager-user-actions > button {
+    flex:1 1 0;min-width:0;padding-inline:8px;
+  }
+}
+
+/* Gestión de usuarios: layout responsivo sin tabla con scroll lateral.
+   A partir de tablet cada registro se convierte en tarjeta legible. */
+@media (max-width:1180px) {
+  .content-manager .manager-users-table-wrap,
+  .content-manager.is-embedded .manager-users-table-wrap {
+    width:100%; max-width:100%; overflow:visible;
+    border:0; border-radius:0; background:transparent;
+  }
+  .content-manager .manager-users-table,
+  .content-manager.is-embedded .manager-users-table {
+    display:block; width:100%; min-width:0; border-collapse:separate;
+  }
+  .content-manager .manager-users-table thead {display:none}
+  .content-manager .manager-users-table tbody {display:grid; gap:12px; min-width:0}
+  .content-manager .manager-users-table tbody tr {
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:14px 12px; min-width:0; padding:16px;
+    border:1px solid var(--admin-border,#d5d7dd);
+    border-radius:14px; background:var(--admin-input,rgba(255,255,255,.035));
+  }
+  .content-manager .manager-users-table tbody td,
+  .content-manager.is-embedded .manager-users-table tbody td,
+  .content-manager .manager-users-table tbody td:first-child {
+    display:flex; flex-direction:column; gap:7px; width:100%;
+    min-width:0; max-width:100%; box-sizing:border-box; padding:0;
+    border:0; white-space:normal; overflow-wrap:anywhere;
+  }
+  .content-manager .manager-users-table tbody td:first-child,
+  .content-manager .manager-users-table tbody td:last-child {grid-column:1/-1}
+  .content-manager .manager-users-table tbody td::before {
+    content:attr(data-label); display:block; font-size:11px;
+    line-height:1.2; font-weight:800; letter-spacing:.05em;
+    text-transform:uppercase; color:var(--admin-muted,#9198a5);
+  }
+  .content-manager .manager-users-table tbody td:first-child strong {
+    font-size:15px; line-height:1.3;
+  }
+  .content-manager .manager-users-table tbody td:first-child small {
+    margin:0; overflow-wrap:anywhere; white-space:normal;
+  }
+  .content-manager .manager-users-table tbody td .cf-dropdown,
+  .content-manager .manager-users-table tbody td .cf-dropdown__trigger {
+    box-sizing:border-box; width:100%; min-width:0;
+  }
+  .content-manager .manager-users-table tbody td .cf-dropdown__value {
+    overflow-wrap:normal; white-space:normal;
+  }
+  .content-manager .manager-users-table .manager-user-actions {
+    justify-content:flex-start; width:100%; min-width:0;
+  }
+  .content-manager .manager-users-table .manager-user-actions > button {
+    flex:1 1 0; min-width:0; min-height:44px;
+  }
+}
+@media (max-width:650px) {
+  .content-manager .manager-users-table tbody tr {
+    grid-template-columns:minmax(0,1fr); padding:13px;
+  }
+  .content-manager .manager-users-table tbody td:first-child,
+  .content-manager .manager-users-table tbody td:last-child {
+    grid-column:auto;
+  }
+  .content-manager .manager-users-card,
+  .content-manager.is-embedded .manager-users-card {min-width:0}
+}
+
+
+/* Encabezados de Gestión de usuarios: usan exactamente el fondo de los campos. */
+.content-manager .manager-users-table thead th,
+.content-manager.is-embedded .manager-users-table thead th,
+.is-embedded .manager-users-table th {
+  background: var(--admin-input, #060f21) !important;
+  background-color: var(--admin-input, #060f21) !important;
+  color: #fff !important;
+}
 </style>

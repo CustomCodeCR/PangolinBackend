@@ -3192,7 +3192,8 @@ html:not(.theme-dark) .news-editorial-hero__fade{background:linear-gradient(90de
 .news-editorial-card__copy h3{margin:11px 0 9px;color:#191d27;font-family:"Arial Black",system-ui,sans-serif;font-size:clamp(18px,2vw,25px);letter-spacing:-.035em;line-height:1.2}
 .news-editorial-card--lead .news-editorial-card__copy h3{font-size:clamp(24px,2.6vw,34px)}
 .news-editorial-card__copy>p:not(.section-tag){margin:0 0 18px;color:#606776;font-size:13px;line-height:1.65}
-.news-editorial-card__copy>button{display:inline-flex;align-items:center;gap:10px;margin-top:auto;padding:0;border:0;background:transparent;color:#a90b27;font:inherit;font-size:11px;font-weight:900;text-decoration:none;cursor:pointer}
+.news-editorial-card__copy>a{display:inline-flex;align-items:center;gap:10px;margin-top:auto;padding:0;color:#a90b27;font:inherit;font-size:11px;font-weight:900;text-decoration:none;cursor:pointer}
+.news-editorial-card__copy>a:hover,.news-editorial-card__copy>a:focus-visible{text-decoration:underline}
 html.theme-dark .news-editorial-content{background:transparent!important}
 html.theme-dark .news-editorial-card{border-color:rgba(255,255,255,.12);background:rgba(9,17,36,.82);box-shadow:0 12px 36px rgba(0,0,0,.16)}
 html.theme-dark .news-editorial-card__copy h3{color:#fff}
@@ -5312,4 +5313,49 @@ html.theme-dark .app-site .news-article-modal__copy .section-tag {
     align-self:flex-start;
     text-align:left;
   }
+}
+
+/* Corrección puntual: solo fondo de campos y dropdowns CERRADOS.
+   Hay reglas más específicas para admin embebido, por eso el cambio previo
+   no alcanzaba Rol/Estado en la tabla ni los formularios de Contenido.
+   No modificar .cf-dropdown__menu ni los botones de sus opciones. */
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-users-card .manager-create-form :is(input:not([type="file"]):not([type="checkbox"]), select, textarea),
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-users-card .manager-create-form .cf-dropdown__trigger,
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-users-table .cf-dropdown__trigger,
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-form :is(input:not([type="file"]):not([type="checkbox"]), select, textarea),
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-form .cf-dropdown__trigger,
+html.theme-dark .content-manager .manager-create-form :is(input:not([type="file"]):not([type="checkbox"]), select, textarea),
+html.theme-dark .content-manager .manager-create-form .cf-dropdown__trigger,
+html.theme-dark .content-manager .manager-users-table .cf-dropdown__trigger,
+html.theme-dark .content-manager .manager-form :is(input:not([type="file"]):not([type="checkbox"]), select, textarea),
+html.theme-dark .content-manager .manager-form .cf-dropdown__trigger,
+html.theme-dark .admin-users-page .admin-users-create-form :is(input:not([type="file"]):not([type="checkbox"]), select, textarea),
+html.theme-dark .admin-users-page .admin-users-table .cf-dropdown__trigger {
+  background-color: #060f21 !important;
+}
+
+/* Itinerarios y rastreo: mismo azul en cajas cerradas y campos de texto. */
+html.theme-dark .app-site.itinerary-page .itinerary-form-line .cf-dropdown__trigger,
+html.theme-dark .app-site.itinerary-page .itinerary-form-line :is(input, select),
+html.theme-dark .app-site.itinerary-page .itinerary-input-with-icon i,
+html.theme-dark .tracking-site .tracking-fields .cf-dropdown__trigger,
+html.theme-dark .tracking-site .tracking-fields :is(input, select) {
+  background-color: #060f21 !important;
+}
+
+/* Otros formularios de administración: editor visual y cotizaciones.
+   Excluir los menús emergentes, superficies de tarjetas y botones. */
+html.theme-dark .app-site.administration-page .visual-editor.visual-editor :is(input:not([type="file"]):not([type="checkbox"]), select, textarea),
+html.theme-dark .app-site.administration-page .off-admin .off-admin-form :is(select, textarea),
+html.theme-dark .app-site.off-admin .off-admin-form.off-admin-form :is(select, textarea) {
+  background-color: #060f21 !important;
+}
+
+
+/* PR #94: cargas de Noticias y Multimedia en la paleta azul oscuro. */
+/* El editor de Contenido mantiene su botón de archivo rojo; solo se
+   oscurece el fondo de la caja de carga en modo oscuro. */
+html.theme-dark .app-site.administration-page .content-manager.is-embedded .manager-form input[type="file"],
+html.theme-dark .content-manager .manager-form input[type="file"] {
+  background-color:#060f21 !important;
 }

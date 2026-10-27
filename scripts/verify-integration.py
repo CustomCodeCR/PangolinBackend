@@ -51,7 +51,7 @@ check('embla-carousel' in json.loads(read('frontend/package.json'))['dependencie
 check('node_modules/embla-carousel' in json.loads(read('frontend/package-lock.json'))['packages'], 'Lockfile actualizado para carrusel')
 check("if(path==='/servicios') return 'services'" in rootvue and '<Services v-else-if' in rootvue, 'Nueva página Servicios registrada y conservada con autenticación')
 check("url: '/servicios'" in header and 'logoutSession' in header, 'Menú actualizado sin perder logout')
-check('EmblaCarousel' in read('frontend/src/pages/News.vue') and 'news-article-modal' in read('frontend/src/pages/News.vue'), 'Nueva página Noticias y modal disponible')
+check('EmblaCarousel' in read('frontend/src/pages/News.vue') and ('news-article-modal' in read('frontend/src/pages/News.vue') or ('news-article-page' in read('frontend/src/pages/News.vue') and 'articlePath' in read('frontend/src/pages/News.vue'))), 'Página de Noticias conserva carrusel y lectura de artículos (modal o página completa)')
 check((root/'frontend/src/pages/Services.vue').is_file(), 'Página Servicios incluida')
 check('selectTransport' in read('frontend/src/pages/Itinerary.vue'), 'Mejoras de transporte incorporadas')
 # Protección frente a las regresiones introducidas por la integración del frontend.
@@ -341,4 +341,43 @@ check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('fro
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
 check('VITE_API_PROXY_TARGET' in read('frontend/vite.config.ts'), 'Proxy Docker conservado')
+# Verifica coordenadas ilustrativas y correspondencias con el catálogo oficial de Cotizaciones.
+import subprocess
+subprocess.run([sys.executable, str(root / 'scripts/verify-tracking-ports.py')], check=True)
+# Contracto de producción: se debe respetar lo que ya funciona en main.
+prod_workflow = read('.github/workflows/pangolin-images.yml')
+prod_compose = read('deploy/docker-compose.images.yml')
+news_migration = read('backend/Database/CmsNewsMetadataMigration.sql')
+check('VITE_OFFICIAL_QUOTES_ENABLED=true' in prod_workflow
+      and 'Features__OfficialQuotesEnabled: "true"' in prod_compose
+      and all(name in prod_workflow for name in (
+          '/app/Database/OfficialQuotesSchema.sql',
+          '/app/Database/OfficialQuotesVerifiedLocations.sql',
+          '/app/Database/OfficialQuotesVideoLocations.sql',
+          'ready_roles', 'required_tables')),
+      'Produccion preserva cotizaciones oficiales habilitadas y el catalogo aprobado de main')
+check('Security__AdditionalPublicOrigin:' in prod_compose
+      and 'PANGOLIN_TRAEFIK_ENABLED: "true"' in prod_workflow
+      and 'Cross-site POST Origin correctly rejected.' in prod_workflow,
+      'Produccion conserva dominio WWW, validacion Origin y dominio raiz independiente')
+check('pg_dump -Fc' in prod_workflow
+      and 'pg_restore --list' in prod_workflow
+      and 'pg_restore --list' in prod_workflow.split('Apply additive CMS news metadata migration')[0]
+      and prod_workflow.index('pg_dump -Fc') < prod_workflow.index('Initialize base schema')
+      and prod_workflow.index('Apply additive CMS news metadata migration') < prod_workflow.index('Deploy backend and frontend'),
+      'Backup privado validado precede a cualquier migracion y al reinicio de produccion')
+check(all(token in news_migration for token in (
+          'ADD COLUMN IF NOT EXISTS author VARCHAR(160)',
+          'ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ',
+          'WHERE published = TRUE AND published_at IS NULL',
+          "SET LOCAL lock_timeout = '5s'"))
+      and 'CmsNewsMetadataMigration.sql' in prod_workflow
+      and 'scripts/test-cms-news-migration.py' in read('.github/workflows/integration-check.yml'),
+      'Migracion CMS aditiva, idempotente, probada por CI y aplicada antes de reiniciar')
+check('DholeTracking__Enabled: "${PANGOLIN_DHOLE_TRACKING_ENABLED:-false}"' in prod_compose
+      and 'DholeTracking__ApiKey: "${PANGOLIN_DHOLE_TRACKING_API_KEY:-}"' in prod_compose
+      and 'PANGOLIN_DHOLE_TRACKING_API_KEY' in prod_workflow
+      and 'Production tracking enabled without private API key' in prod_workflow,
+      'Dynamics desactivado por defecto, secreto privado y guardia de despliegue')
+
 print('Comprobaciones estáticas de integración finalizadas.')

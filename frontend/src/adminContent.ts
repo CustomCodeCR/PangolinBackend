@@ -6,6 +6,8 @@ export type ManagedNews = {
   body?: string
   image: string
   published: boolean
+  author?: string
+  publishedAt?: string | null
 }
 
 export type ManagedItinerary = {

@@ -168,6 +168,21 @@ jobs:
               exit 1
             fi
           done
+          # Tracking is an explicit production opt-in. Never print the credential.
+          tracking_enabled="$(read_var PANGOLIN_DHOLE_TRACKING_ENABLED)"
+          case "${tracking_enabled:-false}" in
+            true)
+              if [[ -z "$(read_var PANGOLIN_DHOLE_TRACKING_API_KEY)" ]]; then
+                echo "::error::Production tracking enabled without private API key. Refusing deployment."
+                exit 1
+              fi
+              ;;
+            false|"") ;;
+            *)
+              echo "::error::PANGOLIN_DHOLE_TRACKING_ENABLED must be true or false."
+              exit 1
+              ;;
+          esac
           docker network inspect "$DHOLE_NETWORK" >/dev/null
           docker compose --env-file "$DHOLE_ENV_FILE" -f "$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml" -p pangolin-production config --quiet
 
@@ -234,6 +249,36 @@ jobs:
             '
           unset PGPASSWORD PANGOLIN_DB_PASSWORD
 
+      - name: Backup and verify the exact target Pangolin database before migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          read_var() { grep -m1 "^$1=" "$DHOLE_ENV_FILE" | cut -d= -f2- || true; }
+          export PGHOST="$(read_var POSTGRES_HOST)"
+          export PGPORT="$(read_var POSTGRES_PORT)"
+          export PGUSER=pangolin
+          export PGPASSWORD="$(read_var PANGOLIN_POSTGRES_PASSWORD)"
+          # These are precisely the same PostgreSQL host/user/database as the production backend.
+          target="$(docker run --rm --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD postgres:16-alpine psql -X -d pangolin -Atqc "SELECT current_database() || ':' || current_user")"
+          if [[ "$target" != "pangolin:pangolin" ]]; then
+            echo "::error::Unexpected production database identity. Backup and deployment stopped."
+            exit 1
+          fi
+          backup_dir="$HOME/pangolin-backups"
+          mkdir -p "$backup_dir"
+          chmod 700 "$backup_dir"
+          backup="$(mktemp "$backup_dir/pangolin-predeploy-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX.dump")"
+          trap 'rm -f "$backup"' ERR
+          docker run --rm --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD postgres:16-alpine \
+            pg_dump -Fc --no-owner --no-acl -d pangolin > "$backup"
+          test -s "$backup"
+          docker run --rm -i postgres:16-alpine pg_restore --list < "$backup" >/dev/null
+          chmod 600 "$backup"
+          trap - ERR
+          echo "Verified private PostgreSQL backup: $backup"
+          unset PGPASSWORD
+
       - name: Initialize base schema and prepare official quotes catalog
         shell: bash
         run: |
@@ -298,6 +343,29 @@ jobs:
             exit 1
           fi
           echo "Official quote schema and all 12 location roles verified. No development fixtures loaded."
+          unset PGPASSWORD
+
+      - name: Apply additive CMS news metadata migration before starting new code
+        shell: bash
+        run: |
+          set -euo pipefail
+          read_var() { grep -m1 "^$1=" "$DHOLE_ENV_FILE" | cut -d= -f2- || true; }
+          export PGHOST="$(read_var POSTGRES_HOST)"
+          export PGPORT="$(read_var POSTGRES_PORT)"
+          export PGUSER=pangolin
+          export PGPASSWORD="$(read_var PANGOLIN_POSTGRES_PASSWORD)"
+          # The migration is idempotent and fails atomically; never restart on partial schema.
+          docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" \
+            /app/Database/CmsNewsMetadataMigration.sql \
+            | docker run --rm -i --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD \
+                postgres:16-alpine psql -X -d pangolin --single-transaction -v ON_ERROR_STOP=1 -f - >/dev/null
+          columns="$(docker run --rm --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD \
+            postgres:16-alpine psql -X -d pangolin -Atqc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='cms_news' AND column_name IN ('author','published_at')")"
+          if [[ "$columns" != "2" ]]; then
+            echo "::error::CMS news metadata schema not ready; refusing to deploy."
+            exit 1
+          fi
+          echo "CMS news migration verified (idempotent, no news deleted)."
           unset PGPASSWORD
 
       - name: Deploy backend and frontend (images only)

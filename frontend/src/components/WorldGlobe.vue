@@ -5,7 +5,8 @@ import { computed, nextTick, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createGlobe, type Marker, type ClusterMarker } from '../lib/castroGlobe'
 
-const props = defineProps<{ shipment?: TrackingDemoShipment | null; initialZoom?: number }>()
+type TrackingRouteShape = Pick<TrackingDemoShipment, 'origin' | 'destination'> & Partial<Pick<TrackingDemoShipment, 'progressPercent'>>
+const props = defineProps<{ shipment?: TrackingRouteShape | null; initialZoom?: number }>()
 const holder = ref<HTMLElement | null>(null)
 const canvas = ref<HTMLCanvasElement | null>(null)
 const error = ref('')
@@ -85,12 +86,13 @@ function illustrativePosition(start: TrackingPoint, end: TrackingPoint, percenta
 const demoMarkers = () => {
   const shipment = props.shipment
   if (!shipment) return markerData()
-  const progress = illustrativePosition(shipment.origin, shipment.destination, shipment.progressPercent)
+  const progressValue = shipment.progressPercent
+  const progress = illustrativePosition(shipment.origin, shipment.destination, progressValue ?? 50)
   const points = [
     { id: 'route-origin', ...shipment.origin, label: shipment.origin.name, color: '#1677d2', count: 1, size: 7 },
     { id: 'route-destination', ...shipment.destination, label: shipment.destination.name, color: '#18a86d', count: 1, size: 7 }
   ]
-  if (shipment.progressPercent > 0 && shipment.progressPercent < 100) {
+  if (progressValue !== undefined && progressValue > 0 && progressValue < 100) {
     points.push({ id: 'route-progress', name: 'Progreso DEMO', ...progress, label: 'DEMO · ' + shipment.progressPercent + '%', color: '#f5b700', count: 1, size: 8 })
   }
   return points
@@ -318,7 +320,7 @@ watch(() => props.shipment, (shipment) => {
   globe.setArcs(demoArcs())
   globe.setOptions({ autoRotate: !shipment })
   if (shipment) {
-    const point = illustrativePosition(shipment.origin, shipment.destination, shipment.progressPercent)
+    const point = illustrativePosition(shipment.origin, shipment.destination, shipment.progressPercent ?? 50)
     globe.flyTo(point.lon, point.lat)
     animateZoom(1.45)
   } else {
@@ -474,3 +476,5 @@ onBeforeUnmount(() => {
 }
 
 </style>
+
+<!-- route rendering notes: see docs/DHOLE-TRACKING-PREVIEW.md -->

@@ -31,6 +31,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Rastreo ficticio independiente de itinerarios y datos de clientes.
+        var managedNews = modelBuilder.Entity<ManagedNews>();
+        managedNews.Property(x => x.Author).HasColumnName("author").HasMaxLength(160);
+        managedNews.Property(x => x.PublishedAt).HasColumnName("published_at");
+
         var tracking = modelBuilder.Entity<TrackingDemoShipment>();
         tracking.ToTable("tracking_demo_shipments", "public");
         tracking.HasKey(x => x.Id);

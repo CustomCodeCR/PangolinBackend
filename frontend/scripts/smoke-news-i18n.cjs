@@ -9,7 +9,7 @@ const { spawn, spawnSync } = require('node:child_process')
 const root = path.resolve(__dirname, '..')
 const dist = path.join(root, 'dist')
 const articles = [
-  { id: 'f6e837c0-8b2e-4c63-8907-9051dc71921a', title: 'Puerto de Caldera', category: 'LOGÍSTICA', description: 'Llegaron nuevos contenedores.', body: 'El puerto recibió carga.\nSegunda línea en español.', image: '/images/cover-logistics.jpeg', published: true },
+  { id: 'f6e837c0-8b2e-4c63-8907-9051dc71921a', title: 'Puerto de Caldera', category: 'LOGÍSTICA', description: 'Llegaron nuevos contenedores.', body: 'El puerto recibió carga.\nSegunda línea en español.', image: '/images/cover-logistics.jpeg', published: true, author: 'Equipo Editorial', publishedAt: '2026-10-26T12:00:00Z' },
   { id: '5c6bb714-5b7d-437b-bbb6-d6d1ea5e6bf5', title: 'Exportaciones de Costa Rica', category: 'COMERCIO', description: 'Crecieron las exportaciones.', body: 'Costa Rica exporta productos.', image: '/images/news-ports.webp', published: true }
 ]
 const translated = {
@@ -44,10 +44,10 @@ const server = http.createServer((req, res) => {
   if (ext === '.html') {
     const locale = url.searchParams.get('testLocale') === 'en' ? 'en' : 'es'
     const theme = url.searchParams.get('testTheme') === 'dark' ? 'dark' : 'light'
-    // Set original language preference before Vue loads. Dump computed modal styles for assertions.
+    // Set language/theme before Vue loads; read the full article's computed page background.
     const injection = '<script>localStorage.setItem("user-locale",' + JSON.stringify(locale) + ');localStorage.setItem("castrofallas-theme",' + JSON.stringify(theme) + ');</script>'
     let html = body.toString('utf8').replace('</head>', injection + '</head>')
-    html = html.replace('</body>', '<script>window.addEventListener("load",()=>setTimeout(()=>{const modal=document.querySelector(".news-article-modal");if(modal){const el=document.createElement("output");el.id="tested-modal-bg";el.textContent=getComputedStyle(modal).backgroundColor;document.body.appendChild(el)}},1500))</script></body>')
+    html = html.replace('</body>', '<script>window.addEventListener("load",()=>setTimeout(()=>{const page=document.querySelector(".news-article-page");if(page){const el=document.createElement("output");el.id="tested-article-bg";el.textContent=getComputedStyle(page).backgroundColor;document.body.appendChild(el)}},1500))</script></body>')
     body = Buffer.from(html)
   }
   res.writeHead(200, { 'Content-Type': (mime[ext] || 'application/octet-stream') + (['.html','.js','.css','.json'].includes(ext)?'; charset=utf-8':'') })
@@ -85,20 +85,34 @@ async function dump(url) {
 async function main(){
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve)})
   try {
-    const base='http://127.0.0.1:'+server.address().port+'/noticias?article='+articles[0].id
-    const spanish=await dump(base+'&testLocale=es&testTheme=light')
-    assert.ok(spanish.includes('Puerto de Caldera'),'Spanish title not shown')
-    assert.ok(spanish.includes('Segunda línea en español.'),'Spanish full text not shown')
-    assert.ok(spanish.includes('Exportaciones de Costa Rica'),'Second article not shown')
-    assert.ok(spanish.includes('id="tested-modal-bg">rgb(255, 255, 255)'), 'Light mode modal changed')
-    assert.equal(translatedCalls,0,'Spanish page should not request translation')
-    const english=await dump(base+'&testLocale=en&testTheme=dark')
-    for (const expected of ['Port of Caldera','New containers arrived.','Second line in English.','Costa Rican exports','Exports increased.'])
-      assert.ok(english.includes(expected),'English content missing: '+expected)
-    assert.ok(english.includes('id="tested-modal-bg">rgb(1, 8, 29)'), 'Dark modal background must be #01081D')
-    assert.equal(translatedCalls,2,'All published news must request translations')
-    assert.equal(spanishTranslationCalls,0,'No translation requests when Spanish')
-    console.log('PASS: both CMS news translated, modal full text, ES original, dark #01081D, light unchanged')
+    const origin = 'http://127.0.0.1:' + server.address().port
+    const listing = await dump(origin + '/noticias?testLocale=es&testTheme=light')
+    assert.ok(listing.includes('Puerto de Caldera') && listing.includes('Exportaciones de Costa Rica'), 'Both published titles must appear in listing')
+    assert.ok(!listing.includes('Llegaron nuevos contenedores.') && !listing.includes('Crecieron las exportaciones.'), 'Listing shows titles without summaries')
+    const articlePath = '/noticias/2026-10-26-puerto-de-caldera-' + articles[0].id.replace(/-/g, '').slice(-8).toLowerCase()
+    assert.ok(listing.includes(articlePath), 'Each article must link to its readable article URL')
+
+    const base = origin + articlePath
+    const spanish = await dump(base + '?testLocale=es&testTheme=light')
+    assert.ok(spanish.includes('class="news-article-page"'), 'Article must render in a dedicated full-page section')
+    assert.ok(spanish.includes('Puerto de Caldera') && spanish.includes('Segunda línea en español.'), 'Spanish article must show entire body')
+    assert.ok(spanish.includes('Equipo Editorial') && spanish.includes('26 de octubre de 2026'), 'Author and publication date must appear in article')
+    assert.ok(spanish.includes('href="/noticias"'), 'Article must allow returning to News')
+    assert.ok(!spanish.includes('class="news-article-modal-backdrop"'), 'Do not render old modal')
+    assert.ok(!spanish.includes('Exportaciones de Costa Rica'), 'Article page must not show the listing beneath the article')
+    assert.ok(spanish.includes('id="tested-article-bg">rgb(255, 255, 255)'), 'Light article must use normal page background')
+    assert.equal(translatedCalls, 0, 'Spanish page should not request translations')
+
+    const legacy = await dump(origin + '/noticias?article=' + articles[0].id + '&testLocale=es&testTheme=light')
+    assert.ok(legacy.includes('Puerto de Caldera') && legacy.includes('Segunda línea en español.'), 'Legacy article links must keep working')
+
+    const english = await dump(origin + '/noticias?article=' + articles[0].id + '&testLocale=en&testTheme=dark')
+    for (const expected of ['Port of Caldera', 'New containers arrived.', 'Second line in English.', 'Back to news'])
+      assert.ok(english.includes(expected), 'English full article missing: ' + expected)
+    assert.ok(english.includes('id="tested-article-bg">rgb(1, 8, 29)'), 'Dark full article must use site navy background')
+    assert.equal(translatedCalls, 2, 'All published articles must request translations')
+    assert.equal(spanishTranslationCalls, 0, 'Spanish should not request translations')
+    console.log('PASS: title-only listing, direct full article URLs, body and back navigation, ES/EN, light/dark')
   } finally {await new Promise(resolve=>server.close(resolve))}
 }
 main().catch(err=>{console.error('FAIL:',err.message);process.exitCode=1})

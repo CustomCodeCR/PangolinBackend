@@ -416,4 +416,16 @@ html.theme-dark .app-site.off-admin .off-admin-card::before {
   background:radial-gradient(ellipse at center,rgba(214,14,52,.22) 0%,rgba(178,11,45,.1) 45%,transparent 76%) !important;
   filter:none !important;
 }
+
+/* PR #94: azul uniforme para tarjetas e información de cotizaciones. */
+/* Solo tema oscuro. Las solicitudes seleccionadas o bajo el cursor conservan
+   su fondo rojizo; no se modifican estados, menús, bordes ni tipografía. */
+html.theme-dark .app-site .off-admin .off-admin-item:not(.is-selected):not(:hover),
+html.theme-dark .app-site.off-admin .off-admin-item:not(.is-selected):not(:hover),
+html.theme-dark .app-site .off-admin .off-admin-data > div,
+html.theme-dark .app-site.off-admin .off-admin-data > div,
+html.theme-dark .app-site .off-admin .off-admin-button,
+html.theme-dark .app-site.off-admin .off-admin-button {
+  background-color:#060f21 !important;
+}
 </style>

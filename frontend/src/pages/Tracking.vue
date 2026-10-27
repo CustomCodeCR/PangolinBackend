@@ -7,8 +7,28 @@ import IconSymbol from '../components/IconSymbol.vue'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import WorldGlobe from '../components/WorldGlobe.vue'
+import { illustrativeRoute } from '../lib/trackingRoute'
 import FieldDropdown from '../components/FieldDropdown.vue'
-import type { TrackingDemoShipment } from '../types/tracking'
+interface DynamicsShipment {
+  title: string | null
+  status: string | null
+  origin: string | null
+  destination: string | null
+  mode: string | null
+  portOfLoading: string | null
+  portOfEntry: string | null
+  etd: string | null
+  eta: string | null
+  vessel: string | null
+  container: string | null
+  bcf: string | null
+  updatedAtUtc: string | null
+}
+interface LookupResponse {
+  source: 'dynamics'
+  records: DynamicsShipment[]
+  truncated: boolean
+}
 
 const { locale } = useI18n({ useScope: 'global' })
 const en = computed(() => locale.value.toLowerCase().startsWith('en'))
@@ -16,7 +36,16 @@ const kind = ref('BL')
 const reference = ref('')
 const searched = ref(false)
 const loading = ref(false)
-const shipment = ref<TrackingDemoShipment | null>(null)
+const shipment = ref<DynamicsShipment | null>(null)
+const matches = ref<DynamicsShipment[]>([])
+const selectedIndex = ref(0)
+const truncated = ref(false)
+const globeRoute = computed(() => shipment.value ? illustrativeRoute(shipment.value) : null)
+function chooseMatch(next: number) {
+  if (next < 0 || next >= matches.value.length) return
+  selectedIndex.value = next
+  shipment.value = matches.value[next]
+}
 const globeSection = ref<HTMLElement | null>(null)
 function showDemoRoute() {
   globeSection.value?.scrollIntoView({
@@ -31,6 +60,9 @@ watch([kind, reference], () => {
   searched.value = false
   loading.value = false
   shipment.value = null
+  matches.value = []
+  selectedIndex.value = 0
+  truncated.value = false
   lookupFailure.value = 'none'
 })
 async function searchShipment() {
@@ -38,75 +70,82 @@ async function searchShipment() {
   const code = reference.value.trim()
   searched.value = true
   shipment.value = null
+  matches.value = []
+  selectedIndex.value = 0
+  truncated.value = false
   lookupFailure.value = 'none'
   if (!code) return
-  if (code.length < 3 || code.length > 64 || !/^[a-z0-9_-]+$/i.test(code)) {
+  if (!/^[a-z0-9_-]{3,64}$/i.test(code)) {
     lookupFailure.value = 'invalid'
     return
   }
   loading.value = true
   try {
-    const params = new URLSearchParams({ type: kind.value, reference: code })
-    const response = await fetch('/api/tracking/demo?' + params.toString(), {
-      headers: { Accept: 'application/json' }, cache: 'no-store'
+    const response = await fetch('/api/tracking/dynamics/search', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: kind.value, reference: code }),
+      cache: 'no-store'
     })
     if (revision !== lookupRevision) return
-    if (response.status === 404) { lookupFailure.value = 'missing'; return }
     if (response.status === 429) { lookupFailure.value = 'limited'; return }
+    if (response.status === 400) { lookupFailure.value = 'invalid'; return }
     if (!response.ok) { lookupFailure.value = 'error'; return }
-    const data = await response.json() as TrackingDemoShipment
-    if (data.demo !== true || !data.origin || !data.destination ||
-        !Number.isFinite(data.progressPercent)) throw new Error('Invalid demo response')
-    shipment.value = data
+    const data = await response.json() as LookupResponse
+    if (revision !== lookupRevision) return
+    if (data.source !== 'dynamics' || !Array.isArray(data.records)) throw new Error('Unexpected tracking response')
+    matches.value = data.records
+    truncated.value = data.truncated === true
+    if (data.records.length > 0) shipment.value = data.records[0]
+    else lookupFailure.value = 'missing'
   } catch {
     if (revision === lookupRevision) lookupFailure.value = 'error'
   } finally {
     if (revision === lookupRevision) loading.value = false
   }
 }
-const statusLabels = computed<Record<string, string>>(() => en.value ? ({
-  planned: 'Planned', in_transit: 'In transit', arrived: 'Arrived', delivered: 'Delivered'
-}) : ({
-  planned: 'Planificado', in_transit: 'En tránsito', arrived: 'Llegó a destino', delivered: 'Entregado'
-}))
-function formatDate(value: string) {
-  const date = new Date(value + 'T12:00:00Z')
+function formatDate(value: string | null) {
+  if (!value) return '—'
+  const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(en.value ? 'en-US' : 'es-CR', {
     day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'
   }).format(date)
 }
 let tour: Driver | null = null
 const types = computed(() => en.value ? [
-  { id: 'BL', name: 'BL number', help: 'Master Bill of Lading for the shipment.' },
-  { id: 'HBL', name: 'HBL number', help: 'House Bill of Lading for your cargo.' },
-  { id: 'IDTRA', name: 'IDTRA', help: 'Castro Fallas reference, when assigned.' },
-  { id: 'CONTAINER', name: 'Container number', help: 'Identifier printed on the container.' },
-  { id: 'PO', name: 'Purchase order (PO)', help: 'Purchase order reference, if linked to a shipment.' }
+  { id: 'BL', name: 'BL (BCF)', help: 'BL is currently resolved through the BCF reference.' },
+  { id: 'HBL', name: 'HBL (BCF)', help: 'HBL is currently resolved through the BCF reference.' },
+  { id: 'BCF', name: 'BCF', help: 'Castro Fallas shipment reference.' },
+  { id: 'IDTRA', name: 'IDTRA', help: 'Castro Fallas tracking identifier.' },
+  { id: 'CONTAINER', name: 'Container number', help: 'Shipping container identifier.' },
+  { id: 'PO', name: 'Purchase order (PO)', help: 'Linked purchase order reference.' }
 ] : [
-  { id: 'BL', name: 'Número BL', help: 'Conocimiento de embarque marítimo principal.' },
-  { id: 'HBL', name: 'Número HBL', help: 'Conocimiento de embarque individual.' },
-  { id: 'IDTRA', name: 'IDTRA', help: 'Referencia de Castro Fallas, si fue asignada.' },
-  { id: 'CONTAINER', name: 'Número de contenedor', help: 'Código impreso en el contenedor.' },
-  { id: 'PO', name: 'Orden de compra (PO)', help: 'Orden de compra vinculada al embarque, si aplica.' }
+  { id: 'BL', name: 'Número BL (BCF)', help: 'Por ahora se consulta mediante la referencia BCF.' },
+  { id: 'HBL', name: 'Número HBL (BCF)', help: 'Por ahora se consulta mediante la referencia BCF.' },
+  { id: 'BCF', name: 'Referencia BCF', help: 'Referencia de embarque Castro Fallas.' },
+  { id: 'IDTRA', name: 'IDTRA', help: 'Identificador de seguimiento Castro Fallas.' },
+  { id: 'CONTAINER', name: 'Número de contenedor', help: 'Identificador del contenedor.' },
+  { id: 'PO', name: 'Orden de compra (PO)', help: 'Orden de compra vinculada.' }
 ])
 const help = computed(() => types.value.find(item => item.id === kind.value)?.help ?? '')
 const copy = computed(() => en.value ? {
   eyebrow: 'CASTRO FALLAS · INTERNATIONAL CARGO', title: 'Track your', accent: 'shipment.',
-  intro: 'Explore sample shipments with an interactive route. Live cargo tracking is not connected yet.',
+  intro: 'Search real shipment information by your registered reference. Routes shown on the globe are illustrative.',
   heading: 'Find your shipment', hint: 'Choose the reference type shown on your shipping documents.',
   guide: 'Step-by-step guide', type: 'Reference type', number: 'Shipment reference',
   placeholder: 'Enter reference', search: 'Search shipment', required: 'Enter a reference to continue.',
-  unavailable: 'Online tracking is not available yet',
-  demoLabel: 'DEMO · Fictitious shipment', result: 'Shipment summary',
+  unavailable: 'Tracking temporarily unavailable',
+  demoLabel: 'DYNAMICS · SHIPMENT', result: 'Shipment summary',
   origin: 'Origin', destination: 'Destination', status: 'Status',
-  estimatedDeparture: 'Sample departure', estimatedArrival: 'Sample arrival',
-  progress: 'Illustrative progress', loading: 'Searching demo shipments…', viewRoute: 'View route on globe',
-  demoNotice: 'Illustrative data only. The moving route marker is not GPS and does not show real shipment positions.',
-  notFound: 'No sample shipment found', notFoundInfo: 'Check the selected reference type and the sample code.',
+  estimatedDeparture: 'Estimated departure', estimatedArrival: 'Estimated arrival',
+  progress: 'Logistics details', loading: 'Searching shipments…', viewRoute: 'View route on globe',
+  demoNotice: 'Illustrative route only, not a live GPS position or verified vessel track.',
+  notFound: 'No shipment found', notFoundInfo: 'Check the reference type and code.',
   invalid: 'Enter 3–64 letters, digits, hyphens or underscores.',
   limited: 'Too many searches. Please retry shortly.',
-  failed: 'Could not connect to demo tracking. Check the backend and try again.',
-  explanation: 'We cannot retrieve live movements yet. Contact Castro Fallas and include your reference so the team can assist.',
+  failed: 'Tracking is temporarily unavailable. Try again later.',
+  explanation: 'For more information, contact Castro Fallas with your reference.',
   contact: 'Contact Castro Fallas', process: 'How shipment coordination works',
   processIntro: 'Our team works with carriers, customs agents and the other parties involved.',
   steps: [
@@ -119,21 +158,21 @@ const copy = computed(() => en.value ? {
   back: 'Back to home', next: 'Next', previous: 'Back', done: 'Finish'
 } : {
   eyebrow: 'CASTRO FALLAS · CARGA INTERNACIONAL', title: 'Rastrea tu', accent: 'embarque.',
-  intro: 'Explora embarques ficticios y sus rutas interactivas. El seguimiento real todavía no está conectado.',
+  intro: 'Consultá información de embarques desde Dynamics. Las rutas del globo son ilustrativas.',
   heading: 'Busca tu embarque', hint: 'Selecciona el tipo de referencia que aparece en los documentos.',
   guide: 'Guía paso a paso', type: 'Tipo de referencia', number: 'Referencia del embarque',
   placeholder: 'Ingresa la referencia', search: 'Buscar embarque', required: 'Ingresa una referencia para continuar.',
-  unavailable: 'El seguimiento en línea aún no está disponible',
-  demoLabel: 'DEMO · Embarque ficticio', result: 'Resumen del embarque',
+  unavailable: 'Rastreo temporalmente no disponible',
+  demoLabel: 'DYNAMICS · EMBARQUE', result: 'Resumen del embarque',
   origin: 'Origen', destination: 'Destino', status: 'Estado',
-  estimatedDeparture: 'Salida estimada de prueba', estimatedArrival: 'Llegada estimada de prueba',
-  progress: 'Avance ilustrativo', loading: 'Buscando embarque de prueba…', viewRoute: 'Ver ruta en el globo',
-  demoNotice: 'Datos ficticios. El marcador de avance no es GPS ni representa la ubicación real de un embarque.',
-  notFound: 'No se encontró el embarque de prueba', notFoundInfo: 'Verificá el tipo de referencia y el código de demostración.',
+  estimatedDeparture: 'Salida estimada', estimatedArrival: 'Llegada estimada',
+  progress: 'Detalles de operación', loading: 'Buscando embarque…', viewRoute: 'Ver ruta en el globo',
+  demoNotice: 'Recorrido ilustrativo: no representa GPS ni la ubicación actual del barco.',
+  notFound: 'No se encontró el embarque', notFoundInfo: 'Revisá el tipo de referencia y el código.',
   invalid: 'Ingresá de 3 a 64 letras, números, guiones o guiones bajos.',
   limited: 'Demasiadas consultas. Intentá de nuevo dentro de un momento.',
-  failed: 'No se pudo conectar con el rastreo de prueba. Revisá el backend e intentá nuevamente.',
-  explanation: 'Por ahora no podemos consultar movimientos en tiempo real. Contacta a Castro Fallas e incluye la referencia para recibir asistencia.',
+  failed: 'El rastreo está temporalmente no disponible. Intentá más tarde.',
+  explanation: 'Para más información, contactá a Castro Fallas con tu referencia.',
   contact: 'Contactar a Castro Fallas', process: 'Así coordinamos cada embarque',
   processIntro: 'Nuestro equipo coordina con transportistas, agentes aduanales y las demás partes involucradas.',
   steps: [
@@ -199,7 +238,7 @@ onBeforeUnmount(() => {
             <h1>{{ copy.title }} <span>{{ copy.accent }}</span></h1>
             <p class="tracking-lead">{{ copy.intro }}</p>
           </div>
-          <WorldGlobe :shipment="shipment" :initial-zoom="0.8" />
+          <WorldGlobe :shipment="globeRoute" :initial-zoom="0.8" />
         </section>
         <section class="tracking-search-section">
           <form class="tracking-search" @submit.prevent="searchShipment" novalidate>
@@ -235,25 +274,37 @@ onBeforeUnmount(() => {
               <div class="tracking-demo-result__heading">
                 <div>
                   <span class="tracking-demo-result__label">{{ copy.demoLabel }}</span>
-                  <h3>{{ copy.result }} · {{ shipment.referenceCode }}</h3>
+                  <h3>{{ copy.result }} · {{ shipment.title || reference.trim() }}</h3>
                 </div>
-                <strong class="tracking-demo-result__status">{{ statusLabels[shipment.status] ?? shipment.status }}</strong>
+                <strong class="tracking-demo-result__status">{{ shipment.status || '—' }}</strong>
               </div>
+              <div v-if="matches.length > 1" class="tracking-results-select">
+                <strong>{{ en ? 'Matching shipments' : 'Embarques encontrados' }}: {{ selectedIndex + 1 }} / {{ matches.length }}</strong>
+                <div>
+                  <button type="button" :disabled="selectedIndex === 0" @click="chooseMatch(selectedIndex - 1)">{{ en ? 'Previous' : 'Anterior' }}</button>
+                  <button type="button" :disabled="selectedIndex >= matches.length - 1" @click="chooseMatch(selectedIndex + 1)">{{ en ? 'Next' : 'Siguiente' }}</button>
+                </div>
+              </div>
+              <p v-if="truncated" class="tracking-hint">{{ en ? 'Additional matches may be available.' : 'Podrían existir más coincidencias.' }}</p>
               <dl class="tracking-demo-result__grid">
-                <div><dt>{{ copy.origin }}</dt><dd>{{ shipment.origin.name }}</dd></div>
-                <div><dt>{{ copy.destination }}</dt><dd>{{ shipment.destination.name }}</dd></div>
+                <div><dt>{{ copy.origin }}</dt><dd>{{ shipment.origin || '—' }}</dd></div>
+                <div><dt>{{ copy.destination }}</dt><dd>{{ shipment.destination || '—' }}</dd></div>
+                <div><dt>{{ en ? 'Transport' : 'Transporte' }}</dt><dd>{{ shipment.mode || '—' }}</dd></div>
+                <div><dt>{{ copy.status }}</dt><dd>{{ shipment.status || '—' }}</dd></div>
+                <div><dt>{{ en ? 'Port of loading' : 'Puerto de salida' }}</dt><dd>{{ shipment.portOfLoading || '—' }}</dd></div>
+                <div><dt>{{ en ? 'Port of entry' : 'Puerto de entrada' }}</dt><dd>{{ shipment.portOfEntry || '—' }}</dd></div>
                 <div><dt>{{ copy.estimatedDeparture }}</dt><dd>{{ formatDate(shipment.etd) }}</dd></div>
                 <div><dt>{{ copy.estimatedArrival }}</dt><dd>{{ formatDate(shipment.eta) }}</dd></div>
+                <div><dt>{{ en ? 'Vessel' : 'Buque' }}</dt><dd>{{ shipment.vessel || '—' }}</dd></div>
+                <div><dt>{{ en ? 'Container' : 'Contenedor' }}</dt><dd>{{ shipment.container || '—' }}</dd></div>
+                <div><dt>BCF</dt><dd>{{ shipment.bcf || '—' }}</dd></div>
+                <div><dt>{{ en ? 'Last updated' : 'Última actualización' }}</dt><dd>{{ formatDate(shipment.updatedAtUtc) }}</dd></div>
               </dl>
-              <div class="tracking-demo-result__progress">
-                <div><strong>{{ copy.progress }}</strong><span>{{ shipment.progressPercent }}%</span></div>
-                <div class="tracking-demo-result__track" role="progressbar" :aria-label="copy.progress"
-                  :aria-valuenow="shipment.progressPercent" aria-valuemin="0" aria-valuemax="100">
-                  <span :style="{ width: shipment.progressPercent + '%' }"></span>
-                </div>
-              </div>
-              <p class="tracking-demo-result__disclaimer">{{ copy.demoNotice }}</p>
-              <button type="button" class="tracking-demo-result__view" @click="showDemoRoute">{{ copy.viewRoute }} ↑</button>
+              <p class="tracking-demo-result__disclaimer">
+                {{ globeRoute ? copy.demoNotice :
+                  (en ? 'Approximate route unavailable for these locations. The globe stays in its default view.' : 'No hay una ruta aproximada reconocida para estos lugares. El globo mantiene su vista predeterminada.') }}
+              </p>
+              <button v-if="globeRoute" type="button" class="tracking-demo-result__view" @click="showDemoRoute">{{ copy.viewRoute }} ↑</button>
             </section>
             <div v-else-if="searched && reference.trim()" class="tracking-unavailable" role="status">
               <strong>{{ lookupFailure === 'missing' ? copy.notFound : copy.unavailable }}</strong>
@@ -425,4 +476,11 @@ onBeforeUnmount(() => {
 .tracking-demo-result__view { margin-top:14px; border:1px solid #b50928; border-radius:12px; padding:10px 15px; background:transparent; color:#b50928; font-weight:750; cursor:pointer; }
 .tracking-demo-result__view:focus-visible { outline:2px solid #b50928; outline-offset:3px; }
 :global(html.theme-dark) .tracking-demo-result__view { color:#ff8697; border-color:#ff8697; }
+</style>
+
+<style scoped>
+.tracking-results-select { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin:16px 0; }
+.tracking-results-select > div { display:flex; gap:8px; }
+.tracking-results-select button { border:1px solid #b5092866; background:transparent; color:inherit; padding:8px 13px; border-radius:10px; cursor:pointer; }
+.tracking-results-select button:disabled { opacity:.45; cursor:not-allowed; }
 </style>
