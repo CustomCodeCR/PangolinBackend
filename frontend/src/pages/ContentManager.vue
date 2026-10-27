@@ -1423,4 +1423,13 @@ html.theme-dark .manager-user-delete:disabled{color:#929baa;border-color:#485068
   .content-manager.is-embedded .manager-users-card {min-width:0}
 }
 
+
+/* Encabezados de Gestión de usuarios: dejan ver el mismo fondo del panel. */
+.content-manager .manager-users-table thead th,
+.content-manager.is-embedded .manager-users-table thead th,
+.is-embedded .manager-users-table th {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--admin-text, #fff) !important;
+}
 </style>
