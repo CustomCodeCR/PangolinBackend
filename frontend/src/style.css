@@ -5314,3 +5314,18 @@ html.theme-dark .app-site .news-article-modal__copy .section-tag {
     text-align:left;
   }
 }
+
+/* Superficies azul marino: igualar controles cerrados al tono oscuro de
+   "Agregar usuario". Cambiamos SOLO el fondo de los controles, no las listas
+   flotantes .cf-dropdown__menu, tipografia, bordes ni estados de seleccion.
+   Se limita a tema oscuro y a campos que antes usaban azul marino. */
+html.theme-dark :is(.content-manager, .admin-users-page, .itinerary-page, .tracking-site, .off-admin) .cf-dropdown__trigger,
+html.theme-dark .content-manager :is(.manager-form, .manager-create-form, .manager-users-table) :is(input:not([type="file"]):not([type="checkbox"]), select, textarea),
+html.theme-dark .app-site.itinerary-page .itinerary-form-line :is(input, select),
+html.theme-dark .app-site.itinerary-page .itinerary-input-with-icon i,
+html.theme-dark .tracking-site .tracking-fields :is(input, select),
+html.theme-dark .app-site.administration-page .visual-editor :is(input:not([type="file"]), select, textarea),
+html.theme-dark .app-site .off-admin .off-admin-form :is(select, textarea),
+html.theme-dark .app-site.off-admin .off-admin-form :is(select, textarea) {
+  background-color: #060f21 !important;
+}
