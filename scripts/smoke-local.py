@@ -157,6 +157,38 @@ def main():
     status, selfChange = call(browser, '/api/admin/users/' + me['usuarioId'],
                               {'role': 'cliente', 'activo': True}, 'PATCH')
     require(status == 409, f'Un administrador pudo cambiar su propia cuenta: {status} {selfChange}')
+    # DELETE must never remove a live account or the current administrator.
+    status, denied_active = call(browser, user_route, method='DELETE')
+    require(status == 409, f'Se permitió borrar cuenta activa: {status} {denied_active}')
+    status, denied_self = call(browser, '/api/admin/users/' + me['usuarioId'], method='DELETE')
+    require(status == 409, f'Se permitió borrar la propia cuenta administradora: {status} {denied_self}')
+
+    # Delete only an isolated throwaway account, never the seeded demo users.
+    deleted_email = 'smoke-eliminar-' + uuid4().hex[:12] + '@castrofallas.test'
+    status, disposable = call(browser, '/api/admin/users', {
+        'nombre': 'Cuenta de eliminación controlada',
+        'correo': deleted_email, 'role': 'cliente', 'codigoDynamics': ''
+    })
+    require(status == 201 and disposable.get('id'),
+            f'No se pudo crear cuenta desechable: {status} {disposable}')
+    delete_route = '/api/admin/users/' + disposable['id']
+    status, denied_live_delete = call(browser, delete_route, method='DELETE')
+    require(status == 409, 'La API permitió eliminar una cuenta nueva que seguía activa.')
+    status, disabled_delete = call(browser, delete_route, {'role': 'cliente', 'activo': False}, 'PATCH')
+    require(status == 200 and disabled_delete.get('activo') is False,
+            'No se pudo guardar el estado desactivado de la cuenta desechable.')
+    status, removed = call(browser, delete_route, method='DELETE')
+    require(status == 204, f'La eliminación controlada no funcionó: {status} {removed}')
+    status, removed_again = call(browser, delete_route, method='DELETE')
+    require(status == 404, f'El usuario eliminado todavía admite DELETE: {status} {removed_again}')
+    status, after_delete = call(browser, '/api/admin/users?page=1&pageSize=100')
+    require(status == 200 and all(u.get('id') != disposable['id'] for u in after_delete.get('users', [])),
+            'El usuario retirado permanece en el listado de Gestión.')
+    status, denied_login = call(build_opener(), '/api/auth/request-otp', {'correo': deleted_email})
+    require(status == 404 and denied_login.get('code') == 'account_unavailable',
+            'El usuario retirado todavía puede solicitar un OTP.')
+    print('OK Solo administradores eliminan cuentas guardadas como desactivadas, sin acceso posterior.')
+
     # Alterna una cuenta DEMO de forma temporal y garantiza restaurarla.
     try:
         status, disabled = call(browser, user_route, {'role': 'cliente', 'activo': False}, 'PATCH')
@@ -434,6 +466,8 @@ def main():
                                  {'nombre': 'No autorizado', 'correo': 'no-admin@example.test',
                                   'role': 'administrador', 'codigoDynamics': ''})
     require(status == 403, f'Cliente pudo crear un administrador: {status} {denied_create}')
+    status, denied_delete = call(client_browser, '/api/admin/users/' + disposable['id'], method='DELETE')
+    require(status == 403, f'Un cliente pudo intentar eliminar una cuenta: {status} {denied_delete}')
     status, denied_media = call(client_browser, '/api/admin/content/media')
     require(status == 403, f'Cliente pudo ver biblioteca privada: {status} {denied_media}')
     status, denied_comments = call(client_browser, '/api/admin/content/comments')
