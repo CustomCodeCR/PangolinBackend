@@ -377,7 +377,7 @@ check(all(token in news_migration for token in (
 check('DholeTracking__Enabled: "${PANGOLIN_DHOLE_TRACKING_ENABLED:-false}"' in prod_compose
       and 'DholeTracking__ApiKey: "${PANGOLIN_DHOLE_TRACKING_API_KEY:-}"' in prod_compose
       and 'PANGOLIN_DHOLE_TRACKING_API_KEY' in prod_workflow
-      and 'tracking enabled without private API key' in prod_workflow,
+      and 'Production tracking enabled without private API key' in prod_workflow,
       'Dynamics desactivado por defecto, secreto privado y guardia de despliegue')
 
 print('Comprobaciones estáticas de integración finalizadas.')
