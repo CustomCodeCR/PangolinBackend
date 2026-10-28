@@ -569,7 +569,7 @@ onBeforeUnmount(() => {
   display:grid; grid-template-columns:minmax(0,1fr); gap:12px; margin:22px 0;
 }
 .tracking-demo-result__pair {
-  --tracking-glass-divider:rgba(117,60,72,.22);
+  --tracking-glass-divider:rgba(91,105,125,.18);
   --tracking-pair-spacing:clamp(8px,1.5vw,16px);
   position:relative; display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
   align-items:center; column-gap:0; min-width:0;
@@ -579,20 +579,6 @@ onBeforeUnmount(() => {
   -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
   box-shadow:0 8px 32px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.32),inset 0 -1px 0 rgba(255,255,255,.1);
   cursor:default;
-}
-/* In the light theme, white borders disappeared against the pale tracking surface.
-   Give them the same card definition as the navy theme, without a solid fill. */
-:global(html:not(.theme-dark) .app-site.tracking-site .tracking-demo-result__pair) {
-  --tracking-glass-divider:rgba(131,75,92,.25);
-  background:rgba(255,255,255,.30);
-  border-color:rgba(131,75,92,.36);
-  box-shadow:0 6px 21px rgba(68,31,43,.10),inset 0 1px 0 rgba(255,255,255,.85),inset 0 -1px 0 rgba(131,75,92,.08);
-}
-:global(html:not(.theme-dark) .app-site.tracking-site .tracking-demo-result__pair)::before {
-  background:linear-gradient(90deg,transparent,rgba(131,75,92,.25),transparent);
-}
-:global(html:not(.theme-dark) .app-site.tracking-site .tracking-demo-result__pair)::after {
-  background:linear-gradient(180deg,rgba(131,75,92,.25),transparent,rgba(131,75,92,.12));
 }
 .tracking-demo-result__pair::before {
   content:''; position:absolute; top:0; left:0; right:0; height:1px; pointer-events:none;
