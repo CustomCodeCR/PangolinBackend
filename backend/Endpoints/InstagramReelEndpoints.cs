@@ -8,12 +8,13 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace CastroFallas.MiniQuote.Api.Endpoints;
 
+public sealed record SaveFeaturedReelRequest(string? Url);
+
 public static class InstagramReelEndpoints
 {
     private const string ProfileUrl = "https://www.instagram.com/grupocastrofallas1/";
     private const string CacheKey = "social:instagram:latest-reel:v1";
     private const string ManualReelKey = "home.instagram.reel";
-    private sealed record SaveFeaturedReelRequest(string? Url);
     private sealed record Reel(string Permalink, string? ThumbnailUrl, DateTimeOffset PublishedAt);
     private sealed record Response(Reel? Reel, string ProfileUrl);
 
