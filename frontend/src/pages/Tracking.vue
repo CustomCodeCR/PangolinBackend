@@ -544,9 +544,12 @@ onBeforeUnmount(() => {
   align-items:center; column-gap:0; min-width:0;
   padding:clamp(13px,1.8vw,19px) clamp(16px,2.5vw,26px);
   overflow:hidden; border-radius:18px; border:0;
-  background:#060f21;
+  background:#01081D;
+  background-image:none;
   -webkit-backdrop-filter:none; backdrop-filter:none;
-  box-shadow:0 0 18px rgba(181,9,40,.3),0 0 5px rgba(181,9,40,.2);
+  box-shadow:none;
+  /* Keep the animated red glow of the search panel behind this opaque card. */
+  isolation:isolate; z-index:1;
   cursor:default;
 }
 .tracking-demo-result__pair::before,
@@ -599,8 +602,8 @@ onBeforeUnmount(() => {
 :global(html.theme-dark) .tracking-demo-result__label,
 :global(html.theme-dark) .tracking-demo-result__status { color:#ff8697; }
 :global(html.theme-dark) .tracking-demo-result__status { background:#b509283a; }
-/* Dark theme: solid reference-input navy for each data pair.
-   No glass, gradients or visible borders; WhatsApp-inspired red halo only. */
+/* Dark theme: truly opaque #01081D, free of red glow, glass and gradients.
+   The parent search-panel animation remains unchanged behind the cards. */
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result) {
   --tracking-glass-navy:#01081D;
   background:transparent !important;
@@ -617,11 +620,19 @@ onBeforeUnmount(() => {
   overflow:hidden;
   border-radius:18px;
   border:0 !important;
-  background:#060f21 !important;
+  outline:0 !important;
+  background:#01081D !important;
+  background-color:#01081D !important;
   background-image:none !important;
+  background-blend-mode:normal !important;
   -webkit-backdrop-filter:none !important;
   backdrop-filter:none !important;
-  box-shadow:0 0 18px rgba(181,9,40,.3), 0 0 5px rgba(181,9,40,.2) !important;
+  box-shadow:none !important;
+  filter:none !important;
+  mix-blend-mode:normal !important;
+  opacity:1 !important;
+  isolation:isolate;
+  z-index:1;
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field) {
   min-width:0;
