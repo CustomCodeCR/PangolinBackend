@@ -156,6 +156,13 @@ const shipmentExtras = computed<ShipmentExtraField[]>(() => {
     .filter(field => field.value?.trim() && !/^[\s/]+$/.test(field.value))
     .map(field => ({ label: en.value ? field.en : field.es, value: field.value ?? '' }))
 })
+// Pair optional Dynamics fields in the same order as the main shipment summary.
+const shipmentExtrasPairs = computed<ShipmentExtraField[][]>(() => {
+  const fields = shipmentExtras.value
+  const rows: ShipmentExtraField[][] = []
+  for (let index = 0; index < fields.length; index += 2) rows.push(fields.slice(index, index + 2))
+  return rows
+})
 let tour: Driver | null = null
 const types = computed(() => en.value ? [
   { id: 'BL', name: 'BL (BCF)', help: 'BL is currently resolved through the BCF reference.' },
@@ -334,27 +341,41 @@ onBeforeUnmount(() => {
                 <strong>{{ en ? 'Customer update' : 'Actualización para el cliente' }}</strong>
                 <span>{{ shipment.customerStatus }}</span>
               </p>
-              <dl class="tracking-demo-result__grid">
-                <div><dt>{{ copy.origin }}</dt><dd>{{ shipment.origin || '—' }}</dd></div>
-                <div><dt>{{ copy.destination }}</dt><dd>{{ shipment.destination || '—' }}</dd></div>
-                <div><dt>{{ en ? 'Transport' : 'Transporte' }}</dt><dd>{{ shipment.mode || '—' }}</dd></div>
-                <div><dt>{{ copy.status }}</dt><dd>{{ shipment.status || '—' }}</dd></div>
-                <div><dt>{{ en ? 'Port of loading' : 'Puerto de salida' }}</dt><dd>{{ shipment.portOfLoading || '—' }}</dd></div>
-                <div><dt>{{ en ? 'Port of entry' : 'Puerto de entrada' }}</dt><dd>{{ shipment.portOfEntry || '—' }}</dd></div>
-                <div><dt>{{ copy.estimatedDeparture }}</dt><dd>{{ formatDate(shipment.etd) }}</dd></div>
-                <div><dt>{{ copy.estimatedArrival }}</dt><dd>{{ formatDate(shipment.eta) }}</dd></div>
-                <div><dt>{{ en ? 'Vessel' : 'Buque' }}</dt><dd>{{ shipment.vessel || '—' }}</dd></div>
-                <div><dt>{{ en ? 'Container' : 'Contenedor' }}</dt><dd>{{ shipment.container || '—' }}</dd></div>
-                <div><dt>BCF</dt><dd>{{ shipment.bcf || '—' }}</dd></div>
-                <div><dt>{{ en ? 'Last updated' : 'Última actualización' }}</dt><dd>{{ formatDate(shipment.updatedAtUtc) }}</dd></div>
-              </dl>
+              <div class="tracking-demo-result__grid">
+                <div class="tracking-demo-result__pair">
+                  <dl class="tracking-demo-result__field"><dt>{{ copy.origin }}</dt><dd>{{ shipment.origin || '—' }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><dt>{{ copy.destination }}</dt><dd>{{ shipment.destination || '—' }}</dd></dl>
+                </div>
+                <div class="tracking-demo-result__pair">
+                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Transport' : 'Transporte' }}</dt><dd>{{ shipment.mode || '—' }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><dt>{{ copy.status }}</dt><dd>{{ shipment.status || '—' }}</dd></dl>
+                </div>
+                <div class="tracking-demo-result__pair">
+                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Port of loading' : 'Puerto de salida' }}</dt><dd>{{ shipment.portOfLoading || '—' }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Port of entry' : 'Puerto de entrada' }}</dt><dd>{{ shipment.portOfEntry || '—' }}</dd></dl>
+                </div>
+                <div class="tracking-demo-result__pair">
+                  <dl class="tracking-demo-result__field"><dt>{{ copy.estimatedDeparture }}</dt><dd>{{ formatDate(shipment.etd) }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><dt>{{ copy.estimatedArrival }}</dt><dd>{{ formatDate(shipment.eta) }}</dd></dl>
+                </div>
+                <div class="tracking-demo-result__pair">
+                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Vessel' : 'Buque' }}</dt><dd>{{ shipment.vessel || '—' }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Container' : 'Contenedor' }}</dt><dd>{{ shipment.container || '—' }}</dd></dl>
+                </div>
+                <div class="tracking-demo-result__pair">
+                  <dl class="tracking-demo-result__field"><dt>BCF</dt><dd>{{ shipment.bcf || '—' }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Last updated' : 'Última actualización' }}</dt><dd>{{ formatDate(shipment.updatedAtUtc) }}</dd></dl>
+                </div>
+              </div>
               <section v-if="shipmentExtras.length" class="tracking-demo-result__extra">
                 <h4>{{ en ? 'Additional shipment details' : 'Información adicional del embarque' }}</h4>
-                <dl class="tracking-demo-result__grid">
-                  <div v-for="field in shipmentExtras" :key="field.label">
-                    <dt>{{ field.label }}</dt><dd>{{ field.value }}</dd>
+                <div class="tracking-demo-result__grid">
+                  <div v-for="(pair, index) in shipmentExtrasPairs" :key="index" class="tracking-demo-result__pair">
+                    <dl v-for="field in pair" :key="field.label" class="tracking-demo-result__field">
+                      <dt>{{ field.label }}</dt><dd>{{ field.value }}</dd>
+                    </dl>
                   </div>
-                </dl>
+                </div>
               </section>
               <p class="tracking-demo-result__disclaimer">
                 {{ globeRoute ? copy.demoNotice :
@@ -502,6 +523,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .tracking-demo-result {
+  --tracking-detail-divider: rgba(130, 47, 62, .17);
   margin-top: 24px; padding: clamp(18px,3vw,26px); border: 1px solid #b5092845;
   border-radius: 20px; background: var(--track-surface, #fff); color: inherit;
   box-shadow: 0 12px 32px #4b142110;
@@ -510,22 +532,140 @@ onBeforeUnmount(() => {
 .tracking-demo-result__label { display:inline-block; margin-bottom:10px; font-size:11px; font-weight:800; letter-spacing:.06em; color:#b50928; }
 .tracking-demo-result__heading h3 { margin:0; font-size:clamp(16px,2vw,21px); line-height:1.35; overflow-wrap:anywhere; }
 .tracking-demo-result__status { padding:7px 11px; border-radius:20px; font-size:12px; background:#b5092817; color:#b50928; }
-.tracking-demo-result__grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:19px 24px; margin:22px 0; }
-.tracking-demo-result__grid div { min-width:0; }
-.tracking-demo-result__grid dt { font-size:12px; opacity:.75; font-weight:700; }
-.tracking-demo-result__grid dd { margin:6px 0 0; font-size:14px; font-weight:750; overflow-wrap:anywhere; }
+/* Each visual row is one non-interactive glass surface with two related details. */
+.tracking-demo-result__grid {
+  display:grid; grid-template-columns:minmax(0,1fr); gap:12px; margin:22px 0;
+}
+.tracking-demo-result__pair {
+  --tracking-glass-divider:rgba(91,105,125,.18);
+  --tracking-pair-spacing:clamp(8px,1.5vw,16px);
+  position:relative; display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+  align-items:center; column-gap:0; min-width:0;
+  padding:clamp(13px,1.8vw,19px) clamp(16px,2.5vw,26px);
+  overflow:hidden; border-radius:18px; border:1px solid rgba(255,255,255,.6);
+  background:rgba(255,255,255,.18);
+  -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+  box-shadow:0 8px 32px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.32),inset 0 -1px 0 rgba(255,255,255,.1);
+  cursor:default;
+}
+.tracking-demo-result__pair::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:1px; pointer-events:none;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.8),transparent);
+}
+.tracking-demo-result__pair::after {
+  content:''; position:absolute; top:0; left:0; width:1px; height:100%; pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.8),transparent,rgba(255,255,255,.3));
+}
+.tracking-demo-result__field { min-width:0; margin:0; }
+.tracking-demo-result__field:first-child:not(:only-child) {
+  padding-right:var(--tracking-pair-spacing);
+}
+.tracking-demo-result__field + .tracking-demo-result__field {
+  border-left:1px solid var(--tracking-glass-divider);
+  padding-left:var(--tracking-pair-spacing);
+}
+.tracking-demo-result__field:only-child { grid-column:1/-1; }
+.tracking-demo-result__field dt {
+  font-size:12px; color:var(--track-muted); font-weight:700; line-height:1.4;
+  overflow-wrap:anywhere;
+}
+.tracking-demo-result__field dd {
+  margin:6px 0 0; font-size:clamp(14px,1.15vw,16px); line-height:1.45;
+  font-weight:750; overflow-wrap:anywhere;
+}
 .tracking-demo-result__progress > div:first-child { display:flex; justify-content:space-between; gap:14px; margin:0 0 8px; font-size:13px; }
 .tracking-demo-result__track { height:11px; overflow:hidden; border-radius:12px; background:#a3a3a34a; }
 .tracking-demo-result__track span { display:block; height:100%; border-radius:12px; background:#b50928; transition:width .5s ease; }
 .tracking-demo-result__disclaimer { margin:17px 0 0; font-size:12px; line-height:1.65; opacity:.85; }
 @media(max-width:580px) {
-  .tracking-demo-result__grid { grid-template-columns:minmax(0,1fr); }
+  .tracking-demo-result__grid { gap:10px; }
+  .tracking-demo-result__pair { --tracking-pair-spacing:12px; column-gap:0; padding:13px 14px; border-radius:14px; }
+  .tracking-demo-result__field dt { font-size:11px; }
+  .tracking-demo-result__field dd { font-size:13px; }
   .tracking-demo-result__heading { flex-direction:column; }
 }
 @media(prefers-reduced-motion:reduce) { .tracking-demo-result__track span { transition:none; } }
 :global(html.theme-dark) .tracking-demo-result__label,
 :global(html.theme-dark) .tracking-demo-result__status { color:#ff8697; }
 :global(html.theme-dark) .tracking-demo-result__status { background:#b509283a; }
+/* Dark theme: opaque, flat navy fields like the tracking search input.
+   One solid strip per pair, one matte edge, no backdrop blur or shadow. */
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result) {
+  --tracking-glass-navy:#01081D;
+  background:transparent !important;
+  background-image:none !important;
+  border-color:rgba(77,101,133,.35) !important;
+  box-shadow:none !important;
+}
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair) {
+  --tracking-glass-divider:#3b465f;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  align-items:center;
+  column-gap:0;
+  padding:clamp(13px,1.8vw,19px) clamp(16px,2.5vw,26px);
+  overflow:hidden;
+  border-radius:18px;
+  border:1px solid #3b465f !important;
+  background:#060f21 !important;
+  background-image:none !important;
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
+  box-shadow:none !important;
+}
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field) {
+  min-width:0;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+}
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field:first-child:not(:only-child)) {
+  padding-right:var(--tracking-pair-spacing) !important;
+}
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field + .tracking-demo-result__field) {
+  padding-left:var(--tracking-pair-spacing) !important;
+  border-left:1px solid #3b465f !important;
+}
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field dt) {
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  background:transparent !important;
+  color:var(--track-muted);
+  font-size:12px;
+  font-weight:700;
+}
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field dd) {
+  display:block;
+  min-height:0;
+  margin:6px 0 0 !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  background-image:none !important;
+  box-shadow:none !important;
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
+  font-size:clamp(14px,1.15vw,16px);
+  font-weight:750;
+}
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair)::before,
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair)::after {
+  content:none !important;
+  background:none !important;
+}
+@media(max-width:580px) {
+  :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair) {
+    padding:13px 14px;
+    border-radius:14px;
+  }
+  :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field dt) { font-size:11px; }
+  :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field dd) { font-size:13px; }
+}
 </style>
 
 <style scoped>
