@@ -630,21 +630,16 @@ onBeforeUnmount(() => {
   border-color:rgba(77,101,133,.35) !important;
   box-shadow:0 10px 28px rgba(0,0,0,.07);
 }
-/* Uniform navy edge in dark mode: no white inset shine or pseudo-element
-   light streaks. Light-mode glass remains untouched. */
+/* Both themes use exactly the same glass design from
+   .tracking-demo-result__pair: border, shadow, reflections, shape, blur and
+   centered divider. Dark mode only changes the surface color. The repeated
+   border color defeats a global dark-theme !important override. */
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair) {
-  --tracking-glass-divider:rgba(63,83,115,.52);
   background:rgba(1,8,29,.94) !important;
-  background-image:none !important;
-  border:1px solid rgba(63,83,115,.52) !important;
-  -webkit-backdrop-filter:blur(12px);
-  backdrop-filter:blur(12px);
-  box-shadow:0 6px 21px rgba(0,0,0,.10);
+  border-color:rgba(255,255,255,.6) !important;
 }
-:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair)::before,
-:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair)::after {
-  content:none !important;
-  background:none !important;
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field + .tracking-demo-result__field) {
+  border-color:rgba(91,105,125,.18) !important;
 }
 </style>
 
