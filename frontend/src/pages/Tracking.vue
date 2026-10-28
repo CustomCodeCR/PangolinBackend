@@ -8,6 +8,7 @@ import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import WorldGlobe from '../components/WorldGlobe.vue'
 import { illustrativeRoute } from '../lib/trackingRoute'
+import { formatTrackingEquipmentCount, localizeTrackingMode, localizeTrackingStatus } from '../lib/trackingDisplay'
 import FieldDropdown from '../components/FieldDropdown.vue'
 interface DynamicsShipment {
   title: string | null
@@ -49,6 +50,9 @@ interface LookupResponse {
 
 const { locale } = useI18n({ useScope: 'global' })
 const en = computed(() => locale.value.toLowerCase().startsWith('en'))
+// Display-only translations for known Dynamics values; never mutate the shipment.
+const displayMode = (value: string | null) => localizeTrackingMode(value, en.value ? 'en' : 'es')
+const displayStatus = (value: string | null) => localizeTrackingStatus(value, en.value ? 'en' : 'es')
 const kind = ref('BL')
 const reference = ref('')
 const searched = ref(false)
@@ -137,7 +141,7 @@ const shipmentExtras = computed<ShipmentExtraField[]>(() => {
   const fields: { es: string; en: string; value: string | null }[] = [
     { es: 'Incoterm', en: 'Incoterm', value: data.incoterm },
     { es: 'Tamaño o modalidad de equipo', en: 'Equipment size or modality', value: data.equipmentSize },
-    { es: 'Cantidad o configuración de equipo', en: 'Equipment quantity or configuration', value: data.equipmentCount },
+    { es: 'Cantidad o configuración de equipo', en: 'Equipment quantity or configuration', value: formatTrackingEquipmentCount(data.equipmentCount) },
     { es: 'Confirmación de zarpe', en: 'Departure confirmation', value: asDate(data.departureConfirmedAt) },
     { es: 'Ingreso a bodegas', en: 'Warehouse arrival', value: asDate(data.warehouseReceivedAt) },
     { es: 'ETA en destino', en: 'Destination ETA', value: asDate(data.destinationEta) },
@@ -327,7 +331,7 @@ onBeforeUnmount(() => {
                   <span class="tracking-demo-result__label">{{ copy.demoLabel }}</span>
                   <h3>{{ copy.result }} · {{ shipment.title || reference.trim() }}</h3>
                 </div>
-                <strong class="tracking-demo-result__status">{{ shipment.status || '—' }}</strong>
+                <strong class="tracking-demo-result__status">{{ displayStatus(shipment.status) }}</strong>
               </div>
               <div v-if="matches.length > 1" class="tracking-results-select">
                 <strong>{{ en ? 'Matching shipments' : 'Embarques encontrados' }}: {{ selectedIndex + 1 }} / {{ matches.length }}</strong>
@@ -347,8 +351,8 @@ onBeforeUnmount(() => {
                   <dl class="tracking-demo-result__field"><dt>{{ copy.destination }}</dt><dd>{{ shipment.destination || '—' }}</dd></dl>
                 </div>
                 <div class="tracking-demo-result__pair">
-                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Transport' : 'Transporte' }}</dt><dd>{{ shipment.mode || '—' }}</dd></dl>
-                  <dl class="tracking-demo-result__field"><dt>{{ copy.status }}</dt><dd>{{ shipment.status || '—' }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Transport' : 'Transporte' }}</dt><dd>{{ displayMode(shipment.mode) }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><dt>{{ copy.status }}</dt><dd>{{ displayStatus(shipment.status) }}</dd></dl>
                 </div>
                 <div class="tracking-demo-result__pair">
                   <dl class="tracking-demo-result__field"><dt>{{ en ? 'Port of loading' : 'Puerto de salida' }}</dt><dd>{{ shipment.portOfLoading || '—' }}</dd></dl>
