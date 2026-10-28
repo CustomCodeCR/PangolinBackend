@@ -31,7 +31,7 @@ public static class DholeTrackingEndpoints
             if (language is not ("en" or "es") ||
                 string.IsNullOrWhiteSpace(message) ||
                 message.Length > 256 ||
-                message.Any(c => char.IsControl(c) && c is not ('\\r' or '\\n' or '\\t')))
+                message.Any(c => char.IsControl(c) && c is not ('\r' or '\n' or '\t')))
                 return Results.BadRequest(new { code = "invalid_tracking_translation", error = "Invalid translation request." });
 
             if (!translator.IsConfigured)
