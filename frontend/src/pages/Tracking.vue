@@ -588,18 +588,18 @@ onBeforeUnmount(() => {
 :global(html.theme-dark) .tracking-demo-result__label,
 :global(html.theme-dark) .tracking-demo-result__status { color:#ff8697; }
 :global(html.theme-dark) .tracking-demo-result__status { background:#b509283a; }
-/* Dark mode: genuine see-through glass. No white/gray or navy overlay:
-   the original tracking background and its red glow must remain visible through
-   both the outer summary and every row. Keep only blur + luminous edges. */
+/* Same #01081D navy used by the site's dark theme, applied as a translucent
+   glass tint rather than an opaque gray/white surface. */
 :global(html.theme-dark) .tracking-demo-result {
-  background:transparent !important;
+  --tracking-glass-navy:#01081D;
+  background:rgba(1,8,29,.14) !important;
   background-image:none !important;
   border-color:rgba(255,255,255,.14);
   box-shadow:0 10px 28px rgba(0,0,0,.06);
 }
 :global(html.theme-dark) .tracking-demo-result__pair {
   --tracking-glass-divider:rgba(255,255,255,.19);
-  background:transparent !important;
+  background:rgba(1,8,29,.38) !important;
   background-image:none !important;
   border-color:rgba(255,255,255,.24);
   -webkit-backdrop-filter:blur(12px);
