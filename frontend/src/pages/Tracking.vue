@@ -692,3 +692,29 @@ onBeforeUnmount(() => {
 .tracking-demo-result__extra h4 { margin:0;font-size:17px;line-height:1.35; }
 .tracking-demo-result__extra .tracking-demo-result__grid { margin:16px 0 0; }
 </style>
+
+<style>
+/* Tracking dark cards: unscoped override intentionally avoids scoped pseudo-element leakage.
+   Match the dark closed FieldDropdown: solid navy, fine neutral outline, no glass. */
+html.theme-dark .app-site.tracking-site .tracking-demo-result__pair {
+  background: #060f21 !important;
+  background-color: #060f21 !important;
+  background-image: none !important;
+  border: 1px solid #4f5365 !important;
+  border-radius: 13px;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html.theme-dark .app-site.tracking-site .tracking-demo-result__pair::before,
+html.theme-dark .app-site.tracking-site .tracking-demo-result__pair::after {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+html.theme-dark .app-site.tracking-site
+  .tracking-demo-result__pair .tracking-demo-result__field + .tracking-demo-result__field {
+  border-left: 1px solid #3b465f !important;
+}
+</style>
