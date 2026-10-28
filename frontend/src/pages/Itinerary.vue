@@ -8,6 +8,7 @@ import SiteFooter from '../components/SiteFooter.vue'
 import { authState, refreshSession } from '../services/auth'
 import { subscribeToChanges } from '../services/realtime'
 import { readManagedItineraries, type ManagedItinerary } from '../adminContent'
+import { localizeTrackingMode, localizeTrackingStatus } from '../lib/trackingDisplay'
 
 type TransportMode = 'maritime' | 'ground'
 type ItineraryStatus = 'planning' | 'transit' | 'delivered' | 'delayed'
@@ -45,12 +46,16 @@ type ItineraryPageResponse = {
   totalPages: number
 }
 
-const { t, tm } = useI18n({ useScope: 'global' })
+const { t, tm, locale } = useI18n({ useScope: 'global' })
+const en = computed(() => locale.value.toLowerCase().startsWith('en'))
+// Published itinerary records store Spanish values; translate them for display only.
+const displayPublishedTransport = (value: string) => localizeTrackingMode(value, en.value ? 'en' : 'es')
+const displayPublishedStatus = (value: string) => localizeTrackingStatus(value, en.value ? 'en' : 'es')
 const modes = computed(() => tm('custom.itinerary.modes') as string[])
 const statusValues: ItineraryStatus[] = ['planning', 'transit', 'delivered', 'delayed']
 const statuses = computed(() => (tm('custom.itinerary.form.statuses') as string[]).map((label, index) => ({ value: statusValues[index], label })))
-const statusChoices = computed(() => [{ value: '', label: 'Todos' }, ...statuses.value])
-const modalityChoices = (item: Itinerary) => [{value:'',label:'Todas'}, ...optionsFor(item).map(value => ({value,label:value}))]
+const statusChoices = computed(() => [{ value: '', label: en.value ? 'All' : 'Todos' }, ...statuses.value])
+const modalityChoices = (item: Itinerary) => [{value:'',label:en.value ? 'All' : 'Todas'}, ...optionsFor(item).map(value => ({value,label:value}))]
 function chooseStatus(item: Itinerary, value: string) {
   item.status = statusValues.includes(value as ItineraryStatus) ? value as ItineraryStatus : ''
 }
@@ -240,7 +245,7 @@ async function searchItineraries(pageNumber = 1) {
       </section>
 
       <div class="itinerary-actions">
-        <button class="itinerary-search-button" type="button" :disabled="cargando" @click="searchItineraries(1)"><IconSymbol glyph="⌕" aria-hidden="true" />{{ cargando ? 'Buscando…' : t('custom.itinerary.form.search') }}</button>
+        <button class="itinerary-search-button" type="button" :disabled="cargando" @click="searchItineraries(1)"><IconSymbol glyph="⌕" aria-hidden="true" />{{ cargando ? (en ? 'Searching…' : 'Buscando…') : t('custom.itinerary.form.search') }}</button>
       </div>
 
       <section v-if="searchPerformed" ref="resultsRef" class="itinerary-search-results" aria-live="polite">
@@ -248,9 +253,9 @@ async function searchItineraries(pageNumber = 1) {
           <div><p class="section-tag">{{ t('custom.itinerary.form.resultsEyebrow') }}</p><h2>{{ t('custom.itinerary.form.resultsTitle') }}</h2></div>
           <span v-if="!errorBusqueda">{{ totalResults }} {{ t('custom.itinerary.form.resultsCount') }}</span>
         </header>
-        <p v-if="cargando" role="status">Consultando itinerarios…</p>
+        <p v-if="cargando" role="status">{{ en ? "Loading itineraries…" : "Consultando itinerarios…" }}</p>
         <p v-else-if="errorBusqueda" role="alert">{{ errorBusqueda }}</p>
-        <p v-else-if="resultados.length === 0">No se encontraron itinerarios con esos filtros.</p>
+        <p v-else-if="resultados.length === 0">{{ en ? "No itineraries matched those filters." : "No se encontraron itinerarios con esos filtros." }}</p>
         <article v-for="(item, index) in (!cargando && !errorBusqueda ? resultados : [])" :key="item.id" class="itinerary-result-card">
           <div class="itinerary-result-card__status">
             <small>{{ t('custom.itinerary.form.status') }}</small>
@@ -283,10 +288,10 @@ async function searchItineraries(pageNumber = 1) {
 
       <section v-if="authState.previewRole && publishedItineraries.length" class="published-itineraries">
         <p class="section-tag">CASTRO FALLAS</p>
-        <h2>Itinerarios programados</h2>
+        <h2>{{ en ? 'Scheduled itineraries' : 'Itinerarios programados' }}</h2>
         <article v-for="item in publishedItineraries" :key="item.id" class="published-itinerary-card">
-          <div><small>{{ item.transport }} · {{ item.status }}</small><strong>{{ item.origin }} <span>→</span> {{ item.destination }}</strong></div>
-          <div class="published-itinerary-dates"><span v-if="item.departure">Salida: {{ item.departure }}</span><span v-if="item.arrival">Llegada: {{ item.arrival }}</span></div>
+          <div><small>{{ displayPublishedTransport(item.transport) }} · {{ displayPublishedStatus(item.status) }}</small><strong>{{ item.origin }} <span>→</span> {{ item.destination }}</strong></div>
+          <div class="published-itinerary-dates"><span v-if="item.departure">{{ en ? 'Departure' : 'Salida' }}: {{ item.departure }}</span><span v-if="item.arrival">{{ en ? 'Arrival' : 'Llegada' }}: {{ item.arrival }}</span></div>
         </article>
       </section>
 

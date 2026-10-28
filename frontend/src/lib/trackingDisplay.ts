@@ -27,11 +27,26 @@ const transportNames: Readonly<Record<string, LocalizedValue>> = {
 }
 
 const preliquidation: LocalizedValue = { es: 'Preliquidación', en: 'Pre-liquidation' }
+// Booking is an established logistics term. "Ready" must not imply confirmed.
+const bookingReady: LocalizedValue = { es: 'Booking listo', en: 'Booking ready' }
+const delayed: LocalizedValue = { es: 'Demorado', en: 'Delayed' }
+// Common customer update: keep it available without requiring the AI provider.
+const cargoAtDestinationWarehouse: LocalizedValue = {
+  es: 'Carga en almacén de destino, Costa Rica',
+  en: 'Cargo at destination warehouse, Costa Rica'
+}
 const inTransit: LocalizedValue = { es: 'En tránsito', en: 'In transit' }
 const completed: LocalizedValue = { es: 'Completado', en: 'Completed' }
 const cancelled: LocalizedValue = { es: 'Cancelado', en: 'Cancelled' }
 
 const shipmentStatuses: Readonly<Record<string, LocalizedValue>> = {
+  'booking listo': bookingReady,
+  'booking ready': bookingReady,
+  'carga en almacen destino cr': cargoAtDestinationWarehouse,
+  'carga en almacen de destino cr': cargoAtDestinationWarehouse,
+  'carga en almacen destino costa rica': cargoAtDestinationWarehouse,
+  demorado: delayed,
+  delayed,
   'pre liquidacion': preliquidation,
   preliquidacion: preliquidation,
   'pre liquidation': preliquidation,

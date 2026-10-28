@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { localizeTrackingMode, localizeTrackingStatus } from '../lib/trackingDisplay'
 import IconSymbol from '../components/IconSymbol.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import SiteVisualEditor from './SiteVisualEditor.vue'
@@ -10,6 +12,11 @@ import { authState, refreshSession } from '../services/auth'
 import { deleteManaged, newManagedId, readManagedComments, readManagedItineraries, readManagedMedia, readManagedNews, saveManaged, type ManagedComment, type ManagedItinerary, type ManagedMedia, type ManagedNews } from '../adminContent'
 
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
+const { locale } = useI18n({ useScope: 'global' })
+const en = computed(() => locale.value.toLowerCase().startsWith('en'))
+// Only display names are localized: stored codes and admin form values remain unchanged.
+const displayManagedMode = (value: string) => localizeTrackingMode(value, en.value ? 'en' : 'es')
+const displayManagedStatus = (value: string) => localizeTrackingStatus(value, en.value ? 'en' : 'es')
 type Section = 'itineraries' | 'news' | 'media' | 'comments' | 'users' | 'site' | 'quotes'
 type AppRole = 'cliente' | 'administrador'
 interface ManagedUser { id: string; correo: string; nombre?: string; role: AppRole; activo: boolean; savedActive: boolean }
@@ -615,12 +622,12 @@ function useMediaForNews(item: ManagedMedia) {
           <form v-if="section === 'itineraries'" class="manager-editor--itineraries" @submit.prevent="submitItinerary">
             <label>Origen<input v-model="itineraryForm.origin" required maxlength="120" placeholder="San José, Costa Rica" /></label>
             <label>Destino<input v-model="itineraryForm.destination" required maxlength="120" placeholder="Miami, Estados Unidos" /></label>
-            <div class="manager-form-row"><div class="manager-select-field"><label>Transporte</label><FieldDropdown :model-value="itineraryForm.transport" aria-label="Transporte" :options="[
-  {value:'Marítimo',label:'Marítimo'},
-  {value:'Terrestre',label:'Terrestre'},
-  ...(!isLiveAdmin ? [{value:'Aéreo',label:'Aéreo'},{value:'Multimodal',label:'Multimodal'}] : [])
+            <div class="manager-form-row"><div class="manager-select-field"><label>{{ en ? 'Transport' : 'Transporte' }}</label><FieldDropdown :model-value="itineraryForm.transport" :aria-label="en ? 'Transport' : 'Transporte'" :options="[
+  {value:'Marítimo',label:displayManagedMode('Marítimo')},
+  {value:'Terrestre',label:displayManagedMode('Terrestre')},
+  ...(!isLiveAdmin ? [{value:'Aéreo',label:displayManagedMode('Aéreo')},{value:'Multimodal',label:displayManagedMode('Multimodal')}] : [])
 ]" @update:model-value="selectAdminTransport" /></div>
-<div class="manager-select-field"><label>Estado</label><FieldDropdown v-model="itineraryForm.status" aria-label="Estado" :options="['Programado','En tránsito','Completado','Demorado'].map(value => ({value,label:value}))" /></div></div>
+<div class="manager-select-field"><label>{{ en ? 'Status' : 'Estado' }}</label><FieldDropdown v-model="itineraryForm.status" :aria-label="en ? 'Status' : 'Estado'" :options="['Programado','En tránsito','Completado','Demorado'].map(value => ({value,label:displayManagedStatus(value)}))" /></div></div>
             <div class="manager-form-row"><label>Salida (ETD)<input v-model="itineraryForm.departure" type="date" :required="isLiveAdmin" /></label><label>Llegada (ETA)<input v-model="itineraryForm.arrival" type="date" :required="isLiveAdmin" /></label></div>
             <template v-if="isLiveAdmin"><label>Closing (opcional)<input v-model="itineraryForm.closing" type="date" /></label><div class="manager-select-field"><label>Modalidad</label><FieldDropdown :model-value="itineraryForm.modality ?? ''" @update:model-value="value => itineraryForm.modality = value" aria-label="Modalidad" :options="(itineraryForm.transport === 'Terrestre' ? ['LTL'] : ['FCL', 'LCL']).map(value => ({value,label:value}))" /></div><div class="manager-form-row"><label>Transportista (opcional)<input v-model="itineraryForm.carrier" maxlength="150" /></label><label>Buque (opcional)<input v-model="itineraryForm.vessel" maxlength="150" /></label></div><label>Viaje (opcional)<input v-model="itineraryForm.voyage" maxlength="50" /></label></template>
             <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar itinerario' }}</button>
@@ -684,7 +691,7 @@ function useMediaForNews(item: ManagedMedia) {
               <strong v-else-if="section === 'news'">{{ (entry as ManagedNews).title }}</strong>
               <strong v-else-if="section === 'comments'">{{ (entry as ManagedComment).author }}</strong>
               <strong v-else>{{ (entry as ManagedMedia).name }}</strong>
-              <small v-if="section === 'itineraries'">{{ (entry as ManagedItinerary).transport }} · {{ (entry as ManagedItinerary).status }}</small>
+              <small v-if="section === 'itineraries'">{{ displayManagedMode((entry as ManagedItinerary).transport) }} · {{ displayManagedStatus((entry as ManagedItinerary).status) }}</small>
               <small v-else-if="section === 'news'">{{ (entry as ManagedNews).category }} · <strong :class="(entry as ManagedNews).published && !hasNewsExpired(entry as ManagedNews) ? 'manager-status-published' : 'manager-status-draft'">{{ !(entry as ManagedNews).published ? 'Borrador privado' : hasNewsExpired(entry as ManagedNews) ? 'Caducada' : 'Publicada en la web' }}</strong></small>
               <small v-else-if="section === 'comments'">{{ (entry as ManagedComment).section || 'General' }} · <strong :class="(entry as ManagedComment).published ? 'manager-status-published' : 'manager-status-draft'">{{ (entry as ManagedComment).published ? 'Publicado en la web' : 'Borrador privado' }}</strong> · {{ (entry as ManagedComment).message }}</small>
               <small v-else>{{ (entry as ManagedMedia).kind }}</small>

@@ -1,9 +1,11 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using CastroFallas.MiniQuote.Api.Services;
 
 namespace CastroFallas.MiniQuote.Api.Endpoints;
 
 public sealed record DholeTrackingSearchInput(string? Type, string? Reference);
+public sealed record TrackingCustomerStatusTranslationInput(string? Text, string? Language);
 
 public static class DholeTrackingEndpoints
 {
@@ -15,6 +17,38 @@ public static class DholeTrackingEndpoints
             HttpContext http, CancellationToken ct) =>
             SearchAsync(input, config, clients, http, ct))
             .RequireAuthorization("registered").RequireRateLimiting("tracking");
+
+        // Optional on-demand translation of the short customer-facing update only.
+        // The browser never sends tracking references or other shipment fields to AI.
+        app.MapPost("/api/tracking/dynamics/customer-status/translate", async (
+            TrackingCustomerStatusTranslationInput input,
+            TrackingStatusTranslationService translator,
+            HttpContext http, CancellationToken ct) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+            var language = input.Language?.Trim().ToLowerInvariant();
+            var message = input.Text?.Trim();
+            if (language is not ("en" or "es") ||
+                string.IsNullOrWhiteSpace(message) ||
+                message.Length > 256 ||
+                message.Any(c => char.IsControl(c) && c is not ('\r' or '\n' or '\t')))
+                return Results.BadRequest(new { code = "invalid_tracking_translation", error = "Invalid translation request." });
+
+            if (!translator.IsConfigured)
+                return Results.Json(new { code = "tracking_translation_not_configured" },
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+
+            try
+            {
+                var translation = await translator.TranslateAsync(message, language, ct);
+                return Results.Ok(new { translation });
+            }
+            catch (TrackingStatusTranslationException)
+            {
+                return Results.Json(new { code = "tracking_translation_failed" },
+                    statusCode: StatusCodes.Status502BadGateway);
+            }
+        }).RequireAuthorization("registered").RequireRateLimiting("tracking-translation");
 
         return app;
     }
