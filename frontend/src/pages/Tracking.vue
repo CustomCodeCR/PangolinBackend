@@ -588,8 +588,8 @@ onBeforeUnmount(() => {
 :global(html.theme-dark) .tracking-demo-result__label,
 :global(html.theme-dark) .tracking-demo-result__status { color:#ff8697; }
 :global(html.theme-dark) .tracking-demo-result__status { background:#b509283a; }
-/* Dark theme: opaque, flat navy fields like the tracking search input.
-   One solid strip per pair, one matte edge, no backdrop blur or shadow. */
+/* Dark theme: solid reference-input navy for each data pair.
+   No glass, gradients or visible borders; WhatsApp-inspired red halo only. */
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result) {
   --tracking-glass-navy:#01081D;
   background:transparent !important;
@@ -605,12 +605,12 @@ onBeforeUnmount(() => {
   padding:clamp(13px,1.8vw,19px) clamp(16px,2.5vw,26px);
   overflow:hidden;
   border-radius:18px;
-  border:1px solid rgba(151,171,210,.28) !important;
-  background:linear-gradient(112deg,#252132 0%,#17233c 100%) !important;
+  border:0 !important;
+  background:#060f21 !important;
   background-image:none !important;
   -webkit-backdrop-filter:none !important;
   backdrop-filter:none !important;
-  box-shadow:0 8px 22px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.055) !important;
+  box-shadow:0 0 18px rgba(181,9,40,.3), 0 0 5px rgba(181,9,40,.2) !important;
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field) {
   min-width:0;
