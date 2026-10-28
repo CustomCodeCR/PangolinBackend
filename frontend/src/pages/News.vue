@@ -502,8 +502,10 @@ onUnmounted(() => {
               @click="toggleArticleText"
             ><span aria-hidden="true"></span></button>
             <header class="news-article-page__story-heading">
-              <time v-if="activeArticle.publishedAt" class="news-article-page__date" :datetime="activeArticle.publishedAt">{{ formatArticleDate(activeArticle.publishedAt) }}</time>
-              <p class="news-article-page__overline">{{ activeArticle.category }}</p>
+              <div class="news-article-page__heading-row">
+                <p class="news-article-page__overline">{{ activeArticle.category }}</p>
+                <time v-if="activeArticle.publishedAt" class="news-article-page__date" :datetime="activeArticle.publishedAt">{{ formatArticleDate(activeArticle.publishedAt) }}</time>
+              </div>
               <h1>{{ activeArticle.title }}</h1>
             </header>
             <div class="container news-article-page__meta" :aria-label="q('Datos de la noticia', 'Article details')">
@@ -570,7 +572,7 @@ onUnmounted(() => {
 .news-article-page__handle:active{cursor:grabbing}
 .news-article-page__handle span{display:none}
 .news-article-page__handle:focus-visible{outline:2px solid rgba(237,41,70,.75);outline-offset:3px}
-.news-article-page__story-heading{width:100%;max-width:none;margin:0 0 8px;padding-top:32px}
+.news-article-page__story-heading{width:100%;max-width:none;margin:0 0 8px;padding-top:0}
 .news-article-page__story-heading .news-article-page__overline{margin-bottom:13px;color:var(--article-accent);text-shadow:none}
 .news-article-page__story-heading h1{max-width:1000px;margin:0;color:var(--article-ink);font-family:"Arial Black",Impact,system-ui,sans-serif;font-size:clamp(36px,5.2vw,70px);font-weight:900;letter-spacing:-.055em;line-height:1.02;overflow-wrap:anywhere}
 .news-article-page__story-panel>.news-article-page__meta{width:100%;margin-inline:auto}
@@ -592,7 +594,7 @@ onUnmounted(() => {
 .news-article-page__closing{display:flex;align-items:center;gap:16px;margin-top:clamp(42px,6vw,76px);color:var(--article-muted);font-size:10px;font-weight:800;letter-spacing:.12em;white-space:nowrap}
 .news-article-page__closing-line{width:56px;height:2px;background:#c8102e}
 .news-article-page__story-heading{position:relative;min-height:50px}
-.news-article-page__date{position:absolute;top:0;right:0;display:block;width:max-content;max-width:100%;margin:0;color:var(--article-muted);font-size:12px;font-weight:800;letter-spacing:.035em;text-align:right}
+.news-article-page__date{display:block;flex:0 0 auto;max-width:100%;margin:0;color:var(--article-muted);font-size:12px;font-weight:800;letter-spacing:.035em;text-align:right}
 .news-article-page__author{margin:35px 0 0;padding-top:20px;border-top:1px solid var(--article-line);color:var(--article-muted);font-size:14px}
 .news-article-page__author strong{color:var(--article-ink);font-weight:800}
 .news-article-page__back{margin-top:25px;padding-top:19px;border-top:1px solid var(--article-line)}
@@ -647,6 +649,11 @@ onUnmounted(() => {
 .news-empty-hero h1 { font-size: clamp(42px, 6vw, 76px); line-height: 1.1; margin: 18px 0; }
 .news-empty-hero p:last-child { max-width: 640px; font-size: clamp(16px, 1.7vw, 20px); }
 .news-editorial-hero:has(.news-empty-hero) { min-height: 0; background: linear-gradient(120deg, #980c26, #142240); }
+
+/* Categoría y fecha comparten una fila a la misma altura. */
+.news-article-page__heading-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:13px}
+.news-article-page__story-heading .news-article-page__heading-row .news-article-page__overline{margin:0;min-width:0}
+@media(max-width:520px){.news-article-page__heading-row{column-gap:14px;row-gap:8px}.news-article-page__date{font-size:11px}}
 
 /* En móvil el artículo completo se muestra de entrada, sin abrir una pestaña. */
 @media (max-width:720px) {
