@@ -1,4 +1,8 @@
 using System.Net.Http.Headers;
+using CastroFallas.MiniQuote.Api.Data;
+using CastroFallas.MiniQuote.Api.Models;
+using CastroFallas.MiniQuote.Api.Services.Realtime;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -8,6 +12,8 @@ public static class InstagramReelEndpoints
 {
     private const string ProfileUrl = "https://www.instagram.com/grupocastrofallas1/";
     private const string CacheKey = "social:instagram:latest-reel:v1";
+    private const string ManualReelKey = "home.instagram.reel";
+    private sealed record SaveFeaturedReelRequest(string? Url);
     private sealed record Reel(string Permalink, string? ThumbnailUrl, DateTimeOffset PublishedAt);
     private sealed record Response(Reel? Reel, string ProfileUrl);
 
@@ -15,13 +21,55 @@ public static class InstagramReelEndpoints
     {
         // Public endpoint: never sends an Instagram access token to a visitor.
         app.MapGet("/api/social/instagram/latest-reel", GetLatestReelAsync);
+
+        // A simple, atomic publish operation for site administrators. It uses the
+        // existing CMS table, without introducing a new database schema or tokens.
+        app.MapPut("/api/admin/content/instagram-reel", async Task<IResult> (
+            SaveFeaturedReelRequest input, AppDbContext db,
+            ContentUpdatesPublisher updates, CancellationToken ct) =>
+        {
+            var value = input.Url?.Trim() ?? "";
+            if (value.Length > 512) return Results.BadRequest(new { error = "El enlace es demasiado largo." });
+            var url = value.Length == 0 ? null : NormalizeReelUrl(value);
+            if (value.Length != 0 && url is null)
+                return Results.BadRequest(new { error = "Pegá un enlace HTTPS válido de un Reel de Instagram (instagram.com/reel/...)."});
+
+            var slot = await db.SiteCmsSlots.FindAsync([ManualReelKey], ct);
+            if (slot is null) { slot = new SiteCmsSlot { Key = ManualReelKey }; db.SiteCmsSlots.Add(slot); }
+            slot.DraftEs = slot.PublishedEs = url;
+            slot.DraftEn = slot.PublishedEn = null;
+            slot.DraftMediaId = slot.PublishedMediaId = null;
+            slot.UpdatedAt = DateTime.UtcNow;
+            slot.PublishedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+            await updates.AdminsAsync("site-admin");
+            await updates.PublicAsync("site");
+            return Results.Ok(new { url });
+        }).RequireAuthorization("admin");
+
         return app;
     }
 
     private static async Task<IResult> GetLatestReelAsync(
         IConfiguration config, IHttpClientFactory clients, IMemoryCache cache,
-        HttpContext http, CancellationToken ct)
+        AppDbContext db, HttpContext http, CancellationToken ct)
     {
+        // A manually selected Reel always wins, even if the Meta API is not configured.
+        // The existing site CMS persists this setting across Docker restarts.
+        var chosen = await db.SiteCmsSlots.AsNoTracking()
+            .Where(s => s.Key == ManualReelKey)
+            .Select(s => new { s.PublishedEs, s.PublishedAt })
+            .FirstOrDefaultAsync(ct);
+        var chosenUrl = NormalizeReelUrl(chosen?.PublishedEs);
+        if (chosenUrl is not null)
+        {
+            http.Response.Headers.CacheControl = "no-store";
+            var date = chosen?.PublishedAt is DateTime stamp
+                ? new DateTimeOffset(DateTime.SpecifyKind(stamp, DateTimeKind.Utc))
+                : DateTimeOffset.UtcNow;
+            return Results.Ok(new Response(new Reel(chosenUrl, null, date), ProfileUrl));
+        }
+
         http.Response.Headers.CacheControl = "public, max-age=120";
 
         var token = config["Instagram:AccessToken"];
@@ -117,10 +165,11 @@ public static class InstagramReelEndpoints
 
     private static string? NormalizeReelUrl(string? value)
     {
-        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
+        if (string.IsNullOrWhiteSpace(value) || value.Length > 512 ||
+            !Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
             uri.Scheme != Uri.UriSchemeHttps ||
-            (uri.Host != "www.instagram.com" && uri.Host != "instagram.com") ||
-            uri.Port != 443) return null;
+            (uri.Host != "www.instagram.com" && uri.Host != "instagram.com" && uri.Host != "m.instagram.com") ||
+            uri.Port != 443 || !string.IsNullOrEmpty(uri.UserInfo)) return null;
 
         var parts = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length != 2 || parts[0] != "reel" ||
