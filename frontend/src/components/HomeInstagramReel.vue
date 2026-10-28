@@ -105,7 +105,9 @@ onUnmounted(() => abortController.abort())
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  color: #fff;
+  /* Home uses a continuous shared page background. Default text must contrast
+     with the light gradient rather than assume the section has a dark fill. */
+  color: #1c2333;
   background: radial-gradient(ellipse at -8% 5%, rgba(169, 13, 55, .29), transparent 52%),
     linear-gradient(113deg, #150b18 0%, #060d1c 64%, #020a1a 100%);
 }
@@ -150,7 +152,10 @@ onUnmounted(() => abortController.abort())
   margin: 1px 0 0;
   font-size: clamp(38px, 4vw, 51px);
   letter-spacing: -.045em;
-  line-height: 1.11;
+  /* Extra descent room protects the lower curve of the 'g' on all widths. */
+  line-height: 1.26;
+  padding-bottom: .12em;
+  margin-bottom: -.12em;
   font-weight: 850;
   background: linear-gradient(90deg, #ff4049 2%, #cc1794 85%);
   color: transparent;
@@ -161,7 +166,7 @@ onUnmounted(() => abortController.abort())
   max-width: 296px;
   font-size: clamp(15px, 1.4vw, 18px);
   line-height: 1.6;
-  color: #f0eef5;
+  color: #303447;
 }
 .home-instagram-section__profile {
   margin-left: 98px;
@@ -177,10 +182,16 @@ onUnmounted(() => abortController.abort())
   gap: 12px;
   font-size: 14px;
   font-weight: 750;
+  color: #1c2333;
   transition: background-color .2s, transform .2s;
 }
 .home-instagram-section__profile:hover,
 .home-instagram-section__profile:focus-visible { background: rgba(222, 30, 109, .16); transform: translateY(-2px); }
+/* The rest of Home deliberately stays transparent so the page-wide gradient
+   has no seams. In dark mode restore high-contrast light foregrounds here. */
+:global(html.theme-dark) .home-instagram-section { color: #fff; }
+:global(html.theme-dark) .home-instagram-section__description { color: #f0eef5; }
+:global(html.theme-dark) .home-instagram-section__profile { color: #fff; }
 .home-instagram-section__reel {
   position: relative;
   width: 100%;
