@@ -620,17 +620,23 @@ onBeforeUnmount(() => {
 :global(html.theme-dark) .tracking-demo-result__label,
 :global(html.theme-dark) .tracking-demo-result__status { color:#ff8697; }
 :global(html.theme-dark) .tracking-demo-result__status { background:#b509283a; }
-/* Match the dark, transparent navy glass already used by the News/Itinerary UI.
-   The previous white overlay over an opaque #171316 container looked gray. */
+/* Dark mode: genuine see-through glass. No white/gray or navy overlay:
+   the original tracking background and its red glow must remain visible through
+   both the outer summary and every row. Keep only blur + luminous edges. */
 :global(html.theme-dark) .tracking-demo-result {
-  background:rgba(8,15,30,.12);
-  border-color:rgba(255,255,255,.16);
+  background:transparent !important;
+  background-image:none !important;
+  border-color:rgba(255,255,255,.14);
+  box-shadow:0 10px 28px rgba(0,0,0,.06);
 }
 :global(html.theme-dark) .tracking-demo-result__pair {
   --tracking-glass-divider:rgba(255,255,255,.19);
-  background:rgba(8,15,30,.20);
-  border-color:rgba(255,255,255,.28);
-  box-shadow:0 8px 32px rgba(0,0,0,.13),inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(255,255,255,.04);
+  background:transparent !important;
+  background-image:none !important;
+  border-color:rgba(255,255,255,.24);
+  -webkit-backdrop-filter:blur(12px);
+  backdrop-filter:blur(12px);
+  box-shadow:0 8px 24px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.24),inset 0 -1px 0 rgba(255,255,255,.04);
 }
 </style>
 
