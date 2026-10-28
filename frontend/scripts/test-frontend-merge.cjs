@@ -365,7 +365,15 @@ for (const [original, es, en] of [
   ['Pending', 'Pendiente', 'Pending'],
   ['En aduana', 'En aduana', 'At customs'],
   ['Entregado', 'Entregado', 'Delivered'],
-  ['Cancelado', 'Cancelado', 'Cancelled']
+  ['Cancelado', 'Cancelado', 'Cancelled'],
+  ['Booking listo', 'Booking listo', 'Booking ready'],
+  ['BOOKING LISTO', 'Booking listo', 'Booking ready'],
+  ['Booking ready', 'Booking listo', 'Booking ready'],
+  ['booking-listo', 'Booking listo', 'Booking ready'],
+  ['Demorado', 'Demorado', 'Delayed'],
+  ['Delayed', 'Demorado', 'Delayed'],
+  ['CARGA EN ALMACEN DESTINO CR', 'Carga en almacén de destino, Costa Rica', 'Cargo at destination warehouse, Costa Rica'],
+  ['carga en almacén de destino CR', 'Carga en almacén de destino, Costa Rica', 'Cargo at destination warehouse, Costa Rica']
 ]) {
   assert.equal(localizeTrackingStatus(original, 'es'), es, 'Estado ES: ' + original)
   assert.equal(localizeTrackingStatus(original, 'en'), en, 'Status EN: ' + original)
@@ -374,7 +382,9 @@ for (const original of [
   'MARITIMO - operación especial',
   'Pre-Liquidacion pendiente de confirmar',
   'Maquinaria pesada CAT 1234',
-  'MSC SAVANNAH'
+  'MSC SAVANNAH',
+  'Booking confirmado',
+  'Booking pendiente de confirmar'
 ]) {
   assert.equal(localizeTrackingMode(original, 'en'), original, 'No alterar datos no catalogados')
   assert.equal(localizeTrackingStatus(original, 'es'), original, 'No traducir textos libres')
@@ -402,7 +412,51 @@ assert.match(tracking, /<strong class="tracking-demo-result__status">\{\{ displa
 assert.match(tracking, /<dd>\{\{ displayMode\(shipment\.mode\) \}\}<\/dd>/, 'Modalidad del resumen traducida')
 assert.match(tracking, /<dd>\{\{ displayStatus\(shipment\.status\) \}\}<\/dd>/, 'Estado del resumen traducido')
 assert.match(tracking, /\{ es: 'Mercancía', en: 'Commodity', value: data\.commodity \}/, 'Commodity es etiqueta traducible pero no se modifica el valor de mercancía')
-assert.match(tracking, /<span>\{\{ shipment\.customerStatus \}\}<\/span>/, 'Notas de estado al cliente permanecen sin traducción automática')
+assert.match(tracking, /<span>\{\{ customerUpdateText \}\}<\/span>/, 'El texto del cliente usa la traducción reactiva por referencia')
 assert.match(tracking, /<dd>\{\{ field\.value \}\}<\/dd>/, 'Descripciones y referencias de Dynamics quedan intactas')
+
+
+// Ensure the same multilingual display policy is used in every shipment-related
+// UI: header, summary, customer update, published itineraries, and admin lists.
+// Free-form values remain untouched by localizeTrackingStatus's fallback.
+assert.equal(localizeTrackingStatus('Booking listo', 'en'), 'Booking ready', 'Booking listo translates in English')
+assert.equal(localizeTrackingStatus('Booking listo', 'es'), 'Booking listo', 'Booking is retained in Spanish logistics language')
+assert.equal(localizeTrackingStatus('Booking confirmado', 'en'), 'Booking confirmado', 'Do not invent booking confirmation')
+assert.equal(localizeTrackingStatus('Booking listo pendiente de confirmar', 'en'), 'Booking listo pendiente de confirmar', 'Never translate unrecognized free text')
+assert.equal((tracking.match(/displayStatus\(shipment\.status\)/g) ?? []).length, 2, 'Translate header and summary using one catalog')
+assert.match(itinerary, /displayPublishedStatus\(item\.status\)/, 'Published itineraries translate status')
+assert.match(itinerary, /displayPublishedTransport\(item\.transport\)/, 'Published itineraries translate transport')
+assert.match(itinerary, /localizeTrackingMode, localizeTrackingStatus/, 'Published itineraries reuse the tracking dictionary')
+assert.match(manager, /displayManagedStatus\(\(entry as ManagedItinerary\)\.status\)/, 'Admin itineraries display translated status')
+assert.match(manager, /displayManagedMode\(\(entry as ManagedItinerary\)\.transport\)/, 'Admin itineraries display translated mode')
+assert.match(manager, /\['Programado','En tránsito','Completado','Demorado'\]\.map\(value => \(\{value,label:displayManagedStatus\(value\)\}\)\)/, 'Admin options translate only their visible labels')
+assert.match(manager, /\{value:'Marítimo',label:displayManagedMode\('Marítimo'\)\}/, 'Admin transport value stays the original code')
+assert.match(itinerary, /const en = computed\(\(\) => locale\.value\.toLowerCase\(\)\.startsWith\('en'\)\)/, 'Published itineraries update reactively when language changes')
+assert.match(manager, /const en = computed\(\(\) => locale\.value\.toLowerCase\(\)\.startsWith\('en'\)\)/, 'Admin lists update reactively when language changes')
+
+
+// Dynamic customer-status localization must handle unseen Dynamics messages in
+// any matching BL/HBL/BCF/IDTRA/CONTAINER/PO lookup, without altering records.
+const trackingTranslationBackend = source('../backend/Services/TrackingStatusTranslationService.cs')
+const trackingBackendProgram = source('../backend/Program.cs')
+assert.match(dholeTracking, /MapPost\("\/api\/tracking\/dynamics\/customer-status\/translate"/, 'Endpoint dedicado a mensajes variables de Dynamics')
+assert.match(dholeTracking, /RequireAuthorization\("registered"\)\.RequireRateLimiting\("tracking-translation"\)/, 'Las traducciones no deben estar disponibles sin autenticación y límite')
+assert.match(dholeTracking, /message\.Length > 256/, 'Limitar el texto enviado a traducción')
+assert.match(dholeTracking, /translator\.TranslateAsync\(message, language, ct\)/, 'Traducir solo el mensaje visible, no volver a consultar embarques')
+assert.match(trackingBackendProgram, /AddSingleton<TrackingStatusTranslationService>\(\)/, 'Traductor compartido con caché')
+assert.match(trackingBackendProgram, /AddPolicy\("tracking-translation"/, 'Límite de llamadas a IA separado de consultas a Dynamics')
+assert.match(trackingTranslationBackend, /Ai:Groq:ApiKey/, 'Credencial de IA solo en backend')
+assert.match(trackingTranslationBackend, /SHA256\.HashData/, 'Caché por texto e idioma sin registrar la referencia')
+assert.match(trackingTranslationBackend, /max_completion_tokens = 500/, 'Límite de generación para mensajes breves')
+assert.match(trackingTranslationBackend, /TimeSpan\.FromHours\(12\)/, 'La traducción se reutiliza entre búsquedas')
+assert.match(tracking, /watch\(\[\(\) => shipment\.value\?\.customerStatus, en\]/, 'Al cambiar referencia o idioma se recalcula la traducción')
+assert.match(tracking, /fetch\('\/api\/tracking\/dynamics\/customer-status\/translate'/, 'Los textos no catalogados se envían al backend protegido')
+assert.match(tracking, /body: JSON\.stringify\(\{ text: source, language \}\)/, 'La llamada no debe enviar la referencia de cliente ni campos privados')
+assert.match(tracking, /const controller = new AbortController\(\)/, 'Cancelar traducciones de referencias anteriores')
+assert.match(tracking, /onCleanup\(\(\) => controller\.abort\(\)\)/, 'Cancelar traducción al cambiar idioma/referencia')
+assert.match(tracking, /const customerUpdateText = computed\(\(\) =>/, 'El texto visible se actualiza en forma reactiva')
+assert.match(tracking, /customerUpdateTranslations\.value\[language \+ ':' \+ source\] \?\? source/, 'Si el servicio falla se conserva el mensaje original')
+assert.doesNotMatch(tracking, /shipment\.value\.customerStatus\s*=/, 'Nunca escribir una traducción en Dynamics o mutar el registro')
+assert.doesNotMatch(trackingTranslationBackend, /logger\.Log(?:Warning|Error|Information)\([^\n]*(?:source|message)\b/, 'No registrar el mensaje privado en logs')
 
 console.log('OK: SignalR, CMS, MinIO, news, itinerary and tracking contracts.')

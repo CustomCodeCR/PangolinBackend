@@ -107,6 +107,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<QuoteService>();
 builder.Services.AddScoped<AssistantService>();
 builder.Services.AddSingleton<NewsTranslationService>();
+builder.Services.AddSingleton<TrackingStatusTranslationService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<AssistantFreeQuota>();
 builder.Services.AddSingleton<ObjectStorageService>();
@@ -119,6 +120,11 @@ builder.Services.AddHttpClient("GroqNews", client =>
 {
     client.BaseAddress = new Uri("https://api.groq.com/openai/v1/");
     client.Timeout = TimeSpan.FromSeconds(75);
+});
+builder.Services.AddHttpClient("GroqTracking", client =>
+{
+    client.BaseAddress = new Uri("https://api.groq.com/openai/v1/");
+    client.Timeout = TimeSpan.FromSeconds(30);
 });
 builder.Services.AddProblemDetails();
 
@@ -141,6 +147,16 @@ builder.Services.AddRateLimiter(options =>
         _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 20,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        }));
+    // Bound expensive translations independently of Dynamics lookups.
+    options.AddPolicy("tracking-translation", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 8,
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0,
             AutoReplenishment = true
