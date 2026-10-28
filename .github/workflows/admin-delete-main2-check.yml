@@ -72,8 +72,13 @@ jobs:
           for ui in (manager, standalone):
               assert 'data-label="Estado"' in ui
               assert ':min-menu-width="190"' in ui
-              assert '@media (max-width:1180px)' in ui
-              assert '@media (min-width:1181px)' in ui
+          # Gestión embebida mantiene la tabla hasta 1000px; la vista independiente,
+          # que no se cambió en este PR, mantiene su punto de corte original.
+          assert '@media (max-width:1000px)' in manager
+          assert '@media (min-width:1001px)' in manager
+          assert '@media (max-width:1180px)' in standalone
+          assert '@media (min-width:1181px)' in standalone
+          for ui in (manager, standalone):
               assert 'action-heading' in ui
               assert 'grid-template-columns:minmax(0,1fr)' in ui
               assert 'user.activo || user.savedActive' in ui

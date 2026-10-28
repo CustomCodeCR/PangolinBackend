@@ -23,6 +23,23 @@ interface DynamicsShipment {
   container: string | null
   bcf: string | null
   updatedAtUtc: string | null
+  customerStatus: string | null
+  incoterm: string | null
+  equipmentSize: string | null
+  equipmentCount: string | null
+  departureConfirmedAt: string | null
+  warehouseReceivedAt: string | null
+  destinationEta: string | null
+  officializedAt: string | null
+  entryAt: string | null
+  po: string | null
+  packageCount: string | null
+  commodity: string | null
+  seal: string | null
+  invoice: string | null
+  companyInvoice: string | null
+  shipper: string | null
+  customerInstructions: string | null
 }
 interface LookupResponse {
   source: 'dynamics'
@@ -112,6 +129,33 @@ function formatDate(value: string | null) {
     day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'
   }).format(date)
 }
+interface ShipmentExtraField { label: string; value: string }
+const shipmentExtras = computed<ShipmentExtraField[]>(() => {
+  const data = shipment.value
+  if (!data) return []
+  const asDate = (value: string | null) => value ? formatDate(value) : null
+  const fields: { es: string; en: string; value: string | null }[] = [
+    { es: 'Incoterm', en: 'Incoterm', value: data.incoterm },
+    { es: 'Tamaño o modalidad de equipo', en: 'Equipment size or modality', value: data.equipmentSize },
+    { es: 'Cantidad o configuración de equipo', en: 'Equipment quantity or configuration', value: data.equipmentCount },
+    { es: 'Confirmación de zarpe', en: 'Departure confirmation', value: asDate(data.departureConfirmedAt) },
+    { es: 'Ingreso a bodegas', en: 'Warehouse arrival', value: asDate(data.warehouseReceivedAt) },
+    { es: 'ETA en destino', en: 'Destination ETA', value: asDate(data.destinationEta) },
+    { es: 'Fecha de oficialización', en: 'Customs formalization date', value: asDate(data.officializedAt) },
+    { es: 'Registro de ingreso', en: 'Entry record', value: data.entryAt },
+    { es: 'PO', en: 'PO', value: data.po },
+    { es: 'Mercancía', en: 'Commodity', value: data.commodity },
+    { es: 'Cantidad de bultos', en: 'Package count', value: data.packageCount },
+    { es: 'Sello del contenedor', en: 'Container seal', value: data.seal },
+    { es: 'Factura', en: 'Invoice', value: data.invoice },
+    { es: 'Factura de compañía', en: 'Company invoice', value: data.companyInvoice },
+    { es: 'Remitente', en: 'Shipper', value: data.shipper },
+    { es: 'Instrucciones del cliente', en: 'Customer instructions', value: data.customerInstructions }
+  ]
+  return fields
+    .filter(field => field.value?.trim() && !/^[\s/]+$/.test(field.value))
+    .map(field => ({ label: en.value ? field.en : field.es, value: field.value ?? '' }))
+})
 let tour: Driver | null = null
 const types = computed(() => en.value ? [
   { id: 'BL', name: 'BL (BCF)', help: 'BL is currently resolved through the BCF reference.' },
@@ -286,6 +330,10 @@ onBeforeUnmount(() => {
                 </div>
               </div>
               <p v-if="truncated" class="tracking-hint">{{ en ? 'Additional matches may be available.' : 'Podrían existir más coincidencias.' }}</p>
+              <p v-if="shipment.customerStatus" class="tracking-demo-result__customer-status">
+                <strong>{{ en ? 'Customer update' : 'Actualización para el cliente' }}</strong>
+                <span>{{ shipment.customerStatus }}</span>
+              </p>
               <dl class="tracking-demo-result__grid">
                 <div><dt>{{ copy.origin }}</dt><dd>{{ shipment.origin || '—' }}</dd></div>
                 <div><dt>{{ copy.destination }}</dt><dd>{{ shipment.destination || '—' }}</dd></div>
@@ -300,6 +348,14 @@ onBeforeUnmount(() => {
                 <div><dt>BCF</dt><dd>{{ shipment.bcf || '—' }}</dd></div>
                 <div><dt>{{ en ? 'Last updated' : 'Última actualización' }}</dt><dd>{{ formatDate(shipment.updatedAtUtc) }}</dd></div>
               </dl>
+              <section v-if="shipmentExtras.length" class="tracking-demo-result__extra">
+                <h4>{{ en ? 'Additional shipment details' : 'Información adicional del embarque' }}</h4>
+                <dl class="tracking-demo-result__grid">
+                  <div v-for="field in shipmentExtras" :key="field.label">
+                    <dt>{{ field.label }}</dt><dd>{{ field.value }}</dd>
+                  </div>
+                </dl>
+              </section>
               <p class="tracking-demo-result__disclaimer">
                 {{ globeRoute ? copy.demoNotice :
                   (en ? 'Approximate route unavailable for these locations. The globe stays in its default view.' : 'No hay una ruta aproximada reconocida para estos lugares. El globo mantiene su vista predeterminada.') }}
@@ -483,4 +539,16 @@ onBeforeUnmount(() => {
 .tracking-results-select > div { display:flex; gap:8px; }
 .tracking-results-select button { border:1px solid #b5092866; background:transparent; color:inherit; padding:8px 13px; border-radius:10px; cursor:pointer; }
 .tracking-results-select button:disabled { opacity:.45; cursor:not-allowed; }
+</style>
+
+<style scoped>
+.tracking-demo-result__customer-status {
+  display:flex;flex-direction:column;gap:5px;margin:18px 0 4px;padding:14px 16px;
+  border-left:3px solid #b50928;border-radius:8px;background:#b509280a;
+  line-height:1.5;overflow-wrap:anywhere;
+}
+.tracking-demo-result__customer-status strong { font-size:12px; }
+.tracking-demo-result__extra { margin-top:22px;padding-top:18px;border-top:1px solid #b5092840; }
+.tracking-demo-result__extra h4 { margin:0;font-size:17px;line-height:1.35; }
+.tracking-demo-result__extra .tracking-demo-result__grid { margin:16px 0 0; }
 </style>

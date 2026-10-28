@@ -186,24 +186,25 @@ check("import { Anchor } from '@lucide/vue'" in app
       and 'fill: none !important;' in shared_mobile_styles,
       'Cuatro íconos de cotización blancos, sin emoji azul y con SVG monócromo')
 legal_page = read('frontend/src/pages/Legal.vue')
-check('type LegalDocument = { title: string; intro: string; sections: LegalSection[] }' in legal_page
+check('type LegalDocument = { title: string; sections: LegalSection[] }' in legal_page
       and 'class="legal-draft"' not in legal_page
       and 'content.draft' not in legal_page
-      and 'Borrador para revisión' not in legal_page
-      and 'Working draft' not in legal_page
-      and 'Este borrador' not in legal_page
-      and 'This draft' not in legal_page
-      and legal_page.count('sections: [') == 8
+      and all(marker not in legal_page for marker in [
+          'Borrador para revisión', 'Working draft', 'Este borrador', 'This draft'])
+      and legal_page.count('"sections": [') == 8
       and all(title in legal_page for title in [
           'Política de privacidad', 'Términos y condiciones',
           'Política de cookies y almacenamiento local', 'Créditos y licencias',
-          'Privacy policy', 'Terms and conditions',
-          'Cookie and local storage policy', 'Credits and licenses'
-      ])
+          'Privacy Policy', 'Terms and Conditions of Use',
+          'Cookie and Local Storage Policy', 'Credits and Licenses'])
+      and legal_page.count('3-101-035767') >= 2
+      and legal_page.count('comercial@castrofallas.com') >= 2
+      and 'cf_session' in legal_page
+      and '<section v-for="(section, index) in content.sections"' in legal_page
       and '.legal-draft' not in shared_mobile_styles
-      and 'La razón social, cédula jurídica y domicilio' in legal_page
-      and '/licenses/globe-third-party-notices.txt' in legal_page and (root / 'frontend/public/licenses/globe-third-party-notices.txt').is_file(),
-      'Páginas legales ES/EN sin aviso de borrador y con advertencias de datos por confirmar')
+      and legal_page.count('/licenses/globe-third-party-notices.txt') >= 2
+      and (root / 'frontend/public/licenses/globe-third-party-notices.txt').is_file(),
+      'Páginas legales ES/EN: 4 documentos por idioma, identidad, cookies y avisos de terceros')
 check('class="container quote-access-status quote-access-status--blocked"' in rootvue
       and rootvue.count('class="container quote-access-status quote-access-status--blocked"') == (3 if 'trackingSessionRequiredHelp' in rootvue else 2)
       and ('trackingSessionRequiredHelp' not in rootvue or "page==='tracking' && trackingAccess !== 'allowed'" in rootvue)
