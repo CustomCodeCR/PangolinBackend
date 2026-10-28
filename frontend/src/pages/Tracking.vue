@@ -343,7 +343,7 @@ onBeforeUnmount(() => {
               <p v-if="truncated" class="tracking-hint">{{ en ? 'Additional matches may be available.' : 'Podrían existir más coincidencias.' }}</p>
               <p v-if="shipment.customerStatus" class="tracking-demo-result__customer-status">
                 <strong>{{ en ? 'Customer update' : 'Actualización para el cliente' }}</strong>
-                <span>{{ shipment.customerStatus }}</span>
+                <span>{{ displayStatus(shipment.customerStatus) }}</span>
               </p>
               <div class="tracking-demo-result__grid">
                 <div class="tracking-demo-result__pair">
