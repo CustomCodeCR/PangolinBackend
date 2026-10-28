@@ -588,8 +588,8 @@ onBeforeUnmount(() => {
 :global(html.theme-dark) .tracking-demo-result__label,
 :global(html.theme-dark) .tracking-demo-result__status { color:#ff8697; }
 :global(html.theme-dark) .tracking-demo-result__status { background:#b509283a; }
-/* Dark theme: opaque, flat navy fields like the tracking search input.
-   One solid strip per pair, one matte edge, no backdrop blur or shadow. */
+/* Dark theme: match the tracking FieldDropdown trigger.
+   Solid navy fill, neutral blue-gray border, no glass highlights or glow. */
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result) {
   --tracking-glass-navy:#01081D;
   background:transparent !important;
@@ -606,7 +606,7 @@ onBeforeUnmount(() => {
   padding:clamp(13px,1.8vw,19px) clamp(16px,2.5vw,26px);
   overflow:hidden;
   border-radius:18px;
-  border:1px solid #3b465f !important;
+  border:1px solid #4f5365 !important;
   background:#060f21 !important;
   background-image:none !important;
   -webkit-backdrop-filter:none !important;
@@ -627,7 +627,7 @@ onBeforeUnmount(() => {
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field + .tracking-demo-result__field) {
   padding-left:var(--tracking-pair-spacing) !important;
-  border-left:1px solid #3b465f !important;
+  border-left:1px solid var(--tracking-glass-divider) !important;
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field dt) {
   margin:0 !important;
@@ -691,4 +691,30 @@ onBeforeUnmount(() => {
 .tracking-demo-result__extra { margin-top:22px;padding-top:18px;border-top:1px solid #b5092840; }
 .tracking-demo-result__extra h4 { margin:0;font-size:17px;line-height:1.35; }
 .tracking-demo-result__extra .tracking-demo-result__grid { margin:16px 0 0; }
+</style>
+
+<style>
+/* Tracking dark cards: unscoped override intentionally avoids scoped pseudo-element leakage.
+   Match the dark closed FieldDropdown: solid navy, fine neutral outline, no glass. */
+html.theme-dark .app-site.tracking-site .tracking-demo-result__pair {
+  background: #060f21 !important;
+  background-color: #060f21 !important;
+  background-image: none !important;
+  border: 1px solid #4f5365 !important;
+  border-radius: 13px;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html.theme-dark .app-site.tracking-site .tracking-demo-result__pair::before,
+html.theme-dark .app-site.tracking-site .tracking-demo-result__pair::after {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+html.theme-dark .app-site.tracking-site
+  .tracking-demo-result__pair .tracking-demo-result__field + .tracking-demo-result__field {
+  border-left: 1px solid #3b465f !important;
+}
 </style>
