@@ -630,15 +630,15 @@ onBeforeUnmount(() => {
   border-color:rgba(77,101,133,.35) !important;
   box-shadow:0 10px 28px rgba(0,0,0,.07);
 }
-/* Dark mode: one solid matte-blue outline, with no white highlights,
-   gradients or inner shine. The light-theme glass stays unchanged. */
+/* Dark mode: one matte red (#b50928) for the entire outline and the
+   center divider. No white glints or inset shine; light mode is untouched. */
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair) {
   background:rgba(1,8,29,.94) !important;
-  border:1px solid #344660 !important;
+  border:1px solid #b50928 !important;
   box-shadow:0 8px 32px rgba(0,0,0,.1) !important;
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field + .tracking-demo-result__field) {
-  border-left-color:#344660 !important;
+  border-left-color:#b50928 !important;
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair)::before,
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair)::after {
