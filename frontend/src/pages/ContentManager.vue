@@ -33,6 +33,8 @@ const newUserForm = ref({ nombre: '', correo: '', role: 'cliente' as AppRole, co
 const previewSuffix = computed(() => authState.previewRole ? `?previewRole=${authState.previewRole}` : '')
 const isLiveAdmin = computed(() => authState.user?.role === 'administrador' && !authState.previewRole)
 const newsForm = ref<ManagedNews>(emptyNews())
+const newsExpirationMode = ref<'permanent' | 'scheduled'>('permanent')
+const hasNewsExpired = (item: ManagedNews) => Boolean(item.expiresAt && Date.parse(item.expiresAt) <= Date.now())
 const itineraryForm = ref<ManagedItinerary>(emptyItinerary())
 const mediaForm = ref<ManagedMedia>(emptyMedia())
 const commentForm = ref<ManagedComment>(emptyComment())
@@ -306,7 +308,7 @@ function startNew() {
   mediaUploadFile.value = null
   newsUploadFile.value = null
   if (section.value === 'itineraries') itineraryForm.value = emptyItinerary()
-  if (section.value === 'news') newsForm.value = emptyNews()
+  if (section.value === 'news') { newsForm.value = emptyNews(); newsExpirationMode.value = 'permanent' }
   if (section.value === 'media') mediaForm.value = emptyMedia()
   if (section.value === 'comments') commentForm.value = emptyComment()
 }
@@ -325,7 +327,11 @@ async function edit(entry: ManagedItinerary | ManagedNews | ManagedMedia | Manag
       } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo cargar el itinerario.'; return }
     }
   }
-  if (section.value === 'news') newsForm.value = { ...(entry as ManagedNews), publishedAt: (entry as ManagedNews).publishedAt?.slice(0,10) ?? '', expiresAt: (entry as ManagedNews).expiresAt?.slice(0,10) ?? null }
+  if (section.value === 'news') {
+    const item = entry as ManagedNews
+    newsForm.value = { ...item, publishedAt: item.publishedAt?.slice(0,10) ?? '', expiresAt: item.expiresAt?.slice(0,10) ?? null }
+    newsExpirationMode.value = item.expiresAt ? 'scheduled' : 'permanent'
+  }
   if (section.value === 'media') mediaForm.value = { ...(entry as ManagedMedia) }
   if (section.value === 'comments') commentForm.value = { ...(entry as ManagedComment) }
   document.querySelector('.manager-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -387,6 +393,8 @@ function newsPreviewSrc(item: ManagedNews): string {
 
 async function submitNews() {
   const isPublishing = newsForm.value.published
+  const isExpired = Boolean(newsExpirationMode.value === 'scheduled' && newsForm.value.expiresAt &&
+    Date.parse(`${newsForm.value.expiresAt}T00:00:00-06:00`) <= Date.now())
   if (!isLiveAdmin.value) {
     const item = { ...newsForm.value, id: editingId.value ?? newManagedId() }
     saveManaged('news', item); reload(); notice.value = 'Noticia de previsualización, solo en este navegador.'; startNew(); return
@@ -403,7 +411,7 @@ async function submitNews() {
       : '/api/admin/content/news', {
       method: editingId.value ? 'PUT' : 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...newsForm.value, publishedAt: newsForm.value.publishedAt ? newsForm.value.publishedAt + 'T12:00:00Z' : null, expiresAt: newsForm.value.expiresAt ? newsForm.value.expiresAt + 'T00:00:00-06:00' : null })
+      body: JSON.stringify({ ...newsForm.value, publishedAt: newsForm.value.publishedAt ? newsForm.value.publishedAt + 'T12:00:00Z' : null, expiresAt: newsExpirationMode.value === 'scheduled' && newsForm.value.expiresAt ? newsForm.value.expiresAt + 'T00:00:00-06:00' : null })
     })
     if (!response.ok) {
       const data = await response.json().catch(() => null)
@@ -412,7 +420,7 @@ async function submitNews() {
     startNew()
     await loadNews()
     notice.value = isPublishing
-      ? 'Noticia publicada. Ya puede verse en la sección de noticias de la web.'
+      ? (isExpired ? 'Noticia guardada como caducada; solo se ve en administración.' : 'Noticia publicada. Ya puede verse en la sección de noticias de la web.')
       : 'Noticia guardada como borrador. Solo es visible desde administración.'
   } catch (cause) {
     // Evitar archivos huérfanos si la noticia no pudo guardarse.
@@ -626,8 +634,8 @@ function useMediaForNews(item: ManagedMedia) {
             <label>Imagen ({{ storageMode === 's3' ? 'MinIO' : 'archivo local' }})<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="selectFile($event, 'news')" /></label>
             <p v-if="newsUploadFile" class="manager-publication-hint">Imagen seleccionada: {{ newsUploadFile.name }}. Se subirá a MinIO al guardar.</p>
             <label>o URL de imagen<input v-model="newsForm.image" placeholder="/images/mi-imagen.webp" /></label>
-            <div class="manager-select-field"><label>Caducidad de la noticia</label><FieldDropdown :model-value="newsForm.expiresAt ? 'scheduled' : 'permanent'" aria-label="Caducidad de noticia" :options="[{value:'permanent',label:'Permanente (hasta quitarla)'},{value:'scheduled',label:'Caducar en una fecha'}]" @update:model-value="value => newsForm.expiresAt = value === 'scheduled' ? (newsForm.expiresAt || new Date(Date.now() + 86400000).toISOString().slice(0,10)) : null" /></div>
-             <label v-if="newsForm.expiresAt">Fecha de caducidad<input v-model="newsForm.expiresAt" type="date" required /></label>
+            <div class="manager-select-field"><label>Caducidad de la noticia</label><FieldDropdown :model-value="newsExpirationMode" aria-label="Caducidad de noticia" :options="[{value:'permanent',label:'Permanente (hasta quitarla)'},{value:'scheduled',label:'Caducar en una fecha'}]" @update:model-value="value => { newsExpirationMode = value === 'scheduled' ? 'scheduled' : 'permanent'; newsForm.expiresAt = newsExpirationMode === 'scheduled' ? (newsForm.expiresAt || new Date(Date.now() + 86400000).toISOString().slice(0,10)) : null }" /></div>
+             <label v-if="newsExpirationMode === 'scheduled'">Fecha de caducidad<input v-model="newsForm.expiresAt" type="date" required /></label>
              <div class="manager-select-field"><label>Estado de publicación</label><FieldDropdown :model-value="String(newsForm.published)" aria-label="Estado de publicación de noticia" :options="[{value:'false',label:'Borrador (solo administradores)'},{value:'true',label:'Publicada (visible en la web)'}]" @update:model-value="value => newsForm.published = value === 'true'" /></div>
             <p class="manager-publication-hint" role="status">{{ newsForm.published ? 'Esta noticia aparecerá en la web al guardar los cambios.' : 'Este borrador no aparecerá en la web pública.' }}</p>
             <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar noticia' }}</button>
@@ -677,7 +685,7 @@ function useMediaForNews(item: ManagedMedia) {
               <strong v-else-if="section === 'comments'">{{ (entry as ManagedComment).author }}</strong>
               <strong v-else>{{ (entry as ManagedMedia).name }}</strong>
               <small v-if="section === 'itineraries'">{{ (entry as ManagedItinerary).transport }} · {{ (entry as ManagedItinerary).status }}</small>
-              <small v-else-if="section === 'news'">{{ (entry as ManagedNews).category }} · <strong :class="(entry as ManagedNews).published ? 'manager-status-published' : 'manager-status-draft'">{{ !(entry as ManagedNews).published ? 'Borrador privado' : (entry as ManagedNews).expiresAt && new Date((entry as ManagedNews).expiresAt as string).getTime() <= Date.now() ? 'Caducada' : 'Publicada en la web' }}</strong></small>
+              <small v-else-if="section === 'news'">{{ (entry as ManagedNews).category }} · <strong :class="(entry as ManagedNews).published && !hasNewsExpired(entry as ManagedNews) ? 'manager-status-published' : 'manager-status-draft'">{{ !(entry as ManagedNews).published ? 'Borrador privado' : hasNewsExpired(entry as ManagedNews) ? 'Caducada' : 'Publicada en la web' }}</strong></small>
               <small v-else-if="section === 'comments'">{{ (entry as ManagedComment).section || 'General' }} · <strong :class="(entry as ManagedComment).published ? 'manager-status-published' : 'manager-status-draft'">{{ (entry as ManagedComment).published ? 'Publicado en la web' : 'Borrador privado' }}</strong> · {{ (entry as ManagedComment).message }}</small>
               <small v-else>{{ (entry as ManagedMedia).kind }}</small>
             </div>
