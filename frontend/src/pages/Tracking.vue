@@ -532,7 +532,8 @@ onBeforeUnmount(() => {
 .tracking-demo-result__label { display:inline-block; margin-bottom:10px; font-size:11px; font-weight:800; letter-spacing:.06em; color:#b50928; }
 .tracking-demo-result__heading h3 { margin:0; font-size:clamp(16px,2vw,21px); line-height:1.35; overflow-wrap:anywhere; }
 .tracking-demo-result__status { padding:7px 11px; border-radius:20px; font-size:12px; background:#b5092817; color:#b50928; }
-/* Each visual row is one non-interactive glass surface with two related details. */
+/* Paired shipment fields are opaque navy by default. This avoids the
+   translucent white edge and pseudo-element shine leaking into dark mode. */
 .tracking-demo-result__grid {
   display:grid; grid-template-columns:minmax(0,1fr); gap:12px; margin:22px 0;
 }
@@ -542,17 +543,27 @@ onBeforeUnmount(() => {
   position:relative; display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
   align-items:center; column-gap:0; min-width:0;
   padding:clamp(13px,1.8vw,19px) clamp(16px,2.5vw,26px);
-  overflow:hidden; border-radius:18px; border:1px solid rgba(255,255,255,.6);
+  overflow:hidden; border-radius:18px; border:0;
+  background:#060f21;
+  -webkit-backdrop-filter:none; backdrop-filter:none;
+  box-shadow:0 0 18px rgba(181,9,40,.3),0 0 5px rgba(181,9,40,.2);
+  cursor:default;
+}
+.tracking-demo-result__pair::before,
+.tracking-demo-result__pair::after { content:none; }
+
+/* Keep the original glass styling strictly in light mode. */
+:global(html:not(.theme-dark)) .tracking-demo-result__pair {
+  border:1px solid rgba(255,255,255,.6);
   background:rgba(255,255,255,.18);
   -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
   box-shadow:0 8px 32px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.32),inset 0 -1px 0 rgba(255,255,255,.1);
-  cursor:default;
 }
-.tracking-demo-result__pair::before {
+:global(html:not(.theme-dark)) .tracking-demo-result__pair::before {
   content:''; position:absolute; top:0; left:0; right:0; height:1px; pointer-events:none;
   background:linear-gradient(90deg,transparent,rgba(255,255,255,.8),transparent);
 }
-.tracking-demo-result__pair::after {
+:global(html:not(.theme-dark)) .tracking-demo-result__pair::after {
   content:''; position:absolute; top:0; left:0; width:1px; height:100%; pointer-events:none;
   background:linear-gradient(180deg,rgba(255,255,255,.8),transparent,rgba(255,255,255,.3));
 }
