@@ -41,6 +41,28 @@ interface DynamicsShipment {
   shipper: string | null
   customerInstructions: string | null
 }
+// Fictitious sample used ONLY in the local Vite preview. It never calls Dynamics.
+const localTrackingPreview = import.meta.env.DEV
+  && new URLSearchParams(window.location.search).get('previewRole') === 'administrador'
+  && new URLSearchParams(window.location.search).get('demo') === '1'
+const previewShipment: DynamicsShipment = {
+  title: 'DEMO-PR105', status: 'En tránsito',
+  origin: 'Shanghái, China', destination: 'San José, Costa Rica',
+  mode: 'Marítimo FCL', portOfLoading: 'Shanghái, China',
+  portOfEntry: 'Puerto Moín, Costa Rica',
+  etd: '2026-10-18T00:00:00Z', eta: '2026-11-08T00:00:00Z',
+  vessel: 'Buque de muestra', container: 'DEMO1234567', bcf: 'DEMO-PR105',
+  updatedAtUtc: '2026-10-28T00:00:00Z',
+  customerStatus: 'Ejemplo ficticio para revisar el diseño de la PR #105.',
+  incoterm: 'FOB', equipmentSize: '40 HC', equipmentCount: '1 contenedor',
+  departureConfirmedAt: '2026-10-18T00:00:00Z',
+  warehouseReceivedAt: null, destinationEta: '2026-11-08T00:00:00Z',
+  officializedAt: null, entryAt: null, po: 'PO-DEMO-105',
+  packageCount: '24', commodity: 'Mercancía de muestra',
+  seal: 'SELLO-DEMO', invoice: 'FACTURA-DEMO',
+  companyInvoice: null, shipper: 'Exportador de muestra',
+  customerInstructions: 'Solo vista previa local; no es un embarque real.'
+}
 interface LookupResponse {
   source: 'dynamics'
   records: DynamicsShipment[]
@@ -50,11 +72,11 @@ interface LookupResponse {
 const { locale } = useI18n({ useScope: 'global' })
 const en = computed(() => locale.value.toLowerCase().startsWith('en'))
 const kind = ref('BL')
-const reference = ref('')
-const searched = ref(false)
+const reference = ref(localTrackingPreview ? 'DEMO-PR105' : '')
+const searched = ref(localTrackingPreview)
 const loading = ref(false)
-const shipment = ref<DynamicsShipment | null>(null)
-const matches = ref<DynamicsShipment[]>([])
+const shipment = ref<DynamicsShipment | null>(localTrackingPreview ? previewShipment : null)
+const matches = ref<DynamicsShipment[]>(localTrackingPreview ? [previewShipment] : [])
 const selectedIndex = ref(0)
 const truncated = ref(false)
 const globeRoute = computed(() => shipment.value ? illustrativeRoute(shipment.value) : null)
@@ -83,6 +105,16 @@ watch([kind, reference], () => {
   lookupFailure.value = 'none'
 })
 async function searchShipment() {
+  if (localTrackingPreview) {
+    // Never submit a fictitious preview request to the live API.
+    searched.value = true
+    loading.value = false
+    lookupFailure.value = 'none'
+    shipment.value = previewShipment
+    matches.value = [previewShipment]
+    selectedIndex.value = 0
+    return
+  }
   const revision = ++lookupRevision
   const code = reference.value.trim()
   searched.value = true
@@ -314,10 +346,10 @@ onBeforeUnmount(() => {
             <p v-if="searched && !reference.trim()" class="tracking-error" role="alert">{{ copy.required }}</p>
             <button id="tracking-guide-submit" type="submit" class="btn btn-primary tracking-submit" :disabled="loading" :aria-busy="loading">{{ loading ? copy.loading : copy.search }} <IconSymbol glyph="→" /></button>
             <p v-if="loading" class="tracking-hint" role="status">{{ copy.loading }}</p>
-            <section v-else-if="shipment" class="tracking-demo-result" role="status" aria-live="polite">
+            <section v-else-if="shipment" id="resumen" class="tracking-demo-result" role="status" aria-live="polite">
               <div class="tracking-demo-result__heading">
                 <div>
-                  <span class="tracking-demo-result__label">{{ copy.demoLabel }}</span>
+                  <span class="tracking-demo-result__label">{{ localTrackingPreview ? (en ? 'DEMO · PREVIEW DATA' : 'DEMO · DATOS FICTICIOS') : copy.demoLabel }}</span>
                   <h3>{{ copy.result }} · {{ shipment.title || reference.trim() }}</h3>
                 </div>
                 <strong class="tracking-demo-result__status">{{ shipment.status || '—' }}</strong>
