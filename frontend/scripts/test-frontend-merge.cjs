@@ -365,7 +365,13 @@ for (const [original, es, en] of [
   ['Pending', 'Pendiente', 'Pending'],
   ['En aduana', 'En aduana', 'At customs'],
   ['Entregado', 'Entregado', 'Delivered'],
-  ['Cancelado', 'Cancelado', 'Cancelled']
+  ['Cancelado', 'Cancelado', 'Cancelled'],
+  ['Booking listo', 'Booking listo', 'Booking ready'],
+  ['BOOKING LISTO', 'Booking listo', 'Booking ready'],
+  ['Booking ready', 'Booking listo', 'Booking ready'],
+  ['booking-listo', 'Booking listo', 'Booking ready'],
+  ['Demorado', 'Demorado', 'Delayed'],
+  ['Delayed', 'Demorado', 'Delayed']
 ]) {
   assert.equal(localizeTrackingStatus(original, 'es'), es, 'Estado ES: ' + original)
   assert.equal(localizeTrackingStatus(original, 'en'), en, 'Status EN: ' + original)
@@ -374,7 +380,9 @@ for (const original of [
   'MARITIMO - operación especial',
   'Pre-Liquidacion pendiente de confirmar',
   'Maquinaria pesada CAT 1234',
-  'MSC SAVANNAH'
+  'MSC SAVANNAH',
+  'Booking confirmado',
+  'Booking pendiente de confirmar'
 ]) {
   assert.equal(localizeTrackingMode(original, 'en'), original, 'No alterar datos no catalogados')
   assert.equal(localizeTrackingStatus(original, 'es'), original, 'No traducir textos libres')
@@ -402,7 +410,26 @@ assert.match(tracking, /<strong class="tracking-demo-result__status">\{\{ displa
 assert.match(tracking, /<dd>\{\{ displayMode\(shipment\.mode\) \}\}<\/dd>/, 'Modalidad del resumen traducida')
 assert.match(tracking, /<dd>\{\{ displayStatus\(shipment\.status\) \}\}<\/dd>/, 'Estado del resumen traducido')
 assert.match(tracking, /\{ es: 'Mercancía', en: 'Commodity', value: data\.commodity \}/, 'Commodity es etiqueta traducible pero no se modifica el valor de mercancía')
-assert.match(tracking, /<span>\{\{ shipment\.customerStatus \}\}<\/span>/, 'Notas de estado al cliente permanecen sin traducción automática')
+assert.match(tracking, /<span>\{\{ displayStatus\(shipment\.customerStatus\) \}\}<\/span>/, 'Los estados conocidos de actualización al cliente también se localizan')
 assert.match(tracking, /<dd>\{\{ field\.value \}\}<\/dd>/, 'Descripciones y referencias de Dynamics quedan intactas')
+
+
+// Ensure the same multilingual display policy is used in every shipment-related
+// UI: header, summary, customer update, published itineraries, and admin lists.
+// Free-form values remain untouched by localizeTrackingStatus's fallback.
+assert.equal(localizeTrackingStatus('Booking listo', 'en'), 'Booking ready', 'Booking listo translates in English')
+assert.equal(localizeTrackingStatus('Booking listo', 'es'), 'Booking listo', 'Booking is retained in Spanish logistics language')
+assert.equal(localizeTrackingStatus('Booking confirmado', 'en'), 'Booking confirmado', 'Do not invent booking confirmation')
+assert.equal(localizeTrackingStatus('Booking listo pendiente de confirmar', 'en'), 'Booking listo pendiente de confirmar', 'Never translate unrecognized free text')
+assert.equal((tracking.match(/displayStatus\(shipment\.status\)/g) ?? []).length, 2, 'Translate header and summary using one catalog')
+assert.match(itinerary, /displayPublishedStatus\(item\.status\)/, 'Published itineraries translate status')
+assert.match(itinerary, /displayPublishedTransport\(item\.transport\)/, 'Published itineraries translate transport')
+assert.match(itinerary, /localizeTrackingMode, localizeTrackingStatus/, 'Published itineraries reuse the tracking dictionary')
+assert.match(manager, /displayManagedStatus\(\(entry as ManagedItinerary\)\.status\)/, 'Admin itineraries display translated status')
+assert.match(manager, /displayManagedMode\(\(entry as ManagedItinerary\)\.transport\)/, 'Admin itineraries display translated mode')
+assert.match(manager, /\['Programado','En tránsito','Completado','Demorado'\]\.map\(value => \(\{value,label:displayManagedStatus\(value\)\}\)\)/, 'Admin options translate only their visible labels')
+assert.match(manager, /\{value:'Marítimo',label:displayManagedMode\('Marítimo'\)\}/, 'Admin transport value stays the original code')
+assert.match(itinerary, /const en = computed\(\(\) => locale\.value\.toLowerCase\(\)\.startsWith\('en'\)\)/, 'Published itineraries update reactively when language changes')
+assert.match(manager, /const en = computed\(\(\) => locale\.value\.toLowerCase\(\)\.startsWith\('en'\)\)/, 'Admin lists update reactively when language changes')
 
 console.log('OK: SignalR, CMS, MinIO, news, itinerary and tracking contracts.')
