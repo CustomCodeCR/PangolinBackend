@@ -329,4 +329,62 @@ assert.match(tracking, /:global\(html.theme-dark \.app-site\.tracking-site \.tra
 assert.match(tracking, /shipment\.customerStatus/, 'Conservar la actualización para el cliente')
 assert.match(tracking, /shipmentExtras/, 'Conservar los campos adicionales de rastreo')
 
+// Dynamics mode/status are controlled display values; all other content remains unchanged.
+const trackingLocalizationSource = source('src/lib/trackingDisplay.ts')
+const tsCompiler = require('typescript')
+const { runInNewContext } = require('node:vm')
+const compiledLocalization = tsCompiler.transpileModule(trackingLocalizationSource, {
+  compilerOptions: { module: tsCompiler.ModuleKind.CommonJS, target: tsCompiler.ScriptTarget.ES2020 }
+})
+const trackingLocalizationExports = {}
+runInNewContext(compiledLocalization.outputText, { exports: trackingLocalizationExports }, { timeout: 1000 })
+const { localizeTrackingMode, localizeTrackingStatus } = trackingLocalizationExports
+assert.equal(typeof localizeTrackingMode, 'function')
+assert.equal(typeof localizeTrackingStatus, 'function')
+for (const [original, es, en] of [
+  ['MARITIMO', 'Marítimo', 'Maritime'],
+  ['Marítimo FCL', 'Marítimo FCL', 'Maritime FCL'],
+  ['MARITIMO/LCL', 'Marítimo LCL', 'Maritime LCL'],
+  ['AEREO', 'Aéreo', 'Air'],
+  ['AIR', 'Aéreo', 'Air'],
+  ['TERRESTRE', 'Terrestre', 'Road'],
+  ['Road FTL', 'Terrestre FTL', 'Road FTL']
+]) {
+  assert.equal(localizeTrackingMode(original, 'es'), es, 'Transporte ES: ' + original)
+  assert.equal(localizeTrackingMode(original, 'en'), en, 'Transport EN: ' + original)
+}
+for (const [original, es, en] of [
+  ['Pre-Liquidacion', 'Preliquidación', 'Pre-liquidation'],
+  ['Preliquidación', 'Preliquidación', 'Pre-liquidation'],
+  ['Pre-liquidation', 'Preliquidación', 'Pre-liquidation'],
+  ['En transito', 'En tránsito', 'In transit'],
+  ['Programado', 'Programado', 'Scheduled'],
+  ['Pending', 'Pendiente', 'Pending'],
+  ['En aduana', 'En aduana', 'At customs'],
+  ['Entregado', 'Entregado', 'Delivered'],
+  ['Cancelado', 'Cancelado', 'Cancelled']
+]) {
+  assert.equal(localizeTrackingStatus(original, 'es'), es, 'Estado ES: ' + original)
+  assert.equal(localizeTrackingStatus(original, 'en'), en, 'Status EN: ' + original)
+}
+for (const original of [
+  'MARITIMO - operación especial',
+  'Pre-Liquidacion pendiente de confirmar',
+  'Maquinaria pesada CAT 1234',
+  'MSC SAVANNAH'
+]) {
+  assert.equal(localizeTrackingMode(original, 'en'), original, 'No alterar datos no catalogados')
+  assert.equal(localizeTrackingStatus(original, 'es'), original, 'No traducir textos libres')
+}
+assert.equal(localizeTrackingMode(null, 'es'), '—')
+assert.equal(localizeTrackingStatus('', 'en'), '—')
+assert.match(tracking, /const displayMode = \(value: string \| null\) => localizeTrackingMode\(value, en\.value \? 'en' : 'es'\)/, 'La modalidad reacciona al idioma seleccionado')
+assert.match(tracking, /const displayStatus = \(value: string \| null\) => localizeTrackingStatus\(value, en\.value \? 'en' : 'es'\)/, 'El estado reacciona al idioma seleccionado')
+assert.match(tracking, /<strong class="tracking-demo-result__status">\{\{ displayStatus\(shipment\.status\) \}\}<\/strong>/, 'Insignia del estado traducida')
+assert.match(tracking, /<dd>\{\{ displayMode\(shipment\.mode\) \}\}<\/dd>/, 'Modalidad del resumen traducida')
+assert.match(tracking, /<dd>\{\{ displayStatus\(shipment\.status\) \}\}<\/dd>/, 'Estado del resumen traducido')
+assert.match(tracking, /\{ es: 'Mercancía', en: 'Commodity', value: data\.commodity \}/, 'Commodity es etiqueta traducible pero no se modifica el valor de mercancía')
+assert.match(tracking, /<span>\{\{ shipment\.customerStatus \}\}<\/span>/, 'Notas de estado al cliente permanecen sin traducción automática')
+assert.match(tracking, /<dd>\{\{ field\.value \}\}<\/dd>/, 'Descripciones y referencias de Dynamics quedan intactas')
+
 console.log('OK: SignalR, CMS, MinIO, news, itinerary and tracking contracts.')
