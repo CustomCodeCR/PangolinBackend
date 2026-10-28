@@ -73,6 +73,12 @@ const officialQuotesEnabled = import.meta.env.VITE_OFFICIAL_QUOTES_ENABLED === '
 const quoteAccess = ref<'checking' | 'allowed' | 'denied' | 'forbidden'>('checking')
 const trackingAccess = ref<'checking' | 'allowed' | 'denied'>('checking')
 const requestPath = window.location.pathname.replace(/\/+$/, '') || '/'
+// Only Vite development builds may display the fictitious PR #105 tracking example.
+// This is a frontend preview, not an authenticated session or API permission.
+const localTrackingPreview = import.meta.env.DEV
+  && requestPath === '/tracking'
+  && new URLSearchParams(window.location.search).get('previewRole') === 'administrador'
+  && new URLSearchParams(window.location.search).get('demo') === '1'
 const legacyAdminRoute = requestPath === '/admin/contenido' || requestPath === '/admin/usuarios'
 const officialAdminRoute = requestPath === '/administracion/cotizaciones-oficiales'
 const adminRoute = requestPath === '/administracion' || legacyAdminRoute || officialAdminRoute
@@ -108,7 +114,7 @@ onMounted(async () => {
     return
   }
   if (requestPath === '/tracking') {
-    trackingAccess.value = user && (role === 'cliente' || role === 'administrador') ? 'allowed' : 'denied'
+    trackingAccess.value = localTrackingPreview || (user && (role === 'cliente' || role === 'administrador')) ? 'allowed' : 'denied'
   }
   if (requestPath === '/itinerario' && role !== 'cliente' && role !== 'administrador') {
     window.location.replace('/home?acceso=cliente')
