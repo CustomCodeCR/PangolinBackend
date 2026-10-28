@@ -343,26 +343,32 @@ onBeforeUnmount(() => {
               </p>
               <div class="tracking-demo-result__grid">
                 <div class="tracking-demo-result__pair">
+                  <span aria-hidden="true" class="tracking-demo-result__pair-fill" style="background-color:#01081D !important"></span>
                   <dl class="tracking-demo-result__field"><dt>{{ copy.origin }}</dt><dd>{{ shipment.origin || '—' }}</dd></dl>
                   <dl class="tracking-demo-result__field"><dt>{{ copy.destination }}</dt><dd>{{ shipment.destination || '—' }}</dd></dl>
                 </div>
                 <div class="tracking-demo-result__pair">
+                  <span aria-hidden="true" class="tracking-demo-result__pair-fill" style="background-color:#01081D !important"></span>
                   <dl class="tracking-demo-result__field"><dt>{{ en ? 'Transport' : 'Transporte' }}</dt><dd>{{ shipment.mode || '—' }}</dd></dl>
                   <dl class="tracking-demo-result__field"><dt>{{ copy.status }}</dt><dd>{{ shipment.status || '—' }}</dd></dl>
                 </div>
                 <div class="tracking-demo-result__pair">
+                  <span aria-hidden="true" class="tracking-demo-result__pair-fill" style="background-color:#01081D !important"></span>
                   <dl class="tracking-demo-result__field"><dt>{{ en ? 'Port of loading' : 'Puerto de salida' }}</dt><dd>{{ shipment.portOfLoading || '—' }}</dd></dl>
                   <dl class="tracking-demo-result__field"><dt>{{ en ? 'Port of entry' : 'Puerto de entrada' }}</dt><dd>{{ shipment.portOfEntry || '—' }}</dd></dl>
                 </div>
                 <div class="tracking-demo-result__pair">
+                  <span aria-hidden="true" class="tracking-demo-result__pair-fill" style="background-color:#01081D !important"></span>
                   <dl class="tracking-demo-result__field"><dt>{{ copy.estimatedDeparture }}</dt><dd>{{ formatDate(shipment.etd) }}</dd></dl>
                   <dl class="tracking-demo-result__field"><dt>{{ copy.estimatedArrival }}</dt><dd>{{ formatDate(shipment.eta) }}</dd></dl>
                 </div>
                 <div class="tracking-demo-result__pair">
+                  <span aria-hidden="true" class="tracking-demo-result__pair-fill" style="background-color:#01081D !important"></span>
                   <dl class="tracking-demo-result__field"><dt>{{ en ? 'Vessel' : 'Buque' }}</dt><dd>{{ shipment.vessel || '—' }}</dd></dl>
                   <dl class="tracking-demo-result__field"><dt>{{ en ? 'Container' : 'Contenedor' }}</dt><dd>{{ shipment.container || '—' }}</dd></dl>
                 </div>
                 <div class="tracking-demo-result__pair">
+                  <span aria-hidden="true" class="tracking-demo-result__pair-fill" style="background-color:#01081D !important"></span>
                   <dl class="tracking-demo-result__field"><dt>BCF</dt><dd>{{ shipment.bcf || '—' }}</dd></dl>
                   <dl class="tracking-demo-result__field"><dt>{{ en ? 'Last updated' : 'Última actualización' }}</dt><dd>{{ formatDate(shipment.updatedAtUtc) }}</dd></dl>
                 </div>
@@ -371,6 +377,7 @@ onBeforeUnmount(() => {
                 <h4>{{ en ? 'Additional shipment details' : 'Información adicional del embarque' }}</h4>
                 <div class="tracking-demo-result__grid">
                   <div v-for="(pair, index) in shipmentExtrasPairs" :key="index" class="tracking-demo-result__pair">
+                    <span aria-hidden="true" class="tracking-demo-result__pair-fill" style="background-color:#01081D !important"></span>
                     <dl v-for="field in pair" :key="field.label" class="tracking-demo-result__field">
                       <dt>{{ field.label }}</dt><dd>{{ field.value }}</dd>
                     </dl>
@@ -554,6 +561,27 @@ onBeforeUnmount(() => {
 }
 .tracking-demo-result__pair::before,
 .tracking-demo-result__pair::after { content:none; }
+/* A real opaque layer, kept behind the shipment data and hidden in light mode.
+   It prevents the animated search-panel gradient from tinting the card interior. */
+.tracking-demo-result__pair-fill {
+  display:none;
+  position:absolute;
+  inset:0;
+  z-index:0;
+  border-radius:inherit;
+  pointer-events:none;
+}
+:global(html.theme-dark) .tracking-demo-result__pair-fill {
+  display:block !important;
+  background-color:#01081D !important;
+  background-image:none !important;
+  opacity:1 !important;
+  filter:none !important;
+  mix-blend-mode:normal !important;
+}
+:global(html:not(.theme-dark)) .tracking-demo-result__pair-fill {
+  display:none !important;
+}
 
 /* Keep the original glass styling strictly in light mode. */
 :global(html:not(.theme-dark)) .tracking-demo-result__pair {
@@ -602,8 +630,8 @@ onBeforeUnmount(() => {
 :global(html.theme-dark) .tracking-demo-result__label,
 :global(html.theme-dark) .tracking-demo-result__status { color:#ff8697; }
 :global(html.theme-dark) .tracking-demo-result__status { background:#b509283a; }
-/* Dark theme: truly opaque #01081D, free of red glow, glass and gradients.
-   The parent search-panel animation remains unchanged behind the cards. */
+/* Dark theme: fixed crimson outline/glow with a truly opaque navy interior.
+   The parent search-panel animation remains behind the isolated card layer. */
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result) {
   --tracking-glass-navy:#01081D;
   background:transparent !important;
@@ -619,7 +647,8 @@ onBeforeUnmount(() => {
   padding:clamp(13px,1.8vw,19px) clamp(16px,2.5vw,26px);
   overflow:hidden;
   border-radius:18px;
-  border:0 !important;
+  border:1px solid #b50928 !important;
+  border-color:#b50928 !important;
   outline:0 !important;
   background:#01081D !important;
   background-color:#01081D !important;
@@ -627,7 +656,9 @@ onBeforeUnmount(() => {
   background-blend-mode:normal !important;
   -webkit-backdrop-filter:none !important;
   backdrop-filter:none !important;
-  box-shadow:none !important;
+  box-shadow:0 0 14px rgba(181,9,40,.38), 0 0 4px rgba(181,9,40,.28) !important;
+  animation:none !important;
+  transition:none !important;
   filter:none !important;
   mix-blend-mode:normal !important;
   opacity:1 !important;
@@ -635,6 +666,8 @@ onBeforeUnmount(() => {
   z-index:1;
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field) {
+  position:relative;
+  z-index:1;
   min-width:0;
   margin:0 !important;
   padding:0 !important;
