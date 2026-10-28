@@ -592,7 +592,7 @@ onBeforeUnmount(() => {
    One solid strip per pair, one matte edge, no backdrop blur or shadow. */
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result) {
   --tracking-glass-navy:#01081D;
-  background:#060f21 !important;
+  background:transparent !important;
   border-color:rgba(124,145,185,.34) !important;
   box-shadow:0 12px 32px rgba(0,0,0,.18) !important;
 }
