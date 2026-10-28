@@ -588,8 +588,8 @@ onBeforeUnmount(() => {
 :global(html.theme-dark) .tracking-demo-result__label,
 :global(html.theme-dark) .tracking-demo-result__status { color:#ff8697; }
 :global(html.theme-dark) .tracking-demo-result__status { background:#b509283a; }
-/* Dark theme: opaque, flat navy fields like the tracking search input.
-   One solid strip per pair, one matte edge, no backdrop blur or shadow. */
+/* Dark theme: match the tracking FieldDropdown trigger.
+   Solid navy fill, neutral blue-gray border, no glass highlights or glow. */
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result) {
   --tracking-glass-navy:#01081D;
   background:transparent !important;
@@ -598,7 +598,7 @@ onBeforeUnmount(() => {
   box-shadow:none !important;
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair) {
-  --tracking-glass-divider:#633448;
+  --tracking-glass-divider:#3b465f;
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
   align-items:center;
@@ -606,12 +606,12 @@ onBeforeUnmount(() => {
   padding:clamp(13px,1.8vw,19px) clamp(16px,2.5vw,26px);
   overflow:hidden;
   border-radius:18px;
-  border:1px solid #78364a !important;
+  border:1px solid #4f5365 !important;
   background:#060f21 !important;
   background-image:none !important;
   -webkit-backdrop-filter:none !important;
   backdrop-filter:none !important;
-  box-shadow:0 0 0 1px rgba(181,9,40,.08),0 0 16px rgba(181,9,40,.10) !important;
+  box-shadow:none !important;
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field) {
   min-width:0;
