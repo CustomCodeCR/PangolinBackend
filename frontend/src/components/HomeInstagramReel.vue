@@ -145,6 +145,7 @@ onUnmounted(() => abortController.abort())
   display: grid;
   place-items: center;
   border-radius: 50%;
+  color: #fff;
   background: linear-gradient(135deg, #bd233f, #83045f);
 }
 .home-instagram-section__heading p { margin: 0; font-size: clamp(24px, 2.3vw, 32px); line-height: 1.2; }
