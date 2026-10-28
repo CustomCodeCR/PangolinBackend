@@ -4,6 +4,7 @@ on:
     branches: [main-2]
     paths:
       - "frontend/src/Home.vue"
+      - "frontend/src/pages/SiteVisualEditor.vue"
       - "frontend/src/components/HomeInstagramReel.vue"
       - "frontend/src/locales/es.json"
       - "frontend/src/locales/en.json"
