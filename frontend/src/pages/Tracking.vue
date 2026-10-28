@@ -620,14 +620,14 @@ onBeforeUnmount(() => {
 :global(html.theme-dark) .tracking-demo-result__label,
 :global(html.theme-dark) .tracking-demo-result__status { color:#ff8697; }
 :global(html.theme-dark) .tracking-demo-result__status { background:#b509283a; }
-/* Dark theme uses the SAME one-card-per-pair layout as light,
-   with a matte navy surface and exactly one central divider. */
+/* Dark theme: opaque, flat navy fields like the tracking search input.
+   One solid strip per pair, one matte edge, no backdrop blur or shadow. */
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result) {
   --tracking-glass-navy:#01081D;
   background:transparent !important;
   background-image:none !important;
   border-color:rgba(77,101,133,.35) !important;
-  box-shadow:0 10px 28px rgba(0,0,0,.07);
+  box-shadow:none !important;
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair) {
   --tracking-glass-divider:#3b465f;
@@ -641,9 +641,9 @@ onBeforeUnmount(() => {
   border:1px solid #3b465f !important;
   background:#060f21 !important;
   background-image:none !important;
-  -webkit-backdrop-filter:blur(12px) !important;
-  backdrop-filter:blur(12px) !important;
-  box-shadow:0 8px 32px rgba(0,0,0,.1) !important;
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
+  box-shadow:none !important;
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field) {
   min-width:0;
