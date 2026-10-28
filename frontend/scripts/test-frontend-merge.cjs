@@ -310,7 +310,7 @@ assert.match(tracking, /cursor:default;/, 'Las filas informativas no simulan un 
 assert.match(tracking, /shipmentExtrasPairs = computed<ShipmentExtraField\[\]\[\]>/, 'Los campos adicionales se agrupan en pares')
 assert.match(tracking, /v-for="\(pair, index\) in shipmentExtrasPairs"/, 'Los pares extra se muestran con el mismo glass')
 assert.match(tracking, /@media\(max-width:580px\) \{\s*\.tracking-demo-result__grid \{ gap:10px; \}/, 'Ajuste móvil sin separar parejas')
-assert.match(tracking, /:global\(html.theme-dark\) \.tracking-demo-result__pair \{/, 'El glass es visible en modo oscuro')
+assert.match(tracking, /:global\(html.theme-dark \.app-site\.tracking-site \.tracking-demo-result__pair\) \{/, 'El glass oscuro se aplica a todas las tarjetas del tracking')
 assert.match(tracking, /shipment\.customerStatus/, 'Conservar la actualización para el cliente')
 assert.match(tracking, /shipmentExtras/, 'Conservar los campos adicionales de rastreo')
 
