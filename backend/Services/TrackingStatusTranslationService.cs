@@ -48,7 +48,7 @@ public sealed class TrackingStatusTranslationService(
                         content = "Translate a brief logistics shipment/customer update into " + target +
                             ". The source can be Spanish, English or mixed. Translate all ordinary status words " +
                             "naturally, even if uppercase or misspelled. If already in the target language, " +
-                            "preserve its meaning. Preserve names, dates, numbers, shipment IDs, port names, " +
+                            "return the original text exactly without paraphrasing. Preserve names, dates, numbers, shipment IDs, port names, " +
                             "container numbers, tracking references and technical acronyms (BL, HBL, BCF, " +
                             "IDTRA, FCL, LCL, CR). Booking is an industry term; 'Booking listo' means " +
                             "'Booking ready', NOT 'Booking confirmed'. Do not infer facts, dates or shipment " +
