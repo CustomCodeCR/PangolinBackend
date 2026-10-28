@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ExternalLink, Play } from '@lucide/vue'
 import InstagramGlyph from './InstagramGlyph.vue'
 import { useI18n } from 'vue-i18n'
+import { subscribeToChanges } from '../services/realtime'
 
 type LatestReel = {
   permalink: string
@@ -41,8 +42,13 @@ async function loadLatestReel() {
   }
 }
 
+const stopSiteUpdates = subscribeToChanges('site', () => {
+  // When an admin publishes a different Reel, return to the preview and refresh.
+  isPlaying.value = false
+  void loadLatestReel()
+})
 onMounted(() => { void loadLatestReel() })
-onUnmounted(() => abortController.abort())
+onUnmounted(() => { stopSiteUpdates(); abortController.abort() })
 </script>
 
 <template>
