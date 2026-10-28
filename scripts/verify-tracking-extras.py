@@ -32,7 +32,7 @@ admin = {
 for field, key in admin.items():
     marker = f'{field} = isAdmin ? '
     assert marker in backend, f'{field} must be redacted for clients'
-    after = backend.split(marker, 1)[1].split("\\n", 1)[0]
+    after = backend.split(marker, 1)[1].splitlines()[0]
     assert f'"{key}"' in after and ': null' in after, f'{field} needs a null default'
     assert f'{field}: string | null' in frontend, f'Missing frontend contract: {field}'
     assert f'data.{field}' in frontend, f'Missing frontend rendering: {field}'
