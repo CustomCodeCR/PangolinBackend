@@ -572,7 +572,7 @@ onUnmounted(() => {
 .news-article-page__handle:active{cursor:grabbing}
 .news-article-page__handle span{display:none}
 .news-article-page__handle:focus-visible{outline:2px solid rgba(237,41,70,.75);outline-offset:3px}
-.news-article-page__story-heading{width:100%;max-width:none;margin:0 0 8px;padding-top:0}
+.news-article-page__story-heading{width:100%;max-width:none;margin:0 0 8px;padding-top:32px}
 .news-article-page__story-heading .news-article-page__overline{margin-bottom:13px;color:var(--article-accent);text-shadow:none}
 .news-article-page__story-heading h1{max-width:1000px;margin:0;color:var(--article-ink);font-family:"Arial Black",Impact,system-ui,sans-serif;font-size:clamp(36px,5.2vw,70px);font-weight:900;letter-spacing:-.055em;line-height:1.02;overflow-wrap:anywhere}
 .news-article-page__story-panel>.news-article-page__meta{width:100%;margin-inline:auto}
