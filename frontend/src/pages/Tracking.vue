@@ -52,7 +52,7 @@ const previewShipment: DynamicsShipment = {
   mode: 'MARITIMO', portOfLoading: 'Shanghái, China',
   portOfEntry: 'Puerto Moín, Costa Rica',
   etd: '2026-10-18T00:00:00Z', eta: '2026-11-08T00:00:00Z',
-  vessel: 'Buque de muestra', container: 'DEMO1234567', bcf: 'DEMO-PR110',
+  vessel: 'MV DEMO-110', container: 'DEMO1234567', bcf: 'DEMO-PR110',
   updatedAtUtc: '2026-10-28T00:00:00Z',
   customerStatus: null,
   incoterm: 'FOB', equipmentSize: '40 HC', equipmentCount: '1 contenedor',
