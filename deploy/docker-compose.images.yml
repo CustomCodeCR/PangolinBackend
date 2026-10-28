@@ -36,6 +36,7 @@ services:
       Mongo__Database: pangolin_logs
       Ai__Groq__ApiKey: "${PANGOLIN_GROQ_API_KEY:-}"
       Ai__Groq__Model: "${PANGOLIN_GROQ_MODEL:-openai/gpt-oss-20b}"
+      Instagram__AccessToken: "${PANGOLIN_INSTAGRAM_ACCESS_TOKEN:-}"
       Storage__Endpoint: "${PANGOLIN_S3_ENDPOINT:-}"
       Storage__AccessKey: "${PANGOLIN_S3_ACCESS_KEY:-}"
       Storage__SecretKey: "${PANGOLIN_S3_SECRET_KEY:-}"

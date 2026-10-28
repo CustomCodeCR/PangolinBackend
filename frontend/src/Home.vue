@@ -5,6 +5,7 @@ import SiteFooter from './components/SiteFooter.vue'
 import WorldGlobe from './components/WorldGlobe.vue'
 import IconSymbol from './components/IconSymbol.vue'
 import SiteMedia from './components/SiteMedia.vue'
+import HomeInstagramReel from './components/HomeInstagramReel.vue'
 import { siteText, siteVisual, siteCssImage } from './siteCms'
 import { services as baseServices, faqs as baseFaqs, type ServiceKey } from './content'
 import type { ManagedNews, ManagedComment } from './adminContent'
@@ -402,6 +403,8 @@ onUnmounted(() => {
           </div>
         </div>
       </section>
+
+      <HomeInstagramReel />
 
       <section id="contacto" class="home-contact-details" :aria-label="$t('custom.home.contactAria')">
         <div class="container home-contact-grid">
