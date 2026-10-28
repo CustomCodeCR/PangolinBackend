@@ -54,7 +54,7 @@ const previewShipment: DynamicsShipment = {
   etd: '2026-10-18T00:00:00Z', eta: '2026-11-08T00:00:00Z',
   vessel: 'MV DEMO-111', container: 'DEMO1234567', bcf: 'DEMO-PR111',
   updatedAtUtc: '2026-10-28T00:00:00Z',
-  customerStatus: 'Booking listo',
+  customerStatus: 'CARGA EN ALMACEN DESTINO CR',
   incoterm: 'FOB', equipmentSize: '40 HC', equipmentCount: '1 contenedor',
   departureConfirmedAt: '2026-10-18T00:00:00Z',
   warehouseReceivedAt: null, destinationEta: '2026-11-08T00:00:00Z',
@@ -83,6 +83,52 @@ const shipment = ref<DynamicsShipment | null>(localTrackingPreview ? previewShip
 const matches = ref<DynamicsShipment[]>(localTrackingPreview ? [previewShipment] : [])
 const selectedIndex = ref(0)
 const truncated = ref(false)
+// The reference and the original Dynamics note are never modified. Unknown
+// customer notes are translated asynchronously via the authenticated backend.
+const customerUpdateTranslations = ref<Record<string, string>>({})
+const customerUpdateText = computed(() => {
+  const source = shipment.value?.customerStatus?.trim()
+  if (!source) return ''
+  const language = en.value ? 'en' : 'es'
+  const local = localizeTrackingStatus(source, language)
+  if (local !== source || localizeTrackingStatus(source, language === 'en' ? 'es' : 'en') !== source)
+    return local
+  return customerUpdateTranslations.value[language + ':' + source] ?? source
+})
+watch([() => shipment.value?.customerStatus, en], ([raw, english], _previous, onCleanup) => {
+  const source = raw?.trim()
+  if (!source) return
+  // Exact known logistics statuses are handled locally in both languages.
+  if (localizeTrackingStatus(source, 'es') !== source ||
+      localizeTrackingStatus(source, 'en') !== source) return
+  const language = english ? 'en' : 'es'
+  const key = language + ':' + source
+  if (customerUpdateTranslations.value[key]) return
+  const controller = new AbortController()
+  onCleanup(() => controller.abort())
+  void (async () => {
+    try {
+      const response = await fetch('/api/tracking/dynamics/customer-status/translate', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: source, language }),
+        cache: 'no-store',
+        signal: controller.signal
+      })
+      if (!response.ok) return // Retain the Dynamics message if AI is unavailable.
+      const translated: unknown = await response.json()
+      if (!translated || typeof translated !== 'object' || !('translation' in translated))
+        return
+      const value = (translated as { translation: unknown }).translation
+      if (typeof value !== 'string' || !value.trim() || value.length > 768) return
+      customerUpdateTranslations.value = { ...customerUpdateTranslations.value, [key]: value.trim() }
+    } catch {
+      // Network failures never block lookup or hide the original update.
+    }
+  })()
+}, { immediate: true })
+
 const globeRoute = computed(() => shipment.value ? illustrativeRoute(shipment.value) : null)
 function chooseMatch(next: number) {
   if (next < 0 || next >= matches.value.length) return
@@ -378,7 +424,7 @@ onBeforeUnmount(() => {
               <p v-if="truncated" class="tracking-hint">{{ en ? 'Additional matches may be available.' : 'Podrían existir más coincidencias.' }}</p>
               <p v-if="shipment.customerStatus" class="tracking-demo-result__customer-status">
                 <strong>{{ en ? 'Customer update' : 'Actualización para el cliente' }}</strong>
-                <span>{{ displayStatus(shipment.customerStatus) }}</span>
+                <span>{{ customerUpdateText }}</span>
               </p>
               <div class="tracking-demo-result__grid">
                 <div class="tracking-demo-result__pair">
