@@ -8,6 +8,7 @@ import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import WorldGlobe from '../components/WorldGlobe.vue'
 import { illustrativeRoute } from '../lib/trackingRoute'
+import { formatTrackingEquipmentCount, localizeTrackingMode, localizeTrackingStatus } from '../lib/trackingDisplay'
 import FieldDropdown from '../components/FieldDropdown.vue'
 interface DynamicsShipment {
   title: string | null
@@ -49,6 +50,9 @@ interface LookupResponse {
 
 const { locale } = useI18n({ useScope: 'global' })
 const en = computed(() => locale.value.toLowerCase().startsWith('en'))
+// Display-only translations for known Dynamics values; never mutate the shipment.
+const displayMode = (value: string | null) => localizeTrackingMode(value, en.value ? 'en' : 'es')
+const displayStatus = (value: string | null) => localizeTrackingStatus(value, en.value ? 'en' : 'es')
 const kind = ref('BL')
 const reference = ref('')
 const searched = ref(false)
@@ -137,7 +141,7 @@ const shipmentExtras = computed<ShipmentExtraField[]>(() => {
   const fields: { es: string; en: string; value: string | null }[] = [
     { es: 'Incoterm', en: 'Incoterm', value: data.incoterm },
     { es: 'Tamaño o modalidad de equipo', en: 'Equipment size or modality', value: data.equipmentSize },
-    { es: 'Cantidad o configuración de equipo', en: 'Equipment quantity or configuration', value: data.equipmentCount },
+    { es: 'Cantidad o configuración de equipo', en: 'Equipment quantity or configuration', value: formatTrackingEquipmentCount(data.equipmentCount) },
     { es: 'Confirmación de zarpe', en: 'Departure confirmation', value: asDate(data.departureConfirmedAt) },
     { es: 'Ingreso a bodegas', en: 'Warehouse arrival', value: asDate(data.warehouseReceivedAt) },
     { es: 'ETA en destino', en: 'Destination ETA', value: asDate(data.destinationEta) },
@@ -327,7 +331,7 @@ onBeforeUnmount(() => {
                   <span class="tracking-demo-result__label">{{ copy.demoLabel }}</span>
                   <h3>{{ copy.result }} · {{ shipment.title || reference.trim() }}</h3>
                 </div>
-                <strong class="tracking-demo-result__status">{{ shipment.status || '—' }}</strong>
+                <strong class="tracking-demo-result__status">{{ displayStatus(shipment.status) }}</strong>
               </div>
               <div v-if="matches.length > 1" class="tracking-results-select">
                 <strong>{{ en ? 'Matching shipments' : 'Embarques encontrados' }}: {{ selectedIndex + 1 }} / {{ matches.length }}</strong>
@@ -347,8 +351,8 @@ onBeforeUnmount(() => {
                   <dl class="tracking-demo-result__field"><dt>{{ copy.destination }}</dt><dd>{{ shipment.destination || '—' }}</dd></dl>
                 </div>
                 <div class="tracking-demo-result__pair">
-                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Transport' : 'Transporte' }}</dt><dd>{{ shipment.mode || '—' }}</dd></dl>
-                  <dl class="tracking-demo-result__field"><dt>{{ copy.status }}</dt><dd>{{ shipment.status || '—' }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Transport' : 'Transporte' }}</dt><dd>{{ displayMode(shipment.mode) }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><dt>{{ copy.status }}</dt><dd>{{ displayStatus(shipment.status) }}</dd></dl>
                 </div>
                 <div class="tracking-demo-result__pair">
                   <dl class="tracking-demo-result__field"><dt>{{ en ? 'Port of loading' : 'Puerto de salida' }}</dt><dd>{{ shipment.portOfLoading || '—' }}</dd></dl>
@@ -588,8 +592,8 @@ onBeforeUnmount(() => {
 :global(html.theme-dark) .tracking-demo-result__label,
 :global(html.theme-dark) .tracking-demo-result__status { color:#ff8697; }
 :global(html.theme-dark) .tracking-demo-result__status { background:#b509283a; }
-/* Dark theme: opaque, flat navy fields like the tracking search input.
-   One solid strip per pair, one matte edge, no backdrop blur or shadow. */
+/* Dark theme: match the tracking FieldDropdown trigger.
+   Solid navy fill, neutral blue-gray border, no glass highlights or glow. */
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result) {
   --tracking-glass-navy:#01081D;
   background:transparent !important;
@@ -606,7 +610,7 @@ onBeforeUnmount(() => {
   padding:clamp(13px,1.8vw,19px) clamp(16px,2.5vw,26px);
   overflow:hidden;
   border-radius:18px;
-  border:1px solid #3b465f !important;
+  border:1px solid #4f5365 !important;
   background:#060f21 !important;
   background-image:none !important;
   -webkit-backdrop-filter:none !important;
@@ -627,7 +631,7 @@ onBeforeUnmount(() => {
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field + .tracking-demo-result__field) {
   padding-left:var(--tracking-pair-spacing) !important;
-  border-left:1px solid #3b465f !important;
+  border-left:1px solid var(--tracking-glass-divider) !important;
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field dt) {
   margin:0 !important;
@@ -691,4 +695,30 @@ onBeforeUnmount(() => {
 .tracking-demo-result__extra { margin-top:22px;padding-top:18px;border-top:1px solid #b5092840; }
 .tracking-demo-result__extra h4 { margin:0;font-size:17px;line-height:1.35; }
 .tracking-demo-result__extra .tracking-demo-result__grid { margin:16px 0 0; }
+</style>
+
+<style>
+/* Tracking dark cards: unscoped override intentionally avoids scoped pseudo-element leakage.
+   Match the dark closed FieldDropdown: solid navy, fine neutral outline, no glass. */
+html.theme-dark .app-site.tracking-site .tracking-demo-result__pair {
+  background: #060f21 !important;
+  background-color: #060f21 !important;
+  background-image: none !important;
+  border: 1px solid #4f5365 !important;
+  border-radius: 13px;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html.theme-dark .app-site.tracking-site .tracking-demo-result__pair::before,
+html.theme-dark .app-site.tracking-site .tracking-demo-result__pair::after {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+html.theme-dark .app-site.tracking-site
+  .tracking-demo-result__pair .tracking-demo-result__field + .tracking-demo-result__field {
+  border-left: 1px solid #3b465f !important;
+}
 </style>
