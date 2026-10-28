@@ -41,7 +41,7 @@ const newsUploadFile = ref<File | null>(null)
 const storageMode = ref<'checking' | 's3' | 'legacy' | 'error'>('checking')
 const currentList = computed(() => section.value === 'itineraries' ? itineraries.value : section.value === 'news' ? news.value : section.value === 'comments' ? comments.value : media.value)
 
-function emptyNews(): ManagedNews { return { id: '', title: '', category: 'LOGÍSTICA', description: '', body: '', image: '', published: false, author: '', publishedAt: new Date().toISOString().slice(0,10) } }
+function emptyNews(): ManagedNews { return { id: '', title: '', category: 'LOGÍSTICA', description: '', body: '', image: '', published: false, author: '', publishedAt: new Date().toISOString().slice(0,10), expiresAt: null } }
 function emptyItinerary(): ManagedItinerary { return { id: '', origin: '', destination: '', transport: 'Marítimo', departure: '', arrival: '', status: 'Programado', closing: '', modality: 'FCL', carrier: '', vessel: '', voyage: '' } }
 function emptyComment(): ManagedComment { return { id: '', author: '', section: '', message: '', published: false } }
 function emptyMedia(): ManagedMedia { return { id: '', name: '', kind: 'Imagen', src: '' } }
@@ -325,7 +325,7 @@ async function edit(entry: ManagedItinerary | ManagedNews | ManagedMedia | Manag
       } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo cargar el itinerario.'; return }
     }
   }
-  if (section.value === 'news') newsForm.value = { ...(entry as ManagedNews), publishedAt: (entry as ManagedNews).publishedAt?.slice(0,10) ?? '' }
+  if (section.value === 'news') newsForm.value = { ...(entry as ManagedNews), publishedAt: (entry as ManagedNews).publishedAt?.slice(0,10) ?? '', expiresAt: (entry as ManagedNews).expiresAt?.slice(0,10) ?? null }
   if (section.value === 'media') mediaForm.value = { ...(entry as ManagedMedia) }
   if (section.value === 'comments') commentForm.value = { ...(entry as ManagedComment) }
   document.querySelector('.manager-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -403,7 +403,7 @@ async function submitNews() {
       : '/api/admin/content/news', {
       method: editingId.value ? 'PUT' : 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...newsForm.value, publishedAt: newsForm.value.publishedAt ? newsForm.value.publishedAt + 'T12:00:00Z' : null })
+      body: JSON.stringify({ ...newsForm.value, publishedAt: newsForm.value.publishedAt ? newsForm.value.publishedAt + 'T12:00:00Z' : null, expiresAt: newsForm.value.expiresAt ? newsForm.value.expiresAt + 'T00:00:00-06:00' : null })
     })
     if (!response.ok) {
       const data = await response.json().catch(() => null)
@@ -626,7 +626,9 @@ function useMediaForNews(item: ManagedMedia) {
             <label>Imagen ({{ storageMode === 's3' ? 'MinIO' : 'archivo local' }})<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="selectFile($event, 'news')" /></label>
             <p v-if="newsUploadFile" class="manager-publication-hint">Imagen seleccionada: {{ newsUploadFile.name }}. Se subirá a MinIO al guardar.</p>
             <label>o URL de imagen<input v-model="newsForm.image" placeholder="/images/mi-imagen.webp" /></label>
-            <div class="manager-select-field"><label>Estado de publicación</label><FieldDropdown :model-value="String(newsForm.published)" aria-label="Estado de publicación de noticia" :options="[{value:'false',label:'Borrador (solo administradores)'},{value:'true',label:'Publicada (visible en la web)'}]" @update:model-value="value => newsForm.published = value === 'true'" /></div>
+            <div class="manager-select-field"><label>Caducidad de la noticia</label><FieldDropdown :model-value="newsForm.expiresAt ? 'scheduled' : 'permanent'" aria-label="Caducidad de noticia" :options="[{value:'permanent',label:'Permanente (hasta quitarla)'},{value:'scheduled',label:'Caducar en una fecha'}]" @update:model-value="value => newsForm.expiresAt = value === 'scheduled' ? (newsForm.expiresAt || new Date(Date.now() + 86400000).toISOString().slice(0,10)) : null" /></div>
+             <label v-if="newsForm.expiresAt">Fecha de caducidad<input v-model="newsForm.expiresAt" type="date" required /></label>
+             <div class="manager-select-field"><label>Estado de publicación</label><FieldDropdown :model-value="String(newsForm.published)" aria-label="Estado de publicación de noticia" :options="[{value:'false',label:'Borrador (solo administradores)'},{value:'true',label:'Publicada (visible en la web)'}]" @update:model-value="value => newsForm.published = value === 'true'" /></div>
             <p class="manager-publication-hint" role="status">{{ newsForm.published ? 'Esta noticia aparecerá en la web al guardar los cambios.' : 'Este borrador no aparecerá en la web pública.' }}</p>
             <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar noticia' }}</button>
           </form>
@@ -675,7 +677,7 @@ function useMediaForNews(item: ManagedMedia) {
               <strong v-else-if="section === 'comments'">{{ (entry as ManagedComment).author }}</strong>
               <strong v-else>{{ (entry as ManagedMedia).name }}</strong>
               <small v-if="section === 'itineraries'">{{ (entry as ManagedItinerary).transport }} · {{ (entry as ManagedItinerary).status }}</small>
-              <small v-else-if="section === 'news'">{{ (entry as ManagedNews).category }} · <strong :class="(entry as ManagedNews).published ? 'manager-status-published' : 'manager-status-draft'">{{ (entry as ManagedNews).published ? 'Publicada en la web' : 'Borrador privado' }}</strong></small>
+              <small v-else-if="section === 'news'">{{ (entry as ManagedNews).category }} · <strong :class="(entry as ManagedNews).published ? 'manager-status-published' : 'manager-status-draft'">{{ !(entry as ManagedNews).published ? 'Borrador privado' : (entry as ManagedNews).expiresAt && new Date((entry as ManagedNews).expiresAt as string).getTime() <= Date.now() ? 'Caducada' : 'Publicada en la web' }}</strong></small>
               <small v-else-if="section === 'comments'">{{ (entry as ManagedComment).section || 'General' }} · <strong :class="(entry as ManagedComment).published ? 'manager-status-published' : 'manager-status-draft'">{{ (entry as ManagedComment).published ? 'Publicado en la web' : 'Borrador privado' }}</strong> · {{ (entry as ManagedComment).message }}</small>
               <small v-else>{{ (entry as ManagedMedia).kind }}</small>
             </div>
