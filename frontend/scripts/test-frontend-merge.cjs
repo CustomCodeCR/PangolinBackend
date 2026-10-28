@@ -285,4 +285,14 @@ assert.match(homeTrackingMobile, /\.app-site\.home-page \.tracking-home-grid \{ 
 assert.match(homeTrackingMobile, /\.app-site\.home-page \.tracking-home-copy \{ text-align:center; margin-bottom:0; \}/, 'El botón no debe superponerse al globo por margen negativo')
 assert.match(home, /href="\/tracking"/, 'Rastrear ahora mantiene su destino')
 assert.doesNotMatch(main, /connectWebSocket\(\)/, 'No activar broker local 8081')
+// Detalles de seguimiento: lectura separada por filas, responsive y ambos temas.
+assert.match(tracking, /\.tracking-demo-result__grid > div \{[\s\S]*?border-bottom:1px solid var\(--tracking-detail-divider\);/, 'Cada dato debe tener un separador sutil')
+assert.match(tracking, /\.tracking-demo-result__grid > div:nth-child\(-n\+2\) \{ border-top:1px solid var\(--tracking-detail-divider\); \}/, 'La primera fila debe estar delimitada')
+assert.match(tracking, /\.tracking-demo-result__grid dt \{[^}]*color:var\(--track-muted\);/, 'Las etiquetas usan el color de texto secundario del tema')
+assert.match(tracking, /@media\(max-width:580px\) \{\s*\.tracking-demo-result__grid \{ grid-template-columns:minmax\(0,1fr\); \}/, 'Los detalles deben apilarse en móvil')
+assert.match(tracking, /\.tracking-demo-result__grid > div:nth-child\(2\) \{ border-top:0; \}/, 'En móvil no debe duplicarse la línea entre los primeros datos')
+assert.match(tracking, /:global\(html.theme-dark\) \.tracking-demo-result \{ --tracking-detail-divider:rgba\(255,255,255,\.16\); \}/, 'El tema oscuro necesita divisores visibles')
+assert.match(tracking, /shipment\.customerStatus/, 'Conservar la actualización para el cliente')
+assert.match(tracking, /shipmentExtras/, 'Conservar los campos adicionales de rastreo')
+
 console.log('OK: SignalR, CMS, MinIO, news, itinerary and tracking contracts.')
