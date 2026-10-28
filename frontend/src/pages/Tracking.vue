@@ -580,19 +580,19 @@ onBeforeUnmount(() => {
   box-shadow:0 8px 32px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.32),inset 0 -1px 0 rgba(255,255,255,.1);
   cursor:default;
 }
-/* Match the rounded-card relief across themes: light mode gains visible depth
-   from the surface and soft shadow, not heavy outline strokes. */
+/* In the light theme, white borders disappeared against the pale tracking surface.
+   Give them the same card definition as the navy theme, without a solid fill. */
 :global(html:not(.theme-dark) .app-site.tracking-site .tracking-demo-result__pair) {
-  --tracking-glass-divider:rgba(131,75,92,.22);
-  background:rgba(255,255,255,.43);
-  border-color:rgba(131,75,92,.32);
-  box-shadow:0 9px 24px rgba(68,31,43,.14),inset 0 1px 0 rgba(255,255,255,.76),inset 0 -1px 0 rgba(131,75,92,.06);
+  --tracking-glass-divider:rgba(131,75,92,.25);
+  background:rgba(255,255,255,.30);
+  border-color:rgba(131,75,92,.36);
+  box-shadow:0 6px 21px rgba(68,31,43,.10),inset 0 1px 0 rgba(255,255,255,.85),inset 0 -1px 0 rgba(131,75,92,.08);
 }
 :global(html:not(.theme-dark) .app-site.tracking-site .tracking-demo-result__pair)::before {
-  background:linear-gradient(90deg,transparent,rgba(131,75,92,.20),transparent);
+  background:linear-gradient(90deg,transparent,rgba(131,75,92,.25),transparent);
 }
 :global(html:not(.theme-dark) .app-site.tracking-site .tracking-demo-result__pair)::after {
-  background:linear-gradient(180deg,rgba(131,75,92,.18),transparent,rgba(131,75,92,.07));
+  background:linear-gradient(180deg,rgba(131,75,92,.25),transparent,rgba(131,75,92,.12));
 }
 .tracking-demo-result__pair::before {
   content:''; position:absolute; top:0; left:0; right:0; height:1px; pointer-events:none;
@@ -645,19 +645,19 @@ onBeforeUnmount(() => {
   box-shadow:0 10px 28px rgba(0,0,0,.07);
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair) {
-  --tracking-glass-divider:rgba(105,126,159,.23);
+  --tracking-glass-divider:rgba(105,126,159,.32);
   background:rgba(1,8,29,.94) !important;
   background-image:none !important;
-  border-color:rgba(77,101,133,.33) !important;
+  border-color:rgba(77,101,133,.46) !important;
   -webkit-backdrop-filter:blur(12px);
   backdrop-filter:blur(12px);
-  box-shadow:0 9px 24px rgba(0,0,0,.15),inset 0 1px 0 rgba(255,255,255,.07),inset 0 -1px 0 rgba(255,255,255,.015);
+  box-shadow:0 6px 21px rgba(0,0,0,.10),inset 0 1px 0 rgba(255,255,255,.10),inset 0 -1px 0 rgba(255,255,255,.02);
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair)::before {
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.33),transparent);
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair)::after {
-  background:linear-gradient(180deg,rgba(255,255,255,.14),transparent,rgba(255,255,255,.04));
+  background:linear-gradient(180deg,rgba(255,255,255,.25),transparent,rgba(255,255,255,.08));
 }
 </style>
 
