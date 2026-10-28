@@ -575,9 +575,9 @@ onBeforeUnmount(() => {
   align-items:center; column-gap:0; min-width:0;
   padding:clamp(13px,1.8vw,19px) clamp(16px,2.5vw,26px);
   overflow:hidden; border-radius:18px; border:1px solid rgba(255,255,255,.6);
-  background:linear-gradient(125deg,rgba(255,255,255,.42),rgba(255,255,255,.12));
-  -webkit-backdrop-filter:blur(5px); backdrop-filter:blur(5px);
-  box-shadow:0 8px 32px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.5),inset 0 -1px 0 rgba(255,255,255,.1);
+  background:rgba(255,255,255,.18);
+  -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+  box-shadow:0 8px 32px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.32),inset 0 -1px 0 rgba(255,255,255,.1);
   cursor:default;
 }
 .tracking-demo-result__pair::before {
@@ -620,11 +620,17 @@ onBeforeUnmount(() => {
 :global(html.theme-dark) .tracking-demo-result__label,
 :global(html.theme-dark) .tracking-demo-result__status { color:#ff8697; }
 :global(html.theme-dark) .tracking-demo-result__status { background:#b509283a; }
+/* Match the dark, transparent navy glass already used by the News/Itinerary UI.
+   The previous white overlay over an opaque #171316 container looked gray. */
+:global(html.theme-dark) .tracking-demo-result {
+  background:rgba(8,15,30,.12);
+  border-color:rgba(255,255,255,.16);
+}
 :global(html.theme-dark) .tracking-demo-result__pair {
   --tracking-glass-divider:rgba(255,255,255,.19);
-  background:linear-gradient(125deg,rgba(255,255,255,.09),rgba(255,255,255,.035));
-  border-color:rgba(255,255,255,.26);
-  box-shadow:0 8px 32px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(255,255,255,.06);
+  background:rgba(8,15,30,.20);
+  border-color:rgba(255,255,255,.28);
+  box-shadow:0 8px 32px rgba(0,0,0,.13),inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(255,255,255,.04);
 }
 </style>
 
