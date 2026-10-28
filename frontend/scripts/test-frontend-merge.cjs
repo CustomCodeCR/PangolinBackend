@@ -338,7 +338,7 @@ const compiledLocalization = tsCompiler.transpileModule(trackingLocalizationSour
 })
 const trackingLocalizationExports = {}
 runInNewContext(compiledLocalization.outputText, { exports: trackingLocalizationExports }, { timeout: 1000 })
-const { localizeTrackingMode, localizeTrackingStatus } = trackingLocalizationExports
+const { formatTrackingEquipmentCount, localizeTrackingMode, localizeTrackingStatus } = trackingLocalizationExports
 assert.equal(typeof localizeTrackingMode, 'function')
 assert.equal(typeof localizeTrackingStatus, 'function')
 for (const [original, es, en] of [
@@ -378,6 +378,21 @@ for (const original of [
 }
 assert.equal(localizeTrackingMode(null, 'es'), '—')
 assert.equal(localizeTrackingStatus('', 'en'), '—')
+for (const [input, expected] of [
+  ['1 contenedor', '1'],
+  ['2 contenedores', '2'],
+  ['3 containers', '3'],
+  ['1 CONTAINER', '1'],
+  [' 12 contenedores ', '12'],
+  ['2 x 40 HC', '2 x 40 HC'],
+  ['2 contenedores de 40 HC', '2 contenedores de 40 HC'],
+  ['40 HC', '40 HC']
+]) {
+  assert.equal(formatTrackingEquipmentCount(input), expected, 'Cantidad de equipo: ' + input)
+}
+assert.equal(formatTrackingEquipmentCount(null), null, 'No generar una cantidad para datos ausentes')
+assert.match(tracking, /value: formatTrackingEquipmentCount\(data\.equipmentCount\)/, 'La cantidad visible se normaliza sin modificar Dynamics')
+assert.match(tracking, /value: data\.equipmentSize/, 'Conservar tamaño y configuración original de equipo')
 assert.match(tracking, /const displayMode = \(value: string \| null\) => localizeTrackingMode\(value, en\.value \? 'en' : 'es'\)/, 'La modalidad reacciona al idioma seleccionado')
 assert.match(tracking, /const displayStatus = \(value: string \| null\) => localizeTrackingStatus\(value, en\.value \? 'en' : 'es'\)/, 'El estado reacciona al idioma seleccionado')
 assert.match(tracking, /<strong class="tracking-demo-result__status">\{\{ displayStatus\(shipment\.status\) \}\}<\/strong>/, 'Insignia del estado traducida')
