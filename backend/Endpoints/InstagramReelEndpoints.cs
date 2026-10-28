@@ -74,7 +74,7 @@ public static class InstagramReelEndpoints
         // Instagram Login for Business/Creator, read-only instagram_business_basic.
         // Fetch recent media and pick the newest Reel by timestamp, not a fixed post.
         using var request = NewRequest(
-            "me/media?fields=id,media_type,media_product_type,permalink,thumbnail_url,timestamp&limit=50", token);
+            "me/media?fields=id,media_type,permalink,thumbnail_url,timestamp&limit=50", token);
         using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
         if (!response.IsSuccessStatusCode) return null;
         await response.Content.LoadIntoBufferAsync(512 * 1024, ct);
