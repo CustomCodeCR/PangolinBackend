@@ -1,6 +1,28 @@
-# Reel reciente de Instagram en Home
+# Reel de Instagram en Home
 
-La sección de Instagram se muestra **antes de las tarjetas de contacto**, en formato 9:16, adaptable a teléfono y escritorio. Abre el reproductor oficial únicamente tras pulsar «Reproducir», y mantiene un enlace permanente al perfil si Meta no está disponible.
+La sección de Instagram aparece **antes de las cinco tarjetas de contacto**, en formato vertical 9:16. La publicación elegida en el administrador tiene prioridad y **no requiere ninguna conexión con Meta**.
+
+## Método recomendado: seleccionar un Reel manualmente
+
+1. Desde Instagram, copiá el enlace del Reel **público** de `@grupocastrofallas1`, en formato `https://www.instagram.com/reel/ABC123.../`. Podés pegarlo con parámetros `?igsh=...`; el servidor los elimina.
+2. Entrá con un administrador real a **Administración → Contenido → Editor visual**.
+3. Arriba del editor, buscá el campo **«Reel de Instagram del Home»**, pegá el enlace y pulsá **«Guardar y mostrar Reel»**.
+4. Abrí `/home` y tocá el botón de reproducción de la tarjeta. Instagram cargará el Reel en su propio reproductor. La tarjeta también ofrece un enlace para abrir el Reel directamente.
+5. Para cambiarlo, pegá otro enlace y guardá. Para quitar el elegido, pulsá **«Quitar Reel»**.
+
+### Alcance de seguridad y persistencia
+
+- La escritura es `PUT /api/admin/content/instagram-reel` y está protegida por la política `admin` (JWT vigente). No se expone a usuarios anónimos ni a cuentas en modo previsualización.
+- Solo se admiten enlaces HTTPS a `instagram.com/reel/{código}`, con validación en cliente y backend. Se eliminan fragmentos y parámetros antes de almacenar; no se admiten otros dominios ni enlaces acortados.
+- El valor se almacena en la tabla existente `SiteCmsSlots` (`home.instagram.reel`), **sin migraciones de base de datos ni cambios en MinIO**. Guardar publica en un solo paso y envía un aviso `site` a las pestañas conectadas.
+- `GET /api/social/instagram/latest-reel` sirve el elegido, sin caché del navegador en modo manual. Si no hay elegido, conserva la opción anterior de obtener el último Reel mediante un token de Meta, si estuviera configurado.
+- No se sube ningún archivo de video al servidor. El contenido sigue alojado en Instagram. **Solo los Reels públicos que permitan inserción podrán reproducirse dentro del Home**; los demás pueden abrirse desde el enlace directo.
+- El reproductor oficial se carga bajo demanda al pulsar «Reproducir». No se realizan solicitudes de video a Instagram mientras el visitante no lo haya solicitado.
+- Al quitar el enlace manual, si tampoco hay integración automática configurada, el Home vuelve a mostrar el acceso al perfil.
+
+## Alternativa opcional: actualización automática
+
+La integración de Meta es opcional y se puede configurar más adelante. La sección manual funciona sin token de Instagram.
 
 ## Conectar la cuenta @grupocastrofallas1
 
