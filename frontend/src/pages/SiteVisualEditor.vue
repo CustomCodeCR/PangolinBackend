@@ -252,7 +252,7 @@ onMounted(load)
           <h3 id="featured-reel-title">Reel de Instagram del Home</h3>
           <p>Pegá el enlace del Reel público que querés mostrar encima de las tarjetas de contacto. No requiere conectar Meta.</p>
         </div>
-        <a href="/home#contacto" target="_blank" rel="noopener noreferrer">Ver Home ↗</a>
+        <a href="/home#instagram" target="_blank" rel="noopener noreferrer">Ver Home ↗</a>
       </header>
       <form class="visual-editor__featured-reel-form" @submit.prevent="saveFeaturedReel">
         <label for="featured-reel-link">Enlace del Reel

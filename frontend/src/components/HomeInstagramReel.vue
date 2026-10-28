@@ -52,7 +52,7 @@ onUnmounted(() => { stopSiteUpdates(); abortController.abort() })
 </script>
 
 <template>
-  <section class="home-instagram-section" :aria-label="t('custom.home.instagram.aria')">
+  <section id="instagram" class="home-instagram-section" :aria-label="t('custom.home.instagram.aria')">
     <div class="container home-instagram-section__inner">
       <div class="home-instagram-section__copy">
         <div class="home-instagram-section__heading">
