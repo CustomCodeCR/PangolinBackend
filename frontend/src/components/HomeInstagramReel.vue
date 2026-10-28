@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { ExternalLink, Instagram, Play } from '@lucide/vue'
+import { ExternalLink, Play } from '@lucide/vue'
+import InstagramGlyph from './InstagramGlyph.vue'
 import { useI18n } from 'vue-i18n'
 
 type LatestReel = {
@@ -49,7 +50,7 @@ onUnmounted(() => abortController.abort())
     <div class="container home-instagram-section__inner">
       <div class="home-instagram-section__copy">
         <div class="home-instagram-section__heading">
-          <span class="home-instagram-section__icon"><Instagram :size="39" :stroke-width="1.9" aria-hidden="true" /></span>
+          <span class="home-instagram-section__icon"><InstagramGlyph :size="39" :stroke-width="1.9" aria-hidden="true" /></span>
           <div>
             <p>{{ t('custom.home.instagram.follow') }}</p>
             <h2>Instagram</h2>
@@ -72,11 +73,11 @@ onUnmounted(() => abortController.abort())
           <img v-if="reel?.thumbnailUrl" :src="reel.thumbnailUrl"
             :alt="t('custom.home.instagram.reel')" loading="lazy" referrerpolicy="no-referrer" />
           <div v-else class="home-instagram-section__placeholder">
-            <Instagram :size="56" aria-hidden="true" />
+            <InstagramGlyph :size="56" aria-hidden="true" />
             <span>@grupocastrofallas1</span>
           </div>
           <div class="home-instagram-section__reel-head" aria-hidden="true">
-            <span class="home-instagram-section__avatar"><Instagram :size="19" /></span>
+            <span class="home-instagram-section__avatar"><InstagramGlyph :size="19" /></span>
             <span><strong>grupocastrofallas1</strong><small>Reels</small></span>
           </div>
           <button class="home-instagram-section__play" type="button"
@@ -89,7 +90,7 @@ onUnmounted(() => abortController.abort())
         </template>
         <a v-else class="home-instagram-section__placeholder home-instagram-section__placeholder--link"
           :href="profileUrl" target="_blank" rel="noopener noreferrer">
-          <Instagram :size="54" aria-hidden="true" />
+          <InstagramGlyph :size="54" aria-hidden="true" />
           <strong>@grupocastrofallas1</strong>
           <span>{{ loaded ? t('custom.home.instagram.unavailable') : t('custom.home.instagram.loading') }}</span>
           <ExternalLink :size="19" aria-hidden="true" />
