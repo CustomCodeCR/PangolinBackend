@@ -592,13 +592,12 @@ onBeforeUnmount(() => {
    One solid strip per pair, one matte edge, no backdrop blur or shadow. */
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result) {
   --tracking-glass-navy:#01081D;
-  background:transparent !important;
-  background-image:none !important;
-  border-color:rgba(77,101,133,.35) !important;
-  box-shadow:none !important;
+  background:linear-gradient(125deg,#191524 0%,#0d1830 100%) !important;
+  border-color:rgba(124,145,185,.34) !important;
+  box-shadow:0 12px 32px rgba(0,0,0,.18) !important;
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair) {
-  --tracking-glass-divider:#3b465f;
+  --tracking-glass-divider:rgba(146,164,201,.24);
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
   align-items:center;
@@ -606,12 +605,12 @@ onBeforeUnmount(() => {
   padding:clamp(13px,1.8vw,19px) clamp(16px,2.5vw,26px);
   overflow:hidden;
   border-radius:18px;
-  border:1px solid #3b465f !important;
-  background:#060f21 !important;
+  border:1px solid rgba(151,171,210,.28) !important;
+  background:linear-gradient(112deg,#252132 0%,#17233c 100%) !important;
   background-image:none !important;
   -webkit-backdrop-filter:none !important;
   backdrop-filter:none !important;
-  box-shadow:none !important;
+  box-shadow:0 8px 22px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.055) !important;
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field) {
   min-width:0;
@@ -627,7 +626,7 @@ onBeforeUnmount(() => {
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field + .tracking-demo-result__field) {
   padding-left:var(--tracking-pair-spacing) !important;
-  border-left:1px solid #3b465f !important;
+  border-left:1px solid var(--tracking-glass-divider) !important;
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field dt) {
   margin:0 !important;
