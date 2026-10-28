@@ -13,6 +13,7 @@ const requestedArticleId = new URLSearchParams(window.location.search).get('arti
 const requestedArticleSlug = window.location.pathname.match(/^\/noticias\/([^/]+)\/?$/)?.[1] ?? null
 const isArticlePage = Boolean(requestedArticleId || requestedArticleSlug)
 const managedNews = ref<ManagedNews[]>([])
+const newsExpirationClock = ref(Date.now())
 const slugifyNewsTitle = (title: string) => title.normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '')
   .toLowerCase()
@@ -47,7 +48,8 @@ function validEnglish(value: unknown): value is EnglishNews {
     typeof row[key] === 'string' && (row[key] as string).trim().length > 0)
 }
 // El cambio de idioma no modifica el contenido original en español.
-const news = computed(() => managedNews.value.filter(article => article.published && article.title.trim()).map(article => {
+const news = computed(() => managedNews.value.filter(article => article.published && article.title.trim() &&
+  (!article.expiresAt || Date.parse(article.expiresAt) > newsExpirationClock.value)).map(article => {
   const cached = englishNews.value[article.id]
   const english = locale.value === 'en' && cached?.source === fingerprint(article) ? cached.translated : null
   return {
@@ -65,6 +67,7 @@ const news = computed(() => managedNews.value.filter(article => article.publishe
 async function translateNewsToEnglish() {
   if (locale.value !== 'en') return
   const pending = managedNews.value.filter(article => article.published && article.title.trim() &&
+    (!article.expiresAt || Date.parse(article.expiresAt) > newsExpirationClock.value) &&
     englishNews.value[article.id]?.source !== fingerprint(article))
   if (!pending.length) return
   englishLoading.value = true
@@ -352,7 +355,27 @@ function selectStory(index: number) {
 }
 let disposed = false
 let requestVersion = 0
+let newsExpirationTimer: number | undefined
+function scheduleNewsExpiration() {
+  if (newsExpirationTimer !== undefined) window.clearTimeout(newsExpirationTimer)
+  newsExpirationTimer = undefined
+  const nextExpiry = Math.min(...managedNews.value
+    .filter(article => article.published && article.expiresAt)
+    .map(article => Date.parse(article.expiresAt!))
+    .filter(value => Number.isFinite(value) && value > Date.now()))
+  if (!Number.isFinite(nextExpiry)) return
+  // Los navegadores limitan setTimeout a ~24 días; reprogramar si vence después.
+  const delay = Math.min(2_147_000_000, Math.max(1000, nextExpiry - Date.now() + 1000))
+  newsExpirationTimer = window.setTimeout(() => {
+    newsExpirationClock.value = Date.now()
+    void loadPublicNews()
+  }, delay)
+}
+function refreshVisibleNews() {
+  if (document.visibilityState === 'visible') void loadPublicNews()
+}
 async function loadPublicNews() {
+  newsExpirationClock.value = Date.now()
   const request = ++requestVersion
   try {
     const response = await fetch('/api/content/news', { cache: 'no-store' })
@@ -361,6 +384,7 @@ async function loadPublicNews() {
     if (!Array.isArray(items)) throw new Error('Respuesta de noticias inválida.')
     if (disposed || request !== requestVersion) return
     managedNews.value = items as ManagedNews[]
+    scheduleNewsExpiration()
     newsError.value = false
     if (locale.value === 'en') void translateNewsToEnglish()
     if (activeStoryIndex.value >= news.value.length) activeStoryIndex.value = 0
@@ -380,12 +404,15 @@ const unsubscribeSync = subscribeToChanges('sync', () => { void loadPublicNews()
 onMounted(() => {
   window.addEventListener('scroll', scheduleArticleScrollProgress, { passive: true })
   window.addEventListener('resize', scheduleArticleScrollProgress, { passive: true })
+  document.addEventListener('visibilitychange', refreshVisibleNews)
   void loadPublicNews()
 })
 
 onUnmounted(() => {
   window.removeEventListener('scroll', scheduleArticleScrollProgress)
   window.removeEventListener('resize', scheduleArticleScrollProgress)
+  document.removeEventListener('visibilitychange', refreshVisibleNews)
+  if (newsExpirationTimer !== undefined) window.clearTimeout(newsExpirationTimer)
   if (articleScrollFrame) window.cancelAnimationFrame(articleScrollFrame)
   disposed = true
   unsubscribeNews(); unsubscribeSync()

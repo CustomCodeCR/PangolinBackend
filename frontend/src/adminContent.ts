@@ -8,6 +8,7 @@ export type ManagedNews = {
   published: boolean
   author?: string
   publishedAt?: string | null
+  expiresAt?: string | null
 }
 
 export type ManagedItinerary = {
