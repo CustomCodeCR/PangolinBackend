@@ -11,6 +11,7 @@ public sealed class ManagedNews
     public bool Published { get; set; }
     public string Author { get; set; } = "";
     public DateTime? PublishedAt { get; set; }
+    public DateTime? ExpiresAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
@@ -30,7 +31,7 @@ public sealed class ManagedMedia
 
 public sealed record SaveNewsRequest(
     string? Title, string? Category, string? Description, string? Image, bool Published, string? Body,
-    string? Author, DateTime? PublishedAt);
+    string? Author, DateTime? PublishedAt, DateTime? ExpiresAt);
 public sealed record SaveMediaRequest(
     string? Name, string? Kind, string? Src);
 
