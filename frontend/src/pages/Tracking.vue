@@ -597,9 +597,7 @@ onBeforeUnmount(() => {
   border-color:rgba(77,101,133,.35) !important;
   box-shadow:none !important;
 }
-/* Scoped to the tracking component, rather than an unscoped global
-   selector, so Safari cannot inherit a translucent themed surface. */
-:global(html.theme-dark) .app-site.tracking-site .tracking-demo-result__pair {
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair) {
   --tracking-glass-divider:#3b465f;
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
@@ -610,12 +608,7 @@ onBeforeUnmount(() => {
   border-radius:18px;
   border:1px solid #3b465f !important;
   background:#060f21 !important;
-  background-color:#060f21 !important;
   background-image:none !important;
-  background-blend-mode:normal !important;
-  opacity:1 !important;
-  mix-blend-mode:normal !important;
-  filter:none !important;
   -webkit-backdrop-filter:none !important;
   backdrop-filter:none !important;
   box-shadow:none !important;
