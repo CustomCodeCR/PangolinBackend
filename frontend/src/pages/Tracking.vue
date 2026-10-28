@@ -620,25 +620,56 @@ onBeforeUnmount(() => {
 :global(html.theme-dark) .tracking-demo-result__label,
 :global(html.theme-dark) .tracking-demo-result__status { color:#ff8697; }
 :global(html.theme-dark) .tracking-demo-result__status { background:#b509283a; }
-/* Dark tracking details must match the site's #01081D form controls.
-   The light glass fill (.18 white) looked #413E40 on #171316; use a strong
-   whole-selector dark override so global theme borders cannot turn cards gray. */
+/* Dark tracking matches Itinerario's plain navy input appearance:
+   two separate, non-interactive fields per row with their labels above.
+   No glass, red outlines, internal reflections or blurred background.
+   The light-theme glass styles above remain unchanged. */
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result) {
   --tracking-glass-navy:#01081D;
   background:transparent !important;
   background-image:none !important;
   border-color:rgba(77,101,133,.35) !important;
-  box-shadow:0 10px 28px rgba(0,0,0,.07);
+  box-shadow:none !important;
 }
-/* Dark mode: one matte red (#b50928) for the entire outline and the
-   center divider. No white glints or inset shine; light mode is untouched. */
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair) {
-  background:rgba(1,8,29,.94) !important;
-  border:1px solid #b50928 !important;
-  box-shadow:0 8px 32px rgba(0,0,0,.1) !important;
+  column-gap:clamp(10px,2vw,24px);
+  align-items:stretch;
+  padding:0;
+  overflow:visible;
+  border:0 !important;
+  border-radius:0;
+  background:transparent !important;
+  background-image:none !important;
+  box-shadow:none !important;
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
 }
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field),
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field + .tracking-demo-result__field) {
-  border-left-color:#b50928 !important;
+  border:0 !important;
+  padding:0 !important;
+}
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field dt) {
+  margin-bottom:10px;
+  color:#fff;
+  font-size:14px;
+  font-weight:700;
+}
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field dd) {
+  box-sizing:border-box;
+  display:flex;
+  align-items:center;
+  min-height:54px;
+  margin:0;
+  padding:13px 16px;
+  background:#060f21 !important;
+  background-image:none !important;
+  border:1px solid #3b465f !important;
+  border-radius:14px;
+  color:#fff;
+  box-shadow:none !important;
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
 }
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair)::before,
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair)::after {
