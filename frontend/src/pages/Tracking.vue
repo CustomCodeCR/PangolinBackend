@@ -630,20 +630,21 @@ onBeforeUnmount(() => {
   border-color:rgba(77,101,133,.35) !important;
   box-shadow:0 10px 28px rgba(0,0,0,.07);
 }
+/* Uniform navy edge in dark mode: no white inset shine or pseudo-element
+   light streaks. Light-mode glass remains untouched. */
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair) {
-  --tracking-glass-divider:rgba(105,126,159,.32);
+  --tracking-glass-divider:rgba(63,83,115,.52);
   background:rgba(1,8,29,.94) !important;
   background-image:none !important;
-  border-color:rgba(77,101,133,.46) !important;
+  border:1px solid rgba(63,83,115,.52) !important;
   -webkit-backdrop-filter:blur(12px);
   backdrop-filter:blur(12px);
-  box-shadow:0 6px 21px rgba(0,0,0,.10),inset 0 1px 0 rgba(255,255,255,.10),inset 0 -1px 0 rgba(255,255,255,.02);
+  box-shadow:0 6px 21px rgba(0,0,0,.10);
 }
-:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair)::before {
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,.33),transparent);
-}
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair)::before,
 :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair)::after {
-  background:linear-gradient(180deg,rgba(255,255,255,.25),transparent,rgba(255,255,255,.08));
+  content:none !important;
+  background:none !important;
 }
 </style>
 
