@@ -8,7 +8,7 @@ import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import WorldGlobe from '../components/WorldGlobe.vue'
 import { illustrativeRoute } from '../lib/trackingRoute'
-import { localizeTrackingMode, localizeTrackingStatus } from '../lib/trackingDisplay'
+import { formatTrackingEquipmentCount, localizeTrackingMode, localizeTrackingStatus } from '../lib/trackingDisplay'
 import FieldDropdown from '../components/FieldDropdown.vue'
 interface DynamicsShipment {
   title: string | null
@@ -141,7 +141,7 @@ const shipmentExtras = computed<ShipmentExtraField[]>(() => {
   const fields: { es: string; en: string; value: string | null }[] = [
     { es: 'Incoterm', en: 'Incoterm', value: data.incoterm },
     { es: 'Tamaño o modalidad de equipo', en: 'Equipment size or modality', value: data.equipmentSize },
-    { es: 'Cantidad o configuración de equipo', en: 'Equipment quantity or configuration', value: data.equipmentCount },
+    { es: 'Cantidad o configuración de equipo', en: 'Equipment quantity or configuration', value: formatTrackingEquipmentCount(data.equipmentCount) },
     { es: 'Confirmación de zarpe', en: 'Departure confirmation', value: asDate(data.departureConfirmedAt) },
     { es: 'Ingreso a bodegas', en: 'Warehouse arrival', value: asDate(data.warehouseReceivedAt) },
     { es: 'ETA en destino', en: 'Destination ETA', value: asDate(data.destinationEta) },
