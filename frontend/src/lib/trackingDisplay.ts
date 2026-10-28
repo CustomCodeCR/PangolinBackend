@@ -58,6 +58,18 @@ const shipmentStatuses: Readonly<Record<string, LocalizedValue>> = {
   cancelled
 }
 
+/**
+ * Values like "1 contenedor" represent a plain equipment count, not a
+ * configuration. Show only the number; preserve complex configurations,
+ * unknown values and the original record from Dynamics.
+ */
+export function formatTrackingEquipmentCount(value: string | null | undefined): string | null {
+  const original = value?.trim()
+  if (!original) return null
+  const countOnly = /^(\d+)\s+(?:contenedor(?:es)?|container(?:s)?)\.?$/i.exec(original)
+  return countOnly ? countOnly[1] : original
+}
+
 export function localizeTrackingMode(value: string | null | undefined, language: Language): string {
   const original = value?.trim()
   if (!original) return '—'
