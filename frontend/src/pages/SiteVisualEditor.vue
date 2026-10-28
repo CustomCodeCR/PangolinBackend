@@ -22,6 +22,11 @@ const saving = ref(false)
 const notice = ref('')
 const error = ref('')
 const storageEnabled = ref(false)
+const featuredReel = ref('')
+const publishedReel = ref('')
+const savingFeaturedReel = ref(false)
+const featuredReelNotice = ref('')
+const featuredReelError = ref('')
 const isLiveAdmin = computed(() => authState.user?.role === 'administrador' && !authState.previewRole)
 const pages = [...new Map(siteSlotCatalog.map(slot => [slot.page, { id: slot.page, label: slot.pageLabel }])).values()]
 const visible = computed(() => siteSlotCatalog.filter(slot =>
@@ -79,6 +84,9 @@ async function load() {
     ])
     if (!sites.ok || !library.ok || !status.ok) throw new Error('No se pudieron cargar los datos del editor visual.')
     rows.value = await sites.json() as EditableSiteSlot[]
+    // The selected Reel is published immediately and stored as a single CMS slot.
+    publishedReel.value = rows.value.find(x => x.key === 'home.instagram.reel')?.publishedEs ?? ''
+    featuredReel.value = publishedReel.value
     media.value = await library.json() as ManagedMedia[]
     storageEnabled.value = Boolean((await status.json() as {enabled:boolean}).enabled)
     select(selected.value)
@@ -86,6 +94,41 @@ async function load() {
     error.value = cause instanceof Error ? cause.message : 'No se pudo consultar el editor.'
   } finally { loading.value = false }
 }
+async function saveFeaturedReel() {
+  if (!isLiveAdmin.value || savingFeaturedReel.value) return
+  featuredReelError.value = ''
+  featuredReelNotice.value = ''
+  const url = featuredReel.value.trim()
+  // A server-side allowlist also checks the URL before it is saved.
+  if (url && !/^https:\/\/(?:www\.|m\.)?instagram\.com\/reel\/[A-Za-z0-9_-]{5,80}\/?(?:[?#].*)?$/i.test(url)) {
+    featuredReelError.value = 'Pegá un enlace de Reel válido, por ejemplo https://www.instagram.com/reel/ABC123xyz/'
+    return
+  }
+  savingFeaturedReel.value = true
+  try {
+    const response = await fetch('/api/admin/content/instagram-reel', {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: url || null })
+    })
+    const data = await response.json().catch(() => null) as { url?: string | null; error?: string } | null
+    if (!response.ok) throw new Error(data?.error || 'No fue posible actualizar el Reel.')
+    publishedReel.value = data?.url ?? ''
+    featuredReel.value = publishedReel.value
+    featuredReelNotice.value = publishedReel.value
+      ? '¡Reel guardado y publicado! Ya puedes verlo en el Home.'
+      : 'Se quitó el Reel seleccionado. El Home volverá a mostrar el perfil si no hay conexión automática.'
+  } catch (cause) {
+    featuredReelError.value = cause instanceof Error ? cause.message : 'Error al guardar el Reel.'
+  } finally { savingFeaturedReel.value = false }
+}
+
+async function removeFeaturedReel() {
+  if (!window.confirm('¿Quitar el Reel destacado del Home?')) return
+  featuredReel.value = ''
+  await saveFeaturedReel()
+}
+
 async function saveDraft(): Promise<boolean> {
   if (!isLiveAdmin.value || saving.value) return false
   saving.value = true; error.value = ''; notice.value = ''
@@ -202,6 +245,36 @@ onMounted(load)
       <button type="button" class="visual-editor__button" @click="load" :disabled="loading">Actualizar biblioteca</button>
     </header>
     
+    <section class="visual-editor__featured-reel" aria-labelledby="featured-reel-title">
+      <header>
+        <div>
+          <p class="manager-eyebrow">INICIO · REDES SOCIALES</p>
+          <h3 id="featured-reel-title">Reel de Instagram del Home</h3>
+          <p>Pegá el enlace del Reel público que querés mostrar encima de las tarjetas de contacto. No requiere conectar Meta.</p>
+        </div>
+        <a href="/home#contacto" target="_blank" rel="noopener noreferrer">Ver Home ↗</a>
+      </header>
+      <form class="visual-editor__featured-reel-form" @submit.prevent="saveFeaturedReel">
+        <label for="featured-reel-link">Enlace del Reel
+          <input id="featured-reel-link" v-model.trim="featuredReel" type="url" inputmode="url"
+            :disabled="!isLiveAdmin || loading || savingFeaturedReel" maxlength="512"
+            placeholder="https://www.instagram.com/reel/..." autocomplete="off" />
+        </label>
+        <div class="visual-editor__featured-reel-actions">
+          <button class="visual-editor__button visual-editor__publish" type="submit"
+            :disabled="!isLiveAdmin || loading || savingFeaturedReel">{{ savingFeaturedReel ? 'Guardando…' : 'Guardar y mostrar Reel' }}</button>
+          <button class="visual-editor__button visual-editor__reset" type="button"
+            :disabled="!isLiveAdmin || loading || savingFeaturedReel || !publishedReel" @click="removeFeaturedReel">Quitar Reel</button>
+        </div>
+      </form>
+      <p v-if="featuredReelError" class="visual-editor__error" role="alert">{{ featuredReelError }}</p>
+      <p v-if="featuredReelNotice" class="visual-editor__success" role="status">{{ featuredReelNotice }}</p>
+      <p v-if="publishedReel" class="visual-editor__featured-reel-current">Publicado: <a :href="publishedReel" target="_blank" rel="noopener noreferrer">{{ publishedReel }}</a></p>
+      <p v-else class="visual-editor__featured-reel-current">Sin Reel elegido. La web mostrará el enlace al perfil de Instagram.</p>
+      <p v-if="!isLiveAdmin" class="visual-editor__hint">Necesitás una sesión administradora real para modificar el Reel.</p>
+      <small class="visual-editor__hint">El Reel debe ser público y permitir la inserción desde Instagram. Si su reproducción está restringida, el visitante podrá abrirlo en Instagram.</small>
+    </section>
+
     <p v-if="error" role="alert" class="visual-editor__error">{{ error }}</p>
     <p v-if="notice" role="status" class="visual-editor__success">{{ notice }}</p>
     <div v-if="loading" role="status">Cargando secciones…</div>
@@ -288,6 +361,22 @@ onMounted(load)
 <style>
 .visual-editor{width:100%;display:grid;gap:16px;padding:22px;border:1px solid #ded9dc;border-radius:20px;background:#fff;color:#25252a}
 .visual-editor__intro{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+/* An independent publishing shortcut for the one Reel shown in Home. */
+.visual-editor__featured-reel{display:grid;gap:13px;padding:22px;border:1px solid #e8d4dc;border-radius:16px;background:linear-gradient(125deg,#fff6f9,#fff)}
+.visual-editor__featured-reel header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px}
+.visual-editor__featured-reel header h3{font-size:clamp(20px,2vw,25px);line-height:1.28;margin:5px 0}
+.visual-editor__featured-reel header p:not(.manager-eyebrow){font-size:13px;line-height:1.55;margin:0;color:#565c68}
+.visual-editor__featured-reel header>a{color:#ae1740;text-decoration:underline;font-weight:700;font-size:13px;white-space:nowrap}
+.visual-editor__featured-reel-form{display:flex;align-items:end;flex-wrap:wrap;gap:12px}
+.visual-editor__featured-reel-form label{display:grid;gap:7px;font-weight:750;font-size:13px;flex:1 1 300px;min-width:0}
+.visual-editor__featured-reel-form input{width:100%;min-width:0;padding:12px 13px;border:1px solid #bdc3ce;border-radius:10px;color:#1d2735;background:#fff;font:inherit}
+.visual-editor__featured-reel-actions{display:flex;gap:9px;flex-wrap:wrap}
+.visual-editor__featured-reel-current{margin:0;font-size:12px;line-height:1.55;color:#515865;overflow-wrap:anywhere}
+.visual-editor__featured-reel-current a{color:#aa1745;text-decoration:underline}
+html.theme-dark .visual-editor__featured-reel{background:#171924;border-color:#503042}
+html.theme-dark .visual-editor__featured-reel header p:not(.manager-eyebrow),html.theme-dark .visual-editor__featured-reel-current{color:#d3d7e1}
+html.theme-dark .visual-editor__featured-reel-form input{background:#0b1324;border-color:#667085;color:#fff}
+html.theme-dark .visual-editor__featured-reel :is(header>a,.visual-editor__featured-reel-current a){color:#ff879e}
 .visual-editor__intro h2{margin:4px 0 9px;font-size:clamp(26px,3vw,36px)}
 .visual-editor__intro p{max-width:650px;color:#687078;line-height:1.6}
 .visual-editor__context{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:9px;padding:11px 13px;border:1px solid #e5e7eb;border-radius:10px;font-size:12px;background:#f9fafb}
