@@ -588,23 +588,24 @@ onBeforeUnmount(() => {
 :global(html.theme-dark) .tracking-demo-result__label,
 :global(html.theme-dark) .tracking-demo-result__status { color:#ff8697; }
 :global(html.theme-dark) .tracking-demo-result__status { background:#b509283a; }
-/* Same #01081D navy used by the site's dark theme, applied as a translucent
-   glass tint rather than an opaque gray/white surface. */
-:global(html.theme-dark) .tracking-demo-result {
+/* Dark tracking details must match the site's #01081D form controls.
+   The light glass fill (.18 white) looked #413E40 on #171316; use a strong
+   whole-selector dark override so global theme borders cannot turn cards gray. */
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result) {
   --tracking-glass-navy:#01081D;
-  background:rgba(1,8,29,.14) !important;
+  background:transparent !important;
   background-image:none !important;
-  border-color:rgba(255,255,255,.14);
-  box-shadow:0 10px 28px rgba(0,0,0,.06);
+  border-color:rgba(77,101,133,.35) !important;
+  box-shadow:0 10px 28px rgba(0,0,0,.07);
 }
-:global(html.theme-dark) .tracking-demo-result__pair {
-  --tracking-glass-divider:rgba(255,255,255,.19);
-  background:rgba(1,8,29,.38) !important;
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair) {
+  --tracking-glass-divider:rgba(105,126,159,.42);
+  background:rgba(1,8,29,.94) !important;
   background-image:none !important;
-  border-color:rgba(255,255,255,.24);
+  border-color:rgba(77,101,133,.72) !important;
   -webkit-backdrop-filter:blur(12px);
   backdrop-filter:blur(12px);
-  box-shadow:0 8px 24px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.24),inset 0 -1px 0 rgba(255,255,255,.04);
+  box-shadow:0 8px 24px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.12),inset 0 -1px 0 rgba(255,255,255,.025);
 }
 </style>
 
