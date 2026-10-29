@@ -13,6 +13,7 @@ interface TypingStatus { connectionId: string; userId: string; name: string; isT
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ (event: 'unread-change', count: number): void }>()
 const messages = ref<ChatMessage[]>([])
+const clearedThrough = ref(0)
 const receipts = ref<ReadReceipt[]>([])
 const draft = ref('')
 const nickname = ref('')
@@ -290,6 +291,9 @@ function markVisibleRead() {
   }
 }
 function receivedMessage(message: ChatMessage) {
+  // Un mensaje enviado antes de vaciar esta cuenta no vuelve a aparecer
+  // aunque llegue tarde durante una reconexión.
+  if (Date.parse(message.sentAt) <= clearedThrough.value) return
   if (messages.value.some(item => item.id === message.id)) return
   chatNotice.value = ''
   messages.value = [...messages.value.slice(-59), message]
@@ -332,35 +336,38 @@ function jumpToOriginal(id: string) {
   if (highlightTimer) clearTimeout(highlightTimer)
   highlightTimer = setTimeout(() => { highlightedId.value = null; highlightTimer = null }, 1800)
 }
-async function clearChatForEveryone() {
+async function clearMyChat() {
   if (clearingChat.value || !messages.value.length ||
       connection?.state !== signalR.HubConnectionState.Connected) return
   const confirmed = window.confirm(
-    '¿Vaciar la conversación para TODOS los administradores?\n\n' +
-    'Se borrarán los mensajes, los vistos y las imágenes compartidas. ' +
-    'No se puede deshacer. Los apodos y las fotos de perfil se conservan.'
+    '¿Limpiar el chat solo para tu cuenta?\n\n' +
+    'Los mensajes anteriores se ocultarán de tu vista, también al volver a entrar. ' +
+    'Los otros administradores conservarán su historial, imágenes y vistos. ' +
+    'La limpieza no se puede deshacer desde tu cuenta.'
   )
   if (!confirmed) return
   clearingChat.value = true
   error.value = ''
   chatNotice.value = ''
   try {
-    await connection.invoke('ClearChat')
-    // La interfaz se limpia al recibir ChatCleared del servidor, no antes.
+    await connection.invoke('ClearMyChat')
+    // El estado se actualiza con el evento privado del servidor.
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : 'No se pudo vaciar el chat.'
+    error.value = cause instanceof Error ? cause.message : 'No se pudo limpiar tu chat.'
   } finally { clearingChat.value = false }
 }
-function onChatCleared(event: { clearedAt: string; clearedBy?: string }) {
+function onChatClearedForUser(event: { clearedAt: string }) {
   if (!active) return
-  messages.value = []
-  receipts.value = []
+  const cutoff = Date.parse(event?.clearedAt ?? '')
+  if (!Number.isFinite(cutoff) || cutoff < clearedThrough.value) return
+  clearedThrough.value = cutoff
+  messages.value = messages.value.filter(message => Date.parse(message.sentAt) > cutoff)
   replyTarget.value = null
   expandedSeenId.value = null
   highlightedId.value = null
-  // Se conserva el borrador que aún no se envió.
-  persistLastRead(Date.parse(event?.clearedAt ?? '') || Date.now())
-  chatNotice.value = (event?.clearedBy || 'Un administrador') + ' vació la conversación para todos.'
+  // Los vistos globales permanecen para los mensajes posteriores y los demás.
+  persistLastRead(cutoff)
+  chatNotice.value = 'Tu vista del chat está limpia. Los demás administradores conservan sus mensajes.'
 }
 async function send() {
   const text = draft.value.trim()
@@ -462,14 +469,16 @@ onMounted(() => {
     if (!active) return
     chatNames.value = { ...chatNames.value, [userId.toLowerCase()]: name }
   })
-  hub.on('History', (history: ChatMessage[], seen: ReadReceipt[]) => {
+  hub.on('History', (history: ChatMessage[], seen: ReadReceipt[], clearedAt?: string) => {
     if (!active) return
-    messages.value = history.slice(-60)
+    const serverCutoff = Date.parse(clearedAt ?? '')
+    if (Number.isFinite(serverCutoff)) clearedThrough.value = Math.max(clearedThrough.value, serverCutoff)
+    messages.value = history.filter(message => Date.parse(message.sentAt) > clearedThrough.value).slice(-60)
     receipts.value = seen ?? []
     if (canMarkRead()) { scrollBottom(); markVisibleRead() }
   })
   hub.on('Message', (message: ChatMessage) => { if (active) receivedMessage(message) })
-  hub.on('ChatCleared', (event: { clearedAt: string; clearedBy?: string }) => onChatCleared(event))
+  hub.on('ChatClearedForUser', (event: { clearedAt: string }) => onChatClearedForUser(event))
   hub.on('TypingSnapshot', (states: TypingStatus[]) => {
     if (!active) return
     remoteTyping.value = {}
@@ -559,10 +568,10 @@ onUnmounted(() => {
         </div>
         <button class="team-chat__clear-button" type="button"
           :disabled="status !== 'En línea' || clearingChat || !messages.length"
-          title="Eliminar el historial compartido para todos los administradores"
-          @click="clearChatForEveryone">
+          title="Ocultar mensajes anteriores solo para tu cuenta"
+          @click="clearMyChat">
           <IconSymbol glyph="trash" :size="15" />
-          {{ clearingChat ? 'Vaciando…' : 'Vaciar conversación' }}
+          {{ clearingChat ? 'Limpiando…' : 'Limpiar mi chat' }}
         </button>
       </div>
     </header>
