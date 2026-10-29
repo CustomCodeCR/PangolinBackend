@@ -105,6 +105,7 @@ onUnmounted(() => { stopSiteUpdates(); abortController.abort() })
         <iframe v-else-if="isPlaying && embedUrl" class="home-instagram-section__embed"
           :src="embedUrl" :title="t('custom.home.instagram.reel')"
           loading="lazy" allow="encrypted-media; picture-in-picture"
+          scrolling="no"
           referrerpolicy="strict-origin-when-cross-origin"></iframe>
         <template v-else-if="reelUrl">
           <img v-if="reel?.thumbnailUrl" :src="reel.thumbnailUrl"
@@ -242,6 +243,18 @@ onUnmounted(() => { stopSiteUpdates(); abortController.abort() })
 }
 .home-instagram-section__reel > img, .home-instagram-section__embed, .home-instagram-section__native-video {
   width: 100%; height: 100%; display: block; object-fit: cover; border: 0;
+}
+/* Experimental Instagram fallback: crop the cross-origin embed as a whole.
+   At the card's 9:16 aspect ratio, magnifying around the centre keeps most
+   of the video visible while clipping Instagram's white header/footer and
+   scrollbars. We cannot edit the iframe's internal content. Do not apply this
+   to the native MP4 / authorized Meta video player. */
+.home-instagram-section__embed {
+  position: absolute;
+  inset: 0;
+  transform: translateY(1.5%) scale(1.52);
+  transform-origin: center center;
+  background: #020717;
 }
 .home-instagram-section__native-video { background: #020717; }
 .home-instagram-section__open--native { top: 9px; right: 9px; bottom: auto; z-index: 1; }
