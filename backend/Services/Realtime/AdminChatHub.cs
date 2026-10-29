@@ -210,6 +210,10 @@ public sealed class AdminChatHub : Hub
         await ChatMutations.WaitAsync();
         try
         {
+            if (replyToId is not null &&
+                (!Guid.TryParse(replyToId, out var targetId) ||
+                 !History.Any(item => item.Id == targetId)))
+                throw new HubException("El mensaje original ya no está disponible.");
             if (imageId is not null &&
                 (!Guid.TryParse(imageId, out var originalImageId) ||
                  !_images.IsOwned(originalImageId, identity.UsuarioId, avatar: false)))
