@@ -8,14 +8,14 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace CastroFallas.MiniQuote.Api.Endpoints;
 
-public sealed record SaveFeaturedReelRequest(string? Url);
+public sealed record SaveFeaturedReelRequest(string? Url, Guid? MediaId);
 
 public static class InstagramReelEndpoints
 {
     private const string ProfileUrl = "https://www.instagram.com/grupocastrofallas1/";
     private const string CacheKey = "social:instagram:latest-reel:v1";
     private const string ManualReelKey = "home.instagram.reel";
-    private sealed record Reel(string Permalink, string? ThumbnailUrl, DateTimeOffset PublishedAt);
+    private sealed record Reel(string Permalink, string? ThumbnailUrl, DateTimeOffset PublishedAt, string? VideoSrc = null);
     private sealed record Response(Reel? Reel, string ProfileUrl);
 
     public static IEndpointRouteBuilder MapInstagramReel(this IEndpointRouteBuilder app)
@@ -35,17 +35,30 @@ public static class InstagramReelEndpoints
             if (value.Length != 0 && url is null)
                 return Results.BadRequest(new { error = "Pegá un enlace HTTPS válido de un Reel de Instagram (instagram.com/reel/...)."});
 
+            // Optional full-bleed player: a company-owned MP4/WebM already uploaded to
+            // the protected media library. No remote video URLs or scraping.
+            if (input.MediaId is Guid videoId)
+            {
+                if (url is null)
+                    return Results.BadRequest(new { error = "Primero indicá el enlace del Reel original." });
+                var isVideo = await db.ManagedMedia.AsNoTracking().AnyAsync(m => m.Id == videoId
+                    && m.Kind == "Video" && m.ObjectKey != null
+                    && (m.MimeType == "video/mp4" || m.MimeType == "video/webm"), ct);
+                if (!isVideo)
+                    return Results.BadRequest(new { error = "Seleccioná un MP4 o WebM de la biblioteca multimedia." });
+            }
+
             var slot = await db.SiteCmsSlots.FindAsync([ManualReelKey], ct);
             if (slot is null) { slot = new SiteCmsSlot { Key = ManualReelKey }; db.SiteCmsSlots.Add(slot); }
             slot.DraftEs = slot.PublishedEs = url;
             slot.DraftEn = slot.PublishedEn = null;
-            slot.DraftMediaId = slot.PublishedMediaId = null;
+            slot.DraftMediaId = slot.PublishedMediaId = input.MediaId;
             slot.UpdatedAt = DateTime.UtcNow;
             slot.PublishedAt = DateTime.UtcNow;
             await db.SaveChangesAsync(ct);
             await updates.AdminsAsync("site-admin");
             await updates.PublicAsync("site");
-            return Results.Ok(new { url });
+            return Results.Ok(new { url, mediaId = slot.PublishedMediaId });
         }).RequireAuthorization("admin");
 
         return app;
@@ -59,7 +72,7 @@ public static class InstagramReelEndpoints
         // The existing site CMS persists this setting across Docker restarts.
         var chosen = await db.SiteCmsSlots.AsNoTracking()
             .Where(s => s.Key == ManualReelKey)
-            .Select(s => new { s.PublishedEs, s.PublishedAt })
+            .Select(s => new { s.PublishedEs, s.PublishedMediaId, s.PublishedAt })
             .FirstOrDefaultAsync(ct);
         var chosenUrl = NormalizeReelUrl(chosen?.PublishedEs);
         if (chosenUrl is not null)
@@ -68,7 +81,17 @@ public static class InstagramReelEndpoints
             var date = chosen?.PublishedAt is DateTime stamp
                 ? new DateTimeOffset(DateTime.SpecifyKind(stamp, DateTimeKind.Utc))
                 : DateTimeOffset.UtcNow;
-            return Results.Ok(new Response(new Reel(chosenUrl, null, date), ProfileUrl));
+            string? videoSrc = null;
+            if (chosen?.PublishedMediaId is Guid mediaId)
+            {
+                var video = await db.ManagedMedia.AsNoTracking()
+                    .Where(m => m.Id == mediaId && m.Kind == "Video" && m.ObjectKey != null
+                        && (m.MimeType == "video/mp4" || m.MimeType == "video/webm"))
+                    .Select(m => new { m.Id })
+                    .FirstOrDefaultAsync(ct);
+                if (video is not null) videoSrc = $"/api/content/media/{video.Id}/file";
+            }
+            return Results.Ok(new Response(new Reel(chosenUrl, null, date, videoSrc), ProfileUrl));
         }
 
         http.Response.Headers.CacheControl = "public, max-age=120";

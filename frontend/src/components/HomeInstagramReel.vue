@@ -9,6 +9,7 @@ type LatestReel = {
   permalink: string
   thumbnailUrl: string | null
   publishedAt: string
+  videoSrc?: string | null
 }
 
 const { t } = useI18n({ useScope: 'global' })
@@ -25,6 +26,10 @@ const reelUrl = computed(() => {
   return value
 })
 const embedUrl = computed(() => reelUrl.value ? `${reelUrl.value}embed/` : null)
+const videoSrc = computed(() => {
+  const src = reel.value?.videoSrc
+  return typeof src === 'string' && /^\/api\/content\/media\/[0-9a-f-]{36}\/file$/i.test(src) ? src : null
+})
 
 async function loadLatestReel() {
   try {
@@ -71,7 +76,17 @@ onUnmounted(() => { stopSiteUpdates(); abortController.abort() })
       </div>
 
       <div class="home-instagram-section__reel" :aria-label="t('custom.home.instagram.reel')">
-        <iframe v-if="isPlaying && embedUrl" class="home-instagram-section__embed"
+        <template v-if="videoSrc && reelUrl">
+          <video class="home-instagram-section__native-video" :key="videoSrc" :src="videoSrc"
+            controls playsinline preload="metadata" :aria-label="t('custom.home.instagram.reel')">
+            {{ t('custom.home.instagram.open') }}
+          </video>
+          <a class="home-instagram-section__open home-instagram-section__open--native"
+            :href="reelUrl" target="_blank" rel="noopener noreferrer">
+            Instagram <ExternalLink :size="13" aria-hidden="true" />
+          </a>
+        </template>
+        <iframe v-else-if="isPlaying && embedUrl" class="home-instagram-section__embed"
           :src="embedUrl" :title="t('custom.home.instagram.reel')"
           loading="lazy" allow="encrypted-media; picture-in-picture"
           referrerpolicy="strict-origin-when-cross-origin"></iframe>
@@ -209,9 +224,11 @@ onUnmounted(() => { stopSiteUpdates(); abortController.abort() })
   border-radius: 12px;
   box-shadow: 0 0 0 2px rgba(255, 255, 255, .05), 0 10px 42px rgba(0, 0, 0, .35);
 }
-.home-instagram-section__reel > img, .home-instagram-section__embed {
+.home-instagram-section__reel > img, .home-instagram-section__embed, .home-instagram-section__native-video {
   width: 100%; height: 100%; display: block; object-fit: cover; border: 0;
 }
+.home-instagram-section__native-video { background: #020717; }
+.home-instagram-section__open--native { top: 9px; right: 9px; bottom: auto; z-index: 1; }
 .home-instagram-section__reel-head {
   position: absolute; top: 12px; left: 10px; right: 10px;
   display: flex; align-items: center; gap: 7px;

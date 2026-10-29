@@ -7,16 +7,18 @@ La sección de Instagram aparece **antes de las cinco tarjetas de contacto**, en
 1. Desde Instagram, copiá el enlace del Reel **público** de `@grupocastrofallas1`, en formato `https://www.instagram.com/reel/ABC123.../`. Podés pegarlo con parámetros `?igsh=...`; el servidor los elimina.
 2. Entrá con un administrador real a **Administración → Contenido → Editor visual**.
 3. Arriba del editor, buscá el campo **«Reel de Instagram del Home»**, pegá el enlace y pulsá **«Guardar y mostrar Reel»**.
-4. Abrí `/home` y tocá el botón de reproducción de la tarjeta. Instagram cargará el Reel en su propio reproductor. La tarjeta también ofrece un enlace para abrir el Reel directamente.
-5. Para cambiarlo, pegá otro enlace y guardá. Para quitar el elegido, pulsá **«Quitar Reel»**.
+4. Para reproducir **sin la interfaz de Instagram**, seleccioná o subí el MP4/WebM original de la empresa (máximo **20 MB**, requiere MinIO) antes de pulsar Guardar. Se reproducirá con el reproductor nativo a ancho y alto completos del cuadro, manteniendo el enlace al Reel original.
+5. Si no tenés el archivo original, podés guardar únicamente el enlace; se utilizará el reproductor incrustado de Instagram, cuya interfaz no se puede ocultar desde nuestra web.
+6. Para cambiarlo, pegá otro enlace (y, si corresponde, elegí otro video) y guardá. Para quitar el elegido, pulsá **«Quitar Reel»**.
 
 ### Alcance de seguridad y persistencia
 
 - La escritura es `PUT /api/admin/content/instagram-reel` y está protegida por la política `admin` (JWT vigente). No se expone a usuarios anónimos ni a cuentas en modo previsualización.
 - Solo se admiten enlaces HTTPS a `instagram.com/reel/{código}`, con validación en cliente y backend. Se eliminan fragmentos y parámetros antes de almacenar; no se admiten otros dominios ni enlaces acortados.
+- El archivo de video opcional se sube mediante el mecanismo existente de medios de MinIO/S3 con límite de 20 MB, validación de formato y autenticación de administrador. Solo se puede asignar un video almacenado en la biblioteca. La URL pública solo se sirve cuando el video está publicado en el slot CMS del Reel. No se descarga ni extrae contenido de Instagram.
 - El valor se almacena en la tabla existente `SiteCmsSlots` (`home.instagram.reel`), **sin migraciones de base de datos ni cambios en MinIO**. Guardar publica en un solo paso y envía un aviso `site` a las pestañas conectadas.
 - `GET /api/social/instagram/latest-reel` sirve el elegido, sin caché del navegador en modo manual. Si no hay elegido, conserva la opción anterior de obtener el último Reel mediante un token de Meta, si estuviera configurado.
-- No se sube ningún archivo de video al servidor. El contenido sigue alojado en Instagram. **Solo los Reels públicos que permitan inserción podrán reproducirse dentro del Home**; los demás pueden abrirse desde el enlace directo.
+- Si solo se pega un enlace, el contenido sigue alojado en Instagram. **Solo los Reels públicos que permitan inserción podrán reproducirse dentro del Home**; los demás pueden abrirse desde el enlace directo. Para un reproductor a pantalla completa sin la interfaz de Instagram se necesita una copia autorizada del archivo original en MinIO.
 - El reproductor oficial se carga bajo demanda al pulsar «Reproducir». No se realizan solicitudes de video a Instagram mientras el visitante no lo haya solicitado.
 - Al quitar el enlace manual, si tampoco hay integración automática configurada, el Home vuelve a mostrar el acceso al perfil.
 

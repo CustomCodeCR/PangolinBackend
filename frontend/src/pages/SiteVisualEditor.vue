@@ -24,10 +24,17 @@ const error = ref('')
 const storageEnabled = ref(false)
 const featuredReel = ref('')
 const publishedReel = ref('')
+const featuredReelMediaId = ref('')
+const publishedReelMediaId = ref('')
 const savingFeaturedReel = ref(false)
 const featuredReelNotice = ref('')
 const featuredReelError = ref('')
 const isLiveAdmin = computed(() => authState.user?.role === 'administrador' && !authState.previewRole)
+const featuredVideoChoices = computed(() => media.value.filter(item =>
+  item.kind === 'Video' && Boolean(item.objectKey) &&
+  (item.mimeType === 'video/mp4' || item.mimeType === 'video/webm')
+))
+const selectedFeaturedVideo = computed(() => featuredVideoChoices.value.find(item => item.id === featuredReelMediaId.value))
 const pages = [...new Map(siteSlotCatalog.map(slot => [slot.page, { id: slot.page, label: slot.pageLabel }])).values()]
 const visible = computed(() => siteSlotCatalog.filter(slot =>
   slot.page === page.value &&
@@ -85,8 +92,11 @@ async function load() {
     if (!sites.ok || !library.ok || !status.ok) throw new Error('No se pudieron cargar los datos del editor visual.')
     rows.value = await sites.json() as EditableSiteSlot[]
     // The selected Reel is published immediately and stored as a single CMS slot.
-    publishedReel.value = rows.value.find(x => x.key === 'home.instagram.reel')?.publishedEs ?? ''
+    const currentReel = rows.value.find(x => x.key === 'home.instagram.reel')
+    publishedReel.value = currentReel?.publishedEs ?? ''
+    publishedReelMediaId.value = currentReel?.publishedMediaId ?? ''
     featuredReel.value = publishedReel.value
+    featuredReelMediaId.value = publishedReelMediaId.value
     media.value = await library.json() as ManagedMedia[]
     storageEnabled.value = Boolean((await status.json() as {enabled:boolean}).enabled)
     select(selected.value)
@@ -104,17 +114,23 @@ async function saveFeaturedReel() {
     featuredReelError.value = 'Pegá un enlace de Reel válido, por ejemplo https://www.instagram.com/reel/ABC123xyz/'
     return
   }
+  if (!url && featuredReelMediaId.value) {
+    featuredReelError.value = 'Indicá el enlace original de Instagram para asociar el video.'
+    return
+  }
   savingFeaturedReel.value = true
   try {
     const response = await fetch('/api/admin/content/instagram-reel', {
       method: 'PUT', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: url || null })
+      body: JSON.stringify({ url: url || null, mediaId: featuredReelMediaId.value || null })
     })
-    const data = await response.json().catch(() => null) as { url?: string | null; error?: string } | null
+    const data = await response.json().catch(() => null) as { url?: string | null; mediaId?: string | null; error?: string } | null
     if (!response.ok) throw new Error(data?.error || 'No fue posible actualizar el Reel.')
     publishedReel.value = data?.url ?? ''
+    publishedReelMediaId.value = data?.mediaId ?? ''
     featuredReel.value = publishedReel.value
+    featuredReelMediaId.value = publishedReelMediaId.value
     featuredReelNotice.value = publishedReel.value
       ? '¡Reel guardado y publicado! Ya puedes verlo en el Home.'
       : 'Se quitó el Reel seleccionado. El Home volverá a mostrar el perfil si no hay conexión automática.'
@@ -126,7 +142,46 @@ async function saveFeaturedReel() {
 async function removeFeaturedReel() {
   if (!window.confirm('¿Quitar el Reel destacado del Home?')) return
   featuredReel.value = ''
+  featuredReelMediaId.value = ''
   await saveFeaturedReel()
+}
+
+async function uploadFeaturedReelVideo(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  featuredReelError.value = ''
+  featuredReelNotice.value = ''
+  if (!isLiveAdmin.value || !storageEnabled.value) {
+    featuredReelError.value = 'La subida requiere una cuenta administradora y MinIO activo.'
+    input.value = ''
+    return
+  }
+  if (!['video/mp4', 'video/webm'].includes(file.type) || file.size > 20 * 1024 * 1024) {
+    featuredReelError.value = 'Usá un MP4 o WebM de máximo 20 MB.'
+    input.value = ''
+    return
+  }
+  savingFeaturedReel.value = true
+  try {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('kind', 'Video')
+    form.append('name', file.name)
+    const response = await fetch('/api/admin/content/media/upload', {
+      method: 'POST', credentials: 'same-origin', body: form
+    })
+    const data = await response.json().catch(() => null) as (ManagedMedia & { error?: string }) | null
+    if (!response.ok || !data?.id) throw new Error(data?.error || 'No se pudo subir el video.')
+    media.value = [data, ...media.value.filter(item => item.id !== data.id)]
+    featuredReelMediaId.value = data.id
+    featuredReelNotice.value = 'Video subido. Pegá el enlace del Reel y pulsá «Guardar y mostrar Reel» para publicarlo.'
+  } catch (cause) {
+    featuredReelError.value = cause instanceof Error ? cause.message : 'Error al subir el video.'
+  } finally {
+    savingFeaturedReel.value = false
+    input.value = ''
+  }
 }
 
 async function saveDraft(): Promise<boolean> {
@@ -250,7 +305,7 @@ onMounted(load)
         <div>
           <p class="manager-eyebrow">INICIO · REDES SOCIALES</p>
           <h3 id="featured-reel-title">Reel de Instagram del Home</h3>
-          <p>Pegá el enlace del Reel público que querés mostrar encima de las tarjetas de contacto. No requiere conectar Meta.</p>
+          <p>Pegá el enlace del Reel público. Para que el video llene todo el cuadro sin interfaz de Instagram, añadí también el archivo original MP4 o WebM de la empresa.</p>
         </div>
         <a href="/home#instagram" target="_blank" rel="noopener noreferrer">Ver Home ↗</a>
       </header>
@@ -260,6 +315,24 @@ onMounted(load)
             :disabled="!isLiveAdmin || loading || savingFeaturedReel" maxlength="512"
             placeholder="https://www.instagram.com/reel/..." autocomplete="off" />
         </label>
+        <div class="visual-editor__featured-video-field">
+          <label for="featured-reel-video">Video original para pantalla completa (opcional)
+            <select id="featured-reel-video" v-model="featuredReelMediaId"
+              :disabled="!isLiveAdmin || loading || savingFeaturedReel">
+              <option value="">Solo enlace de Instagram (reproductor incrustado)</option>
+              <option v-for="item in featuredVideoChoices" :key="item.id" :value="item.id">{{ item.name }}</option>
+            </select>
+          </label>
+          <label v-if="storageEnabled" for="featured-reel-upload">
+            O subir un MP4/WebM de la empresa (máximo 20 MB)
+            <input id="featured-reel-upload" type="file" accept="video/mp4,video/webm"
+              :disabled="!isLiveAdmin || loading || savingFeaturedReel" @change="uploadFeaturedReelVideo" />
+          </label>
+          <p v-else class="visual-editor__hint">Para subir el MP4 original necesitás activar MinIO. También podés conservar el enlace y usar el reproductor de Instagram.</p>
+          <video v-if="selectedFeaturedVideo" class="visual-editor__featured-video-preview"
+            :key="selectedFeaturedVideo.id" :src="`/api/admin/content/media/${selectedFeaturedVideo.id}/file`"
+            controls muted playsinline preload="metadata" aria-label="Vista previa del video original" />
+        </div>
         <div class="visual-editor__featured-reel-actions">
           <button class="visual-editor__button visual-editor__publish" type="submit"
             :disabled="!isLiveAdmin || loading || savingFeaturedReel">{{ savingFeaturedReel ? 'Guardando…' : 'Guardar y mostrar Reel' }}</button>
@@ -269,10 +342,10 @@ onMounted(load)
       </form>
       <p v-if="featuredReelError" class="visual-editor__error" role="alert">{{ featuredReelError }}</p>
       <p v-if="featuredReelNotice" class="visual-editor__success" role="status">{{ featuredReelNotice }}</p>
-      <p v-if="publishedReel" class="visual-editor__featured-reel-current">Publicado: <a :href="publishedReel" target="_blank" rel="noopener noreferrer">{{ publishedReel }}</a></p>
+      <p v-if="publishedReel" class="visual-editor__featured-reel-current">Publicado: <a :href="publishedReel" target="_blank" rel="noopener noreferrer">{{ publishedReel }}</a> · {{ publishedReelMediaId ? 'Video completo (sin interfaz de Instagram)' : 'Reproductor de Instagram' }}</p>
       <p v-else class="visual-editor__featured-reel-current">Sin Reel elegido. La web mostrará el enlace al perfil de Instagram.</p>
       <p v-if="!isLiveAdmin" class="visual-editor__hint">Necesitás una sesión administradora real para modificar el Reel.</p>
-      <small class="visual-editor__hint">El Reel debe ser público y permitir la inserción desde Instagram. Si su reproducción está restringida, el visitante podrá abrirlo en Instagram.</small>
+      <small class="visual-editor__hint">Con solo el enlace, Instagram controla el reproductor y muestra su propia interfaz. Con el video original subido, se reproduce a ancho completo dentro de la tarjeta. Usá únicamente archivos que la empresa tenga derecho a publicar.</small>
     </section>
 
     <p v-if="error" role="alert" class="visual-editor__error">{{ error }}</p>
@@ -371,6 +444,11 @@ onMounted(load)
 .visual-editor__featured-reel-form label{display:grid;gap:7px;font-weight:750;font-size:13px;flex:1 1 300px;min-width:0}
 .visual-editor__featured-reel-form input{width:100%;min-width:0;padding:12px 13px;border:1px solid #bdc3ce;border-radius:10px;color:#1d2735;background:#fff;font:inherit}
 .visual-editor__featured-reel-actions{display:flex;gap:9px;flex-wrap:wrap}
+.visual-editor__featured-video-field{display:grid;gap:10px;width:100%}
+.visual-editor__featured-video-field label{display:grid;gap:7px;font-size:13px;font-weight:750}
+.visual-editor__featured-video-field :is(select,input){width:100%;max-width:620px;min-width:0;padding:10px;border-radius:9px;border:1px solid #bdc3ce;background:#fff;color:#1d2735;font:inherit}
+.visual-editor__featured-video-preview{max-width:210px;width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:12px;background:#080f22}
+html.theme-dark .visual-editor__featured-video-field :is(select,input){background:#0b1324;border-color:#667085;color:#fff}
 .visual-editor__featured-reel-current{margin:0;font-size:12px;line-height:1.55;color:#515865;overflow-wrap:anywhere}
 .visual-editor__featured-reel-current a{color:#aa1745;text-decoration:underline}
 html.theme-dark .visual-editor__featured-reel{background:#171924;border-color:#503042}
