@@ -123,6 +123,8 @@ async function compressImage(file: File, size: number, limit: number): Promise<B
       img.src = url
     })
     if (!img.naturalWidth || !img.naturalHeight) throw new Error('Imagen vacía.')
+    if (img.naturalWidth * img.naturalHeight > 28_000_000)
+      throw new Error('La imagen tiene demasiada resolución. Elegí una foto más pequeña.')
     const scale = Math.min(1, size / Math.max(img.naturalWidth, img.naturalHeight))
     const canvas = document.createElement('canvas')
     canvas.width = Math.max(1, Math.round(img.naturalWidth * scale))
@@ -506,6 +508,7 @@ onUnmounted(() => {
         <p v-if="nicknameError" class="team-chat-profile__error" role="alert">{{ nicknameError }}</p>
         <p class="team-chat-profile__hint">Dejá el campo vacío para volver al nombre de tu cuenta.</p>
       </form>
+      <p v-if="nicknameError && !nicknameEditing" class="team-chat-profile__error" role="alert">{{ nicknameError }}</p>
     </section>
     <section ref="chatPanel" class="team-chat" aria-label="Chat entre administradores">
     <header class="team-chat__head">
