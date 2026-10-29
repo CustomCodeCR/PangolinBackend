@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "dev:websocket": "node websocket-server.cjs",
     "ws:dev": "node websocket-server.cjs",
-    "seo:check": "node scripts/check-seo.cjs"
+    "seo:check": "node scripts/check-seo.cjs",
+    "test:home-loading": "node scripts/check-home-loading.cjs"
   },
   "dependencies": {
     "@lucide/vue": "^1.56.0",

@@ -18,6 +18,9 @@ const reel = ref<LatestReel | null>(null)
 const isPlaying = ref(false)
 const videoFailed = ref(false)
 const loaded = ref(false)
+const reelSection = ref<HTMLElement | null>(null)
+let reelObserver: IntersectionObserver | undefined
+let reelRequested = false
 const abortController = new AbortController()
 
 // Only trust a Reel URL from the company's own server. Never embed arbitrary URLs.
@@ -62,17 +65,37 @@ async function loadLatestReel() {
 }
 
 const stopSiteUpdates = subscribeToChanges('site', () => {
+  // Do not start a background request before the visitor approaches Instagram.
+  if (!reelRequested) return
   // When an admin publishes a different Reel, return to the preview and refresh.
   isPlaying.value = false
   videoFailed.value = false
   void loadLatestReel()
 })
-onMounted(() => { void loadLatestReel() })
-onUnmounted(() => { stopSiteUpdates(); abortController.abort() })
+function requestReel() {
+  if (reelRequested) return
+  reelRequested = true
+  void loadLatestReel()
+}
+
+onMounted(() => {
+  // Preserve the section's layout, but postpone its network request until near view.
+  if (typeof IntersectionObserver === 'undefined' || !reelSection.value) {
+    requestReel()
+    return
+  }
+  reelObserver = new IntersectionObserver(entries => {
+    if (!entries.some(entry => entry.isIntersecting)) return
+    reelObserver?.disconnect()
+    requestReel()
+  }, { rootMargin: '500px 0px' })
+  reelObserver.observe(reelSection.value)
+})
+onUnmounted(() => { reelObserver?.disconnect(); stopSiteUpdates(); abortController.abort() })
 </script>
 
 <template>
-  <section id="instagram" class="home-instagram-section" :aria-label="t('custom.home.instagram.aria')">
+  <section id="instagram" ref="reelSection" class="home-instagram-section" :aria-label="t('custom.home.instagram.aria')">
     <div class="container home-instagram-section__inner">
       <div class="home-instagram-section__copy">
         <div class="home-instagram-section__heading">

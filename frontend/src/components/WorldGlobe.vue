@@ -3,7 +3,7 @@ import IconSymbol from './IconSymbol.vue'
 import type { TrackingDemoShipment, TrackingPoint } from '../types/tracking'
 import { computed, nextTick, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { createGlobe, type Marker, type ClusterMarker } from '../lib/castroGlobe'
+import type { CastroGlobe, Marker, ClusterMarker } from '../lib/castroGlobe'
 
 type TrackingRouteShape = Pick<TrackingDemoShipment, 'origin' | 'destination'> & Partial<Pick<TrackingDemoShipment, 'progressPercent'>>
 const props = defineProps<{ shipment?: TrackingRouteShape | null; initialZoom?: number }>()
@@ -110,10 +110,11 @@ const costaRicaCenter = { lat: 9.9417, lon: -84.0583 }
 
 
 
-let globe: ReturnType<typeof createGlobe> | undefined
+let globe: CastroGlobe | undefined
 let observer: IntersectionObserver | undefined
 let themeObserver: MutationObserver | undefined
 let started = false
+let disposed = false
 let popupFollowFrame = 0
 let zoomFrame = 0
 
@@ -238,11 +239,16 @@ function selectWarehouse(marker: Marker | ClusterMarker,point: {x:number;y:numbe
   }
 }
 
-function start() {
-  if (started || !canvas.value) return
+async function start() {
+  if (started || !canvas.value || disposed) return
   started = true
 
   try {
+    // Import the renderer and world-atlas data only when the globe approaches view.
+    // The observer already controls when start() runs; keeping this import here
+    // prevents these heavy dependencies from joining the initial Home bundle.
+    const { createGlobe } = await import('../lib/castroGlobe')
+    if (disposed || !canvas.value) return
     globe = createGlobe(canvas.value, {
       mode: 'globe',
       // /tracking should begin at the full-world reset view, not a close-up.
@@ -306,7 +312,7 @@ function start() {
       arcs: demoArcs(),
     })
   } catch (e) {
-    error.value =
+    if (!disposed) error.value =
       e instanceof Error ? e.message : 'Error al iniciar el mapa.'
   }
 }
@@ -355,6 +361,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  disposed = true
   locationMedia?.removeEventListener('change', syncLocationLayout)
   window.removeEventListener('keydown', onLocationKeydown)
   observer?.disconnect()
