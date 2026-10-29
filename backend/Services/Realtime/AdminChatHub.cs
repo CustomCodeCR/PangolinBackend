@@ -12,6 +12,7 @@ public sealed class AdminChatHub : Hub
 {
     public const string Path = "/api/hubs/admin-chat";
     private static readonly ConcurrentQueue<ChatMessage> History = new();
+    private static readonly SemaphoreSlim ChatMutations = new(1, 1);
     private static readonly ConcurrentDictionary<string, DateTimeOffset> LastMessage = new();
     private static readonly ConcurrentDictionary<string, byte> Online = new();
     // Estado efímero por cuenta, nunca aceptamos la identidad del cliente.
