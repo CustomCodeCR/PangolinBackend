@@ -6,6 +6,7 @@ import { authState } from '../services/auth'
 interface ChatReply { id: string; name: string; text: string }
 interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null }
 interface ReadReceipt { userId: string; name: string; lastReadAt: string }
+interface TypingStatus { connectionId: string; userId: string; name: string; isTyping: boolean; expiresAt: string; updatedAt: string }
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ (event: 'unread-change', count: number): void }>()
@@ -19,6 +20,12 @@ const nicknameSaving = ref(false)
 const nicknameError = ref('')
 const chatNames = ref<Record<string, string>>({})
 const expandedSeenId = ref<string | null>(null)
+const remoteTyping = ref<Record<string, TypingStatus>>({})
+const typingClock = ref(Date.now())
+let typingSweepTimer: ReturnType<typeof setInterval> | null = null
+let typingIdleTimer: ReturnType<typeof setTimeout> | null = null
+let typingActive = false
+let typingLastSignalAt = 0
 const replyTarget = ref<ChatMessage | null>(null)
 const input = ref<HTMLInputElement | null>(null)
 const highlightedId = ref<string | null>(null)
@@ -38,6 +45,58 @@ const currentUserId = computed(() => String(authState.user?.id ?? '').toLowerCas
 const currentEmail = computed(() => (authState.user?.correo ?? '').toLowerCase())
 const storageKey = computed(() => 'castrofallas-admin-chat-read:' + (currentUserId.value || currentEmail.value))
 const nicknameStorageKey = computed(() => 'castrofallas-admin-chat-nickname:' + (currentUserId.value || currentEmail.value))
+const typingNames = computed(() => {
+  const names = new Map<string, string>()
+  for (const state of Object.values(remoteTyping.value)) {
+    const userId = state.userId.toLowerCase()
+    if (!state.isTyping || userId === currentUserId.value || Date.parse(state.expiresAt) <= typingClock.value) continue
+    if (!names.has(userId)) names.set(userId, chatNames.value[userId] || state.name)
+  }
+  return Array.from(names.values())
+})
+const typingLabel = computed(() => {
+  const names = typingNames.value
+  if (names.length === 1) return names[0] + ' está escribiendo'
+  if (names.length === 2) return names[0] + ' y ' + names[1] + ' están escribiendo'
+  return names[0] + ' y ' + (names.length - 1) + ' más están escribiendo'
+})
+function applyTypingState(state: TypingStatus) {
+  if (!state?.connectionId || !state.userId || state.userId.toLowerCase() === currentUserId.value) return
+  const next = { ...remoteTyping.value }
+  if (!state.isTyping || !Number.isFinite(Date.parse(state.expiresAt)) ||
+      Date.parse(state.expiresAt) <= Date.now()) {
+    delete next[state.connectionId]
+  } else {
+    next[state.connectionId] = state
+  }
+  remoteTyping.value = next
+  typingClock.value = Date.now()
+}
+function canSendTyping() {
+  return props.visible && document.visibilityState === 'visible' &&
+    connection?.state === signalR.HubConnectionState.Connected
+}
+function stopTyping() {
+  if (typingIdleTimer) { clearTimeout(typingIdleTimer); typingIdleTimer = null }
+  if (!typingActive) return
+  typingActive = false
+  typingLastSignalAt = 0
+  if (connection?.state === signalR.HubConnectionState.Connected) {
+    void connection.invoke('SetTyping', false).catch(() => {})
+  }
+}
+function onDraftInput() {
+  if (!canSendTyping() || !draft.value.trim()) { stopTyping(); return }
+  const now = Date.now()
+  if (!typingActive || now - typingLastSignalAt >= 1500) {
+    typingActive = true
+    typingLastSignalAt = now
+    // Solo enviamos el estado, nunca el texto de lo que se está escribiendo.
+    void connection!.invoke('SetTyping', true).catch(() => { typingActive = false })
+  }
+  if (typingIdleTimer) clearTimeout(typingIdleTimer)
+  typingIdleTimer = setTimeout(stopTyping, 1900)
+}
 function savedNickname() {
   try { return localStorage.getItem(nicknameStorageKey.value) } catch { return null }
 }
@@ -171,6 +230,7 @@ async function send() {
   if (!text || text.length > 500 || sending.value || connection?.state !== signalR.HubConnectionState.Connected) return
   sending.value = true
   error.value = ''
+  stopTyping()
   const target = replyTarget.value
   try {
     if (target) await connection.invoke('ReplyToMessage', text, target.id)
@@ -205,15 +265,26 @@ async function startChat() {
   }
 }
 function onVisibility() {
+  if (!canSendTyping()) stopTyping()
   if (canMarkRead()) { scrollBottom(); markVisibleRead() }
 }
-watch(() => props.visible, showing => { if (showing) onVisibility() })
+watch(() => props.visible, showing => { if (showing) onVisibility(); else stopTyping() })
 onMounted(() => {
   if (authState.user?.role !== 'administrador' || authState.previewRole) {
     status.value = 'Requiere una sesión administradora real.'
     return
   }
   initializeLastRead()
+  typingSweepTimer = setInterval(() => {
+    const now = Date.now()
+    typingClock.value = now
+    for (const state of Object.values(remoteTyping.value)) {
+      if (Date.parse(state.expiresAt) > now) continue
+      const next = { ...remoteTyping.value }
+      delete next[state.connectionId]
+      remoteTyping.value = next
+    }
+  }, 850)
   void nextTick(() => chatPanel.value?.addEventListener('wheel', trapChatWheel, { passive: false }))
   window.addEventListener('focus', onVisibility)
   document.addEventListener('visibilitychange', onVisibility)
@@ -243,16 +314,33 @@ onMounted(() => {
     if (canMarkRead()) { scrollBottom(); markVisibleRead() }
   })
   hub.on('Message', (message: ChatMessage) => { if (active) receivedMessage(message) })
+  hub.on('TypingSnapshot', (states: TypingStatus[]) => {
+    if (!active) return
+    remoteTyping.value = {}
+    for (const state of states ?? []) applyTypingState(state)
+  })
+  hub.on('TypingChanged', (state: TypingStatus) => { if (active) applyTypingState(state) })
   hub.on('Seen', (receipt: ReadReceipt) => { if (active) receivedReceipt(receipt) })
   hub.on('Presence', (count: number) => { if (active) online.value = count })
-  hub.onreconnecting(() => { status.value = 'Reconectando…' })
+  hub.onreconnecting(() => {
+    status.value = 'Reconectando…'
+    stopTyping()
+    remoteTyping.value = {}
+  })
   hub.onreconnected(() => { status.value = 'En línea'; markVisibleRead() })
-  hub.onclose(() => { status.value = 'Desconectado'; scheduleRetry() })
+  hub.onclose(() => {
+    status.value = 'Desconectado'
+    stopTyping()
+    remoteTyping.value = {}
+    scheduleRetry()
+  })
   void startChat()
 })
 onUnmounted(() => {
   active = false
   emit('unread-change', 0)
+  stopTyping()
+  if (typingSweepTimer) clearInterval(typingSweepTimer)
   if (retryTimer) clearTimeout(retryTimer)
   if (highlightTimer) clearTimeout(highlightTimer)
   chatPanel.value?.removeEventListener('wheel', trapChatWheel)
