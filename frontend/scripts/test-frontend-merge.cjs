@@ -259,7 +259,20 @@ assert.doesNotMatch(tracking, /\/api\/tracking\/demo\?/, 'La interfaz pública y
 assert.match(tracking, /<label for="tracking-reference-kind">/, 'Tipo de referencia debe tener una etiqueta separada del select')
 assert.match(tracking, /import FieldDropdown from '\.\.\/components\/FieldDropdown\.vue'/, 'Buscar embarque reutiliza el mismo componente de selección que Administración')
 assert.match(tracking, /id="tracking-reference-kind"[\s\S]*?v-model="kind"[\s\S]*?:aria-label="copy\.type"/, 'Tipo de referencia mantiene etiqueta y selección accesibles')
-assert.match(tracking, /types\.map\(item => \(\{ value: item\.id, label: item\.name \}\)\)/, 'Las cinco referencias mantienen sus valores originales')
+assert.match(tracking, /types\.map\(item => \(\{ value: item\.id, label: item\.name \}\)\)/, 'El selector conserva los identificadores al generar opciones')
+const referenceOptions = tracking.split('const types = computed(() => en.value ? [')[1]?.split('])\nconst help')[0]
+assert.ok(referenceOptions, 'El selector bilingüe de rastreo está disponible')
+const [englishOptions, spanishOptions] = referenceOptions.split('] : [')
+for (const [language, options] of [['en', englishOptions], ['es', spanishOptions]]) {
+  assert.deepEqual(
+    [...options.matchAll(/\{ id: '([^']+)'/g)].map(match => match[1]),
+    ['BL', 'IDTRA', 'CONTAINER', 'PO'],
+    'BL/HBL unificados, con IDTRA, contenedor y PO conservados: ' + language
+  )
+}
+assert.match(tracking, /name: 'BL-HBL number \(BCF\)'/, 'Etiqueta de BL/HBL unificados en inglés')
+assert.match(tracking, /name: 'Número BL-HBL \(BCF\)'/, 'Etiqueta de BL/HBL unificados en español')
+assert.match(tracking, /body: JSON\.stringify\(\{ type: kind\.value, reference: code \}\)/, 'El selector unificado conserva el contrato de la consulta Dynamics')
 assert.doesNotMatch(tracking, /tracking-reference-select|tracking-reference-options|referenceMenuOpen/, 'No duplicar componentes de dropdown con estilos propios')
 assert.match(tracking, /\.tracking-fields :deep\(\.cf-dropdown__trigger\)\{min-height:54px;padding:13px 15px;font-size:16px\}/, 'Tipo de referencia conserva tamaño táctil y estilo del componente hijo en móvil')
 assert.match(fieldDropdown, /html\.theme-dark \.cf-dropdown__menu\s*\{\s*background:#19191c; color:#fff;/, 'Menú de referencia respeta el modo oscuro compartido')
