@@ -18,6 +18,10 @@ public sealed class AdminChatHub : Hub
     private static readonly ConcurrentDictionary<Guid, ReadReceipt> Seen = new();
     // Solo es una etiqueta de presentación para este chat, no cambia identidad ni permisos.
     private static readonly ConcurrentDictionary<Guid, string> Nicknames = new();
+    private static readonly ConcurrentDictionary<Guid, Guid> Avatars = new();
+    private readonly AdminChatMediaStore _images;
+
+    public AdminChatHub(AdminChatMediaStore images) => _images = images;
     // Presencia temporal por conexión: nunca se transmite el contenido del borrador.
     private static readonly ConcurrentDictionary<string, TypingStatus> Typing = new();
     private static readonly TimeSpan TypingLifetime = TimeSpan.FromSeconds(5);
@@ -46,6 +50,9 @@ public sealed class AdminChatHub : Hub
         Online.TryAdd(Context.ConnectionId, 0);
         Nicknames.TryGetValue(identity.UsuarioId, out var nickname);
         await Clients.Caller.SendAsync("ChatProfile", new { displayName = nickname ?? identity.NombreCliente, customName = nickname });
+        await Clients.Caller.SendAsync("AvatarSnapshot", Avatars
+            .Where(entry => _images.Find(entry.Value) is not null)
+            .Select(entry => new { userId = entry.Key, url = AdminChatMediaStore.Url(entry.Value) }).ToArray());
         await Clients.Caller.SendAsync("History", History.ToArray(), Seen.Values.ToArray());
         await Clients.Caller.SendAsync("TypingSnapshot", Typing.Values
             .Where(x => x.ConnectionId != Context.ConnectionId && x.ExpiresAt > DateTimeOffset.UtcNow)
@@ -74,6 +81,26 @@ public sealed class AdminChatHub : Hub
         // Una actualización del nombre no da acceso a cuentas ajenas.
         await Clients.All.SendAsync("NicknameChanged", identity.UsuarioId, display);
         return display;
+    }
+
+    public async Task SetAvatarImage(string? imageId)
+    {
+        var identity = Context.GetHttpContext()?.Items["auth.identity"] as AuthIdentity;
+        if (identity is null || identity.Role != "admin") throw new HubException("Sin autorización.");
+        string? url = null;
+        if (!string.IsNullOrWhiteSpace(imageId))
+        {
+            if (!Guid.TryParse(imageId, out var id) ||
+                !_images.IsOwned(id, identity.UsuarioId, avatar: true))
+                throw new HubException("La foto no pertenece a tu cuenta.");
+            Avatars[identity.UsuarioId] = id;
+            url = AdminChatMediaStore.Url(id);
+        }
+        else
+        {
+            Avatars.TryRemove(identity.UsuarioId, out _);
+        }
+        await Clients.All.SendAsync("AvatarChanged", identity.UsuarioId, url);
     }
 
     private static string DisplayName(AuthIdentity identity) =>
@@ -112,18 +139,30 @@ public sealed class AdminChatHub : Hub
     }
 
     // Se conserva el método original para navegadores que aún tienen el frontend anterior.
-    public Task SendMessage(string? body) => SendCore(body, null);
+    public Task SendMessage(string? body) => SendCore(body, null, null);
 
     // La referencia viaja como ID: autor y texto se obtienen exclusivamente del servidor.
-    public Task ReplyToMessage(string? body, string? replyToId) => SendCore(body, replyToId);
+    public Task ReplyToMessage(string? body, string? replyToId) => SendCore(body, replyToId, null);
 
-    private async Task SendCore(string? body, string? replyToId)
+    public Task SendImage(string? imageId, string? caption, string? replyToId) =>
+        SendCore(caption, replyToId, imageId);
+
+    private async Task SendCore(string? body, string? replyToId, string? imageId)
     {
         var identity = Context.GetHttpContext()?.Items["auth.identity"] as AuthIdentity;
         if (identity is null || identity.Role != "admin") throw new HubException("Sin autorización.");
         var text = body?.Trim();
-        if (string.IsNullOrEmpty(text) || text.Length > 500)
-            throw new HubException("El mensaje debe tener entre 1 y 500 caracteres.");
+        if (text is null || text.Length > 500 || (text.Length == 0 && imageId is null))
+            throw new HubException("Enviá texto o una imagen (máximo 500 caracteres).");
+
+        string? imageUrl = null;
+        if (imageId is not null)
+        {
+            if (!Guid.TryParse(imageId, out var id) ||
+                !_images.IsOwned(id, identity.UsuarioId, avatar: false))
+                throw new HubException("La imagen no pertenece a tu cuenta.");
+            imageUrl = AdminChatMediaStore.Url(id);
+        }
 
         ChatReply? reply = null;
         if (replyToId is not null)
@@ -133,7 +172,8 @@ public sealed class AdminChatHub : Hub
             var original = History.FirstOrDefault(item => item.Id == originalId);
             if (original is null)
                 throw new HubException("El mensaje original ya no está en el historial temporal.");
-            var excerpt = original.Text.Length > 140 ? original.Text[..140].TrimEnd() + "…" : original.Text;
+            var replyText = string.IsNullOrWhiteSpace(original.Text) ? "📷 Imagen" : original.Text;
+            var excerpt = replyText.Length > 140 ? replyText[..140].TrimEnd() + "…" : replyText;
             reply = new ChatReply(original.Id, original.Name, excerpt);
         }
 
@@ -146,7 +186,7 @@ public sealed class AdminChatHub : Hub
         await ClearTypingAsync();
         var message = new ChatMessage(
             Guid.NewGuid(), identity.UsuarioId, DisplayName(identity),
-            identity.Correo, text, now, reply);
+            identity.Correo, text, now, reply, imageUrl);
         History.Enqueue(message);
         while (History.Count > Limit) History.TryDequeue(out _);
         await Clients.All.SendAsync("Message", message);
@@ -187,7 +227,7 @@ public sealed class AdminChatHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    public sealed record ChatMessage(Guid Id, Guid UserId, string Name, string Email, string Text, DateTimeOffset SentAt, ChatReply? ReplyTo);
+    public sealed record ChatMessage(Guid Id, Guid UserId, string Name, string Email, string Text, DateTimeOffset SentAt, ChatReply? ReplyTo, string? ImageUrl);
     public sealed record ChatReply(Guid Id, string Name, string Text);
     public sealed record ReadReceipt(Guid UserId, string Name, DateTimeOffset LastReadAt);
     public sealed record TypingStatus(
