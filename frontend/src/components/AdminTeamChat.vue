@@ -497,7 +497,7 @@ onUnmounted(() => {
           <span aria-hidden="true">✎</span> {{ nickname ? 'Cambiar apodo' : 'Elegir apodo' }}
         </button>
       </div>
-      <form v-else class="team-chat-profile__form" @submit.prevent="saveNickname">
+      <form v-if="nicknameEditing" class="team-chat-profile__form" @submit.prevent="saveNickname">
         <label class="sr-only" for="team-chat-nickname">Tu nombre para el chat</label>
         <input id="team-chat-nickname" v-model="nicknameInput" maxlength="32" autocomplete="nickname"
           placeholder="Tu nombre para el chat (2 a 32 caracteres)" :disabled="nicknameSaving" />
