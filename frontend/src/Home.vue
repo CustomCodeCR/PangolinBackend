@@ -223,13 +223,13 @@ onUnmounted(() => {
               @focusin="pauseNews"
             >
               <div class="home-news-sidebar__track">
-                <div v-for="copy in (homeNews.length > 1 ? 2 : 1)" :key="copy" class="home-news-sidebar__group" :aria-hidden="copy === 2">
+                <div v-for="copy in (homeNews.length > 1 ? 4 : 1)" :key="copy" class="home-news-sidebar__group" :aria-hidden="copy > 1">
                   <a
                     v-for="item in homeNews"
                     :key="`${copy}-${item.id}`"
                     class="home-hero-news__card"
                     :href="'/noticias?article=' + encodeURIComponent(item.id)"
-                    :tabindex="copy === 2 ? -1 : 0"
+                    :tabindex="copy > 1 ? -1 : 0"
                     :aria-label="`${$t('custom.home.newsAria')}: ${item.title}`"
                   >
                     <img :src="item.image" :alt="item.title" loading="lazy" />
