@@ -207,9 +207,18 @@ public sealed class AdminChatHub : Hub
         var message = new ChatMessage(
             Guid.NewGuid(), identity.UsuarioId, DisplayName(identity),
             identity.Correo, text, now, reply, imageUrl);
-        History.Enqueue(message);
-        while (History.Count > Limit) History.TryDequeue(out _);
-        await Clients.All.SendAsync("Message", message);
+        await ChatMutations.WaitAsync();
+        try
+        {
+            if (imageId is not null &&
+                (!Guid.TryParse(imageId, out var originalImageId) ||
+                 !_images.IsOwned(originalImageId, identity.UsuarioId, avatar: false)))
+                throw new HubException("La imagen ya no está disponible. Adjuntala nuevamente.");
+            History.Enqueue(message);
+            while (History.Count > Limit) History.TryDequeue(out _);
+            await Clients.All.SendAsync("Message", message);
+        }
+        finally { ChatMutations.Release(); }
     }
 
     // La marca de lectura solo avanza hasta un mensaje real del historial del servidor.
