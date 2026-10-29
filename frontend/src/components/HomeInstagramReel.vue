@@ -16,6 +16,7 @@ const { t } = useI18n({ useScope: 'global' })
 const profileUrl = 'https://www.instagram.com/grupocastrofallas1/'
 const reel = ref<LatestReel | null>(null)
 const isPlaying = ref(false)
+const videoFailed = ref(false)
 const loaded = ref(false)
 const abortController = new AbortController()
 
@@ -28,7 +29,19 @@ const reelUrl = computed(() => {
 const embedUrl = computed(() => reelUrl.value ? `${reelUrl.value}embed/` : null)
 const videoSrc = computed(() => {
   const src = reel.value?.videoSrc
-  return typeof src === 'string' && /^\/api\/content\/media\/[0-9a-f-]{36}\/file$/i.test(src) ? src : null
+  if (videoFailed.value || typeof src !== 'string') return null
+  if (/^\/api\/content\/media\/[0-9a-f-]{36}\/file$/i.test(src)) return src
+  // Meta returns signed HTTPS URLs on a small set of video CDN domains.
+  // No Instagram access tokens are ever included in the DOM.
+  try {
+    const url = new URL(src)
+    const host = url.hostname.toLowerCase()
+    if (url.protocol !== 'https:' || url.port || url.username || url.password) return null
+    if (host === 'fbcdn.net' || host.endsWith('.fbcdn.net') ||
+        host === 'cdninstagram.com' || host.endsWith('.cdninstagram.com'))
+      return url.href
+  } catch { /* Invalid or untrusted URL. */ }
+  return null
 })
 
 async function loadLatestReel() {
@@ -39,6 +52,7 @@ async function loadLatestReel() {
     })
     if (!response.ok) return
     const payload = await response.json() as { reel?: LatestReel | null }
+    videoFailed.value = false
     reel.value = payload.reel ?? null
   } catch {
     // The home page must remain usable when Meta is unavailable or not configured.
@@ -50,6 +64,7 @@ async function loadLatestReel() {
 const stopSiteUpdates = subscribeToChanges('site', () => {
   // When an admin publishes a different Reel, return to the preview and refresh.
   isPlaying.value = false
+  videoFailed.value = false
   void loadLatestReel()
 })
 onMounted(() => { void loadLatestReel() })
@@ -78,7 +93,8 @@ onUnmounted(() => { stopSiteUpdates(); abortController.abort() })
       <div class="home-instagram-section__reel" :aria-label="t('custom.home.instagram.reel')">
         <template v-if="videoSrc && reelUrl">
           <video class="home-instagram-section__native-video" :key="videoSrc" :src="videoSrc"
-            controls playsinline preload="metadata" :aria-label="t('custom.home.instagram.reel')">
+            controls playsinline preload="metadata" :aria-label="t('custom.home.instagram.reel')"
+            @error="videoFailed = true">
             {{ t('custom.home.instagram.open') }}
           </video>
           <a class="home-instagram-section__open home-instagram-section__open--native"
