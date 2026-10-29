@@ -5,12 +5,16 @@ on:
     branches: [main-3]
     paths:
       - "backend/Services/Realtime/AdminChatHub.cs"
+      - "backend/Services/Realtime/AdminChatMedia.cs"
+      - "backend/Program.cs"
       - "frontend/src/components/AdminTeamChat.vue"
       - ".github/workflows/admin-chat-main2-check.yml"
   pull_request:
     branches: [main-2]
     paths:
       - "backend/Services/Realtime/AdminChatHub.cs"
+      - "backend/Services/Realtime/AdminChatMedia.cs"
+      - "backend/Program.cs"
       - "frontend/src/components/AdminTeamChat.vue"
       - "frontend/src/pages/ContentManager.vue"
       - ".github/workflows/admin-chat-main2-check.yml"
@@ -44,6 +48,8 @@ jobs:
           node <<'NODE'
           const fs = require('node:fs')
           const hub = fs.readFileSync('backend/Services/Realtime/AdminChatHub.cs', 'utf8')
+          const media = fs.readFileSync('backend/Services/Realtime/AdminChatMedia.cs', 'utf8')
+          const program = fs.readFileSync('backend/Program.cs', 'utf8')
           const chat = fs.readFileSync('frontend/src/components/AdminTeamChat.vue', 'utf8')
           const manager = fs.readFileSync('frontend/src/pages/ContentManager.vue', 'utf8')
           function check(value, label) { if (!value) throw new Error(label) }
@@ -59,6 +65,15 @@ jobs:
           check(chat.includes('onDraftInput') && chat.includes("hub.on('TypingChanged'"), 'Client typing lifecycle missing')
           check(chat.includes('typingSweepTimer') && chat.includes('typingIdleTimer'), 'Typing stale or idle cleanup missing')
           check(chat.includes('team-chat__typing-dots') && chat.includes('prefers-reduced-motion'), 'Accessible typing animation missing')
+          check(program.includes('AddSingleton<AdminChatMediaStore>()') && program.includes('MapAdminChatMedia()'), 'Private upload routing missing')
+          check(media.includes('RequireAuthorization("admin")') && media.includes('X-Chat-Media'), 'Upload auth and same-origin guard missing')
+          check(media.includes('MaxTotalBytes') && media.includes('MaxMessageBytes'), 'Memory caps missing')
+          check(media.includes('image/jpeg') && media.includes('0xff') && !media.includes('image/svg+xml'), 'Image signature validation missing')
+          check(hub.includes('SetAvatarImage') && hub.includes('IsOwned') && hub.includes('AvatarSnapshot'), 'Avatar ownership or replay missing')
+          check(hub.includes('SendImage') && hub.includes('ImageUrl'), 'Image messages missing')
+          check(chat.includes('uploadImage(') && chat.includes('compressImage('), 'Compressed image client missing')
+          check(chat.includes('team-chat__avatar--message') && chat.includes('team-chat__shared-image'), 'Image/avatar display missing')
+          check(chat.includes('html.theme-dark .administration-page .team-chat .team-chat__media-preview'), 'Dark-mode image preview missing')
           check(chat.includes('overscroll-behavior: contain'), 'Touch scroll containment missing')
           check(chat.includes('team-chat__reply-action') && chat.includes('team-chat__seen-button'), 'Message actions missing')
           check(chat.includes('team-chat-profile__form'), 'Nickname editor missing')
