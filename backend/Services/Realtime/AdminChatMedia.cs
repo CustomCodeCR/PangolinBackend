@@ -54,7 +54,7 @@ public static class AdminChatMediaEndpoints
     {
         var group = app.MapGroup("/api/admin/chat/images").RequireAuthorization("admin");
 
-        group.MapPost("/", async (
+        group.MapPost("", async (
             HttpContext http, AdminChatMediaStore store, CancellationToken ct) =>
         {
             if (http.Items["auth.identity"] is not AuthIdentity identity || identity.Role != "admin")
@@ -104,7 +104,7 @@ public static class AdminChatMediaEndpoints
             http.Response.Headers["X-Content-Type-Options"] = "nosniff";
             var image = store.Find(id);
             return image is null
-                ? Results.NotFound()
+                ? (IResult)Results.NotFound()
                 : Results.File(image.Bytes, "image/jpeg", enableRangeProcessing: false);
         });
     }
