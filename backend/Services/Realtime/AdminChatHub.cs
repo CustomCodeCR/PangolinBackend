@@ -13,6 +13,8 @@ public sealed class AdminChatHub : Hub
     private static readonly ConcurrentQueue<ChatMessage> History = new();
     private static readonly ConcurrentDictionary<string, DateTimeOffset> LastMessage = new();
     private static readonly ConcurrentDictionary<string, byte> Online = new();
+    // Estado efímero por cuenta, nunca aceptamos la identidad del cliente.
+    private static readonly ConcurrentDictionary<Guid, ReadReceipt> Seen = new();
     private const int Limit = 60;
 
     public override async Task OnConnectedAsync()
@@ -36,7 +38,7 @@ public sealed class AdminChatHub : Hub
             return;
         }
         Online.TryAdd(Context.ConnectionId, 0);
-        await Clients.Caller.SendAsync("History", History.ToArray());
+        await Clients.Caller.SendAsync("History", History.ToArray(), Seen.Values.ToArray());
         await Clients.All.SendAsync("Presence", Online.Count);
         await base.OnConnectedAsync();
     }
@@ -58,6 +60,32 @@ public sealed class AdminChatHub : Hub
         await Clients.All.SendAsync("Message", message);
     }
 
+    // La marca de lectura solo avanza hasta un mensaje real del historial del servidor.
+    // No significa "entregado": el navegador debe tener visible la conversación.
+    public async Task MarkSeen(string? messageId)
+    {
+        var identity = Context.GetHttpContext()?.Items["auth.identity"] as AuthIdentity;
+        if (identity is null || identity.Role != "admin") throw new HubException("Sin autorización.");
+        if (!Guid.TryParse(messageId, out var id)) throw new HubException("Mensaje inválido.");
+        var message = History.FirstOrDefault(item => item.Id == id);
+        if (message is null) return;
+
+        var receipt = new ReadReceipt(identity.UsuarioId, identity.NombreCliente, message.SentAt);
+        while (true)
+        {
+            if (!Seen.TryGetValue(identity.UsuarioId, out var prior))
+            {
+                if (Seen.TryAdd(identity.UsuarioId, receipt)) break;
+            }
+            else
+            {
+                if (prior.LastReadAt >= receipt.LastReadAt) return;
+                if (Seen.TryUpdate(identity.UsuarioId, receipt, prior)) break;
+            }
+        }
+        await Clients.All.SendAsync("Seen", receipt);
+    }
+
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         Online.TryRemove(Context.ConnectionId, out _);
@@ -67,4 +95,5 @@ public sealed class AdminChatHub : Hub
     }
 
     public sealed record ChatMessage(Guid Id, Guid UserId, string Name, string Email, string Text, DateTimeOffset SentAt);
+    public sealed record ReadReceipt(Guid UserId, string Name, DateTimeOffset LastReadAt);
 }
