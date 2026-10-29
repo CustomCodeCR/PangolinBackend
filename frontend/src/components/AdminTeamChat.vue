@@ -998,4 +998,90 @@ onUnmounted(() => {
 @media (prefers-reduced-motion: reduce) {
   .team-chat__typing-dots i { animation: none; opacity: 1; }
 }
+
+/* Fotos circulares y tarjetas de imagen, visibles en ambas variantes del panel. */
+.team-chat-profile__identity {
+  flex: 1 1 250px; min-width: 0; display: flex; align-items: center; gap: 13px;
+}
+.team-chat-profile__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.team-chat-profile__actions .team-chat-profile__remove {
+  color: var(--manager-muted, #687080);
+}
+.team-chat__avatar {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 30px; height: 30px; overflow: hidden; border-radius: 50%;
+  border: 1px solid var(--chat-line, #ded9dc);
+  background: color-mix(in srgb, var(--chat-accent, #b20c2a) 12%, var(--chat-bg, #fff));
+  color: var(--chat-accent, #b20c2a);
+  font-size: 10px; font-weight: 800; line-height: 1;
+  user-select: none;
+}
+.team-chat__avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.team-chat__avatar--profile {
+  width: 48px; height: 48px; font-size: 15px;
+  --chat-bg: var(--manager-card, #fff);
+  --chat-line: var(--manager-line, #ded9dc);
+  --chat-accent: var(--manager-accent, #b20c2a);
+}
+.team-chat__avatar--message { width: 29px; height: 29px; }
+.team-chat__image-link {
+  display: block; width: fit-content; max-width: 100%;
+  margin-top: 8px; overflow: hidden; border-radius: 10px;
+  border: 1px solid rgba(138, 138, 155, .24);
+  background: var(--chat-soft); line-height: 0;
+}
+.team-chat__shared-image {
+  display: block; width: auto; max-width: min(100%, 300px);
+  max-height: 300px; height: auto; object-fit: contain;
+}
+.team-chat__image-link:focus-visible { outline: 2px solid var(--chat-accent); outline-offset: 3px; }
+.team-chat__media-preview {
+  display: flex; gap: 11px; align-items: center;
+  padding: 9px 11px; margin: 0 0 9px;
+  border: 1px solid var(--chat-line); border-radius: 12px;
+  background: var(--chat-soft); color: var(--chat-muted); font-size: 12px;
+}
+.team-chat__media-preview img {
+  width: 56px; height: 50px; object-fit: cover; border-radius: 9px;
+}
+.team-chat__media-preview span { min-width: 0; flex: 1; }
+.team-chat__media-preview button {
+  flex: 0 0 auto; width: 31px; height: 31px; padding: 0;
+  border: 1px solid var(--chat-line); border-radius: 8px;
+  background: transparent; color: var(--chat-text); cursor: pointer;
+}
+.team-chat__composer .team-chat__attach {
+  flex: 0 0 auto; padding: 0; width: 39px; height: 39px;
+  display: grid; place-items: center;
+  border-radius: 9px; background: transparent;
+  border: 1px solid var(--chat-line); color: var(--chat-accent);
+  font-size: 21px;
+}
+.team-chat__composer .team-chat__attach:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--chat-accent) 12%, transparent);
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__media-preview) {
+  background: #18151b !important; color: #eee4eb !important;
+  border-color: #514450 !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__media-preview button),
+:global(html.theme-dark .administration-page .team-chat .team-chat__composer .team-chat__attach) {
+  background: transparent !important; border-color: #514450 !important; color: #fff !important;
+}
+:global(html.theme-dark .administration-page .team-chat-profile__identity .team-chat__avatar) {
+  background: #352b35; color: #fff; border-color: #6b5362;
+}
+:global(html.theme-dark .administration-page .team-chat__avatar--message) {
+  background: #352b35; color: #fff; border-color: #6b5362;
+}
+@media (max-width: 600px) {
+  .team-chat-profile__actions { width: 100%; }
+  .team-chat-profile__actions button { flex: 1 1 auto; }
+  .team-chat__avatar--message { width: 26px; height: 26px; }
+  .team-chat__entry { gap: 4px; }
+  .team-chat__bubble, .team-chat__bubble.is-own { max-width: min(77%, 480px); }
+  .team-chat__shared-image { max-width: min(100%, 235px); max-height: 245px; }
+  .team-chat__composer .team-chat__attach { width: 34px; height: 34px; }
+}
+
 </style>
