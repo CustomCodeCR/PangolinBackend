@@ -6,6 +6,7 @@ import IconSymbol from '../components/IconSymbol.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import SiteVisualEditor from './SiteVisualEditor.vue'
 import OfficialQuoteAdmin from './OfficialQuoteAdmin.vue'
+import AdminTeamChat from '../components/AdminTeamChat.vue'
 const officialQuotesEnabled = import.meta.env.VITE_OFFICIAL_QUOTES_ENABLED === 'true'
 import { subscribeToChanges } from '../services/realtime'
 import { authState, refreshSession } from '../services/auth'
@@ -17,11 +18,11 @@ const en = computed(() => locale.value.toLowerCase().startsWith('en'))
 // Only display names are localized: stored codes and admin form values remain unchanged.
 const displayManagedMode = (value: string) => localizeTrackingMode(value, en.value ? 'en' : 'es')
 const displayManagedStatus = (value: string) => localizeTrackingStatus(value, en.value ? 'en' : 'es')
-type Section = 'itineraries' | 'news' | 'media' | 'comments' | 'users' | 'site' | 'quotes'
+type Section = 'itineraries' | 'news' | 'media' | 'comments' | 'users' | 'site' | 'quotes' | 'chat'
 type AppRole = 'cliente' | 'administrador'
 interface ManagedUser { id: string; correo: string; nombre?: string; role: AppRole; activo: boolean; savedActive: boolean }
 const tabFromUrl = new URLSearchParams(window.location.search).get('tab')
-const section = ref<Section>(tabFromUrl === 'usuarios' ? 'users' : tabFromUrl === 'cotizaciones' && officialQuotesEnabled ? 'quotes' : 'itineraries')
+const section = ref<Section>(tabFromUrl === 'usuarios' ? 'users' : tabFromUrl === 'chat' ? 'chat' : tabFromUrl === 'cotizaciones' && officialQuotesEnabled ? 'quotes' : 'itineraries')
 const itineraries = ref<ManagedItinerary[]>([])
 const news = ref<ManagedNews[]>([])
 const media = ref<ManagedMedia[]>([])
@@ -137,6 +138,7 @@ function selectSection(next: Section) {
   startNew()
   const url = new URL(window.location.href)
   if (next === 'users') url.searchParams.set('tab', 'usuarios')
+  else if (next === 'chat') url.searchParams.set('tab', 'chat')
   else if (next === 'quotes') url.searchParams.set('tab', 'cotizaciones')
   else url.searchParams.delete('tab')
   window.history.replaceState({}, '', url)
@@ -581,12 +583,13 @@ function useMediaForNews(item: ManagedMedia) {
       <div class="manager-topbar-actions"><a class="manager-back" :href="`/home${previewSuffix}`">Volver al sitio <IconSymbol glyph="↗" /></a></div>
     </header>
     <section class="manager-shell">
-      <div class="manager-heading"><p class="manager-eyebrow">CASTRO FALLAS · ADMINISTRACIÓN</p><h1>{{ section === 'users' ? 'Gestión de usuarios' : section === 'quotes' ? 'Cotizaciones' : 'Administración del sitio' }}</h1><p>{{ section === 'users' ? 'Consulta las cuentas y administra sus roles desde esta sección.' : section === 'quotes' ? 'Revisá y gestioná las solicitudes oficiales de tus clientes.' : 'Administra itinerarios, noticias e imágenes desde esta pantalla.' }}</p></div>
+      <div class="manager-heading"><p class="manager-eyebrow">CASTRO FALLAS · ADMINISTRACIÓN</p><h1>{{ section === 'chat' ? 'Chat del equipo' : section === 'users' ? 'Gestión de usuarios' : section === 'quotes' ? 'Cotizaciones' : 'Administración del sitio' }}</h1><p>{{ section === 'chat' ? 'Conversá en tiempo real con otros administradores.' : section === 'users' ? 'Consulta las cuentas y administra sus roles desde esta sección.' : section === 'quotes' ? 'Revisá y gestioná las solicitudes oficiales de tus clientes.' : 'Administra itinerarios, noticias e imágenes desde esta pantalla.' }}</p></div>
       <nav class="manager-tabs" aria-label="Secciones de administración">
-        <button :class="{ active: section !== 'users' }" @click="selectSection('itineraries')"><IconSymbol glyph="▤" :size="19" /> <span class="manager-tab-label">Contenido</span></button>
+        <button :class="{ active: section !== 'users' && section !== 'chat' }" @click="selectSection('itineraries')"><IconSymbol glyph="▤" :size="19" /> <span class="manager-tab-label">Contenido</span></button>
         <button :class="{ active: section === 'users' }" @click="selectSection('users')"><IconSymbol glyph="user" :size="19" /> <span class="manager-tab-label">Gestión de usuarios</span> <span class="manager-tab-count">{{ users.length }}</span></button>
+        <button :class="{ active: section === 'chat' }" @click="selectSection('chat')"><IconSymbol glyph="message-circle" :size="19" /> <span class="manager-tab-label">Chat del equipo ✦</span></button>
       </nav>
-      <nav v-if="section !== 'users'" class="manager-tabs manager-subtabs" :class="{ 'manager-subtabs--with-quotes': officialQuotesEnabled }" aria-label="Tipos de contenido">
+      <nav v-if="section !== 'users' && section !== 'chat'" class="manager-tabs manager-subtabs" :class="{ 'manager-subtabs--with-quotes': officialQuotesEnabled }" aria-label="Tipos de contenido">
         <button :class="{ active: section === 'itineraries' }" @click="selectSection('itineraries')"><IconSymbol glyph="ship" :size="19" /> <span class="manager-tab-label">Itinerarios</span> <span>{{ itineraries.length }}</span></button>
         <button :class="{ active: section === 'news' }" @click="selectSection('news')"><IconSymbol glyph="newspaper" :size="19" /> <span class="manager-tab-label">Noticias</span> <span>{{ news.length }}</span></button>
         <button :class="{ active: section === 'media' }" @click="selectSection('media')"><IconSymbol glyph="image" :size="19" /> <span class="manager-tab-label">Multimedia</span> <span>{{ media.length }}</span></button>
@@ -594,6 +597,8 @@ function useMediaForNews(item: ManagedMedia) {
         <button v-if="officialQuotesEnabled" :class="{ active: section === 'quotes' }" @click="selectSection('quotes')"><IconSymbol glyph="▰" :size="19" /> <span class="manager-tab-label">Cotizaciones</span> <span>{{ quotesTotal }}</span></button>
         <button class="manager-editor-visual-tab" :class="{ active: section === 'site' }" @click="selectSection('site')"><IconSymbol glyph="pencil" :size="19" /> <span class="manager-tab-label">Editor visual</span> <span>0</span></button>
       </nav>
+      <AdminTeamChat v-if="section === 'chat' && isLiveAdmin" />
+      <p v-if="section === 'chat' && !isLiveAdmin" role="status">El chat requiere una sesión real de administrador.</p>
       <section v-if="section === 'users' && isLiveAdmin" class="manager-users-card manager-users-create" aria-label="Agregar usuario">
         <header class="manager-create-title"><div><h2><span class="manager-create-plus" aria-hidden="true">+</span> Agregar usuario</h2><p>Crea una nueva cuenta para que pueda acceder al sistema.</p></div></header>
         <form class="manager-create-form" @submit.prevent="createUser">
