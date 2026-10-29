@@ -45,7 +45,12 @@ assert.doesNotMatch(mainStyles, /html\.theme-dark \.nav-dropdown__menu\{backgrou
 // One published Home news card must not run a vertical looping animation.
 const homeNewsLayout = source('src/Home.vue')
 assert.match(homeNewsLayout, /home-news-sidebar--single': homeNews\.length === 1/, 'La noticia única se identifica reactivamente')
-assert.match(homeNewsLayout, /homeNews\.length > 1 \? 2 : 1/, 'Varias noticias conservan el carrusel duplicado')
+assert.match(homeNewsLayout, /homeNews\.length > 1 \? 4 : 1/, 'Varias noticias generan suficientes copias para un loop vertical sin huecos')
+assert.match(homeNewsLayout, /:aria-hidden="copy > 1"/, 'Las copias del bucle no se anuncian repetidamente')
+assert.match(homeNewsLayout, /:tabindex="copy > 1 \? -1 : 0"/, 'Las copias del bucle no duplican tabulaciones')
+assert.match(mainStyles, /@keyframes home-news-up\{to\{transform:translateY\(-25%\)\}\}/, 'El bucle avanza exactamente una de cuatro copias')
+assert.match(mainStyles, /\.home-news-sidebar__group:nth-child\(n\+2\)/, 'En pantallas intermedias no mostrar clones extra')
+assert.match(mainStyles, /\.home-news-sidebar__group:nth-child\(n\+3\)/, 'En el carrusel móvil se muestran solo dos copias')
 assert.match(mainStyles, /\.home-news-sidebar--single \.home-news-sidebar__track\s*\{\s*animation: none !important;\s*transform: none !important;/, 'Una noticia se mantiene fija arriba sin bucle')
 assert.match(mainStyles, /\.home-news-sidebar--single \.home-news-sidebar__group:first-child\s*\{\s*justify-content: flex-start;/, 'La noticia vertical queda anclada en el inicio')
 const siteHeader = source('src/components/SiteHeader.vue')
