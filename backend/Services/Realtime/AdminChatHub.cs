@@ -18,6 +18,9 @@ public sealed class AdminChatHub : Hub
     private static readonly ConcurrentDictionary<Guid, ReadReceipt> Seen = new();
     // Solo es una etiqueta de presentación para este chat, no cambia identidad ni permisos.
     private static readonly ConcurrentDictionary<Guid, string> Nicknames = new();
+    // Presencia temporal por conexión: nunca se transmite el contenido del borrador.
+    private static readonly ConcurrentDictionary<string, TypingStatus> Typing = new();
+    private static readonly TimeSpan TypingLifetime = TimeSpan.FromSeconds(5);
     private const int Limit = 60;
 
     public override async Task OnConnectedAsync()
@@ -44,6 +47,9 @@ public sealed class AdminChatHub : Hub
         Nicknames.TryGetValue(identity.UsuarioId, out var nickname);
         await Clients.Caller.SendAsync("ChatProfile", new { displayName = nickname ?? identity.NombreCliente, customName = nickname });
         await Clients.Caller.SendAsync("History", History.ToArray(), Seen.Values.ToArray());
+        await Clients.Caller.SendAsync("TypingSnapshot", Typing.Values
+            .Where(x => x.ConnectionId != Context.ConnectionId && x.ExpiresAt > DateTimeOffset.UtcNow)
+            .ToArray());
         await Clients.All.SendAsync("Presence", Online.Count);
         await base.OnConnectedAsync();
     }
@@ -73,6 +79,37 @@ public sealed class AdminChatHub : Hub
     private static string DisplayName(AuthIdentity identity) =>
         Nicknames.TryGetValue(identity.UsuarioId, out var nickname)
             ? nickname : identity.NombreCliente;
+
+    // Estado de escritura autenticado y efímero. Se identifica por conexión para que
+    // dos pestañas del mismo administrador no se pisen entre sí.
+    public async Task SetTyping(bool isTyping)
+    {
+        var identity = Context.GetHttpContext()?.Items["auth.identity"] as AuthIdentity;
+        if (identity is null || identity.Role != "admin") throw new HubException("Sin autorización.");
+
+        if (!isTyping)
+        {
+            await ClearTypingAsync();
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        if (Typing.TryGetValue(Context.ConnectionId, out var prior) &&
+            now - prior.UpdatedAt < TimeSpan.FromMilliseconds(900))
+            return;
+
+        var state = new TypingStatus(
+            Context.ConnectionId, identity.UsuarioId, DisplayName(identity),
+            true, now.Add(TypingLifetime), now);
+        Typing[Context.ConnectionId] = state;
+        await Clients.Others.SendAsync("TypingChanged", state);
+    }
+
+    private async Task ClearTypingAsync()
+    {
+        if (Typing.TryRemove(Context.ConnectionId, out var state))
+            await Clients.Others.SendAsync("TypingChanged", state with { IsTyping = false });
+    }
 
     // Se conserva el método original para navegadores que aún tienen el frontend anterior.
     public Task SendMessage(string? body) => SendCore(body, null);
@@ -106,6 +143,7 @@ public sealed class AdminChatHub : Hub
             throw new HubException("Enviás mensajes demasiado rápido.");
 
         LastMessage[Context.ConnectionId] = now;
+        await ClearTypingAsync();
         var message = new ChatMessage(
             Guid.NewGuid(), identity.UsuarioId, DisplayName(identity),
             identity.Correo, text, now, reply);
@@ -144,6 +182,7 @@ public sealed class AdminChatHub : Hub
     {
         Online.TryRemove(Context.ConnectionId, out _);
         LastMessage.TryRemove(Context.ConnectionId, out _);
+        await ClearTypingAsync();
         await Clients.All.SendAsync("Presence", Online.Count);
         await base.OnDisconnectedAsync(exception);
     }
@@ -151,4 +190,7 @@ public sealed class AdminChatHub : Hub
     public sealed record ChatMessage(Guid Id, Guid UserId, string Name, string Email, string Text, DateTimeOffset SentAt, ChatReply? ReplyTo);
     public sealed record ChatReply(Guid Id, string Name, string Text);
     public sealed record ReadReceipt(Guid UserId, string Name, DateTimeOffset LastReadAt);
+    public sealed record TypingStatus(
+        string ConnectionId, Guid UserId, string Name, bool IsTyping,
+        DateTimeOffset ExpiresAt, DateTimeOffset UpdatedAt);
 }
