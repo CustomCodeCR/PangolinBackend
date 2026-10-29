@@ -13,6 +13,9 @@ public sealed class AdminChatHub : Hub
     public const string Path = "/api/hubs/admin-chat";
     private static readonly ConcurrentQueue<ChatMessage> History = new();
     private static readonly SemaphoreSlim ChatMutations = new(1, 1);
+    // Hasta qué fecha ocultó el historial cada administrador. Estado temporal por cuenta.
+    private static readonly ConcurrentDictionary<Guid, DateTimeOffset> ClearedForUser = new();
+    private static string PersonalGroup(Guid userId) => $"admin-chat-user:{userId:N}";
     private static readonly ConcurrentDictionary<string, DateTimeOffset> LastMessage = new();
     private static readonly ConcurrentDictionary<string, byte> Online = new();
     // Estado efímero por cuenta, nunca aceptamos la identidad del cliente.
@@ -49,13 +52,20 @@ public sealed class AdminChatHub : Hub
             return;
         }
         Online.TryAdd(Context.ConnectionId, 0);
+        await Groups.AddToGroupAsync(Context.ConnectionId, PersonalGroup(identity.UsuarioId));
         Nicknames.TryGetValue(identity.UsuarioId, out var nickname);
         await Clients.Caller.SendAsync("ChatProfile", new { displayName = nickname ?? identity.NombreCliente, customName = nickname });
         await Clients.Caller.SendAsync("AvatarSnapshot", Avatars
             .Where(entry => _images.Find(entry.Value) is not null)
             .Select(entry => new { userId = entry.Key, url = AdminChatMediaStore.Url(entry.Value) }).ToArray());
         await ChatMutations.WaitAsync();
-        try { await Clients.Caller.SendAsync("History", History.ToArray(), Seen.Values.ToArray()); }
+        try
+        {
+            var cutoff = ClearedForUser.GetValueOrDefault(identity.UsuarioId, DateTimeOffset.MinValue);
+            await Clients.Caller.SendAsync("History",
+                History.Where(message => message.SentAt > cutoff).ToArray(),
+                Seen.Values.ToArray(), cutoff);
+        }
         finally { ChatMutations.Release(); }
         await Clients.Caller.SendAsync("TypingSnapshot", Typing.Values
             .Where(x => x.ConnectionId != Context.ConnectionId && x.ExpiresAt > DateTimeOffset.UtcNow)
@@ -141,8 +151,11 @@ public sealed class AdminChatHub : Hub
             await Clients.Others.SendAsync("TypingChanged", state with { IsTyping = false });
     }
 
-    // Vaciar el historial es una operación del administrador aplicada a todos los clientes.
-    public async Task ClearChat()
+    // Compatibilidad: navegadores antiguos que llaman ClearChat también limpian
+    // únicamente SU vista, nunca eliminan el historial compartido.
+    public Task ClearChat() => ClearMyChat();
+
+    public async Task ClearMyChat()
     {
         var identity = Context.GetHttpContext()?.Items["auth.identity"] as AuthIdentity;
         if (identity is null || identity.Role != "admin") throw new HubException("Sin autorización.");
@@ -150,10 +163,12 @@ public sealed class AdminChatHub : Hub
         await ChatMutations.WaitAsync();
         try
         {
-            while (History.TryDequeue(out _)) { }
-            Seen.Clear();
-            _images.ClearMessageImages();
-            await Clients.All.SendAsync("ChatCleared", new { clearedAt = DateTimeOffset.UtcNow, clearedBy = DisplayName(identity) });
+            var cutoff = DateTimeOffset.UtcNow;
+            ClearedForUser[identity.UsuarioId] = cutoff;
+            // Solo las sesiones de esta cuenta reciben la orden de ocultar mensajes.
+            // El historial, los vistos y los archivos de los demás no se modifican.
+            await Clients.Group(PersonalGroup(identity.UsuarioId))
+                .SendAsync("ChatClearedForUser", new { clearedAt = cutoff });
         }
         finally { ChatMutations.Release(); }
     }
@@ -218,9 +233,12 @@ public sealed class AdminChatHub : Hub
                 (!Guid.TryParse(imageId, out var originalImageId) ||
                  !_images.IsOwned(originalImageId, identity.UsuarioId, avatar: false)))
                 throw new HubException("La imagen ya no está disponible. Adjuntala nuevamente.");
-            History.Enqueue(message);
+            // La hora efectiva de publicación se decide dentro del bloqueo, en orden
+            // con ClearMyChat, para que los mensajes posteriores vuelvan a aparecer.
+            var published = message with { SentAt = DateTimeOffset.UtcNow };
+            History.Enqueue(published);
             while (History.Count > Limit) History.TryDequeue(out _);
-            await Clients.All.SendAsync("Message", message);
+            await Clients.All.SendAsync("Message", published);
         }
         finally { ChatMutations.Release(); }
     }
