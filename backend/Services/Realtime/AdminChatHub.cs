@@ -43,18 +43,41 @@ public sealed class AdminChatHub : Hub
         await base.OnConnectedAsync();
     }
 
-    public async Task SendMessage(string? body)
+    // Se conserva el método original para navegadores que aún tienen el frontend anterior.
+    public Task SendMessage(string? body) => SendCore(body, null);
+
+    // La referencia viaja como ID: autor y texto se obtienen exclusivamente del servidor.
+    public Task ReplyToMessage(string? body, string? replyToId) => SendCore(body, replyToId);
+
+    private async Task SendCore(string? body, string? replyToId)
     {
         var identity = Context.GetHttpContext()?.Items["auth.identity"] as AuthIdentity;
         if (identity is null || identity.Role != "admin") throw new HubException("Sin autorización.");
         var text = body?.Trim();
         if (string.IsNullOrEmpty(text) || text.Length > 500)
             throw new HubException("El mensaje debe tener entre 1 y 500 caracteres.");
+
+        ChatReply? reply = null;
+        if (replyToId is not null)
+        {
+            if (!Guid.TryParse(replyToId, out var originalId))
+                throw new HubException("La referencia del mensaje no es válida.");
+            var original = History.FirstOrDefault(item => item.Id == originalId);
+            if (original is null)
+                throw new HubException("El mensaje original ya no está en el historial temporal.");
+            var excerpt = original.Text.Length > 140 ? original.Text[..140].TrimEnd() + "…" : original.Text;
+            reply = new ChatReply(original.Id, original.Name, excerpt);
+        }
+
         var now = DateTimeOffset.UtcNow;
-        if (LastMessage.TryGetValue(Context.ConnectionId, out var previous) && now - previous < TimeSpan.FromMilliseconds(650))
+        if (LastMessage.TryGetValue(Context.ConnectionId, out var previous) &&
+            now - previous < TimeSpan.FromMilliseconds(650))
             throw new HubException("Enviás mensajes demasiado rápido.");
+
         LastMessage[Context.ConnectionId] = now;
-        var message = new ChatMessage(Guid.NewGuid(), identity.UsuarioId, identity.NombreCliente, identity.Correo, text, now);
+        var message = new ChatMessage(
+            Guid.NewGuid(), identity.UsuarioId, identity.NombreCliente,
+            identity.Correo, text, now, reply);
         History.Enqueue(message);
         while (History.Count > Limit) History.TryDequeue(out _);
         await Clients.All.SendAsync("Message", message);
@@ -94,6 +117,7 @@ public sealed class AdminChatHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    public sealed record ChatMessage(Guid Id, Guid UserId, string Name, string Email, string Text, DateTimeOffset SentAt);
+    public sealed record ChatMessage(Guid Id, Guid UserId, string Name, string Email, string Text, DateTimeOffset SentAt, ChatReply? ReplyTo);
+    public sealed record ChatReply(Guid Id, string Name, string Text);
     public sealed record ReadReceipt(Guid UserId, string Name, DateTimeOffset LastReadAt);
 }
