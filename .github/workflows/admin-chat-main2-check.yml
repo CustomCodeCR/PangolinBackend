@@ -73,12 +73,20 @@ jobs:
           check(hub.includes('SendImage') && hub.includes('ImageUrl'), 'Image messages missing')
           check(chat.includes('uploadImage(') && chat.includes('compressImage('), 'Compressed image client missing')
           check(chat.includes('team-chat__avatar--message') && chat.includes('team-chat__shared-image'), 'Image/avatar display missing')
-          check(hub.includes('public async Task ClearChat()') && hub.includes('identity.Role != "admin"'), 'Global chat clear must require admin')
-          check(hub.includes('ChatMutations.WaitAsync()') && hub.includes('Clients.All.SendAsync("ChatCleared"'), 'Ordered realtime clear broadcast missing')
-          check(hub.includes('_images.ClearMessageImages()') && hub.includes('Seen.Clear()'), 'Messages, reads and photos must be cleared')
-          check(media.includes('ClearMessageImages()') && media.includes('!file.IsAvatar'), 'Message deletion must retain avatars')
-          check(chat.includes("connection.invoke('ClearChat')") && chat.includes('window.confirm('), 'Client confirmation missing')
-          check(chat.includes("hub.on('ChatCleared'") && chat.includes('replyTarget.value = null'), 'Connected clients must remove cleared messages and replies')
+          check(hub.includes('public async Task ClearMyChat()') && hub.includes('identity.Role != "admin"'), 'Private chat clear must require admin')
+          check(hub.includes('public Task ClearChat() => ClearMyChat();'), 'Older clients must not retain global delete capability')
+          check(hub.includes('Clients.Group(PersonalGroup(identity.UsuarioId))') &&
+                hub.includes('SendAsync("ChatClearedForUser"'), 'Clear event must only target same-user sessions')
+          check(hub.includes('ClearedForUser[identity.UsuarioId] = cutoff') &&
+                hub.includes('History.Where(message => message.SentAt > cutoff)'), 'Reconnect must respect per-user cutoff')
+          check(hub.includes('ChatMutations.WaitAsync()') && hub.includes('var published = message with { SentAt'), 'Clears and new messages must be ordered')
+          check(!hub.includes('History.TryDequeue(out _)') || hub.includes('while (History.Count > Limit)'), 'Unbounded global deletion must be absent')
+          check(!hub.includes('Seen.Clear()') && !hub.includes('_images.ClearMessageImages()'), 'Personal clearing may not delete shared reads or images')
+          check(chat.includes("connection.invoke('ClearMyChat')") && chat.includes('window.confirm('), 'Client must confirm personal clear')
+          check(chat.includes("hub.on('ChatClearedForUser'") &&
+                chat.includes('clearedThrough.value') &&
+                chat.includes('replyTarget.value = null'), 'Client must filter historical messages per user')
+          check(!chat.includes('para TODOS los administradores'), 'Confirmation must accurately describe scope')
           check(chat.includes('html.theme-dark .administration-page .team-chat .team-chat__media-preview'), 'Dark-mode image preview missing')
           check(chat.includes('overscroll-behavior: contain'), 'Touch scroll containment missing')
           check(chat.includes('team-chat__reply-action') && chat.includes('team-chat__seen-button'), 'Message actions missing')
