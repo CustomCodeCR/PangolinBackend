@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 using CastroFallas.MiniQuote.Api.Services.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
@@ -15,6 +16,8 @@ public sealed class AdminChatHub : Hub
     private static readonly ConcurrentDictionary<string, byte> Online = new();
     // Estado efímero por cuenta, nunca aceptamos la identidad del cliente.
     private static readonly ConcurrentDictionary<Guid, ReadReceipt> Seen = new();
+    // Solo es una etiqueta de presentación para este chat, no cambia identidad ni permisos.
+    private static readonly ConcurrentDictionary<Guid, string> Nicknames = new();
     private const int Limit = 60;
 
     public override async Task OnConnectedAsync()
@@ -38,10 +41,38 @@ public sealed class AdminChatHub : Hub
             return;
         }
         Online.TryAdd(Context.ConnectionId, 0);
+        Nicknames.TryGetValue(identity.UsuarioId, out var nickname);
+        await Clients.Caller.SendAsync("ChatProfile", new { displayName = nickname ?? identity.NombreCliente, customName = nickname });
         await Clients.Caller.SendAsync("History", History.ToArray(), Seen.Values.ToArray());
         await Clients.All.SendAsync("Presence", Online.Count);
         await base.OnConnectedAsync();
     }
+
+    // El apodo lo decide cada administrador autenticado, nunca modifica la cuenta.
+    // La API toma el ID de la sesión JWT revocable, no del navegador.
+    public async Task<string> SetDisplayName(string? requested)
+    {
+        var identity = Context.GetHttpContext()?.Items["auth.identity"] as AuthIdentity;
+        if (identity is null || identity.Role != "admin") throw new HubException("Sin autorización.");
+        var value = Regex.Replace(requested?.Trim() ?? "", @"\s+", " ");
+        if (value.Length > 32 || (value.Length > 0 && value.Length < 2) ||
+            value.Any(char.IsControl))
+            throw new HubException("Usá un apodo de 2 a 32 caracteres.");
+
+        if (value.Length == 0)
+            Nicknames.TryRemove(identity.UsuarioId, out _);
+        else
+            Nicknames[identity.UsuarioId] = value;
+
+        var display = value.Length > 0 ? value : identity.NombreCliente;
+        // Una actualización del nombre no da acceso a cuentas ajenas.
+        await Clients.All.SendAsync("NicknameChanged", identity.UsuarioId, display);
+        return display;
+    }
+
+    private static string DisplayName(AuthIdentity identity) =>
+        Nicknames.TryGetValue(identity.UsuarioId, out var nickname)
+            ? nickname : identity.NombreCliente;
 
     // Se conserva el método original para navegadores que aún tienen el frontend anterior.
     public Task SendMessage(string? body) => SendCore(body, null);
@@ -76,7 +107,7 @@ public sealed class AdminChatHub : Hub
 
         LastMessage[Context.ConnectionId] = now;
         var message = new ChatMessage(
-            Guid.NewGuid(), identity.UsuarioId, identity.NombreCliente,
+            Guid.NewGuid(), identity.UsuarioId, DisplayName(identity),
             identity.Correo, text, now, reply);
         History.Enqueue(message);
         while (History.Count > Limit) History.TryDequeue(out _);
@@ -93,7 +124,7 @@ public sealed class AdminChatHub : Hub
         var message = History.FirstOrDefault(item => item.Id == id);
         if (message is null) return;
 
-        var receipt = new ReadReceipt(identity.UsuarioId, identity.NombreCliente, message.SentAt);
+        var receipt = new ReadReceipt(identity.UsuarioId, DisplayName(identity), message.SentAt);
         while (true)
         {
             if (!Seen.TryGetValue(identity.UsuarioId, out var prior))
