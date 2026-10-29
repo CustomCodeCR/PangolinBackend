@@ -592,7 +592,9 @@ onUnmounted(() => {
 .news-article-page__visual img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;object-position:center 42%;filter:var(--article-visual-filter,blur(0));opacity:var(--article-visual-opacity,1);transform:scale(1.04);transition:filter .22s linear,opacity .22s linear}
 .news-article-page.is-article-dragging .news-article-page__visual img{transition:none}
 .news-article-page__visual-mark{position:absolute;z-index:1;top:26px;right:28px;display:flex;align-items:center;gap:9px;margin:0;color:#fff;font-size:10px;font-weight:800;letter-spacing:.13em;text-shadow:0 1px 6px rgba(0,0,0,.45)}
-.news-article-page__visual-mark{top:auto;right:auto;bottom:clamp(105px,12vh,155px);left:clamp(24px,5vw,72px);opacity:var(--article-mark-opacity,1);pointer-events:none;transition:opacity .15s linear}
+/* Align the caption 24px inside the reading panel's left edge, even when
+   the panel is centered at its 1600px max width on large desktops. */
+.news-article-page__visual-mark{top:auto;right:auto;bottom:clamp(105px,12vh,155px);left:max(24px,calc(50% - 776px));opacity:var(--article-mark-opacity,1);pointer-events:none;transition:opacity .15s linear}
 .news-article-page__visual-dot{width:7px;height:7px;flex:none;border-radius:50%;background:#c8102e}
 .news-article-page__overline{display:flex;align-items:center;gap:10px;margin:0 0 15px;color:#fff;font-size:11px;font-weight:850;letter-spacing:.15em;text-transform:uppercase;text-shadow:0 1px 8px rgba(0,0,0,.55);overflow-wrap:anywhere}
 .news-article-page__overline::before{width:23px;height:2px;flex:none;background:#c8102e;content:""}
