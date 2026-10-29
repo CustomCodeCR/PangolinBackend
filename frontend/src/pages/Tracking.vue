@@ -216,16 +216,12 @@ const shipmentExtrasPairs = computed<ShipmentExtraField[][]>(() => {
 })
 let tour: Driver | null = null
 const types = computed(() => en.value ? [
-  { id: 'BL', name: 'BL (BCF)', help: 'BL is currently resolved through the BCF reference.' },
-  { id: 'HBL', name: 'HBL (BCF)', help: 'HBL is currently resolved through the BCF reference.' },
-  { id: 'BCF', name: 'BCF', help: 'Castro Fallas shipment reference.' },
+  { id: 'BL', name: 'BL-HBL number (BCF)', help: 'Search BL or HBL using the BCF reference.' },
   { id: 'IDTRA', name: 'IDTRA', help: 'Castro Fallas tracking identifier.' },
   { id: 'CONTAINER', name: 'Container number', help: 'Shipping container identifier.' },
   { id: 'PO', name: 'Purchase order (PO)', help: 'Linked purchase order reference.' }
 ] : [
-  { id: 'BL', name: 'Número BL (BCF)', help: 'Por ahora se consulta mediante la referencia BCF.' },
-  { id: 'HBL', name: 'Número HBL (BCF)', help: 'Por ahora se consulta mediante la referencia BCF.' },
-  { id: 'BCF', name: 'Referencia BCF', help: 'Referencia de embarque Castro Fallas.' },
+  { id: 'BL', name: 'Número BL-HBL (BCF)', help: 'Consultá tu BL o HBL mediante la referencia BCF.' },
   { id: 'IDTRA', name: 'IDTRA', help: 'Identificador de seguimiento Castro Fallas.' },
   { id: 'CONTAINER', name: 'Número de contenedor', help: 'Identificador del contenedor.' },
   { id: 'PO', name: 'Orden de compra (PO)', help: 'Orden de compra vinculada.' }
