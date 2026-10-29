@@ -711,4 +711,17 @@ onUnmounted(() => {
   .news-article-page__side-image { float:none; width:100%; margin:0 0 24px; }
   .news-article-page__content { max-width:none; }
 }
+
+/* Metadatos del artículo: centrar el grupo completo en pantallas de teléfono. */
+@media (max-width:720px) {
+  .news-article-page__meta {
+    justify-content:center;
+    flex-wrap:wrap;
+    column-gap:clamp(12px,3vw,20px);
+    row-gap:10px;
+    text-align:center;
+  }
+  .news-article-page__publisher,
+  .news-article-page__meta-category { justify-content:center; }
+}
 </style>
