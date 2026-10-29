@@ -3,7 +3,8 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import * as signalR from '@microsoft/signalr'
 import { authState } from '../services/auth'
 
-interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string }
+interface ChatReply { id: string; name: string; text: string }
+interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null }
 interface ReadReceipt { userId: string; name: string; lastReadAt: string }
 
 const props = defineProps<{ visible: boolean }>()
@@ -11,6 +12,10 @@ const emit = defineEmits<{ (event: 'unread-change', count: number): void }>()
 const messages = ref<ChatMessage[]>([])
 const receipts = ref<ReadReceipt[]>([])
 const draft = ref('')
+const replyTarget = ref<ChatMessage | null>(null)
+const input = ref<HTMLInputElement | null>(null)
+const highlightedId = ref<string | null>(null)
+let highlightTimer: ReturnType<typeof setTimeout> | null = null
 const status = ref('Conectando…')
 const online = ref(0)
 const sending = ref(false)
@@ -81,12 +86,38 @@ function seenBy(message: ChatMessage): string {
   return names.length ? 'Visto por ' + names.slice(0, 2).join(', ') + (names.length > 2 ? ' y ' + (names.length - 2) + ' más' : '') : 'Sin vistos aún'
 }
 function clock(iso: string) { return new Date(iso).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' }) }
+function quoteText(text: string) { return text.length > 140 ? text.slice(0, 140).trimEnd() + '…' : text }
+function replyToMessage(message: ChatMessage) {
+  replyTarget.value = message
+  error.value = ''
+  void nextTick(() => input.value?.focus())
+}
+function cancelReply() { replyTarget.value = null; void nextTick(() => input.value?.focus()) }
+function jumpToOriginal(id: string) {
+  const element = Array.from(list.value?.querySelectorAll<HTMLElement>('[data-chat-id]') ?? [])
+    .find(node => node.dataset.chatId === id)
+  if (!element) {
+    error.value = 'El mensaje original ya no está disponible en este historial temporal.'
+    return
+  }
+  error.value = ''
+  element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  highlightedId.value = id
+  if (highlightTimer) clearTimeout(highlightTimer)
+  highlightTimer = setTimeout(() => { highlightedId.value = null; highlightTimer = null }, 1800)
+}
 async function send() {
   const text = draft.value.trim()
   if (!text || text.length > 500 || sending.value || connection?.state !== signalR.HubConnectionState.Connected) return
   sending.value = true
   error.value = ''
-  try { await connection.invoke('SendMessage', text); draft.value = '' }
+  const target = replyTarget.value
+  try {
+    if (target) await connection.invoke('ReplyToMessage', text, target.id)
+    else await connection.invoke('SendMessage', text)
+    draft.value = ''
+    if (replyTarget.value?.id === target?.id) replyTarget.value = null
+  }
   catch (cause) { error.value = cause instanceof Error ? cause.message : 'No se pudo enviar el mensaje.' }
   finally { sending.value = false }
 }
@@ -143,6 +174,7 @@ onUnmounted(() => {
   active = false
   emit('unread-change', 0)
   if (retryTimer) clearTimeout(retryTimer)
+  if (highlightTimer) clearTimeout(highlightTimer)
   window.removeEventListener('focus', onVisibility)
   document.removeEventListener('visibilitychange', onVisibility)
   window.removeEventListener('online', startChat)
@@ -168,18 +200,36 @@ onUnmounted(() => {
         <span>✳</span><strong>Este canal está esperando su primer mensaje.</strong>
         <p>Probalo con otro administrador desde otra computadora o navegador.</p>
       </div>
-      <article v-for="message in messages" :key="message.id" class="team-chat__bubble" :class="{ 'is-own': isOwn(message) }">
+      <article v-for="message in messages" :key="message.id" :data-chat-id="message.id"
+        class="team-chat__bubble" :class="{ 'is-own': isOwn(message), 'is-highlighted': highlightedId === message.id }">
         <div class="team-chat__by">
           <strong>{{ message.name || message.email }}</strong>
           <time :datetime="message.sentAt">{{ clock(message.sentAt) }}</time>
         </div>
+        <button v-if="message.replyTo" class="team-chat__quoted" type="button"
+          :aria-label="'Ir al mensaje original de ' + message.replyTo.name"
+          @click="jumpToOriginal(message.replyTo.id)">
+          <strong>↪ {{ message.replyTo.name }}</strong>
+          <span>{{ message.replyTo.text }}</span>
+        </button>
         <p>{{ message.text }}</p>
-        <small v-if="isOwn(message)" class="team-chat__seen">{{ seenBy(message) }}</small>
+        <footer class="team-chat__bubble-footer">
+          <small v-if="isOwn(message)" class="team-chat__seen">{{ seenBy(message) }}</small>
+          <button class="team-chat__reply-action" type="button" :aria-label="'Responder al mensaje de ' + (message.name || message.email)"
+            @click="replyToMessage(message)">↩ Responder</button>
+        </footer>
       </article>
+    </div>
+    <div v-if="replyTarget" class="team-chat__reply-banner" role="status">
+      <div class="team-chat__reply-banner-copy">
+        <strong>↩ Respondiendo a {{ replyTarget.name || replyTarget.email }}</strong>
+        <span>{{ quoteText(replyTarget.text) }}</span>
+      </div>
+      <button type="button" aria-label="Cancelar respuesta" title="Cancelar respuesta" @click="cancelReply">✕</button>
     </div>
     <form class="team-chat__composer" @submit.prevent="send">
       <label class="sr-only" for="team-chat-input">Escribir mensaje</label>
-      <input id="team-chat-input" v-model="draft" maxlength="500" autocomplete="off"
+      <input id="team-chat-input" ref="input" v-model="draft" maxlength="500" autocomplete="off"
         placeholder="Escribí un mensaje al equipo…" :disabled="status !== 'En línea'" />
       <button type="submit" :disabled="status !== 'En línea' || !draft.trim() || sending">
         {{ sending ? 'Enviando…' : 'Enviar ↗' }}
@@ -202,6 +252,7 @@ onUnmounted(() => {
   --chat-own: #a20f2c;
   --chat-own-text: #fff;
   --chat-scroll: #b48c9a;
+  --chat-quoted: rgba(50, 32, 42, .065);
   width: min(1040px, 100%);
   margin: 24px auto 64px;
   padding: clamp(17px, 3vw, 30px);
@@ -225,6 +276,7 @@ onUnmounted(() => {
   --chat-own: #86243b;
   --chat-own-text: #fff;
   --chat-scroll: #896071;
+  --chat-quoted: rgba(255, 255, 255, .075);
   color-scheme: dark;
   background: var(--chat-bg);
   color: var(--chat-text);
@@ -265,6 +317,21 @@ onUnmounted(() => {
 :global(html.theme-dark .administration-page .team-chat .team-chat__messages::-webkit-scrollbar-thumb) {
   background: #896071;
   border-color: #18151b;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__reply-banner) {
+  background: #18151b !important;
+  color: #fff !important;
+  border-color: #514450 !important;
+  border-left-color: #ef233c !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__quoted) {
+  background: rgba(255,255,255,.075) !important;
+  color: #fff !important;
+  border-left-color: #ef233c !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__bubble.is-own .team-chat__quoted) {
+  background: rgba(255,255,255,.12) !important;
+  border-left-color: #ffc1cd !important;
 }
 .team-chat__head {
   display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;
@@ -307,11 +374,63 @@ onUnmounted(() => {
   align-self: flex-end; color: var(--chat-own-text); background: var(--chat-own);
   border-color: transparent; border-radius: 16px 16px 5px 16px;
 }
+.team-chat__bubble.is-highlighted {
+  outline: 2px solid var(--chat-accent); outline-offset: 3px;
+}
+.team-chat__quoted {
+  width: 100%; margin-top: 10px; padding: 9px 11px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  text-align: left; background: var(--chat-quoted);
+  border: 0; border-left: 3px solid var(--chat-accent); border-radius: 7px;
+  color: inherit; font: inherit; cursor: pointer;
+}
+.team-chat__quoted strong { font-size: 12px; }
+.team-chat__quoted span {
+  max-width: 100%; font-size: 12px; opacity: .85;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.team-chat__bubble.is-own .team-chat__quoted {
+  border-left-color: #ffc1cd; background: rgba(255,255,255,.12);
+}
+.team-chat__quoted:hover { filter: brightness(1.08); }
+.team-chat__quoted:focus-visible, .team-chat__reply-action:focus-visible,
+.team-chat__reply-banner button:focus-visible { outline: 2px solid var(--chat-accent); outline-offset: 2px; }
+.team-chat__bubble-footer {
+  margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px;
+  align-items: center; justify-content: flex-end;
+}
+.team-chat__reply-action {
+  padding: 3px 6px; border: 0; border-radius: 6px;
+  background: transparent; color: inherit; font: inherit;
+  font-size: 11px; opacity: .78; cursor: pointer;
+}
+.team-chat__reply-action:hover { opacity: 1; text-decoration: underline; }
+.team-chat__reply-banner {
+  display: flex; justify-content: space-between; gap: 14px; align-items: center;
+  padding: 10px 12px; margin: 0 0 9px;
+  border-radius: 11px; border: 1px solid var(--chat-line);
+  border-left: 3px solid var(--chat-accent);
+  color: var(--chat-text); background: var(--chat-soft);
+}
+.team-chat__reply-banner-copy {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;
+}
+.team-chat__reply-banner-copy strong { color: var(--chat-accent); font-size: 12px; }
+.team-chat__reply-banner-copy span {
+  color: var(--chat-muted); font-size: 12px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.team-chat__reply-banner > button {
+  flex-shrink: 0; width: 32px; height: 32px;
+  border: 1px solid var(--chat-line); border-radius: 8px;
+  background: transparent; color: var(--chat-text); cursor: pointer;
+}
+.team-chat__reply-banner > button:hover { background: var(--chat-quoted); }
 .team-chat__by { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; font-size: 12px; }
 .team-chat__by strong { font-weight: 800; }
 .team-chat__by time { opacity: .8; white-space: nowrap; font-size: 11px; }
 .team-chat__bubble p { margin: 9px 0 0; line-height: 1.5; white-space: pre-wrap; font-size: 14px; }
-.team-chat__seen { display: block; margin-top: 10px; font-size: 11px; opacity: .84; text-align: right; }
+.team-chat__seen { display: block; font-size: 11px; opacity: .84; text-align: right; }
 .team-chat__empty { margin: auto; text-align: center; color: var(--chat-muted); padding: 22px; }
 .team-chat__empty span { display: block; font-size: 40px; color: var(--chat-accent); }
 .team-chat__empty strong { display: block; color: var(--chat-text); margin: 12px 0 6px; }
