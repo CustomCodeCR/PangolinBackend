@@ -474,14 +474,29 @@ onUnmounted(() => {
 <template>
   <div class="team-chat-root">
     <section class="team-chat-profile" aria-label="Nombre visible en el chat">
-      <div class="team-chat-profile__copy">
-        <span class="team-chat__tag">TU IDENTIDAD EN EL CHAT</span>
-        <strong>{{ chatNames[currentUserId] || authState.user?.nombre || authState.user?.correo || 'Administrador' }}</strong>
-        <small>Solo cambia cómo te ven aquí. Tu cuenta y permisos siguen iguales.</small>
+      <div class="team-chat-profile__identity">
+        <span class="team-chat__avatar team-chat__avatar--profile">
+          <img v-if="avatarFor(currentUserId)" :src="avatarFor(currentUserId)" alt="Tu foto de perfil" />
+          <span v-else>{{ initials(chatNames[currentUserId] || authState.user?.nombre || authState.user?.correo || 'Admin') }}</span>
+        </span>
+        <div class="team-chat-profile__copy">
+          <span class="team-chat__tag">TU IDENTIDAD EN EL CHAT</span>
+          <strong>{{ chatNames[currentUserId] || authState.user?.nombre || authState.user?.correo || 'Administrador' }}</strong>
+          <small>Personalizá tu nombre y foto. No altera tu cuenta oficial.</small>
+        </div>
       </div>
-      <button v-if="!nicknameEditing" class="team-chat-profile__edit" type="button" @click="openNicknameEditor">
-        <span aria-hidden="true">✎</span> {{ nickname ? 'Cambiar apodo' : 'Elegir apodo' }}
-      </button>
+      <div class="team-chat-profile__actions">
+        <input ref="avatarPicker" class="sr-only" type="file" accept="image/jpeg,image/png,image/webp"
+          aria-label="Seleccionar foto de perfil" @change="chooseAvatar" />
+        <button class="team-chat-profile__edit" type="button"
+          :disabled="avatarBusy || status !== 'En línea'"
+          @click="avatarPicker?.click()">{{ avatarBusy ? 'Subiendo…' : 'Cambiar foto' }}</button>
+        <button v-if="avatarFor(currentUserId)" class="team-chat-profile__edit team-chat-profile__remove" type="button"
+          :disabled="avatarBusy" @click="removeAvatar">Quitar foto</button>
+        <button v-if="!nicknameEditing" class="team-chat-profile__edit" type="button" @click="openNicknameEditor">
+          <span aria-hidden="true">✎</span> {{ nickname ? 'Cambiar apodo' : 'Elegir apodo' }}
+        </button>
+      </div>
       <form v-else class="team-chat-profile__form" @submit.prevent="saveNickname">
         <label class="sr-only" for="team-chat-nickname">Tu nombre para el chat</label>
         <input id="team-chat-nickname" v-model="nicknameInput" maxlength="32" autocomplete="nickname"
@@ -511,6 +526,10 @@ onUnmounted(() => {
       </div>
       <div v-for="message in messages" :key="message.id" :data-chat-id="message.id"
         class="team-chat__entry" :class="{ 'is-own': isOwn(message), 'is-highlighted': highlightedId === message.id }">
+        <span class="team-chat__avatar team-chat__avatar--message" aria-hidden="true">
+          <img v-if="avatarFor(message.userId)" :src="avatarFor(message.userId)" alt="" loading="lazy" />
+          <span v-else>{{ initials(displayName(message)) }}</span>
+        </span>
         <article class="team-chat__bubble" :class="{ 'is-own': isOwn(message) }">
           <div class="team-chat__by">
             <strong>{{ displayName(message) }}</strong>
@@ -528,7 +547,12 @@ onUnmounted(() => {
             <strong>↪ {{ message.replyTo.name }}</strong>
             <span>{{ message.replyTo.text }}</span>
           </button>
-          <p>{{ message.text }}</p>
+          <p v-if="message.text">{{ message.text }}</p>
+          <a v-if="message.imageUrl" class="team-chat__image-link" :href="message.imageUrl"
+            target="_blank" rel="noopener noreferrer" :aria-label="'Abrir imagen de ' + displayName(message)">
+            <img class="team-chat__shared-image" :src="message.imageUrl"
+              :alt="'Imagen enviada por ' + displayName(message)" loading="lazy" />
+          </a>
           <div v-if="isOwn(message) && expandedSeenId === message.id" class="team-chat__seen-popover" role="status">
             <strong>Lecturas</strong>
             <span v-if="!seenNames(message).length">Todavía nadie lo ha visto</span>
@@ -552,12 +576,23 @@ onUnmounted(() => {
       </div>
       <button type="button" aria-label="Cancelar respuesta" title="Cancelar respuesta" @click="cancelReply">✕</button>
     </div>
+    <div v-if="outgoingImage" class="team-chat__media-preview" role="status">
+      <img :src="outgoingImage.previewUrl" alt="Vista previa de imagen a enviar" />
+      <span>Imagen adjunta · podés agregar un texto</span>
+      <button type="button" aria-label="Quitar imagen adjunta" title="Quitar imagen" @click="clearOutgoingImage">✕</button>
+    </div>
     <form class="team-chat__composer" @submit.prevent="send">
+      <input ref="imagePicker" type="file" class="sr-only" accept="image/jpeg,image/png,image/webp"
+        aria-label="Seleccionar imagen para enviar" @change="chooseImage" />
+      <button type="button" class="team-chat__attach" :disabled="status !== 'En línea' || mediaBusy || sending"
+        aria-label="Adjuntar imagen" title="Enviar imagen" @click="imagePicker?.click()">
+        <span aria-hidden="true">▧</span>
+      </button>
       <label class="sr-only" for="team-chat-input">Escribir mensaje</label>
       <input id="team-chat-input" ref="input" v-model="draft" maxlength="500" autocomplete="off"
         placeholder="Escribí un mensaje al equipo…" :disabled="status !== 'En línea'"
         @input="onDraftInput" @blur="stopTyping" />
-      <button type="submit" :disabled="status !== 'En línea' || !draft.trim() || sending">
+      <button type="submit" :disabled="status !== 'En línea' || (!draft.trim() && !outgoingImage) || sending || mediaBusy">
         {{ sending ? 'Enviando…' : 'Enviar ↗' }}
       </button>
     </form>
