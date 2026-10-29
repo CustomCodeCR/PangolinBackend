@@ -316,13 +316,16 @@ onMounted(load)
             placeholder="https://www.instagram.com/reel/..." autocomplete="off" />
         </label>
         <div class="visual-editor__featured-video-field">
-          <label for="featured-reel-video">Video original para pantalla completa (opcional)
-            <select id="featured-reel-video" v-model="featuredReelMediaId"
-              :disabled="!isLiveAdmin || loading || savingFeaturedReel">
-              <option value="">Solo enlace de Instagram (reproductor incrustado)</option>
-              <option v-for="item in featuredVideoChoices" :key="item.id" :value="item.id">{{ item.name }}</option>
-            </select>
-          </label>
+          <div class="visual-editor__featured-video-selector">
+            <label>Video original para pantalla completa (opcional)</label>
+            <FieldDropdown v-model="featuredReelMediaId"
+              aria-label="Video original para el Reel destacado"
+              :disabled="!isLiveAdmin || loading || savingFeaturedReel"
+              :options="[
+                {value:'', label:'Solo enlace de Instagram (reproductor incrustado)'},
+                ...featuredVideoChoices.map(item => ({value:item.id, label:item.name}))
+              ]" />
+          </div>
           <label v-if="storageEnabled" for="featured-reel-upload">
             O subir un MP4/WebM de la empresa (máximo 20 MB)
             <input id="featured-reel-upload" type="file" accept="video/mp4,video/webm"
@@ -446,9 +449,11 @@ onMounted(load)
 .visual-editor__featured-reel-actions{display:flex;gap:9px;flex-wrap:wrap}
 .visual-editor__featured-video-field{display:grid;gap:10px;width:100%}
 .visual-editor__featured-video-field label{display:grid;gap:7px;font-size:13px;font-weight:750}
-.visual-editor__featured-video-field :is(select,input){width:100%;max-width:620px;min-width:0;padding:10px;border-radius:9px;border:1px solid #bdc3ce;background:#fff;color:#1d2735;font:inherit}
+.visual-editor__featured-video-selector{display:grid;gap:7px;min-width:0}
+.visual-editor__featured-video-selector>label{font-size:13px;font-weight:750}
+.visual-editor__featured-video-field input{width:100%;max-width:620px;min-width:0;padding:10px;border-radius:9px;border:1px solid #bdc3ce;background:#fff;color:#1d2735;font:inherit}
 .visual-editor__featured-video-preview{max-width:210px;width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:12px;background:#080f22}
-html.theme-dark .visual-editor__featured-video-field :is(select,input){background:#0b1324;border-color:#667085;color:#fff}
+html.theme-dark .visual-editor__featured-video-field input{background:#0b1324;border-color:#667085;color:#fff}
 .visual-editor__featured-reel-current{margin:0;font-size:12px;line-height:1.55;color:#515865;overflow-wrap:anywhere}
 .visual-editor__featured-reel-current a{color:#aa1745;text-decoration:underline}
 html.theme-dark .visual-editor__featured-reel{background:#171924;border-color:#503042}
