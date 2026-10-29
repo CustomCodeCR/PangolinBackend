@@ -1,23 +1,84 @@
 <script setup lang="ts">
-import { nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import * as signalR from '@microsoft/signalr'
 import { authState } from '../services/auth'
 
 interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string }
+interface ReadReceipt { userId: string; name: string; lastReadAt: string }
+
+const props = defineProps<{ visible: boolean }>()
+const emit = defineEmits<{ (event: 'unread-change', count: number): void }>()
 const messages = ref<ChatMessage[]>([])
+const receipts = ref<ReadReceipt[]>([])
 const draft = ref('')
 const status = ref('Conectando…')
 const online = ref(0)
 const sending = ref(false)
 const error = ref('')
 const list = ref<HTMLElement | null>(null)
+const lastReadAt = ref(0)
 let connection: signalR.HubConnection | null = null
+let retryTimer: ReturnType<typeof setTimeout> | null = null
 let active = true
-function scrollBottom() { void nextTick(() => { list.value?.scrollTo({ top: list.value.scrollHeight, behavior: 'smooth' }) }) }
-function append(message: ChatMessage) {
+
+const currentUserId = computed(() => String(authState.user?.id ?? '').toLowerCase())
+const currentEmail = computed(() => (authState.user?.correo ?? '').toLowerCase())
+const storageKey = computed(() => 'castrofallas-admin-chat-read:' + (currentUserId.value || currentEmail.value))
+
+function isOwn(message: ChatMessage) {
+  return message.userId.toLowerCase() === currentUserId.value ||
+    (!!currentEmail.value && message.email.toLowerCase() === currentEmail.value)
+}
+const unread = computed(() => messages.value.filter(message =>
+  !isOwn(message) && Date.parse(message.sentAt) > lastReadAt.value
+).length)
+watch(unread, value => emit('unread-change', value), { immediate: true })
+
+function persistLastRead(value: number) {
+  if (!Number.isFinite(value) || value <= lastReadAt.value) return
+  lastReadAt.value = value
+  try { localStorage.setItem(storageKey.value, new Date(value).toISOString()) } catch { /* Storage opcional */ }
+}
+function initializeLastRead() {
+  try {
+    const saved = Date.parse(localStorage.getItem(storageKey.value) ?? '')
+    if (Number.isFinite(saved)) { lastReadAt.value = saved; return }
+  } catch { /* Storage opcional */ }
+  // Primera conexión: no contar todo el historial anterior como notificaciones.
+  persistLastRead(Date.now())
+}
+function scrollBottom() {
+  if (!props.visible) return
+  void nextTick(() => { if (props.visible && list.value) list.value.scrollTop = list.value.scrollHeight })
+}
+function canMarkRead() { return props.visible && document.visibilityState === 'visible' }
+function markVisibleRead() {
+  if (!canMarkRead()) return
+  const newest = messages.value.at(-1)
+  if (!newest) return
+  persistLastRead(Date.parse(newest.sentAt))
+  if (connection?.state === signalR.HubConnectionState.Connected) {
+    void connection.invoke('MarkSeen', newest.id).catch(() => { /* Reintentar cuando haya conexión */ })
+  }
+}
+function receivedMessage(message: ChatMessage) {
   if (messages.value.some(item => item.id === message.id)) return
   messages.value = [...messages.value.slice(-59), message]
-  scrollBottom()
+  if (canMarkRead()) { scrollBottom(); markVisibleRead() }
+}
+function receivedReceipt(receipt: ReadReceipt) {
+  const index = receipts.value.findIndex(item => item.userId === receipt.userId)
+  if (index === -1) receipts.value = [...receipts.value, receipt]
+  else if (Date.parse(receipt.lastReadAt) > Date.parse(receipts.value[index].lastReadAt)) {
+    receipts.value = receipts.value.map((item, i) => i === index ? receipt : item)
+  }
+}
+function seenBy(message: ChatMessage): string {
+  const names = receipts.value
+    .filter(receipt => receipt.userId.toLowerCase() !== message.userId.toLowerCase()
+      && Date.parse(receipt.lastReadAt) >= Date.parse(message.sentAt))
+    .map(receipt => receipt.name)
+  return names.length ? 'Visto por ' + names.slice(0, 2).join(', ') + (names.length > 2 ? ' y ' + (names.length - 2) + ' más' : '') : 'Sin vistos aún'
 }
 function clock(iso: string) { return new Date(iso).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' }) }
 async function send() {
@@ -29,67 +90,207 @@ async function send() {
   catch (cause) { error.value = cause instanceof Error ? cause.message : 'No se pudo enviar el mensaje.' }
   finally { sending.value = false }
 }
-onMounted(async () => {
-  if (authState.user?.role !== 'administrador' || authState.previewRole) { status.value = 'Requiere una sesión administradora real.'; return }
+function scheduleRetry() {
+  if (!active || retryTimer) return
+  retryTimer = setTimeout(() => { retryTimer = null; void startChat() }, 12000)
+}
+async function startChat() {
+  if (!active || !connection || connection.state !== signalR.HubConnectionState.Disconnected) return
+  try {
+    await connection.start()
+    if (!active) { await connection.stop(); return }
+    status.value = 'En línea'
+    markVisibleRead()
+  } catch {
+    if (active) { status.value = 'Sin conexión · reintentando'; scheduleRetry() }
+  }
+}
+function onVisibility() {
+  if (canMarkRead()) { scrollBottom(); markVisibleRead() }
+}
+watch(() => props.visible, showing => { if (showing) onVisibility() })
+onMounted(() => {
+  if (authState.user?.role !== 'administrador' || authState.previewRole) {
+    status.value = 'Requiere una sesión administradora real.'
+    return
+  }
+  initializeLastRead()
+  window.addEventListener('focus', onVisibility)
+  document.addEventListener('visibilitychange', onVisibility)
+  window.addEventListener('online', startChat)
+
   const hub = new signalR.HubConnectionBuilder()
     .withUrl('/api/hubs/admin-chat', { withCredentials: true })
     .withAutomaticReconnect([0, 1000, 3000, 8000, 15000])
     .configureLogging(signalR.LogLevel.Error)
     .build()
   connection = hub
-  hub.on('History', (history: ChatMessage[]) => { if (!active) return; messages.value = history.slice(-60); scrollBottom() })
-  hub.on('Message', (message: ChatMessage) => { if (active) append(message) })
+  hub.on('History', (history: ChatMessage[], seen: ReadReceipt[]) => {
+    if (!active) return
+    messages.value = history.slice(-60)
+    receipts.value = seen ?? []
+    if (canMarkRead()) { scrollBottom(); markVisibleRead() }
+  })
+  hub.on('Message', (message: ChatMessage) => { if (active) receivedMessage(message) })
+  hub.on('Seen', (receipt: ReadReceipt) => { if (active) receivedReceipt(receipt) })
   hub.on('Presence', (count: number) => { if (active) online.value = count })
   hub.onreconnecting(() => { status.value = 'Reconectando…' })
-  hub.onreconnected(() => { status.value = 'En línea' })
-  hub.onclose(() => { status.value = 'Desconectado' })
-  try { await hub.start(); if (!active) { await hub.stop(); return }; status.value = 'En línea' }
-  catch { status.value = 'No se pudo conectar. Revisá que el backend esté activo.' }
+  hub.onreconnected(() => { status.value = 'En línea'; markVisibleRead() })
+  hub.onclose(() => { status.value = 'Desconectado'; scheduleRetry() })
+  void startChat()
 })
-onUnmounted(() => { active = false; if (connection) void connection.stop() })
+onUnmounted(() => {
+  active = false
+  emit('unread-change', 0)
+  if (retryTimer) clearTimeout(retryTimer)
+  window.removeEventListener('focus', onVisibility)
+  document.removeEventListener('visibilitychange', onVisibility)
+  window.removeEventListener('online', startChat)
+  if (connection) void connection.stop()
+})
 </script>
 
 <template>
   <section class="team-chat" aria-label="Chat entre administradores">
     <header class="team-chat__head">
-      <div><p class="team-chat__tag">CANAL PRIVADO · EXPERIMENTAL</p><h2>Chat del equipo <span>✦</span></h2><p>Mensajería en vivo entre cuentas administradoras. Sin historial permanente.</p></div>
-      <div class="team-chat__presence"><span class="team-chat__light" />{{ status }} <small v-if="online">· {{ online }} conectado{{ online === 1 ? '' : 's' }}</small></div>
+      <div>
+        <p class="team-chat__tag">CANAL PRIVADO · EXPERIMENTAL</p>
+        <h2>Chat del equipo</h2>
+        <p>Mensajería en vivo entre administradores. El historial se borra al reiniciar el backend.</p>
+      </div>
+      <div class="team-chat__presence" role="status">
+        <span class="team-chat__light" :class="{ 'is-offline': status !== 'En línea' }" />
+        {{ status }} <small v-if="online">· {{ online }} conectado{{ online === 1 ? '' : 's' }}</small>
+      </div>
     </header>
     <div ref="list" class="team-chat__messages" role="log" aria-live="polite" aria-relevant="additions">
-      <div v-if="!messages.length" class="team-chat__empty"><span>✳</span><strong>Este canal está esperando su primer mensaje.</strong><p>Probalo con otro administrador conectado desde otra computadora o navegador.</p></div>
-      <article v-for="message in messages" :key="message.id" class="team-chat__bubble" :class="{ 'is-own': message.email.toLowerCase() === authState.user?.correo.toLowerCase() }">
-        <div class="team-chat__by"><strong>{{ message.name || message.email }}</strong><time :datetime="message.sentAt">{{ clock(message.sentAt) }}</time></div>
+      <div v-if="!messages.length" class="team-chat__empty">
+        <span>✳</span><strong>Este canal está esperando su primer mensaje.</strong>
+        <p>Probalo con otro administrador desde otra computadora o navegador.</p>
+      </div>
+      <article v-for="message in messages" :key="message.id" class="team-chat__bubble" :class="{ 'is-own': isOwn(message) }">
+        <div class="team-chat__by">
+          <strong>{{ message.name || message.email }}</strong>
+          <time :datetime="message.sentAt">{{ clock(message.sentAt) }}</time>
+        </div>
         <p>{{ message.text }}</p>
+        <small v-if="isOwn(message)" class="team-chat__seen">{{ seenBy(message) }}</small>
       </article>
     </div>
     <form class="team-chat__composer" @submit.prevent="send">
       <label class="sr-only" for="team-chat-input">Escribir mensaje</label>
-      <input id="team-chat-input" v-model="draft" maxlength="500" autocomplete="off" placeholder="Escribí un mensaje al equipo…" :disabled="status !== 'En línea'" />
-      <button type="submit" :disabled="status !== 'En línea' || !draft.trim() || sending">{{ sending ? 'Enviando…' : 'Enviar ↗' }}</button>
+      <input id="team-chat-input" v-model="draft" maxlength="500" autocomplete="off"
+        placeholder="Escribí un mensaje al equipo…" :disabled="status !== 'En línea'" />
+      <button type="submit" :disabled="status !== 'En línea' || !draft.trim() || sending">
+        {{ sending ? 'Enviando…' : 'Enviar ↗' }}
+      </button>
     </form>
     <p v-if="error" class="team-chat__error" role="alert">{{ error }}</p>
-    <p class="team-chat__foot">Solo administradores autenticados. Los mensajes se borran al reiniciar el backend.</p>
+    <p class="team-chat__foot">Solo administradores autenticados · {{ messages.length }} mensajes en este historial temporal.</p>
   </section>
 </template>
 
 <style scoped>
-.team-chat{max-width:1040px;margin:24px auto 64px;padding:28px;border:1px solid rgba(135,150,183,.23);border-radius:24px;background:#101b2e;color:#f5f7ff;box-shadow:0 24px 70px #09102329}
-.team-chat__head{display:flex;justify-content:space-between;align-items:start;gap:18px;flex-wrap:wrap;padding-bottom:22px;border-bottom:1px solid #ffffff19}
-.team-chat__tag{color:#ff8f9c;letter-spacing:.18em;font-size:11px;font-weight:800}
-.team-chat__head h2{margin:8px 0;font-size:clamp(24px,3vw,36px);letter-spacing:-.03em}.team-chat__head h2 span{color:#ef5369}
-.team-chat__head p:not(.team-chat__tag){color:#bac4d8;margin:0;font-size:14px}
-.team-chat__presence{border:1px solid #ffffff24;border-radius:50px;padding:10px 15px;font-size:12px;color:#d6deef}
-.team-chat__presence small{font-size:12px}.team-chat__light{display:inline-block;width:8px;height:8px;border-radius:50%;background:#52dc9a;margin-right:8px;box-shadow:0 0 12px #52dc9a}
-.team-chat__messages{height:min(54vh,480px);min-height:290px;overflow:auto;display:flex;flex-direction:column;gap:14px;padding:24px 3px}
-.team-chat__bubble{align-self:flex-start;max-width:min(80%,550px);padding:13px 17px;background:#253650;border:1px solid #ffffff17;border-radius:16px 16px 16px 5px;overflow-wrap:anywhere}
-.team-chat__bubble.is-own{align-self:flex-end;background:#75283e;border-radius:16px 16px 5px 16px}
-.team-chat__by{display:flex;gap:20px;align-items:center;justify-content:space-between;font-size:12px;color:#f9dce2}.team-chat__by time{color:#b9c5d7;white-space:nowrap}
-.team-chat__bubble p{margin:9px 0 0;white-space:pre-wrap;line-height:1.5;font-size:14px}
-.team-chat__empty{margin:auto;text-align:center;color:#aebbd0}.team-chat__empty span{display:block;font-size:40px;color:#ea6479}.team-chat__empty strong{display:block;color:#f1f3fb;margin:15px 0 8px}
-.team-chat__composer{display:flex;gap:12px;background:#1a2942;padding:9px;border:1px solid #ffffff1f;border-radius:16px}
-.team-chat__composer input{flex:1;min-width:0;background:transparent;color:white;border:0;outline:none;padding:12px;font:inherit}
-.team-chat__composer button{background:#dc3c5d;border:0;border-radius:10px;color:white;padding:12px 22px;font:inherit;font-weight:700;cursor:pointer}
-.team-chat__composer button:disabled{opacity:.5;cursor:not-allowed}.team-chat__error{color:#ffb3c2}.team-chat__foot{margin:14px 0 0;font-size:12px;color:#a6b7d0}
-.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-@media(max-width:600px){.team-chat{margin:14px;padding:16px;border-radius:18px}.team-chat__messages{height:400px}.team-chat__bubble{max-width:92%}.team-chat__composer button{padding:10px 14px}}
+.team-chat {
+  --chat-bg: var(--manager-card, #fff);
+  --chat-text: var(--manager-ink, #20242b);
+  --chat-muted: var(--manager-muted, #687080);
+  --chat-line: var(--manager-line, #ded9dc);
+  --chat-accent: var(--manager-accent, #b20c2a);
+  --chat-soft: #f5f0f2;
+  --chat-bubble: #ece8ed;
+  --chat-own: #a20f2c;
+  --chat-own-text: #fff;
+  --chat-scroll: #b48c9a;
+  width: min(1040px, 100%);
+  margin: 24px auto 64px;
+  padding: clamp(17px, 3vw, 30px);
+  border: 1px solid var(--chat-line);
+  border-radius: 22px;
+  background: var(--chat-bg);
+  color: var(--chat-text);
+  box-shadow: 0 14px 38px rgba(25, 16, 24, .055);
+}
+:global(html.theme-dark) .team-chat {
+  --chat-soft: #1b1820;
+  --chat-bubble: #302932;
+  --chat-own: #86243b;
+  --chat-scroll: #795564;
+  box-shadow: none;
+}
+.team-chat__head {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;
+  flex-wrap: wrap; padding-bottom: 22px; border-bottom: 1px solid var(--chat-line);
+}
+.team-chat__tag { color: var(--chat-accent); letter-spacing: .14em; font-size: 11px; font-weight: 850; }
+.team-chat__head h2 { margin: 8px 0; font-size: clamp(23px, 3vw, 34px); letter-spacing: -.04em; color: var(--chat-text); }
+.team-chat__head p:not(.team-chat__tag) { margin: 0; max-width: 530px; color: var(--chat-muted); font-size: 14px; line-height: 1.5; }
+.team-chat__presence {
+  padding: 9px 13px; border: 1px solid var(--chat-line); border-radius: 50px;
+  background: var(--chat-soft); color: var(--chat-text); font-size: 12px;
+}
+.team-chat__presence small { font-size: 12px; }
+.team-chat__light {
+  display: inline-block; width: 8px; height: 8px; margin-right: 7px;
+  border-radius: 50%; background: #18a56a; box-shadow: 0 0 8px #18a56a66;
+}
+.team-chat__light.is-offline { background: #a9a0a9; box-shadow: none; }
+.team-chat__messages {
+  height: min(53vh, 470px); min-height: 285px;
+  display: flex; flex-direction: column; gap: 14px; overflow: auto;
+  padding: 23px 11px 23px 4px; margin: 0 0 12px;
+  background: var(--chat-soft); border-bottom: 1px solid var(--chat-line);
+  scrollbar-width: thin; scrollbar-color: var(--chat-scroll) transparent;
+  scrollbar-gutter: stable;
+  border-radius: 10px;
+}
+.team-chat__messages::-webkit-scrollbar { width: 9px; }
+.team-chat__messages::-webkit-scrollbar-track { background: transparent; border-radius: 99px; }
+.team-chat__messages::-webkit-scrollbar-thumb {
+  background: var(--chat-scroll); border: 2px solid var(--chat-soft); border-radius: 99px;
+}
+.team-chat__messages::-webkit-scrollbar-thumb:hover { background: var(--chat-accent); }
+.team-chat__bubble {
+  align-self: flex-start; max-width: min(83%, 550px); padding: 13px 16px;
+  border: 1px solid var(--chat-line); border-radius: 16px 16px 16px 5px;
+  color: var(--chat-text); background: var(--chat-bubble); overflow-wrap: anywhere;
+}
+.team-chat__bubble.is-own {
+  align-self: flex-end; color: var(--chat-own-text); background: var(--chat-own);
+  border-color: transparent; border-radius: 16px 16px 5px 16px;
+}
+.team-chat__by { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; font-size: 12px; }
+.team-chat__by strong { font-weight: 800; }
+.team-chat__by time { opacity: .8; white-space: nowrap; font-size: 11px; }
+.team-chat__bubble p { margin: 9px 0 0; line-height: 1.5; white-space: pre-wrap; font-size: 14px; }
+.team-chat__seen { display: block; margin-top: 10px; font-size: 11px; opacity: .84; text-align: right; }
+.team-chat__empty { margin: auto; text-align: center; color: var(--chat-muted); padding: 22px; }
+.team-chat__empty span { display: block; font-size: 40px; color: var(--chat-accent); }
+.team-chat__empty strong { display: block; color: var(--chat-text); margin: 12px 0 6px; }
+.team-chat__empty p { margin: 0; font-size: 13px; }
+.team-chat__composer {
+  display: flex; align-items: center; gap: 10px; border-radius: 14px;
+  border: 1px solid var(--chat-line); background: var(--chat-soft); padding: 8px;
+}
+.team-chat__composer input {
+  flex: 1; min-width: 0; padding: 12px; border: none; outline: none;
+  background: transparent; color: var(--chat-text); font: inherit;
+}
+.team-chat__composer input::placeholder { color: var(--chat-muted); }
+.team-chat__composer:focus-within { outline: 2px solid var(--chat-accent); outline-offset: 2px; }
+.team-chat__composer button {
+  border: 0; border-radius: 10px; background: var(--chat-accent); color: #fff;
+  padding: 12px 22px; font: inherit; font-weight: 750; cursor: pointer;
+}
+.team-chat__composer button:disabled { opacity: .48; cursor: not-allowed; }
+.team-chat__error { color: var(--chat-accent); }
+.team-chat__foot { margin: 14px 0 0; color: var(--chat-muted); font-size: 12px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+@media (max-width: 600px) {
+  .team-chat { padding: 16px; margin: 14px auto 32px; border-radius: 17px; }
+  .team-chat__messages { height: 390px; padding-right: 9px; }
+  .team-chat__bubble { max-width: 95%; }
+  .team-chat__composer button { padding: 10px 13px; }
+  .team-chat__by { flex-wrap: wrap; gap: 4px 12px; }
+}
 </style>
