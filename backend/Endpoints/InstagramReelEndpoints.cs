@@ -68,69 +68,66 @@ public static class InstagramReelEndpoints
         IConfiguration config, IHttpClientFactory clients, IMemoryCache cache,
         AppDbContext db, HttpContext http, CancellationToken ct)
     {
-        // A manually selected Reel always wins, even if the Meta API is not configured.
-        // The existing site CMS persists this setting across Docker restarts.
+        // The selected Reel and its original company video always have priority.
+        // A Meta connection can supply a native video when no file was uploaded.
         var chosen = await db.SiteCmsSlots.AsNoTracking()
             .Where(s => s.Key == ManualReelKey)
             .Select(s => new { s.PublishedEs, s.PublishedMediaId, s.PublishedAt })
             .FirstOrDefaultAsync(ct);
         var chosenUrl = NormalizeReelUrl(chosen?.PublishedEs);
+        // Signed CDN URLs expire, so browser caches must not keep old responses.
+        http.Response.Headers.CacheControl = "no-store";
+
+        Reel? selected = null;
         if (chosenUrl is not null)
         {
-            http.Response.Headers.CacheControl = "no-store";
             var date = chosen?.PublishedAt is DateTime stamp
                 ? new DateTimeOffset(DateTime.SpecifyKind(stamp, DateTimeKind.Utc))
                 : DateTimeOffset.UtcNow;
             string? videoSrc = null;
             if (chosen?.PublishedMediaId is Guid mediaId)
             {
-                var video = await db.ManagedMedia.AsNoTracking()
+                var file = await db.ManagedMedia.AsNoTracking()
                     .Where(m => m.Id == mediaId && m.Kind == "Video" && m.ObjectKey != null
                         && (m.MimeType == "video/mp4" || m.MimeType == "video/webm"))
                     .Select(m => new { m.Id })
                     .FirstOrDefaultAsync(ct);
-                if (video is not null) videoSrc = $"/api/content/media/{video.Id}/file";
+                if (file is not null) videoSrc = $"/api/content/media/{file.Id}/file";
             }
-            return Results.Ok(new Response(new Reel(chosenUrl, null, date, videoSrc), ProfileUrl));
+            selected = new Reel(chosenUrl, null, date, videoSrc);
+            if (videoSrc is not null)
+                return Results.Ok(new Response(selected, ProfileUrl));
         }
 
-        http.Response.Headers.CacheControl = "public, max-age=120";
-
+        // In manual mode without an uploaded video, look up the same Reel in
+        // Instagram's authorized media list. Never silently substitute a different Reel.
         var token = config["Instagram:AccessToken"];
         if (string.IsNullOrWhiteSpace(token))
-            return Results.Ok(new Response(null, ProfileUrl));
+            return Results.Ok(new Response(selected, ProfileUrl));
 
-        if (cache.TryGetValue<Response>(CacheKey, out var saved) && saved is not null)
+        var key = chosenUrl is null ? CacheKey : $"{CacheKey}:{chosenUrl}";
+        if (cache.TryGetValue<Response>(key, out var saved) && saved is not null)
             return Results.Ok(saved);
 
-        // Server-side only. The HTTP client has a fixed Meta host and no redirects.
-        Reel? latest;
+        Reel? fromMeta = null;
         try
         {
-            latest = await FetchAsync(clients.CreateClient("Instagram"), token.Trim(), ct);
+            fromMeta = await FetchAsync(clients.CreateClient("Instagram"), token.Trim(), chosenUrl, ct);
         }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
-            latest = null; // Meta timed out; preserve a working Home.
-        }
-        catch (HttpRequestException)
-        {
-            latest = null;
-        }
-        catch (JsonException)
-        {
-            latest = null;
-        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { }
+        catch (HttpRequestException) { }
+        catch (JsonException) { }
 
-        var result = new Response(latest, ProfileUrl);
-        cache.Set(CacheKey, result, latest is null ? TimeSpan.FromMinutes(2) : TimeSpan.FromMinutes(10));
+        // The embed/link remains available if the media URL is missing or Meta is down.
+        var result = new Response(fromMeta ?? selected, ProfileUrl);
+        // Short TTL: media_url links are temporary and must be requested again.
+        cache.Set(key, result, TimeSpan.FromMinutes(fromMeta?.VideoSrc is null ? 2 : 4));
         return Results.Ok(result);
     }
 
-    private static async Task<Reel?> FetchAsync(HttpClient client, string token, CancellationToken ct)
+    private static async Task<Reel?> FetchAsync(HttpClient client, string token, string? selectedUrl, CancellationToken ct)
     {
-        // Verify the token belongs to the official company account. A token from
-        // any other account must never populate the company website.
+        // A token belonging to any other Instagram account must not populate this website.
         using var identity = NewRequest("me?fields=username", token);
         using var identityResponse = await client.SendAsync(identity, HttpCompletionOption.ResponseHeadersRead, ct);
         if (!identityResponse.IsSuccessStatusCode) return null;
@@ -143,10 +140,10 @@ public static class InstagramReelEndpoints
                 return null;
         }
 
-        // Instagram Login for Business/Creator, read-only instagram_business_basic.
-        // Fetch recent media and pick the newest Reel by timestamp, not a fixed post.
+        // Read only the fields supported by Instagram Login. Reels have media_type
+        // VIDEO and /reel/ links; media_product_type may not be available.
         using var request = NewRequest(
-            "me/media?fields=id,media_type,permalink,thumbnail_url,timestamp&limit=50", token);
+            "me/media?fields=id,media_type,permalink,media_url,thumbnail_url,timestamp&limit=50", token);
         using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
         if (!response.IsSuccessStatusCode) return null;
         await response.Content.LoadIntoBufferAsync(512 * 1024, ct);
@@ -159,19 +156,19 @@ public static class InstagramReelEndpoints
         Reel? newest = null;
         foreach (var item in data.EnumerateArray())
         {
-            if (item.ValueKind != JsonValueKind.Object) continue;
-            var url = NormalizeReelUrl(GetString(item, "permalink"));
-            if (url is null) continue;
-            if (!string.Equals(GetString(item, "media_product_type"), "REELS", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(GetString(item, "media_type"), "VIDEO", StringComparison.OrdinalIgnoreCase))
+            if (item.ValueKind != JsonValueKind.Object ||
+                !string.Equals(GetString(item, "media_type"), "VIDEO", StringComparison.OrdinalIgnoreCase))
                 continue;
+            var url = NormalizeReelUrl(GetString(item, "permalink"));
+            if (url is null || (selectedUrl is not null && url != selectedUrl)) continue;
+            if (!DateTimeOffset.TryParse(GetString(item, "timestamp"), out var date)) continue;
 
-            if (!DateTimeOffset.TryParse(GetString(item, "timestamp"), out var publishedAt)) continue;
             var thumbnail = TrustedThumbnail(GetString(item, "thumbnail_url"));
-            var candidate = new Reel(url, thumbnail, publishedAt);
+            var nativeVideo = TrustedMetaMediaUrl(GetString(item, "media_url"));
+            var candidate = new Reel(url, thumbnail, date, nativeVideo);
+            if (selectedUrl is not null) return candidate;
             if (newest is null || candidate.PublishedAt > newest.PublishedAt) newest = candidate;
         }
-
         return newest;
     }
 
@@ -201,6 +198,24 @@ public static class InstagramReelEndpoints
             parts[1].Any(c => !char.IsAsciiLetterOrDigit(c) && c != '_' && c != '-')) return null;
 
         return $"https://www.instagram.com/reel/{parts[1]}/";
+    }
+
+    // CDN video files supplied by Meta may be rendered natively, but never use
+    // arbitrary URLs or expose the Instagram token in an HTML video element.
+    private static string? TrustedMetaMediaUrl(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Length > 4096 ||
+            !Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
+            uri.Scheme != Uri.UriSchemeHttps || uri.Port != 443 ||
+            !string.IsNullOrEmpty(uri.UserInfo))
+            return null;
+
+        var host = uri.Host;
+        return host.Equals("fbcdn.net", StringComparison.OrdinalIgnoreCase) ||
+               host.EndsWith(".fbcdn.net", StringComparison.OrdinalIgnoreCase) ||
+               host.Equals("cdninstagram.com", StringComparison.OrdinalIgnoreCase) ||
+               host.EndsWith(".cdninstagram.com", StringComparison.OrdinalIgnoreCase)
+            ? value : null;
     }
 
     private static string? TrustedThumbnail(string? value)
