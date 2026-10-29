@@ -8,7 +8,7 @@ La sección de Instagram aparece **antes de las cinco tarjetas de contacto**, en
 2. Entrá con un administrador real a **Administración → Contenido → Editor visual**.
 3. Arriba del editor, buscá el campo **«Reel de Instagram del Home»**, pegá el enlace y pulsá **«Guardar y mostrar Reel»**.
 4. Para reproducir **sin la interfaz de Instagram**, seleccioná o subí el MP4/WebM original de la empresa (máximo **20 MB**, requiere MinIO) antes de pulsar Guardar. Se reproducirá con el reproductor nativo a ancho y alto completos del cuadro, manteniendo el enlace al Reel original.
-5. Si no tenés el archivo original, podés guardar únicamente el enlace; se utilizará el reproductor incrustado de Instagram, cuya interfaz no se puede ocultar desde nuestra web.
+5. Si no tenés el archivo original, podés guardar únicamente el enlace. Si Instagram Login ya está conectado y Meta devuelve `media_url` para ese Reel, se usa el reproductor nativo sin interfaz de Instagram. En caso contrario, se usa el reproductor incrustado, cuya interfaz no se puede ocultar desde nuestra web.
 6. Para cambiarlo, pegá otro enlace (y, si corresponde, elegí otro video) y guardá. Para quitar el elegido, pulsá **«Quitar Reel»**.
 
 ### Alcance de seguridad y persistencia
@@ -18,13 +18,31 @@ La sección de Instagram aparece **antes de las cinco tarjetas de contacto**, en
 - El archivo de video opcional se sube mediante el mecanismo existente de medios de MinIO/S3 con límite de 20 MB, validación de formato y autenticación de administrador. Solo se puede asignar un video almacenado en la biblioteca. La URL pública solo se sirve cuando el video está publicado en el slot CMS del Reel. No se descarga ni extrae contenido de Instagram.
 - El valor se almacena en la tabla existente `SiteCmsSlots` (`home.instagram.reel`), **sin migraciones de base de datos ni cambios en MinIO**. Guardar publica en un solo paso y envía un aviso `site` a las pestañas conectadas.
 - `GET /api/social/instagram/latest-reel` sirve el elegido, sin caché del navegador en modo manual. Si no hay elegido, conserva la opción anterior de obtener el último Reel mediante un token de Meta, si estuviera configurado.
-- Si solo se pega un enlace, el contenido sigue alojado en Instagram. **Solo los Reels públicos que permitan inserción podrán reproducirse dentro del Home**; los demás pueden abrirse desde el enlace directo. Para un reproductor a pantalla completa sin la interfaz de Instagram se necesita una copia autorizada del archivo original en MinIO.
+- Si solo se pega un enlace, el contenido sigue alojado en Instagram. Con un token autorizado, el servidor intenta obtener `media_url` desde Meta para usar un reproductor nativo; cuando no esté disponible o no pueda reproducirse, conserva el reproductor oficial y el enlace al Reel. Sin conexión Meta, para lograr un reproductor nativo se necesita una copia autorizada del archivo original en MinIO.
 - El reproductor oficial se carga bajo demanda al pulsar «Reproducir». No se realizan solicitudes de video a Instagram mientras el visitante no lo haya solicitado.
 - Al quitar el enlace manual, si tampoco hay integración automática configurada, el Home vuelve a mostrar el acceso al perfil.
 
 ## Alternativa opcional: actualización automática
 
 La integración de Meta es opcional y se puede configurar más adelante. La sección manual funciona sin token de Instagram.
+
+## Activar lectura de Reels con Instagram Login (sin Facebook)
+
+Esta integración ya permite utilizar un video de Meta con reproducción nativa siempre que la API oficial entregue `media_url`; no se hace scraping ni se descarga el Reel. La API devuelve URLs temporales y **no todos los Reels incluyen `media_url`** (por ejemplo, por restricciones de derechos). Si una URL de video falla al reproducir, el visitante puede volver al Reel incrustado o abrir Instagram.
+
+**Para quienes administran Meta:**
+
+1. En Meta for Developers abrir la app `Castro Fallas Social` y buscar **Instagram → API setup with Instagram login**. Es *distinto* de **API setup with Facebook login**, que exige una página conectada.
+2. Si solo figura Facebook Login, **no agregar permisos `pages_*` ni vincular cuentas por obligación**. Algunas interfaces de Meta no muestran la opción directa; comprobar primero con la documentación oficial o soporte de Meta y no generar credenciales del flujo equivocado.
+3. En la configuración de Instagram Login, agregar solamente `instagram_business_basic` (solo lectura).
+4. Si la app está en modo de desarrollo, agregar `@grupocastrofallas1` como cuenta de prueba y pedir a su administradora que acepte la invitación.
+5. Desde el flujo oficial de autorización o **Generate access tokens → Add account** (según la interfaz actual), la administradora inicia sesión directamente en Instagram y concede el permiso. No comparte contraseña ni códigos.
+6. El desarrollador genera un **token de larga duración** para la cuenta profesional y lo guarda en el entorno privado del backend, nunca en Git, en el frontend, por capturas ni por el chat.
+7. El backend comprueba que `GET /me?fields=username` coincide con `grupocastrofallas1`, y consulta `GET /me/media` con `media_url`, `permalink`, `thumbnail_url`, `media_type` y `timestamp`.
+
+La configuración de Docker sigue siendo `INSTAGRAM_ACCESS_TOKEN` para Compose local / producción, o `PANGOLIN_INSTAGRAM_ACCESS_TOKEN` para despliegues de imágenes. El backend ofrece solo datos filtrados, nunca el token. **La renovación automática persistente del token todavía no está implementada**: el token de larga duración suele expirar en 60 días y se debe establecer un proceso de renovación seguro antes del despliegue permanente. Tampoco se ha verificado el resultado con la cuenta real; necesita una prueba tras autorizarla.
+
+La cuenta debe ser profesional (empresa o creador). No necesita página de Facebook para el flujo directo. El Reel elegido manualmente tiene prioridad: si aparece entre las publicaciones recientes autorizadas, se intenta usar `media_url`; si no, se conserva su enlace. Sin selección manual, se busca el Reel más reciente.
 
 ## Conectar la cuenta @grupocastrofallas1
 
