@@ -712,16 +712,16 @@ onUnmounted(() => {
   .news-article-page__content { max-width:none; }
 }
 
-/* Metadatos del artículo: centrar el grupo completo en pantallas de teléfono. */
+/* En teléfonos, los metadatos quedan debajo del título y alineados a la izquierda. */
 @media (max-width:720px) {
   .news-article-page__meta {
-    justify-content:center;
+    justify-content:flex-start;
     flex-wrap:wrap;
     column-gap:clamp(12px,3vw,20px);
     row-gap:10px;
-    text-align:center;
+    text-align:left;
   }
   .news-article-page__publisher,
-  .news-article-page__meta-category { justify-content:center; }
+  .news-article-page__meta-category { justify-content:flex-start; }
 }
 </style>
