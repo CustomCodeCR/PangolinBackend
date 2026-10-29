@@ -41,6 +41,8 @@ let highlightTimer: ReturnType<typeof setTimeout> | null = null
 const status = ref('Conectando…')
 const online = ref(0)
 const sending = ref(false)
+const clearingChat = ref(false)
+const chatNotice = ref('')
 const error = ref('')
 const list = ref<HTMLElement | null>(null)
 const chatPanel = ref<HTMLElement | null>(null)
@@ -289,6 +291,7 @@ function markVisibleRead() {
 }
 function receivedMessage(message: ChatMessage) {
   if (messages.value.some(item => item.id === message.id)) return
+  chatNotice.value = ''
   messages.value = [...messages.value.slice(-59), message]
   if (canMarkRead()) { scrollBottom(); markVisibleRead() }
 }
@@ -328,6 +331,36 @@ function jumpToOriginal(id: string) {
   highlightedId.value = id
   if (highlightTimer) clearTimeout(highlightTimer)
   highlightTimer = setTimeout(() => { highlightedId.value = null; highlightTimer = null }, 1800)
+}
+async function clearChatForEveryone() {
+  if (clearingChat.value || !messages.value.length ||
+      connection?.state !== signalR.HubConnectionState.Connected) return
+  const confirmed = window.confirm(
+    '¿Vaciar la conversación para TODOS los administradores?\n\n' +
+    'Se borrarán los mensajes, los vistos y las imágenes compartidas. ' +
+    'No se puede deshacer. Los apodos y las fotos de perfil se conservan.'
+  )
+  if (!confirmed) return
+  clearingChat.value = true
+  error.value = ''
+  chatNotice.value = ''
+  try {
+    await connection.invoke('ClearChat')
+    // La interfaz se limpia al recibir ChatCleared del servidor, no antes.
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : 'No se pudo vaciar el chat.'
+  } finally { clearingChat.value = false }
+}
+function onChatCleared(event: { clearedAt: string; clearedBy?: string }) {
+  if (!active) return
+  messages.value = []
+  receipts.value = []
+  replyTarget.value = null
+  expandedSeenId.value = null
+  highlightedId.value = null
+  // Se conserva el borrador que aún no se envió.
+  persistLastRead(Date.parse(event?.clearedAt ?? '') || Date.now())
+  chatNotice.value = (event?.clearedBy || 'Un administrador') + ' vació la conversación para todos.'
 }
 async function send() {
   const text = draft.value.trim()
@@ -436,6 +469,7 @@ onMounted(() => {
     if (canMarkRead()) { scrollBottom(); markVisibleRead() }
   })
   hub.on('Message', (message: ChatMessage) => { if (active) receivedMessage(message) })
+  hub.on('ChatCleared', (event: { clearedAt: string; clearedBy?: string }) => onChatCleared(event))
   hub.on('TypingSnapshot', (states: TypingStatus[]) => {
     if (!active) return
     remoteTyping.value = {}
@@ -518,11 +552,21 @@ onUnmounted(() => {
         <h2>Chat del equipo</h2>
         <p>Mensajería en vivo entre administradores. El historial se borra al reiniciar el backend.</p>
       </div>
-      <div class="team-chat__presence" role="status">
-        <span class="team-chat__light" :class="{ 'is-offline': status !== 'En línea' }" />
-        {{ status }} <small v-if="online">· {{ online }} conectado{{ online === 1 ? '' : 's' }}</small>
+      <div class="team-chat__head-actions">
+        <div class="team-chat__presence" role="status">
+          <span class="team-chat__light" :class="{ 'is-offline': status !== 'En línea' }" />
+          {{ status }} <small v-if="online">· {{ online }} conectado{{ online === 1 ? '' : 's' }}</small>
+        </div>
+        <button class="team-chat__clear-button" type="button"
+          :disabled="status !== 'En línea' || clearingChat || !messages.length"
+          title="Eliminar el historial compartido para todos los administradores"
+          @click="clearChatForEveryone">
+          <IconSymbol glyph="trash" :size="15" />
+          {{ clearingChat ? 'Vaciando…' : 'Vaciar conversación' }}
+        </button>
       </div>
     </header>
+    <p v-if="chatNotice" class="team-chat__notice" role="status">{{ chatNotice }}</p>
     <div ref="list" class="team-chat__messages" role="log" aria-live="polite" aria-relevant="additions">
       <div v-if="!messages.length" class="team-chat__empty">
         <span>✳</span><strong>Este canal está esperando su primer mensaje.</strong>
@@ -1088,4 +1132,43 @@ onUnmounted(() => {
   .team-chat__composer .team-chat__attach { width: 34px; height: 34px; }
 }
 
+
+/* Acción destructiva visible, sin mezclarla con el campo de escritura. */
+.team-chat__head-actions {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+}
+.team-chat__clear-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 36px; padding: 8px 12px;
+  border: 1px solid var(--chat-line); border-radius: 10px;
+  background: transparent; color: var(--chat-accent);
+  font: inherit; font-size: 12px; font-weight: 750; cursor: pointer;
+}
+.team-chat__clear-button:hover:not(:disabled) {
+  border-color: var(--chat-accent);
+  background: color-mix(in srgb, var(--chat-accent) 9%, var(--chat-bg));
+}
+.team-chat__clear-button:disabled { cursor: not-allowed; opacity: .45; }
+.team-chat__clear-button:focus-visible { outline: 2px solid var(--chat-accent); outline-offset: 2px; }
+.team-chat__notice {
+  margin: 12px 0 0; padding: 10px 13px;
+  border: 1px solid var(--chat-line); border-radius: 10px;
+  background: var(--chat-soft); color: var(--chat-muted);
+  font-size: 12px; line-height: 1.45;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__clear-button) {
+  background: transparent !important; color: #ff879c !important;
+  border-color: #62525e !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__clear-button:hover:not(:disabled)) {
+  background: #39232d !important; border-color: #ff879c !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__notice) {
+  background: #18151b !important; border-color: #514450 !important;
+  color: #ddd0d9 !important;
+}
+@media (max-width: 600px) {
+  .team-chat__head-actions { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+  .team-chat__clear-button { min-height: 39px; }
+}
 </style>
