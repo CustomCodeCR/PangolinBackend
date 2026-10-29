@@ -153,7 +153,7 @@ public sealed class AdminChatHub : Hub
             while (History.TryDequeue(out _)) { }
             Seen.Clear();
             _images.ClearMessageImages();
-            await Clients.All.SendAsync("ChatCleared");
+            await Clients.All.SendAsync("ChatCleared", new { clearedAt = DateTimeOffset.UtcNow, clearedBy = DisplayName(identity) });
         }
         finally { ChatMutations.Release(); }
     }
