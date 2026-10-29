@@ -228,23 +228,28 @@ public sealed class AdminChatHub : Hub
         var identity = Context.GetHttpContext()?.Items["auth.identity"] as AuthIdentity;
         if (identity is null || identity.Role != "admin") throw new HubException("Sin autorización.");
         if (!Guid.TryParse(messageId, out var id)) throw new HubException("Mensaje inválido.");
-        var message = History.FirstOrDefault(item => item.Id == id);
-        if (message is null) return;
 
-        var receipt = new ReadReceipt(identity.UsuarioId, DisplayName(identity), message.SentAt);
-        while (true)
+        await ChatMutations.WaitAsync();
+        try
         {
-            if (!Seen.TryGetValue(identity.UsuarioId, out var prior))
+            var message = History.FirstOrDefault(item => item.Id == id);
+            if (message is null) return;
+            var receipt = new ReadReceipt(identity.UsuarioId, DisplayName(identity), message.SentAt);
+            while (true)
             {
-                if (Seen.TryAdd(identity.UsuarioId, receipt)) break;
+                if (!Seen.TryGetValue(identity.UsuarioId, out var prior))
+                {
+                    if (Seen.TryAdd(identity.UsuarioId, receipt)) break;
+                }
+                else
+                {
+                    if (prior.LastReadAt >= receipt.LastReadAt) return;
+                    if (Seen.TryUpdate(identity.UsuarioId, receipt, prior)) break;
+                }
             }
-            else
-            {
-                if (prior.LastReadAt >= receipt.LastReadAt) return;
-                if (Seen.TryUpdate(identity.UsuarioId, receipt, prior)) break;
-            }
+            await Clients.All.SendAsync("Seen", receipt);
         }
-        await Clients.All.SendAsync("Seen", receipt);
+        finally { ChatMutations.Release(); }
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
