@@ -360,12 +360,12 @@ jobs:
             | docker run --rm -i --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD \
                 postgres:16-alpine psql -X -d pangolin --single-transaction -v ON_ERROR_STOP=1 -f - >/dev/null
           columns="$(docker run --rm --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD \
-            postgres:16-alpine psql -X -d pangolin -Atqc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='cms_news' AND column_name IN ('author','published_at')")"
-          if [[ "$columns" != "2" ]]; then
+            postgres:16-alpine psql -X -d pangolin -Atqc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='cms_news' AND column_name IN ('author','published_at','expires_at')")"
+          if [[ "$columns" != "3" ]]; then
             echo "::error::CMS news metadata schema not ready; refusing to deploy."
             exit 1
           fi
-          echo "CMS news migration verified (idempotent, no news deleted)."
+          echo "CMS news migration verified (author, published_at, expires_at; idempotent, no news deleted)."
           unset PGPASSWORD
 
       - name: Deploy backend and frontend (images only)

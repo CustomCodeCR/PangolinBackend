@@ -64,6 +64,7 @@ services:
       DholeTracking__ApiKey: ${DHOLE_TRACKING_API_KEY:-}
       Ai__Groq__ApiKey: ${GROQ_API_KEY:-}
       Ai__Groq__Model: ${GROQ_MODEL:-openai/gpt-oss-20b}
+      Instagram__AccessToken: ${INSTAGRAM_ACCESS_TOKEN:-}
       Email__Mode: ${EMAIL_MODE:-LocalOutbox}
       Graph__TenantId: ${GRAPH_TENANT_ID:-}
       Graph__ClientId: ${GRAPH_CLIENT_ID:-}

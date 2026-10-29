@@ -18,9 +18,9 @@ public static class ContentEndpoints
         {
             http.Response.Headers.CacheControl = "no-store";
             return Results.Ok(await db.ManagedNews.AsNoTracking()
-                .Where(x => x.Published)
+                .Where(x => x.Published && (x.ExpiresAt == null || x.ExpiresAt > DateTime.UtcNow))
                 .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
-                .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published, x.Author, x.PublishedAt })
+                .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published, x.Author, x.PublishedAt, x.ExpiresAt })
                 .ToListAsync(ct));
         });
 
@@ -32,7 +32,7 @@ public static class ContentEndpoints
             if (!string.Equals(lang, "en", StringComparison.OrdinalIgnoreCase))
                 return Results.BadRequest(new { error = "Solo se admite lang=en." });
             var article = await db.ManagedNews.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == id && x.Published, ct);
+                .FirstOrDefaultAsync(x => x.Id == id && x.Published && (x.ExpiresAt == null || x.ExpiresAt > DateTime.UtcNow), ct);
             if (article is null) return Results.NotFound();
             if (!translator.IsConfigured)
                 return Results.Problem("Traducción al inglés no configurada en el servidor.", statusCode: 503);
@@ -106,7 +106,7 @@ public static class ContentEndpoints
         admin.MapGet("/news", async (AppDbContext db, CancellationToken ct) =>
             Results.Ok(await db.ManagedNews.AsNoTracking()
                 .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
-                .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published, x.Author, x.PublishedAt })
+                .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published, x.Author, x.PublishedAt, x.ExpiresAt })
                 .ToListAsync(ct)));
 
         admin.MapPost("/news", async (SaveNewsRequest input, AppDbContext db, ContentUpdatesPublisher updates, CancellationToken ct) =>
@@ -242,6 +242,8 @@ public static class ContentEndpoints
             return "El autor no puede superar 160 caracteres.";
         if (x.PublishedAt.HasValue && (x.PublishedAt.Value.Year < 2000 || x.PublishedAt.Value.Year > 2100))
             return "La fecha de publicación no es válida.";
+        if (x.ExpiresAt.HasValue && (x.ExpiresAt.Value.Year < 2000 || x.ExpiresAt.Value.Year > 2100))
+            return "La fecha de caducidad no es válida.";
         if (!ValidImage(x.Image, allowEmpty: true))
             return "La imagen debe ser HTTPS, /images/ o PNG/JPEG/WebP/GIF hasta 2.5 MB.";
         return null;
@@ -336,6 +338,11 @@ public static class ContentEndpoints
                 ? DateTime.SpecifyKind(input.PublishedAt.Value, DateTimeKind.Utc)
                 : input.PublishedAt.Value.ToUniversalTime())
             : target.PublishedAt ?? (input.Published ? DateTime.UtcNow : null);
+        target.ExpiresAt = input.ExpiresAt.HasValue
+            ? (input.ExpiresAt.Value.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(input.ExpiresAt.Value, DateTimeKind.Utc)
+                : input.ExpiresAt.Value.ToUniversalTime())
+            : null;
         target.Published = input.Published;
         target.UpdatedAt = DateTime.UtcNow;
     }
@@ -350,7 +357,7 @@ public static class ContentEndpoints
 
     private static object NewsView(ManagedNews x) => new
     {
-        x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published, x.Author, x.PublishedAt
+        x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published, x.Author, x.PublishedAt, x.ExpiresAt
     };
 
     private static object MediaView(ManagedMedia x) => new { x.Id, x.Name, x.Kind, x.Src, x.ObjectKey, x.MimeType, x.SizeBytes };

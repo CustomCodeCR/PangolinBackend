@@ -186,24 +186,32 @@ check("import { Anchor } from '@lucide/vue'" in app
       and 'fill: none !important;' in shared_mobile_styles,
       'Cuatro íconos de cotización blancos, sin emoji azul y con SVG monócromo')
 legal_page = read('frontend/src/pages/Legal.vue')
-check('type LegalDocument = { title: string; intro: string; sections: LegalSection[] }' in legal_page
+# The published legal documents were converted from a provisional draft format
+# to complete ES/EN entries. Verify routes, sections, contact/identity and notices
+# instead of requiring obsolete intro fields or old provisional wording.
+check('type LegalDocument = { title: string; sections: LegalSection[] }' in legal_page
       and 'class="legal-draft"' not in legal_page
       and 'content.draft' not in legal_page
       and 'Borrador para revisión' not in legal_page
       and 'Working draft' not in legal_page
       and 'Este borrador' not in legal_page
       and 'This draft' not in legal_page
-      and legal_page.count('sections: [') == 8
+      and legal_page.count('"sections": [') == 8
       and all(title in legal_page for title in [
-          'Política de privacidad', 'Términos y condiciones',
+          'Política de privacidad', 'Términos y condiciones de uso',
           'Política de cookies y almacenamiento local', 'Créditos y licencias',
-          'Privacy policy', 'Terms and conditions',
-          'Cookie and local storage policy', 'Credits and licenses'
+          'Privacy Policy', 'Terms and Conditions of Use',
+          'Cookie and Local Storage Policy', 'Credits and Licenses'
       ])
+      and 'Aduanera Castro Fallas S.A.' in legal_page
+      and '3-101-035767' in legal_page
+      and 'comercial@castrofallas.com' in legal_page
+      and '<section v-for="(section, index) in content.sections"' in legal_page
       and '.legal-draft' not in shared_mobile_styles
-      and 'La razón social, cédula jurídica y domicilio' in legal_page
-      and '/licenses/globe-third-party-notices.txt' in legal_page and (root / 'frontend/public/licenses/globe-third-party-notices.txt').is_file(),
-      'Páginas legales ES/EN sin aviso de borrador y con advertencias de datos por confirmar')
+      and '/licenses/globe-third-party-notices.txt' in legal_page
+      and (root / 'frontend/public/licenses/globe-third-party-notices.txt').is_file(),
+      'Páginas legales ES/EN: ocho documentos, identidad, contacto y licencias, sin borradores')
+
 check('class="container quote-access-status quote-access-status--blocked"' in rootvue
       and rootvue.count('class="container quote-access-status quote-access-status--blocked"') == (3 if 'trackingSessionRequiredHelp' in rootvue else 2)
       and ('trackingSessionRequiredHelp' not in rootvue or "page==='tracking' && trackingAccess !== 'allowed'" in rootvue)
@@ -369,9 +377,12 @@ check('pg_dump -Fc' in prod_workflow
 check(all(token in news_migration for token in (
           'ADD COLUMN IF NOT EXISTS author VARCHAR(160)',
           'ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ',
+          'ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ NULL',
           'WHERE published = TRUE AND published_at IS NULL',
           "SET LOCAL lock_timeout = '5s'"))
       and 'CmsNewsMetadataMigration.sql' in prod_workflow
+      and "column_name IN ('author','published_at','expires_at')" in prod_workflow
+      and 'x.ExpiresAt' in read('backend/Services/ContentEndpoints.cs')
       and 'scripts/test-cms-news-migration.py' in read('.github/workflows/integration-check.yml'),
       'Migracion CMS aditiva, idempotente, probada por CI y aplicada antes de reiniciar')
 check('DholeTracking__Enabled: "${PANGOLIN_DHOLE_TRACKING_ENABLED:-false}"' in prod_compose

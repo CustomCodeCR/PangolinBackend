@@ -16,6 +16,23 @@ IDTRA, PO, BCF y CONTENEDOR usan respectivamente las cuatro consultas existentes
 Las opciones BL y HBL se traducen provisionalmente a BCF, conforme al uso indicado para el formulario.
 La interfaz permite elegir entre varios resultados y muestra estado, origen, destino, puertos, fechas, medio de transporte y referencias del embarque.
 
+## Detalles ampliados para IDTRA, BCF, PO y contenedor
+
+Las cuatro búsquedas usan el mismo endpoint autenticado y conservan el selector de
+coincidencias (BCF puede devolver múltiples embarques).
+La vista presenta estado para el cliente, incoterm, equipo y fechas adicionales cuando
+Dynamics proporciona valores; preserva el resumen, traducciones, responsive y globo ilustrativo.
+
+**Autorización:** conocer una referencia no acredita la titularidad del embarque.
+El backend limita PO, mercancía, bultos, sello, facturas, remitente e instrucciones del
+cliente al rol administrativo. Antes de exponerlos a clientes se requiere autorización
+de operaciones y verificación de propiedad del embarque. No devuelve JSON crudo ni
+códigos de opción, ETag o incidentid.
+
+El bloque de detalles omite null, campos vacíos y marcadores sin datos como " / / ".
+El valor "0" no se interpreta automáticamente como ausencia de dato. Se mantiene ETD/ETA
+estructurado aunque el texto de estado del cliente describa otra fecha.
+
 ## Globo
 Cuando ambos puertos están en el catálogo de `frontend/src/lib/trackingRoute.ts`,
 `WorldGlobe` dibuja un arco ilustrativo. Si no se reconocen ambos extremos,

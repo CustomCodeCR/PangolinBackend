@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "dev:websocket": "node websocket-server.cjs",
     "ws:dev": "node websocket-server.cjs",
-    "seo:check": "node scripts/check-seo.cjs"
+    "seo:check": "node scripts/check-seo.cjs",
+    "test:home-loading": "node scripts/check-home-loading.cjs"
   },
   "dependencies": {
     "@lucide/vue": "^1.56.0",
@@ -19,7 +20,7 @@
     "embla-carousel": "^8.6.0",
     "topojson-client": "3.1.0",
     "vue": "^3.5.13",
-    "vue-i18n": "^10.0.8",
+    "vue-i18n": "^11.4.16",
     "world-atlas": "2.0.2",
     "ws": "^8.22.0"
   },

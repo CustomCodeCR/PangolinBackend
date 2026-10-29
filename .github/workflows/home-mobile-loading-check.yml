@@ -1,0 +1,39 @@
+name: Home mobile progressive loading
+
+on:
+  pull_request:
+    branches: [main-2]
+    paths:
+      - "frontend/src/Root.vue"
+      - "frontend/src/Home.vue"
+      - "frontend/src/components/WorldGlobe.vue"
+      - "frontend/src/components/HomeInstagramReel.vue"
+      - "frontend/package.json"
+      - "frontend/scripts/check-home-loading.cjs"
+      - ".github/workflows/home-mobile-loading-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  home-mobile:
+    name: Compile, verify split chunks and smoke-test routes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+      - name: Type-check and create production assets
+        run: npm run build --prefix frontend
+      - name: Verify progressive Home startup and separated globe chunk
+        run: npm run test:home-loading --prefix frontend
+      - name: Verify existing responsive news and integration contracts
+        run: node frontend/scripts/test-frontend-merge.cjs
+      - name: Smoke-test public and protected routes in headless Chrome
+        run: node frontend/scripts/smoke-browser.cjs

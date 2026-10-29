@@ -8,6 +8,7 @@ import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import WorldGlobe from '../components/WorldGlobe.vue'
 import { illustrativeRoute } from '../lib/trackingRoute'
+import { formatTrackingEquipmentCount, localizeTrackingMode, localizeTrackingStatus } from '../lib/trackingDisplay'
 import FieldDropdown from '../components/FieldDropdown.vue'
 interface DynamicsShipment {
   title: string | null
@@ -23,6 +24,23 @@ interface DynamicsShipment {
   container: string | null
   bcf: string | null
   updatedAtUtc: string | null
+  customerStatus: string | null
+  incoterm: string | null
+  equipmentSize: string | null
+  equipmentCount: string | null
+  departureConfirmedAt: string | null
+  warehouseReceivedAt: string | null
+  destinationEta: string | null
+  officializedAt: string | null
+  entryAt: string | null
+  po: string | null
+  packageCount: string | null
+  commodity: string | null
+  seal: string | null
+  invoice: string | null
+  companyInvoice: string | null
+  shipper: string | null
+  customerInstructions: string | null
 }
 interface LookupResponse {
   source: 'dynamics'
@@ -32,6 +50,9 @@ interface LookupResponse {
 
 const { locale } = useI18n({ useScope: 'global' })
 const en = computed(() => locale.value.toLowerCase().startsWith('en'))
+// Display-only translations for known Dynamics values; never mutate the shipment.
+const displayMode = (value: string | null) => localizeTrackingMode(value, en.value ? 'en' : 'es')
+const displayStatus = (value: string | null) => localizeTrackingStatus(value, en.value ? 'en' : 'es')
 const kind = ref('BL')
 const reference = ref('')
 const searched = ref(false)
@@ -40,6 +61,53 @@ const shipment = ref<DynamicsShipment | null>(null)
 const matches = ref<DynamicsShipment[]>([])
 const selectedIndex = ref(0)
 const truncated = ref(false)
+
+// The reference and the original Dynamics note are never modified. Unknown
+// customer notes are translated asynchronously via the authenticated backend.
+const customerUpdateTranslations = ref<Record<string, string>>({})
+const customerUpdateText = computed(() => {
+  const source = shipment.value?.customerStatus?.trim()
+  if (!source) return ''
+  const language = en.value ? 'en' : 'es'
+  const local = localizeTrackingStatus(source, language)
+  if (local !== source || localizeTrackingStatus(source, language === 'en' ? 'es' : 'en') !== source)
+    return local
+  return customerUpdateTranslations.value[language + ':' + source] ?? source
+})
+watch([() => shipment.value?.customerStatus, en], ([raw, english], _previous, onCleanup) => {
+  const source = raw?.trim()
+  if (!source) return
+  // Exact known logistics statuses are handled locally in both languages.
+  if (localizeTrackingStatus(source, 'es') !== source ||
+      localizeTrackingStatus(source, 'en') !== source) return
+  const language = english ? 'en' : 'es'
+  const key = language + ':' + source
+  if (customerUpdateTranslations.value[key]) return
+  const controller = new AbortController()
+  onCleanup(() => controller.abort())
+  void (async () => {
+    try {
+      const response = await fetch('/api/tracking/dynamics/customer-status/translate', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: source, language }),
+        cache: 'no-store',
+        signal: controller.signal
+      })
+      if (!response.ok) return // Retain the Dynamics message if AI is unavailable.
+      const translated: unknown = await response.json()
+      if (!translated || typeof translated !== 'object' || !('translation' in translated))
+        return
+      const value = (translated as { translation: unknown }).translation
+      if (typeof value !== 'string' || !value.trim() || value.length > 768) return
+      customerUpdateTranslations.value = { ...customerUpdateTranslations.value, [key]: value.trim() }
+    } catch {
+      // Network failures never block lookup or hide the original update.
+    }
+  })()
+}, { immediate: true })
+
 const globeRoute = computed(() => shipment.value ? illustrativeRoute(shipment.value) : null)
 function chooseMatch(next: number) {
   if (next < 0 || next >= matches.value.length) return
@@ -112,18 +180,48 @@ function formatDate(value: string | null) {
     day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'
   }).format(date)
 }
+interface ShipmentExtraField { label: string; value: string }
+const shipmentExtras = computed<ShipmentExtraField[]>(() => {
+  const data = shipment.value
+  if (!data) return []
+  const asDate = (value: string | null) => value ? formatDate(value) : null
+  const fields: { es: string; en: string; value: string | null }[] = [
+    { es: 'Incoterm', en: 'Incoterm', value: data.incoterm },
+    { es: 'Tamaño o modalidad de equipo', en: 'Equipment size or modality', value: data.equipmentSize },
+    { es: 'Cantidad o configuración de equipo', en: 'Equipment quantity or configuration', value: formatTrackingEquipmentCount(data.equipmentCount) },
+    { es: 'Confirmación de zarpe', en: 'Departure confirmation', value: asDate(data.departureConfirmedAt) },
+    { es: 'Ingreso a bodegas', en: 'Warehouse arrival', value: asDate(data.warehouseReceivedAt) },
+    { es: 'ETA en destino', en: 'Destination ETA', value: asDate(data.destinationEta) },
+    { es: 'Fecha de oficialización', en: 'Customs formalization date', value: asDate(data.officializedAt) },
+    { es: 'Registro de ingreso', en: 'Entry record', value: data.entryAt },
+    { es: 'PO', en: 'PO', value: data.po },
+    { es: 'Mercancía', en: 'Commodity', value: data.commodity },
+    { es: 'Cantidad de bultos', en: 'Package count', value: data.packageCount },
+    { es: 'Sello del contenedor', en: 'Container seal', value: data.seal },
+    { es: 'Factura', en: 'Invoice', value: data.invoice },
+    { es: 'Factura de compañía', en: 'Company invoice', value: data.companyInvoice },
+    { es: 'Remitente', en: 'Shipper', value: data.shipper },
+    { es: 'Instrucciones del cliente', en: 'Customer instructions', value: data.customerInstructions }
+  ]
+  return fields
+    .filter(field => field.value?.trim() && !/^[\s/]+$/.test(field.value))
+    .map(field => ({ label: en.value ? field.en : field.es, value: field.value ?? '' }))
+})
+// Pair optional Dynamics fields in the same order as the main shipment summary.
+const shipmentExtrasPairs = computed<ShipmentExtraField[][]>(() => {
+  const fields = shipmentExtras.value
+  const rows: ShipmentExtraField[][] = []
+  for (let index = 0; index < fields.length; index += 2) rows.push(fields.slice(index, index + 2))
+  return rows
+})
 let tour: Driver | null = null
 const types = computed(() => en.value ? [
-  { id: 'BL', name: 'BL (BCF)', help: 'BL is currently resolved through the BCF reference.' },
-  { id: 'HBL', name: 'HBL (BCF)', help: 'HBL is currently resolved through the BCF reference.' },
-  { id: 'BCF', name: 'BCF', help: 'Castro Fallas shipment reference.' },
+  { id: 'BL', name: 'BL-HBL number (BCF)', help: 'Search BL or HBL using the BCF reference.' },
   { id: 'IDTRA', name: 'IDTRA', help: 'Castro Fallas tracking identifier.' },
   { id: 'CONTAINER', name: 'Container number', help: 'Shipping container identifier.' },
   { id: 'PO', name: 'Purchase order (PO)', help: 'Linked purchase order reference.' }
 ] : [
-  { id: 'BL', name: 'Número BL (BCF)', help: 'Por ahora se consulta mediante la referencia BCF.' },
-  { id: 'HBL', name: 'Número HBL (BCF)', help: 'Por ahora se consulta mediante la referencia BCF.' },
-  { id: 'BCF', name: 'Referencia BCF', help: 'Referencia de embarque Castro Fallas.' },
+  { id: 'BL', name: 'Número BL-HBL (BCF)', help: 'Consultá tu BL o HBL mediante la referencia BCF.' },
   { id: 'IDTRA', name: 'IDTRA', help: 'Identificador de seguimiento Castro Fallas.' },
   { id: 'CONTAINER', name: 'Número de contenedor', help: 'Identificador del contenedor.' },
   { id: 'PO', name: 'Orden de compra (PO)', help: 'Orden de compra vinculada.' }
@@ -276,7 +374,7 @@ onBeforeUnmount(() => {
                   <span class="tracking-demo-result__label">{{ copy.demoLabel }}</span>
                   <h3>{{ copy.result }} · {{ shipment.title || reference.trim() }}</h3>
                 </div>
-                <strong class="tracking-demo-result__status">{{ shipment.status || '—' }}</strong>
+                <strong class="tracking-demo-result__status">{{ displayStatus(shipment.status) }}</strong>
               </div>
               <div v-if="matches.length > 1" class="tracking-results-select">
                 <strong>{{ en ? 'Matching shipments' : 'Embarques encontrados' }}: {{ selectedIndex + 1 }} / {{ matches.length }}</strong>
@@ -286,20 +384,46 @@ onBeforeUnmount(() => {
                 </div>
               </div>
               <p v-if="truncated" class="tracking-hint">{{ en ? 'Additional matches may be available.' : 'Podrían existir más coincidencias.' }}</p>
-              <dl class="tracking-demo-result__grid">
-                <div><dt>{{ copy.origin }}</dt><dd>{{ shipment.origin || '—' }}</dd></div>
-                <div><dt>{{ copy.destination }}</dt><dd>{{ shipment.destination || '—' }}</dd></div>
-                <div><dt>{{ en ? 'Transport' : 'Transporte' }}</dt><dd>{{ shipment.mode || '—' }}</dd></div>
-                <div><dt>{{ copy.status }}</dt><dd>{{ shipment.status || '—' }}</dd></div>
-                <div><dt>{{ en ? 'Port of loading' : 'Puerto de salida' }}</dt><dd>{{ shipment.portOfLoading || '—' }}</dd></div>
-                <div><dt>{{ en ? 'Port of entry' : 'Puerto de entrada' }}</dt><dd>{{ shipment.portOfEntry || '—' }}</dd></div>
-                <div><dt>{{ copy.estimatedDeparture }}</dt><dd>{{ formatDate(shipment.etd) }}</dd></div>
-                <div><dt>{{ copy.estimatedArrival }}</dt><dd>{{ formatDate(shipment.eta) }}</dd></div>
-                <div><dt>{{ en ? 'Vessel' : 'Buque' }}</dt><dd>{{ shipment.vessel || '—' }}</dd></div>
-                <div><dt>{{ en ? 'Container' : 'Contenedor' }}</dt><dd>{{ shipment.container || '—' }}</dd></div>
-                <div><dt>BCF</dt><dd>{{ shipment.bcf || '—' }}</dd></div>
-                <div><dt>{{ en ? 'Last updated' : 'Última actualización' }}</dt><dd>{{ formatDate(shipment.updatedAtUtc) }}</dd></div>
-              </dl>
+              <p v-if="shipment.customerStatus" class="tracking-demo-result__customer-status">
+                <strong>{{ en ? 'Customer update' : 'Actualización para el cliente' }}</strong>
+                <span>{{ customerUpdateText }}</span>
+              </p>
+              <div class="tracking-demo-result__grid">
+                <div class="tracking-demo-result__pair">
+                  <dl class="tracking-demo-result__field"><dt>{{ copy.origin }}</dt><dd>{{ shipment.origin || '—' }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><dt>{{ copy.destination }}</dt><dd>{{ shipment.destination || '—' }}</dd></dl>
+                </div>
+                <div class="tracking-demo-result__pair">
+                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Transport' : 'Transporte' }}</dt><dd>{{ displayMode(shipment.mode) }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><dt>{{ copy.status }}</dt><dd>{{ displayStatus(shipment.status) }}</dd></dl>
+                </div>
+                <div class="tracking-demo-result__pair">
+                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Port of loading' : 'Puerto de salida' }}</dt><dd>{{ shipment.portOfLoading || '—' }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Port of entry' : 'Puerto de entrada' }}</dt><dd>{{ shipment.portOfEntry || '—' }}</dd></dl>
+                </div>
+                <div class="tracking-demo-result__pair">
+                  <dl class="tracking-demo-result__field"><dt>{{ copy.estimatedDeparture }}</dt><dd>{{ formatDate(shipment.etd) }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><dt>{{ copy.estimatedArrival }}</dt><dd>{{ formatDate(shipment.eta) }}</dd></dl>
+                </div>
+                <div class="tracking-demo-result__pair">
+                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Vessel' : 'Buque' }}</dt><dd>{{ shipment.vessel || '—' }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Container' : 'Contenedor' }}</dt><dd>{{ shipment.container || '—' }}</dd></dl>
+                </div>
+                <div class="tracking-demo-result__pair">
+                  <dl class="tracking-demo-result__field"><dt>BCF</dt><dd>{{ shipment.bcf || '—' }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Last updated' : 'Última actualización' }}</dt><dd>{{ formatDate(shipment.updatedAtUtc) }}</dd></dl>
+                </div>
+              </div>
+              <section v-if="shipmentExtras.length" class="tracking-demo-result__extra">
+                <h4>{{ en ? 'Additional shipment details' : 'Información adicional del embarque' }}</h4>
+                <div class="tracking-demo-result__grid">
+                  <div v-for="(pair, index) in shipmentExtrasPairs" :key="index" class="tracking-demo-result__pair">
+                    <dl v-for="field in pair" :key="field.label" class="tracking-demo-result__field">
+                      <dt>{{ field.label }}</dt><dd>{{ field.value }}</dd>
+                    </dl>
+                  </div>
+                </div>
+              </section>
               <p class="tracking-demo-result__disclaimer">
                 {{ globeRoute ? copy.demoNotice :
                   (en ? 'Approximate route unavailable for these locations. The globe stays in its default view.' : 'No hay una ruta aproximada reconocida para estos lugares. El globo mantiene su vista predeterminada.') }}
@@ -446,6 +570,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .tracking-demo-result {
+  --tracking-detail-divider: rgba(130, 47, 62, .17);
   margin-top: 24px; padding: clamp(18px,3vw,26px); border: 1px solid #b5092845;
   border-radius: 20px; background: var(--track-surface, #fff); color: inherit;
   box-shadow: 0 12px 32px #4b142110;
@@ -454,22 +579,140 @@ onBeforeUnmount(() => {
 .tracking-demo-result__label { display:inline-block; margin-bottom:10px; font-size:11px; font-weight:800; letter-spacing:.06em; color:#b50928; }
 .tracking-demo-result__heading h3 { margin:0; font-size:clamp(16px,2vw,21px); line-height:1.35; overflow-wrap:anywhere; }
 .tracking-demo-result__status { padding:7px 11px; border-radius:20px; font-size:12px; background:#b5092817; color:#b50928; }
-.tracking-demo-result__grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:19px 24px; margin:22px 0; }
-.tracking-demo-result__grid div { min-width:0; }
-.tracking-demo-result__grid dt { font-size:12px; opacity:.75; font-weight:700; }
-.tracking-demo-result__grid dd { margin:6px 0 0; font-size:14px; font-weight:750; overflow-wrap:anywhere; }
+/* Each visual row is one non-interactive glass surface with two related details. */
+.tracking-demo-result__grid {
+  display:grid; grid-template-columns:minmax(0,1fr); gap:12px; margin:22px 0;
+}
+.tracking-demo-result__pair {
+  --tracking-glass-divider:rgba(91,105,125,.18);
+  --tracking-pair-spacing:clamp(8px,1.5vw,16px);
+  position:relative; display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+  align-items:center; column-gap:0; min-width:0;
+  padding:clamp(13px,1.8vw,19px) clamp(16px,2.5vw,26px);
+  overflow:hidden; border-radius:18px; border:1px solid rgba(255,255,255,.6);
+  background:rgba(255,255,255,.18);
+  -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+  box-shadow:0 8px 32px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.32),inset 0 -1px 0 rgba(255,255,255,.1);
+  cursor:default;
+}
+.tracking-demo-result__pair::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:1px; pointer-events:none;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.8),transparent);
+}
+.tracking-demo-result__pair::after {
+  content:''; position:absolute; top:0; left:0; width:1px; height:100%; pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.8),transparent,rgba(255,255,255,.3));
+}
+.tracking-demo-result__field { min-width:0; margin:0; }
+.tracking-demo-result__field:first-child:not(:only-child) {
+  padding-right:var(--tracking-pair-spacing);
+}
+.tracking-demo-result__field + .tracking-demo-result__field {
+  border-left:1px solid var(--tracking-glass-divider);
+  padding-left:var(--tracking-pair-spacing);
+}
+.tracking-demo-result__field:only-child { grid-column:1/-1; }
+.tracking-demo-result__field dt {
+  font-size:12px; color:var(--track-muted); font-weight:700; line-height:1.4;
+  overflow-wrap:anywhere;
+}
+.tracking-demo-result__field dd {
+  margin:6px 0 0; font-size:clamp(14px,1.15vw,16px); line-height:1.45;
+  font-weight:750; overflow-wrap:anywhere;
+}
 .tracking-demo-result__progress > div:first-child { display:flex; justify-content:space-between; gap:14px; margin:0 0 8px; font-size:13px; }
 .tracking-demo-result__track { height:11px; overflow:hidden; border-radius:12px; background:#a3a3a34a; }
 .tracking-demo-result__track span { display:block; height:100%; border-radius:12px; background:#b50928; transition:width .5s ease; }
 .tracking-demo-result__disclaimer { margin:17px 0 0; font-size:12px; line-height:1.65; opacity:.85; }
 @media(max-width:580px) {
-  .tracking-demo-result__grid { grid-template-columns:minmax(0,1fr); }
+  .tracking-demo-result__grid { gap:10px; }
+  .tracking-demo-result__pair { --tracking-pair-spacing:12px; column-gap:0; padding:13px 14px; border-radius:14px; }
+  .tracking-demo-result__field dt { font-size:11px; }
+  .tracking-demo-result__field dd { font-size:13px; }
   .tracking-demo-result__heading { flex-direction:column; }
 }
 @media(prefers-reduced-motion:reduce) { .tracking-demo-result__track span { transition:none; } }
 :global(html.theme-dark) .tracking-demo-result__label,
 :global(html.theme-dark) .tracking-demo-result__status { color:#ff8697; }
 :global(html.theme-dark) .tracking-demo-result__status { background:#b509283a; }
+/* Dark theme: match the tracking FieldDropdown trigger.
+   Solid navy fill, neutral blue-gray border, no glass highlights or glow. */
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result) {
+  --tracking-glass-navy:#01081D;
+  background:transparent !important;
+  background-image:none !important;
+  border-color:rgba(77,101,133,.35) !important;
+  box-shadow:none !important;
+}
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair) {
+  --tracking-glass-divider:#3b465f;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  align-items:center;
+  column-gap:0;
+  padding:clamp(13px,1.8vw,19px) clamp(16px,2.5vw,26px);
+  overflow:hidden;
+  border-radius:18px;
+  border:1px solid #4f5365 !important;
+  background:#060f21 !important;
+  background-image:none !important;
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
+  box-shadow:none !important;
+}
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field) {
+  min-width:0;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+}
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field:first-child:not(:only-child)) {
+  padding-right:var(--tracking-pair-spacing) !important;
+}
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field + .tracking-demo-result__field) {
+  padding-left:var(--tracking-pair-spacing) !important;
+  border-left:1px solid var(--tracking-glass-divider) !important;
+}
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field dt) {
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  background:transparent !important;
+  color:var(--track-muted);
+  font-size:12px;
+  font-weight:700;
+}
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field dd) {
+  display:block;
+  min-height:0;
+  margin:6px 0 0 !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  background-image:none !important;
+  box-shadow:none !important;
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
+  font-size:clamp(14px,1.15vw,16px);
+  font-weight:750;
+}
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair)::before,
+:global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair)::after {
+  content:none !important;
+  background:none !important;
+}
+@media(max-width:580px) {
+  :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair) {
+    padding:13px 14px;
+    border-radius:14px;
+  }
+  :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field dt) { font-size:11px; }
+  :global(html.theme-dark .app-site.tracking-site .tracking-demo-result__field dd) { font-size:13px; }
+}
 </style>
 
 <style scoped>
@@ -483,4 +726,42 @@ onBeforeUnmount(() => {
 .tracking-results-select > div { display:flex; gap:8px; }
 .tracking-results-select button { border:1px solid #b5092866; background:transparent; color:inherit; padding:8px 13px; border-radius:10px; cursor:pointer; }
 .tracking-results-select button:disabled { opacity:.45; cursor:not-allowed; }
+</style>
+
+<style scoped>
+.tracking-demo-result__customer-status {
+  display:flex;flex-direction:column;gap:5px;margin:18px 0 4px;padding:14px 16px;
+  border-left:3px solid #b50928;border-radius:8px;background:#b509280a;
+  line-height:1.5;overflow-wrap:anywhere;
+}
+.tracking-demo-result__customer-status strong { font-size:12px; }
+.tracking-demo-result__extra { margin-top:22px;padding-top:18px;border-top:1px solid #b5092840; }
+.tracking-demo-result__extra h4 { margin:0;font-size:17px;line-height:1.35; }
+.tracking-demo-result__extra .tracking-demo-result__grid { margin:16px 0 0; }
+</style>
+
+<style>
+/* Tracking dark cards: unscoped override intentionally avoids scoped pseudo-element leakage.
+   Match the dark closed FieldDropdown: solid navy, fine neutral outline, no glass. */
+html.theme-dark .app-site.tracking-site .tracking-demo-result__pair {
+  background: #060f21 !important;
+  background-color: #060f21 !important;
+  background-image: none !important;
+  border: 1px solid #4f5365 !important;
+  border-radius: 13px;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html.theme-dark .app-site.tracking-site .tracking-demo-result__pair::before,
+html.theme-dark .app-site.tracking-site .tracking-demo-result__pair::after {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+html.theme-dark .app-site.tracking-site
+  .tracking-demo-result__pair .tracking-demo-result__field + .tracking-demo-result__field {
+  border-left: 1px solid #3b465f !important;
+}
 </style>

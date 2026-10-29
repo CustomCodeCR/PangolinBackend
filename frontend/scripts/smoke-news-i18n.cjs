@@ -8,6 +8,12 @@ const path = require('node:path')
 const { spawn, spawnSync } = require('node:child_process')
 const root = path.resolve(__dirname, '..')
 const dist = path.join(root, 'dist')
+// The desktop article's sticky image caption must fade under the reading panel,
+// rather than remain visible beside the article while the visitor scrolls.
+const newsSource = fs.readFileSync(path.join(root, 'src/pages/News.vue'), 'utf8')
+assert.ok(newsSource.includes("'--article-mark-opacity':"), 'Article caption opacity must follow scroll progress')
+assert.ok(newsSource.includes('opacity:var(--article-mark-opacity,1)'), 'Article caption must apply the reactive opacity in CSS')
+assert.ok(newsSource.includes('Math.max(0, 1 - articleRevealProgress.value * 8)'), 'Article caption must fade out as reading progress increases')
 const articles = [
   { id: 'f6e837c0-8b2e-4c63-8907-9051dc71921a', title: 'Puerto de Caldera', category: 'LOGÍSTICA', description: 'Llegaron nuevos contenedores.', body: 'El puerto recibió carga.\nSegunda línea en español.', image: '/images/cover-logistics.jpeg', published: true, author: 'Equipo Editorial', publishedAt: '2026-10-26T12:00:00Z' },
   { id: '5c6bb714-5b7d-437b-bbb6-d6d1ea5e6bf5', title: 'Exportaciones de Costa Rica', category: 'COMERCIO', description: 'Crecieron las exportaciones.', body: 'Costa Rica exporta productos.', image: '/images/news-ports.webp', published: true }
@@ -47,7 +53,7 @@ const server = http.createServer((req, res) => {
     // Set language/theme before Vue loads; read the full article's computed page background.
     const injection = '<script>localStorage.setItem("user-locale",' + JSON.stringify(locale) + ');localStorage.setItem("castrofallas-theme",' + JSON.stringify(theme) + ');</script>'
     let html = body.toString('utf8').replace('</head>', injection + '</head>')
-    html = html.replace('</body>', '<script>window.addEventListener("load",()=>setTimeout(()=>{const page=document.querySelector(".news-article-page");if(page){const el=document.createElement("output");el.id="tested-article-bg";el.textContent=getComputedStyle(page).backgroundColor;document.body.appendChild(el)}},1500))</script></body>')
+    html = html.replace('</body>', '<script>window.addEventListener("load",()=>setTimeout(()=>{const page=document.querySelector(".news-article-page");if(page){const el=document.createElement("output");el.id="tested-article-bg";el.textContent=getComputedStyle(page).backgroundColor;document.body.appendChild(el)}const caption=document.querySelector(".news-article-page__visual-mark");const panel=document.querySelector(".news-article-page__story-panel");if(caption&&panel){const offset=document.createElement("output");offset.id="tested-caption-offset";offset.textContent=Math.round(caption.getBoundingClientRect().left-panel.getBoundingClientRect().left);document.body.appendChild(offset)}},1500))</script></body>')
     body = Buffer.from(html)
   }
   res.writeHead(200, { 'Content-Type': (mime[ext] || 'application/octet-stream') + (['.html','.js','.css','.json'].includes(ext)?'; charset=utf-8':'') })
@@ -61,12 +67,12 @@ function chromeBinary() {
   }
   throw Error('Chrome/Chromium unavailable')
 }
-async function dump(url) {
+async function dump(url, viewport = '1280,900') {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(),'cf-news-test-'))
   return new Promise((resolve,reject) => {
     const chrome = spawn(chromeBinary(),[
       '--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--disable-extensions',
-      '--disable-background-networking','--virtual-time-budget=11000','--user-data-dir='+dir,
+      '--disable-background-networking','--virtual-time-budget=11000','--window-size='+viewport,'--user-data-dir='+dir,
       '--dump-dom',url
     ],{stdio:['ignore','pipe','pipe']})
     let out='',err=''
@@ -101,15 +107,17 @@ async function main(){
     assert.ok(!spanish.includes('class="news-article-modal-backdrop"'), 'Do not render old modal')
     assert.ok(!spanish.includes('Exportaciones de Costa Rica'), 'Article page must not show the listing beneath the article')
     assert.ok(spanish.includes('id="tested-article-bg">rgb(255, 255, 255)'), 'Light article must use normal page background')
+    assert.ok(spanish.includes('id="tested-caption-offset">24</output>'), 'At 1280px the caption must align 24px inside the story panel')
     assert.equal(translatedCalls, 0, 'Spanish page should not request translations')
 
     const legacy = await dump(origin + '/noticias?article=' + articles[0].id + '&testLocale=es&testTheme=light')
     assert.ok(legacy.includes('Puerto de Caldera') && legacy.includes('Segunda línea en español.'), 'Legacy article links must keep working')
 
-    const english = await dump(origin + '/noticias?article=' + articles[0].id + '&testLocale=en&testTheme=dark')
+    const english = await dump(origin + '/noticias?article=' + articles[0].id + '&testLocale=en&testTheme=dark', '1920,1080')
     for (const expected of ['Port of Caldera', 'New containers arrived.', 'Second line in English.', 'Back to news'])
       assert.ok(english.includes(expected), 'English full article missing: ' + expected)
     assert.ok(english.includes('id="tested-article-bg">rgb(1, 8, 29)'), 'Dark full article must use site navy background')
+    assert.ok(english.includes('id="tested-caption-offset">24</output>'), 'At 1920px the caption must follow the centered story panel, 24px from its edge')
     assert.equal(translatedCalls, 2, 'All published articles must request translations')
     assert.equal(spanishTranslationCalls, 0, 'Spanish should not request translations')
     console.log('PASS: title-only listing, direct full article URLs, body and back navigation, ES/EN, light/dark')
