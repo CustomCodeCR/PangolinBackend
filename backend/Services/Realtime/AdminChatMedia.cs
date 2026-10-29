@@ -46,6 +46,24 @@ public sealed class AdminChatMediaStore
         lock (_gate)
             return _files.TryGetValue(id, out var item) && item.Owner == userId && item.IsAvatar == avatar;
     }
+
+    // Vaciar el chat debe borrar las fotos enviadas en mensajes, no los avatares.
+    public void ClearMessageImages()
+    {
+        lock (_gate)
+        {
+            var messages = _files.Values.Where(file => !file.IsAvatar).Select(file => file.Id).ToArray();
+            foreach (var id in messages)
+            {
+                if (_files.Remove(id, out var removed))
+                    _totalBytes -= removed.Bytes.Length;
+            }
+            // Compactar el índice cronológico: las entradas eliminadas tampoco deben quedar en cola.
+            var retained = _oldest.Where(id => _files.ContainsKey(id)).ToArray();
+            _oldest.Clear();
+            foreach (var id in retained) _oldest.Enqueue(id);
+        }
+    }
 }
 
 public static class AdminChatMediaEndpoints
