@@ -12,6 +12,13 @@ const emit = defineEmits<{ (event: 'unread-change', count: number): void }>()
 const messages = ref<ChatMessage[]>([])
 const receipts = ref<ReadReceipt[]>([])
 const draft = ref('')
+const nickname = ref('')
+const nicknameInput = ref('')
+const nicknameEditing = ref(false)
+const nicknameSaving = ref(false)
+const nicknameError = ref('')
+const chatNames = ref<Record<string, string>>({})
+const expandedSeenId = ref<string | null>(null)
 const replyTarget = ref<ChatMessage | null>(null)
 const input = ref<HTMLInputElement | null>(null)
 const highlightedId = ref<string | null>(null)
@@ -29,6 +36,40 @@ let active = true
 const currentUserId = computed(() => String(authState.user?.id ?? '').toLowerCase())
 const currentEmail = computed(() => (authState.user?.correo ?? '').toLowerCase())
 const storageKey = computed(() => 'castrofallas-admin-chat-read:' + (currentUserId.value || currentEmail.value))
+const nicknameStorageKey = computed(() => 'castrofallas-admin-chat-nickname:' + (currentUserId.value || currentEmail.value))
+function savedNickname() {
+  try { return localStorage.getItem(nicknameStorageKey.value) } catch { return null }
+}
+function displayName(message: ChatMessage) {
+  return chatNames.value[message.userId.toLowerCase()] || message.name || message.email
+}
+function openNicknameEditor() {
+  nicknameInput.value = nickname.value
+  nicknameError.value = ''
+  nicknameEditing.value = true
+}
+async function saveNickname() {
+  if (nicknameSaving.value || connection?.state !== signalR.HubConnectionState.Connected) return
+  const value = nicknameInput.value.trim().replace(/\s+/g, ' ')
+  if (value && (value.length < 2 || value.length > 32)) {
+    nicknameError.value = 'El nombre debe tener entre 2 y 32 caracteres.'
+    return
+  }
+  nicknameSaving.value = true
+  nicknameError.value = ''
+  try {
+    const display = await connection.invoke<string>('SetDisplayName', value)
+    nickname.value = value
+    chatNames.value = { ...chatNames.value, [currentUserId.value]: display }
+    nicknameEditing.value = false
+    try {
+      if (value) localStorage.setItem(nicknameStorageKey.value, value)
+      else localStorage.removeItem(nicknameStorageKey.value)
+    } catch { /* Almacenamiento opcional */ }
+  } catch (cause) {
+    nicknameError.value = cause instanceof Error ? cause.message : 'No se pudo cambiar el apodo.'
+  } finally { nicknameSaving.value = false }
+}
 
 function isOwn(message: ChatMessage) {
   return message.userId.toLowerCase() === currentUserId.value ||
@@ -56,6 +97,14 @@ function scrollBottom() {
   if (!props.visible) return
   void nextTick(() => { if (props.visible && list.value) list.value.scrollTop = list.value.scrollHeight })
 }
+// El scroll del chat nunca se propaga a la página al llegar a un extremo.
+function trapChatWheel(event: WheelEvent) {
+  const element = list.value
+  if (!element || event.ctrlKey || !event.deltaY) return
+  const atTop = element.scrollTop <= 1 && event.deltaY < 0
+  const atBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 1 && event.deltaY > 0
+  if (element.scrollHeight <= element.clientHeight + 1 || atTop || atBottom) event.preventDefault()
+}
 function canMarkRead() { return props.visible && document.visibilityState === 'visible' }
 function markVisibleRead() {
   if (!canMarkRead()) return
@@ -78,12 +127,14 @@ function receivedReceipt(receipt: ReadReceipt) {
     receipts.value = receipts.value.map((item, i) => i === index ? receipt : item)
   }
 }
-function seenBy(message: ChatMessage): string {
-  const names = receipts.value
+function seenNames(message: ChatMessage): string[] {
+  return receipts.value
     .filter(receipt => receipt.userId.toLowerCase() !== message.userId.toLowerCase()
       && Date.parse(receipt.lastReadAt) >= Date.parse(message.sentAt))
-    .map(receipt => receipt.name)
-  return names.length ? 'Visto por ' + names.slice(0, 2).join(', ') + (names.length > 2 ? ' y ' + (names.length - 2) + ' más' : '') : 'Sin vistos aún'
+    .map(receipt => chatNames.value[receipt.userId.toLowerCase()] || receipt.name)
+}
+function toggleSeen(id: string) {
+  expandedSeenId.value = expandedSeenId.value === id ? null : id
 }
 function clock(iso: string) { return new Date(iso).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' }) }
 function quoteText(text: string) { return text.length > 140 ? text.slice(0, 140).trimEnd() + '…' : text }
@@ -131,6 +182,14 @@ async function startChat() {
     await connection.start()
     if (!active) { await connection.stop(); return }
     status.value = 'En línea'
+    const remembered = savedNickname()
+    if (remembered) {
+      try {
+        const current = await connection.invoke<string>('SetDisplayName', remembered)
+        nickname.value = remembered
+        chatNames.value = { ...chatNames.value, [currentUserId.value]: current }
+      } catch { /* Se conserva el chat si el apodo no pudo restaurarse. */ }
+    }
     markVisibleRead()
   } catch {
     if (active) { status.value = 'Sin conexión · reintentando'; scheduleRetry() }
@@ -146,6 +205,7 @@ onMounted(() => {
     return
   }
   initializeLastRead()
+  void nextTick(() => list.value?.addEventListener('wheel', trapChatWheel, { passive: false }))
   window.addEventListener('focus', onVisibility)
   document.addEventListener('visibilitychange', onVisibility)
   window.addEventListener('online', startChat)
@@ -156,6 +216,17 @@ onMounted(() => {
     .configureLogging(signalR.LogLevel.Error)
     .build()
   connection = hub
+  hub.on('ChatProfile', (profile: { displayName: string; customName: string | null }) => {
+    if (!active) return
+    nickname.value = savedNickname() ?? profile.customName ?? ''
+    if (currentUserId.value && profile.displayName) {
+      chatNames.value = { ...chatNames.value, [currentUserId.value]: profile.displayName }
+    }
+  })
+  hub.on('NicknameChanged', (userId: string, name: string) => {
+    if (!active) return
+    chatNames.value = { ...chatNames.value, [userId.toLowerCase()]: name }
+  })
   hub.on('History', (history: ChatMessage[], seen: ReadReceipt[]) => {
     if (!active) return
     messages.value = history.slice(-60)
@@ -175,6 +246,7 @@ onUnmounted(() => {
   emit('unread-change', 0)
   if (retryTimer) clearTimeout(retryTimer)
   if (highlightTimer) clearTimeout(highlightTimer)
+  list.value?.removeEventListener('wheel', trapChatWheel)
   window.removeEventListener('focus', onVisibility)
   document.removeEventListener('visibilitychange', onVisibility)
   window.removeEventListener('online', startChat)
@@ -183,7 +255,27 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="team-chat" aria-label="Chat entre administradores">
+  <div class="team-chat-root">
+    <section class="team-chat-profile" aria-label="Nombre visible en el chat">
+      <div class="team-chat-profile__copy">
+        <span class="team-chat__tag">TU IDENTIDAD EN EL CHAT</span>
+        <strong>{{ chatNames[currentUserId] || authState.user?.nombre || authState.user?.correo || 'Administrador' }}</strong>
+        <small>Solo cambia cómo te ven aquí. Tu cuenta y permisos siguen iguales.</small>
+      </div>
+      <button v-if="!nicknameEditing" class="team-chat-profile__edit" type="button" @click="openNicknameEditor">
+        <span aria-hidden="true">✎</span> {{ nickname ? 'Cambiar apodo' : 'Elegir apodo' }}
+      </button>
+      <form v-else class="team-chat-profile__form" @submit.prevent="saveNickname">
+        <label class="sr-only" for="team-chat-nickname">Tu nombre para el chat</label>
+        <input id="team-chat-nickname" v-model="nicknameInput" maxlength="32" autocomplete="nickname"
+          placeholder="Tu nombre para el chat (2 a 32 caracteres)" :disabled="nicknameSaving" />
+        <button type="submit" :disabled="nicknameSaving || status !== 'En línea'">{{ nicknameSaving ? 'Guardando…' : 'Guardar' }}</button>
+        <button type="button" class="team-chat-profile__cancel" @click="nicknameEditing = false">Cancelar</button>
+        <p v-if="nicknameError" class="team-chat-profile__error" role="alert">{{ nicknameError }}</p>
+        <p class="team-chat-profile__hint">Dejá el campo vacío para volver al nombre de tu cuenta.</p>
+      </form>
+    </section>
+    <section class="team-chat" aria-label="Chat entre administradores">
     <header class="team-chat__head">
       <div>
         <p class="team-chat__tag">CANAL PRIVADO · EXPERIMENTAL</p>
@@ -200,25 +292,37 @@ onUnmounted(() => {
         <span>✳</span><strong>Este canal está esperando su primer mensaje.</strong>
         <p>Probalo con otro administrador desde otra computadora o navegador.</p>
       </div>
-      <article v-for="message in messages" :key="message.id" :data-chat-id="message.id"
-        class="team-chat__bubble" :class="{ 'is-own': isOwn(message), 'is-highlighted': highlightedId === message.id }">
-        <div class="team-chat__by">
-          <strong>{{ message.name || message.email }}</strong>
-          <time :datetime="message.sentAt">{{ clock(message.sentAt) }}</time>
-        </div>
-        <button v-if="message.replyTo" class="team-chat__quoted" type="button"
-          :aria-label="'Ir al mensaje original de ' + message.replyTo.name"
-          @click="jumpToOriginal(message.replyTo.id)">
-          <strong>↪ {{ message.replyTo.name }}</strong>
-          <span>{{ message.replyTo.text }}</span>
-        </button>
-        <p>{{ message.text }}</p>
-        <footer class="team-chat__bubble-footer">
-          <small v-if="isOwn(message)" class="team-chat__seen">{{ seenBy(message) }}</small>
-          <button class="team-chat__reply-action" type="button" :aria-label="'Responder al mensaje de ' + (message.name || message.email)"
-            @click="replyToMessage(message)">↩ Responder</button>
-        </footer>
-      </article>
+      <div v-for="message in messages" :key="message.id" :data-chat-id="message.id"
+        class="team-chat__entry" :class="{ 'is-own': isOwn(message), 'is-highlighted': highlightedId === message.id }">
+        <article class="team-chat__bubble" :class="{ 'is-own': isOwn(message) }">
+          <div class="team-chat__by">
+            <strong>{{ displayName(message) }}</strong>
+            <span class="team-chat__meta">
+              <time :datetime="message.sentAt">{{ clock(message.sentAt) }}</time>
+              <button v-if="isOwn(message)" type="button" class="team-chat__seen-button"
+                :aria-expanded="expandedSeenId === message.id"
+                :aria-label="'Ver quién leyó este mensaje: ' + seenNames(message).length"
+                title="Ver quién lo leyó" @click="toggleSeen(message.id)">✓✓</button>
+            </span>
+          </div>
+          <button v-if="message.replyTo" class="team-chat__quoted" type="button"
+            :aria-label="'Ir al mensaje original de ' + message.replyTo.name"
+            @click="jumpToOriginal(message.replyTo.id)">
+            <strong>↪ {{ message.replyTo.name }}</strong>
+            <span>{{ message.replyTo.text }}</span>
+          </button>
+          <p>{{ message.text }}</p>
+          <div v-if="isOwn(message) && expandedSeenId === message.id" class="team-chat__seen-popover" role="status">
+            <strong>Lecturas</strong>
+            <span v-if="!seenNames(message).length">Todavía nadie lo ha visto</span>
+            <span v-for="name in seenNames(message)" :key="name">✓ {{ name }}</span>
+          </div>
+        </article>
+        <button class="team-chat__reply-action" type="button"
+          :title="'Responder a ' + displayName(message)"
+          :aria-label="'Responder al mensaje de ' + displayName(message)"
+          @click="replyToMessage(message)">↩</button>
+      </div>
     </div>
     <div v-if="replyTarget" class="team-chat__reply-banner" role="status">
       <div class="team-chat__reply-banner-copy">
@@ -237,7 +341,8 @@ onUnmounted(() => {
     </form>
     <p v-if="error" class="team-chat__error" role="alert">{{ error }}</p>
     <p class="team-chat__foot">Solo administradores autenticados · {{ messages.length }} mensajes en este historial temporal.</p>
-  </section>
+    </section>
+  </div>
 </template>
 
 <style scoped>
