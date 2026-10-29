@@ -42,6 +42,12 @@ assert.match(mainStyles, /html\.theme-dark \.site-header \.nav-dropdown__menu a\
 assert.match(mainStyles, /html\.theme-dark \.site-header \.nav-dropdown__menu a:is\(:hover,:focus-visible\)/, 'Conservar interacción hover y teclado')
 assert.match(mainStyles, /@media \(max-width:800px\)\s*\{\s*html\.theme-dark \.site-header\.site-header--menu-open \.main-nav\.main-nav--open \.nav-dropdown__menu\s*\{[\s\S]*?background:rgba\(10,18,40,\.96\)!important;/, 'El menú móvil usa también el fondo de Configuración')
 assert.doesNotMatch(mainStyles, /html\.theme-dark \.nav-dropdown__menu\{background:#fff!important/, 'Nunca mostrar fondo blanco en modo oscuro')
+// One published Home news card must not run a vertical looping animation.
+const homeNewsLayout = source('src/Home.vue')
+assert.match(homeNewsLayout, /home-news-sidebar--single': homeNews\\.length === 1/, 'La noticia única se identifica reactivamente')
+assert.match(homeNewsLayout, /homeNews\\.length > 1 \\? 2 : 1/, 'Varias noticias conservan el carrusel duplicado')
+assert.match(mainStyles, /\\.home-news-sidebar--single \\.home-news-sidebar__track\\s*\\{\\s*animation: none !important;\\s*transform: none !important;/, 'Una noticia se mantiene fija arriba sin bucle')
+assert.match(mainStyles, /\\.home-news-sidebar--single \\.home-news-sidebar__group:first-child\\s*\\{\\s*justify-content: flex-start;/, 'La noticia vertical queda anclada en el inicio')
 const siteHeader = source('src/components/SiteHeader.vue')
 assert.match(siteHeader, /'site-header--quotes': props\.active === 'cotizaciones'/, 'Los colores de perfil solo deben ajustarse en Cotizaciones')
 assert.match(siteHeader, /html:not\(\.theme-dark\) \.app-site\.official-page > \.site-header\.site-header--quotes \.header-account-tools \.nav-user-icon\.header-profile__trigger\s*\{[^}]*color: #20242b !important;[^}]*border: 1px solid rgba\(32, 36, 43, \.26\) !important;/, 'El botón de perfil en Cotizaciones debe tener trazo y borde oscuros en modo claro')
