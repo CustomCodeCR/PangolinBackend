@@ -51,6 +51,10 @@ const stats = computed(() => [
   { value: '24/7', label: t('custom.home.stats.3') }
 ])
 const publicComments = ref<ManagedComment[]>([])
+const commentsLoaded = ref(false)
+const commentsSection = ref<HTMLElement | null>(null)
+let commentsObserver: IntersectionObserver | undefined
+let commentsRequested = false
 const carouselComments = computed(() => publicComments.value.length > 1
   ? [...publicComments.value, ...publicComments.value]
   : publicComments.value)
@@ -61,6 +65,7 @@ async function loadPublicComments() {
     const list: unknown = await response.json()
     publicComments.value = Array.isArray(list) ? (list as ManagedComment[]).filter(item => item.published).slice(0, 6) : []
   } catch { publicComments.value = [] }
+  finally { commentsLoaded.value = true }
 }
 const managedNews = ref<ManagedNews[]>([])
 const homeNewsLoaded = ref(false)
@@ -73,7 +78,9 @@ const homeNews = computed(() => managedNews.value.filter(article => article.publ
 
 const activeStat = ref(0)
 const newsScroller = ref<HTMLElement | null>(null)
-const unsubscribeComments = subscribeToChanges('comments', () => { void loadPublicComments() })
+const unsubscribeComments = subscribeToChanges('comments', () => {
+  if (commentsRequested) void loadPublicComments()
+})
 let statsTimer: number | undefined
 let newsTimer: number | undefined
 let newsPauseUntil = 0
@@ -106,8 +113,24 @@ function showStat(index: number) {
   activeStat.value = (index + stats.value.length) % stats.value.length
 }
 
-onMounted(async () => {
+function requestComments() {
+  if (commentsRequested) return
+  commentsRequested = true
   void loadPublicComments()
+}
+
+onMounted(async () => {
+  // Comments live below the first screen; do not compete with hero/news on load.
+  if (typeof IntersectionObserver === 'undefined' || !commentsSection.value) {
+    requestComments()
+  } else {
+    commentsObserver = new IntersectionObserver(entries => {
+      if (!entries.some(entry => entry.isIntersecting)) return
+      commentsObserver?.disconnect()
+      requestComments()
+    }, { rootMargin: '700px 0px' })
+    commentsObserver.observe(commentsSection.value)
+  }
   statsTimer = window.setInterval(() => showStat(activeStat.value + 1), 2500)
   try {
     const response = await fetch('/api/content/news', { cache: 'no-store' })
@@ -124,6 +147,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  commentsObserver?.disconnect()
   unsubscribeComments()
   if (statsTimer) window.clearInterval(statsTimer)
   if (newsTimer) window.clearInterval(newsTimer)
@@ -309,7 +333,7 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <section id="soluciones" class="experience-section section-spacing">
+      <section id="soluciones" ref="commentsSection" class="experience-section section-spacing">
         <div class="container">
           <div class="experience-intro">
             <div>
@@ -346,7 +370,7 @@ onUnmounted(() => {
               </article>
             </div>
           </div>
-          <p v-else class="experience-comments-empty" role="status">Todavía no hay comentarios publicados.</p>
+          <p v-else-if="commentsLoaded" class="experience-comments-empty" role="status">Todavía no hay comentarios publicados.</p>
         </div>
       </section>
 
