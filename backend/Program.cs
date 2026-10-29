@@ -103,6 +103,7 @@ builder.Services.AddAuthorization(options =>
 });
 builder.Services.AddSignalR(options => { options.EnableDetailedErrors = false; options.MaximumReceiveMessageSize = 4 * 1024; });
 builder.Services.AddSingleton<ContentUpdatesPublisher>();
+builder.Services.AddSingleton<AdminChatMediaStore>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<QuoteService>();
 builder.Services.AddScoped<AssistantService>();
@@ -582,5 +583,6 @@ app.MapSiteCms();
 app.MapHub<ContentUpdatesHub>(ContentUpdatesHub.Path);
 // Chat experimental exclusivo para administradores autenticados.
 app.MapHub<AdminChatHub>(AdminChatHub.Path).RequireAuthorization("admin");
+app.MapAdminChatMedia();
 
 app.Run();
