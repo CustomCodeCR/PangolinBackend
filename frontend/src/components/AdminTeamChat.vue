@@ -211,12 +211,60 @@ onUnmounted(() => {
   color: var(--chat-text);
   box-shadow: 0 14px 38px rgba(25, 16, 24, .055);
 }
-:global(html.theme-dark) .team-chat {
-  --chat-soft: #1b1820;
-  --chat-bubble: #302932;
+/* La clase theme-dark vive en <html>, fuera del scope de este componente.
+   Usar el selector global COMPLETO evita que Vue intente ubicar html.theme-dark
+   dentro de .team-chat. El modo claro conserva los valores anteriores. */
+:global(html.theme-dark .administration-page .team-chat) {
+  --chat-bg: #211b20;
+  --chat-text: #fff;
+  --chat-muted: #c4c5cf;
+  --chat-line: #565057;
+  --chat-accent: #ef233c;
+  --chat-soft: #18151b;
+  --chat-bubble: #352b35;
   --chat-own: #86243b;
-  --chat-scroll: #795564;
+  --chat-own-text: #fff;
+  --chat-scroll: #896071;
+  color-scheme: dark;
+  background: var(--chat-bg);
+  color: var(--chat-text);
   box-shadow: none;
+}
+/* Contraste garantizado incluso con las reglas globales !important del sitio. */
+:global(html.theme-dark .administration-page .team-chat .team-chat__messages),
+:global(html.theme-dark .administration-page .team-chat .team-chat__composer),
+:global(html.theme-dark .administration-page .team-chat .team-chat__presence) {
+  background: #18151b !important;
+  color: #fff !important;
+  border-color: #48424b !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__bubble:not(.is-own)) {
+  background: #352b35 !important;
+  color: #fff !important;
+  border-color: #514450 !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__bubble.is-own) {
+  background: #86243b !important;
+  color: #fff !important;
+  border-color: #a83d56 !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__composer input) {
+  background: transparent !important;
+  color: #fff !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__composer input::placeholder) {
+  color: #acacb8 !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__composer button) {
+  background: #c51b3c !important;
+  color: #fff !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__composer button:disabled) {
+  opacity: .56;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__messages::-webkit-scrollbar-thumb) {
+  background: #896071;
+  border-color: #18151b;
 }
 .team-chat__head {
   display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;
