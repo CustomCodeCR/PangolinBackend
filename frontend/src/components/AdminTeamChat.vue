@@ -28,6 +28,7 @@ const online = ref(0)
 const sending = ref(false)
 const error = ref('')
 const list = ref<HTMLElement | null>(null)
+const chatPanel = ref<HTMLElement | null>(null)
 const lastReadAt = ref(0)
 let connection: signalR.HubConnection | null = null
 let retryTimer: ReturnType<typeof setTimeout> | null = null
@@ -101,6 +102,14 @@ function scrollBottom() {
 function trapChatWheel(event: WheelEvent) {
   const element = list.value
   if (!element || event.ctrlKey || !event.deltaY) return
+  // Si la rueda se usa sobre el encabezado o el compositor, también desplaza
+  // los mensajes y no la página que está detrás.
+  const overMessages = event.target instanceof Node && element.contains(event.target)
+  if (!overMessages) {
+    element.scrollTop += event.deltaY
+    event.preventDefault()
+    return
+  }
   const atTop = element.scrollTop <= 1 && event.deltaY < 0
   const atBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 1 && event.deltaY > 0
   if (element.scrollHeight <= element.clientHeight + 1 || atTop || atBottom) event.preventDefault()
@@ -205,7 +214,7 @@ onMounted(() => {
     return
   }
   initializeLastRead()
-  void nextTick(() => list.value?.addEventListener('wheel', trapChatWheel, { passive: false }))
+  void nextTick(() => chatPanel.value?.addEventListener('wheel', trapChatWheel, { passive: false }))
   window.addEventListener('focus', onVisibility)
   document.addEventListener('visibilitychange', onVisibility)
   window.addEventListener('online', startChat)
@@ -246,7 +255,7 @@ onUnmounted(() => {
   emit('unread-change', 0)
   if (retryTimer) clearTimeout(retryTimer)
   if (highlightTimer) clearTimeout(highlightTimer)
-  list.value?.removeEventListener('wheel', trapChatWheel)
+  chatPanel.value?.removeEventListener('wheel', trapChatWheel)
   window.removeEventListener('focus', onVisibility)
   document.removeEventListener('visibilitychange', onVisibility)
   window.removeEventListener('online', startChat)
@@ -275,7 +284,7 @@ onUnmounted(() => {
         <p class="team-chat-profile__hint">Dejá el campo vacío para volver al nombre de tu cuenta.</p>
       </form>
     </section>
-    <section class="team-chat" aria-label="Chat entre administradores">
+    <section ref="chatPanel" class="team-chat" aria-label="Chat entre administradores">
     <header class="team-chat__head">
       <div>
         <p class="team-chat__tag">CANAL PRIVADO · EXPERIMENTAL</p>
@@ -565,4 +574,142 @@ onUnmounted(() => {
   .team-chat__composer button { padding: 10px 13px; }
   .team-chat__by { flex-wrap: wrap; gap: 4px 12px; }
 }
+
+/* Identidad del chat: tarjeta independiente por encima de la conversación. */
+.team-chat-root { width: min(1040px, 100%); min-width: 0; margin-inline: auto; }
+.team-chat-root .team-chat { margin: 12px auto 64px; width: 100%; box-sizing: border-box; }
+.team-chat-profile {
+  box-sizing: border-box; width: 100%; margin-top: 24px; padding: 17px 20px;
+  border: 1px solid var(--manager-line, #ded9dc); border-radius: 17px;
+  background: var(--manager-card, #fff); color: var(--manager-ink, #20242b);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px;
+}
+.team-chat-profile__copy { display: flex; flex-direction: column; gap: 4px; flex: 1 1 240px; min-width: 0; }
+.team-chat-profile__copy strong { font-size: 16px; line-height: 1.3; overflow-wrap: anywhere; }
+.team-chat-profile__copy small { font-size: 12px; color: var(--manager-muted, #687080); }
+.team-chat-profile .team-chat__tag { margin: 0 0 3px; color: var(--manager-accent, #b20c2a); }
+.team-chat-profile__edit {
+  border: 1px solid var(--manager-line, #ded9dc); border-radius: 11px;
+  background: transparent; color: var(--manager-ink, #20242b); padding: 10px 15px;
+  font: inherit; font-size: 13px; font-weight: 750; cursor: pointer;
+}
+.team-chat-profile__edit:hover { border-color: var(--manager-accent, #b20c2a); }
+.team-chat-profile__form {
+  flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 9px; align-items: center;
+  padding-top: 10px; border-top: 1px solid var(--manager-line, #ded9dc);
+}
+.team-chat-profile__form input {
+  flex: 1 1 230px; min-width: 0; border-radius: 9px; padding: 11px 12px;
+  border: 1px solid var(--manager-line, #ded9dc);
+  background: var(--manager-input, #fff); color: var(--manager-ink, #20242b);
+  font: inherit; font-size: 13px;
+}
+.team-chat-profile__form button {
+  border: 1px solid var(--manager-accent, #b20c2a); border-radius: 9px;
+  padding: 10px 15px; background: var(--manager-accent, #b20c2a);
+  color: #fff; font: inherit; font-size: 13px; font-weight: 750; cursor: pointer;
+}
+.team-chat-profile__form button:disabled { opacity: .55; cursor: not-allowed; }
+.team-chat-profile__form .team-chat-profile__cancel {
+  background: transparent; border-color: var(--manager-line, #ded9dc);
+  color: var(--manager-ink, #20242b);
+}
+.team-chat-profile__hint, .team-chat-profile__error { width: 100%; margin: 0; font-size: 12px; color: var(--manager-muted, #687080); }
+.team-chat-profile__error { color: var(--manager-accent, #b20c2a); }
+:global(html.theme-dark .administration-page .team-chat-profile) {
+  background: #211b20; border-color: #565057; color: #fff;
+}
+:global(html.theme-dark .administration-page .team-chat-profile__edit),
+:global(html.theme-dark .administration-page .team-chat-profile__form .team-chat-profile__cancel) {
+  background: transparent !important; color: #fff !important; border-color: #6a6069 !important;
+}
+:global(html.theme-dark .administration-page .team-chat-profile__form input) {
+  background: #11182d !important; color: #fff !important; border-color: #555b6b !important;
+}
+:global(html.theme-dark .administration-page .team-chat-profile__form button:not(.team-chat-profile__cancel)) {
+  background: #c51b3c !important; color: #fff !important;
+}
+
+/* Burbuja compacta inspirada en mensajería. Las acciones viven fuera de ella. */
+.team-chat__messages {
+  gap: 9px; padding: 17px 10px 17px 6px;
+  overflow-x: hidden; overflow-y: auto;
+  overscroll-behavior: contain; touch-action: pan-y;
+}
+.team-chat__entry {
+  box-sizing: border-box; width: 100%; min-width: 0;
+  display: flex; align-items: center; justify-content: flex-start; gap: 8px;
+}
+.team-chat__entry.is-own { flex-direction: row-reverse; }
+.team-chat__bubble, .team-chat__bubble.is-own {
+  align-self: auto; position: relative; flex: 0 1 auto;
+  max-width: min(79%, 540px); min-width: 0;
+  padding: 9px 12px 8px;
+  border-radius: 16px 16px 16px 5px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.055);
+}
+.team-chat__bubble.is-own { border-radius: 16px 16px 5px 16px; }
+.team-chat__entry.is-highlighted .team-chat__bubble { outline: 2px solid var(--chat-accent); outline-offset: 3px; }
+.team-chat__by { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+.team-chat__by strong { font-size: 11.5px; line-height: 1.25; }
+.team-chat__meta { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.team-chat__meta time { font-size: 10px; opacity: .7; }
+.team-chat__bubble p { margin: 5px 0 0; font-size: 13.5px; line-height: 1.42; }
+.team-chat__quoted { margin-top: 7px; padding: 7px 9px; gap: 2px; }
+.team-chat__quoted strong, .team-chat__quoted span { font-size: 11px; }
+.team-chat__reply-action {
+  flex: 0 0 auto; width: 33px; height: 33px; padding: 0;
+  display: grid; place-items: center;
+  border: 1px solid var(--chat-line); border-radius: 50%;
+  background: var(--chat-bg); color: var(--chat-text);
+  font-size: 20px; line-height: 1;
+  opacity: 0; transform: translateY(3px);
+  transition: opacity .15s, transform .15s, border-color .15s;
+}
+.team-chat__entry:hover .team-chat__reply-action,
+.team-chat__entry:focus-within .team-chat__reply-action {
+  opacity: 1; transform: translateY(0);
+}
+.team-chat__reply-action:hover { border-color: var(--chat-accent); }
+.team-chat__seen-button {
+  border: 0; background: transparent; color: inherit; opacity: .86;
+  min-width: 27px; min-height: 24px; padding: 0 2px;
+  font: inherit; font-size: 12px; font-weight: 850; cursor: pointer;
+}
+.team-chat__seen-button:hover,
+.team-chat__seen-button[aria-expanded="true"] { opacity: 1; text-decoration: underline; }
+.team-chat__seen-popover {
+  position: absolute; z-index: 5; right: 0; bottom: calc(100% + 6px);
+  width: max-content; max-width: min(260px, 85vw);
+  display: flex; flex-direction: column; gap: 6px; padding: 11px 13px;
+  border: 1px solid var(--chat-line); border-radius: 11px;
+  background: var(--chat-bg); color: var(--chat-text);
+  box-shadow: 0 9px 22px rgba(0,0,0,.15);
+  font-size: 12px; overflow-wrap: anywhere;
+}
+.team-chat__seen-popover strong { font-size: 12px; color: var(--chat-accent); }
+.team-chat__seen-popover span { max-width: 230px; white-space: normal; }
+:global(html.theme-dark .administration-page .team-chat .team-chat__reply-action) {
+  background: #29212b !important; color: #fff !important; border-color: #514450 !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__seen-popover) {
+  background: #211b20 !important; color: #fff !important; border-color: #514450 !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__seen-button) {
+  color: #ffe6eb !important; background: transparent !important;
+}
+@media (hover: none), (pointer: coarse) {
+  .team-chat__reply-action { opacity: 1; transform: none; }
+}
+@media (max-width: 600px) {
+  .team-chat-profile { padding: 14px; }
+  .team-chat-profile__form button { flex: 1 1 auto; }
+  .team-chat-root .team-chat { margin-bottom: 34px; }
+  .team-chat__bubble, .team-chat__bubble.is-own { max-width: min(84%, 540px); padding: 9px 10px; }
+  .team-chat__by { flex-wrap: wrap; gap: 3px 10px; }
+  .team-chat__meta { margin-left: auto; }
+  .team-chat__entry { gap: 5px; }
+  .team-chat__reply-action { width: 29px; height: 29px; font-size: 18px; }
+}
+
 </style>
