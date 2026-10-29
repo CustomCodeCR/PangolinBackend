@@ -420,6 +420,10 @@ onUnmounted(() => {
           :aria-label="'Responder al mensaje de ' + displayName(message)"
           @click="replyToMessage(message)">↩</button>
       </div>
+      <div v-if="typingNames.length" class="team-chat__typing" role="status" aria-live="polite" aria-atomic="true">
+        <span class="team-chat__typing-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="team-chat__typing-name">{{ typingLabel }}</span>
+      </div>
     </div>
     <div v-if="replyTarget" class="team-chat__reply-banner" role="status">
       <div class="team-chat__reply-banner-copy">
@@ -431,7 +435,8 @@ onUnmounted(() => {
     <form class="team-chat__composer" @submit.prevent="send">
       <label class="sr-only" for="team-chat-input">Escribir mensaje</label>
       <input id="team-chat-input" ref="input" v-model="draft" maxlength="500" autocomplete="off"
-        placeholder="Escribí un mensaje al equipo…" :disabled="status !== 'En línea'" />
+        placeholder="Escribí un mensaje al equipo…" :disabled="status !== 'En línea'"
+        @input="onDraftInput" @blur="stopTyping" />
       <button type="submit" :disabled="status !== 'En línea' || !draft.trim() || sending">
         {{ sending ? 'Enviando…' : 'Enviar ↗' }}
       </button>
@@ -800,4 +805,42 @@ onUnmounted(() => {
   .team-chat__reply-action { width: 29px; height: 29px; font-size: 18px; }
 }
 
+
+/* Indicador discreto, integrado al final del historial y sin persistencia. */
+.team-chat__typing {
+  align-self: flex-start; max-width: min(90%, 380px);
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 7px 12px 7px 8px; border: 1px solid var(--chat-line);
+  border-radius: 15px 15px 15px 5px;
+  background: var(--chat-bubble); color: var(--chat-muted);
+  font-size: 12px; line-height: 1.35;
+}
+.team-chat__typing-name { overflow-wrap: anywhere; }
+.team-chat__typing-dots {
+  flex: 0 0 auto; display: inline-flex; align-items: center;
+  justify-content: center; gap: 4px; min-width: 40px; height: 23px;
+  border-radius: 13px; background: var(--chat-soft);
+}
+.team-chat__typing-dots i {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--chat-accent);
+  animation: chat-typing-bounce 1.25s ease-in-out infinite;
+}
+.team-chat__typing-dots i:nth-child(2) { animation-delay: .16s; }
+.team-chat__typing-dots i:nth-child(3) { animation-delay: .32s; }
+@keyframes chat-typing-bounce {
+  0%, 55%, 100% { transform: translateY(0); opacity: .5; }
+  25% { transform: translateY(-3px); opacity: 1; }
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__typing) {
+  background: #352b35 !important;
+  border-color: #514450 !important;
+  color: #dbd3dd !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__typing-dots) {
+  background: #24202a !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .team-chat__typing-dots i { animation: none; opacity: 1; }
+}
 </style>
