@@ -5421,3 +5421,16 @@ html.theme-dark .content-manager .manager-form input[type="file"] {
     aspect-ratio: auto;
   }
 }
+
+/* A single Home news card has no second item to loop into. The normal
+   upward animation would translate it away and abruptly restart. Only
+   the one-item sidebar is anchored; multi-news and mobile layouts stay as-is. */
+.app-site #servicios .home-news-sidebar--single .home-news-sidebar__track {
+  animation: none !important;
+  transform: none !important;
+}
+@media (min-width: 1101px) {
+  .app-site #servicios .home-news-sidebar--single .home-news-sidebar__group:first-child {
+    justify-content: flex-start;
+  }
+}
