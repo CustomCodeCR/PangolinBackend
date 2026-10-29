@@ -1,6 +1,12 @@
 name: Admin team chat experimental checks
 
 on:
+  push:
+    branches: [main-3]
+    paths:
+      - "backend/Services/Realtime/AdminChatHub.cs"
+      - "frontend/src/components/AdminTeamChat.vue"
+      - ".github/workflows/admin-chat-main2-check.yml"
   pull_request:
     branches: [main-2]
     paths:
@@ -48,6 +54,11 @@ jobs:
           check(hub.includes('ReplyToMessage'), 'Existing reply method was lost')
           check(hub.includes('MarkSeen'), 'Existing read receipt method was lost')
           check(chat.includes("trapChatWheel") && chat.includes('passive: false'), 'Wheel chaining guard missing')
+          check(hub.includes('SetTyping(bool isTyping)') && hub.includes('TypingChanged'), 'Typing events must be authenticated server-side')
+          check(hub.includes('TypingSnapshot') && hub.includes('ClearTypingAsync()'), 'Typing snapshot or disconnect cleanup missing')
+          check(chat.includes('onDraftInput') && chat.includes("hub.on('TypingChanged'"), 'Client typing lifecycle missing')
+          check(chat.includes('typingSweepTimer') && chat.includes('typingIdleTimer'), 'Typing stale or idle cleanup missing')
+          check(chat.includes('team-chat__typing-dots') && chat.includes('prefers-reduced-motion'), 'Accessible typing animation missing')
           check(chat.includes('overscroll-behavior: contain'), 'Touch scroll containment missing')
           check(chat.includes('team-chat__reply-action') && chat.includes('team-chat__seen-button'), 'Message actions missing')
           check(chat.includes('team-chat-profile__form'), 'Nickname editor missing')
