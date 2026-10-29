@@ -20,7 +20,7 @@
     "embla-carousel": "^8.6.0",
     "topojson-client": "3.1.0",
     "vue": "^3.5.13",
-    "vue-i18n": "^10.0.8",
+    "vue-i18n": "^11.4.16",
     "world-atlas": "2.0.2",
     "ws": "^8.22.0"
   },
