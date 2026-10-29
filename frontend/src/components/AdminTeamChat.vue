@@ -4,7 +4,8 @@ import * as signalR from '@microsoft/signalr'
 import { authState } from '../services/auth'
 
 interface ChatReply { id: string; name: string; text: string }
-interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null }
+interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null; imageUrl?: string | null }
+interface ChatMediaUpload { imageId: string; url: string }
 interface ReadReceipt { userId: string; name: string; lastReadAt: string }
 interface TypingStatus { connectionId: string; userId: string; name: string; isTyping: boolean; expiresAt: string; updatedAt: string }
 
@@ -19,6 +20,12 @@ const nicknameEditing = ref(false)
 const nicknameSaving = ref(false)
 const nicknameError = ref('')
 const chatNames = ref<Record<string, string>>({})
+const avatarUrls = ref<Record<string, string>>({})
+const avatarPicker = ref<HTMLInputElement | null>(null)
+const imagePicker = ref<HTMLInputElement | null>(null)
+const avatarBusy = ref(false)
+const mediaBusy = ref(false)
+const outgoingImage = ref<{ blob: Blob; previewUrl: string } | null>(null)
 const expandedSeenId = ref<string | null>(null)
 const remoteTyping = ref<Record<string, TypingStatus>>({})
 const typingClock = ref(Date.now())
@@ -99,6 +106,100 @@ function onDraftInput() {
 }
 function savedNickname() {
   try { return localStorage.getItem(nicknameStorageKey.value) } catch { return null }
+}
+function avatarFor(userId: string) { return avatarUrls.value[userId.toLowerCase()] || '' }
+function initials(name: string) {
+  return name.trim().split(/\s+/).slice(0, 2).map(part => part[0] ?? '').join('').toUpperCase() || '?'
+}
+async function compressImage(file: File, size: number, limit: number): Promise<Blob> {
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 9_000_000)
+    throw new Error('Elegí una imagen JPG, PNG o WebP de hasta 9 MB.')
+  const url = URL.createObjectURL(file)
+  const img = new Image()
+  try {
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve()
+      img.onerror = () => reject(new Error('No se pudo leer la imagen seleccionada.'))
+      img.src = url
+    })
+    if (!img.naturalWidth || !img.naturalHeight) throw new Error('Imagen vacía.')
+    const scale = Math.min(1, size / Math.max(img.naturalWidth, img.naturalHeight))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale))
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale))
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('No se pudo procesar la imagen.')
+    context.fillStyle = '#fff'
+    context.fillRect(0, 0, canvas.width, canvas.height)
+    context.drawImage(img, 0, 0, canvas.width, canvas.height)
+    for (const quality of [0.82, 0.68, 0.52, 0.38]) {
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', quality))
+      if (blob && blob.size <= limit) return blob
+    }
+    throw new Error('La imagen sigue siendo demasiado pesada. Probá una más pequeña.')
+  } finally { URL.revokeObjectURL(url) }
+}
+async function uploadImage(blob: Blob, kind: 'avatar' | 'message'): Promise<ChatMediaUpload> {
+  const response = await fetch('/api/admin/chat/images?kind=' + kind, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'image/jpeg', 'X-Chat-Media': '1' },
+    body: blob
+  })
+  if (!response.ok) throw new Error(response.status === 413
+    ? 'La imagen supera el límite permitido.'
+    : 'No se pudo subir la imagen (HTTP ' + response.status + ').')
+  const uploaded = await response.json() as ChatMediaUpload
+  if (!uploaded.imageId || !uploaded.url?.startsWith('/api/admin/chat/images/'))
+    throw new Error('Respuesta inválida del servidor de imágenes.')
+  return uploaded
+}
+async function chooseAvatar(event: Event) {
+  const element = event.target as HTMLInputElement
+  const file = element.files?.[0]
+  element.value = ''
+  if (!file || avatarBusy.value) return
+  avatarBusy.value = true
+  nicknameError.value = ''
+  try {
+    const blob = await compressImage(file, 220, 170_000)
+    const uploaded = await uploadImage(blob, 'avatar')
+    if (connection?.state !== signalR.HubConnectionState.Connected) throw new Error('Chat desconectado.')
+    await connection.invoke('SetAvatarImage', uploaded.imageId)
+    avatarUrls.value = { ...avatarUrls.value, [currentUserId.value]: uploaded.url }
+  } catch (cause) {
+    nicknameError.value = cause instanceof Error ? cause.message : 'No se pudo guardar la foto.'
+  } finally { avatarBusy.value = false }
+}
+async function removeAvatar() {
+  if (avatarBusy.value || connection?.state !== signalR.HubConnectionState.Connected) return
+  avatarBusy.value = true
+  try {
+    await connection.invoke('SetAvatarImage', null)
+    const next = { ...avatarUrls.value }
+    delete next[currentUserId.value]
+    avatarUrls.value = next
+  } catch {
+    nicknameError.value = 'No se pudo quitar la foto.'
+  } finally { avatarBusy.value = false }
+}
+async function chooseImage(event: Event) {
+  const element = event.target as HTMLInputElement
+  const file = element.files?.[0]
+  element.value = ''
+  if (!file || mediaBusy.value || sending.value) return
+  mediaBusy.value = true
+  error.value = ''
+  try {
+    const blob = await compressImage(file, 1200, 800_000)
+    clearOutgoingImage()
+    outgoingImage.value = { blob, previewUrl: URL.createObjectURL(blob) }
+  } catch (cause) { error.value = cause instanceof Error ? cause.message : 'No se pudo adjuntar la imagen.' }
+  finally { mediaBusy.value = false }
+}
+function clearOutgoingImage() {
+  if (outgoingImage.value) URL.revokeObjectURL(outgoingImage.value.previewUrl)
+  outgoingImage.value = null
 }
 function displayName(message: ChatMessage) {
   return chatNames.value[message.userId.toLowerCase()] || message.name || message.email
@@ -227,13 +328,18 @@ function jumpToOriginal(id: string) {
 }
 async function send() {
   const text = draft.value.trim()
-  if (!text || text.length > 500 || sending.value || connection?.state !== signalR.HubConnectionState.Connected) return
+  if ((!text && !outgoingImage.value) || text.length > 500 || sending.value || mediaBusy.value ||
+      connection?.state !== signalR.HubConnectionState.Connected) return
   sending.value = true
   error.value = ''
   stopTyping()
   const target = replyTarget.value
   try {
-    if (target) await connection.invoke('ReplyToMessage', text, target.id)
+    if (outgoingImage.value) {
+      const uploaded = await uploadImage(outgoingImage.value.blob, 'message')
+      await connection.invoke('SendImage', uploaded.imageId, text, target?.id ?? null)
+      clearOutgoingImage()
+    } else if (target) await connection.invoke('ReplyToMessage', text, target.id)
     else await connection.invoke('SendMessage', text)
     draft.value = ''
     if (replyTarget.value?.id === target?.id) replyTarget.value = null
@@ -303,6 +409,19 @@ onMounted(() => {
       chatNames.value = { ...chatNames.value, [currentUserId.value]: profile.displayName }
     }
   })
+  hub.on('AvatarSnapshot', (photos: { userId: string; url: string }[]) => {
+    if (!active) return
+    avatarUrls.value = Object.fromEntries((photos ?? [])
+      .filter(photo => photo.url?.startsWith('/api/admin/chat/images/'))
+      .map(photo => [photo.userId.toLowerCase(), photo.url]))
+  })
+  hub.on('AvatarChanged', (userId: string, url: string | null) => {
+    if (!active) return
+    const next = { ...avatarUrls.value }
+    if (url?.startsWith('/api/admin/chat/images/')) next[userId.toLowerCase()] = url
+    else delete next[userId.toLowerCase()]
+    avatarUrls.value = next
+  })
   hub.on('NicknameChanged', (userId: string, name: string) => {
     if (!active) return
     chatNames.value = { ...chatNames.value, [userId.toLowerCase()]: name }
@@ -340,6 +459,7 @@ onUnmounted(() => {
   active = false
   emit('unread-change', 0)
   stopTyping()
+  clearOutgoingImage()
   if (typingSweepTimer) clearInterval(typingSweepTimer)
   if (retryTimer) clearTimeout(retryTimer)
   if (highlightTimer) clearTimeout(highlightTimer)
