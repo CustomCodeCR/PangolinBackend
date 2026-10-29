@@ -206,7 +206,7 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <aside class="home-news-sidebar" :aria-label="$t('custom.home.newsAria')">
+          <aside class="home-news-sidebar" :class="{ 'home-news-sidebar--single': homeNews.length === 1 }" :aria-label="$t('custom.home.newsAria')">
             <div class="home-hero-news__header">
               <span>{{ $t('custom.home.newsHeader') }}</span>
               <a href="/noticias">{{ $t('custom.home.allNews') }}</a>
