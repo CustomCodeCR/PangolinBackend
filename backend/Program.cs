@@ -580,5 +580,7 @@ app.MapSiteCms();
 // Endpoint público de conexión. Los grupos privados se validan con la cookie JWT
 // revocable al establecer conexión; el hub no permite que clientes emitan eventos.
 app.MapHub<ContentUpdatesHub>(ContentUpdatesHub.Path);
+// Chat experimental exclusivo para administradores autenticados.
+app.MapHub<AdminChatHub>(AdminChatHub.Path).RequireAuthorization("admin");
 
 app.Run();
