@@ -309,6 +309,17 @@
       "allNews": "VIEW ALL ↗",
       "quoteNow": "Get a quote",
       "contactAria": "Contact information",
+      "instagram": {
+        "aria": "Grupo Castro Fallas on Instagram",
+        "follow": "Follow us on",
+        "description": "Stay up to date with our latest news, operations and exclusive content.",
+        "profile": "View Instagram profile",
+        "reel": "Grupo Castro Fallas latest Reel",
+        "play": "Play the latest Reel",
+        "open": "Open Reel",
+        "unavailable": "Visit our profile to see our Reels",
+        "loading": "Looking for our latest Reel…"
+      },
       "newsAria": "Featured news",
       "contact": [
         "Phone number",

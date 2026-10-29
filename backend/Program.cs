@@ -28,6 +28,12 @@ if (builder.Configuration["Email:Mode"]?.Equals("LocalOutbox", StringComparison.
     throw new InvalidOperationException("Email:Mode=LocalOutbox no está permitido fuera de Development.");
 
 builder.Services.AddHttpClient<GraphEmailSender>(client => client.Timeout = TimeSpan.FromSeconds(20));
+// Instagram API with Instagram Login: fixed Meta origin, token stays server-side.
+builder.Services.AddHttpClient("Instagram", client =>
+{
+    client.BaseAddress = new Uri("https://graph.instagram.com/v25.0/");
+    client.Timeout = TimeSpan.FromSeconds(8);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 // Fixed destination and redirects disabled so the Dhole API key cannot be forwarded elsewhere.
 builder.Services.AddHttpClient("DholeTracking", client =>
 {
@@ -568,6 +574,7 @@ app.MapAdminUsers();
 
 // Noticias públicas publicadas y mantenimiento de contenido reservado a admins.
 app.MapManagedContent();
+app.MapInstagramReel();
 app.MapManagedMediaObjects();
 app.MapSiteCms();
 // Endpoint público de conexión. Los grupos privados se validan con la cookie JWT

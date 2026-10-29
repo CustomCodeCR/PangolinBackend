@@ -5,6 +5,7 @@ import SiteFooter from './components/SiteFooter.vue'
 import WorldGlobe from './components/WorldGlobe.vue'
 import IconSymbol from './components/IconSymbol.vue'
 import SiteMedia from './components/SiteMedia.vue'
+import HomeInstagramReel from './components/HomeInstagramReel.vue'
 import { siteText, siteVisual, siteCssImage } from './siteCms'
 import { services as baseServices, faqs as baseFaqs, type ServiceKey } from './content'
 import type { ManagedNews, ManagedComment } from './adminContent'
@@ -205,7 +206,7 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <aside class="home-news-sidebar" :aria-label="$t('custom.home.newsAria')">
+          <aside class="home-news-sidebar" :class="{ 'home-news-sidebar--single': homeNews.length === 1 }" :aria-label="$t('custom.home.newsAria')">
             <div class="home-hero-news__header">
               <span>{{ $t('custom.home.newsHeader') }}</span>
               <a href="/noticias">{{ $t('custom.home.allNews') }}</a>
@@ -222,13 +223,13 @@ onUnmounted(() => {
               @focusin="pauseNews"
             >
               <div class="home-news-sidebar__track">
-                <div v-for="copy in (homeNews.length > 1 ? 2 : 1)" :key="copy" class="home-news-sidebar__group" :aria-hidden="copy === 2">
+                <div v-for="copy in (homeNews.length > 1 ? 4 : 1)" :key="copy" class="home-news-sidebar__group" :aria-hidden="copy > 1">
                   <a
                     v-for="item in homeNews"
                     :key="`${copy}-${item.id}`"
                     class="home-hero-news__card"
                     :href="'/noticias?article=' + encodeURIComponent(item.id)"
-                    :tabindex="copy === 2 ? -1 : 0"
+                    :tabindex="copy > 1 ? -1 : 0"
                     :aria-label="`${$t('custom.home.newsAria')}: ${item.title}`"
                   >
                     <img :src="item.image" :alt="item.title" loading="lazy" />
@@ -402,6 +403,8 @@ onUnmounted(() => {
           </div>
         </div>
       </section>
+
+      <HomeInstagramReel />
 
       <section id="contacto" class="home-contact-details" :aria-label="$t('custom.home.contactAria')">
         <div class="container home-contact-grid">
