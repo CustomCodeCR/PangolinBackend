@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import * as signalR from '@microsoft/signalr'
+import IconSymbol from './IconSymbol.vue'
 import { authState } from '../services/auth'
 
 interface ChatReply { id: string; name: string; text: string }
@@ -589,7 +590,7 @@ onUnmounted(() => {
         aria-label="Seleccionar imagen para enviar" @change="chooseImage" />
       <button type="button" class="team-chat__attach" :disabled="status !== 'En línea' || mediaBusy || sending"
         aria-label="Adjuntar imagen" title="Enviar imagen" @click="imagePicker?.click()">
-        <span aria-hidden="true">▧</span>
+        <IconSymbol glyph="image" :size="19" />
       </button>
       <label class="sr-only" for="team-chat-input">Escribir mensaje</label>
       <input id="team-chat-input" ref="input" v-model="draft" maxlength="500" autocomplete="off"
