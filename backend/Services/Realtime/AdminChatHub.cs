@@ -141,6 +141,23 @@ public sealed class AdminChatHub : Hub
             await Clients.Others.SendAsync("TypingChanged", state with { IsTyping = false });
     }
 
+    // Vaciar el historial es una operación del administrador aplicada a todos los clientes.
+    public async Task ClearChat()
+    {
+        var identity = Context.GetHttpContext()?.Items["auth.identity"] as AuthIdentity;
+        if (identity is null || identity.Role != "admin") throw new HubException("Sin autorización.");
+
+        await ChatMutations.WaitAsync();
+        try
+        {
+            while (History.TryDequeue(out _)) { }
+            Seen.Clear();
+            _images.ClearMessageImages();
+            await Clients.All.SendAsync("ChatCleared");
+        }
+        finally { ChatMutations.Release(); }
+    }
+
     // Se conserva el método original para navegadores que aún tienen el frontend anterior.
     public Task SendMessage(string? body) => SendCore(body, null, null);
 
