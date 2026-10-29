@@ -34,6 +34,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         var managedNews = modelBuilder.Entity<ManagedNews>();
         managedNews.Property(x => x.Author).HasColumnName("author").HasMaxLength(160);
         managedNews.Property(x => x.PublishedAt).HasColumnName("published_at");
+        managedNews.Property(x => x.ExpiresAt).HasColumnName("expires_at").HasColumnType("timestamp with time zone");
 
         var tracking = modelBuilder.Entity<TrackingDemoShipment>();
         tracking.ToTable("tracking_demo_shipments", "public");

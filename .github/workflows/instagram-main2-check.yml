@@ -1,0 +1,38 @@
+name: Instagram Reel en Home - main-2
+on:
+  pull_request:
+    branches: [main-2]
+    paths:
+      - "frontend/src/Home.vue"
+      - "frontend/src/pages/SiteVisualEditor.vue"
+      - "frontend/src/components/HomeInstagramReel.vue"
+      - "frontend/src/locales/es.json"
+      - "frontend/src/locales/en.json"
+      - "backend/Program.cs"
+      - "backend/Endpoints/InstagramReelEndpoints.cs"
+      - ".github/workflows/instagram-main2-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Compilar Vue y API .NET
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Compilar Home
+        run: |
+          npm ci --prefix frontend
+          npm run build --prefix frontend
+      - name: Compilar API
+        run: dotnet build backend/CastroFallas.MiniQuote.Api.csproj --configuration Release

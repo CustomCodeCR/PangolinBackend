@@ -76,6 +76,7 @@ services:
       Mongo__Database: castrofallas_logs
       Ai__Groq__ApiKey: ${GROQ_API_KEY:-}
       Ai__Groq__Model: ${GROQ_MODEL:-openai/gpt-oss-20b}
+      Instagram__AccessToken: ${INSTAGRAM_ACCESS_TOKEN:-}
       Storage__Endpoint: ${S3_ENDPOINT:-}
       Storage__AccessKey: ${S3_ACCESS_KEY:-}
       Storage__SecretKey: ${S3_SECRET_KEY:-}

@@ -28,6 +28,12 @@ if (builder.Configuration["Email:Mode"]?.Equals("LocalOutbox", StringComparison.
     throw new InvalidOperationException("Email:Mode=LocalOutbox no está permitido fuera de Development.");
 
 builder.Services.AddHttpClient<GraphEmailSender>(client => client.Timeout = TimeSpan.FromSeconds(20));
+// Instagram API with Instagram Login: fixed Meta origin, token stays server-side.
+builder.Services.AddHttpClient("Instagram", client =>
+{
+    client.BaseAddress = new Uri("https://graph.instagram.com/v25.0/");
+    client.Timeout = TimeSpan.FromSeconds(8);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 // Fixed destination and redirects disabled so the Dhole API key cannot be forwarded elsewhere.
 builder.Services.AddHttpClient("DholeTracking", client =>
 {
@@ -101,6 +107,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<QuoteService>();
 builder.Services.AddScoped<AssistantService>();
 builder.Services.AddSingleton<NewsTranslationService>();
+builder.Services.AddSingleton<TrackingStatusTranslationService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<AssistantFreeQuota>();
 builder.Services.AddSingleton<ObjectStorageService>();
@@ -113,6 +120,11 @@ builder.Services.AddHttpClient("GroqNews", client =>
 {
     client.BaseAddress = new Uri("https://api.groq.com/openai/v1/");
     client.Timeout = TimeSpan.FromSeconds(75);
+});
+builder.Services.AddHttpClient("GroqTracking", client =>
+{
+    client.BaseAddress = new Uri("https://api.groq.com/openai/v1/");
+    client.Timeout = TimeSpan.FromSeconds(30);
 });
 builder.Services.AddProblemDetails();
 
@@ -135,6 +147,16 @@ builder.Services.AddRateLimiter(options =>
         _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 20,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        }));
+    // Bound expensive translations independently of Dynamics lookups.
+    options.AddPolicy("tracking-translation", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 8,
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0,
             AutoReplenishment = true
@@ -561,6 +583,7 @@ app.MapAdminUsers();
 
 // Noticias públicas publicadas y mantenimiento de contenido reservado a admins.
 app.MapManagedContent();
+app.MapInstagramReel();
 app.MapManagedMediaObjects();
 app.MapSiteCms();
 // Endpoint público de conexión. Los grupos privados se validan con la cookie JWT

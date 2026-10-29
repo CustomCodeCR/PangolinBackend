@@ -5,14 +5,14 @@ import Home from './Home.vue'
 const QuoteApp = defineAsyncComponent(() => import('./App.vue'))
 const Login = defineAsyncComponent(() => import('./pages/Login.vue'))
 const News = defineAsyncComponent(() => import('./pages/News.vue'))
-import About from './pages/About.vue'
+const About = defineAsyncComponent(() => import('./pages/About.vue'))
 const Tracking = defineAsyncComponent(() => import('./pages/Tracking.vue'))
 const Itinerary = defineAsyncComponent(() => import('./pages/Itinerary.vue'))
-import Services from './pages/Services.vue'
-import Legal from './pages/Legal.vue'
+const Services = defineAsyncComponent(() => import('./pages/Services.vue'))
+const Legal = defineAsyncComponent(() => import('./pages/Legal.vue'))
 const Administration = defineAsyncComponent(() => import('./pages/Administration.vue'))
-import OfficialQuoteWizard from './pages/OfficialQuoteWizard.vue'
-import OfficialQuoteAdmin from './pages/OfficialQuoteAdmin.vue'
+const OfficialQuoteWizard = defineAsyncComponent(() => import('./pages/OfficialQuoteWizard.vue'))
+const OfficialQuoteAdmin = defineAsyncComponent(() => import('./pages/OfficialQuoteAdmin.vue'))
 import SiteHeader from './components/SiteHeader.vue'
 import SiteFooter from './components/SiteFooter.vue'
 import ScrollProgressButton from './components/ScrollProgressButton.vue'

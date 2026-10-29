@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { localizeTrackingMode, localizeTrackingStatus } from '../lib/trackingDisplay'
 import IconSymbol from '../components/IconSymbol.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import SiteVisualEditor from './SiteVisualEditor.vue'
@@ -10,6 +12,11 @@ import { authState, refreshSession } from '../services/auth'
 import { deleteManaged, newManagedId, readManagedComments, readManagedItineraries, readManagedMedia, readManagedNews, saveManaged, type ManagedComment, type ManagedItinerary, type ManagedMedia, type ManagedNews } from '../adminContent'
 
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
+const { locale } = useI18n({ useScope: 'global' })
+const en = computed(() => locale.value.toLowerCase().startsWith('en'))
+// Only display names are localized: stored codes and admin form values remain unchanged.
+const displayManagedMode = (value: string) => localizeTrackingMode(value, en.value ? 'en' : 'es')
+const displayManagedStatus = (value: string) => localizeTrackingStatus(value, en.value ? 'en' : 'es')
 type Section = 'itineraries' | 'news' | 'media' | 'comments' | 'users' | 'site' | 'quotes'
 type AppRole = 'cliente' | 'administrador'
 interface ManagedUser { id: string; correo: string; nombre?: string; role: AppRole; activo: boolean; savedActive: boolean }
@@ -33,6 +40,8 @@ const newUserForm = ref({ nombre: '', correo: '', role: 'cliente' as AppRole, co
 const previewSuffix = computed(() => authState.previewRole ? `?previewRole=${authState.previewRole}` : '')
 const isLiveAdmin = computed(() => authState.user?.role === 'administrador' && !authState.previewRole)
 const newsForm = ref<ManagedNews>(emptyNews())
+const newsExpirationMode = ref<'permanent' | 'scheduled'>('permanent')
+const hasNewsExpired = (item: ManagedNews) => Boolean(item.expiresAt && Date.parse(item.expiresAt) <= Date.now())
 const itineraryForm = ref<ManagedItinerary>(emptyItinerary())
 const mediaForm = ref<ManagedMedia>(emptyMedia())
 const commentForm = ref<ManagedComment>(emptyComment())
@@ -41,7 +50,7 @@ const newsUploadFile = ref<File | null>(null)
 const storageMode = ref<'checking' | 's3' | 'legacy' | 'error'>('checking')
 const currentList = computed(() => section.value === 'itineraries' ? itineraries.value : section.value === 'news' ? news.value : section.value === 'comments' ? comments.value : media.value)
 
-function emptyNews(): ManagedNews { return { id: '', title: '', category: 'LOGÍSTICA', description: '', body: '', image: '', published: false, author: '', publishedAt: new Date().toISOString().slice(0,10) } }
+function emptyNews(): ManagedNews { return { id: '', title: '', category: 'LOGÍSTICA', description: '', body: '', image: '', published: false, author: '', publishedAt: new Date().toISOString().slice(0,10), expiresAt: null } }
 function emptyItinerary(): ManagedItinerary { return { id: '', origin: '', destination: '', transport: 'Marítimo', departure: '', arrival: '', status: 'Programado', closing: '', modality: 'FCL', carrier: '', vessel: '', voyage: '' } }
 function emptyComment(): ManagedComment { return { id: '', author: '', section: '', message: '', published: false } }
 function emptyMedia(): ManagedMedia { return { id: '', name: '', kind: 'Imagen', src: '' } }
@@ -306,7 +315,7 @@ function startNew() {
   mediaUploadFile.value = null
   newsUploadFile.value = null
   if (section.value === 'itineraries') itineraryForm.value = emptyItinerary()
-  if (section.value === 'news') newsForm.value = emptyNews()
+  if (section.value === 'news') { newsForm.value = emptyNews(); newsExpirationMode.value = 'permanent' }
   if (section.value === 'media') mediaForm.value = emptyMedia()
   if (section.value === 'comments') commentForm.value = emptyComment()
 }
@@ -325,7 +334,11 @@ async function edit(entry: ManagedItinerary | ManagedNews | ManagedMedia | Manag
       } catch (cause) { notice.value = cause instanceof Error ? cause.message : 'No se pudo cargar el itinerario.'; return }
     }
   }
-  if (section.value === 'news') newsForm.value = { ...(entry as ManagedNews), publishedAt: (entry as ManagedNews).publishedAt?.slice(0,10) ?? '' }
+  if (section.value === 'news') {
+    const item = entry as ManagedNews
+    newsForm.value = { ...item, publishedAt: item.publishedAt?.slice(0,10) ?? '', expiresAt: item.expiresAt?.slice(0,10) ?? null }
+    newsExpirationMode.value = item.expiresAt ? 'scheduled' : 'permanent'
+  }
   if (section.value === 'media') mediaForm.value = { ...(entry as ManagedMedia) }
   if (section.value === 'comments') commentForm.value = { ...(entry as ManagedComment) }
   document.querySelector('.manager-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -387,6 +400,8 @@ function newsPreviewSrc(item: ManagedNews): string {
 
 async function submitNews() {
   const isPublishing = newsForm.value.published
+  const isExpired = Boolean(newsExpirationMode.value === 'scheduled' && newsForm.value.expiresAt &&
+    Date.parse(`${newsForm.value.expiresAt}T00:00:00-06:00`) <= Date.now())
   if (!isLiveAdmin.value) {
     const item = { ...newsForm.value, id: editingId.value ?? newManagedId() }
     saveManaged('news', item); reload(); notice.value = 'Noticia de previsualización, solo en este navegador.'; startNew(); return
@@ -403,7 +418,7 @@ async function submitNews() {
       : '/api/admin/content/news', {
       method: editingId.value ? 'PUT' : 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...newsForm.value, publishedAt: newsForm.value.publishedAt ? newsForm.value.publishedAt + 'T12:00:00Z' : null })
+      body: JSON.stringify({ ...newsForm.value, publishedAt: newsForm.value.publishedAt ? newsForm.value.publishedAt + 'T12:00:00Z' : null, expiresAt: newsExpirationMode.value === 'scheduled' && newsForm.value.expiresAt ? newsForm.value.expiresAt + 'T00:00:00-06:00' : null })
     })
     if (!response.ok) {
       const data = await response.json().catch(() => null)
@@ -412,7 +427,7 @@ async function submitNews() {
     startNew()
     await loadNews()
     notice.value = isPublishing
-      ? 'Noticia publicada. Ya puede verse en la sección de noticias de la web.'
+      ? (isExpired ? 'Noticia guardada como caducada; solo se ve en administración.' : 'Noticia publicada. Ya puede verse en la sección de noticias de la web.')
       : 'Noticia guardada como borrador. Solo es visible desde administración.'
   } catch (cause) {
     // Evitar archivos huérfanos si la noticia no pudo guardarse.
@@ -607,12 +622,12 @@ function useMediaForNews(item: ManagedMedia) {
           <form v-if="section === 'itineraries'" class="manager-editor--itineraries" @submit.prevent="submitItinerary">
             <label>Origen<input v-model="itineraryForm.origin" required maxlength="120" placeholder="San José, Costa Rica" /></label>
             <label>Destino<input v-model="itineraryForm.destination" required maxlength="120" placeholder="Miami, Estados Unidos" /></label>
-            <div class="manager-form-row"><div class="manager-select-field"><label>Transporte</label><FieldDropdown :model-value="itineraryForm.transport" aria-label="Transporte" :options="[
-  {value:'Marítimo',label:'Marítimo'},
-  {value:'Terrestre',label:'Terrestre'},
-  ...(!isLiveAdmin ? [{value:'Aéreo',label:'Aéreo'},{value:'Multimodal',label:'Multimodal'}] : [])
+            <div class="manager-form-row"><div class="manager-select-field"><label>{{ en ? 'Transport' : 'Transporte' }}</label><FieldDropdown :model-value="itineraryForm.transport" :aria-label="en ? 'Transport' : 'Transporte'" :options="[
+  {value:'Marítimo',label:displayManagedMode('Marítimo')},
+  {value:'Terrestre',label:displayManagedMode('Terrestre')},
+  ...(!isLiveAdmin ? [{value:'Aéreo',label:displayManagedMode('Aéreo')},{value:'Multimodal',label:displayManagedMode('Multimodal')}] : [])
 ]" @update:model-value="selectAdminTransport" /></div>
-<div class="manager-select-field"><label>Estado</label><FieldDropdown v-model="itineraryForm.status" aria-label="Estado" :options="['Programado','En tránsito','Completado','Demorado'].map(value => ({value,label:value}))" /></div></div>
+<div class="manager-select-field"><label>{{ en ? 'Status' : 'Estado' }}</label><FieldDropdown v-model="itineraryForm.status" :aria-label="en ? 'Status' : 'Estado'" :options="['Programado','En tránsito','Completado','Demorado'].map(value => ({value,label:displayManagedStatus(value)}))" /></div></div>
             <div class="manager-form-row"><label>Salida (ETD)<input v-model="itineraryForm.departure" type="date" :required="isLiveAdmin" /></label><label>Llegada (ETA)<input v-model="itineraryForm.arrival" type="date" :required="isLiveAdmin" /></label></div>
             <template v-if="isLiveAdmin"><label>Closing (opcional)<input v-model="itineraryForm.closing" type="date" /></label><div class="manager-select-field"><label>Modalidad</label><FieldDropdown :model-value="itineraryForm.modality ?? ''" @update:model-value="value => itineraryForm.modality = value" aria-label="Modalidad" :options="(itineraryForm.transport === 'Terrestre' ? ['LTL'] : ['FCL', 'LCL']).map(value => ({value,label:value}))" /></div><div class="manager-form-row"><label>Transportista (opcional)<input v-model="itineraryForm.carrier" maxlength="150" /></label><label>Buque (opcional)<input v-model="itineraryForm.vessel" maxlength="150" /></label></div><label>Viaje (opcional)<input v-model="itineraryForm.voyage" maxlength="50" /></label></template>
             <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar itinerario' }}</button>
@@ -626,7 +641,9 @@ function useMediaForNews(item: ManagedMedia) {
             <label>Imagen ({{ storageMode === 's3' ? 'MinIO' : 'archivo local' }})<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="selectFile($event, 'news')" /></label>
             <p v-if="newsUploadFile" class="manager-publication-hint">Imagen seleccionada: {{ newsUploadFile.name }}. Se subirá a MinIO al guardar.</p>
             <label>o URL de imagen<input v-model="newsForm.image" placeholder="/images/mi-imagen.webp" /></label>
-            <div class="manager-select-field"><label>Estado de publicación</label><FieldDropdown :model-value="String(newsForm.published)" aria-label="Estado de publicación de noticia" :options="[{value:'false',label:'Borrador (solo administradores)'},{value:'true',label:'Publicada (visible en la web)'}]" @update:model-value="value => newsForm.published = value === 'true'" /></div>
+            <div class="manager-select-field"><label>Caducidad de la noticia</label><FieldDropdown :model-value="newsExpirationMode" aria-label="Caducidad de noticia" :options="[{value:'permanent',label:'Permanente (hasta quitarla)'},{value:'scheduled',label:'Caducar en una fecha'}]" @update:model-value="value => { newsExpirationMode = value === 'scheduled' ? 'scheduled' : 'permanent'; newsForm.expiresAt = newsExpirationMode === 'scheduled' ? (newsForm.expiresAt || new Date(Date.now() + 86400000).toISOString().slice(0,10)) : null }" /></div>
+             <label v-if="newsExpirationMode === 'scheduled'">Fecha de caducidad<input v-model="newsForm.expiresAt" type="date" required /></label>
+             <div class="manager-select-field"><label>Estado de publicación</label><FieldDropdown :model-value="String(newsForm.published)" aria-label="Estado de publicación de noticia" :options="[{value:'false',label:'Borrador (solo administradores)'},{value:'true',label:'Publicada (visible en la web)'}]" @update:model-value="value => newsForm.published = value === 'true'" /></div>
             <p class="manager-publication-hint" role="status">{{ newsForm.published ? 'Esta noticia aparecerá en la web al guardar los cambios.' : 'Este borrador no aparecerá en la web pública.' }}</p>
             <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar noticia' }}</button>
           </form>
@@ -674,8 +691,8 @@ function useMediaForNews(item: ManagedMedia) {
               <strong v-else-if="section === 'news'">{{ (entry as ManagedNews).title }}</strong>
               <strong v-else-if="section === 'comments'">{{ (entry as ManagedComment).author }}</strong>
               <strong v-else>{{ (entry as ManagedMedia).name }}</strong>
-              <small v-if="section === 'itineraries'">{{ (entry as ManagedItinerary).transport }} · {{ (entry as ManagedItinerary).status }}</small>
-              <small v-else-if="section === 'news'">{{ (entry as ManagedNews).category }} · <strong :class="(entry as ManagedNews).published ? 'manager-status-published' : 'manager-status-draft'">{{ (entry as ManagedNews).published ? 'Publicada en la web' : 'Borrador privado' }}</strong></small>
+              <small v-if="section === 'itineraries'">{{ displayManagedMode((entry as ManagedItinerary).transport) }} · {{ displayManagedStatus((entry as ManagedItinerary).status) }}</small>
+              <small v-else-if="section === 'news'">{{ (entry as ManagedNews).category }} · <strong :class="(entry as ManagedNews).published && !hasNewsExpired(entry as ManagedNews) ? 'manager-status-published' : 'manager-status-draft'">{{ !(entry as ManagedNews).published ? 'Borrador privado' : hasNewsExpired(entry as ManagedNews) ? 'Caducada' : 'Publicada en la web' }}</strong></small>
               <small v-else-if="section === 'comments'">{{ (entry as ManagedComment).section || 'General' }} · <strong :class="(entry as ManagedComment).published ? 'manager-status-published' : 'manager-status-draft'">{{ (entry as ManagedComment).published ? 'Publicado en la web' : 'Borrador privado' }}</strong> · {{ (entry as ManagedComment).message }}</small>
               <small v-else>{{ (entry as ManagedMedia).kind }}</small>
             </div>
@@ -1339,27 +1356,27 @@ html.theme-dark .manager-user-delete:disabled{color:#929baa;border-color:#485068
 
 /* Tabla de escritorio: los títulos siguen exactamente la posición de
    los selectores y del grupo de botones, sin alterar las tarjetas móviles. */
-@media (min-width:1181px) {
+@media (min-width:821px) {
   .manager-users-table {table-layout:fixed;width:100%}
-  .manager-users-table th:nth-child(1) {width:35.5%}
+  .manager-users-table th:nth-child(1) {width:32%}
   .manager-users-table th:nth-child(2) {width:22%}
   .manager-users-table th:nth-child(3) {width:22%}
-  .manager-users-table th:nth-child(4) {width:20.5%}
+  .manager-users-table th:nth-child(4) {width:24%}
   .manager-users-table td:first-child small {overflow-wrap:anywhere;white-space:normal}
   .manager-users-table th:last-child .manager-user-action-heading {
-    display:block;width:min(200px,100%);margin-left:auto;text-align:left;
+    display:block;width:100%;margin-left:auto;text-align:left;
   }
   .manager-user-actions {
-    width:min(200px,100%);margin-left:auto;justify-content:flex-start;
+    width:100%;margin-left:auto;justify-content:flex-start;
   }
   .manager-user-actions > button {
-    flex:1 1 0;min-width:0;padding-inline:8px;
+    flex:1 1 auto;min-width:max-content;padding-inline:10px;font-size:clamp(12px,.95vw,14px);white-space:nowrap;
   }
 }
 
 /* Gestión de usuarios: layout responsivo sin tabla con scroll lateral.
    A partir de tablet cada registro se convierte en tarjeta legible. */
-@media (max-width:1180px) {
+@media (max-width:820px) {
   .content-manager .manager-users-table-wrap,
   .content-manager.is-embedded .manager-users-table-wrap {
     width:100%; max-width:100%; overflow:visible;

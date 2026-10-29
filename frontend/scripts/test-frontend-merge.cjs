@@ -42,6 +42,17 @@ assert.match(mainStyles, /html\.theme-dark \.site-header \.nav-dropdown__menu a\
 assert.match(mainStyles, /html\.theme-dark \.site-header \.nav-dropdown__menu a:is\(:hover,:focus-visible\)/, 'Conservar interacción hover y teclado')
 assert.match(mainStyles, /@media \(max-width:800px\)\s*\{\s*html\.theme-dark \.site-header\.site-header--menu-open \.main-nav\.main-nav--open \.nav-dropdown__menu\s*\{[\s\S]*?background:rgba\(10,18,40,\.96\)!important;/, 'El menú móvil usa también el fondo de Configuración')
 assert.doesNotMatch(mainStyles, /html\.theme-dark \.nav-dropdown__menu\{background:#fff!important/, 'Nunca mostrar fondo blanco en modo oscuro')
+// One published Home news card must not run a vertical looping animation.
+const homeNewsLayout = source('src/Home.vue')
+assert.match(homeNewsLayout, /home-news-sidebar--single': homeNews\.length === 1/, 'La noticia única se identifica reactivamente')
+assert.match(homeNewsLayout, /homeNews\.length > 1 \? 4 : 1/, 'Varias noticias generan suficientes copias para un loop vertical sin huecos')
+assert.match(homeNewsLayout, /:aria-hidden="copy > 1"/, 'Las copias del bucle no se anuncian repetidamente')
+assert.match(homeNewsLayout, /:tabindex="copy > 1 \? -1 : 0"/, 'Las copias del bucle no duplican tabulaciones')
+assert.match(mainStyles, /@keyframes home-news-up\{to\{transform:translateY\(-25%\)\}\}/, 'El bucle avanza exactamente una de cuatro copias')
+assert.match(mainStyles, /\.home-news-sidebar__group:nth-child\(n\+2\)/, 'En pantallas intermedias no mostrar clones extra')
+assert.match(mainStyles, /\.home-news-sidebar__group:nth-child\(n\+3\)/, 'En el carrusel móvil se muestran solo dos copias')
+assert.match(mainStyles, /\.home-news-sidebar--single \.home-news-sidebar__track\s*\{\s*animation: none !important;\s*transform: none !important;/, 'Una noticia se mantiene fija arriba sin bucle')
+assert.match(mainStyles, /\.home-news-sidebar--single \.home-news-sidebar__group:first-child\s*\{\s*justify-content: flex-start;/, 'La noticia vertical queda anclada en el inicio')
 const siteHeader = source('src/components/SiteHeader.vue')
 assert.match(siteHeader, /'site-header--quotes': props\.active === 'cotizaciones'/, 'Los colores de perfil solo deben ajustarse en Cotizaciones')
 assert.match(siteHeader, /html:not\(\.theme-dark\) \.app-site\.official-page > \.site-header\.site-header--quotes \.header-account-tools \.nav-user-icon\.header-profile__trigger\s*\{[^}]*color: #20242b !important;[^}]*border: 1px solid rgba\(32, 36, 43, \.26\) !important;/, 'El botón de perfil en Cotizaciones debe tener trazo y borde oscuros en modo claro')
@@ -286,4 +297,178 @@ assert.match(homeTrackingMobile, /\.app-site\.home-page \.tracking-home-grid \{ 
 assert.match(homeTrackingMobile, /\.app-site\.home-page \.tracking-home-copy \{ text-align:center; margin-bottom:0; \}/, 'El botón no debe superponerse al globo por margen negativo')
 assert.match(home, /href="\/tracking"/, 'Rastrear ahora mantiene su destino')
 assert.doesNotMatch(main, /connectWebSocket\(\)/, 'No activar broker local 8081')
+// Detalles de seguimiento: seis filas glass no interactivas, parejas y ambos temas.
+assert.match(tracking, /class="tracking-demo-result__grid">\s*<div class="tracking-demo-result__pair">/, 'El resumen usa filas glass')
+assert.equal((tracking.match(/<div class="tracking-demo-result__pair">/g) ?? []).length, 6, 'Seis parejas de resumen en orden')
+assert.match(tracking, /<dt>\{\{ copy.origin \}\}<\/dt><dd>\{\{ shipment.origin/, 'Origen se conserva')
+assert.match(tracking, /<dt>\{\{ copy.destination \}\}<\/dt><dd>\{\{ shipment.destination/, 'Destino va junto a origen')
+assert.match(tracking, /<dt>\{\{ en \? 'Transport' : 'Transporte' \}\}/, 'Transporte se conserva')
+assert.match(tracking, /<dt>\{\{ copy.status \}\}/, 'Estado se conserva')
+assert.match(tracking, /\.tracking-demo-result__pair \{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/, 'Cada fila contiene dos datos')
+assert.match(tracking, /align-items:center; column-gap:0; min-width:0;/, 'La línea divisoria se coloca exactamente al centro (sin gap de columnas)')
+assert.match(tracking, /\.tracking-demo-result__field:first-child:not\(:only-child\) \{\s*padding-right:var\(--tracking-pair-spacing\);/, 'Espaciado simétrico a la izquierda del divisor')
+assert.match(tracking, /\.tracking-demo-result__field \+ \.tracking-demo-result__field \{[\s\S]*?padding-left:var\(--tracking-pair-spacing\);/, 'Espaciado simétrico a la derecha del divisor')
+assert.match(tracking, /\.tracking-demo-result__pair \{ --tracking-pair-spacing:12px; column-gap:0; padding:13px 14px;/, 'El divisor permanece centrado en móvil')
+assert.match(tracking, /-webkit-backdrop-filter:blur\(12px\); backdrop-filter:blur\(12px\)/, 'Glass blur de 12px igual a otras secciones con soporte Safari')
+assert.match(tracking, /background:rgba\(255,255,255,\.18\)/, 'Glass claro conserva transparencia de Noticias')
+// Dark mode must have one shared row for both fields, just like light.
+const darkPairStart = tracking.indexOf(':global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair) {')
+assert.ok(darkPairStart >= 0, 'El resumen oscuro conserva las franjas completas')
+const darkPairCSS = tracking.slice(darkPairStart, tracking.indexOf('</style>', darkPairStart))
+assert.match(darkPairCSS, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/, 'Dos columnas en una sola franja')
+assert.match(darkPairCSS, /border:1px solid #4f5365 !important;/, 'Un solo borde exterior gris azulado, igual al selector cerrado')
+assert.match(darkPairCSS, /background:#060f21 !important;/, 'Fondo marino a todo lo ancho de la franja')
+assert.match(darkPairCSS, /-webkit-backdrop-filter:none !important;\s*backdrop-filter:none !important;\s*box-shadow:none !important;/, 'Sin desenfoque ni sombras: superficie mate completamente opaca')
+assert.match(darkPairCSS, /background:#060f21 !important;\s*background-image:none !important;/, 'Fondo sólido azul sin transparencia ni degradado')
+assert.match(darkPairCSS, /tracking-demo-result__pair\) \{[\s\S]*?border:1px solid #4f5365 !important;/, 'Borde único mate sin efecto Glass')
+const darkContainerStart = tracking.indexOf(':global(html.theme-dark .app-site.tracking-site .tracking-demo-result) {')
+assert.ok(darkContainerStart >= 0, 'Contenedor exterior del resumen en modo oscuro')
+const darkContainerCSS = tracking.slice(darkContainerStart, darkPairStart)
+assert.match(darkContainerCSS, /box-shadow:none !important;/, 'Contenedor exterior sin sombra Glass')
+assert.match(darkPairCSS, /tracking-demo-result__field\) \{[\s\S]*?border:0 !important;/, 'No hay borde en cada campo')
+assert.match(darkPairCSS, /tracking-demo-result__field \+ \.tracking-demo-result__field\) \{[\s\S]*?border-left:1px solid var\(--tracking-glass-divider\) !important;/, 'Una sola línea divisoria centrada')
+assert.match(darkPairCSS, /tracking-demo-result__field dd\) \{[\s\S]*?background:transparent !important;/, 'No hay caja independiente para cada valor')
+assert.match(darkPairCSS, /tracking-demo-result__field dd\) \{[\s\S]*?border:0 !important;/, 'Los valores no tienen segundo borde')
+assert.match(darkPairCSS, /content:none !important;/, 'Sin reflejos ni líneas extra')
+const finalDarkCardCSS = tracking.slice(tracking.lastIndexOf('/* Tracking dark cards: unscoped override')) 
+assert.match(finalDarkCardCSS, /html\.theme-dark \.app-site\.tracking-site \.tracking-demo-result__pair \{[\s\S]*?background: #060f21 !important;[\s\S]*?border: 1px solid #4f5365 !important;/, 'El override final iguala el acabado del selector cerrado')
+assert.match(finalDarkCardCSS, /\.tracking-demo-result__pair::before,[\s\S]*?\.tracking-demo-result__pair::after \{[\s\S]*?display: none !important;/, 'Los reflejos decorativos no se dibujan en modo oscuro')
+assert.doesNotMatch(darkPairCSS, /border:1px solid #b50928 !important;/, 'No hay borde rojo')
+assert.match(tracking, /background:rgba\(255,255,255,\.18\)/, 'Glass claro intacto')
+assert.match(tracking, /border:1px solid rgba\(255,255,255,\.6\)/, 'Bordes del Glass claro intactos')
+assert.match(tracking, /cursor:default;/, 'Las filas informativas no simulan un enlace')
+assert.match(tracking, /shipmentExtrasPairs = computed<ShipmentExtraField\[\]\[\]>/, 'Los campos adicionales se agrupan en pares')
+assert.match(tracking, /v-for="\(pair, index\) in shipmentExtrasPairs"/, 'Los pares extra se muestran con el mismo glass')
+assert.match(tracking, /@media\(max-width:580px\) \{\s*\.tracking-demo-result__grid \{ gap:10px; \}/, 'Ajuste móvil sin separar parejas')
+assert.match(tracking, /:global\(html.theme-dark \.app-site\.tracking-site \.tracking-demo-result__pair\) \{/, 'El modo oscuro conserva las franjas de dos campos')
+assert.match(tracking, /shipment\.customerStatus/, 'Conservar la actualización para el cliente')
+assert.match(tracking, /shipmentExtras/, 'Conservar los campos adicionales de rastreo')
+
+// Dynamics mode/status are controlled display values; all other content remains unchanged.
+const trackingLocalizationSource = source('src/lib/trackingDisplay.ts')
+const tsCompiler = require('typescript')
+const { runInNewContext } = require('node:vm')
+const compiledLocalization = tsCompiler.transpileModule(trackingLocalizationSource, {
+  compilerOptions: { module: tsCompiler.ModuleKind.CommonJS, target: tsCompiler.ScriptTarget.ES2020 }
+})
+const trackingLocalizationExports = {}
+runInNewContext(compiledLocalization.outputText, { exports: trackingLocalizationExports }, { timeout: 1000 })
+const { formatTrackingEquipmentCount, localizeTrackingMode, localizeTrackingStatus } = trackingLocalizationExports
+assert.equal(typeof localizeTrackingMode, 'function')
+assert.equal(typeof localizeTrackingStatus, 'function')
+for (const [original, es, en] of [
+  ['MARITIMO', 'Marítimo', 'Maritime'],
+  ['Marítimo FCL', 'Marítimo FCL', 'Maritime FCL'],
+  ['MARITIMO/LCL', 'Marítimo LCL', 'Maritime LCL'],
+  ['AEREO', 'Aéreo', 'Air'],
+  ['AIR', 'Aéreo', 'Air'],
+  ['TERRESTRE', 'Terrestre', 'Road'],
+  ['Road FTL', 'Terrestre FTL', 'Road FTL']
+]) {
+  assert.equal(localizeTrackingMode(original, 'es'), es, 'Transporte ES: ' + original)
+  assert.equal(localizeTrackingMode(original, 'en'), en, 'Transport EN: ' + original)
+}
+for (const [original, es, en] of [
+  ['Pre-Liquidacion', 'Preliquidación', 'Pre-liquidation'],
+  ['Preliquidación', 'Preliquidación', 'Pre-liquidation'],
+  ['Pre-liquidation', 'Preliquidación', 'Pre-liquidation'],
+  ['En transito', 'En tránsito', 'In transit'],
+  ['Programado', 'Programado', 'Scheduled'],
+  ['Pending', 'Pendiente', 'Pending'],
+  ['En aduana', 'En aduana', 'At customs'],
+  ['Entregado', 'Entregado', 'Delivered'],
+  ['Cancelado', 'Cancelado', 'Cancelled'],
+  ['Booking listo', 'Booking listo', 'Booking ready'],
+  ['BOOKING LISTO', 'Booking listo', 'Booking ready'],
+  ['Booking ready', 'Booking listo', 'Booking ready'],
+  ['booking-listo', 'Booking listo', 'Booking ready'],
+  ['Demorado', 'Demorado', 'Delayed'],
+  ['Delayed', 'Demorado', 'Delayed'],
+  ['CARGA EN ALMACEN DESTINO CR', 'Carga en almacén de destino, Costa Rica', 'Cargo at destination warehouse, Costa Rica'],
+  ['carga en almacén de destino CR', 'Carga en almacén de destino, Costa Rica', 'Cargo at destination warehouse, Costa Rica']
+]) {
+  assert.equal(localizeTrackingStatus(original, 'es'), es, 'Estado ES: ' + original)
+  assert.equal(localizeTrackingStatus(original, 'en'), en, 'Status EN: ' + original)
+}
+for (const original of [
+  'MARITIMO - operación especial',
+  'Pre-Liquidacion pendiente de confirmar',
+  'Maquinaria pesada CAT 1234',
+  'MSC SAVANNAH',
+  'Booking confirmado',
+  'Booking pendiente de confirmar'
+]) {
+  assert.equal(localizeTrackingMode(original, 'en'), original, 'No alterar datos no catalogados')
+  assert.equal(localizeTrackingStatus(original, 'es'), original, 'No traducir textos libres')
+}
+assert.equal(localizeTrackingMode(null, 'es'), '—')
+assert.equal(localizeTrackingStatus('', 'en'), '—')
+for (const [input, expected] of [
+  ['1 contenedor', '1'],
+  ['2 contenedores', '2'],
+  ['3 containers', '3'],
+  ['1 CONTAINER', '1'],
+  [' 12 contenedores ', '12'],
+  ['2 x 40 HC', '2 x 40 HC'],
+  ['2 contenedores de 40 HC', '2 contenedores de 40 HC'],
+  ['40 HC', '40 HC']
+]) {
+  assert.equal(formatTrackingEquipmentCount(input), expected, 'Cantidad de equipo: ' + input)
+}
+assert.equal(formatTrackingEquipmentCount(null), null, 'No generar una cantidad para datos ausentes')
+assert.match(tracking, /value: formatTrackingEquipmentCount\(data\.equipmentCount\)/, 'La cantidad visible se normaliza sin modificar Dynamics')
+assert.match(tracking, /value: data\.equipmentSize/, 'Conservar tamaño y configuración original de equipo')
+assert.match(tracking, /const displayMode = \(value: string \| null\) => localizeTrackingMode\(value, en\.value \? 'en' : 'es'\)/, 'La modalidad reacciona al idioma seleccionado')
+assert.match(tracking, /const displayStatus = \(value: string \| null\) => localizeTrackingStatus\(value, en\.value \? 'en' : 'es'\)/, 'El estado reacciona al idioma seleccionado')
+assert.match(tracking, /<strong class="tracking-demo-result__status">\{\{ displayStatus\(shipment\.status\) \}\}<\/strong>/, 'Insignia del estado traducida')
+assert.match(tracking, /<dd>\{\{ displayMode\(shipment\.mode\) \}\}<\/dd>/, 'Modalidad del resumen traducida')
+assert.match(tracking, /<dd>\{\{ displayStatus\(shipment\.status\) \}\}<\/dd>/, 'Estado del resumen traducido')
+assert.match(tracking, /\{ es: 'Mercancía', en: 'Commodity', value: data\.commodity \}/, 'Commodity es etiqueta traducible pero no se modifica el valor de mercancía')
+assert.match(tracking, /<span>\{\{ customerUpdateText \}\}<\/span>/, 'El texto del cliente usa la traducción reactiva por referencia')
+assert.match(tracking, /<dd>\{\{ field\.value \}\}<\/dd>/, 'Descripciones y referencias de Dynamics quedan intactas')
+
+
+// Ensure the same multilingual display policy is used in every shipment-related
+// UI: header, summary, customer update, published itineraries, and admin lists.
+// Free-form values remain untouched by localizeTrackingStatus's fallback.
+assert.equal(localizeTrackingStatus('Booking listo', 'en'), 'Booking ready', 'Booking listo translates in English')
+assert.equal(localizeTrackingStatus('Booking listo', 'es'), 'Booking listo', 'Booking is retained in Spanish logistics language')
+assert.equal(localizeTrackingStatus('Booking confirmado', 'en'), 'Booking confirmado', 'Do not invent booking confirmation')
+assert.equal(localizeTrackingStatus('Booking listo pendiente de confirmar', 'en'), 'Booking listo pendiente de confirmar', 'Never translate unrecognized free text')
+assert.equal((tracking.match(/displayStatus\(shipment\.status\)/g) ?? []).length, 2, 'Translate header and summary using one catalog')
+assert.match(itinerary, /displayPublishedStatus\(item\.status\)/, 'Published itineraries translate status')
+assert.match(itinerary, /displayPublishedTransport\(item\.transport\)/, 'Published itineraries translate transport')
+assert.match(itinerary, /localizeTrackingMode, localizeTrackingStatus/, 'Published itineraries reuse the tracking dictionary')
+assert.match(manager, /displayManagedStatus\(\(entry as ManagedItinerary\)\.status\)/, 'Admin itineraries display translated status')
+assert.match(manager, /displayManagedMode\(\(entry as ManagedItinerary\)\.transport\)/, 'Admin itineraries display translated mode')
+assert.match(manager, /\['Programado','En tránsito','Completado','Demorado'\]\.map\(value => \(\{value,label:displayManagedStatus\(value\)\}\)\)/, 'Admin options translate only their visible labels')
+assert.match(manager, /\{value:'Marítimo',label:displayManagedMode\('Marítimo'\)\}/, 'Admin transport value stays the original code')
+assert.match(itinerary, /const en = computed\(\(\) => locale\.value\.toLowerCase\(\)\.startsWith\('en'\)\)/, 'Published itineraries update reactively when language changes')
+assert.match(manager, /const en = computed\(\(\) => locale\.value\.toLowerCase\(\)\.startsWith\('en'\)\)/, 'Admin lists update reactively when language changes')
+
+
+// Dynamic customer-status localization must handle unseen Dynamics messages in
+// any matching BL/HBL/BCF/IDTRA/CONTAINER/PO lookup, without altering records.
+const trackingTranslationBackend = source('../backend/Services/TrackingStatusTranslationService.cs')
+const trackingBackendProgram = source('../backend/Program.cs')
+assert.match(dholeTracking, /MapPost\("\/api\/tracking\/dynamics\/customer-status\/translate"/, 'Endpoint dedicado a mensajes variables de Dynamics')
+assert.match(dholeTracking, /RequireAuthorization\("registered"\)\.RequireRateLimiting\("tracking-translation"\)/, 'Las traducciones no deben estar disponibles sin autenticación y límite')
+assert.match(dholeTracking, /message\.Length > 256/, 'Limitar el texto enviado a traducción')
+assert.match(dholeTracking, /translator\.TranslateAsync\(message, language, ct\)/, 'Traducir solo el mensaje visible, no volver a consultar embarques')
+assert.match(trackingBackendProgram, /AddSingleton<TrackingStatusTranslationService>\(\)/, 'Traductor compartido con caché')
+assert.match(trackingBackendProgram, /AddPolicy\("tracking-translation"/, 'Límite de llamadas a IA separado de consultas a Dynamics')
+assert.match(trackingTranslationBackend, /Ai:Groq:ApiKey/, 'Credencial de IA solo en backend')
+assert.match(trackingTranslationBackend, /SHA256\.HashData/, 'Caché por texto e idioma sin registrar la referencia')
+assert.match(trackingTranslationBackend, /max_completion_tokens = 500/, 'Límite de generación para mensajes breves')
+assert.match(trackingTranslationBackend, /TimeSpan\.FromHours\(12\)/, 'La traducción se reutiliza entre búsquedas')
+assert.match(tracking, /watch\(\[\(\) => shipment\.value\?\.customerStatus, en\]/, 'Al cambiar referencia o idioma se recalcula la traducción')
+assert.match(tracking, /fetch\('\/api\/tracking\/dynamics\/customer-status\/translate'/, 'Los textos no catalogados se envían al backend protegido')
+assert.match(tracking, /body: JSON\.stringify\(\{ text: source, language \}\)/, 'La llamada no debe enviar la referencia de cliente ni campos privados')
+assert.match(tracking, /const controller = new AbortController\(\)/, 'Cancelar traducciones de referencias anteriores')
+assert.match(tracking, /onCleanup\(\(\) => controller\.abort\(\)\)/, 'Cancelar traducción al cambiar idioma/referencia')
+assert.match(tracking, /const customerUpdateText = computed\(\(\) =>/, 'El texto visible se actualiza en forma reactiva')
+assert.match(tracking, /customerUpdateTranslations\.value\[language \+ ':' \+ source\] \?\? source/, 'Si el servicio falla se conserva el mensaje original')
+assert.doesNotMatch(tracking, /shipment\.value\.customerStatus\s*=/, 'Nunca escribir una traducción en Dynamics o mutar el registro')
+assert.doesNotMatch(trackingTranslationBackend, /logger\.Log(?:Warning|Error|Information)\([^\n]*(?:source|message)\b/, 'No registrar el mensaje privado en logs')
+
 console.log('OK: SignalR, CMS, MinIO, news, itinerary and tracking contracts.')

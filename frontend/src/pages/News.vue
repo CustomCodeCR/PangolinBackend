@@ -13,6 +13,7 @@ const requestedArticleId = new URLSearchParams(window.location.search).get('arti
 const requestedArticleSlug = window.location.pathname.match(/^\/noticias\/([^/]+)\/?$/)?.[1] ?? null
 const isArticlePage = Boolean(requestedArticleId || requestedArticleSlug)
 const managedNews = ref<ManagedNews[]>([])
+const newsExpirationClock = ref(Date.now())
 const slugifyNewsTitle = (title: string) => title.normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '')
   .toLowerCase()
@@ -47,7 +48,8 @@ function validEnglish(value: unknown): value is EnglishNews {
     typeof row[key] === 'string' && (row[key] as string).trim().length > 0)
 }
 // El cambio de idioma no modifica el contenido original en español.
-const news = computed(() => managedNews.value.filter(article => article.published && article.title.trim()).map(article => {
+const news = computed(() => managedNews.value.filter(article => article.published && article.title.trim() &&
+  (!article.expiresAt || Date.parse(article.expiresAt) > newsExpirationClock.value)).map(article => {
   const cached = englishNews.value[article.id]
   const english = locale.value === 'en' && cached?.source === fingerprint(article) ? cached.translated : null
   return {
@@ -65,6 +67,7 @@ const news = computed(() => managedNews.value.filter(article => article.publishe
 async function translateNewsToEnglish() {
   if (locale.value !== 'en') return
   const pending = managedNews.value.filter(article => article.published && article.title.trim() &&
+    (!article.expiresAt || Date.parse(article.expiresAt) > newsExpirationClock.value) &&
     englishNews.value[article.id]?.source !== fingerprint(article))
   if (!pending.length) return
   englishLoading.value = true
@@ -170,7 +173,10 @@ const articlePanelMarginTop = computed(() => {
 const articleVisualStyle = computed(() => ({
   '--article-reveal-progress': articleRevealProgress.value.toFixed(3),
   '--article-visual-filter': `blur(${(articleRevealProgress.value * 12).toFixed(1)}px)`,
-  '--article-visual-opacity': `${(1 - articleRevealProgress.value * 0.22).toFixed(3)}`
+  '--article-visual-opacity': `${(1 - articleRevealProgress.value * 0.22).toFixed(3)}`,
+  // Fade the decorative caption as the sticky hero recedes behind the article.
+  // On mobile articleRevealProgress stays at 0, preserving its initial appearance.
+  '--article-mark-opacity': `${Math.max(0, 1 - articleRevealProgress.value * 8).toFixed(3)}`
 }))
 const articleReadingDragMaxHeight = computed(() => {
   if (!articleDragging.value) return undefined
@@ -352,7 +358,27 @@ function selectStory(index: number) {
 }
 let disposed = false
 let requestVersion = 0
+let newsExpirationTimer: number | undefined
+function scheduleNewsExpiration() {
+  if (newsExpirationTimer !== undefined) window.clearTimeout(newsExpirationTimer)
+  newsExpirationTimer = undefined
+  const nextExpiry = Math.min(...managedNews.value
+    .filter(article => article.published && article.expiresAt)
+    .map(article => Date.parse(article.expiresAt!))
+    .filter(value => Number.isFinite(value) && value > Date.now()))
+  if (!Number.isFinite(nextExpiry)) return
+  // Los navegadores limitan setTimeout a ~24 días; reprogramar si vence después.
+  const delay = Math.min(2_147_000_000, Math.max(1000, nextExpiry - Date.now() + 1000))
+  newsExpirationTimer = window.setTimeout(() => {
+    newsExpirationClock.value = Date.now()
+    void loadPublicNews()
+  }, delay)
+}
+function refreshVisibleNews() {
+  if (document.visibilityState === 'visible') void loadPublicNews()
+}
 async function loadPublicNews() {
+  newsExpirationClock.value = Date.now()
   const request = ++requestVersion
   try {
     const response = await fetch('/api/content/news', { cache: 'no-store' })
@@ -361,6 +387,7 @@ async function loadPublicNews() {
     if (!Array.isArray(items)) throw new Error('Respuesta de noticias inválida.')
     if (disposed || request !== requestVersion) return
     managedNews.value = items as ManagedNews[]
+    scheduleNewsExpiration()
     newsError.value = false
     if (locale.value === 'en') void translateNewsToEnglish()
     if (activeStoryIndex.value >= news.value.length) activeStoryIndex.value = 0
@@ -380,12 +407,15 @@ const unsubscribeSync = subscribeToChanges('sync', () => { void loadPublicNews()
 onMounted(() => {
   window.addEventListener('scroll', scheduleArticleScrollProgress, { passive: true })
   window.addEventListener('resize', scheduleArticleScrollProgress, { passive: true })
+  document.addEventListener('visibilitychange', refreshVisibleNews)
   void loadPublicNews()
 })
 
 onUnmounted(() => {
   window.removeEventListener('scroll', scheduleArticleScrollProgress)
   window.removeEventListener('resize', scheduleArticleScrollProgress)
+  document.removeEventListener('visibilitychange', refreshVisibleNews)
+  if (newsExpirationTimer !== undefined) window.clearTimeout(newsExpirationTimer)
   if (articleScrollFrame) window.cancelAnimationFrame(articleScrollFrame)
   disposed = true
   unsubscribeNews(); unsubscribeSync()
@@ -502,8 +532,10 @@ onUnmounted(() => {
               @click="toggleArticleText"
             ><span aria-hidden="true"></span></button>
             <header class="news-article-page__story-heading">
-              <time v-if="activeArticle.publishedAt" class="news-article-page__date" :datetime="activeArticle.publishedAt">{{ formatArticleDate(activeArticle.publishedAt) }}</time>
-              <p class="news-article-page__overline">{{ activeArticle.category }}</p>
+              <div class="news-article-page__heading-eyebrow">
+                <p class="news-article-page__overline">{{ activeArticle.category }}</p>
+                <time v-if="activeArticle.publishedAt" class="news-article-page__date" :datetime="activeArticle.publishedAt">{{ formatArticleDate(activeArticle.publishedAt) }}</time>
+              </div>
               <h1>{{ activeArticle.title }}</h1>
             </header>
             <div class="container news-article-page__meta" :aria-label="q('Datos de la noticia', 'Article details')">
@@ -511,6 +543,9 @@ onUnmounted(() => {
               <p class="news-article-page__meta-category"><span aria-hidden="true"></span>{{ activeArticle.category }}</p>
             </div>
             <div class="news-article-page__reading" :class="{ 'is-expanded': articleTextOpen, 'is-dragging': articleDragging }" :style="{ maxHeight: articleReadingDragMaxHeight }">
+              <figure class="news-article-page__side-image" aria-hidden="true">
+                <img :src="activeArticle.image" alt="" loading="lazy" />
+              </figure>
               <section id="contenido-noticia" class="news-article-page__content" :aria-label="q('Contenido de la noticia', 'Article content')">
                 <p class="news-article-page__content-kicker">{{ activeArticle.category }} <span aria-hidden="true">/</span> {{ q('ARTÍCULO COMPLETO', 'FULL ARTICLE') }}</p>
                 <p v-if="activeArticle.description?.trim() && activeArticle.description.trim() !== activeArticle.body?.trim()" class="news-article-page__standfirst">{{ activeArticle.description }}</p>
@@ -524,9 +559,6 @@ onUnmounted(() => {
                 </div>
                 <a class="news-article-page__back" href="/noticias"><IconSymbol glyph="←" /> {{ q('Ver todas las noticias', 'View all news') }}</a>
               </section>
-              <figure class="news-article-page__side-image" aria-hidden="true">
-                <img :src="activeArticle.image" alt="" loading="lazy" />
-              </figure>
             </div>
           </div>
         </article>
@@ -560,7 +592,9 @@ onUnmounted(() => {
 .news-article-page__visual img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;object-position:center 42%;filter:var(--article-visual-filter,blur(0));opacity:var(--article-visual-opacity,1);transform:scale(1.04);transition:filter .22s linear,opacity .22s linear}
 .news-article-page.is-article-dragging .news-article-page__visual img{transition:none}
 .news-article-page__visual-mark{position:absolute;z-index:1;top:26px;right:28px;display:flex;align-items:center;gap:9px;margin:0;color:#fff;font-size:10px;font-weight:800;letter-spacing:.13em;text-shadow:0 1px 6px rgba(0,0,0,.45)}
-.news-article-page__visual-mark{top:auto;right:auto;bottom:clamp(105px,12vh,155px);left:clamp(24px,5vw,72px)}
+/* Align the caption 24px inside the reading panel's left edge, even when
+   the panel is centered at its 1600px max width on large desktops. */
+.news-article-page__visual-mark{top:auto;right:auto;bottom:clamp(105px,12vh,155px);left:max(24px,calc(50% - 776px));opacity:var(--article-mark-opacity,1);pointer-events:none;transition:opacity .15s linear}
 .news-article-page__visual-dot{width:7px;height:7px;flex:none;border-radius:50%;background:#c8102e}
 .news-article-page__overline{display:flex;align-items:center;gap:10px;margin:0 0 15px;color:#fff;font-size:11px;font-weight:850;letter-spacing:.15em;text-transform:uppercase;text-shadow:0 1px 8px rgba(0,0,0,.55);overflow-wrap:anywhere}
 .news-article-page__overline::before{width:23px;height:2px;flex:none;background:#c8102e;content:""}
@@ -571,7 +605,8 @@ onUnmounted(() => {
 .news-article-page__handle span{display:none}
 .news-article-page__handle:focus-visible{outline:2px solid rgba(237,41,70,.75);outline-offset:3px}
 .news-article-page__story-heading{width:100%;max-width:none;margin:0 0 8px;padding-top:32px}
-.news-article-page__story-heading .news-article-page__overline{margin-bottom:13px;color:var(--article-accent);text-shadow:none}
+.news-article-page__heading-eyebrow{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 18px;margin-bottom:13px}
+.news-article-page__story-heading .news-article-page__overline{flex:1 1 160px;min-width:0;margin-bottom:0;color:var(--article-accent);text-shadow:none}
 .news-article-page__story-heading h1{max-width:1000px;margin:0;color:var(--article-ink);font-family:"Arial Black",Impact,system-ui,sans-serif;font-size:clamp(36px,5.2vw,70px);font-weight:900;letter-spacing:-.055em;line-height:1.02;overflow-wrap:anywhere}
 .news-article-page__story-panel>.news-article-page__meta{width:100%;margin-inline:auto}
 .news-article-page__meta{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-block:19px;border-bottom:1px solid var(--article-line)}
@@ -592,7 +627,7 @@ onUnmounted(() => {
 .news-article-page__closing{display:flex;align-items:center;gap:16px;margin-top:clamp(42px,6vw,76px);color:var(--article-muted);font-size:10px;font-weight:800;letter-spacing:.12em;white-space:nowrap}
 .news-article-page__closing-line{width:56px;height:2px;background:#c8102e}
 .news-article-page__story-heading{position:relative;min-height:50px}
-.news-article-page__date{position:absolute;top:0;right:0;display:block;width:max-content;max-width:100%;margin:0;color:var(--article-muted);font-size:12px;font-weight:800;letter-spacing:.035em;text-align:right}
+.news-article-page__date{display:block;flex:0 1 auto;max-width:100%;margin:0 0 0 auto;color:var(--article-muted);font-size:12px;font-weight:800;letter-spacing:.035em;text-align:right}
 .news-article-page__author{margin:35px 0 0;padding-top:20px;border-top:1px solid var(--article-line);color:var(--article-muted);font-size:14px}
 .news-article-page__author strong{color:var(--article-ink);font-weight:800}
 .news-article-page__back{margin-top:25px;padding-top:19px;border-top:1px solid var(--article-line)}
@@ -641,10 +676,52 @@ onUnmounted(() => {
   .news-article-page__side-image{position:static;aspect-ratio:1.35;border-radius:15px}
 }
 @media(max-width:380px){.news-article-page__visual-mark{font-size:7px}.news-article-page__story-heading h1{font-size:32px}}
-@media(prefers-reduced-motion:reduce){.news-article-page__story-panel,.news-article-page__visual img,.news-article-page__reading{transition:none}}
+@media(prefers-reduced-motion:reduce){.news-article-page__story-panel,.news-article-page__visual img,.news-article-page__reading,.news-article-page__visual-mark{transition:none}}
 
 .news-empty-hero { position: relative; z-index: 2; min-height: 320px; padding-top: 135px; padding-bottom: 95px; color: #fff; }
 .news-empty-hero h1 { font-size: clamp(42px, 6vw, 76px); line-height: 1.1; margin: 18px 0; }
 .news-empty-hero p:last-child { max-width: 640px; font-size: clamp(16px, 1.7vw, 20px); }
 .news-editorial-hero:has(.news-empty-hero) { min-height: 0; background: linear-gradient(120deg, #980c26, #142240); }
+
+/* En móvil el artículo completo se muestra de entrada, sin abrir una pestaña. */
+@media (max-width:720px) {
+  .news-article-page__handle { display:none; }
+  .news-article-page__reading,
+  .news-article-page__reading.is-expanded,
+  .news-article-page__reading.is-dragging {
+    max-height:none !important;
+    overflow:visible !important;
+    transition:none;
+  }
+  .news-article-page__story-panel { margin-top:-52px !important; }
+}
+
+/* El texto rodea la imagen y aprovecha todo el ancho debajo de ella. */
+@media (min-width:721px) {
+  .news-article-page__reading { display:flow-root; }
+  .news-article-page__side-image {
+    float:right;
+    width: min(42%, 650px);
+    margin:0 0 28px clamp(24px, 4vw, 66px);
+  }
+  .news-article-page__content { max-width:none; }
+}
+@media (max-width:720px) {
+  .news-article-page__reading { display:flow-root; }
+  .news-article-page__side-image { float:none; width:100%; margin:0 0 24px; }
+  .news-article-page__content { max-width:none; }
+}
+
+/* En teléfonos, los metadatos quedan debajo del título y alineados a la izquierda. */
+@media (max-width:720px) {
+  .news-article-page__meta {
+    justify-content:flex-start;
+    flex-wrap:wrap;
+    column-gap:clamp(12px,3vw,20px);
+    row-gap:10px;
+    text-align:left;
+  }
+  .news-article-page__publisher,
+  .news-article-page__meta-category { justify-content:flex-start; }
+}
 </style>
