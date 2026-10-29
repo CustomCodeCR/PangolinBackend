@@ -8,6 +8,12 @@ const path = require('node:path')
 const { spawn, spawnSync } = require('node:child_process')
 const root = path.resolve(__dirname, '..')
 const dist = path.join(root, 'dist')
+// The desktop article's sticky image caption must fade under the reading panel,
+// rather than remain visible beside the article while the visitor scrolls.
+const newsSource = fs.readFileSync(path.join(root, 'src/pages/News.vue'), 'utf8')
+assert.ok(newsSource.includes("'--article-mark-opacity':"), 'Article caption opacity must follow scroll progress')
+assert.ok(newsSource.includes('opacity:var(--article-mark-opacity,1)'), 'Article caption must apply the reactive opacity in CSS')
+assert.ok(newsSource.includes('Math.max(0, 1 - articleRevealProgress.value * 8)'), 'Article caption must fade out as reading progress increases')
 const articles = [
   { id: 'f6e837c0-8b2e-4c63-8907-9051dc71921a', title: 'Puerto de Caldera', category: 'LOGÍSTICA', description: 'Llegaron nuevos contenedores.', body: 'El puerto recibió carga.\nSegunda línea en español.', image: '/images/cover-logistics.jpeg', published: true, author: 'Equipo Editorial', publishedAt: '2026-10-26T12:00:00Z' },
   { id: '5c6bb714-5b7d-437b-bbb6-d6d1ea5e6bf5', title: 'Exportaciones de Costa Rica', category: 'COMERCIO', description: 'Crecieron las exportaciones.', body: 'Costa Rica exporta productos.', image: '/images/news-ports.webp', published: true }
