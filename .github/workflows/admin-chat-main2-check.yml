@@ -1,0 +1,57 @@
+name: Admin team chat experimental checks
+
+on:
+  pull_request:
+    branches: [main-2]
+    paths:
+      - "backend/Services/Realtime/AdminChatHub.cs"
+      - "frontend/src/components/AdminTeamChat.vue"
+      - "frontend/src/pages/ContentManager.vue"
+      - ".github/workflows/admin-chat-main2-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    name: Compile frontend and backend, verify chat wiring
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Compile Vue frontend
+        run: |
+          npm ci --prefix frontend
+          npm run build --prefix frontend
+      - name: Compile ASP.NET backend
+        run: dotnet build backend/CastroFallas.MiniQuote.Api.csproj --configuration Release
+      - name: Check experimental chat safeguards and UX contracts
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs')
+          const hub = fs.readFileSync('backend/Services/Realtime/AdminChatHub.cs', 'utf8')
+          const chat = fs.readFileSync('frontend/src/components/AdminTeamChat.vue', 'utf8')
+          const manager = fs.readFileSync('frontend/src/pages/ContentManager.vue', 'utf8')
+          function check(value, label) { if (!value) throw new Error(label) }
+          check(hub.includes('[Authorize(Policy = "admin")]'), 'Chat hub must be admin-only')
+          check(hub.includes('identity.Role != "admin"'), 'Authenticated identity must be checked')
+          check(hub.includes('SetDisplayName(string? requested)'), 'Nickname must be validated on server')
+          check(hub.includes('NicknameChanged'), 'Nickname broadcast contract missing')
+          check(hub.includes('ReplyToMessage'), 'Existing reply method was lost')
+          check(hub.includes('MarkSeen'), 'Existing read receipt method was lost')
+          check(chat.includes("trapChatWheel") && chat.includes('passive: false'), 'Wheel chaining guard missing')
+          check(chat.includes('overscroll-behavior: contain'), 'Touch scroll containment missing')
+          check(chat.includes('team-chat__reply-action') && chat.includes('team-chat__seen-button'), 'Message actions missing')
+          check(chat.includes('team-chat-profile__form'), 'Nickname editor missing')
+          check(chat.includes('html.theme-dark .administration-page .team-chat-profile'), 'Dark-mode profile missing')
+          check(manager.includes("section !== 'users' && section !== 'chat'"), 'Chat must not render multimedia form')
+          console.log('Admin team chat UI and permissions contracts OK')
+          NODE
