@@ -54,7 +54,9 @@ public sealed class AdminChatHub : Hub
         await Clients.Caller.SendAsync("AvatarSnapshot", Avatars
             .Where(entry => _images.Find(entry.Value) is not null)
             .Select(entry => new { userId = entry.Key, url = AdminChatMediaStore.Url(entry.Value) }).ToArray());
-        await Clients.Caller.SendAsync("History", History.ToArray(), Seen.Values.ToArray());
+        await ChatMutations.WaitAsync();
+        try { await Clients.Caller.SendAsync("History", History.ToArray(), Seen.Values.ToArray()); }
+        finally { ChatMutations.Release(); }
         await Clients.Caller.SendAsync("TypingSnapshot", Typing.Values
             .Where(x => x.ConnectionId != Context.ConnectionId && x.ExpiresAt > DateTimeOffset.UtcNow)
             .ToArray());
