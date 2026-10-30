@@ -5,7 +5,9 @@ import IconSymbol from './IconSymbol.vue'
 import { authState } from '../services/auth'
 
 interface ChatReply { id: string; name: string; text: string }
-interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null; imageUrl?: string | null }
+type ImageMode = 'image' | 'once' | 'sticker'
+interface ChatReaction { emoji: string; userIds: string[] }
+interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null; imageUrl?: string | null; imageId?: string | null; isViewOnce?: boolean; isSticker?: boolean; imageViewed?: boolean; reactions?: ChatReaction[] }
 interface ChatMediaUpload { imageId: string; url: string }
 interface ReadReceipt { userId: string; name: string; lastReadAt: string }
 interface TypingStatus { connectionId: string; userId: string; name: string; isTyping: boolean; expiresAt: string; updatedAt: string }
@@ -27,7 +29,12 @@ const avatarPicker = ref<HTMLInputElement | null>(null)
 const imagePicker = ref<HTMLInputElement | null>(null)
 const avatarBusy = ref(false)
 const mediaBusy = ref(false)
-const outgoingImage = ref<{ blob: Blob; previewUrl: string } | null>(null)
+const outgoingImage = ref<{ blob: Blob; previewUrl: string; mode: ImageMode } | null>(null)
+const selectedAttachMode = ref<'image' | 'sticker'>('image')
+const imageViewer = ref<{ src: string; title: string; oneTime: boolean; objectUrl?: string } | null>(null)
+const viewingImageId = ref<string | null>(null)
+const reactionPickerId = ref<string | null>(null)
+const reactionChoices = ['👍', '❤️', '😂', '😮', '😢', '🎉', '👏', '🔥'] as const
 const expandedSeenId = ref<string | null>(null)
 const remoteTyping = ref<Record<string, TypingStatus>>({})
 const typingClock = ref(Date.now())
@@ -115,7 +122,7 @@ function avatarFor(userId: string) { return avatarUrls.value[userId.toLowerCase(
 function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map(part => part[0] ?? '').join('').toUpperCase() || '?'
 }
-async function compressImage(file: File, size: number, limit: number): Promise<Blob> {
+async function compressImage(file: File, size: number, limit: number, format: 'jpeg' | 'png' = 'jpeg'): Promise<Blob> {
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 9_000_000)
     throw new Error('Elegí una imagen JPG, PNG o WebP de hasta 9 MB.')
   const url = URL.createObjectURL(file)
@@ -135,9 +142,17 @@ async function compressImage(file: File, size: number, limit: number): Promise<B
     canvas.height = Math.max(1, Math.round(img.naturalHeight * scale))
     const context = canvas.getContext('2d')
     if (!context) throw new Error('No se pudo procesar la imagen.')
-    context.fillStyle = '#fff'
-    context.fillRect(0, 0, canvas.width, canvas.height)
+    if (format === 'jpeg') {
+      context.fillStyle = '#fff'
+      context.fillRect(0, 0, canvas.width, canvas.height)
+    }
     context.drawImage(img, 0, 0, canvas.width, canvas.height)
+    if (format === 'png') {
+      // A transparent uploaded photo stays transparent as a sticker.
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'))
+      if (blob && blob.size <= limit) return blob
+      throw new Error('El sticker es demasiado pesado. Probá una imagen más pequeña.')
+    }
     for (const quality of [0.82, 0.68, 0.52, 0.38]) {
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', quality))
       if (blob && blob.size <= limit) return blob
@@ -149,7 +164,7 @@ async function uploadImage(blob: Blob, kind: 'avatar' | 'message'): Promise<Chat
   const response = await fetch('/api/admin/chat/images?kind=' + kind, {
     method: 'POST',
     credentials: 'same-origin',
-    headers: { 'Content-Type': 'image/jpeg', 'X-Chat-Media': '1' },
+    headers: { 'Content-Type': blob.type === 'image/png' ? 'image/png' : 'image/jpeg', 'X-Chat-Media': '1' },
     body: blob
   })
   if (!response.ok) throw new Error(response.status === 413
@@ -189,6 +204,15 @@ async function removeAvatar() {
     nicknameError.value = 'No se pudo quitar la foto.'
   } finally { avatarBusy.value = false }
 }
+function pickImage(mode: 'image' | 'sticker') {
+  selectedAttachMode.value = mode
+  imagePicker.value?.click()
+}
+function toggleViewOnce() {
+  if (!outgoingImage.value || outgoingImage.value.mode === 'sticker') return
+  outgoingImage.value = { ...outgoingImage.value,
+    mode: outgoingImage.value.mode === 'once' ? 'image' : 'once' }
+}
 async function chooseImage(event: Event) {
   const element = event.target as HTMLInputElement
   const file = element.files?.[0]
@@ -197,15 +221,65 @@ async function chooseImage(event: Event) {
   mediaBusy.value = true
   error.value = ''
   try {
-    const blob = await compressImage(file, 1200, 800_000)
+    const mode = selectedAttachMode.value
+    const blob = await compressImage(file, mode === 'sticker' ? 320 : 1200, 800_000,
+      mode === 'sticker' ? 'png' : 'jpeg')
     clearOutgoingImage()
-    outgoingImage.value = { blob, previewUrl: URL.createObjectURL(blob) }
+    outgoingImage.value = { blob, previewUrl: URL.createObjectURL(blob), mode }
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'No se pudo adjuntar la imagen.' }
   finally { mediaBusy.value = false }
 }
 function clearOutgoingImage() {
   if (outgoingImage.value) URL.revokeObjectURL(outgoingImage.value.previewUrl)
   outgoingImage.value = null
+}
+function closeViewer() {
+  if (imageViewer.value?.objectUrl) URL.revokeObjectURL(imageViewer.value.objectUrl)
+  imageViewer.value = null
+}
+function viewerKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    if (imageViewer.value) closeViewer()
+    reactionPickerId.value = null
+  }
+}
+async function openSharedImage(message: ChatMessage) {
+  error.value = ''
+  closeViewer()
+  if (!message.isViewOnce) {
+    if (message.imageUrl?.startsWith('/api/admin/chat/images/'))
+      imageViewer.value = { src: message.imageUrl, title: 'Imagen de ' + displayName(message), oneTime: false }
+    return
+  }
+  if (!message.imageId || message.imageViewed || isOwn(message) || viewingImageId.value) return
+  viewingImageId.value = message.id
+  try {
+    const response = await fetch('/api/admin/chat/images/' + encodeURIComponent(message.imageId) + '/consume', {
+      method: 'POST', credentials: 'same-origin', headers: { 'X-Chat-Media': '1' }, cache: 'no-store'
+    })
+    if (!response.ok) throw new Error(response.status === 404
+      ? 'La foto ya fue vista o dejó de estar disponible.' : 'No se pudo abrir la foto.')
+    const blob = await response.blob()
+    if (!active || !props.visible) return
+    const objectUrl = URL.createObjectURL(blob)
+    imageViewer.value = { src: objectUrl, objectUrl, title: 'Foto de una sola visualización', oneTime: true }
+    messages.value = messages.value.map(item => item.imageId === message.imageId
+      ? { ...item, imageViewed: true } : item)
+  } catch (cause) {
+    if (active) error.value = cause instanceof Error ? cause.message : 'No se pudo abrir la foto.'
+  } finally { viewingImageId.value = null }
+}
+function toggleReactionPicker(id: string) {
+  reactionPickerId.value = reactionPickerId.value === id ? null : id
+}
+async function toggleReaction(id: string, emoji: string) {
+  if (connection?.state !== signalR.HubConnectionState.Connected) return
+  reactionPickerId.value = null
+  try { await connection.invoke('ToggleReaction', id, emoji) }
+  catch (cause) { error.value = cause instanceof Error ? cause.message : 'No se pudo reaccionar.' }
+}
+function reactedByMe(reaction: ChatReaction) {
+  return reaction.userIds.some(id => id.toLowerCase() === currentUserId.value)
 }
 function displayName(message: ChatMessage) {
   return chatNames.value[message.userId.toLowerCase()] || message.name || message.email
@@ -365,6 +439,8 @@ function onChatClearedForUser(event: { clearedAt: string }) {
   replyTarget.value = null
   expandedSeenId.value = null
   highlightedId.value = null
+  reactionPickerId.value = null
+  closeViewer()
   // Los vistos globales permanecen para los mensajes posteriores y los demás.
   persistLastRead(cutoff)
   chatNotice.value = 'Tu vista del chat está limpia. Los demás administradores conservan sus mensajes.'
@@ -379,8 +455,9 @@ async function send() {
   const target = replyTarget.value
   try {
     if (outgoingImage.value) {
-      const uploaded = await uploadImage(outgoingImage.value.blob, 'message')
-      await connection.invoke('SendImage', uploaded.imageId, text, target?.id ?? null)
+      const attachment = outgoingImage.value
+      const uploaded = await uploadImage(attachment.blob, 'message')
+      await connection.invoke('SendMedia', uploaded.imageId, text, target?.id ?? null, attachment.mode)
       clearOutgoingImage()
     } else if (target) await connection.invoke('ReplyToMessage', text, target.id)
     else await connection.invoke('SendMessage', text)
@@ -414,10 +491,11 @@ async function startChat() {
   }
 }
 function onVisibility() {
+  if (document.visibilityState !== 'visible' && imageViewer.value?.oneTime) closeViewer()
   if (!canSendTyping()) stopTyping()
   if (canMarkRead()) { scrollBottom(); markVisibleRead() }
 }
-watch(() => props.visible, showing => { if (showing) onVisibility(); else stopTyping() })
+watch(() => props.visible, showing => { if (showing) onVisibility(); else { stopTyping(); closeViewer(); reactionPickerId.value = null } })
 onMounted(() => {
   if (authState.user?.role !== 'administrador' || authState.previewRole) {
     status.value = 'Requiere una sesión administradora real.'
@@ -436,6 +514,7 @@ onMounted(() => {
   }, 850)
   void nextTick(() => chatPanel.value?.addEventListener('wheel', trapChatWheel, { passive: false }))
   window.addEventListener('focus', onVisibility)
+  window.addEventListener('keydown', viewerKeydown)
   document.addEventListener('visibilitychange', onVisibility)
   window.addEventListener('online', startChat)
 
@@ -478,6 +557,14 @@ onMounted(() => {
     if (canMarkRead()) { scrollBottom(); markVisibleRead() }
   })
   hub.on('Message', (message: ChatMessage) => { if (active) receivedMessage(message) })
+  hub.on('ReactionChanged', (messageId: string, reactions: ChatReaction[]) => {
+    if (active) messages.value = messages.value.map(message => message.id === messageId
+      ? { ...message, reactions: reactions ?? [] } : message)
+  })
+  hub.on('OneTimeImageViewed', (imageId: string) => {
+    if (active) messages.value = messages.value.map(message => message.imageId === imageId
+      ? { ...message, imageViewed: true } : message)
+  })
   hub.on('ChatClearedForUser', (event: { clearedAt: string }) => onChatClearedForUser(event))
   hub.on('TypingSnapshot', (states: TypingStatus[]) => {
     if (!active) return
@@ -506,11 +593,13 @@ onUnmounted(() => {
   emit('unread-change', 0)
   stopTyping()
   clearOutgoingImage()
+  closeViewer()
   if (typingSweepTimer) clearInterval(typingSweepTimer)
   if (retryTimer) clearTimeout(retryTimer)
   if (highlightTimer) clearTimeout(highlightTimer)
   chatPanel.value?.removeEventListener('wheel', trapChatWheel)
   window.removeEventListener('focus', onVisibility)
+  window.removeEventListener('keydown', viewerKeydown)
   document.removeEventListener('visibilitychange', onVisibility)
   window.removeEventListener('online', startChat)
   if (connection) void connection.stop()
@@ -587,7 +676,7 @@ onUnmounted(() => {
           <img v-if="avatarFor(message.userId)" :src="avatarFor(message.userId)" alt="" loading="lazy" />
           <span v-else>{{ initials(displayName(message)) }}</span>
         </span>
-        <article class="team-chat__bubble" :class="{ 'is-own': isOwn(message) }">
+        <article class="team-chat__bubble" :class="{ 'is-own': isOwn(message), 'is-sticker': message.isSticker }">
           <div class="team-chat__by">
             <strong>{{ displayName(message) }}</strong>
             <span class="team-chat__meta">
@@ -605,21 +694,51 @@ onUnmounted(() => {
             <span>{{ message.replyTo.text }}</span>
           </button>
           <p v-if="message.text">{{ message.text }}</p>
-          <a v-if="message.imageUrl" class="team-chat__image-link" :href="message.imageUrl"
-            target="_blank" rel="noopener noreferrer" :aria-label="'Abrir imagen de ' + displayName(message)">
-            <img class="team-chat__shared-image" :src="message.imageUrl"
-              :alt="'Imagen enviada por ' + displayName(message)" loading="lazy" />
-          </a>
+          <button v-if="message.imageUrl" type="button" class="team-chat__image-link"
+            :class="{ 'is-sticker': message.isSticker }"
+            :aria-label="'Ampliar ' + (message.isSticker ? 'sticker' : 'imagen') + ' de ' + displayName(message)"
+            @click="openSharedImage(message)">
+            <img class="team-chat__shared-image" :class="{ 'is-sticker': message.isSticker }"
+              :src="message.imageUrl" :alt="message.isSticker ? 'Sticker enviado por ' + displayName(message) : 'Imagen enviada por ' + displayName(message)" loading="lazy" />
+          </button>
+          <button v-else-if="message.isViewOnce" type="button" class="team-chat__once-button"
+            :disabled="isOwn(message) || message.imageViewed || viewingImageId === message.id"
+            :aria-label="message.imageViewed ? 'Foto ya vista' : 'Abrir foto de una sola visualización'"
+            @click="openSharedImage(message)">
+            <span aria-hidden="true">🔒</span>
+            <span>{{ isOwn(message) ? 'Foto de una vez enviada' : message.imageViewed ? 'Foto ya vista' : viewingImageId === message.id ? 'Abriendo…' : 'Ver foto una vez' }}</span>
+          </button>
+          <div v-if="message.reactions?.length" class="team-chat__reactions" aria-label="Reacciones al mensaje">
+            <button v-for="reaction in message.reactions" :key="reaction.emoji" type="button"
+              :class="{ 'is-mine': reactedByMe(reaction) }"
+              :title="reactedByMe(reaction) ? 'Quitar mi reacción' : 'Reaccionar con ' + reaction.emoji"
+              :aria-label="reaction.emoji + ', ' + reaction.userIds.length + ' reacciones'"
+              :disabled="status !== 'En línea'"
+              @click="toggleReaction(message.id, reaction.emoji)">{{ reaction.emoji }} <span>{{ reaction.userIds.length }}</span></button>
+          </div>
           <div v-if="isOwn(message) && expandedSeenId === message.id" class="team-chat__seen-popover" role="status">
             <strong>Lecturas</strong>
             <span v-if="!seenNames(message).length">Todavía nadie lo ha visto</span>
             <span v-for="name in seenNames(message)" :key="name">✓ {{ name }}</span>
           </div>
         </article>
-        <button class="team-chat__reply-action" type="button"
-          :title="'Responder a ' + displayName(message)"
-          :aria-label="'Responder al mensaje de ' + displayName(message)"
-          @click="replyToMessage(message)">↩</button>
+        <div class="team-chat__actions">
+          <button class="team-chat__reply-action" type="button"
+            :title="'Responder a ' + displayName(message)"
+            :aria-label="'Responder al mensaje de ' + displayName(message)"
+            @click="replyToMessage(message)">↩</button>
+          <button class="team-chat__reply-action" type="button"
+            :aria-expanded="reactionPickerId === message.id"
+            :aria-label="'Reaccionar al mensaje de ' + displayName(message)"
+            title="Reaccionar" :disabled="status !== 'En línea'"
+            @click="toggleReactionPicker(message.id)">☺</button>
+          <div v-if="reactionPickerId === message.id" class="team-chat__reaction-picker"
+            role="group" aria-label="Elegir reacción">
+            <button v-for="emoji in reactionChoices" :key="emoji" type="button"
+              :aria-label="'Reaccionar con ' + emoji"
+              @click="toggleReaction(message.id, emoji)">{{ emoji }}</button>
+          </div>
+        </div>
       </div>
       <div v-if="typingNames.length" class="team-chat__typing" role="status" aria-live="polite" aria-atomic="true">
         <span class="team-chat__typing-dots" aria-hidden="true"><i></i><i></i><i></i></span>
@@ -635,16 +754,23 @@ onUnmounted(() => {
     </div>
     <div v-if="outgoingImage" class="team-chat__media-preview" role="status">
       <img :src="outgoingImage.previewUrl" alt="Vista previa de imagen a enviar" />
-      <span>Imagen adjunta · podés agregar un texto</span>
+      <span>{{ outgoingImage.mode === 'sticker' ? 'Sticker con foto · mantiene transparencia si la imagen la tiene' : outgoingImage.mode === 'once' ? 'Foto para ver una vez · no se guarda en la galería del chat' : 'Imagen adjunta · podés agregar un texto' }}</span>
+      <button v-if="outgoingImage.mode !== 'sticker'" type="button"
+        class="team-chat__once-toggle" :aria-pressed="outgoingImage.mode === 'once'"
+        @click="toggleViewOnce">{{ outgoingImage.mode === 'once' ? '✓ Ver una vez' : '🔒 Ver una vez' }}</button>
       <button type="button" aria-label="Quitar imagen adjunta" title="Quitar imagen" @click="clearOutgoingImage">✕</button>
     </div>
     <form class="team-chat__composer" @submit.prevent="send">
       <input ref="imagePicker" type="file" class="sr-only" accept="image/jpeg,image/png,image/webp"
         aria-label="Seleccionar imagen para enviar" @change="chooseImage" />
       <button type="button" class="team-chat__attach" :disabled="status !== 'En línea' || mediaBusy || sending"
-        aria-label="Adjuntar imagen" title="Enviar imagen" @click="imagePicker?.click()">
+        aria-label="Adjuntar imagen" title="Enviar imagen" @click="pickImage('image')">
         <IconSymbol glyph="image" :size="19" />
       </button>
+      <button type="button" class="team-chat__attach team-chat__sticker-attach"
+        :disabled="status !== 'En línea' || mediaBusy || sending"
+        aria-label="Enviar foto como sticker" title="Adjuntar foto como sticker"
+        @click="pickImage('sticker')">🏷️</button>
       <label class="sr-only" for="team-chat-input">Escribir mensaje</label>
       <input id="team-chat-input" ref="input" v-model="draft" maxlength="500" autocomplete="off"
         placeholder="Escribí un mensaje al equipo…" :disabled="status !== 'En línea'"
@@ -656,6 +782,18 @@ onUnmounted(() => {
     <p v-if="error" class="team-chat__error" role="alert">{{ error }}</p>
     <p class="team-chat__foot">Solo administradores autenticados · {{ messages.length }} mensajes en este historial temporal.</p>
     </section>
+    <div v-if="imageViewer" class="team-chat__lightbox" role="dialog" aria-modal="true"
+      :aria-label="imageViewer.title" @click.self="closeViewer">
+      <div class="team-chat__lightbox-panel">
+        <div class="team-chat__lightbox-head">
+          <strong>{{ imageViewer.title }}</strong>
+          <button type="button" aria-label="Cerrar imagen" title="Cerrar imagen"
+            @click="closeViewer">✕</button>
+        </div>
+        <img :src="imageViewer.src" :alt="imageViewer.title" />
+        <p v-if="imageViewer.oneTime">Al cerrar, no vas a poder abrir esta foto otra vez desde tu cuenta. Las capturas de pantalla no se pueden impedir.</p>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -1180,4 +1318,121 @@ onUnmounted(() => {
   .team-chat__head-actions { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; }
   .team-chat__clear-button { min-height: 39px; }
 }
+
+/* Photo/sticker media stay in the chat, never in a new browser tab. */
+.team-chat__image-link { padding: 0; cursor: zoom-in; color: inherit; }
+.team-chat__image-link.is-sticker {
+  border: 0; background: transparent; border-radius: 0;
+  max-width: 180px;
+}
+.team-chat__shared-image.is-sticker {
+  max-width: min(100%, 174px); max-height: 174px;
+  object-fit: contain; background: transparent;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,.16));
+}
+.team-chat__bubble.is-sticker {
+  background: transparent; border-color: transparent;
+  box-shadow: none; padding: 6px 8px;
+  color: var(--chat-text);
+}
+.team-chat__bubble.is-sticker .team-chat__quoted { background: var(--chat-soft); }
+:global(html.theme-dark .administration-page .team-chat .team-chat__bubble.is-sticker) {
+  background: transparent !important; border-color: transparent !important;
+  color: #fff !important;
+}
+.team-chat__once-button {
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 8px; min-height: 72px; width: min(270px, 100%);
+  border: 1px dashed currentColor; border-radius: 13px;
+  background: var(--chat-soft); color: var(--chat-text);
+  padding: 12px 16px; font: inherit; font-size: 13px; font-weight: 700;
+  text-align: left; cursor: pointer;
+}
+.team-chat__once-button span:first-child { font-size: 25px; }
+.team-chat__once-button:disabled { opacity: .65; cursor: default; }
+.team-chat__bubble.is-own .team-chat__once-button {
+  background: rgba(255,255,255,.11); color: #fff;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__once-button) {
+  background: #261d26 !important; color: #fff !important;
+}
+.team-chat__lightbox {
+  position: fixed; inset: 0; z-index: 9999;
+  display: grid; place-items: center; padding: 15px;
+  background: rgba(4, 9, 23, .89);
+}
+.team-chat__lightbox-panel {
+  display: flex; flex-direction: column; gap: 12px;
+  max-width: min(100%, 950px); max-height: 95dvh; min-width: 0;
+  padding: 12px; border: 1px solid #475266; border-radius: 18px;
+  background: #141b29; color: #fff;
+}
+.team-chat__lightbox-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 2px 6px; font-size: 14px;
+}
+.team-chat__lightbox-head button {
+  border: 1px solid #526073; border-radius: 9px; padding: 7px 12px;
+  background: #303b4d; color: #fff; font: inherit; cursor: pointer;
+}
+.team-chat__lightbox-panel img {
+  display: block; max-width: 100%; max-height: calc(95dvh - 120px);
+  width: auto; height: auto; margin: 0 auto; object-fit: contain;
+}
+.team-chat__lightbox-panel p { margin: 0 6px 3px; color: #d5d9e4; font-size: 12px; }
+.team-chat__actions { position: relative; flex: 0 0 auto; display: flex; align-items: center; gap: 3px; }
+.team-chat__reaction-picker {
+  position: absolute; z-index: 10; bottom: calc(100% + 6px);
+  left: 0; display: flex; flex-wrap: wrap; width: max-content;
+  max-width: min(260px, 70vw); gap: 3px; padding: 7px;
+  border: 1px solid var(--chat-line); border-radius: 15px;
+  background: var(--chat-bg); box-shadow: 0 9px 24px rgba(0,0,0,.2);
+}
+.team-chat__reaction-picker button {
+  border: none; border-radius: 9px; width: 32px; height: 34px;
+  background: transparent; font-size: 20px; cursor: pointer;
+}
+.team-chat__reaction-picker button:hover, .team-chat__reaction-picker button:focus-visible {
+  background: var(--chat-soft); outline: 1px solid var(--chat-accent);
+}
+.team-chat__reactions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+.team-chat__reactions button {
+  border: 1px solid var(--chat-line); border-radius: 99px; padding: 3px 8px;
+  font: inherit; font-size: 12px; cursor: pointer;
+  color: var(--chat-text); background: var(--chat-soft);
+}
+.team-chat__reactions button.is-mine { border-color: var(--chat-accent); }
+.team-chat__reactions button:disabled { cursor: default; }
+.team-chat__reactions span { margin-left: 3px; font-size: 11px; }
+.team-chat__bubble.is-own .team-chat__reactions button {
+  background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.4); color: #fff;
+}
+.team-chat__media-preview .team-chat__once-toggle {
+  width: auto; height: auto; padding: 8px 10px;
+  font-size: 11px; font-weight: 750;
+}
+.team-chat__media-preview .team-chat__once-toggle[aria-pressed="true"] {
+  background: var(--chat-accent); color: #fff;
+}
+.team-chat__composer .team-chat__sticker-attach { font-size: 25px; font-weight: 800; }
+:global(html.theme-dark .administration-page .team-chat .team-chat__reaction-picker) {
+  background: #211b20 !important; border-color: #565057 !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__reaction-picker button),
+:global(html.theme-dark .administration-page .team-chat .team-chat__reactions button) {
+  color: #fff !important; background: #352b35 !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__media-preview .team-chat__once-toggle[aria-pressed="true"]) {
+  background: #c51b3c !important; color: #fff !important;
+}
+@media (hover: none), (pointer: coarse) {
+  .team-chat__actions .team-chat__reply-action { opacity: 1; transform: none; }
+}
+@media (max-width: 600px) {
+  .team-chat__actions { gap: 0; }
+  .team-chat__actions .team-chat__reply-action { width: 26px; height: 28px; font-size: 17px; }
+  .team-chat__media-preview { flex-wrap: wrap; }
+  .team-chat__lightbox-panel img { max-height: calc(90dvh - 125px); }
+}
+
 </style>

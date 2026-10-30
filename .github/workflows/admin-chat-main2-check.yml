@@ -10,7 +10,7 @@ on:
       - "frontend/src/components/AdminTeamChat.vue"
       - ".github/workflows/admin-chat-main2-check.yml"
   pull_request:
-    branches: [main-2]
+    branches: [main-3, main-2]
     paths:
       - "backend/Services/Realtime/AdminChatHub.cs"
       - "backend/Services/Realtime/AdminChatMedia.cs"
@@ -92,6 +92,24 @@ jobs:
           check(chat.includes('team-chat__reply-action') && chat.includes('team-chat__seen-button'), 'Message actions missing')
           check(chat.includes('team-chat-profile__form'), 'Nickname editor missing')
           check(chat.includes('html.theme-dark .administration-page .team-chat-profile'), 'Dark-mode profile missing')
+          check(hub.includes('ToggleReaction') && hub.includes('AllowedReactions') && hub.includes('ReactionChanged'),
+            'Server-controlled reactions missing')
+          check(hub.includes('ImageViewed') && hub.includes('WasViewed') && hub.includes('SendMedia'),
+            'View-once message lifecycle missing')
+          check(media.includes('ConsumeOnce') && media.includes('ViewedBy.Add') && media.includes('ReadRegular'),
+            'Server-side one-time consumption missing')
+          check(media.includes('!item.Published || item.IsViewOnce') &&
+                media.includes('IsSameOriginMediaAction(http)'),
+            'View-once GET bypass or CSRF guard regression')
+          check(chat.includes("hub.on('ReactionChanged'") && chat.includes('toggleReaction('),
+            'Client emoji reactions missing')
+          check(chat.includes('openSharedImage') && chat.includes('closeViewer') &&
+                chat.includes('role="dialog"') && !chat.includes('target="_blank"'),
+            'Images must open in an accessible in-chat viewer')
+          check(chat.includes('toggleViewOnce') && chat.includes("'/consume'") &&
+                chat.includes('OneTimeImageViewed'), 'View-once user experience missing')
+          check(chat.includes('image/png') && chat.includes('isSticker') && chat.includes("pickImage('sticker')"),
+            'Photo sticker support missing')
           check(manager.includes("section !== 'users' && section !== 'chat'"), 'Chat must not render multimedia form')
           console.log('Admin team chat UI and permissions contracts OK')
           NODE
