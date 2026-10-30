@@ -85,7 +85,10 @@ const currentUserId = computed(() => String(authState.user?.id ?? '').toLowerCas
 const currentEmail = computed(() => (authState.user?.correo ?? '').toLowerCase())
 const { savedStickers, savedSources, stickerError, stickerBusy, loadStickers, saveSticker, removeSticker, releasePreviews } =
   useChatStickerLibrary(() => currentUserId.value)
-const cameras = useAdminChatCameras()
+const {
+  localStream: cameraStream, tiles: cameraTiles, cameraBusy, cameraError,
+  supported: cameraSupported, bindHub: bindCameraHub, startCamera, stopCamera, cleanup: cleanupCameras
+} = useAdminChatCameras()
 const storageKey = computed(() => 'castrofallas-admin-chat-read:' + (currentUserId.value || currentEmail.value))
 const nicknameStorageKey = computed(() => 'castrofallas-admin-chat-nickname:' + (currentUserId.value || currentEmail.value))
 const typingNames = computed(() => {
@@ -639,6 +642,7 @@ onMounted(() => {
     return
   }
   initializeLastRead()
+  void loadStickers()
   typingSweepTimer = setInterval(() => {
     const now = Date.now()
     typingClock.value = now
@@ -661,6 +665,7 @@ onMounted(() => {
     .configureLogging(signalR.LogLevel.Error)
     .build()
   connection = hub
+  bindCameraHub(hub)
   hub.on('ChatProfile', (profile: { displayName: string; customName: string | null }) => {
     if (!active) return
     nickname.value = savedNickname() ?? profile.customName ?? ''
@@ -714,12 +719,16 @@ onMounted(() => {
   hub.onreconnecting(() => {
     status.value = 'Reconectando…'
     stopTyping()
+    stopRecording(true)
+    void cleanupCameras(false)
     remoteTyping.value = {}
   })
   hub.onreconnected(() => { status.value = 'En línea'; markVisibleRead() })
   hub.onclose(() => {
     status.value = 'Desconectado'
     stopTyping()
+    stopRecording(true)
+    void cleanupCameras(false)
     remoteTyping.value = {}
     scheduleRetry()
   })
@@ -729,7 +738,11 @@ onUnmounted(() => {
   active = false
   emit('unread-change', 0)
   stopTyping()
+  stopRecording(true)
+  void cleanupCameras(true)
   clearOutgoingImage()
+  clearOutgoingAudio()
+  releasePreviews()
   closeViewer()
   if (typingSweepTimer) clearInterval(typingSweepTimer)
   if (retryTimer) clearTimeout(retryTimer)
