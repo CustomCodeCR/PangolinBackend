@@ -598,7 +598,8 @@ onMounted(load)
 .visual-editor__featured-video-field input{width:100%;max-width:620px;min-width:0;padding:10px;border-radius:9px;border:1px solid #bdc3ce;background:#fff;color:#1d2735;font:inherit}
 .visual-editor__featured-video-preview{max-width:210px;width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:12px;background:#080f22}
 html.theme-dark .visual-editor__featured-video-field input{background:#0b1324;border-color:#667085;color:#fff}
-.visual-editor__featured-reel-current{margin:0;font-size:12px;line-height:1.55;color:#515865;overflow-wrap:anywhere}
+.visual-editor__featured-reel-current{margin:16px 0 0;font-size:12px;line-height:1.55;color:#515865;overflow-wrap:anywhere}
+.visual-editor__featured-reel-current + .visual-editor__hint{display:block;margin-top:8px}
 .visual-editor__featured-reel-current a{color:#aa1745;text-decoration:underline}
 html.theme-dark .visual-editor__featured-reel{background:#171924;border-color:#503042}
 html.theme-dark .visual-editor__featured-reel header p:not(.manager-eyebrow),html.theme-dark .visual-editor__featured-reel-current{color:#d3d7e1}
