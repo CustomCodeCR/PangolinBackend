@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { ExternalLink, Facebook, Play } from '@lucide/vue'
+import { ExternalLink, Play } from '@lucide/vue'
+import FacebookGlyph from './FacebookGlyph.vue'
 import InstagramGlyph from './InstagramGlyph.vue'
 import { useI18n } from 'vue-i18n'
 import { subscribeToChanges } from '../services/realtime'
@@ -203,7 +204,7 @@ onUnmounted(() => {
               @click="switchNetwork('facebook')"
               @keydown.up.prevent="switchNetwork('instagram')"
               @keydown.left.prevent="switchNetwork('instagram')">
-              <Facebook :size="39" :stroke-width="1.9" aria-hidden="true" />
+              <FacebookGlyph :size="39" :stroke-width="1.9" aria-hidden="true" />
               <span class="sr-only">Facebook</span>
             </button>
           </div>
@@ -297,7 +298,7 @@ onUnmounted(() => {
               allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
             <template v-else-if="facebookUrl">
               <div class="home-instagram-section__placeholder home-instagram-section__placeholder--facebook">
-                <Facebook :size="54" aria-hidden="true" />
+                <FacebookGlyph :size="54" aria-hidden="true" />
                 <strong>Grupo Castro Fallas</strong>
                 <span>{{ t('custom.home.facebook.preview') }}</span>
               </div>
@@ -311,7 +312,7 @@ onUnmounted(() => {
             </template>
             <a v-else class="home-instagram-section__placeholder home-instagram-section__placeholder--link home-instagram-section__placeholder--facebook"
               :href="facebookProfile" target="_blank" rel="noopener noreferrer">
-              <Facebook :size="54" aria-hidden="true" />
+              <FacebookGlyph :size="54" aria-hidden="true" />
               <strong>Grupo Castro Fallas</strong>
               <span>{{ facebookLoaded ? t('custom.home.facebook.unavailable') : t('custom.home.facebook.loading') }}</span>
               <ExternalLink :size="19" aria-hidden="true" />
