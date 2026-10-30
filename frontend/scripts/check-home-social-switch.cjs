@@ -21,6 +21,14 @@ assert.match(facebookGlyph, /fill="currentColor"/, 'Facebook logo must have a so
 assert.doesNotMatch(facebookGlyph, /stroke="currentColor"/, 'Facebook logo must not be outlined')
 assert.match(component, /name="social-copy"/, 'Text must transition when a platform is swapped')
 assert.match(component, /name="social-reel"/, 'Video must transition in its fixed frame')
+assert.match(component, /\\.home-instagram-section__reel-head\\s*\\{[^}]*color:\\s*#fff;/s,
+  'Reel header must remain legible in light mode')
+assert.match(component, /\\.home-instagram-section__reel-head strong\\s*\\{[^}]*color:\\s*#fff;/s,
+  'Reel account name must stay white')
+assert.match(component, /\\.home-instagram-section__reel-head small\\s*\\{[^}]*color:\\s*#fff;/s,
+  'Reel type label must stay white')
+assert.match(component, /\\.home-instagram-section__open\\s*\\{[^}]*color:\\s*#fff;/s,
+  'Reel open link must stay white')
 assert.match(component, /8500/, 'Automated network rotation must remain delayed')
 assert.match(component, /playingNative\.value \|\| isPlaying\.value \|\| facebookPlaying\.value/,
   'Playing a video must block automatic switching')
