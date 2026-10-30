@@ -367,7 +367,7 @@ public sealed class AdminChatHub : Hub
         finally { ChatMutations.Release(); }
     }
 
-    public async Task<CameraParticipant[]> StartCamera()
+    public async Task<string[]> StartCamera()
     {
         var identity = Context.GetHttpContext()?.Items["auth.identity"] as AuthIdentity;
         if (identity is null || identity.Role != "admin") throw new HubException("Sin autorización.");
@@ -376,7 +376,7 @@ public sealed class AdminChatHub : Hub
         var self = new CameraParticipant(Context.ConnectionId, identity.UsuarioId, DisplayName(identity));
         Cameras[Context.ConnectionId] = self;
         await Clients.Others.SendAsync("CameraStarted", self);
-        return Cameras.Values.Where(x => x.ConnectionId != Context.ConnectionId).ToArray();
+        return Online.Keys.Where(id => id != Context.ConnectionId).ToArray();
     }
 
     public async Task StopCamera()
