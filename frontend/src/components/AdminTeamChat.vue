@@ -2,12 +2,16 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import * as signalR from '@microsoft/signalr'
 import IconSymbol from './IconSymbol.vue'
+import ChatCameraTile from './ChatCameraTile.vue'
+import { Sticker, LockKeyhole, SmilePlus, Mic, Video, VideoOff, Square, Plus, BookmarkPlus, X } from '@lucide/vue'
+import { useAdminChatCameras } from '../composables/useAdminChatCameras'
+import { useChatStickerLibrary, type StickerPreview } from '../composables/useChatStickerLibrary'
 import { authState } from '../services/auth'
 
 interface ChatReply { id: string; name: string; text: string }
 type ImageMode = 'image' | 'once' | 'sticker'
 interface ChatReaction { emoji: string; userIds: string[] }
-interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null; imageUrl?: string | null; imageId?: string | null; isViewOnce?: boolean; isSticker?: boolean; imageViewed?: boolean; reactions?: ChatReaction[] }
+interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null; imageUrl?: string | null; imageId?: string | null; isViewOnce?: boolean; isSticker?: boolean; imageViewed?: boolean; reactions?: ChatReaction[]; audioUrl?: string | null }
 interface ChatMediaUpload { imageId: string; url: string }
 interface ReadReceipt { userId: string; name: string; lastReadAt: string }
 interface TypingStatus { connectionId: string; userId: string; name: string; isTyping: boolean; expiresAt: string; updatedAt: string }
@@ -34,7 +38,16 @@ const selectedAttachMode = ref<'image' | 'sticker'>('image')
 const imageViewer = ref<{ src: string; title: string; oneTime: boolean; objectUrl?: string } | null>(null)
 const viewingImageId = ref<string | null>(null)
 const reactionPickerId = ref<string | null>(null)
-const reactionChoices = ['👍', '❤️', '😂', '😮', '😢', '🎉', '👏', '🔥'] as const
+const reactionChoices = [
+  '👍', '👎', '👏', '🙌', '🤝', '🙏', '💪', '👌', '✌️', '🤞',
+  '❤️', '🩷', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💔',
+  '😂', '🤣', '🥹', '😊', '😍', '🥰', '😘', '😎', '🤩', '🥳',
+  '😀', '😁', '😅', '😉', '😌', '😋', '😜', '🤪', '🤔', '🤨',
+  '😮', '😱', '😳', '🥺', '😢', '😭', '😤', '😡', '🤯', '😴',
+  '👀', '💯', '🔥', '✨', '🎉', '🎊', '🎈', '🎂', '🎁', '🏆',
+  '⭐', '🌟', '🚀', '💡', '✅', '❌', '⚠️', '📌', '💬', '🫶',
+  '🐱', '🐶', '🐼', '🐸', '🦄', '🍕', '🍔', '🍩', '☕', '🍓'
+] as const
 const expandedSeenId = ref<string | null>(null)
 const remoteTyping = ref<Record<string, TypingStatus>>({})
 const typingClock = ref(Date.now())
@@ -44,6 +57,15 @@ let typingActive = false
 let typingLastSignalAt = 0
 const replyTarget = ref<ChatMessage | null>(null)
 const input = ref<HTMLInputElement | null>(null)
+const stickerTrayOpen = ref(false)
+const outgoingAudio = ref<{ blob: Blob; previewUrl: string; seconds: number } | null>(null)
+const recording = ref(false)
+const recordingSeconds = ref(0)
+let mediaRecorder: MediaRecorder | null = null
+let microphoneStream: MediaStream | null = null
+let recordingTimer: ReturnType<typeof setInterval> | null = null
+let voiceChunks: Blob[] = []
+let discardRecording = false
 const highlightedId = ref<string | null>(null)
 let highlightTimer: ReturnType<typeof setTimeout> | null = null
 const status = ref('Conectando…')
@@ -61,6 +83,12 @@ let active = true
 
 const currentUserId = computed(() => String(authState.user?.id ?? '').toLowerCase())
 const currentEmail = computed(() => (authState.user?.correo ?? '').toLowerCase())
+const { savedStickers, savedSources, stickerError, stickerBusy, loadStickers, saveSticker, removeSticker, releasePreviews } =
+  useChatStickerLibrary(() => currentUserId.value)
+const {
+  localStream: cameraStream, tiles: cameraTiles, cameraBusy, cameraError,
+  supported: cameraSupported, bindHub: bindCameraHub, startCamera, stopCamera, cleanup: cleanupCameras
+} = useAdminChatCameras()
 const storageKey = computed(() => 'castrofallas-admin-chat-read:' + (currentUserId.value || currentEmail.value))
 const nicknameStorageKey = computed(() => 'castrofallas-admin-chat-nickname:' + (currentUserId.value || currentEmail.value))
 const typingNames = computed(() => {
@@ -78,6 +106,7 @@ const typingLabel = computed(() => {
   if (names.length === 2) return names[0] + ' y ' + names[1] + ' están escribiendo'
   return names[0] + ' y ' + (names.length - 1) + ' más están escribiendo'
 })
+watch(typingNames, names => { if (names.length) scrollBottom() }, { flush: 'post' })
 function applyTypingState(state: TypingStatus) {
   if (!state?.connectionId || !state.userId || state.userId.toLowerCase() === currentUserId.value) return
   const next = { ...remoteTyping.value }
@@ -225,13 +254,115 @@ async function chooseImage(event: Event) {
     const blob = await compressImage(file, mode === 'sticker' ? 320 : 1200, 800_000,
       mode === 'sticker' ? 'png' : 'jpeg')
     clearOutgoingImage()
+    clearOutgoingAudio()
     outgoingImage.value = { blob, previewUrl: URL.createObjectURL(blob), mode }
+    if (mode === 'sticker') stickerTrayOpen.value = false
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'No se pudo adjuntar la imagen.' }
   finally { mediaBusy.value = false }
 }
 function clearOutgoingImage() {
   if (outgoingImage.value) URL.revokeObjectURL(outgoingImage.value.previewUrl)
   outgoingImage.value = null
+}
+async function toggleStickerTray() {
+  stickerTrayOpen.value = !stickerTrayOpen.value
+  if (stickerTrayOpen.value) { reactionPickerId.value = null; await loadStickers() }
+}
+function useSavedSticker(item: StickerPreview) {
+  clearOutgoingImage()
+  clearOutgoingAudio()
+  outgoingImage.value = { blob: item.blob, previewUrl: URL.createObjectURL(item.blob), mode: 'sticker' }
+  stickerTrayOpen.value = false
+}
+async function saveMessageSticker(message: ChatMessage) {
+  if (!message.isSticker || !message.imageUrl?.startsWith('/api/admin/chat/images/') || !message.imageId)
+    return
+  try {
+    const response = await fetch(message.imageUrl, { credentials: 'same-origin', cache: 'no-store' })
+    if (!response.ok) throw new Error('No se pudo descargar este sticker.')
+    const blob = await response.blob()
+    await saveSticker(blob, message.imageId)
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : 'No se pudo guardar el sticker.'
+  }
+}
+async function removeSavedSticker(item: StickerPreview) {
+  try { await removeSticker(item.id) }
+  catch { error.value = 'No se pudo borrar el sticker guardado.' }
+}
+function clearOutgoingAudio() {
+  if (outgoingAudio.value) URL.revokeObjectURL(outgoingAudio.value.previewUrl)
+  outgoingAudio.value = null
+}
+function stopRecording(discard = false) {
+  if (discard) discardRecording = true
+  if (mediaRecorder?.state === 'recording') mediaRecorder.stop()
+  else {
+    microphoneStream?.getTracks().forEach(track => track.stop())
+    microphoneStream = null
+    recording.value = false
+  }
+}
+async function startRecording() {
+  if (recording.value || sending.value || mediaBusy.value) return
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+    error.value = 'Para grabar audios necesitás HTTPS o localhost y permisos de micrófono.'
+    return
+  }
+  error.value = ''
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+    microphoneStream = stream
+    const formats = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus', 'audio/webm']
+    const selected = formats.find(type => MediaRecorder.isTypeSupported(type))
+    if (!selected) throw new Error('Este navegador no admite grabar notas de voz.')
+    const recorder = new MediaRecorder(stream, { mimeType: selected })
+    mediaRecorder = recorder
+    voiceChunks = []
+    discardRecording = false
+    recorder.ondataavailable = event => { if (event.data.size > 0) voiceChunks.push(event.data) }
+    recorder.onstop = () => {
+      if (recordingTimer) { clearInterval(recordingTimer); recordingTimer = null }
+      stream.getTracks().forEach(track => track.stop())
+      microphoneStream = null
+      recording.value = false
+      if (discardRecording || !active) return
+      const mime = recorder.mimeType.split(';')[0] || selected.split(';')[0]
+      const blob = new Blob(voiceChunks, { type: mime })
+      if (blob.size > 2_500_000 || blob.size < 16) {
+        error.value = 'La grabación no cumple el límite de 2,5 MB. Grabá una nota más corta.'
+        return
+      }
+      clearOutgoingImage()
+      clearOutgoingAudio()
+      outgoingAudio.value = { blob, previewUrl: URL.createObjectURL(blob), seconds: recordingSeconds.value }
+    }
+    recorder.start(400)
+    recording.value = true
+    recordingSeconds.value = 0
+    const started = Date.now()
+    recordingTimer = setInterval(() => {
+      recordingSeconds.value = Math.floor((Date.now() - started) / 1000)
+      if (recordingSeconds.value >= 45) stopRecording()
+    }, 500)
+  } catch (cause) {
+    microphoneStream?.getTracks().forEach(track => track.stop())
+    microphoneStream = null
+    mediaRecorder = null
+    recording.value = false
+    error.value = cause instanceof Error ? cause.message : 'No se pudo iniciar el micrófono.'
+  }
+}
+async function uploadAudio(blob: Blob): Promise<string> {
+  const response = await fetch('/api/admin/chat/audio', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { 'Content-Type': blob.type, 'X-Chat-Media': '1' }, body: blob
+  })
+  if (!response.ok) throw new Error(response.status === 413
+    ? 'El audio supera el tamaño permitido.' : 'No se pudo subir el audio.')
+  const data = await response.json() as { audioId: string }
+  if (!data.audioId) throw new Error('Respuesta inválida al subir el audio.')
+  return data.audioId
 }
 function closeViewer() {
   if (imageViewer.value?.objectUrl) URL.revokeObjectURL(imageViewer.value.objectUrl)
@@ -241,6 +372,7 @@ function viewerKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') {
     if (imageViewer.value) closeViewer()
     reactionPickerId.value = null
+    stickerTrayOpen.value = false
   }
 }
 async function openSharedImage(message: ChatMessage) {
@@ -271,6 +403,7 @@ async function openSharedImage(message: ChatMessage) {
 }
 function toggleReactionPicker(id: string) {
   reactionPickerId.value = reactionPickerId.value === id ? null : id
+  if (reactionPickerId.value) stickerTrayOpen.value = false
 }
 async function toggleReaction(id: string, emoji: string) {
   if (connection?.state !== signalR.HubConnectionState.Connected) return
@@ -440,6 +573,7 @@ function onChatClearedForUser(event: { clearedAt: string }) {
   expandedSeenId.value = null
   highlightedId.value = null
   reactionPickerId.value = null
+  stickerTrayOpen.value = false
   closeViewer()
   // Los vistos globales permanecen para los mensajes posteriores y los demás.
   persistLastRead(cutoff)
@@ -447,7 +581,8 @@ function onChatClearedForUser(event: { clearedAt: string }) {
 }
 async function send() {
   const text = draft.value.trim()
-  if ((!text && !outgoingImage.value) || text.length > 500 || sending.value || mediaBusy.value ||
+  if ((!text && !outgoingImage.value && !outgoingAudio.value) || text.length > 500 ||
+      sending.value || mediaBusy.value || recording.value ||
       connection?.state !== signalR.HubConnectionState.Connected) return
   sending.value = true
   error.value = ''
@@ -459,6 +594,14 @@ async function send() {
       const uploaded = await uploadImage(attachment.blob, 'message')
       await connection.invoke('SendMedia', uploaded.imageId, text, target?.id ?? null, attachment.mode)
       clearOutgoingImage()
+      if (attachment.mode === 'sticker') {
+        try { await saveSticker(attachment.blob, uploaded.imageId) }
+        catch { chatNotice.value = 'Sticker enviado. No se pudo guardar en este navegador.' }
+      }
+    } else if (outgoingAudio.value) {
+      const audioId = await uploadAudio(outgoingAudio.value.blob)
+      await connection.invoke('SendVoice', audioId, target?.id ?? null, text)
+      clearOutgoingAudio()
     } else if (target) await connection.invoke('ReplyToMessage', text, target.id)
     else await connection.invoke('SendMessage', text)
     draft.value = ''
@@ -495,13 +638,24 @@ function onVisibility() {
   if (!canSendTyping()) stopTyping()
   if (canMarkRead()) { scrollBottom(); markVisibleRead() }
 }
-watch(() => props.visible, showing => { if (showing) onVisibility(); else { stopTyping(); closeViewer(); reactionPickerId.value = null } })
+watch(() => props.visible, showing => {
+  if (showing) onVisibility()
+  else {
+    stopTyping()
+    stopRecording(true)
+    void stopCamera()
+    closeViewer()
+    reactionPickerId.value = null
+    stickerTrayOpen.value = false
+  }
+})
 onMounted(() => {
   if (authState.user?.role !== 'administrador' || authState.previewRole) {
     status.value = 'Requiere una sesión administradora real.'
     return
   }
   initializeLastRead()
+  void loadStickers()
   typingSweepTimer = setInterval(() => {
     const now = Date.now()
     typingClock.value = now
@@ -524,6 +678,7 @@ onMounted(() => {
     .configureLogging(signalR.LogLevel.Error)
     .build()
   connection = hub
+  bindCameraHub(hub)
   hub.on('ChatProfile', (profile: { displayName: string; customName: string | null }) => {
     if (!active) return
     nickname.value = savedNickname() ?? profile.customName ?? ''
@@ -577,12 +732,16 @@ onMounted(() => {
   hub.onreconnecting(() => {
     status.value = 'Reconectando…'
     stopTyping()
+    stopRecording(true)
+    void cleanupCameras(false)
     remoteTyping.value = {}
   })
   hub.onreconnected(() => { status.value = 'En línea'; markVisibleRead() })
   hub.onclose(() => {
     status.value = 'Desconectado'
     stopTyping()
+    stopRecording(true)
+    void cleanupCameras(false)
     remoteTyping.value = {}
     scheduleRetry()
   })
@@ -592,7 +751,11 @@ onUnmounted(() => {
   active = false
   emit('unread-change', 0)
   stopTyping()
+  stopRecording(true)
+  void cleanupCameras(true)
   clearOutgoingImage()
+  clearOutgoingAudio()
+  releasePreviews()
   closeViewer()
   if (typingSweepTimer) clearInterval(typingSweepTimer)
   if (retryTimer) clearTimeout(retryTimer)
@@ -705,9 +868,13 @@ onUnmounted(() => {
             :disabled="isOwn(message) || message.imageViewed || viewingImageId === message.id"
             :aria-label="message.imageViewed ? 'Foto ya vista' : 'Abrir foto de una sola visualización'"
             @click="openSharedImage(message)">
-            <span aria-hidden="true">🔒</span>
+            <LockKeyhole :size="22" aria-hidden="true" />
             <span>{{ isOwn(message) ? 'Foto de una vez enviada' : message.imageViewed ? 'Foto ya vista' : viewingImageId === message.id ? 'Abriendo…' : 'Ver foto una vez' }}</span>
           </button>
+          <audio v-if="message.audioUrl?.startsWith('/api/admin/chat/audio/')" class="team-chat__audio-player"
+            controls preload="none" :src="message.audioUrl" :aria-label="'Audio de ' + displayName(message)">
+            Tu navegador no permite reproducir este audio.
+          </audio>
           <div v-if="message.reactions?.length" class="team-chat__reactions" aria-label="Reacciones al mensaje">
             <button v-for="reaction in message.reactions" :key="reaction.emoji" type="button"
               :class="{ 'is-mine': reactedByMe(reaction) }"
@@ -731,19 +898,52 @@ onUnmounted(() => {
             :aria-expanded="reactionPickerId === message.id"
             :aria-label="'Reaccionar al mensaje de ' + displayName(message)"
             title="Reaccionar" :disabled="status !== 'En línea'"
-            @click="toggleReactionPicker(message.id)">☺</button>
-          <div v-if="reactionPickerId === message.id" class="team-chat__reaction-picker"
-            role="group" aria-label="Elegir reacción">
-            <button v-for="emoji in reactionChoices" :key="emoji" type="button"
-              :aria-label="'Reaccionar con ' + emoji"
-              @click="toggleReaction(message.id, emoji)">{{ emoji }}</button>
-          </div>
+            @click="toggleReactionPicker(message.id)"><SmilePlus :size="18" /></button>
+          <button v-if="message.isSticker && message.imageId" class="team-chat__reply-action" type="button"
+            :disabled="stickerBusy || savedSources.has(message.imageId)"
+            :title="savedSources.has(message.imageId) ? 'Sticker guardado' : 'Guardar sticker en mi colección'"
+            :aria-label="savedSources.has(message.imageId) ? 'Sticker guardado' : 'Guardar este sticker'"
+            @click="saveMessageSticker(message)"><BookmarkPlus :size="17" /></button>
         </div>
       </div>
       <div v-if="typingNames.length" class="team-chat__typing" role="status" aria-live="polite" aria-atomic="true">
         <span class="team-chat__typing-dots" aria-hidden="true"><i></i><i></i><i></i></span>
         <span class="team-chat__typing-name">{{ typingLabel }}</span>
       </div>
+    </div>
+    <div v-if="reactionPickerId" class="team-chat__emoji-tray" role="group" aria-label="Reacciones con emojis">
+      <div class="team-chat__tray-head">
+        <strong>Elegí un emoji para reaccionar</strong>
+        <button type="button" aria-label="Cerrar emojis" @click="reactionPickerId = null"><X :size="17" /></button>
+      </div>
+      <div class="team-chat__emoji-grid">
+        <button v-for="emoji in reactionChoices" :key="emoji" type="button"
+          :aria-label="'Reaccionar con ' + emoji"
+          @click="toggleReaction(reactionPickerId!, emoji)"><span>{{ emoji }}</span></button>
+      </div>
+    </div>
+    <div v-if="stickerTrayOpen" class="team-chat__sticker-tray">
+      <div class="team-chat__tray-head">
+        <strong>Mis stickers</strong>
+        <button type="button" aria-label="Cerrar stickers" @click="stickerTrayOpen = false"><X :size="17" /></button>
+      </div>
+      <div class="team-chat__sticker-grid">
+        <button type="button" class="team-chat__new-sticker"
+          :disabled="status !== 'En línea' || mediaBusy" @click="pickImage('sticker')">
+          <Plus :size="21" /><span>Subir sticker</span>
+        </button>
+        <div v-for="saved in savedStickers" :key="saved.id" class="team-chat__saved-sticker">
+          <button type="button" :title="'Usar sticker guardado'"
+            :disabled="status !== 'En línea' || mediaBusy" @click="useSavedSticker(saved)">
+            <img :src="saved.previewUrl" alt="Sticker guardado" />
+          </button>
+          <button type="button" class="team-chat__remove-sticker" title="Quitar de mis stickers"
+            aria-label="Borrar sticker guardado" @click="removeSavedSticker(saved)"><X :size="13" /></button>
+        </div>
+      </div>
+      <p v-if="!savedStickers.length">Todavía no guardaste stickers. Subí uno o guardá uno del chat.</p>
+      <p v-if="stickerError" role="alert">{{ stickerError }}</p>
+      <small>Hasta 32 stickers por cuenta, guardados en este navegador. No se sincronizan con otras computadoras.</small>
     </div>
     <div v-if="replyTarget" class="team-chat__reply-banner" role="status">
       <div class="team-chat__reply-banner-copy">
@@ -757,8 +957,17 @@ onUnmounted(() => {
       <span>{{ outgoingImage.mode === 'sticker' ? 'Sticker con foto · mantiene transparencia si la imagen la tiene' : outgoingImage.mode === 'once' ? 'Foto para ver una vez · no se guarda en la galería del chat' : 'Imagen adjunta · podés agregar un texto' }}</span>
       <button v-if="outgoingImage.mode !== 'sticker'" type="button"
         class="team-chat__once-toggle" :aria-pressed="outgoingImage.mode === 'once'"
-        @click="toggleViewOnce">{{ outgoingImage.mode === 'once' ? '✓ Ver una vez' : '🔒 Ver una vez' }}</button>
+        @click="toggleViewOnce"><LockKeyhole :size="14" />{{ outgoingImage.mode === 'once' ? '✓ Ver una vez' : 'Ver una vez' }}</button>
       <button type="button" aria-label="Quitar imagen adjunta" title="Quitar imagen" @click="clearOutgoingImage">✕</button>
+    </div>
+    <div v-if="outgoingAudio" class="team-chat__audio-preview" role="status">
+      <Mic :size="18" /><audio :src="outgoingAudio.previewUrl" controls preload="metadata" aria-label="Escuchar audio antes de enviarlo" />
+      <button type="button" aria-label="Descartar grabación" @click="clearOutgoingAudio"><X :size="17" /></button>
+    </div>
+    <div v-if="recording" class="team-chat__recording" role="status">
+      <span class="team-chat__recording-dot" aria-hidden="true"></span>
+      Grabando audio · {{ recordingSeconds }} s de 45 s
+      <button type="button" @click="stopRecording(true)">Descartar</button>
     </div>
     <form class="team-chat__composer" @submit.prevent="send">
       <input ref="imagePicker" type="file" class="sr-only" accept="image/jpeg,image/png,image/webp"
@@ -769,18 +978,50 @@ onUnmounted(() => {
       </button>
       <button type="button" class="team-chat__attach team-chat__sticker-attach"
         :disabled="status !== 'En línea' || mediaBusy || sending"
-        aria-label="Enviar foto como sticker" title="Adjuntar foto como sticker"
-        @click="pickImage('sticker')">🏷️</button>
+        aria-label="Abrir stickers guardados" title="Stickers guardados"
+        :aria-expanded="stickerTrayOpen"
+        @click="toggleStickerTray"><Sticker :size="19" /></button>
+      <button type="button" class="team-chat__attach team-chat__mic-attach"
+        :disabled="status !== 'En línea' || sending || mediaBusy"
+        :aria-label="recording ? 'Detener grabación de audio' : 'Grabar mensaje de voz'"
+        :title="recording ? 'Detener grabación' : 'Grabar audio'"
+        @click="recording ? stopRecording() : startRecording()">
+        <Square v-if="recording" :size="17" fill="currentColor" />
+        <Mic v-else :size="19" />
+      </button>
       <label class="sr-only" for="team-chat-input">Escribir mensaje</label>
       <input id="team-chat-input" ref="input" v-model="draft" maxlength="500" autocomplete="off"
         placeholder="Escribí un mensaje al equipo…" :disabled="status !== 'En línea'"
         @input="onDraftInput" @blur="stopTyping" />
-      <button type="submit" :disabled="status !== 'En línea' || (!draft.trim() && !outgoingImage) || sending || mediaBusy">
+      <button type="submit" :disabled="status !== 'En línea' || (!draft.trim() && !outgoingImage && !outgoingAudio) || sending || mediaBusy || recording">
         {{ sending ? 'Enviando…' : 'Enviar ↗' }}
       </button>
     </form>
     <p v-if="error" class="team-chat__error" role="alert">{{ error }}</p>
     <p class="team-chat__foot">Solo administradores autenticados · {{ messages.length }} mensajes en este historial temporal.</p>
+    </section>
+    <section class="team-chat__camera-panel" aria-label="Cámaras del equipo">
+      <div class="team-chat__camera-header">
+        <div><strong><Video :size="18" /> Cámaras del equipo</strong>
+          <p>Video en directo entre administradores. Activación individual, sin grabación en el servidor.</p>
+        </div>
+        <button type="button" :disabled="cameraBusy || status !== 'En línea'"
+          @click="cameraStream ? stopCamera() : startCamera()">
+          <VideoOff v-if="cameraStream" :size="18" />
+          <Video v-else :size="18" />
+          {{ cameraBusy ? 'Activando…' : cameraStream ? 'Apagar mi cámara' : 'Encender mi cámara' }}
+        </button>
+      </div>
+      <div v-if="cameraStream || cameraTiles.length" class="team-chat__camera-grid">
+        <ChatCameraTile v-if="cameraStream" :stream="cameraStream"
+          :name="chatNames[currentUserId] || authState.user?.nombre || 'Mi cámara'" self />
+        <ChatCameraTile v-for="tile in cameraTiles" :key="tile.connectionId"
+          :stream="tile.stream" :name="tile.name" />
+      </div>
+      <p v-else class="team-chat__camera-empty">No hay cámaras activas en este momento.</p>
+      <p v-if="cameraError" role="alert" class="team-chat__camera-error">{{ cameraError }}</p>
+      <small v-if="!cameraSupported">Para activar cámara o micrófono desde otra computadora, se necesita una conexión HTTPS segura.</small>
+      <small v-else>Las cámaras funcionan mejor dentro de la misma red. Fuera de ella puede ser necesario un servidor TURN.</small>
     </section>
     <div v-if="imageViewer" class="team-chat__lightbox" role="dialog" aria-modal="true"
       :aria-label="imageViewer.title" @click.self="closeViewer">
@@ -1433,6 +1674,173 @@ onUnmounted(() => {
   .team-chat__actions .team-chat__reply-action { width: 26px; height: 28px; font-size: 17px; }
   .team-chat__media-preview { flex-wrap: wrap; }
   .team-chat__lightbox-panel img { max-height: calc(90dvh - 125px); }
+}
+
+
+/* Unified control icons: real line icons, never platform-dependent emoji glyphs. */
+.team-chat__actions .team-chat__reply-action,
+.team-chat__composer .team-chat__attach {
+  display: inline-grid; place-items: center; line-height: 0;
+}
+.team-chat__actions .team-chat__reply-action svg,
+.team-chat__composer .team-chat__attach svg {
+  display: block; margin: auto; flex-shrink: 0;
+}
+.team-chat__once-button svg { flex-shrink: 0; }
+.team-chat__media-preview .team-chat__once-toggle {
+  display: inline-flex; justify-content: center; align-items: center; gap: 5px;
+}
+
+/* The emoji selector lives above the composer, inside the chat panel.
+   This avoids clipping under the message scroller on mobile. */
+.team-chat__emoji-tray, .team-chat__sticker-tray {
+  border: 1px solid var(--chat-line); border-radius: 14px;
+  background: var(--chat-bg); color: var(--chat-text);
+  padding: 11px; margin: 0 0 10px; box-shadow: 0 6px 20px rgba(0,0,0,.08);
+}
+.team-chat__tray-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-bottom: 9px; font-size: 13px;
+}
+.team-chat__tray-head button {
+  display: grid; place-items: center; width: 31px; height: 31px;
+  border: 1px solid var(--chat-line); border-radius: 9px;
+  background: var(--chat-soft); color: var(--chat-text); cursor: pointer;
+}
+.team-chat__emoji-grid {
+  display: grid; grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 4px; max-height: 190px; overflow-y: auto; overscroll-behavior: contain;
+  padding: 5px; scrollbar-width: thin;
+}
+.team-chat__emoji-grid button {
+  aspect-ratio: 1; display: grid; place-items: center;
+  min-width: 0; padding: 0; border: 1px solid transparent;
+  border-radius: 8px; background: transparent; cursor: pointer;
+}
+.team-chat__emoji-grid button span {
+  display: grid; place-items: center; width: 100%; height: 100%;
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+  font-size: clamp(18px, 2vw, 25px); line-height: 1; text-align: center;
+}
+.team-chat__emoji-grid button:hover, .team-chat__emoji-grid button:focus-visible {
+  background: var(--chat-soft); border-color: var(--chat-accent); outline: none;
+}
+.team-chat__sticker-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 8px; max-height: 232px; overflow-y: auto; overscroll-behavior: contain;
+  padding: 4px;
+}
+.team-chat__new-sticker {
+  min-height: 86px; border: 1px dashed var(--chat-accent); border-radius: 11px;
+  background: var(--chat-soft); color: var(--chat-accent);
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 6px; font: inherit; font-size: 11px; cursor: pointer;
+}
+.team-chat__new-sticker:disabled { opacity: .5; cursor: not-allowed; }
+.team-chat__saved-sticker { position: relative; min-width: 0; }
+.team-chat__saved-sticker > button:first-child {
+  display: grid; place-items: center; width: 100%; height: 86px;
+  border: 1px solid var(--chat-line); border-radius: 11px;
+  background: var(--chat-soft); cursor: pointer;
+}
+.team-chat__saved-sticker img {
+  display: block; max-width: 93%; max-height: 75px;
+  width: auto; height: auto; object-fit: contain;
+}
+.team-chat__saved-sticker > .team-chat__remove-sticker {
+  position: absolute; right: 0; top: 0; width: 22px; height: 22px;
+  display: grid; place-items: center; border: 1px solid var(--chat-line);
+  border-radius: 0 10px 0 8px; background: var(--chat-bg);
+  color: var(--chat-accent); cursor: pointer;
+}
+.team-chat__sticker-tray p, .team-chat__sticker-tray small {
+  display: block; margin: 9px 3px 0; font-size: 11px;
+  color: var(--chat-muted);
+}
+.team-chat__sticker-tray p[role="alert"] { color: var(--chat-accent); }
+.team-chat__audio-player {
+  width: min(290px, 100%); max-width: 100%; height: 41px;
+  display: block; margin-top: 8px;
+}
+.team-chat__audio-preview {
+  display: flex; align-items: center; gap: 8px;
+  border: 1px solid var(--chat-line); border-radius: 12px;
+  background: var(--chat-soft); padding: 10px; margin: 0 0 9px;
+  color: var(--chat-accent);
+}
+.team-chat__audio-preview audio { flex: 1; min-width: 0; height: 38px; }
+.team-chat__audio-preview > button {
+  display: grid; place-items: center; flex: 0 0 auto;
+  border: 1px solid var(--chat-line); border-radius: 8px;
+  background: transparent; color: var(--chat-text); height: 34px; width: 34px;
+  cursor: pointer;
+}
+.team-chat__recording {
+  display: flex; align-items: center; gap: 9px;
+  margin: 0 0 9px; color: var(--chat-accent); font-size: 12px;
+}
+.team-chat__recording-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #e31c42; box-shadow: 0 0 0 4px rgba(227,28,66,.12);
+}
+.team-chat__recording button {
+  margin-left: auto; border: 1px solid var(--chat-line); border-radius: 9px;
+  color: var(--chat-text); background: transparent; padding: 7px 10px;
+  font: inherit; cursor: pointer;
+}
+.team-chat__camera-panel {
+  box-sizing: border-box; margin: 14px 0 32px; padding: 16px 18px;
+  border-radius: 18px; border: 1px solid var(--manager-line, #ded9dc);
+  background: var(--manager-card, #fff); color: var(--manager-ink, #20242b);
+}
+.team-chat__camera-header {
+  display: flex; flex-wrap: wrap; gap: 12px;
+  align-items: center; justify-content: space-between;
+}
+.team-chat__camera-header strong {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 15px; color: inherit;
+}
+.team-chat__camera-header p, .team-chat__camera-empty,
+.team-chat__camera-panel > small {
+  margin: 6px 0; color: var(--manager-muted, #687080); font-size: 12px; line-height: 1.5;
+}
+.team-chat__camera-header button {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 37px; border: 1px solid var(--manager-accent, #b20c2a);
+  border-radius: 10px; background: var(--manager-accent, #b20c2a);
+  color: #fff; padding: 8px 13px; font: inherit; font-size: 12px;
+  font-weight: 750; cursor: pointer;
+}
+.team-chat__camera-header button:disabled { opacity: .5; cursor: not-allowed; }
+.team-chat__camera-grid {
+  display: flex; flex-wrap: wrap; gap: 10px; margin: 15px 0 8px;
+}
+.team-chat__camera-error { color: #e02045; font-size: 12px; }
+:global(html.theme-dark .administration-page .team-chat__camera-panel) {
+  background: #211b20; color: #fff; border-color: #565057;
+}
+:global(html.theme-dark .administration-page .team-chat__camera-panel p),
+:global(html.theme-dark .administration-page .team-chat__camera-panel small) { color: #d2ced5; }
+:global(html.theme-dark .administration-page .team-chat__camera-header button) {
+  background: #c51b3c !important; color: #fff !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__emoji-tray),
+:global(html.theme-dark .administration-page .team-chat .team-chat__sticker-tray),
+:global(html.theme-dark .administration-page .team-chat .team-chat__audio-preview) {
+  background: #211b20 !important; color: #fff !important; border-color: #565057 !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__emoji-grid button:hover),
+:global(html.theme-dark .administration-page .team-chat .team-chat__saved-sticker > button:first-child) {
+  background: #352b35 !important;
+}
+@media (max-width: 600px) {
+  .team-chat__emoji-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  .team-chat__camera-panel { padding: 12px; }
+  .team-chat__camera-header button { width: 100%; }
+  .team-chat__camera-grid > * { flex-basis: 45%; min-width: 130px; }
+  .team-chat__composer { gap: 5px; }
+  .team-chat__composer .team-chat__attach { width: 31px; height: 35px; }
 }
 
 </style>

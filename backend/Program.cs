@@ -101,9 +101,12 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("admin", policy => policy.RequireRole("admin"));
     options.AddPolicy("registered", policy => policy.RequireRole("client", "admin"));
 });
-builder.Services.AddSignalR(options => { options.EnableDetailedErrors = false; options.MaximumReceiveMessageSize = 4 * 1024; });
+// WebRTC SDP signaling can exceed the old 4 KB chat message limit; every hub
+// method validates its own input lengths. Camera frames never pass through SignalR.
+builder.Services.AddSignalR(options => { options.EnableDetailedErrors = false; options.MaximumReceiveMessageSize = 32 * 1024; });
 builder.Services.AddSingleton<ContentUpdatesPublisher>();
 builder.Services.AddSingleton<AdminChatMediaStore>();
+builder.Services.AddSingleton<AdminChatAudioStore>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<QuoteService>();
 builder.Services.AddScoped<AssistantService>();
@@ -585,5 +588,6 @@ app.MapHub<ContentUpdatesHub>(ContentUpdatesHub.Path);
 // Chat experimental exclusivo para administradores autenticados.
 app.MapHub<AdminChatHub>(AdminChatHub.Path).RequireAuthorization("admin");
 app.MapAdminChatMedia();
+app.MapAdminChatAudio();
 
 app.Run();
