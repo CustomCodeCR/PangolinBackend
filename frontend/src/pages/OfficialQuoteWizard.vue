@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import type { Component } from 'vue'
+import { Boxes, ClipboardList, FileCheck2, FileText, Globe2, HandTruck, Package, PackageCheck, ShieldCheck, Ship, Truck, Warehouse } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
@@ -150,6 +152,21 @@ function handleLocationKeydown(field: LocationField, event: KeyboardEvent) {
 }
 const incoterms = ['EXW','FCA','FAS','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP']
 const serviceOptions = ['Transporte internacional','Agencia de Aduanas CR','Agencia de Aduanas Exterior','Almacenamiento','Control de inventario','Embalaje','Exoneración','Picking Carga','Recepción de carga','Seguro de carga','Transporte entrega','Transporte recolección','Transporte nacional']
+const serviceIcons: Record<string, Component> = {
+  'Transporte internacional': Globe2,
+  'Agencia de Aduanas CR': FileCheck2,
+  'Agencia de Aduanas Exterior': Ship,
+  'Almacenamiento': Warehouse,
+  'Control de inventario': Boxes,
+  'Embalaje': Package,
+  'Exoneración': FileText,
+  'Picking Carga': HandTruck,
+  'Recepción de carga': PackageCheck,
+  'Seguro de carga': ShieldCheck,
+  'Transporte entrega': Truck,
+  'Transporte recolección': Truck,
+  'Transporte nacional': Truck
+}
 const cargoFlagOptions = ['Carga peligrosa','No estibable','Sobrepeso']
 const visibleCargoFlagOptions = computed(() => shipmentType.value === 'FCL' ? cargoFlagOptions.filter(flag => flag !== 'No estibable') : cargoFlagOptions)
 watch(() => shipmentType.value === 'FCL', (isFullContainer) => {
@@ -462,7 +479,17 @@ async function submit() {
                 </div>
               </template>
             </div>
-            <div class="official-nested"><h3>{{ q('Servicios', 'Services') }}</h3><p class="official-hint">{{ q('Transporte internacional viene marcado inicialmente. Podés quitarlo o seleccionar varios servicios, pero debe quedar al menos uno.', 'International transportation is selected by default. You can remove it or select multiple services, but at least one must remain.') }}</p><div class="official-checks"><label v-for="s in serviceOptions" :key="s"><input type="checkbox" :checked="form.services.includes(s)" @change="toggle(form.services,s)" />{{ displayService(s) }}</label></div>
+            <div class="official-nested official-services-section">
+              <h3>{{ q('Servicios', 'Services') }}</h3>
+              <p class="official-hint">{{ q('Transporte internacional viene marcado inicialmente. Podés quitarlo o seleccionar varios servicios, pero debe quedar al menos uno.', 'International transportation is selected by default. You can remove it or select multiple services, but at least one must remain.') }}</p>
+              <div class="official-service-grid">
+                <label v-for="s in serviceOptions" :key="s" class="official-service-card" :class="{ 'official-service-card--selected': form.services.includes(s) }">
+                  <input type="checkbox" :checked="form.services.includes(s)" @change="toggle(form.services, s)" />
+                  <span class="official-service-icon" aria-hidden="true"><component :is="serviceIcons[s]" :size="22" :stroke-width="1.8" /></span>
+                  <span class="official-service-name">{{ displayService(s) }}</span>
+                  <span class="official-service-state" aria-hidden="true"><IconSymbol v-if="form.services.includes(s)" glyph="✓" :size="15" /></span>
+                </label>
+              </div>
               <div v-if="form.services.includes('Almacenamiento') || form.services.includes('Transporte entrega') || form.services.includes('Transporte recolección')" class="official-fields">
                 <label v-if="form.services.includes('Almacenamiento')">{{ q('Días de almacenaje fiscal', 'Fiscal storage days') }} <span>*</span><input v-model.number="form.fiscalStorageDays" type="number" min="1" max="36500" step="1" /></label>
                 <label v-if="form.services.includes('Transporte entrega')" class="full">{{ q('Dirección de entrega', 'Delivery address') }} <span>*</span><textarea v-model.trim="form.deliveryAddress" rows="3" maxlength="800" :placeholder="q('Escribí la dirección de entrega', 'Enter the delivery address')"></textarea></label>
@@ -1781,6 +1808,112 @@ html.theme-dark .app-site.official-page .official-incoterm-options {
   .app-site.official-page .official-location-combobox input {
     font-size:16px !important;
   }
+}
+
+/* Compact service tiles: only the quote service selector, not cargo flags. */
+.app-site.official-page .official-service-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+  gap: 11px;
+  margin: 18px 0 22px;
+}
+.app-site.official-page .official-service-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 70px;
+  gap: 11px;
+  padding: 12px;
+  border: 1px solid #d7d6df;
+  border-radius: 13px;
+  background: #fff;
+  color: #272a36;
+  cursor: pointer;
+  transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
+}
+.app-site.official-page .official-service-card:hover { border-color: #a80e18; }
+.app-site.official-page .official-service-card--selected {
+  border-color: #b20c2d;
+  background: #fff2f4;
+  box-shadow: inset 0 0 0 1px rgba(178, 12, 45, .14);
+}
+.app-site.official-page .official-service-card:focus-within {
+  outline: 2px solid #c51a38;
+  outline-offset: 3px;
+}
+.app-site.official-page .official-service-card > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.app-site.official-page .official-service-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 36px;
+  height: 36px;
+  border: 1px solid rgba(168,14,24,.15);
+  border-radius: 9px;
+  background: rgba(168,14,24,.045);
+  color: #a80e18;
+}
+.app-site.official-page .official-service-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.app-site.official-page .official-service-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 19px;
+  width: 19px;
+  height: 19px;
+  border: 1px solid #9298a7;
+  border-radius: 5px;
+}
+.app-site.official-page .official-service-card--selected .official-service-state {
+  color: #fff;
+  border-color: #b20c2d;
+  background: #b20c2d;
+}
+html.theme-dark .app-site.official-page .official-service-card {
+  color: #f5f5f8 !important;
+  background: rgba(12,20,38,.57) !important;
+  border-color: rgba(153,165,189,.32) !important;
+}
+html.theme-dark .app-site.official-page .official-service-card:hover { border-color: #e04255 !important; }
+html.theme-dark .app-site.official-page .official-service-card--selected {
+  background: rgba(126,18,39,.25) !important;
+  border-color: #e22d48 !important;
+  box-shadow: inset 0 0 0 1px rgba(226,45,72,.12);
+}
+html.theme-dark .app-site.official-page .official-service-icon {
+  color: #ff6b80;
+  background: rgba(255,255,255,.035);
+  border-color: rgba(255,255,255,.12);
+}
+html.theme-dark .app-site.official-page .official-service-state { border-color: #7f889b; }
+html.theme-dark .app-site.official-page .official-service-card--selected .official-service-state {
+  background: #c70d2b;
+  border-color: #c70d2b;
+}
+@media (max-width: 650px) {
+  .app-site.official-page .official-service-grid { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 9px; }
+  .app-site.official-page .official-service-card { min-height: 66px; padding: 10px; gap: 8px; }
+  .app-site.official-page .official-service-icon { flex-basis: 32px; height: 32px; }
+}
+@media (max-width: 440px) {
+  .app-site.official-page .official-service-grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-site.official-page .official-service-card { transition: none; }
 }
 </style>
 
