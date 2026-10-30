@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { ChevronDown } from '@lucide/vue'
 import { authState } from '../services/auth'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import { subscribeToChanges } from '../services/realtime'
@@ -314,7 +315,7 @@ onMounted(load)
             :aria-expanded="featuredReelExpanded" aria-controls="featured-reel-content"
             :aria-label="featuredReelExpanded ? 'Contraer Reel de Instagram' : 'Expandir Reel de Instagram'"
             @click="featuredReelExpanded = !featuredReelExpanded">
-            <span aria-hidden="true">{{ featuredReelExpanded ? '⌃' : '⌄' }}</span>
+            <ChevronDown :size="18" :stroke-width="2" class="visual-editor__collapse-icon" aria-hidden="true" />
           </button>
         </div>
       </header>
@@ -663,8 +664,10 @@ html.theme-dark .app-site.administration-page .visual-editor .visual-editor__lib
   display: inline-grid; place-items: center; width: 36px; height: 36px;
   min-width: 36px; padding: 0; border: 1px solid currentColor;
   border-radius: 10px; background: transparent; color: inherit;
-  cursor: pointer; font-size: 24px; line-height: 1;
+  cursor: pointer; line-height: 1;
 }
+.visual-editor__featured-reel .visual-editor__collapse-icon { display: block; transition: transform .18s ease; }
+.visual-editor__featured-reel .visual-editor__collapse-toggle[aria-expanded="true"] .visual-editor__collapse-icon { transform: rotate(180deg); }
 .visual-editor__featured-reel .visual-editor__collapse-toggle:hover { background: rgba(128,128,128,.12); }
 .visual-editor__featured-reel .visual-editor__collapse-toggle:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 </style>
