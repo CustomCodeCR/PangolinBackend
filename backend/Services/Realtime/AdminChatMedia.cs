@@ -1,4 +1,5 @@
 using CastroFallas.MiniQuote.Api.Services.Auth;
+using Microsoft.AspNetCore.SignalR;
 
 namespace CastroFallas.MiniQuote.Api.Services.Realtime;
 
