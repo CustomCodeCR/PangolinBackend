@@ -188,24 +188,22 @@ onUnmounted(() => {
           <div class="home-social-switcher" :class="{ 'is-facebook': isFacebook }"
             role="tablist" :aria-label="t('custom.home.socialSelect')">
             <button class="home-social-switcher__button home-social-switcher__instagram"
-              :class="{ 'is-active': !isFacebook }" type="button" role="tab"
+              :class="{ 'is-active': !isFacebook }" type="button" role="tab" aria-label="Instagram"
               :aria-selected="!isFacebook" aria-controls="social-featured-video"
               :tabindex="isFacebook ? -1 : 0"
               @click="switchNetwork('instagram')"
               @keydown.down.prevent="switchNetwork('facebook')"
               @keydown.right.prevent="switchNetwork('facebook')">
               <InstagramGlyph :size="39" :stroke-width="1.9" aria-hidden="true" />
-              <span class="sr-only">Instagram</span>
             </button>
             <button class="home-social-switcher__button home-social-switcher__facebook"
-              :class="{ 'is-active': isFacebook }" type="button" role="tab"
+              :class="{ 'is-active': isFacebook }" type="button" role="tab" aria-label="Facebook"
               :aria-selected="isFacebook" aria-controls="social-featured-video"
               :tabindex="isFacebook ? 0 : -1"
               @click="switchNetwork('facebook')"
               @keydown.up.prevent="switchNetwork('instagram')"
               @keydown.left.prevent="switchNetwork('instagram')">
-              <FacebookGlyph :size="39" :stroke-width="1.9" aria-hidden="true" />
-              <span class="sr-only">Facebook</span>
+              <FacebookGlyph :size="39" aria-hidden="true" />
             </button>
           </div>
           <Transition name="social-copy" mode="out-in">
@@ -502,7 +500,7 @@ onUnmounted(() => {
 }
 .home-social-switcher__button:focus-visible { outline: 3px solid #e43774; outline-offset: 3px; }
 .home-social-switcher__instagram { color: #a10861; transform: translateY(0) scale(1); }
-.home-social-switcher__facebook { color: #1877f2; transform: translateY(91px) scale(.83); }
+.home-social-switcher__facebook { color: #a7a1b1; transform: translateY(91px) scale(.83); }
 .home-social-switcher.is-facebook .home-social-switcher__instagram { transform: translateY(91px) scale(.83); }
 .home-social-switcher.is-facebook .home-social-switcher__facebook { transform: translateY(0) scale(1); }
 .home-social-switcher__instagram.is-active { color: #fff; opacity: 1; background: linear-gradient(135deg,#bd233f,#83045f); }
