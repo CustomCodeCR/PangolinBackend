@@ -3,15 +3,17 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import * as signalR from '@microsoft/signalr'
 import IconSymbol from './IconSymbol.vue'
 import ChatCameraTile from './ChatCameraTile.vue'
-import { Sticker, LockKeyhole, SmilePlus, Mic, Video, VideoOff, Square, Plus, BookmarkPlus, X } from '@lucide/vue'
+import { Sticker, LockKeyhole, SmilePlus, Mic, Video, VideoOff, Square, Plus, BookmarkPlus, ShieldBan, UserX, X } from '@lucide/vue'
 import { useAdminChatCameras } from '../composables/useAdminChatCameras'
 import { useChatStickerLibrary, type StickerPreview } from '../composables/useChatStickerLibrary'
 import { authState } from '../services/auth'
 
-interface ChatReply { id: string; name: string; text: string }
+interface ChatReply { id: string; name: string; text: string; userId?: string }
 type ImageMode = 'image' | 'once' | 'sticker'
 interface ChatReaction { emoji: string; userIds: string[]; userNames?: string[] }
-interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null; imageUrl?: string | null; imageId?: string | null; isViewOnce?: boolean; isSticker?: boolean; imageViewed?: boolean; reactions?: ChatReaction[]; audioUrl?: string | null }
+interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null; imageUrl?: string | null; imageId?: string | null; isViewOnce?: boolean; isSticker?: boolean; imageViewed?: boolean; reactions?: ChatReaction[]; audioUrl?: string | null; isSystem?: boolean }
+interface BlockedAccount { userId: string; name: string }
+interface ChatBlockNotice { id: string; actorId: string; actorName: string; targetId: string; targetName: string; blocked: boolean; sentAt: string }
 interface ChatMediaUpload { imageId: string; url: string }
 interface ReadReceipt { userId: string; name: string; lastReadAt: string }
 interface TypingStatus { connectionId: string; userId: string; name: string; isTyping: boolean; expiresAt: string; updatedAt: string }
@@ -19,6 +21,11 @@ interface TypingStatus { connectionId: string; userId: string; name: string; isT
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ (event: 'unread-change', count: number): void }>()
 const messages = ref<ChatMessage[]>([])
+const blockedUsers = ref<BlockedAccount[]>([])
+const blockNotices = ref<ChatBlockNotice[]>([])
+const blockedTrayOpen = ref(false)
+const personMenuId = ref<string | null>(null)
+const blockBusyId = ref<string | null>(null)
 const clearedThrough = ref(0)
 const receipts = ref<ReadReceipt[]>([])
 const draft = ref('')
@@ -85,6 +92,20 @@ let active = true
 
 const currentUserId = computed(() => String(authState.user?.id ?? '').toLowerCase())
 const currentEmail = computed(() => (authState.user?.correo ?? '').toLowerCase())
+const blockedUserIds = computed(() => new Set(blockedUsers.value.map(person => person.userId.toLowerCase())))
+const visibleMessages = computed(() =>
+  messages.value.filter(message => !blockedUserIds.value.has(message.userId.toLowerCase())))
+const chatTimeline = computed<ChatMessage[]>(() => [
+  ...visibleMessages.value,
+  ...blockNotices.value.filter(notice => Date.parse(notice.sentAt) > clearedThrough.value)
+    .map(notice => ({
+      id: 'system-' + notice.id, userId: notice.actorId,
+      name: 'Sistema', email: '', sentAt: notice.sentAt, isSystem: true,
+      text: notice.blocked
+        ? notice.actorName + ' bloqueó a ' + notice.targetName + '.'
+        : notice.actorName + ' desbloqueó a ' + notice.targetName + '.'
+    }))
+].sort((a, b) => Date.parse(a.sentAt) - Date.parse(b.sentAt)))
 const { savedStickers, savedSources, stickerError, stickerBusy, loadStickers, saveSticker, removeSticker, releasePreviews } =
   useChatStickerLibrary(() => currentUserId.value)
 const {
@@ -97,7 +118,8 @@ const typingNames = computed(() => {
   const names = new Map<string, string>()
   for (const state of Object.values(remoteTyping.value)) {
     const userId = state.userId.toLowerCase()
-    if (!state.isTyping || userId === currentUserId.value || Date.parse(state.expiresAt) <= typingClock.value) continue
+    if (!state.isTyping || userId === currentUserId.value || blockedUserIds.value.has(userId) ||
+        Date.parse(state.expiresAt) <= typingClock.value) continue
     if (!names.has(userId)) names.set(userId, chatNames.value[userId] || state.name)
   }
   return Array.from(names.values())
@@ -400,6 +422,8 @@ function viewerKeydown(event: KeyboardEvent) {
     reactionPickerId.value = null
     expandedReaction.value = null
     stickerTrayOpen.value = false
+    personMenuId.value = null
+    blockedTrayOpen.value = false
   }
 }
 async function openSharedImage(message: ChatMessage) {
@@ -454,6 +478,40 @@ function showReactionUsers(messageId: string, emoji: string) {
   expandedReaction.value = expandedReaction.value?.messageId === messageId &&
     expandedReaction.value.emoji === emoji ? null : { messageId, emoji }
 }
+function togglePersonMenu(userId: string) {
+  personMenuId.value = personMenuId.value === userId ? null : userId
+  if (personMenuId.value) blockedTrayOpen.value = false
+}
+function setBlockedSnapshot(accounts: BlockedAccount[]) {
+  blockedUsers.value = (accounts ?? []).filter(person =>
+    person.userId?.toLowerCase() !== currentUserId.value)
+  personMenuId.value = null
+  if (replyTarget.value && blockedUserIds.value.has(replyTarget.value.userId.toLowerCase()))
+    replyTarget.value = null
+}
+function addBlockNotice(notice: ChatBlockNotice) {
+  if (!active || !notice?.id || blockNotices.value.some(item => item.id === notice.id)) return
+  if (Date.parse(notice.sentAt) <= clearedThrough.value) return
+  blockNotices.value = [...blockNotices.value.slice(-29), notice]
+  scrollBottom()
+}
+async function setUserBlocked(userId: string, shouldBlock: boolean) {
+  if (!userId || userId.toLowerCase() === currentUserId.value || blockBusyId.value ||
+      connection?.state !== signalR.HubConnectionState.Connected) return
+  const person = blockedUsers.value.find(item => item.userId.toLowerCase() === userId.toLowerCase())
+  const name = person?.name || messages.value.find(item =>
+    item.userId.toLowerCase() === userId.toLowerCase())?.name || 'este administrador'
+  if (shouldBlock && !window.confirm('¿Bloquear a ' + name + '? Dejarás de ver sus mensajes. ' +
+    'La persona recibirá un aviso del sistema con tu nombre y podrás desbloquearla después.')) return
+  blockBusyId.value = userId
+  error.value = ''
+  try {
+    await connection.invoke('SetUserBlocked', userId, shouldBlock)
+    personMenuId.value = null
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : 'No se pudo actualizar el bloqueo.'
+  } finally { blockBusyId.value = null }
+}
 function displayName(message: ChatMessage) {
   return chatNames.value[message.userId.toLowerCase()] || message.name || message.email
 }
@@ -489,7 +547,7 @@ function isOwn(message: ChatMessage) {
   return message.userId.toLowerCase() === currentUserId.value ||
     (!!currentEmail.value && message.email.toLowerCase() === currentEmail.value)
 }
-const unread = computed(() => messages.value.filter(message =>
+const unread = computed(() => visibleMessages.value.filter(message =>
   !isOwn(message) && Date.parse(message.sentAt) > lastReadAt.value
 ).length)
 watch(unread, value => emit('unread-change', value), { immediate: true })
@@ -533,7 +591,7 @@ function scrollEmojiTray(event: WheelEvent) {
 function canMarkRead() { return props.visible && document.visibilityState === 'visible' }
 function markVisibleRead() {
   if (!canMarkRead()) return
-  const newest = messages.value.at(-1)
+  const newest = visibleMessages.value.at(-1)
   if (!newest) return
   persistLastRead(Date.parse(newest.sentAt))
   if (connection?.state === signalR.HubConnectionState.Connected) {
@@ -543,7 +601,8 @@ function markVisibleRead() {
 function receivedMessage(message: ChatMessage) {
   // Un mensaje enviado antes de vaciar esta cuenta no vuelve a aparecer
   // aunque llegue tarde durante una reconexión.
-  if (Date.parse(message.sentAt) <= clearedThrough.value) return
+  if (Date.parse(message.sentAt) <= clearedThrough.value ||
+      blockedUserIds.value.has(message.userId.toLowerCase())) return
   if (messages.value.some(item => item.id === message.id)) return
   chatNotice.value = ''
   messages.value = [...messages.value.slice(-59), message]
@@ -587,7 +646,7 @@ function jumpToOriginal(id: string) {
   highlightTimer = setTimeout(() => { highlightedId.value = null; highlightTimer = null }, 1800)
 }
 async function clearMyChat() {
-  if (clearingChat.value || !messages.value.length ||
+  if (clearingChat.value || !chatTimeline.value.length ||
       connection?.state !== signalR.HubConnectionState.Connected) return
   const confirmed = window.confirm(
     '¿Limpiar el chat solo para tu cuenta?\n\n' +
@@ -612,12 +671,15 @@ function onChatClearedForUser(event: { clearedAt: string }) {
   if (!Number.isFinite(cutoff) || cutoff < clearedThrough.value) return
   clearedThrough.value = cutoff
   messages.value = messages.value.filter(message => Date.parse(message.sentAt) > cutoff)
+  blockNotices.value = []
   replyTarget.value = null
   expandedSeenId.value = null
   highlightedId.value = null
   reactionPickerId.value = null
   expandedReaction.value = null
   stickerTrayOpen.value = false
+  personMenuId.value = null
+  blockedTrayOpen.value = false
   closeViewer()
   // Los vistos globales permanecen para los mensajes posteriores y los demás.
   persistLastRead(cutoff)
@@ -690,6 +752,8 @@ watch(() => props.visible, showing => {
     void stopCamera()
     closeViewer()
     reactionPickerId.value = null
+    personMenuId.value = null
+    blockedTrayOpen.value = false
     stickerTrayOpen.value = false
   }
 })
@@ -747,11 +811,23 @@ onMounted(() => {
     if (!active) return
     chatNames.value = { ...chatNames.value, [userId.toLowerCase()]: name }
   })
+  hub.on('BlockedSnapshot', (accounts: BlockedAccount[], notices: ChatBlockNotice[]) => {
+    if (!active) return
+    setBlockedSnapshot(accounts)
+    blockNotices.value = (notices ?? []).filter(notice =>
+      Date.parse(notice.sentAt) > clearedThrough.value).slice(-30)
+  })
+  hub.on('BlockListChanged', (accounts: BlockedAccount[]) => {
+    if (active) setBlockedSnapshot(accounts)
+  })
+  hub.on('ChatBlockNotice', (notice: ChatBlockNotice) => addBlockNotice(notice))
   hub.on('History', (history: ChatMessage[], seen: ReadReceipt[], clearedAt?: string) => {
     if (!active) return
     const serverCutoff = Date.parse(clearedAt ?? '')
     if (Number.isFinite(serverCutoff)) clearedThrough.value = Math.max(clearedThrough.value, serverCutoff)
-    messages.value = history.filter(message => Date.parse(message.sentAt) > clearedThrough.value).slice(-60)
+    messages.value = history.filter(message =>
+      Date.parse(message.sentAt) > clearedThrough.value &&
+      !blockedUserIds.value.has(message.userId.toLowerCase())).slice(-60)
     receipts.value = seen ?? []
     if (canMarkRead()) { scrollBottom(); markVisibleRead() }
   })
