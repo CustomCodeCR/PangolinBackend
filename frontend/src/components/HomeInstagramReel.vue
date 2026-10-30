@@ -449,11 +449,12 @@ onUnmounted(() => {
   display: flex; align-items: center; gap: 7px;
   padding-top: 8px; border-top: 2px solid #fffc;
   text-shadow: 0 1px 6px #000;
+  color: #fff;
   pointer-events: none;
 }
 .home-instagram-section__avatar { border-radius: 50%; background: #fff; color: #ad174b; width: 27px; height: 27px; display: grid; place-items: center; }
-.home-instagram-section__reel-head strong { display: block; font-size: 10px; }
-.home-instagram-section__reel-head small { display: block; font-size: 9px; }
+.home-instagram-section__reel-head strong { display: block; font-size: 10px; color: #fff; }
+.home-instagram-section__reel-head small { display: block; font-size: 9px; color: #fff; }
 .home-instagram-section__play {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   width: 66px; height: 66px; display: grid; place-items: center;
@@ -465,8 +466,9 @@ onUnmounted(() => {
   position: absolute; right: 10px; bottom: 10px;
   display: flex; align-items: center; gap: 5px;
   padding: 6px 9px; border-radius: 8px;
-  background: #060b1ce6; font-size: 10px; font-weight: 700;
+  background: #060b1ce6; color: #fff; font-size: 10px; font-weight: 700;
 }
+.home-instagram-section__open:visited { color: #fff; }
 .home-instagram-section__placeholder {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 14px; width: 100%; height: 100%; padding: 17px; text-align: center;
