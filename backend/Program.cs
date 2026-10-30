@@ -264,7 +264,18 @@ app.Use(async (ctx, next) =>
             string.Equals(ctx.Request.Host.Host, publicUri.Host, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(origin.GetLeftPart(UriPartial.Authority),
                 publicUri.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase);
-        if (!sameOrigin && !localVite && !trustedPublicOrigin)
+        // In local development Tailscale Serve terminates HTTPS and forwards to
+        // Vite over HTTP. Trust ONLY the one explicitly configured tailnet host.
+        // Do not trust X-Forwarded-* headers or allow arbitrary HTTPS origins.
+        var tailnetHost = builder.Configuration["Security:TailscaleHost"]?.Trim();
+        bool trustedTailnetOrigin = app.Environment.IsDevelopment() &&
+            !string.IsNullOrWhiteSpace(tailnetHost) &&
+            tailnetHost.EndsWith(".ts.net", StringComparison.OrdinalIgnoreCase) &&
+            origin.Scheme == Uri.UriSchemeHttps && origin.IsDefaultPort &&
+            string.Equals(origin.Host, tailnetHost, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(ctx.Request.Host.Host, tailnetHost, StringComparison.OrdinalIgnoreCase) &&
+            (ctx.Request.Host.Port is null or 443);
+        if (!sameOrigin && !localVite && !trustedPublicOrigin && !trustedTailnetOrigin)
         {
             ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
             return;
