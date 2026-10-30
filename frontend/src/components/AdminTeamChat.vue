@@ -638,7 +638,17 @@ function onVisibility() {
   if (!canSendTyping()) stopTyping()
   if (canMarkRead()) { scrollBottom(); markVisibleRead() }
 }
-watch(() => props.visible, showing => { if (showing) onVisibility(); else { stopTyping(); closeViewer(); reactionPickerId.value = null } })
+watch(() => props.visible, showing => {
+  if (showing) onVisibility()
+  else {
+    stopTyping()
+    stopRecording(true)
+    void stopCamera()
+    closeViewer()
+    reactionPickerId.value = null
+    stickerTrayOpen.value = false
+  }
+})
 onMounted(() => {
   if (authState.user?.role !== 'administrador' || authState.previewRole) {
     status.value = 'Requiere una sesión administradora real.'
