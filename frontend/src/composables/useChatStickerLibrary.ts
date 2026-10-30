@@ -89,7 +89,8 @@ export function useChatStickerLibrary(getUserId: () => string) {
       const existing = await allForUser(userId)
       if (sourceId && existing.some(item => item.sourceId === sourceId)) return
       const record: SavedStickerRecord = {
-        id: userId + ':' + crypto.randomUUID(), userId, sourceId,
+        id: userId + ':' + (globalThis.crypto?.randomUUID?.() ??
+          Date.now().toString(36) + Math.random().toString(36).slice(2)), userId, sourceId,
         blob, createdAt: Date.now()
       }
       await writeRecords(record, existing.slice(LIMIT - 1).map(item => item.id))
