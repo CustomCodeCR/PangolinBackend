@@ -1,14 +1,10 @@
 <script setup lang="ts">
-withDefaults(defineProps<{ size?: number; strokeWidth?: number }>(), {
-  size: 24,
-  strokeWidth: 1.9
-})
+withDefaults(defineProps<{ size?: number }>(), { size: 24 })
 </script>
 
 <template>
-  <svg xmlns="http://www.w3.org/2000/svg" :width="size" :height="size" viewBox="0 0 24 24"
-    fill="none" stroke="currentColor" :stroke-width="strokeWidth"
-    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M15 21v-8h3l.5-4H15V6.8c0-1.4.5-2 1.9-2H19V1.5c-.8-.2-1.8-.3-2.8-.3C13.4 1.2 12 3 12 6.3V9H9v4h3v8" />
+  <svg xmlns="http://www.w3.org/2000/svg" :width="size" :height="size"
+    viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M17.525 15.998l.79-5.146h-4.94V7.513c0-1.408.69-2.78 2.902-2.78h2.246V.35S16.484 0 14.536 0C10.47 0 7.814 2.465 7.814 6.93v3.922H3.294v5.146h4.52V24h5.56v-8.002h4.151z" />
   </svg>
 </template>
