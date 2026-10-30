@@ -504,6 +504,76 @@ function showReactionUsers(messageId: string, emoji: string) {
   expandedReaction.value = expandedReaction.value?.messageId === messageId &&
     expandedReaction.value.emoji === emoji ? null : { messageId, emoji }
 }
+async function refreshDirectContacts() {
+  if (!active || connection?.state !== signalR.HubConnectionState.Connected) return
+  try {
+    const contacts = await connection.invoke<DirectContact[]>('GetDirectContacts')
+    if (active) directContacts.value = (contacts ?? []).map(contact => ({
+      ...contact, userId: contact.userId.toLowerCase()
+    }))
+  } catch { /* The group remains available if the directory is temporarily offline. */ }
+}
+async function markActiveDirectRead() {
+  const peerId = activeDirectId.value
+  if (!peerId || !props.visible || document.visibilityState !== 'visible' ||
+      connection?.state !== signalR.HubConnectionState.Connected) return
+  try {
+    await connection.invoke('MarkDirectSeen', peerId)
+    if (activeDirectId.value === peerId)
+      directContacts.value = directContacts.value.map(contact => contact.userId === peerId
+        ? { ...contact, unreadCount: 0 } : contact)
+  } catch { /* A disconnected client will retry on the next open. */ }
+}
+async function openDirectChat(peerId: string) {
+  if (!connection || connection.state !== signalR.HubConnectionState.Connected) return
+  directLoading.value = true
+  try {
+    const history = await connection.invoke<ChatMessage[]>('OpenDirectChat', peerId)
+    if (!active || activeDirectId.value !== peerId) return
+    directMessages.value = (history ?? []).slice(-60)
+    directContacts.value = directContacts.value.map(contact => contact.userId === peerId
+      ? { ...contact, unreadCount: 0 } : contact)
+    scrollBottom()
+  } catch (cause) {
+    if (active && activeDirectId.value === peerId) {
+      error.value = cause instanceof Error ? cause.message : 'No se pudo abrir el privado.'
+      directMessages.value = []
+    }
+  } finally { directLoading.value = false }
+}
+function chooseConversation(peerId: string | null) {
+  if (activeDirectId.value === peerId || sending.value || recording.value || mediaBusy.value) return
+  stopTyping()
+  const previous = activeDirectId.value || 'group'
+  threadDrafts.value = { ...threadDrafts.value, [previous]: draft.value }
+  activeDirectId.value = peerId
+  draft.value = threadDrafts.value[peerId || 'group'] || ''
+  replyTarget.value = null
+  reactionPickerId.value = null
+  expandedReaction.value = null
+  personMenuId.value = null
+  stickerTrayOpen.value = false
+  error.value = ''
+  clearOutgoingImage()
+  clearOutgoingAudio()
+  closeViewer()
+  if (peerId) { directMessages.value = []; void openDirectChat(peerId) }
+  else { scrollBottom(); markVisibleRead() }
+  void nextTick(() => input.value?.focus())
+}
+function receivedDirectMessage(message: ChatMessage) {
+  const peerId = message.userId.toLowerCase() === currentUserId.value
+    ? message.recipientId?.toLowerCase() : message.userId.toLowerCase()
+  if (!peerId) return
+  if (activeDirectId.value !== peerId ||
+      blockedUserIds.value.has(peerId) ||
+      directMessages.value.some(item => item.id === message.id)) return
+  directMessages.value = [...directMessages.value.slice(-59), message]
+  if (props.visible && document.visibilityState === 'visible') {
+    scrollBottom()
+    void markActiveDirectRead()
+  }
+}
 function togglePersonMenu(userId: string) {
   personMenuId.value = personMenuId.value === userId ? null : userId
   if (personMenuId.value) blockedTrayOpen.value = false
@@ -511,6 +581,8 @@ function togglePersonMenu(userId: string) {
 function setBlockedSnapshot(accounts: BlockedAccount[]) {
   blockedUsers.value = (accounts ?? []).filter(person =>
     person.userId?.toLowerCase() !== currentUserId.value)
+  if (activeDirectId.value && blockedUserIds.value.has(activeDirectId.value))
+    directMessages.value = []
   personMenuId.value = null
   if (replyTarget.value && blockedUserIds.value.has(replyTarget.value.userId.toLowerCase()))
     replyTarget.value = null
@@ -675,7 +747,7 @@ function jumpToOriginal(id: string) {
   highlightTimer = setTimeout(() => { highlightedId.value = null; highlightTimer = null }, 1800)
 }
 async function clearMyChat() {
-  if (clearingChat.value || !chatTimeline.value.length ||
+  if (activeDirectId.value || clearingChat.value || !chatTimeline.value.length ||
       connection?.state !== signalR.HubConnectionState.Connected) return
   const confirmed = window.confirm(
     '¿Limpiar el chat solo para tu cuenta?\n\n' +
@@ -724,10 +796,14 @@ async function send() {
   stopTyping()
   const target = replyTarget.value
   try {
+    const peerId = activeDirectId.value
     if (outgoingImage.value) {
       const attachment = outgoingImage.value
       const uploaded = await uploadImage(attachment.blob, 'message')
-      await connection.invoke('SendMedia', uploaded.imageId, text, target?.id ?? null, attachment.mode)
+      if (peerId)
+        await connection.invoke('SendDirectMedia', peerId, uploaded.imageId, text, target?.id ?? null, attachment.mode)
+      else
+        await connection.invoke('SendMedia', uploaded.imageId, text, target?.id ?? null, attachment.mode)
       clearOutgoingImage()
       if (attachment.mode === 'sticker') {
         try { await saveSticker(attachment.blob, uploaded.imageId) }
@@ -735,9 +811,11 @@ async function send() {
       }
     } else if (outgoingAudio.value) {
       const audioId = await uploadAudio(outgoingAudio.value.blob)
-      await connection.invoke('SendVoice', audioId, target?.id ?? null, text)
+      if (peerId) await connection.invoke('SendDirectVoice', peerId, audioId, text, target?.id ?? null)
+      else await connection.invoke('SendVoice', audioId, target?.id ?? null, text)
       clearOutgoingAudio()
-    } else if (target) await connection.invoke('ReplyToMessage', text, target.id)
+    } else if (peerId) await connection.invoke('SendDirectText', peerId, text, target?.id ?? null)
+    else if (target) await connection.invoke('ReplyToMessage', text, target.id)
     else await connection.invoke('SendMessage', text)
     draft.value = ''
     if (replyTarget.value?.id === target?.id) replyTarget.value = null
@@ -763,7 +841,8 @@ async function startChat() {
         chatNames.value = { ...chatNames.value, [currentUserId.value]: current }
       } catch { /* Se conserva el chat si el apodo no pudo restaurarse. */ }
     }
-    markVisibleRead()
+    if (activeDirectId.value) await openDirectChat(activeDirectId.value)
+    else markVisibleRead()
   } catch {
     if (active) { status.value = 'Sin conexión · reintentando'; scheduleRetry() }
   }
@@ -772,6 +851,7 @@ function onVisibility() {
   if (document.visibilityState !== 'visible' && imageViewer.value?.oneTime) closeViewer()
   if (!canSendTyping()) stopTyping()
   if (canMarkRead()) { scrollBottom(); markVisibleRead() }
+  if (activeDirectId.value && props.visible) void markActiveDirectRead()
 }
 watch(() => props.visible, showing => {
   if (showing) onVisibility()
