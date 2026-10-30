@@ -455,8 +455,9 @@ async function send() {
   const target = replyTarget.value
   try {
     if (outgoingImage.value) {
-      const uploaded = await uploadImage(outgoingImage.value.blob, 'message')
-      await connection.invoke('SendMedia', uploaded.imageId, text, target?.id ?? null, outgoingImage.value.mode)
+      const attachment = outgoingImage.value
+      const uploaded = await uploadImage(attachment.blob, 'message')
+      await connection.invoke('SendMedia', uploaded.imageId, text, target?.id ?? null, attachment.mode)
       clearOutgoingImage()
     } else if (target) await connection.invoke('ReplyToMessage', text, target.id)
     else await connection.invoke('SendMessage', text)
@@ -769,7 +770,7 @@ onUnmounted(() => {
       <button type="button" class="team-chat__attach team-chat__sticker-attach"
         :disabled="status !== 'En línea' || mediaBusy || sending"
         aria-label="Enviar foto como sticker" title="Adjuntar foto como sticker"
-        @click="pickImage('sticker')">▧</button>
+        @click="pickImage('sticker')">🏷️</button>
       <label class="sr-only" for="team-chat-input">Escribir mensaje</label>
       <input id="team-chat-input" ref="input" v-model="draft" maxlength="500" autocomplete="off"
         placeholder="Escribí un mensaje al equipo…" :disabled="status !== 'En línea'"
