@@ -320,6 +320,18 @@
         "unavailable": "Visita nuestro perfil para ver nuestros Reels",
         "loading": "Buscando nuestro último Reel…"
       },
+      "socialAria": "Redes sociales de Grupo Castro Fallas",
+      "socialSelect": "Elegí la red social",
+      "facebook": {
+        "description": "Conocé nuestras novedades, operaciones y videos en Facebook.",
+        "profile": "Ver perfil de Facebook",
+        "reel": "Video destacado de Facebook de Grupo Castro Fallas",
+        "play": "Reproducir video de Facebook",
+        "open": "Abrir video en Facebook",
+        "preview": "Ver video destacado de Facebook",
+        "unavailable": "Visitá nuestra página para conocer nuestros videos",
+        "loading": "Buscando el video de Facebook…"
+      },
       "newsAria": "Noticias destacadas",
       "contact": [
         "Número de teléfono",

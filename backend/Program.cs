@@ -576,6 +576,7 @@ app.MapAdminUsers();
 // Noticias públicas publicadas y mantenimiento de contenido reservado a admins.
 app.MapManagedContent();
 app.MapInstagramReel();
+app.MapFacebookFeaturedVideo();
 app.MapManagedMediaObjects();
 app.MapSiteCms();
 // Endpoint público de conexión. Los grupos privados se validan con la cookie JWT
