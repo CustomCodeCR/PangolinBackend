@@ -2,12 +2,16 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import * as signalR from '@microsoft/signalr'
 import IconSymbol from './IconSymbol.vue'
+import ChatCameraTile from './ChatCameraTile.vue'
+import { Sticker, LockKeyhole, SmilePlus, Mic, Video, VideoOff, Square, Plus, BookmarkPlus, X } from '@lucide/vue'
+import { useAdminChatCameras } from '../composables/useAdminChatCameras'
+import { useChatStickerLibrary, type StickerPreview } from '../composables/useChatStickerLibrary'
 import { authState } from '../services/auth'
 
 interface ChatReply { id: string; name: string; text: string }
 type ImageMode = 'image' | 'once' | 'sticker'
 interface ChatReaction { emoji: string; userIds: string[] }
-interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null; imageUrl?: string | null; imageId?: string | null; isViewOnce?: boolean; isSticker?: boolean; imageViewed?: boolean; reactions?: ChatReaction[] }
+interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null; imageUrl?: string | null; imageId?: string | null; isViewOnce?: boolean; isSticker?: boolean; imageViewed?: boolean; reactions?: ChatReaction[]; audioUrl?: string | null }
 interface ChatMediaUpload { imageId: string; url: string }
 interface ReadReceipt { userId: string; name: string; lastReadAt: string }
 interface TypingStatus { connectionId: string; userId: string; name: string; isTyping: boolean; expiresAt: string; updatedAt: string }
@@ -34,7 +38,16 @@ const selectedAttachMode = ref<'image' | 'sticker'>('image')
 const imageViewer = ref<{ src: string; title: string; oneTime: boolean; objectUrl?: string } | null>(null)
 const viewingImageId = ref<string | null>(null)
 const reactionPickerId = ref<string | null>(null)
-const reactionChoices = ['👍', '❤️', '😂', '😮', '😢', '🎉', '👏', '🔥'] as const
+const reactionChoices = [
+  '👍', '👎', '👏', '🙌', '🤝', '🙏', '💪', '👌', '✌️', '🤞',
+  '❤️', '🩷', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💔',
+  '😂', '🤣', '🥹', '😊', '😍', '🥰', '😘', '😎', '🤩', '🥳',
+  '😀', '😁', '😅', '😉', '😌', '😋', '😜', '🤪', '🤔', '🤨',
+  '😮', '😱', '😳', '🥺', '😢', '😭', '😤', '😡', '🤯', '😴',
+  '👀', '💯', '🔥', '✨', '🎉', '🎊', '🎈', '🎂', '🎁', '🏆',
+  '⭐', '🌟', '🚀', '💡', '✅', '❌', '⚠️', '📌', '💬', '🫶',
+  '🐱', '🐶', '🐼', '🐸', '🦄', '🍕', '🍔', '🍩', '☕', '🍓'
+] as const
 const expandedSeenId = ref<string | null>(null)
 const remoteTyping = ref<Record<string, TypingStatus>>({})
 const typingClock = ref(Date.now())
@@ -44,6 +57,15 @@ let typingActive = false
 let typingLastSignalAt = 0
 const replyTarget = ref<ChatMessage | null>(null)
 const input = ref<HTMLInputElement | null>(null)
+const stickerTrayOpen = ref(false)
+const outgoingAudio = ref<{ blob: Blob; previewUrl: string; seconds: number } | null>(null)
+const recording = ref(false)
+const recordingSeconds = ref(0)
+let mediaRecorder: MediaRecorder | null = null
+let microphoneStream: MediaStream | null = null
+let recordingTimer: ReturnType<typeof setInterval> | null = null
+let voiceChunks: Blob[] = []
+let discardRecording = false
 const highlightedId = ref<string | null>(null)
 let highlightTimer: ReturnType<typeof setTimeout> | null = null
 const status = ref('Conectando…')
@@ -61,6 +83,9 @@ let active = true
 
 const currentUserId = computed(() => String(authState.user?.id ?? '').toLowerCase())
 const currentEmail = computed(() => (authState.user?.correo ?? '').toLowerCase())
+const { savedStickers, savedSources, stickerError, stickerBusy, loadStickers, saveSticker, removeSticker, releasePreviews } =
+  useChatStickerLibrary(() => currentUserId.value)
+const cameras = useAdminChatCameras()
 const storageKey = computed(() => 'castrofallas-admin-chat-read:' + (currentUserId.value || currentEmail.value))
 const nicknameStorageKey = computed(() => 'castrofallas-admin-chat-nickname:' + (currentUserId.value || currentEmail.value))
 const typingNames = computed(() => {
@@ -78,6 +103,7 @@ const typingLabel = computed(() => {
   if (names.length === 2) return names[0] + ' y ' + names[1] + ' están escribiendo'
   return names[0] + ' y ' + (names.length - 1) + ' más están escribiendo'
 })
+watch(typingNames, names => { if (names.length) scrollBottom() }, { flush: 'post' })
 function applyTypingState(state: TypingStatus) {
   if (!state?.connectionId || !state.userId || state.userId.toLowerCase() === currentUserId.value) return
   const next = { ...remoteTyping.value }
