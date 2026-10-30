@@ -27,6 +27,8 @@ public sealed class AdminChatMediaStore
         public required DateTimeOffset CreatedAt { get; init; }
         public bool Published { get; set; }
         public bool IsViewOnce { get; set; }
+        // Null means the existing group chat; non-null restricts media to two accounts.
+        public Guid? RecipientId { get; set; }
         public HashSet<Guid> ViewedBy { get; } = new();
     }
 
@@ -65,24 +67,27 @@ public sealed class AdminChatMediaStore
                 item.IsAvatar == avatar && (avatar || !item.Published);
     }
 
-    public bool Publish(Guid id, Guid owner, bool once)
+    public bool Publish(Guid id, Guid owner, bool once, Guid? recipientId = null)
     {
         lock (_gate)
         {
             if (!_files.TryGetValue(id, out var item) || item.Owner != owner ||
                 item.IsAvatar || item.Published) return false;
             item.IsViewOnce = once;
+            item.RecipientId = recipientId;
             item.Published = true;
             return true;
         }
     }
 
-    public ChatMedia? ReadRegular(Guid id)
+    public ChatMedia? ReadRegular(Guid id, Guid viewerId)
     {
         lock (_gate)
         {
             if (!_files.TryGetValue(id, out var item) ||
-                (!item.IsAvatar && (!item.Published || item.IsViewOnce))) return null;
+                (!item.IsAvatar && (!item.Published || item.IsViewOnce)) ||
+                (item.RecipientId is Guid recipient && item.Owner != viewerId &&
+                    recipient != viewerId)) return null;
             return item;
         }
     }
@@ -102,6 +107,7 @@ public sealed class AdminChatMediaStore
         {
             if (!_files.TryGetValue(id, out var item) || !item.Published ||
                 !item.IsViewOnce || item.IsAvatar || item.Owner == userId ||
+                (item.RecipientId is Guid recipient && recipient != userId) ||
                 !item.ViewedBy.Add(userId)) return null;
             return item;
         }
@@ -180,7 +186,7 @@ public static class AdminChatMediaEndpoints
                 return Results.Forbid();
             http.Response.Headers.CacheControl = "no-store";
             http.Response.Headers["X-Content-Type-Options"] = "nosniff";
-            var image = store.ReadRegular(id);
+            var image = store.ReadRegular(id, identity.UsuarioId);
             return image is null ? (IResult)Results.NotFound() :
                 Results.File(image.Bytes, image.MimeType, enableRangeProcessing: false);
         });
