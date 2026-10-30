@@ -259,6 +259,106 @@ function clearOutgoingImage() {
   if (outgoingImage.value) URL.revokeObjectURL(outgoingImage.value.previewUrl)
   outgoingImage.value = null
 }
+async function toggleStickerTray() {
+  stickerTrayOpen.value = !stickerTrayOpen.value
+  if (stickerTrayOpen.value) await loadStickers()
+}
+function useSavedSticker(item: StickerPreview) {
+  clearOutgoingImage()
+  clearOutgoingAudio()
+  outgoingImage.value = { blob: item.blob, previewUrl: URL.createObjectURL(item.blob), mode: 'sticker' }
+  stickerTrayOpen.value = false
+}
+async function saveMessageSticker(message: ChatMessage) {
+  if (!message.isSticker || !message.imageUrl?.startsWith('/api/admin/chat/images/') || !message.imageId)
+    return
+  try {
+    const response = await fetch(message.imageUrl, { credentials: 'same-origin', cache: 'no-store' })
+    if (!response.ok) throw new Error('No se pudo descargar este sticker.')
+    const blob = await response.blob()
+    await saveSticker(blob, message.imageId)
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : 'No se pudo guardar el sticker.'
+  }
+}
+async function removeSavedSticker(item: StickerPreview) {
+  try { await removeSticker(item.id) }
+  catch { error.value = 'No se pudo borrar el sticker guardado.' }
+}
+function clearOutgoingAudio() {
+  if (outgoingAudio.value) URL.revokeObjectURL(outgoingAudio.value.previewUrl)
+  outgoingAudio.value = null
+}
+function stopRecording(discard = false) {
+  if (discard) discardRecording = true
+  if (mediaRecorder?.state === 'recording') mediaRecorder.stop()
+  else {
+    microphoneStream?.getTracks().forEach(track => track.stop())
+    microphoneStream = null
+    recording.value = false
+  }
+}
+async function startRecording() {
+  if (recording.value || sending.value || mediaBusy.value) return
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+    error.value = 'Para grabar audios necesitás HTTPS o localhost y permisos de micrófono.'
+    return
+  }
+  error.value = ''
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+    microphoneStream = stream
+    const formats = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus', 'audio/webm']
+    const selected = formats.find(type => MediaRecorder.isTypeSupported(type))
+    if (!selected) throw new Error('Este navegador no admite grabar notas de voz.')
+    const recorder = new MediaRecorder(stream, { mimeType: selected })
+    mediaRecorder = recorder
+    voiceChunks = []
+    discardRecording = false
+    recorder.ondataavailable = event => { if (event.data.size > 0) voiceChunks.push(event.data) }
+    recorder.onstop = () => {
+      if (recordingTimer) { clearInterval(recordingTimer); recordingTimer = null }
+      stream.getTracks().forEach(track => track.stop())
+      microphoneStream = null
+      recording.value = false
+      if (discardRecording || !active) return
+      const mime = recorder.mimeType.split(';')[0] || selected.split(';')[0]
+      const blob = new Blob(voiceChunks, { type: mime })
+      if (blob.size > 2_500_000 || blob.size < 16) {
+        error.value = 'La grabación no cumple el límite de 2,5 MB. Grabá una nota más corta.'
+        return
+      }
+      clearOutgoingImage()
+      clearOutgoingAudio()
+      outgoingAudio.value = { blob, previewUrl: URL.createObjectURL(blob), seconds: recordingSeconds.value }
+    }
+    recorder.start(400)
+    recording.value = true
+    recordingSeconds.value = 0
+    const started = Date.now()
+    recordingTimer = setInterval(() => {
+      recordingSeconds.value = Math.floor((Date.now() - started) / 1000)
+      if (recordingSeconds.value >= 45) stopRecording()
+    }, 500)
+  } catch (cause) {
+    microphoneStream?.getTracks().forEach(track => track.stop())
+    microphoneStream = null
+    mediaRecorder = null
+    recording.value = false
+    error.value = cause instanceof Error ? cause.message : 'No se pudo iniciar el micrófono.'
+  }
+}
+async function uploadAudio(blob: Blob): Promise<string> {
+  const response = await fetch('/api/admin/chat/audio', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { 'Content-Type': blob.type, 'X-Chat-Media': '1' }, body: blob
+  })
+  if (!response.ok) throw new Error(response.status === 413
+    ? 'El audio supera el tamaño permitido.' : 'No se pudo subir el audio.')
+  const data = await response.json() as { audioId: string }
+  if (!data.audioId) throw new Error('Respuesta inválida al subir el audio.')
+  return data.audioId
+}
 function closeViewer() {
   if (imageViewer.value?.objectUrl) URL.revokeObjectURL(imageViewer.value.objectUrl)
   imageViewer.value = null
@@ -267,6 +367,7 @@ function viewerKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') {
     if (imageViewer.value) closeViewer()
     reactionPickerId.value = null
+    stickerTrayOpen.value = false
   }
 }
 async function openSharedImage(message: ChatMessage) {
@@ -466,6 +567,7 @@ function onChatClearedForUser(event: { clearedAt: string }) {
   expandedSeenId.value = null
   highlightedId.value = null
   reactionPickerId.value = null
+  stickerTrayOpen.value = false
   closeViewer()
   // Los vistos globales permanecen para los mensajes posteriores y los demás.
   persistLastRead(cutoff)
@@ -473,7 +575,8 @@ function onChatClearedForUser(event: { clearedAt: string }) {
 }
 async function send() {
   const text = draft.value.trim()
-  if ((!text && !outgoingImage.value) || text.length > 500 || sending.value || mediaBusy.value ||
+  if ((!text && !outgoingImage.value && !outgoingAudio.value) || text.length > 500 ||
+      sending.value || mediaBusy.value || recording.value ||
       connection?.state !== signalR.HubConnectionState.Connected) return
   sending.value = true
   error.value = ''
@@ -485,6 +588,14 @@ async function send() {
       const uploaded = await uploadImage(attachment.blob, 'message')
       await connection.invoke('SendMedia', uploaded.imageId, text, target?.id ?? null, attachment.mode)
       clearOutgoingImage()
+      if (attachment.mode === 'sticker') {
+        try { await saveSticker(attachment.blob, uploaded.imageId) }
+        catch { chatNotice.value = 'Sticker enviado. No se pudo guardar en este navegador.' }
+      }
+    } else if (outgoingAudio.value) {
+      const audioId = await uploadAudio(outgoingAudio.value.blob)
+      await connection.invoke('SendVoice', audioId, target?.id ?? null, text)
+      clearOutgoingAudio()
     } else if (target) await connection.invoke('ReplyToMessage', text, target.id)
     else await connection.invoke('SendMessage', text)
     draft.value = ''
