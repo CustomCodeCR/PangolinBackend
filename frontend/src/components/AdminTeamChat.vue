@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import * as signalR from '@microsoft/signalr'
 import IconSymbol from './IconSymbol.vue'
 import ChatCameraTile from './ChatCameraTile.vue'
-import { Sticker, LockKeyhole, SmilePlus, Mic, Video, VideoOff, Square, Plus, BookmarkPlus, ShieldBan, UserX, X } from '@lucide/vue'
+import { Sticker, LockKeyhole, SmilePlus, Mic, Video, VideoOff, Square, Plus, BookmarkPlus, ShieldBan, UserX, UsersRound, MessageCircle, X } from '@lucide/vue'
 import { useAdminChatCameras } from '../composables/useAdminChatCameras'
 import { useChatStickerLibrary, type StickerPreview } from '../composables/useChatStickerLibrary'
 import { authState } from '../services/auth'
@@ -1067,25 +1067,73 @@ onUnmounted(() => {
       <p v-if="nicknameError && !nicknameEditing" class="team-chat-profile__error" role="alert">{{ nicknameError }}</p>
     </section>
     <section ref="chatPanel" class="team-chat" aria-label="Chat entre administradores">
+    <div class="team-chat__workspace">
+      <nav class="team-chat__sidebar" aria-label="Conversaciones del chat">
+        <p class="team-chat__sidebar-label">CONVERSACIONES</p>
+        <button type="button" class="team-chat__conversation-link team-chat__group-link"
+          :class="{ 'is-selected': !activeDirectId }"
+          :aria-current="!activeDirectId ? 'page' : undefined"
+          @click="chooseConversation(null)">
+          <span class="team-chat__conversation-avatar team-chat__group-avatar"><UsersRound :size="19" /></span>
+          <span class="team-chat__conversation-copy">
+            <strong>Chat grupal</strong><small>Canal principal del equipo</small>
+          </span>
+          <span v-if="unread" class="team-chat__conversation-unread">{{ unread }}</span>
+        </button>
+        <div class="team-chat__sidebar-section">
+          <strong>Mensajes privados</strong>
+          <span v-if="directUnread" class="team-chat__conversation-unread">{{ directUnread }}</span>
+        </div>
+        <label class="sr-only" for="team-chat-contacts-filter">Buscar administrador</label>
+        <input id="team-chat-contacts-filter" v-model="contactSearch"
+          class="team-chat__contact-search" placeholder="Buscar persona…" autocomplete="off" />
+        <div class="team-chat__contact-list">
+          <button v-for="contact in filteredDirectContacts" :key="contact.userId"
+            type="button" class="team-chat__conversation-link"
+            :class="{ 'is-selected': activeDirectId === contact.userId }"
+            :aria-current="activeDirectId === contact.userId ? 'page' : undefined"
+            @click="chooseConversation(contact.userId)">
+            <span class="team-chat__conversation-avatar">
+              <img v-if="avatarFor(contact.userId) || contact.avatarUrl"
+                :src="avatarFor(contact.userId) || contact.avatarUrl || ''" alt="" loading="lazy" />
+              <span v-else>{{ initials(contact.name) }}</span>
+              <span class="team-chat__contact-status" :class="{ 'is-online': contact.online }"></span>
+            </span>
+            <span class="team-chat__conversation-copy">
+              <strong>{{ chatNames[contact.userId] || contact.name }}</strong>
+              <small>{{ blockedUserIds.has(contact.userId) ? 'Bloqueado' : contact.online ? 'En línea' : 'Desconectado' }}</small>
+            </span>
+            <span v-if="contact.unreadCount" class="team-chat__conversation-unread">{{ contact.unreadCount }}</span>
+          </button>
+          <p v-if="!filteredDirectContacts.length" class="team-chat__contacts-empty">
+            {{ contactSearch ? 'No hay coincidencias.' : 'No hay otros administradores habilitados.' }}
+          </p>
+        </div>
+        <small class="team-chat__sidebar-hint">Los privados solo son visibles para sus dos participantes.</small>
+      </nav>
+      <div class="team-chat__thread">
     <header class="team-chat__head">
       <div>
-        <p class="team-chat__tag">CANAL PRIVADO · EXPERIMENTAL</p>
-        <h2>Chat del equipo</h2>
-        <p>Mensajería en vivo entre administradores. El historial se borra al reiniciar el backend.</p>
+        <p class="team-chat__tag">{{ activeDirectId ? 'CONVERSACIÓN PRIVADA · EXPERIMENTAL' : 'CANAL PRINCIPAL · EXPERIMENTAL' }}</p>
+        <h2>{{ activeDirectId ? (chatNames[activeDirectId] || activeDirect?.name || 'Mensaje privado') : 'Chat del equipo' }}</h2>
+        <p>{{ activeDirectId ? 'Solo ustedes dos pueden leer este historial. El grupo permanece disponible a la izquierda.' :
+          'Mensajería en vivo entre administradores. El historial se borra al reiniciar el backend.' }}</p>
       </div>
       <div class="team-chat__head-actions">
         <div class="team-chat__presence" role="status">
           <span class="team-chat__light" :class="{ 'is-offline': status !== 'En línea' }" />
           {{ status }} <small v-if="online">· {{ online }} conectado{{ online === 1 ? '' : 's' }}</small>
         </div>
-        <button class="team-chat__blocked-list-button" type="button"
+        <button v-if="activeDirectId" type="button" class="team-chat__blocked-list-button"
+          @click="chooseConversation(null)">Volver al grupo</button>
+        <button v-if="!activeDirectId" class="team-chat__blocked-list-button" type="button"
           :aria-expanded="blockedTrayOpen"
           :title="'Administrar bloqueados: ' + blockedUsers.length"
           @click="blockedTrayOpen = !blockedTrayOpen; personMenuId = null">
           <ShieldBan :size="15" />
           Bloqueados ({{ blockedUsers.length }})
         </button>
-        <button class="team-chat__clear-button" type="button"
+        <button v-if="!activeDirectId" class="team-chat__clear-button" type="button"
           :disabled="status !== 'En línea' || clearingChat || !chatTimeline.length"
           title="Ocultar mensajes anteriores solo para tu cuenta"
           @click="clearMyChat">
@@ -1094,7 +1142,7 @@ onUnmounted(() => {
         </button>
       </div>
     </header>
-    <div v-if="blockedTrayOpen" class="team-chat__blocked-panel" role="region"
+    <div v-if="blockedTrayOpen && !activeDirectId" class="team-chat__blocked-panel" role="region"
       aria-label="Administrar personas bloqueadas">
       <div class="team-chat__blocked-panel-head">
         <strong>Personas bloqueadas</strong>
@@ -1112,10 +1160,15 @@ onUnmounted(() => {
       <small>El bloqueo solo oculta mensajes en tu chat. No expulsa a la otra persona del grupo.</small>
     </div>
     <p v-if="chatNotice" class="team-chat__notice" role="status">{{ chatNotice }}</p>
+    <p v-if="directBlocked" class="team-chat__notice" role="status">
+      Bloqueaste a esta persona. Podés desbloquearla desde la opción «Bloqueados» del grupo.
+    </p>
     <div ref="list" class="team-chat__messages" role="log" aria-live="polite" aria-relevant="additions">
       <div v-if="!chatTimeline.length" class="team-chat__empty">
-        <span>✳</span><strong>Este canal está esperando su primer mensaje.</strong>
-        <p>Probalo con otro administrador desde otra computadora o navegador.</p>
+        <span><MessageCircle :size="23" /></span>
+        <strong>{{ directLoading ? 'Abriendo conversación…' : activeDirectId ? 'Iniciá esta conversación privada' : 'Este canal está esperando su primer mensaje.' }}</strong>
+        <p>{{ activeDirectId ? 'Los mensajes que escribas aquí no aparecen en el grupo.' :
+          'Probalo con otro administrador desde otra computadora o navegador.' }}</p>
       </div>
       <template v-for="message in chatTimeline" :key="message.id">
       <div v-if="message.isSystem" class="team-chat__system-message" role="status">
@@ -1138,7 +1191,7 @@ onUnmounted(() => {
               @click="togglePersonMenu(message.userId)">{{ displayName(message) }}</button>
             <span class="team-chat__meta">
               <time :datetime="message.sentAt">{{ clock(message.sentAt) }}</time>
-              <button v-if="isOwn(message)" type="button" class="team-chat__seen-button"
+              <button v-if="!activeDirectId && isOwn(message)" type="button" class="team-chat__seen-button"
                 :aria-expanded="expandedSeenId === message.id"
                 :aria-label="'Ver quién leyó este mensaje: ' + seenNames(message).length"
                 title="Ver quién lo leyó" @click="toggleSeen(message.id)">✓✓</button>
@@ -1147,6 +1200,10 @@ onUnmounted(() => {
           <div v-if="personMenuId === message.userId && !isOwn(message)"
             class="team-chat__person-menu">
             <strong>{{ displayName(message) }}</strong>
+            <button v-if="!activeDirectId" type="button"
+              @click="chooseConversation(message.userId)">
+              <MessageCircle :size="15" /> Mensaje privado
+            </button>
             <button type="button" :disabled="status !== 'En línea' || !!blockBusyId"
               @click="setUserBlocked(message.userId, true)">
               <UserX :size="15" /> Bloquear a esta persona
@@ -1310,16 +1367,21 @@ onUnmounted(() => {
       </button>
       <label class="sr-only" for="team-chat-input">Escribir mensaje</label>
       <input id="team-chat-input" ref="input" v-model="draft" maxlength="500" autocomplete="off"
-        placeholder="Escribí un mensaje al equipo…" :disabled="status !== 'En línea'"
+        :placeholder="activeDirectId ? 'Mensaje privado…' : 'Escribí un mensaje al equipo…'"
+        :disabled="status !== 'En línea' || directBlocked"
         @input="onDraftInput" @paste="onComposerPaste" @blur="stopTyping" />
-      <button type="submit" :disabled="status !== 'En línea' || (!draft.trim() && !outgoingImage && !outgoingAudio) || sending || mediaBusy || recording">
+      <button type="submit" :disabled="status !== 'En línea' || directBlocked ||
+        (!draft.trim() && !outgoingImage && !outgoingAudio) || sending || mediaBusy || recording">
         {{ sending ? 'Enviando…' : 'Enviar ↗' }}
       </button>
     </form>
     <p v-if="error" class="team-chat__error" role="alert">{{ error }}</p>
-    <p class="team-chat__foot">Solo administradores autenticados · {{ visibleMessages.length }} mensajes visibles en este historial temporal.</p>
+    <p class="team-chat__foot">{{ activeDirectId ? 'Privado entre dos administradores' : 'Solo administradores autenticados' }}
+      · {{ chatTimeline.filter(message => !message.isSystem).length }} mensajes en esta conversación temporal.</p>
+      </div>
+    </div>
     </section>
-    <section class="team-chat__camera-panel" aria-label="Cámaras del equipo">
+    <section v-if="!activeDirectId" class="team-chat__camera-panel" aria-label="Cámaras del equipo">
       <div class="team-chat__camera-header">
         <div><strong><Video :size="18" /> Cámaras del equipo</strong>
           <p>Video en directo entre administradores. Activación individual, sin grabación en el servidor.</p>
