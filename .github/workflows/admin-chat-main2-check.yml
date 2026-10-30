@@ -11,6 +11,9 @@ on:
       - "frontend/src/composables/useChatStickerLibrary.ts"
       - "frontend/src/components/ChatCameraTile.vue"
       - "backend/Program.cs"
+      - "frontend/vite.config.ts"
+      - "compose.yaml"
+      - ".env.example"
       - "frontend/src/components/AdminTeamChat.vue"
       - ".github/workflows/admin-chat-main2-check.yml"
   pull_request:
@@ -23,6 +26,9 @@ on:
       - "frontend/src/composables/useChatStickerLibrary.ts"
       - "frontend/src/components/ChatCameraTile.vue"
       - "backend/Program.cs"
+      - "frontend/vite.config.ts"
+      - "compose.yaml"
+      - ".env.example"
       - "frontend/src/components/AdminTeamChat.vue"
       - "frontend/src/pages/ContentManager.vue"
       - ".github/workflows/admin-chat-main2-check.yml"
@@ -121,6 +127,20 @@ jobs:
           const audio = fs.readFileSync('backend/Services/Realtime/AdminChatAudio.cs', 'utf8')
           const camera = fs.readFileSync('frontend/src/composables/useAdminChatCameras.ts', 'utf8')
           const stickers = fs.readFileSync('frontend/src/composables/useChatStickerLibrary.ts', 'utf8')
+          const vite = fs.readFileSync('frontend/vite.config.ts', 'utf8')
+          const compose = fs.readFileSync('compose.yaml', 'utf8')
+          check(vite.includes('allowedHosts: allowedTailnetHost') &&
+                vite.includes('VITE_TAILSCALE_HOST') &&
+                !vite.includes('allowedHosts: true,'),
+            'Vite must allow only the configured tailnet host')
+          check(compose.includes('Security__TailscaleHost:') &&
+                compose.includes('VITE_TAILSCALE_HOST:'),
+            'Docker must pass the same tailnet host to API and Vite')
+          check(program.includes('trustedTailnetOrigin') &&
+                program.includes('Security:TailscaleHost') &&
+                program.includes('origin.IsDefaultPort') &&
+                program.includes('!trustedTailnetOrigin'),
+            'API must validate the exact configured HTTPS Tailscale origin')
           check(program.includes('AddSingleton<AdminChatAudioStore>()') && program.includes('MapAdminChatAudio()'),
             'Private audio service must be wired')
           check(audio.includes('RequireAuthorization("admin")') && audio.includes('MaxClipBytes') &&

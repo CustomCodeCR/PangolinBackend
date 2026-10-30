@@ -56,6 +56,8 @@ services:
       Auth__OtpPepper: ${AUTH_OTP_PEPPER:?Falta AUTH_OTP_PEPPER}
       Auth__JwtSigningKey: ${AUTH_JWT_SIGNING_KEY:?Falta AUTH_JWT_SIGNING_KEY}
       Auth__SecureCookie: "false"
+      # Specific private HTTPS Tailscale Serve hostname for local development.
+      Security__TailscaleHost: ${TAILSCALE_HOST:-}
       Development__ApplySchema: "true"
       Redis__ConnectionString: redis:6379
       Mongo__ConnectionString: mongodb://mongo:27017
@@ -97,6 +99,8 @@ services:
     restart: unless-stopped
     environment:
       VITE_API_PROXY_TARGET: http://backend:5000
+      # Vite accepts ONLY this configured .ts.net host, not every Host header.
+      VITE_TAILSCALE_HOST: ${TAILSCALE_HOST:-}
       VITE_OFFICIAL_QUOTES_ENABLED: ${VITE_OFFICIAL_QUOTES_ENABLED:-true}
       CHOKIDAR_USEPOLLING: "true"
     ports:
