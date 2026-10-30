@@ -15,7 +15,9 @@ public sealed class AdminChatHub : Hub
     private static readonly SemaphoreSlim ChatMutations = new(1, 1);
     // Hasta qué fecha ocultó el historial cada administrador. Estado temporal por cuenta.
     private static readonly ConcurrentDictionary<Guid, DateTimeOffset> ClearedForUser = new();
-    private static string PersonalGroup(Guid userId) => $"admin-chat-user:{userId:N}";
+    internal static string PersonalGroup(Guid userId) => $"admin-chat-user:{userId:N}";
+    private static readonly Dictionary<Guid, Dictionary<string, HashSet<Guid>>> ReactionsByMessage = new();
+    private static readonly string[] AllowedReactions = ["👍", "❤️", "😂", "😮", "😢", "🎉", "👏", "🔥"];
     private static readonly ConcurrentDictionary<string, DateTimeOffset> LastMessage = new();
     private static readonly ConcurrentDictionary<string, byte> Online = new();
     // Estado efímero por cuenta, nunca aceptamos la identidad del cliente.
@@ -63,7 +65,12 @@ public sealed class AdminChatHub : Hub
         {
             var cutoff = ClearedForUser.GetValueOrDefault(identity.UsuarioId, DateTimeOffset.MinValue);
             await Clients.Caller.SendAsync("History",
-                History.Where(message => message.SentAt > cutoff).ToArray(),
+                History.Where(message => message.SentAt > cutoff)
+                    .Select(message => message with
+                    {
+                        Reactions = ReadReactions(message.Id),
+                        ImageViewed = message.ImageId is Guid image && _images.WasViewed(image, identity.UsuarioId)
+                    }).ToArray(),
                 Seen.Values.ToArray(), cutoff);
         }
         finally { ChatMutations.Release(); }
@@ -174,15 +181,24 @@ public sealed class AdminChatHub : Hub
     }
 
     // Se conserva el método original para navegadores que aún tienen el frontend anterior.
-    public Task SendMessage(string? body) => SendCore(body, null, null);
+    public Task SendMessage(string? body) => SendCore(body, null, null, false, false);
 
     // La referencia viaja como ID: autor y texto se obtienen exclusivamente del servidor.
-    public Task ReplyToMessage(string? body, string? replyToId) => SendCore(body, replyToId, null);
+    public Task ReplyToMessage(string? body, string? replyToId) => SendCore(body, replyToId, null, false, false);
 
+    // Legacy clients continue to send normal images with the previous method.
     public Task SendImage(string? imageId, string? caption, string? replyToId) =>
-        SendCore(caption, replyToId, imageId);
+        SendCore(caption, replyToId, imageId, false, false);
 
-    private async Task SendCore(string? body, string? replyToId, string? imageId)
+    public Task SendMedia(string? imageId, string? caption, string? replyToId, string? mode)
+    {
+        if (mode is not ("image" or "sticker" or "once"))
+            throw new HubException("Tipo de envío no permitido.");
+        if (string.IsNullOrWhiteSpace(imageId)) throw new HubException("Seleccioná una imagen.");
+        return SendCore(caption, replyToId, imageId, mode == "once", mode == "sticker");
+    }
+
+    private async Task SendCore(string? body, string? replyToId, string? imageId, bool viewOnce, bool sticker)
     {
         var identity = Context.GetHttpContext()?.Items["auth.identity"] as AuthIdentity;
         if (identity is null || identity.Role != "admin") throw new HubException("Sin autorización.");
@@ -191,12 +207,15 @@ public sealed class AdminChatHub : Hub
             throw new HubException("Enviá texto o una imagen (máximo 500 caracteres).");
 
         string? imageUrl = null;
+        Guid? mediaId = null;
         if (imageId is not null)
         {
             if (!Guid.TryParse(imageId, out var id) ||
                 !_images.IsOwned(id, identity.UsuarioId, avatar: false))
                 throw new HubException("La imagen no pertenece a tu cuenta.");
-            imageUrl = AdminChatMediaStore.Url(id);
+            mediaId = id;
+            // A view-once message must never carry a GET-able media URL.
+            imageUrl = viewOnce ? null : AdminChatMediaStore.Url(id);
         }
 
         ChatReply? reply = null;
@@ -207,7 +226,9 @@ public sealed class AdminChatHub : Hub
             var original = History.FirstOrDefault(item => item.Id == originalId);
             if (original is null)
                 throw new HubException("El mensaje original ya no está en el historial temporal.");
-            var replyText = string.IsNullOrWhiteSpace(original.Text) ? "📷 Imagen" : original.Text;
+            var replyText = string.IsNullOrWhiteSpace(original.Text)
+                ? original.IsViewOnce ? "🔒 Foto de una vez" : original.IsSticker ? "Sticker" : "📷 Imagen"
+                : original.Text;
             var excerpt = replyText.Length > 140 ? replyText[..140].TrimEnd() + "…" : replyText;
             reply = new ChatReply(original.Id, original.Name, excerpt);
         }
@@ -221,7 +242,8 @@ public sealed class AdminChatHub : Hub
         await ClearTypingAsync();
         var message = new ChatMessage(
             Guid.NewGuid(), identity.UsuarioId, DisplayName(identity),
-            identity.Correo, text, now, reply, imageUrl);
+            identity.Correo, text, now, reply, imageUrl, mediaId, viewOnce, sticker,
+            Array.Empty<ChatReaction>(), false);
         await ChatMutations.WaitAsync();
         try
         {
@@ -233,12 +255,47 @@ public sealed class AdminChatHub : Hub
                 (!Guid.TryParse(imageId, out var originalImageId) ||
                  !_images.IsOwned(originalImageId, identity.UsuarioId, avatar: false)))
                 throw new HubException("La imagen ya no está disponible. Adjuntala nuevamente.");
+            if (mediaId is Guid idToPublish && !_images.Publish(idToPublish, identity.UsuarioId, viewOnce))
+                throw new HubException("No se pudo publicar la imagen.");
             // La hora efectiva de publicación se decide dentro del bloqueo, en orden
             // con ClearMyChat, para que los mensajes posteriores vuelvan a aparecer.
             var published = message with { SentAt = DateTimeOffset.UtcNow };
             History.Enqueue(published);
-            while (History.Count > Limit) History.TryDequeue(out _);
+            while (History.Count > Limit && History.TryDequeue(out var removed))
+                ReactionsByMessage.Remove(removed.Id);
             await Clients.All.SendAsync("Message", published);
+        }
+        finally { ChatMutations.Release(); }
+    }
+
+    private static ChatReaction[] ReadReactions(Guid id) =>
+        ReactionsByMessage.TryGetValue(id, out var all)
+            ? all.Where(entry => entry.Value.Count > 0)
+                .Select(entry => new ChatReaction(entry.Key, entry.Value.ToArray())).ToArray()
+            : Array.Empty<ChatReaction>();
+
+    // Server-controlled emoji allowlist, authenticated account IDs and bounded history.
+    public async Task ToggleReaction(string? messageId, string? emoji)
+    {
+        var identity = Context.GetHttpContext()?.Items["auth.identity"] as AuthIdentity;
+        if (identity is null || identity.Role != "admin") throw new HubException("Sin autorización.");
+        if (!Guid.TryParse(messageId, out var id) || emoji is null ||
+            !AllowedReactions.Contains(emoji)) throw new HubException("Reacción no permitida.");
+        await ChatMutations.WaitAsync();
+        try
+        {
+            var message = History.FirstOrDefault(item => item.Id == id);
+            var cutoff = ClearedForUser.GetValueOrDefault(identity.UsuarioId, DateTimeOffset.MinValue);
+            if (message is null || message.SentAt <= cutoff)
+                throw new HubException("Mensaje fuera de tu historial.");
+            if (!ReactionsByMessage.TryGetValue(id, out var all))
+                ReactionsByMessage[id] = all = new Dictionary<string, HashSet<Guid>>();
+            if (!all.TryGetValue(emoji, out var users))
+                all[emoji] = users = new HashSet<Guid>();
+            if (!users.Add(identity.UsuarioId)) users.Remove(identity.UsuarioId);
+            if (users.Count == 0) all.Remove(emoji);
+            if (all.Count == 0) ReactionsByMessage.Remove(id);
+            await Clients.All.SendAsync("ReactionChanged", id, ReadReactions(id));
         }
         finally { ChatMutations.Release(); }
     }
@@ -283,7 +340,10 @@ public sealed class AdminChatHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    public sealed record ChatMessage(Guid Id, Guid UserId, string Name, string Email, string Text, DateTimeOffset SentAt, ChatReply? ReplyTo, string? ImageUrl);
+    public sealed record ChatMessage(Guid Id, Guid UserId, string Name, string Email, string Text,
+        DateTimeOffset SentAt, ChatReply? ReplyTo, string? ImageUrl, Guid? ImageId,
+        bool IsViewOnce, bool IsSticker, ChatReaction[] Reactions, bool ImageViewed);
+    public sealed record ChatReaction(string Emoji, Guid[] UserIds);
     public sealed record ChatReply(Guid Id, string Name, string Text);
     public sealed record ReadReceipt(Guid UserId, string Name, DateTimeOffset LastReadAt);
     public sealed record TypingStatus(
