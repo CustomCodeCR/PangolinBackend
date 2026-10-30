@@ -10,6 +10,8 @@ on:
       - "frontend/src/locales/en.json"
       - "backend/Program.cs"
       - "backend/Endpoints/InstagramReelEndpoints.cs"
+      - "backend/Endpoints/FacebookFeaturedVideoEndpoints.cs"
+      - "frontend/scripts/check-home-social-switch.cjs"
       - ".github/workflows/instagram-main2-check.yml"
   workflow_dispatch:
 
@@ -34,5 +36,6 @@ jobs:
         run: |
           npm ci --prefix frontend
           npm run build --prefix frontend
+          node frontend/scripts/check-home-social-switch.cjs
       - name: Compilar API
         run: dotnet build backend/CastroFallas.MiniQuote.Api.csproj --configuration Release
