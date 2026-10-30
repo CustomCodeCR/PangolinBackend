@@ -5,7 +5,9 @@ import IconSymbol from './IconSymbol.vue'
 import { authState } from '../services/auth'
 
 interface ChatReply { id: string; name: string; text: string }
-interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null; imageUrl?: string | null }
+type ImageMode = 'image' | 'once' | 'sticker'
+interface ChatReaction { emoji: string; userIds: string[] }
+interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null; imageUrl?: string | null; imageId?: string | null; isViewOnce?: boolean; isSticker?: boolean; imageViewed?: boolean; reactions?: ChatReaction[] }
 interface ChatMediaUpload { imageId: string; url: string }
 interface ReadReceipt { userId: string; name: string; lastReadAt: string }
 interface TypingStatus { connectionId: string; userId: string; name: string; isTyping: boolean; expiresAt: string; updatedAt: string }
@@ -27,7 +29,12 @@ const avatarPicker = ref<HTMLInputElement | null>(null)
 const imagePicker = ref<HTMLInputElement | null>(null)
 const avatarBusy = ref(false)
 const mediaBusy = ref(false)
-const outgoingImage = ref<{ blob: Blob; previewUrl: string } | null>(null)
+const outgoingImage = ref<{ blob: Blob; previewUrl: string; mode: ImageMode } | null>(null)
+const selectedAttachMode = ref<'image' | 'sticker'>('image')
+const imageViewer = ref<{ src: string; title: string; oneTime: boolean; objectUrl?: string } | null>(null)
+const viewingImageId = ref<string | null>(null)
+const reactionPickerId = ref<string | null>(null)
+const reactionChoices = ['👍', '❤️', '😂', '😮', '😢', '🎉', '👏', '🔥'] as const
 const expandedSeenId = ref<string | null>(null)
 const remoteTyping = ref<Record<string, TypingStatus>>({})
 const typingClock = ref(Date.now())
@@ -115,7 +122,7 @@ function avatarFor(userId: string) { return avatarUrls.value[userId.toLowerCase(
 function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map(part => part[0] ?? '').join('').toUpperCase() || '?'
 }
-async function compressImage(file: File, size: number, limit: number): Promise<Blob> {
+async function compressImage(file: File, size: number, limit: number, format: 'jpeg' | 'png' = 'jpeg'): Promise<Blob> {
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 9_000_000)
     throw new Error('Elegí una imagen JPG, PNG o WebP de hasta 9 MB.')
   const url = URL.createObjectURL(file)
@@ -135,9 +142,17 @@ async function compressImage(file: File, size: number, limit: number): Promise<B
     canvas.height = Math.max(1, Math.round(img.naturalHeight * scale))
     const context = canvas.getContext('2d')
     if (!context) throw new Error('No se pudo procesar la imagen.')
-    context.fillStyle = '#fff'
-    context.fillRect(0, 0, canvas.width, canvas.height)
+    if (format === 'jpeg') {
+      context.fillStyle = '#fff'
+      context.fillRect(0, 0, canvas.width, canvas.height)
+    }
     context.drawImage(img, 0, 0, canvas.width, canvas.height)
+    if (format === 'png') {
+      // A transparent uploaded photo stays transparent as a sticker.
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'))
+      if (blob && blob.size <= limit) return blob
+      throw new Error('El sticker es demasiado pesado. Probá una imagen más pequeña.')
+    }
     for (const quality of [0.82, 0.68, 0.52, 0.38]) {
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', quality))
       if (blob && blob.size <= limit) return blob
@@ -149,7 +164,7 @@ async function uploadImage(blob: Blob, kind: 'avatar' | 'message'): Promise<Chat
   const response = await fetch('/api/admin/chat/images?kind=' + kind, {
     method: 'POST',
     credentials: 'same-origin',
-    headers: { 'Content-Type': 'image/jpeg', 'X-Chat-Media': '1' },
+    headers: { 'Content-Type': blob.type === 'image/png' ? 'image/png' : 'image/jpeg', 'X-Chat-Media': '1' },
     body: blob
   })
   if (!response.ok) throw new Error(response.status === 413
@@ -189,6 +204,15 @@ async function removeAvatar() {
     nicknameError.value = 'No se pudo quitar la foto.'
   } finally { avatarBusy.value = false }
 }
+function pickImage(mode: 'image' | 'sticker') {
+  selectedAttachMode.value = mode
+  imagePicker.value?.click()
+}
+function toggleViewOnce() {
+  if (!outgoingImage.value || outgoingImage.value.mode === 'sticker') return
+  outgoingImage.value = { ...outgoingImage.value,
+    mode: outgoingImage.value.mode === 'once' ? 'image' : 'once' }
+}
 async function chooseImage(event: Event) {
   const element = event.target as HTMLInputElement
   const file = element.files?.[0]
@@ -197,15 +221,65 @@ async function chooseImage(event: Event) {
   mediaBusy.value = true
   error.value = ''
   try {
-    const blob = await compressImage(file, 1200, 800_000)
+    const mode = selectedAttachMode.value
+    const blob = await compressImage(file, mode === 'sticker' ? 320 : 1200, 800_000,
+      mode === 'sticker' ? 'png' : 'jpeg')
     clearOutgoingImage()
-    outgoingImage.value = { blob, previewUrl: URL.createObjectURL(blob) }
+    outgoingImage.value = { blob, previewUrl: URL.createObjectURL(blob), mode }
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'No se pudo adjuntar la imagen.' }
   finally { mediaBusy.value = false }
 }
 function clearOutgoingImage() {
   if (outgoingImage.value) URL.revokeObjectURL(outgoingImage.value.previewUrl)
   outgoingImage.value = null
+}
+function closeViewer() {
+  if (imageViewer.value?.objectUrl) URL.revokeObjectURL(imageViewer.value.objectUrl)
+  imageViewer.value = null
+}
+function viewerKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    if (imageViewer.value) closeViewer()
+    reactionPickerId.value = null
+  }
+}
+async function openSharedImage(message: ChatMessage) {
+  error.value = ''
+  closeViewer()
+  if (!message.isViewOnce) {
+    if (message.imageUrl?.startsWith('/api/admin/chat/images/'))
+      imageViewer.value = { src: message.imageUrl, title: 'Imagen de ' + displayName(message), oneTime: false }
+    return
+  }
+  if (!message.imageId || message.imageViewed || isOwn(message) || viewingImageId.value) return
+  viewingImageId.value = message.id
+  try {
+    const response = await fetch('/api/admin/chat/images/' + encodeURIComponent(message.imageId) + '/consume', {
+      method: 'POST', credentials: 'same-origin', headers: { 'X-Chat-Media': '1' }, cache: 'no-store'
+    })
+    if (!response.ok) throw new Error(response.status === 404
+      ? 'La foto ya fue vista o dejó de estar disponible.' : 'No se pudo abrir la foto.')
+    const blob = await response.blob()
+    if (!active || !props.visible) return
+    const objectUrl = URL.createObjectURL(blob)
+    imageViewer.value = { src: objectUrl, objectUrl, title: 'Foto de una sola visualización', oneTime: true }
+    messages.value = messages.value.map(item => item.imageId === message.imageId
+      ? { ...item, imageViewed: true } : item)
+  } catch (cause) {
+    if (active) error.value = cause instanceof Error ? cause.message : 'No se pudo abrir la foto.'
+  } finally { viewingImageId.value = null }
+}
+function toggleReactionPicker(id: string) {
+  reactionPickerId.value = reactionPickerId.value === id ? null : id
+}
+async function toggleReaction(id: string, emoji: string) {
+  if (connection?.state !== signalR.HubConnectionState.Connected) return
+  reactionPickerId.value = null
+  try { await connection.invoke('ToggleReaction', id, emoji) }
+  catch (cause) { error.value = cause instanceof Error ? cause.message : 'No se pudo reaccionar.' }
+}
+function reactedByMe(reaction: ChatReaction) {
+  return reaction.userIds.some(id => id.toLowerCase() === currentUserId.value)
 }
 function displayName(message: ChatMessage) {
   return chatNames.value[message.userId.toLowerCase()] || message.name || message.email
@@ -365,6 +439,8 @@ function onChatClearedForUser(event: { clearedAt: string }) {
   replyTarget.value = null
   expandedSeenId.value = null
   highlightedId.value = null
+  reactionPickerId.value = null
+  closeViewer()
   // Los vistos globales permanecen para los mensajes posteriores y los demás.
   persistLastRead(cutoff)
   chatNotice.value = 'Tu vista del chat está limpia. Los demás administradores conservan sus mensajes.'
@@ -380,7 +456,7 @@ async function send() {
   try {
     if (outgoingImage.value) {
       const uploaded = await uploadImage(outgoingImage.value.blob, 'message')
-      await connection.invoke('SendImage', uploaded.imageId, text, target?.id ?? null)
+      await connection.invoke('SendMedia', uploaded.imageId, text, target?.id ?? null, outgoingImage.value.mode)
       clearOutgoingImage()
     } else if (target) await connection.invoke('ReplyToMessage', text, target.id)
     else await connection.invoke('SendMessage', text)
@@ -414,10 +490,11 @@ async function startChat() {
   }
 }
 function onVisibility() {
+  if (document.visibilityState !== 'visible' && imageViewer.value?.oneTime) closeViewer()
   if (!canSendTyping()) stopTyping()
   if (canMarkRead()) { scrollBottom(); markVisibleRead() }
 }
-watch(() => props.visible, showing => { if (showing) onVisibility(); else stopTyping() })
+watch(() => props.visible, showing => { if (showing) onVisibility(); else { stopTyping(); closeViewer(); reactionPickerId.value = null } })
 onMounted(() => {
   if (authState.user?.role !== 'administrador' || authState.previewRole) {
     status.value = 'Requiere una sesión administradora real.'
@@ -436,6 +513,7 @@ onMounted(() => {
   }, 850)
   void nextTick(() => chatPanel.value?.addEventListener('wheel', trapChatWheel, { passive: false }))
   window.addEventListener('focus', onVisibility)
+  window.addEventListener('keydown', viewerKeydown)
   document.addEventListener('visibilitychange', onVisibility)
   window.addEventListener('online', startChat)
 
@@ -478,6 +556,14 @@ onMounted(() => {
     if (canMarkRead()) { scrollBottom(); markVisibleRead() }
   })
   hub.on('Message', (message: ChatMessage) => { if (active) receivedMessage(message) })
+  hub.on('ReactionChanged', (messageId: string, reactions: ChatReaction[]) => {
+    if (active) messages.value = messages.value.map(message => message.id === messageId
+      ? { ...message, reactions: reactions ?? [] } : message)
+  })
+  hub.on('OneTimeImageViewed', (imageId: string) => {
+    if (active) messages.value = messages.value.map(message => message.imageId === imageId
+      ? { ...message, imageViewed: true } : message)
+  })
   hub.on('ChatClearedForUser', (event: { clearedAt: string }) => onChatClearedForUser(event))
   hub.on('TypingSnapshot', (states: TypingStatus[]) => {
     if (!active) return
@@ -506,11 +592,13 @@ onUnmounted(() => {
   emit('unread-change', 0)
   stopTyping()
   clearOutgoingImage()
+  closeViewer()
   if (typingSweepTimer) clearInterval(typingSweepTimer)
   if (retryTimer) clearTimeout(retryTimer)
   if (highlightTimer) clearTimeout(highlightTimer)
   chatPanel.value?.removeEventListener('wheel', trapChatWheel)
   window.removeEventListener('focus', onVisibility)
+  window.removeEventListener('keydown', viewerKeydown)
   document.removeEventListener('visibilitychange', onVisibility)
   window.removeEventListener('online', startChat)
   if (connection) void connection.stop()
