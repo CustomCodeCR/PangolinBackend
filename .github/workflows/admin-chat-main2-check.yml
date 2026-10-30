@@ -6,6 +6,10 @@ on:
     paths:
       - "backend/Services/Realtime/AdminChatHub.cs"
       - "backend/Services/Realtime/AdminChatMedia.cs"
+      - "backend/Services/Realtime/AdminChatAudio.cs"
+      - "frontend/src/composables/useAdminChatCameras.ts"
+      - "frontend/src/composables/useChatStickerLibrary.ts"
+      - "frontend/src/components/ChatCameraTile.vue"
       - "backend/Program.cs"
       - "frontend/src/components/AdminTeamChat.vue"
       - ".github/workflows/admin-chat-main2-check.yml"
@@ -14,6 +18,10 @@ on:
     paths:
       - "backend/Services/Realtime/AdminChatHub.cs"
       - "backend/Services/Realtime/AdminChatMedia.cs"
+      - "backend/Services/Realtime/AdminChatAudio.cs"
+      - "frontend/src/composables/useAdminChatCameras.ts"
+      - "frontend/src/composables/useChatStickerLibrary.ts"
+      - "frontend/src/components/ChatCameraTile.vue"
       - "backend/Program.cs"
       - "frontend/src/components/AdminTeamChat.vue"
       - "frontend/src/pages/ContentManager.vue"
@@ -110,6 +118,27 @@ jobs:
                 chat.includes('OneTimeImageViewed'), 'View-once user experience missing')
           check(chat.includes('image/png') && chat.includes('isSticker') && chat.includes("pickImage('sticker')"),
             'Photo sticker support missing')
-          check(manager.includes("section !== 'users' && section !== 'chat'"), 'Chat must not render multimedia form')
+          const audio = fs.readFileSync('backend/Services/Realtime/AdminChatAudio.cs', 'utf8')
+          const camera = fs.readFileSync('frontend/src/composables/useAdminChatCameras.ts', 'utf8')
+          const stickers = fs.readFileSync('frontend/src/composables/useChatStickerLibrary.ts', 'utf8')
+          check(program.includes('AddSingleton<AdminChatAudioStore>()') && program.includes('MapAdminChatAudio()'),
+            'Private audio service must be wired')
+          check(audio.includes('RequireAuthorization("admin")') && audio.includes('MaxClipBytes') &&
+                audio.includes('X-Chat-Media') && audio.includes('FindPublished'),
+            'Audio access limits/auth must be enforced')
+          check(hub.includes('SendVoice(') && chat.includes("connection.invoke('SendVoice'"),
+            'Voice messages must be routed through hub')
+          check(hub.includes('SendCameraSignal') && hub.includes('StartCamera') &&
+                hub.includes('StopCamera') && hub.includes('Cameras.Count >= 6'),
+            'Camera signaling and participant limits missing')
+          check(camera.includes('RTCPeerConnection') && camera.includes('getUserMedia') &&
+                camera.includes("iceServers: []") && camera.includes('cleanup'),
+            'Peer-to-peer camera logic or cleanup missing')
+          check(stickers.includes('indexedDB') && stickers.includes('LIMIT = 32') &&
+                chat.includes('saveMessageSticker') && chat.includes('useSavedSticker'),
+            'Sticker collection lifecycle missing')
+          check(chat.includes('team-chat__emoji-grid') && chat.includes('SmilePlus') &&
+                chat.includes('scrollBottom()'), 'Emoji picker or auto-scroll missing')
+                    check(manager.includes("section !== 'users' && section !== 'chat'"), 'Chat must not render multimedia form')
           console.log('Admin team chat UI and permissions contracts OK')
           NODE
