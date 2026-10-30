@@ -216,10 +216,10 @@ public sealed class AdminChatHub : Hub
         return SendCore(caption, replyToId, imageId, mode == "once", mode == "sticker");
     }
 
-    public Task SendVoice(string? audioId, string? replyToId)
+    public Task SendVoice(string? audioId, string? replyToId, string? caption = null)
     {
         if (!Guid.TryParse(audioId, out _)) throw new HubException("Audio inválido.");
-        return SendCore(null, replyToId, null, false, false, audioId);
+        return SendCore(caption, replyToId, null, false, false, audioId);
     }
 
     private async Task SendCore(string? body, string? replyToId, string? imageId,
