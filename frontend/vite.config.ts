@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
   // Only the explicitly configured Tailscale machine hostname is allowed.
   // Never disable Vite's host validation with allowedHosts: true.
   const tailnetHost = env.VITE_TAILSCALE_HOST?.trim().toLowerCase() ?? ''
-  const allowedTailnetHost = /^([a-z0-9-]+\\.)+ts\\.net$/.test(tailnetHost)
+  const allowedTailnetHost = /^([a-z0-9-]+\.)+ts\.net$/.test(tailnetHost)
     ? [tailnetHost] : []
   return {
     plugins: [vue()],
