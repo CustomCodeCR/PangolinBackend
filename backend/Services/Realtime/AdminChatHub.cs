@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using CastroFallas.MiniQuote.Api.Services.Auth;
+using CastroFallas.MiniQuote.Api.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
@@ -8,7 +9,7 @@ namespace CastroFallas.MiniQuote.Api.Services.Realtime;
 
 // Experimento efímero: los mensajes permanecen solo en memoria hasta reiniciar la API.
 [Authorize(Policy = "admin")]
-public sealed class AdminChatHub : Hub
+public sealed partial class AdminChatHub : Hub
 {
     public const string Path = "/api/hubs/admin-chat";
     private static readonly ConcurrentQueue<ChatMessage> History = new();
@@ -48,10 +49,11 @@ public sealed class AdminChatHub : Hub
     private static readonly ConcurrentDictionary<Guid, Guid> Avatars = new();
     private readonly AdminChatMediaStore _images;
 
-    public AdminChatHub(AdminChatMediaStore images, AdminChatAudioStore audio)
+    public AdminChatHub(AdminChatMediaStore images, AdminChatAudioStore audio, AppDbContext chatDb)
     {
         _images = images;
         _audio = audio;
+        _chatDb = chatDb;
     }
     // Presencia temporal por conexión: nunca se transmite el contenido del borrador.
     private static readonly ConcurrentDictionary<string, TypingStatus> Typing = new();
@@ -82,6 +84,7 @@ public sealed class AdminChatHub : Hub
         ConnectedUsers[Context.ConnectionId] = identity.UsuarioId;
         ReactionNames[identity.UsuarioId] = DisplayName(identity);
         await Groups.AddToGroupAsync(Context.ConnectionId, PersonalGroup(identity.UsuarioId));
+        await Clients.Others.SendAsync("DirectPresenceChanged", identity.UsuarioId, true);
         Nicknames.TryGetValue(identity.UsuarioId, out var nickname);
         await Clients.Caller.SendAsync("ChatProfile", new { displayName = nickname ?? identity.NombreCliente, customName = nickname });
         await Clients.Caller.SendAsync("AvatarSnapshot", Avatars
@@ -100,6 +103,7 @@ public sealed class AdminChatHub : Hub
         await Clients.Caller.SendAsync("TypingSnapshot", Typing.Values
             .Where(x => x.ConnectionId != Context.ConnectionId && x.ExpiresAt > DateTimeOffset.UtcNow)
             .ToArray());
+        await Clients.Caller.SendAsync("DirectDirectory", await GetDirectContacts());
         await Clients.Caller.SendAsync("CameraSnapshot", Cameras.Values.ToArray());
         await Clients.Others.SendAsync("CameraViewerJoined", Context.ConnectionId);
         await Clients.All.SendAsync("Presence", Online.Count);
@@ -207,6 +211,7 @@ public sealed class AdminChatHub : Hub
         ReactionNames[identity.UsuarioId] = display;
         // Una actualización del nombre no da acceso a cuentas ajenas.
         await Clients.All.SendAsync("NicknameChanged", identity.UsuarioId, display);
+        await Clients.All.SendAsync("DirectContactsRefresh");
         return display;
     }
 
@@ -228,6 +233,7 @@ public sealed class AdminChatHub : Hub
             Avatars.TryRemove(identity.UsuarioId, out _);
         }
         await Clients.All.SendAsync("AvatarChanged", identity.UsuarioId, url);
+        await Clients.All.SendAsync("DirectContactsRefresh");
     }
 
     private static string DisplayName(AuthIdentity identity) =>
@@ -517,7 +523,9 @@ public sealed class AdminChatHub : Hub
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         Online.TryRemove(Context.ConnectionId, out _);
-        ConnectedUsers.TryRemove(Context.ConnectionId, out _);
+        ConnectedUsers.TryRemove(Context.ConnectionId, out var disconnectedUser);
+        if (disconnectedUser != Guid.Empty && !ConnectedUsers.Values.Contains(disconnectedUser))
+            await Clients.Others.SendAsync("DirectPresenceChanged", disconnectedUser, false);
         await StopCamera();
         await Clients.Others.SendAsync("CameraViewerLeft", Context.ConnectionId);
         LastMessage.TryRemove(Context.ConnectionId, out _);
@@ -532,7 +540,7 @@ public sealed class AdminChatHub : Hub
     public sealed record ChatMessage(Guid Id, Guid UserId, string Name, string Email, string Text,
         DateTimeOffset SentAt, ChatReply? ReplyTo, string? ImageUrl, Guid? ImageId,
         bool IsViewOnce, bool IsSticker, ChatReaction[] Reactions, bool ImageViewed,
-        string? AudioUrl = null);
+        string? AudioUrl = null, Guid? RecipientId = null);
     public sealed record CameraParticipant(string ConnectionId, Guid UserId, string Name);
     public sealed record ChatReaction(string Emoji, Guid[] UserIds, string[] UserNames);
     public sealed record ChatReply(Guid Id, Guid UserId, string Name, string Text);
