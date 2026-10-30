@@ -254,7 +254,9 @@ async function chooseImage(event: Event) {
     const blob = await compressImage(file, mode === 'sticker' ? 320 : 1200, 800_000,
       mode === 'sticker' ? 'png' : 'jpeg')
     clearOutgoingImage()
+    clearOutgoingAudio()
     outgoingImage.value = { blob, previewUrl: URL.createObjectURL(blob), mode }
+    if (mode === 'sticker') stickerTrayOpen.value = false
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'No se pudo adjuntar la imagen.' }
   finally { mediaBusy.value = false }
 }
@@ -264,7 +266,7 @@ function clearOutgoingImage() {
 }
 async function toggleStickerTray() {
   stickerTrayOpen.value = !stickerTrayOpen.value
-  if (stickerTrayOpen.value) await loadStickers()
+  if (stickerTrayOpen.value) { reactionPickerId.value = null; await loadStickers() }
 }
 function useSavedSticker(item: StickerPreview) {
   clearOutgoingImage()
@@ -401,6 +403,7 @@ async function openSharedImage(message: ChatMessage) {
 }
 function toggleReactionPicker(id: string) {
   reactionPickerId.value = reactionPickerId.value === id ? null : id
+  if (reactionPickerId.value) stickerTrayOpen.value = false
 }
 async function toggleReaction(id: string, emoji: string) {
   if (connection?.state !== signalR.HubConnectionState.Connected) return
