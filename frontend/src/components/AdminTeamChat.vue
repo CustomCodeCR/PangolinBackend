@@ -1663,4 +1663,171 @@ onUnmounted(() => {
   .team-chat__lightbox-panel img { max-height: calc(90dvh - 125px); }
 }
 
+
+/* Unified control icons: real line icons, never platform-dependent emoji glyphs. */
+.team-chat__actions .team-chat__reply-action,
+.team-chat__composer .team-chat__attach {
+  display: inline-grid; place-items: center; line-height: 0;
+}
+.team-chat__actions .team-chat__reply-action svg,
+.team-chat__composer .team-chat__attach svg {
+  display: block; margin: auto; flex-shrink: 0;
+}
+.team-chat__once-button svg { flex-shrink: 0; }
+.team-chat__media-preview .team-chat__once-toggle {
+  display: inline-flex; justify-content: center; align-items: center; gap: 5px;
+}
+
+/* The emoji selector lives above the composer, inside the chat panel.
+   This avoids clipping under the message scroller on mobile. */
+.team-chat__emoji-tray, .team-chat__sticker-tray {
+  border: 1px solid var(--chat-line); border-radius: 14px;
+  background: var(--chat-bg); color: var(--chat-text);
+  padding: 11px; margin: 0 0 10px; box-shadow: 0 6px 20px rgba(0,0,0,.08);
+}
+.team-chat__tray-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-bottom: 9px; font-size: 13px;
+}
+.team-chat__tray-head button {
+  display: grid; place-items: center; width: 31px; height: 31px;
+  border: 1px solid var(--chat-line); border-radius: 9px;
+  background: var(--chat-soft); color: var(--chat-text); cursor: pointer;
+}
+.team-chat__emoji-grid {
+  display: grid; grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 4px; max-height: 190px; overflow-y: auto; overscroll-behavior: contain;
+  padding: 5px; scrollbar-width: thin;
+}
+.team-chat__emoji-grid button {
+  aspect-ratio: 1; display: grid; place-items: center;
+  min-width: 0; padding: 0; border: 1px solid transparent;
+  border-radius: 8px; background: transparent; cursor: pointer;
+}
+.team-chat__emoji-grid button span {
+  display: grid; place-items: center; width: 100%; height: 100%;
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+  font-size: clamp(18px, 2vw, 25px); line-height: 1; text-align: center;
+}
+.team-chat__emoji-grid button:hover, .team-chat__emoji-grid button:focus-visible {
+  background: var(--chat-soft); border-color: var(--chat-accent); outline: none;
+}
+.team-chat__sticker-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 8px; max-height: 232px; overflow-y: auto; overscroll-behavior: contain;
+  padding: 4px;
+}
+.team-chat__new-sticker {
+  min-height: 86px; border: 1px dashed var(--chat-accent); border-radius: 11px;
+  background: var(--chat-soft); color: var(--chat-accent);
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 6px; font: inherit; font-size: 11px; cursor: pointer;
+}
+.team-chat__new-sticker:disabled { opacity: .5; cursor: not-allowed; }
+.team-chat__saved-sticker { position: relative; min-width: 0; }
+.team-chat__saved-sticker > button:first-child {
+  display: grid; place-items: center; width: 100%; height: 86px;
+  border: 1px solid var(--chat-line); border-radius: 11px;
+  background: var(--chat-soft); cursor: pointer;
+}
+.team-chat__saved-sticker img {
+  display: block; max-width: 93%; max-height: 75px;
+  width: auto; height: auto; object-fit: contain;
+}
+.team-chat__saved-sticker > .team-chat__remove-sticker {
+  position: absolute; right: 0; top: 0; width: 22px; height: 22px;
+  display: grid; place-items: center; border: 1px solid var(--chat-line);
+  border-radius: 0 10px 0 8px; background: var(--chat-bg);
+  color: var(--chat-accent); cursor: pointer;
+}
+.team-chat__sticker-tray p, .team-chat__sticker-tray small {
+  display: block; margin: 9px 3px 0; font-size: 11px;
+  color: var(--chat-muted);
+}
+.team-chat__sticker-tray p[role="alert"] { color: var(--chat-accent); }
+.team-chat__audio-player {
+  width: min(290px, 100%); max-width: 100%; height: 41px;
+  display: block; margin-top: 8px;
+}
+.team-chat__audio-preview {
+  display: flex; align-items: center; gap: 8px;
+  border: 1px solid var(--chat-line); border-radius: 12px;
+  background: var(--chat-soft); padding: 10px; margin: 0 0 9px;
+  color: var(--chat-accent);
+}
+.team-chat__audio-preview audio { flex: 1; min-width: 0; height: 38px; }
+.team-chat__audio-preview > button {
+  display: grid; place-items: center; flex: 0 0 auto;
+  border: 1px solid var(--chat-line); border-radius: 8px;
+  background: transparent; color: var(--chat-text); height: 34px; width: 34px;
+  cursor: pointer;
+}
+.team-chat__recording {
+  display: flex; align-items: center; gap: 9px;
+  margin: 0 0 9px; color: var(--chat-accent); font-size: 12px;
+}
+.team-chat__recording-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #e31c42; box-shadow: 0 0 0 4px rgba(227,28,66,.12);
+}
+.team-chat__recording button {
+  margin-left: auto; border: 1px solid var(--chat-line); border-radius: 9px;
+  color: var(--chat-text); background: transparent; padding: 7px 10px;
+  font: inherit; cursor: pointer;
+}
+.team-chat__camera-panel {
+  box-sizing: border-box; margin: 14px 0 32px; padding: 16px 18px;
+  border-radius: 18px; border: 1px solid var(--manager-line, #ded9dc);
+  background: var(--manager-card, #fff); color: var(--manager-ink, #20242b);
+}
+.team-chat__camera-header {
+  display: flex; flex-wrap: wrap; gap: 12px;
+  align-items: center; justify-content: space-between;
+}
+.team-chat__camera-header strong {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 15px; color: inherit;
+}
+.team-chat__camera-header p, .team-chat__camera-empty,
+.team-chat__camera-panel > small {
+  margin: 6px 0; color: var(--manager-muted, #687080); font-size: 12px; line-height: 1.5;
+}
+.team-chat__camera-header button {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 37px; border: 1px solid var(--manager-accent, #b20c2a);
+  border-radius: 10px; background: var(--manager-accent, #b20c2a);
+  color: #fff; padding: 8px 13px; font: inherit; font-size: 12px;
+  font-weight: 750; cursor: pointer;
+}
+.team-chat__camera-header button:disabled { opacity: .5; cursor: not-allowed; }
+.team-chat__camera-grid {
+  display: flex; flex-wrap: wrap; gap: 10px; margin: 15px 0 8px;
+}
+.team-chat__camera-error { color: #e02045; font-size: 12px; }
+:global(html.theme-dark .administration-page .team-chat__camera-panel) {
+  background: #211b20; color: #fff; border-color: #565057;
+}
+:global(html.theme-dark .administration-page .team-chat__camera-panel p),
+:global(html.theme-dark .administration-page .team-chat__camera-panel small) { color: #d2ced5; }
+:global(html.theme-dark .administration-page .team-chat__camera-header button) {
+  background: #c51b3c !important; color: #fff !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__emoji-tray),
+:global(html.theme-dark .administration-page .team-chat .team-chat__sticker-tray),
+:global(html.theme-dark .administration-page .team-chat .team-chat__audio-preview) {
+  background: #211b20 !important; color: #fff !important; border-color: #565057 !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__emoji-grid button:hover),
+:global(html.theme-dark .administration-page .team-chat .team-chat__saved-sticker > button:first-child) {
+  background: #352b35 !important;
+}
+@media (max-width: 600px) {
+  .team-chat__emoji-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  .team-chat__camera-panel { padding: 12px; }
+  .team-chat__camera-header button { width: 100%; }
+  .team-chat__camera-grid > * { flex-basis: 45%; min-width: 130px; }
+  .team-chat__composer { gap: 5px; }
+  .team-chat__composer .team-chat__attach { width: 31px; height: 35px; }
+}
+
 </style>
