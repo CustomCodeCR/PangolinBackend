@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import type { Component } from 'vue'
-import { Boxes, FileCheck2, FileText, Globe2, Package, PackageCheck, ShieldCheck, Ship, Truck, Warehouse } from '@lucide/vue'
+import { Boxes, FileCheck, FileText, Globe, Package, PackageCheck, ShieldCheck, Ship, Truck, Warehouse } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
@@ -153,8 +153,8 @@ function handleLocationKeydown(field: LocationField, event: KeyboardEvent) {
 const incoterms = ['EXW','FCA','FAS','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP']
 const serviceOptions = ['Transporte internacional','Agencia de Aduanas CR','Agencia de Aduanas Exterior','Almacenamiento','Control de inventario','Embalaje','Exoneración','Picking Carga','Recepción de carga','Seguro de carga','Transporte entrega','Transporte recolección','Transporte nacional']
 const serviceIcons: Record<string, Component> = {
-  'Transporte internacional': Globe2,
-  'Agencia de Aduanas CR': FileCheck2,
+  'Transporte internacional': Globe,
+  'Agencia de Aduanas CR': FileCheck,
   'Agencia de Aduanas Exterior': Ship,
   'Almacenamiento': Warehouse,
   'Control de inventario': Boxes,
