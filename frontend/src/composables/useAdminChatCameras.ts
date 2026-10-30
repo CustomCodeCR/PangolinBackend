@@ -60,7 +60,7 @@ export function useAdminChatCameras() {
         remoteStreams.value = { ...remoteStreams.value, [ownerId]: stream }
       }
     }
-    pendingIce.set(queueKey, [])
+    if (!pendingIce.has(queueKey)) pendingIce.set(queueKey, [])
     return pc
   }
 
@@ -122,11 +122,10 @@ export function useAdminChatCameras() {
       }
     } else if (data.kind === 'ice') {
       const pc = incoming.get(data.ownerId)
-      if (!pc) return
       const key = 'receive:' + data.ownerId
       try {
         const ice = JSON.parse(data.payload) as RTCIceCandidateInit
-        if (pc.remoteDescription) await pc.addIceCandidate(ice)
+        if (pc?.remoteDescription) await pc.addIceCandidate(ice)
         else pendingIce.set(key, [...(pendingIce.get(key) ?? []), ice].slice(-35))
       } catch { /* Ignore invalid ICE data. */ }
     }
