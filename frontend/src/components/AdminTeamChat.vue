@@ -855,9 +855,13 @@ onUnmounted(() => {
             :disabled="isOwn(message) || message.imageViewed || viewingImageId === message.id"
             :aria-label="message.imageViewed ? 'Foto ya vista' : 'Abrir foto de una sola visualización'"
             @click="openSharedImage(message)">
-            <span aria-hidden="true">🔒</span>
+            <LockKeyhole :size="22" aria-hidden="true" />
             <span>{{ isOwn(message) ? 'Foto de una vez enviada' : message.imageViewed ? 'Foto ya vista' : viewingImageId === message.id ? 'Abriendo…' : 'Ver foto una vez' }}</span>
           </button>
+          <audio v-if="message.audioUrl?.startsWith('/api/admin/chat/audio/')" class="team-chat__audio-player"
+            controls preload="none" :src="message.audioUrl" :aria-label="'Audio de ' + displayName(message)">
+            Tu navegador no permite reproducir este audio.
+          </audio>
           <div v-if="message.reactions?.length" class="team-chat__reactions" aria-label="Reacciones al mensaje">
             <button v-for="reaction in message.reactions" :key="reaction.emoji" type="button"
               :class="{ 'is-mine': reactedByMe(reaction) }"
@@ -881,19 +885,52 @@ onUnmounted(() => {
             :aria-expanded="reactionPickerId === message.id"
             :aria-label="'Reaccionar al mensaje de ' + displayName(message)"
             title="Reaccionar" :disabled="status !== 'En línea'"
-            @click="toggleReactionPicker(message.id)">☺</button>
-          <div v-if="reactionPickerId === message.id" class="team-chat__reaction-picker"
-            role="group" aria-label="Elegir reacción">
-            <button v-for="emoji in reactionChoices" :key="emoji" type="button"
-              :aria-label="'Reaccionar con ' + emoji"
-              @click="toggleReaction(message.id, emoji)">{{ emoji }}</button>
-          </div>
+            @click="toggleReactionPicker(message.id)"><SmilePlus :size="18" /></button>
+          <button v-if="message.isSticker && message.imageId" class="team-chat__reply-action" type="button"
+            :disabled="stickerBusy || savedSources.has(message.imageId)"
+            :title="savedSources.has(message.imageId) ? 'Sticker guardado' : 'Guardar sticker en mi colección'"
+            :aria-label="savedSources.has(message.imageId) ? 'Sticker guardado' : 'Guardar este sticker'"
+            @click="saveMessageSticker(message)"><BookmarkPlus :size="17" /></button>
         </div>
       </div>
       <div v-if="typingNames.length" class="team-chat__typing" role="status" aria-live="polite" aria-atomic="true">
         <span class="team-chat__typing-dots" aria-hidden="true"><i></i><i></i><i></i></span>
         <span class="team-chat__typing-name">{{ typingLabel }}</span>
       </div>
+    </div>
+    <div v-if="reactionPickerId" class="team-chat__emoji-tray" role="group" aria-label="Reacciones con emojis">
+      <div class="team-chat__tray-head">
+        <strong>Elegí un emoji para reaccionar</strong>
+        <button type="button" aria-label="Cerrar emojis" @click="reactionPickerId = null"><X :size="17" /></button>
+      </div>
+      <div class="team-chat__emoji-grid">
+        <button v-for="emoji in reactionChoices" :key="emoji" type="button"
+          :aria-label="'Reaccionar con ' + emoji"
+          @click="toggleReaction(reactionPickerId!, emoji)"><span>{{ emoji }}</span></button>
+      </div>
+    </div>
+    <div v-if="stickerTrayOpen" class="team-chat__sticker-tray">
+      <div class="team-chat__tray-head">
+        <strong>Mis stickers</strong>
+        <button type="button" aria-label="Cerrar stickers" @click="stickerTrayOpen = false"><X :size="17" /></button>
+      </div>
+      <div class="team-chat__sticker-grid">
+        <button type="button" class="team-chat__new-sticker"
+          :disabled="status !== 'En línea' || mediaBusy" @click="pickImage('sticker')">
+          <Plus :size="21" /><span>Subir sticker</span>
+        </button>
+        <div v-for="saved in savedStickers" :key="saved.id" class="team-chat__saved-sticker">
+          <button type="button" :title="'Usar sticker guardado'"
+            :disabled="status !== 'En línea' || mediaBusy" @click="useSavedSticker(saved)">
+            <img :src="saved.previewUrl" alt="Sticker guardado" />
+          </button>
+          <button type="button" class="team-chat__remove-sticker" title="Quitar de mis stickers"
+            aria-label="Borrar sticker guardado" @click="removeSavedSticker(saved)"><X :size="13" /></button>
+        </div>
+      </div>
+      <p v-if="!savedStickers.length">Todavía no guardaste stickers. Subí uno o guardá uno del chat.</p>
+      <p v-if="stickerError" role="alert">{{ stickerError }}</p>
+      <small>Hasta 32 stickers por cuenta, guardados en este navegador. No se sincronizan con otras computadoras.</small>
     </div>
     <div v-if="replyTarget" class="team-chat__reply-banner" role="status">
       <div class="team-chat__reply-banner-copy">
@@ -907,8 +944,17 @@ onUnmounted(() => {
       <span>{{ outgoingImage.mode === 'sticker' ? 'Sticker con foto · mantiene transparencia si la imagen la tiene' : outgoingImage.mode === 'once' ? 'Foto para ver una vez · no se guarda en la galería del chat' : 'Imagen adjunta · podés agregar un texto' }}</span>
       <button v-if="outgoingImage.mode !== 'sticker'" type="button"
         class="team-chat__once-toggle" :aria-pressed="outgoingImage.mode === 'once'"
-        @click="toggleViewOnce">{{ outgoingImage.mode === 'once' ? '✓ Ver una vez' : '🔒 Ver una vez' }}</button>
+        @click="toggleViewOnce"><LockKeyhole :size="14" />{{ outgoingImage.mode === 'once' ? '✓ Ver una vez' : 'Ver una vez' }}</button>
       <button type="button" aria-label="Quitar imagen adjunta" title="Quitar imagen" @click="clearOutgoingImage">✕</button>
+    </div>
+    <div v-if="outgoingAudio" class="team-chat__audio-preview" role="status">
+      <Mic :size="18" /><audio :src="outgoingAudio.previewUrl" controls preload="metadata" aria-label="Escuchar audio antes de enviarlo" />
+      <button type="button" aria-label="Descartar grabación" @click="clearOutgoingAudio"><X :size="17" /></button>
+    </div>
+    <div v-if="recording" class="team-chat__recording" role="status">
+      <span class="team-chat__recording-dot" aria-hidden="true"></span>
+      Grabando audio · {{ recordingSeconds }} s de 45 s
+      <button type="button" @click="stopRecording(true)">Descartar</button>
     </div>
     <form class="team-chat__composer" @submit.prevent="send">
       <input ref="imagePicker" type="file" class="sr-only" accept="image/jpeg,image/png,image/webp"
@@ -919,18 +965,50 @@ onUnmounted(() => {
       </button>
       <button type="button" class="team-chat__attach team-chat__sticker-attach"
         :disabled="status !== 'En línea' || mediaBusy || sending"
-        aria-label="Enviar foto como sticker" title="Adjuntar foto como sticker"
-        @click="pickImage('sticker')">🏷️</button>
+        aria-label="Abrir stickers guardados" title="Stickers guardados"
+        :aria-expanded="stickerTrayOpen"
+        @click="toggleStickerTray"><Sticker :size="19" /></button>
+      <button type="button" class="team-chat__attach team-chat__mic-attach"
+        :disabled="status !== 'En línea' || sending || mediaBusy"
+        :aria-label="recording ? 'Detener grabación de audio' : 'Grabar mensaje de voz'"
+        :title="recording ? 'Detener grabación' : 'Grabar audio'"
+        @click="recording ? stopRecording() : startRecording()">
+        <Square v-if="recording" :size="17" fill="currentColor" />
+        <Mic v-else :size="19" />
+      </button>
       <label class="sr-only" for="team-chat-input">Escribir mensaje</label>
       <input id="team-chat-input" ref="input" v-model="draft" maxlength="500" autocomplete="off"
         placeholder="Escribí un mensaje al equipo…" :disabled="status !== 'En línea'"
         @input="onDraftInput" @blur="stopTyping" />
-      <button type="submit" :disabled="status !== 'En línea' || (!draft.trim() && !outgoingImage) || sending || mediaBusy">
+      <button type="submit" :disabled="status !== 'En línea' || (!draft.trim() && !outgoingImage && !outgoingAudio) || sending || mediaBusy || recording">
         {{ sending ? 'Enviando…' : 'Enviar ↗' }}
       </button>
     </form>
     <p v-if="error" class="team-chat__error" role="alert">{{ error }}</p>
     <p class="team-chat__foot">Solo administradores autenticados · {{ messages.length }} mensajes en este historial temporal.</p>
+    </section>
+    <section class="team-chat__camera-panel" aria-label="Cámaras del equipo">
+      <div class="team-chat__camera-header">
+        <div><strong><Video :size="18" /> Cámaras del equipo</strong>
+          <p>Video en directo entre administradores. Activación individual, sin grabación en el servidor.</p>
+        </div>
+        <button type="button" :disabled="cameraBusy || status !== 'En línea'"
+          @click="cameraStream ? stopCamera() : startCamera()">
+          <VideoOff v-if="cameraStream" :size="18" />
+          <Video v-else :size="18" />
+          {{ cameraBusy ? 'Activando…' : cameraStream ? 'Apagar mi cámara' : 'Encender mi cámara' }}
+        </button>
+      </div>
+      <div v-if="cameraStream || cameraTiles.length" class="team-chat__camera-grid">
+        <ChatCameraTile v-if="cameraStream" :stream="cameraStream"
+          :name="chatNames[currentUserId] || authState.user?.nombre || 'Mi cámara'" self />
+        <ChatCameraTile v-for="tile in cameraTiles" :key="tile.connectionId"
+          :stream="tile.stream" :name="tile.name" />
+      </div>
+      <p v-else class="team-chat__camera-empty">No hay cámaras activas en este momento.</p>
+      <p v-if="cameraError" role="alert" class="team-chat__camera-error">{{ cameraError }}</p>
+      <small v-if="!cameraSupported">Para activar cámara o micrófono desde otra computadora, se necesita una conexión HTTPS segura.</small>
+      <small v-else>Las cámaras funcionan mejor dentro de la misma red. Fuera de ella puede ser necesario un servidor TURN.</small>
     </section>
     <div v-if="imageViewer" class="team-chat__lightbox" role="dialog" aria-modal="true"
       :aria-label="imageViewer.title" @click.self="closeViewer">
