@@ -11,7 +11,8 @@ import { authState } from '../services/auth'
 interface ChatReply { id: string; name: string; text: string; userId?: string }
 type ImageMode = 'image' | 'once' | 'sticker'
 interface ChatReaction { emoji: string; userIds: string[]; userNames?: string[] }
-interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null; imageUrl?: string | null; imageId?: string | null; isViewOnce?: boolean; isSticker?: boolean; imageViewed?: boolean; reactions?: ChatReaction[]; audioUrl?: string | null; isSystem?: boolean }
+interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null; imageUrl?: string | null; imageId?: string | null; isViewOnce?: boolean; isSticker?: boolean; imageViewed?: boolean; reactions?: ChatReaction[]; audioUrl?: string | null; isSystem?: boolean; recipientId?: string | null }
+interface DirectContact { userId: string; name: string; online: boolean; avatarUrl?: string | null; unreadCount: number; lastMessageAt?: string | null }
 interface BlockedAccount { userId: string; name: string }
 interface ChatBlockNotice { id: string; actorId: string; actorName: string; targetId: string; targetName: string; blocked: boolean; sentAt: string }
 interface ChatMediaUpload { imageId: string; url: string }
@@ -21,6 +22,12 @@ interface TypingStatus { connectionId: string; userId: string; name: string; isT
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ (event: 'unread-change', count: number): void }>()
 const messages = ref<ChatMessage[]>([])
+const directContacts = ref<DirectContact[]>([])
+const activeDirectId = ref<string | null>(null) // null = main group, always default
+const directMessages = ref<ChatMessage[]>([])
+const directLoading = ref(false)
+const contactSearch = ref('')
+const threadDrafts = ref<Record<string, string>>({})
 const blockedUsers = ref<BlockedAccount[]>([])
 const blockNotices = ref<ChatBlockNotice[]>([])
 const blockedTrayOpen = ref(false)
@@ -93,19 +100,32 @@ let active = true
 const currentUserId = computed(() => String(authState.user?.id ?? '').toLowerCase())
 const currentEmail = computed(() => (authState.user?.correo ?? '').toLowerCase())
 const blockedUserIds = computed(() => new Set(blockedUsers.value.map(person => person.userId.toLowerCase())))
+const activeDirect = computed(() => directContacts.value.find(contact =>
+  contact.userId.toLowerCase() === activeDirectId.value) ?? null)
+const filteredDirectContacts = computed(() => {
+  const search = contactSearch.value.trim().toLocaleLowerCase()
+  return directContacts.value.filter(contact => !search ||
+    contact.name.toLocaleLowerCase().includes(search))
+})
+const directUnread = computed(() =>
+  directContacts.value.reduce((sum, contact) => sum + contact.unreadCount, 0))
+const directBlocked = computed(() => !!activeDirectId.value &&
+  blockedUserIds.value.has(activeDirectId.value))
 const visibleMessages = computed(() =>
   messages.value.filter(message => !blockedUserIds.value.has(message.userId.toLowerCase())))
-const chatTimeline = computed<ChatMessage[]>(() => [
-  ...visibleMessages.value,
-  ...blockNotices.value.filter(notice => Date.parse(notice.sentAt) > clearedThrough.value)
-    .map(notice => ({
-      id: 'system-' + notice.id, userId: notice.actorId,
-      name: 'Sistema', email: '', sentAt: notice.sentAt, isSystem: true,
-      text: notice.blocked
-        ? notice.actorName + ' bloqueó a ' + notice.targetName + '.'
-        : notice.actorName + ' desbloqueó a ' + notice.targetName + '.'
-    }))
-].sort((a, b) => Date.parse(a.sentAt) - Date.parse(b.sentAt)))
+const chatTimeline = computed<ChatMessage[]>(() => activeDirectId.value
+  ? directMessages.value.filter(message => !blockedUserIds.value.has(message.userId.toLowerCase()))
+  : [
+    ...visibleMessages.value,
+    ...blockNotices.value.filter(notice => Date.parse(notice.sentAt) > clearedThrough.value)
+      .map(notice => ({
+        id: 'system-' + notice.id, userId: notice.actorId,
+        name: 'Sistema', email: '', sentAt: notice.sentAt, isSystem: true,
+        text: notice.blocked
+          ? notice.actorName + ' bloqueó a ' + notice.targetName + '.'
+          : notice.actorName + ' desbloqueó a ' + notice.targetName + '.'
+      }))
+  ].sort((a, b) => Date.parse(a.sentAt) - Date.parse(b.sentAt)))
 const { savedStickers, savedSources, stickerError, stickerBusy, loadStickers, saveSticker, removeSticker, releasePreviews } =
   useChatStickerLibrary(() => currentUserId.value)
 const {
@@ -115,6 +135,7 @@ const {
 const storageKey = computed(() => 'castrofallas-admin-chat-read:' + (currentUserId.value || currentEmail.value))
 const nicknameStorageKey = computed(() => 'castrofallas-admin-chat-nickname:' + (currentUserId.value || currentEmail.value))
 const typingNames = computed(() => {
+  if (activeDirectId.value) return []
   const names = new Map<string, string>()
   for (const state of Object.values(remoteTyping.value)) {
     const userId = state.userId.toLowerCase()
@@ -144,7 +165,7 @@ function applyTypingState(state: TypingStatus) {
   typingClock.value = Date.now()
 }
 function canSendTyping() {
-  return props.visible && document.visibilityState === 'visible' &&
+  return !activeDirectId.value && props.visible && document.visibilityState === 'visible' &&
     connection?.state === signalR.HubConnectionState.Connected
 }
 function stopTyping() {
@@ -448,6 +469,8 @@ async function openSharedImage(message: ChatMessage) {
     imageViewer.value = { src: objectUrl, objectUrl, title: 'Foto de una sola visualización', oneTime: true }
     messages.value = messages.value.map(item => item.imageId === message.imageId
       ? { ...item, imageViewed: true } : item)
+    directMessages.value = directMessages.value.map(item => item.imageId === message.imageId
+      ? { ...item, imageViewed: true } : item)
   } catch (cause) {
     if (active) error.value = cause instanceof Error ? cause.message : 'No se pudo abrir la foto.'
   } finally { viewingImageId.value = null }
@@ -459,7 +482,10 @@ function toggleReactionPicker(id: string) {
 async function toggleReaction(id: string, emoji: string) {
   if (connection?.state !== signalR.HubConnectionState.Connected) return
   reactionPickerId.value = null
-  try { await connection.invoke('ToggleReaction', id, emoji) }
+  try {
+    if (activeDirectId.value) await connection.invoke('ToggleDirectReaction', activeDirectId.value, id, emoji)
+    else await connection.invoke('ToggleReaction', id, emoji)
+  }
   catch (cause) { error.value = cause instanceof Error ? cause.message : 'No se pudo reaccionar.' }
 }
 function reactedByMe(reaction: ChatReaction) {
@@ -468,7 +494,7 @@ function reactedByMe(reaction: ChatReaction) {
 function reactorNames(reaction: ChatReaction): string[] {
   return reaction.userIds.map((id, index) => {
     const userId = id.toLowerCase()
-    const fromMessage = messages.value.find(message => message.userId.toLowerCase() === userId)
+    const fromMessage = chatTimeline.value.find(message => message.userId.toLowerCase() === userId)
     const fromReceipt = receipts.value.find(receipt => receipt.userId.toLowerCase() === userId)
     return chatNames.value[userId] || reaction.userNames?.[index] ||
       fromMessage?.name || fromReceipt?.name || 'Administrador'
@@ -550,7 +576,8 @@ function isOwn(message: ChatMessage) {
 const unread = computed(() => visibleMessages.value.filter(message =>
   !isOwn(message) && Date.parse(message.sentAt) > lastReadAt.value
 ).length)
-watch(unread, value => emit('unread-change', value), { immediate: true })
+watch([unread, directUnread], ([groupUnread, privateUnread]) =>
+  emit('unread-change', groupUnread + privateUnread), { immediate: true })
 
 function persistLastRead(value: number) {
   if (!Number.isFinite(value) || value <= lastReadAt.value) return
@@ -588,7 +615,9 @@ function scrollEmojiTray(event: WheelEvent) {
   const unit = event.deltaMode === 1 ? 18 : event.deltaMode === 2 ? emojiGrid.value.clientHeight : 1
   emojiGrid.value.scrollTop += event.deltaY * unit
 }
-function canMarkRead() { return props.visible && document.visibilityState === 'visible' }
+function canMarkRead() {
+  return !activeDirectId.value && props.visible && document.visibilityState === 'visible'
+}
 function markVisibleRead() {
   if (!canMarkRead()) return
   const newest = visibleMessages.value.at(-1)
