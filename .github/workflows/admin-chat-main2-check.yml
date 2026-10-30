@@ -181,5 +181,38 @@ jobs:
                 chat.includes('event.clipboardData?.items') &&
                 chat.includes('compressImage(file, 1200, 800_000)'),
             'Paste-to-attach image support is missing')
+          check(hub.includes('SetUserBlocked(string? targetUserId, bool blocked)') &&
+                hub.includes('identity.Role != "admin"') &&
+                hub.includes('targetId == identity.UsuarioId') &&
+                hub.includes('!ReactionNames.ContainsKey(targetId)'),
+            'Block target and actor must be authenticated and cannot be self')
+          check(hub.includes('BlockedByUser') && hub.includes('ChatMutations.WaitAsync()') &&
+                hub.includes('MaxBlockedUsers') && hub.includes('LastBlockAction'),
+            'Block lists must be bounded, serialized and rate limited')
+          check(hub.includes('SendPersonalHistory(Clients.Caller, identity.UsuarioId)') &&
+                hub.includes('!IsBlocked(viewerId, message.UserId)') &&
+                hub.includes('IsBlocked(viewerId, published.UserId)'),
+            'Blocker must not receive blocked message history or new messages')
+          check(hub.includes('Clients.Group(PersonalGroup(targetId)).SendAsync("ChatBlockNotice"') &&
+                hub.includes('Clients.Group(PersonalGroup(viewerId)).SendAsync("ChatBlockNotice"') &&
+                !hub.includes('Clients.All.SendAsync("ChatBlockNotice"'),
+            'Block notices must reach only actor and target')
+          check(hub.includes('BlockNotices.Remove(identity.UsuarioId)') &&
+                hub.includes('SendPersonalHistory(Clients.Group(PersonalGroup(viewerId)), viewerId)'),
+            'Personal clear and unblock history restoration missing')
+          check(chat.includes("hub.on('BlockedSnapshot'") &&
+                chat.includes("hub.on('BlockListChanged'") &&
+                chat.includes("hub.on('ChatBlockNotice'") &&
+                chat.includes('chatTimeline = computed'),
+            'Client must render system notices and hide users on every connected tab')
+          check(chat.includes("connection.invoke('SetUserBlocked'") &&
+                chat.includes('Bloqueados ({{ blockedUsers.length }})') &&
+                chat.includes('team-chat__person-menu') &&
+                chat.includes('team-chat__system-message'),
+            'Reversible blocked-person management or inline notices missing')
+          check(chat.includes('blockedUserIds.value.has(userId)') &&
+                chat.includes('visibleMessages.value.filter') &&
+                chat.includes('blockedUserIds.value.has(message.userId.toLowerCase())'),
+            'Client must hide blocked typing, unread counts and message events')
           console.log('Admin team chat UI and permissions contracts OK')
           NODE
