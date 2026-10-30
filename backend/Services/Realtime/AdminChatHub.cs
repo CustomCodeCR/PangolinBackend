@@ -19,6 +19,13 @@ public sealed class AdminChatHub : Hub
     private static readonly Dictionary<Guid, Dictionary<string, HashSet<Guid>>> ReactionsByMessage = new();
     // Server-verified names let every admin see who reacted, even without a message from that user.
     private static readonly ConcurrentDictionary<Guid, string> ReactionNames = new();
+    // Temporary, per-account one-way hide lists. Accessed only under ChatMutations.
+    private static readonly Dictionary<Guid, HashSet<Guid>> BlockedByUser = new();
+    private static readonly Dictionary<Guid, Queue<ChatBlockNotice>> BlockNotices = new();
+    private static readonly ConcurrentDictionary<Guid, DateTimeOffset> LastBlockAction = new();
+    private static readonly ConcurrentDictionary<string, Guid> ConnectedUsers = new();
+    private const int MaxBlockedUsers = 35;
+    private const int MaxBlockNotices = 30;
     private static readonly string[] AllowedReactions = [
         "👍", "👎", "👏", "🙌", "🤝", "🙏", "💪", "👌", "✌️", "🤞",
         "❤️", "🩷", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "💔",
@@ -72,6 +79,7 @@ public sealed class AdminChatHub : Hub
             return;
         }
         Online.TryAdd(Context.ConnectionId, 0);
+        ConnectedUsers[Context.ConnectionId] = identity.UsuarioId;
         ReactionNames[identity.UsuarioId] = DisplayName(identity);
         await Groups.AddToGroupAsync(Context.ConnectionId, PersonalGroup(identity.UsuarioId));
         Nicknames.TryGetValue(identity.UsuarioId, out var nickname);
@@ -82,15 +90,11 @@ public sealed class AdminChatHub : Hub
         await ChatMutations.WaitAsync();
         try
         {
-            var cutoff = ClearedForUser.GetValueOrDefault(identity.UsuarioId, DateTimeOffset.MinValue);
-            await Clients.Caller.SendAsync("History",
-                History.Where(message => message.SentAt > cutoff)
-                    .Select(message => message with
-                    {
-                        Reactions = ReadReactions(message.Id),
-                        ImageViewed = message.ImageId is Guid image && _images.WasViewed(image, identity.UsuarioId)
-                    }).ToArray(),
-                Seen.Values.ToArray(), cutoff);
+            await Clients.Caller.SendAsync("BlockedSnapshot",
+                BlockedAccountsFor(identity.UsuarioId),
+                BlockNotices.GetValueOrDefault(identity.UsuarioId)?.ToArray()
+                    ?? Array.Empty<ChatBlockNotice>());
+            await SendPersonalHistory(Clients.Caller, identity.UsuarioId);
         }
         finally { ChatMutations.Release(); }
         await Clients.Caller.SendAsync("TypingSnapshot", Typing.Values
@@ -100,6 +104,87 @@ public sealed class AdminChatHub : Hub
         await Clients.Others.SendAsync("CameraViewerJoined", Context.ConnectionId);
         await Clients.All.SendAsync("Presence", Online.Count);
         await base.OnConnectedAsync();
+    }
+
+    private static bool IsBlocked(Guid viewerId, Guid authorId) =>
+        BlockedByUser.TryGetValue(viewerId, out var blocked) && blocked.Contains(authorId);
+
+    private static BlockedAccount[] BlockedAccountsFor(Guid viewerId) =>
+        BlockedByUser.TryGetValue(viewerId, out var blocked)
+            ? blocked.Select(id => new BlockedAccount(id,
+                ReactionNames.GetValueOrDefault(id) ?? "Administrador")).ToArray()
+            : Array.Empty<BlockedAccount>();
+
+    private ChatMessage PersonalizeMessage(ChatMessage message, Guid viewerId)
+    {
+        var reply = message.ReplyTo;
+        if (reply is not null && IsBlocked(viewerId, reply.UserId))
+            reply = reply with { Name = "Mensaje oculto", Text = "Mensaje de un administrador bloqueado" };
+        return message with
+        {
+            ReplyTo = reply,
+            Reactions = ReadReactions(message.Id),
+            ImageViewed = message.ImageId is Guid image && _images.WasViewed(image, viewerId)
+        };
+    }
+
+    private Task SendPersonalHistory(IClientProxy destination, Guid viewerId)
+    {
+        var cutoff = ClearedForUser.GetValueOrDefault(viewerId, DateTimeOffset.MinValue);
+        var filtered = History.Where(message => message.SentAt > cutoff &&
+            !IsBlocked(viewerId, message.UserId))
+            .Select(message => PersonalizeMessage(message, viewerId)).ToArray();
+        return destination.SendAsync("History", filtered, Seen.Values.ToArray(), cutoff);
+    }
+
+    // The actor and the target receive an inline system notice, never the entire room.
+    private static void RememberBlockNotice(Guid recipientId, ChatBlockNotice notice)
+    {
+        if (!BlockNotices.TryGetValue(recipientId, out var queue))
+            BlockNotices[recipientId] = queue = new Queue<ChatBlockNotice>();
+        queue.Enqueue(notice);
+        while (queue.Count > MaxBlockNotices) queue.Dequeue();
+    }
+
+    public async Task SetUserBlocked(string? targetUserId, bool blocked)
+    {
+        var identity = Context.GetHttpContext()?.Items["auth.identity"] as AuthIdentity;
+        if (identity is null || identity.Role != "admin") throw new HubException("Sin autorización.");
+        if (!Guid.TryParse(targetUserId, out var targetId) ||
+            targetId == identity.UsuarioId || !ReactionNames.ContainsKey(targetId))
+            throw new HubException("Seleccioná otro administrador del chat.");
+
+        await ChatMutations.WaitAsync();
+        try
+        {
+            var viewerId = identity.UsuarioId;
+            if (!BlockedByUser.TryGetValue(viewerId, out var hidden))
+                BlockedByUser[viewerId] = hidden = new HashSet<Guid>();
+            if (hidden.Contains(targetId) == blocked) return;
+            var now = DateTimeOffset.UtcNow;
+            if (LastBlockAction.TryGetValue(viewerId, out var previous) &&
+                now - previous < TimeSpan.FromSeconds(2))
+                throw new HubException("Esperá un momento antes de cambiar otro bloqueo.");
+            if (blocked && hidden.Count >= MaxBlockedUsers)
+                throw new HubException("Llegaste al límite de usuarios bloqueados.");
+            LastBlockAction[viewerId] = now;
+            if (blocked) hidden.Add(targetId);
+            else hidden.Remove(targetId);
+            if (hidden.Count == 0) BlockedByUser.Remove(viewerId);
+
+            var notice = new ChatBlockNotice(Guid.NewGuid(), viewerId, DisplayName(identity),
+                targetId, ReactionNames.GetValueOrDefault(targetId) ?? "Administrador",
+                blocked, now);
+            RememberBlockNotice(viewerId, notice);
+            RememberBlockNotice(targetId, notice);
+            await Clients.Group(PersonalGroup(viewerId)).SendAsync("BlockListChanged",
+                BlockedAccountsFor(viewerId));
+            await Clients.Group(PersonalGroup(viewerId)).SendAsync("ChatBlockNotice", notice);
+            await Clients.Group(PersonalGroup(targetId)).SendAsync("ChatBlockNotice", notice);
+            if (!blocked) // Rehydrate messages missed while this account blocked the sender.
+                await SendPersonalHistory(Clients.Group(PersonalGroup(viewerId)), viewerId);
+        }
+        finally { ChatMutations.Release(); }
     }
 
     // El apodo lo decide cada administrador autenticado, nunca modifica la cuenta.
@@ -194,6 +279,7 @@ public sealed class AdminChatHub : Hub
         {
             var cutoff = DateTimeOffset.UtcNow;
             ClearedForUser[identity.UsuarioId] = cutoff;
+            BlockNotices.Remove(identity.UsuarioId);
             // Solo las sesiones de esta cuenta reciben la orden de ocultar mensajes.
             // El historial, los vistos y los archivos de los demás no se modifican.
             await Clients.Group(PersonalGroup(identity.UsuarioId))
@@ -267,7 +353,7 @@ public sealed class AdminChatHub : Hub
                 ? original.AudioUrl is not null ? "🎤 Mensaje de voz" : original.IsViewOnce ? "🔒 Foto de una vez" : original.IsSticker ? "Sticker" : "📷 Imagen"
                 : original.Text;
             var excerpt = replyText.Length > 140 ? replyText[..140].TrimEnd() + "…" : replyText;
-            reply = new ChatReply(original.Id, original.Name, excerpt);
+            reply = new ChatReply(original.Id, original.UserId, original.Name, excerpt);
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -303,7 +389,14 @@ public sealed class AdminChatHub : Hub
             History.Enqueue(published);
             while (History.Count > Limit && History.TryDequeue(out var removed))
                 ReactionsByMessage.Remove(removed.Id);
-            await Clients.All.SendAsync("Message", published);
+            // Never deliver a blocked author's new message to the blocker, even on
+            // an older browser tab that has not yet received its block-list update.
+            foreach (var (connectionId, viewerId) in ConnectedUsers)
+            {
+                if (IsBlocked(viewerId, published.UserId)) continue;
+                await Clients.Client(connectionId).SendAsync("Message",
+                    PersonalizeMessage(published, viewerId));
+            }
         }
         finally { ChatMutations.Release(); }
     }
@@ -333,7 +426,8 @@ public sealed class AdminChatHub : Hub
         {
             var message = History.FirstOrDefault(item => item.Id == id);
             var cutoff = ClearedForUser.GetValueOrDefault(identity.UsuarioId, DateTimeOffset.MinValue);
-            if (message is null || message.SentAt <= cutoff)
+            if (message is null || message.SentAt <= cutoff ||
+                IsBlocked(identity.UsuarioId, message.UserId))
                 throw new HubException("Mensaje fuera de tu historial.");
             if (!ReactionsByMessage.TryGetValue(id, out var all))
                 ReactionsByMessage[id] = all = new Dictionary<string, HashSet<Guid>>();
@@ -359,7 +453,7 @@ public sealed class AdminChatHub : Hub
         try
         {
             var message = History.FirstOrDefault(item => item.Id == id);
-            if (message is null) return;
+            if (message is null || IsBlocked(identity.UsuarioId, message.UserId)) return;
             var receipt = new ReadReceipt(identity.UsuarioId, DisplayName(identity), message.SentAt);
             while (true)
             {
@@ -423,6 +517,7 @@ public sealed class AdminChatHub : Hub
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         Online.TryRemove(Context.ConnectionId, out _);
+        ConnectedUsers.TryRemove(Context.ConnectionId, out _);
         await StopCamera();
         await Clients.Others.SendAsync("CameraViewerLeft", Context.ConnectionId);
         LastMessage.TryRemove(Context.ConnectionId, out _);
@@ -431,13 +526,16 @@ public sealed class AdminChatHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
+    public sealed record BlockedAccount(Guid UserId, string Name);
+    public sealed record ChatBlockNotice(Guid Id, Guid ActorId, string ActorName,
+        Guid TargetId, string TargetName, bool Blocked, DateTimeOffset SentAt);
     public sealed record ChatMessage(Guid Id, Guid UserId, string Name, string Email, string Text,
         DateTimeOffset SentAt, ChatReply? ReplyTo, string? ImageUrl, Guid? ImageId,
         bool IsViewOnce, bool IsSticker, ChatReaction[] Reactions, bool ImageViewed,
         string? AudioUrl = null);
     public sealed record CameraParticipant(string ConnectionId, Guid UserId, string Name);
     public sealed record ChatReaction(string Emoji, Guid[] UserIds, string[] UserNames);
-    public sealed record ChatReply(Guid Id, string Name, string Text);
+    public sealed record ChatReply(Guid Id, Guid UserId, string Name, string Text);
     public sealed record ReadReceipt(Guid UserId, string Name, DateTimeOffset LastReadAt);
     public sealed record TypingStatus(
         string ConnectionId, Guid UserId, string Name, bool IsTyping,
