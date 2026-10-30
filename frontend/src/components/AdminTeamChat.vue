@@ -3,15 +3,17 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import * as signalR from '@microsoft/signalr'
 import IconSymbol from './IconSymbol.vue'
 import ChatCameraTile from './ChatCameraTile.vue'
-import { Sticker, LockKeyhole, SmilePlus, Mic, Video, VideoOff, Square, Plus, BookmarkPlus, X } from '@lucide/vue'
+import { Sticker, LockKeyhole, SmilePlus, Mic, Video, VideoOff, Square, Plus, BookmarkPlus, ShieldBan, UserX, X } from '@lucide/vue'
 import { useAdminChatCameras } from '../composables/useAdminChatCameras'
 import { useChatStickerLibrary, type StickerPreview } from '../composables/useChatStickerLibrary'
 import { authState } from '../services/auth'
 
-interface ChatReply { id: string; name: string; text: string }
+interface ChatReply { id: string; name: string; text: string; userId?: string }
 type ImageMode = 'image' | 'once' | 'sticker'
 interface ChatReaction { emoji: string; userIds: string[]; userNames?: string[] }
-interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null; imageUrl?: string | null; imageId?: string | null; isViewOnce?: boolean; isSticker?: boolean; imageViewed?: boolean; reactions?: ChatReaction[]; audioUrl?: string | null }
+interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null; imageUrl?: string | null; imageId?: string | null; isViewOnce?: boolean; isSticker?: boolean; imageViewed?: boolean; reactions?: ChatReaction[]; audioUrl?: string | null; isSystem?: boolean }
+interface BlockedAccount { userId: string; name: string }
+interface ChatBlockNotice { id: string; actorId: string; actorName: string; targetId: string; targetName: string; blocked: boolean; sentAt: string }
 interface ChatMediaUpload { imageId: string; url: string }
 interface ReadReceipt { userId: string; name: string; lastReadAt: string }
 interface TypingStatus { connectionId: string; userId: string; name: string; isTyping: boolean; expiresAt: string; updatedAt: string }
@@ -19,6 +21,11 @@ interface TypingStatus { connectionId: string; userId: string; name: string; isT
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ (event: 'unread-change', count: number): void }>()
 const messages = ref<ChatMessage[]>([])
+const blockedUsers = ref<BlockedAccount[]>([])
+const blockNotices = ref<ChatBlockNotice[]>([])
+const blockedTrayOpen = ref(false)
+const personMenuId = ref<string | null>(null)
+const blockBusyId = ref<string | null>(null)
 const clearedThrough = ref(0)
 const receipts = ref<ReadReceipt[]>([])
 const draft = ref('')
@@ -85,6 +92,20 @@ let active = true
 
 const currentUserId = computed(() => String(authState.user?.id ?? '').toLowerCase())
 const currentEmail = computed(() => (authState.user?.correo ?? '').toLowerCase())
+const blockedUserIds = computed(() => new Set(blockedUsers.value.map(person => person.userId.toLowerCase())))
+const visibleMessages = computed(() =>
+  messages.value.filter(message => !blockedUserIds.value.has(message.userId.toLowerCase())))
+const chatTimeline = computed<ChatMessage[]>(() => [
+  ...visibleMessages.value,
+  ...blockNotices.value.filter(notice => Date.parse(notice.sentAt) > clearedThrough.value)
+    .map(notice => ({
+      id: 'system-' + notice.id, userId: notice.actorId,
+      name: 'Sistema', email: '', sentAt: notice.sentAt, isSystem: true,
+      text: notice.blocked
+        ? notice.actorName + ' bloqueó a ' + notice.targetName + '.'
+        : notice.actorName + ' desbloqueó a ' + notice.targetName + '.'
+    }))
+].sort((a, b) => Date.parse(a.sentAt) - Date.parse(b.sentAt)))
 const { savedStickers, savedSources, stickerError, stickerBusy, loadStickers, saveSticker, removeSticker, releasePreviews } =
   useChatStickerLibrary(() => currentUserId.value)
 const {
@@ -97,7 +118,8 @@ const typingNames = computed(() => {
   const names = new Map<string, string>()
   for (const state of Object.values(remoteTyping.value)) {
     const userId = state.userId.toLowerCase()
-    if (!state.isTyping || userId === currentUserId.value || Date.parse(state.expiresAt) <= typingClock.value) continue
+    if (!state.isTyping || userId === currentUserId.value || blockedUserIds.value.has(userId) ||
+        Date.parse(state.expiresAt) <= typingClock.value) continue
     if (!names.has(userId)) names.set(userId, chatNames.value[userId] || state.name)
   }
   return Array.from(names.values())
@@ -400,6 +422,8 @@ function viewerKeydown(event: KeyboardEvent) {
     reactionPickerId.value = null
     expandedReaction.value = null
     stickerTrayOpen.value = false
+    personMenuId.value = null
+    blockedTrayOpen.value = false
   }
 }
 async function openSharedImage(message: ChatMessage) {
@@ -454,6 +478,40 @@ function showReactionUsers(messageId: string, emoji: string) {
   expandedReaction.value = expandedReaction.value?.messageId === messageId &&
     expandedReaction.value.emoji === emoji ? null : { messageId, emoji }
 }
+function togglePersonMenu(userId: string) {
+  personMenuId.value = personMenuId.value === userId ? null : userId
+  if (personMenuId.value) blockedTrayOpen.value = false
+}
+function setBlockedSnapshot(accounts: BlockedAccount[]) {
+  blockedUsers.value = (accounts ?? []).filter(person =>
+    person.userId?.toLowerCase() !== currentUserId.value)
+  personMenuId.value = null
+  if (replyTarget.value && blockedUserIds.value.has(replyTarget.value.userId.toLowerCase()))
+    replyTarget.value = null
+}
+function addBlockNotice(notice: ChatBlockNotice) {
+  if (!active || !notice?.id || blockNotices.value.some(item => item.id === notice.id)) return
+  if (Date.parse(notice.sentAt) <= clearedThrough.value) return
+  blockNotices.value = [...blockNotices.value.slice(-29), notice]
+  scrollBottom()
+}
+async function setUserBlocked(userId: string, shouldBlock: boolean) {
+  if (!userId || userId.toLowerCase() === currentUserId.value || blockBusyId.value ||
+      connection?.state !== signalR.HubConnectionState.Connected) return
+  const person = blockedUsers.value.find(item => item.userId.toLowerCase() === userId.toLowerCase())
+  const name = person?.name || messages.value.find(item =>
+    item.userId.toLowerCase() === userId.toLowerCase())?.name || 'este administrador'
+  if (shouldBlock && !window.confirm('¿Bloquear a ' + name + '? Dejarás de ver sus mensajes. ' +
+    'La persona recibirá un aviso del sistema con tu nombre y podrás desbloquearla después.')) return
+  blockBusyId.value = userId
+  error.value = ''
+  try {
+    await connection.invoke('SetUserBlocked', userId, shouldBlock)
+    personMenuId.value = null
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : 'No se pudo actualizar el bloqueo.'
+  } finally { blockBusyId.value = null }
+}
 function displayName(message: ChatMessage) {
   return chatNames.value[message.userId.toLowerCase()] || message.name || message.email
 }
@@ -489,7 +547,7 @@ function isOwn(message: ChatMessage) {
   return message.userId.toLowerCase() === currentUserId.value ||
     (!!currentEmail.value && message.email.toLowerCase() === currentEmail.value)
 }
-const unread = computed(() => messages.value.filter(message =>
+const unread = computed(() => visibleMessages.value.filter(message =>
   !isOwn(message) && Date.parse(message.sentAt) > lastReadAt.value
 ).length)
 watch(unread, value => emit('unread-change', value), { immediate: true })
@@ -533,7 +591,7 @@ function scrollEmojiTray(event: WheelEvent) {
 function canMarkRead() { return props.visible && document.visibilityState === 'visible' }
 function markVisibleRead() {
   if (!canMarkRead()) return
-  const newest = messages.value.at(-1)
+  const newest = visibleMessages.value.at(-1)
   if (!newest) return
   persistLastRead(Date.parse(newest.sentAt))
   if (connection?.state === signalR.HubConnectionState.Connected) {
@@ -543,7 +601,8 @@ function markVisibleRead() {
 function receivedMessage(message: ChatMessage) {
   // Un mensaje enviado antes de vaciar esta cuenta no vuelve a aparecer
   // aunque llegue tarde durante una reconexión.
-  if (Date.parse(message.sentAt) <= clearedThrough.value) return
+  if (Date.parse(message.sentAt) <= clearedThrough.value ||
+      blockedUserIds.value.has(message.userId.toLowerCase())) return
   if (messages.value.some(item => item.id === message.id)) return
   chatNotice.value = ''
   messages.value = [...messages.value.slice(-59), message]
@@ -587,7 +646,7 @@ function jumpToOriginal(id: string) {
   highlightTimer = setTimeout(() => { highlightedId.value = null; highlightTimer = null }, 1800)
 }
 async function clearMyChat() {
-  if (clearingChat.value || !messages.value.length ||
+  if (clearingChat.value || !chatTimeline.value.length ||
       connection?.state !== signalR.HubConnectionState.Connected) return
   const confirmed = window.confirm(
     '¿Limpiar el chat solo para tu cuenta?\n\n' +
@@ -612,12 +671,15 @@ function onChatClearedForUser(event: { clearedAt: string }) {
   if (!Number.isFinite(cutoff) || cutoff < clearedThrough.value) return
   clearedThrough.value = cutoff
   messages.value = messages.value.filter(message => Date.parse(message.sentAt) > cutoff)
+  blockNotices.value = []
   replyTarget.value = null
   expandedSeenId.value = null
   highlightedId.value = null
   reactionPickerId.value = null
   expandedReaction.value = null
   stickerTrayOpen.value = false
+  personMenuId.value = null
+  blockedTrayOpen.value = false
   closeViewer()
   // Los vistos globales permanecen para los mensajes posteriores y los demás.
   persistLastRead(cutoff)
@@ -690,6 +752,8 @@ watch(() => props.visible, showing => {
     void stopCamera()
     closeViewer()
     reactionPickerId.value = null
+    personMenuId.value = null
+    blockedTrayOpen.value = false
     stickerTrayOpen.value = false
   }
 })
@@ -747,11 +811,23 @@ onMounted(() => {
     if (!active) return
     chatNames.value = { ...chatNames.value, [userId.toLowerCase()]: name }
   })
+  hub.on('BlockedSnapshot', (accounts: BlockedAccount[], notices: ChatBlockNotice[]) => {
+    if (!active) return
+    setBlockedSnapshot(accounts)
+    blockNotices.value = (notices ?? []).filter(notice =>
+      Date.parse(notice.sentAt) > clearedThrough.value).slice(-30)
+  })
+  hub.on('BlockListChanged', (accounts: BlockedAccount[]) => {
+    if (active) setBlockedSnapshot(accounts)
+  })
+  hub.on('ChatBlockNotice', (notice: ChatBlockNotice) => addBlockNotice(notice))
   hub.on('History', (history: ChatMessage[], seen: ReadReceipt[], clearedAt?: string) => {
     if (!active) return
     const serverCutoff = Date.parse(clearedAt ?? '')
     if (Number.isFinite(serverCutoff)) clearedThrough.value = Math.max(clearedThrough.value, serverCutoff)
-    messages.value = history.filter(message => Date.parse(message.sentAt) > clearedThrough.value).slice(-60)
+    messages.value = history.filter(message =>
+      Date.parse(message.sentAt) > clearedThrough.value &&
+      !blockedUserIds.value.has(message.userId.toLowerCase())).slice(-60)
     receipts.value = seen ?? []
     if (canMarkRead()) { scrollBottom(); markVisibleRead() }
   })
@@ -862,8 +938,15 @@ onUnmounted(() => {
           <span class="team-chat__light" :class="{ 'is-offline': status !== 'En línea' }" />
           {{ status }} <small v-if="online">· {{ online }} conectado{{ online === 1 ? '' : 's' }}</small>
         </div>
+        <button class="team-chat__blocked-list-button" type="button"
+          :aria-expanded="blockedTrayOpen"
+          :title="'Administrar bloqueados: ' + blockedUsers.length"
+          @click="blockedTrayOpen = !blockedTrayOpen; personMenuId = null">
+          <ShieldBan :size="15" />
+          Bloqueados ({{ blockedUsers.length }})
+        </button>
         <button class="team-chat__clear-button" type="button"
-          :disabled="status !== 'En línea' || clearingChat || !messages.length"
+          :disabled="status !== 'En línea' || clearingChat || !chatTimeline.length"
           title="Ocultar mensajes anteriores solo para tu cuenta"
           @click="clearMyChat">
           <IconSymbol glyph="trash" :size="15" />
@@ -871,13 +954,36 @@ onUnmounted(() => {
         </button>
       </div>
     </header>
+    <div v-if="blockedTrayOpen" class="team-chat__blocked-panel" role="region"
+      aria-label="Administrar personas bloqueadas">
+      <div class="team-chat__blocked-panel-head">
+        <strong>Personas bloqueadas</strong>
+        <button type="button" aria-label="Cerrar lista de bloqueados"
+          @click="blockedTrayOpen = false"><X :size="17" /></button>
+      </div>
+      <p v-if="!blockedUsers.length">No bloqueaste a ningún administrador.</p>
+      <div v-for="person in blockedUsers" :key="person.userId" class="team-chat__blocked-person">
+        <span><UserX :size="16" /> {{ person.name }}</span>
+        <button type="button" :disabled="status !== 'En línea' || !!blockBusyId"
+          @click="setUserBlocked(person.userId, false)">
+          {{ blockBusyId === person.userId ? 'Actualizando…' : 'Desbloquear' }}
+        </button>
+      </div>
+      <small>El bloqueo solo oculta mensajes en tu chat. No expulsa a la otra persona del grupo.</small>
+    </div>
     <p v-if="chatNotice" class="team-chat__notice" role="status">{{ chatNotice }}</p>
     <div ref="list" class="team-chat__messages" role="log" aria-live="polite" aria-relevant="additions">
-      <div v-if="!messages.length" class="team-chat__empty">
+      <div v-if="!chatTimeline.length" class="team-chat__empty">
         <span>✳</span><strong>Este canal está esperando su primer mensaje.</strong>
         <p>Probalo con otro administrador desde otra computadora o navegador.</p>
       </div>
-      <div v-for="message in messages" :key="message.id" :data-chat-id="message.id"
+      <template v-for="message in chatTimeline" :key="message.id">
+      <div v-if="message.isSystem" class="team-chat__system-message" role="status">
+        <ShieldBan :size="15" aria-hidden="true" />
+        <span>{{ message.text }}</span>
+        <time :datetime="message.sentAt">{{ clock(message.sentAt) }}</time>
+      </div>
+      <div v-else :data-chat-id="message.id"
         class="team-chat__entry" :class="{ 'is-own': isOwn(message), 'is-highlighted': highlightedId === message.id }">
         <span class="team-chat__avatar team-chat__avatar--message" aria-hidden="true">
           <img v-if="avatarFor(message.userId)" :src="avatarFor(message.userId)" alt="" loading="lazy" />
@@ -885,7 +991,11 @@ onUnmounted(() => {
         </span>
         <article class="team-chat__bubble" :class="{ 'is-own': isOwn(message), 'is-sticker': message.isSticker }">
           <div class="team-chat__by">
-            <strong>{{ displayName(message) }}</strong>
+            <strong v-if="isOwn(message)">{{ displayName(message) }}</strong>
+            <button v-else type="button" class="team-chat__person-trigger"
+              :aria-label="'Opciones de ' + displayName(message)"
+              :aria-expanded="personMenuId === message.userId"
+              @click="togglePersonMenu(message.userId)">{{ displayName(message) }}</button>
             <span class="team-chat__meta">
               <time :datetime="message.sentAt">{{ clock(message.sentAt) }}</time>
               <button v-if="isOwn(message)" type="button" class="team-chat__seen-button"
@@ -894,11 +1004,20 @@ onUnmounted(() => {
                 title="Ver quién lo leyó" @click="toggleSeen(message.id)">✓✓</button>
             </span>
           </div>
+          <div v-if="personMenuId === message.userId && !isOwn(message)"
+            class="team-chat__person-menu">
+            <strong>{{ displayName(message) }}</strong>
+            <button type="button" :disabled="status !== 'En línea' || !!blockBusyId"
+              @click="setUserBlocked(message.userId, true)">
+              <UserX :size="15" /> Bloquear a esta persona
+            </button>
+            <small>Dejarás de ver sus mensajes y recibirá un aviso del sistema.</small>
+          </div>
           <button v-if="message.replyTo" class="team-chat__quoted" type="button"
             :aria-label="'Ir al mensaje original de ' + message.replyTo.name"
             @click="jumpToOriginal(message.replyTo.id)">
-            <strong>↪ {{ message.replyTo.name }}</strong>
-            <span>{{ message.replyTo.text }}</span>
+            <strong>↪ {{ message.replyTo.userId && blockedUserIds.has(message.replyTo.userId.toLowerCase()) ? 'Mensaje oculto' : message.replyTo.name }}</strong>
+            <span>{{ message.replyTo.userId && blockedUserIds.has(message.replyTo.userId.toLowerCase()) ? 'Contenido de una persona bloqueada' : message.replyTo.text }}</span>
           </button>
           <p v-if="message.text">{{ message.text }}</p>
           <button v-if="message.imageUrl" type="button" class="team-chat__image-link"
@@ -964,6 +1083,7 @@ onUnmounted(() => {
             @click="saveMessageSticker(message)"><BookmarkPlus :size="17" /></button>
         </div>
       </div>
+      </template>
       <div v-if="typingNames.length" class="team-chat__typing" role="status" aria-live="polite" aria-atomic="true">
         <span class="team-chat__typing-dots" aria-hidden="true"><i></i><i></i><i></i></span>
         <span class="team-chat__typing-name">{{ typingLabel }}</span>
@@ -1057,7 +1177,7 @@ onUnmounted(() => {
       </button>
     </form>
     <p v-if="error" class="team-chat__error" role="alert">{{ error }}</p>
-    <p class="team-chat__foot">Solo administradores autenticados · {{ messages.length }} mensajes en este historial temporal.</p>
+    <p class="team-chat__foot">Solo administradores autenticados · {{ visibleMessages.length }} mensajes visibles en este historial temporal.</p>
     </section>
     <section class="team-chat__camera-panel" aria-label="Cámaras del equipo">
       <div class="team-chat__camera-header">
@@ -1953,6 +2073,96 @@ onUnmounted(() => {
 }
 :global(html.theme-dark .administration-page .team-chat .team-chat__reactors span) {
   background: #3d303f !important; color: #fff !important;
+}
+
+
+/* Per-account block controls: compact, reversible, readable in both themes. */
+.team-chat__blocked-list-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 35px; padding: 8px 12px; border: 1px solid var(--chat-line);
+  border-radius: 10px; background: transparent; color: var(--chat-text);
+  font: inherit; font-weight: 700; font-size: 12px; cursor: pointer;
+}
+.team-chat__blocked-list-button:hover,
+.team-chat__blocked-list-button[aria-expanded="true"] {
+  border-color: var(--chat-accent); color: var(--chat-accent);
+}
+.team-chat__blocked-panel {
+  margin: 12px 0 10px; padding: 13px; border: 1px solid var(--chat-line);
+  border-radius: 13px; background: var(--chat-soft); color: var(--chat-text);
+}
+.team-chat__blocked-panel-head {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; margin-bottom: 8px; font-size: 13px;
+}
+.team-chat__blocked-panel-head button {
+  display: grid; place-items: center; width: 30px; height: 30px;
+  border: 1px solid var(--chat-line); border-radius: 8px;
+  background: transparent; color: inherit; cursor: pointer;
+}
+.team-chat__blocked-person {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
+  gap: 9px; padding: 9px 0; border-bottom: 1px solid var(--chat-line);
+}
+.team-chat__blocked-person span { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; }
+.team-chat__blocked-person button,
+.team-chat__person-menu button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  border: 1px solid var(--chat-accent); border-radius: 8px;
+  padding: 8px 12px; color: #fff; background: var(--chat-accent);
+  font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.team-chat__blocked-person button:disabled,
+.team-chat__person-menu button:disabled { opacity: .5; cursor: not-allowed; }
+.team-chat__blocked-panel p,
+.team-chat__blocked-panel small { color: var(--chat-muted); font-size: 12px; }
+.team-chat__person-trigger {
+  border: 0; background: transparent; color: inherit;
+  padding: 3px 0; text-align: left; font: inherit;
+  font-size: 11.5px; font-weight: 800; cursor: pointer;
+}
+.team-chat__person-trigger:hover,
+.team-chat__person-trigger[aria-expanded="true"] { text-decoration: underline; }
+.team-chat__person-menu {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+  margin: 8px 0 3px; padding: 10px; border: 1px solid var(--chat-line);
+  border-radius: 10px; background: var(--chat-soft); color: var(--chat-text);
+}
+.team-chat__person-menu strong { font-size: 12px; }
+.team-chat__person-menu small { color: var(--chat-muted); font-size: 11px; line-height: 1.4; }
+.team-chat__bubble.is-own .team-chat__person-menu { background: rgba(255,255,255,.14); color: #fff; }
+.team-chat__system-message {
+  align-self: center; width: fit-content; max-width: min(93%, 500px);
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center;
+  gap: 8px; margin: 8px auto; padding: 9px 12px;
+  border: 1px solid var(--chat-line); border-radius: 99px;
+  background: var(--chat-bg); color: var(--chat-muted);
+  font-size: 12px; line-height: 1.4; text-align: center; overflow-wrap: anywhere;
+}
+.team-chat__system-message svg { flex-shrink: 0; color: var(--chat-accent); }
+.team-chat__system-message time { font-size: 10px; opacity: .75; white-space: nowrap; }
+:global(html.theme-dark .administration-page .team-chat .team-chat__blocked-panel),
+:global(html.theme-dark .administration-page .team-chat .team-chat__person-menu) {
+  background: #211b20 !important; border-color: #565057 !important;
+  color: #fff !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__blocked-list-button),
+:global(html.theme-dark .administration-page .team-chat .team-chat__blocked-panel-head button) {
+  background: transparent !important; border-color: #62525e !important;
+  color: #fff !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__blocked-person button),
+:global(html.theme-dark .administration-page .team-chat .team-chat__person-menu button) {
+  background: #c51b3c !important; color: #fff !important; border-color: #c51b3c !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__system-message) {
+  background: #29212b !important; color: #ece4ed !important;
+  border-color: #514450 !important;
+}
+@media (max-width: 600px) {
+  .team-chat__blocked-panel { padding: 11px; }
+  .team-chat__system-message { border-radius: 12px; }
+  .team-chat__blocked-list-button { flex: 1 1 auto; }
 }
 
 </style>
