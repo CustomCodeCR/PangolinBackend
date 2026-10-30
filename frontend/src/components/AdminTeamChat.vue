@@ -903,6 +903,29 @@ onMounted(() => {
       chatNames.value = { ...chatNames.value, [currentUserId.value]: profile.displayName }
     }
   })
+  hub.on('DirectDirectory', (contacts: DirectContact[]) => {
+    if (!active) return
+    directContacts.value = (contacts ?? []).map(contact => ({
+      ...contact, userId: contact.userId.toLowerCase()
+    }))
+    if (activeDirectId.value) void openDirectChat(activeDirectId.value)
+  })
+  hub.on('DirectContactsRefresh', () => { if (active) void refreshDirectContacts() })
+  hub.on('DirectPresenceChanged', (userId: string, online: boolean) => {
+    if (!active) return
+    directContacts.value = directContacts.value.map(contact =>
+      contact.userId === userId.toLowerCase() ? { ...contact, online } : contact)
+  })
+  hub.on('DirectInboxUpdated', (_userId: string) => {
+    if (active) void refreshDirectContacts()
+  })
+  hub.on('DirectMessage', (message: ChatMessage) => {
+    if (active) receivedDirectMessage(message)
+  })
+  hub.on('DirectReactionChanged', (messageId: string, reactions: ChatReaction[]) => {
+    if (active) directMessages.value = directMessages.value.map(message =>
+      message.id === messageId ? { ...message, reactions: reactions ?? [] } : message)
+  })
   hub.on('AvatarSnapshot', (photos: { userId: string; url: string }[]) => {
     if (!active) return
     avatarUrls.value = Object.fromEntries((photos ?? [])
@@ -946,7 +969,10 @@ onMounted(() => {
       ? { ...message, reactions: reactions ?? [] } : message)
   })
   hub.on('OneTimeImageViewed', (imageId: string) => {
-    if (active) messages.value = messages.value.map(message => message.imageId === imageId
+    if (!active) return
+    messages.value = messages.value.map(message => message.imageId === imageId
+      ? { ...message, imageViewed: true } : message)
+    directMessages.value = directMessages.value.map(message => message.imageId === imageId
       ? { ...message, imageViewed: true } : message)
   })
   hub.on('ChatClearedForUser', (event: { clearedAt: string }) => onChatClearedForUser(event))
@@ -965,7 +991,12 @@ onMounted(() => {
     void cleanupCameras(false)
     remoteTyping.value = {}
   })
-  hub.onreconnected(() => { status.value = 'En línea'; markVisibleRead() })
+  hub.onreconnected(() => {
+    status.value = 'En línea'
+    if (activeDirectId.value) void openDirectChat(activeDirectId.value)
+    else markVisibleRead()
+    void refreshDirectContacts()
+  })
   hub.onclose(() => {
     status.value = 'Desconectado'
     stopTyping()
