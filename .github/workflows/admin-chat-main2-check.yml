@@ -5,6 +5,7 @@ on:
     branches: [main-3]
     paths:
       - "backend/Services/Realtime/AdminChatHub.cs"
+      - "backend/Services/Realtime/AdminChatHub.Direct.cs"
       - "backend/Services/Realtime/AdminChatMedia.cs"
       - "backend/Services/Realtime/AdminChatAudio.cs"
       - "frontend/src/composables/useAdminChatCameras.ts"
@@ -20,6 +21,7 @@ on:
     branches: [main-3, main-2]
     paths:
       - "backend/Services/Realtime/AdminChatHub.cs"
+      - "backend/Services/Realtime/AdminChatHub.Direct.cs"
       - "backend/Services/Realtime/AdminChatMedia.cs"
       - "backend/Services/Realtime/AdminChatAudio.cs"
       - "frontend/src/composables/useAdminChatCameras.ts"
@@ -216,5 +218,51 @@ jobs:
                 chat.includes('visibleMessages.value.filter') &&
                 chat.includes('blockedUserIds.value.has(message.userId.toLowerCase())'),
             'Client must hide blocked typing, unread counts and message events')
-          console.log('Admin team chat UI and permissions contracts OK')
+          const direct = fs.readFileSync('backend/Services/Realtime/AdminChatHub.Direct.cs', 'utf8')
+          check(hub.includes('public sealed partial class AdminChatHub') &&
+                hub.includes('AppDbContext chatDb') &&
+                hub.includes('SendAsync("DirectDirectory"'),
+            'Direct chat backend must be integrated with authenticated admin hub')
+          check(direct.includes('GetDirectContacts') &&
+                direct.includes('user.TipoAcceso == "usuario"') &&
+                direct.includes('user.Status && user.DeletedAt == null') &&
+                direct.includes('user.Cliente.Status && user.Cliente.DeletedAt == null'),
+            'Direct directory must only list enabled admin accounts')
+          check(direct.includes('CheckDirectPeer') && direct.includes('peer == viewer') &&
+                direct.includes('RequireDirectAdmin()') &&
+                direct.includes('IsBlocked(identity.UsuarioId, recipient)') &&
+                direct.includes('IsBlocked(recipient, identity.UsuarioId)'),
+            'Private message authorization, self-DM guard and blocks missing')
+          check(direct.includes('DirectThreads') && direct.includes('MaxDirectThreads = 100') &&
+                direct.includes('MaxDirectMessages = 60') &&
+                direct.includes('ChatMutations.WaitAsync'),
+            'Bounded isolated direct histories missing')
+          check(direct.includes('PersonalGroup(identity.UsuarioId)') &&
+                direct.includes('PersonalGroup(recipient)') &&
+                !direct.includes('Clients.All.SendAsync("DirectMessage"'),
+            'Direct messages may only reach the two participants')
+          check(direct.includes('SendDirectMedia') && direct.includes('SendDirectVoice') &&
+                direct.includes('ToggleDirectReaction') &&
+                direct.includes('OpenDirectChat'),
+            'Direct media, reaction and history support missing')
+          check(media.includes('RecipientId') && media.includes('ReadRegular(Guid id, Guid viewerId)') &&
+                media.includes('(item.RecipientId is Guid recipient && recipient != userId)') &&
+                audio.includes('FindPublished(Guid id, Guid viewerId)'),
+            'Private media must be inaccessible to third-party administrators')
+          check(chat.includes('activeDirectId = ref<string | null>(null)') &&
+                chat.includes('team-chat__group-link') &&
+                chat.includes('filteredDirectContacts') &&
+                chat.includes('chooseConversation(null)'),
+            'Main group must remain the default and first conversation')
+          check(chat.includes("connection.invoke('SendDirectMedia'") &&
+                chat.includes("connection.invoke('SendDirectVoice'") &&
+                chat.includes("connection.invoke('SendDirectText'") &&
+                chat.includes("connection.invoke('ToggleDirectReaction'"),
+            'Client must send text, images, audio and reactions in direct thread')
+          check(chat.includes("hub.on('DirectDirectory'") &&
+                chat.includes("hub.on('DirectMessage'") &&
+                chat.includes("hub.on('DirectInboxUpdated'") &&
+                chat.includes('threadDrafts.value'),
+            'Direct list, unread updates and separate drafts missing')
+                    console.log('Admin team chat UI and permissions contracts OK')
           NODE

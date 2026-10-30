@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import * as signalR from '@microsoft/signalr'
 import IconSymbol from './IconSymbol.vue'
 import ChatCameraTile from './ChatCameraTile.vue'
-import { Sticker, LockKeyhole, SmilePlus, Mic, Video, VideoOff, Square, Plus, BookmarkPlus, ShieldBan, UserX, X } from '@lucide/vue'
+import { Sticker, LockKeyhole, SmilePlus, Mic, Video, VideoOff, Square, Plus, BookmarkPlus, ShieldBan, UserX, UsersRound, MessageCircle, X } from '@lucide/vue'
 import { useAdminChatCameras } from '../composables/useAdminChatCameras'
 import { useChatStickerLibrary, type StickerPreview } from '../composables/useChatStickerLibrary'
 import { authState } from '../services/auth'
@@ -11,7 +11,8 @@ import { authState } from '../services/auth'
 interface ChatReply { id: string; name: string; text: string; userId?: string }
 type ImageMode = 'image' | 'once' | 'sticker'
 interface ChatReaction { emoji: string; userIds: string[]; userNames?: string[] }
-interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null; imageUrl?: string | null; imageId?: string | null; isViewOnce?: boolean; isSticker?: boolean; imageViewed?: boolean; reactions?: ChatReaction[]; audioUrl?: string | null; isSystem?: boolean }
+interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null; imageUrl?: string | null; imageId?: string | null; isViewOnce?: boolean; isSticker?: boolean; imageViewed?: boolean; reactions?: ChatReaction[]; audioUrl?: string | null; isSystem?: boolean; recipientId?: string | null }
+interface DirectContact { userId: string; name: string; online: boolean; avatarUrl?: string | null; unreadCount: number; lastMessageAt?: string | null }
 interface BlockedAccount { userId: string; name: string }
 interface ChatBlockNotice { id: string; actorId: string; actorName: string; targetId: string; targetName: string; blocked: boolean; sentAt: string }
 interface ChatMediaUpload { imageId: string; url: string }
@@ -21,6 +22,12 @@ interface TypingStatus { connectionId: string; userId: string; name: string; isT
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ (event: 'unread-change', count: number): void }>()
 const messages = ref<ChatMessage[]>([])
+const directContacts = ref<DirectContact[]>([])
+const activeDirectId = ref<string | null>(null) // null = main group, always default
+const directMessages = ref<ChatMessage[]>([])
+const directLoading = ref(false)
+const contactSearch = ref('')
+const threadDrafts = ref<Record<string, string>>({})
 const blockedUsers = ref<BlockedAccount[]>([])
 const blockNotices = ref<ChatBlockNotice[]>([])
 const blockedTrayOpen = ref(false)
@@ -93,19 +100,32 @@ let active = true
 const currentUserId = computed(() => String(authState.user?.id ?? '').toLowerCase())
 const currentEmail = computed(() => (authState.user?.correo ?? '').toLowerCase())
 const blockedUserIds = computed(() => new Set(blockedUsers.value.map(person => person.userId.toLowerCase())))
+const activeDirect = computed(() => directContacts.value.find(contact =>
+  contact.userId.toLowerCase() === activeDirectId.value) ?? null)
+const filteredDirectContacts = computed(() => {
+  const search = contactSearch.value.trim().toLocaleLowerCase()
+  return directContacts.value.filter(contact => !search ||
+    contact.name.toLocaleLowerCase().includes(search))
+})
+const directUnread = computed(() =>
+  directContacts.value.reduce((sum, contact) => sum + contact.unreadCount, 0))
+const directBlocked = computed(() => !!activeDirectId.value &&
+  blockedUserIds.value.has(activeDirectId.value))
 const visibleMessages = computed(() =>
   messages.value.filter(message => !blockedUserIds.value.has(message.userId.toLowerCase())))
-const chatTimeline = computed<ChatMessage[]>(() => [
-  ...visibleMessages.value,
-  ...blockNotices.value.filter(notice => Date.parse(notice.sentAt) > clearedThrough.value)
-    .map(notice => ({
-      id: 'system-' + notice.id, userId: notice.actorId,
-      name: 'Sistema', email: '', sentAt: notice.sentAt, isSystem: true,
-      text: notice.blocked
-        ? notice.actorName + ' bloqueó a ' + notice.targetName + '.'
-        : notice.actorName + ' desbloqueó a ' + notice.targetName + '.'
-    }))
-].sort((a, b) => Date.parse(a.sentAt) - Date.parse(b.sentAt)))
+const chatTimeline = computed<ChatMessage[]>(() => activeDirectId.value
+  ? directMessages.value.filter(message => !blockedUserIds.value.has(message.userId.toLowerCase()))
+  : [
+    ...visibleMessages.value,
+    ...blockNotices.value.filter(notice => Date.parse(notice.sentAt) > clearedThrough.value)
+      .map(notice => ({
+        id: 'system-' + notice.id, userId: notice.actorId,
+        name: 'Sistema', email: '', sentAt: notice.sentAt, isSystem: true,
+        text: notice.blocked
+          ? notice.actorName + ' bloqueó a ' + notice.targetName + '.'
+          : notice.actorName + ' desbloqueó a ' + notice.targetName + '.'
+      }))
+  ].sort((a, b) => Date.parse(a.sentAt) - Date.parse(b.sentAt)))
 const { savedStickers, savedSources, stickerError, stickerBusy, loadStickers, saveSticker, removeSticker, releasePreviews } =
   useChatStickerLibrary(() => currentUserId.value)
 const {
@@ -115,6 +135,7 @@ const {
 const storageKey = computed(() => 'castrofallas-admin-chat-read:' + (currentUserId.value || currentEmail.value))
 const nicknameStorageKey = computed(() => 'castrofallas-admin-chat-nickname:' + (currentUserId.value || currentEmail.value))
 const typingNames = computed(() => {
+  if (activeDirectId.value) return []
   const names = new Map<string, string>()
   for (const state of Object.values(remoteTyping.value)) {
     const userId = state.userId.toLowerCase()
@@ -144,7 +165,7 @@ function applyTypingState(state: TypingStatus) {
   typingClock.value = Date.now()
 }
 function canSendTyping() {
-  return props.visible && document.visibilityState === 'visible' &&
+  return !activeDirectId.value && props.visible && document.visibilityState === 'visible' &&
     connection?.state === signalR.HubConnectionState.Connected
 }
 function stopTyping() {
@@ -448,6 +469,8 @@ async function openSharedImage(message: ChatMessage) {
     imageViewer.value = { src: objectUrl, objectUrl, title: 'Foto de una sola visualización', oneTime: true }
     messages.value = messages.value.map(item => item.imageId === message.imageId
       ? { ...item, imageViewed: true } : item)
+    directMessages.value = directMessages.value.map(item => item.imageId === message.imageId
+      ? { ...item, imageViewed: true } : item)
   } catch (cause) {
     if (active) error.value = cause instanceof Error ? cause.message : 'No se pudo abrir la foto.'
   } finally { viewingImageId.value = null }
@@ -459,7 +482,10 @@ function toggleReactionPicker(id: string) {
 async function toggleReaction(id: string, emoji: string) {
   if (connection?.state !== signalR.HubConnectionState.Connected) return
   reactionPickerId.value = null
-  try { await connection.invoke('ToggleReaction', id, emoji) }
+  try {
+    if (activeDirectId.value) await connection.invoke('ToggleDirectReaction', activeDirectId.value, id, emoji)
+    else await connection.invoke('ToggleReaction', id, emoji)
+  }
   catch (cause) { error.value = cause instanceof Error ? cause.message : 'No se pudo reaccionar.' }
 }
 function reactedByMe(reaction: ChatReaction) {
@@ -468,7 +494,7 @@ function reactedByMe(reaction: ChatReaction) {
 function reactorNames(reaction: ChatReaction): string[] {
   return reaction.userIds.map((id, index) => {
     const userId = id.toLowerCase()
-    const fromMessage = messages.value.find(message => message.userId.toLowerCase() === userId)
+    const fromMessage = chatTimeline.value.find(message => message.userId.toLowerCase() === userId)
     const fromReceipt = receipts.value.find(receipt => receipt.userId.toLowerCase() === userId)
     return chatNames.value[userId] || reaction.userNames?.[index] ||
       fromMessage?.name || fromReceipt?.name || 'Administrador'
@@ -478,6 +504,78 @@ function showReactionUsers(messageId: string, emoji: string) {
   expandedReaction.value = expandedReaction.value?.messageId === messageId &&
     expandedReaction.value.emoji === emoji ? null : { messageId, emoji }
 }
+async function refreshDirectContacts() {
+  if (!active || connection?.state !== signalR.HubConnectionState.Connected) return
+  try {
+    const contacts = await connection.invoke<DirectContact[]>('GetDirectContacts')
+    if (active) directContacts.value = (contacts ?? []).map(contact => ({
+      ...contact, userId: contact.userId.toLowerCase(),
+      unreadCount: activeDirectId.value === contact.userId.toLowerCase() &&
+        props.visible && document.visibilityState === 'visible' ? 0 : contact.unreadCount
+    }))
+  } catch { /* The group remains available if the directory is temporarily offline. */ }
+}
+async function markActiveDirectRead() {
+  const peerId = activeDirectId.value
+  if (!peerId || !props.visible || document.visibilityState !== 'visible' ||
+      connection?.state !== signalR.HubConnectionState.Connected) return
+  try {
+    await connection.invoke('MarkDirectSeen', peerId)
+    if (activeDirectId.value === peerId)
+      directContacts.value = directContacts.value.map(contact => contact.userId === peerId
+        ? { ...contact, unreadCount: 0 } : contact)
+  } catch { /* A disconnected client will retry on the next open. */ }
+}
+async function openDirectChat(peerId: string) {
+  if (!connection || connection.state !== signalR.HubConnectionState.Connected) return
+  directLoading.value = true
+  try {
+    const history = await connection.invoke<ChatMessage[]>('OpenDirectChat', peerId)
+    if (!active || activeDirectId.value !== peerId) return
+    directMessages.value = (history ?? []).slice(-60)
+    directContacts.value = directContacts.value.map(contact => contact.userId === peerId
+      ? { ...contact, unreadCount: 0 } : contact)
+    scrollBottom()
+  } catch (cause) {
+    if (active && activeDirectId.value === peerId) {
+      error.value = cause instanceof Error ? cause.message : 'No se pudo abrir el privado.'
+      directMessages.value = []
+    }
+  } finally { directLoading.value = false }
+}
+function chooseConversation(peerId: string | null) {
+  if (activeDirectId.value === peerId || sending.value || recording.value || mediaBusy.value) return
+  stopTyping()
+  const previous = activeDirectId.value || 'group'
+  threadDrafts.value = { ...threadDrafts.value, [previous]: draft.value }
+  activeDirectId.value = peerId
+  draft.value = threadDrafts.value[peerId || 'group'] || ''
+  replyTarget.value = null
+  reactionPickerId.value = null
+  expandedReaction.value = null
+  personMenuId.value = null
+  stickerTrayOpen.value = false
+  error.value = ''
+  clearOutgoingImage()
+  clearOutgoingAudio()
+  closeViewer()
+  if (peerId) { directMessages.value = []; void openDirectChat(peerId) }
+  else { scrollBottom(); markVisibleRead() }
+  void nextTick(() => input.value?.focus())
+}
+function receivedDirectMessage(message: ChatMessage) {
+  const peerId = message.userId.toLowerCase() === currentUserId.value
+    ? message.recipientId?.toLowerCase() : message.userId.toLowerCase()
+  if (!peerId) return
+  if (activeDirectId.value !== peerId ||
+      blockedUserIds.value.has(peerId) ||
+      directMessages.value.some(item => item.id === message.id)) return
+  directMessages.value = [...directMessages.value.slice(-59), message]
+  if (props.visible && document.visibilityState === 'visible') {
+    scrollBottom()
+    void markActiveDirectRead()
+  }
+}
 function togglePersonMenu(userId: string) {
   personMenuId.value = personMenuId.value === userId ? null : userId
   if (personMenuId.value) blockedTrayOpen.value = false
@@ -485,6 +583,8 @@ function togglePersonMenu(userId: string) {
 function setBlockedSnapshot(accounts: BlockedAccount[]) {
   blockedUsers.value = (accounts ?? []).filter(person =>
     person.userId?.toLowerCase() !== currentUserId.value)
+  if (activeDirectId.value && blockedUserIds.value.has(activeDirectId.value))
+    directMessages.value = []
   personMenuId.value = null
   if (replyTarget.value && blockedUserIds.value.has(replyTarget.value.userId.toLowerCase()))
     replyTarget.value = null
@@ -550,7 +650,8 @@ function isOwn(message: ChatMessage) {
 const unread = computed(() => visibleMessages.value.filter(message =>
   !isOwn(message) && Date.parse(message.sentAt) > lastReadAt.value
 ).length)
-watch(unread, value => emit('unread-change', value), { immediate: true })
+watch([unread, directUnread], ([groupUnread, privateUnread]) =>
+  emit('unread-change', groupUnread + privateUnread), { immediate: true })
 
 function persistLastRead(value: number) {
   if (!Number.isFinite(value) || value <= lastReadAt.value) return
@@ -588,7 +689,9 @@ function scrollEmojiTray(event: WheelEvent) {
   const unit = event.deltaMode === 1 ? 18 : event.deltaMode === 2 ? emojiGrid.value.clientHeight : 1
   emojiGrid.value.scrollTop += event.deltaY * unit
 }
-function canMarkRead() { return props.visible && document.visibilityState === 'visible' }
+function canMarkRead() {
+  return !activeDirectId.value && props.visible && document.visibilityState === 'visible'
+}
 function markVisibleRead() {
   if (!canMarkRead()) return
   const newest = visibleMessages.value.at(-1)
@@ -646,7 +749,7 @@ function jumpToOriginal(id: string) {
   highlightTimer = setTimeout(() => { highlightedId.value = null; highlightTimer = null }, 1800)
 }
 async function clearMyChat() {
-  if (clearingChat.value || !chatTimeline.value.length ||
+  if (activeDirectId.value || clearingChat.value || !chatTimeline.value.length ||
       connection?.state !== signalR.HubConnectionState.Connected) return
   const confirmed = window.confirm(
     '¿Limpiar el chat solo para tu cuenta?\n\n' +
@@ -688,17 +791,21 @@ function onChatClearedForUser(event: { clearedAt: string }) {
 async function send() {
   const text = draft.value.trim()
   if ((!text && !outgoingImage.value && !outgoingAudio.value) || text.length > 500 ||
-      sending.value || mediaBusy.value || recording.value ||
+      sending.value || mediaBusy.value || recording.value || directBlocked.value ||
       connection?.state !== signalR.HubConnectionState.Connected) return
   sending.value = true
   error.value = ''
   stopTyping()
   const target = replyTarget.value
   try {
+    const peerId = activeDirectId.value
     if (outgoingImage.value) {
       const attachment = outgoingImage.value
       const uploaded = await uploadImage(attachment.blob, 'message')
-      await connection.invoke('SendMedia', uploaded.imageId, text, target?.id ?? null, attachment.mode)
+      if (peerId)
+        await connection.invoke('SendDirectMedia', peerId, uploaded.imageId, text, target?.id ?? null, attachment.mode)
+      else
+        await connection.invoke('SendMedia', uploaded.imageId, text, target?.id ?? null, attachment.mode)
       clearOutgoingImage()
       if (attachment.mode === 'sticker') {
         try { await saveSticker(attachment.blob, uploaded.imageId) }
@@ -706,9 +813,11 @@ async function send() {
       }
     } else if (outgoingAudio.value) {
       const audioId = await uploadAudio(outgoingAudio.value.blob)
-      await connection.invoke('SendVoice', audioId, target?.id ?? null, text)
+      if (peerId) await connection.invoke('SendDirectVoice', peerId, audioId, text, target?.id ?? null)
+      else await connection.invoke('SendVoice', audioId, target?.id ?? null, text)
       clearOutgoingAudio()
-    } else if (target) await connection.invoke('ReplyToMessage', text, target.id)
+    } else if (peerId) await connection.invoke('SendDirectText', peerId, text, target?.id ?? null)
+    else if (target) await connection.invoke('ReplyToMessage', text, target.id)
     else await connection.invoke('SendMessage', text)
     draft.value = ''
     if (replyTarget.value?.id === target?.id) replyTarget.value = null
@@ -734,7 +843,8 @@ async function startChat() {
         chatNames.value = { ...chatNames.value, [currentUserId.value]: current }
       } catch { /* Se conserva el chat si el apodo no pudo restaurarse. */ }
     }
-    markVisibleRead()
+    if (activeDirectId.value) await openDirectChat(activeDirectId.value)
+    else markVisibleRead()
   } catch {
     if (active) { status.value = 'Sin conexión · reintentando'; scheduleRetry() }
   }
@@ -743,6 +853,7 @@ function onVisibility() {
   if (document.visibilityState !== 'visible' && imageViewer.value?.oneTime) closeViewer()
   if (!canSendTyping()) stopTyping()
   if (canMarkRead()) { scrollBottom(); markVisibleRead() }
+  if (activeDirectId.value && props.visible) void markActiveDirectRead()
 }
 watch(() => props.visible, showing => {
   if (showing) onVisibility()
@@ -794,6 +905,29 @@ onMounted(() => {
       chatNames.value = { ...chatNames.value, [currentUserId.value]: profile.displayName }
     }
   })
+  hub.on('DirectDirectory', (contacts: DirectContact[]) => {
+    if (!active) return
+    directContacts.value = (contacts ?? []).map(contact => ({
+      ...contact, userId: contact.userId.toLowerCase()
+    }))
+    if (activeDirectId.value) void openDirectChat(activeDirectId.value)
+  })
+  hub.on('DirectContactsRefresh', () => { if (active) void refreshDirectContacts() })
+  hub.on('DirectPresenceChanged', (userId: string, online: boolean) => {
+    if (!active) return
+    directContacts.value = directContacts.value.map(contact =>
+      contact.userId === userId.toLowerCase() ? { ...contact, online } : contact)
+  })
+  hub.on('DirectInboxUpdated', (_userId: string) => {
+    if (active) void refreshDirectContacts()
+  })
+  hub.on('DirectMessage', (message: ChatMessage) => {
+    if (active) receivedDirectMessage(message)
+  })
+  hub.on('DirectReactionChanged', (messageId: string, reactions: ChatReaction[]) => {
+    if (active) directMessages.value = directMessages.value.map(message =>
+      message.id === messageId ? { ...message, reactions: reactions ?? [] } : message)
+  })
   hub.on('AvatarSnapshot', (photos: { userId: string; url: string }[]) => {
     if (!active) return
     avatarUrls.value = Object.fromEntries((photos ?? [])
@@ -837,7 +971,10 @@ onMounted(() => {
       ? { ...message, reactions: reactions ?? [] } : message)
   })
   hub.on('OneTimeImageViewed', (imageId: string) => {
-    if (active) messages.value = messages.value.map(message => message.imageId === imageId
+    if (!active) return
+    messages.value = messages.value.map(message => message.imageId === imageId
+      ? { ...message, imageViewed: true } : message)
+    directMessages.value = directMessages.value.map(message => message.imageId === imageId
       ? { ...message, imageViewed: true } : message)
   })
   hub.on('ChatClearedForUser', (event: { clearedAt: string }) => onChatClearedForUser(event))
@@ -856,7 +993,12 @@ onMounted(() => {
     void cleanupCameras(false)
     remoteTyping.value = {}
   })
-  hub.onreconnected(() => { status.value = 'En línea'; markVisibleRead() })
+  hub.onreconnected(() => {
+    status.value = 'En línea'
+    if (activeDirectId.value) void openDirectChat(activeDirectId.value)
+    else markVisibleRead()
+    void refreshDirectContacts()
+  })
   hub.onclose(() => {
     status.value = 'Desconectado'
     stopTyping()
@@ -927,25 +1069,73 @@ onUnmounted(() => {
       <p v-if="nicknameError && !nicknameEditing" class="team-chat-profile__error" role="alert">{{ nicknameError }}</p>
     </section>
     <section ref="chatPanel" class="team-chat" aria-label="Chat entre administradores">
+    <div class="team-chat__workspace">
+      <nav class="team-chat__sidebar" aria-label="Conversaciones del chat">
+        <p class="team-chat__sidebar-label">CONVERSACIONES</p>
+        <button type="button" class="team-chat__conversation-link team-chat__group-link"
+          :class="{ 'is-selected': !activeDirectId }"
+          :aria-current="!activeDirectId ? 'page' : undefined"
+          @click="chooseConversation(null)">
+          <span class="team-chat__conversation-avatar team-chat__group-avatar"><UsersRound :size="19" /></span>
+          <span class="team-chat__conversation-copy">
+            <strong>Chat grupal</strong><small>Canal principal del equipo</small>
+          </span>
+          <span v-if="unread" class="team-chat__conversation-unread">{{ unread }}</span>
+        </button>
+        <div class="team-chat__sidebar-section">
+          <strong>Mensajes privados</strong>
+          <span v-if="directUnread" class="team-chat__conversation-unread">{{ directUnread }}</span>
+        </div>
+        <label class="sr-only" for="team-chat-contacts-filter">Buscar administrador</label>
+        <input id="team-chat-contacts-filter" v-model="contactSearch"
+          class="team-chat__contact-search" placeholder="Buscar persona…" autocomplete="off" />
+        <div class="team-chat__contact-list">
+          <button v-for="contact in filteredDirectContacts" :key="contact.userId"
+            type="button" class="team-chat__conversation-link"
+            :class="{ 'is-selected': activeDirectId === contact.userId }"
+            :aria-current="activeDirectId === contact.userId ? 'page' : undefined"
+            @click="chooseConversation(contact.userId)">
+            <span class="team-chat__conversation-avatar">
+              <img v-if="avatarFor(contact.userId) || contact.avatarUrl"
+                :src="avatarFor(contact.userId) || contact.avatarUrl || ''" alt="" loading="lazy" />
+              <span v-else>{{ initials(contact.name) }}</span>
+              <span class="team-chat__contact-status" :class="{ 'is-online': contact.online }"></span>
+            </span>
+            <span class="team-chat__conversation-copy">
+              <strong>{{ chatNames[contact.userId] || contact.name }}</strong>
+              <small>{{ blockedUserIds.has(contact.userId) ? 'Bloqueado' : contact.online ? 'En línea' : 'Desconectado' }}</small>
+            </span>
+            <span v-if="contact.unreadCount" class="team-chat__conversation-unread">{{ contact.unreadCount }}</span>
+          </button>
+          <p v-if="!filteredDirectContacts.length" class="team-chat__contacts-empty">
+            {{ contactSearch ? 'No hay coincidencias.' : 'No hay otros administradores habilitados.' }}
+          </p>
+        </div>
+        <small class="team-chat__sidebar-hint">Los privados solo son visibles para sus dos participantes.</small>
+      </nav>
+      <div class="team-chat__thread">
     <header class="team-chat__head">
       <div>
-        <p class="team-chat__tag">CANAL PRIVADO · EXPERIMENTAL</p>
-        <h2>Chat del equipo</h2>
-        <p>Mensajería en vivo entre administradores. El historial se borra al reiniciar el backend.</p>
+        <p class="team-chat__tag">{{ activeDirectId ? 'CONVERSACIÓN PRIVADA · EXPERIMENTAL' : 'CANAL PRINCIPAL · EXPERIMENTAL' }}</p>
+        <h2>{{ activeDirectId ? (chatNames[activeDirectId] || activeDirect?.name || 'Mensaje privado') : 'Chat del equipo' }}</h2>
+        <p>{{ activeDirectId ? 'Solo ustedes dos pueden leer este historial. El grupo permanece disponible a la izquierda.' :
+          'Mensajería en vivo entre administradores. El historial se borra al reiniciar el backend.' }}</p>
       </div>
       <div class="team-chat__head-actions">
         <div class="team-chat__presence" role="status">
           <span class="team-chat__light" :class="{ 'is-offline': status !== 'En línea' }" />
           {{ status }} <small v-if="online">· {{ online }} conectado{{ online === 1 ? '' : 's' }}</small>
         </div>
-        <button class="team-chat__blocked-list-button" type="button"
+        <button v-if="activeDirectId" type="button" class="team-chat__blocked-list-button"
+          @click="chooseConversation(null)">Volver al grupo</button>
+        <button v-if="!activeDirectId" class="team-chat__blocked-list-button" type="button"
           :aria-expanded="blockedTrayOpen"
           :title="'Administrar bloqueados: ' + blockedUsers.length"
           @click="blockedTrayOpen = !blockedTrayOpen; personMenuId = null">
           <ShieldBan :size="15" />
           Bloqueados ({{ blockedUsers.length }})
         </button>
-        <button class="team-chat__clear-button" type="button"
+        <button v-if="!activeDirectId" class="team-chat__clear-button" type="button"
           :disabled="status !== 'En línea' || clearingChat || !chatTimeline.length"
           title="Ocultar mensajes anteriores solo para tu cuenta"
           @click="clearMyChat">
@@ -954,7 +1144,7 @@ onUnmounted(() => {
         </button>
       </div>
     </header>
-    <div v-if="blockedTrayOpen" class="team-chat__blocked-panel" role="region"
+    <div v-if="blockedTrayOpen && !activeDirectId" class="team-chat__blocked-panel" role="region"
       aria-label="Administrar personas bloqueadas">
       <div class="team-chat__blocked-panel-head">
         <strong>Personas bloqueadas</strong>
@@ -972,10 +1162,15 @@ onUnmounted(() => {
       <small>El bloqueo solo oculta mensajes en tu chat. No expulsa a la otra persona del grupo.</small>
     </div>
     <p v-if="chatNotice" class="team-chat__notice" role="status">{{ chatNotice }}</p>
+    <p v-if="directBlocked" class="team-chat__notice" role="status">
+      Bloqueaste a esta persona. Podés desbloquearla desde la opción «Bloqueados» del grupo.
+    </p>
     <div ref="list" class="team-chat__messages" role="log" aria-live="polite" aria-relevant="additions">
       <div v-if="!chatTimeline.length" class="team-chat__empty">
-        <span>✳</span><strong>Este canal está esperando su primer mensaje.</strong>
-        <p>Probalo con otro administrador desde otra computadora o navegador.</p>
+        <span><MessageCircle :size="23" /></span>
+        <strong>{{ directLoading ? 'Abriendo conversación…' : activeDirectId ? 'Iniciá esta conversación privada' : 'Este canal está esperando su primer mensaje.' }}</strong>
+        <p>{{ activeDirectId ? 'Los mensajes que escribas aquí no aparecen en el grupo.' :
+          'Probalo con otro administrador desde otra computadora o navegador.' }}</p>
       </div>
       <template v-for="message in chatTimeline" :key="message.id">
       <div v-if="message.isSystem" class="team-chat__system-message" role="status">
@@ -998,7 +1193,7 @@ onUnmounted(() => {
               @click="togglePersonMenu(message.userId)">{{ displayName(message) }}</button>
             <span class="team-chat__meta">
               <time :datetime="message.sentAt">{{ clock(message.sentAt) }}</time>
-              <button v-if="isOwn(message)" type="button" class="team-chat__seen-button"
+              <button v-if="!activeDirectId && isOwn(message)" type="button" class="team-chat__seen-button"
                 :aria-expanded="expandedSeenId === message.id"
                 :aria-label="'Ver quién leyó este mensaje: ' + seenNames(message).length"
                 title="Ver quién lo leyó" @click="toggleSeen(message.id)">✓✓</button>
@@ -1007,6 +1202,10 @@ onUnmounted(() => {
           <div v-if="personMenuId === message.userId && !isOwn(message)"
             class="team-chat__person-menu">
             <strong>{{ displayName(message) }}</strong>
+            <button v-if="!activeDirectId" type="button"
+              @click="chooseConversation(message.userId)">
+              <MessageCircle :size="15" /> Mensaje privado
+            </button>
             <button type="button" :disabled="status !== 'En línea' || !!blockBusyId"
               @click="setUserBlocked(message.userId, true)">
               <UserX :size="15" /> Bloquear a esta persona
@@ -1170,16 +1369,21 @@ onUnmounted(() => {
       </button>
       <label class="sr-only" for="team-chat-input">Escribir mensaje</label>
       <input id="team-chat-input" ref="input" v-model="draft" maxlength="500" autocomplete="off"
-        placeholder="Escribí un mensaje al equipo…" :disabled="status !== 'En línea'"
+        :placeholder="activeDirectId ? 'Mensaje privado…' : 'Escribí un mensaje al equipo…'"
+        :disabled="status !== 'En línea' || directBlocked"
         @input="onDraftInput" @paste="onComposerPaste" @blur="stopTyping" />
-      <button type="submit" :disabled="status !== 'En línea' || (!draft.trim() && !outgoingImage && !outgoingAudio) || sending || mediaBusy || recording">
+      <button type="submit" :disabled="status !== 'En línea' || directBlocked ||
+        (!draft.trim() && !outgoingImage && !outgoingAudio) || sending || mediaBusy || recording">
         {{ sending ? 'Enviando…' : 'Enviar ↗' }}
       </button>
     </form>
     <p v-if="error" class="team-chat__error" role="alert">{{ error }}</p>
-    <p class="team-chat__foot">Solo administradores autenticados · {{ visibleMessages.length }} mensajes visibles en este historial temporal.</p>
+    <p class="team-chat__foot">{{ activeDirectId ? 'Privado entre dos administradores' : 'Solo administradores autenticados' }}
+      · {{ chatTimeline.filter(message => !message.isSystem).length }} mensajes en esta conversación temporal.</p>
+      </div>
+    </div>
     </section>
-    <section class="team-chat__camera-panel" aria-label="Cámaras del equipo">
+    <section v-if="!activeDirectId" class="team-chat__camera-panel" aria-label="Cámaras del equipo">
       <div class="team-chat__camera-header">
         <div><strong><Video :size="18" /> Cámaras del equipo</strong>
           <p>Video en directo entre administradores. Activación individual, sin grabación en el servidor.</p>
@@ -2163,6 +2367,143 @@ onUnmounted(() => {
   .team-chat__blocked-panel { padding: 11px; }
   .team-chat__system-message { border-radius: 12px; }
   .team-chat__blocked-list-button { flex: 1 1 auto; }
+}
+
+
+/* The group is the first, default conversation. Private threads reuse the same
+   message viewport and composer, with a separate in-memory timeline. */
+.team-chat__workspace {
+  display: grid; grid-template-columns: minmax(190px, 225px) minmax(0, 1fr);
+  align-items: stretch; gap: 18px; min-width: 0;
+}
+.team-chat__sidebar {
+  min-width: 0; display: flex; flex-direction: column; gap: 10px;
+  padding: 13px 11px; border: 1px solid var(--chat-line);
+  border-radius: 15px; background: var(--chat-soft);
+}
+.team-chat__sidebar-label {
+  margin: 4px 7px; font-size: 10px; font-weight: 850;
+  letter-spacing: .09em; color: var(--chat-muted);
+}
+.team-chat__sidebar-section {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 7px; padding: 12px 7px 0;
+  border-top: 1px solid var(--chat-line);
+  color: var(--chat-text); font-size: 12px;
+}
+.team-chat__conversation-link {
+  display: flex; flex: 0 0 auto; align-items: center; gap: 9px;
+  min-width: 0; width: 100%; padding: 9px 8px; text-align: left;
+  border: 1px solid transparent; border-radius: 12px;
+  background: transparent; color: var(--chat-text);
+  font: inherit; cursor: pointer;
+}
+.team-chat__conversation-link:hover, .team-chat__conversation-link:focus-visible {
+  background: var(--chat-bg); border-color: var(--chat-line); outline: none;
+}
+.team-chat__conversation-link.is-selected {
+  background: var(--chat-bg); border-color: var(--chat-accent);
+  box-shadow: inset 3px 0 var(--chat-accent);
+}
+.team-chat__conversation-avatar {
+  position: relative; flex: 0 0 auto; display: grid;
+  place-items: center; width: 37px; height: 37px;
+  border: 1px solid var(--chat-line); border-radius: 50%;
+  background: var(--chat-bg); color: var(--chat-accent);
+  font-size: 12px; font-weight: 800;
+}
+.team-chat__conversation-avatar img {
+  display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover;
+}
+.team-chat__group-avatar {
+  border-radius: 12px; background: var(--chat-accent); color: #fff;
+}
+.team-chat__contact-status {
+  position: absolute; width: 10px; height: 10px;
+  bottom: -2px; right: -2px; border: 2px solid var(--chat-soft);
+  border-radius: 50%; background: #9694a0;
+}
+.team-chat__contact-status.is-online { background: #20ab71; }
+.team-chat__conversation-copy {
+  display: flex; flex-direction: column; gap: 3px;
+  flex: 1 1 auto; min-width: 0;
+}
+.team-chat__conversation-copy strong {
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-size: 12px; font-weight: 800;
+}
+.team-chat__conversation-copy small {
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  color: var(--chat-muted); font-size: 10px;
+}
+.team-chat__conversation-unread {
+  flex: 0 0 auto; display: inline-grid; place-items: center;
+  min-width: 21px; height: 21px; padding: 0 5px;
+  border-radius: 99px; background: var(--chat-accent);
+  color: #fff; font-size: 10px; font-weight: 850;
+}
+.team-chat__contact-search {
+  box-sizing: border-box; width: 100%; min-width: 0; padding: 9px 11px;
+  border: 1px solid var(--chat-line); border-radius: 10px;
+  background: var(--chat-bg); color: var(--chat-text);
+  font: inherit; font-size: 12px; outline: none;
+}
+.team-chat__contact-search:focus { border-color: var(--chat-accent); }
+.team-chat__contact-list {
+  display: flex; flex-direction: column; gap: 4px;
+  min-width: 0; max-height: 515px; overflow-y: auto;
+  overscroll-behavior: contain; scrollbar-width: thin;
+}
+.team-chat__contacts-empty {
+  padding: 10px 7px; color: var(--chat-muted); font-size: 11px; line-height: 1.5;
+}
+.team-chat__sidebar-hint {
+  display: block; padding: 8px 7px 4px; color: var(--chat-muted);
+  font-size: 10px; line-height: 1.5;
+}
+.team-chat__thread { display: flex; flex-direction: column; min-width: 0; }
+.team-chat__thread .team-chat__head { min-width: 0; }
+.team-chat__thread .team-chat__messages { min-width: 0; }
+:global(html.theme-dark .administration-page .team-chat .team-chat__sidebar) {
+  background: #18151b !important; border-color: #514450 !important;
+  color: #fff !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__conversation-link) {
+  background: transparent !important; color: #fff !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__conversation-link.is-selected),
+:global(html.theme-dark .administration-page .team-chat .team-chat__conversation-link:hover) {
+  background: #352b35 !important; border-color: #6f5363 !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__contact-search) {
+  background: #211b20 !important; color: #fff !important; border-color: #514450 !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__conversation-avatar:not(.team-chat__group-avatar)) {
+  background: #352b35 !important; color: #fff !important; border-color: #615465 !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__group-avatar) {
+  background: #c51b3c !important; color: #fff !important;
+}
+@media (max-width: 750px) {
+  .team-chat__workspace { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .team-chat__sidebar { padding: 10px; gap: 7px; }
+  .team-chat__sidebar-label { margin: 0 5px; }
+  .team-chat__group-link { max-width: 280px; }
+  .team-chat__sidebar-section { padding-top: 7px; }
+  .team-chat__contact-list {
+    flex-direction: row; gap: 5px; overflow-x: auto; overflow-y: hidden;
+    max-height: none; padding: 3px; scroll-snap-type: x proximity;
+  }
+  .team-chat__contact-list .team-chat__conversation-link {
+    width: min(185px, 63vw); min-width: min(185px, 63vw);
+    scroll-snap-align: start;
+  }
+  .team-chat__sidebar-hint { padding: 1px 5px; }
+}
+@media (max-width: 430px) {
+  .team-chat__conversation-link { padding: 7px; }
+  .team-chat__conversation-avatar { width: 34px; height: 34px; }
+  .team-chat__group-link { max-width: none; }
 }
 
 </style>
