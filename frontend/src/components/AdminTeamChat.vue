@@ -2075,4 +2075,94 @@ onUnmounted(() => {
   background: #3d303f !important; color: #fff !important;
 }
 
+
+/* Per-account block controls: compact, reversible, readable in both themes. */
+.team-chat__blocked-list-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 35px; padding: 8px 12px; border: 1px solid var(--chat-line);
+  border-radius: 10px; background: transparent; color: var(--chat-text);
+  font: inherit; font-weight: 700; font-size: 12px; cursor: pointer;
+}
+.team-chat__blocked-list-button:hover,
+.team-chat__blocked-list-button[aria-expanded="true"] {
+  border-color: var(--chat-accent); color: var(--chat-accent);
+}
+.team-chat__blocked-panel {
+  margin: 12px 0 10px; padding: 13px; border: 1px solid var(--chat-line);
+  border-radius: 13px; background: var(--chat-soft); color: var(--chat-text);
+}
+.team-chat__blocked-panel-head {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; margin-bottom: 8px; font-size: 13px;
+}
+.team-chat__blocked-panel-head button {
+  display: grid; place-items: center; width: 30px; height: 30px;
+  border: 1px solid var(--chat-line); border-radius: 8px;
+  background: transparent; color: inherit; cursor: pointer;
+}
+.team-chat__blocked-person {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
+  gap: 9px; padding: 9px 0; border-bottom: 1px solid var(--chat-line);
+}
+.team-chat__blocked-person span { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; }
+.team-chat__blocked-person button,
+.team-chat__person-menu button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  border: 1px solid var(--chat-accent); border-radius: 8px;
+  padding: 8px 12px; color: #fff; background: var(--chat-accent);
+  font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.team-chat__blocked-person button:disabled,
+.team-chat__person-menu button:disabled { opacity: .5; cursor: not-allowed; }
+.team-chat__blocked-panel p,
+.team-chat__blocked-panel small { color: var(--chat-muted); font-size: 12px; }
+.team-chat__person-trigger {
+  border: 0; background: transparent; color: inherit;
+  padding: 3px 0; text-align: left; font: inherit;
+  font-size: 11.5px; font-weight: 800; cursor: pointer;
+}
+.team-chat__person-trigger:hover,
+.team-chat__person-trigger[aria-expanded="true"] { text-decoration: underline; }
+.team-chat__person-menu {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+  margin: 8px 0 3px; padding: 10px; border: 1px solid var(--chat-line);
+  border-radius: 10px; background: var(--chat-soft); color: var(--chat-text);
+}
+.team-chat__person-menu strong { font-size: 12px; }
+.team-chat__person-menu small { color: var(--chat-muted); font-size: 11px; line-height: 1.4; }
+.team-chat__bubble.is-own .team-chat__person-menu { background: rgba(255,255,255,.14); color: #fff; }
+.team-chat__system-message {
+  align-self: center; width: fit-content; max-width: min(93%, 500px);
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center;
+  gap: 8px; margin: 8px auto; padding: 9px 12px;
+  border: 1px solid var(--chat-line); border-radius: 99px;
+  background: var(--chat-bg); color: var(--chat-muted);
+  font-size: 12px; line-height: 1.4; text-align: center; overflow-wrap: anywhere;
+}
+.team-chat__system-message svg { flex-shrink: 0; color: var(--chat-accent); }
+.team-chat__system-message time { font-size: 10px; opacity: .75; white-space: nowrap; }
+:global(html.theme-dark .administration-page .team-chat .team-chat__blocked-panel),
+:global(html.theme-dark .administration-page .team-chat .team-chat__person-menu) {
+  background: #211b20 !important; border-color: #565057 !important;
+  color: #fff !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__blocked-list-button),
+:global(html.theme-dark .administration-page .team-chat .team-chat__blocked-panel-head button) {
+  background: transparent !important; border-color: #62525e !important;
+  color: #fff !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__blocked-person button),
+:global(html.theme-dark .administration-page .team-chat .team-chat__person-menu button) {
+  background: #c51b3c !important; color: #fff !important; border-color: #c51b3c !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__system-message) {
+  background: #29212b !important; color: #ece4ed !important;
+  border-color: #514450 !important;
+}
+@media (max-width: 600px) {
+  .team-chat__blocked-panel { padding: 11px; }
+  .team-chat__system-message { border-radius: 12px; }
+  .team-chat__blocked-list-button { flex: 1 1 auto; }
+}
+
 </style>
