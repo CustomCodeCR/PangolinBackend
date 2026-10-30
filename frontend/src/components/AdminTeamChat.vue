@@ -920,12 +920,26 @@ onUnmounted(() => {
             Tu navegador no permite reproducir este audio.
           </audio>
           <div v-if="message.reactions?.length" class="team-chat__reactions" aria-label="Reacciones al mensaje">
-            <button v-for="reaction in message.reactions" :key="reaction.emoji" type="button"
-              :class="{ 'is-mine': reactedByMe(reaction) }"
-              :title="reactedByMe(reaction) ? 'Quitar mi reacción' : 'Reaccionar con ' + reaction.emoji"
-              :aria-label="reaction.emoji + ', ' + reaction.userIds.length + ' reacciones'"
-              :disabled="status !== 'En línea'"
-              @click="toggleReaction(message.id, reaction.emoji)">{{ reaction.emoji }} <span>{{ reaction.userIds.length }}</span></button>
+            <div v-for="reaction in message.reactions" :key="reaction.emoji" class="team-chat__reaction-pill"
+              :class="{ 'is-mine': reactedByMe(reaction) }">
+              <button type="button" class="team-chat__reaction-choice"
+                :title="reactedByMe(reaction) ? 'Quitar mi reacción' : 'Reaccionar con ' + reaction.emoji"
+                :aria-label="reactedByMe(reaction) ? 'Quitar mi reacción ' + reaction.emoji : 'Reaccionar con ' + reaction.emoji"
+                :disabled="status !== 'En línea'"
+                @click="toggleReaction(message.id, reaction.emoji)">{{ reaction.emoji }}</button>
+              <button type="button" class="team-chat__reaction-count"
+                :aria-expanded="expandedReaction?.messageId === message.id && expandedReaction?.emoji === reaction.emoji"
+                :aria-label="'Ver quién reaccionó con ' + reaction.emoji"
+                :title="reactorNames(reaction).join(', ')"
+                @click="showReactionUsers(message.id, reaction.emoji)">{{ reaction.userIds.length }}</button>
+            </div>
+            <template v-for="reaction in message.reactions" :key="'people-' + reaction.emoji">
+              <div v-if="expandedReaction?.messageId === message.id && expandedReaction?.emoji === reaction.emoji"
+                class="team-chat__reactors" role="status">
+                <strong>Reaccionaron con {{ reaction.emoji }}:</strong>
+                <span v-for="(name, index) in reactorNames(reaction)" :key="reaction.userIds[index]">{{ name }}</span>
+              </div>
+            </template>
           </div>
           <div v-if="isOwn(message) && expandedSeenId === message.id" class="team-chat__seen-popover" role="status">
             <strong>Lecturas</strong>
@@ -955,12 +969,13 @@ onUnmounted(() => {
         <span class="team-chat__typing-name">{{ typingLabel }}</span>
       </div>
     </div>
-    <div v-if="reactionPickerId" class="team-chat__emoji-tray" role="group" aria-label="Reacciones con emojis">
+    <div v-if="reactionPickerId" class="team-chat__emoji-tray" role="group"
+      aria-label="Reacciones con emojis" @wheel="scrollEmojiTray">
       <div class="team-chat__tray-head">
         <strong>Elegí un emoji para reaccionar</strong>
         <button type="button" aria-label="Cerrar emojis" @click="reactionPickerId = null"><X :size="17" /></button>
       </div>
-      <div class="team-chat__emoji-grid">
+      <div ref="emojiGrid" class="team-chat__emoji-grid">
         <button v-for="emoji in reactionChoices" :key="emoji" type="button"
           :aria-label="'Reaccionar con ' + emoji"
           @click="toggleReaction(reactionPickerId!, emoji)"><span>{{ emoji }}</span></button>
@@ -1036,7 +1051,7 @@ onUnmounted(() => {
       <label class="sr-only" for="team-chat-input">Escribir mensaje</label>
       <input id="team-chat-input" ref="input" v-model="draft" maxlength="500" autocomplete="off"
         placeholder="Escribí un mensaje al equipo…" :disabled="status !== 'En línea'"
-        @input="onDraftInput" @blur="stopTyping" />
+        @input="onDraftInput" @paste="onComposerPaste" @blur="stopTyping" />
       <button type="submit" :disabled="status !== 'En línea' || (!draft.trim() && !outgoingImage && !outgoingAudio) || sending || mediaBusy || recording">
         {{ sending ? 'Enviando…' : 'Enviar ↗' }}
       </button>
@@ -1885,6 +1900,59 @@ onUnmounted(() => {
   .team-chat__camera-grid > * { flex-basis: 45%; min-width: 130px; }
   .team-chat__composer { gap: 5px; }
   .team-chat__composer .team-chat__attach { width: 31px; height: 35px; }
+}
+
+
+/* Reaction counters reveal a server-authenticated list without adding/removing emojis. */
+.team-chat__reaction-pill {
+  display: inline-flex; align-items: center; border-radius: 99px;
+  border: 1px solid var(--chat-line); background: var(--chat-soft);
+  overflow: hidden;
+}
+.team-chat__reaction-pill.is-mine { border-color: var(--chat-accent); }
+.team-chat__reactions .team-chat__reaction-pill > button {
+  margin: 0; border: 0; border-radius: 0; padding: 4px 7px;
+  background: transparent; color: var(--chat-text); cursor: pointer;
+  font: inherit; font-size: 12px; line-height: 1.3;
+}
+.team-chat__reactions .team-chat__reaction-pill > button:disabled {
+  opacity: .6; cursor: not-allowed;
+}
+.team-chat__reactions .team-chat__reaction-count {
+  min-width: 29px; border-left: 1px solid var(--chat-line) !important;
+  font-size: 11px !important; font-weight: 700 !important;
+}
+.team-chat__reactions .team-chat__reaction-count:hover,
+.team-chat__reactions .team-chat__reaction-count[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--chat-accent) 13%, transparent);
+}
+.team-chat__reactors {
+  flex: 1 1 100%; display: flex; align-items: flex-start;
+  flex-wrap: wrap; gap: 5px 7px; padding: 7px 2px 2px;
+  font-size: 11px; line-height: 1.4;
+}
+.team-chat__reactors strong { flex-basis: 100%; font-size: 11px; }
+.team-chat__reactors span {
+  display: inline-block; padding: 3px 7px; border-radius: 7px;
+  background: var(--chat-quoted); color: inherit;
+}
+.team-chat__bubble.is-own .team-chat__reaction-pill {
+  background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.4);
+}
+.team-chat__bubble.is-own .team-chat__reactions .team-chat__reaction-pill > button {
+  background: transparent; color: #fff;
+}
+.team-chat__bubble.is-own .team-chat__reactions .team-chat__reaction-count {
+  border-left-color: rgba(255,255,255,.35) !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__reaction-pill) {
+  background: #352b35 !important; border-color: #615465 !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__reaction-pill > button) {
+  background: transparent !important; color: #fff !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__reactors span) {
+  background: #3d303f !important; color: #fff !important;
 }
 
 </style>
