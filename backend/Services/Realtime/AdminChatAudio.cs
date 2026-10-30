@@ -20,6 +20,7 @@ public sealed class AdminChatAudioStore
         public required string Mime { get; init; }
         public required byte[] Bytes { get; init; }
         public bool Published { get; set; }
+        public Guid? RecipientId { get; set; }
     }
 
     public static string Url(Guid id) => $"/api/admin/chat/audio/{id:N}";
@@ -45,19 +46,22 @@ public sealed class AdminChatAudioStore
         lock (_gate) return _clips.TryGetValue(id, out var item) &&
             item.Owner == userId && !item.Published;
     }
-    public bool Publish(Guid id, Guid userId)
+    public bool Publish(Guid id, Guid userId, Guid? recipientId = null)
     {
         lock (_gate)
         {
             if (!_clips.TryGetValue(id, out var item) || item.Owner != userId || item.Published)
                 return false;
+            item.RecipientId = recipientId;
             item.Published = true;
             return true;
         }
     }
-    public Clip? FindPublished(Guid id)
+    public Clip? FindPublished(Guid id, Guid viewerId)
     {
-        lock (_gate) return _clips.TryGetValue(id, out var item) && item.Published ? item : null;
+        lock (_gate) return _clips.TryGetValue(id, out var item) && item.Published &&
+            (item.RecipientId is not Guid recipient || item.Owner == viewerId ||
+                recipient == viewerId) ? item : null;
     }
 }
 
@@ -115,7 +119,7 @@ public static class AdminChatAudioEndpoints
                 return Results.Forbid();
             http.Response.Headers.CacheControl = "no-store, private";
             http.Response.Headers["X-Content-Type-Options"] = "nosniff";
-            var clip = store.FindPublished(id);
+            var clip = store.FindPublished(id, identity.UsuarioId);
             return clip is null ? (IResult)Results.NotFound() :
                 Results.File(clip.Bytes, clip.Mime, enableRangeProcessing: false);
         });
