@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import type { Component } from 'vue'
-import { Boxes, ClipboardList, FileCheck2, FileText, Globe2, HandTruck, Package, PackageCheck, ShieldCheck, Ship, Truck, Warehouse } from '@lucide/vue'
+import { Boxes, FileCheck2, FileText, Globe2, Package, PackageCheck, ShieldCheck, Ship, Truck, Warehouse } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
@@ -160,7 +160,7 @@ const serviceIcons: Record<string, Component> = {
   'Control de inventario': Boxes,
   'Embalaje': Package,
   'Exoneración': FileText,
-  'Picking Carga': HandTruck,
+  'Picking Carga': Package,
   'Recepción de carga': PackageCheck,
   'Seguro de carga': ShieldCheck,
   'Transporte entrega': Truck,
