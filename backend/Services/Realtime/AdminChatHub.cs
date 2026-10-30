@@ -17,7 +17,19 @@ public sealed class AdminChatHub : Hub
     private static readonly ConcurrentDictionary<Guid, DateTimeOffset> ClearedForUser = new();
     internal static string PersonalGroup(Guid userId) => $"admin-chat-user:{userId:N}";
     private static readonly Dictionary<Guid, Dictionary<string, HashSet<Guid>>> ReactionsByMessage = new();
-    private static readonly string[] AllowedReactions = ["👍", "❤️", "😂", "😮", "😢", "🎉", "👏", "🔥"];
+    private static readonly string[] AllowedReactions = [
+        "👍", "👎", "👏", "🙌", "🤝", "🙏", "💪", "👌", "✌️", "🤞",
+        "❤️", "🩷", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "💔",
+        "😂", "🤣", "🥹", "😊", "😍", "🥰", "😘", "😎", "🤩", "🥳",
+        "😀", "😁", "😅", "😉", "😌", "😋", "😜", "🤪", "🤔", "🤨",
+        "😮", "😱", "😳", "🥺", "😢", "😭", "😤", "😡", "🤯", "😴",
+        "👀", "💯", "🔥", "✨", "🎉", "🎊", "🎈", "🎂", "🎁", "🏆",
+        "⭐", "🌟", "🚀", "💡", "✅", "❌", "⚠️", "📌", "💬", "🫶",
+        "🐱", "🐶", "🐼", "🐸", "🦄", "🍕", "🍔", "🍩", "☕", "🍓"
+    ];
+    // Opt-in video presence; actual camera frames travel peer-to-peer via WebRTC.
+    private static readonly ConcurrentDictionary<string, CameraParticipant> Cameras = new();
+    private readonly AdminChatAudioStore _audio;
     private static readonly ConcurrentDictionary<string, DateTimeOffset> LastMessage = new();
     private static readonly ConcurrentDictionary<string, byte> Online = new();
     // Estado efímero por cuenta, nunca aceptamos la identidad del cliente.
@@ -27,7 +39,11 @@ public sealed class AdminChatHub : Hub
     private static readonly ConcurrentDictionary<Guid, Guid> Avatars = new();
     private readonly AdminChatMediaStore _images;
 
-    public AdminChatHub(AdminChatMediaStore images) => _images = images;
+    public AdminChatHub(AdminChatMediaStore images, AdminChatAudioStore audio)
+    {
+        _images = images;
+        _audio = audio;
+    }
     // Presencia temporal por conexión: nunca se transmite el contenido del borrador.
     private static readonly ConcurrentDictionary<string, TypingStatus> Typing = new();
     private static readonly TimeSpan TypingLifetime = TimeSpan.FromSeconds(5);
@@ -77,6 +93,8 @@ public sealed class AdminChatHub : Hub
         await Clients.Caller.SendAsync("TypingSnapshot", Typing.Values
             .Where(x => x.ConnectionId != Context.ConnectionId && x.ExpiresAt > DateTimeOffset.UtcNow)
             .ToArray());
+        await Clients.Caller.SendAsync("CameraSnapshot", Cameras.Values.ToArray());
+        await Clients.Others.SendAsync("CameraViewerJoined", Context.ConnectionId);
         await Clients.All.SendAsync("Presence", Online.Count);
         await base.OnConnectedAsync();
     }
@@ -198,13 +216,28 @@ public sealed class AdminChatHub : Hub
         return SendCore(caption, replyToId, imageId, mode == "once", mode == "sticker");
     }
 
-    private async Task SendCore(string? body, string? replyToId, string? imageId, bool viewOnce, bool sticker)
+    public Task SendVoice(string? audioId, string? replyToId)
+    {
+        if (!Guid.TryParse(audioId, out _)) throw new HubException("Audio inválido.");
+        return SendCore(null, replyToId, null, false, false, audioId);
+    }
+
+    private async Task SendCore(string? body, string? replyToId, string? imageId,
+        bool viewOnce, bool sticker, string? audioId = null)
     {
         var identity = Context.GetHttpContext()?.Items["auth.identity"] as AuthIdentity;
         if (identity is null || identity.Role != "admin") throw new HubException("Sin autorización.");
-        var text = body?.Trim();
-        if (text is null || text.Length > 500 || (text.Length == 0 && imageId is null))
-            throw new HubException("Enviá texto o una imagen (máximo 500 caracteres).");
+        var text = body?.Trim() ?? "";
+        if (text.Length > 500 || (text.Length == 0 && imageId is null && audioId is null))
+            throw new HubException("Enviá texto, una imagen o un audio (máximo 500 caracteres).");
+        Guid? voiceId = null;
+        if (audioId is not null)
+        {
+            if (!Guid.TryParse(audioId, out var clipId) ||
+                !_audio.IsOwnedUnpublished(clipId, identity.UsuarioId))
+                throw new HubException("El audio no pertenece a tu cuenta.");
+            voiceId = clipId;
+        }
 
         string? imageUrl = null;
         Guid? mediaId = null;
@@ -227,7 +260,7 @@ public sealed class AdminChatHub : Hub
             if (original is null)
                 throw new HubException("El mensaje original ya no está en el historial temporal.");
             var replyText = string.IsNullOrWhiteSpace(original.Text)
-                ? original.IsViewOnce ? "🔒 Foto de una vez" : original.IsSticker ? "Sticker" : "📷 Imagen"
+                ? original.AudioUrl is not null ? "🎤 Mensaje de voz" : original.IsViewOnce ? "🔒 Foto de una vez" : original.IsSticker ? "Sticker" : "📷 Imagen"
                 : original.Text;
             var excerpt = replyText.Length > 140 ? replyText[..140].TrimEnd() + "…" : replyText;
             reply = new ChatReply(original.Id, original.Name, excerpt);
@@ -243,7 +276,8 @@ public sealed class AdminChatHub : Hub
         var message = new ChatMessage(
             Guid.NewGuid(), identity.UsuarioId, DisplayName(identity),
             identity.Correo, text, now, reply, imageUrl, mediaId, viewOnce, sticker,
-            Array.Empty<ChatReaction>(), false);
+            Array.Empty<ChatReaction>(), false,
+            voiceId is Guid voice ? AdminChatAudioStore.Url(voice) : null);
         await ChatMutations.WaitAsync();
         try
         {
@@ -257,6 +291,8 @@ public sealed class AdminChatHub : Hub
                 throw new HubException("La imagen ya no está disponible. Adjuntala nuevamente.");
             if (mediaId is Guid idToPublish && !_images.Publish(idToPublish, identity.UsuarioId, viewOnce))
                 throw new HubException("No se pudo publicar la imagen.");
+            if (voiceId is Guid voiceToPublish && !_audio.Publish(voiceToPublish, identity.UsuarioId))
+                throw new HubException("El audio ya no está disponible.");
             // La hora efectiva de publicación se decide dentro del bloqueo, en orden
             // con ClearMyChat, para que los mensajes posteriores vuelvan a aparecer.
             var published = message with { SentAt = DateTimeOffset.UtcNow };
@@ -331,9 +367,53 @@ public sealed class AdminChatHub : Hub
         finally { ChatMutations.Release(); }
     }
 
+    public async Task<CameraParticipant[]> StartCamera()
+    {
+        var identity = Context.GetHttpContext()?.Items["auth.identity"] as AuthIdentity;
+        if (identity is null || identity.Role != "admin") throw new HubException("Sin autorización.");
+        if (!Cameras.ContainsKey(Context.ConnectionId) && Cameras.Count >= 6)
+            throw new HubException("El espacio de cámaras permite hasta 6 participantes.");
+        var self = new CameraParticipant(Context.ConnectionId, identity.UsuarioId, DisplayName(identity));
+        Cameras[Context.ConnectionId] = self;
+        await Clients.Others.SendAsync("CameraStarted", self);
+        return Cameras.Values.Where(x => x.ConnectionId != Context.ConnectionId).ToArray();
+    }
+
+    public async Task StopCamera()
+    {
+        if (Cameras.TryRemove(Context.ConnectionId, out _))
+            await Clients.Others.SendAsync("CameraStopped", Context.ConnectionId);
+    }
+
+    // Relay signaling only. Browser media streams never pass through the hub.
+    public async Task SendCameraSignal(string ownerId, string peerId, string kind, string payload)
+    {
+        var identity = Context.GetHttpContext()?.Items["auth.identity"] as AuthIdentity;
+        if (identity is null || identity.Role != "admin") throw new HubException("Sin autorización.");
+        if (string.IsNullOrWhiteSpace(payload) || payload.Length > 40_000 ||
+            kind is not ("offer" or "answer" or "ice") ||
+            !Cameras.ContainsKey(ownerId) || !Online.ContainsKey(peerId) ||
+            ownerId == peerId)
+            throw new HubException("Señal de cámara inválida.");
+        var sender = Context.ConnectionId;
+        if (sender != ownerId && sender != peerId)
+            throw new HubException("No pertenecés a esa conexión.");
+        if ((kind == "offer" && sender != ownerId) ||
+            (kind == "answer" && sender != peerId) ||
+            (kind == "ice" && payload.Length > 4_000))
+            throw new HubException("Señal de cámara no permitida.");
+        var receiver = sender == ownerId ? peerId : ownerId;
+        await Clients.Client(receiver).SendAsync("CameraSignal", new
+        {
+            ownerId, peerId, senderId = sender, kind, payload
+        });
+    }
+
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         Online.TryRemove(Context.ConnectionId, out _);
+        await StopCamera();
+        await Clients.Others.SendAsync("CameraViewerLeft", Context.ConnectionId);
         LastMessage.TryRemove(Context.ConnectionId, out _);
         await ClearTypingAsync();
         await Clients.All.SendAsync("Presence", Online.Count);
@@ -342,7 +422,9 @@ public sealed class AdminChatHub : Hub
 
     public sealed record ChatMessage(Guid Id, Guid UserId, string Name, string Email, string Text,
         DateTimeOffset SentAt, ChatReply? ReplyTo, string? ImageUrl, Guid? ImageId,
-        bool IsViewOnce, bool IsSticker, ChatReaction[] Reactions, bool ImageViewed);
+        bool IsViewOnce, bool IsSticker, ChatReaction[] Reactions, bool ImageViewed,
+        string? AudioUrl = null);
+    public sealed record CameraParticipant(string ConnectionId, Guid UserId, string Name);
     public sealed record ChatReaction(string Emoji, Guid[] UserIds);
     public sealed record ChatReply(Guid Id, string Name, string Text);
     public sealed record ReadReceipt(Guid UserId, string Name, DateTimeOffset LastReadAt);
