@@ -62,6 +62,16 @@ assert.doesNotMatch(siteHeader, /:global\(html:not\(\.theme-dark\)\) \.site-head
 const visualEditor = source('src/pages/SiteVisualEditor.vue')
 const manager = source('src/pages/ContentManager.vue')
 assert.match(manager, /SiteVisualEditor/, 'Conservar editor visual del CMS')
+assert.match(
+  manager,
+  /<div v-else-if="section !== 'users' && section !== 'chat'" class="manager-layout">\s*<section class="manager-form">/,
+  'El panel de Itinerarios/Noticias/Multimedia/Comentarios debe renderizar directamente, sin template HTML inerte'
+)
+for (const section of ['itineraries', 'news', 'media', 'comments']) {
+  assert.ok(manager.includes(`section === '${section}'`), 'Conservar la sección de contenido: ' + section)
+}
+assert.match(manager, /<section class="manager-list">/, 'Conservar listado de registros administrados')
+
 assert.match(manager, /manager-subtabs--with-quotes': officialQuotesEnabled/, 'El grid móvil debe distinguir si hay Cotizaciones')
 assert.match(manager, /@media \(min-width:651px\)\s*\{[\s\S]*?\.content-manager\.is-embedded \.manager-tabs\.manager-subtabs\s*\{\s*display:grid;\s*grid-template-columns:repeat\(6,max-content\);\s*justify-content:space-between;/, 'Las seis pestañas deben tener separaciones iguales en escritorio')
 assert.match(manager, /@media \(min-width:651px\) and \(max-width:1250px\)\s*\{[\s\S]*?grid-template-columns:repeat\(6,minmax\(0,1fr\)\);/, 'Pantallas intermedias mantienen seis columnas compactas')

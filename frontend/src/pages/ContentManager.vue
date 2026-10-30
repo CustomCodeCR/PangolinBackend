@@ -622,7 +622,6 @@ function useMediaForNews(item: ManagedMedia) {
       <SiteVisualEditor v-if="section === 'site'" />
       <OfficialQuoteAdmin v-else-if="section === 'quotes'" embedded @total-change="quotesTotal = $event" />
       <div v-else-if="section !== 'users' && section !== 'chat'" class="manager-layout">
-        <template>
         <section class="manager-form">
           <div class="manager-form-heading"><div><p class="manager-eyebrow">{{ editingId ? 'EDITAR' : 'NUEVO REGISTRO' }}</p><h2>{{ section === 'itineraries' ? 'Itinerario' : section === 'news' ? 'Noticia' : section === 'comments' ? 'Comentario' : 'Archivo multimedia' }}</h2></div><button v-if="editingId" class="manager-cancel" @click="startNew">Cancelar</button></div>
           <form v-if="section === 'itineraries'" class="manager-editor--itineraries" @submit.prevent="submitItinerary">
@@ -705,7 +704,6 @@ function useMediaForNews(item: ManagedMedia) {
             <div class="manager-item-actions"><button aria-label="Editar" title="Editar" @click="edit(entry)"><IconSymbol glyph="pencil" :size="17" /></button><button aria-label="Eliminar" title="Eliminar" @click="remove(entry.id)"><IconSymbol glyph="trash" :size="17" /></button><button v-if="section === 'media' && (entry as ManagedMedia).kind === 'Imagen'" aria-label="Usar imagen en noticia" title="Usar en noticia" @click="useMediaForNews(entry as ManagedMedia)"><IconSymbol glyph="↗" :size="17" /></button></div>
           </article>
         </section>
-        </template>
       </div>
     </section>
   </section>
