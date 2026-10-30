@@ -509,7 +509,9 @@ async function refreshDirectContacts() {
   try {
     const contacts = await connection.invoke<DirectContact[]>('GetDirectContacts')
     if (active) directContacts.value = (contacts ?? []).map(contact => ({
-      ...contact, userId: contact.userId.toLowerCase()
+      ...contact, userId: contact.userId.toLowerCase(),
+      unreadCount: activeDirectId.value === contact.userId.toLowerCase() &&
+        props.visible && document.visibilityState === 'visible' ? 0 : contact.unreadCount
     }))
   } catch { /* The group remains available if the directory is temporarily offline. */ }
 }
@@ -789,7 +791,7 @@ function onChatClearedForUser(event: { clearedAt: string }) {
 async function send() {
   const text = draft.value.trim()
   if ((!text && !outgoingImage.value && !outgoingAudio.value) || text.length > 500 ||
-      sending.value || mediaBusy.value || recording.value ||
+      sending.value || mediaBusy.value || recording.value || directBlocked.value ||
       connection?.state !== signalR.HubConnectionState.Connected) return
   sending.value = true
   error.value = ''
