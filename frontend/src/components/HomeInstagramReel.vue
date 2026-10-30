@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { ExternalLink, Play } from '@lucide/vue'
+import { ExternalLink, Facebook, Play } from '@lucide/vue'
 import InstagramGlyph from './InstagramGlyph.vue'
 import { useI18n } from 'vue-i18n'
 import { subscribeToChanges } from '../services/realtime'
@@ -14,6 +14,24 @@ type LatestReel = {
 
 const { t } = useI18n({ useScope: 'global' })
 const profileUrl = 'https://www.instagram.com/grupocastrofallas1/'
+const facebookProfile = 'https://www.facebook.com/grupocastrofallas1'
+type Network = 'instagram' | 'facebook'
+type FacebookVideo = { permalink: string; videoSrc: string | null; publishedAt: string }
+const activeNetwork = ref<Network>('instagram')
+const isFacebook = computed(() => activeNetwork.value === 'facebook')
+const activeProfile = computed(() => isFacebook.value ? facebookProfile : profileUrl)
+const activeKey = computed(() => isFacebook.value ? 'custom.home.facebook' : 'custom.home.instagram')
+const facebookVideo = ref<FacebookVideo | null>(null)
+const facebookLoaded = ref(false)
+const facebookPlaying = ref(false)
+const facebookVideoFailed = ref(false)
+const playingNative = ref(false)
+const isHovered = ref(false)
+const hasFocus = ref(false)
+const inView = ref(false)
+let visibilityObserver: IntersectionObserver | undefined
+let rotationTimer: ReturnType<typeof setInterval> | undefined
+
 const reel = ref<LatestReel | null>(null)
 const isPlaying = ref(false)
 const videoFailed = ref(false)
@@ -30,6 +48,26 @@ const reelUrl = computed(() => {
   return value
 })
 const embedUrl = computed(() => reelUrl.value ? `${reelUrl.value}embed/` : null)
+const facebookUrl = computed(() => {
+  const value = facebookVideo.value?.permalink
+  if (!value) return null
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'https:' || url.hostname !== 'www.facebook.com' || url.username || url.password || url.port) return null
+    if (url.pathname.startsWith('/reel/') || url.pathname.startsWith('/videos/') ||
+        url.pathname.startsWith('/grupocastrofallas1/videos/') ||
+        (url.pathname === '/watch/' && url.searchParams.has('v'))) return value
+  } catch { /* invalid URL */ }
+  return null
+})
+const facebookEmbed = computed(() => facebookUrl.value
+  ? `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(facebookUrl.value)}&show_text=false&width=207`
+  : null)
+const facebookSrc = computed(() => {
+  const src = facebookVideo.value?.videoSrc
+  return !facebookVideoFailed.value && typeof src === 'string' &&
+    /^\/api\/content\/media\/[0-9a-f-]{36}\/file$/i.test(src) ? src : null
+})
 const videoSrc = computed(() => {
   const src = reel.value?.videoSrc
   if (videoFailed.value || typeof src !== 'string') return null
@@ -64,26 +102,65 @@ async function loadLatestReel() {
   }
 }
 
+async function loadFacebookVideo() {
+  try {
+    const response = await fetch('/api/social/facebook/featured-video', {
+      signal: abortController.signal, cache: 'no-store'
+    })
+    if (!response.ok) return
+    const data = await response.json() as { video?: FacebookVideo | null }
+    facebookVideoFailed.value = false
+    facebookVideo.value = data.video ?? null
+  } catch { /* Missing Facebook content must not block Home. */ }
+  finally { facebookLoaded.value = true }
+}
+function switchNetwork(network: Network) {
+  if (activeNetwork.value === network) return
+  reelSection.value?.querySelectorAll('video').forEach(video => video.pause())
+  isPlaying.value = false
+  facebookPlaying.value = false
+  playingNative.value = false
+  activeNetwork.value = network
+  resetRotation()
+}
+function resetRotation() {
+  if (rotationTimer) clearInterval(rotationTimer)
+  rotationTimer = setInterval(() => {
+    if (!inView.value || document.hidden || isHovered.value || hasFocus.value ||
+        playingNative.value || isPlaying.value || facebookPlaying.value) return
+    switchNetwork(activeNetwork.value === 'instagram' ? 'facebook' : 'instagram')
+  }, 8500)
+}
 const stopSiteUpdates = subscribeToChanges('site', () => {
   // Do not start a background request before the visitor approaches Instagram.
   if (!reelRequested) return
   // When an admin publishes a different Reel, return to the preview and refresh.
   isPlaying.value = false
+  facebookPlaying.value = false
+  playingNative.value = false
   videoFailed.value = false
   void loadLatestReel()
+  void loadFacebookVideo()
 })
 function requestReel() {
   if (reelRequested) return
   reelRequested = true
   void loadLatestReel()
+  void loadFacebookVideo()
 }
 
 onMounted(() => {
+  resetRotation()
   // Preserve the section's layout, but postpone its network request until near view.
   if (typeof IntersectionObserver === 'undefined' || !reelSection.value) {
+    inView.value = true
     requestReel()
     return
   }
+  visibilityObserver = new IntersectionObserver(entries => {
+    inView.value = entries.some(entry => entry.isIntersecting)
+  }, { threshold: 0.35 })
+  visibilityObserver.observe(reelSection.value)
   reelObserver = new IntersectionObserver(entries => {
     if (!entries.some(entry => entry.isIntersecting)) return
     reelObserver?.disconnect()
@@ -91,33 +168,75 @@ onMounted(() => {
   }, { rootMargin: '500px 0px' })
   reelObserver.observe(reelSection.value)
 })
-onUnmounted(() => { reelObserver?.disconnect(); stopSiteUpdates(); abortController.abort() })
+onUnmounted(() => {
+  reelObserver?.disconnect()
+  visibilityObserver?.disconnect()
+  if (rotationTimer) clearInterval(rotationTimer)
+  stopSiteUpdates()
+  abortController.abort()
+})
 </script>
 
 <template>
-  <section id="instagram" ref="reelSection" class="home-instagram-section" :aria-label="t('custom.home.instagram.aria')">
+  <section id="instagram" ref="reelSection" class="home-instagram-section" :aria-label="t('custom.home.socialAria')"
+    @pointerenter="isHovered = true" @pointerleave="isHovered = false"
+    @focusin="hasFocus = true" @focusout="hasFocus = false">
     <div class="container home-instagram-section__inner">
       <div class="home-instagram-section__copy">
         <div class="home-instagram-section__heading">
-          <span class="home-instagram-section__icon"><InstagramGlyph :size="39" :stroke-width="1.9" aria-hidden="true" /></span>
-          <div>
-            <p>{{ t('custom.home.instagram.follow') }}</p>
-            <h2>Instagram</h2>
+          <div class="home-social-switcher" :class="{ 'is-facebook': isFacebook }"
+            role="tablist" :aria-label="t('custom.home.socialSelect')">
+            <button class="home-social-switcher__button home-social-switcher__instagram"
+              :class="{ 'is-active': !isFacebook }" type="button" role="tab"
+              :aria-selected="!isFacebook" aria-controls="social-featured-video"
+              :tabindex="isFacebook ? -1 : 0"
+              @click="switchNetwork('instagram')"
+              @keydown.down.prevent="switchNetwork('facebook')"
+              @keydown.right.prevent="switchNetwork('facebook')">
+              <InstagramGlyph :size="39" :stroke-width="1.9" aria-hidden="true" />
+              <span class="sr-only">Instagram</span>
+            </button>
+            <button class="home-social-switcher__button home-social-switcher__facebook"
+              :class="{ 'is-active': isFacebook }" type="button" role="tab"
+              :aria-selected="isFacebook" aria-controls="social-featured-video"
+              :tabindex="isFacebook ? 0 : -1"
+              @click="switchNetwork('facebook')"
+              @keydown.up.prevent="switchNetwork('instagram')"
+              @keydown.left.prevent="switchNetwork('instagram')">
+              <Facebook :size="39" :stroke-width="1.9" aria-hidden="true" />
+              <span class="sr-only">Facebook</span>
+            </button>
           </div>
+          <Transition name="social-copy" mode="out-in">
+            <div :key="activeNetwork">
+              <p>{{ t('custom.home.instagram.follow') }}</p>
+              <h2 :class="{ 'home-instagram-section__title--facebook': isFacebook }">{{ isFacebook ? 'Facebook' : 'Instagram' }}</h2>
+            </div>
+          </Transition>
         </div>
 
-        <p class="home-instagram-section__description">{{ t('custom.home.instagram.description') }}</p>
-        <a class="home-instagram-section__profile" :href="profileUrl" target="_blank" rel="noopener noreferrer">
-          {{ t('custom.home.instagram.profile') }}
-          <ExternalLink :size="19" aria-hidden="true" />
-        </a>
+        <Transition name="social-copy" mode="out-in">
+          <div :key="activeNetwork" class="home-instagram-section__details">
+            <p class="home-instagram-section__description">{{ t(activeKey + '.description') }}</p>
+            <a class="home-instagram-section__profile" :class="{ 'home-instagram-section__profile--facebook': isFacebook }"
+              :href="activeProfile" target="_blank" rel="noopener noreferrer">
+              {{ t(activeKey + '.profile') }}
+              <ExternalLink :size="19" aria-hidden="true" />
+            </a>
+          </div>
+        </Transition>
       </div>
 
-      <div class="home-instagram-section__reel" :aria-label="t('custom.home.instagram.reel')">
+      <div id="social-featured-video" class="home-instagram-section__viewer"
+        role="tabpanel" :aria-label="t(activeKey + '.reel')">
+        <Transition name="social-reel" mode="out-in">
+          <div :key="activeNetwork" class="home-instagram-section__reel">
+          <template v-if="!isFacebook">
         <template v-if="videoSrc && reelUrl">
           <video class="home-instagram-section__native-video" :key="videoSrc" :src="videoSrc"
             controls playsinline preload="metadata" :aria-label="t('custom.home.instagram.reel')"
-            @error="videoFailed = true">
+            @play="playingNative = true" @pause="playingNative = false"
+            @ended="playingNative = false" @error="videoFailed = true">
             {{ t('custom.home.instagram.open') }}
           </video>
           <a class="home-instagram-section__open home-instagram-section__open--native"
@@ -156,6 +275,50 @@ onUnmounted(() => { reelObserver?.disconnect(); stopSiteUpdates(); abortControll
           <span>{{ loaded ? t('custom.home.instagram.unavailable') : t('custom.home.instagram.loading') }}</span>
           <ExternalLink :size="19" aria-hidden="true" />
         </a>
+
+          </template>
+          <template v-else>
+            <template v-if="facebookSrc && facebookUrl">
+              <video class="home-instagram-section__native-video" :key="facebookSrc" :src="facebookSrc"
+                controls playsinline preload="metadata" :aria-label="t('custom.home.facebook.reel')"
+                @play="playingNative = true" @pause="playingNative = false"
+                @ended="playingNative = false" @error="facebookVideoFailed = true">
+                {{ t('custom.home.facebook.open') }}
+              </video>
+              <a class="home-instagram-section__open home-instagram-section__open--native"
+                :href="facebookUrl" target="_blank" rel="noopener noreferrer">
+                Facebook <ExternalLink :size="13" aria-hidden="true" />
+              </a>
+            </template>
+            <iframe v-else-if="facebookPlaying && facebookEmbed"
+              class="home-instagram-section__embed home-instagram-section__embed--facebook"
+              :src="facebookEmbed" :title="t('custom.home.facebook.reel')"
+              loading="lazy" allow="encrypted-media; picture-in-picture; fullscreen"
+              allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+            <template v-else-if="facebookUrl">
+              <div class="home-instagram-section__placeholder home-instagram-section__placeholder--facebook">
+                <Facebook :size="54" aria-hidden="true" />
+                <strong>Grupo Castro Fallas</strong>
+                <span>{{ t('custom.home.facebook.preview') }}</span>
+              </div>
+              <button class="home-instagram-section__play" type="button"
+                :aria-label="t('custom.home.facebook.play')" @click="facebookPlaying = true">
+                <Play :size="30" fill="currentColor" aria-hidden="true" />
+              </button>
+              <a class="home-instagram-section__open" :href="facebookUrl" target="_blank" rel="noopener noreferrer">
+                {{ t('custom.home.facebook.open') }} <ExternalLink :size="13" aria-hidden="true" />
+              </a>
+            </template>
+            <a v-else class="home-instagram-section__placeholder home-instagram-section__placeholder--link home-instagram-section__placeholder--facebook"
+              :href="facebookProfile" target="_blank" rel="noopener noreferrer">
+              <Facebook :size="54" aria-hidden="true" />
+              <strong>Grupo Castro Fallas</strong>
+              <span>{{ facebookLoaded ? t('custom.home.facebook.unavailable') : t('custom.home.facebook.loading') }}</span>
+              <ExternalLink :size="19" aria-hidden="true" />
+            </a>
+          </template>
+          </div>
+        </Transition>
       </div>
     </div>
   </section>
@@ -255,7 +418,8 @@ onUnmounted(() => { reelObserver?.disconnect(); stopSiteUpdates(); abortControll
 :global(html.theme-dark) .home-instagram-section__description { color: #f0eef5; }
 :global(html.theme-dark) .home-instagram-section__profile { color: #fff; }
 .home-instagram-section__reel {
-  position: relative;
+  position: absolute;
+  inset: 0;
   width: 100%;
   aspect-ratio: 9 / 16;
   overflow: hidden;
@@ -326,4 +490,49 @@ onUnmounted(() => { reelObserver?.disconnect(); stopSiteUpdates(); abortControll
 @media (prefers-reduced-motion: reduce) {
   .home-instagram-section__profile { transition: none; }
 }
+
+/* Network icons swap positions without changing the copy column's layout. */
+.home-social-switcher { position: relative; flex: 0 0 73px; width: 73px; height: 73px; }
+.home-social-switcher__button {
+  position: absolute; top: 0; left: 0; width: 73px; height: 73px;
+  display: grid; place-items: center; border: 0; border-radius: 50%;
+  padding: 0; cursor: pointer; background: transparent; opacity: .42;
+  transition: transform .68s cubic-bezier(.22,1,.36,1), opacity .48s ease, box-shadow .48s ease;
+}
+.home-social-switcher__button:focus-visible { outline: 3px solid #e43774; outline-offset: 3px; }
+.home-social-switcher__instagram { color: #a10861; transform: translateY(0) scale(1); }
+.home-social-switcher__facebook { color: #1877f2; transform: translateY(91px) scale(.83); }
+.home-social-switcher.is-facebook .home-social-switcher__instagram { transform: translateY(91px) scale(.83); }
+.home-social-switcher.is-facebook .home-social-switcher__facebook { transform: translateY(0) scale(1); }
+.home-social-switcher__instagram.is-active { color: #fff; opacity: 1; background: linear-gradient(135deg,#bd233f,#83045f); }
+.home-social-switcher__facebook.is-active { color: #fff; opacity: 1; background: linear-gradient(135deg,#2587f5,#1057a7); }
+.home-social-switcher__button:not(.is-active):hover { opacity: .83; }
+.home-instagram-section__title--facebook { background: linear-gradient(90deg,#217cf0,#1261bd)!important; background-clip: text!important; }
+.home-instagram-section__profile--facebook { border-color: #2583ed; box-shadow: inset -1px 0 #1877f2; }
+.home-instagram-section__profile--facebook:hover,
+.home-instagram-section__profile--facebook:focus-visible { background: rgba(24,119,242,.13); }
+.home-instagram-section__viewer { position: relative; width: 100%; aspect-ratio: 9 / 16; }
+.home-instagram-section__viewer .home-instagram-section__reel { width: 100%; height: 100%; }
+.home-instagram-section__embed--facebook { transform: none; background: #091628; }
+.home-instagram-section__placeholder--facebook { background: linear-gradient(155deg,#214b8a,#07152f); }
+.social-copy-enter-active,.social-copy-leave-active { transition: opacity .24s ease, transform .24s ease; }
+.social-copy-enter-from { opacity: 0; transform: translateY(8px); }
+.social-copy-leave-to { opacity: 0; transform: translateY(-8px); }
+.social-reel-enter-active,.social-reel-leave-active { transition: opacity .31s ease, transform .31s ease; }
+.social-reel-enter-from { opacity: 0; transform: translateY(12px) scale(.985); }
+.social-reel-leave-to { opacity: 0; transform: translateY(-12px) scale(.985); }
+@media (max-width: 680px) {
+  .home-social-switcher { width: 61px; flex-basis: 61px; height: 123px; }
+  .home-social-switcher__button { width: 61px; height: 61px; }
+  .home-social-switcher__button :deep(svg) { width: 33px; height: 33px; }
+  .home-social-switcher__facebook { transform: translateY(72px) scale(.83); }
+  .home-social-switcher.is-facebook .home-social-switcher__instagram { transform: translateY(72px) scale(.83); }
+  .home-instagram-section__viewer { width: min(205px,65vw); }
+  .home-instagram-section__viewer .home-instagram-section__reel { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-social-switcher__button,.social-copy-enter-active,.social-copy-leave-active,
+  .social-reel-enter-active,.social-reel-leave-active { transition: none!important; }
+}
+
 </style>
