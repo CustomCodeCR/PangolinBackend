@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { ChevronDown } from '@lucide/vue'
 import { authState } from '../services/auth'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import { subscribeToChanges } from '../services/realtime'
@@ -23,6 +24,7 @@ const notice = ref('')
 const error = ref('')
 const storageEnabled = ref(false)
 const featuredReel = ref('')
+const featuredReelExpanded = ref(false)
 const publishedReel = ref('')
 const featuredReelMediaId = ref('')
 const publishedReelMediaId = ref('')
@@ -307,8 +309,17 @@ onMounted(load)
           <h3 id="featured-reel-title">Reel de Instagram del Home</h3>
           <p>Pegá el enlace del Reel público. Para que el video llene todo el cuadro sin interfaz de Instagram, añadí también el archivo original MP4 o WebM de la empresa.</p>
         </div>
-        <a href="/home#instagram" target="_blank" rel="noopener noreferrer">Ver Home ↗</a>
+        <div class="visual-editor__featured-reel-header-actions">
+          <a href="/home#instagram" target="_blank" rel="noopener noreferrer">Ver Home ↗</a>
+          <button type="button" class="visual-editor__collapse-toggle"
+            :aria-expanded="featuredReelExpanded" aria-controls="featured-reel-content"
+            :aria-label="featuredReelExpanded ? 'Contraer Reel de Instagram' : 'Expandir Reel de Instagram'"
+            @click="featuredReelExpanded = !featuredReelExpanded">
+            <ChevronDown :size="18" :stroke-width="2" class="visual-editor__collapse-icon" aria-hidden="true" />
+          </button>
+        </div>
       </header>
+      <div v-show="featuredReelExpanded" id="featured-reel-content">
       <form class="visual-editor__featured-reel-form" @submit.prevent="saveFeaturedReel">
         <label for="featured-reel-link">Enlace del Reel
           <input id="featured-reel-link" v-model.trim="featuredReel" type="url" inputmode="url"
@@ -349,6 +360,7 @@ onMounted(load)
       <p v-else class="visual-editor__featured-reel-current">Sin Reel elegido. La web mostrará el enlace al perfil de Instagram.</p>
       <p v-if="!isLiveAdmin" class="visual-editor__hint">Necesitás una sesión administradora real para modificar el Reel.</p>
       <small class="visual-editor__hint">Con solo el enlace, Instagram controla el reproductor y muestra su propia interfaz. Con el video original subido, se reproduce a ancho completo dentro de la tarjeta. Usá únicamente archivos que la empresa tenga derecho a publicar.</small>
+      </div>
     </section>
 
     <p v-if="error" role="alert" class="visual-editor__error">{{ error }}</p>
@@ -645,4 +657,17 @@ html.theme-dark .visual-editor .visual-editor__library-field .cf-dropdown__trigg
 html.theme-dark .app-site.administration-page .visual-editor .visual-editor__library-field .cf-dropdown__trigger {
   background-color: #060f21 !important;
 }
+
+/* Compactar únicamente el panel de Reel dentro del editor visual. */
+.visual-editor__featured-reel-header-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.visual-editor__featured-reel .visual-editor__collapse-toggle {
+  display: inline-grid; place-items: center; width: 36px; height: 36px;
+  min-width: 36px; padding: 0; border: 1px solid currentColor;
+  border-radius: 10px; background: transparent; color: inherit;
+  cursor: pointer; line-height: 1;
+}
+.visual-editor__featured-reel .visual-editor__collapse-icon { display: block; transition: transform .18s ease; }
+.visual-editor__featured-reel .visual-editor__collapse-toggle[aria-expanded="true"] .visual-editor__collapse-icon { transform: rotate(180deg); }
+.visual-editor__featured-reel .visual-editor__collapse-toggle:hover { background: rgba(128,128,128,.12); }
+.visual-editor__featured-reel .visual-editor__collapse-toggle:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 </style>
