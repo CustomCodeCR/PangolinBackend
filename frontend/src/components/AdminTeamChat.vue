@@ -10,7 +10,7 @@ import { authState } from '../services/auth'
 
 interface ChatReply { id: string; name: string; text: string }
 type ImageMode = 'image' | 'once' | 'sticker'
-interface ChatReaction { emoji: string; userIds: string[] }
+interface ChatReaction { emoji: string; userIds: string[]; userNames?: string[] }
 interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null; imageUrl?: string | null; imageId?: string | null; isViewOnce?: boolean; isSticker?: boolean; imageViewed?: boolean; reactions?: ChatReaction[]; audioUrl?: string | null }
 interface ChatMediaUpload { imageId: string; url: string }
 interface ReadReceipt { userId: string; name: string; lastReadAt: string }
@@ -38,6 +38,8 @@ const selectedAttachMode = ref<'image' | 'sticker'>('image')
 const imageViewer = ref<{ src: string; title: string; oneTime: boolean; objectUrl?: string } | null>(null)
 const viewingImageId = ref<string | null>(null)
 const reactionPickerId = ref<string | null>(null)
+const expandedReaction = ref<{ messageId: string; emoji: string } | null>(null)
+const emojiGrid = ref<HTMLElement | null>(null)
 const reactionChoices = [
   '👍', '👎', '👏', '🙌', '🤝', '🙏', '💪', '👌', '✌️', '🤞',
   '❤️', '🩷', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💔',
@@ -46,7 +48,7 @@ const reactionChoices = [
   '😮', '😱', '😳', '🥺', '😢', '😭', '😤', '😡', '🤯', '😴',
   '👀', '💯', '🔥', '✨', '🎉', '🎊', '🎈', '🎂', '🎁', '🏆',
   '⭐', '🌟', '🚀', '💡', '✅', '❌', '⚠️', '📌', '💬', '🫶',
-  '🐱', '🐶', '🐼', '🐸', '🦄', '🍕', '🍔', '🍩', '☕', '🍓'
+  '🐱', '🐶', '🐼', '🐸', '🦄', '🍕', '🍔', '🍩', '☕', '🍓', '🦞', '🏳️‍🌈'
 ] as const
 const expandedSeenId = ref<string | null>(null)
 const remoteTyping = ref<Record<string, TypingStatus>>({})
@@ -242,6 +244,30 @@ function toggleViewOnce() {
   outgoingImage.value = { ...outgoingImage.value,
     mode: outgoingImage.value.mode === 'once' ? 'image' : 'once' }
 }
+async function onComposerPaste(event: ClipboardEvent) {
+  const imageItem = Array.from(event.clipboardData?.items ?? [])
+    .find(item => item.kind === 'file' && item.type.startsWith('image/'))
+  if (!imageItem) return // Ordinary copied text keeps the browser's normal paste behavior.
+  event.preventDefault()
+  if (mediaBusy.value || sending.value || recording.value) {
+    error.value = 'Terminá el envío o la grabación antes de adjuntar otra imagen.'
+    return
+  }
+  const file = imageItem.getAsFile()
+  if (!file) return
+  mediaBusy.value = true
+  error.value = ''
+  try {
+    const blob = await compressImage(file, 1200, 800_000)
+    clearOutgoingImage()
+    clearOutgoingAudio()
+    outgoingImage.value = { blob, previewUrl: URL.createObjectURL(blob), mode: 'image' }
+    stickerTrayOpen.value = false
+    reactionPickerId.value = null
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : 'No se pudo pegar la imagen.'
+  } finally { mediaBusy.value = false }
+}
 async function chooseImage(event: Event) {
   const element = event.target as HTMLInputElement
   const file = element.files?.[0]
@@ -372,6 +398,7 @@ function viewerKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') {
     if (imageViewer.value) closeViewer()
     reactionPickerId.value = null
+    expandedReaction.value = null
     stickerTrayOpen.value = false
   }
 }
@@ -413,6 +440,19 @@ async function toggleReaction(id: string, emoji: string) {
 }
 function reactedByMe(reaction: ChatReaction) {
   return reaction.userIds.some(id => id.toLowerCase() === currentUserId.value)
+}
+function reactorNames(reaction: ChatReaction): string[] {
+  return reaction.userIds.map((id, index) => {
+    const userId = id.toLowerCase()
+    const fromMessage = messages.value.find(message => message.userId.toLowerCase() === userId)
+    const fromReceipt = receipts.value.find(receipt => receipt.userId.toLowerCase() === userId)
+    return chatNames.value[userId] || reaction.userNames?.[index] ||
+      fromMessage?.name || fromReceipt?.name || 'Administrador'
+  })
+}
+function showReactionUsers(messageId: string, emoji: string) {
+  expandedReaction.value = expandedReaction.value?.messageId === messageId &&
+    expandedReaction.value.emoji === emoji ? null : { messageId, emoji }
 }
 function displayName(message: ChatMessage) {
   return chatNames.value[message.userId.toLowerCase()] || message.name || message.email
@@ -475,17 +515,20 @@ function scrollBottom() {
 function trapChatWheel(event: WheelEvent) {
   const element = list.value
   if (!element || event.ctrlKey || !event.deltaY) return
-  // Si la rueda se usa sobre el encabezado o el compositor, también desplaza
-  // los mensajes y no la página que está detrás.
-  const overMessages = event.target instanceof Node && element.contains(event.target)
-  if (!overMessages) {
-    element.scrollTop += event.deltaY
-    event.preventDefault()
-    return
-  }
+  // Only the message viewport traps wheel scrolling. Above/below it the page
+  // scrolls naturally, including the composer and the camera panel.
+  event.stopPropagation()
   const atTop = element.scrollTop <= 1 && event.deltaY < 0
   const atBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 1 && event.deltaY > 0
   if (element.scrollHeight <= element.clientHeight + 1 || atTop || atBottom) event.preventDefault()
+}
+function scrollEmojiTray(event: WheelEvent) {
+  if (event.ctrlKey || !emojiGrid.value) return
+  event.preventDefault()
+  event.stopPropagation()
+  // Consume wheel events throughout the reaction tray, even over its header.
+  const unit = event.deltaMode === 1 ? 18 : event.deltaMode === 2 ? emojiGrid.value.clientHeight : 1
+  emojiGrid.value.scrollTop += event.deltaY * unit
 }
 function canMarkRead() { return props.visible && document.visibilityState === 'visible' }
 function markVisibleRead() {
@@ -573,6 +616,7 @@ function onChatClearedForUser(event: { clearedAt: string }) {
   expandedSeenId.value = null
   highlightedId.value = null
   reactionPickerId.value = null
+  expandedReaction.value = null
   stickerTrayOpen.value = false
   closeViewer()
   // Los vistos globales permanecen para los mensajes posteriores y los demás.
@@ -666,7 +710,7 @@ onMounted(() => {
       remoteTyping.value = next
     }
   }, 850)
-  void nextTick(() => chatPanel.value?.addEventListener('wheel', trapChatWheel, { passive: false }))
+  void nextTick(() => list.value?.addEventListener('wheel', trapChatWheel, { passive: false }))
   window.addEventListener('focus', onVisibility)
   window.addEventListener('keydown', viewerKeydown)
   document.addEventListener('visibilitychange', onVisibility)
@@ -760,7 +804,7 @@ onUnmounted(() => {
   if (typingSweepTimer) clearInterval(typingSweepTimer)
   if (retryTimer) clearTimeout(retryTimer)
   if (highlightTimer) clearTimeout(highlightTimer)
-  chatPanel.value?.removeEventListener('wheel', trapChatWheel)
+  list.value?.removeEventListener('wheel', trapChatWheel)
   window.removeEventListener('focus', onVisibility)
   window.removeEventListener('keydown', viewerKeydown)
   document.removeEventListener('visibilitychange', onVisibility)
@@ -876,12 +920,26 @@ onUnmounted(() => {
             Tu navegador no permite reproducir este audio.
           </audio>
           <div v-if="message.reactions?.length" class="team-chat__reactions" aria-label="Reacciones al mensaje">
-            <button v-for="reaction in message.reactions" :key="reaction.emoji" type="button"
-              :class="{ 'is-mine': reactedByMe(reaction) }"
-              :title="reactedByMe(reaction) ? 'Quitar mi reacción' : 'Reaccionar con ' + reaction.emoji"
-              :aria-label="reaction.emoji + ', ' + reaction.userIds.length + ' reacciones'"
-              :disabled="status !== 'En línea'"
-              @click="toggleReaction(message.id, reaction.emoji)">{{ reaction.emoji }} <span>{{ reaction.userIds.length }}</span></button>
+            <div v-for="reaction in message.reactions" :key="reaction.emoji" class="team-chat__reaction-pill"
+              :class="{ 'is-mine': reactedByMe(reaction) }">
+              <button type="button" class="team-chat__reaction-choice"
+                :title="reactedByMe(reaction) ? 'Quitar mi reacción' : 'Reaccionar con ' + reaction.emoji"
+                :aria-label="reactedByMe(reaction) ? 'Quitar mi reacción ' + reaction.emoji : 'Reaccionar con ' + reaction.emoji"
+                :disabled="status !== 'En línea'"
+                @click="toggleReaction(message.id, reaction.emoji)">{{ reaction.emoji }}</button>
+              <button type="button" class="team-chat__reaction-count"
+                :aria-expanded="expandedReaction?.messageId === message.id && expandedReaction?.emoji === reaction.emoji"
+                :aria-label="'Ver quién reaccionó con ' + reaction.emoji"
+                :title="reactorNames(reaction).join(', ')"
+                @click="showReactionUsers(message.id, reaction.emoji)">{{ reaction.userIds.length }}</button>
+            </div>
+            <template v-for="reaction in message.reactions" :key="'people-' + reaction.emoji">
+              <div v-if="expandedReaction?.messageId === message.id && expandedReaction?.emoji === reaction.emoji"
+                class="team-chat__reactors" role="status">
+                <strong>Reaccionaron con {{ reaction.emoji }}:</strong>
+                <span v-for="(name, index) in reactorNames(reaction)" :key="reaction.userIds[index]">{{ name }}</span>
+              </div>
+            </template>
           </div>
           <div v-if="isOwn(message) && expandedSeenId === message.id" class="team-chat__seen-popover" role="status">
             <strong>Lecturas</strong>
@@ -911,12 +969,13 @@ onUnmounted(() => {
         <span class="team-chat__typing-name">{{ typingLabel }}</span>
       </div>
     </div>
-    <div v-if="reactionPickerId" class="team-chat__emoji-tray" role="group" aria-label="Reacciones con emojis">
+    <div v-if="reactionPickerId" class="team-chat__emoji-tray" role="group"
+      aria-label="Reacciones con emojis" @wheel="scrollEmojiTray">
       <div class="team-chat__tray-head">
         <strong>Elegí un emoji para reaccionar</strong>
         <button type="button" aria-label="Cerrar emojis" @click="reactionPickerId = null"><X :size="17" /></button>
       </div>
-      <div class="team-chat__emoji-grid">
+      <div ref="emojiGrid" class="team-chat__emoji-grid">
         <button v-for="emoji in reactionChoices" :key="emoji" type="button"
           :aria-label="'Reaccionar con ' + emoji"
           @click="toggleReaction(reactionPickerId!, emoji)"><span>{{ emoji }}</span></button>
@@ -992,7 +1051,7 @@ onUnmounted(() => {
       <label class="sr-only" for="team-chat-input">Escribir mensaje</label>
       <input id="team-chat-input" ref="input" v-model="draft" maxlength="500" autocomplete="off"
         placeholder="Escribí un mensaje al equipo…" :disabled="status !== 'En línea'"
-        @input="onDraftInput" @blur="stopTyping" />
+        @input="onDraftInput" @paste="onComposerPaste" @blur="stopTyping" />
       <button type="submit" :disabled="status !== 'En línea' || (!draft.trim() && !outgoingImage && !outgoingAudio) || sending || mediaBusy || recording">
         {{ sending ? 'Enviando…' : 'Enviar ↗' }}
       </button>
@@ -1841,6 +1900,59 @@ onUnmounted(() => {
   .team-chat__camera-grid > * { flex-basis: 45%; min-width: 130px; }
   .team-chat__composer { gap: 5px; }
   .team-chat__composer .team-chat__attach { width: 31px; height: 35px; }
+}
+
+
+/* Reaction counters reveal a server-authenticated list without adding/removing emojis. */
+.team-chat__reaction-pill {
+  display: inline-flex; align-items: center; border-radius: 99px;
+  border: 1px solid var(--chat-line); background: var(--chat-soft);
+  overflow: hidden;
+}
+.team-chat__reaction-pill.is-mine { border-color: var(--chat-accent); }
+.team-chat__reactions .team-chat__reaction-pill > button {
+  margin: 0; border: 0; border-radius: 0; padding: 4px 7px;
+  background: transparent; color: var(--chat-text); cursor: pointer;
+  font: inherit; font-size: 12px; line-height: 1.3;
+}
+.team-chat__reactions .team-chat__reaction-pill > button:disabled {
+  opacity: .6; cursor: not-allowed;
+}
+.team-chat__reactions .team-chat__reaction-count {
+  min-width: 29px; border-left: 1px solid var(--chat-line) !important;
+  font-size: 11px !important; font-weight: 700 !important;
+}
+.team-chat__reactions .team-chat__reaction-count:hover,
+.team-chat__reactions .team-chat__reaction-count[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--chat-accent) 13%, transparent);
+}
+.team-chat__reactors {
+  flex: 1 1 100%; display: flex; align-items: flex-start;
+  flex-wrap: wrap; gap: 5px 7px; padding: 7px 2px 2px;
+  font-size: 11px; line-height: 1.4;
+}
+.team-chat__reactors strong { flex-basis: 100%; font-size: 11px; }
+.team-chat__reactors span {
+  display: inline-block; padding: 3px 7px; border-radius: 7px;
+  background: var(--chat-quoted); color: inherit;
+}
+.team-chat__bubble.is-own .team-chat__reaction-pill {
+  background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.4);
+}
+.team-chat__bubble.is-own .team-chat__reactions .team-chat__reaction-pill > button {
+  background: transparent; color: #fff;
+}
+.team-chat__bubble.is-own .team-chat__reactions .team-chat__reaction-count {
+  border-left-color: rgba(255,255,255,.35) !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__reaction-pill) {
+  background: #352b35 !important; border-color: #615465 !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__reaction-pill > button) {
+  background: transparent !important; color: #fff !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__reactors span) {
+  background: #3d303f !important; color: #fff !important;
 }
 
 </style>

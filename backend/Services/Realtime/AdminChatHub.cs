@@ -17,6 +17,8 @@ public sealed class AdminChatHub : Hub
     private static readonly ConcurrentDictionary<Guid, DateTimeOffset> ClearedForUser = new();
     internal static string PersonalGroup(Guid userId) => $"admin-chat-user:{userId:N}";
     private static readonly Dictionary<Guid, Dictionary<string, HashSet<Guid>>> ReactionsByMessage = new();
+    // Server-verified names let every admin see who reacted, even without a message from that user.
+    private static readonly ConcurrentDictionary<Guid, string> ReactionNames = new();
     private static readonly string[] AllowedReactions = [
         "👍", "👎", "👏", "🙌", "🤝", "🙏", "💪", "👌", "✌️", "🤞",
         "❤️", "🩷", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "💔",
@@ -25,7 +27,7 @@ public sealed class AdminChatHub : Hub
         "😮", "😱", "😳", "🥺", "😢", "😭", "😤", "😡", "🤯", "😴",
         "👀", "💯", "🔥", "✨", "🎉", "🎊", "🎈", "🎂", "🎁", "🏆",
         "⭐", "🌟", "🚀", "💡", "✅", "❌", "⚠️", "📌", "💬", "🫶",
-        "🐱", "🐶", "🐼", "🐸", "🦄", "🍕", "🍔", "🍩", "☕", "🍓"
+        "🐱", "🐶", "🐼", "🐸", "🦄", "🍕", "🍔", "🍩", "☕", "🍓", "🦞", "🏳️‍🌈"
     ];
     // Opt-in video presence; actual camera frames travel peer-to-peer via WebRTC.
     private static readonly ConcurrentDictionary<string, CameraParticipant> Cameras = new();
@@ -70,6 +72,7 @@ public sealed class AdminChatHub : Hub
             return;
         }
         Online.TryAdd(Context.ConnectionId, 0);
+        ReactionNames[identity.UsuarioId] = DisplayName(identity);
         await Groups.AddToGroupAsync(Context.ConnectionId, PersonalGroup(identity.UsuarioId));
         Nicknames.TryGetValue(identity.UsuarioId, out var nickname);
         await Clients.Caller.SendAsync("ChatProfile", new { displayName = nickname ?? identity.NombreCliente, customName = nickname });
@@ -116,6 +119,7 @@ public sealed class AdminChatHub : Hub
             Nicknames[identity.UsuarioId] = value;
 
         var display = value.Length > 0 ? value : identity.NombreCliente;
+        ReactionNames[identity.UsuarioId] = display;
         // Una actualización del nombre no da acceso a cuentas ajenas.
         await Clients.All.SendAsync("NicknameChanged", identity.UsuarioId, display);
         return display;
@@ -307,7 +311,13 @@ public sealed class AdminChatHub : Hub
     private static ChatReaction[] ReadReactions(Guid id) =>
         ReactionsByMessage.TryGetValue(id, out var all)
             ? all.Where(entry => entry.Value.Count > 0)
-                .Select(entry => new ChatReaction(entry.Key, entry.Value.ToArray())).ToArray()
+                .Select(entry =>
+                {
+                    var ids = entry.Value.ToArray();
+                    return new ChatReaction(entry.Key, ids,
+                        ids.Select(userId => ReactionNames.GetValueOrDefault(userId)
+                            ?? "Administrador").ToArray());
+                }).ToArray()
             : Array.Empty<ChatReaction>();
 
     // Server-controlled emoji allowlist, authenticated account IDs and bounded history.
@@ -317,6 +327,7 @@ public sealed class AdminChatHub : Hub
         if (identity is null || identity.Role != "admin") throw new HubException("Sin autorización.");
         if (!Guid.TryParse(messageId, out var id) || emoji is null ||
             !AllowedReactions.Contains(emoji)) throw new HubException("Reacción no permitida.");
+        ReactionNames[identity.UsuarioId] = DisplayName(identity);
         await ChatMutations.WaitAsync();
         try
         {
@@ -425,7 +436,7 @@ public sealed class AdminChatHub : Hub
         bool IsViewOnce, bool IsSticker, ChatReaction[] Reactions, bool ImageViewed,
         string? AudioUrl = null);
     public sealed record CameraParticipant(string ConnectionId, Guid UserId, string Name);
-    public sealed record ChatReaction(string Emoji, Guid[] UserIds);
+    public sealed record ChatReaction(string Emoji, Guid[] UserIds, string[] UserNames);
     public sealed record ChatReply(Guid Id, string Name, string Text);
     public sealed record ReadReceipt(Guid UserId, string Name, DateTimeOffset LastReadAt);
     public sealed record TypingStatus(
