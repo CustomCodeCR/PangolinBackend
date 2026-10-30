@@ -1,0 +1,39 @@
+name: Admin content panels regression (main-3)
+
+on:
+  pull_request:
+    branches: [main-3]
+    paths:
+      - "frontend/src/pages/ContentManager.vue"
+      - "frontend/scripts/test-frontend-merge.cjs"
+      - ".github/workflows/admin-main3-content-regression.yml"
+  push:
+    branches: [main-3]
+    paths:
+      - "frontend/src/pages/ContentManager.vue"
+      - "frontend/scripts/test-frontend-merge.cjs"
+      - ".github/workflows/admin-main3-content-regression.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  admin-content:
+    name: Compile and verify all admin content panels
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+      - name: Build Vue frontend
+        run: npm run build --prefix frontend
+      - name: Verify admin tabs and existing integration contracts
+        run: node frontend/scripts/test-frontend-merge.cjs
+      - name: Smoke-test navigation in headless browser
+        run: node frontend/scripts/smoke-browser.cjs
