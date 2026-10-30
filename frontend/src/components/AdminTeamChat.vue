@@ -10,7 +10,7 @@ import { authState } from '../services/auth'
 
 interface ChatReply { id: string; name: string; text: string }
 type ImageMode = 'image' | 'once' | 'sticker'
-interface ChatReaction { emoji: string; userIds: string[] }
+interface ChatReaction { emoji: string; userIds: string[]; userNames?: string[] }
 interface ChatMessage { id: string; userId: string; name: string; email: string; text: string; sentAt: string; replyTo?: ChatReply | null; imageUrl?: string | null; imageId?: string | null; isViewOnce?: boolean; isSticker?: boolean; imageViewed?: boolean; reactions?: ChatReaction[]; audioUrl?: string | null }
 interface ChatMediaUpload { imageId: string; url: string }
 interface ReadReceipt { userId: string; name: string; lastReadAt: string }
@@ -38,6 +38,8 @@ const selectedAttachMode = ref<'image' | 'sticker'>('image')
 const imageViewer = ref<{ src: string; title: string; oneTime: boolean; objectUrl?: string } | null>(null)
 const viewingImageId = ref<string | null>(null)
 const reactionPickerId = ref<string | null>(null)
+const expandedReaction = ref<{ messageId: string; emoji: string } | null>(null)
+const emojiGrid = ref<HTMLElement | null>(null)
 const reactionChoices = [
   '👍', '👎', '👏', '🙌', '🤝', '🙏', '💪', '👌', '✌️', '🤞',
   '❤️', '🩷', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💔',
@@ -46,7 +48,7 @@ const reactionChoices = [
   '😮', '😱', '😳', '🥺', '😢', '😭', '😤', '😡', '🤯', '😴',
   '👀', '💯', '🔥', '✨', '🎉', '🎊', '🎈', '🎂', '🎁', '🏆',
   '⭐', '🌟', '🚀', '💡', '✅', '❌', '⚠️', '📌', '💬', '🫶',
-  '🐱', '🐶', '🐼', '🐸', '🦄', '🍕', '🍔', '🍩', '☕', '🍓'
+  '🐱', '🐶', '🐼', '🐸', '🦄', '🍕', '🍔', '🍩', '☕', '🍓', '🦞', '🏳️‍🌈'
 ] as const
 const expandedSeenId = ref<string | null>(null)
 const remoteTyping = ref<Record<string, TypingStatus>>({})
@@ -242,6 +244,30 @@ function toggleViewOnce() {
   outgoingImage.value = { ...outgoingImage.value,
     mode: outgoingImage.value.mode === 'once' ? 'image' : 'once' }
 }
+async function onComposerPaste(event: ClipboardEvent) {
+  const imageItem = Array.from(event.clipboardData?.items ?? [])
+    .find(item => item.kind === 'file' && item.type.startsWith('image/'))
+  if (!imageItem) return // Ordinary copied text keeps the browser's normal paste behavior.
+  event.preventDefault()
+  if (mediaBusy.value || sending.value || recording.value) {
+    error.value = 'Terminá el envío o la grabación antes de adjuntar otra imagen.'
+    return
+  }
+  const file = imageItem.getAsFile()
+  if (!file) return
+  mediaBusy.value = true
+  error.value = ''
+  try {
+    const blob = await compressImage(file, 1200, 800_000)
+    clearOutgoingImage()
+    clearOutgoingAudio()
+    outgoingImage.value = { blob, previewUrl: URL.createObjectURL(blob), mode: 'image' }
+    stickerTrayOpen.value = false
+    reactionPickerId.value = null
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : 'No se pudo pegar la imagen.'
+  } finally { mediaBusy.value = false }
+}
 async function chooseImage(event: Event) {
   const element = event.target as HTMLInputElement
   const file = element.files?.[0]
@@ -372,6 +398,7 @@ function viewerKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') {
     if (imageViewer.value) closeViewer()
     reactionPickerId.value = null
+    expandedReaction.value = null
     stickerTrayOpen.value = false
   }
 }
@@ -413,6 +440,19 @@ async function toggleReaction(id: string, emoji: string) {
 }
 function reactedByMe(reaction: ChatReaction) {
   return reaction.userIds.some(id => id.toLowerCase() === currentUserId.value)
+}
+function reactorNames(reaction: ChatReaction): string[] {
+  return reaction.userIds.map((id, index) => {
+    const userId = id.toLowerCase()
+    const fromMessage = messages.value.find(message => message.userId.toLowerCase() === userId)
+    const fromReceipt = receipts.value.find(receipt => receipt.userId.toLowerCase() === userId)
+    return chatNames.value[userId] || reaction.userNames?.[index] ||
+      fromMessage?.name || fromReceipt?.name || 'Administrador'
+  })
+}
+function showReactionUsers(messageId: string, emoji: string) {
+  expandedReaction.value = expandedReaction.value?.messageId === messageId &&
+    expandedReaction.value.emoji === emoji ? null : { messageId, emoji }
 }
 function displayName(message: ChatMessage) {
   return chatNames.value[message.userId.toLowerCase()] || message.name || message.email
@@ -475,17 +515,20 @@ function scrollBottom() {
 function trapChatWheel(event: WheelEvent) {
   const element = list.value
   if (!element || event.ctrlKey || !event.deltaY) return
-  // Si la rueda se usa sobre el encabezado o el compositor, también desplaza
-  // los mensajes y no la página que está detrás.
-  const overMessages = event.target instanceof Node && element.contains(event.target)
-  if (!overMessages) {
-    element.scrollTop += event.deltaY
-    event.preventDefault()
-    return
-  }
+  // Only the message viewport traps wheel scrolling. Above/below it the page
+  // scrolls naturally, including the composer and the camera panel.
+  event.stopPropagation()
   const atTop = element.scrollTop <= 1 && event.deltaY < 0
   const atBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 1 && event.deltaY > 0
   if (element.scrollHeight <= element.clientHeight + 1 || atTop || atBottom) event.preventDefault()
+}
+function scrollEmojiTray(event: WheelEvent) {
+  if (event.ctrlKey || !emojiGrid.value) return
+  event.preventDefault()
+  event.stopPropagation()
+  // Consume wheel events throughout the reaction tray, even over its header.
+  const unit = event.deltaMode === 1 ? 18 : event.deltaMode === 2 ? emojiGrid.value.clientHeight : 1
+  emojiGrid.value.scrollTop += event.deltaY * unit
 }
 function canMarkRead() { return props.visible && document.visibilityState === 'visible' }
 function markVisibleRead() {
@@ -573,6 +616,7 @@ function onChatClearedForUser(event: { clearedAt: string }) {
   expandedSeenId.value = null
   highlightedId.value = null
   reactionPickerId.value = null
+  expandedReaction.value = null
   stickerTrayOpen.value = false
   closeViewer()
   // Los vistos globales permanecen para los mensajes posteriores y los demás.
@@ -666,7 +710,7 @@ onMounted(() => {
       remoteTyping.value = next
     }
   }, 850)
-  void nextTick(() => chatPanel.value?.addEventListener('wheel', trapChatWheel, { passive: false }))
+  void nextTick(() => list.value?.addEventListener('wheel', trapChatWheel, { passive: false }))
   window.addEventListener('focus', onVisibility)
   window.addEventListener('keydown', viewerKeydown)
   document.addEventListener('visibilitychange', onVisibility)
@@ -760,7 +804,7 @@ onUnmounted(() => {
   if (typingSweepTimer) clearInterval(typingSweepTimer)
   if (retryTimer) clearTimeout(retryTimer)
   if (highlightTimer) clearTimeout(highlightTimer)
-  chatPanel.value?.removeEventListener('wheel', trapChatWheel)
+  list.value?.removeEventListener('wheel', trapChatWheel)
   window.removeEventListener('focus', onVisibility)
   window.removeEventListener('keydown', viewerKeydown)
   document.removeEventListener('visibilitychange', onVisibility)
