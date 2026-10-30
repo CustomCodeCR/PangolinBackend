@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { ChevronDown } from '@lucide/vue'
 import { authState } from '../services/auth'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import { subscribeToChanges } from '../services/realtime'
@@ -23,18 +24,27 @@ const notice = ref('')
 const error = ref('')
 const storageEnabled = ref(false)
 const featuredReel = ref('')
+const featuredReelExpanded = ref(false)
 const publishedReel = ref('')
 const featuredReelMediaId = ref('')
 const publishedReelMediaId = ref('')
 const savingFeaturedReel = ref(false)
 const featuredReelNotice = ref('')
 const featuredReelError = ref('')
+const featuredFacebookUrl = ref('')
+const publishedFacebookUrl = ref('')
+const featuredFacebookMediaId = ref('')
+const publishedFacebookMediaId = ref('')
+const savingFacebook = ref(false)
+const facebookNotice = ref('')
+const facebookError = ref('')
 const isLiveAdmin = computed(() => authState.user?.role === 'administrador' && !authState.previewRole)
 const featuredVideoChoices = computed(() => media.value.filter(item =>
   item.kind === 'Video' && Boolean(item.objectKey) &&
   (item.mimeType === 'video/mp4' || item.mimeType === 'video/webm')
 ))
 const selectedFeaturedVideo = computed(() => featuredVideoChoices.value.find(item => item.id === featuredReelMediaId.value))
+const selectedFacebookVideo = computed(() => featuredVideoChoices.value.find(item => item.id === featuredFacebookMediaId.value))
 const pages = [...new Map(siteSlotCatalog.map(slot => [slot.page, { id: slot.page, label: slot.pageLabel }])).values()]
 const visible = computed(() => siteSlotCatalog.filter(slot =>
   slot.page === page.value &&
@@ -97,6 +107,11 @@ async function load() {
     publishedReelMediaId.value = currentReel?.publishedMediaId ?? ''
     featuredReel.value = publishedReel.value
     featuredReelMediaId.value = publishedReelMediaId.value
+    const currentFacebook = rows.value.find(x => x.key === 'home.facebook.video')
+    publishedFacebookUrl.value = currentFacebook?.publishedEs ?? ''
+    publishedFacebookMediaId.value = currentFacebook?.publishedMediaId ?? ''
+    featuredFacebookUrl.value = publishedFacebookUrl.value
+    featuredFacebookMediaId.value = publishedFacebookMediaId.value
     media.value = await library.json() as ManagedMedia[]
     storageEnabled.value = Boolean((await status.json() as {enabled:boolean}).enabled)
     select(selected.value)
@@ -180,6 +195,81 @@ async function uploadFeaturedReelVideo(event: Event) {
     featuredReelError.value = cause instanceof Error ? cause.message : 'Error al subir el video.'
   } finally {
     savingFeaturedReel.value = false
+    input.value = ''
+  }
+}
+
+
+async function saveFacebookVideo() {
+  if (!isLiveAdmin.value || savingFacebook.value) return
+  facebookError.value = ''
+  facebookNotice.value = ''
+  const url = featuredFacebookUrl.value.trim()
+  if (!url && featuredFacebookMediaId.value) {
+    facebookError.value = 'Indicá el enlace original del video antes de seleccionar un archivo.'
+    return
+  }
+  savingFacebook.value = true
+  try {
+    const response = await fetch('/api/admin/content/facebook-video', {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: url || null, mediaId: featuredFacebookMediaId.value || null })
+    })
+    const data = await response.json().catch(() => null) as
+      { url?: string | null; mediaId?: string | null; error?: string } | null
+    if (!response.ok) throw new Error(data?.error || 'No fue posible publicar el video de Facebook.')
+    publishedFacebookUrl.value = data?.url ?? ''
+    publishedFacebookMediaId.value = data?.mediaId ?? ''
+    featuredFacebookUrl.value = publishedFacebookUrl.value
+    featuredFacebookMediaId.value = publishedFacebookMediaId.value
+    facebookNotice.value = publishedFacebookUrl.value
+      ? 'Video de Facebook publicado en el Home.'
+      : 'Se quitó el video. El Home seguirá enlazando la página oficial.'
+  } catch (cause) {
+    facebookError.value = cause instanceof Error ? cause.message : 'Error al guardar Facebook.'
+  } finally { savingFacebook.value = false }
+}
+async function removeFacebookVideo() {
+  if (!window.confirm('¿Quitar el video destacado de Facebook del Home?')) return
+  featuredFacebookUrl.value = ''
+  featuredFacebookMediaId.value = ''
+  await saveFacebookVideo()
+}
+async function uploadFacebookVideo(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  facebookError.value = ''
+  facebookNotice.value = ''
+  if (!isLiveAdmin.value || !storageEnabled.value) {
+    facebookError.value = 'La subida requiere una cuenta administradora y MinIO activo.'
+    input.value = ''
+    return
+  }
+  if (!['video/mp4', 'video/webm'].includes(file.type) || file.size > 20 * 1024 * 1024) {
+    facebookError.value = 'Usá un MP4 o WebM de máximo 20 MB.'
+    input.value = ''
+    return
+  }
+  savingFacebook.value = true
+  try {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('kind', 'Video')
+    form.append('name', file.name)
+    const response = await fetch('/api/admin/content/media/upload', {
+      method: 'POST', credentials: 'same-origin', body: form
+    })
+    const data = await response.json().catch(() => null) as (ManagedMedia & { error?: string }) | null
+    if (!response.ok || !data?.id) throw new Error(data?.error || 'No se pudo subir el video.')
+    media.value = [data, ...media.value.filter(item => item.id !== data.id)]
+    featuredFacebookMediaId.value = data.id
+    facebookNotice.value = 'Archivo subido. Añadí el enlace público de Facebook y guardá para publicarlo.'
+  } catch (cause) {
+    facebookError.value = cause instanceof Error ? cause.message : 'Error al subir el video.'
+  } finally {
+    savingFacebook.value = false
     input.value = ''
   }
 }
@@ -304,11 +394,20 @@ onMounted(load)
       <header>
         <div>
           <p class="manager-eyebrow">INICIO · REDES SOCIALES</p>
-          <h3 id="featured-reel-title">Reel de Instagram del Home</h3>
-          <p>Pegá el enlace del Reel público. Para que el video llene todo el cuadro sin interfaz de Instagram, añadí también el archivo original MP4 o WebM de la empresa.</p>
+          <h3 id="featured-reel-title">Videos de Instagram y Facebook del Home</h3>
+          <p>Configurá las publicaciones de ambas redes. Para mostrar un video vertical sin interfaz externa, asociá el MP4 o WebM original de la empresa.</p>
         </div>
-        <a href="/home#instagram" target="_blank" rel="noopener noreferrer">Ver Home ↗</a>
+        <div class="visual-editor__featured-reel-header-actions">
+          <a href="/home#instagram" target="_blank" rel="noopener noreferrer">Ver Home ↗</a>
+        </div>
+        <button type="button" class="visual-editor__collapse-toggle"
+            :aria-expanded="featuredReelExpanded" aria-controls="featured-reel-content"
+            :aria-label="featuredReelExpanded ? 'Contraer videos de redes sociales' : 'Expandir videos de redes sociales'"
+            @click="featuredReelExpanded = !featuredReelExpanded">
+            <ChevronDown :size="18" :stroke-width="2" class="visual-editor__collapse-icon" aria-hidden="true" />
+        </button>
       </header>
+      <div v-show="featuredReelExpanded" id="featured-reel-content">
       <form class="visual-editor__featured-reel-form" @submit.prevent="saveFeaturedReel">
         <label for="featured-reel-link">Enlace del Reel
           <input id="featured-reel-link" v-model.trim="featuredReel" type="url" inputmode="url"
@@ -349,6 +448,51 @@ onMounted(load)
       <p v-else class="visual-editor__featured-reel-current">Sin Reel elegido. La web mostrará el enlace al perfil de Instagram.</p>
       <p v-if="!isLiveAdmin" class="visual-editor__hint">Necesitás una sesión administradora real para modificar el Reel.</p>
       <small class="visual-editor__hint">Con solo el enlace, Instagram controla el reproductor y muestra su propia interfaz. Con el video original subido, se reproduce a ancho completo dentro de la tarjeta. Usá únicamente archivos que la empresa tenga derecho a publicar.</small>
+      <div class="visual-editor__social-divider" role="separator"></div>
+      <h4>Video de Facebook del Home</h4>
+      <p class="visual-editor__hint">Página oficial: <a href="https://www.facebook.com/grupocastrofallas1" target="_blank" rel="noopener noreferrer">Grupo Castro Fallas en Facebook ↗</a>. Elegí un video o Reel público específico; el Home no extrae publicaciones automáticamente.</p>
+      <form class="visual-editor__featured-reel-form" @submit.prevent="saveFacebookVideo">
+        <label for="featured-facebook-link">Enlace del video o Reel de Facebook
+          <input id="featured-facebook-link" v-model.trim="featuredFacebookUrl" type="url"
+            inputmode="url" autocomplete="off" maxlength="512"
+            :disabled="!isLiveAdmin || loading || savingFacebook"
+            placeholder="https://www.facebook.com/reel/..." />
+        </label>
+        <div class="visual-editor__featured-video-field">
+          <div class="visual-editor__featured-video-selector">
+            <label>Video original para pantalla completa (opcional)</label>
+            <FieldDropdown v-model="featuredFacebookMediaId" aria-label="Video original de Facebook"
+              :disabled="!isLiveAdmin || loading || savingFacebook"
+              :options="[
+                { value:'', label:'Solo enlace público (reproductor de Facebook)' },
+                ...featuredVideoChoices.map(item => ({value:item.id,label:item.name}))
+              ]" />
+          </div>
+          <label v-if="storageEnabled" for="featured-facebook-upload">
+            O subir un MP4/WebM de la empresa (máximo 20 MB)
+            <input id="featured-facebook-upload" type="file" accept="video/mp4,video/webm"
+              :disabled="!isLiveAdmin || loading || savingFacebook" @change="uploadFacebookVideo" />
+          </label>
+          <p v-else class="visual-editor__hint">Para subir un archivo original necesitás MinIO activo. También podés usar el enlace público.</p>
+          <video v-if="selectedFacebookVideo" class="visual-editor__featured-video-preview"
+            :key="selectedFacebookVideo.id"
+            :src="`/api/admin/content/media/${selectedFacebookVideo.id}/file`"
+            controls muted playsinline preload="metadata" aria-label="Vista previa del video de Facebook" />
+        </div>
+        <div class="visual-editor__featured-reel-actions">
+          <button class="visual-editor__button visual-editor__publish" type="submit"
+            :disabled="!isLiveAdmin || loading || savingFacebook">{{ savingFacebook ? 'Guardando…' : 'Guardar y mostrar Facebook' }}</button>
+          <button class="visual-editor__button visual-editor__reset" type="button"
+            :disabled="!isLiveAdmin || loading || savingFacebook || !publishedFacebookUrl"
+            @click="removeFacebookVideo">Quitar video</button>
+        </div>
+      </form>
+      <p v-if="facebookError" class="visual-editor__error" role="alert">{{ facebookError }}</p>
+      <p v-if="facebookNotice" class="visual-editor__success" role="status">{{ facebookNotice }}</p>
+      <p v-if="publishedFacebookUrl" class="visual-editor__featured-reel-current">Publicado: <a :href="publishedFacebookUrl" target="_blank" rel="noopener noreferrer">{{ publishedFacebookUrl }}</a> · {{ publishedFacebookMediaId ? 'Video original (sin interfaz de Facebook)' : 'Reproductor incrustado de Facebook' }}</p>
+      <p v-else class="visual-editor__featured-reel-current">Todavía no hay video de Facebook seleccionado. El Home mostrará un acceso a la página oficial.</p>
+      <small class="visual-editor__hint">Los videos incrustados pueden mostrar controles de Facebook. Para mantener el diseño 9:16 sin interfaz externa, subí un archivo propio autorizado.</small>
+      </div>
     </section>
 
     <p v-if="error" role="alert" class="visual-editor__error">{{ error }}</p>
@@ -454,7 +598,8 @@ onMounted(load)
 .visual-editor__featured-video-field input{width:100%;max-width:620px;min-width:0;padding:10px;border-radius:9px;border:1px solid #bdc3ce;background:#fff;color:#1d2735;font:inherit}
 .visual-editor__featured-video-preview{max-width:210px;width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:12px;background:#080f22}
 html.theme-dark .visual-editor__featured-video-field input{background:#0b1324;border-color:#667085;color:#fff}
-.visual-editor__featured-reel-current{margin:0;font-size:12px;line-height:1.55;color:#515865;overflow-wrap:anywhere}
+.visual-editor__featured-reel-current{margin:16px 0 0;font-size:12px;line-height:1.55;color:#515865;overflow-wrap:anywhere}
+.visual-editor__featured-reel-current + .visual-editor__hint{display:block;margin-top:8px}
 .visual-editor__featured-reel-current a{color:#aa1745;text-decoration:underline}
 html.theme-dark .visual-editor__featured-reel{background:#171924;border-color:#503042}
 html.theme-dark .visual-editor__featured-reel header p:not(.manager-eyebrow),html.theme-dark .visual-editor__featured-reel-current{color:#d3d7e1}
@@ -466,7 +611,9 @@ html.theme-dark .visual-editor__featured-reel :is(header>a,.visual-editor__featu
 .visual-editor__context a{color:#a50c2c;text-decoration:underline;font-weight:700}
 .visual-editor__filters{display:flex;gap:5px;flex-wrap:wrap}
 .visual-editor__filters button{padding:8px 9px;border-radius:9px;border:1px solid #d4d7df;background:#fafafa;color:#25252a;cursor:pointer;font-weight:700;font-size:11px}
-.visual-editor__filters button.active{color:#fff;background:#a60b29;border-color:#a60b29}
+.visual-editor__filters button.active{color:#a60b29;background:#fff3f5;border-color:#d91643}
+/* La regla de botones de ubicaciones no debe blanquear el texto del filtro activo. */
+.visual-editor .visual-editor__locations .visual-editor__filters button.active{color:#a60b29;background:#fff3f5;border-color:#d91643}
 .visual-editor :is(.visual-editor__pages button,.visual-editor__filters button,.visual-editor__locations button,.visual-editor__button){transition:background-color .18s ease,color .18s ease,border-color .18s ease}
 .visual-editor :is(.visual-editor__pages button,.visual-editor__filters button,.visual-editor__locations button,.visual-editor__button):focus-visible,
 .visual-editor :is(input,select,textarea):focus-visible{outline:2px solid #a80e18;outline-offset:2px}
@@ -645,4 +792,27 @@ html.theme-dark .visual-editor .visual-editor__library-field .cf-dropdown__trigg
 html.theme-dark .app-site.administration-page .visual-editor .visual-editor__library-field .cf-dropdown__trigger {
   background-color: #060f21 !important;
 }
+
+/* Mantener el control de expansión fijo en la esquina sin alterar el enlace Ver Home. */
+.visual-editor__featured-reel > header { position: relative; padding-right: 48px; }
+.visual-editor__featured-reel > header > .visual-editor__collapse-toggle {
+  position: absolute; top: 0; right: 0;
+}
+/* Compactar únicamente el panel de Reel dentro del editor visual. */
+.visual-editor__featured-reel-header-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.visual-editor__featured-reel .visual-editor__collapse-toggle {
+  display: inline-grid; place-items: center; width: 36px; height: 36px;
+  min-width: 36px; padding: 0; border: 1px solid currentColor;
+  border-radius: 10px; background: transparent; color: inherit;
+  cursor: pointer; line-height: 1;
+}
+.visual-editor__featured-reel .visual-editor__collapse-icon { display: block; transition: transform .18s ease; }
+.visual-editor__featured-reel .visual-editor__collapse-toggle[aria-expanded="true"] .visual-editor__collapse-icon { transform: rotate(180deg); }
+.visual-editor__featured-reel .visual-editor__collapse-toggle:hover { background: rgba(128,128,128,.12); }
+.visual-editor__featured-reel .visual-editor__collapse-toggle:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.visual-editor__social-divider{height:1px;background:#d5dae2;margin:24px 0 18px}
+html.theme-dark .visual-editor__social-divider{background:#4d5260}
+.visual-editor__featured-reel h4{margin:0 0 12px;font-size:18px}
+.visual-editor__featured-reel .visual-editor__hint a{color:#bb2455;text-decoration:underline}
+html.theme-dark .visual-editor__featured-reel .visual-editor__hint a{color:#ff9caf}
 </style>

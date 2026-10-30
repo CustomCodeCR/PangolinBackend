@@ -320,6 +320,18 @@
         "unavailable": "Visit our profile to see our Reels",
         "loading": "Looking for our latest Reel…"
       },
+      "socialAria": "Grupo Castro Fallas social media",
+      "socialSelect": "Choose a social network",
+      "facebook": {
+        "description": "Explore our updates, operations and videos on Facebook.",
+        "profile": "View Facebook page",
+        "reel": "Grupo Castro Fallas featured Facebook video",
+        "play": "Play Facebook video",
+        "open": "Open video on Facebook",
+        "preview": "Watch our featured Facebook video",
+        "unavailable": "Visit our Facebook page to see our videos",
+        "loading": "Looking for our Facebook video…"
+      },
       "newsAria": "Featured news",
       "contact": [
         "Phone number",
