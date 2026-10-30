@@ -139,7 +139,7 @@ public static class AdminChatMediaEndpoints
                 return Results.BadRequest(new { error = "La foto de perfil debe ser JPEG." });
 
             var max = avatar ? AdminChatMediaStore.MaxAvatarBytes : AdminChatMediaStore.MaxMessageBytes;
-            if (http.Request.ContentLength is > max)
+            if (http.Request.ContentLength.HasValue && http.Request.ContentLength.Value > max)
                 return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
             var buffer = new byte[max + 1];
             var count = 0;
