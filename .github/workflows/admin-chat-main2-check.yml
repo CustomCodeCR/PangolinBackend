@@ -92,7 +92,9 @@ jobs:
           check(hub.includes('Clients.Group(PersonalGroup(identity.UsuarioId))') &&
                 hub.includes('SendAsync("ChatClearedForUser"'), 'Clear event must only target same-user sessions')
           check(hub.includes('ClearedForUser[identity.UsuarioId] = cutoff') &&
-                hub.includes('History.Where(message => message.SentAt > cutoff)'), 'Reconnect must respect per-user cutoff')
+                hub.includes('ClearedForUser.GetValueOrDefault(viewerId, DateTimeOffset.MinValue)') &&
+                hub.includes('History.Where(message => message.SentAt > cutoff &&'),
+                'Reconnect and unblocking must respect per-user clear cutoff')
           check(hub.includes('ChatMutations.WaitAsync()') && hub.includes('var published = message with { SentAt'), 'Clears and new messages must be ordered')
           check(!hub.includes('History.TryDequeue(out _)') || hub.includes('while (History.Count > Limit)'), 'Unbounded global deletion must be absent')
           check(!hub.includes('Seen.Clear()') && !hub.includes('_images.ClearMessageImages()'), 'Personal clearing may not delete shared reads or images')
