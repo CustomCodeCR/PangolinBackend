@@ -938,8 +938,15 @@ onUnmounted(() => {
           <span class="team-chat__light" :class="{ 'is-offline': status !== 'En línea' }" />
           {{ status }} <small v-if="online">· {{ online }} conectado{{ online === 1 ? '' : 's' }}</small>
         </div>
+        <button class="team-chat__blocked-list-button" type="button"
+          :aria-expanded="blockedTrayOpen"
+          :title="'Administrar bloqueados: ' + blockedUsers.length"
+          @click="blockedTrayOpen = !blockedTrayOpen; personMenuId = null">
+          <ShieldBan :size="15" />
+          Bloqueados ({{ blockedUsers.length }})
+        </button>
         <button class="team-chat__clear-button" type="button"
-          :disabled="status !== 'En línea' || clearingChat || !messages.length"
+          :disabled="status !== 'En línea' || clearingChat || !chatTimeline.length"
           title="Ocultar mensajes anteriores solo para tu cuenta"
           @click="clearMyChat">
           <IconSymbol glyph="trash" :size="15" />
@@ -947,13 +954,36 @@ onUnmounted(() => {
         </button>
       </div>
     </header>
+    <div v-if="blockedTrayOpen" class="team-chat__blocked-panel" role="region"
+      aria-label="Administrar personas bloqueadas">
+      <div class="team-chat__blocked-panel-head">
+        <strong>Personas bloqueadas</strong>
+        <button type="button" aria-label="Cerrar lista de bloqueados"
+          @click="blockedTrayOpen = false"><X :size="17" /></button>
+      </div>
+      <p v-if="!blockedUsers.length">No bloqueaste a ningún administrador.</p>
+      <div v-for="person in blockedUsers" :key="person.userId" class="team-chat__blocked-person">
+        <span><UserX :size="16" /> {{ person.name }}</span>
+        <button type="button" :disabled="status !== 'En línea' || !!blockBusyId"
+          @click="setUserBlocked(person.userId, false)">
+          {{ blockBusyId === person.userId ? 'Actualizando…' : 'Desbloquear' }}
+        </button>
+      </div>
+      <small>El bloqueo solo oculta mensajes en tu chat. No expulsa a la otra persona del grupo.</small>
+    </div>
     <p v-if="chatNotice" class="team-chat__notice" role="status">{{ chatNotice }}</p>
     <div ref="list" class="team-chat__messages" role="log" aria-live="polite" aria-relevant="additions">
-      <div v-if="!messages.length" class="team-chat__empty">
+      <div v-if="!chatTimeline.length" class="team-chat__empty">
         <span>✳</span><strong>Este canal está esperando su primer mensaje.</strong>
         <p>Probalo con otro administrador desde otra computadora o navegador.</p>
       </div>
-      <div v-for="message in messages" :key="message.id" :data-chat-id="message.id"
+      <template v-for="message in chatTimeline" :key="message.id">
+      <div v-if="message.isSystem" class="team-chat__system-message" role="status">
+        <ShieldBan :size="15" aria-hidden="true" />
+        <span>{{ message.text }}</span>
+        <time :datetime="message.sentAt">{{ clock(message.sentAt) }}</time>
+      </div>
+      <div v-else :data-chat-id="message.id"
         class="team-chat__entry" :class="{ 'is-own': isOwn(message), 'is-highlighted': highlightedId === message.id }">
         <span class="team-chat__avatar team-chat__avatar--message" aria-hidden="true">
           <img v-if="avatarFor(message.userId)" :src="avatarFor(message.userId)" alt="" loading="lazy" />
@@ -961,7 +991,11 @@ onUnmounted(() => {
         </span>
         <article class="team-chat__bubble" :class="{ 'is-own': isOwn(message), 'is-sticker': message.isSticker }">
           <div class="team-chat__by">
-            <strong>{{ displayName(message) }}</strong>
+            <strong v-if="isOwn(message)">{{ displayName(message) }}</strong>
+            <button v-else type="button" class="team-chat__person-trigger"
+              :aria-label="'Opciones de ' + displayName(message)"
+              :aria-expanded="personMenuId === message.userId"
+              @click="togglePersonMenu(message.userId)">{{ displayName(message) }}</button>
             <span class="team-chat__meta">
               <time :datetime="message.sentAt">{{ clock(message.sentAt) }}</time>
               <button v-if="isOwn(message)" type="button" class="team-chat__seen-button"
@@ -970,11 +1004,20 @@ onUnmounted(() => {
                 title="Ver quién lo leyó" @click="toggleSeen(message.id)">✓✓</button>
             </span>
           </div>
+          <div v-if="personMenuId === message.userId && !isOwn(message)"
+            class="team-chat__person-menu">
+            <strong>{{ displayName(message) }}</strong>
+            <button type="button" :disabled="status !== 'En línea' || !!blockBusyId"
+              @click="setUserBlocked(message.userId, true)">
+              <UserX :size="15" /> Bloquear a esta persona
+            </button>
+            <small>Dejarás de ver sus mensajes y recibirá un aviso del sistema.</small>
+          </div>
           <button v-if="message.replyTo" class="team-chat__quoted" type="button"
             :aria-label="'Ir al mensaje original de ' + message.replyTo.name"
             @click="jumpToOriginal(message.replyTo.id)">
-            <strong>↪ {{ message.replyTo.name }}</strong>
-            <span>{{ message.replyTo.text }}</span>
+            <strong>↪ {{ message.replyTo.userId && blockedUserIds.has(message.replyTo.userId.toLowerCase()) ? 'Mensaje oculto' : message.replyTo.name }}</strong>
+            <span>{{ message.replyTo.userId && blockedUserIds.has(message.replyTo.userId.toLowerCase()) ? 'Contenido de una persona bloqueada' : message.replyTo.text }}</span>
           </button>
           <p v-if="message.text">{{ message.text }}</p>
           <button v-if="message.imageUrl" type="button" class="team-chat__image-link"
@@ -1040,6 +1083,7 @@ onUnmounted(() => {
             @click="saveMessageSticker(message)"><BookmarkPlus :size="17" /></button>
         </div>
       </div>
+      </template>
       <div v-if="typingNames.length" class="team-chat__typing" role="status" aria-live="polite" aria-atomic="true">
         <span class="team-chat__typing-dots" aria-hidden="true"><i></i><i></i><i></i></span>
         <span class="team-chat__typing-name">{{ typingLabel }}</span>
@@ -1133,7 +1177,7 @@ onUnmounted(() => {
       </button>
     </form>
     <p v-if="error" class="team-chat__error" role="alert">{{ error }}</p>
-    <p class="team-chat__foot">Solo administradores autenticados · {{ messages.length }} mensajes en este historial temporal.</p>
+    <p class="team-chat__foot">Solo administradores autenticados · {{ visibleMessages.length }} mensajes visibles en este historial temporal.</p>
     </section>
     <section class="team-chat__camera-panel" aria-label="Cámaras del equipo">
       <div class="team-chat__camera-header">
