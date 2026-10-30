@@ -675,7 +675,7 @@ onUnmounted(() => {
           <img v-if="avatarFor(message.userId)" :src="avatarFor(message.userId)" alt="" loading="lazy" />
           <span v-else>{{ initials(displayName(message)) }}</span>
         </span>
-        <article class="team-chat__bubble" :class="{ 'is-own': isOwn(message) }">
+        <article class="team-chat__bubble" :class="{ 'is-own': isOwn(message), 'is-sticker': message.isSticker }">
           <div class="team-chat__by">
             <strong>{{ displayName(message) }}</strong>
             <span class="team-chat__meta">
@@ -693,21 +693,51 @@ onUnmounted(() => {
             <span>{{ message.replyTo.text }}</span>
           </button>
           <p v-if="message.text">{{ message.text }}</p>
-          <a v-if="message.imageUrl" class="team-chat__image-link" :href="message.imageUrl"
-            target="_blank" rel="noopener noreferrer" :aria-label="'Abrir imagen de ' + displayName(message)">
-            <img class="team-chat__shared-image" :src="message.imageUrl"
-              :alt="'Imagen enviada por ' + displayName(message)" loading="lazy" />
-          </a>
+          <button v-if="message.imageUrl" type="button" class="team-chat__image-link"
+            :class="{ 'is-sticker': message.isSticker }"
+            :aria-label="'Ampliar ' + (message.isSticker ? 'sticker' : 'imagen') + ' de ' + displayName(message)"
+            @click="openSharedImage(message)">
+            <img class="team-chat__shared-image" :class="{ 'is-sticker': message.isSticker }"
+              :src="message.imageUrl" :alt="message.isSticker ? 'Sticker enviado por ' + displayName(message) : 'Imagen enviada por ' + displayName(message)" loading="lazy" />
+          </button>
+          <button v-else-if="message.isViewOnce" type="button" class="team-chat__once-button"
+            :disabled="isOwn(message) || message.imageViewed || viewingImageId === message.id"
+            :aria-label="message.imageViewed ? 'Foto ya vista' : 'Abrir foto de una sola visualización'"
+            @click="openSharedImage(message)">
+            <span aria-hidden="true">🔒</span>
+            <span>{{ isOwn(message) ? 'Foto de una vez enviada' : message.imageViewed ? 'Foto ya vista' : viewingImageId === message.id ? 'Abriendo…' : 'Ver foto una vez' }}</span>
+          </button>
+          <div v-if="message.reactions?.length" class="team-chat__reactions" aria-label="Reacciones al mensaje">
+            <button v-for="reaction in message.reactions" :key="reaction.emoji" type="button"
+              :class="{ 'is-mine': reactedByMe(reaction) }"
+              :title="reactedByMe(reaction) ? 'Quitar mi reacción' : 'Reaccionar con ' + reaction.emoji"
+              :aria-label="reaction.emoji + ', ' + reaction.userIds.length + ' reacciones'"
+              :disabled="status !== 'En línea'"
+              @click="toggleReaction(message.id, reaction.emoji)">{{ reaction.emoji }} <span>{{ reaction.userIds.length }}</span></button>
+          </div>
           <div v-if="isOwn(message) && expandedSeenId === message.id" class="team-chat__seen-popover" role="status">
             <strong>Lecturas</strong>
             <span v-if="!seenNames(message).length">Todavía nadie lo ha visto</span>
             <span v-for="name in seenNames(message)" :key="name">✓ {{ name }}</span>
           </div>
         </article>
-        <button class="team-chat__reply-action" type="button"
-          :title="'Responder a ' + displayName(message)"
-          :aria-label="'Responder al mensaje de ' + displayName(message)"
-          @click="replyToMessage(message)">↩</button>
+        <div class="team-chat__actions">
+          <button class="team-chat__reply-action" type="button"
+            :title="'Responder a ' + displayName(message)"
+            :aria-label="'Responder al mensaje de ' + displayName(message)"
+            @click="replyToMessage(message)">↩</button>
+          <button class="team-chat__reply-action" type="button"
+            :aria-expanded="reactionPickerId === message.id"
+            :aria-label="'Reaccionar al mensaje de ' + displayName(message)"
+            title="Reaccionar" :disabled="status !== 'En línea'"
+            @click="toggleReactionPicker(message.id)">☺</button>
+          <div v-if="reactionPickerId === message.id" class="team-chat__reaction-picker"
+            role="group" aria-label="Elegir reacción">
+            <button v-for="emoji in reactionChoices" :key="emoji" type="button"
+              :aria-label="'Reaccionar con ' + emoji"
+              @click="toggleReaction(message.id, emoji)">{{ emoji }}</button>
+          </div>
+        </div>
       </div>
       <div v-if="typingNames.length" class="team-chat__typing" role="status" aria-live="polite" aria-atomic="true">
         <span class="team-chat__typing-dots" aria-hidden="true"><i></i><i></i><i></i></span>
@@ -723,16 +753,23 @@ onUnmounted(() => {
     </div>
     <div v-if="outgoingImage" class="team-chat__media-preview" role="status">
       <img :src="outgoingImage.previewUrl" alt="Vista previa de imagen a enviar" />
-      <span>Imagen adjunta · podés agregar un texto</span>
+      <span>{{ outgoingImage.mode === 'sticker' ? 'Sticker con foto · mantiene transparencia si la imagen la tiene' : outgoingImage.mode === 'once' ? 'Foto para ver una vez · no se guarda en la galería del chat' : 'Imagen adjunta · podés agregar un texto' }}</span>
+      <button v-if="outgoingImage.mode !== 'sticker'" type="button"
+        class="team-chat__once-toggle" :aria-pressed="outgoingImage.mode === 'once'"
+        @click="toggleViewOnce">{{ outgoingImage.mode === 'once' ? '✓ Ver una vez' : '🔒 Ver una vez' }}</button>
       <button type="button" aria-label="Quitar imagen adjunta" title="Quitar imagen" @click="clearOutgoingImage">✕</button>
     </div>
     <form class="team-chat__composer" @submit.prevent="send">
       <input ref="imagePicker" type="file" class="sr-only" accept="image/jpeg,image/png,image/webp"
         aria-label="Seleccionar imagen para enviar" @change="chooseImage" />
       <button type="button" class="team-chat__attach" :disabled="status !== 'En línea' || mediaBusy || sending"
-        aria-label="Adjuntar imagen" title="Enviar imagen" @click="imagePicker?.click()">
+        aria-label="Adjuntar imagen" title="Enviar imagen" @click="pickImage('image')">
         <IconSymbol glyph="image" :size="19" />
       </button>
+      <button type="button" class="team-chat__attach team-chat__sticker-attach"
+        :disabled="status !== 'En línea' || mediaBusy || sending"
+        aria-label="Enviar foto como sticker" title="Adjuntar foto como sticker"
+        @click="pickImage('sticker')">▧</button>
       <label class="sr-only" for="team-chat-input">Escribir mensaje</label>
       <input id="team-chat-input" ref="input" v-model="draft" maxlength="500" autocomplete="off"
         placeholder="Escribí un mensaje al equipo…" :disabled="status !== 'En línea'"
@@ -744,6 +781,18 @@ onUnmounted(() => {
     <p v-if="error" class="team-chat__error" role="alert">{{ error }}</p>
     <p class="team-chat__foot">Solo administradores autenticados · {{ messages.length }} mensajes en este historial temporal.</p>
     </section>
+    <div v-if="imageViewer" class="team-chat__lightbox" role="dialog" aria-modal="true"
+      :aria-label="imageViewer.title" @click.self="closeViewer">
+      <div class="team-chat__lightbox-panel">
+        <div class="team-chat__lightbox-head">
+          <strong>{{ imageViewer.title }}</strong>
+          <button type="button" aria-label="Cerrar imagen" title="Cerrar imagen"
+            @click="closeViewer">✕</button>
+        </div>
+        <img :src="imageViewer.src" :alt="imageViewer.title" />
+        <p v-if="imageViewer.oneTime">Al cerrar, no vas a poder abrir esta foto otra vez desde tu cuenta. Las capturas de pantalla no se pueden impedir.</p>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -1268,4 +1317,121 @@ onUnmounted(() => {
   .team-chat__head-actions { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; }
   .team-chat__clear-button { min-height: 39px; }
 }
+
+/* Photo/sticker media stay in the chat, never in a new browser tab. */
+.team-chat__image-link { padding: 0; cursor: zoom-in; color: inherit; }
+.team-chat__image-link.is-sticker {
+  border: 0; background: transparent; border-radius: 0;
+  max-width: 180px;
+}
+.team-chat__shared-image.is-sticker {
+  max-width: min(100%, 174px); max-height: 174px;
+  object-fit: contain; background: transparent;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,.16));
+}
+.team-chat__bubble.is-sticker {
+  background: transparent; border-color: transparent;
+  box-shadow: none; padding: 6px 8px;
+  color: var(--chat-text);
+}
+.team-chat__bubble.is-sticker .team-chat__quoted { background: var(--chat-soft); }
+:global(html.theme-dark .administration-page .team-chat .team-chat__bubble.is-sticker) {
+  background: transparent !important; border-color: transparent !important;
+  color: #fff !important;
+}
+.team-chat__once-button {
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 8px; min-height: 72px; width: min(270px, 100%);
+  border: 1px dashed currentColor; border-radius: 13px;
+  background: var(--chat-soft); color: var(--chat-text);
+  padding: 12px 16px; font: inherit; font-size: 13px; font-weight: 700;
+  text-align: left; cursor: pointer;
+}
+.team-chat__once-button span:first-child { font-size: 25px; }
+.team-chat__once-button:disabled { opacity: .65; cursor: default; }
+.team-chat__bubble.is-own .team-chat__once-button {
+  background: rgba(255,255,255,.11); color: #fff;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__once-button) {
+  background: #261d26 !important; color: #fff !important;
+}
+.team-chat__lightbox {
+  position: fixed; inset: 0; z-index: 9999;
+  display: grid; place-items: center; padding: 15px;
+  background: rgba(4, 9, 23, .89);
+}
+.team-chat__lightbox-panel {
+  display: flex; flex-direction: column; gap: 12px;
+  max-width: min(100%, 950px); max-height: 95dvh; min-width: 0;
+  padding: 12px; border: 1px solid #475266; border-radius: 18px;
+  background: #141b29; color: #fff;
+}
+.team-chat__lightbox-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 2px 6px; font-size: 14px;
+}
+.team-chat__lightbox-head button {
+  border: 1px solid #526073; border-radius: 9px; padding: 7px 12px;
+  background: #303b4d; color: #fff; font: inherit; cursor: pointer;
+}
+.team-chat__lightbox-panel img {
+  display: block; max-width: 100%; max-height: calc(95dvh - 120px);
+  width: auto; height: auto; margin: 0 auto; object-fit: contain;
+}
+.team-chat__lightbox-panel p { margin: 0 6px 3px; color: #d5d9e4; font-size: 12px; }
+.team-chat__actions { position: relative; flex: 0 0 auto; display: flex; align-items: center; gap: 3px; }
+.team-chat__reaction-picker {
+  position: absolute; z-index: 10; bottom: calc(100% + 6px);
+  left: 0; display: flex; flex-wrap: wrap; width: max-content;
+  max-width: min(260px, 70vw); gap: 3px; padding: 7px;
+  border: 1px solid var(--chat-line); border-radius: 15px;
+  background: var(--chat-bg); box-shadow: 0 9px 24px rgba(0,0,0,.2);
+}
+.team-chat__reaction-picker button {
+  border: none; border-radius: 9px; width: 32px; height: 34px;
+  background: transparent; font-size: 20px; cursor: pointer;
+}
+.team-chat__reaction-picker button:hover, .team-chat__reaction-picker button:focus-visible {
+  background: var(--chat-soft); outline: 1px solid var(--chat-accent);
+}
+.team-chat__reactions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+.team-chat__reactions button {
+  border: 1px solid var(--chat-line); border-radius: 99px; padding: 3px 8px;
+  font: inherit; font-size: 12px; cursor: pointer;
+  color: var(--chat-text); background: var(--chat-soft);
+}
+.team-chat__reactions button.is-mine { border-color: var(--chat-accent); }
+.team-chat__reactions button:disabled { cursor: default; }
+.team-chat__reactions span { margin-left: 3px; font-size: 11px; }
+.team-chat__bubble.is-own .team-chat__reactions button {
+  background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.4); color: #fff;
+}
+.team-chat__media-preview .team-chat__once-toggle {
+  width: auto; height: auto; padding: 8px 10px;
+  font-size: 11px; font-weight: 750;
+}
+.team-chat__media-preview .team-chat__once-toggle[aria-pressed="true"] {
+  background: var(--chat-accent); color: #fff;
+}
+.team-chat__composer .team-chat__sticker-attach { font-size: 25px; font-weight: 800; }
+:global(html.theme-dark .administration-page .team-chat .team-chat__reaction-picker) {
+  background: #211b20 !important; border-color: #565057 !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__reaction-picker button),
+:global(html.theme-dark .administration-page .team-chat .team-chat__reactions button) {
+  color: #fff !important; background: #352b35 !important;
+}
+:global(html.theme-dark .administration-page .team-chat .team-chat__media-preview .team-chat__once-toggle[aria-pressed="true"]) {
+  background: #c51b3c !important; color: #fff !important;
+}
+@media (hover: none), (pointer: coarse) {
+  .team-chat__actions .team-chat__reply-action { opacity: 1; transform: none; }
+}
+@media (max-width: 600px) {
+  .team-chat__actions { gap: 0; }
+  .team-chat__actions .team-chat__reply-action { width: 26px; height: 28px; font-size: 17px; }
+  .team-chat__media-preview { flex-wrap: wrap; }
+  .team-chat__lightbox-panel img { max-height: calc(90dvh - 125px); }
+}
+
 </style>
