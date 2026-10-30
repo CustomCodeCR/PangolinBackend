@@ -399,13 +399,13 @@ onMounted(load)
         </div>
         <div class="visual-editor__featured-reel-header-actions">
           <a href="/home#instagram" target="_blank" rel="noopener noreferrer">Ver Home ↗</a>
-          <button type="button" class="visual-editor__collapse-toggle"
+        </div>
+        <button type="button" class="visual-editor__collapse-toggle"
             :aria-expanded="featuredReelExpanded" aria-controls="featured-reel-content"
             :aria-label="featuredReelExpanded ? 'Contraer videos de redes sociales' : 'Expandir videos de redes sociales'"
             @click="featuredReelExpanded = !featuredReelExpanded">
             <ChevronDown :size="18" :stroke-width="2" class="visual-editor__collapse-icon" aria-hidden="true" />
-          </button>
-        </div>
+        </button>
       </header>
       <div v-show="featuredReelExpanded" id="featured-reel-content">
       <form class="visual-editor__featured-reel-form" @submit.prevent="saveFeaturedReel">
@@ -610,7 +610,9 @@ html.theme-dark .visual-editor__featured-reel :is(header>a,.visual-editor__featu
 .visual-editor__context a{color:#a50c2c;text-decoration:underline;font-weight:700}
 .visual-editor__filters{display:flex;gap:5px;flex-wrap:wrap}
 .visual-editor__filters button{padding:8px 9px;border-radius:9px;border:1px solid #d4d7df;background:#fafafa;color:#25252a;cursor:pointer;font-weight:700;font-size:11px}
-.visual-editor__filters button.active{color:#fff;background:#a60b29;border-color:#a60b29}
+.visual-editor__filters button.active{color:#a60b29;background:#fff3f5;border-color:#d91643}
+/* La regla de botones de ubicaciones no debe blanquear el texto del filtro activo. */
+.visual-editor .visual-editor__locations .visual-editor__filters button.active{color:#a60b29;background:#fff3f5;border-color:#d91643}
 .visual-editor :is(.visual-editor__pages button,.visual-editor__filters button,.visual-editor__locations button,.visual-editor__button){transition:background-color .18s ease,color .18s ease,border-color .18s ease}
 .visual-editor :is(.visual-editor__pages button,.visual-editor__filters button,.visual-editor__locations button,.visual-editor__button):focus-visible,
 .visual-editor :is(input,select,textarea):focus-visible{outline:2px solid #a80e18;outline-offset:2px}
@@ -790,6 +792,11 @@ html.theme-dark .app-site.administration-page .visual-editor .visual-editor__lib
   background-color: #060f21 !important;
 }
 
+/* Mantener el control de expansión fijo en la esquina sin alterar el enlace Ver Home. */
+.visual-editor__featured-reel > header { position: relative; padding-right: 48px; }
+.visual-editor__featured-reel > header > .visual-editor__collapse-toggle {
+  position: absolute; top: 0; right: 0;
+}
 /* Compactar únicamente el panel de Reel dentro del editor visual. */
 .visual-editor__featured-reel-header-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .visual-editor__featured-reel .visual-editor__collapse-toggle {
