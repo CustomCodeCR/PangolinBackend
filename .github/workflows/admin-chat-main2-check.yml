@@ -160,5 +160,26 @@ jobs:
           check(chat.includes('team-chat__emoji-grid') && chat.includes('SmilePlus') &&
                 chat.includes('scrollBottom()'), 'Emoji picker or auto-scroll missing')
                     check(manager.includes("section !== 'users' && section !== 'chat'"), 'Chat must not render multimedia form')
+          check(hub.includes('"🦞", "🏳️‍🌈"') &&
+                chat.includes("'🦞', '🏳️‍🌈'"),
+            'Both new reaction emojis must be accepted by backend and frontend')
+          check(hub.includes('ReactionNames[identity.UsuarioId]') &&
+                hub.includes('new ChatReaction(entry.Key, ids,') &&
+                hub.includes('string[] UserNames'),
+            'Reaction identities must be validated and broadcast by the server')
+          check(chat.includes('showReactionUsers') && chat.includes('reactorNames') &&
+                chat.includes('team-chat__reactors'),
+            'The reaction count must reveal who reacted on desktop and mobile')
+          check(chat.includes("list.value?.addEventListener('wheel', trapChatWheel") &&
+                !chat.includes("chatPanel.value?.addEventListener('wheel', trapChatWheel") &&
+                chat.includes("list.value?.removeEventListener('wheel', trapChatWheel"),
+            'Only the message viewport may trap page scrolling')
+          check(chat.includes('@wheel="scrollEmojiTray"') &&
+                chat.includes('emojiGrid.value.scrollTop +='),
+            'The reaction picker must scroll internally')
+          check(chat.includes('@paste="onComposerPaste"') &&
+                chat.includes('event.clipboardData?.items') &&
+                chat.includes('compressImage(file, 1200, 800_000)'),
+            'Paste-to-attach image support is missing')
           console.log('Admin team chat UI and permissions contracts OK')
           NODE
