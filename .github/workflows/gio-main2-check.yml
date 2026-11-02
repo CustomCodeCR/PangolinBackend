@@ -6,6 +6,7 @@ on:
       - "frontend/src/components/GioOperations.vue"
       - "frontend/src/components/AssistantBot.vue"
       - "frontend/src/services/auth.ts"
+      - "frontend/scripts/smoke-gio-workflows.cjs"
       - ".github/workflows/gio-main2-check.yml"
   workflow_dispatch:
 
@@ -31,3 +32,5 @@ jobs:
         run: node frontend/scripts/test-frontend-merge.cjs
       - name: Run Chrome route smoke checks
         run: node frontend/scripts/smoke-browser.cjs
+      - name: Exercise real GIO actions with a fake backend in Chrome
+        run: node frontend/scripts/smoke-gio-workflows.cjs
