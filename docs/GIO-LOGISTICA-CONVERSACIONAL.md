@@ -12,6 +12,14 @@ El componente \`AssistantBot.vue\` conserva sus respuestas informativas y muestr
 
 Los tres primeros inician \`GioOperations.vue\`, cargado de forma diferida para no penalizar el arranque del sitio. Se admiten español e inglés y una detección prudente de solicitudes por texto libre.
 
+## Confirmaciones, catálogos y ventana ajustable
+
+- Las respuestas de escritura libre se muestran nuevamente con **«Sí, continuar»** y **«No, corregir»** antes de avanzar. Los datos inferidos del mensaje inicial también se confirman y pueden corregirse. Las opciones seleccionables explícitas no necesitan una segunda interpretación de IA.
+- Origen, destino y POD de cotizaciones no aceptan texto libre como ubicación definitiva. El visitante busca y **selecciona una opción real y activa** de `GET /api/assistant/quote-locations`. Este endpoint público es de solo lectura, limitado por IP, devuelve únicamente ubicaciones del catálogo habilitadas para el tipo y rol, y excluye códigos de desarrollo `DEV-`. La creación sigue protegida por sesión y validaciones de `POST /api/quotes/official`.
+- En itinerarios el origen y el destino provienen de `GET /api/assistant/itinerary-locations`, que exige sesión. Los destinos se filtran por el origen elegido; la búsqueda final sigue verificándose contra itinerarios existentes.
+- No se envía una cotización al corregir una ubicación durante la revisión: se vuelve al resumen para que el cliente presione otra vez **Confirmar y enviar**.
+- La ventana de GIO dispone de tamaños **compacto (tamaño original), mediano y grande** en escritorio. Los controles respetan el ancho/alto disponible y en dispositivos móviles permanece el panel de pantalla completa. La tarjeta de resumen aprovecha más columnas en la vista amplia.
+
 ## Cotizaciones
 
 - El visitante puede preparar el borrador paso por paso sin iniciar sesión.
