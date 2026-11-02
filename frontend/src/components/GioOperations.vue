@@ -11,7 +11,7 @@ type Location = { id: string; displayName: string; code: string | null }
 type Itinerary = { id: string; pol: string; pod: string; etd: string; eta: string; status: string; transport: string; modality: string }
 type Shipment = { title?: string | null; status?: string | null; origin?: string | null; destination?: string | null; etd?: string | null; eta?: string | null; customerStatus?: string | null; vessel?: string | null; bcf?: string | null; updatedAtUtc?: string | null }
 
-const props = defineProps<{ kind: Kind; language: 'es' | 'en' }>()
+const props = defineProps<{ kind: Kind; language: 'es' | 'en'; initialQuestion?: string }>()
 const emit = defineEmits<{ back: [] }>()
 const tr = (es: string, en: string) => props.language === 'en' ? en : es
 const values = reactive<Record<string, string>>({})
@@ -34,6 +34,7 @@ const shipments = ref<Shipment[]>([])
 const shipmentTruncated = ref(false)
 const restrictedTracking = ref(false)
 const STORAGE_KEY = 'gcf-gio-quote-draft-v1'
+const prefilled = ref(false)
 const i = (es: string, en: string) => tr(es, en)
 const modes: Choice[] = [{value:'Maritime',label:i('Marítimo','Ocean')},{value:'Air',label:i('Aéreo','Air')},{value:'Land',label:i('Terrestre','Ground')}]
 const terms = 'EXW FCA FAS FOB CFR CIF CPT CIP DAP DPU DDP'.split(' ').map(value => ({value,label:value}))
@@ -153,6 +154,7 @@ function accept(value = input.value) {
   values[item.key] = v
   history.value.push({question:item.prompt,answer:item.choices?.find(choice => choice.value === v)?.label || v || tr('Omitido','Skipped')})
   stepIndex.value++
+  while (stepIndex.value < steps.value.length && values[steps.value[stepIndex.value].key]) stepIndex.value++
   input.value = ''
   if (stepIndex.value >= steps.value.length) phase.value = 'review'
   void scrollEnd()
@@ -174,18 +176,60 @@ function saveDraft() {
   if (props.kind !== 'quote') return
   try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({at:Date.now(),values:{...values}})) } catch { /* private browsing */ }
 }
+function applyInitialQuestion() {
+  const question = norm(props.initialQuestion || '')
+  if (!question || question.length > 800) return
+  const route = question.match(/\b(?:desde|de)\s+([a-z -]{3,60}?)\s+(?:hacia|hasta|a)\s+([a-z -]{3,60}?)(?=\s*(?:[,;.]|$)|\s+(?:con|para)\b)/)
+  if (route && route[1].trim() !== route[2].trim()) {
+    values.origin = route[1].trim()
+    values.destination = route[2].trim()
+  }
+  if (props.kind === 'quote') {
+    if (/\bfcl\b/.test(question)) { values.mode = 'Maritime'; values.shipmentType = 'FCL' }
+    else if (/\blcl\b/.test(question)) { values.mode = 'Maritime'; values.shipmentType = 'LCL' }
+    else if (/\bftl\b/.test(question)) { values.mode = 'Land'; values.shipmentType = 'FTL' }
+    else if (/\bltl\b/.test(question)) { values.mode = 'Land'; values.shipmentType = 'LTL' }
+    else if (/\b(aereo|aerea|air|airfreight)\b/.test(question)) { values.mode = 'Air'; values.shipmentType = 'AIR_LCL' }
+    else if (/\b(maritimo|maritima|ocean|oceanic)\b/.test(question)) values.mode = 'Maritime'
+    else if (/\b(terrestre|camion|ground|truck)\b/.test(question)) values.mode = 'Land'
+    const incoterm = question.match(/\b(exw|fca|fas|fob|cfr|cif|cpt|cip|dap|dpu|ddp)\b/)
+    if (incoterm) values.incoterm = incoterm[1].toUpperCase()
+    const day = question.match(/\b20\d{2}-\d{2}-\d{2}\b/)
+    if (day && validDate(day[0])) values.cargoReadyDate = day[0]
+    const size = question.match(/\b(20|40|45)\s*(?:pies|ft|hc|high cube)\b/)
+    if (size) values.equipmentSize = size[0]
+    const oneUnit = /\b(?:1|un|una|one)\s+(?:contenedor|container|camion|truck|furgon)\b/.test(question)
+    if (oneUnit) values.equipmentQuantity = '1'
+  }
+  if (props.kind === 'itinerary') {
+    if (/\b(maritimo|maritima|ocean)\b/.test(question)) values.transport = 'maritime'
+    else if (/\b(terrestre|ground)\b/.test(question)) values.transport = 'ground'
+    const day = question.match(/\b20\d{2}-\d{2}-\d{2}\b/)
+    if (day && validDate(day[0])) values.departure = day[0]
+  }
+  while (stepIndex.value < steps.value.length && values[steps.value[stepIndex.value].key]) stepIndex.value++
+  prefilled.value = stepIndex.value > 0
+  if (stepIndex.value >= steps.value.length) phase.value = 'review'
+}
 onMounted(() => {
-  if (props.kind !== 'quote') return
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY)
-    if (!raw) return
-    const saved = JSON.parse(raw) as {at:number;values:Record<string,string>}
-    if (Date.now() - saved.at > 30 * 60 * 1000) { sessionStorage.removeItem(STORAGE_KEY); return }
-    if (!saved.values || !['Maritime','Air','Land'].includes(saved.values.mode)) return
-    Object.assign(values, saved.values)
-    stepIndex.value = steps.value.length
-    phase.value = 'review'
-  } catch { /* invalid or disabled storage */ }
+  if (props.kind === 'quote') {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY)
+      if (raw) {
+        const saved = JSON.parse(raw) as {at:number;values:Record<string,string>}
+        if (Number.isFinite(saved.at) && Date.now() - saved.at >= 0 && Date.now() - saved.at <= 30 * 60 * 1000 &&
+            saved.values && ['Maritime','Air','Land'].includes(saved.values.mode)) {
+          Object.assign(values, saved.values)
+          stepIndex.value = steps.value.length
+          phase.value = 'review'
+          prefilled.value = true
+          return
+        }
+        sessionStorage.removeItem(STORAGE_KEY)
+      }
+    } catch { /* invalid or disabled storage */ }
+  }
+  applyInitialQuestion()
 })
 function loginLink(): string {
   return '/bienvenidos?next=' + encodeURIComponent(window.location.pathname + window.location.search)
@@ -307,6 +351,7 @@ async function perform() {
     </div>
     <div ref="scroller" class="gio-ops__scroll" aria-live="polite">
       <div class="gio-ops__bubble">{{ tr('Te ayudaré paso a paso. Puedes revisar todo antes de realizar la acción.','I will guide you step by step. You can review everything before taking action.') }}</div>
+      <div v-if="prefilled" class="gio-ops__bubble gio-ops__bubble--quiet">{{ tr('Tomé algunos datos de tu mensaje o borrador. Confírmalos en el resumen.','I picked up some details from your message or draft. Please review them in the summary.') }}</div>
       <div v-for="(item,index) in history.slice(-4)" :key="index" class="gio-ops__history">
         <div class="gio-ops__bubble gio-ops__bubble--quiet">{{ item.question }}</div>
         <div class="gio-ops__bubble gio-ops__bubble--answer">{{ item.answer }}</div>
