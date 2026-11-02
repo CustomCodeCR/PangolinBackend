@@ -20,6 +20,14 @@ Los tres primeros inician \`GioOperations.vue\`, cargado de forma diferida para 
 - No se envía una cotización al corregir una ubicación durante la revisión: se vuelve al resumen para que el cliente presione otra vez **Confirmar y enviar**.
 - La ventana de GIO dispone de tamaños **compacto (tamaño original), mediano y grande** en escritorio. Los controles respetan el ancho/alto disponible y en dispositivos móviles permanece el panel de pantalla completa. La tarjeta de resumen aprovecha más columnas en la vista amplia.
 
+## Revisión del catálogo y experiencia de entrada (PR #137)
+- **No mostrar códigos de importación** como `VIDEO-SEA-003`, `VID-LAND-01` o `DEV-*` a clientes. GIO muestra solo el nombre; no se presentan supuestos códigos UN/LOCODE/IATA sin una fuente oficial que los verifique.
+- **Sugerencias siempre visibles**: durante la selección de origen/destino/POD la lista se ancla en una zona con scroll propio inmediatamente encima del campo de búsqueda, fuera del scroll de conversación. El comportamiento se prueba en el tamaño compacto y en móvil.
+- **Opciones del cotizador oficial**: el catálogo de tamaños y tipos de equipo se mantiene en `frontend/src/lib/officialQuoteOptions.ts`, compartido entre `OfficialQuoteWizard.vue` y `GioOperations.vue`. Por ejemplo, FCL admite tamaños 20/40/45/48 pies y tipos Dry Van/High Cube/Open Top/Open Side/Tank/Flat Rack/NOR; FTL admite opciones de furgón. No se aceptan valores arbitrarios en estos campos.
+- **Los campos que el cotizador realmente permite escribir**, como descripción de mercancía, contacto o instrucciones EXW, siguen siendo texto, con límites y confirmación antes de pasar al siguiente paso. La validación técnica no puede certificar automáticamente la veracidad comercial de una descripción; la persona debe confirmarla.
+- **Después de enviar**: un administrador recibe un botón a `/administracion?tab=cotizaciones`, mientras el cliente recibe `/cotizaciones`. El servidor sigue aplicando la autorización correspondiente.
+- El flujo valida de nuevo los valores de borradores recuperados antes de permitir su envío. Las pruebas contemplan usuario cliente, administrador, rechazo de ubicaciones no habilitadas, códigos internos ocultos, tamaños del panel y selección de equipo.
+
 ## Cotizaciones
 
 - El visitante puede preparar el borrador paso por paso sin iniciar sesión.
