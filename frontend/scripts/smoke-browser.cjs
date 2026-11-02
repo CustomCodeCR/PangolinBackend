@@ -122,6 +122,14 @@ async function main() {
       for (const marker of scenario.must) {
         assert.ok(html.includes(marker), 'No se encontró "' + marker + '" en ' + scenario.url + ' (' + (activeRole || 'invitado') + '); DOM: ' + html.slice(-800))
       }
+      if (scenario.url === '/servicios' || scenario.url.startsWith('/servicios/')) {
+        assert.ok(html.includes('class="nav-dropdown nav-dropdown--services"') || html.includes('nav-dropdown--services'), 'No está el desplegable de Servicios en el encabezado: ' + scenario.url)
+        for (const slug of ['almacenamiento-fiscal', 'bodegaje-general', 'agenciamiento-aduanal', 'consolidadora-de-carga']) {
+          assert.ok(html.includes('href="/servicios/' + slug + '"'), 'No aparece el enlace de ' + slug + ' en el menú de Servicios')
+        }
+        assert.ok(!html.includes('services-page__guides'), 'La página debe conservar su diseño anterior, sin tarjetas nuevas')
+        assert.ok(!html.includes('service-landing-related'), 'Enlaces cruzados de servicios fuera del nav')
+      }
       assert.ok(sessionCalls > before, 'No se comprobó la sesión para ' + scenario.url)
       console.log('PASS navegador: ' + scenario.url + ' [' + (activeRole || 'invitado') + ']')
     }
