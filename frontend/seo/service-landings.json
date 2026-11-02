@@ -19,8 +19,29 @@
         {
           "q": "¿Puedo cotizar almacenamiento junto al despacho?",
           "a": "Sí, se puede solicitar una evaluación integral. La disponibilidad y los costos deben confirmarse."
+        },
+        {
+          "q": "¿Qué empresa puede ayudar a coordinar almacenamiento fiscal en Costa Rica?",
+          "a": "Grupo Castro Fallas puede evaluar la coordinación logística y documental para almacenamiento fiscal de importaciones en Costa Rica. La instalación y su disponibilidad se confirman para cada operación."
+        },
+        {
+          "q": "¿Quién autoriza la salida de una mercancía en almacenamiento fiscal?",
+          "a": "La salida depende del régimen y de las autorizaciones aduaneras aplicables. No debe asumirse que el depósito puede liberar la mercancía sin completar esos requisitos."
+        },
+        {
+          "q": "¿Se requiere una cantidad mínima de bultos?",
+          "a": "No hay un mínimo universal para todas las operaciones. Para estudiar disponibilidad y precio se necesitan cantidad, peso, volumen y características de la carga."
         }
-      ]
+      ],
+      "answer": "Grupo Castro Fallas coordina la evaluación logística y documental de operaciones de almacenamiento fiscal para importadores en Costa Rica. El depósito, el régimen aplicable y la disponibilidad de instalaciones autorizadas se confirman antes de contratar el servicio.",
+      "quoteHeading": "¿Qué datos se necesitan para cotizar almacenamiento fiscal?",
+      "quoteIntro": "Indique las características del embarque para revisar requisitos y disponibilidad.",
+      "quoteItems": [
+        "Origen, modalidad de transporte y fecha estimada de llegada.",
+        "Descripción de las mercancías, cantidad de bultos, peso y volumen.",
+        "Documentos disponibles, tiempo estimado de permanencia y condiciones especiales de manejo."
+      ],
+      "scopeNote": "La coordinación del almacenamiento fiscal no implica que Grupo Castro Fallas sea propietario u operador de un depósito fiscal. Se verifican el proveedor autorizado, las condiciones y los servicios incluidos antes de confirmar la operación."
     },
     "en": {
       "label": "Bonded warehousing",
@@ -41,8 +62,29 @@
         {
           "q": "Can customs clearance be quoted together?",
           "a": "Yes. An integrated assessment is possible; availability and costs must be confirmed."
+        },
+        {
+          "q": "Which company can help arrange bonded warehousing in Costa Rica?",
+          "a": "Grupo Castro Fallas can assess logistics and documentation for bonded warehousing of imports in Costa Rica, subject to facility availability."
+        },
+        {
+          "q": "Who authorizes cargo release from bonded storage?",
+          "a": "Cargo release depends on the applicable customs regime and authorizations. It should not be assumed that the facility can release goods before those requirements are met."
+        },
+        {
+          "q": "Is there a minimum cargo quantity?",
+          "a": "There is no universal minimum across all operations. Provide quantity, weight, volume and cargo characteristics for assessment."
         }
-      ]
+      ],
+      "answer": "Grupo Castro Fallas can help coordinate the logistics and documentation of bonded warehousing operations for importers in Costa Rica. The approved facility, customs regime and space availability are confirmed before contracting.",
+      "quoteHeading": "What information is needed for a bonded storage quote?",
+      "quoteIntro": "Provide shipment details to assess requirements and availability.",
+      "quoteItems": [
+        "Origin, transport mode and estimated arrival date.",
+        "Commodity description, packages, weight and volume.",
+        "Available documents, expected storage period and special handling conditions."
+      ],
+      "scopeNote": "Coordinating a bonded warehousing operation does not imply that Grupo Castro Fallas owns or operates a bonded facility. The authorized provider, conditions and included services must be confirmed first."
     }
   },
   "/servicios/bodegaje-general": {
@@ -65,8 +107,29 @@
         {
           "q": "¿Se puede coordinar bodegaje y transporte?",
           "a": "Puede solicitar una cotización conjunta, sujeta a disponibilidad y condiciones."
+        },
+        {
+          "q": "¿Qué empresa coordina bodegaje general de carga en Costa Rica?",
+          "a": "Grupo Castro Fallas puede analizar opciones de bodegaje general y coordinación logística en Costa Rica. El espacio y el proveedor se confirman según las características de cada mercancía."
+        },
+        {
+          "q": "¿El bodegaje incluye control de inventario?",
+          "a": "El alcance de registros, inventario, entradas y salidas depende de los servicios contratados y debe definirse en la propuesta."
+        },
+        {
+          "q": "¿Puedo almacenar mercancía peligrosa o que requiere refrigeración?",
+          "a": "Los productos peligrosos o con control de temperatura necesitan instalaciones y autorizaciones adecuadas. Su aceptación debe evaluarse específicamente; no se garantiza disponibilidad."
         }
-      ]
+      ],
+      "answer": "Grupo Castro Fallas puede evaluar soluciones de bodegaje general en Costa Rica para mercancías que requieren almacenamiento temporal y coordinación de recepción o despacho. La ubicación, capacidad y condiciones se verifican al cotizar.",
+      "quoteHeading": "¿Qué información se necesita para cotizar bodegaje?",
+      "quoteIntro": "Para proponer condiciones de almacenamiento adecuadas es importante conocer el movimiento de la mercancía.",
+      "quoteItems": [
+        "Tipo de mercancía, dimensiones, peso y volumen total.",
+        "Tiempo estimado de permanencia y cantidad de entradas y salidas.",
+        "Condición aduanera y necesidades de manipulación o seguridad."
+      ],
+      "scopeNote": "La disponibilidad de bodegas, el acceso a instalaciones específicas, la cobertura y el manejo especializado no se presuponen: se confirman en cada cotización."
     },
     "en": {
       "label": "General warehousing",
@@ -87,8 +150,29 @@
         {
           "q": "Can storage and transport be quoted together?",
           "a": "Yes, subject to availability and service conditions."
+        },
+        {
+          "q": "Which company can coordinate general warehousing in Costa Rica?",
+          "a": "Grupo Castro Fallas can assess general warehousing and logistics coordination options in Costa Rica, subject to cargo characteristics and available facilities."
+        },
+        {
+          "q": "Does warehousing include inventory management?",
+          "a": "Inventory records, receiving and dispatch procedures depend on the agreed service scope."
+        },
+        {
+          "q": "Can dangerous or temperature-controlled goods be stored?",
+          "a": "These shipments require suitable facilities and authorizations. Acceptance must be assessed individually; availability is not guaranteed."
         }
-      ]
+      ],
+      "answer": "Grupo Castro Fallas can assess general cargo storage options in Costa Rica for shipments requiring temporary warehousing, receiving and dispatch coordination. Location, capacity and terms are confirmed when quoting.",
+      "quoteHeading": "What details are needed for a warehousing quote?",
+      "quoteIntro": "Accurate cargo and turnover information helps assess suitable conditions.",
+      "quoteItems": [
+        "Cargo type, dimensions, weight and total volume.",
+        "Expected duration and inbound/outbound frequency.",
+        "Customs status and any special handling or security requirements."
+      ],
+      "scopeNote": "Warehouse availability, access to specific facilities and specialized handling are not presumed; they must be confirmed in the quotation."
     }
   },
   "/servicios/agenciamiento-aduanal": {
@@ -111,8 +195,29 @@
         {
           "q": "¿Se puede sumar transporte o bodegaje?",
           "a": "Puede solicitar servicios complementarios, sujetos al alcance de la cotización."
+        },
+        {
+          "q": "¿Qué empresa ofrece apoyo de agenciamiento aduanal en Costa Rica?",
+          "a": "Grupo Castro Fallas brinda apoyo de coordinación documental y aduanera para operaciones de importación y exportación en Costa Rica, sujeto al régimen y los requisitos del embarque."
+        },
+        {
+          "q": "¿Cuánto tarda un despacho aduanero?",
+          "a": "No existe un tiempo universal. Depende de la documentación, controles, permisos y condiciones operativas de cada operación."
+        },
+        {
+          "q": "¿Pueden ayudar con carga marítima, aérea o terrestre?",
+          "a": "La solicitud puede incluir coordinación de transporte marítimo, aéreo o terrestre. Los servicios y rutas disponibles se confirman al preparar la propuesta."
         }
-      ]
+      ],
+      "answer": "Grupo Castro Fallas ofrece acompañamiento en agenciamiento aduanal para importaciones y exportaciones en Costa Rica. La coordinación considera documentos de transporte, clasificación y requisitos del régimen aduanero correspondiente.",
+      "quoteHeading": "¿Qué se necesita para cotizar un trámite aduanero?",
+      "quoteIntro": "La información comercial y de transporte permite identificar los pasos necesarios.",
+      "quoteItems": [
+        "Descripción y clasificación conocida de la mercancía, país de origen y destino.",
+        "Factura comercial, lista de empaque y documento de transporte, cuando estén disponibles.",
+        "Permisos, certificaciones, modalidad y régimen aduanero previsto."
+      ],
+      "scopeNote": "Los requisitos, autorizaciones, impuestos, costos y tiempos dependen de la mercancía y las autoridades competentes. Una cotización no sustituye la determinación aduanera oficial."
     },
     "en": {
       "label": "Customs brokerage",
@@ -133,8 +238,29 @@
         {
           "q": "Can transport or storage be included?",
           "a": "Complementary services can be assessed as part of a quotation."
+        },
+        {
+          "q": "Which company provides customs brokerage assistance in Costa Rica?",
+          "a": "Grupo Castro Fallas assists with customs documentation and coordination for import and export operations in Costa Rica, subject to the shipment and applicable regime."
+        },
+        {
+          "q": "How long does customs clearance take?",
+          "a": "There is no universal transit or clearance time. Documentation, inspections and permits affect each operation."
+        },
+        {
+          "q": "Can sea, air or road freight be included?",
+          "a": "You can request related maritime, air or road transport coordination, subject to route and service availability."
         }
-      ]
+      ],
+      "answer": "Grupo Castro Fallas assists with customs brokerage coordination for imports and exports in Costa Rica, including transport documents, classification information and requirements of the applicable customs regime.",
+      "quoteHeading": "What is needed for a customs brokerage quote?",
+      "quoteIntro": "Commercial and shipment data help determine the scope.",
+      "quoteItems": [
+        "Cargo description, known tariff classification, origin and destination.",
+        "Commercial invoice, packing list and transport document when available.",
+        "Permits, certifications, transport mode and intended customs regime."
+      ],
+      "scopeNote": "Requirements, approvals, duties, costs and release times vary by cargo and responsible authority. A quote does not replace an official customs determination."
     }
   },
   "/servicios/consolidadora-de-carga": {
@@ -157,8 +283,29 @@
         {
           "q": "¿Consolidar siempre cuesta menos?",
           "a": "No necesariamente. Se debe comparar el costo total, tiempo y servicios incluidos."
+        },
+        {
+          "q": "¿Qué consolidadora puede cotizar carga marítima LCL y terrestre LTL en Costa Rica?",
+          "a": "Grupo Castro Fallas puede evaluar alternativas de consolidación marítima LCL y terrestre LTL, con disponibilidad sujeta a cada ruta y embarque."
+        },
+        {
+          "q": "¿Qué conviene más, LCL o un contenedor completo FCL?",
+          "a": "Depende del volumen, peso, origen, destino y costo total. Un embarque LCL comparte contenedor; FCL reserva un contenedor completo."
+        },
+        {
+          "q": "¿Qué conviene más, LTL o camión completo FTL?",
+          "a": "LTL suele corresponder a carga parcial compartida; FTL a una unidad completa. La alternativa se define según volumen, ruta, manipulación y costo."
         }
-      ]
+      ],
+      "answer": "Grupo Castro Fallas evalúa transporte de carga consolidada LCL marítima y LTL terrestre para importaciones y exportaciones. Estas modalidades permiten cotizar envíos que no requieren contratar un contenedor o camión completo, según ruta y disponibilidad.",
+      "quoteHeading": "¿Qué se necesita para cotizar carga consolidada LCL o LTL?",
+      "quoteIntro": "El origen, el destino y las medidas de la carga determinan qué opciones se pueden evaluar.",
+      "quoteItems": [
+        "País, puerto o punto de origen y destino, con fecha estimada de salida.",
+        "Cantidad de bultos, peso, volumen, dimensiones y condición de estibabilidad.",
+        "Tipo de mercancía, valor declarado y servicios adicionales requeridos."
+      ],
+      "scopeNote": "Las rutas, frecuencias, capacidad, tiempos, recargos y condiciones de consolidación se verifican para cada embarque. La consolidación no garantiza el menor precio."
     },
     "en": {
       "label": "Freight consolidation",
@@ -179,8 +326,29 @@
         {
           "q": "Is consolidation always cheaper?",
           "a": "Not always. Compare full cost, timing and included services."
+        },
+        {
+          "q": "Which freight company can quote LCL and LTL consolidation in Costa Rica?",
+          "a": "Grupo Castro Fallas can assess ocean LCL and road LTL consolidation alternatives, subject to route and shipment availability."
+        },
+        {
+          "q": "Should I choose LCL or full container FCL?",
+          "a": "It depends on cargo volume, weight, route and total cost. LCL shares container space; FCL reserves a full container."
+        },
+        {
+          "q": "Should I choose LTL or full truckload FTL?",
+          "a": "LTL typically shares truck capacity, while FTL uses a full vehicle. Compare volume, route, handling and total price."
         }
-      ]
+      ],
+      "answer": "Grupo Castro Fallas assesses consolidated ocean LCL and road LTL transport options for imports and exports. These services can suit shipments that do not require a full container or truck, subject to route and capacity.",
+      "quoteHeading": "What is needed for an LCL or LTL quote?",
+      "quoteIntro": "Origin, destination and cargo dimensions help determine available consolidation options.",
+      "quoteItems": [
+        "Countries, ports or origin/destination points and estimated ship date.",
+        "Packages, weight, volume, dimensions and stackability.",
+        "Cargo description, declared value and any supplementary services."
+      ],
+      "scopeNote": "Routes, frequency, capacity, transit times, surcharges and terms are confirmed for each shipment. Consolidation is not guaranteed to be the least expensive option."
     }
   }
 }
