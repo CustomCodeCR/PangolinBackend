@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Bot, CalendarDays, FileText, Headphones, Send, Ship, X } from '@lucide/vue'
+import { Bot, CalendarDays, FileText, Headphones, Maximize2, Minimize2, Send, Ship, X } from '@lucide/vue'
 const GioOperations = defineAsyncComponent(() => import('./GioOperations.vue'))
 
 type Message = { id: number; role: 'bot' | 'visitor'; text: string; href?: string; linkText?: string }
@@ -65,6 +65,8 @@ const sending = ref(false)
 const quickIcons = [FileText, Ship, CalendarDays, Headphones]
 type OperationKind = 'quote' | 'tracking' | 'itinerary'
 const activeOperation = ref<OperationKind | null>(null)
+const panelSize = ref<0 | 1 | 2>(0)
+function adjustPanel(delta: -1 | 1) { panelSize.value = Math.max(0, Math.min(2, panelSize.value + delta)) as 0 | 1 | 2 }
 const operationInitial = ref('')
 function handleQuick(index: number, suggestion: string) {
   operationInitial.value = ''
@@ -202,11 +204,15 @@ function finishClose() { isClosing.value = false }
 <template>
   <aside ref="assistantRoot" class="site-assistant" :class="{ 'site-assistant--open': isOpen || isClosing, 'site-assistant--settled': panelSettled, 'site-assistant--closing': isClosing }" aria-label="GIO, asistente logístico">
     <Transition name="gio-water" :duration="{ enter: 940, leave: 160 }" @after-enter="finishOpen" @after-leave="finishClose">
-    <section v-if="isOpen" class="site-assistant__panel" :class="{ 'site-assistant__panel--workflow': activeOperation }" role="dialog" aria-modal="true" aria-label="Conversación con GIO" @keydown.esc="closePanel">
+    <section v-if="isOpen" class="site-assistant__panel"  :class="{ 'site-assistant__panel--workflow': activeOperation, 'site-assistant__panel--medium': panelSize === 1, 'site-assistant__panel--wide': panelSize === 2 }" role="dialog" aria-modal="true" aria-label="Conversación con GIO" @keydown.esc="closePanel">
       <header class="site-assistant__header">
         <span class="site-assistant__header-icon"><Bot :size="20" aria-hidden="true" /></span>
         <span class="site-assistant__heading"><strong>{{ copy.title }}</strong><small><i></i>{{ copy.status }}</small></span>
         <button v-if="!activeOperation && messages.length > 1" class="site-assistant__menu" type="button" @click="showMenu">{{ isEnglish ? 'Menu' : 'Menú' }}</button>
+        <div class="site-assistant__resize" :aria-label="isEnglish ? 'Window size' : 'Tamaño de la ventana'">
+          <button v-if="panelSize > 0" type="button" :aria-label="isEnglish ? 'Shrink GIO window' : 'Encoger ventana de GIO'" :title="isEnglish ? 'Shrink window' : 'Encoger ventana'" @click="adjustPanel(-1)"><Minimize2 :size="17" aria-hidden="true" /></button>
+          <button v-if="panelSize < 2" type="button" :aria-label="isEnglish ? 'Enlarge GIO window' : 'Agrandar ventana de GIO'" :title="isEnglish ? 'Enlarge window' : 'Agrandar ventana'" @click="adjustPanel(1)"><Maximize2 :size="17" aria-hidden="true" /></button>
+        </div>
         <button class="site-assistant__close" type="button" :aria-label="copy.close" @click="closePanel"><X :size="20" /></button>
       </header>
       <GioOperations v-if="activeOperation" :key="activeOperation" :kind="activeOperation" :language="isEnglish ? 'en' : 'es'" :initial-question="operationInitial" @back="activeOperation = null" />
@@ -245,5 +251,13 @@ function finishClose() { isClosing.value = false }
 .site-assistant__menu{border:1px solid var(--gio-line,#666);border-radius:9px;background:var(--gio-action,transparent);color:var(--gio-ink,#fff);padding:7px 10px;font-size:11px;cursor:pointer}
 .site-assistant__menu:hover{border-color:#b20c2a}
 .site-assistant__panel--workflow{height:min(68vh,520px)}
-@media(max-width:800px){.site-assistant__panel--workflow{height:100dvh;max-height:none}}
+.site-assistant__panel--medium{width:min(520px,calc(100vw - 28px));height:min(76vh,650px);max-height:min(76vh,650px)}
+.site-assistant__panel--wide{width:min(760px,calc(100vw - 28px));height:min(86vh,800px);max-height:min(86vh,800px)}
+.site-assistant__resize{display:flex;align-items:center;gap:5px;flex:0 0 auto}
+.site-assistant__resize button{display:grid;place-items:center;width:32px;height:32px;border:1px solid var(--gio-line,#666);border-radius:9px;background:transparent;color:var(--gio-ink,#fff);cursor:pointer}
+.site-assistant__resize button:hover,.site-assistant__resize button:focus-visible{border-color:#c51e42;outline-offset:2px}
+.site-assistant__panel--medium :deep(.gio-ops__card dl){grid-template-columns:repeat(2,minmax(0,1fr))}
+.site-assistant__panel--wide :deep(.gio-ops__card dl){grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:800px){.site-assistant__panel--workflow{height:100dvh;max-height:none}.site-assistant__resize{display:none}.site-assistant__panel--medium,.site-assistant__panel--wide{width:100%;height:100dvh;max-height:none}}
+
 </style>
