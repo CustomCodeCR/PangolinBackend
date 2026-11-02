@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Bot, Headphones, PackageSearch, Send, Ship, Warehouse, X } from '@lucide/vue'
+import { Bot, CalendarDays, FileText, Headphones, Send, Ship, X } from '@lucide/vue'
+import GioOperations from './GioOperations.vue'
 
 type Message = { id: number; role: 'bot' | 'visitor'; text: string; href?: string; linkText?: string }
 const { locale } = useI18n({ useScope: 'global' })
@@ -9,7 +10,7 @@ const isEnglish = computed(() => locale.value.toLowerCase().startsWith('en'))
 const copy = computed(() => isEnglish.value ? {
   title: 'GIO', subtitle: 'Virtual assistant · Grupo Castro Fallas', greeting: 'Hi! I can help you find services, tracking, quotes or contact details. Try a keyword.',
   placeholder: 'Write a question…', send: 'Send', close: 'Close assistant', open: 'Open logistics assistant',
-  quick: ['Get a transport quote', 'Track a shipment', 'Logistics services', 'Contact an advisor'],
+  quick: ['Request a quote', 'Check my shipment', 'Find itineraries', 'Services and contact'],
   quote: 'To request a quote, sign in with an authorized account and open the quote form. Include origin, destination, transport mode, cargo description, weight, dimensions and target dates so the team can review the operation. The final price and availability are confirmed by Castro Fallas.',
   tracking: 'The tracking page is available, but the site currently identifies it as a demonstration; it does not confirm live shipment status. For an active shipment update, contact the Castro Fallas team with your reference number.',
   service: 'Castro Fallas presents air, ocean, ground and multimodal transport, along with customs and logistics support. The right option depends on the route, cargo, timing and handling needs. The team can assess your operation and confirm the available service.',
@@ -33,7 +34,7 @@ const copy = computed(() => isEnglish.value ? {
 } : {
   title: 'GIO', subtitle: 'Asistente virtual · Grupo Castro Fallas', greeting: '¡Hola! Puedo ofrecer información sobre servicios, seguimiento, cotizaciones y contacto. Escribe una palabra clave.',
   placeholder: 'Escribe tu consulta…', send: 'Enviar', close: 'Cerrar asistente', open: 'Abrir asistente logístico',
-  quick: ['Cotizar transporte', 'Rastrear carga', 'Servicios logísticos', 'Contactar a un asesor'],
+  quick: ['Solicitar cotización', 'Consultar mi embarque', 'Buscar itinerarios', 'Servicios y contacto'],
   quote: 'Para solicitar una cotización, ingresa con una cuenta autorizada y abre el formulario. Incluye origen, destino, modalidad, descripción de la carga, peso, dimensiones y fechas previstas para que el equipo revise la operación. Castro Fallas confirma el precio final y la disponibilidad.',
   tracking: 'La página de seguimiento está disponible como demostración y no confirma el estado en tiempo real de un embarque. Para consultar una operación activa, contacta a Castro Fallas con el número de referencia: comercial@castrofallas.com o +506 2272-6772.',
   service: 'Castro Fallas presenta transporte aéreo, marítimo, terrestre y multimodal, además de apoyo aduanero y logístico. La opción adecuada depende de la ruta, la carga, el plazo y las necesidades de manejo. El equipo puede revisar tu operación y confirmar el servicio disponible.',
@@ -61,7 +62,24 @@ const isClosing = ref(false)
 const panelSettled = ref(false)
 const draft = ref('')
 const sending = ref(false)
-const quickIcons = [Ship, PackageSearch, Warehouse, Headphones]
+const quickIcons = [FileText, Ship, CalendarDays, Headphones]
+type OperationKind = 'quote' | 'tracking' | 'itinerary'
+const activeOperation = ref<OperationKind | null>(null)
+function handleQuick(index: number, suggestion: string) {
+  if (index === 0) activeOperation.value = 'quote'
+  else if (index === 1) activeOperation.value = 'tracking'
+  else if (index === 2) activeOperation.value = 'itinerary'
+  else void sendMessage(suggestion)
+}
+function operationFromMessage(question: string): OperationKind | null {
+  const text = clean(question)
+  const wantsAction = /\b(quiero|necesito|puedes|podrias|ayudame|deseo|hacer|solicitar|buscar|consultar|rastrear|cotizar|registrar|preparar|check|find|track|request|quote|need|want|look up|search|submit)\b/.test(text)
+  if (!wantsAction) return null
+  if (/\b(cotiz|cotizar|cotizacion|cotizaciones|quote|tarifa)\w*/.test(text)) return 'quote'
+  if (/\b(embarque|carga|shipment|rastrear|tracking)\w*/.test(text) && /\b(consultar|buscar|rastrear|tracking|track|check|estado|status|ver|where|find)\w*/.test(text)) return 'tracking'
+  if (/\b(itinerario|itinerarios|sailing|schedule)\w*/.test(text)) return 'itinerary'
+  return null
+}
 let nextId = 1
 const messages = ref<Message[]>([])
 
@@ -116,6 +134,8 @@ function answerFor(question: string): Omit<Message, 'id' | 'role'> {
 async function sendMessage(value = draft.value) {
   const question = value.trim()
   if (!question || sending.value) return
+  const operation = operationFromMessage(question)
+  if (operation) { activeOperation.value = operation; draft.value = ''; return }
   const history = messages.value.slice(-4).map(message => ({ role: message.role, content: message.text.slice(0, 500) }))
   messages.value.push({ id: nextId++, role: 'visitor', text: question })
   draft.value = ''
@@ -179,14 +199,16 @@ function finishClose() { isClosing.value = false }
         <span class="site-assistant__heading"><strong>{{ copy.title }}</strong><small><i></i>{{ copy.status }}</small></span>
         <button class="site-assistant__close" type="button" :aria-label="copy.close" @click="closePanel"><X :size="20" /></button>
       </header>
+      <GioOperations v-if="activeOperation" :key="activeOperation" :kind="activeOperation" :language="isEnglish ? 'en' : 'es'" @back="activeOperation = null" />
+      <template v-else>
       <div class="site-assistant__messages" aria-live="polite">
         <div v-for="message in messages" :key="message.id" class="site-assistant__message" :class="`site-assistant__message--${message.role}`">
           <p>{{ message.text }}</p>
           <a v-if="message.href" :href="message.href">{{ message.linkText }} <span aria-hidden="true">↗</span></a>
         </div>
       </div>
-      <div class="site-assistant__quick" :aria-label="isEnglish ? 'Suggested questions' : 'Consultas sugeridas'">
-        <button v-for="(suggestion, index) in copy.quick" :key="suggestion" type="button" :disabled="sending" @click="sendMessage(suggestion)">
+      <div v-if="messages.length <= 1" class="site-assistant__quick" :aria-label="isEnglish ? 'Suggested actions' : 'Acciones sugeridas'">
+        <button v-for="(suggestion, index) in copy.quick" :key="suggestion" type="button" :disabled="sending" @click="handleQuick(index, suggestion)">
           <component :is="quickIcons[index]" :size="21" aria-hidden="true" />
           <span>{{ suggestion }}</span>
         </button>
@@ -195,6 +217,7 @@ function finishClose() { isClosing.value = false }
         <input v-model="draft" maxlength="800" :placeholder="sending ? (isEnglish ? 'GIO is thinking…' : 'GIO está preparando una respuesta…') : copy.placeholder" :aria-label="copy.placeholder" :disabled="sending" />
         <button type="submit" :aria-label="copy.send" :disabled="!draft.trim() || sending"><Send :size="17" aria-hidden="true" /></button>
       </form>
+      </template>
     </section>
     </Transition>
 
