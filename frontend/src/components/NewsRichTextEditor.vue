@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { sanitizeNewsHtml } from '../lib/newsRichText'
 import FieldDropdown from './FieldDropdown.vue'
 
@@ -12,6 +12,8 @@ const selectedFont = ref('')
 const selectedStyle = ref('')
 const selectedSize = ref('')
 const openColors = ref<'foreColor'|'hiliteColor'|null>(null)
+const paletteTop = ref(0)
+const paletteLeft = ref(0)
 const customHex = ref('#c9211e')
 const recentColors = ref<string[]>([])
 // A compact, consistent palette: all lightness values are valid HSL percentages.
@@ -41,7 +43,27 @@ function applyColor(color:string) {
   recentColors.value=[color,...recentColors.value.filter(c=>c!==color)].slice(0,8)
   openColors.value=null
 }
-function toggleColors(kind:'foreColor'|'hiliteColor') {rememberSelection();openColors.value=openColors.value===kind?null:kind}
+function toggleColors(kind:'foreColor'|'hiliteColor', event: MouseEvent) {
+  rememberSelection()
+  if (openColors.value === kind) { openColors.value = null; return }
+  const button = event.currentTarget as HTMLElement
+  const toolbar = button.closest('.news-rich-editor__toolbar') as HTMLElement | null
+  if (toolbar) {
+    const toolbarRect = toolbar.getBoundingClientRect()
+    const rect = button.getBoundingClientRect()
+    paletteTop.value = rect.bottom - toolbarRect.top + 6
+    paletteLeft.value = Math.max(8, Math.min(rect.left - toolbarRect.left, toolbarRect.width - 396))
+  }
+  openColors.value = kind
+}
+function dismissPalette(event: PointerEvent) {
+  if (!openColors.value) return
+  if (event.target instanceof Element && event.target.closest('.news-rich-editor__palette, .news-rich-editor__color-trigger')) return
+  openColors.value = null
+}
+onMounted(() => document.addEventListener('pointerdown', dismissPalette, true))
+onUnmounted(() => document.removeEventListener('pointerdown', dismissPalette, true))
+watch(tab, () => { openColors.value = null })
 const previewHtml = computed(() => sanitizeNewsHtml(props.modelValue || ''))
 function setStyle(value: string) { selectedStyle.value=value; if(value) choose('formatBlock',value) }
 function setFont(value: string) { selectedFont.value=value; if(value) choose('fontName',value) }
@@ -124,10 +146,10 @@ function pastePlain(event: ClipboardEvent) {
       <template v-else-if="tab==='diseno'">
         <div class="news-rich-editor__fields">
           <div class="news-rich-editor__option"><span>Tamaño</span><FieldDropdown :model-value="selectedSize" :options="[{value:'',label:'Seleccionar tamaño'},...sizes.map(size=>({value:size,label:size}))]" aria-label="Tamaño" @update:model-value="setSize" /></div>
-          <div class="news-rich-editor__option news-rich-editor__color-field"><span>Color del texto</span><button type="button" class="news-rich-editor__color-trigger" :aria-expanded="openColors==='foreColor'" @click="toggleColors('foreColor')"><span class="news-rich-editor__color-dot" :style="{background:customHex}"></span> Elegir color <span class="news-rich-editor__arrow" :class="{open:openColors==='foreColor'}">⌄</span></button></div>
-          <div class="news-rich-editor__option news-rich-editor__color-field"><span>Resaltar</span><button type="button" class="news-rich-editor__color-trigger" :aria-expanded="openColors==='hiliteColor'" @click="toggleColors('hiliteColor')">Resaltado <span class="news-rich-editor__arrow" :class="{open:openColors==='hiliteColor'}">⌄</span></button></div>
+          <div class="news-rich-editor__option news-rich-editor__color-field"><span>Color del texto</span><button type="button" class="news-rich-editor__color-trigger" :aria-expanded="openColors==='foreColor'" @click="toggleColors('foreColor', $event)"><span class="news-rich-editor__color-dot" :style="{background:customHex}"></span> Elegir color <span class="news-rich-editor__arrow" :class="{open:openColors==='foreColor'}"></span></button></div>
+          <div class="news-rich-editor__option news-rich-editor__color-field"><span>Resaltar</span><button type="button" class="news-rich-editor__color-trigger" :aria-expanded="openColors==='hiliteColor'" @click="toggleColors('hiliteColor', $event)">Resaltado <span class="news-rich-editor__arrow" :class="{open:openColors==='hiliteColor'}">⌄</span></button></div>
         </div>
-        <div v-if="openColors" class="news-rich-editor__palette" role="group" :aria-label="openColors==='foreColor'?'Color del texto':'Color de resaltado'">
+        <div v-if="openColors" class="news-rich-editor__palette" :style="{top: paletteTop + 'px', left: paletteLeft + 'px'}" role="group" :aria-label="openColors==='foreColor'?'Color del texto':'Color de resaltado'">
           <div class="news-rich-editor__palette-heading"><strong>{{openColors==='foreColor'?'Color del texto':'Color de resaltado'}}</strong><button type="button" @click="openColors=null" aria-label="Cerrar paleta">×</button></div>
           <span>Colores predefinidos</span>
           <div class="news-rich-editor__swatches"><button v-for="color in palette" :key="color" type="button" :title="color" :aria-label="'Seleccionar '+color" :style="{backgroundColor:color}" @click="applyColor(color)"></button></div>
@@ -180,10 +202,10 @@ function pastePlain(event: ClipboardEvent) {
 @media(max-width:650px){.news-rich-editor__fields{grid-template-columns:1fr}.news-rich-editor__actions{justify-content:flex-start}.news-rich-editor__toolbar{padding:10px}}
 .news-rich-editor__option :deep(.cf-dropdown){width:100%;min-width:0}
 .news-rich-editor__color-trigger{display:flex;align-items:center;gap:9px;width:100%;min-height:46px;padding:10px 14px;border:1px solid var(--admin-border,#cfd3dd);border-radius:12px;background:var(--admin-input,#fff);color:var(--admin-text,#171923);font-size:14px;font-weight:400;text-align:left;cursor:pointer}
-.news-rich-editor__arrow{margin-left:auto;transition:transform .2s ease;font-size:20px}
-.news-rich-editor__arrow.open{transform:rotate(180deg)}
+.news-rich-editor__arrow{margin-left:auto;display:block;width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);transition:transform .2s ease}
+.news-rich-editor__arrow.open{transform:rotate(225deg)}
 .news-rich-editor__color-dot{width:19px;height:19px;border-radius:4px;border:1px solid #888}
-.news-rich-editor__palette{display:grid;gap:9px;padding:12px;border-radius:12px;border:1px solid var(--admin-border,#cfd3dd);background:var(--admin-input,#fff);color:var(--admin-text,#171923);box-shadow:0 16px 32px #0005;grid-column:1/-1;position:absolute;top:calc(100% - 6px);right:12px;width:min(380px,calc(100% - 24px));max-height:min(420px,70vh);overflow-y:auto;z-index:30;box-sizing:border-box}
+.news-rich-editor__palette{display:grid;gap:9px;padding:12px;border-radius:12px;border:1px solid var(--admin-border,#cfd3dd);background:var(--admin-input,#fff);color:var(--admin-text,#171923);box-shadow:0 16px 32px #0005;position:absolute;width:min(380px,calc(100% - 24px));max-height:min(370px,60vh);overflow-y:auto;z-index:30;box-sizing:border-box}
 .news-rich-editor__palette-heading{display:flex;align-items:center;justify-content:space-between}
 .news-rich-editor__palette-heading button{background:transparent;border:0;color:inherit;font-size:23px;cursor:pointer}
 .news-rich-editor__swatches{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:4px}
@@ -196,7 +218,7 @@ function pastePlain(event: ClipboardEvent) {
 .news-rich-editor__custom input[type=color]{width:43px;height:39px;padding:2px;border:1px solid var(--admin-border,#cfd3dd);border-radius:8px;background:transparent;cursor:pointer}
 .news-rich-editor__custom button{padding:9px 14px;border-radius:8px;border:0;background:#ab0b2c;color:white;cursor:pointer}
 .news-rich-editor__custom button:disabled{opacity:.5;cursor:not-allowed}
-@media(max-width:550px){.news-rich-editor__palette{right:6px;width:calc(100% - 12px)}.news-rich-editor__swatches{grid-template-columns:repeat(12,minmax(0,1fr))}.news-rich-editor__swatches button{height:18px}}
+@media(max-width:550px){.news-rich-editor__palette{width:min(380px,calc(100% - 12px))}.news-rich-editor__swatches{grid-template-columns:repeat(12,minmax(0,1fr))}.news-rich-editor__swatches button{height:18px}}
 html.theme-dark .content-manager .news-rich-editor__color-trigger{background:#121a30;border-color:#3b465f;color:#fff}
 .news-rich-editor__color-trigger:hover,.news-rich-editor__color-trigger:focus-visible{border-color:#b10d30;outline-offset:2px}
 @media(prefers-reduced-motion:reduce){.news-rich-editor__arrow{transition:none}}
