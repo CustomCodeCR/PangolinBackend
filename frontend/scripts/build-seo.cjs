@@ -9,6 +9,36 @@ const { makeStructuredData } = require('../seo/structured-data.cjs')
 const dist = path.resolve(__dirname, '../dist')
 const original = fs.readFileSync(path.join(dist, 'index.html'), 'utf8')
 const origin = 'https://www.logisticacastrofallas.com'
+
+const serviceGuides = require('../seo/service-landings.json')
+// Initial HTML contains the public copy even before Vue loads. Vue replaces #app on mount.
+const escapeHtml = text => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+// Crawlers can discover every service from the navigation without opening the Vue menu.
+// The same links also exist in the interactive header once JavaScript runs.
+function renderServiceNav() {
+  const items = [['/servicios', 'Todos los servicios'], ...Object.entries(serviceGuides)
+    .map(([route, guide]) => [route, guide.es.label])]
+  return '<header data-seo-service-header="true"><nav aria-label="Servicios de Grupo Castro Fallas"><ul>' +
+    items.map(([href, label]) => '<li><a href="' + escapeHtml(href) + '">' + escapeHtml(label) + '</a></li>').join('') +
+    '</ul></nav></header>'
+}
+function renderServiceGuide(route, guide) {
+  const c = guide.es
+  return renderServiceNav() +
+    '<main data-seo-service="' + escapeHtml(route) + '">' +
+    '<article><header><h1>' + escapeHtml(c.title) + '</h1><p>' + escapeHtml(c.intro) + '</p>' +
+    '<p>Información de servicios de Grupo Castro Fallas · Costa Rica</p></header>' +
+    '<section><h2>¿Qué ofrece Grupo Castro Fallas?</h2><p>' + escapeHtml(c.answer) + '</p></section>' +
+    '<section><h2>' + escapeHtml(c.heading) + '</h2><p>' + escapeHtml(c.body) + '</p><ul>' +
+    c.points.map(point => '<li>' + escapeHtml(point) + '</li>').join('') + '</ul></section>' +
+    '<section><h2>' + escapeHtml(c.quoteHeading) + '</h2><p>' + escapeHtml(c.quoteIntro) + '</p><ul>' +
+    c.quoteItems.map(point => '<li>' + escapeHtml(point) + '</li>').join('') + '</ul></section>' +
+    '<section><h2>Alcance y disponibilidad</h2><p>' + escapeHtml(c.scopeNote) + '</p></section>' +
+    '<section><h2>Preguntas frecuentes</h2>' + c.faq.map(faq =>
+      '<h3>' + escapeHtml(faq.q) + '</h3><p>' + escapeHtml(faq.a) + '</p>').join('') + '</section>' +
+    '<p>Para una propuesta detallada escriba a <a href="mailto:comercial@castrofallas.com">comercial@castrofallas.com</a>.</p></article></main>'
+}
+
 const imageDimensions = {
   '/images/hero.webp': [1200, 685],
   '/images/cover-logistics.jpeg': [1024, 576],
@@ -66,6 +96,11 @@ function buildRoute(route, seo) {
   if (structured) {
     const serialized = JSON.stringify(structured).replace(/</g, '\\u003c')
     html = html.replace('</head>', '    <script type="application/ld+json">' + serialized + '</script>\n  </head>')
+  }
+  if (serviceGuides[route] || route === '/servicios') {
+    if (!html.includes('<div id="app"></div>')) throw new Error('No se encontró raíz Vue para HTML SEO')
+    const initialHtml = serviceGuides[route] ? renderServiceGuide(route, serviceGuides[route]) : renderServiceNav()
+    html = html.replace('<div id="app"></div>', '<div id="app">' + initialHtml + '</div>')
   }
   const dest = route === '/' ? dist : path.join(dist, route.slice(1))
   fs.mkdirSync(dest, { recursive: true })
