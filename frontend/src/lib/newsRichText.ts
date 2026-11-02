@@ -1,7 +1,7 @@
 const allowed = new Set(['P', 'DIV', 'BR', 'H1', 'H2', 'H3', 'STRONG', 'B', 'EM', 'I', 'U', 'S', 'STRIKE', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'SPAN', 'FONT', 'SUP', 'SUB'])
 const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const isHtmlArticle = (value: string) => /^\s*<(?:p|div|h[1-3]|ul|ol|blockquote|br|strong|b|em|i|u|s|strike|span|font|sup|sub)\b/i.test(value)
-const fonts = new Set(['Arial', 'Georgia', 'Verdana', 'Tahoma', 'Times New Roman', 'Courier New'])
+const fonts = new Set(["Arial","Arial Black","Arial Narrow","Calibri","Cambria","Candara","Consolas","Constantia","Corbel","Georgia","Verdana","Tahoma","Times New Roman","Courier New","Trebuchet MS","Impact","Palatino Linotype","Book Antiqua","Garamond","Century Gothic","Franklin Gothic Medium","Lucida Sans Unicode","Lucida Console","Segoe UI","Helvetica","Helvetica Neue","Geneva","Optima","Gill Sans","Futura","Baskerville","Didot","Rockwell","Copperplate","Brush Script MT","Comic Sans MS","Monaco","Menlo","Andale Mono","Roboto","Open Sans","Lato","Montserrat","Poppins","Inter","Nunito","Raleway","Oswald","Merriweather","Playfair Display","Source Sans 3","PT Sans","PT Serif","Noto Sans","Noto Serif","Ubuntu","Rubik","Work Sans","DM Sans","Libre Baskerville"])
 const fontSizes = new Set(['12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px'])
 const colors = new Set(['#111827', '#374151', '#9f1239', '#b91c1c', '#1d4ed8', '#047857', '#a16207', '#ffffff', '#000000', '#fef08a', '#bbf7d0', '#bfdbfe', '#fecdd3'])
 const alignments = new Set(['left', 'center', 'right', 'justify'])
