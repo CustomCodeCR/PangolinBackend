@@ -70,7 +70,10 @@ const steps = computed<Step[]>(() => {
     {key:'exwCargoStatus',prompt:i('¿La carga EXW está nacionalizada o en régimen fiscal?','Is the EXW cargo nationalized or under fiscal regime?'),choices:[{value:'nationalized',label:i('Nacionalizada','Nationalized')},{value:'fiscal',label:i('Fiscal','Fiscal')}]},
     {key:'exwPickupAddress',prompt:i('¿Cuál es la dirección de recolección EXW?','What is the EXW pickup address?')}
   )
-  result.push({key:'cargoDescription',prompt:i('Describe la mercancía que necesitas transportar.','Describe the goods you need to transport.')})
+  result.push(
+    {key:'cargoDescription',prompt:i('Describe la mercancía que necesitas transportar.','Describe the goods you need to transport.')},
+    {key:'dangerousGoods',prompt:i('¿La mercancía es peligrosa o requiere manejo especial?','Is this dangerous cargo or does it require special handling?'),choices:[{value:'yes',label:i('Sí','Yes')},{value:'no',label:'No'},{value:'unsure',label:i('No estoy seguro','Not sure')}]}
+  )
   if (isEquipment.value) result.push(
     {key:'equipmentSize',prompt:i('¿Qué tamaño o tipo de equipo necesitas? Ejemplo: 40 HC.','Which equipment size do you need? Example: 40 HC.')},
     {key:'equipmentType',prompt:i('¿Qué tipo de equipo? Ejemplo: contenedor seco.','Which equipment type? Example: dry container.')},
@@ -98,7 +101,7 @@ const fieldLabels: Record<string, [string, string]> = {
   mode:['Modalidad','Mode'],shipmentType:['Tipo de embarque','Shipment type'],origin:['Origen','Origin'],destination:['Destino','Destination'],
   pod:['Puerto de descarga','Port of discharge'],incoterm:['Incoterm','Incoterm'],cargoReadyDate:['Carga lista','Cargo ready'],
   exwCargoStatus:['Estado EXW','EXW status'],exwPickupAddress:['Recolección EXW','EXW pickup'],
-  cargoDescription:['Mercancía','Goods'],equipmentSize:['Tamaño equipo','Equipment size'],equipmentType:['Tipo equipo','Equipment type'],
+  cargoDescription:['Mercancía','Goods'],dangerousGoods:['Carga peligrosa','Dangerous goods'],equipmentSize:['Tamaño equipo','Equipment size'],equipmentType:['Tipo equipo','Equipment type'],
   equipmentQuantity:['Cantidad equipos','Equipment quantity'],equipmentWeights:['Pesos por unidad (kg)','Weights per unit (kg)'],
   packageQuantity:['Bultos','Packages'],packageWeight:['Peso por bulto (kg)','Weight per package (kg)'],
   packageLength:['Largo (cm)','Length (cm)'],packageWidth:['Ancho (cm)','Width (cm)'],packageHeight:['Alto (cm)','Height (cm)'],
@@ -308,7 +311,8 @@ async function submitQuote() {
     exwCargoStatus:values.incoterm === 'EXW' ? values.exwCargoStatus : null,
     exwPickupAddress:values.incoterm === 'EXW' ? values.exwPickupAddress : null,
     cargoDescription:values.cargoDescription,cabysCode:null,cargoValue:null,declaredWeight:null,
-    declaredPackages:null,observations:null,cargoFlags:[],destinationHandling:null,
+    declaredPackages:null,observations:values.dangerousGoods === 'unsure' ? 'La peligrosidad de la carga está pendiente de confirmar.' : null,
+    cargoFlags:[...(values.dangerousGoods === 'yes' ? ['Carga peligrosa'] : []),...(!equipment && values.stackable === 'NonStackable' ? ['No estibable'] : [])],destinationHandling:null,
     deliveryAddress:null,pickupAddress:null,fiscalStorageDays:null
   }
   const data = await jsonResponse(await fetch('/api/quotes/official',{method:'POST',credentials:'same-origin',
