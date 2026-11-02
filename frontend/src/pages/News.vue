@@ -4,6 +4,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import EmblaCarousel, { type EmblaCarouselType } from 'embla-carousel'
 import type { ManagedNews } from '../adminContent'
+import { sanitizeNewsHtml } from '../lib/newsRichText'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import { subscribeToChanges } from '../services/realtime'
@@ -278,11 +279,8 @@ onUnmounted(() => {
   window.removeEventListener('mousemove', moveArticlePanelMouseDrag, true)
   window.removeEventListener('mouseup', finishArticlePanelMouseDrag, true)
 })
-// Render the CMS plain text as readable HTML paragraphs without changing its wording.
-const activeArticleParagraphs = computed(() => (activeArticle.value?.body ?? '')
-  .split(/\n\s*\n/)
-  .map(paragraph => paragraph.trim())
-  .filter(Boolean))
+// Rich-text articles are sanitized before rendering; old plain-text news remains supported.
+const activeArticleHtml = computed(() => sanitizeNewsHtml(activeArticle.value?.body ?? ''))
 function setNewsMeta(attribute: 'name' | 'property', key: string, content: string | null) {
   const selector = `meta[${attribute}="${key}"]`
   let element = document.head.querySelector<HTMLMetaElement>(selector)
@@ -550,7 +548,7 @@ onUnmounted(() => {
                 <p class="news-article-page__content-kicker">{{ activeArticle.category }} <span aria-hidden="true">/</span> {{ q('ARTÍCULO COMPLETO', 'FULL ARTICLE') }}</p>
                 <p v-if="activeArticle.description?.trim() && activeArticle.description.trim() !== activeArticle.body?.trim()" class="news-article-page__standfirst">{{ activeArticle.description }}</p>
                 <div class="news-article-page__body">
-                  <p v-for="(paragraph, index) in activeArticleParagraphs" :key="index">{{ paragraph }}</p>
+                  <div class="news-article-page__formatted" v-html="activeArticleHtml"></div>
                 </div>
                 <p v-if="activeArticle.author" class="news-article-page__author">{{ q('Autor:', 'Author:') }} <strong>{{ activeArticle.author }}</strong></p>
                 <div class="news-article-page__closing">
@@ -724,4 +722,14 @@ onUnmounted(() => {
   .news-article-page__publisher,
   .news-article-page__meta-category { justify-content:flex-start; }
 }
+.news-article-page__formatted :deep(:is(h1,h2,h3)){font-weight:750;line-height:1.3;margin:1.5em 0 .65em}
+.news-article-page__formatted :deep(h1){font-size:clamp(1.7rem,3vw,2.25rem)}
+.news-article-page__formatted :deep(h2){font-size:clamp(1.4rem,2.5vw,1.8rem)}
+.news-article-page__formatted :deep(h3){font-size:1.2rem}
+.news-article-page__formatted :deep(p){margin:0 0 1.2em;line-height:1.8}
+.news-article-page__formatted :deep(:is(ul,ol)){padding-left:1.6em;margin:0 0 1.2em}
+.news-article-page__formatted :deep(ul){list-style:disc}
+.news-article-page__formatted :deep(ol){list-style:decimal}
+.news-article-page__formatted :deep(li){margin-bottom:.4em}
+.news-article-page__formatted :deep(blockquote){border-left:3px solid #a80d29;padding-left:1em;margin:1.3em 0}
 </style>
