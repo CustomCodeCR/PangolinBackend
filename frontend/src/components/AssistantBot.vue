@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Bot, Headphones, PackageSearch, Send, Ship, Warehouse, X } from '@lucide/vue'
 
@@ -55,6 +55,7 @@ const copy = computed(() => isEnglish.value ? {
   greetingReply: '¡Hola! Puedo explicarte los servicios de Castro Fallas, cómo pedir una cotización, el apoyo aduanero, el almacenamiento, las modalidades de transporte o cómo contactar al equipo.', fallback: 'No tengo ese dato confirmado, así que no quiero inventarlo. Es mejor comunicarte directamente con Grupo Castro Fallas en comercial@castrofallas.com, al +506 2272-6772 o por WhatsApp al +506 7078-6860. También puedo explicarte los servicios, cotizaciones, aduanas, almacenamiento o modalidades de transporte.',
   offline: 'Ahora no puedo consultar la IA, así que esta es una orientación basada en el sitio: ', openLink: 'Abrir sección', status: 'Disponible'
 })
+const assistantRoot = ref<HTMLElement | null>(null)
 const isOpen = ref(false)
 const isClosing = ref(false)
 const panelSettled = ref(false)
@@ -156,13 +157,21 @@ function closePanel() {
   panelSettled.value = false
   isOpen.value = false
 }
+function handleOutsidePointerDown(event: PointerEvent) {
+  if (!isOpen.value) return
+  const root = assistantRoot.value
+  if (root && !event.composedPath().includes(root)) closePanel()
+}
+onMounted(() => document.addEventListener('pointerdown', handleOutsidePointerDown, true))
+onUnmounted(() => document.removeEventListener('pointerdown', handleOutsidePointerDown, true))
+
 function finishOpen() { panelSettled.value = true }
 function finishClose() { isClosing.value = false }
 
 </script>
 
 <template>
-  <aside class="site-assistant" :class="{ 'site-assistant--open': isOpen || isClosing, 'site-assistant--settled': panelSettled, 'site-assistant--closing': isClosing }" aria-label="GIO, asistente logístico">
+  <aside ref="assistantRoot" class="site-assistant" :class="{ 'site-assistant--open': isOpen || isClosing, 'site-assistant--settled': panelSettled, 'site-assistant--closing': isClosing }" aria-label="GIO, asistente logístico">
     <Transition name="gio-water" :duration="{ enter: 940, leave: 160 }" @after-enter="finishOpen" @after-leave="finishClose">
     <section v-if="isOpen" class="site-assistant__panel" role="dialog" aria-modal="true" aria-label="Conversación con GIO" @keydown.esc="closePanel">
       <header class="site-assistant__header">
