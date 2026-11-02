@@ -5,6 +5,7 @@ import { localizeTrackingMode, localizeTrackingStatus } from '../lib/trackingDis
 import IconSymbol from '../components/IconSymbol.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import SiteVisualEditor from './SiteVisualEditor.vue'
+import NewsRichTextEditor from '../components/NewsRichTextEditor.vue'
 import OfficialQuoteAdmin from './OfficialQuoteAdmin.vue'
 const officialQuotesEnabled = import.meta.env.VITE_OFFICIAL_QUOTES_ENABLED === 'true'
 import { subscribeToChanges } from '../services/realtime'
@@ -637,7 +638,7 @@ function useMediaForNews(item: ManagedMedia) {
             <label>Categoría<input v-model="newsForm.category" required maxlength="60" placeholder="LOGÍSTICA" /></label>
             <div class="manager-form-row"><label>Autor<input v-model.trim="newsForm.author" maxlength="160" placeholder="Nombre del autor" /></label><label>Fecha de publicación<input v-model="newsForm.publishedAt" type="date" /></label></div>
             <label>Resumen (visible en tarjetas)<textarea v-model="newsForm.description" required maxlength="1200" rows="3" placeholder="Resumen breve de la noticia" /></label>
-            <label>Contenido completo<textarea v-model="newsForm.body" maxlength="20000" rows="8" placeholder="Escribe el artículo completo. Si se deja vacío, el lector verá el resumen." /></label>
+            <div class="manager-rich-news-field"><label>Contenido completo</label><NewsRichTextEditor :model-value="newsForm.body ?? ''" @update:model-value="value => newsForm.body = value" /></div>
             <label>Imagen ({{ storageMode === 's3' ? 'MinIO' : 'archivo local' }})<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="selectFile($event, 'news')" /></label>
             <p v-if="newsUploadFile" class="manager-publication-hint">Imagen seleccionada: {{ newsUploadFile.name }}. Se subirá a MinIO al guardar.</p>
             <label>o URL de imagen<input v-model="newsForm.image" placeholder="/images/mi-imagen.webp" /></label>
@@ -997,6 +998,9 @@ function useMediaForNews(item: ManagedMedia) {
 .manager-create-form .manager-create-role{min-width:0;display:flex;flex-direction:column;gap:8px}\n.manager-create-form .manager-create-role>label{font-size:13px;font-weight:700}\n.manager-create-form .manager-create-role :deep(.field-dropdown){width:100%;min-width:0}\n.manager-create-form .manager-create-role :deep(.field-dropdown__trigger){min-height:47px}\n.manager-create-form .manager-create-submit{height:47px;white-space:nowrap;border-radius:11px;padding:0 22px}
 @media(max-width:1100px){.manager-create-form{grid-template-columns:repeat(2,minmax(0,1fr))}.manager-create-submit{justify-self:start}}
 @media(max-width:580px){.manager-create-form{grid-template-columns:minmax(0,1fr)}}
+
+.manager-rich-news-field{display:grid;gap:7px;min-width:0;grid-column:1/-1}
+.manager-rich-news-field>label{font-size:13px;font-weight:700}
 </style>
 
 <style scoped>
