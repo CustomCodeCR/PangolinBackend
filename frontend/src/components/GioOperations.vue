@@ -136,11 +136,12 @@ const integer = (s: string, max: number) => /^\d+$/.test(s) && Number(s) > 0 && 
 const scrollEnd = async () => { await nextTick(); scroller.value?.scrollTo({top:scroller.value.scrollHeight,behavior:'smooth'}) }
 
 function validation(key: string, value: string): string {
-  if (current.value?.choices) {
-    if (current.value.choices.some(choice => choice.value === value)) return ''
+  const spec = steps.value.find(step => step.key === key)
+  if (spec?.choices) {
+    if (spec.choices.some(choice => choice.value === value)) return ''
     return tr('Selecciona una de las opciones disponibles.','Select an available option.')
   }
-  if (!value && current.value?.optional) return ''
+  if (!value && spec?.optional) return ''
   if (!value) return tr('Este dato es obligatorio.', 'This field is required.')
   if (['cargoReadyDate', 'departure'].includes(key) && !validDate(value)) return tr('Usa una fecha real con formato AAAA-MM-DD.', 'Enter a real date as YYYY-MM-DD.')
   if (key === 'contactEmail' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return tr('Correo electrónico inválido.', 'Invalid email.')
@@ -172,6 +173,11 @@ function advanceFrom(start: number) {
   while (stepIndex.value < steps.value.length) {
     const item = steps.value[stepIndex.value]
     const value = values[item.key]
+    if (value && item.choices && !item.choices.some(choice => choice.value === value)) {
+      delete values[item.key]
+      phase.value = 'collect'
+      return
+    }
     if (isQuoteLocation(item.key) && !selectedLocations[item.key] || props.kind === 'itinerary' && isCatalogueLocation(item.key) && !value) {
       phase.value = 'collect'
       return
@@ -359,9 +365,9 @@ onMounted(() => {
         if (Number.isFinite(saved.at) && Date.now() - saved.at >= 0 && Date.now() - saved.at <= 30 * 60 * 1000 &&
             saved.values && ['Maritime','Air','Land'].includes(saved.values.mode)) {
           Object.assign(values, saved.values)
-          stepIndex.value = steps.value.length
-          phase.value = 'review'
+          for (const key of Object.keys(values)) prefillConfirmation.add(key)
           prefilled.value = true
+          advanceFrom(0)
           return
         }
         sessionStorage.removeItem(STORAGE_KEY)
@@ -429,6 +435,15 @@ watch(
   { immediate: true }
 )
 async function submitQuote() {
+  for (const [index, step] of steps.value.entries()) {
+    const issue = validation(step.key, values[step.key] || '')
+    if (issue) {
+      error.value = tr('Revisa ', 'Review ') + (fieldLabels[step.key]?.[props.language === 'en' ? 1 : 0] || step.key) + ': ' + issue
+      stepIndex.value = index
+      phase.value = 'collect'
+      return
+    }
+  }
   const roles = ['origin','destination',...(values.shipmentType === 'LCL' ? ['pod'] : [])]
   for (const role of roles) {
     if (selectedLocations[role]) continue
