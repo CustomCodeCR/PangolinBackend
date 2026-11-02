@@ -37,7 +37,7 @@ const STORAGE_KEY = 'gcf-gio-quote-draft-v1'
 const prefilled = ref(false)
 const editingField = ref('')
 const i = (es: string, en: string) => tr(es, en)
-const modes: Choice[] = [{value:'Maritime',label:i('Marítimo','Ocean')},{value:'Air',label:i('Aéreo','Air')},{value:'Land',label:i('Terrestre','Ground')}]
+const modes = computed<Choice[]>(() => [{value:'Maritime',label:i('Marítimo','Ocean')},{value:'Air',label:i('Aéreo','Air')},{value:'Land',label:i('Terrestre','Ground')}])
 const terms = 'EXW FCA FAS FOB CFR CIF CPT CIP DAP DPU DDP'.split(' ').map(value => ({value,label:value}))
 const isEquipment = computed(() => ['FCL', 'FTL'].includes(values.shipmentType))
 const shipmentOptions = computed<Choice[]>(() => values.mode === 'Maritime'
@@ -56,7 +56,7 @@ const steps = computed<Step[]>(() => {
     {key:'departure',prompt:i('¿Desde qué fecha de salida? Formato AAAA-MM-DD. Puedes omitirla.','Earliest departure date? Use YYYY-MM-DD or skip.'),optional:true,hint:'AAAA-MM-DD'}
   ]
   const result: Step[] = [
-    {key:'mode',prompt:i('¡Vamos a preparar tu cotización! ¿Qué transporte necesitas?','Let us prepare your quote. Which transport mode do you need?'),choices:modes},
+    {key:'mode',prompt:i('¡Vamos a preparar tu cotización! ¿Qué transporte necesitas?','Let us prepare your quote. Which transport mode do you need?'),choices:modes.value},
     {key:'shipmentType',prompt:i('¿Qué tipo de embarque?','Which shipment type?'),choices:shipmentOptions.value},
     {key:'origin',prompt:i('¿Desde qué ciudad o puerto sale la carga?','Where will the cargo depart from?')},
     {key:'destination',prompt:i('¿Cuál es el destino?','What is the destination?')}
@@ -201,6 +201,15 @@ function applyInitialQuestion() {
   if (route && route[1].trim() !== route[2].trim()) {
     values.origin = route[1].trim()
     values.destination = route[2].trim()
+  }
+  if (props.kind === 'tracking') {
+    if (/\b(bcf|hbl|bl)\b/.test(question)) values.referenceType = 'BCF'
+    else if (/\b(contenedor|container)\b/.test(question)) values.referenceType = 'CONTAINER'
+    else if (/\bidtra\b/.test(question)) values.referenceType = 'IDTRA'
+    else if (/\bpo\b/.test(question)) values.referenceType = 'PO'
+    const candidates = (props.initialQuestion || '').match(/\b[a-zA-Z0-9_-]{4,64}\b/g) || []
+    const references = candidates.filter(x => /\d/.test(x) && /^[a-zA-Z0-9_-]{3,64}$/.test(x) && !/^(2026|2027|2028)$/.test(x))
+    if (references.length === 1) values.reference = references[0]
   }
   if (props.kind === 'quote') {
     if (/\bfcl\b/.test(question)) { values.mode = 'Maritime'; values.shipmentType = 'FCL' }
