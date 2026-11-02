@@ -208,7 +208,7 @@ function toggleTheme() {
           <button class="nav-dropdown__trigger" type="button" aria-controls="site-services-menu" :aria-expanded="servicesMenuOpen" @click="servicesMenuOpen = !servicesMenuOpen; cargoMenuOpen = false">
             {{ t('navLinks.soluciones') }} <ChevronDown :size="16" class="nav-dropdown__chevron" aria-hidden="true" />
           </button>
-          <div v-if="servicesMenuOpen" id="site-services-menu" class="nav-dropdown__menu">
+          <div v-show="servicesMenuOpen" id="site-services-menu" class="nav-dropdown__menu">
             <a v-for="link in servicesLinks" :key="link.url" :href="link.url" @click="servicesMenuOpen = false; expanded = false">{{ link.label }}</a>
           </div>
         </div>
