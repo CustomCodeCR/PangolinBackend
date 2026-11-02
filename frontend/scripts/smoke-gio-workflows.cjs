@@ -174,7 +174,8 @@ async function main() {
     assert.ok(placement.aboveInput && placement.visible,'Suggestions must remain visible above composer in the compact panel')
     assert.equal(placement.codeVisible,false,'Never display import codes such as VIDEO-SEA')
     await cdp('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true})
-    await sleep(120)
+    // Layout and enter animation should settle before checking mobile geometry.
+    await sleep(1100)
     const mobilePlacement = await evaluate('(()=>{const dock=document.querySelector(".gio-ops__location-dock").getBoundingClientRect();const input=document.querySelector(".gio-ops__form").getBoundingClientRect();const btn=document.querySelector(".gio-ops__location-list button").getBoundingClientRect();const size=window.innerWidth;return {size,dockTop:dock.top,dockBottom:dock.bottom,dockHeight:dock.height,inputTop:input.top,inputBottom:input.bottom,inputHeight:input.height,viewport:innerHeight,aboveInput:dock.bottom<=input.top+2,visible:btn.top>=dock.top && btn.bottom<=dock.bottom+2,keyboardSpace:input.bottom<=innerHeight+2}})()')
     assert.ok(mobilePlacement.size<=800 && mobilePlacement.aboveInput && mobilePlacement.visible && mobilePlacement.keyboardSpace,'Mobile suggestions and composer must remain visible: ' + JSON.stringify(mobilePlacement))
     await cdp('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false})
