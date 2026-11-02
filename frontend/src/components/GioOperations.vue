@@ -44,6 +44,7 @@ const locationLoading = ref(false)
 const locationLoadError = ref('')
 const locationCache = new Map<string, Location[]>()
 const isQuoteLocation = (key: string) => props.kind === 'quote' && ['origin','destination','pod'].includes(key)
+const isCatalogueLocation = (key: string) => isQuoteLocation(key) || (props.kind === 'itinerary' && ['origin','destination'].includes(key))
 const i = (es: string, en: string) => tr(es, en)
 const modes = computed<Choice[]>(() => [{value:'Maritime',label:i('Marítimo','Ocean')},{value:'Air',label:i('Aéreo','Air')},{value:'Land',label:i('Terrestre','Ground')}])
 const terms = 'EXW FCA FAS FOB CFR CIF CPT CIP DAP DPU DDP'.split(' ').map(value => ({value,label:value}))
@@ -155,7 +156,7 @@ function advanceFrom(start: number) {
   while (stepIndex.value < steps.value.length) {
     const item = steps.value[stepIndex.value]
     const value = values[item.key]
-    if (isQuoteLocation(item.key) && !selectedLocations[item.key]) {
+    if (isQuoteLocation(item.key) && !selectedLocations[item.key] || props.kind === 'itinerary' && isCatalogueLocation(item.key) && !value) {
       phase.value = 'collect'
       return
     }
@@ -216,7 +217,7 @@ function accept(value = input.value, explicitLocationId?: string) {
   error.value = validation(item.key, v)
   if (error.value) return
   let locationId = explicitLocationId
-  if (isQuoteLocation(item.key)) {
+  if (isCatalogueLocation(item.key)) {
     const matching = locationChoices.value.filter(loc =>
       norm(loc.displayName) === norm(v) || norm(loc.code || '') === norm(v))
     if (!locationId && matching.length === 1) locationId = matching[0].id
@@ -251,7 +252,7 @@ function correctPending() {
   if (!pending || phase.value !== 'confirm') return
   pendingValue.value = null
   phase.value = 'collect'
-  if (isQuoteLocation(pending.key)) {
+  if (isCatalogueLocation(pending.key)) {
     delete selectedLocations[pending.key]
     locationTerm.value = pending.value
   }
@@ -289,13 +290,8 @@ function applyInitialQuestion() {
   if (!question || question.length > 800) return
   const route = question.match(/\b(?:desde|de)\s+([a-z -]{3,60}?)\s+(?:hacia|hasta|a)\s+([a-z -]{3,60}?)(?=\s*(?:[,;.]|$)|\s+(?:con|para)\b)/)
   if (route && route[1].trim() !== route[2].trim()) {
-    if (props.kind === 'quote') {
-      proposedLocations.origin = route[1].trim()
-      proposedLocations.destination = route[2].trim()
-    } else {
-      values.origin = route[1].trim()
-      values.destination = route[2].trim()
-    }
+    proposedLocations.origin = route[1].trim()
+    proposedLocations.destination = route[2].trim()
   }
   if (props.kind === 'tracking') {
     if (/\b(bcf|hbl|bl)\b/.test(question)) values.referenceType = 'BCF'
@@ -367,28 +363,35 @@ async function jsonResponse(response: Response) {
   return data
 }
 async function getLocations(role: string): Promise<Location[]> {
-  const kind = values.mode === 'Maritime' ? 'seaport' : values.mode === 'Air' ? 'airport' : 'inland'
-  const qs = new URLSearchParams({kind,shipmentType:values.shipmentType,routeRole:role})
-  const cacheKey = qs.toString()
-  if (locationCache.has(cacheKey)) return locationCache.get(cacheKey)!
-  const data = await jsonResponse(await fetch('/api/assistant/quote-locations?' + qs, {credentials:'same-origin',cache:'no-store'}))
+  let requestUrl = ''
+  if (props.kind === 'itinerary') {
+    const params = new URLSearchParams({routeRole:role})
+    if (role === 'destination' && values.origin) params.set('origin', values.origin)
+    requestUrl = '/api/assistant/itinerary-locations?' + params
+  } else {
+    const kind = values.mode === 'Maritime' ? 'seaport' : values.mode === 'Air' ? 'airport' : 'inland'
+    const params = new URLSearchParams({kind,shipmentType:values.shipmentType,routeRole:role})
+    requestUrl = '/api/assistant/quote-locations?' + params
+  }
+  if (locationCache.has(requestUrl)) return locationCache.get(requestUrl)!
+  const data = await jsonResponse(await fetch(requestUrl, {credentials:'same-origin',cache:'no-store'}))
   const items = Array.isArray(data.items) ? data.items.filter(
     (loc: unknown): loc is Location => !!loc && typeof loc === 'object' &&
       typeof (loc as Location).id === 'string' && typeof (loc as Location).displayName === 'string'
   ) as Location[] : []
-  locationCache.set(cacheKey, items)
+  locationCache.set(requestUrl, items)
   return items
 }
 async function loadLocationStep(role: string) {
   locationChoices.value = []
   locationTerm.value = values[role] || proposedLocations[role] || ''
   locationLoadError.value = ''
-  if (!values.mode || !values.shipmentType) return
+  if (props.kind === 'quote' && (!values.mode || !values.shipmentType)) return
   locationLoading.value = true
   const type = values.shipmentType
   try {
     const items = await getLocations(role)
-    if (current.value?.key === role && values.shipmentType === type) locationChoices.value = items
+    if (current.value?.key === role && (props.kind === 'itinerary' || values.shipmentType === type)) locationChoices.value = items
   } catch (e) {
     if (current.value?.key === role)
       locationLoadError.value = e instanceof Error ? e.message : tr('No pude cargar las ubicaciones.','Could not load the locations.')
@@ -397,10 +400,10 @@ async function loadLocationStep(role: string) {
   }
 }
 watch(
-  () => [phase.value === 'collect' ? current.value?.key : '', values.mode, values.shipmentType],
+  () => [phase.value === 'collect' ? current.value?.key : '', values.mode, values.shipmentType, values.origin],
   () => {
     const role = current.value?.key
-    if (phase.value === 'collect' && role && isQuoteLocation(role)) void loadLocationStep(role)
+    if (phase.value === 'collect' && role && isCatalogueLocation(role)) void loadLocationStep(role)
   },
   { immediate: true }
 )
@@ -518,9 +521,9 @@ async function perform() {
         <div v-if="current.choices" class="gio-ops__choices">
           <button v-for="choice in current.choices" :key="choice.label" type="button" :disabled="busy" @click="accept(choice.value)">{{ choice.label }} <ChevronRight :size="14" /></button>
         </div>
-        <template v-else-if="isQuoteLocation(current.key)">
+        <template v-else-if="isCatalogueLocation(current.key)">
           <p v-if="locationLoading" class="gio-ops__note" role="status">{{ tr('Buscando ubicaciones disponibles…','Loading available locations…') }}</p>
-          <p v-if="locationLoadError" class="gio-ops__error" role="alert">{{ locationLoadError }}</p>
+          <p v-if="locationLoadError" class="gio-ops__error" role="alert">{{ locationLoadError }} <a v-if="kind === 'itinerary'" :href="loginLink()">{{ tr('Iniciar sesión','Sign in') }}</a></p>
           <p v-if="!locationLoading && !locationLoadError && locationChoices.length===0" class="gio-ops__note">{{ tr('El catálogo no tiene opciones habilitadas para este campo y modalidad. No se admiten ubicaciones inventadas.','There are no enabled locations for this field and shipment type. Unverified locations cannot be used.') }}</p>
           <div v-if="!locationLoading && filteredLocations.length" class="gio-ops__choices gio-ops__location-list" role="listbox" :aria-label="tr('Ubicaciones disponibles','Available locations')">
             <button v-for="loc in filteredLocations" :key="loc.id" type="button" role="option" :aria-selected="false" @click="accept(loc.displayName, loc.id)"><MapPin :size="14" /> <span>{{ loc.displayName }}<small v-if="loc.code">{{ loc.code }}</small></span> <ChevronRight :size="14" /></button>
@@ -597,10 +600,10 @@ async function perform() {
       </template>
       <p v-if="error" class="gio-ops__error" role="alert">{{ error }}</p>
     </div>
-    <form v-if="phase === 'collect' && current && !current.choices" class="gio-ops__form" @submit.prevent="isQuoteLocation(current.key) ? accept(locationTerm) : accept()">
-      <input v-if="isQuoteLocation(current.key)" v-model="locationTerm" :placeholder="tr('Buscar ciudad, puerto o aeropuerto…','Search city, port or airport…')" :aria-label="current.prompt" :disabled="locationLoading || !!locationLoadError || !locationChoices.length" maxlength="120" autocomplete="off" />
+    <form v-if="phase === 'collect' && current && !current.choices" class="gio-ops__form" @submit.prevent="isCatalogueLocation(current.key) ? accept(locationTerm) : accept()">
+      <input v-if="isCatalogueLocation(current.key)" v-model="locationTerm" :placeholder="tr('Buscar ciudad, puerto o aeropuerto…','Search city, port or airport…')" :aria-label="current.prompt" :disabled="locationLoading || !!locationLoadError || !locationChoices.length" maxlength="120" autocomplete="off" />
       <input v-else v-model="input" :placeholder="current.hint || tr('Escribe tu respuesta…','Type your answer…')" :aria-label="current.prompt" :disabled="busy" maxlength="400" />
-      <button type="submit" :disabled="busy || (isQuoteLocation(current.key) ? !locationTerm.trim() || locationLoading || !locationChoices.length : !input.trim() && !current.optional)" :aria-label="tr('Continuar','Continue')"><ChevronRight :size="19" /></button>
+      <button type="submit" :disabled="busy || (isCatalogueLocation(current.key) ? !locationTerm.trim() || locationLoading || !locationChoices.length : !input.trim() && !current.optional)" :aria-label="tr('Continuar','Continue')"><ChevronRight :size="19" /></button>
     </form>
   </div>
 </template>
