@@ -16,7 +16,10 @@ const sitemap = read('public/sitemap.xml')
 const routes = require('../seo/routes.json')
 const serviceGuides = require('../seo/service-landings.json')
 const serviceRoutes = Object.keys(serviceGuides)
-const forbiddenRoutes = ['/servicios/agencia-aduanal', '/servicios/transporte-maritimo', '/servicios/transporte-terrestre', '/servicios/transporte-aereo', '/servicios/consolidado-lcl']
+const servicePages = require('../seo/service-pages.json')
+const serviceFaqs = require('../seo/service-faqs.json')
+const servicePageRoutes = servicePages.map(page => '/servicios/' + page.slug)
+const forbiddenRoutes = ['/servicios/consolidado-lcl']
 for (const publicRoute of ['/', '/noticias', '/nosotros', '/servicios']) {
   assert.ok(sitemap.includes('<loc>https://www.logisticacastrofallas.com' + publicRoute + '</loc>'), 'Falta ' + publicRoute + ' en sitemap')
 }
@@ -31,6 +34,11 @@ for (const route of serviceRoutes) {
   assert.ok(sitemap.includes('<loc>https://www.logisticacastrofallas.com' + route + '</loc>'), 'Nueva ruta sin sitemap: ' + route)
   assert.ok(routes[route] && routes[route].indexable !== false, 'Nueva ruta sin indexación: ' + route)
   assert.ok(root.includes('serviceGuides'), 'Nueva ruta sin registro Vue: ' + route)
+}
+for (const route of servicePageRoutes) {
+  assert.ok(sitemap.includes('<loc>https://www.logisticacastrofallas.com' + route + '</loc>'), 'Nueva ruta sin sitemap: ' + route)
+  assert.ok(routes[route] && routes[route].indexable !== false, 'Nueva ruta sin indexación: ' + route)
+  assert.ok(root.includes('servicePages'), 'Nueva ruta sin registro Vue: ' + route)
 }
 const header = read('src/components/SiteHeader.vue')
 assert.ok(header.includes('servicesLinks') && header.includes('servicesMenuOpen'), 'Falta menú desplegable de Servicios')
@@ -84,7 +92,7 @@ if (fs.existsSync(path.join(base, 'dist'))) {
   for (const route of forbiddenRoutes) assert.equal(fs.existsSync(path.join(base, 'dist', route.slice(1), 'index.html')), false, 'El build no debe crear una página nueva: ' + route)
 }
 
-const expectedIndexable = new Set(['/', '/home', '/noticias', '/nosotros', '/servicios', '/privacidad', '/terminos', '/cookies', '/licencias', ...serviceRoutes])
+const expectedIndexable = new Set(['/', '/home', '/noticias', '/nosotros', '/servicios', '/privacidad', '/terminos', '/cookies', '/licencias', ...serviceRoutes, ...servicePageRoutes])
 for (const [route, seo] of Object.entries(routes)) {
   assert.ok(seo.title && seo.description, 'Metadatos incompletos: ' + route)
   assert.equal(seo.indexable !== false, expectedIndexable.has(route), 'Indexación inesperada: ' + route)
@@ -121,7 +129,10 @@ const expectedSitemapPaths = [...new Set(Object.entries(routes)
   .map(([route]) => route === '/home' ? '/' : route))]
 const sitemapExpected = '<?xml version="1.0" encoding="UTF-8"?>\n' +
   '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-  expectedSitemapPaths.map(route => '  <url>\n    <loc>https://www.logisticacastrofallas.com' + route + '</loc>\n  </url>').join('\n') + '\n</urlset>\n'
+  expectedSitemapPaths.map(route => {
+    const seo = Object.entries(routes).find(([path]) => (path === '/home' ? '/' : path) === route)?.[1]
+    return '  <url>\n    <loc>https://www.logisticacastrofallas.com' + route + '</loc>' + (seo?.lastModified ? '\n    <lastmod>' + seo.lastModified + '</lastmod>' : '') + '\n  </url>'
+  }).join('\n') + '\n</urlset>\n'
 assert.equal(
   sitemap.replace(/\r\n/g, '\n'),
   sitemapExpected,
@@ -170,13 +181,13 @@ if (fs.existsSync(path.join(base, 'dist'))) {
     if (route === '/servicios') {
       const navigation = html.match(/<header data-seo-service-header="true">([\s\S]*?)<\/header>/)
       assert.ok(navigation, 'La página general de Servicios debe incluir los enlaces en el nav HTML')
-      for (const serviceRoute of serviceRoutes) {
+      for (const serviceRoute of [...serviceRoutes, ...servicePageRoutes]) {
         assert.ok(navigation[0].includes('href="' + serviceRoute + '"'), 'Ruta no visible en el nav de Servicios: ' + serviceRoute)
       }
       assert.ok(!html.includes('services-page__guides'), 'No deben volver las tarjetas adicionales')
     }
     const serviceCount = graph.filter(x => x['@type'] === 'Service').length
-    assert.equal(serviceCount, route === '/servicios' ? 6 : route === '/' || route === '/home' || serviceRoutes.includes(route) ? 1 : 0, 'Servicios Schema fuera de pagina: ' + route)
+    assert.equal(serviceCount, route === '/servicios' ? 10 : route === '/' || route === '/home' || serviceRoutes.includes(route) || servicePageRoutes.includes(route) ? 1 : 0, 'Servicios Schema fuera de pagina: ' + route)
     if (serviceRoutes.includes(route)) {
       const guide = serviceGuides[route].es
       assert.ok(html.includes('data-seo-service="' + route + '"'), 'Contenido SEO inicial ausente: ' + route)
@@ -188,7 +199,7 @@ if (fs.existsSync(path.join(base, 'dist'))) {
       assert.ok(!/<a\s+href="\/[^"]*"/.test(seoMain[0]), 'Los enlaces a páginas internas deben estar únicamente en el nav: ' + route)
       const navigation = html.match(/<header data-seo-service-header="true">([\s\S]*?)<\/header>/)
       assert.ok(navigation && navigation[0].includes('<nav aria-label="Servicios de Grupo Castro Fallas">'), 'Falta navegación HTML estática: ' + route)
-      for (const serviceRoute of ['/servicios', ...serviceRoutes]) {
+      for (const serviceRoute of ['/servicios', ...serviceRoutes, ...servicePageRoutes]) {
         assert.ok(navigation[0].includes('href="' + serviceRoute + '"'), 'Falta enlace en nav prerenderizado: ' + serviceRoute)
       }
       assert.ok(!html.includes('Otros servicios de Grupo Castro Fallas'), 'El contenido inicial no debe duplicar navegación: ' + route)
@@ -202,6 +213,28 @@ if (fs.existsSync(path.join(base, 'dist'))) {
       assert.equal(service.mainEntityOfPage['@id'], page['@id'], 'Página y servicio no vinculados: ' + route)
       assert.equal(page.mainEntity['@id'], service['@id'], 'Service no es la entidad principal: ' + route)
       assert.equal(service.availableChannel.servicePhone.telephone, business.telephone, 'Teléfono de servicio inconsistente: ' + route)
+      assert.equal(find('BreadcrumbList').itemListElement.length, 3, 'Breadcrumb jerárquico incompleto: ' + route)
+    }
+    if (route === '/servicios') {
+      for (const term of ['Agenciamiento aduanal', 'Almacenamiento fiscal', 'Bodegaje general', 'Consolidadora de carga']) {
+        assert.ok(html.includes(term), 'Falta contenido inicial del servicio existente: ' + term)
+      }
+      const faqPage = find('FAQPage')
+      assert.ok(faqPage && faqPage.mainEntity.length === serviceFaqs.servicios.length, 'Faltan preguntas frecuentes de los servicios existentes')
+      assert.ok(services.includes('serviceFaqData.servicios') && services.includes('class="services-faq__item"'), 'Las preguntas deben ser visibles en /servicios')
+      assert.ok(routes['/servicios'].description.includes('agenciamiento aduanal') && routes['/servicios'].description.includes('almacenamiento fiscal') && routes['/servicios'].description.includes('bodegaje general') && routes['/servicios'].description.includes('carga consolidada'), 'Metadatos de /servicios deben incluir las cuatro categorías existentes')
+    }
+    if (servicePageRoutes.includes(route)) {
+      const slug = route.split('/').pop()
+      const service = servicePages.find(item => item.slug === slug)
+      const faqPage = find('FAQPage')
+      assert.ok(service && serviceFaqs[slug]?.length, 'Falta contenido y preguntas frecuentes: ' + route)
+      assert.ok(faqPage && faqPage.mainEntity.length === serviceFaqs[slug].length, 'FAQ Schema debe coincidir con el contenido visible: ' + route)
+      for (const faq of serviceFaqs[slug]) {
+        assert.ok(faqPage.mainEntity.some(item => item.name === faq.question.es && item.acceptedAnswer.text === faq.answer.es), 'FAQ Schema desalineado con contenido: ' + route)
+      }
+      assert.ok(html.includes('id="seo-service-content"') && html.includes('<h1>' + service.title.es + '</h1>'), 'Falta prerender inicial del servicio: ' + route)
+      assert.ok(html.includes('Preguntas frecuentes'), 'Falta contenido AEO visible en HTML inicial: ' + route)
       assert.equal(find('BreadcrumbList').itemListElement.length, 3, 'Breadcrumb jerárquico incompleto: ' + route)
     }
   }
