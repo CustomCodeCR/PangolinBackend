@@ -14,14 +14,25 @@ const selectedSize = ref('')
 const openColors = ref<'foreColor'|'hiliteColor'|null>(null)
 const customHex = ref('#c9211e')
 const recentColors = ref<string[]>([])
+// A compact, consistent palette: all lightness values are valid HSL percentages.
 const palette = [
-  ...Array.from({length:12},(_,i)=>{const n=Math.round(i*255/11).toString(16).padStart(2,'0');return '#'+n+n+n}),
-  ...[48,66,83,100,117,134,151,168,185,202,219,236].flatMap(lightness =>
-    [55,35,20,10,0,330,285,250,215,175,135,95].map(hue => {
-      const sat=85, l=lightness/100, a=sat/100*Math.min(l,1-l)
-      const fn=(n:number)=>{const k=(n+hue/30)%12;const c=l-a*Math.max(-1,Math.min(k-3,9-k,1));return Math.round(c*255).toString(16).padStart(2,'0')}
-      return '#'+fn(0)+fn(8)+fn(4)
-    }))
+  ...Array.from({ length: 12 }, (_, index) => {
+    const component = Math.round(index * 255 / 11).toString(16).padStart(2, '0')
+    return '#' + component.repeat(3)
+  }),
+  ...[28, 42, 56, 70, 84].flatMap(lightness =>
+    [0, 24, 42, 58, 100, 145, 178, 205, 230, 270, 305, 335].map(hue => {
+      const saturation = 85 / 100
+      const luminance = lightness / 100
+      const chroma = saturation * Math.min(luminance, 1 - luminance)
+      const channel = (offset: number) => {
+        const k = (offset + hue / 30) % 12
+        const value = luminance - chroma * Math.max(-1, Math.min(k - 3, 9 - k, 1))
+        return Math.round(value * 255).toString(16).padStart(2, '0')
+      }
+      return '#' + channel(0) + channel(8) + channel(4)
+    })
+  )
 ]
 function applyColor(color:string) {
   if (!/^#[0-9a-fA-F]{6}$/.test(color) || !openColors.value) return
@@ -154,7 +165,7 @@ function pastePlain(event: ClipboardEvent) {
 .news-rich-editor__content :deep(ul){list-style:disc}
 .news-rich-editor__content :deep(ol){list-style:decimal}
 .news-rich-editor small{display:block;padding:8px 12px;color:var(--admin-muted,#737b89);font-size:12px}
-.news-rich-editor__toolbar{display:grid;gap:14px;padding:14px;border-bottom:1px solid var(--admin-border,#cfd3dd);background:var(--admin-input,#fff)}
+.news-rich-editor__toolbar{position:relative;display:grid;gap:14px;padding:14px;border-bottom:1px solid var(--admin-border,#cfd3dd);background:var(--admin-input,#fff)}
 .news-rich-editor__tabs{display:flex;gap:7px;flex-wrap:wrap;border-bottom:1px solid var(--admin-border,#cfd3dd);padding-bottom:10px}
 .news-rich-editor__tabs button{border:0;background:transparent;color:var(--admin-muted,#64748b);padding:9px 14px;border-radius:9px;cursor:pointer}
 .news-rich-editor__tabs button.active{background:rgba(130,145,165,.16);color:var(--admin-text,#171923);font-weight:750}
@@ -168,15 +179,15 @@ function pastePlain(event: ClipboardEvent) {
 .news-rich-editor__hint{color:var(--admin-muted,#64748b);font-size:13px}
 @media(max-width:650px){.news-rich-editor__fields{grid-template-columns:1fr}.news-rich-editor__actions{justify-content:flex-start}.news-rich-editor__toolbar{padding:10px}}
 .news-rich-editor__option :deep(.cf-dropdown){width:100%;min-width:0}
-.news-rich-editor__color-trigger{display:flex;align-items:center;gap:9px;width:100%;min-height:46px;padding:10px 12px;border:1px solid var(--admin-border,#cfd3dd);border-radius:10px;background:rgba(130,145,165,.12);color:var(--admin-text,#171923);cursor:pointer}
+.news-rich-editor__color-trigger{display:flex;align-items:center;gap:9px;width:100%;min-height:46px;padding:10px 14px;border:1px solid var(--admin-border,#cfd3dd);border-radius:12px;background:var(--admin-input,#fff);color:var(--admin-text,#171923);font-size:14px;font-weight:400;text-align:left;cursor:pointer}
 .news-rich-editor__arrow{margin-left:auto;transition:transform .2s ease;font-size:20px}
 .news-rich-editor__arrow.open{transform:rotate(180deg)}
 .news-rich-editor__color-dot{width:19px;height:19px;border-radius:4px;border:1px solid #888}
-.news-rich-editor__palette{display:grid;gap:12px;padding:14px;border-radius:12px;border:1px solid var(--admin-border,#cfd3dd);background:var(--admin-input,#fff);color:var(--admin-text,#171923);box-shadow:0 10px 25px #0002;grid-column:1/-1}
+.news-rich-editor__palette{display:grid;gap:9px;padding:12px;border-radius:12px;border:1px solid var(--admin-border,#cfd3dd);background:var(--admin-input,#fff);color:var(--admin-text,#171923);box-shadow:0 16px 32px #0005;grid-column:1/-1;position:absolute;top:calc(100% - 6px);right:12px;width:min(380px,calc(100% - 24px));max-height:min(420px,70vh);overflow-y:auto;z-index:30;box-sizing:border-box}
 .news-rich-editor__palette-heading{display:flex;align-items:center;justify-content:space-between}
 .news-rich-editor__palette-heading button{background:transparent;border:0;color:inherit;font-size:23px;cursor:pointer}
 .news-rich-editor__swatches{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:4px}
-.news-rich-editor__swatches button{min-width:0;width:100%;aspect-ratio:1;border:1px solid #858b99;border-radius:4px;cursor:pointer}
+.news-rich-editor__swatches button{min-width:0;width:100%;height:22px;aspect-ratio:auto;border:1px solid #858b99;border-radius:4px;cursor:pointer}
 .news-rich-editor__swatches button:hover,.news-rich-editor__swatches button:focus-visible{outline:2px solid #b61537;outline-offset:1px}
 .news-rich-editor__recent{grid-template-columns:repeat(8,26px)}
 .news-rich-editor__custom{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -185,5 +196,8 @@ function pastePlain(event: ClipboardEvent) {
 .news-rich-editor__custom input[type=color]{width:43px;height:39px;padding:2px;border:1px solid var(--admin-border,#cfd3dd);border-radius:8px;background:transparent;cursor:pointer}
 .news-rich-editor__custom button{padding:9px 14px;border-radius:8px;border:0;background:#ab0b2c;color:white;cursor:pointer}
 .news-rich-editor__custom button:disabled{opacity:.5;cursor:not-allowed}
-@media(max-width:550px){.news-rich-editor__swatches{grid-template-columns:repeat(8,minmax(0,1fr))}}
+@media(max-width:550px){.news-rich-editor__palette{right:6px;width:calc(100% - 12px)}.news-rich-editor__swatches{grid-template-columns:repeat(12,minmax(0,1fr))}.news-rich-editor__swatches button{height:18px}}
+html.theme-dark .content-manager .news-rich-editor__color-trigger{background:#121a30;border-color:#3b465f;color:#fff}
+.news-rich-editor__color-trigger:hover,.news-rich-editor__color-trigger:focus-visible{border-color:#b10d30;outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.news-rich-editor__arrow{transition:none}}
 </style>
