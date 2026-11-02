@@ -104,7 +104,7 @@ const fieldLabels: Record<string, [string, string]> = {
   reference:['Referencia','Reference'],referenceType:['Tipo de referencia','Reference type'],transport:['Transporte','Transport'],departure:['Desde la fecha','Departure from']
 }
 const summary = computed(() => steps.value.map(step => ({
-  key:step.key, label: tr(...(fieldLabels[step.key] ?? [step.key,step.key])),
+  key:step.key, label: tr((fieldLabels[step.key] ?? [step.key,step.key])[0], (fieldLabels[step.key] ?? [step.key,step.key])[1]),
   value: step.choices?.find(option => option.value === values[step.key])?.label ?? values[step.key]
 })).filter(item => item.value))
 const filteredLocations = computed(() => locationChoices.value.filter(loc =>
