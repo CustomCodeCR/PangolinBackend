@@ -127,12 +127,12 @@ async function main() {
     const click = async selector => evaluate('(()=>{const b=document.querySelector('+JSON.stringify(selector)+');if(!b)return false;b.click();return true})()')
     const has = text => evaluate('document.body.innerText.includes('+JSON.stringify(text)+')')
     const choose = async text => {
-      const ok = await evaluate('(()=>{const b=[...document.querySelectorAll(".gio-ops__choices button")].find(x=>x.textContent.trim().includes('+JSON.stringify(text)+'));if(!b)return false;b.click();return true})()')
+      const ok = await waitFor(()=>evaluate('(()=>{const b=[...document.querySelectorAll(".gio-ops__choices button")].find(x=>x.textContent.trim().includes('+JSON.stringify(text)+'));if(!b)return false;b.click();return true})()'))
       assert.ok(ok,'Missing choice: '+text)
       await sleep(70)
     }
     const answer = async text => {
-      const ok = await evaluate('(()=>{const field=document.querySelector(".gio-ops__form input");if(!field)return false;const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(field,'+JSON.stringify(text)+');field.dispatchEvent(new Event("input",{bubbles:true}));field.closest("form").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));return true})()')
+      const ok = await waitFor(()=>evaluate('(()=>{const field=document.querySelector(".gio-ops__form input");if(!field)return false;const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(field,'+JSON.stringify(text)+');field.dispatchEvent(new Event("input",{bubbles:true}));field.closest("form").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));return true})()'))
       assert.ok(ok,'Missing answer field for '+text)
       await sleep(70)
     }
@@ -143,7 +143,7 @@ async function main() {
     assert.ok(await click('.site-assistant__mascot'))
     await waitFor(()=>evaluate('document.querySelectorAll(".site-assistant__quick button").length===4'))
     assert.ok(await evaluate('document.querySelectorAll(".site-assistant__quick button")[0].click()||true'))
-    await waitFor(()=>has('Cotización'))
+    await waitFor(()=>evaluate('document.querySelectorAll(".gio-ops__choices button").length >= 3'))
     await choose('Marítimo')
     await choose('FCL')
     await answer('Shanghái')
