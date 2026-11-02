@@ -1,14 +1,40 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { sanitizeNewsHtml } from '../lib/newsRichText'
+import FieldDropdown from './FieldDropdown.vue'
 
 const props = defineProps<{ modelValue: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 const editor = ref<HTMLElement | null>(null)
 let savedRange: Range | null = null
 const tab = ref<'inicio'|'insertar'|'diseno'|'vista'>('inicio')
+const selectedFont = ref('')
+const selectedStyle = ref('')
+const selectedSize = ref('')
+const openColors = ref<'foreColor'|'hiliteColor'|null>(null)
+const customHex = ref('#c9211e')
+const recentColors = ref<string[]>([])
+const palette = [
+  ...Array.from({length:12},(_,i)=>{const n=Math.round(i*255/11).toString(16).padStart(2,'0');return '#'+n+n+n}),
+  ...[48,66,83,100,117,134,151,168,185,202,219,236].flatMap(lightness =>
+    [55,35,20,10,0,330,285,250,215,175,135,95].map(hue => {
+      const sat=85, l=lightness/100, a=sat/100*Math.min(l,1-l)
+      const fn=(n:number)=>{const k=(n+hue/30)%12;const c=l-a*Math.max(-1,Math.min(k-3,9-k,1));return Math.round(c*255).toString(16).padStart(2,'0')}
+      return '#'+fn(0)+fn(8)+fn(4)
+    }))
+]
+function applyColor(color:string) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(color) || !openColors.value) return
+  customHex.value=color
+  choose(openColors.value,color)
+  recentColors.value=[color,...recentColors.value.filter(c=>c!==color)].slice(0,8)
+  openColors.value=null
+}
+function toggleColors(kind:'foreColor'|'hiliteColor') {rememberSelection();openColors.value=openColors.value===kind?null:kind}
 const previewHtml = computed(() => sanitizeNewsHtml(props.modelValue || ''))
-function setStyle(event: Event) { const value = (event.target as HTMLSelectElement).value; if (value) choose('formatBlock', value) }
+function setStyle(value: string) { selectedStyle.value=value; if(value) choose('formatBlock',value) }
+function setFont(value: string) { selectedFont.value=value; if(value) choose('fontName',value) }
+function setSize(value: string) { selectedSize.value=value; sizeText(value) }
 const fonts = ["Arial","Arial Black","Arial Narrow","Calibri","Cambria","Candara","Consolas","Constantia","Corbel","Georgia","Verdana","Tahoma","Times New Roman","Courier New","Trebuchet MS","Impact","Palatino Linotype","Book Antiqua","Garamond","Century Gothic","Franklin Gothic Medium","Lucida Sans Unicode","Lucida Console","Segoe UI","Helvetica","Helvetica Neue","Geneva","Optima","Gill Sans","Futura","Baskerville","Didot","Rockwell","Copperplate","Brush Script MT","Comic Sans MS","Monaco","Menlo","Andale Mono","Roboto","Open Sans","Lato","Montserrat","Poppins","Inter","Nunito","Raleway","Oswald","Merriweather","Playfair Display","Source Sans 3","PT Sans","PT Serif","Noto Sans","Noto Serif","Ubuntu","Rubik","Work Sans","DM Sans","Libre Baskerville"]
 const sizes = ['12px','14px','16px','18px','20px','24px','28px','32px']
 const colors = ['#111827','#374151','#9f1239','#b91c1c','#1d4ed8','#047857','#a16207','#ffffff']
@@ -73,8 +99,8 @@ function pastePlain(event: ClipboardEvent) {
       </nav>
       <template v-if="tab==='inicio'">
         <div class="news-rich-editor__fields">
-          <label class="news-rich-editor__option">Tipografía <select aria-label="Tipografía" @change="choose('fontName', ($event.target as HTMLSelectElement).value)"><option value="">Seleccionar fuente</option><option v-for="font in fonts" :key="font" :value="font" :style="{fontFamily:font}">{{font}}</option></select></label>
-          <label class="news-rich-editor__option">Estilo <select aria-label="Estilo de texto" @change="setStyle"><option value="">Párrafo / Título</option><option value="p">Párrafo normal</option><option value="h1">Título H1</option><option value="h2">Título H2</option><option value="h3">Título H3</option></select></label>
+          <div class="news-rich-editor__option"><span>Tipografía</span><FieldDropdown :model-value="selectedFont" :options="[{value:'',label:'Seleccionar fuente'},...fonts.map(font=>({value:font,label:font}))]" aria-label="Tipografía" @update:model-value="setFont" /></div>
+          <div class="news-rich-editor__option"><span>Estilo</span><FieldDropdown :model-value="selectedStyle" :options="[{value:'',label:'Párrafo / Título'},{value:'p',label:'Párrafo normal'},{value:'h1',label:'Título H1'},{value:'h2',label:'Título H2'},{value:'h3',label:'Título H3'}]" aria-label="Estilo de texto" @update:model-value="setStyle" /></div>
         </div>
         <div class="news-rich-editor__actions">
           <div class="news-rich-editor__group"><button type="button" title="Negrita" @click="format('bold')"><b>N</b></button><button type="button" title="Cursiva" @click="format('italic')"><i>C</i></button><button type="button" title="Subrayado" @click="format('underline')"><u>S</u></button><button type="button" title="Tachado" @click="format('strikeThrough')"><s>abc</s></button></div>
@@ -86,9 +112,17 @@ function pastePlain(event: ClipboardEvent) {
       </div>
       <template v-else-if="tab==='diseno'">
         <div class="news-rich-editor__fields">
-          <label class="news-rich-editor__option">Tamaño <select aria-label="Tamaño" @change="sizeText(($event.target as HTMLSelectElement).value)"><option value="">Seleccionar</option><option v-for="size in sizes" :key="size" :value="size">{{size}}</option></select></label>
-          <label class="news-rich-editor__option">Color del texto <select aria-label="Color" @change="choose('foreColor',($event.target as HTMLSelectElement).value)"><option value="">Seleccionar</option><option v-for="color in colors" :key="color" :value="color">{{color}}</option></select></label>
-          <label class="news-rich-editor__option">Resaltar <select aria-label="Resaltar" @change="choose('hiliteColor',($event.target as HTMLSelectElement).value)"><option value="">Seleccionar</option><option v-for="color in highlights" :key="color" :value="color">{{color}}</option></select></label>
+          <div class="news-rich-editor__option"><span>Tamaño</span><FieldDropdown :model-value="selectedSize" :options="[{value:'',label:'Seleccionar tamaño'},...sizes.map(size=>({value:size,label:size}))]" aria-label="Tamaño" @update:model-value="setSize" /></div>
+          <div class="news-rich-editor__option news-rich-editor__color-field"><span>Color del texto</span><button type="button" class="news-rich-editor__color-trigger" :aria-expanded="openColors==='foreColor'" @click="toggleColors('foreColor')"><span class="news-rich-editor__color-dot" :style="{background:customHex}"></span> Elegir color <span class="news-rich-editor__arrow" :class="{open:openColors==='foreColor'}">⌄</span></button></div>
+          <div class="news-rich-editor__option news-rich-editor__color-field"><span>Resaltar</span><button type="button" class="news-rich-editor__color-trigger" :aria-expanded="openColors==='hiliteColor'" @click="toggleColors('hiliteColor')">Resaltado <span class="news-rich-editor__arrow" :class="{open:openColors==='hiliteColor'}">⌄</span></button></div>
+        </div>
+        <div v-if="openColors" class="news-rich-editor__palette" role="group" :aria-label="openColors==='foreColor'?'Color del texto':'Color de resaltado'">
+          <div class="news-rich-editor__palette-heading"><strong>{{openColors==='foreColor'?'Color del texto':'Color de resaltado'}}</strong><button type="button" @click="openColors=null" aria-label="Cerrar paleta">×</button></div>
+          <span>Colores predefinidos</span>
+          <div class="news-rich-editor__swatches"><button v-for="color in palette" :key="color" type="button" :title="color" :aria-label="'Seleccionar '+color" :style="{backgroundColor:color}" @click="applyColor(color)"></button></div>
+          <span>Recientes</span>
+          <div class="news-rich-editor__swatches news-rich-editor__recent"><button v-for="color in recentColors" :key="color" type="button" :title="color" :style="{backgroundColor:color}" @click="applyColor(color)"></button></div>
+          <label class="news-rich-editor__custom"><span>Color personalizado (HEX)</span><input v-model="customHex" type="text" maxlength="7" placeholder="#c9211e" /><input v-model="customHex" type="color" aria-label="Selector de color personalizado" /><button type="button" :disabled="!/^#[0-9a-fA-F]{6}$/.test(customHex)" @click="applyColor(customHex)">Aplicar</button></label>
         </div>
         <div class="news-rich-editor__group"><button type="button" @click="format('indent')">Aumentar sangría</button><button type="button" @click="format('outdent')">Reducir sangría</button><button type="button" @click="format('removeFormat')">Quitar formato</button><button type="button" @click="format('undo')">↶ Deshacer</button><button type="button" @click="format('redo')">↷ Rehacer</button></div>
       </template>
@@ -133,4 +167,23 @@ function pastePlain(event: ClipboardEvent) {
 .news-rich-editor__group button:hover{border-color:#af173b}
 .news-rich-editor__hint{color:var(--admin-muted,#64748b);font-size:13px}
 @media(max-width:650px){.news-rich-editor__fields{grid-template-columns:1fr}.news-rich-editor__actions{justify-content:flex-start}.news-rich-editor__toolbar{padding:10px}}
+.news-rich-editor__option :deep(.cf-dropdown){width:100%;min-width:0}
+.news-rich-editor__color-trigger{display:flex;align-items:center;gap:9px;width:100%;min-height:46px;padding:10px 12px;border:1px solid var(--admin-border,#cfd3dd);border-radius:10px;background:rgba(130,145,165,.12);color:var(--admin-text,#171923);cursor:pointer}
+.news-rich-editor__arrow{margin-left:auto;transition:transform .2s ease;font-size:20px}
+.news-rich-editor__arrow.open{transform:rotate(180deg)}
+.news-rich-editor__color-dot{width:19px;height:19px;border-radius:4px;border:1px solid #888}
+.news-rich-editor__palette{display:grid;gap:12px;padding:14px;border-radius:12px;border:1px solid var(--admin-border,#cfd3dd);background:var(--admin-input,#fff);color:var(--admin-text,#171923);box-shadow:0 10px 25px #0002;grid-column:1/-1}
+.news-rich-editor__palette-heading{display:flex;align-items:center;justify-content:space-between}
+.news-rich-editor__palette-heading button{background:transparent;border:0;color:inherit;font-size:23px;cursor:pointer}
+.news-rich-editor__swatches{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:4px}
+.news-rich-editor__swatches button{min-width:0;width:100%;aspect-ratio:1;border:1px solid #858b99;border-radius:4px;cursor:pointer}
+.news-rich-editor__swatches button:hover,.news-rich-editor__swatches button:focus-visible{outline:2px solid #b61537;outline-offset:1px}
+.news-rich-editor__recent{grid-template-columns:repeat(8,26px)}
+.news-rich-editor__custom{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.news-rich-editor__custom span{width:100%;font-weight:600}
+.news-rich-editor__custom input[type=text]{min-width:110px;width:130px;padding:9px;border:1px solid var(--admin-border,#cfd3dd);border-radius:8px;background:var(--admin-input,#fff);color:inherit}
+.news-rich-editor__custom input[type=color]{width:43px;height:39px;padding:2px;border:1px solid var(--admin-border,#cfd3dd);border-radius:8px;background:transparent;cursor:pointer}
+.news-rich-editor__custom button{padding:9px 14px;border-radius:8px;border:0;background:#ab0b2c;color:white;cursor:pointer}
+.news-rich-editor__custom button:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:550px){.news-rich-editor__swatches{grid-template-columns:repeat(8,minmax(0,1fr))}}
 </style>
