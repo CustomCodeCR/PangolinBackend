@@ -42,8 +42,26 @@ function applyColor(color:string) {
   if (!/^#[0-9a-fA-F]{6}$/.test(color) || !openColors.value) return
   customHex.value=color
   restoreSelection()
-  document.execCommand('styleWithCSS', false, 'true')
-  choose(openColors.value,color)
+  const selection = window.getSelection()
+  const range = selection?.rangeCount ? selection.getRangeAt(0) : null
+  // Apply the color directly to the selected text; the native command can
+  // silently fall back to the white inherited color when the editor loses focus.
+  if (range && !range.collapsed && editor.value?.contains(range.commonAncestorContainer)) {
+    const span = document.createElement('span')
+    if (openColors.value === 'foreColor') span.style.color = color
+    else span.style.backgroundColor = color
+    span.appendChild(range.extractContents())
+    range.insertNode(span)
+    selection?.removeAllRanges()
+    const after = document.createRange()
+    after.selectNodeContents(span)
+    selection?.addRange(after)
+    savedRange = after.cloneRange()
+    sync()
+  } else {
+    document.execCommand('styleWithCSS', false, 'true')
+    choose(openColors.value, color)
+  }
   recentColors.value=[color,...recentColors.value.filter(c=>c!==color)].slice(0,8)
   openColors.value=null
 }
