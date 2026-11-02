@@ -201,7 +201,7 @@ function pastePlain(event: ClipboardEvent) {
 .news-rich-editor__hint{color:var(--admin-muted,#64748b);font-size:13px}
 @media(max-width:650px){.news-rich-editor__fields{grid-template-columns:1fr}.news-rich-editor__actions{justify-content:flex-start}.news-rich-editor__toolbar{padding:10px}}
 .news-rich-editor__option :deep(.cf-dropdown){width:100%;min-width:0}
-.news-rich-editor__color-trigger{display:flex;align-items:center;gap:9px;width:100%;min-height:46px;padding:10px 14px;border:1px solid var(--admin-border,#cfd3dd);border-radius:12px;background:var(--admin-input,#fff);color:var(--admin-text,#171923);font-size:14px;font-weight:400;text-align:left;cursor:pointer}
+.news-rich-editor__color-trigger{display:flex;align-items:center;gap:9px;width:100%;min-height:46px;padding:10px 14px;border:1px solid var(--admin-border,#cfd3dd);border-radius:12px;background:var(--admin-input,#fff);color:var(--admin-text,#171923);font-size:14px;font-weight:400;text-align:left;box-shadow:none;cursor:pointer}
 .news-rich-editor__arrow{margin-left:auto;display:block;width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);transition:transform .2s ease}
 .news-rich-editor__arrow.open{transform:rotate(225deg)}
 .news-rich-editor__color-dot{width:19px;height:19px;border-radius:4px;border:1px solid #888}
@@ -221,5 +221,9 @@ function pastePlain(event: ClipboardEvent) {
 @media(max-width:550px){.news-rich-editor__palette{width:min(380px,calc(100% - 12px))}.news-rich-editor__swatches{grid-template-columns:repeat(12,minmax(0,1fr))}.news-rich-editor__swatches button{height:18px}}
 html.theme-dark .content-manager .news-rich-editor__color-trigger{background:#121a30;border-color:#3b465f;color:#fff}
 .news-rich-editor__color-trigger:hover,.news-rich-editor__color-trigger:focus-visible{border-color:#b10d30;outline-offset:2px}
+.content-manager .news-rich-editor__color-trigger{min-height:46px;background:var(--admin-input,#f7f9fd);border-color:var(--admin-border,#cfd3dd);border-radius:12px;color:var(--admin-text,#101b32);font-size:14px;font-weight:400}
+html.theme-dark .content-manager .news-rich-editor__color-trigger{background:#121a30;border-color:#3b465f;color:#fff}
+.news-rich-editor__color-trigger .news-rich-editor__arrow{flex:none}
+
 @media(prefers-reduced-motion:reduce){.news-rich-editor__arrow{transition:none}}
 </style>
