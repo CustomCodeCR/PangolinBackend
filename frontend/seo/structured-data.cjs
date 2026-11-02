@@ -60,6 +60,7 @@ function makeStructuredData(route, seo, sourceGraph) {
     about: { '@id': organizationId }
   }
   if (seo.socialImage) page.primaryImageOfPage = { '@type': 'ImageObject', url: origin + seo.socialImage }
+  if (serviceGuide) page.mainEntity = { '@id': canonical + '#servicio' }
   if (canonicalPath !== '/') {
     const breadcrumbsId = canonical + '#migas'
     page.breadcrumb = { '@id': breadcrumbsId }
@@ -76,9 +77,15 @@ function makeStructuredData(route, seo, sourceGraph) {
       '@id': canonical + '#servicio',
       name: serviceGuide.es.title,
       serviceType: serviceGuide.es.label,
-      description: serviceGuide.es.intro,
+      description: serviceGuide.es.answer,
       provider: { '@id': organizationId },
+      mainEntityOfPage: { '@id': canonical + '#pagina' },
       areaServed: { '@type': 'Country', name: 'Costa Rica' },
+      availableChannel: {
+        '@type': 'ServiceChannel',
+        serviceUrl: canonical,
+        servicePhone: { '@type': 'ContactPoint', telephone: organization.telephone, contactType: 'sales' }
+      },
       url: canonical
     })
   }
