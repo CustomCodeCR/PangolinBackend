@@ -5,6 +5,9 @@ on:
     paths:
       - "frontend/src/components/GioOperations.vue"
       - "frontend/src/components/AssistantBot.vue"
+      - "frontend/src/pages/OfficialQuoteWizard.vue"
+      - "frontend/src/lib/officialQuoteOptions.ts"
+      - "frontend/scripts/test-frontend-merge.cjs"
       - "frontend/src/services/auth.ts"
       - "backend/Services/AssistantService.cs"
       - "frontend/scripts/smoke-gio-workflows.cjs"
