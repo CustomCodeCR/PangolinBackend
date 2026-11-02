@@ -4,10 +4,11 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ArrowUpRight, ChevronDown, Menu, Moon, Settings, Sun, UserRound, X } from '@lucide/vue'
 import LanguageSwitcher from './LanguageSwitcher.vue'
+import serviceGuides from '../../seo/service-landings.json'
 import { authState, currentRole, logoutSession, refreshSession } from '../services/auth'
 
 const props = defineProps<{ active?: string; overlay?: boolean }>()
-const { t } = useI18n({ useScope: 'global' })
+const { t, locale } = useI18n({ useScope: 'global' })
 const expanded = ref(false)
 const headerElement = ref<HTMLElement | null>(null)
 const menuToggle = ref<HTMLButtonElement | null>(null)
@@ -64,6 +65,7 @@ function closeMenuOnDesktop(event: MediaQueryListEvent) {
   if (!event.matches) { expanded.value = false; unlockMenuBackground() }
 }
 const cargoMenuOpen = ref(false)
+const servicesMenuOpen = ref(false)
 const darkMode = ref(false)
 const systemThemeQuery = window.matchMedia?.('(prefers-color-scheme: dark)')
 const sessionUser = computed(() => authState.user)
@@ -105,11 +107,15 @@ const administrationHref = computed(() => `/administracion${authState.previewRol
 const baseLinks = [
   { key: 'servicios', id: 'principal', url: '/home' },
   { key: 'noticias', id: 'noticias', url: '/noticias' },
-  { key: 'nosotros', id: 'nosotros', url: '/nosotros' },
-  { key: 'soluciones', id: 'soluciones', url: '/servicios' }
+  { key: 'nosotros', id: 'nosotros', url: '/nosotros' }
 ]
 const links = computed(() => baseLinks.map(link => ({ ...link, label: t(`navLinks.${link.key}`) })))
 const visibleLinks = computed(() => links.value.map(link => ({ ...link, url: `${link.url}${rolePreviewSuffix.value}` })))
+const servicesLinks = computed(() => [
+  { url: '/servicios', label: locale.value.startsWith('en') ? 'All services' : 'Todos los servicios' },
+  ...Object.entries(serviceGuides).map(([url, guide]) => ({ url, label: locale.value.startsWith('en') ? guide.en.label : guide.es.label }))
+])
+const isServicePage = window.location.pathname === '/servicios' || window.location.pathname.startsWith('/servicios/')
 const cargoLinks = computed(() => [
   { key: 'embarque', id: 'embarque', url: `/tracking${rolePreviewSuffix.value}`, label: t('navLinks.embarque') },
   { key: 'itinerario', id: 'itinerario', url: `/itinerario${rolePreviewSuffix.value}`, label: t('navLinks.itinerario') },
@@ -134,6 +140,7 @@ function handleOutsideClick(event: MouseEvent) {
   if (!(event.target instanceof Element)) return
   if (!event.target.closest('.header-settings')) settingsOpen.value = false
   if (!event.target.closest('.header-profile')) profileOpen.value = false
+  if (!event.target.closest('.nav-dropdown--services')) servicesMenuOpen.value = false
 }
 function handleEscapeKey(event: KeyboardEvent) {
   if (event.key !== 'Escape') return
@@ -142,6 +149,8 @@ function handleEscapeKey(event: KeyboardEvent) {
     profileButton.value?.focus()
   }
   settingsOpen.value = false
+  servicesMenuOpen.value = false
+  cargoMenuOpen.value = false
   if (expanded.value) { expanded.value = false; menuToggle.value?.focus() }
 }
 watch(isAuthenticated, authenticated => {
@@ -156,7 +165,7 @@ watch(darkMode, isDark => {
   document.documentElement.style.colorScheme = isDark ? 'dark' : 'light'
 }, { flush: 'sync' })
 watch(expanded, isOpen => {
-  if (!isOpen) { profileOpen.value = false; settingsOpen.value = false; cargoMenuOpen.value = false }
+  if (!isOpen) { profileOpen.value = false; settingsOpen.value = false; cargoMenuOpen.value = false; servicesMenuOpen.value = false }
   if (isOpen && mobileMenuQuery.matches) lockMenuBackground()
   else unlockMenuBackground()
 }, { flush: 'post' })
@@ -195,6 +204,14 @@ function toggleTheme() {
       <button ref="menuToggle" class="menu-toggle" type="button" :aria-expanded="expanded" aria-controls="site-primary-navigation" :aria-label="expanded ? $t('custom.home.close') : $t('phrases.p137')" @click="expanded = !expanded"><X v-if="expanded" :size="22" aria-hidden="true" /><Menu v-else :size="22" aria-hidden="true" /></button>
       <nav id="site-primary-navigation" class="main-nav" :class="{ 'main-nav--open': expanded }" :aria-label="$t('phrases.p136')">
         <a v-for="link in visibleLinks" :key="link.id" :class="{ 'is-active': props.active === link.id }" :href="link.url" @click="expanded = false">{{ link.label }}</a>
+        <div class="nav-dropdown nav-dropdown--services" :class="{ 'nav-dropdown--open': servicesMenuOpen, 'nav-dropdown--active': isServicePage }">
+          <button class="nav-dropdown__trigger" type="button" aria-controls="site-services-menu" :aria-expanded="servicesMenuOpen" @click="servicesMenuOpen = !servicesMenuOpen; cargoMenuOpen = false">
+            {{ t('navLinks.soluciones') }} <ChevronDown :size="16" class="nav-dropdown__chevron" aria-hidden="true" />
+          </button>
+          <div v-if="servicesMenuOpen" id="site-services-menu" class="nav-dropdown__menu">
+            <a v-for="link in servicesLinks" :key="link.url" :href="link.url" @click="servicesMenuOpen = false; expanded = false">{{ link.label }}</a>
+          </div>
+        </div>
         <div v-if="canAccessCargo" class="nav-dropdown" :class="{ 'nav-dropdown--open': cargoMenuOpen, 'nav-dropdown--active': cargoLinks.some(link => props.active === link.id) }">
           <button class="nav-dropdown__trigger" type="button" :aria-expanded="cargoMenuOpen" @click="cargoMenuOpen = !cargoMenuOpen">
             {{ t('navLinks.embarque') }} <ChevronDown :size="16" class="nav-dropdown__chevron" aria-hidden="true" />
