@@ -163,6 +163,11 @@ async function sendMessage(value = draft.value) {
     sending.value = false
   }
 }
+function showMenu() {
+  activeOperation.value = null
+  messages.value = [{ id: nextId++, role: 'bot', text: copy.value.greeting }]
+  draft.value = ''
+}
 function togglePanel() {
   if (isClosing.value) return
   if (isOpen.value) { closePanel(); return }
@@ -197,6 +202,7 @@ function finishClose() { isClosing.value = false }
       <header class="site-assistant__header">
         <span class="site-assistant__header-icon"><Bot :size="20" aria-hidden="true" /></span>
         <span class="site-assistant__heading"><strong>{{ copy.title }}</strong><small><i></i>{{ copy.status }}</small></span>
+        <button v-if="!activeOperation && messages.length > 1" class="site-assistant__menu" type="button" @click="showMenu">{{ isEnglish ? 'Menu' : 'Menú' }}</button>
         <button class="site-assistant__close" type="button" :aria-label="copy.close" @click="closePanel"><X :size="20" /></button>
       </header>
       <GioOperations v-if="activeOperation" :key="activeOperation" :kind="activeOperation" :language="isEnglish ? 'en' : 'es'" @back="activeOperation = null" />
