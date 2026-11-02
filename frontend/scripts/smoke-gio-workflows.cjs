@@ -176,7 +176,7 @@ async function main() {
     await cdp('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true})
     await sleep(120)
     const mobilePlacement = await evaluate('(()=>{const dock=document.querySelector(".gio-ops__location-dock").getBoundingClientRect();const input=document.querySelector(".gio-ops__form").getBoundingClientRect();const btn=document.querySelector(".gio-ops__location-list button").getBoundingClientRect();const size=window.innerWidth;return {size,aboveInput:dock.bottom<=input.top+2,visible:btn.top>=dock.top && btn.bottom<=dock.bottom+2,keyboardSpace:input.bottom<=innerHeight+2}})()')
-    assert.ok(mobilePlacement.size<=800 && mobilePlacement.aboveInput && mobilePlacement.visible && mobilePlacement.keyboardSpace,'Mobile suggestions and composer must remain visible')
+    assert.ok(mobilePlacement.size<=800 && mobilePlacement.aboveInput && mobilePlacement.visible && mobilePlacement.keyboardSpace,'Mobile suggestions and composer must remain visible: ' + JSON.stringify(mobilePlacement))
     await cdp('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false})
     await sleep(120)
     assert.ok(await evaluate('(()=>{const field=document.querySelector(".gio-ops__form input"); const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(field,"es pan");field.dispatchEvent(new Event("input",{bubbles:true}));field.closest("form").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));return true})()'))
