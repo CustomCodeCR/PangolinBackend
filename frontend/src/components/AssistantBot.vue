@@ -75,7 +75,9 @@ function handleQuick(index: number, suggestion: string) {
 }
 function operationFromMessage(question: string): OperationKind | null {
   const text = clean(question)
+  if (/\b(que es|como funciona|informacion sobre|explicame|what is|how does|tell me about)\b/.test(text)) return null
   const wantsAction = /\b(quiero|necesito|puedes|podrias|ayudame|deseo|hacer|solicitar|buscar|consultar|rastrear|cotizar|registrar|preparar|check|find|track|request|quote|need|want|look up|search|submit)\b/.test(text)
+    || /^(cotizacion|cotizaciones|cotizar|embarque|tracking|rastrear|itinerario|itinerarios|quote|shipment|sailing)\b/.test(text)
   if (!wantsAction) return null
   if (/\b(cotiz|cotizar|cotizacion|cotizaciones|quote|tarifa)\w*/.test(text) || /\b(fcl|lcl|ftl|ltl)\b/.test(text)) return 'quote'
   if (/\b(embarque|carga|shipment|rastrear|tracking)\w*/.test(text) && /\b(consultar|buscar|rastrear|tracking|track|check|estado|status|ver|where|find)\w*/.test(text)) return 'tracking'
