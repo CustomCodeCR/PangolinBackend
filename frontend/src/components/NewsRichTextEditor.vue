@@ -13,6 +13,7 @@ const selectedStyle = ref('')
 const selectedSize = ref('')
 const openColors = ref<'foreColor'|'hiliteColor'|null>(null)
 const paletteTop = ref(0)
+const paletteAbove = ref(false)
 const paletteLeft = ref(0)
 const customHex = ref('#c9211e')
 const recentColors = ref<string[]>([])
@@ -22,7 +23,7 @@ const palette = [
     const component = Math.round(index * 255 / 11).toString(16).padStart(2, '0')
     return '#' + component.repeat(3)
   }),
-  ...[28, 42, 56, 70, 84].flatMap(lightness =>
+  ...[30, 52, 74].flatMap(lightness =>
     [0, 24, 42, 58, 100, 145, 178, 205, 230, 270, 305, 335].map(hue => {
       const saturation = 85 / 100
       const luminance = lightness / 100
@@ -51,7 +52,8 @@ function toggleColors(kind:'foreColor'|'hiliteColor', event: MouseEvent) {
   if (toolbar) {
     const toolbarRect = toolbar.getBoundingClientRect()
     const rect = button.getBoundingClientRect()
-    paletteTop.value = rect.bottom - toolbarRect.top + 6
+    paletteAbove.value = window.innerHeight - rect.bottom < 350 && rect.top > 350
+    paletteTop.value = (paletteAbove.value ? rect.top - toolbarRect.top - 6 : rect.bottom - toolbarRect.top + 6)
     paletteLeft.value = Math.max(8, Math.min(rect.left - toolbarRect.left, toolbarRect.width - 396))
   }
   openColors.value = kind
@@ -124,7 +126,7 @@ function pastePlain(event: ClipboardEvent) {
 </script>
 
 <template>
-  <div class="news-rich-editor">
+  <div class="news-rich-editor" :class="{ 'news-rich-editor--palette-open': !!openColors }">
     <div class="news-rich-editor__toolbar">
       <nav class="news-rich-editor__tabs" aria-label="Opciones de formato">
         <button v-for="item in (['inicio','insertar','diseno','vista'] as const)" :key="item" type="button"
@@ -149,7 +151,7 @@ function pastePlain(event: ClipboardEvent) {
           <div class="news-rich-editor__option news-rich-editor__color-field"><span>Color del texto</span><button type="button" class="news-rich-editor__color-trigger" :aria-expanded="openColors==='foreColor'" @click="toggleColors('foreColor', $event)"><span class="news-rich-editor__color-dot" :style="{background:customHex}"></span> Elegir color <span class="news-rich-editor__arrow" :class="{open:openColors==='foreColor'}"></span></button></div>
           <div class="news-rich-editor__option news-rich-editor__color-field"><span>Resaltar</span><button type="button" class="news-rich-editor__color-trigger" :aria-expanded="openColors==='hiliteColor'" @click="toggleColors('hiliteColor', $event)">Resaltado <span class="news-rich-editor__arrow" :class="{open:openColors==='hiliteColor'}">⌄</span></button></div>
         </div>
-        <div v-if="openColors" class="news-rich-editor__palette" :style="{top: paletteTop + 'px', left: paletteLeft + 'px'}" role="group" :aria-label="openColors==='foreColor'?'Color del texto':'Color de resaltado'">
+        <div v-if="openColors" class="news-rich-editor__palette" :style="{top: paletteTop + 'px', left: paletteLeft + 'px', transform: paletteAbove ? 'translateY(-100%)' : 'none'}" role="group" :aria-label="openColors==='foreColor'?'Color del texto':'Color de resaltado'">
           <div class="news-rich-editor__palette-heading"><strong>{{openColors==='foreColor'?'Color del texto':'Color de resaltado'}}</strong><button type="button" @click="openColors=null" aria-label="Cerrar paleta">×</button></div>
           <span>Colores predefinidos</span>
           <div class="news-rich-editor__swatches"><button v-for="color in palette" :key="color" type="button" :title="color" :aria-label="'Seleccionar '+color" :style="{backgroundColor:color}" @click="applyColor(color)"></button></div>
@@ -202,14 +204,16 @@ function pastePlain(event: ClipboardEvent) {
 @media(max-width:650px){.news-rich-editor__fields{grid-template-columns:1fr}.news-rich-editor__actions{justify-content:flex-start}.news-rich-editor__toolbar{padding:10px}}
 .news-rich-editor__option :deep(.cf-dropdown){width:100%;min-width:0}
 .news-rich-editor__color-trigger{display:flex;align-items:center;gap:9px;width:100%;min-height:46px;padding:10px 14px;border:1px solid var(--admin-border,#cfd3dd);border-radius:12px;background:var(--admin-input,#fff);color:var(--admin-text,#171923);font-size:14px;font-weight:400;text-align:left;box-shadow:none;cursor:pointer}
-.news-rich-editor__arrow{margin-left:auto;display:block;width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);transition:transform .2s ease}
+.news-rich-editor__arrow{margin-left:auto;display:block;flex:0 0 8px;box-sizing:border-box;background:transparent;width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);transition:transform .2s ease}
 .news-rich-editor__arrow.open{transform:rotate(225deg)}
 .news-rich-editor__color-dot{width:19px;height:19px;border-radius:4px;border:1px solid #888}
-.news-rich-editor__palette{display:grid;gap:9px;padding:12px;border-radius:12px;border:1px solid var(--admin-border,#cfd3dd);background:var(--admin-input,#fff);color:var(--admin-text,#171923);box-shadow:0 16px 32px #0005;position:absolute;width:min(380px,calc(100% - 24px));max-height:min(370px,60vh);overflow-y:auto;z-index:30;box-sizing:border-box}
+.news-rich-editor__palette{display:grid;gap:7px;padding:10px;border-radius:12px;border:1px solid var(--admin-border,#cfd3dd);background:var(--admin-input,#fff);color:var(--admin-text,#171923);box-shadow:0 16px 32px #0005;position:absolute;width:min(380px,calc(100% - 24px));max-height:none;overflow:visible;z-index:30;box-sizing:border-box}
+.news-rich-editor--palette-open{overflow:visible}
+.news-rich-editor--palette-open .news-rich-editor__toolbar{overflow:visible}
 .news-rich-editor__palette-heading{display:flex;align-items:center;justify-content:space-between}
 .news-rich-editor__palette-heading button{background:transparent;border:0;color:inherit;font-size:23px;cursor:pointer}
-.news-rich-editor__swatches{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:4px}
-.news-rich-editor__swatches button{min-width:0;width:100%;height:22px;aspect-ratio:auto;border:1px solid #858b99;border-radius:4px;cursor:pointer}
+.news-rich-editor__swatches{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:3px}
+.news-rich-editor__swatches button{min-width:0;width:100%;height:18px;aspect-ratio:auto;border:1px solid #858b99;border-radius:4px;cursor:pointer}
 .news-rich-editor__swatches button:hover,.news-rich-editor__swatches button:focus-visible{outline:2px solid #b61537;outline-offset:1px}
 .news-rich-editor__recent{grid-template-columns:repeat(8,26px)}
 .news-rich-editor__custom{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -219,10 +223,10 @@ function pastePlain(event: ClipboardEvent) {
 .news-rich-editor__custom button{padding:9px 14px;border-radius:8px;border:0;background:#ab0b2c;color:white;cursor:pointer}
 .news-rich-editor__custom button:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:550px){.news-rich-editor__palette{width:min(380px,calc(100% - 12px))}.news-rich-editor__swatches{grid-template-columns:repeat(12,minmax(0,1fr))}.news-rich-editor__swatches button{height:18px}}
-html.theme-dark .content-manager .news-rich-editor__color-trigger{background:#121a30;border-color:#3b465f;color:#fff}
+html.theme-dark .content-manager .news-rich-editor__color-trigger{background:#0a1224;border-color:#3b465f;color:#fff}
 .news-rich-editor__color-trigger:hover,.news-rich-editor__color-trigger:focus-visible{border-color:#b10d30;outline-offset:2px}
 .content-manager .news-rich-editor__color-trigger{min-height:46px;background:var(--admin-input,#f7f9fd);border-color:var(--admin-border,#cfd3dd);border-radius:12px;color:var(--admin-text,#101b32);font-size:14px;font-weight:400}
-html.theme-dark .content-manager .news-rich-editor__color-trigger{background:#121a30;border-color:#3b465f;color:#fff}
+html.theme-dark .content-manager .news-rich-editor__color-trigger{background:#0a1224;border-color:#3b465f;color:#fff}
 .news-rich-editor__color-trigger .news-rich-editor__arrow{flex:none}
 
 @media(prefers-reduced-motion:reduce){.news-rich-editor__arrow{transition:none}}
