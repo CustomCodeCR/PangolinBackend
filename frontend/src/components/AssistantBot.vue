@@ -236,3 +236,8 @@ function finishClose() { isClosing.value = false }
     </button>
   </aside>
 </template>
+
+<style scoped>
+.site-assistant__menu{border:1px solid var(--gio-line,#666);border-radius:9px;background:var(--gio-action,transparent);color:var(--gio-ink,#fff);padding:7px 10px;font-size:11px;cursor:pointer}
+.site-assistant__menu:hover{border-color:#b20c2a}
+</style>
