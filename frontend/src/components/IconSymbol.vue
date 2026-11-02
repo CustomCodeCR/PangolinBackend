@@ -20,10 +20,28 @@ const icons: Record<string, Component> = {
 
 <template>
   <span class="lucide-symbol" aria-hidden="true">
-    <span v-if="glyph === 'ship-truck'" class="lucide-symbol__combined">
-      <Ship :size="Math.round(size * 0.78)" :stroke-width="2" />
-      <Truck :size="Math.round(size * 0.78)" :stroke-width="2" />
-    </span>
+    <svg
+      v-if="glyph === 'ship-truck'"
+      :width="size"
+      :height="size"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.9"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      focusable="false"
+    >
+      <!-- One coherent ship-and-truck pictogram, drawn in the Lucide outline style. -->
+      <path d="M7 2.5h10v6H7z" />
+      <path d="M10 2.5v6m4-6v6" />
+      <path d="M2 9.5h20l-3.5 4H5.5z" />
+      <path d="M3 16h11v3H3z" />
+      <path d="M14 17h3l2 2v1h-2" />
+      <path d="M3 20h2m5 0h5" />
+      <circle cx="7.5" cy="20" r="1" />
+      <circle cx="16" cy="20" r="1" />
+    </svg>
     <component v-else :is="icons[glyph] ?? ArrowUpRight" :size="size" :stroke-width="2" />
   </span>
 </template>
@@ -31,5 +49,4 @@ const icons: Record<string, Component> = {
 <style scoped>
 .lucide-symbol{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;line-height:0}
 .lucide-symbol :deep(svg){display:block;flex:none}
-.lucide-symbol__combined{display:inline-flex;align-items:center;justify-content:center;gap:1px}
 </style>
