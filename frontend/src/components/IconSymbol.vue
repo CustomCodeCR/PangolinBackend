@@ -46,7 +46,7 @@ const icons: Record<string, Component> = {
       <path d="M5 27h3m4 0h8" />
       <circle cx="10" cy="27" r="1.5" />
       <circle cx="21.5" cy="27" r="1.5" />
-    </svg>svg>
+    </svg>
     <component v-else :is="icons[glyph] ?? ArrowUpRight" :size="size" :stroke-width="2" />
   </span>
 </template>
