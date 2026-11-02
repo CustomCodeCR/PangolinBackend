@@ -214,7 +214,7 @@ async function main() {
     assert.deepEqual(quoteWrites[0].equipment[0].unitWeightsKg,[8000])
     assert.equal(quoteWrites[0].originLocationId,'11111111-1111-1111-1111-111111111111')
     assert.equal(quoteWrites[0].destinationLocationId,'22222222-2222-2222-2222-222222222222')
-    assert.ok(await evaluate('document.querySelector(".gio-ops__card a[href=\"/cotizaciones\"]") !== null'),'Customer should see quote section link')
+    assert.ok(await evaluate(`!!document.querySelector('.gio-ops__card a[href="/cotizaciones"]')`),'Customer should see quote section link')
     // Reuse confirmed fields to request a distinct quote as an admin.
     role = 'administrador'
     const newQuote = await evaluate('(()=>{const b=[...document.querySelectorAll(".gio-ops__secondary")].find(x=>x.textContent.includes("Nueva consulta"));if(!b)return false;b.click();return true})()')
@@ -222,7 +222,7 @@ async function main() {
     await choose('Marítimo')
     await waitFor(()=>has('Confirmar y enviar solicitud'))
     await click('.gio-ops__primary')
-    await waitFor(()=>evaluate('document.querySelector(".gio-ops__card a[href*=\"tab=cotizaciones\"]") !== null'))
+    await waitFor(()=>evaluate(`!!document.querySelector('.gio-ops__card a[href*="tab=cotizaciones"]')`))
     assert.equal(quoteWrites.length,2,'Admin second quote should be submitted once')
     role = 'cliente'
     await click('.gio-ops__back')
