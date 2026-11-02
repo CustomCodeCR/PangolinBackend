@@ -89,5 +89,29 @@
     "title": "Solicitudes oficiales | Administración Castro Fallas",
     "description": "Gestión interna de solicitudes oficiales de cotización.",
     "indexable": false
+  },
+  "/servicios/almacenamiento-fiscal": {
+    "title": "Almacenamiento fiscal en Costa Rica | Grupo Castro Fallas",
+    "description": "Coordinación de almacenamiento fiscal de mercancías en Costa Rica. Conocé requisitos, diferencias con el bodegaje y cómo cotizar con Grupo Castro Fallas.",
+    "socialImage": "/images/warehouse-person.webp",
+    "socialImageAlt": "Coordinación de almacenamiento fiscal de mercancías en Costa Rica"
+  },
+  "/servicios/bodegaje-general": {
+    "title": "Bodegaje general y almacenaje en Costa Rica | Castro Fallas",
+    "description": "Bodegaje general de mercancías en Costa Rica: almacenamiento, recepción y coordinación de despacho. Información y consultas con Grupo Castro Fallas.",
+    "socialImage": "/images/warehouse-person.webp",
+    "socialImageAlt": "Bodegaje general y almacenamiento logístico en Costa Rica"
+  },
+  "/servicios/agenciamiento-aduanal": {
+    "title": "Agenciamiento aduanal en Costa Rica | Grupo Castro Fallas",
+    "description": "Agenciamiento aduanal para importaciones y exportaciones en Costa Rica: documentos, requisitos, despacho y coordinación logística con Castro Fallas.",
+    "socialImage": "/images/services-crane.webp",
+    "socialImageAlt": "Servicios de agencia aduanal y gestión documental"
+  },
+  "/servicios/consolidadora-de-carga": {
+    "title": "Consolidadora de carga LCL y LTL | Grupo Castro Fallas",
+    "description": "Consolidadora de carga: conocé las diferencias entre LCL marítimo y LTL terrestre, requisitos y cotizaciones con Grupo Castro Fallas.",
+    "socialImage": "/images/cover-logistics.jpeg",
+    "socialImageAlt": "Carga consolidada marítima LCL y terrestre LTL"
   }
 }
