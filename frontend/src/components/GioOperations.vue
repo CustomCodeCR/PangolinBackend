@@ -213,14 +213,14 @@ function commitValue(item: Step, value: string, locationId?: string) {
 function accept(value = input.value, explicitLocationId?: string) {
   if (busy.value || phase.value !== 'collect' || !current.value) return
   const item = current.value
-  const v = value.trim()
+  let v = value.trim()
   error.value = validation(item.key, v)
   if (error.value) return
   let locationId = explicitLocationId
   if (isCatalogueLocation(item.key)) {
     const matching = locationChoices.value.filter(loc =>
       norm(loc.displayName) === norm(v) || norm(loc.code || '') === norm(v))
-    if (!locationId && matching.length === 1) locationId = matching[0].id
+    if (!locationId && matching.length === 1) { locationId = matching[0].id; v = matching[0].displayName }
     if (!locationId || !locationChoices.value.some(loc => loc.id === locationId && loc.displayName === v)) {
       error.value = tr('Selecciona una ubicación de la lista. No puedo aceptar lugares sin verificar.',
         'Select an available location from the list. I cannot accept unverified places.')
