@@ -92,8 +92,20 @@ const steps = computed<Step[]>(() => {
 })
 const current = computed(() => steps.value[stepIndex.value])
 const flowName = computed(() => props.kind === 'quote' ? tr('Cotización', 'Quote') : props.kind === 'tracking' ? tr('Embarque', 'Shipment') : tr('Itinerarios', 'Itineraries'))
+const fieldLabels: Record<string, [string, string]> = {
+  mode:['Modalidad','Mode'],shipmentType:['Tipo de embarque','Shipment type'],origin:['Origen','Origin'],destination:['Destino','Destination'],
+  pod:['Puerto de descarga','Port of discharge'],incoterm:['Incoterm','Incoterm'],cargoReadyDate:['Carga lista','Cargo ready'],
+  exwCargoStatus:['Estado EXW','EXW status'],exwPickupAddress:['Recolección EXW','EXW pickup'],
+  cargoDescription:['Mercancía','Goods'],equipmentSize:['Tamaño equipo','Equipment size'],equipmentType:['Tipo equipo','Equipment type'],
+  equipmentQuantity:['Cantidad equipos','Equipment quantity'],equipmentWeights:['Pesos por unidad (kg)','Weights per unit (kg)'],
+  packageQuantity:['Bultos','Packages'],packageWeight:['Peso por bulto (kg)','Weight per package (kg)'],
+  packageLength:['Largo (cm)','Length (cm)'],packageWidth:['Ancho (cm)','Width (cm)'],packageHeight:['Alto (cm)','Height (cm)'],
+  stackable:['Estibable','Stackable'],contactName:['Contacto','Contact'],contactEmail:['Correo','Email'],contactPhone:['Teléfono','Phone'],
+  reference:['Referencia','Reference'],referenceType:['Tipo de referencia','Reference type'],transport:['Transporte','Transport'],departure:['Desde la fecha','Departure from']
+}
 const summary = computed(() => steps.value.map(step => ({
-  key:step.key, label: step.prompt.replace(/[¿?]/g, ''), value: step.choices?.find(option => option.value === values[step.key])?.label ?? values[step.key]
+  key:step.key, label: tr(...(fieldLabels[step.key] ?? [step.key,step.key])),
+  value: step.choices?.find(option => option.value === values[step.key])?.label ?? values[step.key]
 })).filter(item => item.value))
 const filteredLocations = computed(() => locationChoices.value.filter(loc =>
   norm(loc.displayName).includes(norm(locationTerm.value)) || norm(loc.code || '').includes(norm(locationTerm.value))).slice(0, 30))
@@ -105,6 +117,7 @@ const integer = (s: string, max: number) => /^\d+$/.test(s) && Number(s) > 0 && 
 const scrollEnd = async () => { await nextTick(); scroller.value?.scrollTo({top:scroller.value.scrollHeight,behavior:'smooth'}) }
 
 function validation(key: string, value: string): string {
+  if (current.value?.choices?.some(choice => choice.value === value)) return ''
   if (!value && current.value?.optional) return ''
   if (!value) return tr('Este dato es obligatorio.', 'This field is required.')
   if (['cargoReadyDate', 'departure'].includes(key) && !validDate(value)) return tr('Usa una fecha real con formato AAAA-MM-DD.', 'Enter a real date as YYYY-MM-DD.')
@@ -131,6 +144,9 @@ function accept(value = input.value) {
   if (error.value) return
   if (item.key === 'mode' && values.mode !== v) {
     delete values.shipmentType
+    for (const role of ['origin','destination','pod']) delete selectedLocations[role]
+  }
+  if (item.key === 'shipmentType' && values.shipmentType !== v) {
     for (const role of ['origin','destination','pod']) delete selectedLocations[role]
   }
   if (['origin','destination','pod'].includes(item.key)) delete selectedLocations[item.key]
@@ -307,7 +323,7 @@ async function perform() {
         <section class="gio-ops__card">
           <h3><FileText :size="18" />{{ tr('Resumen','Summary') }}</h3>
           <dl>
-            <div v-for="item in summary" :key="item.key"><dt>{{ item.key === 'reference' ? tr('Referencia','Reference') : item.key }}</dt><dd>{{ item.value }}</dd></div>
+            <div v-for="item in summary" :key="item.key"><dt>{{ item.label }}</dt><dd>{{ item.value }}</dd></div>
           </dl>
           <p v-if="kind === 'quote'" class="gio-ops__note">{{ tr('Esta es una solicitud, no una tarifa confirmada. Los precios los confirma Castro Fallas.','This is a request, not a confirmed rate. Castro Fallas confirms prices.') }}</p>
         </section>
@@ -315,7 +331,7 @@ async function perform() {
         <button class="gio-ops__secondary" type="button" :disabled="busy" @click="edit">{{ tr('Modificar datos','Edit information') }}</button>
       </template>
       <template v-else-if="phase === 'auth'">
-        <div class="gio-ops__bubble">{{ tr('Por seguridad, necesitas iniciar sesión con una cuenta autorizada. Conservaremos temporalmente el borrador de la cotización durante 30 minutos en esta pestaña.','For security, sign in with an authorized account. We will temporarily keep your quote draft for 30 minutes in this tab.') }}</div>
+        <div class="gio-ops__bubble">{{ kind === 'quote' ? tr('Para enviar la solicitud necesitas una cuenta autorizada. El borrador permanecerá en esta pestaña hasta 30 minutos. Al volver, abre GIO y elige Cotización.','To submit this request you need an authorized account. Your draft stays in this tab for up to 30 minutes. On return, open GIO and select Quote.') : tr('Necesitas una cuenta autorizada para consultar esta información. Inicia sesión y vuelve a realizar la búsqueda.','You need an authorized account to search this information. Sign in, then start the search again.') }}</div>
         <a class="gio-ops__primary" :href="loginLink()"><ShieldCheck :size="16" />{{ tr('Iniciar sesión','Sign in') }}</a>
         <button class="gio-ops__secondary" type="button" @click="perform">{{ tr('Ya inicié sesión','I have signed in') }}</button>
       </template>
