@@ -151,6 +151,7 @@ async function main() {
     await choose('FOB')
     await answer('2026-11-20')
     await answer('Electrodomésticos')
+    await choose('No')
     await answer('40 HC')
     await answer('Seco')
     await answer('1')
