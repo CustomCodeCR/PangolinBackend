@@ -35,6 +35,7 @@ const shipmentTruncated = ref(false)
 const restrictedTracking = ref(false)
 const STORAGE_KEY = 'gcf-gio-quote-draft-v1'
 const prefilled = ref(false)
+const editingField = ref('')
 const i = (es: string, en: string) => tr(es, en)
 const modes: Choice[] = [{value:'Maritime',label:i('Marítimo','Ocean')},{value:'Air',label:i('Aéreo','Air')},{value:'Land',label:i('Terrestre','Ground')}]
 const terms = 'EXW FCA FAS FOB CFR CIF CPT CIP DAP DPU DDP'.split(' ').map(value => ({value,label:value}))
@@ -149,23 +150,40 @@ function accept(value = input.value) {
   }
   if (item.key === 'shipmentType' && values.shipmentType !== v) {
     for (const role of ['origin','destination','pod']) delete selectedLocations[role]
+    for (const field of ['equipmentSize','equipmentType','equipmentQuantity','equipmentWeights','packageQuantity','packageWeight','packageLength','packageWidth','packageHeight','stackable']) delete values[field]
   }
   if (['origin','destination','pod'].includes(item.key)) delete selectedLocations[item.key]
   values[item.key] = v
   history.value.push({question:item.prompt,answer:item.choices?.find(choice => choice.value === v)?.label || v || tr('Omitido','Skipped')})
+  if (editingField.value) {
+    editingField.value = ''
+    input.value = ''
+    const missing = steps.value.findIndex(step => !step.optional && !values[step.key])
+    if (missing >= 0) { stepIndex.value = missing; phase.value = 'collect' }
+    else phase.value = 'review'
+    void scrollEnd()
+    return
+  }
   stepIndex.value++
   while (stepIndex.value < steps.value.length && values[steps.value[stepIndex.value].key]) stepIndex.value++
   input.value = ''
   if (stepIndex.value >= steps.value.length) phase.value = 'review'
   void scrollEnd()
 }
-function edit() {
+function editField(key: string) {
+  const index = steps.value.findIndex(step => step.key === key)
+  if (index < 0 || busy.value) return
   error.value = ''
   phase.value = 'collect'
-  stepIndex.value = 0
+  editingField.value = key
+  stepIndex.value = index
+  input.value = values[key] || ''
   history.value = []
-  quoteId.value = ''
   void scrollEnd()
+}
+function edit() {
+  const first = steps.value[0]
+  if (first) editField(first.key)
 }
 function back() {
   if (busy.value) return
@@ -368,7 +386,7 @@ async function perform() {
         <section class="gio-ops__card">
           <h3><FileText :size="18" />{{ tr('Resumen','Summary') }}</h3>
           <dl>
-            <div v-for="item in summary" :key="item.key"><dt>{{ item.label }}</dt><dd>{{ item.value }}</dd></div>
+            <div v-for="item in summary" :key="item.key"><dt>{{ item.label }}</dt><dd>{{ item.value }}</dd><button class="gio-ops__edit" type="button" :aria-label="tr('Editar ','Edit ') + item.label" @click="editField(item.key)">{{ tr('Editar','Edit') }}</button></div>
           </dl>
           <p v-if="kind === 'quote'" class="gio-ops__note">{{ tr('Esta es una solicitud, no una tarifa confirmada. Los precios los confirma Castro Fallas.','This is a request, not a confirmed rate. Castro Fallas confirms prices.') }}</p>
         </section>
@@ -440,7 +458,7 @@ async function perform() {
 .gio-ops__card{background:var(--gio-action,#24212a);border:1px solid var(--gio-line,#555);border-radius:14px;padding:12px;display:grid;gap:10px}
 .gio-ops__card h3{display:flex;align-items:center;gap:7px;margin:0;font-size:13px;font-weight:750}
 .gio-ops__card h3 svg{color:#da2042;flex-shrink:0}.gio-ops__card dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:0}
-.gio-ops__card dl>div{min-width:0}.gio-ops__card dt{font-size:10px;color:var(--gio-muted,#aaa);overflow-wrap:anywhere}.gio-ops__card dd{font-size:12px;margin:2px 0 0;overflow-wrap:anywhere}
+.gio-ops__card dl>div{min-width:0}.gio-ops__edit{display:inline-block;padding:3px 0;border:0;background:transparent;color:#df4561;text-align:left;font-size:10px;font-weight:750;cursor:pointer}.gio-ops__card dt{font-size:10px;color:var(--gio-muted,#aaa);overflow-wrap:anywhere}.gio-ops__card dd{font-size:12px;margin:2px 0 0;overflow-wrap:anywhere}
 .gio-ops__note{font-size:11px;line-height:1.45;color:var(--gio-muted,#aaa);margin:0}.gio-ops__id{overflow-wrap:anywhere;font-weight:750;font-size:12px;margin:0}
 .gio-ops__primary,.gio-ops__secondary{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;border:1px solid transparent;border-radius:11px;min-height:40px;padding:9px 12px;cursor:pointer;text-decoration:none;font-weight:750;font-size:12px}
 .gio-ops__primary{background:#98132e;color:#fff}.gio-ops__secondary{border-color:var(--gio-line,#555);background:var(--gio-action,#24212a);color:var(--gio-ink,#fff)}.gio-ops__link{text-decoration:none}
