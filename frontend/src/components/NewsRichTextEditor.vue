@@ -17,6 +17,7 @@ const paletteTop = ref(0)
 const paletteAbove = ref(false)
 const paletteLeft = ref(0)
 const customHex = ref('#c9211e')
+const highlightHex = ref('#fef08a')
 const recentColors = ref<string[]>([])
 // A compact, consistent palette: all lightness values are valid HSL percentages.
 const palette = [
@@ -40,7 +41,8 @@ const palette = [
 ]
 function applyColor(color:string) {
   if (!/^#[0-9a-fA-F]{6}$/.test(color) || !openColors.value) return
-  customHex.value=color
+  if (openColors.value === 'foreColor') customHex.value = color
+  else highlightHex.value = color
   restoreSelection()
   const selection = window.getSelection()
   const range = selection?.rangeCount ? selection.getRangeAt(0) : null
@@ -170,7 +172,7 @@ function pastePlain(event: ClipboardEvent) {
         <div class="news-rich-editor__fields">
           <div class="news-rich-editor__option"><span>Tamaño</span><FieldDropdown :model-value="selectedSize" :options="[{value:'',label:'Seleccionar tamaño'},...sizes.map(size=>({value:size,label:size}))]" aria-label="Tamaño" @update:model-value="setSize" /></div>
           <div class="news-rich-editor__option news-rich-editor__color-field"><span>Color del texto</span><button type="button" class="news-rich-editor__color-trigger" :aria-expanded="openColors==='foreColor'" @click="toggleColors('foreColor', $event)"><span class="news-rich-editor__color-dot" :style="{background:customHex}"></span> Elegir color <span class="news-rich-editor__arrow" :class="{open:openColors==='foreColor'}"></span></button></div>
-          <div class="news-rich-editor__option news-rich-editor__color-field"><span>Resaltar</span><button type="button" class="news-rich-editor__color-trigger" :aria-expanded="openColors==='hiliteColor'" @click="toggleColors('hiliteColor', $event)">Resaltado <span class="news-rich-editor__arrow" :class="{open:openColors==='hiliteColor'}"></span></button></div>
+          <div class="news-rich-editor__option news-rich-editor__color-field"><span>Resaltar</span><button type="button" class="news-rich-editor__color-trigger" :aria-expanded="openColors==='hiliteColor'" @click="toggleColors('hiliteColor', $event)"><span class="news-rich-editor__color-dot" :style="{ background: highlightHex }" aria-hidden="true"></span> Resaltado <span class="news-rich-editor__arrow" :class="{open:openColors==='hiliteColor'}"></span></button></div>
         </div>
         <div v-if="openColors" class="news-rich-editor__palette" :style="{top: paletteTop + 'px', left: paletteLeft + 'px', transform: paletteAbove ? 'translateY(-100%)' : 'none'}" role="group" :aria-label="openColors==='foreColor'?'Color del texto':'Color de resaltado'">
           <div class="news-rich-editor__palette-heading"><strong>{{openColors==='foreColor'?'Color del texto':'Color de resaltado'}}</strong><button type="button" @click="openColors=null" aria-label="Cerrar paleta">×</button></div>
