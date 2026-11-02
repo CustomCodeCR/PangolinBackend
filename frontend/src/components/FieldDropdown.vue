@@ -180,7 +180,7 @@ onBeforeUnmount(removeListeners)
       :aria-controls="listId" :aria-expanded="isOpen"
       @click="toggleMenu" @keydown.down.prevent="openMenu(true)"
       @keydown.up.prevent="openMenu(true)" @keydown.esc.prevent="closeMenu">
-      <span class="cf-dropdown__value">{{ selected }}</span><span class="cf-dropdown__chevron" aria-hidden="true"></span>
+      <span class="cf-dropdown__value">{{ selected }}</span><span class="cf-dropdown__chevron" :class="{ 'cf-dropdown__chevron--open': isOpen }" aria-hidden="true"></span>
     </button>
     <Teleport to="body">
       <div v-if="isOpen" :id="listId" ref="menu" class="cf-dropdown__menu" role="listbox"
@@ -208,7 +208,9 @@ onBeforeUnmount(removeListeners)
 .cf-dropdown__trigger:focus-visible { outline:2px solid #b20c2a; outline-offset:2px; }
 .cf-dropdown__trigger:disabled {cursor:not-allowed;opacity:.6;}
 .cf-dropdown__value { min-width:0; overflow-wrap:anywhere; }
-.cf-dropdown__chevron { flex:none; width:8px; height:8px; border-right:2px solid currentColor; border-bottom:2px solid currentColor; transform:translateY(-3px) rotate(45deg); }
+.cf-dropdown__chevron { flex:none; width:8px; height:8px; border-right:2px solid currentColor; border-bottom:2px solid currentColor; transform:translateY(-3px) rotate(45deg); transition:transform .2s ease; }
+.cf-dropdown__chevron--open { transform:translateY(2px) rotate(225deg); }
+@media(prefers-reduced-motion:reduce){.cf-dropdown__chevron{transition:none}}
 .cf-dropdown__menu {
   position:fixed; z-index:2147483000; box-sizing:border-box; margin:0;
   padding:8px; display:flex; flex-direction:column; gap:2px;
