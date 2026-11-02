@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ArrowLeft, CheckCircle2, ChevronRight, FileText, LoaderCircle, MapPin, Search, ShieldCheck, Ship } from '@lucide/vue'
 import { refreshSession } from '../services/auth'
+import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions } from '../lib/officialQuoteOptions'
 
 type Kind = 'quote' | 'tracking' | 'itinerary'
 type Phase = 'collect' | 'confirm' | 'review' | 'auth' | 'location' | 'result'
@@ -28,6 +29,8 @@ const locationTerm = ref('')
 const locationChoices = ref<Location[]>([])
 const quoteId = ref('')
 const quoteStatus = ref('')
+const quoteResultUrl = ref('/cotizaciones')
+const quoteResultAdmin = ref(false)
 const itineraries = ref<Itinerary[]>([])
 const itineraryTotal = ref(0)
 const shipments = ref<Shipment[]>([])
@@ -47,7 +50,9 @@ const isQuoteLocation = (key: string) => props.kind === 'quote' && ['origin','de
 const isCatalogueLocation = (key: string) => isQuoteLocation(key) || (props.kind === 'itinerary' && ['origin','destination'].includes(key))
 const i = (es: string, en: string) => tr(es, en)
 const modes = computed<Choice[]>(() => [{value:'Maritime',label:i('Marítimo','Ocean')},{value:'Air',label:i('Aéreo','Air')},{value:'Land',label:i('Terrestre','Ground')}])
-const terms = 'EXW FCA FAS FOB CFR CIF CPT CIP DAP DPU DDP'.split(' ').map(value => ({value,label:value}))
+const terms = officialIncoterms.map(value => ({value,label:value}))
+const equipmentSizes = computed<Choice[]>(() => officialEquipmentSizeOptions(values.shipmentType || '', tr))
+const equipmentTypes = computed<Choice[]>(() => officialEquipmentTypeOptions(values.shipmentType || '', tr))
 const isEquipment = computed(() => ['FCL', 'FTL'].includes(values.shipmentType))
 const shipmentOptions = computed<Choice[]>(() => values.mode === 'Maritime'
   ? [{value:'FCL',label:i('Contenedor completo (FCL)','Full container (FCL)')},{value:'LCL',label:i('Carga consolidada (LCL)','Consolidated cargo (LCL)')}]
@@ -84,8 +89,8 @@ const steps = computed<Step[]>(() => {
     {key:'dangerousGoods',prompt:i('¿La mercancía es peligrosa o requiere manejo especial?','Is this dangerous cargo or does it require special handling?'),choices:[{value:'yes',label:i('Sí','Yes')},{value:'no',label:'No'},{value:'unsure',label:i('No estoy seguro','Not sure')}]}
   )
   if (isEquipment.value) result.push(
-    {key:'equipmentSize',prompt:i('¿Qué tamaño o tipo de equipo necesitas? Ejemplo: 40 HC.','Which equipment size do you need? Example: 40 HC.')},
-    {key:'equipmentType',prompt:i('¿Qué tipo de equipo? Ejemplo: contenedor seco.','Which equipment type? Example: dry container.')},
+    {key:'equipmentSize',prompt:i('Selecciona el tamaño del equipo disponible.','Select an available equipment size.'),choices:equipmentSizes.value},
+    {key:'equipmentType',prompt:i('Selecciona el tipo de equipo.','Select the equipment type.'),choices:equipmentTypes.value},
     {key:'equipmentQuantity',prompt:i('¿Cuántas unidades de equipo necesitas?','How many equipment units do you need?')},
     {key:'equipmentWeights',prompt:i('Indica el peso en kg de cada unidad, separado por comas si hay varias.','Enter each unit weight in kg, separated by commas for multiple units.')}
   )
@@ -122,7 +127,7 @@ const summary = computed(() => steps.value.map(step => ({
   value: step.choices?.find(option => option.value === values[step.key])?.label ?? values[step.key]
 })).filter(item => item.value))
 const filteredLocations = computed(() => locationChoices.value.filter(loc =>
-  norm(loc.displayName).includes(norm(locationTerm.value)) || norm(loc.code || '').includes(norm(locationTerm.value))).slice(0, 12))
+  norm(loc.displayName).includes(norm(locationTerm.value))).slice(0, 30))
 const validDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(new Date(v + 'T12:00:00Z').getTime()) &&
   new Date(v + 'T12:00:00Z').toISOString().slice(0, 10) === v
 const norm = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
@@ -131,7 +136,10 @@ const integer = (s: string, max: number) => /^\d+$/.test(s) && Number(s) > 0 && 
 const scrollEnd = async () => { await nextTick(); scroller.value?.scrollTo({top:scroller.value.scrollHeight,behavior:'smooth'}) }
 
 function validation(key: string, value: string): string {
-  if (current.value?.choices?.some(choice => choice.value === value)) return ''
+  if (current.value?.choices) {
+    if (current.value.choices.some(choice => choice.value === value)) return ''
+    return tr('Selecciona una de las opciones disponibles.','Select an available option.')
+  }
   if (!value && current.value?.optional) return ''
   if (!value) return tr('Este dato es obligatorio.', 'This field is required.')
   if (['cargoReadyDate', 'departure'].includes(key) && !validDate(value)) return tr('Usa una fecha real con formato AAAA-MM-DD.', 'Enter a real date as YYYY-MM-DD.')
@@ -139,14 +147,22 @@ function validation(key: string, value: string): string {
   if (key === 'contactPhone' && !/^[+0-9 ()-]{7,40}$/.test(value)) return tr('Escribe un teléfono válido.', 'Enter a valid phone number.')
   if (key === 'reference' && !/^[a-zA-Z0-9_-]{3,64}$/.test(value)) return tr('Referencia inválida: de 3 a 64 caracteres, letras, números o guiones.', 'Invalid reference. Use 3–64 letters, numbers or dashes.')
   if (['equipmentQuantity','packageQuantity'].includes(key) && !integer(value,key === 'equipmentQuantity' ? 25 : 10000)) return tr('Escribe una cantidad entera positiva.', 'Enter a positive whole number.')
-  if (['packageWeight','packageLength','packageWidth','packageHeight'].includes(key) && !positive(value)) return tr('Escribe un número positivo (usa punto para decimales).', 'Enter a positive number (use a dot for decimals).')
+  if (['packageWeight','packageLength','packageWidth','packageHeight'].includes(key) &&
+      (!positive(value) || Number(value) > (key === 'packageWeight' ? 100000000 : 100000)))
+    return tr('Escribe una medida o peso positivo dentro del límite permitido.', 'Enter a positive weight or dimension within its allowed limit.')
   if (key === 'equipmentWeights') {
     const weights = value.split(',').map(x => x.trim())
-    if (weights.length !== Number(values.equipmentQuantity) || weights.some(x => !positive(x)))
+    if (weights.length !== Number(values.equipmentQuantity) || weights.some(x => !positive(x) || Number(x) > 100000000))
       return tr('Debe haber un peso positivo por cada unidad de equipo.', 'Provide one positive weight per equipment unit.')
   }
-  if (current.value?.choices && !current.value.choices.some(choice => choice.value === value)) return tr('Selecciona una opción válida.', 'Select a valid option.')
-  if (value.length > (key === 'cargoDescription' ? 400 : 200)) return tr('El dato es demasiado largo.', 'This value is too long.')
+  const maxLength: Record<string,number> = {cargoDescription:4000, contactName:150, contactEmail:255,
+    contactPhone:40, exwPickupAddress:800, reference:64, equipmentWeights:400}
+  if (value.length > (maxLength[key] ?? 200)) return tr('El dato es demasiado largo.', 'This value is too long.')
+  if (['cargoDescription','contactName','exwPickupAddress'].includes(key)) {
+    const letters = (value.match(/\p{L}/gu) || []).length
+    if (letters < 2 || /(.)\1{6,}/iu.test(value) || /^\W+$/u.test(value))
+      return tr('Escribe una descripción clara en lugar de caracteres repetidos.', 'Please use a clear description rather than repeated characters.')
+  }
   return ''
 }
 
@@ -314,8 +330,13 @@ function applyInitialQuestion() {
     if (incoterm) values.incoterm = incoterm[1].toUpperCase()
     const day = question.match(/\b20\d{2}-\d{2}-\d{2}\b/)
     if (day && validDate(day[0])) values.cargoReadyDate = day[0]
-    const size = question.match(/\b(20|40|45)\s*(?:pies|ft|hc|high cube)\b/)
-    if (size) values.equipmentSize = size[0]
+    const size = question.match(/\b(20|40|45|48|53)\s*(?:pies|ft|hc|high cube)\b/)
+    if (size) {
+      const candidate = size[1] + ' pies'
+      if (officialEquipmentSizeOptions(values.shipmentType, tr).some(choice => choice.value === candidate))
+        values.equipmentSize = candidate
+      if (/\b(?:hc|high cube)\b/.test(size[0]) && values.shipmentType === 'FCL') values.equipmentType = 'High Cube'
+    }
     const oneUnit = /\b(?:1|un|una|one)\s+(?:contenedor|container|camion|truck|furgon)\b/.test(question)
     if (oneUnit) values.equipmentQuantity = '1'
   }
