@@ -9,6 +9,27 @@ const { makeStructuredData } = require('../seo/structured-data.cjs')
 const dist = path.resolve(__dirname, '../dist')
 const original = fs.readFileSync(path.join(dist, 'index.html'), 'utf8')
 const origin = 'https://www.logisticacastrofallas.com'
+
+const serviceGuides = require('../seo/service-landings.json')
+// Initial HTML contains the public copy even before Vue loads. Vue replaces #app on mount.
+const escapeHtml = text => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+function renderServiceGuide(route, guide) {
+  const c = guide.es
+  const link = (href, label) => '<a href="' + escapeHtml(href) + '">' + escapeHtml(label) + '</a>'
+  const related = Object.entries(serviceGuides).filter(([key]) => key !== route)
+    .map(([key, item]) => '<li>' + link(key, item.es.label) + '</li>').join('')
+  return '<main data-seo-service="' + escapeHtml(route) + '">' +
+    '<nav aria-label="Ruta de navegación">' + link('/', 'Inicio') + ' / ' + link('/servicios', 'Servicios') + ' / ' + escapeHtml(c.label) + '</nav>' +
+    '<article><header><h1>' + escapeHtml(c.title) + '</h1><p>' + escapeHtml(c.intro) + '</p></header>' +
+    '<section><h2>' + escapeHtml(c.heading) + '</h2><p>' + escapeHtml(c.body) + '</p><ul>' +
+    c.points.map(point => '<li>' + escapeHtml(point) + '</li>').join('') + '</ul></section>' +
+    '<section><h2>Preguntas frecuentes</h2>' + c.faq.map(faq =>
+      '<h3>' + escapeHtml(faq.q) + '</h3><p>' + escapeHtml(faq.a) + '</p>').join('') + '</section>' +
+    '<nav aria-label="Otros servicios"><h2>Otros servicios de Grupo Castro Fallas</h2><ul>' + related + '</ul>' +
+    link('/servicios', 'Todos los servicios') + '</nav>' +
+    '<p>Para una propuesta detallada escriba a ' + link('mailto:comercial@castrofallas.com', 'comercial@castrofallas.com') + '.</p></article></main>'
+}
+
 const imageDimensions = {
   '/images/hero.webp': [1200, 685],
   '/images/cover-logistics.jpeg': [1024, 576],
@@ -66,6 +87,10 @@ function buildRoute(route, seo) {
   if (structured) {
     const serialized = JSON.stringify(structured).replace(/</g, '\\u003c')
     html = html.replace('</head>', '    <script type="application/ld+json">' + serialized + '</script>\n  </head>')
+  }
+  if (serviceGuides[route]) {
+    if (!html.includes('<div id="app"></div>')) throw new Error('No se encontró raíz Vue para HTML SEO')
+    html = html.replace('<div id="app"></div>', '<div id="app">' + renderServiceGuide(route, serviceGuides[route]) + '</div>')
   }
   const dest = route === '/' ? dist : path.join(dist, route.slice(1))
   fs.mkdirSync(dest, { recursive: true })
