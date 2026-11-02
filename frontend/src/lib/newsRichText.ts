@@ -8,13 +8,13 @@ const alignments = new Set(['left', 'center', 'right', 'justify'])
 
 function safeColor(value: string): string | undefined {
   const normalized = value.trim().toLowerCase()
-  if (/^#[a-f0-9]{6}$/.test(normalized) && colors.has(normalized)) return normalized
+  if (/^#[a-f0-9]{6}$/.test(normalized)) return normalized
   const match = normalized.match(/^rgb\(\s*(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})\s*\)$/)
   if (!match) return undefined
   const rgb = match.slice(1).map(Number)
   if (rgb.some(n => n > 255)) return undefined
   const hex = '#' + rgb.map(n => n.toString(16).padStart(2, '0')).join('')
-  return colors.has(hex) ? hex : undefined
+  return hex
 }
 const safeFont = (value: string) => fonts.has(value.replace(/['"]/g, '').trim()) ? value.replace(/['"]/g, '').trim() : undefined
 function safeStyles(el: Element): string {
