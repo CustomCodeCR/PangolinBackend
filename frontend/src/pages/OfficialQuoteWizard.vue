@@ -8,6 +8,7 @@ import SiteFooter from '../components/SiteFooter.vue'
 import IconSymbol from '../components/IconSymbol.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import { refreshSession } from '../services/auth'
+import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions } from '../lib/officialQuoteOptions'
 
 const { locale } = useI18n({ useScope: 'global' })
 const q = (es: string, en: string) => locale.value === 'en' ? en : es
@@ -16,7 +17,6 @@ type Mode = 'Maritime' | 'Air' | 'Land'
 type Type = 'FCL' | 'LCL' | 'AIR_LCL' | 'FTL' | 'LTL'
 type Loc = { id: string; displayName: string; code: string | null }
 type ContainerLine = { size: string; type: string; quantity: number; unitWeightsKg: number[] }
-type EquipmentOption = { value: string; label: string }
 type PackageLine = { description: string; quantity: number; weight: number; length: number; width: number; height: number; stackability: 'Stackable' | 'NonStackable' }
 const localQuotePreview = import.meta.env.DEV && new URLSearchParams(window.location.search).get('previewRole') === 'cliente'
 const previewLocations: Loc[] = [
@@ -63,17 +63,8 @@ const typeOptions = computed(() => mode.value === 'Maritime'
 const equipmentMode = computed(() => shipmentType.value === 'FCL' || shipmentType.value === 'FTL')
 type LocationField = 'origin' | 'destination' | 'pod'
 const openLocation = ref<LocationField | null>(null)
-const equipmentSizeOptions = computed<EquipmentOption[]>(() => shipmentType.value === 'FCL'
-  ? ['20', '40', '45', '48'].map(n => ({ value: n + ' pies', label: n + ' ' + q('pies', 'ft') }))
-  : [
-      { value: '24 pies / 5 TON', label: '24 ' + q('pies', 'ft') + ' / 5 TON' },
-      { value: '26 pies / 7 TON', label: '26 ' + q('pies', 'ft') + ' / 7 TON' },
-      { value: '40 pies', label: '40 ' + q('pies', 'ft') },
-      { value: '53 pies', label: '53 ' + q('pies', 'ft') }
-    ])
-const equipmentTypeOptions = computed<EquipmentOption[]>(() => shipmentType.value === 'FCL'
-  ? ['Dry Van', 'High Cube', 'Open Top', 'Open Side', 'Tank', 'Flat Rack', 'NOR'].map(value => ({ value, label: value }))
-  : [{ value: 'Furgón', label: q('Furgón', 'Truck') }])
+const equipmentSizeOptions = computed(() => officialEquipmentSizeOptions(shipmentType.value || '', q))
+const equipmentTypeOptions = computed(() => officialEquipmentTypeOptions(shipmentType.value || '', q))
 function closeOtherDropdowns(event: Event) {
   const target = event.target instanceof Element ? event.target : null
   if (!target || target.closest('.official-location-combobox')) return
@@ -150,7 +141,7 @@ function handleLocationKeydown(field: LocationField, event: KeyboardEvent) {
     openLocation.value = null
   }
 }
-const incoterms = ['EXW','FCA','FAS','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP']
+const incoterms = officialIncoterms
 const serviceOptions = ['Transporte internacional','Agencia de Aduanas CR','Agencia de Aduanas Exterior','Almacenamiento','Control de inventario','Embalaje','Exoneración','Picking Carga','Recepción de carga','Seguro de carga','Transporte entrega','Transporte recolección','Transporte nacional']
 const serviceIcons: Record<string, Component> = {
   'Transporte internacional': Globe,
