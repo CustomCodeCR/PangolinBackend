@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { sanitizeNewsHtml } from '../lib/newsRichText'
 import FieldDropdown from './FieldDropdown.vue'
+import { AlignLeft, AlignCenter, AlignRight, AlignJustify } from '@lucide/vue'
 
 const props = defineProps<{ modelValue: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -40,6 +41,8 @@ const palette = [
 function applyColor(color:string) {
   if (!/^#[0-9a-fA-F]{6}$/.test(color) || !openColors.value) return
   customHex.value=color
+  restoreSelection()
+  document.execCommand('styleWithCSS', false, 'true')
   choose(openColors.value,color)
   recentColors.value=[color,...recentColors.value.filter(c=>c!==color)].slice(0,8)
   openColors.value=null
@@ -102,7 +105,7 @@ function sizeText(value: string) {
 }
 watch(() => props.modelValue, async value => {
   await nextTick()
-  if (editor.value && document.activeElement !== editor.value) {
+  if (editor.value && document.activeElement !== editor.value && !openColors.value) {
     const html = sanitizeNewsHtml(value || '')
     if (editor.value.innerHTML !== html) editor.value.innerHTML = html
   }
@@ -139,7 +142,7 @@ function pastePlain(event: ClipboardEvent) {
         </div>
         <div class="news-rich-editor__actions">
           <div class="news-rich-editor__group"><button type="button" title="Negrita" @click="format('bold')"><b>N</b></button><button type="button" title="Cursiva" @click="format('italic')"><i>C</i></button><button type="button" title="Subrayado" @click="format('underline')"><u>S</u></button><button type="button" title="Tachado" @click="format('strikeThrough')"><s>abc</s></button></div>
-          <div class="news-rich-editor__group"><button type="button" title="Alinear izquierda" @click="format('justifyLeft')">☰</button><button type="button" title="Centrar" @click="format('justifyCenter')">≡</button><button type="button" title="Alinear derecha" @click="format('justifyRight')">⇥</button><button type="button" title="Justificar" @click="format('justifyFull')">▤</button></div>
+          <div class="news-rich-editor__group news-rich-editor__alignment"><button type="button" aria-label="Alinear a la izquierda" title="Alinear a la izquierda" @click="format('justifyLeft')"><AlignLeft :size="20" /></button><button type="button" aria-label="Centrar" title="Centrar" @click="format('justifyCenter')"><AlignCenter :size="20" /></button><button type="button" aria-label="Alinear a la derecha" title="Alinear a la derecha" @click="format('justifyRight')"><AlignRight :size="20" /></button><button type="button" aria-label="Justificar" title="Justificar" @click="format('justifyFull')"><AlignJustify :size="20" /></button></div>
         </div>
       </template>
       <div v-else-if="tab==='insertar'" class="news-rich-editor__group">
@@ -230,4 +233,6 @@ html.theme-dark .content-manager .news-rich-editor__color-trigger{background:#0a
 .news-rich-editor__color-trigger .news-rich-editor__arrow{flex:none}
 
 @media(prefers-reduced-motion:reduce){.news-rich-editor__arrow{transition:none}}
+.news-rich-editor__alignment button{display:inline-flex;align-items:center;justify-content:center;min-width:40px}
+.news-rich-editor__alignment svg{flex:none}
 </style>
