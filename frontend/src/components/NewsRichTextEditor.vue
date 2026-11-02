@@ -6,7 +6,7 @@ const props = defineProps<{ modelValue: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 const editor = ref<HTMLElement | null>(null)
 let savedRange: Range | null = null
-const fonts = ['Arial','Georgia','Verdana','Tahoma','Times New Roman','Courier New']
+const fonts = ["Arial","Arial Black","Arial Narrow","Calibri","Cambria","Candara","Consolas","Constantia","Corbel","Georgia","Verdana","Tahoma","Times New Roman","Courier New","Trebuchet MS","Impact","Palatino Linotype","Book Antiqua","Garamond","Century Gothic","Franklin Gothic Medium","Lucida Sans Unicode","Lucida Console","Segoe UI","Helvetica","Helvetica Neue","Geneva","Optima","Gill Sans","Futura","Baskerville","Didot","Rockwell","Copperplate","Brush Script MT","Comic Sans MS","Monaco","Menlo","Andale Mono","Roboto","Open Sans","Lato","Montserrat","Poppins","Inter","Nunito","Raleway","Oswald","Merriweather","Playfair Display","Source Sans 3","PT Sans","PT Serif","Noto Sans","Noto Serif","Ubuntu","Rubik","Work Sans","DM Sans","Libre Baskerville"]
 const sizes = ['12px','14px','16px','18px','20px','24px','28px','32px']
 const colors = ['#111827','#374151','#9f1239','#b91c1c','#1d4ed8','#047857','#a16207','#ffffff']
 const highlights = ['#fef08a','#bbf7d0','#bfdbfe','#fecdd3','#ffffff']
@@ -64,7 +64,7 @@ function pastePlain(event: ClipboardEvent) {
 <template>
   <div class="news-rich-editor">
     <div class="news-rich-editor__toolbar" role="toolbar" aria-label="Formato del artículo" @mousedown="rememberSelection">
-      <label class="news-rich-editor__option">Fuente <select aria-label="Tipografía" @change="choose('fontName', ($event.target as HTMLSelectElement).value)"><option value="">Fuente</option><option v-for="font in fonts" :key="font" :value="font">{{ font }}</option></select></label>
+      <label class="news-rich-editor__option">Fuente <select aria-label="Tipografía" @change="choose('fontName', ($event.target as HTMLSelectElement).value)"><option value="">Fuente</option><option v-for="font in fonts" :key="font" :value="font" :style="{ fontFamily: font }">{{ font }}</option></select></label>
       <label class="news-rich-editor__option">Tamaño <select aria-label="Tamaño del texto" @change="sizeText(($event.target as HTMLSelectElement).value)"><option value="">Tamaño</option><option v-for="size in sizes" :key="size" :value="size">{{ size }}</option></select></label>
       <label class="news-rich-editor__option">Color <select aria-label="Color del texto" @change="choose('foreColor', ($event.target as HTMLSelectElement).value)"><option value="">Color</option><option v-for="color in colors" :key="color" :value="color">{{ color }}</option></select></label>
       <label class="news-rich-editor__option">Resaltar <select aria-label="Resaltado" @change="choose('hiliteColor', ($event.target as HTMLSelectElement).value)"><option value="">Resaltar</option><option v-for="color in highlights" :key="color" :value="color">{{ color }}</option></select></label>
