@@ -200,7 +200,7 @@ function finishClose() { isClosing.value = false }
 <template>
   <aside ref="assistantRoot" class="site-assistant" :class="{ 'site-assistant--open': isOpen || isClosing, 'site-assistant--settled': panelSettled, 'site-assistant--closing': isClosing }" aria-label="GIO, asistente logístico">
     <Transition name="gio-water" :duration="{ enter: 940, leave: 160 }" @after-enter="finishOpen" @after-leave="finishClose">
-    <section v-if="isOpen" class="site-assistant__panel" role="dialog" aria-modal="true" aria-label="Conversación con GIO" @keydown.esc="closePanel">
+    <section v-if="isOpen" class="site-assistant__panel" :class="{ 'site-assistant__panel--workflow': activeOperation }" role="dialog" aria-modal="true" aria-label="Conversación con GIO" @keydown.esc="closePanel">
       <header class="site-assistant__header">
         <span class="site-assistant__header-icon"><Bot :size="20" aria-hidden="true" /></span>
         <span class="site-assistant__heading"><strong>{{ copy.title }}</strong><small><i></i>{{ copy.status }}</small></span>
@@ -242,4 +242,6 @@ function finishClose() { isClosing.value = false }
 <style scoped>
 .site-assistant__menu{border:1px solid var(--gio-line,#666);border-radius:9px;background:var(--gio-action,transparent);color:var(--gio-ink,#fff);padding:7px 10px;font-size:11px;cursor:pointer}
 .site-assistant__menu:hover{border-color:#b20c2a}
+.site-assistant__panel--workflow{height:min(68vh,520px)}
+@media(max-width:800px){.site-assistant__panel--workflow{height:100dvh;max-height:none}}
 </style>
