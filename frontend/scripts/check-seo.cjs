@@ -34,7 +34,7 @@ for (const route of serviceRoutes) {
 }
 const header = read('src/components/SiteHeader.vue')
 assert.ok(header.includes('servicesLinks') && header.includes('servicesMenuOpen'), 'Falta menú desplegable de Servicios')
-assert.ok(services.includes('serviceLinks') && services.includes('href="link.href"') === false, 'Faltan enlaces públicos en Servicios')
+assert.ok(services.includes('serviceLinks') && services.includes(':href="link.href"'), 'Faltan enlaces públicos en Servicios')
 assert.ok(robots.includes('User-agent: OAI-SearchBot'), 'Falta OAI-SearchBot en robots.txt')
 assert.ok(root.includes("import routeSeo from '../seo/routes.json'"), 'Las rutas no comparten la configuración SEO')
 assert.ok(index.includes('Consolidado LCL/LTL') && index.includes('Panamá–Costa Rica'), 'La descripción SEO inicial debe incluir los servicios y la ruta')
