@@ -10,6 +10,8 @@ on:
       - "frontend/scripts/test-frontend-merge.cjs"
       - "frontend/src/services/auth.ts"
       - "backend/Services/AssistantService.cs"
+      - "backend/Endpoints/OfficialQuoteEndpoints.cs"
+      - "backend/Program.cs"
       - "frontend/scripts/smoke-gio-workflows.cjs"
       - ".github/workflows/gio-main2-check.yml"
   workflow_dispatch:
