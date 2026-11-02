@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ArrowLeft, CheckCircle2, ChevronRight, FileText, LoaderCircle, MapPin, Search, ShieldCheck, Ship } from '@lucide/vue'
 import { refreshSession } from '../services/auth'
 
 type Kind = 'quote' | 'tracking' | 'itinerary'
-type Phase = 'collect' | 'review' | 'auth' | 'location' | 'result'
+type Phase = 'collect' | 'confirm' | 'review' | 'auth' | 'location' | 'result'
 type Choice = { value: string; label: string }
 type Step = { key: string; prompt: string; choices?: Choice[]; optional?: boolean; hint?: string }
 type Location = { id: string; displayName: string; code: string | null }
@@ -36,6 +36,14 @@ const restrictedTracking = ref(false)
 const STORAGE_KEY = 'gcf-gio-quote-draft-v1'
 const prefilled = ref(false)
 const editingField = ref('')
+type PendingValue = { key: string; value: string; display: string; locationId?: string }
+const pendingValue = ref<PendingValue | null>(null)
+const prefillConfirmation = new Set<string>()
+const proposedLocations = reactive<Record<string, string>>({})
+const locationLoading = ref(false)
+const locationLoadError = ref('')
+const locationCache = new Map<string, Location[]>()
+const isQuoteLocation = (key: string) => props.kind === 'quote' && ['origin','destination','pod'].includes(key)
 const i = (es: string, en: string) => tr(es, en)
 const modes = computed<Choice[]>(() => [{value:'Maritime',label:i('Marítimo','Ocean')},{value:'Air',label:i('Aéreo','Air')},{value:'Land',label:i('Terrestre','Ground')}])
 const terms = 'EXW FCA FAS FOB CFR CIF CPT CIP DAP DPU DDP'.split(' ').map(value => ({value,label:value}))
@@ -141,46 +149,125 @@ function validation(key: string, value: string): string {
   return ''
 }
 
-function accept(value = input.value) {
+function advanceFrom(start: number) {
+  stepIndex.value = start
+  error.value = ''
+  while (stepIndex.value < steps.value.length) {
+    const item = steps.value[stepIndex.value]
+    const value = values[item.key]
+    if (isQuoteLocation(item.key) && !selectedLocations[item.key]) {
+      phase.value = 'collect'
+      return
+    }
+    if (value && prefillConfirmation.has(item.key)) {
+      prefillConfirmation.delete(item.key)
+      pendingValue.value = { key:item.key, value, display:item.choices?.find(choice=>choice.value===value)?.label || value }
+      phase.value = 'confirm'
+      return
+    }
+    if (!value) {
+      phase.value = 'collect'
+      return
+    }
+    stepIndex.value++
+  }
+  phase.value = 'review'
+}
+function commitValue(item: Step, value: string, locationId?: string) {
+  if (item.key === 'mode' && values.mode !== value) {
+    for (const key of ['shipmentType','origin','destination','pod','equipmentSize','equipmentType','equipmentQuantity',
+      'equipmentWeights','packageQuantity','packageWeight','packageLength','packageWidth','packageHeight','stackable']) delete values[key]
+    for (const role of ['origin','destination','pod']) delete selectedLocations[role]
+    locationCache.clear()
+  }
+  if (item.key === 'shipmentType' && values.shipmentType !== value) {
+    for (const role of ['origin','destination','pod']) { delete values[role]; delete selectedLocations[role] }
+    for (const key of ['equipmentSize','equipmentType','equipmentQuantity','equipmentWeights','packageQuantity',
+      'packageWeight','packageLength','packageWidth','packageHeight','stackable']) delete values[key]
+    locationCache.clear()
+  }
+  if (item.key === 'incoterm' && value !== 'EXW') {
+    delete values.exwCargoStatus
+    delete values.exwPickupAddress
+  }
+  if (item.key === 'equipmentQuantity' && values.equipmentQuantity !== value) delete values.equipmentWeights
+  if (isQuoteLocation(item.key)) {
+    if (locationId) selectedLocations[item.key] = locationId
+    else delete selectedLocations[item.key]
+  }
+  values[item.key] = value
+  const display = item.choices?.find(choice => choice.value === value)?.label || value || tr('Omitido','Skipped')
+  history.value.push({question:item.prompt,answer:display})
+  input.value = ''
+  const edited = editingField.value !== ''
+  editingField.value = ''
+  if (edited) {
+    const missing = steps.value.findIndex(step => !step.optional &&
+      (!values[step.key] || (isQuoteLocation(step.key) && !selectedLocations[step.key])))
+    if (missing >= 0) advanceFrom(missing)
+    else phase.value = 'review'
+  } else advanceFrom(stepIndex.value + 1)
+  void scrollEnd()
+}
+function accept(value = input.value, explicitLocationId?: string) {
   if (busy.value || phase.value !== 'collect' || !current.value) return
   const item = current.value
   const v = value.trim()
   error.value = validation(item.key, v)
   if (error.value) return
-  if (item.key === 'mode' && values.mode !== v) {
-    delete values.shipmentType
-    for (const role of ['origin','destination','pod']) delete selectedLocations[role]
+  let locationId = explicitLocationId
+  if (isQuoteLocation(item.key)) {
+    const matching = locationChoices.value.filter(loc =>
+      norm(loc.displayName) === norm(v) || norm(loc.code || '') === norm(v))
+    if (!locationId && matching.length === 1) locationId = matching[0].id
+    if (!locationId || !locationChoices.value.some(loc => loc.id === locationId && loc.displayName === v)) {
+      error.value = tr('Selecciona una ubicación de la lista. No puedo aceptar lugares sin verificar.',
+        'Select an available location from the list. I cannot accept unverified places.')
+      return
+    }
+    if (item.key === 'destination' && locationId === selectedLocations.origin ||
+        item.key === 'origin' && locationId === selectedLocations.destination) {
+      error.value = tr('El origen y el destino deben ser diferentes.','Origin and destination must be different.')
+      return
+    }
   }
-  if (item.key === 'shipmentType' && values.shipmentType !== v) {
-    for (const role of ['origin','destination','pod']) delete selectedLocations[role]
-    for (const field of ['equipmentSize','equipmentType','equipmentQuantity','equipmentWeights','packageQuantity','packageWeight','packageLength','packageWidth','packageHeight','stackable']) delete values[field]
-  }
-  if (['origin','destination','pod'].includes(item.key)) delete selectedLocations[item.key]
-  values[item.key] = v
-  history.value.push({question:item.prompt,answer:item.choices?.find(choice => choice.value === v)?.label || v || tr('Omitido','Skipped')})
-  if (editingField.value) {
-    editingField.value = ''
-    input.value = ''
-    const missing = steps.value.findIndex(step => !step.optional && !values[step.key])
-    if (missing >= 0) { stepIndex.value = missing; phase.value = 'collect' }
-    else phase.value = 'review'
+  if (!item.choices && v) {
+    pendingValue.value = {key:item.key, value:v, display:v, locationId}
+    phase.value = 'confirm'
     void scrollEnd()
     return
   }
-  stepIndex.value++
-  while (stepIndex.value < steps.value.length && values[steps.value[stepIndex.value].key]) stepIndex.value++
-  input.value = ''
-  if (stepIndex.value >= steps.value.length) phase.value = 'review'
+  commitValue(item, v, locationId)
+}
+function confirmPending() {
+  const pending = pendingValue.value
+  if (!pending || phase.value !== 'confirm' || !current.value || pending.key !== current.value.key) return
+  pendingValue.value = null
+  phase.value = 'collect'
+  commitValue(current.value, pending.value, pending.locationId)
+}
+function correctPending() {
+  const pending = pendingValue.value
+  if (!pending || phase.value !== 'confirm') return
+  pendingValue.value = null
+  phase.value = 'collect'
+  if (isQuoteLocation(pending.key)) {
+    delete selectedLocations[pending.key]
+    locationTerm.value = pending.value
+  }
+  input.value = pending.value
   void scrollEnd()
 }
 function editField(key: string) {
   const index = steps.value.findIndex(step => step.key === key)
   if (index < 0 || busy.value) return
   error.value = ''
+  pendingValue.value = null
+  prefillConfirmation.delete(key)
   phase.value = 'collect'
   editingField.value = key
   stepIndex.value = index
-  input.value = values[key] || ''
+  input.value = values[key] || proposedLocations[key] || ''
   history.value = []
   void scrollEnd()
 }
@@ -202,8 +289,13 @@ function applyInitialQuestion() {
   if (!question || question.length > 800) return
   const route = question.match(/\b(?:desde|de)\s+([a-z -]{3,60}?)\s+(?:hacia|hasta|a)\s+([a-z -]{3,60}?)(?=\s*(?:[,;.]|$)|\s+(?:con|para)\b)/)
   if (route && route[1].trim() !== route[2].trim()) {
-    values.origin = route[1].trim()
-    values.destination = route[2].trim()
+    if (props.kind === 'quote') {
+      proposedLocations.origin = route[1].trim()
+      proposedLocations.destination = route[2].trim()
+    } else {
+      values.origin = route[1].trim()
+      values.destination = route[2].trim()
+    }
   }
   if (props.kind === 'tracking') {
     if (/\b(bcf|hbl|bl)\b/.test(question)) values.referenceType = 'BCF'
@@ -237,9 +329,9 @@ function applyInitialQuestion() {
     const day = question.match(/\b20\d{2}-\d{2}-\d{2}\b/)
     if (day && validDate(day[0])) values.departure = day[0]
   }
-  while (stepIndex.value < steps.value.length && values[steps.value[stepIndex.value].key]) stepIndex.value++
-  prefilled.value = stepIndex.value > 0
-  if (stepIndex.value >= steps.value.length) phase.value = 'review'
+  for (const key of Object.keys(values)) prefillConfirmation.add(key)
+  prefilled.value = Object.keys(values).length > 0 || Object.keys(proposedLocations).length > 0
+  advanceFrom(0)
 }
 onMounted(() => {
   if (props.kind === 'quote') {
