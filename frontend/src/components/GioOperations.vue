@@ -505,7 +505,11 @@ async function perform() {
   try {
     const user = await refreshSession()
     if (!user) { saveDraft(); phase.value = 'auth'; return }
-    if (props.kind === 'quote') await submitQuote()
+    if (props.kind === 'quote') {
+      quoteResultAdmin.value = user.role === 'administrador'
+      quoteResultUrl.value = quoteResultAdmin.value ? '/administracion?tab=cotizaciones' : '/cotizaciones'
+      await submitQuote()
+    }
     if (props.kind === 'itinerary') await searchItineraries()
     if (props.kind === 'tracking') {
       // The existing Dynamics lookup has no verified client-to-shipment ownership check.
@@ -542,15 +546,7 @@ async function perform() {
         <div v-if="current.choices" class="gio-ops__choices">
           <button v-for="choice in current.choices" :key="choice.label" type="button" :disabled="busy" @click="accept(choice.value)">{{ choice.label }} <ChevronRight :size="14" /></button>
         </div>
-        <template v-else-if="isCatalogueLocation(current.key)">
-          <p v-if="locationLoading" class="gio-ops__note" role="status">{{ tr('Buscando ubicaciones disponibles…','Loading available locations…') }}</p>
-          <p v-if="locationLoadError" class="gio-ops__error" role="alert">{{ locationLoadError }} <a v-if="kind === 'itinerary'" :href="loginLink()">{{ tr('Iniciar sesión','Sign in') }}</a></p>
-          <p v-if="!locationLoading && !locationLoadError && locationChoices.length===0" class="gio-ops__note">{{ tr('El catálogo no tiene opciones habilitadas para este campo y modalidad. No se admiten ubicaciones inventadas.','There are no enabled locations for this field and shipment type. Unverified locations cannot be used.') }}</p>
-          <div v-if="!locationLoading && filteredLocations.length" class="gio-ops__choices gio-ops__location-list" role="listbox" :aria-label="tr('Ubicaciones disponibles','Available locations')">
-            <button v-for="loc in filteredLocations" :key="loc.id" type="button" role="option" :aria-selected="false" @click="accept(loc.displayName, loc.id)"><MapPin :size="14" /> <span>{{ loc.displayName }}<small v-if="loc.code">{{ loc.code }}</small></span> <ChevronRight :size="14" /></button>
-          </div>
-          <p v-else-if="!locationLoading && locationChoices.length" class="gio-ops__note">{{ tr('No encuentro ese lugar en las opciones habilitadas. Prueba otra búsqueda.','This location is not among the enabled options. Try another search.') }}</p>
-        </template>
+        <div v-else-if="isCatalogueLocation(current.key)" class="gio-ops__bubble gio-ops__bubble--quiet">{{ tr('Busca y selecciona una ubicación válida en la lista justo encima del campo de búsqueda.','Search and select a valid location from the list above the search field.') }}</div>
         <div v-if="current.optional" class="gio-ops__choices"><button type="button" @click="accept('')">{{ tr('Omitir','Skip') }}</button></div>
       </template>
       <template v-else-if="phase === 'confirm' && pendingValue">
@@ -593,7 +589,7 @@ async function perform() {
       <template v-else-if="phase === 'result'">
         <template v-if="kind === 'quote'">
           <div class="gio-ops__bubble">{{ tr('¡Solicitud registrada! Este es el identificador confirmado por el sistema.','Request created! This is the ID returned by the system.') }}</div>
-          <section class="gio-ops__card"><h3><CheckCircle2 :size="18" />{{ tr('Solicitud recibida','Request received') }}</h3><p class="gio-ops__id">{{ quoteId }}</p><p>{{ quoteStatus }}</p><a :href="'/cotizaciones'" class="gio-ops__link">{{ tr('Ver cotizaciones','View quotes') }}</a></section>
+          <section class="gio-ops__card"><h3><CheckCircle2 :size="18" />{{ tr('Solicitud recibida','Request received') }}</h3><p class="gio-ops__id">{{ quoteId }}</p><p>{{ quoteStatus }}</p><a class="gio-ops__primary gio-ops__link" :href="quoteResultUrl">{{ quoteResultAdmin ? tr('Ver cotizaciones en administración','Review quotes in administration') : tr('Ir a cotizaciones','Go to quotes') }}</a></section>
         </template>
         <template v-else-if="kind === 'itinerary'">
           <div class="gio-ops__bubble">{{ itineraryTotal ? tr('Estos son los itinerarios publicados que coinciden con tu búsqueda.','These published itineraries match your search.') : tr('No hay itinerarios publicados con esos filtros.','There are no published itineraries matching those filters.') }}</div>
@@ -619,8 +615,19 @@ async function perform() {
         </template>
         <button class="gio-ops__secondary" type="button" @click="edit"><Search :size="15" />{{ tr('Nueva consulta','New search') }}</button>
       </template>
-      <p v-if="error" class="gio-ops__error" role="alert">{{ error }}</p>
+      <p v-if="error && !(phase === 'collect' && current && isCatalogueLocation(current.key))" class="gio-ops__error" role="alert">{{ error }}</p>
     </div>
+    <section v-if="phase === 'collect' && current && isCatalogueLocation(current.key)" class="gio-ops__location-dock" aria-label="Sugerencias de ubicación">
+      <div class="gio-ops__location-heading"><MapPin :size="14" /><strong>{{ tr('Ubicaciones disponibles','Available locations') }}</strong></div>
+      <p v-if="locationLoading" class="gio-ops__note" role="status">{{ tr('Buscando ubicaciones…','Loading locations…') }}</p>
+      <p v-else-if="locationLoadError" class="gio-ops__error" role="alert">{{ locationLoadError }} <a v-if="kind === 'itinerary'" :href="loginLink()">{{ tr('Iniciar sesión','Sign in') }}</a></p>
+      <p v-else-if="!locationChoices.length" class="gio-ops__note">{{ tr('No hay ubicaciones habilitadas para esta modalidad.','No enabled locations for this shipment type.') }}</p>
+      <div v-else-if="filteredLocations.length" class="gio-ops__choices gio-ops__location-list" role="listbox" :aria-label="tr('Ubicaciones disponibles','Available locations')">
+        <button v-for="loc in filteredLocations" :key="loc.id" type="button" role="option" :aria-selected="false" @click="accept(loc.displayName, loc.id)"><MapPin :size="14" /><span>{{ loc.displayName }}</span><ChevronRight :size="14" /></button>
+      </div>
+      <p v-else class="gio-ops__note">{{ tr('Sin coincidencias. Escribe otra ciudad o puerto.','No matches. Try a different city or port.') }}</p>
+      <p v-if="error" class="gio-ops__error" role="alert">{{ error }}</p>
+    </section>
     <form v-if="phase === 'collect' && current && !current.choices" class="gio-ops__form" @submit.prevent="isCatalogueLocation(current.key) ? accept(locationTerm) : accept()">
       <input v-if="isCatalogueLocation(current.key)" v-model="locationTerm" :placeholder="tr('Buscar ciudad, puerto o aeropuerto…','Search city, port or airport…')" :aria-label="current.prompt" :disabled="locationLoading || !!locationLoadError || !locationChoices.length" maxlength="120" autocomplete="off" />
       <input v-else v-model="input" :placeholder="current.hint || tr('Escribe tu respuesta…','Type your answer…')" :aria-label="current.prompt" :disabled="busy" maxlength="400" />
@@ -634,7 +641,7 @@ async function perform() {
 .gio-ops__bar{flex:0 0 auto;display:flex;align-items:center;gap:10px;min-height:41px;padding:6px 12px;border-bottom:1px solid var(--gio-line,#555)}
 .gio-ops__bar strong{flex:1;font-size:12px}.gio-ops__bar>span{color:var(--gio-muted,#aaa)}
 .gio-ops__back{display:inline-flex;align-items:center;gap:5px;color:var(--gio-ink,#fff);border:0;background:transparent;font-size:11px;cursor:pointer}
-.gio-ops__scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;align-items:stretch;gap:10px;padding:13px 12px}
+.gio-ops__scroll{flex:1 1 0;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;align-items:stretch;gap:10px;padding:13px 12px}
 .gio-ops__bubble{align-self:flex-start;max-width:94%;padding:10px 12px;border:1px solid var(--gio-line,#555);border-radius:14px;background:var(--gio-bubble,#24212a);line-height:1.5;overflow-wrap:anywhere}
 .gio-ops__history{display:contents}.gio-ops__bubble--quiet{opacity:.75}.gio-ops__bubble--answer{align-self:flex-end;background:#9c1731;color:white;border-color:#9c1731}
 .gio-ops__choices{display:flex;flex-wrap:wrap;gap:7px}.gio-ops__choices button{display:flex;align-items:center;justify-content:space-between;gap:9px;text-align:left;border:1px solid var(--gio-line,#555);border-radius:11px;padding:10px 12px;background:var(--gio-action,#24212a);color:var(--gio-ink,#fff);cursor:pointer;font-size:12px;min-height:39px}
@@ -657,10 +664,11 @@ async function perform() {
 .gio-ops__confirmed-value{margin:0;overflow-wrap:anywhere;white-space:pre-wrap;font-size:14px;font-weight:650;line-height:1.55}
 .gio-ops__confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .gio-ops__confirm-actions button{min-width:0;line-height:1.3}
-.gio-ops__location-list{flex-direction:column;flex-wrap:nowrap;overflow-y:auto;max-height:min(280px,34vh);scrollbar-width:thin}
-.gio-ops__location-list button{width:100%;min-width:0;flex:0 0 auto}
+.gio-ops__location-dock{display:flex;flex:0 0 auto;flex-direction:column;gap:6px;height:min(180px,34vh);min-height:110px;max-height:42%;padding:9px 10px 5px;border-top:1px solid var(--gio-line,#555);background:var(--gio-surface,#201b20);overflow:hidden}
+.gio-ops__location-heading{display:flex;flex:0 0 auto;align-items:center;gap:6px;font-size:11px;color:var(--gio-muted,#aaa)}
+.gio-ops__location-list{display:flex;flex:1 1 auto;flex-direction:column;flex-wrap:nowrap;gap:5px;min-height:0;max-height:none;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;padding:0 2px 1px}
+.gio-ops__location-list button{width:100%;min-width:0;flex:0 0 auto;min-height:41px}
 .gio-ops__location-list button>span{display:flex;flex:1;flex-direction:column;min-width:0;overflow-wrap:anywhere}
-.gio-ops__location-list button small{font-size:10px;color:var(--gio-muted,#bbb)}
 .gio-ops__card dd{overflow-wrap:anywhere;white-space:pre-wrap}
 .gio-ops__card dl{gap:13px 12px}
 @media(min-width:600px){.site-assistant__panel--expanded .gio-ops__card dl{grid-template-columns:repeat(3,minmax(0,1fr))}}
