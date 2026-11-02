@@ -65,7 +65,9 @@ const sending = ref(false)
 const quickIcons = [FileText, Ship, CalendarDays, Headphones]
 type OperationKind = 'quote' | 'tracking' | 'itinerary'
 const activeOperation = ref<OperationKind | null>(null)
+const operationInitial = ref('')
 function handleQuick(index: number, suggestion: string) {
+  operationInitial.value = ''
   if (index === 0) activeOperation.value = 'quote'
   else if (index === 1) activeOperation.value = 'tracking'
   else if (index === 2) activeOperation.value = 'itinerary'
@@ -75,7 +77,7 @@ function operationFromMessage(question: string): OperationKind | null {
   const text = clean(question)
   const wantsAction = /\b(quiero|necesito|puedes|podrias|ayudame|deseo|hacer|solicitar|buscar|consultar|rastrear|cotizar|registrar|preparar|check|find|track|request|quote|need|want|look up|search|submit)\b/.test(text)
   if (!wantsAction) return null
-  if (/\b(cotiz|cotizar|cotizacion|cotizaciones|quote|tarifa)\w*/.test(text)) return 'quote'
+  if (/\b(cotiz|cotizar|cotizacion|cotizaciones|quote|tarifa)\w*/.test(text) || /\b(fcl|lcl|ftl|ltl)\b/.test(text)) return 'quote'
   if (/\b(embarque|carga|shipment|rastrear|tracking)\w*/.test(text) && /\b(consultar|buscar|rastrear|tracking|track|check|estado|status|ver|where|find)\w*/.test(text)) return 'tracking'
   if (/\b(itinerario|itinerarios|sailing|schedule)\w*/.test(text)) return 'itinerary'
   return null
@@ -135,7 +137,7 @@ async function sendMessage(value = draft.value) {
   const question = value.trim()
   if (!question || sending.value) return
   const operation = operationFromMessage(question)
-  if (operation) { activeOperation.value = operation; draft.value = ''; return }
+  if (operation) { operationInitial.value = question; activeOperation.value = operation; draft.value = ''; return }
   const history = messages.value.slice(-4).map(message => ({ role: message.role, content: message.text.slice(0, 500) }))
   messages.value.push({ id: nextId++, role: 'visitor', text: question })
   draft.value = ''
@@ -205,7 +207,7 @@ function finishClose() { isClosing.value = false }
         <button v-if="!activeOperation && messages.length > 1" class="site-assistant__menu" type="button" @click="showMenu">{{ isEnglish ? 'Menu' : 'Menú' }}</button>
         <button class="site-assistant__close" type="button" :aria-label="copy.close" @click="closePanel"><X :size="20" /></button>
       </header>
-      <GioOperations v-if="activeOperation" :key="activeOperation" :kind="activeOperation" :language="isEnglish ? 'en' : 'es'" @back="activeOperation = null" />
+      <GioOperations v-if="activeOperation" :key="activeOperation" :kind="activeOperation" :language="isEnglish ? 'en' : 'es'" :initial-question="operationInitial" @back="activeOperation = null" />
       <template v-else>
       <div class="site-assistant__messages" aria-live="polite">
         <div v-for="message in messages" :key="message.id" class="site-assistant__message" :class="`site-assistant__message--${message.role}`">
