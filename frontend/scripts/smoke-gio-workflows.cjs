@@ -36,7 +36,7 @@ const api = http.createServer(async (req, res) => {
     : send(401,{error:'Unauthorized'})
   if (url.pathname === '/api/content/site') return send(200,{})
   if (url.pathname === '/api/content/news') return send(200,[])
-  if (url.pathname === '/api/quotes/official/locations') {
+  if (url.pathname === '/api/assistant/quote-locations' || url.pathname === '/api/quotes/official/locations') {
     const source = url.searchParams.get('routeRole')
     const item = source === 'origin'
       ? {id:'11111111-1111-1111-1111-111111111111',displayName:'Shanghái',code:'SHA'}
@@ -131,10 +131,15 @@ async function main() {
       assert.ok(ok,'Missing choice: '+text)
       await sleep(70)
     }
+    const confirm = async () => {
+      await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__confirmation")'))
+      assert.ok(await click('.gio-ops__confirm-actions .gio-ops__primary'),'Missing confirm control')
+      await sleep(70)
+    }
     const answer = async text => {
       const ok = await waitFor(()=>evaluate('(()=>{const field=document.querySelector(".gio-ops__form input");if(!field)return false;const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(field,'+JSON.stringify(text)+');field.dispatchEvent(new Event("input",{bubbles:true}));field.closest("form").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));return true})()'))
       assert.ok(ok,'Missing answer field for '+text)
-      await sleep(70)
+      await confirm()
     }
     await cdp('Page.enable')
     await cdp('Runtime.enable')
@@ -142,12 +147,23 @@ async function main() {
     await waitFor(()=>evaluate('!!document.querySelector(".site-assistant__mascot")'))
     assert.ok(await click('.site-assistant__mascot'))
     await waitFor(()=>evaluate('document.querySelectorAll(".site-assistant__quick button").length===4'))
+    const compactWidth = await evaluate('document.querySelector(".site-assistant__panel").getBoundingClientRect().width')
+    assert.ok(await click('.site-assistant__resize button[aria-label="Agrandar ventana de GIO"]'))
+    const expandedWidth = await evaluate('document.querySelector(".site-assistant__panel").getBoundingClientRect().width')
+    assert.ok(expandedWidth > compactWidth, 'Window should expand on desktop')
+    assert.ok(await click('.site-assistant__resize button[aria-label="Encoger ventana de GIO"]'))
+    const reducedWidth = await evaluate('document.querySelector(".site-assistant__panel").getBoundingClientRect().width')
+    assert.equal(Math.round(reducedWidth),Math.round(compactWidth),'The initial window size is the minimum')
     assert.ok(await evaluate('document.querySelectorAll(".site-assistant__quick button")[0].click()||true'))
     await waitFor(()=>evaluate('document.querySelectorAll(".gio-ops__choices button").length >= 3'))
     await choose('Marítimo')
     await choose('FCL')
-    await answer('Shanghái')
-    await answer('Puerto Caldera')
+    await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__location-list button")'))
+    await choose('Shanghái')
+    await confirm()
+    await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__location-list button")'))
+    await choose('Puerto Caldera')
+    await confirm()
     await choose('FOB')
     await answer('2026-11-20')
     await answer('Electrodomésticos')
