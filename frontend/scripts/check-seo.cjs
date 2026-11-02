@@ -14,6 +14,8 @@ const footer = read('src/components/SiteFooter.vue')
 const robots = read('public/robots.txt')
 const sitemap = read('public/sitemap.xml')
 const routes = require('../seo/routes.json')
+const serviceGuides = require('../seo/service-landings.json')
+const serviceRoutes = Object.keys(serviceGuides)
 const forbiddenRoutes = ['/servicios/agencia-aduanal', '/servicios/transporte-maritimo', '/servicios/transporte-terrestre', '/servicios/transporte-aereo', '/servicios/consolidado-lcl']
 for (const publicRoute of ['/', '/noticias', '/nosotros', '/servicios']) {
   assert.ok(sitemap.includes('<loc>https://www.logisticacastrofallas.com' + publicRoute + '</loc>'), 'Falta ' + publicRoute + ' en sitemap')
@@ -23,8 +25,16 @@ for (const route of forbiddenRoutes) {
   assert.equal(sitemap.includes('https://www.logisticacastrofallas.com' + route), false, 'El sitemap no debe anunciar una ruta de servicio nueva: ' + route)
   assert.equal(services.includes('href="' + route + '"'), false, 'Servicios no debe enlazar a una página nueva: ' + route)
 }
-assert.equal(fs.existsSync(path.join(base, 'src/pages/ServiceLanding.vue')), false, 'No debe existir un componente para páginas nuevas de servicio')
-assert.equal(root.includes('ServiceLanding'), false, 'La aplicación no debe enrutar a páginas nuevas de servicio')
+assert.equal(fs.existsSync(path.join(base, 'src/pages/ServiceLanding.vue')), true, 'Falta página pública de servicios especializados')
+assert.equal(root.includes('ServiceLanding'), true, 'La aplicación debe enrutar a páginas de servicios especializados')
+for (const route of serviceRoutes) {
+  assert.ok(sitemap.includes('<loc>https://www.logisticacastrofallas.com' + route + '</loc>'), 'Nueva ruta sin sitemap: ' + route)
+  assert.ok(routes[route] && routes[route].indexable !== false, 'Nueva ruta sin indexación: ' + route)
+  assert.ok(root.includes('serviceGuides'), 'Nueva ruta sin registro Vue: ' + route)
+}
+const header = read('src/components/SiteHeader.vue')
+assert.ok(header.includes('servicesLinks') && header.includes('servicesMenuOpen'), 'Falta menú desplegable de Servicios')
+assert.ok(services.includes('serviceLinks') && services.includes('href="link.href"') === false, 'Faltan enlaces públicos en Servicios')
 assert.ok(robots.includes('User-agent: OAI-SearchBot'), 'Falta OAI-SearchBot en robots.txt')
 assert.ok(root.includes("import routeSeo from '../seo/routes.json'"), 'Las rutas no comparten la configuración SEO')
 assert.ok(index.includes('Consolidado LCL/LTL') && index.includes('Panamá–Costa Rica'), 'La descripción SEO inicial debe incluir los servicios y la ruta')
@@ -55,7 +65,7 @@ if (fs.existsSync(path.join(base, 'dist'))) {
   for (const route of forbiddenRoutes) assert.equal(fs.existsSync(path.join(base, 'dist', route.slice(1), 'index.html')), false, 'El build no debe crear una página nueva: ' + route)
 }
 
-const expectedIndexable = new Set(['/', '/home', '/noticias', '/nosotros', '/servicios', '/privacidad', '/terminos', '/cookies', '/licencias'])
+const expectedIndexable = new Set(['/', '/home', '/noticias', '/nosotros', '/servicios', '/privacidad', '/terminos', '/cookies', '/licencias', ...serviceRoutes])
 for (const [route, seo] of Object.entries(routes)) {
   assert.ok(seo.title && seo.description, 'Metadatos incompletos: ' + route)
   assert.equal(seo.indexable !== false, expectedIndexable.has(route), 'Indexación inesperada: ' + route)
@@ -139,7 +149,18 @@ if (fs.existsSync(path.join(base, 'dist'))) {
     assert.equal(page.description, seo.description, 'Descripcion Schema incoherente: ' + route)
     assert.equal(Boolean(find('BreadcrumbList')), route !== '/' && route !== '/home', 'Breadcrumb Schema incoherente: ' + route)
     const serviceCount = graph.filter(x => x['@type'] === 'Service').length
-    assert.equal(serviceCount, route === '/servicios' ? 6 : route === '/' || route === '/home' ? 1 : 0, 'Servicios Schema fuera de pagina: ' + route)
+    assert.equal(serviceCount, route === '/servicios' ? 6 : route === '/' || route === '/home' || serviceRoutes.includes(route) ? 1 : 0, 'Servicios Schema fuera de pagina: ' + route)
+    if (serviceRoutes.includes(route)) {
+      const guide = serviceGuides[route].es
+      assert.ok(html.includes('data-seo-service="' + route + '"'), 'Contenido SEO inicial ausente: ' + route)
+      assert.ok(html.includes('<h1>' + guide.title + '</h1>'), 'Encabezado estático ausente: ' + route)
+      assert.ok(html.includes(guide.intro), 'Texto inicial indexable ausente: ' + route)
+      for (const faq of guide.faq) assert.ok(html.includes(faq.q), 'Pregunta no indexable: ' + route)
+      const service = find('Service')
+      assert.equal(service.url, 'https://www.logisticacastrofallas.com' + route, 'Service URL incorrecta: ' + route)
+      assert.equal(service.provider['@id'], 'https://www.logisticacastrofallas.com/#organizacion', 'Servicio no vinculado con organización: ' + route)
+      assert.equal(find('BreadcrumbList').itemListElement.length, 3, 'Breadcrumb jerárquico incompleto: ' + route)
+    }
   }
 }
 
