@@ -15,19 +15,13 @@ const serviceGuides = require('../seo/service-landings.json')
 const escapeHtml = text => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 function renderServiceGuide(route, guide) {
   const c = guide.es
-  const link = (href, label) => '<a href="' + escapeHtml(href) + '">' + escapeHtml(label) + '</a>'
-  const related = Object.entries(serviceGuides).filter(([key]) => key !== route)
-    .map(([key, item]) => '<li>' + link(key, item.es.label) + '</li>').join('')
   return '<main data-seo-service="' + escapeHtml(route) + '">' +
-    '<nav aria-label="Ruta de navegación">' + link('/', 'Inicio') + ' / ' + link('/servicios', 'Servicios') + ' / ' + escapeHtml(c.label) + '</nav>' +
     '<article><header><h1>' + escapeHtml(c.title) + '</h1><p>' + escapeHtml(c.intro) + '</p></header>' +
     '<section><h2>' + escapeHtml(c.heading) + '</h2><p>' + escapeHtml(c.body) + '</p><ul>' +
     c.points.map(point => '<li>' + escapeHtml(point) + '</li>').join('') + '</ul></section>' +
     '<section><h2>Preguntas frecuentes</h2>' + c.faq.map(faq =>
       '<h3>' + escapeHtml(faq.q) + '</h3><p>' + escapeHtml(faq.a) + '</p>').join('') + '</section>' +
-    '<nav aria-label="Otros servicios"><h2>Otros servicios de Grupo Castro Fallas</h2><ul>' + related + '</ul>' +
-    link('/servicios', 'Todos los servicios') + '</nav>' +
-    '<p>Para una propuesta detallada escriba a ' + link('mailto:comercial@castrofallas.com', 'comercial@castrofallas.com') + '.</p></article></main>'
+    '<p>Para una propuesta detallada escriba a <a href="mailto:comercial@castrofallas.com">comercial@castrofallas.com</a>.</p></article></main>'
 }
 
 const imageDimensions = {
