@@ -2,6 +2,7 @@
  * No marcar noticias del CMS como NewsArticle: no se prerenderizan por articulo.
  */
 'use strict'
+const serviceGuides = require('./service-landings.json')
 const origin = 'https://www.logisticacastrofallas.com'
 const organizationId = origin + '/#organizacion'
 const siteId = origin + '/#sitio-web'
@@ -21,6 +22,7 @@ function makeStructuredData(route, seo, sourceGraph) {
   const canonical = origin + canonicalPath
   const organization = sourceGraph.find(item => item['@type'] === 'Organization')
   const landService = sourceGraph.find(item => item['@type'] === 'Service')
+  const serviceGuide = serviceGuides[route]
   if (!organization || !landService || organization['@id'] !== organizationId) {
     throw new Error('Faltan los datos verificados de empresa y transporte en index.html')
   }
@@ -61,17 +63,25 @@ function makeStructuredData(route, seo, sourceGraph) {
   if (canonicalPath !== '/') {
     const breadcrumbsId = canonical + '#migas'
     page.breadcrumb = { '@id': breadcrumbsId }
-    graph.push({
-      '@type': 'BreadcrumbList',
-      '@id': breadcrumbsId,
-      itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'Inicio', item: origin + '/' },
-        { '@type': 'ListItem', position: 2, name: pageLabels[route] || seo.title, item: canonical }
-      ]
-    })
+    const breadcrumbs = [{ '@type': 'ListItem', position: 1, name: 'Inicio', item: origin + '/' }]
+    if (serviceGuide) breadcrumbs.push({ '@type': 'ListItem', position: 2, name: 'Servicios', item: origin + '/servicios' })
+    breadcrumbs.push({ '@type': 'ListItem', position: breadcrumbs.length + 1, name: serviceGuide ? serviceGuide.es.label : (pageLabels[route] || seo.title), item: canonical })
+    graph.push({ '@type': 'BreadcrumbList', '@id': breadcrumbsId, itemListElement: breadcrumbs })
   }
   graph.push(page)
   if (canonicalPath === '/' || route === '/servicios') graph.push(landService)
+  if (serviceGuide) {
+    graph.push({
+      '@type': 'Service',
+      '@id': canonical + '#servicio',
+      name: serviceGuide.es.title,
+      serviceType: serviceGuide.es.label,
+      description: serviceGuide.es.intro,
+      provider: { '@id': organizationId },
+      areaServed: { '@type': 'Country', name: 'Costa Rica' },
+      url: canonical
+    })
+  }
   if (route === '/servicios') {
     const services = [
       ['aereo', 'Transporte aéreo de carga', 'Transporte aéreo internacional'],
