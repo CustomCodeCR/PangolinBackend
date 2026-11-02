@@ -1,0 +1,42 @@
+name: PR138 final main-2 compatibility and design regression
+on:
+  push:
+    branches: [feat/seo-geo-service-landings-20261102]
+permissions:
+  contents: read
+jobs:
+  main-2-final-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR with complete history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Confirm main-2 merge compatibility without changing remote
+        run: |
+          git fetch origin main-2
+          git -c user.name=CI -c user.email=ci@example.invalid merge --no-edit origin/main-2
+      - name: Verify existing visual design files unchanged from main-2
+        run: |
+          if [ -n "$(git diff --name-only origin/main-2 -- frontend/src/pages/Services.vue frontend/src/style.css frontend/src/Home.vue frontend/src/pages/About.vue frontend/src/pages/News.vue frontend/src/components/SiteFooter.vue frontend/styles)" ]; then
+            echo "Unexpected existing site design modification"
+            git diff --name-status origin/main-2 -- frontend/src/pages/Services.vue frontend/src/style.css frontend/src/Home.vue frontend/src/pages/About.vue frontend/src/pages/News.vue frontend/src/components/SiteFooter.vue frontend/styles
+            exit 1
+          fi
+          echo "PASS: existing page and style files match main-2"
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci --prefix frontend
+      - name: Build production Vue and prerender SEO HTML
+        run: npm run build --prefix frontend
+      - name: SEO GEO AEO schema and nav-only tests
+        run: npm run seo:check --prefix frontend
+      - name: Frontend functional regressions
+        run: node frontend/scripts/test-frontend-merge.cjs
+      - name: Chrome smoke for all new services and existing pages
+        run: node frontend/scripts/smoke-browser.cjs
