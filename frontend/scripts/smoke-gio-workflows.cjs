@@ -196,7 +196,10 @@ async function main() {
     if (chrome) chrome.kill('SIGKILL')
     if (vite) vite.kill('SIGKILL')
     await close(api)
-    fs.rmSync(profile,{recursive:true,force:true})
+    // Chrome may still be flushing its profile after SIGKILL; do not fail an otherwise
+    // successful business-flow test solely because temporary cleanup raced that exit.
+    try { fs.rmSync(profile,{recursive:true,force:true,maxRetries:12,retryDelay:250}) }
+    catch (e) { console.warn('Chrome temporary profile cleanup:', e.message) }
   }
 }
 main().catch(error => { console.error(error); process.exitCode=1 })
