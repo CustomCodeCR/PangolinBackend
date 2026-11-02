@@ -638,7 +638,7 @@ function useMediaForNews(item: ManagedMedia) {
             <label>Categoría<input v-model="newsForm.category" required maxlength="60" placeholder="LOGÍSTICA" /></label>
             <div class="manager-form-row"><label>Autor<input v-model.trim="newsForm.author" maxlength="160" placeholder="Nombre del autor" /></label><label>Fecha de publicación<input v-model="newsForm.publishedAt" type="date" /></label></div>
             <label>Resumen (visible en tarjetas)<textarea v-model="newsForm.description" required maxlength="1200" rows="3" placeholder="Resumen breve de la noticia" /></label>
-            <div class="manager-rich-news-field"><label>Contenido completo</label><NewsRichTextEditor v-model="newsForm.body" /></div>
+            <div class="manager-rich-news-field"><label>Contenido completo</label><NewsRichTextEditor :model-value="newsForm.body ?? ''" @update:model-value="value => newsForm.body = value" /></div>
             <label>Imagen ({{ storageMode === 's3' ? 'MinIO' : 'archivo local' }})<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="selectFile($event, 'news')" /></label>
             <p v-if="newsUploadFile" class="manager-publication-hint">Imagen seleccionada: {{ newsUploadFile.name }}. Se subirá a MinIO al guardar.</p>
             <label>o URL de imagen<input v-model="newsForm.image" placeholder="/images/mi-imagen.webp" /></label>
