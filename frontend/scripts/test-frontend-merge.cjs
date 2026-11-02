@@ -86,10 +86,12 @@ assert.match(officialQuote, /<FieldDropdown id="quote-incoterm" v-model="form\.i
 assert.match(officialQuote, /\.\.\.incoterms\.map\(value => \(\{value, label:value\}\)\)/, 'Incoterm retains all eleven official codes')
 assert.match(officialQuote, /<FieldDropdown :id="'quote-equipment-size-' \+ i" v-model="line\.size"/, 'FCL container size and FTL truck size use the shared menu')
 assert.match(officialQuote, /<FieldDropdown :id="'quote-equipment-type-' \+ i" v-model="line\.type"/, 'FCL and FTL equipment type use the shared menu')
-assert.match(officialQuote, /equipmentSizeOptions = computed<EquipmentOption\[\]>/, 'FCL and FTL retain separate equipment size options')
-assert.match(officialQuote, /\['20', '40', '45', '48'\]\.map\(n => \(\{ value: n \+ ' pies'/, 'FCL retains all four sizes')
+const sharedEquipmentOptions = source('src/lib/officialQuoteOptions.ts')
+assert.match(officialQuote, /officialEquipmentSizeOptions\(shipmentType\.value \|\| '', q\)/, 'The wizard uses the canonical equipment-size choices')
+assert.match(officialQuote, /officialEquipmentTypeOptions\(shipmentType\.value \|\| '', q\)/, 'The wizard uses the canonical equipment-type choices')
+assert.match(sharedEquipmentOptions, /\['20','40','45','48'\]\.map/, 'FCL retains all four sizes')
 for (const item of ['24 pies / 5 TON', '26 pies / 7 TON', '53 pies', 'Dry Van', 'High Cube', 'Open Top', 'Open Side', 'Tank', 'Flat Rack', 'NOR', 'Furgón']) {
-  assert.ok(officialQuote.includes(item), 'Retain equipment option: ' + item)
+  assert.ok(sharedEquipmentOptions.includes(item), 'Retain equipment option: ' + item)
 }
 assert.match(officialQuote, /\{value:'', label:q\('Seleccionar Incoterm', 'Select Incoterm'\)\}/, 'Incoterm placeholder remains translated')
 assert.match(officialQuote, /\{value:'', label:q\('Seleccionar','Select'\)\}/, 'Equipment placeholder remains translated')
