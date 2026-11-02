@@ -93,13 +93,13 @@
   "/servicios/almacenamiento-fiscal": {
     "title": "Almacenamiento fiscal en Costa Rica | Grupo Castro Fallas",
     "description": "Coordinación de almacenamiento fiscal de mercancías en Costa Rica. Conocé requisitos, diferencias con el bodegaje y cómo cotizar con Grupo Castro Fallas.",
-    "socialImage": "/images/warehouse-person.webp",
+    "socialImage": "/images/cover-logistics.jpeg",
     "socialImageAlt": "Coordinación de almacenamiento fiscal de mercancías en Costa Rica"
   },
   "/servicios/bodegaje-general": {
     "title": "Bodegaje general y almacenaje en Costa Rica | Castro Fallas",
     "description": "Bodegaje general de mercancías en Costa Rica: almacenamiento, recepción y coordinación de despacho. Información y consultas con Grupo Castro Fallas.",
-    "socialImage": "/images/warehouse-person.webp",
+    "socialImage": "/images/cover-logistics.jpeg",
     "socialImageAlt": "Bodegaje general y almacenamiento logístico en Costa Rica"
   },
   "/servicios/agenciamiento-aduanal": {
