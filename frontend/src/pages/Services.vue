@@ -5,11 +5,13 @@ import { siteText, siteVisual, siteCssImage } from '../siteCms'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { services as baseServices, type ServiceKey } from '../content'
+import serviceGuides from '../../seo/service-landings.json'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 
 const { t, locale } = useI18n({ useScope: 'global' })
 const activeService = ref<ServiceKey>('Air')
+const serviceLinks = computed(() => Object.entries(serviceGuides).map(([href, text]) => ({ href, label: locale.value.startsWith('en') ? text.en.label : text.es.label, summary: locale.value.startsWith('en') ? text.en.intro : text.es.intro })))
 const modalService = ref<ServiceKey | null>(null)
 const modalPhoto = computed(() => siteCssImage(`services.${modalService.value?.toLowerCase()}.media`, baseServices.find(service => service.key === modalService.value)?.photo ?? '/images/hero.webp'))
 const modalItemCounts: Record<ServiceKey, number[]> = { Maritime: [5, 4, 3], Land: [4, 4, 3], Air: [4, 3], Multimodal: [3, 3] }
@@ -86,6 +88,17 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
         </div>
       </section>
 
+      <section class="section-spacing services-page__guides" aria-labelledby="service-guides-title">
+        <div class="container">
+          <p class="section-tag center">{{ locale.startsWith('en') ? 'Learn more' : 'Información de servicios' }}</p>
+          <h2 id="service-guides-title" class="section-title centered">{{ locale.startsWith('en') ? 'Explore our logistics services' : 'Conocé más de nuestros servicios logísticos' }}</h2>
+          <p class="section-desc centered">{{ locale.startsWith('en') ? 'Find practical information about storage, customs brokerage and consolidated freight.' : 'Encontrá información sobre almacenamiento, aduanas y consolidación de carga.' }}</p>
+          <nav class="services-page__guide-links" :aria-label="locale.startsWith('en') ? 'Service information' : 'Información de servicios'">
+            <a v-for="link in serviceLinks" :key="link.href" :href="link.href"><strong>{{ link.label }}</strong><span>{{ link.summary }}</span></a>
+          </nav>
+        </div>
+      </section>
+
       <section class="section-spacing about-access services-page__digital">
         <div class="container">
           <p class="section-tag center">{{ $t('phrases.p060') }}</p>
@@ -116,3 +129,13 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
     <SiteFooter />
   </div>
 </template>
+
+<style scoped>
+.services-page__guides{padding-block:56px}
+.services-page__guide-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:34px}
+.services-page__guide-links a{display:flex;flex-direction:column;gap:10px;padding:25px;border:1px solid rgba(135,51,67,.22);border-radius:16px;color:inherit;text-decoration:none;background:rgba(255,255,255,.07)}
+.services-page__guide-links a:hover,.services-page__guide-links a:focus-visible{border-color:#af0922;outline-offset:3px}
+.services-page__guide-links a strong{font-size:19px}
+.services-page__guide-links a span{font-size:14px;line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+@media(max-width:700px){.services-page__guide-links{grid-template-columns:1fr}.services-page__guides{padding-block:35px}}
+</style>
