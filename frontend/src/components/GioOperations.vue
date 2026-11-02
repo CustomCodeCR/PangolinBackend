@@ -121,7 +121,7 @@ const summary = computed(() => steps.value.map(step => ({
   value: step.choices?.find(option => option.value === values[step.key])?.label ?? values[step.key]
 })).filter(item => item.value))
 const filteredLocations = computed(() => locationChoices.value.filter(loc =>
-  norm(loc.displayName).includes(norm(locationTerm.value)) || norm(loc.code || '').includes(norm(locationTerm.value))).slice(0, 30))
+  norm(loc.displayName).includes(norm(locationTerm.value)) || norm(loc.code || '').includes(norm(locationTerm.value))).slice(0, 12))
 const validDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(new Date(v + 'T12:00:00Z').getTime()) &&
   new Date(v + 'T12:00:00Z').toISOString().slice(0, 10) === v
 const norm = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
@@ -369,9 +369,41 @@ async function jsonResponse(response: Response) {
 async function getLocations(role: string): Promise<Location[]> {
   const kind = values.mode === 'Maritime' ? 'seaport' : values.mode === 'Air' ? 'airport' : 'inland'
   const qs = new URLSearchParams({kind,shipmentType:values.shipmentType,routeRole:role})
-  const data = await jsonResponse(await fetch('/api/quotes/official/locations?' + qs, {credentials:'same-origin',cache:'no-store'}))
-  return Array.isArray(data.items) ? data.items as Location[] : []
+  const cacheKey = qs.toString()
+  if (locationCache.has(cacheKey)) return locationCache.get(cacheKey)!
+  const data = await jsonResponse(await fetch('/api/assistant/quote-locations?' + qs, {credentials:'same-origin',cache:'no-store'}))
+  const items = Array.isArray(data.items) ? data.items.filter(
+    (loc: unknown): loc is Location => !!loc && typeof loc === 'object' &&
+      typeof (loc as Location).id === 'string' && typeof (loc as Location).displayName === 'string'
+  ) as Location[] : []
+  locationCache.set(cacheKey, items)
+  return items
 }
+async function loadLocationStep(role: string) {
+  locationChoices.value = []
+  locationTerm.value = values[role] || proposedLocations[role] || ''
+  locationLoadError.value = ''
+  if (!values.mode || !values.shipmentType) return
+  locationLoading.value = true
+  const type = values.shipmentType
+  try {
+    const items = await getLocations(role)
+    if (current.value?.key === role && values.shipmentType === type) locationChoices.value = items
+  } catch (e) {
+    if (current.value?.key === role)
+      locationLoadError.value = e instanceof Error ? e.message : tr('No pude cargar las ubicaciones.','Could not load the locations.')
+  } finally {
+    if (current.value?.key === role) locationLoading.value = false
+  }
+}
+watch(
+  () => [phase.value === 'collect' ? current.value?.key : '', values.mode, values.shipmentType],
+  () => {
+    const role = current.value?.key
+    if (phase.value === 'collect' && role && isQuoteLocation(role)) void loadLocationStep(role)
+  },
+  { immediate: true }
+)
 async function submitQuote() {
   const roles = ['origin','destination',...(values.shipmentType === 'LCL' ? ['pod'] : [])]
   for (const role of roles) {
@@ -420,7 +452,9 @@ async function chooseLocation(loc: Location) {
   selectedLocations[pendingRole.value] = loc.id
   values[pendingRole.value] = loc.displayName
   phase.value = 'review'
-  await perform()
+  error.value = ''
+  // Never auto-submit when the user merely corrects a location.
+  // The final confirmation button must be pressed again.
 }
 async function searchItineraries() {
   const query = new URLSearchParams({pol:values.origin,pod:values.destination,page:'1',pageSize:'5'})
@@ -484,7 +518,27 @@ async function perform() {
         <div v-if="current.choices" class="gio-ops__choices">
           <button v-for="choice in current.choices" :key="choice.label" type="button" :disabled="busy" @click="accept(choice.value)">{{ choice.label }} <ChevronRight :size="14" /></button>
         </div>
+        <template v-else-if="isQuoteLocation(current.key)">
+          <p v-if="locationLoading" class="gio-ops__note" role="status">{{ tr('Buscando ubicaciones disponibles…','Loading available locations…') }}</p>
+          <p v-if="locationLoadError" class="gio-ops__error" role="alert">{{ locationLoadError }}</p>
+          <p v-if="!locationLoading && !locationLoadError && locationChoices.length===0" class="gio-ops__note">{{ tr('El catálogo no tiene opciones habilitadas para este campo y modalidad. No se admiten ubicaciones inventadas.','There are no enabled locations for this field and shipment type. Unverified locations cannot be used.') }}</p>
+          <div v-if="!locationLoading && filteredLocations.length" class="gio-ops__choices gio-ops__location-list" role="listbox" :aria-label="tr('Ubicaciones disponibles','Available locations')">
+            <button v-for="loc in filteredLocations" :key="loc.id" type="button" role="option" :aria-selected="false" @click="accept(loc.displayName, loc.id)"><MapPin :size="14" /> <span>{{ loc.displayName }}<small v-if="loc.code">{{ loc.code }}</small></span> <ChevronRight :size="14" /></button>
+          </div>
+          <p v-else-if="!locationLoading && locationChoices.length" class="gio-ops__note">{{ tr('No encuentro ese lugar en las opciones habilitadas. Prueba otra búsqueda.','This location is not among the enabled options. Try another search.') }}</p>
+        </template>
         <div v-if="current.optional" class="gio-ops__choices"><button type="button" @click="accept('')">{{ tr('Omitir','Skip') }}</button></div>
+      </template>
+      <template v-else-if="phase === 'confirm' && pendingValue">
+        <div class="gio-ops__bubble">{{ tr('Esto fue lo que entendí para', 'This is what I understood for') }} <strong>{{ tr((fieldLabels[pendingValue.key] || [pendingValue.key,pendingValue.key])[0], (fieldLabels[pendingValue.key] || [pendingValue.key,pendingValue.key])[1]) }}</strong>:</div>
+        <section class="gio-ops__card gio-ops__confirmation">
+          <p class="gio-ops__confirmed-value">{{ pendingValue.display }}</p>
+          <p class="gio-ops__note">{{ tr('¿Está correcto? Lo guardaré solo cuando lo confirmes.','Is this correct? I will only save it when you confirm.') }}</p>
+          <div class="gio-ops__confirm-actions">
+            <button class="gio-ops__primary" type="button" @click="confirmPending"><CheckCircle2 :size="16" />{{ tr('Sí, continuar','Yes, continue') }}</button>
+            <button class="gio-ops__secondary" type="button" @click="correctPending">{{ tr('No, corregir','No, edit it') }}</button>
+          </div>
+        </section>
       </template>
       <template v-else-if="phase === 'review'">
         <div class="gio-ops__bubble">{{ tr('Ya tengo los datos. Confirma el resumen antes de continuar.','I have the information. Please review it before proceeding.') }}</div>
@@ -543,9 +597,10 @@ async function perform() {
       </template>
       <p v-if="error" class="gio-ops__error" role="alert">{{ error }}</p>
     </div>
-    <form v-if="phase === 'collect' && current && !current.choices" class="gio-ops__form" @submit.prevent="accept()">
-      <input v-model="input" :placeholder="current.hint || tr('Escribe tu respuesta…','Type your answer…')" :aria-label="current.prompt" :disabled="busy" maxlength="400" />
-      <button type="submit" :disabled="busy || (!input.trim() && !current.optional)" :aria-label="tr('Continuar','Continue')"><ChevronRight :size="19" /></button>
+    <form v-if="phase === 'collect' && current && !current.choices" class="gio-ops__form" @submit.prevent="isQuoteLocation(current.key) ? accept(locationTerm) : accept()">
+      <input v-if="isQuoteLocation(current.key)" v-model="locationTerm" :placeholder="tr('Buscar ciudad, puerto o aeropuerto…','Search city, port or airport…')" :aria-label="current.prompt" :disabled="locationLoading || !!locationLoadError || !locationChoices.length" maxlength="120" autocomplete="off" />
+      <input v-else v-model="input" :placeholder="current.hint || tr('Escribe tu respuesta…','Type your answer…')" :aria-label="current.prompt" :disabled="busy" maxlength="400" />
+      <button type="submit" :disabled="busy || (isQuoteLocation(current.key) ? !locationTerm.trim() || locationLoading || !locationChoices.length : !input.trim() && !current.optional)" :aria-label="tr('Continuar','Continue')"><ChevronRight :size="19" /></button>
     </form>
   </div>
 </template>
@@ -573,4 +628,16 @@ async function perform() {
 .gio-ops__form button{display:grid;place-items:center;flex:0 0 41px;border:0;border-radius:10px;background:#98132e;color:#fff;cursor:pointer}
 .gio-ops__form button:disabled,.gio-ops button:disabled{opacity:.6;cursor:not-allowed}.gio-ops__spin{animation:gio-ops-spin .9s linear infinite}@keyframes gio-ops-spin{to{transform:rotate(360deg)}}
 @media(max-width:800px){.gio-ops__form input{height:48px;font-size:16px}.gio-ops__form button{flex-basis:48px}.gio-ops__choices button{min-height:44px}}
+
+.gio-ops__confirmation{grid-template-columns:minmax(0,1fr)}
+.gio-ops__confirmed-value{margin:0;overflow-wrap:anywhere;white-space:pre-wrap;font-size:14px;font-weight:650;line-height:1.55}
+.gio-ops__confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.gio-ops__confirm-actions button{min-width:0;line-height:1.3}
+.gio-ops__location-list{flex-direction:column;flex-wrap:nowrap;overflow-y:auto;max-height:min(280px,34vh);scrollbar-width:thin}
+.gio-ops__location-list button{width:100%;min-width:0;flex:0 0 auto}
+.gio-ops__location-list button>span{display:flex;flex:1;flex-direction:column;min-width:0;overflow-wrap:anywhere}
+.gio-ops__location-list button small{font-size:10px;color:var(--gio-muted,#bbb)}
+.gio-ops__card dd{overflow-wrap:anywhere;white-space:pre-wrap}
+.gio-ops__card dl{gap:13px 12px}
+@media(min-width:600px){.site-assistant__panel--expanded .gio-ops__card dl{grid-template-columns:repeat(3,minmax(0,1fr))}}
 </style>
