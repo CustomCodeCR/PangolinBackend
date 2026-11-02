@@ -3,7 +3,7 @@ import type { Component } from 'vue'
 import {
   Anchor, ArrowDown, ArrowDownRight, ArrowLeft, ArrowLeftRight, ArrowRight, ArrowUp, ArrowUpRight,
   Check, CircleDot, Clock3, List, Mail, MapPin, Menu, MessageCircle, Minus,
-  Moon, Newspaper, Image, Package, Pencil, Phone, Plane, Plus, Search, Route, Settings, Ship, Sparkles, Sun, Trash2, Truck, UserRound, X
+  Moon, Newspaper, Image, Package, Pencil, Phone, Plane, Plus, Search, Settings, Ship, Sparkles, Sun, Trash2, Truck, UserRound, X
 } from '@lucide/vue'
 
 const props = withDefaults(defineProps<{ glyph: string; size?: number }>(), { size: 18 })
@@ -14,15 +14,22 @@ const icons: Record<string, Component> = {
   '×': X, '✓': Check, '−': Minus, '+': Plus, '▰': Package, '▤': List,
   '⌕': Search, '⚙': Settings, '☀': Sun, '☾': Moon, '☰': Menu,
   '◎': CircleDot, '✦': Sparkles, '⚓': Ship, '⇄': ArrowLeftRight,
-  ship: Ship, anchor: Anchor, truck: Truck, multimodal: Route, user: UserRound, newspaper: Newspaper, image: Image, 'message-circle': MessageCircle, pencil: Pencil, trash: Trash2
+  ship: Ship, anchor: Anchor, truck: Truck, multimodal: ArrowLeftRight, user: UserRound, newspaper: Newspaper, image: Image, 'message-circle': MessageCircle, pencil: Pencil, trash: Trash2
 }
 </script>
 
 <template>
-  <span class="lucide-symbol" aria-hidden="true"><component :is="icons[glyph] ?? ArrowUpRight" :size="size" :stroke-width="2" /></span>
+  <span class="lucide-symbol" aria-hidden="true">
+    <span v-if="glyph === 'ship-truck'" class="lucide-symbol__combined">
+      <Ship :size="Math.round(size * 0.78)" :stroke-width="2" />
+      <Truck :size="Math.round(size * 0.78)" :stroke-width="2" />
+    </span>
+    <component v-else :is="icons[glyph] ?? ArrowUpRight" :size="size" :stroke-width="2" />
+  </span>
 </template>
 
 <style scoped>
 .lucide-symbol{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;line-height:0}
 .lucide-symbol :deep(svg){display:block;flex:none}
+.lucide-symbol__combined{display:inline-flex;align-items:center;justify-content:center;gap:1px}
 </style>
