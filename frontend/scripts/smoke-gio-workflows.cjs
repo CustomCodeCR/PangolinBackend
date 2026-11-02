@@ -49,6 +49,12 @@ const api = http.createServer(async (req, res) => {
     quoteWrites.push(JSON.parse(Buffer.concat(chunks).toString()))
     return send(201,{id:'33333333-3333-3333-3333-333333333333',status:'Received'})
   }
+  if (url.pathname === '/api/assistant/itinerary-locations') {
+    if (role !== 'cliente' && role !== 'administrador') return send(401,{error:'Unauthorized'})
+    const isOrigin = url.searchParams.get('routeRole') === 'origin'
+    const name = isOrigin ? 'Shanghái' : 'Puerto Caldera'
+    return send(200,{items:[{id:name,displayName:name,code:null}]})
+  }
   if (url.pathname === '/api/itinerarios') {
     itineraryReads++
     return send(200,{items:[{id:'44444444-4444-4444-4444-444444444444',
@@ -143,6 +149,7 @@ async function main() {
     }
     await cdp('Page.enable')
     await cdp('Runtime.enable')
+    await cdp('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false})
     await cdp('Page.navigate',{url:'http://'+host+':5189/'})
     await waitFor(()=>evaluate('!!document.querySelector(".site-assistant__mascot")'))
     assert.ok(await click('.site-assistant__mascot'))
@@ -196,8 +203,12 @@ async function main() {
     await click('.gio-ops__back')
     await waitFor(()=>evaluate('document.querySelectorAll(".site-assistant__quick button").length===4'))
     await evaluate('document.querySelectorAll(".site-assistant__quick button")[2].click()')
-    await answer('Shanghái')
-    await answer('Puerto Caldera')
+    await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__location-list button")'))
+    await choose('Shanghái')
+    await confirm()
+    await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__location-list button")'))
+    await choose('Puerto Caldera')
+    await confirm()
     await choose('Marítimo')
     await choose('Omitir')
     await waitFor(()=>has('Consultar'))
