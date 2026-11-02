@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Bot, CalendarDays, FileText, Headphones, Send, Ship, X } from '@lucide/vue'
-import GioOperations from './GioOperations.vue'
+const GioOperations = defineAsyncComponent(() => import('./GioOperations.vue'))
 
 type Message = { id: number; role: 'bot' | 'visitor'; text: string; href?: string; linkText?: string }
 const { locale } = useI18n({ useScope: 'global' })
