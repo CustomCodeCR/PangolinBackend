@@ -146,8 +146,41 @@ public static class OfficialQuoteEndpoints
             throw new ArgumentException("Días de almacenaje sin servicio de almacenamiento.");
     }
 
+    // Public, read-only catalogue for GIO's guest quote builder. Only active,
+    // non-development locations enabled for the requested shipment type and role
+    // are returned. Quote creation still requires the authenticated official API.
+    private static async Task<IResult> GetPublicAssistantLocations(
+        string kind, string shipmentType, string routeRole, AppDbContext db, HttpContext http, CancellationToken ct)
+    {
+        http.Response.Headers.CacheControl = "no-store";
+        var validType = shipmentType switch
+        {
+            "FCL" or "LCL" => kind == "seaport",
+            "AIR_LCL" => kind == "airport",
+            "FTL" or "LTL" => kind == "inland",
+            _ => false
+        };
+        if (!validType || routeRole is not ("origin" or "destination" or "pod") ||
+            (routeRole == "pod" && shipmentType is not ("FCL" or "LCL")))
+            return Results.BadRequest(new { error = "Catálogo solicitado inválido." });
+
+        var items = await db.OfficialQuoteLocations.AsNoTracking()
+            .Where(x => x.Active &&
+                (routeRole == "pod" || x.Kind == kind) &&
+                (x.Code == null || !x.Code.StartsWith("DEV-")) &&
+                db.OfficialQuoteLocationUsages.Any(u => u.LocationId == x.Id &&
+                    u.ShipmentType == shipmentType && u.RouteRole == routeRole))
+            .OrderBy(x => x.DisplayName)
+            .Select(x => new { x.Id, x.DisplayName, x.Code })
+            .Take(500)
+            .ToListAsync(ct);
+        return Results.Ok(new { items });
+    }
+
     public static IEndpointRouteBuilder MapOfficialQuotes(this IEndpointRouteBuilder app)
     {
+        app.MapGet("/api/assistant/quote-locations", GetPublicAssistantLocations)
+            .RequireRateLimiting("auth");
         var group = app.MapGroup("/api/quotes/official").RequireAuthorization("registered");
 
         group.MapGet("/locations", async (string kind, string shipmentType, string routeRole, AppDbContext db, CancellationToken ct) =>
