@@ -103,6 +103,10 @@ async function main() {
     const scenarios = [
       { url: '/', role: null, must: ['class="app-site home-page"', 'home-hero__content'] },
       { url: '/servicios', role: null, must: ['services-page', 'services-page__transport'] },
+      { url: '/servicios/almacenamiento-fiscal', role: null, must: ['service-landing-page', 'Almacenamiento fiscal de mercancías en Costa Rica'] },
+      { url: '/servicios/bodegaje-general', role: null, must: ['service-landing-page', 'Bodegaje general y almacenamiento'] },
+      { url: '/servicios/agenciamiento-aduanal', role: null, must: ['service-landing-page', 'Agenciamiento aduanal para importaciones'] },
+      { url: '/servicios/consolidadora-de-carga', role: null, must: ['service-landing-page', 'Consolidadora de carga y transporte'] }
       { url: '/nosotros', role: null, must: ['about-reference-page', 'about-reference-intro'] },
       { url: '/noticias', role: null, must: ['news-page', 'news-editorial-hero'] },
       { url: '/bienvenidos', role: null, must: ['login-screen', 'login-auth-form'] },
