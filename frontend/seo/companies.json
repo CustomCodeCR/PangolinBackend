@@ -1,0 +1,80 @@
+{
+  "aduanera-castro-fallas": {
+    "name": "Aduanera Castro Fallas",
+    "title": "Aduanera Castro Fallas | Gestión aduanera en Costa Rica",
+    "description": "Conozca Aduanera Castro Fallas, vinculada a Grupo Castro Fallas, y la coordinación de trámites aduaneros para importar y exportar mercancías en Costa Rica.",
+    "intro": "Aduanera Castro Fallas es una de las empresas vinculadas a Grupo Castro Fallas. La gestión de mercancías requiere revisar los documentos comerciales, la clasificación, el régimen aduanero y las autorizaciones que correspondan.",
+    "related": [
+      {
+        "name": "Agenciamiento aduanal",
+        "href": "/servicios/agenciamiento-aduanal"
+      },
+      {
+        "name": "Almacenamiento fiscal",
+        "href": "/servicios/almacenamiento-fiscal"
+      }
+    ],
+    "faq": [
+      {
+        "q": "¿Qué documentos se necesitan para importar?",
+        "a": "Depende del tipo de mercancía y del régimen. Se revisan factura comercial, documento de transporte, lista de empaque y los permisos aplicables."
+      },
+      {
+        "q": "¿Se puede solicitar transporte y aduanas juntos?",
+        "a": "Puede solicitar una evaluación conjunta de los servicios disponibles del grupo, con alcances y costos confirmados al cotizar."
+      }
+    ]
+  },
+  "transporte-castro-fallas": {
+    "name": "Transporte Castro Fallas",
+    "title": "Transporte Castro Fallas | Transporte de carga en Costa Rica",
+    "description": "Información de Transporte Castro Fallas, empresa vinculada a Grupo Castro Fallas, y opciones para solicitar transporte terrestre de carga en Costa Rica.",
+    "intro": "Transporte Castro Fallas es una de las empresas vinculadas a Grupo Castro Fallas. El grupo coordina soluciones de transporte de mercancías para distintas operaciones logísticas. Las rutas, equipos, modalidades y disponibilidad se confirman al preparar cada propuesta.",
+    "related": [
+      {
+        "name": "Servicios de transporte",
+        "href": "/servicios"
+      },
+      {
+        "name": "Consolidación de carga LCL y LTL",
+        "href": "/servicios/consolidadora-de-carga"
+      }
+    ],
+    "faq": [
+      {
+        "q": "¿Qué se necesita para cotizar transporte?",
+        "a": "Origen, destino, mercancía, peso, volumen, dimensiones, fecha y condiciones especiales de manejo."
+      },
+      {
+        "q": "¿En qué se diferencian FTL y LTL?",
+        "a": "FTL corresponde a camión completo y LTL a carga parcial. La modalidad se determina según la operación y su disponibilidad."
+      }
+    ]
+  },
+  "neriteka": {
+    "name": "Neriteka",
+    "title": "Neriteka | Empresa vinculada a Grupo Castro Fallas",
+    "description": "Información corporativa sobre Neriteka y su vínculo con Grupo Castro Fallas. Consulte al grupo para obtener detalles oficiales de la empresa y sus servicios.",
+    "intro": "Neriteka es una de las empresas vinculadas a Grupo Castro Fallas. Esta página identifica la relación empresarial y proporciona un canal para solicitar información oficial. No se atribuyen a Neriteka servicios específicos sin validación corporativa.",
+    "related": [
+      {
+        "name": "Grupo Castro Fallas",
+        "href": "/nosotros"
+      },
+      {
+        "name": "Servicios del grupo",
+        "href": "/servicios"
+      }
+    ],
+    "faq": [
+      {
+        "q": "¿Neriteka forma parte de Grupo Castro Fallas?",
+        "a": "Neriteka se presenta como una de las empresas vinculadas al grupo."
+      },
+      {
+        "q": "¿Dónde puedo consultar información sobre sus servicios?",
+        "a": "Contacte a Grupo Castro Fallas e indique que la consulta corresponde a Neriteka para obtener información oficial y actualizada."
+      }
+    ]
+  }
+}

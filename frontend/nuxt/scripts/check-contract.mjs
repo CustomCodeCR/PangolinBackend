@@ -3,12 +3,21 @@ import path from 'node:path'
 import assert from 'node:assert/strict'
 const base = path.resolve(import.meta.dirname, '..')
 const source = f => fs.readFileSync(path.resolve(base, f), 'utf8')
+const companies = JSON.parse(fs.readFileSync(path.resolve(base, '../seo/companies.json'), 'utf8'))
+const keywords = JSON.parse(fs.readFileSync(path.resolve(base, '../seo/keyword-map.json'), 'utf8'))
 const guides = JSON.parse(fs.readFileSync(path.resolve(base, '../seo/service-landings.json'), 'utf8'))
 assert.equal(Object.keys(guides).length, 4, 'Se esperaban cuatro guías especializadas')
 for (const [route, guide] of Object.entries(guides)) {
   assert.ok(route.startsWith('/servicios/'), 'Ruta de servicio inválida: ' + route)
   assert.ok(guide.es.title && guide.es.answer && guide.es.faq?.length >= 5, 'Contenido AEO incompleto: ' + route)
 }
+for (const [slug, company] of Object.entries(companies)) {
+  assert.ok(company.name && company.description && company.faq?.length >= 2, 'Empresa incompleta: ' + slug)
+  assert.ok(keywords['/empresas/' + slug]?.primary, 'Falta palabra clave: ' + slug)
+}
+assert.match(source('server/routes/sitemap.xml.ts'), /companies/, 'Falta directorio en sitemap')
+assert.match(source('app/pages/empresas/[slug].vue'), /usePublicSeo/, 'Falta SEO empresarial SSR')
+assert.match(source('../src/components/SiteFooter.vue'), /href="\/empresas"/, 'Falta enlazado interno')
 assert.match(source('nuxt.config.ts'), /ssr:\s*true/, 'Nuxt debe mantener SSR')
 assert.match(source('server/routes/robots.txt.ts'), /OAI-SearchBot/, 'Debe permitir SearchBot')
 assert.match(source('server/routes/robots.txt.ts'), /GPTBot/, 'Política de entrenamiento no declarada')
