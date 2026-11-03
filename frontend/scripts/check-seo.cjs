@@ -46,7 +46,8 @@ for (const route of [...serviceRoutes, ...servicePageRoutes]) {
 }
 const header = read('src/components/SiteHeader.vue')
 assert.ok(header.includes('servicesLinks') && header.includes('servicesMenuOpen'), 'Falta menú desplegable de Servicios')
-assert.ok(header.includes('v-for="link in servicesLinks"') && header.includes(':href="link.url"') && header.includes('v-show="servicesMenuOpen"'), 'Los servicios deben ser rastreables desde el menú principal aunque esté cerrado')
+assert.ok(header.includes('v-for="link in primaryServicesLinks"') && header.includes('v-for="link in transportLinks"') && header.includes(':href="link.url"') && header.includes('v-show="servicesMenuOpen"'), 'Los diez servicios deben estar accesibles desde el menú con transporte agrupado')
+assert.ok(header.includes('aria-current="page"') && header.includes('isCurrentService(link.url)') && header.includes('toggleTransportMenu'), 'El servicio seleccionado se resalta y Transportes es navegable por teclado')
 assert.ok(!services.includes('services-page__guides') && !services.includes('serviceLinks'), 'La página general de Servicios no debe repetir enlaces especializados')
 const landing = read('src/pages/ServiceLanding.vue')
 assert.ok(!landing.includes('service-landing-related') && !landing.includes('href="/servicios"') && !landing.includes(':href="item.path"'), 'No debe haber enlaces cruzados fuera del menú principal')
