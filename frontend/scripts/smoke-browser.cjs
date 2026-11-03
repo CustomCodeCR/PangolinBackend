@@ -132,7 +132,7 @@ async function main() {
         for (const slug of ['transporte-maritimo', 'transporte-terrestre', 'transporte-aereo', 'transporte-internacional', 'transporte-local', 'transporte-panama-costa-rica']) {
           assert.ok(html.includes('href="/servicios/' + slug + '"'), 'Falta el transporte en el submenú: ' + slug)
         }
-        assert.ok(html.includes('services-switcher__tabs') && html.includes('services-switcher__tab'), 'Faltan las categorías compactas Generales y Transportes')
+        assert.ok(html.includes('services-megamenu__rail') && html.includes('services-megamenu__detail') && html.includes('services-megamenu__group-trigger'), 'Falta el megamenú de dos columnas debajo del nav')
         assert.ok(html.includes('aria-current="page"'), 'La ruta actual debe quedar resaltada en Servicios: ' + scenario.url)
         assert.ok(!html.includes('services-page__guides'), 'La página debe conservar su diseño anterior, sin tarjetas nuevas')
         assert.ok(!html.includes('service-landing-related'), 'Enlaces cruzados de servicios fuera del nav')
