@@ -132,17 +132,21 @@ function closeServiceMenu() {
   transportMenuOpen.value = false
 }
 function showCurrentService() {
-  // En menú compacto el submenú vive en el flujo y puede requerir desplazar
-  // solo su propio contenedor, sin mover toda la página de fondo.
-  if (typeof window === 'undefined' || !window.matchMedia('(max-width: 1080px)').matches) return
+  // En escritorio el panel tiene un único scroll; en móvil el drawer es el
+  // contenedor desplazable. Nunca forzar scroll sobre la página principal.
+  if (typeof window === 'undefined') return
   void nextTick(() => {
     const menu = servicesMenuElement.value
     const active = menu?.querySelector<HTMLElement>('a[aria-current="page"]')
     if (!menu || !active) return
-    const bounds = menu.getBoundingClientRect()
+    const scrollContainer = window.matchMedia('(max-width: 1080px)').matches
+      ? menu.closest<HTMLElement>('.site-header--menu-open') ?? menu.closest<HTMLElement>('.main-nav')
+      : menu
+    if (!scrollContainer) return
+    const bounds = scrollContainer.getBoundingClientRect()
     const link = active.getBoundingClientRect()
-    if (link.bottom > bounds.bottom - 12) menu.scrollTop += link.bottom - bounds.bottom + 18
-    else if (link.top < bounds.top + 12) menu.scrollTop -= bounds.top - link.top + 18
+    if (link.bottom > bounds.bottom - 12) scrollContainer.scrollTop += link.bottom - bounds.bottom + 18
+    else if (link.top < bounds.top + 12) scrollContainer.scrollTop -= bounds.top - link.top + 18
   })
 }
 function toggleServicesMenu() {
@@ -154,11 +158,6 @@ function toggleServicesMenu() {
 function toggleTransportMenu() {
   transportMenuOpen.value = !transportMenuOpen.value
   if (transportMenuOpen.value) showCurrentService()
-}
-function onTransportHover(open: boolean) {
-  if (typeof window !== 'undefined' && window.matchMedia('(min-width: 1081px) and (hover: hover) and (pointer: fine)').matches) {
-    transportMenuOpen.value = open
-  }
 }
 const cargoLinks = computed(() => [
   { key: 'embarque', id: 'embarque', url: `/tracking${rolePreviewSuffix.value}`, label: t('navLinks.embarque') },
@@ -257,8 +256,7 @@ function toggleTheme() {
             <a v-for="link in primaryServicesLinks" :key="link.url" class="services-menu__primary-link"
               :class="{ 'is-current': isCurrentService(link.url) }" :aria-current="isCurrentService(link.url) ? 'page' : undefined"
               :href="link.url" @click="closeServiceMenu(); expanded = false">{{ link.label }}</a>
-            <div class="services-transport-group" :class="{ 'is-open': transportMenuOpen, 'is-current-group': currentTransport }"
-              @mouseenter="onTransportHover(true)" @mouseleave="onTransportHover(false)">
+            <div class="services-transport-group" :class="{ 'is-open': transportMenuOpen, 'is-current-group': currentTransport }">
               <button class="services-transport-group__trigger" type="button"
                 :aria-expanded="transportMenuOpen" aria-controls="site-services-transport-menu"
                 @click.stop="toggleTransportMenu">
