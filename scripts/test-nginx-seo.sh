@@ -62,6 +62,9 @@ test_http "/sitemap.xml" 200
 test_http "/images/logo.png" 200
 test_http "/favicon.png" 200
 test_http "/api/not-a-real-route" 502
-curl --fail --silent "$base/sitemap.xml" | grep -q 'https://logisticacastrofallas.com/servicios'
-curl --fail --silent "$base/robots.txt" | grep -q 'Sitemap: https://logisticacastrofallas.com/sitemap.xml'
+# Comparar con el host canónico real del frontend, sin redirigir el dominio raíz.
+sitemap="$(curl --fail --silent "$base/sitemap.xml")"
+robots="$(curl --fail --silent "$base/robots.txt")"
+grep -Fq 'https://www.logisticacastrofallas.com/servicios' <<< "$sitemap"
+grep -Fq 'Sitemap: https://www.logisticacastrofallas.com/sitemap.xml' <<< "$robots"
 echo 'PASS: nginx production HTTP routes, assets, sitemap, robots, 404, private noindex and canonical'
