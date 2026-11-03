@@ -130,7 +130,7 @@ html:not(.theme-dark) .service-detail-hero h1,
 html:not(.theme-dark) .service-detail-location { color:#20242b; }
 html:not(.theme-dark) .service-detail-hero__copy .section-tag,
 html:not(.theme-dark) .service-detail-location svg { color:#b20c2a; }
-html:not(.theme-dark) .service-detail-hero__lead { color:#424650; }
+html:not(.theme-dark) .service-detail-hero__lead { color:#20242b; }
 html:not(.theme-dark) .service-detail-page .section-tag { color:#b20c2a; }
 html.theme-dark .service-detail-hero__copy .section-tag,
 html.theme-dark .service-detail-location svg { color:#ff647b; }
