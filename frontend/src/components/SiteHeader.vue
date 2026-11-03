@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { ArrowUpRight, ChevronDown, Menu, Moon, Settings, Sun, UserRound, X } from '@lucide/vue'
 import LanguageSwitcher from './LanguageSwitcher.vue'
 import serviceGuides from '../../seo/service-landings.json'
+import { servicePages } from '../content/servicePages'
 import { authState, currentRole, logoutSession, refreshSession } from '../services/auth'
 
 const props = defineProps<{ active?: string; overlay?: boolean }>()
@@ -113,7 +114,8 @@ const links = computed(() => baseLinks.map(link => ({ ...link, label: t(`navLink
 const visibleLinks = computed(() => links.value.map(link => ({ ...link, url: `${link.url}${rolePreviewSuffix.value}` })))
 const servicesLinks = computed(() => [
   { url: '/servicios', label: locale.value.startsWith('en') ? 'All services' : 'Todos los servicios' },
-  ...Object.entries(serviceGuides).map(([url, guide]) => ({ url, label: locale.value.startsWith('en') ? guide.en.label : guide.es.label }))
+  ...Object.entries(serviceGuides).map(([url, guide]) => ({ url, label: locale.value.startsWith('en') ? guide.en.label : guide.es.label })),
+  ...servicePages.map(page => ({ url: `/servicios/${page.slug}${rolePreviewSuffix.value}`, label: locale.value.startsWith('en') ? page.title.en : page.title.es }))
 ])
 const isServicePage = props.active === 'soluciones' || (typeof window !== 'undefined' && (window.location.pathname === '/servicios' || window.location.pathname.startsWith('/servicios/')))
 const cargoLinks = computed(() => [
@@ -213,7 +215,7 @@ function toggleTheme() {
           </div>
         </div>
         <div v-if="canAccessCargo" class="nav-dropdown" :class="{ 'nav-dropdown--open': cargoMenuOpen, 'nav-dropdown--active': cargoLinks.some(link => props.active === link.id) }">
-          <button class="nav-dropdown__trigger" type="button" :aria-expanded="cargoMenuOpen" @click="cargoMenuOpen = !cargoMenuOpen">
+          <button class="nav-dropdown__trigger" type="button" :aria-expanded="cargoMenuOpen" @click="cargoMenuOpen = !cargoMenuOpen; servicesMenuOpen = false">
             {{ t('navLinks.embarque') }} <ChevronDown :size="16" class="nav-dropdown__chevron" aria-hidden="true" />
           </button>
           <div v-if="cargoMenuOpen" class="nav-dropdown__menu">

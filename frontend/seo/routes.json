@@ -24,10 +24,53 @@
     "socialImageAlt": "Equipo y operaciones logísticas de Castro Fallas"
   },
   "/servicios": {
-    "title": "Servicios de transporte y aduanas | Castro Fallas",
-    "description": "Servicios de agencia aduanal, transporte marítimo FCL, carga consolidada LCL, transporte aéreo, terrestre LTL/FTL Panamá–Costa Rica y logística internacional.",
+    "title": "Servicios aduanales, almacenamiento y carga | Castro Fallas",
+    "description": "Servicios en Costa Rica: agenciamiento aduanal, almacenamiento fiscal, bodegaje general, carga consolidada LCL y transporte aéreo, marítimo y terrestre.",
     "socialImage": "/images/services-crane.webp",
-    "socialImageAlt": "Operaciones de transporte y servicios logísticos de Castro Fallas"
+    "socialImageAlt": "Operaciones de transporte y servicios logísticos de Castro Fallas",
+    "lastModified": "2026-11-02"
+  },
+  "/servicios/transporte-maritimo": {
+    "title": "Transporte marítimo de carga | Castro Fallas Costa Rica",
+    "description": "Coordinación de transporte marítimo internacional para importaciones y exportaciones desde y hacia Costa Rica. Solicitá una cotización a Castro Fallas.",
+    "socialImage": "/images/ship.webp",
+    "socialImageAlt": "Buque para transporte marítimo internacional de carga",
+    "lastModified": "2026-11-02"
+  },
+  "/servicios/transporte-terrestre": {
+    "title": "Transporte terrestre internacional | Castro Fallas",
+    "description": "Consultá por transporte terrestre internacional de carga y conexiones regionales con Costa Rica. Rutas y condiciones se confirman para cada operación.",
+    "socialImage": "/images/truck.webp",
+    "socialImageAlt": "Camión de carga en una ruta terrestre internacional",
+    "lastModified": "2026-11-02"
+  },
+  "/servicios/transporte-aereo": {
+    "title": "Transporte aéreo de carga | Castro Fallas Costa Rica",
+    "description": "Coordinación de transporte aéreo internacional para cargas desde y hacia Costa Rica. Consultá disponibilidad y condiciones con Grupo Castro Fallas.",
+    "socialImage": "/images/air-freight.webp",
+    "socialImageAlt": "Avión de carga para transporte aéreo internacional",
+    "lastModified": "2026-11-02"
+  },
+  "/servicios/transporte-internacional": {
+    "title": "Transporte internacional de carga | Castro Fallas",
+    "description": "Explorá opciones de transporte internacional terrestre, marítimo y aéreo coordinadas desde Costa Rica por Grupo Castro Fallas.",
+    "socialImage": "/images/hero.webp",
+    "socialImageAlt": "Operación de transporte internacional y logística de carga",
+    "lastModified": "2026-11-02"
+  },
+  "/servicios/transporte-local": {
+    "title": "Transporte local en Costa Rica | Neriteka y Castro Fallas",
+    "description": "Consultá por coordinación de transporte local en Costa Rica con Neriteka y el equipo de Castro Fallas. El alcance y la disponibilidad se confirman según cada traslado.",
+    "socialImage": "/images/truck.webp",
+    "socialImageAlt": "Vehículo de carga para transporte local en Costa Rica",
+    "lastModified": "2026-11-02"
+  },
+  "/servicios/transporte-panama-costa-rica": {
+    "title": "Transporte de carga Panamá–Costa Rica | Castro Fallas",
+    "description": "Coordinación de transporte terrestre de carga entre Panamá y Costa Rica. Consultá rutas, requisitos y condiciones con Grupo Castro Fallas.",
+    "socialImage": "/images/truck.webp",
+    "socialImageAlt": "Transporte terrestre de carga entre Panamá y Costa Rica",
+    "lastModified": "2026-11-02"
   },
   "/tracking": {
     "title": "Seguimiento de carga | Castro Fallas",
