@@ -1,4 +1,5 @@
 import serviceGuides from '../seo/service-landings.json'
+import servicePages from '../seo/service-pages.json'
 import companies from '../seo/companies.json'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -8,6 +9,7 @@ export default defineNuxtConfig({
   ssr: true,
   devtools: { enabled: false },
   srcDir: 'app/',
+  app: { head: { meta: [{ name: 'msvalidate.01', content: '3B7ADBDA75E127B245F7E653F3021EE8' }] } },
   // Reutilizar exactamente las hojas de estilo del sitio actual.
   css: ['@legacy/style.css', '@legacy/styles/frontend6-refinements.css'],
   alias: { '@legacy': legacySource },
@@ -21,7 +23,7 @@ export default defineNuxtConfig({
   },
   nitro: {
     prerender: {
-      routes: ['/', '/nosotros', '/servicios', '/empresas', ...Object.keys(serviceGuides), ...Object.keys(companies).map(slug => '/empresas/' + slug)]
+      routes: ['/', '/nosotros', '/servicios', '/empresas', ...Object.keys(serviceGuides), ...servicePages.map(page => '/servicios/' + page.slug), ...Object.keys(companies).map(slug => '/empresas/' + slug)]
     }
   },
   routeRules: {
