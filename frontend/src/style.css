@@ -5630,11 +5630,11 @@ html.theme-dark .site-header .services-transport-group__submenu a:is(:hover, :fo
   white-space: normal;
 }
 
-/* Menú compacto en el diseño original: rojo y de altura natural.
-   Teleport lo saca del hero sin desplazar el título ni el +48. El contenido
-   de Nosotros permanece en su sitio y la foto siempre queda por debajo.
-   Si el menú crece más que la pantalla, se desplaza solo dentro del menú. */
-@media (max-width: 1080px) {
+/* La hoja mobile-navigation.css mantiene el drawer lateral DERECHO en
+   teléfonos (<=800px), con su ancho y animación originales. No sobrescribirlo.
+   Solo en pantallas intermedias, de 801 a 1080px, el encabezado compacto
+   se superpone a la página sin empujar el título ni la foto de Nosotros. */
+@media (min-width: 801px) and (max-width: 1080px) {
   html body > .site-header.site-header--menu-open {
     position: fixed !important;
     inset: 0 0 auto 0 !important;
@@ -5643,7 +5643,7 @@ html.theme-dark .site-header .services-transport-group__submenu a:is(:hover, :fo
     max-height: 100vh !important;
     max-height: 100dvh !important;
     min-height: 0 !important;
-    z-index: 2147482800 !important;
+    z-index: 2147483000 !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
     overscroll-behavior: contain;

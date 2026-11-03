@@ -74,7 +74,10 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896
               };
             """)
             assert measures["dark"] == (theme == "dark"), f"Theme mismatch: {measures}"
-            assert measures["menuLeft"] >= 26 and measures["menuRight"] <= width - 26, f"Menu lacks viewport breathing room: {measures}"
+            if width <= 800:
+                assert measures["menuLeft"] >= 8 and measures["menuRight"] <= width - 8, f"Phone submenu escapes right drawer: {measures}"
+            else:
+                assert measures["menuLeft"] >= 26 and measures["menuRight"] <= width - 26, f"Menu lacks viewport breathing room: {measures}"
             if width > 1080:
                 assert measures["menuRight"] - measures["menuLeft"] <= 630, f"Desktop menu should be narrower: {measures}"
             assert measures["detailLeft"] >= -2 and measures["detailRight"] <= width + 2, f"Right panel outside viewport: {measures}"
@@ -149,7 +152,7 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896
             assert group.get_attribute("aria-expanded") == "true", "Manual expand must reveal transport links"
             print(f"PASS manual expand from general service {label}/{theme}", flush=True)
 
-            # Regression: keep the ORIGINAL compact red menu height and layout.
+            # Regression: preserve the original phone SIDE DRAWER and medium red menu.
             # Opening it must not push the About title, years or photo down,
             # and the picture must never paint in front of the open menu.
             if width <= 1080:
@@ -175,6 +178,8 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896
                   if (!h) return {error: 'Compact header was not teleported'};
                   const nav = h.querySelector('.main-nav');
                   const root = document.getElementById('app') || document.getElementById('__nuxt');
+                  const backdrop = document.querySelector('body > .mobile-nav-backdrop');
+                  const backdropHit = document.elementFromPoint(12, innerHeight * .55);
                   const rect = selector => {
                     const r = document.querySelector(selector).getBoundingClientRect();
                     return {top:r.top, left:r.left};
@@ -197,6 +202,8 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896
                     top:r.top, left:r.left, right:r.right, bottom:r.bottom,
                     navBottom:n.bottom, viewportWidth:innerWidth,
                     viewportHeight:innerHeight, rootInert:!!root?.inert,
+                    backdropVisible:!!backdrop && getComputedStyle(backdrop).display !== 'none',
+                    backdropCoversPage:backdrop === backdropHit,
                     title:rect('.about-hero__copy h1'),
                     years:rect('.about-hero__copy .big-years'),
                     image:rect('.about-image-card'),
@@ -206,9 +213,19 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896
                 """)
                 assert overlay.get("position") == "fixed", f"Compact menu is not fixed: {overlay}"
                 assert -2 <= overlay["top"] <= 2, f"Menu starts below the viewport: {overlay}"
-                assert overlay["left"] >= -2 and overlay["right"] >= overlay["viewportWidth"] - 2, f"Menu width changed: {overlay}"
-                assert overlay["bottom"] <= overlay["navBottom"] + 32, f"Menu was stretched to the whole screen: {overlay}"
-                assert overlay["bottom"] <= overlay["viewportHeight"] + 2, f"Menu overflows the viewport: {overlay}"
+                assert overlay["right"] >= overlay["viewportWidth"] - 2, f"Menu right edge changed: {overlay}"
+                if width <= 800:
+                    # The original phone navigation is a RIGHT-side drawer, not
+                    # a full-width menu: preserve its 76vw/360px width and dimmer.
+                    expected_left = width - min(width * .76, 360)
+                    assert abs(overlay["left"] - expected_left) <= 4, f"Phone drawer width/position changed: {overlay}"
+                    assert overlay["bottom"] >= overlay["viewportHeight"] - 2, f"Phone drawer no longer fills screen height: {overlay}"
+                    assert overlay["backdropVisible"] and overlay["backdropCoversPage"], f"Page dimmer missing behind phone drawer: {overlay}"
+                else:
+                    assert overlay["left"] >= -2 and overlay["left"] <= 2, f"Compact menu no longer spans the top: {overlay}"
+                    assert overlay["bottom"] <= overlay["navBottom"] + 32, f"Compact menu was stretched to the whole screen: {overlay}"
+                    assert overlay["bottom"] <= overlay["viewportHeight"] + 2, f"Compact menu overflows the viewport: {overlay}"
+                    assert not overlay["backdropVisible"], f"Phone-only backdrop shown on tablet: {overlay}"
                 assert overlay["overflowY"] in ("auto", "scroll"), f"Long menu cannot scroll: {overlay}"
                 assert overlay["rootInert"], f"Page is interactive behind the open menu: {overlay}"
                 for key in ("title", "years", "image"):
