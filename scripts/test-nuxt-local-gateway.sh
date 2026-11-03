@@ -144,6 +144,7 @@ python3 -m venv /tmp/cf-hybrid-selenium
 /tmp/cf-hybrid-selenium/bin/pip install --disable-pip-version-check --quiet selenium==4.38.0
 /tmp/cf-hybrid-selenium/bin/python scripts/test-nuxt-menu-selenium.py "$base"
 /tmp/cf-hybrid-selenium/bin/python scripts/test-nuxt-image-selenium.py "$base"
+/tmp/cf-hybrid-selenium/bin/python scripts/test-nuxt-gio-selenium.py "$base"
 /tmp/cf-hybrid-selenium/bin/python scripts/test-nuxt-private-parity.py "http://127.0.0.1:18084" "$base"
 /tmp/cf-hybrid-selenium/bin/python scripts/test-nuxt-public-parity.py "http://127.0.0.1:18084" "$base"
 echo "PASS SSR + Vue compilado + assets + API + login + cotizaciones + menús + CMS + paridad pública/privada"
