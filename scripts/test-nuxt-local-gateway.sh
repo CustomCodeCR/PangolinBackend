@@ -68,4 +68,7 @@ for page in "bienvenidos" "cotizaciones?servicio=Maritime"; do
   fi
   echo "PASS Chrome gateway: $page"
 done
-echo "PASS SSR + Vue compilado + assets + API + login + cotizaciones sin pantalla blanca"
+python3 -m venv /tmp/cf-hybrid-selenium
+/tmp/cf-hybrid-selenium/bin/pip install --disable-pip-version-check --quiet selenium==4.38.0
+/tmp/cf-hybrid-selenium/bin/python scripts/test-nuxt-menu-selenium.py "$base"
+echo "PASS SSR + Vue compilado + assets + API + login + cotizaciones + menús responsive"
