@@ -93,6 +93,26 @@ for width, height, label in [(1440, 900, "desktop"), (390, 844, "mobile")]:
             assert measures["panelRight"] <= measures["screenWidth"] + 2, f"Main panel clipped: {measures}"
             driver.save_screenshot(str(ARTIFACTS / f"{label}-{theme}-transportes.png"))
             print(f"PASS navigation {label} {theme}: {measures}", flush=True)
+
+            # Banderas: SVG reales, no emojis dependientes del sistema operativo.
+            settings_button = driver.find_element(By.CSS_SELECTOR, ".header-settings__trigger")
+            driver.execute_script(
+                "arguments[0].scrollIntoView({block:'nearest'}); arguments[0].click()",
+                settings_button,
+            )
+            wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".header-settings__panel")))
+            current_flag = driver.find_element(By.CSS_SELECTOR, ".header-settings__panel .language-switcher__current svg.language-flag")
+            assert current_flag.is_displayed(), "La bandera actual no se ve"
+            current_button = driver.find_element(By.CSS_SELECTOR, ".header-settings__panel .language-switcher__current")
+            driver.execute_script("arguments[0].click()", current_button)
+            flag_options = wait.until(lambda d: d.find_elements(
+                By.CSS_SELECTOR, ".header-settings__panel .language-switcher__menu svg.language-flag"
+            ))
+            assert len(flag_options) == 2 and all(flag.is_displayed() for flag in flag_options), (
+                "Español y English deben mostrar sus banderas SVG"
+            )
+            driver.save_screenshot(str(ARTIFACTS / f"{label}-{theme}-idiomas.png"))
+            print(f"PASS flags SVG {label} {theme}", flush=True)
         finally:
             driver.quit()
 print("PASS all four responsive theme/viewport menu checks")
