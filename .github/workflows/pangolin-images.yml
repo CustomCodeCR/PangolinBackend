@@ -70,6 +70,20 @@ jobs:
           cache-from: type=gha,scope=pangolin-frontend
           cache-to: type=gha,mode=max,scope=pangolin-frontend
 
+      - name: Build and publish Pangolin Nuxt SSR
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/nuxt/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/customcodecr/pangolinbackend/nuxt:latest
+            ghcr.io/customcodecr/pangolinbackend/nuxt:${{ steps.version.outputs.tag }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/CustomCodeCR/PangolinBackend
+          cache-from: type=gha,scope=pangolin-nuxt
+          cache-to: type=gha,mode=max,scope=pangolin-nuxt
+
       - name: Build and publish Pangolin backend
         uses: docker/build-push-action@v6
         with:
@@ -88,7 +102,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pangolin-compose
-          path: deploy/docker-compose.images.yml
+          path: |
+            deploy/docker-compose.images.yml
+            deploy/nuxt-hybrid-gateway.conf
           if-no-files-found: error
           retention-days: 7
 
@@ -119,9 +135,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "COMPOSE_FILE=$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml" >> "$GITHUB_ENV"
           test -r "$DHOLE_ENV_FILE"
           test -r "$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml"
+          test -r "$RUNNER_TEMP/pangolin-runtime/nuxt-hybrid-gateway.conf"
+          gateway_dir="$HOME/pangolin-release"
+          mkdir -p "$gateway_dir"
+          install -m 0644 "$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml" "$gateway_dir/docker-compose.images.yml"
+          install -m 0644 "$RUNNER_TEMP/pangolin-runtime/nuxt-hybrid-gateway.conf" "$gateway_dir/nuxt-hybrid-gateway.conf"
+          export COMPOSE_FILE="$gateway_dir/docker-compose.images.yml"
+          export PANGOLIN_GATEWAY_CONFIG_PATH="$gateway_dir/nuxt-hybrid-gateway.conf"
+          echo "COMPOSE_FILE=$COMPOSE_FILE" >> "$GITHUB_ENV"
+          echo "PANGOLIN_GATEWAY_CONFIG_PATH=$PANGOLIN_GATEWAY_CONFIG_PATH" >> "$GITHUB_ENV"
           read_var() { grep -m1 "^$1=" "$DHOLE_ENV_FILE" | cut -d= -f2- || true; }
           pgpass="$(read_var PANGOLIN_POSTGRES_PASSWORD)"
           otp="$(read_var PANGOLIN_AUTH_OTP_PEPPER)"
@@ -184,7 +208,7 @@ jobs:
               ;;
           esac
           docker network inspect "$DHOLE_NETWORK" >/dev/null
-          docker compose --env-file "$DHOLE_ENV_FILE" -f "$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml" -p pangolin-production config --quiet
+          docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production config --quiet
 
       - name: Enforce WWW-only cutover without touching Fennec apex
         shell: bash
@@ -210,7 +234,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production pull backend frontend
+          docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production pull backend frontend frontend-nuxt
           docker image inspect postgres:16-alpine >/dev/null 2>&1 || docker pull postgres:16-alpine
 
       - name: Provision isolated pangolin PostgreSQL role and database on Dhole postgres
@@ -444,3 +468,79 @@ jobs:
           echo "Cross-site POST Origin correctly rejected."
 
           docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production ps
+      - name: Start Nuxt canary and hybrid gateway without changing WWW
+        shell: bash
+        env:
+          PANGOLIN_NUXT_TRAEFIK_ENABLED: "false"
+        run: |
+          set -euo pipefail
+          docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production \
+            up -d --no-build --no-deps frontend-nuxt seo-gateway
+
+      - name: Verify Nuxt SSR and private SPA API before cutover
+        shell: bash
+        run: |
+          set -euo pipefail
+          local_port="$(grep -m1 '^PANGOLIN_HYBRID_LOCAL_PORT=' "$DHOLE_ENV_FILE" | cut -d= -f2- || true)"
+          local_port="${local_port:-8183}"
+          base="http://127.0.0.1:$local_port"
+          ready=false
+          for attempt in $(seq 1 30); do
+            if curl -fsS --max-time 5 "$base/" -o /tmp/pangolin-nuxt-ssr.html; then
+              ready=true
+              break
+            fi
+            sleep 3
+          done
+          if [[ "$ready" != true ]]; then
+            echo "::error::Nuxt canary did not become healthy; preserving old WWW frontend."
+            docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production logs --tail 60 frontend-nuxt seo-gateway
+            exit 1
+          fi
+          grep -Fq 'application/ld+json' /tmp/pangolin-nuxt-ssr.html
+          grep -Fq 'home-page' /tmp/pangolin-nuxt-ssr.html
+          curl -fsS --max-time 10 "$base/nosotros" | grep -q 'about-reference-page'
+          curl -fsS --max-time 10 "$base/servicios/almacenamiento-fiscal" | grep -q 'Preguntas frecuentes'
+          curl -fsS --max-time 10 "$base/robots.txt" | grep -q 'OAI-SearchBot'
+          curl -fsS --max-time 10 "$base/sitemap.xml" | grep -q 'almacenamiento-fiscal'
+          curl -fsS --max-time 10 "$base/api/health/ready" >/dev/null
+          for path in '/cotizaciones' '/tracking' '/administracion'; do
+            status="$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' "$base$path")"
+            if [[ "$status" != "200" && "$status" != "302" && "$status" != "307" ]]; then
+              echo "::error::Legacy path $path returned HTTP $status; preserving old WWW frontend."
+              exit 1
+            fi
+          done
+          echo "Nuxt SSR, crawler routes and protected legacy paths passed canary."
+
+      - name: Activate Nuxt for WWW only with automatic rollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          rollback() {
+            echo "::error::Nuxt WWW verification failed. Disabling Nuxt router to restore legacy frontend."
+            PANGOLIN_NUXT_TRAEFIK_ENABLED=false docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production \
+              up -d --no-build --no-deps seo-gateway || true
+          }
+          trap rollback ERR
+          PANGOLIN_NUXT_TRAEFIK_ENABLED=true docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production \
+            up -d --no-build --no-deps seo-gateway
+          host="$(grep -m1 '^FENNEC_WWW_HOST=' "$DHOLE_ENV_FILE" | cut -d= -f2- | tr -d '\r')"
+          ready=false
+          for attempt in $(seq 1 30); do
+            if curl -fsS --max-time 8 -H "Host: $host" http://127.0.0.1/ -o /tmp/pangolin-activated-ssr.html \
+                && grep -Fq 'application/ld+json' /tmp/pangolin-activated-ssr.html \
+                && grep -Fq 'home-page' /tmp/pangolin-activated-ssr.html; then
+              ready=true
+              break
+            fi
+            sleep 2
+          done
+          if [[ "$ready" != true ]]; then
+            echo "::error::Traefik WWW is not serving Nuxt HTML."
+            false
+          fi
+          curl -fsS --max-time 8 -H "Host: $host" http://127.0.0.1/api/health/ready >/dev/null
+          echo "$PANGOLIN_IMAGE_TAG" > "$HOME/pangolin-release/current-tag"
+          echo "Nuxt SSR active on WWW; Fennec apex unchanged; legacy frontend available for rollback."
+          trap - ERR
