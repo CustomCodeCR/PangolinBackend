@@ -173,6 +173,16 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896
                 """)
                 wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
                 wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".site-header--menu-open")))
+                # The original phone drawer slides in for 240ms. Assert the
+                # settled right-edge geometry, not an intermediate frame.
+                if width <= 800:
+                    wait.until(lambda d: d.execute_script("""
+                      const h = document.querySelector('body > .site-header--menu-open');
+                      if (!h) return false;
+                      const r = h.getBoundingClientRect();
+                      const left = innerWidth - Math.min(innerWidth * .76, 360);
+                      return Math.abs(r.left - left) <= 3 && Math.abs(r.right - innerWidth) <= 3;
+                    """))
                 overlay = driver.execute_script("""
                   const h = document.querySelector('body > .site-header--menu-open');
                   if (!h) return {error: 'Compact header was not teleported'};
@@ -217,7 +227,7 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896
                 if width <= 800:
                     # The original phone navigation is a RIGHT-side drawer, not
                     # a full-width menu: preserve its 76vw/360px width and dimmer.
-                    expected_left = width - min(width * .76, 360)
+                    expected_left = overlay["viewportWidth"] - min(overlay["viewportWidth"] * .76, 360)
                     assert abs(overlay["left"] - expected_left) <= 4, f"Phone drawer width/position changed: {overlay}"
                     assert overlay["bottom"] >= overlay["viewportHeight"] - 2, f"Phone drawer no longer fills screen height: {overlay}"
                     assert overlay["backdropVisible"] and overlay["backdropCoversPage"], f"Page dimmer missing behind phone drawer: {overlay}"
