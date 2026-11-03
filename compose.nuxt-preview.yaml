@@ -1,0 +1,15 @@
+# Opt-in: ejecutar junto a compose.production.yaml sin sustituir el frontend legacy.
+# docker compose -f compose.production.yaml -f compose.nuxt-preview.yaml --env-file .env.production up -d --build frontend-nuxt
+services:
+  frontend-nuxt:
+    build:
+      context: ./frontend
+      dockerfile: nuxt/Dockerfile
+    restart: unless-stopped
+    environment:
+      NUXT_CMS_API_BASE: http://backend:5000
+      NUXT_PUBLIC_SITE_URL: https://www.logisticacastrofallas.com
+    ports:
+      - "127.0.0.1:${NUXT_PREVIEW_PORT:-8082}:3000"
+    depends_on:
+      - backend
