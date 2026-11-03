@@ -32,6 +32,11 @@ assert.match(source('server/routes/sitemap.xml.ts'), /companies/, 'Falta directo
 assert.match(source('app/pages/empresas/[slug].vue'), /usePublicSeo/, 'Falta SEO empresarial SSR')
 assert.match(source('../src/components/SiteFooter.vue'), /href="\/empresas"/, 'Falta enlazado interno')
 assert.match(source('nuxt.config.ts'), /ssr:\s*true/, 'Nuxt debe mantener SSR')
+for (const route of ['privacidad', 'terminos', 'cookies', 'licencias']) {
+  assert.match(source('app/pages/' + route + '.vue'), /LegacyLegal/, 'Falta migración de página legal: ' + route)
+}
+assert.match(source('../src/pages/Legal.vue'), /props\.pathname/, 'Legal debe ser compatible con SSR')
+assert.match(source('../src/pages/ServiceDetail.vue'), /props\.pathname/, 'Detalles de servicio deben ser compatibles con SSR')
 assert.match(source('server/routes/robots.txt.ts'), /OAI-SearchBot/, 'Debe permitir SearchBot')
 assert.match(source('server/routes/robots.txt.ts'), /GPTBot/, 'Política de entrenamiento no declarada')
 assert.match(source('server/routes/sitemap.xml.ts'), /articlePath/, 'Las noticias deben aparecer en sitemap')
