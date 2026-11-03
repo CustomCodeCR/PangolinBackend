@@ -1,0 +1,57 @@
+name: Nuxt SSR - SEO GEO AEO AIO
+on:
+  push:
+    branches: [main, main-2]
+    paths:
+      - "frontend/nuxt/**"
+      - "frontend/seo/service-landings.json"
+      - "compose.nuxt-preview.yaml"
+      - ".github/workflows/nuxt-ssr-seo.yml"
+  pull_request:
+    branches: [main, main-2]
+    paths:
+      - "frontend/nuxt/**"
+      - "frontend/seo/service-landings.json"
+      - "compose.nuxt-preview.yaml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ssr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Nuxt dependencies
+        run: npm install --no-audit --no-fund
+        working-directory: frontend/nuxt
+      - name: Validate SEO contracts
+        run: npm run check
+        working-directory: frontend/nuxt
+      - name: Compile production Nuxt/Nitro SSR
+        run: npm run build
+        working-directory: frontend/nuxt
+      - name: HTTP smoke - SSR HTML, schema, robots, sitemap, 301, 404
+        shell: bash
+        run: |
+          set -euo pipefail
+          export NUXT_CMS_API_BASE=http://127.0.0.1:59999
+          export NUXT_PUBLIC_SITE_URL=https://www.logisticacastrofallas.com
+          (cd frontend/nuxt && npm run start) > /tmp/pangolin-nuxt.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 35); do
+            if curl -fsS http://127.0.0.1:3000/ >/tmp/pangolin-home.html; then break; fi
+            sleep 1
+          done
+          grep -q '<h1' /tmp/pangolin-home.html
+          grep -q 'application/ld+json' /tmp/pangolin-home.html
+          curl -fsS http://127.0.0.1:3000/servicios/almacenamiento-fiscal >/tmp/pangolin-service.html
+          grep -q 'Almacenamiento fiscal' /tmp/pangolin-service.html
+          grep -q 'Preguntas frecuentes' /tmp/pangolin-service.html
+          curl -fsS http://127.0.0.1:3000/robots.txt | grep -q 'OAI-SearchBot'
+          curl -fsS http://127.0.0.1:3000/sitemap.xml | grep -q 'almacenamiento-fiscal'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/home)" = "301"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/servicios/ruta-inexistente)" = "404"
