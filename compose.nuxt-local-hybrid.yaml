@@ -1,6 +1,14 @@
-# Vista hibrida LOCAL de integracion: Nuxt publica + Vue compilada privada.
-# El frontend Vite 5173 se mantiene intacto como referencia de desarrollo.
+# Gateway hibrido EXCLUSIVAMENTE LOCAL para comprobar el paso a Nuxt.
+# No afecta a frontend:5173, main-2, bases de datos ni despliegue productivo.
 services:
+  frontend-nuxt:
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 8s
+      timeout: 5s
+      retries: 15
+      start_period: 25s
+
   frontend-legacy-preview:
     build:
       context: ./frontend
@@ -8,6 +16,12 @@ services:
       args:
         VITE_OFFICIAL_QUOTES_ENABLED: "true"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/"]
+      interval: 8s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
     depends_on:
       - backend
 
@@ -19,6 +33,9 @@ services:
     ports:
       - "${NUXT_LOCAL_GATEWAY_BIND_IP:-127.0.0.1}:${NUXT_LOCAL_GATEWAY_PORT:-8083}:80"
     depends_on:
-      - frontend-legacy-preview
-      - frontend-nuxt
-      - backend
+      frontend-legacy-preview:
+        condition: service_healthy
+      frontend-nuxt:
+        condition: service_healthy
+      backend:
+        condition: service_started
