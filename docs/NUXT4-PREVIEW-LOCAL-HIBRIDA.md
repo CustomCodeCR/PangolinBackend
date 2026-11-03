@@ -14,7 +14,7 @@ El primer gateway local intentaba conectar el HTML servido por Vite con el enrut
 
 Nuxt sigue usando Vue 3 internamente. Lo que se migra es el enrutador, SSR, runtime y build, sin reescribir componentes con buen comportamiento. El login/OTP, cotizador, tracking, itinerarios y administración **todavía son Vue compilado** desde `8083`. No contar esos apartados como migrados.
 
-El menú Servicios usa Transportes como acordeón en el mismo panel (escritorio y móvil). Así no se recorta lateralmente. En móvil, el desplazamiento corresponde al cajón completo; en escritorio al desplegable principal. El enlace de la página actual lleva `aria-current=page` y resaltado.
+El menú Servicios ahora es un **megamenú situado bajo la barra de navegación**: a la izquierda ofrece «Todos los servicios», los cuatro servicios logísticos y la categoría Transportes; a la derecha muestra solo los seis enlaces finales de Transportes (sin submenús adicionales). Se adapta en modo claro y oscuro. En móvil, tocar Transportes sustituye la lista principal por su segundo nivel, con «Categorías» para regresar; el cajón es el único elemento que desplaza. La ruta actual conserva `aria-current=page` y resaltado. Una comprobación en Chrome valida cuatro combinaciones de tema y tamaño, sin sustituir la revisión visual de Safari.
 
 ## PowerShell, desde la carpeta del repo
 
