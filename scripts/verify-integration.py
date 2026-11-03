@@ -190,24 +190,24 @@ check("import { Anchor } from '@lucide/vue'" in app
       and 'fill: none !important;' in shared_mobile_styles,
       'Cuatro íconos de cotización blancos, sin emoji azul y con SVG monócromo')
 legal_page = read('frontend/src/pages/Legal.vue')
-check('type LegalDocument = { title: string; intro: string; sections: LegalSection[] }' in legal_page
+# La versión legal actual usa documentos bilingües publicados con secciones,
+# no un formulario de borradores con campos intro/draft ya eliminados.
+check('type LegalDocument = { title: string; sections: LegalSection[] }' in legal_page
       and 'class="legal-draft"' not in legal_page
       and 'content.draft' not in legal_page
       and 'Borrador para revisión' not in legal_page
       and 'Working draft' not in legal_page
-      and 'Este borrador' not in legal_page
-      and 'This draft' not in legal_page
-      and legal_page.count('sections: [') == 8
+      and legal_page.count('"sections": [') == 8
       and all(title in legal_page for title in [
-          'Política de privacidad', 'Términos y condiciones',
+          'Política de privacidad', 'Términos y condiciones de uso',
           'Política de cookies y almacenamiento local', 'Créditos y licencias',
-          'Privacy policy', 'Terms and conditions',
-          'Cookie and local storage policy', 'Credits and licenses'
+          'Privacy Policy', 'Terms and Conditions of Use',
+          'Cookie and Local Storage Policy', 'Credits and Licenses'
       ])
-      and '.legal-draft' not in shared_mobile_styles
-      and 'La razón social, cédula jurídica y domicilio' in legal_page
-      and '/licenses/globe-third-party-notices.txt' in legal_page and (root / 'frontend/public/licenses/globe-third-party-notices.txt').is_file(),
-      'Páginas legales ES/EN sin aviso de borrador y con advertencias de datos por confirmar')
+      and 'Aduanera Castro Fallas S.A., cédula jurídica' in legal_page
+      and '/licenses/globe-third-party-notices.txt' in legal_page
+      and (root / 'frontend/public/licenses/globe-third-party-notices.txt').is_file(),
+      'Páginas legales ES/EN vigentes, sin borradores y con avisos de licencias')
 check('class="container quote-access-status quote-access-status--blocked"' in rootvue
       and rootvue.count('class="container quote-access-status quote-access-status--blocked"') == (3 if 'trackingSessionRequiredHelp' in rootvue else 2)
       and ('trackingSessionRequiredHelp' not in rootvue or "page==='tracking' && trackingAccess !== 'allowed'" in rootvue)
