@@ -6,10 +6,14 @@ import SiteFooter from '../components/SiteFooter.vue'
 import SiteHeader from '../components/SiteHeader.vue'
 import { servicePages } from '../content/servicePages'
 
+const props = defineProps<{ pathname?: string }>()
 const { locale } = useI18n({ useScope: 'global' })
 const language = computed(() => locale.value.toLowerCase().startsWith('es') ? 'es' : 'en')
+// Nuxt SSR pasa la ruta explícitamente; Vue mantiene la lectura del navegador.
+// Evita acceder a window al renderizar HTML en el servidor.
 const page = computed(() => {
-  const slug = window.location.pathname.replace(/\/+$/, '').split('/').pop()
+  const pathname = props.pathname ?? (typeof window !== 'undefined' ? window.location.pathname : '')
+  const slug = pathname.replace(/\/+$/, '').split('/').pop()
   return servicePages.find(item => item.slug === slug) ?? servicePages[0]
 })
 const text = <T extends { es: string; en: string }>(value: T) => value[language.value]
