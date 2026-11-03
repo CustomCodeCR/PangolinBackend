@@ -21,9 +21,10 @@ type GuideText = {
 }
 type Guide = { es: GuideText; en: GuideText }
 const guides = serviceGuides as Record<string, Guide>
+const props = defineProps<{ pathname?: string }>()
 const { locale } = useI18n({ useScope: 'global' })
 const lang = computed<'es' | 'en'>(() => String(locale.value).startsWith('en') ? 'en' : 'es')
-const route = window.location.pathname.replace(/\/+$/, '') || '/'
+const route = (props.pathname || (typeof window === 'undefined' ? '/' : window.location.pathname)).replace(/\/+$/, '') || '/'
 const details = computed(() => guides[route][lang.value])
 </script>
 

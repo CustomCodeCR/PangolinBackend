@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LegacyServiceLanding from '@legacy/pages/ServiceLanding.vue'
 import serviceGuides from '../../../../seo/service-landings.json'
 type Guide = (typeof serviceGuides)[keyof typeof serviceGuides]
 const route = useRoute()
@@ -27,19 +28,5 @@ usePublicSeo({
 })
 </script>
 <template>
-  <PublicLayout>
-    <main class="site-main">
-      <article class="article">
-        <p class="eyebrow">Soluciones logísticas</p>
-        <h1>{{ c.title }}</h1>
-        <p class="lead">{{ c.intro }}</p>
-        <a class="button" href="mailto:comercial@castrofallas.com?subject=Consulta%20de%20servicio">Solicitar información</a>
-        <section><h2>¿Qué ofrece Grupo Castro Fallas?</h2><p>{{ c.answer }}</p></section>
-        <section><h2>{{ c.heading }}</h2><p>{{ c.body }}</p><ul><li v-for="point in c.points" :key="point">{{ point }}</li></ul></section>
-        <section><h2>{{ c.quoteHeading }}</h2><p>{{ c.quoteIntro }}</p><ul><li v-for="item in c.quoteItems" :key="item">{{ item }}</li></ul></section>
-        <section><h2>Alcance y disponibilidad</h2><p>{{ c.scopeNote }}</p></section>
-        <section><h2>Preguntas frecuentes</h2><div v-for="faq in c.faq" :key="faq.q" class="faq"><h3>{{ faq.q }}</h3><p>{{ faq.a }}</p></div></section>
-      </article>
-    </main>
-  </PublicLayout>
+  <LegacyServiceLanding :pathname="path" />
 </template>

@@ -12,8 +12,8 @@ const { t, locale } = useI18n({ useScope: 'global' })
 const expanded = ref(false)
 const headerElement = ref<HTMLElement | null>(null)
 const menuToggle = ref<HTMLButtonElement | null>(null)
-const mobileMenuQuery = window.matchMedia('(max-width: 800px)')
-const mobileMenuActive = ref(mobileMenuQuery.matches)
+const mobileMenuQuery = typeof window === 'undefined' ? null : window.matchMedia('(max-width: 800px)')
+const mobileMenuActive = ref(mobileMenuQuery?.matches ?? false)
 let lockedScrollY = 0
 let previousHtmlOverflow = ''
 let previousBodyOverflow = ''
@@ -67,12 +67,12 @@ function closeMenuOnDesktop(event: MediaQueryListEvent) {
 const cargoMenuOpen = ref(false)
 const servicesMenuOpen = ref(false)
 const darkMode = ref(false)
-const systemThemeQuery = window.matchMedia?.('(prefers-color-scheme: dark)')
+const systemThemeQuery = typeof window === 'undefined' ? null : window.matchMedia?.('(prefers-color-scheme: dark)')
 const sessionUser = computed(() => authState.user)
 const loggingOut = ref(false)
 const isAuthenticated = computed(() => !!sessionUser.value)
 const isAdministrator = computed(() => currentRole() === 'administrador')
-const canAccessCargo = computed(() => currentRole() === 'cliente' || currentRole() === 'administrador' || window.location.pathname.replace(/\/+$/, '') === '/cotizaciones')
+const canAccessCargo = computed(() => currentRole() === 'cliente' || currentRole() === 'administrador' || (typeof window !== 'undefined' && window.location.pathname.replace(/\/+$/, '') === '/cotizaciones'))
 const settingsOpen = ref(false)
 const profileOpen = ref(false)
 const profileButton = ref<HTMLButtonElement | null>(null)
@@ -115,7 +115,7 @@ const servicesLinks = computed(() => [
   { url: '/servicios', label: locale.value.startsWith('en') ? 'All services' : 'Todos los servicios' },
   ...Object.entries(serviceGuides).map(([url, guide]) => ({ url, label: locale.value.startsWith('en') ? guide.en.label : guide.es.label }))
 ])
-const isServicePage = window.location.pathname === '/servicios' || window.location.pathname.startsWith('/servicios/')
+const isServicePage = props.active === 'soluciones' || (typeof window !== 'undefined' && (window.location.pathname === '/servicios' || window.location.pathname.startsWith('/servicios/')))
 const cargoLinks = computed(() => [
   { key: 'embarque', id: 'embarque', url: `/tracking${rolePreviewSuffix.value}`, label: t('navLinks.embarque') },
   { key: 'itinerario', id: 'itinerario', url: `/itinerario${rolePreviewSuffix.value}`, label: t('navLinks.itinerario') },
@@ -166,12 +166,12 @@ watch(darkMode, isDark => {
 }, { flush: 'sync' })
 watch(expanded, isOpen => {
   if (!isOpen) { profileOpen.value = false; settingsOpen.value = false; cargoMenuOpen.value = false; servicesMenuOpen.value = false }
-  if (isOpen && mobileMenuQuery.matches) lockMenuBackground()
+  if (isOpen && mobileMenuQuery?.matches) lockMenuBackground()
   else unlockMenuBackground()
 }, { flush: 'post' })
 
 onMounted(() => {
-  mobileMenuQuery.addEventListener('change', closeMenuOnDesktop)
+  mobileMenuQuery?.addEventListener('change', closeMenuOnDesktop)
   if (!authState.loaded) void refreshSession()
   const savedTheme = localStorage.getItem('castrofallas-theme')
   darkMode.value = savedTheme ? savedTheme === 'dark' : !!systemThemeQuery?.matches
@@ -181,7 +181,7 @@ onMounted(() => {
 })
 onUnmounted(() => {
   unlockMenuBackground()
-  mobileMenuQuery.removeEventListener('change', closeMenuOnDesktop)
+  mobileMenuQuery?.removeEventListener('change', closeMenuOnDesktop)
   systemThemeQuery?.removeEventListener('change', applySystemTheme)
   document.removeEventListener('click', handleOutsideClick)
   document.removeEventListener('keydown', handleEscapeKey)

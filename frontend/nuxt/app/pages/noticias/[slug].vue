@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import LegacyNews from '@legacy/pages/News.vue'
+import type { ManagedNews } from '@legacy/adminContent'
 import type { PublicNews } from '../../utils/news'
 import { articleSlug, plainArticleText } from '../../utils/news'
 const route = useRoute()
@@ -29,19 +31,14 @@ useSeoMeta({
 })
 const body = plainArticleText(article.body || article.description)
 </script>
+
+const legacyNews = computed<ManagedNews[]>(() => (data.value || []).map(item => ({
+  id: item.id, title: item.title, category: item.category || '',
+  description: item.description || '', body: item.body || '',
+  image: item.image || '/images/cover-logistics.jpeg',
+  published: item.published !== false, author: item.author || undefined,
+  publishedAt: item.publishedAt || null, expiresAt: item.expiresAt || null
+})))
 <template>
-  <PublicLayout>
-    <main class="site-main">
-      <article class="article">
-        <p class="eyebrow">{{ article.category || 'Noticias' }}</p>
-        <h1>{{ article.title }}</h1>
-        <time v-if="article.publishedAt" :datetime="article.publishedAt">{{ article.publishedAt.slice(0,10) }}</time>
-        <p v-if="article.author">Autor: {{ article.author }}</p>
-        <img v-if="article.image" :src="article.image" :alt="article.title" loading="eager" />
-        <p class="lead">{{ article.description }}</p>
-        <div class="content-block"><p style="white-space:pre-line">{{ body }}</p></div>
-        <p><a href="/noticias">Ver otras noticias</a></p>
-      </article>
-    </main>
-  </PublicLayout>
+  <LegacyNews :initial-news="legacyNews" :server-path="path" />
 </template>
