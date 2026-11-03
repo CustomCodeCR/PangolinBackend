@@ -121,7 +121,7 @@ new_nuxt_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddres
 }
 recovered=0
 for _ in $(seq 1 60); do
-  if curl -fsS --max-time 4 "$base/servicios/transporte-maritimo" | grep -q 'service-detail-page'; then
+  if curl -fsS --max-time 4 -o /tmp/cf-hybrid-recovered.html "$base/servicios/transporte-maritimo" 2>/dev/null && grep -q 'service-detail-page' /tmp/cf-hybrid-recovered.html; then
     recovered=1
     break
   fi
