@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Chrome checks: compact service categories and SVG flags across themes/viewports."""
+"""Chrome: two-column service navigation, mobile drill-down and SVG language flags."""
 import sys
 import time
 from pathlib import Path
@@ -12,6 +12,8 @@ from selenium.webdriver.support import expected_conditions as EC
 BASE = sys.argv[1].rstrip("/")
 ARTIFACTS = Path("artifacts/nuxt-hybrid-visual")
 ARTIFACTS.mkdir(parents=True, exist_ok=True)
+TRANSPORT_LINKS = 6
+GENERAL_LINKS = 4
 
 for width, height, label in [(1440, 900, "desktop"), (390, 844, "mobile")]:
     for theme in ("light", "dark"):
@@ -26,79 +28,80 @@ for width, height, label in [(1440, 900, "desktop"), (390, 844, "mobile")]:
             driver.get(BASE + "/servicios/transporte-maritimo")
             driver.execute_script("localStorage.setItem('castrofallas-theme', arguments[0])", theme)
             driver.refresh()
-            wait = WebDriverWait(driver, 20)
+            wait = WebDriverWait(driver, 22)
             wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".nav-dropdown--services")))
-            if width < 801:
+            if width <= 800:
                 wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
             wait.until(EC.element_to_be_clickable((
                 By.CSS_SELECTOR, ".nav-dropdown--services > .nav-dropdown__trigger"
             ))).click()
+            menu = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".services-megamenu")))
+            group_button = driver.find_element(By.CSS_SELECTOR, ".services-megamenu__group-trigger")
+            assert group_button.get_attribute("aria-expanded") == "true", "Transportes should open on current transport page"
+            right = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#services-transport-panel")))
+            assert len(right.find_elements(By.TAG_NAME, "a")) == TRANSPORT_LINKS, "Transport destinations missing"
+            assert len(right.find_elements(By.TAG_NAME, "button")) == 1 if width <= 800 else True
+            active = right.find_element(By.CSS_SELECTOR, 'a[href*="transporte-maritimo"][aria-current="page"]')
+            assert active.is_displayed(), "Current transport not displayed"
 
-            # The current transport route MUST open the correct category.
-            buttons = driver.find_elements(By.CSS_SELECTOR, ".services-switcher__tab")
-            assert len(buttons) == 2, f"Expected exactly two service categories, got {len(buttons)}"
-            assert buttons[1].get_attribute("aria-pressed") == "true", "Current transport category not selected"
-            active = wait.until(EC.visibility_of_element_located((
-                By.CSS_SELECTOR,
-                '#services-transport-panel a[href*="transporte-maritimo"][aria-current="page"]'
-            )))
-            driver.execute_script("arguments[0].scrollIntoView({block:'nearest'})", active)
-            time.sleep(.2)
             measures = driver.execute_script("""
-              const panel = document.querySelector('.services-switcher');
-              const links = document.querySelector('#services-transport-panel');
-              const drawer = document.querySelector('.site-header--menu-open');
-              const p = panel.getBoundingClientRect(), l = links.getBoundingClientRect();
+              const m = document.querySelector('.services-megamenu');
+              const r = document.querySelector('.services-megamenu__detail');
+              const l = document.querySelector('.services-megamenu__rail');
+              const b = m.getBoundingClientRect(), d = r.getBoundingClientRect();
               return {
-                screenWidth: innerWidth, panelLeft: p.left, panelRight: p.right,
-                panelHeight: p.height, panelOverflowY: getComputedStyle(panel).overflowY,
-                linksLeft: l.left, linksRight: l.right, linkCount: links.querySelectorAll('a').length,
-                drawerScroll: drawer ? getComputedStyle(drawer).overflowY : '',
-                dark: document.documentElement.classList.contains('theme-dark')
+                viewport: innerWidth,
+                menuLeft: b.left, menuRight: b.right, menuHeight: b.height,
+                detailLeft: d.left, detailRight: d.right,
+                railDisplay: getComputedStyle(l).display,
+                detailDisplay: getComputedStyle(r).display,
+                menuOverflowY: getComputedStyle(m).overflowY,
+                dark: document.documentElement.classList.contains('theme-dark'),
+                thirdLevel: !!r.querySelector('a button, .services-transport-group__submenu')
               };
             """)
             assert measures["dark"] == (theme == "dark"), f"Theme mismatch: {measures}"
-            assert measures["panelLeft"] >= -2 and measures["panelRight"] <= measures["screenWidth"] + 2, f"Service menu clipped: {measures}"
-            assert measures["linksLeft"] >= -2 and measures["linksRight"] <= measures["screenWidth"] + 2, f"Transport links clipped: {measures}"
-            assert measures["linkCount"] == 6, f"Lost a transport service: {measures}"
-            assert measures["panelHeight"] <= (440 if width > 1080 else 1200), f"Unexpectedly oversized menu: {measures}"
-            if width < 801:
-                assert measures["panelOverflowY"] == "visible", f"Nested mobile scroll remains: {measures}"
-                assert measures["drawerScroll"] == "auto", f"Mobile drawer should own scroll: {measures}"
-
+            assert measures["menuLeft"] >= -2 and measures["menuRight"] <= width + 2, f"Menu outside viewport: {measures}"
+            assert measures["detailLeft"] >= -2 and measures["detailRight"] <= width + 2, f"Right panel outside viewport: {measures}"
+            assert not measures["thirdLevel"], "Right column must contain final links only"
+            if width > 1080:
+                assert measures["railDisplay"] != "none", f"Desktop navigation column invisible: {measures}"
+                assert measures["detailLeft"] >= measures["menuLeft"] + 220, f"Desktop right side is not a separate column: {measures}"
+                assert measures["menuHeight"] <= 550, f"Desktop dropdown too tall: {measures}"
+                assert len(menu.find_elements(By.CSS_SELECTOR, ".services-megamenu__rail a")) == GENERAL_LINKS + 1
+            else:
+                assert measures["railDisplay"] == "none", f"Mobile second level must replace categories, not stack: {measures}"
+                assert measures["menuOverflowY"] == "visible", f"Nested mobile scrollbar found: {measures}"
             driver.save_screenshot(str(ARTIFACTS / f"{label}-{theme}-transportes.png"))
 
-            # Categories must be reversible without losing any service link.
-            buttons[0].click()
-            wait.until(EC.visibility_of_element_located((
-                By.CSS_SELECTOR, '#services-general-panel a[href*="almacenamiento-fiscal"]'
-            )))
-            assert len(driver.find_elements(By.CSS_SELECTOR, '#services-general-panel a')) == 4
-            buttons[1].click()
-            wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR,
-                '#services-transport-panel a[href*="transporte-maritimo"]')))
-            assert driver.find_element(By.CSS_SELECTOR,
-                '#services-transport-panel a[href*="transporte-maritimo"]').get_attribute("aria-current") == "page"
-            print(f"PASS service menu {label} {theme}: {measures}", flush=True)
+            # On mobile the only return action reveals all original top-level links.
+            if width <= 1080:
+                back = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".services-megamenu__back")))
+                back.click()
+                left = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".services-megamenu__rail")))
+                assert len(left.find_elements(By.CSS_SELECTOR, "a")) == GENERAL_LINKS + 1, "Missing top-level services"
+                group_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".services-megamenu__group-trigger")))
+                group_button.click()
+                wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "#services-transport-panel")))
+            print(f"PASS mega-menu {label}/{theme}: {measures}", flush=True)
 
-            # SVG flags must be visible inside Settings on Linux/Windows/iOS.
+            # Preserve the pre-existing Spain/UK SVG flags in Settings.
             settings = driver.find_element(By.CSS_SELECTOR, ".header-settings__trigger")
             driver.execute_script("arguments[0].scrollIntoView({block:'nearest'}); arguments[0].click()", settings)
             wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".header-settings__panel")))
             current = driver.find_element(By.CSS_SELECTOR,
                 ".header-settings__panel .language-switcher__current svg.language-flag")
-            assert current.is_displayed(), "Current flag SVG absent"
-            dropdown = driver.find_element(By.CSS_SELECTOR,
-                ".header-settings__panel .language-switcher__current")
-            driver.execute_script("arguments[0].click()", dropdown)
-            flags = wait.until(lambda d: d.find_elements(By.CSS_SELECTOR,
-                ".header-settings__panel .language-switcher__menu svg.language-flag"))
-            assert len(flags) == 2 and all(flag.is_displayed() for flag in flags), "Two flags SVG not displayed"
+            assert current.is_displayed(), "Current SVG flag missing"
+            driver.execute_script("arguments[0].click()", driver.find_element(
+                By.CSS_SELECTOR, ".header-settings__panel .language-switcher__current"))
+            flags = wait.until(lambda d: d.find_elements(
+                By.CSS_SELECTOR, ".header-settings__panel .language-switcher__menu svg.language-flag"))
+            assert len(flags) == 2 and all(flag.is_displayed() for flag in flags), "SVG flags not displayed"
             driver.save_screenshot(str(ARTIFACTS / f"{label}-{theme}-idiomas.png"))
-            print(f"PASS language flags {label} {theme}", flush=True)
+            print(f"PASS flags {label}/{theme}", flush=True)
         except Exception:
             driver.save_screenshot(str(ARTIFACTS / f"debug-{label}-{theme}.png"))
             raise
         finally:
             driver.quit()
-print("PASS all four screen/theme navigation and language checks")
+print("PASS all four mega-menu and locale combinations")
