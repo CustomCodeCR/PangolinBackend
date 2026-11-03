@@ -131,6 +131,7 @@ const text = <T extends { es: string; en: string }>(value: T) => value[language.
 :global(html:not(.theme-dark)) .service-detail-hero__copy .section-tag,
 :global(html:not(.theme-dark)) .service-detail-location :deep(svg) { color:#b20c2a; }
 :global(html:not(.theme-dark)) .service-detail-hero__lead { color:#424650; }
+:global(html:not(.theme-dark)) .service-detail-page .section-tag { color:#b20c2a; }
 :global(html.theme-dark) .service-detail-hero__copy .section-tag,
 :global(html.theme-dark) .service-detail-location :deep(svg) { color:#ff647b; }
 @media (max-width:800px) { .service-detail-hero { padding:76px 0 56px; } .service-detail-hero__grid { grid-template-columns:1fr; } .service-detail-hero__media,.service-detail-hero__media img { min-height:260px; } .service-detail-content__grid { grid-template-columns:1fr; } .service-detail-card { min-height:0; } .service-detail-card h3 { margin-top:24px; } .service-detail-contact { align-items:flex-start; flex-direction:column; } }
