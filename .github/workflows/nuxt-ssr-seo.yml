@@ -80,6 +80,14 @@ jobs:
             grep -q "rel=\"canonical\"" /tmp/pangolin-new-service.html
             grep -q "/servicios/$slug" /tmp/pangolin-sitemap.xml
           done
+          for legal in privacidad terminos cookies licencias; do
+            curl -fsS "http://127.0.0.1:3000/$legal" > /tmp/pangolin-legal.html
+            grep -q 'legal-page' /tmp/pangolin-legal.html
+            grep -q '<h1' /tmp/pangolin-legal.html
+            grep -q 'application/ld+json' /tmp/pangolin-legal.html
+            grep -q "/$legal" /tmp/pangolin-sitemap.xml
+          done
+          curl -fsS http://127.0.0.1:3000/licenses/globe-third-party-notices.txt | grep -qi 'license'
           curl -fsS http://127.0.0.1:3000/llms.txt | grep -q 'transporte-maritimo'
           curl -fsS http://127.0.0.1:3000/BingSiteAuth.xml | grep -q '3B7ADBDA75E127B245F7E653F3021EE8'
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/home)" = "301"
