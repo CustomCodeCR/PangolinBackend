@@ -83,7 +83,7 @@ const text = <T extends { es: string; en: string }>(value: T) => value[language.
   </div>
 </template>
 
-<style scoped>
+<style>
 .service-detail-page { min-height: 100vh; }
 .service-detail-hero { padding: 48px 0 76px; color: #fff; background: radial-gradient(ellipse at 12% 8%, rgba(178, 11, 45, .9), transparent 56%), linear-gradient(112deg, #2b111b 0%, #101728 75%); }
 .service-detail-hero__inner { max-width: 1320px; }
@@ -119,20 +119,20 @@ const text = <T extends { es: string; en: string }>(value: T) => value[language.
 .service-detail-faq__item p { margin:14px 0 0; color:var(--muted,#595b65); line-height:1.7; }
 .service-detail-contact h2 { font-size:clamp(28px,3.6vw,42px); }
 .service-detail-contact .section-tag { color:#b20c2a; font-size:12px; font-weight:900; letter-spacing:.13em; }
-:global(html.theme-dark) .service-detail-content { --surface:#101728; --ink:#fff; --muted:#d4d6df; }
-:global(html:not(.theme-dark)) .service-detail-content { --surface:#fff; --ink:#22242b; --muted:#585a64; }
-:global(html.theme-dark) .service-detail-card { background:rgba(255,255,255,.055); border-color:rgba(255,255,255,.16); }
-:global(html.theme-dark) .service-detail-contact { background:linear-gradient(112deg,rgba(178,11,45,.2),rgba(16,23,40,.8)); }
-:global(html:not(.theme-dark)) .service-detail-hero { color:#20242b; background:linear-gradient(112deg,#fff 0%,#fffafa 58%,#fff 100%); }
-:global(html:not(.theme-dark)) .service-detail-breadcrumbs { color:#545761; }
-:global(html:not(.theme-dark)) .service-detail-breadcrumbs [aria-current="page"],
-:global(html:not(.theme-dark)) .service-detail-hero h1,
-:global(html:not(.theme-dark)) .service-detail-location { color:#20242b; }
-:global(html:not(.theme-dark)) .service-detail-hero__copy .section-tag,
-:global(html:not(.theme-dark)) .service-detail-location :deep(svg) { color:#b20c2a; }
-:global(html:not(.theme-dark)) .service-detail-hero__lead { color:#424650; }
-:global(html:not(.theme-dark)) .service-detail-page .section-tag { color:#b20c2a; }
-:global(html.theme-dark) .service-detail-hero__copy .section-tag,
-:global(html.theme-dark) .service-detail-location :deep(svg) { color:#ff647b; }
+html.theme-dark .service-detail-content { --surface:#101728; --ink:#fff; --muted:#d4d6df; }
+html:not(.theme-dark) .service-detail-content { --surface:#fff; --ink:#22242b; --muted:#585a64; }
+html.theme-dark .service-detail-card { background:rgba(255,255,255,.055); border-color:rgba(255,255,255,.16); }
+html.theme-dark .service-detail-contact { background:linear-gradient(112deg,rgba(178,11,45,.2),rgba(16,23,40,.8)); }
+html:not(.theme-dark) .service-detail-hero { color:#20242b; background:linear-gradient(112deg,#fff 0%,#fffafa 58%,#fff 100%); }
+html:not(.theme-dark) .service-detail-breadcrumbs { color:#545761; }
+html:not(.theme-dark) .service-detail-breadcrumbs [aria-current="page"],
+html:not(.theme-dark) .service-detail-hero h1,
+html:not(.theme-dark) .service-detail-location { color:#20242b; }
+html:not(.theme-dark) .service-detail-hero__copy .section-tag,
+html:not(.theme-dark) .service-detail-location svg { color:#b20c2a; }
+html:not(.theme-dark) .service-detail-hero__lead { color:#424650; }
+html:not(.theme-dark) .service-detail-page .section-tag { color:#b20c2a; }
+html.theme-dark .service-detail-hero__copy .section-tag,
+html.theme-dark .service-detail-location svg { color:#ff647b; }
 @media (max-width:800px) { .service-detail-hero { padding:76px 0 56px; } .service-detail-hero__grid { grid-template-columns:1fr; } .service-detail-hero__media,.service-detail-hero__media img { min-height:260px; } .service-detail-content__grid { grid-template-columns:1fr; } .service-detail-card { min-height:0; } .service-detail-card h3 { margin-top:24px; } .service-detail-contact { align-items:flex-start; flex-direction:column; } }
 </style>
