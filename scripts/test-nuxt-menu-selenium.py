@@ -36,6 +36,16 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (390
                 By.CSS_SELECTOR, ".nav-dropdown--services > .nav-dropdown__trigger"
             ))).click()
             menu = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".services-megamenu")))
+            # The phone drawer slides in for 240 ms. Check its FINAL geometry,
+            # not the temporary off-screen position during the entrance.
+            if width <= 800:
+                wait.until(lambda d: d.execute_script("""
+                  const h = document.querySelector('.site-header--menu-open');
+                  if (!h) return false;
+                  const r = h.getBoundingClientRect();
+                  return r.left >= -1 && r.right <= innerWidth + 1;
+                """))
+                time.sleep(.08)
             group_button = driver.find_element(By.CSS_SELECTOR, ".services-megamenu__group-trigger")
             assert group_button.get_attribute("aria-expanded") == "true", "Transportes should open on current transport page"
             right = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#services-transport-panel")))
@@ -52,6 +62,9 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (390
               return {
                 viewport: innerWidth,
                 menuLeft: b.left, menuRight: b.right, menuHeight: b.height,
+                headerRect: document.querySelector('.site-header--menu-open')?.getBoundingClientRect().toJSON(),
+                parentRect: m.closest('.nav-dropdown--services')?.getBoundingClientRect().toJSON(),
+                navRect: m.closest('.main-nav')?.getBoundingClientRect().toJSON(),
                 detailLeft: d.left, detailRight: d.right,
                 railDisplay: getComputedStyle(l).display,
                 detailDisplay: getComputedStyle(r).display,
