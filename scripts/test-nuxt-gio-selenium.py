@@ -79,6 +79,12 @@ for width, height, viewport in ((1440, 900, "desktop"), (390, 844, "mobile")):
                     assert len(driver.find_elements(By.CSS_SELECTOR, ".gio-ops__bar")) == 1, (
                         f"Existing GIO quote workflow not mounted on {route}"
                     )
+                # GIO has a 940 ms entrance transition. CSS transforms
+                # temporarily enlarge the panel while its animation runs.
+                # Check the settled dimensions, not a transitional frame.
+                wait.until(lambda d: "site-assistant--settled" in (
+                    d.find_element(By.CSS_SELECTOR, ".site-assistant").get_attribute("class") or ""
+                ))
                 panel_rect = driver.execute_script("""
                   const r = document.querySelector('.site-assistant__panel').getBoundingClientRect();
                   return {left:r.left, right:r.right, top:r.top, bottom:r.bottom};
