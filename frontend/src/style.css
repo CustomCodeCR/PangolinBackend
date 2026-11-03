@@ -5501,7 +5501,8 @@ html.theme-dark .site-header .services-nav-dropdown__menu a.is-current {
 .site-header .services-transport-group__submenu {
   position: absolute;
   top: -7px;
-  left: calc(100% + 12px);
+  /* Sin hueco entre ambos paneles: el hover no se cierra al cruzar. */
+  left: calc(100% - 1px);
   z-index: 12003;
   display: grid;
   gap: 1px;
