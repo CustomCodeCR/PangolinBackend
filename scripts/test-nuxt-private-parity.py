@@ -58,7 +58,7 @@ def snapshot(driver, base, route, marker):
        return {
          path: u.pathname,
          pageTitle: document.title,
-         heading: h1?.textContent?.trim().replace(/\\s+/g, ' ') || '',
+         heading: h1?.textContent?.trim().replace(/\s+/g, ' ') || '',
          login: pick('.login-screen'),
          deniedQuote: pick('.quote-access-status--blocked'),
          loginPassword: pick('input[type="password"]'),
