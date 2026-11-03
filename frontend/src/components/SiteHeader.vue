@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import SiteMedia from './SiteMedia.vue'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ArrowUpRight, ChevronDown, Menu, Moon, Settings, Sun, UserRound, X } from '@lucide/vue'
 import LanguageSwitcher from './LanguageSwitcher.vue'
@@ -67,6 +67,10 @@ function closeMenuOnDesktop(event: MediaQueryListEvent) {
 }
 const cargoMenuOpen = ref(false)
 const servicesMenuOpen = ref(false)
+const transportMenuOpen = ref(false)
+const servicesMenuElement = ref<HTMLElement | null>(null)
+// Se inicializa después de hidratar Nuxt, sin acceder a window durante SSR.
+const currentPath = ref('/')
 const darkMode = ref(false)
 const systemThemeQuery = typeof window === 'undefined' ? null : window.matchMedia?.('(prefers-color-scheme: dark)')
 const sessionUser = computed(() => authState.user)
@@ -117,7 +121,45 @@ const servicesLinks = computed(() => [
   ...Object.entries(serviceGuides).map(([url, guide]) => ({ url, label: locale.value.startsWith('en') ? guide.en.label : guide.es.label })),
   ...servicePages.map(page => ({ url: `/servicios/${page.slug}${rolePreviewSuffix.value}`, label: locale.value.startsWith('en') ? page.title.en : page.title.es }))
 ])
-const isServicePage = props.active === 'soluciones' || (typeof window !== 'undefined' && (window.location.pathname === '/servicios' || window.location.pathname.startsWith('/servicios/')))
+const transportLinks = computed(() => servicesLinks.value.filter(link => servicePages.some(page => link.url.split('?')[0] === '/servicios/' + page.slug)))
+const primaryServicesLinks = computed(() => servicesLinks.value.filter(link => !transportLinks.value.includes(link)))
+const isCurrentService = (href: string) => href.split('?')[0] === currentPath.value
+const currentTransport = computed(() => transportLinks.value.some(link => isCurrentService(link.url)))
+const isServicePage = computed(() => props.active === 'soluciones' || currentPath.value === '/servicios' || currentPath.value.startsWith('/servicios/'))
+
+function closeServiceMenu() {
+  servicesMenuOpen.value = false
+  transportMenuOpen.value = false
+}
+function showCurrentService() {
+  // En menú compacto el submenú vive en el flujo y puede requerir desplazar
+  // solo su propio contenedor, sin mover toda la página de fondo.
+  if (typeof window === 'undefined' || !window.matchMedia('(max-width: 1080px)').matches) return
+  void nextTick(() => {
+    const menu = servicesMenuElement.value
+    const active = menu?.querySelector<HTMLElement>('a[aria-current="page"]')
+    if (!menu || !active) return
+    const bounds = menu.getBoundingClientRect()
+    const link = active.getBoundingClientRect()
+    if (link.bottom > bounds.bottom - 12) menu.scrollTop += link.bottom - bounds.bottom + 18
+    else if (link.top < bounds.top + 12) menu.scrollTop -= bounds.top - link.top + 18
+  })
+}
+function toggleServicesMenu() {
+  servicesMenuOpen.value = !servicesMenuOpen.value
+  cargoMenuOpen.value = false
+  transportMenuOpen.value = servicesMenuOpen.value && currentTransport.value
+  if (servicesMenuOpen.value) showCurrentService()
+}
+function toggleTransportMenu() {
+  transportMenuOpen.value = !transportMenuOpen.value
+  if (transportMenuOpen.value) showCurrentService()
+}
+function onTransportHover(open: boolean) {
+  if (typeof window !== 'undefined' && window.matchMedia('(min-width: 1081px) and (hover: hover) and (pointer: fine)').matches) {
+    transportMenuOpen.value = open
+  }
+}
 const cargoLinks = computed(() => [
   { key: 'embarque', id: 'embarque', url: `/tracking${rolePreviewSuffix.value}`, label: t('navLinks.embarque') },
   { key: 'itinerario', id: 'itinerario', url: `/itinerario${rolePreviewSuffix.value}`, label: t('navLinks.itinerario') },
@@ -142,7 +184,7 @@ function handleOutsideClick(event: MouseEvent) {
   if (!(event.target instanceof Element)) return
   if (!event.target.closest('.header-settings')) settingsOpen.value = false
   if (!event.target.closest('.header-profile')) profileOpen.value = false
-  if (!event.target.closest('.nav-dropdown--services')) servicesMenuOpen.value = false
+  if (!event.target.closest('.nav-dropdown--services')) closeServiceMenu()
 }
 function handleEscapeKey(event: KeyboardEvent) {
   if (event.key !== 'Escape') return
@@ -151,7 +193,7 @@ function handleEscapeKey(event: KeyboardEvent) {
     profileButton.value?.focus()
   }
   settingsOpen.value = false
-  servicesMenuOpen.value = false
+  closeServiceMenu()
   cargoMenuOpen.value = false
   if (expanded.value) { expanded.value = false; menuToggle.value?.focus() }
 }
@@ -167,12 +209,13 @@ watch(darkMode, isDark => {
   document.documentElement.style.colorScheme = isDark ? 'dark' : 'light'
 }, { flush: 'sync' })
 watch(expanded, isOpen => {
-  if (!isOpen) { profileOpen.value = false; settingsOpen.value = false; cargoMenuOpen.value = false; servicesMenuOpen.value = false }
+  if (!isOpen) { profileOpen.value = false; settingsOpen.value = false; cargoMenuOpen.value = false; closeServiceMenu() }
   if (isOpen && mobileMenuQuery?.matches) lockMenuBackground()
   else unlockMenuBackground()
 }, { flush: 'post' })
 
 onMounted(() => {
+  currentPath.value = window.location.pathname.replace(/\/+$/, '') || '/'
   mobileMenuQuery?.addEventListener('change', closeMenuOnDesktop)
   if (!authState.loaded) void refreshSession()
   const savedTheme = localStorage.getItem('castrofallas-theme')
@@ -207,11 +250,27 @@ function toggleTheme() {
       <nav id="site-primary-navigation" class="main-nav" :class="{ 'main-nav--open': expanded }" :aria-label="$t('phrases.p136')">
         <a v-for="link in visibleLinks" :key="link.id" :class="{ 'is-active': props.active === link.id }" :href="link.url" @click="expanded = false">{{ link.label }}</a>
         <div class="nav-dropdown nav-dropdown--services" :class="{ 'nav-dropdown--open': servicesMenuOpen, 'nav-dropdown--active': isServicePage }">
-          <button class="nav-dropdown__trigger" type="button" aria-controls="site-services-menu" :aria-expanded="servicesMenuOpen" @click="servicesMenuOpen = !servicesMenuOpen; cargoMenuOpen = false">
+          <button class="nav-dropdown__trigger" type="button" aria-controls="site-services-menu" :aria-expanded="servicesMenuOpen" @click="toggleServicesMenu">
             {{ t('navLinks.soluciones') }} <ChevronDown :size="16" class="nav-dropdown__chevron" aria-hidden="true" />
           </button>
-          <div v-show="servicesMenuOpen" id="site-services-menu" class="nav-dropdown__menu">
-            <a v-for="link in servicesLinks" :key="link.url" :href="link.url" @click="servicesMenuOpen = false; expanded = false">{{ link.label }}</a>
+          <div v-show="servicesMenuOpen" id="site-services-menu" ref="servicesMenuElement" class="nav-dropdown__menu services-nav-dropdown__menu">
+            <a v-for="link in primaryServicesLinks" :key="link.url" class="services-menu__primary-link"
+              :class="{ 'is-current': isCurrentService(link.url) }" :aria-current="isCurrentService(link.url) ? 'page' : undefined"
+              :href="link.url" @click="closeServiceMenu(); expanded = false">{{ link.label }}</a>
+            <div class="services-transport-group" :class="{ 'is-open': transportMenuOpen, 'is-current-group': currentTransport }"
+              @mouseenter="onTransportHover(true)" @mouseleave="onTransportHover(false)">
+              <button class="services-transport-group__trigger" type="button"
+                :aria-expanded="transportMenuOpen" aria-controls="site-services-transport-menu"
+                @click.stop="toggleTransportMenu">
+                {{ locale.startsWith('en') ? 'Transport' : 'Transportes' }}
+                <ChevronDown :size="16" class="services-transport-group__chevron" aria-hidden="true" />
+              </button>
+              <div v-show="transportMenuOpen" id="site-services-transport-menu" class="services-transport-group__submenu">
+                <a v-for="link in transportLinks" :key="link.url" :href="link.url"
+                  :class="{ 'is-current': isCurrentService(link.url) }" :aria-current="isCurrentService(link.url) ? 'page' : undefined"
+                  @click="closeServiceMenu(); expanded = false">{{ link.label }}</a>
+              </div>
+            </div>
           </div>
         </div>
         <div v-if="canAccessCargo" class="nav-dropdown" :class="{ 'nav-dropdown--open': cargoMenuOpen, 'nav-dropdown--active': cargoLinks.some(link => props.active === link.id) }">
