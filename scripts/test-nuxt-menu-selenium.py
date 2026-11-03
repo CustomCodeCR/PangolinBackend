@@ -149,40 +149,75 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896
             assert group.get_attribute("aria-expanded") == "true", "Manual expand must reveal transport links"
             print(f"PASS manual expand from general service {label}/{theme}", flush=True)
 
-            # Regression: on About, the image/years hero must never paint on
-            # top of the opened phone drawer, on the About landing screen.
-            # The drawer is teleported to body in Vue and in Nuxt.
+            # Regression: keep the ORIGINAL compact red menu height and layout.
+            # Opening it must not push the About title, years or photo down,
+            # and the picture must never paint in front of the open menu.
             if width <= 1080:
                 driver.get(BASE + "/nosotros")
                 wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".about-image-card")))
                 driver.execute_script("document.documentElement.style.scrollBehavior = 'auto'; window.scrollTo(0, 0)")
                 before_scroll = driver.execute_script("return window.scrollY")
+                before = driver.execute_script("""
+                  const rect = selector => {
+                    const r = document.querySelector(selector).getBoundingClientRect();
+                    return {top:r.top, left:r.left};
+                  };
+                  return {
+                    title: rect('.about-hero__copy h1'),
+                    years: rect('.about-hero__copy .big-years'),
+                    image: rect('.about-image-card')
+                  };
+                """)
                 wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
                 wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".site-header--menu-open")))
                 overlay = driver.execute_script("""
                   const h = document.querySelector('body > .site-header--menu-open');
-                  if (!h) return {error: 'Mobile header was not teleported'};
-                  const r = h.getBoundingClientRect();
-                  const x = Math.round(innerWidth * .75);
-                  const y = Math.round(innerHeight * .65);
-                  const hit = document.elementFromPoint(x, y);
+                  if (!h) return {error: 'Compact header was not teleported'};
+                  const nav = h.querySelector('.main-nav');
                   const root = document.getElementById('app') || document.getElementById('__nuxt');
+                  const rect = selector => {
+                    const r = document.querySelector(selector).getBoundingClientRect();
+                    return {top:r.top, left:r.left};
+                  };
+                  const r = h.getBoundingClientRect();
+                  const n = nav.getBoundingClientRect();
+                  const coverage = selector => {
+                    const a = document.querySelector(selector).getBoundingClientRect();
+                    const left = Math.max(r.left, a.left);
+                    const right = Math.min(r.right, a.right);
+                    const top = Math.max(r.top, a.top);
+                    const bottom = Math.min(r.bottom, a.bottom);
+                    if (right - left < 4 || bottom - top < 4) return {overlaps:false, covered:true};
+                    const hit = document.elementFromPoint((left+right)/2, (top+bottom)/2);
+                    return {overlaps:true, covered:hit === h || h.contains(hit)};
+                  };
                   return {
                     position: getComputedStyle(h).position,
                     overflowY: getComputedStyle(h).overflowY,
-                    top: r.top, left: r.left, right: r.right, bottom: r.bottom,
-                    viewportWidth: innerWidth, viewportHeight: innerHeight,
-                    coversImagePoint: h === hit || h.contains(hit),
-                    rootInert: !!root?.inert
+                    top:r.top, left:r.left, right:r.right, bottom:r.bottom,
+                    navBottom:n.bottom, viewportWidth:innerWidth,
+                    viewportHeight:innerHeight, rootInert:!!root?.inert,
+                    title:rect('.about-hero__copy h1'),
+                    years:rect('.about-hero__copy .big-years'),
+                    image:rect('.about-image-card'),
+                    titleCoverage:coverage('.about-hero__copy h1'),
+                    imageCoverage:coverage('.about-image-card')
                   };
                 """)
-                assert overlay.get("position") == "fixed", f"Mobile drawer is not fixed: {overlay}"
-                assert overlay["top"] >= -2 and overlay["top"] <= 2, f"Drawer starts below viewport: {overlay}"
-                assert overlay["left"] >= -2 and overlay["right"] >= overlay["viewportWidth"] - 2, f"Drawer does not cover viewport width: {overlay}"
-                assert overlay["bottom"] >= overlay["viewportHeight"] - 2, f"Drawer does not cover viewport height: {overlay}"
-                assert overlay["overflowY"] in ("auto", "scroll"), f"Mobile drawer cannot scroll: {overlay}"
-                assert overlay["coversImagePoint"], f"About hero/image appears above mobile drawer: {overlay}"
-                assert overlay["rootInert"], f"Background is interactive while menu is open: {overlay}"
+                assert overlay.get("position") == "fixed", f"Compact menu is not fixed: {overlay}"
+                assert -2 <= overlay["top"] <= 2, f"Menu starts below the viewport: {overlay}"
+                assert overlay["left"] >= -2 and overlay["right"] >= overlay["viewportWidth"] - 2, f"Menu width changed: {overlay}"
+                assert overlay["bottom"] <= overlay["navBottom"] + 32, f"Menu was stretched to the whole screen: {overlay}"
+                assert overlay["bottom"] <= overlay["viewportHeight"] + 2, f"Menu overflows the viewport: {overlay}"
+                assert overlay["overflowY"] in ("auto", "scroll"), f"Long menu cannot scroll: {overlay}"
+                assert overlay["rootInert"], f"Page is interactive behind the open menu: {overlay}"
+                for key in ("title", "years", "image"):
+                    for axis in ("top", "left"):
+                        assert abs(overlay[key][axis] - before[key][axis]) <= 3, (
+                            f"About {key} moved after opening menu ({axis}): {before} => {overlay}"
+                        )
+                assert overlay["titleCoverage"]["covered"], f"About title covers menu: {overlay}"
+                assert overlay["imageCoverage"]["covered"], f"About photo covers menu: {overlay}"
                 driver.save_screenshot(str(ARTIFACTS / f"{label}-{theme}-about-nav-overlay.png"))
                 wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
                 wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, ".site-header--menu-open")))
@@ -190,7 +225,7 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896
                 assert abs(after_scroll - before_scroll) <= 3, (
                     f"Page scroll changed after mobile menu closed: {before_scroll} => {after_scroll}"
                 )
-                print(f"PASS About mobile overlay {label}/{theme}: {overlay}", flush=True)
+                print(f"PASS original About menu format and fixed hero {label}/{theme}: {overlay}", flush=True)
         except Exception:
             driver.save_screenshot(str(ARTIFACTS / f"debug-{label}-{theme}.png"))
             raise

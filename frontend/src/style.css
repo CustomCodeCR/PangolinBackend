@@ -4271,7 +4271,7 @@ html.theme-dark .app-site.news-page .news-editorial-hero__bottomline-rule {
 /* NAV MÓVIL: al abrir hamburguesa, la barra superior y el panel usan
    exactamente el mismo rojo (también encima del hero con overlay). */
 @media (max-width: 1080px) {
-  /* The menu stays in page flow and pushes following content down. */
+  /* Fallback del encabezado compacto; Teleport aplica la capa fija sin desplazar el contenido. */
   .site-header.site-header--menu-open {
     position: relative !important;
     z-index: 1000 !important;
@@ -5630,16 +5630,18 @@ html.theme-dark .site-header .services-transport-group__submenu a:is(:hover, :fo
   white-space: normal;
 }
 
-/* La navegación compacta se teletransporta al body al abrirse.
-   Debe tapar la página, no quedar en el flujo del hero ni dejar imágenes
-   de Sobre Nosotros/GIO encima del panel. El único scroll es el del menú. */
+/* Menú compacto en el diseño original: rojo y de altura natural.
+   Teleport lo saca del hero sin desplazar el título ni el +48. El contenido
+   de Nosotros permanece en su sitio y la foto siempre queda por debajo.
+   Si el menú crece más que la pantalla, se desplaza solo dentro del menú. */
 @media (max-width: 1080px) {
   html body > .site-header.site-header--menu-open {
     position: fixed !important;
-    inset: 0 !important;
+    inset: 0 0 auto 0 !important;
     width: 100% !important;
-    height: 100vh !important;
-    height: 100dvh !important;
+    height: auto !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
     min-height: 0 !important;
     z-index: 2147482800 !important;
     overflow-x: hidden !important;
