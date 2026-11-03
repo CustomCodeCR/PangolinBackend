@@ -38,6 +38,16 @@ html.theme-dark .site-header .nav-dropdown > .nav-dropdown__menu,
 html.theme-dark .site-header.site-header--menu-open .main-nav.main-nav--open .nav-dropdown > .nav-dropdown__menu {
   box-shadow: 0 14px 34px rgba(0, 0, 0, .28) !important;
 }
+/* Services uses a more specific megamenu rule on desktop as well. */
+html:not(.theme-dark) .site-header .nav-dropdown.nav-dropdown--services > .nav-dropdown__menu.services-megamenu,
+html.theme-dark .site-header .nav-dropdown.nav-dropdown--services > .nav-dropdown__menu.services-megamenu {
+  border-color: var(--nav-panel-border) !important;
+  background: radial-gradient(ellipse 85% 95% at 19% 20%, var(--nav-panel-halo), transparent 74%),
+              var(--nav-panel-base) !important;
+  color: var(--nav-panel-ink) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(125%) !important;
+  backdrop-filter: blur(18px) saturate(125%) !important;
+}
 
 /* All links and service category buttons follow the card's readable ink.
    The current page stays white when marked with the corporate red pill. */

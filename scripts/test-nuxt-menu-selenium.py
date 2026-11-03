@@ -253,6 +253,67 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896
                     f"Page scroll changed after mobile menu closed: {before_scroll} => {after_scroll}"
                 )
                 print(f"PASS original About menu format and fixed hero {label}/{theme}: {overlay}", flush=True)
+
+            # Regression: editorial News deliberately fades its CLOSED header.
+            # When the menu opens that gradient must become opaque red and
+            # keep the same viewport positioning as every other public page.
+            if width <= 1080:
+                driver.get(BASE + "/noticias")
+                wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
+                header_color = wait.until(lambda d: d.execute_script("""
+                  const h = document.querySelector('body > .site-header--menu-open');
+                  if (!h) return false;
+                  const s = getComputedStyle(h);
+                  return s.position === 'fixed' &&
+                    s.backgroundColor === 'rgb(159, 9, 33)' &&
+                    s.backgroundImage === 'none';
+                """))
+                assert header_color, f"News opened menu is not solid red: {label}/{theme}"
+                driver.save_screenshot(str(ARTIFACTS / f"{label}-{theme}-news-opaque-nav.png"))
+                print(f"PASS News opaque red menu {label}/{theme}", flush=True)
+
+                # Cargo is available on /cotizaciones even in the guest
+                # access-blocked view; this tests layout but never sends a quote.
+                driver.get(BASE + "/cotizaciones")
+                wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".quote-access-status--blocked")))
+                wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
+                cargo = wait.until(EC.element_to_be_clickable((
+                    By.CSS_SELECTOR,
+                    ".main-nav .nav-dropdown:not(.nav-dropdown--services) > button.nav-dropdown__trigger"
+                )))
+                cargo.click()
+                cargo_panel = wait.until(EC.visibility_of_element_located((
+                    By.CSS_SELECTOR,
+                    ".main-nav .nav-dropdown:not(.nav-dropdown--services) > .nav-dropdown__menu"
+                )))
+                assert len(cargo_panel.find_elements(By.TAG_NAME, "a")) == 3, "Cargo must keep all three destinations"
+                cargo_geometry = wait.until(lambda d: d.execute_script("""
+                  const h = document.querySelector('body > .site-header--menu-open');
+                  const cargo = document.querySelector('.main-nav .nav-dropdown:not(.nav-dropdown--services) > .nav-dropdown__menu');
+                  if (!h || !cargo) return false;
+                  const last = [...cargo.querySelectorAll('a')].at(-1);
+                  const lastRect = last.getBoundingClientRect();
+                  const bounds = h.getBoundingClientRect();
+                  const visibleBottom = Math.min(bounds.bottom, innerHeight);
+                  if (lastRect.bottom > visibleBottom - 4) return false;
+                  const s = getComputedStyle(cargo);
+                  const ink = getComputedStyle(last).color;
+                  return {
+                    bottom: lastRect.bottom, viewportBottom: visibleBottom,
+                    scrollTop: h.scrollTop,
+                    background: s.backgroundColor,
+                    hasGlow: s.backgroundImage.includes('radial-gradient'),
+                    hasBlur: s.backdropFilter.includes('blur'),
+                    ink
+                  };
+                """))
+                assert cargo_geometry["hasGlow"] and cargo_geometry["hasBlur"], f"Cargo glass finish missing: {cargo_geometry}"
+                expected_ink = 'rgb(255, 255, 255)' if theme == 'dark' else 'rgb(32, 36, 43)'
+                assert cargo_geometry["ink"] == expected_ink, f"Cargo text not readable in {theme}: {cargo_geometry}"
+                expected_surface = '0.48' if theme == 'dark' else '0.96'
+                assert expected_surface in cargo_geometry["background"], f"Cargo card not using theme palette: {cargo_geometry}"
+                driver.save_screenshot(str(ARTIFACTS / f"{label}-{theme}-cargo-visible.png"))
+                print(f"PASS Cargo three links and themed glass {label}/{theme}: {cargo_geometry}", flush=True)
         except Exception:
             driver.save_screenshot(str(ARTIFACTS / f"debug-{label}-{theme}.png"))
             raise
