@@ -339,7 +339,6 @@ for width, height, label in [(896, 590, "compact-short"), (390, 590, "phone-shor
             driver.refresh()
             wait = WebDriverWait(driver, 22)
             wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".quote-access-status--blocked")))
-            page_scroll_before = driver.execute_script("return window.scrollY")
             wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
             wait.until(EC.element_to_be_clickable((
                 By.CSS_SELECTOR,
@@ -362,7 +361,8 @@ for width, height, label in [(896, 590, "compact-short"), (390, 590, "phone-shor
                 cargoBottom:cargoRect.bottom,
                 actionsBottom:actionsRect.bottom,
                 viewportBottom:maxBottom,
-                documentScroll:window.scrollY,
+                lockedPageScroll:-(parseFloat(document.body.style.top) || 0),
+                bodyPosition:getComputedStyle(document.body).position,
                 menuPosition:getComputedStyle(header).position,
                 cargoLinks:panel.querySelectorAll('a').length
               };
@@ -371,9 +371,19 @@ for width, height, label in [(896, 590, "compact-short"), (390, 590, "phone-shor
             assert geometry["menuPosition"] == "fixed", f"Header shifted into page flow: {geometry}"
             assert geometry["viewportHeight"] < 500, f"Short viewport simulation not reproduced: {geometry}"
             assert geometry["scrollTop"] > 0, f"Header failed to scroll towards lower actions: {geometry}"
-            assert abs(geometry["documentScroll"] - page_scroll_before) <= 3, f"Background moved: {geometry}"
+            assert geometry["bodyPosition"] == "fixed", f"Background not locked during menu: {geometry}"
             driver.save_screenshot(str(ARTIFACTS / f"{label}-{theme}-cargo-and-actions-visible.png"))
-            print(f"PASS short viewport Cargo and footer {label}/{theme}: {geometry}", flush=True)
+            # The body uses position:fixed while the drawer is open, so window.scrollY
+            # can read zero despite no visual movement. Check scroll restoration
+            # after closing instead of comparing scrollY while locked.
+            wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".site-header--menu-open .menu-toggle"))).click()
+            wait.until(lambda d: not d.execute_script(
+                "return !!document.querySelector('body > .site-header--menu-open')"))
+            restored = driver.execute_script("return window.scrollY")
+            assert abs(restored - geometry["lockedPageScroll"]) <= 3, (
+                f"Background scroll not restored after closing: {geometry}, restored={restored}"
+            )
+            print(f"PASS short viewport Cargo, footer and scroll restore {label}/{theme}: {geometry}", flush=True)
         except Exception:
             driver.save_screenshot(str(ARTIFACTS / f"debug-{label}-{theme}-short.png"))
             raise
