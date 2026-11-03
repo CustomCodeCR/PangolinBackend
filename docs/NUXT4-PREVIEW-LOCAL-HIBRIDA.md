@@ -1,41 +1,54 @@
-# Vista local híbrida Nuxt 4 + Vue (PR #141)
+# Migración progresiva Nuxt 4: pruebas locales seguras (PR #141)
 
-La vista `localhost:8082` se sirve exclusivamente desde Nuxt: las rutas privadas de login, cotizaciones, tracking, itinerario y administración no están allí y muestran 404. Esto es esperado y **no** elimina esas funciones. Para probar el recorrido completo desde un solo origen, esta PR incorpora un gateway opcional, exclusivamente local, en `localhost:8083`.
+**La web original no se ha sustituido.** Estas tres vistas usan el mismo backend de desarrollo y volúmenes locales, pero no el mismo frontend ni el mismo origen del navegador:
 
-## PowerShell, desde la carpeta del proyecto
+| Puerto | Servidor | Rutas |
+|---|---|---|
+| 5173 | Vue/Vite de desarrollo, con HMR | Toda la SPA histórica |
+| 8082 | Nuxt 4 SSR de prueba | Solo rutas públicas ya migradas; las privadas responden 404 por diseño |
+| 8083 | Gateway local Nginx | Públicas: Nuxt SSR. Privadas: compilación de Vue de producción con cotizador habilitado. API/SignalR: backend .NET |
+
+## Qué corregimos y por qué
+
+El primer gateway local intentaba conectar el HTML servido por Vite con el enrutamiento Nuxt. Era un ensayo experimental que **no tenía una prueba de navegador del flujo de cotizaciones**. La ruta podía quedar blanca por errores de carga de módulos o de arranque. No se declara una causa concreta sin una traza de red/Consola; ahora se elimina esa dependencia de Vite: `frontend-legacy-preview` construye el frontend Vue y entrega los archivos compilados `/assets/*` en el mismo origen `8083`. El gateway conserva `/api/*` y WebSockets en el backend.
+
+Nuxt sigue usando Vue 3 internamente. Lo que se migra es el enrutador, SSR, runtime y build, sin reescribir componentes con buen comportamiento. El login/OTP, cotizador, tracking, itinerarios y administración **todavía son Vue compilado** desde `8083`. No contar esos apartados como migrados.
+
+El menú Servicios usa Transportes como acordeón en el mismo panel (escritorio y móvil). Así no se recorta lateralmente. En móvil, el desplazamiento corresponde al cajón completo; en escritorio al desplegable principal. El enlace de la página actual lleva `aria-current=page` y resaltado.
+
+## PowerShell, desde la carpeta del repo
 
 ```powershell
+git status
 git fetch origin
 git switch feat/nuxt4-migration-seo-safety-139
 git pull --ff-only origin feat/nuxt4-migration-seo-safety-139
-docker compose -f compose.yaml -f compose.nuxt-preview.yaml -f compose.nuxt-local-hybrid.yaml up -d --build backend frontend frontend-nuxt nuxt-local-gateway
+docker compose -f compose.yaml -f compose.nuxt-preview.yaml -f compose.nuxt-local-hybrid.yaml up -d --build backend frontend frontend-nuxt frontend-legacy-preview nuxt-local-gateway
 docker compose -f compose.yaml -f compose.nuxt-preview.yaml -f compose.nuxt-local-hybrid.yaml ps
 ```
 
-Navegar a:
+No usar `down -v`: puede borrar los volúmenes de desarrollo. Las sesiones de `192.168.1.26:5173` y `localhost:8083` pueden ser diferentes porque las cookies pertenecen al host, no a la rama. Esto no significa que las cuentas estén borradas.
 
-- **http://localhost:8083/**: prueba híbrida (páginas públicas en Nuxt, rutas privadas en Vue y API en .NET).
-- http://localhost:8082/: solo Nuxt público. Los 404 de rutas privadas aquí son normales.
-- http://localhost:5173/: frontend original Vue/Vite, referencia visual.
+Si aparece una página blanca:
 
-El nuevo Nginx enruta `/api/public-news` a Nitro, `/api/*` al backend .NET, y las rutas autenticadas y recursos de desarrollo de Vue a Vite. Los demás enlaces se entregan desde Nuxt. Así se puede navegar entre servicios y cotizaciones sin cambiar de puerto, aunque las páginas privadas todavía no hayan sido migradas.
+1. Abrir DevTools → Console y Network y revisar la primera solicitud fallida, especialmente `/assets/*` o `/api/auth/me`.
+2. Revisar `docker compose -f compose.yaml -f compose.nuxt-preview.yaml -f compose.nuxt-local-hybrid.yaml ps` y logs del gateway, Nuxt y Vue compilado.
+3. Comparar `http://localhost:5173/cotizaciones` con `http://localhost:8083/cotizaciones` estando en el mismo estado de sesión.
 
-## Seguridad y limpieza
+No publicar ni fusionar por pasar solo pruebas automáticas. Requiere revisión visual real en escritorio, móvil y claro/oscuro y pruebas de sesión/roles, mensajes, tracking y cotizaciones de extremo a extremo.
 
-- No desplegar este gateway local en producción. No elimina ni recrea volúmenes deliberadamente.
-- Por defecto solo publica `127.0.0.1:8083`. Para ver la preview desde otro equipo de una LAN privada y de confianza se puede definir `NUXT_LOCAL_GATEWAY_BIND_IP=0.0.0.0`, evitando redes públicas y credenciales reales por HTTP.
-- Para detener solo el gateway local:
+## Condiciones para integrar en main-2
+
+- CI completo verde, incluidas pruebas Chrome de login, cotizaciones, activos JS, menús responsive y SSR.
+- Comparación visual contra 5173 en claro/oscuro.
+- Sin cambios destructivos en PostgreSQL ni cambios de backend o de permisos.
+- Rollback del gateway documentado y aprobado.
+- Revisión por una persona del equipo y autorización explícita antes de fusionar.
+
+## Detener solo la vista híbrida local
 
 ```powershell
-docker compose -f compose.yaml -f compose.nuxt-preview.yaml -f compose.nuxt-local-hybrid.yaml stop nuxt-local-gateway
+docker compose -f compose.yaml -f compose.nuxt-preview.yaml -f compose.nuxt-local-hybrid.yaml stop nuxt-local-gateway frontend-legacy-preview
 ```
 
-La configuración de producción `deploy/nuxt-hybrid-gateway.conf` sigue siendo independiente y no cambia de puertos ni de proveedores por esta prueba.
-
-## Revisión visual propuesta
-
-1. Abrir Servicios, entrar a un transporte y volver a abrir el menú. La página debe mostrarse resaltada y la categoría Transportes expandida.
-2. En pantalla amplia, pasar por Transportes para desplegar el submenú lateral. En ventanas pequeñas, pulsar Transportes para abrirlo debajo, desplazando solo el menú.
-3. Abrir Configuración y cambiar idioma, con las dos opciones completas dentro de la misma tarjeta.
-4. Probar modo claro y oscuro, móvil y escritorio; confirmar que el menú nunca tape la selección sin opción de desplazarse.
-5. Desde `8083`, comprobar login/cotizaciones sin 404 y los permisos de la sesión. No usar cuentas reales de producción sin HTTPS.
+El frontend de desarrollo `5173` puede permanecer operativo.
