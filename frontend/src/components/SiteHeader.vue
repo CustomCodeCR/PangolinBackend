@@ -130,7 +130,7 @@ const generalServiceIcon = (url: string) => ({
   '/servicios/bodegaje-general': Package,
   '/servicios/agenciamiento-aduanal': ShieldCheck,
   '/servicios/consolidadora-de-carga': Boxes
-})[url] ?? Package
+} as Record<string, typeof Package>)[url] ?? Package
 const transportServiceIcon = (url: string) => {
   const path = url.split('?')[0]
   if (path.includes('maritimo')) return Ship
