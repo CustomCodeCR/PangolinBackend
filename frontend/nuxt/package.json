@@ -3,7 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node scripts/stage-public.mjs",
     "dev": "nuxt dev --host 0.0.0.0",
+    "prebuild": "node scripts/stage-public.mjs",
     "build": "nuxt build",
     "preview": "nuxt preview --host 0.0.0.0",
     "start": "node .output/server/index.mjs",
