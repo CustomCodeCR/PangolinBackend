@@ -33,6 +33,18 @@ assert.match(main, /connectSignalR\(\)/, 'SignalR no debe ser sustituido por Web
 source('src/services/signalr.ts')
 source('src/services/realtime.ts')
 source('src/components/SiteMedia.vue')
+
+// The tracking globe uses one animated icon, no animated route line or itinerary bar.
+const trackingGlobe = source('src/components/WorldGlobe.vue')
+assert.match(trackingGlobe, /const routeLegs = computed\(\(\) => routePoints\.value\.slice\(1\)/, 'La ruta conserva cada tramo de todas las escalas')
+assert.match(trackingGlobe, /for \(const leg of legs\) \{[\s\S]*?illustrativePosition\(leg\.start, leg\.end/, 'El vehículo avanza por los tramos, en orden')
+assert.match(trackingGlobe, /const demoArcs = \(\) => props\.shipment\s*\?\s*\[\]/, 'El tracking no dibuja la línea animada anterior')
+assert.match(trackingGlobe, /v-if="transportGlyph && routeVehicle"/, 'Un solo icono para el embarque')
+assert.doesNotMatch(trackingGlobe, /v-for="vehicle|routeVehicleIcons/, 'No duplicar iconos por cada tramo')
+assert.doesNotMatch(trackingGlobe, /world-globe__route-stops/, 'No mostrar el listado inferior de escalas')
+assert.match(trackingGlobe, /cancelAnimationFrame\(vehicleFrame\)/, 'Se detiene la animación al desmontar')
+assert.match(trackingGlobe, /motionMedia\?\.matches \? 0/, 'Respetar movimiento reducido')
+
 source('src/siteCms.ts')
 const mainStyles = source('src/style.css')
 assert.match(mainStyles, /html\.theme-dark \.header-settings__panel\{--settings-surface:rgba\(10,18,40,\.96\)/, 'Configuración mantiene su fondo oscuro original')
