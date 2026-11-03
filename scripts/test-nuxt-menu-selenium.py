@@ -41,8 +41,31 @@ for width, height, label in [(1440, 900, "desktop"), (390, 844, "mobile")]:
                 By.CSS_SELECTOR,
                 '.services-transport-group__submenu a[href*="transporte-maritimo"][aria-current="page"]'
             )))
-            wait.until(lambda d: active.is_displayed())
+            # Un enlace al final de un panel desplazable puede no reportarse
+            # visible hasta que se ubique dentro del área accesible.
             driver.execute_script("arguments[0].scrollIntoView({block:'nearest'})", active)
+            try:
+                wait.until(lambda d: active.is_displayed())
+            except Exception:
+                driver.save_screenshot(str(ARTIFACTS / f"debug-{label}-{theme}.png"))
+                diagnostics = driver.execute_script("""
+                  const group = document.querySelector('.services-transport-group');
+                  const menu = document.querySelector('.services-nav-dropdown__menu');
+                  const flyout = document.querySelector('.services-transport-group__submenu');
+                  const active = document.querySelector('a[aria-current="page"]');
+                  return {
+                    groupClass: group?.className,
+                    servicesMenuDisplay: menu && getComputedStyle(menu).display,
+                    transportDisplay: flyout && getComputedStyle(flyout).display,
+                    transportHeight: flyout?.getBoundingClientRect().height,
+                    activeDisplay: active && getComputedStyle(active).display,
+                    activeRect: active?.getBoundingClientRect().toJSON(),
+                    panelRect: menu?.getBoundingClientRect().toJSON(),
+                    panelScrollTop: menu?.scrollTop
+                  };
+                """)
+                print(f"DEBUG menu {label} {theme}: {diagnostics}", flush=True)
+                raise
             time.sleep(.25)
             measures = driver.execute_script("""
               const el = document.querySelector('.services-transport-group__submenu');
