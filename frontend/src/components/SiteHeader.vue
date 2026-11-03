@@ -155,9 +155,11 @@ function positionServicesMenu() {
     menu.style.setProperty('--services-menu-shift', '0px')
     if (window.innerWidth <= 1080) return
     const bounds = menu.getBoundingClientRect()
-    const rightShift = window.innerWidth - 14 - bounds.right
-    const leftShift = 14 - bounds.left
-    const shift = bounds.right > window.innerWidth - 14 ? rightShift : bounds.left < 14 ? leftShift : 0
+    // Leave generous breathing room at the screen edges, even at zoom.
+    const margin = 28
+    const rightShift = window.innerWidth - margin - bounds.right
+    const leftShift = margin - bounds.left
+    const shift = bounds.right > window.innerWidth - margin ? rightShift : bounds.left < margin ? leftShift : 0
     menu.style.setProperty('--services-menu-shift', `${Math.round(shift)}px`)
   })
 }
@@ -188,16 +190,22 @@ function toggleServicesMenu() {
   servicesMenuOpen.value = !servicesMenuOpen.value
   cargoMenuOpen.value = false
   if (servicesMenuOpen.value) {
-    serviceMenuCategory.value = currentTransport.value || (typeof window !== 'undefined' && window.innerWidth > 1080)
-      ? 'transport'
-      : null
+    // Remember the selected route only when it belongs to Transportes;
+    // otherwise the compact first column opens by itself.
+    serviceMenuCategory.value = currentTransport.value ? 'transport' : null
     positionServicesMenu()
     showCurrentService()
   }
 }
-function openTransportCategory() {
+function toggleTransportCategory() {
+  if (serviceMenuCategory.value === 'transport') {
+    serviceMenuCategory.value = null
+    positionServicesMenu()
+    return
+  }
   serviceMenuCategory.value = 'transport'
   void nextTick(() => {
+    positionServicesMenu()
     if (typeof window !== 'undefined' && window.innerWidth <= 1080) {
       servicesMenuElement.value?.querySelector<HTMLElement>('.services-megamenu__back')?.focus()
     }
@@ -206,6 +214,7 @@ function openTransportCategory() {
 }
 function backToServiceCategories() {
   serviceMenuCategory.value = null
+  positionServicesMenu()
   void nextTick(() => servicesMenuElement.value?.querySelector<HTMLElement>('.services-megamenu__group-trigger')?.focus())
 }
 const cargoLinks = computed(() => [
@@ -325,7 +334,7 @@ function toggleTheme() {
               <button type="button" class="services-megamenu__rail-link services-megamenu__group-trigger"
                 :class="{ 'is-selected': serviceMenuCategory === 'transport', 'has-current': currentTransport }"
                 :aria-expanded="serviceMenuCategory === 'transport'" aria-controls="services-transport-panel"
-                @click.stop="openTransportCategory">
+                @click.stop="toggleTransportCategory">
                 <Truck :size="19" aria-hidden="true" />
                 <span>{{ locale.startsWith('en') ? 'Transport' : 'Transportes' }}</span>
                 <ChevronRight class="services-megamenu__group-chevron" :size="17" aria-hidden="true" />
