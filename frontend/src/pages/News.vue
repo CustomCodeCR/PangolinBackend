@@ -13,7 +13,9 @@ const props = defineProps<{ initialNews?: ManagedNews[] | null; serverPath?: str
 const currentNewsUrl = typeof window === 'undefined'
   ? new URL(props.serverPath || '/noticias', 'https://www.logisticacastrofallas.com')
   : new URL(window.location.href)
-const requestedArticleId = currentNewsUrl.searchParams.get('article')
+const requestedArticleId = typeof window === 'undefined'
+  ? currentNewsUrl.searchParams.get('article')
+  : new URLSearchParams(window.location.search).get('article')
 const requestedArticleSlug = currentNewsUrl.pathname.match(/^\/noticias\/([^/]+)\/?$/)?.[1] ?? null
 const isArticlePage = Boolean(requestedArticleId || requestedArticleSlug)
 const managedNews = ref<ManagedNews[]>(props.initialNews ?? [])
