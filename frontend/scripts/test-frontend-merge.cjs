@@ -139,7 +139,7 @@ assert.match(news, /<main v-else id="noticia-completa" class="news-article-page"
 assert.match(authRoot, /const seoPath = path\.startsWith\('\/noticias\/'\) \? '\/noticias' : path/, 'Las rutas de artículos reciben el SEO base de Noticias')
 assert.match(authRoot, /if\(path==='\/noticias' \|\| path\.startsWith\('\/noticias\/'\)\) return 'news'/, 'Las rutas legibles se resuelven en la página existente de Noticias')
 assert.ok(news.includes('<div class="news-article-page__formatted" v-html="activeArticleHtml"></div>'), 'El artículo muestra su contenido enriquecido')
-assert.match(news, /const html = activeArticle\\.value\\?\\.body \\?\\? ''[\\s\\S]*?sanitizeNewsHtml\\(html\\)/, 'El cuerpo enriquecido se sanitiza y conserva noticias antiguas')
+assert.match(news, /const html = activeArticle\.value\?\.body \?\? ''[\s\S]*?sanitizeNewsHtml\(html\)/, 'El cuerpo enriquecido se sanitiza y conserva noticias antiguas')
 assert.match(news, /<SiteHeader v-if="isArticlePage" active="noticias" overlay\s*\/>/, 'La ruta legible y la anterior mantienen el encabezado superpuesto sobre la imagen')
 assert.doesNotMatch(news, /news-article-modal|aria-modal="true"/, 'Noticias no abre un modal')
 assert.match(news, /href="\/noticias"/, 'El usuario puede volver a la lista de noticias')
