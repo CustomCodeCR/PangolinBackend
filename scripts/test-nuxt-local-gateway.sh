@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 network="cf-hybrid-smoke"
 base="http://127.0.0.1:18083"
 cleanup() {
-  for name in cf-hybrid-gateway cf-hybrid-nuxt cf-hybrid-vue cf-hybrid-fake-api; do
+  for name in cf-hybrid-gateway cf-hybrid-nuxt cf-hybrid-vue cf-hybrid-fake-api cf-hybrid-ip-holder; do
     docker rm -f "$name" >/dev/null 2>&1 || true
   done
   docker network rm "$network" >/dev/null 2>&1 || true
@@ -107,9 +107,18 @@ done
 # Reproduce el 502 habitual de un docker compose up --build: Nuxt se
 # recrea con nueva IP mientras Nginx permanece en ejecución. Debe recuperar
 # su conexión sin reiniciar Nginx ni volver a enlazar las rutas.
+old_nuxt_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' cf-hybrid-nuxt)"
 docker rm -f cf-hybrid-nuxt >/dev/null
+# Ocupar la IP antigua para comprobar de verdad el cambio de DNS.
+docker run -d --rm --name cf-hybrid-ip-holder --network "$network" \
+  node:22-alpine node -e 'setInterval(()=>{},10000)' >/dev/null
 docker run -d --rm --name cf-hybrid-nuxt --network "$network" --network-alias frontend-nuxt \
   -e NUXT_CMS_API_BASE=http://backend:5000 cf-nuxt-preview-smoke >/dev/null
+new_nuxt_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' cf-hybrid-nuxt)"
+[[ "$old_nuxt_ip" != "$new_nuxt_ip" ]] || {
+  echo "FAIL la prueba no consiguió cambiar la IP de Nuxt" >&2
+  exit 1
+}
 recovered=0
 for _ in $(seq 1 60); do
   if curl -fsS --max-time 4 "$base/servicios/transporte-maritimo" | grep -q 'service-detail-page'; then
