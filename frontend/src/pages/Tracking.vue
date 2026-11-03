@@ -57,7 +57,7 @@ const localPreviewShipment: DynamicsShipment = {
   mode: 'Marítimo', portOfLoading: 'Qingdao, China', portOfEntry: 'Puerto Caldera, Costa Rica',
   etd: '2026-11-13', eta: '2026-12-23', vessel: 'Buque de muestra', container: 'CONTENEDOR-DEMO',
   bcf: 'REFERENCIA-DEMO', updatedAtUtc: '2026-11-03', customerStatus: null, incoterm: null,
-  equipmentSize: null, equipmentCount: null, departureConfirmedAt: null, warehouseReceivedAt: null,
+  equipmentSize: 'LCL', equipmentCount: 'LCL', departureConfirmedAt: null, warehouseReceivedAt: null,
   destinationEta: null, officializedAt: null, entryAt: null, po: null, packageCount: null,
   commodity: null, seal: null, invoice: null, companyInvoice: null, shipper: null, customerInstructions: null
 }
@@ -230,14 +230,23 @@ function formatDate(value: string | null) {
   }).format(date)
 }
 interface ShipmentExtraField { label: string; value: string }
+function formatEquipmentConfiguration(count: string | null, size: string | null) {
+  const quantity = formatTrackingEquipmentCount(count)?.trim() ?? ''
+  const equipmentSize = size?.trim() ?? ''
+  if (!quantity) return equipmentSize || null
+  if (!equipmentSize) return quantity
+
+  // A configured value may already contain its own quantity × size notation.
+  if (/\d\s*[x×]\s*\d/i.test(quantity)) return quantity
+  return `${quantity} x ${equipmentSize}`
+}
 const shipmentExtras = computed<ShipmentExtraField[]>(() => {
   const data = shipment.value
   if (!data) return []
   const asDate = (value: string | null) => value ? formatDate(value) : null
   const fields: { es: string; en: string; value: string | null }[] = [
     { es: 'Incoterm', en: 'Incoterm', value: data.incoterm },
-    { es: 'Tamaño o modalidad de equipo', en: 'Equipment size or modality', value: data.equipmentSize },
-    { es: 'Cantidad o configuración de equipo', en: 'Equipment quantity or configuration', value: formatTrackingEquipmentCount(data.equipmentCount) },
+    { es: 'Cantidad x tamaño de equipo', en: 'Equipment quantity x size', value: formatEquipmentConfiguration(data.equipmentCount, data.equipmentSize) },
     { es: 'Confirmación de zarpe', en: 'Departure confirmation', value: asDate(data.departureConfirmedAt) },
     { es: 'Ingreso a bodegas', en: 'Warehouse arrival', value: asDate(data.warehouseReceivedAt) },
     { es: 'ETA en destino', en: 'Destination ETA', value: asDate(data.destinationEta) },
