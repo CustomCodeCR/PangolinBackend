@@ -135,7 +135,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "COMPOSE_FILE=$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml" >> "$GITHUB_ENV"
           test -r "$DHOLE_ENV_FILE"
           test -r "$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml"
           read_var() { grep -m1 "^$1=" "$DHOLE_ENV_FILE" | cut -d= -f2- || true; }
@@ -188,10 +187,13 @@ jobs:
           test -r "$RUNNER_TEMP/pangolin-runtime/nuxt-hybrid-gateway.conf"
           gateway_dir="$HOME/pangolin-release"
           mkdir -p "$gateway_dir"
+          install -m 0644 "$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml" "$gateway_dir/docker-compose.images.yml"
           install -m 0644 "$RUNNER_TEMP/pangolin-runtime/nuxt-hybrid-gateway.conf" "$gateway_dir/nuxt-hybrid-gateway.conf"
+          export COMPOSE_FILE="$gateway_dir/docker-compose.images.yml"
           export PANGOLIN_GATEWAY_CONFIG_PATH="$gateway_dir/nuxt-hybrid-gateway.conf"
+          echo "COMPOSE_FILE=$COMPOSE_FILE" >> "$GITHUB_ENV"
           echo "PANGOLIN_GATEWAY_CONFIG_PATH=$PANGOLIN_GATEWAY_CONFIG_PATH" >> "$GITHUB_ENV"
-          docker compose --env-file "$DHOLE_ENV_FILE" -f "$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml" -p pangolin-production config --quiet
+          docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production config --quiet
 
       - name: Enforce WWW-only cutover without touching Fennec apex
         shell: bash
@@ -405,5 +407,6 @@ jobs:
             false
           fi
           curl -fsS --max-time 8 -H "Host: $host" http://127.0.0.1/api/health/ready >/dev/null
+          echo "$PANGOLIN_IMAGE_TAG" > "$HOME/pangolin-release/current-tag"
           echo "Nuxt SSR active on WWW; Fennec apex unchanged; legacy frontend available for rollback."
           trap - ERR
