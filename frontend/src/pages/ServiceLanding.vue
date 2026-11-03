@@ -84,7 +84,7 @@ const details = computed(() => guides[route][lang.value])
 </template>
 
 <style scoped>
-.service-landing-page{min-height:100vh}
+.service-landing-page{min-height:100vh;background:#fff;color:#20242b}
 .service-landing-main{padding-top:68px;padding-bottom:90px}
 .service-landing-hero{max-width:900px;margin-bottom:48px}
 .service-landing-hero h1{max-width:900px;margin:12px 0 20px;line-height:1.14;font-size:clamp(32px,4.2vw,56px)}
@@ -98,6 +98,10 @@ const details = computed(() => guides[route][lang.value])
 .service-landing-points li{margin-bottom:7px}
 .service-landing-answer{margin:22px 0}
 .service-landing-answer h3{font-size:19px;margin:0 0 8px}
-html.theme-dark .service-landing-page{background:#01081d;color:#fff}
+.service-landing-page .section-tag{color:#b20c2a}
+.service-landing-publisher{color:#565b66}
+:global(html.theme-dark) .service-landing-page{background:#01081d;color:#fff}
+:global(html.theme-dark) .service-landing-page .section-tag{color:#ff647b}
+:global(html.theme-dark) .service-landing-publisher{color:#c4c7d0}
 @media(max-width:700px){.service-landing-main{padding-top:35px;padding-bottom:64px}}
 </style>
