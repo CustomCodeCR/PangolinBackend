@@ -7,7 +7,7 @@ import IconSymbol from '../components/IconSymbol.vue'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import WorldGlobe from '../components/WorldGlobe.vue'
-import { illustrativeRoute } from '../lib/trackingRoute'
+import { illustrativeJourney } from '../lib/trackingRoute'
 import { formatTrackingEquipmentCount, localizeTrackingMode, localizeTrackingStatus } from '../lib/trackingDisplay'
 import FieldDropdown from '../components/FieldDropdown.vue'
 interface DynamicsShipment {
@@ -41,6 +41,8 @@ interface DynamicsShipment {
   companyInvoice: string | null
   shipper: string | null
   customerInstructions: string | null
+  /** Ordered intermediate stops, only when the API actually provides them. */
+  routeStops?: string[] | null
 }
 interface LookupResponse {
   source: 'dynamics'
@@ -119,7 +121,16 @@ watch([() => shipment.value?.customerStatus, en], ([raw, english], _previous, on
   })()
 }, { immediate: true })
 
-const globeRoute = computed(() => shipment.value ? illustrativeRoute(shipment.value) : null)
+const globeRoute = computed(() => {
+  if (!shipment.value) return null
+  const stops = illustrativeJourney(shipment.value)
+  if (stops.length < 2) return null
+  const mode = (shipment.value.mode ?? '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase()
+  const transport = /aere|air|avion/.test(mode) ? 'air'
+    : /marit|sea|ocean|barco/.test(mode) ? 'sea'
+    : /terrest|land|road|truck/.test(mode) ? 'land' : null
+  return { origin: stops[0], destination: stops[stops.length - 1], stops, transport }
+})
 function normalizeJourneyStatus(value: string | null | undefined) {
   return value?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
     .replace(/[-_\/]+/g, ' ').replace(/\s+/g, ' ').trim() ?? ''
