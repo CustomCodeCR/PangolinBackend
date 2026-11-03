@@ -15,6 +15,6 @@ assert.match(source('server/routes/robots.txt.ts'), /GPTBot/, 'Política de entr
 assert.match(source('server/routes/sitemap.xml.ts'), /articlePath/, 'Las noticias deben aparecer en sitemap')
 assert.match(source('app/pages/noticias/[slug].vue'), /statusCode: 404/, 'Noticia inexistente debe devolver HTTP 404')
 assert.match(source('app/pages/servicios/[slug].vue'), /LegacyServiceLanding/, 'Páginas Nuxt deben reutilizar el diseño original')
-assert.match(source('../src/pages/ServiceLanding.vue'), /details\.faq/, 'Las preguntas AEO deben mostrarse en el componente original')
+assert.match(source('app/components/LegacyServiceLanding.vue'), /details\.faq/, 'Las preguntas AEO deben mostrarse en el componente original')
 assert.ok(source('../src/pages/News.vue').includes('sanitizeNewsHtml(') || source('../src/pages/News.vue').includes('activeArticleParagraphs'), 'Las noticias deben renderizar contenido seguro')
 console.log('Contrato estático SEO/GEO/AEO/AIO Nuxt: OK (no sustituye pruebas de build, SSR o navegador)')

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import SiteHeader from '../components/SiteHeader.vue'
-import SiteFooter from '../components/SiteFooter.vue'
-import serviceGuides from '../../seo/service-landings.json'
+import SiteHeader from '@legacy/components/SiteHeader.vue'
+import SiteFooter from '@legacy/components/SiteFooter.vue'
+import serviceGuides from '../../../seo/service-landings.json'
 
 type GuideText = {
   label: string

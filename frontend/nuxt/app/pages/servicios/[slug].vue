@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import LegacyServiceLanding from '@legacy/pages/ServiceLanding.vue'
+import LegacyServiceLanding from '~/components/LegacyServiceLanding.vue'
 import serviceGuides from '../../../../seo/service-landings.json'
 type Guide = (typeof serviceGuides)[keyof typeof serviceGuides]
 const route = useRoute()
