@@ -36,7 +36,11 @@ for width, height, label in [(1440, 900, "desktop"), (390, 844, "mobile")]:
             if width < 1081:
                 wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
             wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".nav-dropdown--services .nav-dropdown__trigger"))).click()
-            wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".services-transport-group__trigger"))).click()
+            transport_trigger = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".services-transport-group__trigger")))
+            # La página actual es un transporte; el menú recuerda esa selección
+            # y normalmente ya lo expande. Un segundo clic lo cerraría.
+            if transport_trigger.get_attribute("aria-expanded") != "true":
+                transport_trigger.click()
             active = wait.until(EC.presence_of_element_located((
                 By.CSS_SELECTOR,
                 '.services-transport-group__submenu a[href*="transporte-maritimo"][aria-current="page"]'
