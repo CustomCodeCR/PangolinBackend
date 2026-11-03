@@ -23,7 +23,7 @@ export default defineNuxtConfig({
   },
   nitro: {
     prerender: {
-      routes: ['/', '/nosotros', '/servicios', '/empresas', ...Object.keys(serviceGuides), ...servicePages.map(page => '/servicios/' + page.slug), ...Object.keys(companies).map(slug => '/empresas/' + slug)]
+      routes: ['/', '/nosotros', '/servicios', '/empresas', '/privacidad', '/terminos', '/cookies', '/licencias', ...Object.keys(serviceGuides), ...servicePages.map(page => '/servicios/' + page.slug), ...Object.keys(companies).map(slug => '/empresas/' + slug)]
     }
   },
   routeRules: {
