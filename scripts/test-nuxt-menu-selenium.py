@@ -15,7 +15,7 @@ ARTIFACTS.mkdir(parents=True, exist_ok=True)
 TRANSPORT_LINKS = 6
 GENERAL_LINKS = 4
 
-for width, height, label in [(1440, 900, "desktop"), (390, 844, "mobile")]:
+for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (390, 844, "mobile")]:
     for theme in ("light", "dark"):
         options = Options()
         for arg in ("--headless=new", "--no-sandbox", "--disable-gpu",
@@ -140,4 +140,4 @@ for width, height, label in [(1440, 900, "desktop"), (390, 844, "mobile")]:
             raise
         finally:
             driver.quit()
-print("PASS all four mega-menu and locale combinations")
+print("PASS all six mega-menu and locale combinations")
