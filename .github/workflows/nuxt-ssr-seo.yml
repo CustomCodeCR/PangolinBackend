@@ -4,9 +4,9 @@ on:
     branches: [main, main-2]
     paths:
       - "frontend/nuxt/**"
-      - "frontend/seo/service-landings.json"
-      - "frontend/seo/companies.json"
-      - "frontend/seo/keyword-map.json"
+      - "frontend/seo/**"
+      - "frontend/src/**"
+      - "frontend/public/**"
       - "compose.nuxt-preview.yaml"
       - "compose.nuxt-hybrid.yaml"
       - "deploy/nuxt-hybrid-gateway.conf"
@@ -15,9 +15,9 @@ on:
     branches: [main, main-2]
     paths:
       - "frontend/nuxt/**"
-      - "frontend/seo/service-landings.json"
-      - "frontend/seo/companies.json"
-      - "frontend/seo/keyword-map.json"
+      - "frontend/seo/**"
+      - "frontend/src/**"
+      - "frontend/public/**"
       - "compose.nuxt-preview.yaml"
       - "compose.nuxt-hybrid.yaml"
       - "deploy/nuxt-hybrid-gateway.conf"
@@ -70,6 +70,18 @@ jobs:
           curl -fsS http://127.0.0.1:3000/sitemap.xml >/tmp/pangolin-sitemap.xml
           grep -q 'almacenamiento-fiscal' /tmp/pangolin-sitemap.xml
           grep -q '/empresas/aduanera-castro-fallas' /tmp/pangolin-sitemap.xml
+          # PR #139: todas las páginas nuevas deben entregar HTML SSR real,
+          # metadatos y estar en el sitemap servido por Nuxt.
+          for slug in transporte-maritimo transporte-terrestre transporte-aereo transporte-internacional transporte-local transporte-panama-costa-rica; do
+            curl -fsS "http://127.0.0.1:3000/servicios/$slug" > /tmp/pangolin-new-service.html
+            grep -q '<h1' /tmp/pangolin-new-service.html
+            grep -q 'service-detail-page' /tmp/pangolin-new-service.html
+            grep -q 'application/ld+json' /tmp/pangolin-new-service.html
+            grep -q "rel=\"canonical\"" /tmp/pangolin-new-service.html
+            grep -q "/servicios/$slug" /tmp/pangolin-sitemap.xml
+          done
+          curl -fsS http://127.0.0.1:3000/llms.txt | grep -q 'transporte-maritimo'
+          curl -fsS http://127.0.0.1:3000/BingSiteAuth.xml | grep -q '3B7ADBDA75E127B245F7E653F3021EE8'
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/home)" = "301"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/servicios/ruta-inexistente)" = "404"
       - name: SSR news and dynamic sitemap integration test
