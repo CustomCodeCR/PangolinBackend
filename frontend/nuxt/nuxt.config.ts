@@ -8,7 +8,7 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   app: {
     head: {
-      link: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon-brand.svg?v=2' }]
+      link: [{ rel: 'icon', type: 'image/png', sizes: '192x192', href: '/favicon.png' }]
     }
   },
   srcDir: 'app/',
