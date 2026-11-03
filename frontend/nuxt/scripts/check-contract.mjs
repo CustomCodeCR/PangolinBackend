@@ -31,6 +31,13 @@ for (const [slug, company] of Object.entries(companies)) {
 assert.match(source('server/routes/sitemap.xml.ts'), /companies/, 'Falta directorio en sitemap')
 assert.match(source('app/pages/empresas/[slug].vue'), /usePublicSeo/, 'Falta SEO empresarial SSR')
 assert.match(source('../src/components/SiteFooter.vue'), /href="\/empresas"/, 'Falta enlazado interno')
+const languageSwitcher = source('../src/components/LanguageSwitcher.vue')
+const languageFlags = source('../src/components/LanguageFlag.vue')
+assert.match(languageSwitcher, /import LanguageFlag/, 'Selector de idioma debe usar banderas SVG propias')
+assert.doesNotMatch(languageSwitcher, /[\u{1F1E6}-\u{1F1FF}]/u, 'Evitar banderas emoji, Windows puede mostrar letras ES/GB')
+assert.match(languageFlags, /viewBox="0 0 30 20"/, 'Banderas SVG deben tener dimensiones predecibles')
+assert.match(languageFlags, /language === 'es'/, 'Falta bandera española')
+assert.match(languageFlags, /#012169/, 'Falta bandera del Reino Unido')
 assert.match(source('nuxt.config.ts'), /ssr:\s*true/, 'Nuxt debe mantener SSR')
 for (const route of ['privacidad', 'terminos', 'cookies', 'licencias']) {
   assert.match(source('app/pages/' + route + '.vue'), /LegacyLegal/, 'Falta migración de página legal: ' + route)
