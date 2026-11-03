@@ -417,8 +417,12 @@ for (const [input, expected] of [
   assert.equal(formatTrackingEquipmentCount(input), expected, 'Cantidad de equipo: ' + input)
 }
 assert.equal(formatTrackingEquipmentCount(null), null, 'No generar una cantidad para datos ausentes')
-assert.match(tracking, /value: formatTrackingEquipmentCount\(data\.equipmentCount\)/, 'La cantidad visible se normaliza sin modificar Dynamics')
-assert.match(tracking, /value: data\.equipmentSize/, 'Conservar tamaño y configuración original de equipo')
+assert.match(tracking, /const quantity = formatTrackingEquipmentCount\(count\)/,
+  'La cantidad visible se normaliza sin modificar Dynamics')
+assert.match(tracking, /const equipmentSize = size\?\.trim\(\)/,
+  'El tamaño de equipo se preserva en el formato combinado')
+assert.match(tracking, /formatEquipmentConfiguration\(data\.equipmentCount, data\.equipmentSize\)/,
+  'La presentación combina cantidad y tamaño sin modificar Dynamics')
 assert.match(tracking, /const displayMode = \(value: string \| null\) => localizeTrackingMode\(value, en\.value \? 'en' : 'es'\)/, 'La modalidad reacciona al idioma seleccionado')
 assert.match(tracking, /const displayStatus = \(value: string \| null\) => localizeTrackingStatus\(value, en\.value \? 'en' : 'es'\)/, 'El estado reacciona al idioma seleccionado')
 assert.match(tracking, /<strong class="tracking-demo-result__status">\{\{ displayStatus\(shipment\.status\) \}\}<\/strong>/, 'Insignia del estado traducida')
