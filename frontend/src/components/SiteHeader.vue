@@ -2,7 +2,7 @@
 import SiteMedia from './SiteMedia.vue'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowUpRight, ChevronDown, Menu, Moon, Settings, Sun, UserRound, X } from '@lucide/vue'
+import { ArrowLeft, ArrowRightLeft, ArrowUpRight, Boxes, ChevronDown, ChevronRight, Globe, LayoutGrid, MapPin, Menu, Moon, Package, Plane, Settings, ShieldCheck, Ship, Sun, Truck, UserRound, Warehouse, X } from '@lucide/vue'
 import LanguageSwitcher from './LanguageSwitcher.vue'
 import serviceGuides from '../../seo/service-landings.json'
 import { servicePages } from '../content/servicePages'
@@ -67,7 +67,7 @@ function closeMenuOnDesktop(event: MediaQueryListEvent) {
 }
 const cargoMenuOpen = ref(false)
 const servicesMenuOpen = ref(false)
-const serviceMenuCategory = ref<'general' | 'transport'>('general')
+const serviceMenuCategory = ref<'transport' | null>('transport')
 const servicesMenuElement = ref<HTMLElement | null>(null)
 // Se inicializa después de hidratar Nuxt, sin acceder a window durante SSR.
 const currentPath = ref('/')
@@ -125,12 +125,44 @@ const transportLinks = computed(() => servicesLinks.value.filter(link => service
 const primaryServicesLinks = computed(() => servicesLinks.value.filter(link => !transportLinks.value.includes(link)))
 const allServicesLink = computed(() => primaryServicesLinks.value.find(link => link.url === '/servicios')!)
 const generalServicesLinks = computed(() => primaryServicesLinks.value.filter(link => link.url !== '/servicios'))
+const generalServiceIcon = (url: string) => ({
+  '/servicios/almacenamiento-fiscal': Warehouse,
+  '/servicios/bodegaje-general': Package,
+  '/servicios/agenciamiento-aduanal': ShieldCheck,
+  '/servicios/consolidadora-de-carga': Boxes
+})[url] ?? Package
+const transportServiceIcon = (url: string) => {
+  const path = url.split('?')[0]
+  if (path.includes('maritimo')) return Ship
+  if (path.includes('aereo')) return Plane
+  if (path.includes('panama-costa-rica')) return ArrowRightLeft
+  if (path.includes('local')) return MapPin
+  if (path.includes('internacional') && !path.includes('terrestre')) return Globe
+  return Truck
+}
 const isCurrentService = (href: string) => href.split('?')[0] === currentPath.value
 const currentTransport = computed(() => transportLinks.value.some(link => isCurrentService(link.url)))
 const isServicePage = computed(() => props.active === 'soluciones' || currentPath.value === '/servicios' || currentPath.value.startsWith('/servicios/'))
 
 function closeServiceMenu() {
   servicesMenuOpen.value = false
+}
+function positionServicesMenu() {
+  if (typeof window === 'undefined') return
+  void nextTick(() => {
+    const menu = servicesMenuElement.value
+    if (!menu) return
+    menu.style.setProperty('--services-menu-shift', '0px')
+    if (window.innerWidth <= 1080) return
+    const bounds = menu.getBoundingClientRect()
+    const rightShift = window.innerWidth - 14 - bounds.right
+    const leftShift = 14 - bounds.left
+    const shift = bounds.right > window.innerWidth - 14 ? rightShift : bounds.left < 14 ? leftShift : 0
+    menu.style.setProperty('--services-menu-shift', `${Math.round(shift)}px`)
+  })
+}
+function onServicesViewportResize() {
+  if (servicesMenuOpen.value) positionServicesMenu()
 }
 function showCurrentService() {
   // En escritorio el panel tiene un único scroll; en móvil el drawer es el
@@ -140,9 +172,11 @@ function showCurrentService() {
     const menu = servicesMenuElement.value
     const active = menu?.querySelector<HTMLElement>('a[aria-current="page"]')
     if (!menu || !active) return
-    const scrollContainer = window.matchMedia('(max-width: 1080px)').matches
-      ? menu.closest<HTMLElement>('.site-header--menu-open') ?? menu.closest<HTMLElement>('.main-nav')
-      : menu
+    const scrollContainer = window.innerWidth <= 800
+      ? menu.closest<HTMLElement>('.site-header--menu-open') ?? menu
+      : window.innerWidth <= 1080
+        ? menu.closest<HTMLElement>('.main-nav') ?? menu
+        : menu
     if (!scrollContainer) return
     const bounds = scrollContainer.getBoundingClientRect()
     const link = active.getBoundingClientRect()
@@ -154,13 +188,25 @@ function toggleServicesMenu() {
   servicesMenuOpen.value = !servicesMenuOpen.value
   cargoMenuOpen.value = false
   if (servicesMenuOpen.value) {
-    serviceMenuCategory.value = currentTransport.value ? 'transport' : 'general'
+    serviceMenuCategory.value = currentTransport.value || (typeof window !== 'undefined' && window.innerWidth > 1080)
+      ? 'transport'
+      : null
+    positionServicesMenu()
     showCurrentService()
   }
 }
-function selectServiceCategory(category: 'general' | 'transport') {
-  serviceMenuCategory.value = category
-  showCurrentService()
+function openTransportCategory() {
+  serviceMenuCategory.value = 'transport'
+  void nextTick(() => {
+    if (typeof window !== 'undefined' && window.innerWidth <= 1080) {
+      servicesMenuElement.value?.querySelector<HTMLElement>('.services-megamenu__back')?.focus()
+    }
+    showCurrentService()
+  })
+}
+function backToServiceCategories() {
+  serviceMenuCategory.value = null
+  void nextTick(() => servicesMenuElement.value?.querySelector<HTMLElement>('.services-megamenu__group-trigger')?.focus())
 }
 const cargoLinks = computed(() => [
   { key: 'embarque', id: 'embarque', url: `/tracking${rolePreviewSuffix.value}`, label: t('navLinks.embarque') },
@@ -219,6 +265,7 @@ watch(expanded, isOpen => {
 onMounted(() => {
   currentPath.value = window.location.pathname.replace(/\/+$/, '') || '/'
   mobileMenuQuery?.addEventListener('change', closeMenuOnDesktop)
+  window.addEventListener('resize', onServicesViewportResize)
   if (!authState.loaded) void refreshSession()
   const savedTheme = localStorage.getItem('castrofallas-theme')
   darkMode.value = savedTheme ? savedTheme === 'dark' : !!systemThemeQuery?.matches
@@ -229,6 +276,7 @@ onMounted(() => {
 onUnmounted(() => {
   unlockMenuBackground()
   mobileMenuQuery?.removeEventListener('change', closeMenuOnDesktop)
+  window.removeEventListener('resize', onServicesViewportResize)
   systemThemeQuery?.removeEventListener('change', applySystemTheme)
   document.removeEventListener('click', handleOutsideClick)
   document.removeEventListener('keydown', handleEscapeKey)
@@ -255,39 +303,52 @@ function toggleTheme() {
           <button class="nav-dropdown__trigger" type="button" aria-controls="site-services-menu" :aria-expanded="servicesMenuOpen" @click="toggleServicesMenu">
             {{ t('navLinks.soluciones') }} <ChevronDown :size="16" class="nav-dropdown__chevron" aria-hidden="true" />
           </button>
-          <div v-show="servicesMenuOpen" id="site-services-menu" ref="servicesMenuElement" class="nav-dropdown__menu services-nav-dropdown__menu services-switcher">
-            <a class="services-switcher__all" :class="{ 'is-current': isCurrentService(allServicesLink.url) }"
-              :href="allServicesLink.url" :aria-current="isCurrentService(allServicesLink.url) ? 'page' : undefined"
-              @click="closeServiceMenu(); expanded = false">
-              <span>{{ allServicesLink.label }}</span>
-              <ArrowUpRight :size="16" aria-hidden="true" />
-            </a>
-            <div class="services-switcher__tabs" role="group" :aria-label="locale.startsWith('en') ? 'Service categories' : 'Categorías de servicios'">
-              <button type="button" class="services-switcher__tab"
-                :class="{ 'is-selected': serviceMenuCategory === 'general' }"
-                :aria-pressed="serviceMenuCategory === 'general'" aria-controls="services-general-panel"
-                @click.stop="selectServiceCategory('general')">
-                {{ locale.startsWith('en') ? 'General' : 'Generales' }}
-              </button>
-              <button type="button" class="services-switcher__tab"
-                :class="{ 'is-selected': serviceMenuCategory === 'transport' }"
-                :aria-pressed="serviceMenuCategory === 'transport'" aria-controls="services-transport-panel"
-                @click.stop="selectServiceCategory('transport')">
-                {{ locale.startsWith('en') ? 'Transport' : 'Transportes' }}
-              </button>
-            </div>
-            <div v-show="serviceMenuCategory === 'general'" id="services-general-panel" class="services-switcher__links">
-              <a v-for="link in generalServicesLinks" :key="link.url" :href="link.url"
+          <div v-show="servicesMenuOpen" id="site-services-menu" ref="servicesMenuElement"
+            class="nav-dropdown__menu services-megamenu" :class="{ 'is-detail-open': serviceMenuCategory === 'transport' }">
+            <div class="services-megamenu__rail" aria-label="Servicios">
+              <p class="services-megamenu__eyebrow">{{ locale.startsWith('en') ? 'SERVICES' : 'SERVICIOS' }}</p>
+              <a class="services-megamenu__rail-link services-megamenu__all" :href="allServicesLink.url"
+                :class="{ 'is-current': isCurrentService(allServicesLink.url) }"
+                :aria-current="isCurrentService(allServicesLink.url) ? 'page' : undefined"
+                @click="closeServiceMenu(); expanded = false">
+                <LayoutGrid :size="19" aria-hidden="true" />
+                <span>{{ allServicesLink.label }}</span>
+              </a>
+              <a v-for="link in generalServicesLinks" :key="link.url"
+                class="services-megamenu__rail-link" :href="link.url"
                 :class="{ 'is-current': isCurrentService(link.url) }"
                 :aria-current="isCurrentService(link.url) ? 'page' : undefined"
-                @click="closeServiceMenu(); expanded = false">{{ link.label }}</a>
+                @click="closeServiceMenu(); expanded = false">
+                <component :is="generalServiceIcon(link.url)" :size="19" aria-hidden="true" />
+                <span>{{ link.label }}</span>
+              </a>
+              <button type="button" class="services-megamenu__rail-link services-megamenu__group-trigger"
+                :class="{ 'is-selected': serviceMenuCategory === 'transport', 'has-current': currentTransport }"
+                :aria-expanded="serviceMenuCategory === 'transport'" aria-controls="services-transport-panel"
+                @click.stop="openTransportCategory">
+                <Truck :size="19" aria-hidden="true" />
+                <span>{{ locale.startsWith('en') ? 'Transport' : 'Transportes' }}</span>
+                <ChevronRight class="services-megamenu__group-chevron" :size="17" aria-hidden="true" />
+              </button>
             </div>
-            <div v-show="serviceMenuCategory === 'transport'" id="services-transport-panel" class="services-switcher__links">
-              <a v-for="link in transportLinks" :key="link.url" :href="link.url"
-                :class="{ 'is-current': isCurrentService(link.url) }"
-                :aria-current="isCurrentService(link.url) ? 'page' : undefined"
-                @click="closeServiceMenu(); expanded = false">{{ link.label }}</a>
-            </div>
+            <section v-show="serviceMenuCategory === 'transport'" id="services-transport-panel"
+              class="services-megamenu__detail"
+              :aria-label="locale.startsWith('en') ? 'Transport options' : 'Opciones de transporte'">
+              <button type="button" class="services-megamenu__back" @click.stop="backToServiceCategories">
+                <ArrowLeft :size="17" aria-hidden="true" />
+                {{ locale.startsWith('en') ? 'Categories' : 'Categorías' }}
+              </button>
+              <p class="services-megamenu__eyebrow">{{ locale.startsWith('en') ? 'TRANSPORT' : 'TRANSPORTES' }}</p>
+              <div class="services-megamenu__links">
+                <a v-for="link in transportLinks" :key="link.url" :href="link.url"
+                  :class="{ 'is-current': isCurrentService(link.url) }"
+                  :aria-current="isCurrentService(link.url) ? 'page' : undefined"
+                  @click="closeServiceMenu(); expanded = false">
+                  <component :is="transportServiceIcon(link.url)" :size="19" aria-hidden="true" />
+                  <span>{{ link.label }}</span>
+                </a>
+              </div>
+            </section>
           </div>
         </div>
         <div v-if="canAccessCargo" class="nav-dropdown" :class="{ 'nav-dropdown--open': cargoMenuOpen, 'nav-dropdown--active': cargoLinks.some(link => props.active === link.id) }">
