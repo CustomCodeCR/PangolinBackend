@@ -61,7 +61,9 @@ for width, height, label in [(1440, 900, "desktop"), (390, 844, "mobile")]:
               };
             """)
             assert measures["dark"] == (theme == "dark"), f"Theme mismatch: {measures}"
-            assert measures["menuLeft"] >= -2 and measures["menuRight"] <= width + 2, f"Menu outside viewport: {measures}"
+            assert measures["menuLeft"] >= 26 and measures["menuRight"] <= width - 26, f"Menu lacks viewport breathing room: {measures}"
+            if width > 1080:
+                assert measures["menuRight"] - measures["menuLeft"] <= 630, f"Desktop menu should be narrower: {measures}"
             assert measures["detailLeft"] >= -2 and measures["detailRight"] <= width + 2, f"Right panel outside viewport: {measures}"
             assert not measures["thirdLevel"], "Right column must contain final links only"
             if width > 1080:
@@ -80,9 +82,23 @@ for width, height, label in [(1440, 900, "desktop"), (390, 844, "mobile")]:
                 back.click()
                 left = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".services-megamenu__rail")))
                 assert len(left.find_elements(By.CSS_SELECTOR, "a")) == GENERAL_LINKS + 1, "Missing top-level services"
+                assert group_button.get_attribute("aria-expanded") == "false", "Back must collapse Transportes"
                 group_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".services-megamenu__group-trigger")))
                 group_button.click()
                 wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "#services-transport-panel")))
+            else:
+                # Desktop: the left Transportes control toggles the right pane.
+                group_button.click()
+                wait.until(lambda d: d.find_element(
+                    By.CSS_SELECTOR, ".services-megamenu__group-trigger"
+                ).get_attribute("aria-expanded") == "false")
+                assert not right.is_displayed(), "Right column remains visible after closing"
+                small = menu.rect
+                assert small["width"] <= 325, f"Collapsed dropdown is too wide: {small}"
+                driver.save_screenshot(str(ARTIFACTS / f"{label}-{theme}-transportes-cerrado.png"))
+                group_button.click()
+                wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "#services-transport-panel")))
+                assert group_button.get_attribute("aria-expanded") == "true", "Transportes did not reopen"
             print(f"PASS mega-menu {label}/{theme}: {measures}", flush=True)
 
             # Preserve the pre-existing Spain/UK SVG flags in Settings.
@@ -99,6 +115,26 @@ for width, height, label in [(1440, 900, "desktop"), (390, 844, "mobile")]:
             assert len(flags) == 2 and all(flag.is_displayed() for flag in flags), "SVG flags not displayed"
             driver.save_screenshot(str(ARTIFACTS / f"{label}-{theme}-idiomas.png"))
             print(f"PASS flags {label}/{theme}", flush=True)
+
+            # A non-transport service opens only the first column; the right
+            # side must not be permanently visible until the user asks for it.
+            driver.get(BASE + "/servicios/bodegaje-general")
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".nav-dropdown--services")))
+            if width <= 800:
+                wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
+            wait.until(EC.element_to_be_clickable((
+                By.CSS_SELECTOR, ".nav-dropdown--services > .nav-dropdown__trigger"
+            ))).click()
+            group = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".services-megamenu__group-trigger")))
+            assert group.get_attribute("aria-expanded") == "false", "Right column opened by default on general service"
+            detail = driver.find_element(By.CSS_SELECTOR, "#services-transport-panel")
+            assert not detail.is_displayed(), "Transport links always visible on general service"
+            assert driver.find_element(By.CSS_SELECTOR,
+                '.services-megamenu__rail a[href*="bodegaje-general"][aria-current="page"]').is_displayed()
+            group.click()
+            wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "#services-transport-panel")))
+            assert group.get_attribute("aria-expanded") == "true", "Manual expand must reveal transport links"
+            print(f"PASS manual expand from general service {label}/{theme}", flush=True)
         except Exception:
             driver.save_screenshot(str(ARTIFACTS / f"debug-{label}-{theme}.png"))
             raise
