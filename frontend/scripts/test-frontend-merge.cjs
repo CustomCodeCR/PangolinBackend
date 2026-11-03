@@ -314,7 +314,7 @@ assert.match(tracking, /class="tracking-demo-result__grid">\s*<div class="tracki
 assert.match(tracking, /<dt>\{\{ en \? 'Transport' : 'Transporte' \}\}/, 'Transporte se conserva')
 assert.match(tracking, /<dt>\{\{ en \? 'Equipment quantity x size' : 'Cantidad x tamaño de equipo' \}\}/,
   'Equipo se muestra como cantidad por tamaño')
-assert.match(tracking, /<dt>\{\{ copy\.status \}\}/, 'Estado se conserva')
+assert.match(tracking, /<strong class="tracking-demo-result__status">\{\{ displayStatus\(shipment\.status\) \}\}<\/strong>/, 'Estado se conserva en la cabecera')
 assert.match(tracking, /\.app-site\.tracking-site \.tracking-demo-result__route \{/,
   'La ruta tiene estilos dedicados')
 assert.match(tracking, /\.app-site\.tracking-site \.tracking-demo-result__pair \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/,
