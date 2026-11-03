@@ -105,6 +105,12 @@ jobs:
         run: docker build --build-arg VITE_OFFICIAL_QUOTES_ENABLED=true -t cf-legacy-preview-smoke -f frontend/Dockerfile frontend
       - name: Test real local hybrid gateway with Chrome (no blank quote screen)
         run: bash scripts/test-nuxt-local-gateway.sh
+      - name: Upload visual checks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuxt-menu-preview
+          path: artifacts/nuxt-hybrid-visual/
       - name: Validate hybrid gateway Nginx config
         run: |
           docker run --rm \
