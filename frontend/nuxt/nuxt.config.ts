@@ -6,6 +6,11 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-07-01',
   ssr: true,
   devtools: { enabled: false },
+  app: {
+    head: {
+      link: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon-brand.svg?v=2' }]
+    }
+  },
   srcDir: 'app/',
   // Reutilizar exactamente las hojas de estilo del sitio actual.
   css: ['@legacy/style.css', '@legacy/styles/frontend6-refinements.css'],
