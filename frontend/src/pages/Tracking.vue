@@ -125,7 +125,7 @@ const globeRoute = computed(() => {
   if (!shipment.value) return null
   const stops = illustrativeJourney(shipment.value)
   if (stops.length < 2) return null
-  const mode = (shipment.value.mode ?? '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase()
+  const mode = (shipment.value.mode ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
   const transport = /aere|air|avion/.test(mode) ? 'air'
     : /marit|sea|ocean|barco/.test(mode) ? 'sea'
     : /terrest|land|road|truck/.test(mode) ? 'land' : null
