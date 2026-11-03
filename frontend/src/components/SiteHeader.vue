@@ -67,7 +67,7 @@ function closeMenuOnDesktop(event: MediaQueryListEvent) {
 }
 const cargoMenuOpen = ref(false)
 const servicesMenuOpen = ref(false)
-const transportMenuOpen = ref(false)
+const serviceMenuCategory = ref<'general' | 'transport'>('general')
 const servicesMenuElement = ref<HTMLElement | null>(null)
 // Se inicializa después de hidratar Nuxt, sin acceder a window durante SSR.
 const currentPath = ref('/')
@@ -123,13 +123,14 @@ const servicesLinks = computed(() => [
 ])
 const transportLinks = computed(() => servicesLinks.value.filter(link => servicePages.some(page => link.url.split('?')[0] === '/servicios/' + page.slug)))
 const primaryServicesLinks = computed(() => servicesLinks.value.filter(link => !transportLinks.value.includes(link)))
+const allServicesLink = computed(() => primaryServicesLinks.value.find(link => link.url === '/servicios')!)
+const generalServicesLinks = computed(() => primaryServicesLinks.value.filter(link => link.url !== '/servicios'))
 const isCurrentService = (href: string) => href.split('?')[0] === currentPath.value
 const currentTransport = computed(() => transportLinks.value.some(link => isCurrentService(link.url)))
 const isServicePage = computed(() => props.active === 'soluciones' || currentPath.value === '/servicios' || currentPath.value.startsWith('/servicios/'))
 
 function closeServiceMenu() {
   servicesMenuOpen.value = false
-  transportMenuOpen.value = false
 }
 function showCurrentService() {
   // En escritorio el panel tiene un único scroll; en móvil el drawer es el
@@ -152,12 +153,14 @@ function showCurrentService() {
 function toggleServicesMenu() {
   servicesMenuOpen.value = !servicesMenuOpen.value
   cargoMenuOpen.value = false
-  transportMenuOpen.value = servicesMenuOpen.value && currentTransport.value
-  if (servicesMenuOpen.value) showCurrentService()
+  if (servicesMenuOpen.value) {
+    serviceMenuCategory.value = currentTransport.value ? 'transport' : 'general'
+    showCurrentService()
+  }
 }
-function toggleTransportMenu() {
-  transportMenuOpen.value = !transportMenuOpen.value
-  if (transportMenuOpen.value) showCurrentService()
+function selectServiceCategory(category: 'general' | 'transport') {
+  serviceMenuCategory.value = category
+  showCurrentService()
 }
 const cargoLinks = computed(() => [
   { key: 'embarque', id: 'embarque', url: `/tracking${rolePreviewSuffix.value}`, label: t('navLinks.embarque') },
@@ -252,22 +255,38 @@ function toggleTheme() {
           <button class="nav-dropdown__trigger" type="button" aria-controls="site-services-menu" :aria-expanded="servicesMenuOpen" @click="toggleServicesMenu">
             {{ t('navLinks.soluciones') }} <ChevronDown :size="16" class="nav-dropdown__chevron" aria-hidden="true" />
           </button>
-          <div v-show="servicesMenuOpen" id="site-services-menu" ref="servicesMenuElement" class="nav-dropdown__menu services-nav-dropdown__menu">
-            <a v-for="link in primaryServicesLinks" :key="link.url" class="services-menu__primary-link"
-              :class="{ 'is-current': isCurrentService(link.url) }" :aria-current="isCurrentService(link.url) ? 'page' : undefined"
-              :href="link.url" @click="closeServiceMenu(); expanded = false">{{ link.label }}</a>
-            <div class="services-transport-group" :class="{ 'is-open': transportMenuOpen, 'is-current-group': currentTransport }">
-              <button class="services-transport-group__trigger" type="button"
-                :aria-expanded="transportMenuOpen" aria-controls="site-services-transport-menu"
-                @click.stop="toggleTransportMenu">
-                {{ locale.startsWith('en') ? 'Transport' : 'Transportes' }}
-                <ChevronDown :size="16" class="services-transport-group__chevron" aria-hidden="true" />
+          <div v-show="servicesMenuOpen" id="site-services-menu" ref="servicesMenuElement" class="nav-dropdown__menu services-nav-dropdown__menu services-switcher">
+            <a class="services-switcher__all" :class="{ 'is-current': isCurrentService(allServicesLink.url) }"
+              :href="allServicesLink.url" :aria-current="isCurrentService(allServicesLink.url) ? 'page' : undefined"
+              @click="closeServiceMenu(); expanded = false">
+              <span>{{ allServicesLink.label }}</span>
+              <ArrowUpRight :size="16" aria-hidden="true" />
+            </a>
+            <div class="services-switcher__tabs" role="group" :aria-label="locale.startsWith('en') ? 'Service categories' : 'Categorías de servicios'">
+              <button type="button" class="services-switcher__tab"
+                :class="{ 'is-selected': serviceMenuCategory === 'general' }"
+                :aria-pressed="serviceMenuCategory === 'general'" aria-controls="services-general-panel"
+                @click.stop="selectServiceCategory('general')">
+                {{ locale.startsWith('en') ? 'General' : 'Generales' }}
               </button>
-              <div v-show="transportMenuOpen" id="site-services-transport-menu" class="services-transport-group__submenu">
-                <a v-for="link in transportLinks" :key="link.url" :href="link.url"
-                  :class="{ 'is-current': isCurrentService(link.url) }" :aria-current="isCurrentService(link.url) ? 'page' : undefined"
-                  @click="closeServiceMenu(); expanded = false">{{ link.label }}</a>
-              </div>
+              <button type="button" class="services-switcher__tab"
+                :class="{ 'is-selected': serviceMenuCategory === 'transport' }"
+                :aria-pressed="serviceMenuCategory === 'transport'" aria-controls="services-transport-panel"
+                @click.stop="selectServiceCategory('transport')">
+                {{ locale.startsWith('en') ? 'Transport' : 'Transportes' }}
+              </button>
+            </div>
+            <div v-show="serviceMenuCategory === 'general'" id="services-general-panel" class="services-switcher__links">
+              <a v-for="link in generalServicesLinks" :key="link.url" :href="link.url"
+                :class="{ 'is-current': isCurrentService(link.url) }"
+                :aria-current="isCurrentService(link.url) ? 'page' : undefined"
+                @click="closeServiceMenu(); expanded = false">{{ link.label }}</a>
+            </div>
+            <div v-show="serviceMenuCategory === 'transport'" id="services-transport-panel" class="services-switcher__links">
+              <a v-for="link in transportLinks" :key="link.url" :href="link.url"
+                :class="{ 'is-current': isCurrentService(link.url) }"
+                :aria-current="isCurrentService(link.url) ? 'page' : undefined"
+                @click="closeServiceMenu(); expanded = false">{{ link.label }}</a>
             </div>
           </div>
         </div>
