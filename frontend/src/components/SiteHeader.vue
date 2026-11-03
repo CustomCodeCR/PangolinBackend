@@ -35,6 +35,10 @@ function lockMenuBackground() {
   previousBodyWidth = document.body.style.width
   previousBodyLeft = document.body.style.left
   previousBodyRight = document.body.style.right
+  // Ocultar la barra de desplazamiento modifica el ancho disponible en
+  // escritorio. Reservar ese espacio antes de fijar el body evita que los
+  // elementos de Nosotros se muevan horizontalmente al abrir el menú.
+  const scrollbarWidth = Math.max(0, window.innerWidth - document.documentElement.clientWidth)
   const background = document.getElementById('app') ?? document.getElementById('__nuxt')
   previousBackgroundInert = background?.inert ?? false
   if (background) background.inert = true
@@ -42,7 +46,7 @@ function lockMenuBackground() {
   document.body.style.top = `-${lockedScrollY}px`
   document.body.style.left = '0'
   document.body.style.right = '0'
-  document.body.style.width = '100%'
+  document.body.style.width = scrollbarWidth ? `calc(100% - ${scrollbarWidth}px)` : '100%'
   document.documentElement.style.overflow = 'hidden'
   document.body.style.overflow = 'hidden'
   backgroundLocked = true
