@@ -1,0 +1,14 @@
+# Opt-in para desarrollo local. Con compose.yaml + compose.nuxt-preview.yaml,
+# expone Nuxt público y Vue privado sin cambiar el frontend ni la producción.
+services:
+  nuxt-local-gateway:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    volumes:
+      - ./deploy/nuxt-local-hybrid-gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "${NUXT_LOCAL_GATEWAY_BIND_IP:-127.0.0.1}:${NUXT_LOCAL_GATEWAY_PORT:-8083}:80"
+    depends_on:
+      - frontend
+      - frontend-nuxt
+      - backend
