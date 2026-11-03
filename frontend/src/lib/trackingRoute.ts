@@ -32,3 +32,22 @@ export function illustrativeRoute(record: {
   if (origin.lat === destination.lat && origin.lon === destination.lon) return null
   return { origin, destination }
 }
+
+/** Uses only named locations actually supplied by Dynamics, with illustrative catalog coordinates.
+ * Unknown locations are skipped, never replaced with invented transit stops. */
+export function illustrativeJourney(record: {
+  origin: string | null; portOfLoading: string | null
+  portOfEntry: string | null; destination: string | null
+  routeStops?: string[] | null
+}): TrackingPoint[] {
+  const supplied = [record.origin, record.portOfLoading, ...(record.routeStops ?? []), record.portOfEntry, record.destination]
+  const points: TrackingPoint[] = []
+  for (const name of supplied) {
+    const point = locate(name)
+    if (!point) continue
+    const last = points[points.length - 1]
+    if (last && last.lat === point.lat && last.lon === point.lon) continue
+    points.push(point)
+  }
+  return points.length >= 2 ? points : []
+}
