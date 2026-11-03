@@ -38,6 +38,10 @@ for width, height, viewport in ((1440, 900, "desktop"), (390, 844, "mobile")):
                     f"GIO missing/duplicated on {route}"
                 )
                 assert mascot.get_attribute("aria-expanded") == "false"
+                wait.until(lambda d: d.execute_script("""
+                  const image = document.querySelector('.site-assistant__figure-base');
+                  return !!image?.complete && image.naturalWidth > 0;
+                """))
                 measures = driver.execute_script("""
                   const root = document.querySelector('.site-assistant__mascot');
                   const bounds = root.getBoundingClientRect();
@@ -72,7 +76,9 @@ for width, height, viewport in ((1440, 900, "desktop"), (390, 844, "mobile")):
                     wait.until(EC.visibility_of_element_located((
                         By.CSS_SELECTOR, ".gio-ops"
                     )))
-                    assert len(driver.find_elements(By.CSS_SELECTOR, ".gio-ops__primary")) >= 0
+                    assert len(driver.find_elements(By.CSS_SELECTOR, ".gio-ops__bar")) == 1, (
+                        f"Existing GIO quote workflow not mounted on {route}"
+                    )
                 panel_rect = driver.execute_script("""
                   const r = document.querySelector('.site-assistant__panel').getBoundingClientRect();
                   return {left:r.left, right:r.right, top:r.top, bottom:r.bottom};
