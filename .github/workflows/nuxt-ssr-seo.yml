@@ -10,6 +10,8 @@ on:
       - "compose.nuxt-preview.yaml"
       - "compose.nuxt-hybrid.yaml"
       - "compose.nuxt-local-hybrid.yaml"
+      - "scripts/test-nuxt-*.sh"
+      - "scripts/test-nuxt-*.py"
       - "deploy/nuxt-local-hybrid-gateway.conf"
       - "deploy/nuxt-hybrid-gateway.conf"
       - ".github/workflows/nuxt-ssr-seo.yml"
@@ -23,6 +25,8 @@ on:
       - "compose.nuxt-preview.yaml"
       - "compose.nuxt-hybrid.yaml"
       - "compose.nuxt-local-hybrid.yaml"
+      - "scripts/test-nuxt-*.sh"
+      - "scripts/test-nuxt-*.py"
       - "deploy/nuxt-local-hybrid-gateway.conf"
       - "deploy/nuxt-hybrid-gateway.conf"
   workflow_dispatch:
