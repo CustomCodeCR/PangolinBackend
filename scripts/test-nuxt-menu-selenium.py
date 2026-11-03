@@ -148,6 +148,49 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (390
             wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "#services-transport-panel")))
             assert group.get_attribute("aria-expanded") == "true", "Manual expand must reveal transport links"
             print(f"PASS manual expand from general service {label}/{theme}", flush=True)
+
+            # Regression: on About, the image/years hero must never paint on
+            # top of the opened phone drawer, even after scrolling the page.
+            # The drawer is teleported to body in Vue and in Nuxt.
+            if width <= 800:
+                driver.get(BASE + "/nosotros")
+                wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".about-image-card")))
+                driver.execute_script("window.scrollTo(0, 180)")
+                before_scroll = driver.execute_script("return window.scrollY")
+                wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
+                wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".site-header--menu-open")))
+                overlay = driver.execute_script("""
+                  const h = document.querySelector('body > .site-header--menu-open');
+                  if (!h) return {error: 'Mobile header was not teleported'};
+                  const r = h.getBoundingClientRect();
+                  const x = Math.round(innerWidth * .75);
+                  const y = Math.round(innerHeight * .65);
+                  const hit = document.elementFromPoint(x, y);
+                  const root = document.getElementById('app') || document.getElementById('__nuxt');
+                  return {
+                    position: getComputedStyle(h).position,
+                    overflowY: getComputedStyle(h).overflowY,
+                    top: r.top, left: r.left, right: r.right, bottom: r.bottom,
+                    viewportWidth: innerWidth, viewportHeight: innerHeight,
+                    coversImagePoint: h === hit || h.contains(hit),
+                    rootInert: !!root?.inert
+                  };
+                """)
+                assert overlay.get("position") == "fixed", f"Mobile drawer is not fixed: {overlay}"
+                assert overlay["top"] >= -2 and overlay["top"] <= 2, f"Drawer starts below viewport: {overlay}"
+                assert overlay["left"] >= -2 and overlay["right"] >= overlay["viewportWidth"] - 2, f"Drawer does not cover viewport width: {overlay}"
+                assert overlay["bottom"] >= overlay["viewportHeight"] - 2, f"Drawer does not cover viewport height: {overlay}"
+                assert overlay["overflowY"] in ("auto", "scroll"), f"Mobile drawer cannot scroll: {overlay}"
+                assert overlay["coversImagePoint"], f"About hero/image appears above mobile drawer: {overlay}"
+                assert overlay["rootInert"], f"Background is interactive while menu is open: {overlay}"
+                driver.save_screenshot(str(ARTIFACTS / f"{label}-{theme}-about-nav-overlay.png"))
+                wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
+                wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, ".site-header--menu-open")))
+                after_scroll = driver.execute_script("return window.scrollY")
+                assert abs(after_scroll - before_scroll) <= 3, (
+                    f"Page scroll changed after mobile menu closed: {before_scroll} => {after_scroll}"
+                )
+                print(f"PASS About mobile overlay {label}/{theme}: {overlay}", flush=True)
         except Exception:
             driver.save_screenshot(str(ARTIFACTS / f"debug-{label}-{theme}.png"))
             raise

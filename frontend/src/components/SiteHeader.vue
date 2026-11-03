@@ -35,7 +35,7 @@ function lockMenuBackground() {
   previousBodyWidth = document.body.style.width
   previousBodyLeft = document.body.style.left
   previousBodyRight = document.body.style.right
-  const background = document.getElementById('app')
+  const background = document.getElementById('app') ?? document.getElementById('__nuxt')
   previousBackgroundInert = background?.inert ?? false
   if (background) background.inert = true
   document.body.style.position = 'fixed'
@@ -56,7 +56,7 @@ function unlockMenuBackground() {
   document.body.style.left = previousBodyLeft
   document.body.style.right = previousBodyRight
   document.body.style.width = previousBodyWidth
-  const background = document.getElementById('app')
+  const background = document.getElementById('app') ?? document.getElementById('__nuxt')
   if (background) background.inert = previousBackgroundInert
   backgroundLocked = false
   if (Math.abs(window.scrollY - lockedScrollY) > 1) window.scrollTo(0, lockedScrollY)

@@ -5629,3 +5629,23 @@ html.theme-dark .site-header .services-transport-group__submenu a:is(:hover, :fo
   width: 100%;
   white-space: normal;
 }
+
+/* La navegación compacta se teletransporta al body al abrirse.
+   Debe tapar la página, no quedar en el flujo del hero ni dejar imágenes
+   de Sobre Nosotros/GIO encima del panel. El único scroll es el del menú. */
+@media (max-width: 800px) {
+  html body > .site-header.site-header--menu-open {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    z-index: 2147482800 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    background: #9f0921 !important;
+  }
+}
