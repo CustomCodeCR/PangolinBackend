@@ -67,7 +67,7 @@ try:
               setTimeout(resolve, 12000);
             })));
             const cssUrls = new Set();
-            const cssUrlPattern = /url\\((?:"([^"]*)"|'([^']*)'|([^)]*))\\)/g;
+            const cssUrlPattern = /url\((?:"([^"]*)"|'([^']*)'|([^)]*))\)/g;
             for (const element of document.querySelectorAll('*')) {
               const bg = getComputedStyle(element).backgroundImage;
               if (!bg || bg === 'none') continue;
