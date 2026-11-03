@@ -78,7 +78,7 @@ const homeNews = computed(() => managedNews.value.filter(article => article.publ
 
 const activeStat = ref(0)
 const newsScroller = ref<HTMLElement | null>(null)
-const unsubscribeComments = subscribeToChanges('comments', () => {
+const unsubscribeComments = typeof window === 'undefined' ? () => {} : subscribeToChanges('comments', () => {
   if (commentsRequested) void loadPublicComments()
 })
 let statsTimer: number | undefined

@@ -9,10 +9,14 @@ import SiteFooter from '../components/SiteFooter.vue'
 import { subscribeToChanges } from '../services/realtime'
 
 // Los enlaces anteriores con article=ID siguen funcionando mientras cada noticia usa una ruta legible.
-const requestedArticleId = new URLSearchParams(window.location.search).get('article')
-const requestedArticleSlug = window.location.pathname.match(/^\/noticias\/([^/]+)\/?$/)?.[1] ?? null
+const props = defineProps<{ initialNews?: ManagedNews[] | null; serverPath?: string }>()
+const currentNewsUrl = typeof window === 'undefined'
+  ? new URL(props.serverPath || '/noticias', 'https://www.logisticacastrofallas.com')
+  : new URL(window.location.href)
+const requestedArticleId = currentNewsUrl.searchParams.get('article')
+const requestedArticleSlug = currentNewsUrl.pathname.match(/^\/noticias\/([^/]+)\/?$/)?.[1] ?? null
 const isArticlePage = Boolean(requestedArticleId || requestedArticleSlug)
-const managedNews = ref<ManagedNews[]>([])
+const managedNews = ref<ManagedNews[]>(props.initialNews ?? [])
 const newsExpirationClock = ref(Date.now())
 const slugifyNewsTitle = (title: string) => title.normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '')
@@ -26,7 +30,7 @@ const articleHref = (id: string) => {
   const article = managedNews.value.find(item => item.id === id)
   return article ? articlePath(article) : '/noticias'
 }
-const newsLoaded = ref(false)
+const newsLoaded = ref(props.initialNews != null)
 const newsError = ref(false)
 const activeStoryIndex = ref(0)
 const emblaViewport = ref<HTMLElement | null>(null)
@@ -132,7 +136,7 @@ const articleStage = ref<HTMLElement | null>(null)
 const articleStoryPanel = ref<HTMLElement | null>(null)
 const articleRevealProgress = computed(() => {
   if (!articleDragging.value) {
-    if (window.matchMedia('(max-width: 720px)').matches) return articleTextOpen.value ? 1 : 0
+    if ((typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches)) return articleTextOpen.value ? 1 : 0
     return articleScrollProgress.value
   }
   const progress = articleTextOpen.value
@@ -142,7 +146,7 @@ const articleRevealProgress = computed(() => {
 })
 let articleScrollFrame = 0
 function updateArticleScrollProgress() {
-  if (window.matchMedia('(max-width: 720px)').matches) {
+  if ((typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches)) {
     articleScrollProgress.value = 0
     return
   }
@@ -164,7 +168,7 @@ function scheduleArticleScrollProgress() {
   })
 }
 const articlePanelMarginTop = computed(() => {
-  const base = window.matchMedia('(max-width: 720px)').matches ? -52 : -86
+  const base = (typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches) ? -52 : -86
   const offset = articleDragging.value
     ? (articleTextOpen.value ? -220 + articleDragOffset.value : articleDragOffset.value)
     : articleTextOpen.value ? -220 : 0
@@ -180,7 +184,7 @@ const articleVisualStyle = computed(() => ({
 }))
 const articleReadingDragMaxHeight = computed(() => {
   if (!articleDragging.value) return undefined
-  const collapsedHeight = window.matchMedia('(max-width: 720px)').matches ? 250 : 235
+  const collapsedHeight = (typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches) ? 250 : 235
   const revealDistance = articleTextOpen.value
     ? Math.max(0, articleDragOffset.value)
     : Math.max(0, -articleDragOffset.value)
@@ -402,8 +406,8 @@ async function loadPublicNews() {
   } catch { if (!disposed && request === requestVersion) newsError.value = true }
   finally { if (!disposed && request === requestVersion) newsLoaded.value = true }
 }
-const unsubscribeNews = subscribeToChanges('news', () => { void loadPublicNews() })
-const unsubscribeSync = subscribeToChanges('sync', () => { void loadPublicNews() })
+const unsubscribeNews = typeof window === 'undefined' ? () => {} : subscribeToChanges('news', () => { void loadPublicNews() })
+const unsubscribeSync = typeof window === 'undefined' ? () => {} : subscribeToChanges('sync', () => { void loadPublicNews() })
 onMounted(() => {
   window.addEventListener('scroll', scheduleArticleScrollProgress, { passive: true })
   window.addEventListener('resize', scheduleArticleScrollProgress, { passive: true })

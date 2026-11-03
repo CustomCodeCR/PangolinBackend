@@ -4,7 +4,7 @@ import { siteVisual } from '../siteCms'
 const props = withDefaults(defineProps<{ slotKey: string; fallback: string; alt?: string; background?: boolean }>(), { alt: '', background: false })
 const visual = computed(() => siteVisual(props.slotKey, props.fallback))
 const isVideo = computed(() => visual.value.kind.startsWith('Video'))
-const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+const reducedMotion = typeof window !== 'undefined' && (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)
 </script>
 <template>
   <video v-if="isVideo" :class="background ? 'cms-background-video' : 'cms-inline-video'" :src="visual.src"  :autoplay="!reducedMotion" muted loop playsinline preload="metadata" :aria-label="alt || 'Video decorativo'" />

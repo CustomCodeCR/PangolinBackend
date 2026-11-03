@@ -1,0 +1,13 @@
+# Overlay opt-in: probar tráfico público Nuxt + rutas privadas originales.
+# Requiere compose.production.yaml + compose.nuxt-preview.yaml.
+services:
+  seo-gateway:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    volumes:
+      - ./deploy/nuxt-hybrid-gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "127.0.0.1:${NUXT_HYBRID_PORT:-8083}:80"
+    depends_on:
+      - frontend
+      - frontend-nuxt

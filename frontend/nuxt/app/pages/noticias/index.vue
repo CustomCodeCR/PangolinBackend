@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import LegacyNews from '@legacy/pages/News.vue'
+import type { ManagedNews } from '@legacy/adminContent'
 import type { PublicNews } from '../../utils/news'
 import { articlePath } from '../../utils/news'
 const { data, error } = await useFetch<PublicNews[]>('/api/public-news', { key: 'public-news', server: true })
@@ -9,20 +11,15 @@ usePublicSeo({
   image: '/images/cover-logistics.jpeg'
 })
 const articles = computed(() => data.value || [])
+
+const legacyNews = computed<ManagedNews[]>(() => articles.value.map(article => ({
+  id: article.id, title: article.title, category: article.category || '',
+  description: article.description || '', body: article.body || '',
+  image: article.image || '/images/cover-logistics.jpeg',
+  published: article.published !== false, author: article.author || undefined,
+  publishedAt: article.publishedAt || null, expiresAt: article.expiresAt || null
+})))
 </script>
 <template>
-  <PublicLayout>
-    <main class="site-main">
-      <p class="eyebrow">Actualidad logística</p>
-      <h1>Noticias y comercio exterior</h1>
-      <p class="lead">Información publicada por Grupo Castro Fallas.</p>
-      <div class="cards"><article v-for="article in articles" :key="article.id" class="tile">
-        <p class="eyebrow">{{ article.category || 'Noticias' }}</p>
-        <h2><a :href="articlePath(article)">{{ article.title }}</a></h2>
-        <time v-if="article.publishedAt" :datetime="article.publishedAt">{{ article.publishedAt.slice(0,10) }}</time>
-        <p>{{ article.description }}</p>
-      </article></div>
-      <p v-if="!articles.length">Todavía no hay noticias publicadas.</p>
-    </main>
-  </PublicLayout>
+  <LegacyNews :initial-news="legacyNews" server-path="/noticias" />
 </template>
