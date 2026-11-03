@@ -18,8 +18,7 @@ defineProps<{ language: 'es' | 'en' }>()
     </g>
   </svg>
   <svg v-else class="language-flag" viewBox="0 0 30 20" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-    <defs><clipPath id="english-flag-frame"><rect width="30" height="20" rx=".2" /></clipPath></defs>
-    <g clip-path="url(#english-flag-frame)">
+    <g>
       <rect width="30" height="20" fill="#012169" />
       <path d="M0 0 30 20M30 0 0 20" stroke="#fff" stroke-width="5.4" />
       <path d="M0 0 30 20M30 0 0 20" stroke="#C8102E" stroke-width="2.2" />
