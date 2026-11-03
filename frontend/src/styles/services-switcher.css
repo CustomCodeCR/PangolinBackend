@@ -1,0 +1,180 @@
+/* Service navigation v2: a compact two-category switcher, shared by Vue/Vite
+   and Nuxt SSR. No nested flyout, no duplicated scrollbars. */
+.site-header .nav-dropdown--services > .nav-dropdown__menu.services-switcher {
+  display: block;
+  width: 326px;
+  max-width: min(326px, calc(100vw - 32px));
+  min-width: 0;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: min(78dvh, 455px);
+  padding: 11px;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  border: 1px solid #ebdce0;
+  border-radius: 16px;
+  background: linear-gradient(150deg, #fff 0%, #fff9fa 100%) !important;
+  box-shadow: 0 16px 42px rgba(31, 6, 18, .18);
+  box-sizing: border-box;
+}
+.site-header .services-switcher__all {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 43px;
+  padding: 10px 12px !important;
+  border: 1px solid #f1e6e8;
+  border-radius: 10px;
+  background: #fff;
+  color: #242631;
+  font-size: 12px !important;
+  font-weight: 850;
+  white-space: normal;
+}
+.site-header .services-switcher__all svg { flex: 0 0 16px; }
+.site-header .services-switcher__all:is(:hover, :focus-visible) { color: #aa0828; background: #fff1f4; }
+.site-header .services-switcher__tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin: 10px 0 7px;
+  padding: 4px;
+  border: 1px solid #eee0e4;
+  border-radius: 11px;
+  background: #f5edf0;
+}
+.site-header .services-switcher__tab {
+  display: block;
+  min-width: 0;
+  min-height: 36px;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #665663;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+  transition: background .18s, color .18s;
+}
+.site-header .services-switcher__tab:is(:hover, :focus-visible) { background: #fff; color: #a40b2d; }
+.site-header .services-switcher__tab.is-selected {
+  color: #fff !important;
+  background: #ad0922 !important;
+  box-shadow: 0 3px 10px rgba(173, 9, 34, .2);
+}
+.site-header .services-switcher__tab:focus-visible,
+.site-header .services-switcher__all:focus-visible,
+.site-header .services-switcher__links a:focus-visible {
+  outline: 2px solid #ec738b;
+  outline-offset: 2px;
+}
+.site-header .services-switcher__links {
+  display: grid;
+  gap: 2px;
+  padding: 2px 0 0;
+  min-width: 0;
+}
+.site-header .services-switcher__links a {
+  display: flex;
+  align-items: center;
+  min-height: 39px;
+  box-sizing: border-box;
+  padding: 9px 11px;
+  border-radius: 9px;
+  color: #28212a;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-decoration: none;
+  white-space: normal;
+  overflow-wrap: break-word;
+  transition: background .16s, color .16s;
+}
+.site-header .services-switcher__links a:is(:hover, :focus-visible) {
+  color: #aa0828;
+  background: #ffedf1;
+}
+.site-header .services-switcher .services-switcher__all.is-current,
+.site-header .services-switcher .services-switcher__links a.is-current {
+  color: #fff !important;
+  background: #ad0922 !important;
+}
+html.theme-dark .site-header .nav-dropdown--services > .nav-dropdown__menu.services-switcher {
+  border-color: rgba(255,255,255,.24);
+  background: linear-gradient(130deg, rgba(8, 17, 38, .98), rgba(49, 12, 35, .98)) !important;
+  box-shadow: 0 16px 42px rgba(0,0,0,.36);
+}
+html.theme-dark .site-header .services-switcher__all {
+  border-color: rgba(255,255,255,.13);
+  background: rgba(255,255,255,.08);
+  color: #fff;
+}
+html.theme-dark .site-header .services-switcher__tabs {
+  border-color: rgba(255,255,255,.1);
+  background: rgba(255,255,255,.08);
+}
+html.theme-dark .site-header .services-switcher__tab { color: #e4dfe4; }
+html.theme-dark .site-header .services-switcher__tab:is(:hover, :focus-visible) {
+  color: #fff;
+  background: rgba(255,255,255,.14);
+}
+html.theme-dark .site-header .services-switcher__links a { color: #fff; }
+html.theme-dark .site-header .services-switcher__links a:is(:hover, :focus-visible),
+html.theme-dark .site-header .services-switcher__all:is(:hover, :focus-visible) {
+  color: #fff;
+  background: rgba(255,255,255,.13);
+}
+/* The phone menu already owns the viewport scroll. Let the service panel
+   grow with its content, so there can never be a second scrollbar inside it. */
+@media (max-width: 1080px) {
+  .site-header .nav-dropdown--services > .nav-dropdown__menu.services-switcher,
+  html.theme-dark .site-header .nav-dropdown--services > .nav-dropdown__menu.services-switcher {
+    position: static !important;
+    inset: auto !important;
+    width: calc(100% - 30px);
+    max-width: none !important;
+    min-width: 0;
+    min-height: 0 !important;
+    max-height: none !important;
+    height: auto !important;
+    margin: 0 15px 8px;
+    padding: 8px;
+    overflow: visible !important;
+    border: 1px solid rgba(255,255,255,.18) !important;
+    border-radius: 14px;
+    background: rgba(16, 20, 46, .54) !important;
+    box-shadow: none !important;
+  }
+  .site-header .services-switcher__tabs {
+    margin: 7px 0 5px;
+    padding: 3px;
+    border-color: rgba(255,255,255,.12);
+    background: rgba(255,255,255,.1);
+  }
+  .site-header .services-switcher__tab,
+  html.theme-dark .site-header .services-switcher__tab { color: #fff; }
+  .site-header .services-switcher__links a,
+  html.theme-dark .site-header .services-switcher__links a,
+  .site-header .services-switcher__all {
+    color: #fff !important;
+  }
+  .site-header .services-switcher__all {
+    background: rgba(255,255,255,.08);
+    border-color: rgba(255,255,255,.14);
+  }
+  .site-header .services-switcher__links a:is(:hover, :focus-visible) {
+    background: rgba(255,255,255,.12) !important;
+    color: #fff !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-header .services-switcher__tab,
+  .site-header .services-switcher__links a { transition: none; }
+}
