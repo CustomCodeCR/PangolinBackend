@@ -28,6 +28,17 @@ PAGES = (
 
 def snapshot(driver, base, route, marker):
     driver.get(base + route)
+    # Guest-only protected routes must complete their authorization redirect
+    # before we inspect the DOM. Otherwise we may sample a half-loaded page.
+    target_paths = (
+        ("/", "/home") if route == "/itinerario"
+        else ("/bienvenidos",) if route.startswith(("/administracion", "/admin/"))
+        else None
+    )
+    if target_paths:
+        WebDriverWait(driver, 25).until(
+            lambda d: urlsplit(d.current_url).path in target_paths
+        )
     # Redirects are asynchronous because the frontend checks /api/auth/me.
     def ready(d):
         state = d.execute_script("""
@@ -75,11 +86,28 @@ def snapshot(driver, base, route, marker):
     if marker:
         assert result["login"] or result["deniedQuote"], f"Guest access exposed restricted content: {base + route}"
         assert not result["quoteFormVisible"], f"Guest could see authenticated quote form: {base + route}"
-    bad_images = [img for img in result["images"] if not img["good"]]
-    # Images may be lazy below fold; avoid treating an unrequested lazy image as a failure.
-    assert all(not img["path"].startswith("/api/content/media/") for img in bad_images), (
-        f"CMS media missing from private route {route}: {bad_images}"
-    )
+    # Redirected public Home has its own full CMS image audit. On private
+    # pages, explicitly decode the published logo instead of confusing
+    # pending lazy loading with a broken file.
+    if result["path"] not in ("/", "/home"):
+        media = driver.execute_async_script("""
+          const done = arguments[arguments.length - 1];
+          const imgs = [...document.images].filter(
+            img => (img.currentSrc || img.src).includes('/api/content/media/')
+          );
+          if (!imgs.length) return done({count:0, broken:[]});
+          Promise.all(imgs.map(img => new Promise(resolve => {
+            img.loading = 'eager';
+            if (img.complete) return resolve();
+            img.addEventListener('load', resolve, {once:true});
+            img.addEventListener('error', resolve, {once:true});
+            setTimeout(resolve, 8000);
+          }))).then(() => done({
+            count: imgs.length,
+            broken: imgs.filter(img => !img.complete || img.naturalWidth < 1).map(img => img.src)
+          }));
+        """)
+        assert not media["broken"], f"CMS media unavailable at {base + route}: {media}"
     return result
 
 for width, height, viewport in ((1280, 900, "desktop"), (390, 844, "mobile")):
