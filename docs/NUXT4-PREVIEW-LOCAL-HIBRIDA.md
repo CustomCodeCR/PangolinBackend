@@ -37,6 +37,47 @@ Si aparece una página blanca:
 
 No publicar ni fusionar por pasar solo pruebas automáticas. Requiere revisión visual real en escritorio, móvil y claro/oscuro y pruebas de sesión/roles, mensajes, tracking y cotizaciones de extremo a extremo.
 
+## Estabilidad de 8083 y diagnóstico de imágenes/502
+
+El gateway local ahora resuelve `frontend-nuxt`, `frontend-legacy-preview` y
+`backend` con el DNS integrado de Docker al usar cada proxy. Antes el Nginx
+memorizaba las IP al iniciar: tras `docker compose up --build` podía conservar
+la IP del contenedor anterior y provocar 502. Además, Compose espera que Nuxt
+y el Vue compilado respondan correctamente antes de iniciar el gateway.
+
+La prueba CI `scripts/test-nuxt-local-gateway.sh`:
+- Prueba las rutas públicas y las vistas privadas actuales sin sesión.
+- Revisa **todos los archivos `/images/*` incluidos en GitHub**, los bundles
+  de Vue/Nuxt y una imagen del CMS servida por la API simulada.
+- Recrea Nuxt con una IP distinta y verifica que 8083 vuelve a responder **sin
+  reiniciar Nginx**. Detecta regresiones que el test de compilación no detecta.
+- Abre páginas reales en Chrome y comprueba imágenes locales, menú y cotizaciones
+  sin sesión. No prueba objetos S3 reales ni la persistencia de un cotizador
+  autenticado: esas verificaciones requieren el entorno del usuario.
+
+### Si aparece un 502 en Windows
+
+Ejecutar en PowerShell, dentro de la rama de la PR, sin compartir el archivo
+`.env`, cookies ni tokens:
+
+```powershell
+$files = @('compose.yaml', 'compose.nuxt-preview.yaml', 'compose.nuxt-local-hybrid.yaml')
+docker compose -f $files[0] -f $files[1] -f $files[2] ps
+docker compose -f $files[0] -f $files[1] -f $files[2] logs --tail=100 nuxt-local-gateway frontend-nuxt frontend-legacy-preview backend
+curl.exe -I http://localhost:8083/
+curl.exe -I http://localhost:8083/images/hero.webp
+curl.exe -I http://localhost:8083/servicios/transporte-maritimo
+```
+
+Si una imagen gestionada por CMS no aparece pero `/images/hero.webp` sí,
+inspeccionar en DevTools → Network **la solicitud exacta** a
+`/api/content/media/<id>/file` y su respuesta. Si falla con 404, 403 o 5xx,
+verificar el backend y el almacenamiento S3/MinIO; no inventar ni reemplazar
+la URL ni borrar registros de la base de datos.
+
+La vista `8082` sigue siendo exclusivamente Nuxt y no sustituye el gateway;
+las rutas privadas y algunas conexiones de API no se prueban en ese puerto.
+
 ## Condiciones para integrar en main-2
 
 - CI completo verde, incluidas pruebas Chrome de login, cotizaciones, activos JS, menús responsive y SSR.
