@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Audit same-origin images in public Nuxt pages using a real Chrome browser.
+"""Audit decoded HTML images, CSS backgrounds and published CMS media on Nuxt.
 
-A normal HTML 200 response does not prove that image URLs load or decode.
-Only test media served by this local stack, not unrelated third-party URLs.
+CSS backgrounds and media selected in the visual editor are intentionally
+tested, not just the default <img> fallbacks.
 """
 import sys
 from pathlib import Path
@@ -13,6 +13,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 BASE = sys.argv[1].rstrip("/")
 ARTIFACTS = Path("artifacts/nuxt-hybrid-visual")
 ARTIFACTS.mkdir(parents=True, exist_ok=True)
+CMS_MEDIA = "/api/content/media/11111111-1111-1111-1111-111111111111/file"
 
 options = Options()
 for arg in ("--headless=new", "--no-sandbox", "--disable-gpu",
@@ -21,21 +22,42 @@ for arg in ("--headless=new", "--no-sandbox", "--disable-gpu",
     options.add_argument(arg)
 
 driver = webdriver.Chrome(options=options)
+driver.set_script_timeout(40)
 try:
     for index, route in enumerate((
         "/", "/nosotros", "/servicios", "/servicios/transporte-maritimo",
         "/servicios/bodegaje-general", "/noticias", "/empresas",
     )):
         driver.get(BASE + route)
-        WebDriverWait(driver, 15).until(
+        WebDriverWait(driver, 20).until(
             lambda d: d.execute_script("return document.readyState") == "complete"
         )
-        result = driver.execute_async_script("""
+        if route == "/":
+            # Verify the CMS-published media actually replaces the fallback in
+            # the Nuxt client, including the hero CSS background.
+            WebDriverWait(driver, 20).until(
+                lambda d: d.execute_script("""
+                  const logo = document.querySelector('a.site-brand img');
+                  const hero = document.querySelector('.home-hero');
+                  return logo?.getAttribute('src')?.includes('/api/content/media/') &&
+                    hero && getComputedStyle(hero).backgroundImage.includes('/api/content/media/');
+                """)
+            )
+        if route == "/servicios":
+            WebDriverWait(driver, 20).until(
+                lambda d: d.execute_script("""
+                  return [...document.querySelectorAll('.complementary-card img')]
+                    .some(img => img.src.includes('/api/content/media/'));
+                """)
+            )
+
+        report = driver.execute_async_script("""
           const done = arguments[arguments.length - 1];
           (async () => {
             const images = [...document.images].filter(img => {
-              const url = new URL(img.currentSrc || img.src || '', location.href);
-              return url.origin === location.origin && url.pathname !== location.pathname;
+              const address = img.currentSrc || img.src;
+              if (!address) return false;
+              return new URL(address, location.href).origin === location.origin;
             });
             for (const img of images) img.loading = 'eager';
             await Promise.all(images.map(img => new Promise(resolve => {
@@ -44,17 +66,49 @@ try:
               img.addEventListener('error', resolve, { once: true });
               setTimeout(resolve, 12000);
             })));
+            const cssUrls = new Set();
+            const cssUrlPattern = /url\\((?:"([^"]*)"|'([^']*)'|([^)]*))\\)/g;
+            for (const element of document.querySelectorAll('*')) {
+              const bg = getComputedStyle(element).backgroundImage;
+              if (!bg || bg === 'none') continue;
+              for (const match of bg.matchAll(cssUrlPattern)) {
+                const raw = (match[1] || match[2] || match[3] || '').trim();
+                if (!raw) continue;
+                const url = new URL(raw, location.href);
+                if (url.origin === location.origin) cssUrls.add(url.href);
+              }
+            }
+            const cssResults = await Promise.all([...cssUrls].map(url => (
+              new Promise(resolve => {
+                const probe = new Image();
+                const timeout = setTimeout(() => resolve({url, good:false}), 12000);
+                probe.onload = () => { clearTimeout(timeout); resolve({url, good:probe.naturalWidth>0}); };
+                probe.onerror = () => { clearTimeout(timeout); resolve({url, good:false}); };
+                probe.src = url;
+              })
+            )));
             done({
-              count: images.length,
+              images: images.length,
+              backgrounds: cssResults.length,
               broken: images.filter(img => !img.complete || img.naturalWidth < 1)
                 .map(img => img.currentSrc || img.src),
-              status: document.title
+              brokenCss: cssResults.filter(item => !item.good).map(item => item.url),
+              cmsHtml: images.filter(img => (img.currentSrc || img.src).includes('/api/content/media/')).length,
+              cmsCss: cssResults.filter(item => item.url.includes('/api/content/media/')).length
             });
           })().catch(e => done({error: String(e)}));
         """)
-        assert not result.get("error"), f"{route}: {result}"
-        assert not result["broken"], f"Broken public media in {route}: {result['broken']}"
+        assert not report.get("error"), f"{route}: {report}"
+        assert not report["broken"], f"Broken images in {route}: {report['broken']}"
+        assert not report["brokenCss"], f"Broken CSS backgrounds in {route}: {report['brokenCss']}"
+        if route == "/":
+            assert report["cmsHtml"] > 0 and report["cmsCss"] > 0, (
+                f"Nuxt failed to render CMS published image and hero background: {report}"
+            )
+        if route == "/servicios":
+            assert report["cmsHtml"] > 0, f"Service CMS media missing: {report}"
         driver.save_screenshot(str(ARTIFACTS / f"image-audit-{index}.png"))
-        print(f"PASS images {route}: {result['count']} local images decoded", flush=True)
+        print(f"PASS media {route}: {report}", flush=True)
 finally:
     driver.quit()
+print("PASS image decoding, CSS backgrounds and CMS-published media on Nuxt")
