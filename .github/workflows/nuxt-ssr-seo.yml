@@ -108,6 +108,14 @@ jobs:
             --add-host frontend-nuxt:127.0.0.1 \
             -v "$PWD/deploy/nuxt-hybrid-gateway.conf:/etc/nginx/conf.d/default.conf:ro" \
             nginx:1.27-alpine nginx -t
+      - name: Check local hybrid preview Nginx syntax
+        run: |
+          docker run --rm \
+            --add-host backend:127.0.0.1 \
+            --add-host frontend:127.0.0.1 \
+            --add-host frontend-nuxt:127.0.0.1 \
+            -v "$PWD/deploy/nuxt-local-hybrid-gateway.conf:/etc/nginx/conf.d/default.conf:ro" \
+            nginx:1.27-alpine nginx -t
       - name: Validate actual AlmaLinux image deployment Compose
         shell: bash
         run: |
