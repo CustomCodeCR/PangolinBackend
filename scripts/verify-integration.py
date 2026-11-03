@@ -155,7 +155,7 @@ profile_styles = read('frontend/src/components/SiteHeader.vue')
 check('const profileTheme = computed(() => darkMode.value ?' in profile_styles
       and ':style="profileTheme"' in profile_styles
       and "'--profile-bg': 'rgba(10,18,40,.48)'" in profile_styles
-      and "'--profile-bg': 'rgba(255,255,255,.64)'" in profile_styles
+      and "'--profile-bg': 'rgba(255,255,255,.96)'" in profile_styles
       and "'--profile-ink': '#ffffff'" in profile_styles
       and 'background: var(--profile-bg, rgba(255,255,255,.64))' in profile_styles
       and 'backdrop-filter: blur(12px)' in profile_styles
