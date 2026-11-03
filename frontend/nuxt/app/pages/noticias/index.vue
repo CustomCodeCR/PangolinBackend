@@ -11,7 +11,6 @@ usePublicSeo({
   image: '/images/cover-logistics.jpeg'
 })
 const articles = computed(() => data.value || [])
-</script>
 
 const legacyNews = computed<ManagedNews[]>(() => articles.value.map(article => ({
   id: article.id, title: article.title, category: article.category || '',
@@ -20,6 +19,7 @@ const legacyNews = computed<ManagedNews[]>(() => articles.value.map(article => (
   published: article.published !== false, author: article.author || undefined,
   publishedAt: article.publishedAt || null, expiresAt: article.expiresAt || null
 })))
+</script>
 <template>
   <LegacyNews :initial-news="legacyNews" server-path="/noticias" />
 </template>

@@ -30,7 +30,6 @@ useSeoMeta({
   ...(article.publishedAt ? { articlePublishedTime: article.publishedAt } : {})
 })
 const body = plainArticleText(article.body || article.description)
-</script>
 
 const legacyNews = computed<ManagedNews[]>(() => (data.value || []).map(item => ({
   id: item.id, title: item.title, category: item.category || '',
@@ -39,6 +38,7 @@ const legacyNews = computed<ManagedNews[]>(() => (data.value || []).map(item => 
   published: item.published !== false, author: item.author || undefined,
   publishedAt: item.publishedAt || null, expiresAt: item.expiresAt || null
 })))
+</script>
 <template>
   <LegacyNews :initial-news="legacyNews" :server-path="path" />
 </template>
