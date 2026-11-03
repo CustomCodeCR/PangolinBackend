@@ -236,9 +236,17 @@ function revealCargoMenu() {
     const menu = cargoMenuElement.value
     if (!drawer || !menu) return
     const frame = drawer.getBoundingClientRect()
-    const links = menu.getBoundingClientRect()
     const bottom = Math.min(frame.bottom, window.innerHeight) - 14
-    if (links.bottom > bottom) drawer.scrollTop += links.bottom - bottom
+    // En ventanas bajas, las tres opciones caben pero Administración y
+    // Cuenta/Configuración quedan debajo del límite visible del header.
+    // Mostrar la última acción del menú, sin desplazar la página de fondo.
+    const lastCargoLink = menu.querySelector<HTMLElement>('a:last-child')
+    const finalActions = drawer.querySelector<HTMLElement>('.header-account-tools')
+    const finalBottom = Math.max(
+      lastCargoLink?.getBoundingClientRect().bottom ?? 0,
+      finalActions?.getBoundingClientRect().bottom ?? 0
+    )
+    if (finalBottom > bottom) drawer.scrollTop += finalBottom - bottom
   })
 }
 function toggleCargoMenu() {

@@ -320,3 +320,63 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896
         finally:
             driver.quit()
 print("PASS all eight mega-menu and locale combinations")
+
+# Short-window regression: browser heights such as the reported 487px cannot
+# fit every navigation row simultaneously. Reveal the Cargo choices AND
+# bottom actions inside the header, never by scrolling the background page.
+for width, height, label in [(896, 590, "compact-short"), (390, 590, "phone-short")]:
+    for theme in ("light", "dark"):
+        options = Options()
+        for arg in ("--headless=new", "--no-sandbox", "--disable-gpu",
+                    "--disable-dev-shm-usage", "--disable-extensions",
+                    "--no-first-run", f"--window-size={width},{height}"):
+            options.add_argument(arg)
+        driver = webdriver.Chrome(options=options)
+        try:
+            driver.set_window_size(width, height)
+            driver.get(BASE + "/cotizaciones")
+            driver.execute_script("localStorage.setItem('castrofallas-theme', arguments[0])", theme)
+            driver.refresh()
+            wait = WebDriverWait(driver, 22)
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".quote-access-status--blocked")))
+            page_scroll_before = driver.execute_script("return window.scrollY")
+            wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
+            wait.until(EC.element_to_be_clickable((
+                By.CSS_SELECTOR,
+                ".main-nav .nav-dropdown:not(.nav-dropdown--services) > button.nav-dropdown__trigger"
+            ))).click()
+            geometry = wait.until(lambda d: d.execute_script("""
+              const header = document.querySelector('body > .site-header--menu-open');
+              const panel = header?.querySelector('.main-nav .nav-dropdown:not(.nav-dropdown--services) > .nav-dropdown__menu');
+              const actions = header?.querySelector('.header-account-tools');
+              const lastCargo = panel?.querySelector('a:last-child');
+              if (!header || !lastCargo || !actions) return false;
+              const b = header.getBoundingClientRect();
+              const maxBottom = Math.min(innerHeight, b.bottom);
+              const cargoRect = lastCargo.getBoundingClientRect();
+              const actionsRect = actions.getBoundingClientRect();
+              if (cargoRect.bottom > maxBottom - 3 || actionsRect.bottom > maxBottom - 3) return false;
+              return {
+                viewportHeight:innerHeight,
+                scrollTop:header.scrollTop,
+                cargoBottom:cargoRect.bottom,
+                actionsBottom:actionsRect.bottom,
+                viewportBottom:maxBottom,
+                documentScroll:window.scrollY,
+                menuPosition:getComputedStyle(header).position,
+                cargoLinks:panel.querySelectorAll('a').length
+              };
+            """))
+            assert geometry["cargoLinks"] == 3, f"Cargo links lost at short viewport: {geometry}"
+            assert geometry["menuPosition"] == "fixed", f"Header shifted into page flow: {geometry}"
+            assert geometry["viewportHeight"] < 500, f"Short viewport simulation not reproduced: {geometry}"
+            assert geometry["scrollTop"] > 0, f"Header failed to scroll towards lower actions: {geometry}"
+            assert abs(geometry["documentScroll"] - page_scroll_before) <= 3, f"Background moved: {geometry}"
+            driver.save_screenshot(str(ARTIFACTS / f"{label}-{theme}-cargo-and-actions-visible.png"))
+            print(f"PASS short viewport Cargo and footer {label}/{theme}: {geometry}", flush=True)
+        except Exception:
+            driver.save_screenshot(str(ARTIFACTS / f"debug-{label}-{theme}-short.png"))
+            raise
+        finally:
+            driver.quit()
+
