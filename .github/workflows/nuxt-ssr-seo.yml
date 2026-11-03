@@ -100,7 +100,11 @@ jobs:
         run: npm run test:ssr-news
         working-directory: frontend/nuxt
       - name: Build Nuxt Alpine Docker image
-        run: docker build -f frontend/nuxt/Dockerfile frontend
+        run: docker build -t cf-nuxt-preview-smoke -f frontend/nuxt/Dockerfile frontend
+      - name: Build compiled Vue preview (same quotes flag as local development)
+        run: docker build --build-arg VITE_OFFICIAL_QUOTES_ENABLED=true -t cf-legacy-preview-smoke -f frontend/Dockerfile frontend
+      - name: Test real local hybrid gateway with Chrome (no blank quote screen)
+        run: bash scripts/test-nuxt-local-gateway.sh
       - name: Validate hybrid gateway Nginx config
         run: |
           docker run --rm \
