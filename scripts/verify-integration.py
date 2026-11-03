@@ -345,4 +345,15 @@ check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('fro
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
 check('VITE_API_PROXY_TARGET' in read('frontend/vite.config.ts'), 'Proxy Docker conservado')
+# PR #142 de main-2: preservar las tarjetas seleccionables del paso 4.
+# Detectar cualquier actualización de Nuxt que vuelva a casillas planas.
+quote_wizard = read('frontend/src/pages/OfficialQuoteWizard.vue')
+check('official-cargo-flags-grid' in quote_wizard
+      and 'cargoFlagIcons' in quote_wizard
+      and 'form.cargoFlags.includes(flag)' in quote_wizard
+      and 'official-service-card--selected' in quote_wizard
+      and "'Carga peligrosa': AlertTriangle" in quote_wizard
+      and "'No estibable': Layers" in quote_wizard
+      and "'Sobrepeso': Scale" in quote_wizard,
+      'Paso 4 mantiene las tres opciones de carga como tarjetas seleccionables de main-2/PR142')
 print('Comprobaciones estáticas de integración finalizadas.')
