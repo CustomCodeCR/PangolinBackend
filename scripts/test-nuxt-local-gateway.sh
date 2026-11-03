@@ -18,7 +18,12 @@ docker run -d --rm --name cf-hybrid-fake-api --network "$network" --network-alia
     res.setHeader("Content-Type","application/json");
     if (req.url.startsWith("/api/auth/me")) { res.writeHead(401); return res.end(JSON.stringify({error:"No autenticado"})); }
     if (req.url.startsWith("/api/content/news")) return res.end("[]");
-    if (req.url.startsWith("/api/content/site")) return res.end("{}");
+    if (req.url.startsWith("/api/content/site")) return res.end(JSON.stringify([
+      {key:"shared.logo.media",mediaSrc:"/api/content/media/11111111-1111-1111-1111-111111111111/file",mediaKind:"Imagen"},
+      {key:"home.about.media",mediaSrc:"/api/content/media/11111111-1111-1111-1111-111111111111/file",mediaKind:"Imagen"},
+      {key:"home.hero.media",mediaSrc:"/api/content/media/11111111-1111-1111-1111-111111111111/file",mediaKind:"Imagen"},
+      {key:"services.complementary.customs.media",mediaSrc:"/api/content/media/11111111-1111-1111-1111-111111111111/file",mediaKind:"Imagen"}
+    ]));
     if (/^\/api\/content\/media\/[0-9a-f-]+\/file$/.test(req.url)) {
       res.setHeader("Content-Type","image/png");
       return res.end(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nAAAAABJRU5ErkJggg==","base64"));
@@ -26,7 +31,9 @@ docker run -d --rm --name cf-hybrid-fake-api --network "$network" --network-alia
     res.writeHead(404); res.end("{}");
   }).listen(5000,"0.0.0.0");
 ' >/dev/null
-docker run -d --rm --name cf-hybrid-vue --network "$network" --network-alias frontend-legacy-preview cf-legacy-preview-smoke >/dev/null
+# Solo para la auditoría: Vue compilado y la vista híbrida desde el mismo host.
+docker run -d --rm --name cf-hybrid-vue --network "$network" --network-alias frontend-legacy-preview \
+  -p 127.0.0.1:18084:80 cf-legacy-preview-smoke >/dev/null
 docker run -d --rm --name cf-hybrid-nuxt --network "$network" --network-alias frontend-nuxt \
   -e NUXT_CMS_API_BASE=http://backend:5000 cf-nuxt-preview-smoke >/dev/null
 docker run -d --rm --name cf-hybrid-gateway --network "$network" -p 127.0.0.1:18083:80 \
@@ -137,4 +144,5 @@ python3 -m venv /tmp/cf-hybrid-selenium
 /tmp/cf-hybrid-selenium/bin/pip install --disable-pip-version-check --quiet selenium==4.38.0
 /tmp/cf-hybrid-selenium/bin/python scripts/test-nuxt-menu-selenium.py "$base"
 /tmp/cf-hybrid-selenium/bin/python scripts/test-nuxt-image-selenium.py "$base"
-echo "PASS SSR + Vue compilado + assets + API + login + cotizaciones + menús + imágenes"
+/tmp/cf-hybrid-selenium/bin/python scripts/test-nuxt-private-parity.py "http://127.0.0.1:18084" "$base"
+echo "PASS SSR + Vue compilado + assets + API + login + cotizaciones + menús + CMS + paridad privada"
