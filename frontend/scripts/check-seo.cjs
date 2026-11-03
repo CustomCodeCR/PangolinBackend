@@ -13,6 +13,7 @@ const services = read('src/pages/Services.vue')
 const footer = read('src/components/SiteFooter.vue')
 const robots = read('public/robots.txt')
 const sitemap = read('public/sitemap.xml')
+const llms = read('public/llms.txt')
 const routes = require('../seo/routes.json')
 const serviceGuides = require('../seo/service-landings.json')
 const serviceRoutes = Object.keys(serviceGuides)
@@ -39,6 +40,9 @@ for (const route of servicePageRoutes) {
   assert.ok(sitemap.includes('<loc>https://www.logisticacastrofallas.com' + route + '</loc>'), 'Nueva ruta sin sitemap: ' + route)
   assert.ok(routes[route] && routes[route].indexable !== false, 'Nueva ruta sin indexación: ' + route)
   assert.ok(root.includes('servicePages'), 'Nueva ruta sin registro Vue: ' + route)
+}
+for (const route of [...serviceRoutes, ...servicePageRoutes]) {
+  assert.ok(llms.includes('https://www.logisticacastrofallas.com' + route), 'Falta ruta indexable de servicio en llms.txt: ' + route)
 }
 const header = read('src/components/SiteHeader.vue')
 assert.ok(header.includes('servicesLinks') && header.includes('servicesMenuOpen'), 'Falta menú desplegable de Servicios')
