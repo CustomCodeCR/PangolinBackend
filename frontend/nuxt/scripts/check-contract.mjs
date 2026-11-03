@@ -6,11 +6,24 @@ const source = f => fs.readFileSync(path.resolve(base, f), 'utf8')
 const companies = JSON.parse(fs.readFileSync(path.resolve(base, '../seo/companies.json'), 'utf8'))
 const keywords = JSON.parse(fs.readFileSync(path.resolve(base, '../seo/keyword-map.json'), 'utf8'))
 const guides = JSON.parse(fs.readFileSync(path.resolve(base, '../seo/service-landings.json'), 'utf8'))
+const newServices = JSON.parse(fs.readFileSync(path.resolve(base, '../seo/service-pages.json'), 'utf8'))
+const serviceFaqs = JSON.parse(fs.readFileSync(path.resolve(base, '../seo/service-faqs.json'), 'utf8'))
 assert.equal(Object.keys(guides).length, 4, 'Se esperaban cuatro guías especializadas')
 for (const [route, guide] of Object.entries(guides)) {
   assert.ok(route.startsWith('/servicios/'), 'Ruta de servicio inválida: ' + route)
   assert.ok(guide.es.title && guide.es.answer && guide.es.faq?.length >= 5, 'Contenido AEO incompleto: ' + route)
 }
+assert.equal(newServices.length, 6, 'La PR139 debe incluir seis páginas nuevas de servicios')
+assert.equal(new Set(newServices.map(item => item.slug)).size, newServices.length, 'Slugs duplicados en servicios')
+for (const item of newServices) {
+  assert.ok(item.slug && item.title?.es && item.title?.en && item.lead?.es, 'Contenido bilingüe de servicio incompleto')
+  assert.ok(serviceFaqs[item.slug]?.length >= 2, 'Faltan preguntas frecuentes en: ' + item.slug)
+}
+assert.match(source('app/pages/servicios/[slug].vue'), /LegacyServiceDetail/, 'Las seis páginas nuevas no tienen renderizado Nuxt')
+assert.match(source('server/routes/sitemap.xml.ts'), /servicePages/, 'Las páginas nuevas faltan del sitemap de Nuxt')
+assert.match(source('nuxt.config.ts'), /servicePages\.map/, 'Las páginas nuevas faltan del prerender')
+assert.match(source('scripts/stage-public.mjs'), /BingSiteAuth.xml/, 'Falta publicar verificación Bing en Nuxt')
+assert.match(source('scripts/stage-public.mjs'), /llms.txt/, 'Falta publicar llms.txt en Nuxt')
 for (const [slug, company] of Object.entries(companies)) {
   assert.ok(company.name && company.description && company.faq?.length >= 2, 'Empresa incompleta: ' + slug)
   assert.ok(keywords['/empresas/' + slug]?.primary, 'Falta palabra clave: ' + slug)
