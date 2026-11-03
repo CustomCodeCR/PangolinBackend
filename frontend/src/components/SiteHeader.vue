@@ -63,7 +63,14 @@ function unlockMenuBackground() {
   const background = document.getElementById('app') ?? document.getElementById('__nuxt')
   if (background) background.inert = previousBackgroundInert
   backgroundLocked = false
-  if (Math.abs(window.scrollY - lockedScrollY) > 1) window.scrollTo(0, lockedScrollY)
+  if (Math.abs(window.scrollY - lockedScrollY) > 1) {
+    // El sitio usa scroll-behavior:smooth. Al cerrar el menú se debe restaurar
+    // de inmediato la posición bloqueada, sin animar el documento de fondo.
+    const previousScrollBehavior = document.documentElement.style.scrollBehavior
+    document.documentElement.style.scrollBehavior = 'auto'
+    window.scrollTo(0, lockedScrollY)
+    document.documentElement.style.scrollBehavior = previousScrollBehavior
+  }
 }
 function closeMenuOnDesktop(event: MediaQueryListEvent) {
   mobileMenuActive.value = event.matches
