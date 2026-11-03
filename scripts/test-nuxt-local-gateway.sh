@@ -74,7 +74,7 @@ done
 media_type="$(curl -fsS -o /dev/null -w '%{content_type}' \
   "$base/api/content/media/11111111-1111-1111-1111-111111111111/file")"
 [[ "$media_type" == image/png* ]] || { echo "FAIL proxy de imágenes CMS" >&2; exit 1; }
-nuxtjs="$(grep -oE '/_nuxt/[^"]+\\.js' /tmp/cf-hybrid-service.html | head -n 1 || true)"
+nuxtjs="$(grep -oE '/_nuxt/[^"]+\.js' /tmp/cf-hybrid-service.html | head -n 1 || true)"
 if [[ -n "$nuxtjs" ]]; then
   curl -fsS "$base$nuxtjs" >/dev/null || { echo "FAIL chunk de Nuxt $nuxtjs" >&2; exit 1; }
 fi
