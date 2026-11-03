@@ -69,6 +69,7 @@ const cargoMenuOpen = ref(false)
 const servicesMenuOpen = ref(false)
 const serviceMenuCategory = ref<'transport' | null>('transport')
 const servicesMenuElement = ref<HTMLElement | null>(null)
+const cargoMenuElement = ref<HTMLElement | null>(null)
 // Se inicializa después de hidratar Nuxt, sin acceder a window durante SSR.
 const currentPath = ref('/')
 const darkMode = ref(false)
@@ -98,7 +99,7 @@ const profileTheme = computed(() => darkMode.value ? {
   '--profile-glow': 'radial-gradient(ellipse at center,rgba(214,14,52,.46) 0%,rgba(178,11,45,.29) 38%,rgba(126,10,34,.13) 58%,transparent 76%)',
   '--profile-shadow': '0 14px 34px rgba(0,0,0,.25)'
 } : {
-  '--profile-bg': 'rgba(255,255,255,.64)',
+  '--profile-bg': 'rgba(255,255,255,.96)',
   '--profile-ink': '#20242b',
   '--profile-muted': '#4d4953',
   '--profile-heading': '#20242b',
@@ -220,6 +221,27 @@ const cargoLinks = computed(() => [
   { key: 'itinerario', id: 'itinerario', url: `/itinerario${rolePreviewSuffix.value}`, label: t('navLinks.itinerario') },
   { key: 'cotizaciones', id: 'cotizaciones', url: `/cotizaciones${rolePreviewSuffix.value}`, label: t('navLinks.cotizaciones') }
 ])
+
+// El drawer tiene scroll propio. Tras desplegar Carga internacional,
+// revelar sus enlaces dentro del header (sin desplazar el documento).
+function revealCargoMenu() {
+  if (typeof window === 'undefined' || window.innerWidth > 1080) return
+  void nextTick(() => {
+    if (!expanded.value || !cargoMenuOpen.value) return
+    const drawer = headerElement.value
+    const menu = cargoMenuElement.value
+    if (!drawer || !menu) return
+    const frame = drawer.getBoundingClientRect()
+    const links = menu.getBoundingClientRect()
+    const bottom = Math.min(frame.bottom, window.innerHeight) - 14
+    if (links.bottom > bottom) drawer.scrollTop += links.bottom - bottom
+  })
+}
+function toggleCargoMenu() {
+  cargoMenuOpen.value = !cargoMenuOpen.value
+  servicesMenuOpen.value = false
+  if (cargoMenuOpen.value) revealCargoMenu()
+}
 async function logout() {
   if (loggingOut.value) return
   loggingOut.value = true
@@ -359,10 +381,10 @@ function toggleTheme() {
           </div>
         </div>
         <div v-if="canAccessCargo" class="nav-dropdown" :class="{ 'nav-dropdown--open': cargoMenuOpen, 'nav-dropdown--active': cargoLinks.some(link => props.active === link.id) }">
-          <button class="nav-dropdown__trigger" type="button" :aria-expanded="cargoMenuOpen" @click="cargoMenuOpen = !cargoMenuOpen; servicesMenuOpen = false">
+          <button class="nav-dropdown__trigger" type="button" :aria-expanded="cargoMenuOpen" @click="toggleCargoMenu">
             {{ t('navLinks.embarque') }} <ChevronDown :size="16" class="nav-dropdown__chevron" aria-hidden="true" />
           </button>
-          <div v-if="cargoMenuOpen" class="nav-dropdown__menu">
+          <div v-if="cargoMenuOpen" ref="cargoMenuElement" class="nav-dropdown__menu">
             <a v-for="link in cargoLinks" :key="link.id" :href="link.url" @click="cargoMenuOpen = false; expanded = false">{{ link.label }}</a>
           </div>
         </div>
@@ -616,3 +638,4 @@ html:not(.theme-dark) .app-site.official-page > .site-header.site-header--quotes
 </style>
 <style src="../styles/mobile-navigation.css"></style>
 <style src="../styles/services-switcher.css"></style>
+<style src="../styles/nav-panel-surfaces.css"></style>

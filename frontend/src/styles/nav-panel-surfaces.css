@@ -1,0 +1,92 @@
+/* Shared palette for the dropdown cards in the site navigation.
+   Light follows Configuración's near-white glass and red halo.
+   Dark follows Cuenta's translucent navy with the same restrained halo.
+   Widths, mobile drawer layout and the parent menu's scroll remain intact. */
+.site-header {
+  --nav-panel-base: rgba(255, 255, 255, .96);
+  --nav-panel-border: #f0e5e7;
+  --nav-panel-ink: #20242b;
+  --nav-panel-muted: #5c5860;
+  --nav-panel-hover: rgba(178, 11, 45, .10);
+  --nav-panel-halo: rgba(214, 14, 52, .24);
+}
+html.theme-dark .site-header {
+  --nav-panel-base: rgba(10, 18, 40, .48);
+  --nav-panel-border: rgba(255, 255, 255, .24);
+  --nav-panel-ink: #fff;
+  --nav-panel-muted: #d6d9e4;
+  --nav-panel-hover: rgba(255, 255, 255, .12);
+  --nav-panel-halo: rgba(214, 14, 52, .42);
+}
+
+/* Override the old solid-red Cargo and permanently dark Services surfaces.
+   Keep the megamenu's static position and overflow rules on small screens. */
+html:not(.theme-dark) .site-header .nav-dropdown > .nav-dropdown__menu,
+html.theme-dark .site-header .nav-dropdown > .nav-dropdown__menu,
+html:not(.theme-dark) .site-header.site-header--menu-open .main-nav.main-nav--open .nav-dropdown > .nav-dropdown__menu,
+html.theme-dark .site-header.site-header--menu-open .main-nav.main-nav--open .nav-dropdown > .nav-dropdown__menu {
+  border: 1px solid var(--nav-panel-border) !important;
+  background: radial-gradient(ellipse 85% 95% at 19% 20%, var(--nav-panel-halo), transparent 74%),
+              var(--nav-panel-base) !important;
+  color: var(--nav-panel-ink) !important;
+  box-shadow: 0 14px 34px rgba(10, 8, 28, .18) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(125%) !important;
+  backdrop-filter: blur(18px) saturate(125%) !important;
+  isolation: isolate;
+}
+html.theme-dark .site-header .nav-dropdown > .nav-dropdown__menu,
+html.theme-dark .site-header.site-header--menu-open .main-nav.main-nav--open .nav-dropdown > .nav-dropdown__menu {
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .28) !important;
+}
+
+/* All links and service category buttons follow the card's readable ink.
+   The current page stays white when marked with the corporate red pill. */
+html:not(.theme-dark) .site-header .nav-dropdown__menu a:not(.is-current),
+html:not(.theme-dark) .site-header .nav-dropdown__menu .services-megamenu__group-trigger,
+html:not(.theme-dark) .site-header.site-header--menu-open .main-nav.main-nav--open .nav-dropdown__menu a:not(.is-current),
+html:not(.theme-dark) .site-header.site-header--menu-open .main-nav.main-nav--open .nav-dropdown__menu .services-megamenu__group-trigger {
+  color: #20242b !important;
+  -webkit-text-fill-color: #20242b !important;
+}
+html:not(.theme-dark) .site-header .nav-dropdown__menu a.is-current {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html.theme-dark .site-header .nav-dropdown__menu a,
+html.theme-dark .site-header .nav-dropdown__menu .services-megamenu__group-trigger {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html:not(.theme-dark) .site-header .nav-dropdown__menu a:not(.is-current):is(:hover, :focus-visible),
+html:not(.theme-dark) .site-header .nav-dropdown__menu .services-megamenu__group-trigger:is(:hover, :focus-visible) {
+  background: var(--nav-panel-hover) !important;
+  color: #a30a29 !important;
+  -webkit-text-fill-color: #a30a29 !important;
+}
+html.theme-dark .site-header .nav-dropdown__menu a:is(:hover, :focus-visible),
+html.theme-dark .site-header .nav-dropdown__menu .services-megamenu__group-trigger:is(:hover, :focus-visible) {
+  background: var(--nav-panel-hover) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html:not(.theme-dark) .site-header .services-megamenu__eyebrow { color: #655f69 !important; }
+html.theme-dark .site-header .services-megamenu__eyebrow { color: #d6d9e4 !important; }
+
+/* Cuenta already owns the dark palette; make its light surface just as white
+   as Configuración. Give Configuración the Cuenta surface when dark. */
+html.theme-dark .site-header .header-settings__panel {
+  --settings-surface: rgba(10,18,40,.48);
+  --settings-ink: #fff;
+  border-color: var(--nav-panel-border) !important;
+  box-shadow: 0 14px 34px rgba(0,0,0,.28);
+}
+
+/* News / story headers normally use transparent hero overlays.
+   Only the OPEN compact menu must be an opaque red surface. An existing
+   News.vue dark-mode rule must never change its position to absolute. */
+@media (max-width: 1080px) {
+  html body > .site-header.site-header--menu-open.site-header--overlay {
+    background: #9f0921 !important;
+    background-image: none !important;
+  }
+}
