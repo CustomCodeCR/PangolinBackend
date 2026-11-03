@@ -58,6 +58,7 @@ try {
   assert.equal(page.status, 200)
   const html = await page.text()
   assert.match(html, /Logística Costa Rica/)
+  assert.match(html, /news-article-page/)
   assert.match(html, /documentación aduanera/)
   assert.match(html, /application\/ld\+json/)
   assert.match(html, /schema.org/)
