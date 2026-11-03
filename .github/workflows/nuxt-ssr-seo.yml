@@ -55,3 +55,8 @@ jobs:
           curl -fsS http://127.0.0.1:3000/sitemap.xml | grep -q 'almacenamiento-fiscal'
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/home)" = "301"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/servicios/ruta-inexistente)" = "404"
+      - name: SSR news and dynamic sitemap integration test
+        run: npm run test:ssr-news
+        working-directory: frontend/nuxt
+      - name: Build Nuxt Alpine Docker image
+        run: docker build -f frontend/nuxt/Dockerfile frontend
