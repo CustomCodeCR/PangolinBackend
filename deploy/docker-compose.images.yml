@@ -66,6 +66,45 @@ services:
       - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-www.service=${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin"
       - "traefik.http.services.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin.loadbalancer.server.port=80"
 
+
+  # Nuxt SSR sirve páginas públicas y comparte backend/API internos.
+  frontend-nuxt:
+    image: ghcr.io/customcodecr/pangolinbackend/nuxt:${PANGOLIN_IMAGE_TAG:?Definir PANGOLIN_IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      NUXT_CMS_API_BASE: "http://backend:5000"
+      NUXT_PUBLIC_SITE_URL: "https://${FENNEC_WWW_HOST:?Definir FENNEC_WWW_HOST}"
+    networks:
+      - pangolin-internal
+    depends_on:
+      - backend
+    ports:
+      - "127.0.0.1:${PANGOLIN_NUXT_LOCAL_PORT:-8182}:3000"
+
+  # Gateway híbrido: Nuxt público, SPA legacy para sesión/cotizaciones/tracking.
+  # Activación independiente después de pasar la validación interna.
+  seo-gateway:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    volumes:
+      - "${PANGOLIN_GATEWAY_CONFIG_PATH:-/opt/dhole/pangolin-release/nuxt-hybrid-gateway.conf}:/etc/nginx/conf.d/default.conf:ro"
+    networks:
+      - pangolin-internal
+      - dhole
+    ports:
+      - "127.0.0.1:${PANGOLIN_HYBRID_LOCAL_PORT:-8183}:80"
+    depends_on:
+      - frontend
+      - frontend-nuxt
+    labels:
+      - "traefik.enable=${PANGOLIN_NUXT_TRAEFIK_ENABLED:-false}"
+      - "traefik.docker.network=${DHOLE_NETWORK:-dhole}"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-nuxt-www.rule=Host(`${FENNEC_WWW_HOST:?Definir FENNEC_WWW_HOST}`)"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-nuxt-www.entrypoints=web"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-nuxt-www.priority=1100"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-nuxt-www.service=${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-nuxt"
+      - "traefik.http.services.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-nuxt.loadbalancer.server.port=80"
+
 networks:
   pangolin-internal: {}
   dhole:
