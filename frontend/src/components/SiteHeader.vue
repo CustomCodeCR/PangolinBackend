@@ -547,3 +547,4 @@ html:not(.theme-dark) .app-site.official-page > .site-header.site-header--quotes
 }
 </style>
 <style src="../styles/mobile-navigation.css"></style>
+<style src="../styles/services-switcher.css"></style>
