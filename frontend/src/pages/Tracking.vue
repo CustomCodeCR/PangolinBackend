@@ -487,8 +487,8 @@ onBeforeUnmount(() => {
               </section>
               <div class="tracking-demo-result__grid">
                 <div class="tracking-demo-result__pair">
-                  <dl class="tracking-demo-result__field tracking-demo-result__field--with-equipment"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="truck" :size="17" /></span><dt>{{ en ? 'Transport' : 'Transporte' }}</dt><dd>{{ displayMode(shipment.mode) }}</dd><template v-if="equipmentConfiguration"><dt class="tracking-demo-result__equipment-label">{{ en ? 'Equipment quantity x size' : 'Cantidad x tamaño de equipo' }}</dt><dd class="tracking-demo-result__equipment-value">{{ equipmentConfiguration }}</dd></template></dl>
-                  <dl class="tracking-demo-result__field"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="✓" :size="17" /></span><dt>{{ copy.status }}</dt><dd>{{ displayStatus(shipment.status) }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="truck" :size="17" /></span><dt>{{ en ? 'Transport' : 'Transporte' }}</dt><dd>{{ displayMode(shipment.mode) }}</dd></dl>
+                  <dl v-if="equipmentConfiguration" class="tracking-demo-result__field"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="container" :size="17" /></span><dt>{{ en ? 'Equipment quantity x size' : 'Cantidad x tamaño de equipo' }}</dt><dd>{{ equipmentConfiguration }}</dd></dl>
                 </div>
                 <div class="tracking-demo-result__pair">
                   <dl class="tracking-demo-result__field"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="⚓" :size="17" /></span><dt>{{ en ? 'Port of loading' : 'Puerto de salida' }}</dt><dd>{{ shipment.portOfLoading || '—' }}</dd></dl>
@@ -1044,22 +1044,6 @@ html.theme-dark .app-site.tracking-site
   grid-row: 2;
   margin: 4px 0 0 !important;
   font-size: 15px;
-}
-.app-site.tracking-site .tracking-demo-result__field--with-equipment {
-  grid-template-rows: auto auto auto auto;
-}
-.app-site.tracking-site .tracking-demo-result__field--with-equipment .tracking-demo-result__field-icon {
-  grid-row: 1 / span 4;
-  align-self: center;
-}
-.app-site.tracking-site .tracking-demo-result__field--with-equipment .tracking-demo-result__equipment-label {
-  grid-row: 3;
-  align-self: end;
-  margin-top: 10px;
-}
-.app-site.tracking-site .tracking-demo-result__field--with-equipment .tracking-demo-result__equipment-value {
-  grid-row: 4;
-  margin-top: 4px !important;
 }
 .app-site.tracking-site .tracking-demo-result__extra .tracking-demo-result__grid { margin-top: 14px; }
 .app-site.tracking-site .tracking-demo-result__extra h4 { margin-bottom: 4px; }
