@@ -15,7 +15,7 @@ ARTIFACTS.mkdir(parents=True, exist_ok=True)
 TRANSPORT_LINKS = 6
 GENERAL_LINKS = 4
 
-for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (390, 844, "mobile")]:
+for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896, 800, "compact"), (390, 844, "mobile")]:
     for theme in ("light", "dark"):
         options = Options()
         for arg in ("--headless=new", "--no-sandbox", "--disable-gpu",
@@ -30,7 +30,7 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (390
             driver.refresh()
             wait = WebDriverWait(driver, 22)
             wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".nav-dropdown--services")))
-            if width <= 800:
+            if width <= 1080:
                 wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
             wait.until(EC.element_to_be_clickable((
                 By.CSS_SELECTOR, ".nav-dropdown--services > .nav-dropdown__trigger"
@@ -38,7 +38,7 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (390
             menu = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".services-megamenu")))
             # The phone drawer slides in for 240 ms. Check its FINAL geometry,
             # not the temporary off-screen position during the entrance.
-            if width <= 800:
+            if width <= 1080:
                 wait.until(lambda d: d.execute_script("""
                   const h = document.querySelector('.site-header--menu-open');
                   if (!h) return false;
@@ -50,7 +50,7 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (390
             assert group_button.get_attribute("aria-expanded") == "true", "Transportes should open on current transport page"
             right = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#services-transport-panel")))
             assert len(right.find_elements(By.TAG_NAME, "a")) == TRANSPORT_LINKS, "Transport destinations missing"
-            assert len(right.find_elements(By.TAG_NAME, "button")) == 1 if width <= 800 else True
+            assert len(right.find_elements(By.TAG_NAME, "button")) == 1 if width <= 1080 else True
             active = right.find_element(By.CSS_SELECTOR, 'a[href*="transporte-maritimo"][aria-current="page"]')
             assert active.is_displayed(), "Current transport not displayed"
 
@@ -133,7 +133,7 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (390
             # side must not be permanently visible until the user asks for it.
             driver.get(BASE + "/servicios/bodegaje-general")
             wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".nav-dropdown--services")))
-            if width <= 800:
+            if width <= 1080:
                 wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
             wait.until(EC.element_to_be_clickable((
                 By.CSS_SELECTOR, ".nav-dropdown--services > .nav-dropdown__trigger"
@@ -152,7 +152,7 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (390
             # Regression: on About, the image/years hero must never paint on
             # top of the opened phone drawer, on the About landing screen.
             # The drawer is teleported to body in Vue and in Nuxt.
-            if width <= 800:
+            if width <= 1080:
                 driver.get(BASE + "/nosotros")
                 wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".about-image-card")))
                 driver.execute_script("document.documentElement.style.scrollBehavior = 'auto'; window.scrollTo(0, 0)")
@@ -196,4 +196,4 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (390
             raise
         finally:
             driver.quit()
-print("PASS all six mega-menu and locale combinations")
+print("PASS all eight mega-menu and locale combinations")

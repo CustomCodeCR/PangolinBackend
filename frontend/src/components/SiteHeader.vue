@@ -13,7 +13,7 @@ const { t, locale } = useI18n({ useScope: 'global' })
 const expanded = ref(false)
 const headerElement = ref<HTMLElement | null>(null)
 const menuToggle = ref<HTMLButtonElement | null>(null)
-const mobileMenuQuery = typeof window === 'undefined' ? null : window.matchMedia('(max-width: 800px)')
+const mobileMenuQuery = typeof window === 'undefined' ? null : window.matchMedia('(max-width: 1080px)')
 const mobileMenuActive = ref(mobileMenuQuery?.matches ?? false)
 let lockedScrollY = 0
 let previousHtmlOverflow = ''
@@ -174,11 +174,9 @@ function showCurrentService() {
     const menu = servicesMenuElement.value
     const active = menu?.querySelector<HTMLElement>('a[aria-current="page"]')
     if (!menu || !active) return
-    const scrollContainer = window.innerWidth <= 800
+    const scrollContainer = window.innerWidth <= 1080
       ? menu.closest<HTMLElement>('.site-header--menu-open') ?? menu
-      : window.innerWidth <= 1080
-        ? menu.closest<HTMLElement>('.main-nav') ?? menu
-        : menu
+      : menu
     if (!scrollContainer) return
     const bounds = scrollContainer.getBoundingClientRect()
     const link = active.getBoundingClientRect()
