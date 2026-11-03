@@ -9,6 +9,8 @@ on:
       - "frontend/public/**"
       - "compose.nuxt-preview.yaml"
       - "compose.nuxt-hybrid.yaml"
+      - "compose.nuxt-local-hybrid.yaml"
+      - "deploy/nuxt-local-hybrid-gateway.conf"
       - "deploy/nuxt-hybrid-gateway.conf"
       - ".github/workflows/nuxt-ssr-seo.yml"
   pull_request:
@@ -20,6 +22,8 @@ on:
       - "frontend/public/**"
       - "compose.nuxt-preview.yaml"
       - "compose.nuxt-hybrid.yaml"
+      - "compose.nuxt-local-hybrid.yaml"
+      - "deploy/nuxt-local-hybrid-gateway.conf"
       - "deploy/nuxt-hybrid-gateway.conf"
   workflow_dispatch:
 permissions:
