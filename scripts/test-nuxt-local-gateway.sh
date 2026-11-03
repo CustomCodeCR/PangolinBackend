@@ -26,7 +26,7 @@ docker run -d --rm --name cf-hybrid-fake-api --network "$network" --network-alia
     ]));
     if (/^\/api\/content\/media\/[0-9a-f-]+\/file$/.test(req.url)) {
       res.setHeader("Content-Type","image/png");
-      return res.end(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nAAAAABJRU5ErkJggg==","base64"));
+      return res.end(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGPcyG/IwMDAxMDAwMDAAAAL9gD1Qc+05AAAAABJRU5ErkJggg==","base64"));
     }
     res.writeHead(404); res.end("{}");
   }).listen(5000,"0.0.0.0");
