@@ -3,13 +3,13 @@
    Shared by Vue/Vite and Nuxt SSR; no third level or inner mobile scrollbar. */
 .site-header .nav-dropdown--services > .nav-dropdown__menu.services-megamenu {
   display: grid;
-  grid-template-columns: minmax(228px, .92fr) minmax(280px, 1.08fr);
+  grid-template-columns: minmax(224px, .95fr) minmax(260px, 1.05fr);
   gap: 0;
   position: absolute;
   top: calc(100% + 10px);
   left: 0;
-  width: 690px;
-  max-width: calc(100vw - 28px);
+  width: 622px;
+  max-width: calc(100vw - 56px);
   max-height: min(82dvh, 545px);
   min-width: 0;
   min-height: 0;
@@ -26,6 +26,12 @@
   box-sizing: border-box;
   transform: translateX(var(--services-menu-shift, 0px));
   z-index: 12002;
+}
+/* Without Transportes expanded only the primary navigation column is shown. */
+.site-header .nav-dropdown--services > .nav-dropdown__menu.services-megamenu:not(.is-detail-open) {
+  grid-template-columns: minmax(0, 1fr);
+  width: 315px;
+  max-width: calc(100vw - 56px);
 }
 .site-header .nav-dropdown__menu.services-megamenu::before { content: none !important; }
 .site-header .services-megamenu__rail,
@@ -106,7 +112,13 @@
 .site-header .services-megamenu__group-trigger {
   grid-template-columns: 23px minmax(0,1fr) 16px;
 }
-.site-header .services-megamenu__group-chevron { justify-self: end; }
+ .site-header .services-megamenu__group-chevron {
+  justify-self: end;
+  transition: transform .18s ease;
+}
+.site-header .services-megamenu.is-detail-open .services-megamenu__group-chevron {
+  transform: rotate(90deg);
+}
 .site-header .services-megamenu__links {
   display: grid;
   gap: 2px;
@@ -153,7 +165,7 @@ html.theme-dark .site-header .services-megamenu__rail-link.is-current {
     position: static !important;
     inset: auto !important;
     transform: none !important;
-    width: calc(100% - 30px);
+    width: calc(100% - 30px) !important;
     max-width: none !important;
     min-width: 0;
     min-height: 0 !important;
@@ -168,6 +180,11 @@ html.theme-dark .site-header .services-megamenu__rail-link.is-current {
     box-shadow: none !important;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+  }
+  /* The compact menu must keep the drawer width whether detail is open or not. */
+  .site-header .nav-dropdown--services > .nav-dropdown__menu.services-megamenu:not(.is-detail-open) {
+    width: calc(100% - 30px) !important;
+    max-width: none !important;
   }
   .site-header .services-megamenu__rail { padding: 0; }
   .site-header .services-megamenu__detail {
