@@ -5,7 +5,6 @@ COPY ./public ./public
 COPY ./nuxt ./nuxt
 WORKDIR /workspace/nuxt
 RUN npm install --no-audit --no-fund
-RUN mkdir -p public && cp -r ../public/images public/images && cp ../public/favicon.png public/favicon.png
 RUN npm run build
 
 FROM node:22-alpine
