@@ -35,6 +35,10 @@ def snapshot(driver, base, route):
       return document.querySelector('a.site-brand img')?.getAttribute('src')
         ?.includes('/api/content/media/');
     """))
+    WebDriverWait(driver, 20).until(lambda d: d.execute_script("""
+      return document.querySelectorAll('button.site-assistant__mascot').length === 1 &&
+        document.querySelectorAll('button.scroll-progress-button').length === 1;
+    """))
     result = driver.execute_script("""
       const heading = document.querySelector('h1');
       const normalize = s => (s || '').trim().replace(/\s+/g, ' ');
@@ -55,6 +59,8 @@ def snapshot(driver, base, route):
         serviceLinks: unique.filter(x => x.startsWith('/servicios/')),
         authLinks: unique.filter(x => ['/bienvenidos','/cotizaciones','/tracking'].includes(x)),
         logoCms: logo?.getAttribute('src')?.includes('/api/content/media/') || false,
+        gioCount: document.querySelectorAll('button.site-assistant__mascot').length,
+        progressCount: document.querySelectorAll('button.scroll-progress-button').length,
         heroCms: hero ? getComputedStyle(hero).backgroundImage.includes('/api/content/media/') : null,
         errorScreen: /502 Bad Gateway|503 Service Unavailable|404 · Página no encontrada/.test(
           document.body.innerText.slice(0, 400)
@@ -81,6 +87,12 @@ try:
         new = snapshot(driver, HYBRID, route)
         if index < 4:
             driver.save_screenshot(str(ARTIFACTS / f"public-nuxt-{index}.png"))
+        assert old["gioCount"] == new["gioCount"] == 1, (
+            f"GIO missing or duplicated on {route}: legacy={old['gioCount']}, hybrid={new['gioCount']}"
+        )
+        assert old["progressCount"] == new["progressCount"] == 1, (
+            f"Scroll-progress control missing or duplicated on {route}"
+        )
         assert old["h1"] == new["h1"], (
             f"H1 changed after migration {route}: Vue={old['h1']!r}, Nuxt={new['h1']!r}"
         )
@@ -98,4 +110,4 @@ try:
         print(f"PASS public parity {route}: H1, internal links, published CMS assets", flush=True)
 finally:
     driver.quit()
-print("PASS reused public Vue components preserve content and destinations in Nuxt hybrid")
+print("PASS public Nuxt parity: GIO, scroll progress, headings, links and CMS media")
