@@ -18,32 +18,63 @@ const routePoints = computed(() => {
   if (!route) return []
   return route.stops && route.stops.length >= 2 ? route.stops : [route.origin, route.destination]
 })
+// Un único vehículo recorre todas las escalas conocidas, sin dibujar arcos.
 const transportGlyph = computed(() => props.shipment?.transport === 'air' ? '✈'
   : props.shipment?.transport === 'sea' ? 'ship'
-  : props.shipment?.transport === 'land' ? 'truck' : null)
-const routeVehicleIcons = ref<{ id: number; left: number; top: number }[]>([])
+  : props.shipment?.transport === 'land' ? 'truck'
+  : props.shipment ? 'container' : null)
+const routeLegs = computed(() => routePoints.value.slice(1).map((end, index) => {
+  const start = routePoints.value[index]
+  const rad = Math.PI / 180
+  const cosine = Math.sin(start.lat * rad) * Math.sin(end.lat * rad)
+    + Math.cos(start.lat * rad) * Math.cos(end.lat * rad) * Math.cos((end.lon - start.lon) * rad)
+  const degrees = Math.acos(Math.max(-1, Math.min(1, cosine))) / rad
+  return { start, end, duration: Math.max(2400, Math.min(13000, degrees * 95)) }
+}).filter(leg => leg.start.lat !== leg.end.lat || leg.start.lon !== leg.end.lon))
+const routeVehicle = ref<{ left: number; top: number } | null>(null)
 let vehicleFrame = 0
 let lastVehicleUpdate = -Infinity
-function updateRouteVehicles(now: number) {
+let lastVehicleClock = 0
+let vehicleElapsedMs = 0
+let motionMedia: MediaQueryList | undefined
+function updateRouteVehicle(now: number) {
   if (disposed) return
-  if (now - lastVehicleUpdate >= 90) {
+  if (document.hidden) {
+    lastVehicleClock = 0
+  } else if (now - lastVehicleUpdate >= 33) {
     lastVehicleUpdate = now
-    if (globe && canvas.value && holder.value && transportGlyph.value) {
-      const rect = canvas.value.getBoundingClientRect()
-      const holderRect = holder.value.getBoundingClientRect()
-      const positions = []
-      for (let i = 0; i < routePoints.value.length - 1; i++) {
-        const mid = illustrativePosition(routePoints.value[i], routePoints.value[i + 1], 50)
-        const point = globe.project(mid.lon, mid.lat)
-        if (point?.visible) positions.push({
-          id: i, left: rect.left - holderRect.left + point.x,
-          top: rect.top - holderRect.top + point.y
-        })
+    const legs = routeLegs.value
+    if (globe && canvas.value && holder.value && transportGlyph.value && legs.length) {
+      if (lastVehicleClock && !motionMedia?.matches) {
+        vehicleElapsedMs += Math.min(100, now - lastVehicleClock)
       }
-      routeVehicleIcons.value = positions
-    } else if (routeVehicleIcons.value.length) routeVehicleIcons.value = []
+      lastVehicleClock = now
+      const travelDuration = legs.reduce((sum, leg) => sum + leg.duration, 0)
+      let remaining = motionMedia?.matches ? 0 : vehicleElapsedMs % (travelDuration + 900)
+      // Pausa breve en el destino; después inicia nuevamente desde el origen.
+      let current: { lat: number; lon: number } = legs[legs.length - 1].end
+      for (const leg of legs) {
+        if (remaining <= leg.duration) {
+          current = illustrativePosition(leg.start, leg.end, (remaining / leg.duration) * 100)
+          break
+        }
+        remaining -= leg.duration
+      }
+      const point = globe.project(current.lon, current.lat)
+      if (point?.visible) {
+        const rect = canvas.value.getBoundingClientRect()
+        const holderRect = holder.value.getBoundingClientRect()
+        routeVehicle.value = {
+          left: rect.left - holderRect.left + point.x,
+          top: rect.top - holderRect.top + point.y
+        }
+      } else routeVehicle.value = null
+    } else {
+      lastVehicleClock = 0
+      routeVehicle.value = null
+    }
   }
-  vehicleFrame = requestAnimationFrame(updateRouteVehicles)
+  vehicleFrame = requestAnimationFrame(updateRouteVehicle)
 }
 const error = ref('')
 const { locale } = useI18n({ useScope: 'global' })
@@ -137,11 +168,7 @@ const demoMarkers = () => {
   return points
 }
 const demoArcs = () => props.shipment
-  ? routePoints.value.slice(1).map((point, index) => ({
-    from: { lat: routePoints.value[index].lat, lon: routePoints.value[index].lon },
-    to: { lat: point.lat, lon: point.lon },
-    color: '#b50928', width: 1.7, duration: 4000
-  }))
+  ? [] // El recorrido de tracking se representa solamente con el vehículo móvil.
   : offices.filter(item => item.countryEs !== 'Costa Rica').map(item => ({
     from: { lat: 9.9167, lon: -84.0333 },
     to: { lat: item.lat, lon: item.lon },
@@ -352,6 +379,11 @@ async function start() {
       onClick: selectWarehouse,
       arcs: demoArcs(),
     })
+    if (props.shipment && routeLegs.value.length) {
+      const firstLeg = routeLegs.value[0]
+      const center = illustrativePosition(firstLeg.start, firstLeg.end, 50)
+      globe.flyTo(center.lon, center.lat, { instant: true })
+    }
   } catch (e) {
     if (!disposed) error.value =
       e instanceof Error ? e.message : 'Error al iniciar el mapa.'
@@ -360,6 +392,10 @@ async function start() {
 
 watch(locale, () => globe?.setMarkers(demoMarkers()))
 watch(() => props.shipment, (shipment) => {
+  vehicleElapsedMs = 0
+  lastVehicleClock = 0
+  lastVehicleUpdate = -Infinity
+  routeVehicle.value = null
   if (!globe) return
   cancelAnimationFrame(popupFollowFrame)
   selectedId.value = null
@@ -375,7 +411,8 @@ watch(() => props.shipment, (shipment) => {
   }
 })
 onMounted(() => {
-  vehicleFrame = requestAnimationFrame(updateRouteVehicles)
+  motionMedia = window.matchMedia('(prefers-reduced-motion: reduce)')
+  vehicleFrame = requestAnimationFrame(updateRouteVehicle)
   locationMedia = window.matchMedia('(max-width: 800px)')
   syncLocationLayout()
   locationMedia.addEventListener('change', syncLocationLayout)
@@ -422,9 +459,9 @@ onBeforeUnmount(() => {
   <div ref="holder" class="world-globe" :aria-label="$t('custom.tracking.globeAria')">
     <div class="world-globe__halo"></div>
     <canvas ref="canvas" class="world-globe__canvas" :aria-label="$t('custom.tracking.mapAria')"></canvas>
-    <div v-if="transportGlyph" class="world-globe__route-vehicles" aria-hidden="true">
-      <span v-for="vehicle in routeVehicleIcons" :key="vehicle.id" class="world-globe__route-vehicle"
-        :style="{ left: vehicle.left + 'px', top: vehicle.top + 'px' }">
+    <div v-if="transportGlyph && routeVehicle" class="world-globe__route-vehicles" aria-hidden="true">
+      <span class="world-globe__route-vehicle"
+        :style="{ left: routeVehicle.left + 'px', top: routeVehicle.top + 'px' }">
         <IconSymbol :glyph="transportGlyph" :size="19" />
       </span>
     </div>
@@ -464,10 +501,6 @@ onBeforeUnmount(() => {
     </Teleport>
     <div class="globe-floating-tag tag-cr"><span></span> {{ $t('custom.tracking.regionalHub') }}</div>
     <div class="globe-floating-tag tag-global">{{ $t('custom.tracking.globalConnections') }} <IconSymbol glyph="↗" /></div>
-    <ol v-if="props.shipment && routePoints.length > 2" class="world-globe__route-stops"
-      :aria-label="english ? 'Known route points (illustrative)' : 'Puntos conocidos de la ruta (ilustrativos)'">
-      <li v-for="(point, index) in routePoints" :key="index">{{ point.name }}</li>
-    </ol>
     <p v-if="error" class="globe-error">{{ $t('custom.tracking.mapUnavailable') }}</p>
   </div>
 </template>
@@ -537,9 +570,7 @@ onBeforeUnmount(() => {
 
 .world-globe__route-vehicles{position:absolute;inset:0;z-index:4;pointer-events:none}
 .world-globe__route-vehicle{position:absolute;display:grid;place-items:center;width:34px;height:34px;border:2px solid #fff;border-radius:50%;background:#b50928;color:#fff;box-shadow:0 4px 12px #0005;transform:translate(-50%,-50%)}
-.world-globe__route-stops{position:absolute;z-index:5;left:10px;bottom:5px;right:10px;display:flex;flex-wrap:wrap;gap:5px 16px;justify-content:center;margin:0;padding:8px 12px;list-style-position:inside;border-radius:12px;background:rgba(8,15,33,.82);color:#fff;font-size:11px;pointer-events:none}
-.world-globe__route-stops li{white-space:normal}
-@media(max-width:580px){.world-globe__route-vehicle{width:28px;height:28px}.world-globe__route-stops{font-size:10px;bottom:0}}
+@media(max-width:580px){.world-globe__route-vehicle{width:28px;height:28px}}
 </style>
 
 <!-- route rendering notes: see docs/DHOLE-TRACKING-PREVIEW.md -->
