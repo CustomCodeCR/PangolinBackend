@@ -5,10 +5,46 @@ import { computed, nextTick, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { CastroGlobe, Marker, ClusterMarker } from '../lib/castroGlobe'
 
-type TrackingRouteShape = Pick<TrackingDemoShipment, 'origin' | 'destination'> & Partial<Pick<TrackingDemoShipment, 'progressPercent'>>
+type TrackingRouteShape = Pick<TrackingDemoShipment, 'origin' | 'destination'> &
+  Partial<Pick<TrackingDemoShipment, 'progressPercent'>> & {
+    stops?: TrackingPoint[]
+    transport?: 'air' | 'sea' | 'land' | null
+  }
 const props = defineProps<{ shipment?: TrackingRouteShape | null; initialZoom?: number }>()
 const holder = ref<HTMLElement | null>(null)
 const canvas = ref<HTMLCanvasElement | null>(null)
+const routePoints = computed(() => {
+  const route = props.shipment
+  if (!route) return []
+  return route.stops && route.stops.length >= 2 ? route.stops : [route.origin, route.destination]
+})
+const transportGlyph = computed(() => props.shipment?.transport === 'air' ? '✈'
+  : props.shipment?.transport === 'sea' ? 'ship'
+  : props.shipment?.transport === 'land' ? 'truck' : null)
+const routeVehicleIcons = ref<{ id: number; left: number; top: number }[]>([])
+let vehicleFrame = 0
+let lastVehicleUpdate = -Infinity
+function updateRouteVehicles(now: number) {
+  if (disposed) return
+  if (now - lastVehicleUpdate >= 90) {
+    lastVehicleUpdate = now
+    if (globe && canvas.value && holder.value && transportGlyph.value) {
+      const rect = canvas.value.getBoundingClientRect()
+      const holderRect = holder.value.getBoundingClientRect()
+      const positions = []
+      for (let i = 0; i < routePoints.value.length - 1; i++) {
+        const mid = illustrativePosition(routePoints.value[i], routePoints.value[i + 1], 50)
+        const point = globe.project(mid.lon, mid.lat)
+        if (point?.visible) positions.push({
+          id: i, left: rect.left - holderRect.left + point.x,
+          top: rect.top - holderRect.top + point.y
+        })
+      }
+      routeVehicleIcons.value = positions
+    } else if (routeVehicleIcons.value.length) routeVehicleIcons.value = []
+  }
+  vehicleFrame = requestAnimationFrame(updateRouteVehicles)
+}
 const error = ref('')
 const { locale } = useI18n({ useScope: 'global' })
 const english = computed(() => locale.value.toLowerCase().startsWith('en'))
@@ -86,26 +122,31 @@ function illustrativePosition(start: TrackingPoint, end: TrackingPoint, percenta
 const demoMarkers = () => {
   const shipment = props.shipment
   if (!shipment) return markerData()
+  const points = routePoints.value.map((point, index, all) => ({
+    id: 'route-stop-' + index, ...point,
+    label: point.name,
+    color: index === 0 ? '#1677d2' : index === all.length - 1 ? '#18a86d' : '#b50928',
+    count: 1, size: 7
+  }))
   const progressValue = shipment.progressPercent
-  const progress = illustrativePosition(shipment.origin, shipment.destination, progressValue ?? 50)
-  const points = [
-    { id: 'route-origin', ...shipment.origin, label: shipment.origin.name, color: '#1677d2', count: 1, size: 7 },
-    { id: 'route-destination', ...shipment.destination, label: shipment.destination.name, color: '#18a86d', count: 1, size: 7 }
-  ]
   if (progressValue !== undefined && progressValue > 0 && progressValue < 100) {
-    points.push({ id: 'route-progress', name: 'Progreso DEMO', ...progress, label: 'DEMO · ' + shipment.progressPercent + '%', color: '#f5b700', count: 1, size: 8 })
+    const progress = illustrativePosition(shipment.origin, shipment.destination, progressValue)
+    points.push({ id: 'route-progress', name: 'Progreso DEMO', ...progress,
+      label: 'DEMO · ' + progressValue + '%', color: '#f5b700', count: 1, size: 8 })
   }
   return points
 }
-const demoArcs = () => props.shipment ? [{
-  from: { lat: props.shipment.origin.lat, lon: props.shipment.origin.lon },
-  to: { lat: props.shipment.destination.lat, lon: props.shipment.destination.lon },
-  color: '#b50928', width: 2, duration: 4000
-}] : offices.filter(item => item.countryEs !== 'Costa Rica').map(item => ({
-  from: { lat: 9.9167, lon: -84.0333 },
-  to: { lat: item.lat, lon: item.lon },
-  color: '#a80e18', width: 1.15
-}))
+const demoArcs = () => props.shipment
+  ? routePoints.value.slice(1).map((point, index) => ({
+    from: { lat: routePoints.value[index].lat, lon: routePoints.value[index].lon },
+    to: { lat: point.lat, lon: point.lon },
+    color: '#b50928', width: 1.7, duration: 4000
+  }))
+  : offices.filter(item => item.countryEs !== 'Costa Rica').map(item => ({
+    from: { lat: 9.9167, lon: -84.0333 },
+    to: { lat: item.lat, lon: item.lon },
+    color: '#a80e18', width: 1.15
+  }))
 const costaRicaCenter = { lat: 9.9417, lon: -84.0583 }
 
 
@@ -334,6 +375,7 @@ watch(() => props.shipment, (shipment) => {
   }
 })
 onMounted(() => {
+  vehicleFrame = requestAnimationFrame(updateRouteVehicles)
   locationMedia = window.matchMedia('(max-width: 800px)')
   syncLocationLayout()
   locationMedia.addEventListener('change', syncLocationLayout)
@@ -368,6 +410,7 @@ onBeforeUnmount(() => {
   themeObserver?.disconnect()
   cancelAnimationFrame(popupFollowFrame)
   cancelAnimationFrame(zoomFrame)
+  cancelAnimationFrame(vehicleFrame)
   globe?.destroy?.()
   globe = undefined
 })
@@ -379,6 +422,12 @@ onBeforeUnmount(() => {
   <div ref="holder" class="world-globe" :aria-label="$t('custom.tracking.globeAria')">
     <div class="world-globe__halo"></div>
     <canvas ref="canvas" class="world-globe__canvas" :aria-label="$t('custom.tracking.mapAria')"></canvas>
+    <div v-if="transportGlyph" class="world-globe__route-vehicles" aria-hidden="true">
+      <span v-for="vehicle in routeVehicleIcons" :key="vehicle.id" class="world-globe__route-vehicle"
+        :style="{ left: vehicle.left + 'px', top: vehicle.top + 'px' }">
+        <IconSymbol :glyph="transportGlyph" :size="19" />
+      </span>
+    </div>
     <!-- On phones the location dialog escapes the clipped canvas and the
          surrounding tracking sections via Teleport and a full-screen layer. -->
     <Teleport to="body" :disabled="!mobileLocationPopup">
@@ -415,6 +464,10 @@ onBeforeUnmount(() => {
     </Teleport>
     <div class="globe-floating-tag tag-cr"><span></span> {{ $t('custom.tracking.regionalHub') }}</div>
     <div class="globe-floating-tag tag-global">{{ $t('custom.tracking.globalConnections') }} <IconSymbol glyph="↗" /></div>
+    <ol v-if="props.shipment && routePoints.length > 2" class="world-globe__route-stops"
+      :aria-label="english ? 'Known route points (illustrative)' : 'Puntos conocidos de la ruta (ilustrativos)'">
+      <li v-for="(point, index) in routePoints" :key="index">{{ point.name }}</li>
+    </ol>
     <p v-if="error" class="globe-error">{{ $t('custom.tracking.mapUnavailable') }}</p>
   </div>
 </template>
@@ -482,6 +535,11 @@ onBeforeUnmount(() => {
   }
 }
 
+.world-globe__route-vehicles{position:absolute;inset:0;z-index:4;pointer-events:none}
+.world-globe__route-vehicle{position:absolute;display:grid;place-items:center;width:34px;height:34px;border:2px solid #fff;border-radius:50%;background:#b50928;color:#fff;box-shadow:0 4px 12px #0005;transform:translate(-50%,-50%)}
+.world-globe__route-stops{position:absolute;z-index:5;left:10px;bottom:5px;right:10px;display:flex;flex-wrap:wrap;gap:5px 16px;justify-content:center;margin:0;padding:8px 12px;list-style-position:inside;border-radius:12px;background:rgba(8,15,33,.82);color:#fff;font-size:11px;pointer-events:none}
+.world-globe__route-stops li{white-space:normal}
+@media(max-width:580px){.world-globe__route-vehicle{width:28px;height:28px}.world-globe__route-stops{font-size:10px;bottom:0}}
 </style>
 
 <!-- route rendering notes: see docs/DHOLE-TRACKING-PREVIEW.md -->
