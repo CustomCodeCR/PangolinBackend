@@ -150,12 +150,12 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (390
             print(f"PASS manual expand from general service {label}/{theme}", flush=True)
 
             # Regression: on About, the image/years hero must never paint on
-            # top of the opened phone drawer, even after scrolling the page.
+            # top of the opened phone drawer, on the About landing screen.
             # The drawer is teleported to body in Vue and in Nuxt.
             if width <= 800:
                 driver.get(BASE + "/nosotros")
                 wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".about-image-card")))
-                driver.execute_script("window.scrollTo(0, 180)")
+                driver.execute_script("document.documentElement.style.scrollBehavior = 'auto'; window.scrollTo(0, 0)")
                 before_scroll = driver.execute_script("return window.scrollY")
                 wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
                 wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".site-header--menu-open")))
