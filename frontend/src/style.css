@@ -5453,12 +5453,24 @@ html.theme-dark .content-manager .manager-form input[type="file"] {
 }
 
 
-/* Servicios: mantener visible la selección actual y evitar una lista vertical
-   enorme. Desktop abre Transportes al costado, menú compacto como acordeón. */
-.site-header .nav-dropdown--services .services-nav-dropdown__menu {
-  min-width: 282px;
-  max-width: min(330px, calc(100vw - 28px));
+/* Submenú de Transportes: un único panel y un único desplazamiento.
+   Sin flyout lateral: no puede quedar recortado ni producir scroll horizontal.
+   Los colores e interacción funcionan en el mismo orden en Vue y Nuxt. */
+.site-header .nav-dropdown--services > .services-nav-dropdown__menu {
+  width: 292px;
+  max-width: min(320px, calc(100vw - 32px));
+  min-width: 0;
+  max-height: min(68dvh, 510px);
   box-sizing: border-box;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+html.theme-dark .site-header .nav-dropdown--services > .services-nav-dropdown__menu {
+  position: absolute;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
 }
 .site-header .services-nav-dropdown__menu a.is-current,
 html.theme-dark .site-header .services-nav-dropdown__menu a.is-current {
@@ -5466,14 +5478,18 @@ html.theme-dark .site-header .services-nav-dropdown__menu a.is-current {
   color: #fff !important;
   border-radius: 9px;
 }
-.site-header .services-transport-group { position: relative; min-width: 0; }
+.site-header .services-transport-group {
+  position: relative;
+  min-width: 0;
+  isolation: isolate;
+}
 .site-header .services-transport-group__trigger {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   width: 100%;
-  min-height: 39px;
+  min-height: 42px;
   padding: 11px 13px;
   border: 0;
   border-radius: 9px;
@@ -5488,119 +5504,97 @@ html.theme-dark .site-header .services-nav-dropdown__menu a.is-current {
 .site-header .services-transport-group__trigger:is(:hover, :focus-visible),
 .site-header .services-transport-group.is-current-group > .services-transport-group__trigger {
   background: #fff0f2;
-  color: #a40a27;
+  color: #ad0922;
 }
 .site-header .services-transport-group__chevron {
   flex: 0 0 16px;
+  transform: rotate(0deg);
   transition: transform .18s ease;
-  transform: rotate(-90deg);
 }
 .site-header .services-transport-group.is-open .services-transport-group__chevron {
-  transform: rotate(90deg);
+  transform: rotate(180deg);
 }
-.site-header .services-transport-group__submenu {
-  position: absolute;
-  top: -7px;
-  /* Sin hueco entre ambos paneles: el hover no se cierra al cruzar. */
-  left: calc(100% - 1px);
-  z-index: 12003;
+.site-header .services-transport-group > .services-transport-group__submenu {
+  position: static !important;
+  inset: auto !important;
   display: grid;
-  gap: 1px;
-  width: min(322px, calc(100vw - 36px));
-  padding: 7px;
-  border: 1px solid #f0dfe2;
-  border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 16px 35px #14091230;
+  gap: 2px;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0;
+  margin: 3px 0 5px;
+  padding: 6px;
+  border: 1px solid #efd9df;
+  border-radius: 12px;
+  background: #fff7f9;
+  box-shadow: none;
+  box-sizing: border-box;
 }
 .site-header .services-transport-group__submenu a {
   display: block;
-  padding: 11px 13px;
-  border-radius: 9px;
+  padding: 10px 12px;
   color: #29232a;
   font-size: 12px;
   font-weight: 800;
-  line-height: 1.35;
-  text-decoration: none;
+  line-height: 1.45;
   white-space: normal;
+  overflow-wrap: break-word;
+  border-radius: 9px;
 }
 .site-header .services-transport-group__submenu a:is(:hover, :focus-visible) {
-  color: #b20c2a;
-  background: #fff0f2;
-}
-html.theme-dark .site-header .nav-dropdown--services .services-nav-dropdown__menu,
-html.theme-dark .site-header .services-transport-group__submenu {
-  background: rgba(10,18,40,.97) !important;
-  border-color: #ffffff55;
-  color: #fff;
+  background: #ffe5ea;
+  color: #ad0922;
 }
 html.theme-dark .site-header .services-transport-group__trigger { color: #fff; }
 html.theme-dark .site-header .services-transport-group__trigger:is(:hover, :focus-visible),
 html.theme-dark .site-header .services-transport-group.is-current-group > .services-transport-group__trigger {
+  background: rgba(178,11,45,.32);
   color: #fff;
-  background: rgba(178,11,45,.36);
 }
-html.theme-dark .site-header .services-transport-group__submenu a { color: #fff; }
+html.theme-dark .site-header .services-transport-group > .services-transport-group__submenu {
+  background: rgba(255,255,255,.06);
+  border-color: rgba(255,255,255,.20);
+}
+html.theme-dark .site-header .services-transport-group__submenu a {
+  color: #fff;
+}
 html.theme-dark .site-header .services-transport-group__submenu a:is(:hover, :focus-visible) {
+  background: rgba(255,255,255,.13);
   color: #fff;
-  background: rgba(255,255,255,.11);
 }
-@media (min-width: 1201px) {
-  .site-header .nav-dropdown--services .services-nav-dropdown__menu {
-    max-height: none;
-    overflow: visible;
-  }
-}
-/* Pantallas medianas o tactiles: submenú dentro del principal, con scroll
-   propio para que no se pierdan las últimas entradas. */
-@media (max-width: 1200px) {
-  .site-header .nav-dropdown--services .services-nav-dropdown__menu {
-    max-height: min(58dvh, 430px);
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
-  }
-  .site-header .services-transport-group__submenu {
-    position: static;
-    width: 100%;
-    margin: 2px 0 5px;
-    box-shadow: none;
-    background: rgba(178,11,45,.05);
-  }
-  .site-header .services-transport-group__chevron { transform: rotate(0); }
-  .site-header .services-transport-group.is-open .services-transport-group__chevron { transform: rotate(180deg); }
-}
+/* Cuando la navegación se convierte en drawer, se desplaza SOLO el drawer.
+   Nunca dos barras internas superpuestas. */
 @media (max-width: 1080px) {
-  .site-header .nav-dropdown--services .services-nav-dropdown__menu {
-    position: static;
+  .site-header .nav-dropdown--services > .services-nav-dropdown__menu,
+  html.theme-dark .site-header .nav-dropdown--services > .services-nav-dropdown__menu {
+    position: static !important;
+    inset: auto !important;
     width: calc(100% - 30px);
-    min-width: 0;
-    max-width: none;
-    max-height: min(55dvh, 410px);
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 15px 8px;
+    box-sizing: border-box;
   }
-  .site-header .services-transport-group__trigger { color: #fff; }
+  .site-header .services-transport-group__trigger,
+  html.theme-dark .site-header .services-transport-group__trigger { color: #fff; }
   .site-header .services-transport-group__trigger:is(:hover, :focus-visible),
   .site-header .services-transport-group.is-current-group > .services-transport-group__trigger {
     color: #fff;
-    background: rgba(255,255,255,.17);
+    background: rgba(255,255,255,.15);
   }
-  .site-header .services-transport-group__submenu {
-    border-color: rgba(255,255,255,.2);
-    background: rgba(255,255,255,.08);
+  .site-header .services-transport-group > .services-transport-group__submenu {
+    background: rgba(255,255,255,.09);
+    border-color: rgba(255,255,255,.20);
   }
-  .site-header .services-transport-group__submenu a { color: #fff; }
-  .site-header .services-nav-dropdown__menu a.is-current,
-  html.theme-dark .site-header .services-nav-dropdown__menu a.is-current {
-    background: rgba(178,11,45,.85) !important;
+  .site-header .services-transport-group__submenu a,
+  html.theme-dark .site-header .services-transport-group__submenu a {
     color: #fff !important;
   }
-}
-@media (max-width: 800px) {
-  .site-header.site-header--menu-open .main-nav.main-nav--open .services-nav-dropdown__menu {
-    max-height: min(49dvh, 370px);
-    overflow-y: auto;
-    overflow-x: hidden;
+  .site-header .services-nav-dropdown__menu a.is-current,
+  html.theme-dark .site-header .services-nav-dropdown__menu a.is-current {
+    background: #ad0922 !important;
+    color: #fff !important;
   }
 }
 
