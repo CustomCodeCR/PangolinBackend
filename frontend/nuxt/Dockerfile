@@ -1,6 +1,7 @@
 FROM node:22-alpine AS build
 WORKDIR /workspace
 COPY ./seo ./seo
+COPY ./src ./src
 COPY ./public ./public
 COPY ./nuxt ./nuxt
 WORKDIR /workspace/nuxt

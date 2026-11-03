@@ -8,7 +8,8 @@ export default defineNuxtPlugin(async () => {
   ])
   realtime.initializeRealtime()
   connectSignalR()
-  await loadPublishedSiteCms().catch(() => undefined)
+  // No bloquear hidratación: el CMS actualiza sus slots después del primer render.
+  void loadPublishedSiteCms().catch(() => undefined)
   realtime.subscribeToChanges('site', () => { void loadPublishedSiteCms(true) })
   realtime.subscribeToChanges('sync', () => { void loadPublishedSiteCms(true) })
 })
