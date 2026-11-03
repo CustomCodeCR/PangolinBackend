@@ -299,52 +299,51 @@ assert.match(homeTrackingMobile, /\.app-site\.home-page \.tracking-home-grid \{ 
 assert.match(homeTrackingMobile, /\.app-site\.home-page \.tracking-home-copy \{ text-align:center; margin-bottom:0; \}/, 'El botón no debe superponerse al globo por margen negativo')
 assert.match(home, /href="\/tracking"/, 'Rastrear ahora mantiene su destino')
 assert.doesNotMatch(main, /connectWebSocket\(\)/, 'No activar broker local 8081')
-// Detalles de seguimiento: seis filas glass no interactivas, parejas y ambos temas.
-assert.match(tracking, /class="tracking-demo-result__grid">\s*<div class="tracking-demo-result__pair">/, 'El resumen usa filas glass')
-assert.equal((tracking.match(/<div class="tracking-demo-result__pair">/g) ?? []).length, 6, 'Seis parejas de resumen en orden')
-assert.match(tracking, /<dt>\{\{ copy.origin \}\}<\/dt><dd>\{\{ shipment.origin/, 'Origen se conserva')
-assert.match(tracking, /<dt>\{\{ copy.destination \}\}<\/dt><dd>\{\{ shipment.destination/, 'Destino va junto a origen')
+// Tracking summary: the route and journey are separate from the five paired detail rows.
+// Keep meaningful coverage of the redesigned layout, including dark mode and mobile.
+assert.match(tracking, /class="tracking-demo-result__route"/, 'Origen y destino se presentan como ruta')
+assert.match(tracking, /<strong>\{\{ shipment\.origin \|\| '—' \}\}<\/strong>/, 'Origen se conserva')
+assert.match(tracking, /<strong>\{\{ shipment\.destination \|\| '—' \}\}<\/strong>/, 'Destino se conserva')
+assert.match(tracking, /v-if="journeyStage !== null"/, 'El recorrido solo aparece con un estado reconocido')
+assert.match(tracking, /journeySteps\[journeyStage\]\.label/, 'El recorrido indica su etapa actual')
+assert.match(tracking, /stageForKnownStatus\(shipment\.value\?\.status\)/, 'La etapa depende del estado real')
+assert.equal((tracking.match(/<div class="tracking-demo-result__pair">/g) ?? []).length, 5,
+  'Cinco parejas de datos principales, con ruta y equipo por separado')
+assert.match(tracking, /class="tracking-demo-result__grid">\s*<div class="tracking-demo-result__pair">/,
+  'El resumen mantiene las parejas de datos')
 assert.match(tracking, /<dt>\{\{ en \? 'Transport' : 'Transporte' \}\}/, 'Transporte se conserva')
-assert.match(tracking, /<dt>\{\{ copy.status \}\}/, 'Estado se conserva')
-assert.match(tracking, /\.tracking-demo-result__pair \{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/, 'Cada fila contiene dos datos')
-assert.match(tracking, /align-items:center; column-gap:0; min-width:0;/, 'La línea divisoria se coloca exactamente al centro (sin gap de columnas)')
-assert.match(tracking, /\.tracking-demo-result__field:first-child:not\(:only-child\) \{\s*padding-right:var\(--tracking-pair-spacing\);/, 'Espaciado simétrico a la izquierda del divisor')
-assert.match(tracking, /\.tracking-demo-result__field \+ \.tracking-demo-result__field \{[\s\S]*?padding-left:var\(--tracking-pair-spacing\);/, 'Espaciado simétrico a la derecha del divisor')
-assert.match(tracking, /\.tracking-demo-result__pair \{ --tracking-pair-spacing:12px; column-gap:0; padding:13px 14px;/, 'El divisor permanece centrado en móvil')
-assert.match(tracking, /-webkit-backdrop-filter:blur\(12px\); backdrop-filter:blur\(12px\)/, 'Glass blur de 12px igual a otras secciones con soporte Safari')
-assert.match(tracking, /background:rgba\(255,255,255,\.18\)/, 'Glass claro conserva transparencia de Noticias')
-// Dark mode must have one shared row for both fields, just like light.
-const darkPairStart = tracking.indexOf(':global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair) {')
-assert.ok(darkPairStart >= 0, 'El resumen oscuro conserva las franjas completas')
-const darkPairCSS = tracking.slice(darkPairStart, tracking.indexOf('</style>', darkPairStart))
-assert.match(darkPairCSS, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/, 'Dos columnas en una sola franja')
-assert.match(darkPairCSS, /border:1px solid #4f5365 !important;/, 'Un solo borde exterior gris azulado, igual al selector cerrado')
-assert.match(darkPairCSS, /background:#060f21 !important;/, 'Fondo marino a todo lo ancho de la franja')
-assert.match(darkPairCSS, /-webkit-backdrop-filter:none !important;\s*backdrop-filter:none !important;\s*box-shadow:none !important;/, 'Sin desenfoque ni sombras: superficie mate completamente opaca')
-assert.match(darkPairCSS, /background:#060f21 !important;\s*background-image:none !important;/, 'Fondo sólido azul sin transparencia ni degradado')
-assert.match(darkPairCSS, /tracking-demo-result__pair\) \{[\s\S]*?border:1px solid #4f5365 !important;/, 'Borde único mate sin efecto Glass')
-const darkContainerStart = tracking.indexOf(':global(html.theme-dark .app-site.tracking-site .tracking-demo-result) {')
-assert.ok(darkContainerStart >= 0, 'Contenedor exterior del resumen en modo oscuro')
-const darkContainerCSS = tracking.slice(darkContainerStart, darkPairStart)
-assert.match(darkContainerCSS, /box-shadow:none !important;/, 'Contenedor exterior sin sombra Glass')
-assert.match(darkPairCSS, /tracking-demo-result__field\) \{[\s\S]*?border:0 !important;/, 'No hay borde en cada campo')
-assert.match(darkPairCSS, /tracking-demo-result__field \+ \.tracking-demo-result__field\) \{[\s\S]*?border-left:1px solid var\(--tracking-glass-divider\) !important;/, 'Una sola línea divisoria centrada')
-assert.match(darkPairCSS, /tracking-demo-result__field dd\) \{[\s\S]*?background:transparent !important;/, 'No hay caja independiente para cada valor')
-assert.match(darkPairCSS, /tracking-demo-result__field dd\) \{[\s\S]*?border:0 !important;/, 'Los valores no tienen segundo borde')
-assert.match(darkPairCSS, /content:none !important;/, 'Sin reflejos ni líneas extra')
-const finalDarkCardCSS = tracking.slice(tracking.lastIndexOf('/* Tracking dark cards: unscoped override')) 
-assert.match(finalDarkCardCSS, /html\.theme-dark \.app-site\.tracking-site \.tracking-demo-result__pair \{[\s\S]*?background: #060f21 !important;[\s\S]*?border: 1px solid #4f5365 !important;/, 'El override final iguala el acabado del selector cerrado')
-assert.match(finalDarkCardCSS, /\.tracking-demo-result__pair::before,[\s\S]*?\.tracking-demo-result__pair::after \{[\s\S]*?display: none !important;/, 'Los reflejos decorativos no se dibujan en modo oscuro')
-assert.doesNotMatch(darkPairCSS, /border:1px solid #b50928 !important;/, 'No hay borde rojo')
-assert.match(tracking, /background:rgba\(255,255,255,\.18\)/, 'Glass claro intacto')
-assert.match(tracking, /border:1px solid rgba\(255,255,255,\.6\)/, 'Bordes del Glass claro intactos')
-assert.match(tracking, /cursor:default;/, 'Las filas informativas no simulan un enlace')
-assert.match(tracking, /shipmentExtrasPairs = computed<ShipmentExtraField\[\]\[\]>/, 'Los campos adicionales se agrupan en pares')
-assert.match(tracking, /v-for="\(pair, index\) in shipmentExtrasPairs"/, 'Los pares extra se muestran con el mismo glass')
-assert.match(tracking, /@media\(max-width:580px\) \{\s*\.tracking-demo-result__grid \{ gap:10px; \}/, 'Ajuste móvil sin separar parejas')
-assert.match(tracking, /:global\(html.theme-dark \.app-site\.tracking-site \.tracking-demo-result__pair\) \{/, 'El modo oscuro conserva las franjas de dos campos')
-assert.match(tracking, /shipment\.customerStatus/, 'Conservar la actualización para el cliente')
-assert.match(tracking, /shipmentExtras/, 'Conservar los campos adicionales de rastreo')
+assert.match(tracking, /<dt>\{\{ en \? 'Equipment quantity x size' : 'Cantidad x tamaño de equipo' \}\}/,
+  'Equipo se muestra como cantidad por tamaño')
+assert.match(tracking, /<dt>\{\{ copy\.status \}\}/, 'Estado se conserva')
+assert.match(tracking, /\.app-site\.tracking-site \.tracking-demo-result__route \{/,
+  'La ruta tiene estilos dedicados')
+assert.match(tracking, /\.app-site\.tracking-site \.tracking-demo-result__pair \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/,
+  'Dos datos por fila en escritorio')
+assert.match(tracking, /html\.theme-dark \.app-site\.tracking-site \.tracking-demo-result__route \{/,
+  'Ruta compatible con modo oscuro')
+assert.match(tracking, /html\.theme-dark \.app-site\.tracking-site \.tracking-journey \{/,
+  'Recorrido compatible con modo oscuro')
+assert.match(tracking, /@media \(max-width: 580px\) \{[\s\S]*?\.app-site\.tracking-site \.tracking-demo-result__route \{/,
+  'Ruta adaptable a móvil')
+assert.match(tracking, /\.app-site\.tracking-site \.tracking-demo-result__field \+ \.tracking-demo-result__field \{[\s\S]*?border-left: 1px solid/,
+  'Separación visible entre campos')
+assert.match(tracking, /shipmentExtrasPairs = computed<ShipmentExtraField\[\]\[\]>/,
+  'Los datos adicionales siguen agrupados en pares')
+assert.match(tracking, /v-for="\(pair, index\) in shipmentExtrasPairs"/,
+  'Los datos adicionales siguen presentes')
+assert.match(tracking, /shipment\.customerStatus/, 'La actualización del cliente se conserva')
+
+// The globe must reflect only supplied route points, not fictional intermediate stops.
+const trackingRouteSource = source('src/lib/trackingRoute.ts')
+const trackingGlobeSource = source('src/components/WorldGlobe.vue')
+assert.match(trackingRouteSource, /export function illustrativeJourney\(/,
+  'La ruta ilustrativa admite una secuencia de escalas')
+assert.match(trackingRouteSource, /\.\.\.\(record\.routeStops \?\? \[\]\)/,
+  'Las escalas explícitas quedan entre puertos y destino')
+assert.match(tracking, /illustrativeJourney\(shipment\.value\)/, 'Tracking envía el recorrido al globo')
+assert.match(trackingGlobeSource, /routePoints\.value\.slice\(1\)\.map\(/,
+  'El globo dibuja todos los tramos consecutivos')
+assert.match(trackingGlobeSource, /transportGlyph/, 'El globo presenta el ícono del transporte')
 
 // Dynamics mode/status are controlled display values; all other content remains unchanged.
 const trackingLocalizationSource = source('src/lib/trackingDisplay.ts')
