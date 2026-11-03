@@ -1,0 +1,83 @@
+{
+  "/": {
+    "primary": "Grupo Castro Fallas",
+    "secondary": [
+      "logística internacional Costa Rica",
+      "empresa logística Costa Rica"
+    ]
+  },
+  "/nosotros": {
+    "primary": "Grupo Castro Fallas Costa Rica",
+    "secondary": [
+      "empresas de Grupo Castro Fallas"
+    ]
+  },
+  "/empresas": {
+    "primary": "empresas Grupo Castro Fallas",
+    "secondary": [
+      "Neriteka",
+      "Transporte Castro Fallas",
+      "Aduanera Castro Fallas"
+    ]
+  },
+  "/empresas/aduanera-castro-fallas": {
+    "primary": "Aduanera Castro Fallas",
+    "secondary": [
+      "agencia aduanal Costa Rica",
+      "trámites de importación exportación"
+    ]
+  },
+  "/empresas/transporte-castro-fallas": {
+    "primary": "Transporte Castro Fallas",
+    "secondary": [
+      "transporte de carga Costa Rica",
+      "FTL LTL"
+    ]
+  },
+  "/empresas/neriteka": {
+    "primary": "Neriteka",
+    "secondary": [
+      "Neriteka Grupo Castro Fallas"
+    ]
+  },
+  "/servicios": {
+    "primary": "servicios logísticos Costa Rica",
+    "secondary": [
+      "carga aérea",
+      "flete marítimo",
+      "transporte terrestre"
+    ]
+  },
+  "/servicios/agenciamiento-aduanal": {
+    "primary": "agenciamiento aduanal Costa Rica",
+    "secondary": [
+      "despacho aduanero"
+    ]
+  },
+  "/servicios/almacenamiento-fiscal": {
+    "primary": "almacenamiento fiscal Costa Rica",
+    "secondary": [
+      "depósito fiscal"
+    ]
+  },
+  "/servicios/bodegaje-general": {
+    "primary": "bodegaje general Costa Rica",
+    "secondary": [
+      "almacenaje de mercancías"
+    ]
+  },
+  "/servicios/consolidadora-de-carga": {
+    "primary": "consolidadora de carga Costa Rica",
+    "secondary": [
+      "LCL",
+      "LTL"
+    ]
+  },
+  "/noticias": {
+    "primary": "noticias logística Costa Rica",
+    "secondary": [
+      "aduanas",
+      "comercio exterior"
+    ]
+  }
+}

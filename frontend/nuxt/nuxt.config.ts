@@ -1,4 +1,5 @@
 import serviceGuides from '../seo/service-landings.json'
+import companies from '../seo/companies.json'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 const legacySource = resolve(dirname(fileURLToPath(import.meta.url)), '../src')
@@ -20,7 +21,7 @@ export default defineNuxtConfig({
   },
   nitro: {
     prerender: {
-      routes: ['/', '/nosotros', '/servicios', ...Object.keys(serviceGuides)]
+      routes: ['/', '/nosotros', '/servicios', '/empresas', ...Object.keys(serviceGuides), ...Object.keys(companies).map(slug => '/empresas/' + slug)]
     }
   },
   routeRules: {
@@ -28,6 +29,8 @@ export default defineNuxtConfig({
     '/nosotros': { prerender: true },
     '/servicios': { prerender: true },
     '/servicios/**': { prerender: true },
+    '/empresas': { prerender: true },
+    '/empresas/**': { prerender: true },
     '/noticias': { swr: 300 },
     '/noticias/**': { swr: 300 },
     // Las rutas privadas siguen en la SPA actual y no deben enviarse a este servicio.

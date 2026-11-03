@@ -5,6 +5,8 @@ on:
     paths:
       - "frontend/nuxt/**"
       - "frontend/seo/service-landings.json"
+      - "frontend/seo/companies.json"
+      - "frontend/seo/keyword-map.json"
       - "compose.nuxt-preview.yaml"
       - "compose.nuxt-hybrid.yaml"
       - "deploy/nuxt-hybrid-gateway.conf"
@@ -14,6 +16,8 @@ on:
     paths:
       - "frontend/nuxt/**"
       - "frontend/seo/service-landings.json"
+      - "frontend/seo/companies.json"
+      - "frontend/seo/keyword-map.json"
       - "compose.nuxt-preview.yaml"
       - "compose.nuxt-hybrid.yaml"
       - "deploy/nuxt-hybrid-gateway.conf"
@@ -58,8 +62,14 @@ jobs:
           curl -fsS http://127.0.0.1:3000/servicios/almacenamiento-fiscal >/tmp/pangolin-service.html
           grep -q 'Almacenamiento fiscal' /tmp/pangolin-service.html
           grep -q 'Preguntas frecuentes' /tmp/pangolin-service.html
+          curl -fsS http://127.0.0.1:3000/empresas/aduanera-castro-fallas >/tmp/pangolin-company.html
+          grep -q 'Aduanera Castro Fallas' /tmp/pangolin-company.html
+          grep -q 'application/ld+json' /tmp/pangolin-company.html
+          curl -fsS http://127.0.0.1:3000/empresas/neriteka | grep -q 'Neriteka'
           curl -fsS http://127.0.0.1:3000/robots.txt | grep -q 'OAI-SearchBot'
-          curl -fsS http://127.0.0.1:3000/sitemap.xml | grep -q 'almacenamiento-fiscal'
+          curl -fsS http://127.0.0.1:3000/sitemap.xml >/tmp/pangolin-sitemap.xml
+          grep -q 'almacenamiento-fiscal' /tmp/pangolin-sitemap.xml
+          grep -q '/empresas/aduanera-castro-fallas' /tmp/pangolin-sitemap.xml
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/home)" = "301"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/servicios/ruta-inexistente)" = "404"
       - name: SSR news and dynamic sitemap integration test
