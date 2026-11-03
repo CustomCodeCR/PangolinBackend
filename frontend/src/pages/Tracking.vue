@@ -240,13 +240,16 @@ function formatEquipmentConfiguration(count: string | null, size: string | null)
   if (/\d\s*[x×]\s*\d/i.test(quantity)) return quantity
   return `${quantity} x ${equipmentSize}`
 }
+const equipmentConfiguration = computed(() => {
+  const data = shipment.value
+  return data ? formatEquipmentConfiguration(data.equipmentCount, data.equipmentSize) : null
+})
 const shipmentExtras = computed<ShipmentExtraField[]>(() => {
   const data = shipment.value
   if (!data) return []
   const asDate = (value: string | null) => value ? formatDate(value) : null
   const fields: { es: string; en: string; value: string | null }[] = [
     { es: 'Incoterm', en: 'Incoterm', value: data.incoterm },
-    { es: 'Cantidad x tamaño de equipo', en: 'Equipment quantity x size', value: formatEquipmentConfiguration(data.equipmentCount, data.equipmentSize) },
     { es: 'Confirmación de zarpe', en: 'Departure confirmation', value: asDate(data.departureConfirmedAt) },
     { es: 'Ingreso a bodegas', en: 'Warehouse arrival', value: asDate(data.warehouseReceivedAt) },
     { es: 'ETA en destino', en: 'Destination ETA', value: asDate(data.destinationEta) },
@@ -484,7 +487,7 @@ onBeforeUnmount(() => {
               </section>
               <div class="tracking-demo-result__grid">
                 <div class="tracking-demo-result__pair">
-                  <dl class="tracking-demo-result__field"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="truck" :size="17" /></span><dt>{{ en ? 'Transport' : 'Transporte' }}</dt><dd>{{ displayMode(shipment.mode) }}</dd></dl>
+                  <dl class="tracking-demo-result__field tracking-demo-result__field--with-equipment"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="truck" :size="17" /></span><dt>{{ en ? 'Transport' : 'Transporte' }}</dt><dd>{{ displayMode(shipment.mode) }}</dd><template v-if="equipmentConfiguration"><dt class="tracking-demo-result__equipment-label">{{ en ? 'Equipment quantity x size' : 'Cantidad x tamaño de equipo' }}</dt><dd class="tracking-demo-result__equipment-value">{{ equipmentConfiguration }}</dd></template></dl>
                   <dl class="tracking-demo-result__field"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="✓" :size="17" /></span><dt>{{ copy.status }}</dt><dd>{{ displayStatus(shipment.status) }}</dd></dl>
                 </div>
                 <div class="tracking-demo-result__pair">
@@ -1041,6 +1044,22 @@ html.theme-dark .app-site.tracking-site
   grid-row: 2;
   margin: 4px 0 0 !important;
   font-size: 15px;
+}
+.app-site.tracking-site .tracking-demo-result__field--with-equipment {
+  grid-template-rows: auto auto auto auto;
+}
+.app-site.tracking-site .tracking-demo-result__field--with-equipment .tracking-demo-result__field-icon {
+  grid-row: 1 / span 4;
+  align-self: center;
+}
+.app-site.tracking-site .tracking-demo-result__field--with-equipment .tracking-demo-result__equipment-label {
+  grid-row: 3;
+  align-self: end;
+  margin-top: 10px;
+}
+.app-site.tracking-site .tracking-demo-result__field--with-equipment .tracking-demo-result__equipment-value {
+  grid-row: 4;
+  margin-top: 4px !important;
 }
 .app-site.tracking-site .tracking-demo-result__extra .tracking-demo-result__grid { margin-top: 14px; }
 .app-site.tracking-site .tracking-demo-result__extra h4 { margin-bottom: 4px; }
