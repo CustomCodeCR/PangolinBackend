@@ -7,8 +7,13 @@ import { useI18n } from 'vue-i18n'
 import { services as baseServices, type ServiceKey } from '../content'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
+import serviceFaqData from '../../seo/service-faqs.json'
 
 const { t, locale } = useI18n({ useScope: 'global' })
+const serviceFaqs = computed(() => serviceFaqData.servicios.map(faq => ({
+  question: locale.value.toLowerCase().startsWith('es') ? faq.question.es : faq.question.en,
+  answer: locale.value.toLowerCase().startsWith('es') ? faq.answer.es : faq.answer.en
+})))
 const activeService = ref<ServiceKey>('Air')
 const modalService = ref<ServiceKey | null>(null)
 const modalPhoto = computed(() => siteCssImage(`services.${modalService.value?.toLowerCase()}.media`, baseServices.find(service => service.key === modalService.value)?.photo ?? '/images/hero.webp'))
@@ -83,6 +88,17 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
             <article class="complementary-card"><SiteMedia slot-key="services.complementary.customs.media" fallback="/images/services-crane.webp" :alt="$t('phrases.p140')" /><div><span class="section-tag light-tag">{{ $t('phrases.p052') }}</span><h3>{{ siteText('services.complementary.customs.title', $t('phrases.p053'), locale) }}</h3><p>{{ siteText('services.complementary.customs.intro', $t('phrases.p054'), locale) }}</p></div></article>
             <article class="complementary-card"><SiteMedia slot-key="services.complementary.warehouse.media" fallback="/images/warehouse-person.webp" :alt="$t('phrases.p141')" /><div><span class="section-tag light-tag">{{ $t('phrases.p056') }}</span><h3>{{ siteText('services.complementary.warehouse.title', $t('phrases.p057'), locale) }}</h3><p>{{ siteText('services.complementary.warehouse.intro', $t('phrases.p058'), locale) }}</p></div></article>
           </div>
+        </div>
+      </section>
+
+      <section class="services-faq section-spacing" aria-labelledby="services-faq-title">
+        <div class="container services-faq__inner">
+          <p class="section-tag center">{{ locale.toLowerCase().startsWith('es') ? 'PREGUNTAS FRECUENTES' : 'FREQUENTLY ASKED QUESTIONS' }}</p>
+          <h2 id="services-faq-title" class="section-title centered">{{ locale.toLowerCase().startsWith('es') ? 'Más sobre nuestros servicios' : 'More about our services' }}</h2>
+          <details v-for="faq in serviceFaqs" :key="faq.question" class="services-faq__item">
+            <summary>{{ faq.question }}</summary>
+            <p>{{ faq.answer }}</p>
+          </details>
         </div>
       </section>
 

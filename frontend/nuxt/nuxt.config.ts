@@ -1,4 +1,6 @@
 import serviceGuides from '../seo/service-landings.json'
+import servicePages from '../seo/service-pages.json'
+import companies from '../seo/companies.json'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 const legacySource = resolve(dirname(fileURLToPath(import.meta.url)), '../src')
@@ -6,12 +8,13 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-07-01',
   ssr: true,
   devtools: { enabled: false },
+  srcDir: 'app/',
   app: {
     head: {
-      link: [{ rel: 'icon', type: 'image/png', sizes: '192x192', href: '/favicon.png' }]
+      link: [{ rel: 'icon', type: 'image/png', sizes: '192x192', href: '/favicon.png' }],
+      meta: [{ name: 'msvalidate.01', content: '3B7ADBDA75E127B245F7E653F3021EE8' }]
     }
   },
-  srcDir: 'app/',
   // Reutilizar exactamente las hojas de estilo del sitio actual.
   css: ['@legacy/style.css', '@legacy/styles/frontend6-refinements.css'],
   alias: { '@legacy': legacySource },
@@ -25,7 +28,7 @@ export default defineNuxtConfig({
   },
   nitro: {
     prerender: {
-      routes: ['/', '/nosotros', '/servicios', ...Object.keys(serviceGuides)]
+      routes: ['/', '/nosotros', '/servicios', '/empresas', '/privacidad', '/terminos', '/cookies', '/licencias', ...Object.keys(serviceGuides), ...servicePages.map(page => '/servicios/' + page.slug), ...Object.keys(companies).map(slug => '/empresas/' + slug)]
     }
   },
   routeRules: {
@@ -33,6 +36,8 @@ export default defineNuxtConfig({
     '/nosotros': { prerender: true },
     '/servicios': { prerender: true },
     '/servicios/**': { prerender: true },
+    '/empresas': { prerender: true },
+    '/empresas/**': { prerender: true },
     '/noticias': { swr: 300 },
     '/noticias/**': { swr: 300 },
     // Las rutas privadas siguen en la SPA actual y no deben enviarse a este servicio.

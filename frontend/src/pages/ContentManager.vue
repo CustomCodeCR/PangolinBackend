@@ -4,7 +4,10 @@ import { useI18n } from 'vue-i18n'
 import { localizeTrackingMode, localizeTrackingStatus } from '../lib/trackingDisplay'
 import IconSymbol from '../components/IconSymbol.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
+import ItineraryLocationSelect from '../components/ItineraryLocationSelect.vue'
+import { useItineraryLocations, type ItineraryTransport } from '../lib/itineraryLocations'
 import SiteVisualEditor from './SiteVisualEditor.vue'
+import NewsRichTextEditor from '../components/NewsRichTextEditor.vue'
 import OfficialQuoteAdmin from './OfficialQuoteAdmin.vue'
 const officialQuotesEnabled = import.meta.env.VITE_OFFICIAL_QUOTES_ENABLED === 'true'
 import { subscribeToChanges } from '../services/realtime'
@@ -43,6 +46,23 @@ const newsForm = ref<ManagedNews>(emptyNews())
 const newsExpirationMode = ref<'permanent' | 'scheduled'>('permanent')
 const hasNewsExpired = (item: ManagedNews) => Boolean(item.expiresAt && Date.parse(item.expiresAt) <= Date.now())
 const itineraryForm = ref<ManagedItinerary>(emptyItinerary())
+const initialItineraryLocations = ref<{ origin: string; destination: string; transport: string } | null>(null)
+type ItineraryLocationField = 'origin' | 'destination'
+const showItineraryTransportHint = ref<ItineraryLocationField | null>(null)
+function requestItineraryTransport(field: ItineraryLocationField) {
+  if (!itineraryTransport.value) showItineraryTransportHint.value = field
+}
+// The tooltip floats over the field and closes when the user clicks elsewhere.
+function dismissItineraryHintOnOutsideClick(event: PointerEvent) {
+  if (!(event.target instanceof Element) ||
+      !event.target.closest('.manager-itinerary-location-field')) {
+    showItineraryTransportHint.value = null
+  }
+}
+onMounted(() => document.addEventListener('pointerdown', dismissItineraryHintOnOutsideClick, true))
+onUnmounted(() => document.removeEventListener('pointerdown', dismissItineraryHintOnOutsideClick, true))
+const itineraryTransport = computed<ItineraryTransport | ''>(() => itineraryForm.value.transport === 'Marítimo' ? 'maritime' : itineraryForm.value.transport === 'Terrestre' ? 'ground' : '')
+const { origins: adminOrigins, destinations: adminDestinations, loadingLocations: adminLocationsLoading, locationError: adminLocationsError } = useItineraryLocations(itineraryTransport)
 const mediaForm = ref<ManagedMedia>(emptyMedia())
 const commentForm = ref<ManagedComment>(emptyComment())
 const mediaUploadFile = ref<File | null>(null)
@@ -51,7 +71,7 @@ const storageMode = ref<'checking' | 's3' | 'legacy' | 'error'>('checking')
 const currentList = computed(() => section.value === 'itineraries' ? itineraries.value : section.value === 'news' ? news.value : section.value === 'comments' ? comments.value : media.value)
 
 function emptyNews(): ManagedNews { return { id: '', title: '', category: 'LOGÍSTICA', description: '', body: '', image: '', published: false, author: '', publishedAt: new Date().toISOString().slice(0,10), expiresAt: null } }
-function emptyItinerary(): ManagedItinerary { return { id: '', origin: '', destination: '', transport: 'Marítimo', departure: '', arrival: '', status: 'Programado', closing: '', modality: 'FCL', carrier: '', vessel: '', voyage: '' } }
+function emptyItinerary(): ManagedItinerary { return { id: '', origin: '', destination: '', transport: '', departure: '', arrival: '', status: 'Programado', closing: '', modality: '', carrier: '', vessel: '', voyage: '' } }
 function emptyComment(): ManagedComment { return { id: '', author: '', section: '', message: '', published: false } }
 function emptyMedia(): ManagedMedia { return { id: '', name: '', kind: 'Imagen', src: '' } }
 function reload() { itineraries.value = readManagedItineraries(); news.value = readManagedNews(); media.value = readManagedMedia(); comments.value = readManagedComments() }
@@ -303,7 +323,11 @@ async function deleteUser(user: ManagedUser) {
 }
 
 function selectAdminTransport(value: string) {
+  if (itineraryForm.value.transport === value) return
   itineraryForm.value.transport = value
+  showItineraryTransportHint.value = null
+  itineraryForm.value.origin = ''
+  itineraryForm.value.destination = ''
   onTransportChange()
 }
 function onTransportChange() {
@@ -314,7 +338,7 @@ function startNew() {
   editingId.value = null
   mediaUploadFile.value = null
   newsUploadFile.value = null
-  if (section.value === 'itineraries') itineraryForm.value = emptyItinerary()
+  if (section.value === 'itineraries') { itineraryForm.value = emptyItinerary(); initialItineraryLocations.value = null; showItineraryTransportHint.value = null }
   if (section.value === 'news') { newsForm.value = emptyNews(); newsExpirationMode.value = 'permanent' }
   if (section.value === 'media') mediaForm.value = emptyMedia()
   if (section.value === 'comments') commentForm.value = emptyComment()
@@ -324,7 +348,9 @@ async function edit(entry: ManagedItinerary | ManagedNews | ManagedMedia | Manag
   newsUploadFile.value = null
   editingId.value = entry.id
   if (section.value === 'itineraries') {
+    showItineraryTransportHint.value = null
     itineraryForm.value = { ...(entry as ManagedItinerary) }
+    initialItineraryLocations.value = { origin: itineraryForm.value.origin, destination: itineraryForm.value.destination, transport: itineraryForm.value.transport }
     if (isLiveAdmin.value) {
       try {
         const response = await fetch(`/api/itinerarios/${encodeURIComponent(entry.id)}`, { credentials: 'same-origin', cache: 'no-store' })
@@ -345,6 +371,21 @@ async function edit(entry: ManagedItinerary | ManagedNews | ManagedMedia | Manag
 }
 async function submitItinerary() {
   const form = { ...itineraryForm.value }
+  if (!itineraryTransport.value) {
+    notice.value = 'Primero seleccioná el tipo de transporte.'
+    return
+  }
+  // Preserve historical locations when editing another field, but require a
+  // current catalogue choice for any new or changed location.
+  const original = initialItineraryLocations.value
+  const isAllowed = (value: string, choices: { value: string }[], role: 'origin' | 'destination') =>
+    choices.some(option => option.value === value) ||
+    Boolean(editingId.value && original?.transport === form.transport && original[role] === value && value.trim())
+  if (!isAllowed(form.origin, adminOrigins.value, 'origin') || !isAllowed(form.destination, adminDestinations.value, 'destination')) {
+    notice.value = adminLocationsLoading.value ? 'Esperá a que carguen las ubicaciones.' :
+      adminLocationsError.value || 'Seleccioná origen y destino válidos del catálogo.'
+    return
+  }
   if (!isLiveAdmin.value) {
     const item = { ...form, id: editingId.value ?? newManagedId() }
     saveManaged('itineraries', item); reload(); notice.value = 'Itinerario guardado solo en este navegador.'; startNew(); return
@@ -620,24 +661,54 @@ function useMediaForNews(item: ManagedMedia) {
         <section class="manager-form">
           <div class="manager-form-heading"><div><p class="manager-eyebrow">{{ editingId ? 'EDITAR' : 'NUEVO REGISTRO' }}</p><h2>{{ section === 'itineraries' ? 'Itinerario' : section === 'news' ? 'Noticia' : section === 'comments' ? 'Comentario' : 'Archivo multimedia' }}</h2></div><button v-if="editingId" class="manager-cancel" @click="startNew">Cancelar</button></div>
           <form v-if="section === 'itineraries'" class="manager-editor--itineraries" @submit.prevent="submitItinerary">
-            <label>Origen<input v-model="itineraryForm.origin" required maxlength="120" placeholder="San José, Costa Rica" /></label>
-            <label>Destino<input v-model="itineraryForm.destination" required maxlength="120" placeholder="Miami, Estados Unidos" /></label>
-            <div class="manager-form-row"><div class="manager-select-field"><label>{{ en ? 'Transport' : 'Transporte' }}</label><FieldDropdown :model-value="itineraryForm.transport" :aria-label="en ? 'Transport' : 'Transporte'" :options="[
+            <div class="manager-select-field"><label>{{ en ? 'Transport' : 'Transporte' }}</label><FieldDropdown :model-value="itineraryForm.transport" :aria-label="en ? 'Transport' : 'Transporte'" :options="[
+  {value:'',label:en ? 'Select transport' : 'Seleccionar transporte'},
   {value:'Marítimo',label:displayManagedMode('Marítimo')},
-  {value:'Terrestre',label:displayManagedMode('Terrestre')},
-  ...(!isLiveAdmin ? [{value:'Aéreo',label:displayManagedMode('Aéreo')},{value:'Multimodal',label:displayManagedMode('Multimodal')}] : [])
+  {value:'Terrestre',label:displayManagedMode('Terrestre')}
 ]" @update:model-value="selectAdminTransport" /></div>
-<div class="manager-select-field"><label>{{ en ? 'Status' : 'Estado' }}</label><FieldDropdown v-model="itineraryForm.status" :aria-label="en ? 'Status' : 'Estado'" :options="['Programado','En tránsito','Completado','Demorado'].map(value => ({value,label:displayManagedStatus(value)}))" /></div></div>
+            <div class="manager-select-field manager-itinerary-location-field"
+              :class="{ 'is-hint-open': showItineraryTransportHint === 'origin' }"
+              @keydown.esc.stop="showItineraryTransportHint = null">
+              <label>{{ en ? 'Origin' : 'Origen' }}</label>
+              <div class="manager-itinerary-location-control">
+                <ItineraryLocationSelect v-model="itineraryForm.origin" :options="adminOrigins" :blocked="!itineraryTransport" :loading="adminLocationsLoading" :aria-label="en ? 'Origin' : 'Origen'" :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" @needs-transport="requestItineraryTransport('origin')" />
+                <div v-if="showItineraryTransportHint === 'origin' && !itineraryTransport" class="manager-itinerary-hint-popover" role="status">
+                  <span class="manager-itinerary-hint-popover__icon" aria-hidden="true">i</span>
+                  <div><strong>{{ en ? 'Choose transport first' : 'Primero elegí el transporte' }}</strong>
+                    <span>{{ en ? 'Select Maritime or Ground to enable locations.' : 'Seleccioná Marítimo o Terrestre para habilitar ubicaciones.' }}</span></div>
+                  <button type="button" :aria-label="en ? 'Close notice' : 'Cerrar aviso'" @click="showItineraryTransportHint = null">×</button>
+                </div>
+              </div>
+            </div>
+            <div class="manager-select-field manager-itinerary-location-field"
+              :class="{ 'is-hint-open': showItineraryTransportHint === 'destination' }"
+              @keydown.esc.stop="showItineraryTransportHint = null">
+              <label>{{ en ? 'Destination' : 'Destino' }}</label>
+              <div class="manager-itinerary-location-control">
+                <ItineraryLocationSelect v-model="itineraryForm.destination" :options="adminDestinations" :blocked="!itineraryTransport" :loading="adminLocationsLoading" :aria-label="en ? 'Destination' : 'Destino'" :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" @needs-transport="requestItineraryTransport('destination')" />
+                <div v-if="showItineraryTransportHint === 'destination' && !itineraryTransport" class="manager-itinerary-hint-popover" role="status">
+                  <span class="manager-itinerary-hint-popover__icon" aria-hidden="true">i</span>
+                  <div><strong>{{ en ? 'Choose transport first' : 'Primero elegí el transporte' }}</strong>
+                    <span>{{ en ? 'Select Maritime or Ground to enable locations.' : 'Seleccioná Marítimo o Terrestre para habilitar ubicaciones.' }}</span></div>
+                  <button type="button" :aria-label="en ? 'Close notice' : 'Cerrar aviso'" @click="showItineraryTransportHint = null">×</button>
+                </div>
+              </div>
+            </div>
+            <p v-if="adminLocationsError" class="manager-itinerary-transport-hint manager-itinerary-transport-hint--full" role="status">
+              <span aria-hidden="true" class="manager-itinerary-transport-hint__icon">!</span>
+              <span><strong>{{ en ? 'Locations unavailable' : 'No se pudo cargar el catálogo' }}</strong>{{ adminLocationsError }}</span>
+            </p>
+            <div class="manager-select-field"><label>{{ en ? 'Status' : 'Estado' }}</label><FieldDropdown v-model="itineraryForm.status" :aria-label="en ? 'Status' : 'Estado'" :options="['Programado','En tránsito','Completado','Demorado'].map(value => ({value,label:displayManagedStatus(value)}))" /></div>
             <div class="manager-form-row"><label>Salida (ETD)<input v-model="itineraryForm.departure" type="date" :required="isLiveAdmin" /></label><label>Llegada (ETA)<input v-model="itineraryForm.arrival" type="date" :required="isLiveAdmin" /></label></div>
-            <template v-if="isLiveAdmin"><label>Closing (opcional)<input v-model="itineraryForm.closing" type="date" /></label><div class="manager-select-field"><label>Modalidad</label><FieldDropdown :model-value="itineraryForm.modality ?? ''" @update:model-value="value => itineraryForm.modality = value" aria-label="Modalidad" :options="(itineraryForm.transport === 'Terrestre' ? ['LTL'] : ['FCL', 'LCL']).map(value => ({value,label:value}))" /></div><div class="manager-form-row"><label>Transportista (opcional)<input v-model="itineraryForm.carrier" maxlength="150" /></label><label>Buque (opcional)<input v-model="itineraryForm.vessel" maxlength="150" /></label></div><label>Viaje (opcional)<input v-model="itineraryForm.voyage" maxlength="50" /></label></template>
-            <button class="manager-submit">{{ editingId ? 'Guardar cambios' : 'Agregar itinerario' }}</button>
+            <label>Closing (opcional)<input v-model="itineraryForm.closing" type="date" /></label><div class="manager-select-field"><label>Modalidad</label><FieldDropdown :model-value="itineraryForm.modality ?? ''" @update:model-value="value => itineraryForm.modality = value" aria-label="Modalidad"  :disabled="!itineraryTransport" :options="[{value:'',label:en ? 'Select transport first' : 'Elegí transporte primero'}, ...(itineraryForm.transport === 'Terrestre' ? ['LTL'] : itineraryForm.transport === 'Marítimo' ? ['FCL', 'LCL'] : []).map(value => ({value,label:value}))]" /></div><div class="manager-form-row"><label>Transportista (opcional)<input v-model="itineraryForm.carrier" maxlength="150" /></label><label>Buque (opcional)<input v-model="itineraryForm.vessel" maxlength="150" /></label></div><label>Viaje (opcional)<input v-model="itineraryForm.voyage" maxlength="50" /></label>
+            <button class="manager-submit" :disabled="!itineraryTransport || adminLocationsLoading">{{ editingId ? 'Guardar cambios' : 'Agregar itinerario' }}</button>
           </form>
           <form v-else-if="section === 'news'" @submit.prevent="submitNews">
             <label>Título<input v-model="newsForm.title" required maxlength="160" placeholder="Título de la noticia" /></label>
             <label>Categoría<input v-model="newsForm.category" required maxlength="60" placeholder="LOGÍSTICA" /></label>
             <div class="manager-form-row"><label>Autor<input v-model.trim="newsForm.author" maxlength="160" placeholder="Nombre del autor" /></label><label>Fecha de publicación<input v-model="newsForm.publishedAt" type="date" /></label></div>
             <label>Resumen (visible en tarjetas)<textarea v-model="newsForm.description" required maxlength="1200" rows="3" placeholder="Resumen breve de la noticia" /></label>
-            <label>Contenido completo<textarea v-model="newsForm.body" maxlength="20000" rows="8" placeholder="Escribe el artículo completo. Si se deja vacío, el lector verá el resumen." /></label>
+            <div class="manager-rich-news-field"><label>Contenido completo</label><NewsRichTextEditor :model-value="newsForm.body ?? ''" @update:model-value="value => newsForm.body = value" /></div>
             <label>Imagen ({{ storageMode === 's3' ? 'MinIO' : 'archivo local' }})<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="selectFile($event, 'news')" /></label>
             <p v-if="newsUploadFile" class="manager-publication-hint">Imagen seleccionada: {{ newsUploadFile.name }}. Se subirá a MinIO al guardar.</p>
             <label>o URL de imagen<input v-model="newsForm.image" placeholder="/images/mi-imagen.webp" /></label>
@@ -706,6 +777,50 @@ function useMediaForNews(item: ManagedMedia) {
 </template>
 
 <style scoped>
+.manager-itinerary-transport-hint{display:flex;align-items:flex-start;gap:11px;margin:0;padding:12px 14px;border:1px solid rgba(170,16,44,.22);border-radius:13px;background:rgba(178,12,42,.06);color:var(--admin-text,#3d404a);font-size:13px;line-height:1.5}
+.manager-itinerary-transport-hint--full{grid-column:1/-1;max-width:640px;width:100%;box-sizing:border-box}
+.manager-itinerary-transport-hint strong{display:block;margin-bottom:2px;color:#a80e18}
+.manager-itinerary-transport-hint__icon{display:grid;flex:none;place-items:center;width:24px;height:24px;border-radius:50%;background:#b20c2a;color:#fff;font-weight:800;font-family:serif}
+.manager-itinerary-location-field{min-width:0}
+.manager-itinerary-location-field.is-hint-open {position:relative;z-index:12}
+.manager-itinerary-location-control {position:relative;min-width:0}
+.manager-itinerary-hint-popover {
+  position:absolute;z-index:30;bottom:calc(100% + 12px);right:0;
+  box-sizing:border-box;display:flex;align-items:flex-start;gap:9px;
+  width:min(310px,calc(100vw - 48px));padding:12px 32px 12px 12px;
+  border:1px solid #e8a6b2;border-radius:13px;
+  background:#fff7f8;color:#3a2930;box-shadow:0 12px 32px #4215252e;
+  font-size:12px;line-height:1.45;text-align:left;
+}
+.manager-itinerary-hint-popover::after {
+  position:absolute;bottom:-6px;right:22px;width:10px;height:10px;
+  border-right:1px solid #e8a6b2;border-bottom:1px solid #e8a6b2;
+  background:#fff7f8;content:'';transform:rotate(45deg);
+}
+.manager-itinerary-hint-popover__icon {
+  display:grid;flex:none;place-items:center;width:20px;height:20px;
+  border-radius:50%;background:#b20c2a;color:#fff;font-weight:800;
+}
+.manager-itinerary-hint-popover strong {display:block;margin-bottom:2px;color:#a80e18}
+.manager-itinerary-hint-popover button {
+  position:absolute;top:4px;right:6px;display:grid;place-items:center;
+  width:25px;height:25px;padding:0;border:0;border-radius:7px;
+  background:transparent;color:#7b444e;font:inherit;font-size:19px;cursor:pointer;
+}
+.manager-itinerary-hint-popover button:hover,.manager-itinerary-hint-popover button:focus-visible {
+  background:#f3dfe4;color:#a80e18;
+}
+:global(html.theme-dark) .manager-itinerary-hint-popover {
+  border-color:#7e4b5a;background:#2d222a;color:#f0e7ec;box-shadow:0 12px 32px #0007;
+}
+:global(html.theme-dark) .manager-itinerary-hint-popover::after {
+  border-color:#7e4b5a;background:#2d222a;
+}
+:global(html.theme-dark) .manager-itinerary-hint-popover strong {color:#ffacb8}
+:global(html.theme-dark) .manager-itinerary-hint-popover button {color:#f0e7ec}
+.manager-submit:disabled{opacity:.55;cursor:not-allowed}
+:global(html.theme-dark) .manager-itinerary-transport-hint{border-color:rgba(255,128,111,.34);background:rgba(178,12,42,.13);color:#e5e5ee}
+:global(html.theme-dark) .manager-itinerary-transport-hint strong{color:#ffacb8}
 .content-manager{min-height:100vh;background:linear-gradient(135deg,#f8ecee,#f5f6fa 52%,#e9eef8);color:#171923;padding-bottom:60px}.manager-topbar{height:82px;background:#101827;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(20px,5vw,80px);color:#fff}.manager-brand{display:flex;align-items:center;gap:18px;color:inherit;text-decoration:none;font-weight:700}.manager-brand img{width:58px;height:50px;object-fit:contain}.manager-topbar-actions{display:flex;align-items:center;gap:17px}.manager-admin-link{color:#d9deeb;text-decoration:none;font-size:13px;font-weight:750}.manager-admin-link.is-active{color:#fff}.manager-back{color:#fff;text-decoration:none;display:flex;align-items:center;gap:10px}.manager-shell{width:min(1180px,calc(100% - 40px));margin:58px auto}.manager-heading{margin-bottom:26px}.manager-eyebrow{color:#ad0b26;font-size:11px;letter-spacing:.16em;font-weight:800;margin:0 0 10px}.manager-heading h1{font-size:clamp(32px,5vw,52px);margin:0 0 8px;letter-spacing:-.04em}.manager-heading>p:last-child{color:#5d6270;margin:0}.manager-notice,.manager-preview-note{border:1px solid rgba(168,14,24,.24);background:rgba(168,14,24,.04);border-radius:14px;padding:15px 18px;color:#4d4144;line-height:1.55;margin:24px 0}.manager-preview-note{border-color:#dec67b;background:#fff9e7;color:#554314;font-size:13px}.manager-tabs{display:flex;gap:10px;border-bottom:1px solid #d9dce4;margin-bottom:22px}.manager-tabs button{border:0;background:transparent;color:#555c69;padding:14px 18px;border-bottom:3px solid transparent;font:inherit;font-weight:700;cursor:pointer}.manager-tabs button.active{color:#a80e18;border-color:#a80e18}.manager-tabs span{background:#e9eaf0;border-radius:99px;padding:2px 8px;margin-left:6px;font-size:12px}.manager-layout{display:grid;grid-template-columns:minmax(300px,.9fr) minmax(0,1.1fr);gap:22px;align-items:start}.manager-form,.manager-list{background:#fff;border:1px solid #e3e5eb;border-radius:20px;padding:24px;box-shadow:0 14px 36px #1c24320b}.manager-form-heading,.manager-list>header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}.manager-form h2,.manager-list h2{margin:0;font-size:23px;letter-spacing:-.03em}.manager-form form{display:grid;gap:14px}.manager-form label{display:grid;gap:7px;color:#424957;font-size:13px;font-weight:700}.manager-form input,.manager-form textarea,.manager-form select{width:100%;box-sizing:border-box;background:#fff;border:1px solid #cfd3dd;border-radius:10px;padding:12px 13px;color:#171923;font:inherit;font-weight:400;outline:none}.manager-form input:focus,.manager-form textarea:focus,.manager-form select:focus{border-color:#ad0b26;box-shadow:0 0 0 3px #ad0b2619}.manager-form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.manager-form .manager-checkbox{display:flex;align-items:center;gap:10px}.manager-checkbox input{width:auto;accent-color:#a80e18}.manager-submit,.manager-add{border:0;border-radius:999px;background:#ad0b26;color:#fff;font:inherit;font-weight:700;padding:13px 18px;cursor:pointer}.manager-cancel{border:1px solid #d6d9e0;background:#fff;border-radius:9px;padding:9px 12px;cursor:pointer}.manager-image-preview{max-width:100%;max-height:180px;object-fit:contain;border-radius:10px;background:#f1f2f4}.manager-feedback{margin:15px 0 0;padding:11px 13px;background:#f0f7f3;border-radius:9px;color:#226341;font-size:13px}.manager-list>header h2{font-size:18px}.manager-empty{padding:28px 12px;text-align:center;color:#727887;line-height:1.5}.manager-item{display:flex;align-items:center;gap:12px;border-top:1px solid #eceef2;padding:13px 0}.manager-item>img{width:58px;height:48px;object-fit:cover;border-radius:9px;background:#eceef2}.manager-item-copy{min-width:0;flex:1;display:grid;gap:5px}.manager-item-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.manager-item-copy small{color:#6d7381}.manager-item-actions{display:flex;gap:5px}.manager-item-actions button{width:34px;height:34px;border:1px solid #e1e3e8;background:#fff;border-radius:9px;font-size:18px;color:#464c58;cursor:pointer}.manager-item-actions button:hover{color:#a80e18;border-color:rgba(168,14,24,.35)}@media(max-width:760px){.manager-shell{margin:32px auto;width:min(100% - 24px,600px)}.manager-layout{grid-template-columns:1fr}.manager-topbar{height:70px;padding:0 16px}.manager-brand{gap:8px;font-size:13px}.manager-brand img{width:42px;height:40px}.manager-topbar-actions{gap:9px}.manager-admin-link,.manager-back{font-size:11px}.manager-tabs{overflow-x:auto}.manager-tabs button{white-space:nowrap;padding:12px 10px;font-size:14px}.manager-form,.manager-list{padding:18px}.manager-item-copy strong{white-space:normal}}
 .manager-subtabs{margin-top:-14px}.manager-users-card{background:#fff;border:1px solid #e3e5eb;border-radius:20px;padding:24px;box-shadow:0 14px 36px #1c24320b}.manager-users-card>header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.manager-users-card h2{margin:0;font-size:22px}.manager-users-empty{padding:34px 16px;text-align:center;color:#727887}.manager-users-error{padding:13px 15px;background:rgba(168,14,24,.07);color:#8b1422;border-radius:10px;line-height:1.5}.manager-users-error button{border:0;background:none;color:inherit;text-decoration:underline;font:inherit;font-weight:700;cursor:pointer}.manager-users-table-wrap{overflow-x:auto}.manager-users-table{width:100%;border-collapse:collapse;text-align:left}.manager-users-table th,.manager-users-table td{padding:14px 16px;border-bottom:1px solid #eceef2;white-space:nowrap}.manager-users-table th{background:#f8f9fb;color:#626a78;font-size:12px;letter-spacing:.04em}.manager-users-table td:first-child{min-width:230px;white-space:normal}.manager-users-table td:first-child strong,.manager-users-table td:first-child small{display:block}.manager-users-table td:first-child small{margin-top:4px;color:#737a87}.manager-users-table select{min-width:130px;border:1px solid #cfd3dd;border-radius:9px;background:#fff;color:#20232b;padding:9px 11px;font:inherit}.manager-user-save{border:0;border-radius:999px;background:#ad0b26;color:#fff;padding:9px 14px;font:inherit;font-weight:700;cursor:pointer}.manager-user-save:disabled,.manager-users-card .manager-add:disabled{opacity:.55;cursor:not-allowed}.manager-users-card .manager-add:disabled{cursor:wait}@media(max-width:760px){.manager-users-card{padding:17px}.manager-users-table th,.manager-users-table td{padding:12px}}
 .content-manager.is-embedded{min-height:0;background:transparent;color:inherit;padding:20px 0 70px;scroll-margin-top:96px}.is-embedded .manager-shell{margin:12px auto 40px}.is-embedded .manager-heading h1{font-size:clamp(30px,4vw,46px)}.is-embedded .manager-notice{margin:20px 0}.is-embedded .manager-users-card,.is-embedded .manager-form,.is-embedded .manager-list{background:var(--admin-surface,#fff);color:var(--admin-text,#171923);border-color:var(--admin-border,#e3e5eb)}.is-embedded .manager-heading>p:last-child,.is-embedded .manager-tabs button{color:var(--admin-muted,#5d6270)}.is-embedded .manager-notice{background:var(--admin-note,rgba(168,14,24,.04));color:var(--admin-muted,#4d4144);border-color:var(--admin-border,rgba(168,14,24,.24))}.is-embedded .manager-form input,.is-embedded .manager-form textarea,.is-embedded .manager-form select,.is-embedded .manager-users-table select{background:var(--admin-input,#fff);color:var(--admin-text,#171923);border-color:var(--admin-border,#cfd3dd)}.is-embedded .manager-users-table th{background:var(--admin-table-head,#f8f9fb);color:var(--admin-muted,#626a78)}.is-embedded .manager-users-table td{border-color:var(--admin-border,#eceef2)}.is-embedded .manager-users-table td:first-child small,.is-embedded .manager-users-empty,.is-embedded .manager-item-copy small{color:var(--admin-muted,#727887)}.is-embedded .manager-tabs button.active{color:#a80e18}
@@ -997,6 +1112,9 @@ function useMediaForNews(item: ManagedMedia) {
 .manager-create-form .manager-create-role{min-width:0;display:flex;flex-direction:column;gap:8px}\n.manager-create-form .manager-create-role>label{font-size:13px;font-weight:700}\n.manager-create-form .manager-create-role :deep(.field-dropdown){width:100%;min-width:0}\n.manager-create-form .manager-create-role :deep(.field-dropdown__trigger){min-height:47px}\n.manager-create-form .manager-create-submit{height:47px;white-space:nowrap;border-radius:11px;padding:0 22px}
 @media(max-width:1100px){.manager-create-form{grid-template-columns:repeat(2,minmax(0,1fr))}.manager-create-submit{justify-self:start}}
 @media(max-width:580px){.manager-create-form{grid-template-columns:minmax(0,1fr)}}
+
+.manager-rich-news-field{display:grid;gap:7px;min-width:0;grid-column:1/-1}
+.manager-rich-news-field>label{font-size:13px;font-weight:700}
 </style>
 
 <style scoped>

@@ -112,6 +112,12 @@ async function main() {
     const scenarios = [
       { url: '/', role: null, must: ['class="app-site home-page"', 'home-hero__content'] },
       { url: '/servicios', role: null, must: ['services-page', 'services-page__transport'] },
+      { url: '/servicios/almacenamiento-fiscal', role: null, must: ['service-landing-page', 'Almacenamiento fiscal de mercancías en Costa Rica'] },
+      { url: '/servicios/transporte-maritimo', role: null, must: ['service-landing-page', 'service-landing-hero__grid', 'service-landing-faq__item'] },
+      { url: '/servicios/transporte-panama-costa-rica', role: null, must: ['service-landing-page', 'service-landing-hero__grid', 'service-landing-faq__item'] },
+      { url: '/servicios/bodegaje-general', role: null, must: ['service-landing-page', 'Bodegaje general y almacenamiento'] },
+      { url: '/servicios/agenciamiento-aduanal', role: null, must: ['service-landing-page', 'Agenciamiento aduanal para importaciones'] },
+      { url: '/servicios/consolidadora-de-carga', role: null, must: ['service-landing-page', 'Consolidadora de carga y transporte'] },
       { url: '/nosotros', role: null, must: ['about-reference-page', 'about-reference-intro'] },
       { url: '/noticias', role: null, must: ['news-page', 'news-editorial-hero'] },
       { url: '/bienvenidos', role: null, must: ['login-screen', 'login-auth-form'] },
@@ -126,6 +132,19 @@ async function main() {
       const html = await dumpDom(chrome, 'http://' + host + ':' + previewPort + scenario.url, scenario.url + ' [' + (activeRole || 'invitado') + ']')
       for (const marker of scenario.must) {
         assert.ok(html.includes(marker), 'No se encontró "' + marker + '" en ' + scenario.url + ' (' + (activeRole || 'invitado') + '); DOM: ' + html.slice(-800))
+      }
+      if (scenario.url === '/servicios' || scenario.url.startsWith('/servicios/')) {
+        assert.ok(html.includes('class="nav-dropdown nav-dropdown--services"') || html.includes('nav-dropdown--services'), 'No está el desplegable de Servicios en el encabezado: ' + scenario.url)
+        for (const slug of ['almacenamiento-fiscal', 'bodegaje-general', 'agenciamiento-aduanal', 'consolidadora-de-carga']) {
+          assert.ok(html.includes('href="/servicios/' + slug + '"'), 'No aparece el enlace de ' + slug + ' en el menú de Servicios')
+        }
+        for (const slug of ['transporte-maritimo', 'transporte-terrestre', 'transporte-aereo', 'transporte-internacional', 'transporte-local', 'transporte-panama-costa-rica']) {
+          assert.ok(html.includes('href="/servicios/' + slug + '"'), 'Falta el transporte en el submenú: ' + slug)
+        }
+        assert.ok(html.includes('services-megamenu__rail') && html.includes('services-megamenu__detail') && html.includes('services-megamenu__group-trigger'), 'Falta el megamenú de dos columnas debajo del nav')
+        assert.ok(html.includes('aria-current="page"'), 'La ruta actual debe quedar resaltada en Servicios: ' + scenario.url)
+        assert.ok(!html.includes('services-page__guides'), 'La página debe conservar su diseño anterior, sin tarjetas nuevas')
+        assert.ok(!html.includes('service-landing-related'), 'Enlaces cruzados de servicios fuera del nav')
       }
       assert.ok(sessionCalls > before, 'No se comprobó la sesión para ' + scenario.url)
       console.log('PASS navegador: ' + scenario.url + ' [' + (activeRole || 'invitado') + ']')

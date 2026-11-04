@@ -509,6 +509,23 @@ app.MapGet("/api/quotes/{id:guid}", async (
 }).RequireAuthorization("registered");
 
 
+// Autocomplete para el itinerario conversacional: los valores deben proceder
+// exclusivamente de los itinerarios existentes. Esta lectura requiere sesión.
+app.MapGet("/api/assistant/itinerary-locations", async (
+    string routeRole, string? origin, AppDbContext db, HttpContext http, CancellationToken ct) =>
+{
+    http.Response.Headers.CacheControl = "no-store";
+    if (routeRole is not ("origin" or "destination") || origin?.Length > 150)
+        return Results.BadRequest(new { error = "Filtro de ubicaciones inválido." });
+    var listed = db.Itinerarios.AsNoTracking();
+    IQueryable<string> locations = routeRole == "origin"
+        ? listed.Select(x => x.Pol)
+        : listed.Where(x => string.IsNullOrWhiteSpace(origin) || x.Pol == origin).Select(x => x.Pod);
+    var names = await locations.Where(value => value != null && value != "")
+        .Distinct().OrderBy(value => value).Take(300).ToListAsync(ct);
+    return Results.Ok(new { items = names.Select(name => new { id = name, displayName = name, code = (string?)null }) });
+}).RequireAuthorization("registered").RequireRateLimiting("auth");
+
 app.MapGet("/api/itinerarios", async (
     AppDbContext db, AuthService auth, HttpContext http,
     string? pol, string? pod, string? status, string? transporte,
@@ -563,6 +580,7 @@ app.MapGet("/api/itinerarios", async (
         .Skip((int)offset).Take(currentPageSize)
         .Select(x => new {
             x.Id, x.Pol, x.Pod, x.Closing, x.Status, x.Etd, x.Eta,
+            x.Carrier, x.Vessel, x.Voyage,
             Transport = x.Transporte, Modality = x.Modalidad
         }).ToListAsync(ct);
     http.Response.Headers.CacheControl = "no-store";

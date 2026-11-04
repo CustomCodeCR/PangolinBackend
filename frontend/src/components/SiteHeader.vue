@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import SiteMedia from './SiteMedia.vue'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowUpRight, ChevronDown, Menu, Moon, Settings, Sun, UserRound, X } from '@lucide/vue'
+import { ArrowLeft, ArrowRightLeft, ArrowUpRight, Boxes, ChevronDown, ChevronRight, Globe, LayoutGrid, MapPin, Menu, Moon, Package, Plane, Settings, ShieldCheck, Ship, Sun, Truck, UserRound, Warehouse, X } from '@lucide/vue'
 import LanguageSwitcher from './LanguageSwitcher.vue'
+import serviceGuides from '../../seo/service-landings.json'
+import { servicePages } from '../content/servicePages'
 import { authState, currentRole, logoutSession, refreshSession } from '../services/auth'
 
 const props = defineProps<{ active?: string; overlay?: boolean }>()
-const { t } = useI18n({ useScope: 'global' })
+const { t, locale } = useI18n({ useScope: 'global' })
 const expanded = ref(false)
 const headerElement = ref<HTMLElement | null>(null)
 const menuToggle = ref<HTMLButtonElement | null>(null)
-const mobileMenuQuery = typeof window === 'undefined' ? null : window.matchMedia('(max-width: 800px)')
+const mobileMenuQuery = typeof window === 'undefined' ? null : window.matchMedia('(max-width: 1080px)')
 const mobileMenuActive = ref(mobileMenuQuery?.matches ?? false)
 let lockedScrollY = 0
 let previousHtmlOverflow = ''
@@ -33,14 +35,18 @@ function lockMenuBackground() {
   previousBodyWidth = document.body.style.width
   previousBodyLeft = document.body.style.left
   previousBodyRight = document.body.style.right
-  const background = document.getElementById('app')
+  // Ocultar la barra de desplazamiento modifica el ancho disponible en
+  // escritorio. Reservar ese espacio antes de fijar el body evita que los
+  // elementos de Nosotros se muevan horizontalmente al abrir el menú.
+  const scrollbarWidth = Math.max(0, window.innerWidth - document.documentElement.clientWidth)
+  const background = document.getElementById('app') ?? document.getElementById('__nuxt')
   previousBackgroundInert = background?.inert ?? false
   if (background) background.inert = true
   document.body.style.position = 'fixed'
   document.body.style.top = `-${lockedScrollY}px`
   document.body.style.left = '0'
   document.body.style.right = '0'
-  document.body.style.width = '100%'
+  document.body.style.width = scrollbarWidth ? `calc(100% - ${scrollbarWidth}px)` : '100%'
   document.documentElement.style.overflow = 'hidden'
   document.body.style.overflow = 'hidden'
   backgroundLocked = true
@@ -54,16 +60,29 @@ function unlockMenuBackground() {
   document.body.style.left = previousBodyLeft
   document.body.style.right = previousBodyRight
   document.body.style.width = previousBodyWidth
-  const background = document.getElementById('app')
+  const background = document.getElementById('app') ?? document.getElementById('__nuxt')
   if (background) background.inert = previousBackgroundInert
   backgroundLocked = false
-  if (Math.abs(window.scrollY - lockedScrollY) > 1) window.scrollTo(0, lockedScrollY)
+  if (Math.abs(window.scrollY - lockedScrollY) > 1) {
+    // El sitio usa scroll-behavior:smooth. Al cerrar el menú se debe restaurar
+    // de inmediato la posición bloqueada, sin animar el documento de fondo.
+    const previousScrollBehavior = document.documentElement.style.scrollBehavior
+    document.documentElement.style.scrollBehavior = 'auto'
+    window.scrollTo(0, lockedScrollY)
+    document.documentElement.style.scrollBehavior = previousScrollBehavior
+  }
 }
 function closeMenuOnDesktop(event: MediaQueryListEvent) {
   mobileMenuActive.value = event.matches
   if (!event.matches) { expanded.value = false; unlockMenuBackground() }
 }
 const cargoMenuOpen = ref(false)
+const servicesMenuOpen = ref(false)
+const serviceMenuCategory = ref<'transport' | null>('transport')
+const servicesMenuElement = ref<HTMLElement | null>(null)
+const cargoMenuElement = ref<HTMLElement | null>(null)
+// Se inicializa después de hidratar Nuxt, sin acceder a window durante SSR.
+const currentPath = ref('/')
 const darkMode = ref(false)
 const systemThemeQuery = typeof window === 'undefined' ? null : window.matchMedia?.('(prefers-color-scheme: dark)')
 const sessionUser = computed(() => authState.user)
@@ -105,16 +124,143 @@ const administrationHref = computed(() => `/administracion${authState.previewRol
 const baseLinks = [
   { key: 'servicios', id: 'principal', url: '/home' },
   { key: 'noticias', id: 'noticias', url: '/noticias' },
-  { key: 'nosotros', id: 'nosotros', url: '/nosotros' },
-  { key: 'soluciones', id: 'soluciones', url: '/servicios' }
+  { key: 'nosotros', id: 'nosotros', url: '/nosotros' }
 ]
 const links = computed(() => baseLinks.map(link => ({ ...link, label: t(`navLinks.${link.key}`) })))
 const visibleLinks = computed(() => links.value.map(link => ({ ...link, url: `${link.url}${rolePreviewSuffix.value}` })))
+const servicesLinks = computed(() => [
+  { url: '/servicios', label: locale.value.startsWith('en') ? 'All services' : 'Todos los servicios' },
+  ...Object.entries(serviceGuides).map(([url, guide]) => ({ url, label: locale.value.startsWith('en') ? guide.en.label : guide.es.label })),
+  ...servicePages.map(page => ({ url: `/servicios/${page.slug}${rolePreviewSuffix.value}`, label: locale.value.startsWith('en') ? page.title.en : page.title.es }))
+])
+const transportLinks = computed(() => servicesLinks.value.filter(link => servicePages.some(page => link.url.split('?')[0] === '/servicios/' + page.slug)))
+const primaryServicesLinks = computed(() => servicesLinks.value.filter(link => !transportLinks.value.includes(link)))
+const allServicesLink = computed(() => primaryServicesLinks.value.find(link => link.url === '/servicios')!)
+const generalServicesLinks = computed(() => primaryServicesLinks.value.filter(link => link.url !== '/servicios'))
+const generalServiceIcon = (url: string) => ({
+  '/servicios/almacenamiento-fiscal': Warehouse,
+  '/servicios/bodegaje-general': Package,
+  '/servicios/agenciamiento-aduanal': ShieldCheck,
+  '/servicios/consolidadora-de-carga': Boxes
+} as Record<string, typeof Package>)[url] ?? Package
+const transportServiceIcon = (url: string) => {
+  const path = url.split('?')[0]
+  if (path.includes('maritimo')) return Ship
+  if (path.includes('aereo')) return Plane
+  if (path.includes('panama-costa-rica')) return ArrowRightLeft
+  if (path.includes('local')) return MapPin
+  if (path.includes('internacional') && !path.includes('terrestre')) return Globe
+  return Truck
+}
+const isCurrentService = (href: string) => href.split('?')[0] === currentPath.value
+const currentTransport = computed(() => transportLinks.value.some(link => isCurrentService(link.url)))
+const isServicePage = computed(() => props.active === 'soluciones' || currentPath.value === '/servicios' || currentPath.value.startsWith('/servicios/'))
+
+function closeServiceMenu() {
+  servicesMenuOpen.value = false
+}
+function positionServicesMenu() {
+  if (typeof window === 'undefined') return
+  void nextTick(() => {
+    const menu = servicesMenuElement.value
+    if (!menu) return
+    menu.style.setProperty('--services-menu-shift', '0px')
+    if (window.innerWidth <= 1080) return
+    const bounds = menu.getBoundingClientRect()
+    // Leave generous breathing room at the screen edges, even at zoom.
+    const margin = 28
+    const rightShift = window.innerWidth - margin - bounds.right
+    const leftShift = margin - bounds.left
+    const shift = bounds.right > window.innerWidth - margin ? rightShift : bounds.left < margin ? leftShift : 0
+    menu.style.setProperty('--services-menu-shift', `${Math.round(shift)}px`)
+  })
+}
+function onServicesViewportResize() {
+  if (servicesMenuOpen.value) positionServicesMenu()
+}
+function showCurrentService() {
+  // En escritorio el panel tiene un único scroll; en móvil el drawer es el
+  // contenedor desplazable. Nunca forzar scroll sobre la página principal.
+  if (typeof window === 'undefined') return
+  void nextTick(() => {
+    const menu = servicesMenuElement.value
+    const active = menu?.querySelector<HTMLElement>('a[aria-current="page"]')
+    if (!menu || !active) return
+    const scrollContainer = window.innerWidth <= 1080
+      ? menu.closest<HTMLElement>('.site-header--menu-open') ?? menu
+      : menu
+    if (!scrollContainer) return
+    const bounds = scrollContainer.getBoundingClientRect()
+    const link = active.getBoundingClientRect()
+    if (link.bottom > bounds.bottom - 12) scrollContainer.scrollTop += link.bottom - bounds.bottom + 18
+    else if (link.top < bounds.top + 12) scrollContainer.scrollTop -= bounds.top - link.top + 18
+  })
+}
+function toggleServicesMenu() {
+  servicesMenuOpen.value = !servicesMenuOpen.value
+  cargoMenuOpen.value = false
+  if (servicesMenuOpen.value) {
+    // Remember the selected route only when it belongs to Transportes;
+    // otherwise the compact first column opens by itself.
+    serviceMenuCategory.value = currentTransport.value ? 'transport' : null
+    positionServicesMenu()
+    showCurrentService()
+  }
+}
+function toggleTransportCategory() {
+  if (serviceMenuCategory.value === 'transport') {
+    serviceMenuCategory.value = null
+    positionServicesMenu()
+    return
+  }
+  serviceMenuCategory.value = 'transport'
+  void nextTick(() => {
+    positionServicesMenu()
+    if (typeof window !== 'undefined' && window.innerWidth <= 1080) {
+      servicesMenuElement.value?.querySelector<HTMLElement>('.services-megamenu__back')?.focus()
+    }
+    showCurrentService()
+  })
+}
+function backToServiceCategories() {
+  serviceMenuCategory.value = null
+  positionServicesMenu()
+  void nextTick(() => servicesMenuElement.value?.querySelector<HTMLElement>('.services-megamenu__group-trigger')?.focus())
+}
 const cargoLinks = computed(() => [
   { key: 'embarque', id: 'embarque', url: `/tracking${rolePreviewSuffix.value}`, label: t('navLinks.embarque') },
   { key: 'itinerario', id: 'itinerario', url: `/itinerario${rolePreviewSuffix.value}`, label: t('navLinks.itinerario') },
   { key: 'cotizaciones', id: 'cotizaciones', url: `/cotizaciones${rolePreviewSuffix.value}`, label: t('navLinks.cotizaciones') }
 ])
+
+// El drawer tiene scroll propio. Tras desplegar Carga internacional,
+// revelar sus enlaces dentro del header (sin desplazar el documento).
+function revealCargoMenu() {
+  if (typeof window === 'undefined' || window.innerWidth > 1080) return
+  void nextTick(() => {
+    if (!expanded.value || !cargoMenuOpen.value) return
+    const drawer = headerElement.value
+    const menu = cargoMenuElement.value
+    if (!drawer || !menu) return
+    const frame = drawer.getBoundingClientRect()
+    const bottom = Math.min(frame.bottom, window.innerHeight) - 14
+    // En ventanas bajas, las tres opciones caben pero Administración y
+    // Cuenta/Configuración quedan debajo del límite visible del header.
+    // Mostrar la última acción del menú, sin desplazar la página de fondo.
+    const lastCargoLink = menu.querySelector<HTMLElement>('a:last-child')
+    const finalActions = drawer.querySelector<HTMLElement>('.header-account-tools')
+    const finalBottom = Math.max(
+      lastCargoLink?.getBoundingClientRect().bottom ?? 0,
+      finalActions?.getBoundingClientRect().bottom ?? 0
+    )
+    if (finalBottom > bottom) drawer.scrollTop += finalBottom - bottom
+  })
+}
+function toggleCargoMenu() {
+  cargoMenuOpen.value = !cargoMenuOpen.value
+  servicesMenuOpen.value = false
+  if (cargoMenuOpen.value) revealCargoMenu()
+}
 async function logout() {
   if (loggingOut.value) return
   loggingOut.value = true
@@ -134,6 +280,7 @@ function handleOutsideClick(event: MouseEvent) {
   if (!(event.target instanceof Element)) return
   if (!event.target.closest('.header-settings')) settingsOpen.value = false
   if (!event.target.closest('.header-profile')) profileOpen.value = false
+  if (!event.target.closest('.nav-dropdown--services')) closeServiceMenu()
 }
 function handleEscapeKey(event: KeyboardEvent) {
   if (event.key !== 'Escape') return
@@ -142,6 +289,8 @@ function handleEscapeKey(event: KeyboardEvent) {
     profileButton.value?.focus()
   }
   settingsOpen.value = false
+  closeServiceMenu()
+  cargoMenuOpen.value = false
   if (expanded.value) { expanded.value = false; menuToggle.value?.focus() }
 }
 watch(isAuthenticated, authenticated => {
@@ -156,13 +305,15 @@ watch(darkMode, isDark => {
   document.documentElement.style.colorScheme = isDark ? 'dark' : 'light'
 }, { flush: 'sync' })
 watch(expanded, isOpen => {
-  if (!isOpen) { profileOpen.value = false; settingsOpen.value = false; cargoMenuOpen.value = false }
+  if (!isOpen) { profileOpen.value = false; settingsOpen.value = false; cargoMenuOpen.value = false; closeServiceMenu() }
   if (isOpen && mobileMenuQuery?.matches) lockMenuBackground()
   else unlockMenuBackground()
 }, { flush: 'post' })
 
 onMounted(() => {
+  currentPath.value = window.location.pathname.replace(/\/+$/, '') || '/'
   mobileMenuQuery?.addEventListener('change', closeMenuOnDesktop)
+  window.addEventListener('resize', onServicesViewportResize)
   if (!authState.loaded) void refreshSession()
   const savedTheme = localStorage.getItem('castrofallas-theme')
   darkMode.value = savedTheme ? savedTheme === 'dark' : !!systemThemeQuery?.matches
@@ -173,6 +324,7 @@ onMounted(() => {
 onUnmounted(() => {
   unlockMenuBackground()
   mobileMenuQuery?.removeEventListener('change', closeMenuOnDesktop)
+  window.removeEventListener('resize', onServicesViewportResize)
   systemThemeQuery?.removeEventListener('change', applySystemTheme)
   document.removeEventListener('click', handleOutsideClick)
   document.removeEventListener('keydown', handleEscapeKey)
@@ -195,11 +347,63 @@ function toggleTheme() {
       <button ref="menuToggle" class="menu-toggle" type="button" :aria-expanded="expanded" aria-controls="site-primary-navigation" :aria-label="expanded ? $t('custom.home.close') : $t('phrases.p137')" @click="expanded = !expanded"><X v-if="expanded" :size="22" aria-hidden="true" /><Menu v-else :size="22" aria-hidden="true" /></button>
       <nav id="site-primary-navigation" class="main-nav" :class="{ 'main-nav--open': expanded }" :aria-label="$t('phrases.p136')">
         <a v-for="link in visibleLinks" :key="link.id" :class="{ 'is-active': props.active === link.id }" :href="link.url" @click="expanded = false">{{ link.label }}</a>
+        <div class="nav-dropdown nav-dropdown--services" :class="{ 'nav-dropdown--open': servicesMenuOpen, 'nav-dropdown--active': isServicePage }">
+          <button class="nav-dropdown__trigger" type="button" aria-controls="site-services-menu" :aria-expanded="servicesMenuOpen" @click="toggleServicesMenu">
+            {{ t('navLinks.soluciones') }} <ChevronDown :size="16" class="nav-dropdown__chevron" aria-hidden="true" />
+          </button>
+          <div v-show="servicesMenuOpen" id="site-services-menu" ref="servicesMenuElement"
+            class="nav-dropdown__menu services-megamenu" :class="{ 'is-detail-open': serviceMenuCategory === 'transport' }">
+            <div class="services-megamenu__rail" aria-label="Servicios">
+              <p class="services-megamenu__eyebrow">{{ locale.startsWith('en') ? 'SERVICES' : 'SERVICIOS' }}</p>
+              <a class="services-megamenu__rail-link services-megamenu__all" :href="allServicesLink.url"
+                :class="{ 'is-current': isCurrentService(allServicesLink.url) }"
+                :aria-current="isCurrentService(allServicesLink.url) ? 'page' : undefined"
+                @click="closeServiceMenu(); expanded = false">
+                <LayoutGrid :size="19" aria-hidden="true" />
+                <span>{{ allServicesLink.label }}</span>
+              </a>
+              <a v-for="link in generalServicesLinks" :key="link.url"
+                class="services-megamenu__rail-link" :href="link.url"
+                :class="{ 'is-current': isCurrentService(link.url) }"
+                :aria-current="isCurrentService(link.url) ? 'page' : undefined"
+                @click="closeServiceMenu(); expanded = false">
+                <component :is="generalServiceIcon(link.url)" :size="19" aria-hidden="true" />
+                <span>{{ link.label }}</span>
+              </a>
+              <button type="button" class="services-megamenu__rail-link services-megamenu__group-trigger"
+                :class="{ 'is-selected': serviceMenuCategory === 'transport', 'has-current': currentTransport }"
+                :aria-expanded="serviceMenuCategory === 'transport'" aria-controls="services-transport-panel"
+                @click.stop="toggleTransportCategory">
+                <Truck :size="19" aria-hidden="true" />
+                <span>{{ locale.startsWith('en') ? 'Transport' : 'Transportes' }}</span>
+                <ChevronRight class="services-megamenu__group-chevron" :size="17" aria-hidden="true" />
+              </button>
+            </div>
+            <section v-show="serviceMenuCategory === 'transport'" id="services-transport-panel"
+              class="services-megamenu__detail"
+              :aria-label="locale.startsWith('en') ? 'Transport options' : 'Opciones de transporte'">
+              <button type="button" class="services-megamenu__back" @click.stop="backToServiceCategories">
+                <ArrowLeft :size="17" aria-hidden="true" />
+                {{ locale.startsWith('en') ? 'Categories' : 'Categorías' }}
+              </button>
+              <p class="services-megamenu__eyebrow">{{ locale.startsWith('en') ? 'TRANSPORT' : 'TRANSPORTES' }}</p>
+              <div class="services-megamenu__links">
+                <a v-for="link in transportLinks" :key="link.url" :href="link.url"
+                  :class="{ 'is-current': isCurrentService(link.url) }"
+                  :aria-current="isCurrentService(link.url) ? 'page' : undefined"
+                  @click="closeServiceMenu(); expanded = false">
+                  <component :is="transportServiceIcon(link.url)" :size="19" aria-hidden="true" />
+                  <span>{{ link.label }}</span>
+                </a>
+              </div>
+            </section>
+          </div>
+        </div>
         <div v-if="canAccessCargo" class="nav-dropdown" :class="{ 'nav-dropdown--open': cargoMenuOpen, 'nav-dropdown--active': cargoLinks.some(link => props.active === link.id) }">
-          <button class="nav-dropdown__trigger" type="button" :aria-expanded="cargoMenuOpen" @click="cargoMenuOpen = !cargoMenuOpen">
+          <button class="nav-dropdown__trigger" type="button" :aria-expanded="cargoMenuOpen" @click="toggleCargoMenu">
             {{ t('navLinks.embarque') }} <ChevronDown :size="16" class="nav-dropdown__chevron" aria-hidden="true" />
           </button>
-          <div v-if="cargoMenuOpen" class="nav-dropdown__menu">
+          <div v-if="cargoMenuOpen" ref="cargoMenuElement" class="nav-dropdown__menu">
             <a v-for="link in cargoLinks" :key="link.id" :href="link.url" @click="cargoMenuOpen = false; expanded = false">{{ link.label }}</a>
           </div>
         </div>
@@ -452,3 +656,5 @@ html:not(.theme-dark) .app-site.official-page > .site-header.site-header--quotes
 }
 </style>
 <style src="../styles/mobile-navigation.css"></style>
+<style src="../styles/services-switcher.css"></style>
+<style src="../styles/nav-panel-surfaces.css"></style>

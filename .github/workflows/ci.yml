@@ -1,9 +1,9 @@
 name: Verificacion de frontend y backend
 on:
   push:
-    branches: [main]
+    branches: [main, main-2]
   pull_request:
-    branches: [main]
+    branches: [main, main-2]
 permissions:
   contents: read
 jobs:

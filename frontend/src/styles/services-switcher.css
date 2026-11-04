@@ -1,0 +1,238 @@
+/* Servicios mega-menu: one level of children, anchored BELOW the existing nav.
+   The first column is navigation and the second contains FINAL destination links.
+   Shared by Vue/Vite and Nuxt SSR; no third level or inner mobile scrollbar. */
+.site-header .nav-dropdown--services > .nav-dropdown__menu.services-megamenu {
+  display: grid;
+  grid-template-columns: minmax(224px, .95fr) minmax(260px, 1.05fr);
+  gap: 0;
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  width: 622px;
+  max-width: calc(100vw - 56px);
+  max-height: min(82dvh, 545px);
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 15px;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  border: 1px solid #e7e0e4 !important;
+  border-radius: 20px;
+  background: rgba(255,255,255,.985) !important;
+  box-shadow: 0 20px 48px rgba(11, 12, 28, .2) !important;
+  box-sizing: border-box;
+  transform: translateX(var(--services-menu-shift, 0px));
+  z-index: 12002;
+}
+/* Without Transportes expanded only the primary navigation column is shown. */
+.site-header .nav-dropdown--services > .nav-dropdown__menu.services-megamenu:not(.is-detail-open) {
+  grid-template-columns: minmax(0, 1fr);
+  width: 315px;
+  max-width: calc(100vw - 56px);
+}
+.site-header .nav-dropdown__menu.services-megamenu::before { content: none !important; }
+.site-header .services-megamenu__rail,
+.site-header .services-megamenu__detail {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 3px;
+}
+.site-header .services-megamenu__rail { padding: 2px 13px 2px 0; }
+.site-header .services-megamenu__detail {
+  padding: 2px 1px 2px 17px;
+  border-left: 1px solid #e5e2e7;
+}
+.site-header .services-megamenu__eyebrow {
+  margin: 0 0 10px;
+  padding: 5px 12px 0;
+  color: #747984;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.4;
+  letter-spacing: .09em;
+}
+.site-header .services-megamenu__rail-link,
+.site-header .services-megamenu__links a {
+  display: grid;
+  grid-template-columns: 23px minmax(0,1fr);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  min-height: 45px;
+  padding: 11px 12px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: #252936;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.36;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: background-color .16s ease, color .16s ease;
+}
+.site-header .services-megamenu__rail-link svg,
+.site-header .services-megamenu__links a svg {
+  display: block;
+  flex: 0 0 19px;
+}
+.site-header .services-megamenu__rail-link span,
+.site-header .services-megamenu__links a span { min-width: 0; }
+.site-header .services-megamenu__rail-link:is(:hover, :focus-visible),
+.site-header .services-megamenu__links a:is(:hover, :focus-visible) {
+  background: #f8e8ec;
+  color: #a7092b;
+}
+.site-header .services-megamenu__rail-link:focus-visible,
+.site-header .services-megamenu__links a:focus-visible,
+.site-header .services-megamenu__back:focus-visible {
+  outline: 2px solid #d53658;
+  outline-offset: 2px;
+}
+.site-header .services-megamenu__rail-link.is-current,
+.site-header .services-megamenu__links a.is-current {
+  background: #b20b2d !important;
+  color: #fff !important;
+}
+.site-header .services-megamenu__rail-link.is-selected,
+.site-header .services-megamenu__rail-link.has-current {
+  color: #ab0a2c;
+  background: #f9e6e9;
+}
+.site-header .services-megamenu__group-trigger {
+  grid-template-columns: 23px minmax(0,1fr) 16px;
+}
+ .site-header .services-megamenu__group-chevron {
+  justify-self: end;
+  transition: transform .18s ease;
+}
+.site-header .services-megamenu.is-detail-open .services-megamenu__group-chevron {
+  transform: rotate(90deg);
+}
+.site-header .services-megamenu__links {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.site-header .services-megamenu__back { display: none; }
+html.theme-dark .site-header .nav-dropdown--services > .nav-dropdown__menu.services-megamenu {
+  isolation: isolate;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  border-color: rgba(255,255,255,.24) !important;
+  background: linear-gradient(110deg, rgba(9,19,43,.985), rgba(28,13,39,.985) 80%,rgba(65,13,38,.985)) !important;
+  box-shadow: 0 20px 48px rgba(0,0,0,.42) !important;
+}
+html.theme-dark .site-header .services-megamenu__detail { border-color: rgba(255,255,255,.2); }
+html.theme-dark .site-header .services-megamenu__eyebrow { color: #c0c7d4; }
+html.theme-dark .site-header .services-megamenu__rail-link,
+html.theme-dark .site-header .services-megamenu__links a { color: #f6f6fb !important; }
+html.theme-dark .site-header .services-megamenu__rail-link:is(:hover, :focus-visible),
+html.theme-dark .site-header .services-megamenu__links a:is(:hover, :focus-visible) {
+  background: rgba(255,255,255,.14) !important;
+  color: #fff !important;
+}
+html.theme-dark .site-header .services-megamenu__rail-link.is-selected,
+html.theme-dark .site-header .services-megamenu__rail-link.has-current {
+  background: #b20b2d !important;
+  color: #fff !important;
+}
+html.theme-dark .site-header .services-megamenu__links a.is-current,
+html.theme-dark .site-header .services-megamenu__rail-link.is-current {
+  background: #b20b2d !important;
+  color: #fff !important;
+}
+/* Mid-size and phone nav: the LEFT column becomes a category screen.
+   Selecting Transportes replaces it with the RIGHT column of final links.
+   One scrolling drawer, no panels nested inside scrollbars. */
+@media (max-width: 1080px) {
+  .site-header .nav-dropdown--services > .nav-dropdown__menu.services-megamenu,
+  html.theme-dark .site-header .nav-dropdown--services > .nav-dropdown__menu.services-megamenu,
+  .site-header.site-header--menu-open .main-nav.main-nav--open .nav-dropdown__menu.services-megamenu,
+  html.theme-dark .site-header.site-header--menu-open .main-nav.main-nav--open .nav-dropdown__menu.services-megamenu {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    position: static !important;
+    inset: auto !important;
+    transform: none !important;
+    width: calc(100% - 30px) !important;
+    max-width: none !important;
+    min-width: 0;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 15px 9px;
+    padding: 11px;
+    overflow: visible !important;
+    border: 1px solid rgba(255,255,255,.22) !important;
+    border-radius: 15px;
+    background: rgba(17,22,47,.47) !important;
+    box-shadow: none !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  /* The compact menu must keep the drawer width whether detail is open or not. */
+  .site-header .nav-dropdown--services > .nav-dropdown__menu.services-megamenu:not(.is-detail-open) {
+    width: calc(100% - 30px) !important;
+    max-width: none !important;
+  }
+  .site-header .services-megamenu__rail { padding: 0; }
+  .site-header .services-megamenu__detail {
+    padding: 0;
+    border: 0;
+  }
+  .site-header .services-megamenu__eyebrow { padding-left: 10px; color: #f6dce1 !important; }
+  .site-header .services-megamenu__rail-link,
+  .site-header .services-megamenu__links a,
+  html.theme-dark .site-header .services-megamenu__rail-link,
+  html.theme-dark .site-header .services-megamenu__links a {
+    min-height: 43px;
+    gap: 10px;
+    padding: 11px 10px;
+    color: #fff !important;
+    font-size: 12px;
+  }
+  .site-header .services-megamenu__rail-link.is-selected,
+  .site-header .services-megamenu__rail-link.has-current {
+    background: rgba(255,255,255,.15) !important;
+    color: #fff !important;
+  }
+  .site-header .services-megamenu__rail-link:is(:hover,:focus-visible),
+  .site-header .services-megamenu__links a:is(:hover,:focus-visible) {
+    background: rgba(255,255,255,.15) !important;
+    color: #fff !important;
+  }
+  .site-header .services-megamenu.is-detail-open .services-megamenu__rail { display:none; }
+  .site-header .services-megamenu__back {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    gap: 8px;
+    min-height: 38px;
+    padding: 7px 10px;
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 9px;
+    background: rgba(255,255,255,.09);
+    color: #fff;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .site-header .services-megamenu__detail .services-megamenu__eyebrow { margin: 6px 0 5px; }
+  .site-header .services-megamenu__links { gap: 2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-header .services-megamenu__rail-link,
+  .site-header .services-megamenu__links a { transition: none; }
+}

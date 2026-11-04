@@ -4,12 +4,14 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import EmblaCarousel, { type EmblaCarouselType } from 'embla-carousel'
 import type { ManagedNews } from '../adminContent'
+import { sanitizeNewsHtml } from '../lib/newsRichText'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import { subscribeToChanges } from '../services/realtime'
 
 // Los enlaces anteriores con article=ID siguen funcionando mientras cada noticia usa una ruta legible.
 const props = defineProps<{ initialNews?: ManagedNews[] | null; serverPath?: string }>()
+// En SSR se recibe la ruta real desde Nuxt y las noticias ya publicadas por el CMS.
 const currentNewsUrl = typeof window === 'undefined'
   ? new URL(props.serverPath || '/noticias', 'https://www.logisticacastrofallas.com')
   : new URL(window.location.href)
@@ -284,11 +286,17 @@ onUnmounted(() => {
   window.removeEventListener('mousemove', moveArticlePanelMouseDrag, true)
   window.removeEventListener('mouseup', finishArticlePanelMouseDrag, true)
 })
-// Render the CMS plain text as readable HTML paragraphs without changing its wording.
-const activeArticleParagraphs = computed(() => (activeArticle.value?.body ?? '')
-  .split(/\n\s*\n/)
-  .map(paragraph => paragraph.trim())
-  .filter(Boolean))
+// Rich-text articles are sanitized before rendering; old plain-text news remains supported.
+const articleHtmlHydrated = ref(false)
+onMounted(() => { articleHtmlHydrated.value = true })
+const activeArticleHtml = computed(() => {
+  const html = activeArticle.value?.body ?? ''
+  if (articleHtmlHydrated.value && typeof DOMParser !== 'undefined') return sanitizeNewsHtml(html)
+  // Mismo HTML seguro en SSR y en la primera hidratación. Después, el navegador
+  // recupera el formato permitido con sanitizeNewsHtml, evitando ejecutar HTML remoto.
+  const text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  return '<p>' + text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>'
+})
 function setNewsMeta(attribute: 'name' | 'property', key: string, content: string | null) {
   const selector = `meta[${attribute}="${key}"]`
   let element = document.head.querySelector<HTMLMetaElement>(selector)
@@ -556,7 +564,7 @@ onUnmounted(() => {
                 <p class="news-article-page__content-kicker">{{ activeArticle.category }} <span aria-hidden="true">/</span> {{ q('ARTÍCULO COMPLETO', 'FULL ARTICLE') }}</p>
                 <p v-if="activeArticle.description?.trim() && activeArticle.description.trim() !== activeArticle.body?.trim()" class="news-article-page__standfirst">{{ activeArticle.description }}</p>
                 <div class="news-article-page__body">
-                  <p v-for="(paragraph, index) in activeArticleParagraphs" :key="index">{{ paragraph }}</p>
+                  <div class="news-article-page__formatted" v-html="activeArticleHtml"></div>
                 </div>
                 <p v-if="activeArticle.author" class="news-article-page__author">{{ q('Autor:', 'Author:') }} <strong>{{ activeArticle.author }}</strong></p>
                 <div class="news-article-page__closing">
@@ -647,7 +655,7 @@ onUnmounted(() => {
 :global(html:not(.theme-dark) .news-article-page__visual-mark){color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.65)}
 :global(html.theme-dark .app-site.news-page main.news-article-page){--article-ink:#f2f3f6;--article-muted:#b5bac6;--article-line:rgba(235,241,252,.16);--article-accent:#ed2946;background:radial-gradient(ellipse 68% 520px at 0% 0%,rgba(214,14,52,.3) 0%,rgba(178,11,45,.16) 38%,rgba(126,10,34,.06) 60%,transparent 80%),linear-gradient(90deg,#211018 0%,#160d17 46%,#01081d 100%),#01081d fixed!important;background-attachment:fixed!important;color:var(--article-ink)}
 :global(html.theme-dark .app-site.news-page.news-article-mode){background:radial-gradient(ellipse 68% 520px at 0% 0%,rgba(214,14,52,.3) 0%,rgba(178,11,45,.16) 38%,rgba(126,10,34,.06) 60%,transparent 80%),linear-gradient(90deg,#211018 0%,#160d17 46%,#01081d 100%) fixed!important;background-attachment:fixed!important}
-:global(html.theme-dark .site-header.site-header--overlay){position:absolute!important;top:0;left:0;width:100%;background:linear-gradient(180deg,rgba(1,8,29,.72),rgba(1,8,29,.2) 72%,transparent)!important}
+:global(html.theme-dark .site-header.site-header--overlay:not(.site-header--menu-open)){position:absolute!important;top:0;left:0;width:100%;background:linear-gradient(180deg,rgba(1,8,29,.72),rgba(1,8,29,.2) 72%,transparent)!important}
 :global(body:has(.news-article-page) .site-header.site-header--overlay .menu-toggle){border:1px solid rgba(255,255,255,.46)!important;border-radius:50%!important;background:rgba(255,255,255,.12)!important;box-shadow:none!important;color:#fff!important;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 :global(html.theme-dark .news-article-page__navigation a),:global(html.theme-dark .news-article-page__navigation>span){color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.55)}
 :global(html.theme-dark .news-article-page__meta){border-color:rgba(235,241,252,.16)}
@@ -730,4 +738,14 @@ onUnmounted(() => {
   .news-article-page__publisher,
   .news-article-page__meta-category { justify-content:flex-start; }
 }
+.news-article-page__formatted :deep(:is(h1,h2,h3)){font-weight:750;line-height:1.3;margin:1.5em 0 .65em}
+.news-article-page__formatted :deep(h1){font-size:clamp(1.7rem,3vw,2.25rem)}
+.news-article-page__formatted :deep(h2){font-size:clamp(1.4rem,2.5vw,1.8rem)}
+.news-article-page__formatted :deep(h3){font-size:1.2rem}
+.news-article-page__formatted :deep(p){margin:0 0 1.2em;line-height:1.8}
+.news-article-page__formatted :deep(:is(ul,ol)){padding-left:1.6em;margin:0 0 1.2em}
+.news-article-page__formatted :deep(ul){list-style:disc}
+.news-article-page__formatted :deep(ol){list-style:decimal}
+.news-article-page__formatted :deep(li){margin-bottom:.4em}
+.news-article-page__formatted :deep(blockquote){border-left:3px solid #a80d29;padding-left:1em;margin:1.3em 0}
 </style>

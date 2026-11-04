@@ -4,23 +4,52 @@ on:
     branches: [main, main-2]
     paths:
       - "frontend/nuxt/**"
-      - "frontend/seo/service-landings.json"
+      - "frontend/seo/**"
+      - "frontend/src/**"
+      - "frontend/public/**"
       - "compose.nuxt-preview.yaml"
       - "compose.nuxt-hybrid.yaml"
+      - "compose.nuxt-local-hybrid.yaml"
+      - "compose.main2-hybrid.yaml"
+      - "scripts/start-main2-hybrid.ps1"
+      - "scripts/start-main2-hybrid.sh"
+      - "scripts/test-main2-hybrid-compose.py"
+      - "scripts/test-main2-hybrid-powershell.ps1"
+      - "scripts/test-nuxt-*.sh"
+      - "scripts/test-nuxt-*.py"
+      - "deploy/nuxt-local-hybrid-gateway.conf"
       - "deploy/nuxt-hybrid-gateway.conf"
       - ".github/workflows/nuxt-ssr-seo.yml"
   pull_request:
     branches: [main, main-2]
     paths:
       - "frontend/nuxt/**"
-      - "frontend/seo/service-landings.json"
+      - "frontend/seo/**"
+      - "frontend/src/**"
+      - "frontend/public/**"
       - "compose.nuxt-preview.yaml"
       - "compose.nuxt-hybrid.yaml"
+      - "compose.nuxt-local-hybrid.yaml"
+      - "compose.main2-hybrid.yaml"
+      - "scripts/start-main2-hybrid.ps1"
+      - "scripts/start-main2-hybrid.sh"
+      - "scripts/test-main2-hybrid-compose.py"
+      - "scripts/test-main2-hybrid-powershell.ps1"
+      - "scripts/test-nuxt-*.sh"
+      - "scripts/test-nuxt-*.py"
+      - "deploy/nuxt-local-hybrid-gateway.conf"
       - "deploy/nuxt-hybrid-gateway.conf"
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
+  windows-powershell:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Windows PowerShell 5.1 gateway verification with mocked Docker
+        shell: powershell
+        run: .\scripts\test-main2-hybrid-powershell.ps1
   ssr:
     runs-on: ubuntu-latest
     steps:
@@ -57,22 +86,68 @@ jobs:
           curl -fsS http://127.0.0.1:3000/servicios | grep -q 'services-page'
           curl -fsS http://127.0.0.1:3000/servicios/almacenamiento-fiscal >/tmp/pangolin-service.html
           grep -q 'Almacenamiento fiscal' /tmp/pangolin-service.html
-          grep -q 'Preguntas frecuentes' /tmp/pangolin-service.html
+          grep -q 'service-landing-faq__item' /tmp/pangolin-service.html
+          curl -fsS http://127.0.0.1:3000/empresas/aduanera-castro-fallas >/tmp/pangolin-company.html
+          grep -q 'Aduanera Castro Fallas' /tmp/pangolin-company.html
+          grep -q 'application/ld+json' /tmp/pangolin-company.html
+          curl -fsS http://127.0.0.1:3000/empresas/neriteka | grep -q 'Neriteka'
           curl -fsS http://127.0.0.1:3000/robots.txt | grep -q 'OAI-SearchBot'
-          curl -fsS http://127.0.0.1:3000/sitemap.xml | grep -q 'almacenamiento-fiscal'
+          curl -fsS http://127.0.0.1:3000/sitemap.xml >/tmp/pangolin-sitemap.xml
+          grep -q 'almacenamiento-fiscal' /tmp/pangolin-sitemap.xml
+          grep -q '/empresas/aduanera-castro-fallas' /tmp/pangolin-sitemap.xml
+          # PR #139: todas las páginas nuevas deben entregar HTML SSR real,
+          # metadatos y estar en el sitemap servido por Nuxt.
+          for slug in transporte-maritimo transporte-terrestre transporte-aereo transporte-internacional transporte-local transporte-panama-costa-rica; do
+            curl -fsS "http://127.0.0.1:3000/servicios/$slug" > /tmp/pangolin-new-service.html
+            grep -q '<h1' /tmp/pangolin-new-service.html
+            grep -q 'service-landing-page' /tmp/pangolin-new-service.html
+            grep -q 'service-landing-hero__grid' /tmp/pangolin-new-service.html
+            grep -q 'service-landing-faq__item' /tmp/pangolin-new-service.html
+            grep -q 'application/ld+json' /tmp/pangolin-new-service.html
+            grep -q "rel=\"canonical\"" /tmp/pangolin-new-service.html
+            grep -q "/servicios/$slug" /tmp/pangolin-sitemap.xml
+          done
+          for legal in privacidad terminos cookies licencias; do
+            curl -fsS "http://127.0.0.1:3000/$legal" > /tmp/pangolin-legal.html
+            grep -q 'legal-page' /tmp/pangolin-legal.html
+            grep -q '<h1' /tmp/pangolin-legal.html
+            grep -q 'application/ld+json' /tmp/pangolin-legal.html
+            grep -q "/$legal" /tmp/pangolin-sitemap.xml
+          done
+          curl -fsS http://127.0.0.1:3000/licenses/globe-third-party-notices.txt | grep -qi 'license'
+          curl -fsS http://127.0.0.1:3000/llms.txt | grep -q 'transporte-maritimo'
+          curl -fsS http://127.0.0.1:3000/BingSiteAuth.xml | grep -q '3B7ADBDA75E127B245F7E653F3021EE8'
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/home)" = "301"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/servicios/ruta-inexistente)" = "404"
       - name: SSR news and dynamic sitemap integration test
         run: npm run test:ssr-news
         working-directory: frontend/nuxt
       - name: Build Nuxt Alpine Docker image
-        run: docker build -f frontend/nuxt/Dockerfile frontend
+        run: docker build -t cf-nuxt-preview-smoke -f frontend/nuxt/Dockerfile frontend
+      - name: Build compiled Vue preview (same quotes flag as local development)
+        run: docker build --build-arg VITE_OFFICIAL_QUOTES_ENABLED=true -t cf-legacy-preview-smoke -f frontend/Dockerfile frontend
+      - name: Test real local hybrid gateway with Chrome (no blank quote screen)
+        run: bash scripts/test-nuxt-local-gateway.sh
+      - name: Upload visual checks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuxt-menu-preview
+          path: artifacts/nuxt-hybrid-visual/
       - name: Validate hybrid gateway Nginx config
         run: |
           docker run --rm \
             --add-host frontend:127.0.0.1 \
             --add-host frontend-nuxt:127.0.0.1 \
             -v "$PWD/deploy/nuxt-hybrid-gateway.conf:/etc/nginx/conf.d/default.conf:ro" \
+            nginx:1.27-alpine nginx -t
+      - name: Check local hybrid preview Nginx syntax
+        run: |
+          docker run --rm \
+            --add-host backend:127.0.0.1 \
+            --add-host frontend-legacy-preview:127.0.0.1 \
+            --add-host frontend-nuxt:127.0.0.1 \
+            -v "$PWD/deploy/nuxt-local-hybrid-gateway.conf:/etc/nginx/conf.d/default.conf:ro" \
             nginx:1.27-alpine nginx -t
       - name: Validate actual AlmaLinux image deployment Compose
         shell: bash
@@ -85,5 +160,13 @@ jobs:
           export FENNEC_HOST=logisticacastrofallas.com
           export FENNEC_WWW_HOST=www.logisticacastrofallas.com
           docker compose -f deploy/docker-compose.images.yml config --quiet
+          # El stack local utiliza nombres de variables diferentes al deploy.
+          # Solo fixtures de CI: nunca leer ni imprimir secretos de usuarios.
+          export POSTGRES_PASSWORD="$PANGOLIN_POSTGRES_PASSWORD"
+          export AUTH_OTP_PEPPER="$PANGOLIN_AUTH_OTP_PEPPER"
+          export AUTH_JWT_SIGNING_KEY="$PANGOLIN_AUTH_JWT_SIGNING_KEY"
+          docker compose -f compose.yaml -f compose.nuxt-preview.yaml -f compose.nuxt-local-hybrid.yaml config --quiet
           docker compose -f deploy/docker-compose.images.yml config --services | grep -qx frontend-nuxt
           docker compose -f deploy/docker-compose.images.yml config --services | grep -qx seo-gateway
+          python3 scripts/test-main2-hybrid-compose.py --runtime
+          bash -n scripts/start-main2-hybrid.sh
