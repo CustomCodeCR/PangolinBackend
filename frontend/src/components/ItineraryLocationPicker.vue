@@ -17,11 +17,12 @@ const controlId = 'itinerary-location-' + uid
 const listId = controlId + '-options'
 const open = ref(false)
 const positioned = ref(false)
-const query = ref('')
+const query = ref(props.modelValue)
+const searching = ref(false)
 const highlighted = ref(0)
-const trigger = ref<HTMLButtonElement | null>(null)
+const trigger = ref<HTMLInputElement | null>(null)
 const menu = ref<HTMLElement | null>(null)
-const searchInput = ref<HTMLInputElement | null>(null)
+
 let trackingFrame = 0
 let lastGeometry = ''
 let placement: 'above' | 'below' | null = null
@@ -29,11 +30,12 @@ let clippingAncestors: HTMLElement[] = []
 
 const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().trim()
 const matches = computed(() => {
-  const search = normalize(query.value)
+  const search = searching.value ? normalize(query.value) : ''
   return !search ? props.options : props.options.filter(option =>
     normalize(option.displayName).includes(search) || normalize(option.code || '').includes(search))
 })
 watch(() => props.options, () => { highlighted.value = 0 })
+watch(() => props.modelValue, value => { if (!open.value) query.value = value })
 
 function findClippingAncestors() {
   clippingAncestors = []
@@ -100,23 +102,33 @@ function closeMenu() {
   placement = null
   lastGeometry = ''
   clippingAncestors = []
-  query.value = ''
+  searching.value = false
+  query.value = props.modelValue
 }
 function openMenu() {
-  query.value = ''
+  searching.value = false
+  query.value = props.modelValue
   highlighted.value = 0
   positioned.value = false
   open.value = true
   void nextTick(() => {
     if (!open.value) return
     positionMenu()
-    searchInput.value?.focus({ preventScroll: true })
+    trigger.value?.focus({ preventScroll: true })
   })
 }
 function toggleMenu() { if (open.value) closeMenu(); else openMenu() }
+function onInput(event: Event) {
+  query.value = (event.target as HTMLInputElement).value
+  searching.value = true
+  highlighted.value = 0
+  if (query.value !== props.modelValue) emit('update:modelValue', '')
+  if (!open.value) openMenu()
+}
 function choose(value: string) {
   emit('update:modelValue', value)
   closeMenu()
+  query.value = value
   trigger.value?.focus({ preventScroll: true })
 }
 function outsidePointer(event: PointerEvent) {
@@ -156,13 +168,14 @@ onBeforeUnmount(removeListeners)
 <template>
   <div class="itinerary-location-picker">
     <label :for="controlId">{{ label }}</label>
-    <div class="cf-dropdown">
-      <button :id="controlId" ref="trigger" type="button" class="cf-dropdown__trigger"
-        role="combobox" aria-haspopup="listbox" :aria-label="label"
-        :aria-controls="listId" :aria-expanded="open"
-        @click="toggleMenu" @keydown.down.prevent="openMenu" @keydown.up.prevent="openMenu"
-        @keydown.esc.prevent="closeMenu">
-        <span class="cf-dropdown__value" :class="{ 'itinerary-location-picker__placeholder': !modelValue }">{{ modelValue || placeholder }}</span>
+    <div class="cf-dropdown itinerary-location-picker__control">
+      <input :id="controlId" ref="trigger" type="text" class="cf-dropdown__trigger itinerary-location-picker__input"
+        role="combobox" aria-haspopup="listbox" :aria-label="label" aria-autocomplete="list"
+        :aria-controls="listId" :aria-expanded="open" autocomplete="off"
+        :required="required" :value="query" :placeholder="placeholder"
+        @input="onInput" @focus="openMenu" @keydown="onKeydown" />
+      <button class="itinerary-location-picker__toggle" type="button"
+        :aria-label="label" :aria-expanded="open" @mousedown.prevent @click="toggleMenu">
         <span class="cf-dropdown__chevron" :class="{ 'cf-dropdown__chevron--open': open }" aria-hidden="true"></span>
       </button>
     </div>
@@ -171,9 +184,6 @@ onBeforeUnmount(removeListeners)
         class="cf-dropdown__menu itinerary-location-picker__menu"
         :aria-label="label" :style="{ visibility: positioned ? 'visible' : 'hidden' }"
         @keydown="onKeydown">
-        <input ref="searchInput" v-model="query" class="itinerary-location-picker__search"
-          type="search" autocomplete="off" :aria-label="label"
-          :placeholder="placeholder" @input="highlighted = 0" />
         <span v-if="loading" class="itinerary-location-picker__message">Cargando ubicaciones…</span>
         <span v-else-if="error" class="itinerary-location-picker__message">{{ error }}</span>
         <span v-else-if="!matches.length" class="itinerary-location-picker__message">No hay ubicaciones disponibles.</span>
@@ -191,37 +201,61 @@ onBeforeUnmount(removeListeners)
 </template>
 
 <style>
-.itinerary-location-picker { display:flex; flex-direction:column; gap:8px; min-width:0; }
-.itinerary-location-picker > label { color:inherit; font-size:13px; font-weight:700; }
-.itinerary-location-picker__placeholder { opacity:.66; }
-.itinerary-location-picker__menu { padding:8px; }
-.itinerary-location-picker__menu .itinerary-location-picker__search {
-  flex:none; box-sizing:border-box; width:100%; min-height:44px;
-  border:1px solid #cfd2dc; border-radius:11px; padding:10px 12px;
-  background:#fff; color:#242630; font:inherit; font-size:14px;
+.itinerary-location-picker { display:grid; grid-template-rows:auto auto; align-content:start; gap:9px; min-width:0; }
+.itinerary-location-picker > label { display:block; margin:0; color:inherit; font-size:13px; font-weight:700; line-height:1.5; }
+.itinerary-location-picker__control { position:relative; min-width:0; }
+.itinerary-location-picker__control input.itinerary-location-picker__input {
+  width:100%; height:auto; min-height:46px; padding-right:44px;
+  font-family:inherit; text-overflow:ellipsis; cursor:text;
 }
-.itinerary-location-picker__menu .itinerary-location-picker__search:focus-visible { outline:2px solid #b20c2a; outline-offset:-2px; }
-.itinerary-location-picker__menu .itinerary-location-picker__message { padding:12px; font-size:13px; color:inherit; }
+.itinerary-location-picker__control input.itinerary-location-picker__input::placeholder { color:#a8aab6; opacity:1; }
+.itinerary-location-picker__control input.itinerary-location-picker__input:focus-visible {
+  outline:2px solid #b20c2a; outline-offset:2px;
+}
+.itinerary-location-picker__toggle {
+  position:absolute; right:0; top:0; bottom:0;
+  width:44px; display:grid; place-items:center; border:0;
+  border-radius:0 12px 12px 0; background:transparent; color:inherit; cursor:pointer;
+}
+.itinerary-location-picker__toggle .cf-dropdown__chevron { pointer-events:none; }
+.itinerary-location-picker__menu > button.itinerary-location-picker__highlighted {
+  background:#f7e8eb; color:#a80e18;
+}
 .itinerary-location-picker__menu > .itinerary-location-picker__clear { border-top:1px solid #8884; border-radius:0; }
-.itinerary-location-picker__menu > button.itinerary-location-picker__highlighted { background:#f7e8eb; color:#a80e18; }
-html.theme-dark .itinerary-location-picker__menu .itinerary-location-picker__search {
-  background:#121a30; color:#fff; border-color:#52505b;
-}
+.itinerary-location-picker__menu > .itinerary-location-picker__message { padding:12px; font-size:13px; color:inherit; }
 html.theme-dark .itinerary-location-picker__menu > button.itinerary-location-picker__highlighted {
   background:#30262d; color:#ff806f;
 }
-.app-site.itinerary-page .itinerary-location-picker .cf-dropdown__trigger { min-height:42px; }
-.content-manager .itinerary-location-picker .cf-dropdown__trigger {
-  background:var(--admin-input,#f7f9fd);
-  color:var(--admin-text,#101b32);
-  border-color:var(--admin-border,#cfd3dd);
-  min-height:46px;
+.app-site.itinerary-page .itinerary-filter-card__primary > .itinerary-location-picker,
+.app-site.itinerary-page .itinerary-filter-card__primary > .itinerary-form-line { align-self:start; }
+.app-site.itinerary-page .itinerary-filter-card__primary > .itinerary-form-line {
+  display:grid; grid-template-columns:1fr; align-content:start;
+  padding:0; min-height:0; border:0; gap:9px;
 }
-html.theme-dark .content-manager .itinerary-location-picker .cf-dropdown__trigger {
+.app-site.itinerary-page .itinerary-filter-card__primary > .itinerary-form-line > strong {
+  font-size:13px; font-weight:700; line-height:1.5;
+}
+.app-site.itinerary-page .itinerary-location-picker__input {
+  min-height:42px; font-size:14px; font-weight:600; border-radius:13px;
+}
+html.theme-dark .app-site.itinerary-page .itinerary-location-picker__input {
+  background:#121a30; color:#fff; border-color:rgba(255,255,255,.22);
+}
+.content-manager .manager-editor--itineraries > .itinerary-location-picker {
+  display:grid; align-content:start; grid-template-rows:auto auto; gap:9px;
+}
+.content-manager .manager-editor--itineraries > .itinerary-location-picker > label {
+  font-size:13px; font-weight:750; line-height:1.5;
+}
+.content-manager .manager-editor--itineraries .itinerary-location-picker__input {
+  min-height:46px; font-size:14px; font-weight:400;
+  background:var(--admin-input,#f7f9fd); color:var(--admin-text,#101b32);
+  border-color:var(--admin-border,#cfd3dd); border-radius:12px;
+}
+html.theme-dark .content-manager .manager-editor--itineraries .itinerary-location-picker__input {
   background:#121a30; color:#fff; border-color:#3b465f;
 }
 @media(max-width:650px) {
-  .app-site.itinerary-page .itinerary-location-picker .cf-dropdown__trigger { min-height:46px; font-size:16px; }
-  .itinerary-location-picker__menu .itinerary-location-picker__search { font-size:16px; }
+  .app-site.itinerary-page .itinerary-location-picker__input { min-height:46px; font-size:16px; }
 }
 </style>
