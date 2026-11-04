@@ -102,7 +102,10 @@ try {
             Invoke-Compose -Arguments ($files + @('up', '-d', '--no-deps', '--force-recreate', 'nuxt-local-gateway', 'nuxt-main2-gateway'))
             Invoke-Compose -Arguments ($files + @('ps'))
             foreach ($gateway in $gatewayMap) {
-                $gatewayId = (& docker compose @files ps -q $gateway.Name | Select-Object -First 1)
+                # Native commands in Windows PowerShell may stringify '$gateway.Name' as
+                # a hashtable plus literal suffix. Resolve to a plain argument first.
+                $serviceName = [string]$gateway['Name']
+                $gatewayId = (& docker compose @files ps -q $serviceName | Select-Object -First 1)
                 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($gatewayId)) {
                     throw "No se pudo identificar el contenedor $($gateway.Name)."
                 }
