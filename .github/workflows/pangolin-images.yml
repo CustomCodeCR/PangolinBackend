@@ -503,7 +503,7 @@ jobs:
           # Confirmar la sección FAQ renderizada por SSR, sin depender de mayúsculas o idioma del título.
           curl -fsS --max-time 10 "$base/servicios/almacenamiento-fiscal" -o /tmp/pangolin-service-fiscal.html
           grep -Fq 'id="guide-faq"' /tmp/pangolin-service-fiscal.html
-          grep -Fq 'service-landing-faq__item' /tmp/pangolin-service-fiscal.html
+          grep -Fq 'class="service-landing-faq__item"' /tmp/pangolin-service-fiscal.html
           curl -fsS --max-time 10 "$base/robots.txt" | grep -q 'OAI-SearchBot'
           curl -fsS --max-time 10 "$base/sitemap.xml" | grep -q 'almacenamiento-fiscal'
           curl -fsS --max-time 10 "$base/api/health/ready" >/dev/null
