@@ -448,5 +448,311 @@
     "lon": -2.92528,
     "aliases": [],
     "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bangkok, Tailandia",
+    "quoteCatalogName": "Bangkok, Tailandia",
+    "kind": "seaport",
+    "lat": 13.75398,
+    "lon": 100.50144,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Barranquilla, Colombia",
+    "quoteCatalogName": "Barranquilla, Colombia",
+    "kind": "seaport",
+    "lat": 10.96854,
+    "lon": -74.78132,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Batangas, Filipinas",
+    "quoteCatalogName": "Batangas, Filipinas",
+    "kind": "seaport",
+    "lat": 13.6874523,
+    "lon": 120.9397771,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bintulu, Malasia",
+    "quoteCatalogName": "Bintulu, Malasia",
+    "kind": "seaport",
+    "lat": 3.16667,
+    "lon": 113.03333,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Buenaventura, Colombia",
+    "quoteCatalogName": "Buenaventura, Colombia",
+    "kind": "seaport",
+    "lat": 3.8801,
+    "lon": -77.03116,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Busan, Corea del Sur",
+    "quoteCatalogName": "Busan, Corea del Sur",
+    "kind": "seaport",
+    "lat": 35.10168,
+    "lon": 129.03004,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Cagayan de Oro, Filipinas",
+    "quoteCatalogName": "Cagayan de Oro, Filipinas",
+    "kind": "seaport",
+    "lat": 8.3827929,
+    "lon": 124.4679145,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Cebu, Filipinas",
+    "quoteCatalogName": "Cebu, Filipinas",
+    "kind": "seaport",
+    "lat": 10.3789228,
+    "lon": 123.7637216,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Danang, Vietnam",
+    "quoteCatalogName": "Danang, Vietnam",
+    "kind": "seaport",
+    "lat": 16.06778,
+    "lon": 108.22083,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Davao, Filipinas",
+    "quoteCatalogName": "Davao, Filipinas",
+    "kind": "seaport",
+    "lat": 7.07306,
+    "lon": 125.61278,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "General Santos, Filipinas",
+    "quoteCatalogName": "General Santos, Filipinas",
+    "kind": "seaport",
+    "lat": 6.1374279,
+    "lon": 124.9927049,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Haiphong, Vietnam",
+    "quoteCatalogName": "Haiphong, Vietnam",
+    "kind": "seaport",
+    "lat": 20.86481,
+    "lon": 106.68345,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Halifax, Canadá",
+    "quoteCatalogName": "Halifax, Canadá",
+    "kind": "seaport",
+    "lat": 44.64533,
+    "lon": -63.57239,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Ho Chi Minh, Vietnam",
+    "quoteCatalogName": "Ho Chi Minh, Vietnam",
+    "kind": "seaport",
+    "lat": 10.82302,
+    "lon": 106.62965,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Incheon / Inchon, Corea del Sur",
+    "quoteCatalogName": "Incheon / Inchon, Corea del Sur",
+    "kind": "seaport",
+    "lat": 37.45646,
+    "lon": 126.70515,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Kota Kinabalu, Malasia",
+    "quoteCatalogName": "Kota Kinabalu, Malasia",
+    "kind": "seaport",
+    "lat": 5.9749,
+    "lon": 116.0724,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Kuantan, Malasia",
+    "quoteCatalogName": "Kuantan, Malasia",
+    "kind": "seaport",
+    "lat": 3.8077,
+    "lon": 103.326,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Kuching, Malasia",
+    "quoteCatalogName": "Kuching, Malasia",
+    "kind": "seaport",
+    "lat": 1.55,
+    "lon": 110.33333,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Kwangyang, Corea del Sur",
+    "quoteCatalogName": "Kwangyang, Corea del Sur",
+    "kind": "seaport",
+    "lat": 34.97528,
+    "lon": 127.58917,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Lat Krabang, Tailandia",
+    "quoteCatalogName": "Lat Krabang, Tailandia",
+    "kind": "seaport",
+    "lat": 13.745,
+    "lon": 100.79224,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Puerto Barrios, Guatemala",
+    "quoteCatalogName": "Puerto Barrios, Guatemala",
+    "kind": "seaport",
+    "lat": 15.72778,
+    "lon": -88.59444,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Saint John NB, Canadá",
+    "quoteCatalogName": "Saint John NB, Canadá",
+    "kind": "seaport",
+    "lat": 45.27271,
+    "lon": -66.06766,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "San Antonio, Chile",
+    "quoteCatalogName": "San Antonio, Chile",
+    "kind": "seaport",
+    "lat": -33.59473,
+    "lon": -71.60746,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Valparaíso, Chile",
+    "quoteCatalogName": "Valparaíso, Chile",
+    "kind": "seaport",
+    "lat": -33.036,
+    "lon": -71.62963,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Vancouver, Canadá",
+    "quoteCatalogName": "Vancouver, Canadá",
+    "kind": "seaport",
+    "lat": 49.24966,
+    "lon": -123.11934,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Puerto Cortés, Honduras",
+    "quoteCatalogName": "Puerto Cortés, Honduras",
+    "kind": "seaport",
+    "lat": 15.79,
+    "lon": -87.849,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "San Pedro Sula, Honduras",
+    "quoteCatalogName": "San Pedro Sula, Honduras",
+    "kind": "inland",
+    "lat": 15.50417,
+    "lon": -88.025,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Puerto Cortés, Honduras",
+    "quoteCatalogName": "Puerto Cortés, Honduras",
+    "kind": "inland",
+    "lat": 15.79,
+    "lon": -87.849,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Tegucigalpa, Honduras",
+    "quoteCatalogName": "Tegucigalpa, Honduras",
+    "kind": "inland",
+    "lat": 14.0818,
+    "lon": -87.20681,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Ciudad de Guatemala, Guatemala",
+    "quoteCatalogName": "Ciudad de Guatemala, Guatemala",
+    "kind": "inland",
+    "lat": 14.64072,
+    "lon": -90.51327,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Antofagasta, Chile",
+    "quoteCatalogName": "Antofagasta, Chile",
+    "kind": "airport",
+    "lat": -23.65236,
+    "lon": -70.3954,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Arica, Chile",
+    "quoteCatalogName": "Arica, Chile",
+    "kind": "airport",
+    "lat": -18.4746,
+    "lon": -70.29792,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Barranquilla, Colombia",
+    "quoteCatalogName": "Barranquilla, Colombia",
+    "kind": "airport",
+    "lat": 10.96854,
+    "lon": -74.78132,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bucaramanga, Colombia",
+    "quoteCatalogName": "Bucaramanga, Colombia",
+    "kind": "airport",
+    "lat": 7.12539,
+    "lon": -73.1198,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
   }
 ]
