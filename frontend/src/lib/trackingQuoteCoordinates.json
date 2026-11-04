@@ -1087,5 +1087,77 @@
     "lon": 35.94503,
     "aliases": [],
     "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Auckland, Nueva Zelanda",
+    "quoteCatalogName": "Auckland, Nueva Zelanda",
+    "kind": "airport",
+    "lat": -36.84853,
+    "lon": 174.76349,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Almaty, Kazajstán",
+    "quoteCatalogName": "Almaty, Kazajstán",
+    "kind": "airport",
+    "lat": 43.25667,
+    "lon": 76.92861,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Algiers, Argelia",
+    "quoteCatalogName": "Algiers, Argelia",
+    "kind": "airport",
+    "lat": 36.73225,
+    "lon": 3.08746,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Aleppo, Siria",
+    "quoteCatalogName": "Aleppo, Siria",
+    "kind": "airport",
+    "lat": 36.20124,
+    "lon": 37.16117,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Apia, Samoa",
+    "quoteCatalogName": "Apia, Samoa",
+    "kind": "airport",
+    "lat": -13.83333,
+    "lon": -171.76666,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Stockholm, Suecia",
+    "quoteCatalogName": "Stockholm, Suecia",
+    "kind": "airport",
+    "lat": 59.33258,
+    "lon": 18.0649,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Ashgabat, Turkmenistán",
+    "quoteCatalogName": "Ashgabat, Turkmenistán",
+    "kind": "airport",
+    "lat": 37.95,
+    "lon": 58.38333,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Asmara, Eritrea",
+    "quoteCatalogName": "Asmara, Eritrea",
+    "kind": "airport",
+    "lat": 15.33805,
+    "lon": 38.93184,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
   }
 ]
