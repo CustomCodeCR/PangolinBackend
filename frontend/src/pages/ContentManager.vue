@@ -47,10 +47,20 @@ const newsExpirationMode = ref<'permanent' | 'scheduled'>('permanent')
 const hasNewsExpired = (item: ManagedNews) => Boolean(item.expiresAt && Date.parse(item.expiresAt) <= Date.now())
 const itineraryForm = ref<ManagedItinerary>(emptyItinerary())
 const initialItineraryLocations = ref<{ origin: string; destination: string; transport: string } | null>(null)
-const showItineraryTransportHint = ref(false)
-function requestItineraryTransport() {
-  if (!itineraryTransport.value) showItineraryTransportHint.value = true
+type ItineraryLocationField = 'origin' | 'destination'
+const showItineraryTransportHint = ref<ItineraryLocationField | null>(null)
+function requestItineraryTransport(field: ItineraryLocationField) {
+  if (!itineraryTransport.value) showItineraryTransportHint.value = field
 }
+// The tooltip floats over the field and closes when the user clicks elsewhere.
+function dismissItineraryHintOnOutsideClick(event: PointerEvent) {
+  if (!(event.target instanceof Element) ||
+      !event.target.closest('.manager-itinerary-location-field')) {
+    showItineraryTransportHint.value = null
+  }
+}
+onMounted(() => document.addEventListener('pointerdown', dismissItineraryHintOnOutsideClick, true))
+onUnmounted(() => document.removeEventListener('pointerdown', dismissItineraryHintOnOutsideClick, true))
 const itineraryTransport = computed<ItineraryTransport | ''>(() => itineraryForm.value.transport === 'Marítimo' ? 'maritime' : itineraryForm.value.transport === 'Terrestre' ? 'ground' : '')
 const { origins: adminOrigins, destinations: adminDestinations, loadingLocations: adminLocationsLoading, locationError: adminLocationsError } = useItineraryLocations(itineraryTransport)
 const mediaForm = ref<ManagedMedia>(emptyMedia())
@@ -315,7 +325,7 @@ async function deleteUser(user: ManagedUser) {
 function selectAdminTransport(value: string) {
   if (itineraryForm.value.transport === value) return
   itineraryForm.value.transport = value
-  showItineraryTransportHint.value = false
+  showItineraryTransportHint.value = null
   itineraryForm.value.origin = ''
   itineraryForm.value.destination = ''
   onTransportChange()
@@ -328,7 +338,7 @@ function startNew() {
   editingId.value = null
   mediaUploadFile.value = null
   newsUploadFile.value = null
-  if (section.value === 'itineraries') { itineraryForm.value = emptyItinerary(); initialItineraryLocations.value = null; showItineraryTransportHint.value = false }
+  if (section.value === 'itineraries') { itineraryForm.value = emptyItinerary(); initialItineraryLocations.value = null; showItineraryTransportHint.value = null }
   if (section.value === 'news') { newsForm.value = emptyNews(); newsExpirationMode.value = 'permanent' }
   if (section.value === 'media') mediaForm.value = emptyMedia()
   if (section.value === 'comments') commentForm.value = emptyComment()
@@ -338,7 +348,7 @@ async function edit(entry: ManagedItinerary | ManagedNews | ManagedMedia | Manag
   newsUploadFile.value = null
   editingId.value = entry.id
   if (section.value === 'itineraries') {
-    showItineraryTransportHint.value = false
+    showItineraryTransportHint.value = null
     itineraryForm.value = { ...(entry as ManagedItinerary) }
     initialItineraryLocations.value = { origin: itineraryForm.value.origin, destination: itineraryForm.value.destination, transport: itineraryForm.value.transport }
     if (isLiveAdmin.value) {
@@ -656,18 +666,35 @@ function useMediaForNews(item: ManagedMedia) {
   {value:'Marítimo',label:displayManagedMode('Marítimo')},
   {value:'Terrestre',label:displayManagedMode('Terrestre')}
 ]" @update:model-value="selectAdminTransport" /></div>
-            <div class="manager-select-field manager-itinerary-location-field"><label>{{ en ? 'Origin' : 'Origen' }}</label>
-              <ItineraryLocationSelect v-model="itineraryForm.origin" :options="adminOrigins" :blocked="!itineraryTransport" :loading="adminLocationsLoading" :aria-label="en ? 'Origin' : 'Origen'" :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" @needs-transport="requestItineraryTransport" />
+            <div class="manager-select-field manager-itinerary-location-field"
+              :class="{ 'is-hint-open': showItineraryTransportHint === 'origin' }"
+              @keydown.esc.stop="showItineraryTransportHint = null">
+              <label>{{ en ? 'Origin' : 'Origen' }}</label>
+              <div class="manager-itinerary-location-control">
+                <ItineraryLocationSelect v-model="itineraryForm.origin" :options="adminOrigins" :blocked="!itineraryTransport" :loading="adminLocationsLoading" :aria-label="en ? 'Origin' : 'Origen'" :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" @needs-transport="requestItineraryTransport('origin')" />
+                <div v-if="showItineraryTransportHint === 'origin' && !itineraryTransport" class="manager-itinerary-hint-popover" role="status">
+                  <span class="manager-itinerary-hint-popover__icon" aria-hidden="true">i</span>
+                  <div><strong>{{ en ? 'Choose transport first' : 'Primero elegí el transporte' }}</strong>
+                    <span>{{ en ? 'Select Maritime or Ground to enable locations.' : 'Seleccioná Marítimo o Terrestre para habilitar ubicaciones.' }}</span></div>
+                  <button type="button" :aria-label="en ? 'Close notice' : 'Cerrar aviso'" @click="showItineraryTransportHint = null">×</button>
+                </div>
+              </div>
             </div>
-            <div class="manager-select-field manager-itinerary-location-field"><label>{{ en ? 'Destination' : 'Destino' }}</label>
-              <ItineraryLocationSelect v-model="itineraryForm.destination" :options="adminDestinations" :blocked="!itineraryTransport" :loading="adminLocationsLoading" :aria-label="en ? 'Destination' : 'Destino'" :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" @needs-transport="requestItineraryTransport" />
+            <div class="manager-select-field manager-itinerary-location-field"
+              :class="{ 'is-hint-open': showItineraryTransportHint === 'destination' }"
+              @keydown.esc.stop="showItineraryTransportHint = null">
+              <label>{{ en ? 'Destination' : 'Destino' }}</label>
+              <div class="manager-itinerary-location-control">
+                <ItineraryLocationSelect v-model="itineraryForm.destination" :options="adminDestinations" :blocked="!itineraryTransport" :loading="adminLocationsLoading" :aria-label="en ? 'Destination' : 'Destino'" :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" @needs-transport="requestItineraryTransport('destination')" />
+                <div v-if="showItineraryTransportHint === 'destination' && !itineraryTransport" class="manager-itinerary-hint-popover" role="status">
+                  <span class="manager-itinerary-hint-popover__icon" aria-hidden="true">i</span>
+                  <div><strong>{{ en ? 'Choose transport first' : 'Primero elegí el transporte' }}</strong>
+                    <span>{{ en ? 'Select Maritime or Ground to enable locations.' : 'Seleccioná Marítimo o Terrestre para habilitar ubicaciones.' }}</span></div>
+                  <button type="button" :aria-label="en ? 'Close notice' : 'Cerrar aviso'" @click="showItineraryTransportHint = null">×</button>
+                </div>
+              </div>
             </div>
-            <p v-if="showItineraryTransportHint && !itineraryTransport" class="manager-itinerary-transport-hint manager-itinerary-transport-hint--full" role="status">
-              <span aria-hidden="true" class="manager-itinerary-transport-hint__icon">i</span>
-              <span><strong>{{ en ? 'Choose transport first' : 'Primero elegí el transporte' }}</strong>
-              {{ en ? 'Choose Maritime or Ground to enable origin and destination.' : 'Seleccioná Marítimo o Terrestre para habilitar Origen y Destino.' }}</span>
-            </p>
-            <p v-else-if="adminLocationsError" class="manager-itinerary-transport-hint manager-itinerary-transport-hint--full" role="status">
+            <p v-if="adminLocationsError" class="manager-itinerary-transport-hint manager-itinerary-transport-hint--full" role="status">
               <span aria-hidden="true" class="manager-itinerary-transport-hint__icon">!</span>
               <span><strong>{{ en ? 'Locations unavailable' : 'No se pudo cargar el catálogo' }}</strong>{{ adminLocationsError }}</span>
             </p>
@@ -755,6 +782,42 @@ function useMediaForNews(item: ManagedMedia) {
 .manager-itinerary-transport-hint strong{display:block;margin-bottom:2px;color:#a80e18}
 .manager-itinerary-transport-hint__icon{display:grid;flex:none;place-items:center;width:24px;height:24px;border-radius:50%;background:#b20c2a;color:#fff;font-weight:800;font-family:serif}
 .manager-itinerary-location-field{min-width:0}
+.manager-itinerary-location-field.is-hint-open {position:relative;z-index:12}
+.manager-itinerary-location-control {position:relative;min-width:0}
+.manager-itinerary-hint-popover {
+  position:absolute;z-index:30;bottom:calc(100% + 12px);right:0;
+  box-sizing:border-box;display:flex;align-items:flex-start;gap:9px;
+  width:min(310px,calc(100vw - 48px));padding:12px 32px 12px 12px;
+  border:1px solid #e8a6b2;border-radius:13px;
+  background:#fff7f8;color:#3a2930;box-shadow:0 12px 32px #4215252e;
+  font-size:12px;line-height:1.45;text-align:left;
+}
+.manager-itinerary-hint-popover::after {
+  position:absolute;bottom:-6px;right:22px;width:10px;height:10px;
+  border-right:1px solid #e8a6b2;border-bottom:1px solid #e8a6b2;
+  background:#fff7f8;content:'';transform:rotate(45deg);
+}
+.manager-itinerary-hint-popover__icon {
+  display:grid;flex:none;place-items:center;width:20px;height:20px;
+  border-radius:50%;background:#b20c2a;color:#fff;font-weight:800;
+}
+.manager-itinerary-hint-popover strong {display:block;margin-bottom:2px;color:#a80e18}
+.manager-itinerary-hint-popover button {
+  position:absolute;top:4px;right:6px;display:grid;place-items:center;
+  width:25px;height:25px;padding:0;border:0;border-radius:7px;
+  background:transparent;color:#7b444e;font:inherit;font-size:19px;cursor:pointer;
+}
+.manager-itinerary-hint-popover button:hover,.manager-itinerary-hint-popover button:focus-visible {
+  background:#f3dfe4;color:#a80e18;
+}
+:global(html.theme-dark) .manager-itinerary-hint-popover {
+  border-color:#7e4b5a;background:#2d222a;color:#f0e7ec;box-shadow:0 12px 32px #0007;
+}
+:global(html.theme-dark) .manager-itinerary-hint-popover::after {
+  border-color:#7e4b5a;background:#2d222a;
+}
+:global(html.theme-dark) .manager-itinerary-hint-popover strong {color:#ffacb8}
+:global(html.theme-dark) .manager-itinerary-hint-popover button {color:#f0e7ec}
 .manager-submit:disabled{opacity:.55;cursor:not-allowed}
 :global(html.theme-dark) .manager-itinerary-transport-hint{border-color:rgba(255,128,111,.34);background:rgba(178,12,42,.13);color:#e5e5ee}
 :global(html.theme-dark) .manager-itinerary-transport-hint strong{color:#ffacb8}
