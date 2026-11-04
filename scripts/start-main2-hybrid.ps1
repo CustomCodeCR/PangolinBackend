@@ -162,6 +162,8 @@ try {
             Invoke-Compose -Arguments ($files + @('ps'))
             Assert-GatewayBindings -BindIp $BindIp
             Assert-GatewayHttp -BindIp $BindIp -Attempts 30
+            # BindIp is already validated; use it when reporting successfully running URLs.
+            $probeIp = $BindIp
             Write-Host "Híbrido principal: http://$($probeIp):5173/"
             Write-Host "Híbrido alternativo: http://$($probeIp):8083/"
             Write-Host 'Vue/Vite para desarrollo: http://127.0.0.1:5174/'
