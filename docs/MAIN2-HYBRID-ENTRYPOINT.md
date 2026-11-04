@@ -52,6 +52,7 @@ Usa una IPv4 privada propia en el segundo argumento solo si necesitás compartir
 
 - `compose.yaml` **sigue igual**: `docker compose up` a secas mantiene Vite por defecto en 5173 para no romper a otros desarrolladores.
 - El lanzador ejecuta el mismo proyecto `castrofallas` de Docker, pero aplica cuatro archivos Compose y mueve el puerto de host de Vite a 5174 antes de publicar 5173 en Nginx.
+- Para actualizar instalaciones anteriores, recrea **solo el contenedor Nginx del gateway** con `--force-recreate --no-deps`. Comprueba las publicaciones reales de 5173 y 8083; si falta alguna, muestra error en vez de declarar éxito. No borra datos.
 - `compose.main2-hybrid.yaml` agrega 5173 al gateway existente; la 8083 ya está en `compose.nuxt-local-hybrid.yaml`. Ambas rutas usan el mismo proxy y origen de sesión.
 - El backend y los volúmenes de PostgreSQL/Redis/Mongo no se recrean desde cero ni se borran. Nunca uses `docker compose down -v`.
 - Si alguien usa comandos Compose manuales después del arranque, debe mantener las mismas variables y los cuatro `-f`. Lo más sencillo es usar los comandos `-Action status` y `-Action rollback` del lanzador.

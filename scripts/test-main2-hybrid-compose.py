@@ -73,5 +73,7 @@ assert bindings(lan["services"]["frontend"]) == vite, "Vite unexpectedly exposed
 for launcher in ("scripts/start-main2-hybrid.ps1", "scripts/start-main2-hybrid.sh"):
     text = (ROOT / launcher).read_text(encoding="utf-8")
     assert "down -v" not in text, f"Launcher must never delete volumes: {launcher}"
+    assert "--force-recreate" in text, f"Launcher must recreate stale gateways: {launcher}"
+    assert ("docker inspect" in text), f"Launcher must verify actual port bindings: {launcher}"
 
 print("PASS main-2: legacy 5173 fallback; hybrid 5173/8083, Vite 5174; LAN isolated")

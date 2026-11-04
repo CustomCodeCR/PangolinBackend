@@ -75,10 +75,45 @@ try {
         }
         'up' {
             Invoke-Compose -Arguments ($files + @('config', '--quiet'))
+            # Compare the planned port bindings before touching running services.
+            # The Compose JSON stays in memory: it may contain private environment values.
+            $composeJson = & docker compose @files config --format json
+            if ($LASTEXITCODE -ne 0) { throw 'No se pudo inspeccionar la configuración Compose.' }
+            $composeConfig = $composeJson | ConvertFrom-Json
+            $expectedPorts = @($composeConfig.services.'nuxt-local-gateway'.ports)
+            foreach ($expectedPort in @('5173', '8083')) {
+                $expectedMatches = @($expectedPorts | Where-Object {
+                    [string]$_.published -eq $expectedPort -and
+                    [string]$_.host_ip -eq $BindIp -and [int]$_.target -eq 80
+                })
+                if ($expectedMatches.Count -ne 1) {
+                    throw "Compose no configura el gateway en $($BindIp):$expectedPort. Detenido antes de modificar contenedores."
+                }
+            }
             # Release the old Vite host port FIRST, before starting gateway on 5173.
             Invoke-Compose -Arguments ($files + @('up', '-d', '--build', 'frontend'))
-            Invoke-Compose -Arguments ($files + @('up', '-d', '--build', 'backend', 'frontend-nuxt', 'frontend-legacy-preview', 'nuxt-local-gateway'))
+            Invoke-Compose -Arguments ($files + @('up', '-d', '--build', 'backend', 'frontend-nuxt', 'frontend-legacy-preview'))
+            # Existing gateway may be stopped but still retain old no-port bindings.
+            # Recreate JUST nginx, without dependencies or volumes, to apply port mappings.
+            Invoke-Compose -Arguments ($files + @('up', '-d', '--no-deps', '--force-recreate', 'nuxt-local-gateway'))
             Invoke-Compose -Arguments ($files + @('ps'))
+            $gatewayId = (& docker compose @files ps -q nuxt-local-gateway | Select-Object -First 1)
+            if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($gatewayId)) {
+                throw 'No se pudo identificar el contenedor del gateway.'
+            }
+            $publishedJson = & docker inspect --format '{{json .NetworkSettings.Ports}}' $gatewayId
+            if ($LASTEXITCODE -ne 0) { throw 'No se pudo revisar los puertos publicados del gateway.' }
+            $published = $publishedJson | ConvertFrom-Json
+            $actualPorts = @($published.'80/tcp')
+            foreach ($expectedPort in @('5173', '8083')) {
+                $actualMatches = @($actualPorts | Where-Object {
+                    [string]$_.HostPort -eq $expectedPort -and [string]$_.HostIp -eq $BindIp
+                })
+                if ($actualMatches.Count -ne 1) {
+                    throw "El gateway no publicó $($BindIp):$expectedPort. Revisá docker compose ps, sin tocar las bases de datos."
+                }
+            }
+            Write-Host 'Puertos del gateway verificados: 5173 y 8083.'
 
             $probeIp = if ($BindIp -eq '127.0.0.1') { '127.0.0.1' } else { $BindIp }
             $publicUrl = "http://$($probeIp):5173/servicios/transporte-maritimo"

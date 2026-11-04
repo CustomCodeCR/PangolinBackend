@@ -32,8 +32,20 @@ case "$action" in
     docker compose "${files[@]}" config --quiet
     # Recreate Vite on 5174 first: the gateway can then safely claim 5173.
     docker compose "${files[@]}" up -d --build frontend
-    docker compose "${files[@]}" up -d --build backend frontend-nuxt frontend-legacy-preview nuxt-local-gateway
+    docker compose "${files[@]}" up -d --build backend frontend-nuxt frontend-legacy-preview
+    # Recreate existing nginx to apply both published host ports (no volumes removed).
+    docker compose "${files[@]}" up -d --no-deps --force-recreate nuxt-local-gateway
     docker compose "${files[@]}" ps
+    gateway_id="$(docker compose "${files[@]}" ps -q nuxt-local-gateway)"
+    [[ -n "$gateway_id" ]] || { echo "Missing nginx gateway container" >&2; exit 1; }
+    published="$(docker inspect --format '{{json .NetworkSettings.Ports}}' "$gateway_id")"
+    python3 - "$bind_ip" "$published" <<'PY_PORTS'
+import json, sys
+ip, raw = sys.argv[1:]
+actual = {(entry["HostIp"], entry["HostPort"]) for entry in json.loads(raw).get("80/tcp", []) or []}
+expected = {(ip, "5173"), (ip, "8083")}
+assert expected <= actual, f"Gateway published {actual}, expected {expected}"
+PY_PORTS
     ready=0
     tmp_dir="$(mktemp -d)"
     trap 'rm -rf "$tmp_dir"' EXIT
