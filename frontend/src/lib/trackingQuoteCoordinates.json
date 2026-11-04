@@ -1,0 +1,452 @@
+[
+  {
+    "name": "Algeciras, España",
+    "quoteCatalogName": "Algeciras, España",
+    "kind": "seaport",
+    "lat": 36.13326,
+    "lon": -5.45051,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Ambarli / Estambul, Turquía",
+    "quoteCatalogName": "Ambarli / Estambul, Turquía",
+    "kind": "seaport",
+    "lat": 41.0053702,
+    "lon": 28.6825162,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Anqing, China",
+    "quoteCatalogName": "Anqing, China",
+    "kind": "seaport",
+    "lat": 30.6592336,
+    "lon": 116.6302585,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Barcelona, España",
+    "quoteCatalogName": "Barcelona, España",
+    "kind": "seaport",
+    "lat": 41.38879,
+    "lon": 2.15899,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Batam, Indonesia",
+    "quoteCatalogName": "Batam, Indonesia",
+    "kind": "seaport",
+    "lat": 1.14937,
+    "lon": 104.02491,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Belawan, Indonesia",
+    "quoteCatalogName": "Belawan, Indonesia",
+    "kind": "seaport",
+    "lat": 3.7755,
+    "lon": 98.6832,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Calcuta, India",
+    "quoteCatalogName": "Calcuta, India",
+    "kind": "seaport",
+    "lat": 22.54111111,
+    "lon": 88.33777778,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Chennai, India",
+    "quoteCatalogName": "Chennai, India",
+    "kind": "seaport",
+    "lat": 13.08784,
+    "lon": 80.27847,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Cochin, India",
+    "quoteCatalogName": "Cochin, India",
+    "kind": "seaport",
+    "lat": 9.93988,
+    "lon": 76.26022,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Colón Container, Panamá",
+    "quoteCatalogName": "Colón Container, Panamá",
+    "kind": "seaport",
+    "lat": 9.35451,
+    "lon": -79.90011,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Dalian, China",
+    "quoteCatalogName": "Dalian, China",
+    "kind": "seaport",
+    "lat": 39.740278,
+    "lon": 122.255833,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Estambul, Turquía",
+    "quoteCatalogName": "Estambul, Turquía",
+    "kind": "seaport",
+    "lat": 41.0053702,
+    "lon": 28.6825162,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Gebze, Turquía",
+    "quoteCatalogName": "Gebze, Turquía",
+    "kind": "seaport",
+    "lat": 40.80276,
+    "lon": 29.43068,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Genoa / Génova, Italia",
+    "quoteCatalogName": "Genoa / Génova, Italia",
+    "kind": "seaport",
+    "lat": 44.40478,
+    "lon": 8.94439,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Guangzhou, China",
+    "quoteCatalogName": "Guangzhou, China",
+    "kind": "seaport",
+    "lat": 23.1301964,
+    "lon": 113.2592945,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Huangshi, China",
+    "quoteCatalogName": "Huangshi, China",
+    "kind": "seaport",
+    "lat": 30.2024971,
+    "lon": 115.0334144,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Itajaí, Brasil",
+    "quoteCatalogName": "Itajaí, Brasil",
+    "kind": "seaport",
+    "lat": -26.90778,
+    "lon": -48.66194,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "La Spezia, Italia",
+    "quoteCatalogName": "La Spezia, Italia",
+    "kind": "seaport",
+    "lat": 44.103,
+    "lon": 9.82375,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Lianyungang, China",
+    "quoteCatalogName": "Lianyungang, China",
+    "kind": "seaport",
+    "lat": 34.5933134,
+    "lon": 119.2171662,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Livorno, Italia",
+    "quoteCatalogName": "Livorno, Italia",
+    "kind": "seaport",
+    "lat": 43.54427,
+    "lon": 10.32615,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Cristóbal, Panamá",
+    "quoteCatalogName": "Cristóbal, Panamá",
+    "kind": "seaport",
+    "lat": 9.35222,
+    "lon": -79.90444,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Limón / Moín, Costa Rica",
+    "quoteCatalogName": "Limón / Moín, Costa Rica",
+    "kind": "seaport",
+    "lat": 9.99074,
+    "lon": -83.03596,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Manzanillo, México",
+    "quoteCatalogName": "Manzanillo, México",
+    "kind": "seaport",
+    "lat": 19.1136,
+    "lon": -104.346,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Mersin, Turquía",
+    "quoteCatalogName": "Mersin, Turquía",
+    "kind": "seaport",
+    "lat": 36.7428767,
+    "lon": 34.3640915,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Milan, Italy (ICD / Inland Point)",
+    "quoteCatalogName": "Milan, Italy (ICD / Inland Point)",
+    "kind": "seaport",
+    "lat": 45.46427,
+    "lon": 9.18951,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Navegantes, Brasil",
+    "quoteCatalogName": "Navegantes, Brasil",
+    "kind": "seaport",
+    "lat": -26.89889,
+    "lon": -48.65417,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Paranaguá, Brasil",
+    "quoteCatalogName": "Paranaguá, Brasil",
+    "kind": "seaport",
+    "lat": -25.51626,
+    "lon": -48.52537,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Puerto Limón, Costa Rica",
+    "quoteCatalogName": "Puerto Limón, Costa Rica",
+    "kind": "seaport",
+    "lat": 9.99074,
+    "lon": -83.03596,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Santos, Brasil",
+    "quoteCatalogName": "Santos, Brasil",
+    "kind": "seaport",
+    "lat": -23.85663,
+    "lon": -46.27055,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Tarragona, España",
+    "quoteCatalogName": "Tarragona, España",
+    "kind": "seaport",
+    "lat": 41.11667,
+    "lon": 1.25,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Vado Ligure, Italia",
+    "quoteCatalogName": "Vado Ligure, Italia",
+    "kind": "seaport",
+    "lat": 44.26913,
+    "lon": 8.43375,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Valencia, España",
+    "quoteCatalogName": "Valencia, España",
+    "kind": "seaport",
+    "lat": 39.46975,
+    "lon": -0.37739,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Colón Free Zone, Panamá",
+    "quoteCatalogName": "Colón Free Zone, Panamá",
+    "kind": "inland",
+    "lat": 9.35451,
+    "lon": -79.90011,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Cartago, Costa Rica",
+    "quoteCatalogName": "Cartago, Costa Rica",
+    "kind": "inland",
+    "lat": 9.86444,
+    "lon": -83.91944,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Alajuela, Costa Rica",
+    "quoteCatalogName": "Alajuela, Costa Rica",
+    "kind": "inland",
+    "lat": 10.01625,
+    "lon": -84.21163,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Heredia, Costa Rica",
+    "quoteCatalogName": "Heredia, Costa Rica",
+    "kind": "inland",
+    "lat": 10.00236,
+    "lon": -84.11651,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Tocumen, Panamá",
+    "quoteCatalogName": "Tocumen, Panamá",
+    "kind": "inland",
+    "lat": 9.08939,
+    "lon": -79.3831,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Madrid, España",
+    "quoteCatalogName": "Madrid, España",
+    "kind": "airport",
+    "lat": 40.4165,
+    "lon": -3.70256,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Adana, Turquía",
+    "quoteCatalogName": "Adana, Turquía",
+    "kind": "airport",
+    "lat": 36.9975753,
+    "lon": 35.1232526,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Aguascalientes, México",
+    "quoteCatalogName": "Aguascalientes, México",
+    "kind": "airport",
+    "lat": 21.88333,
+    "lon": -102.3,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Albenga, Italia",
+    "quoteCatalogName": "Albenga, Italia",
+    "kind": "airport",
+    "lat": 44.04997,
+    "lon": 8.21829,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Ahmedabad, India",
+    "quoteCatalogName": "Ahmedabad, India",
+    "kind": "airport",
+    "lat": 23.02579,
+    "lon": 72.58727,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Amritsar, India",
+    "quoteCatalogName": "Amritsar, India",
+    "kind": "airport",
+    "lat": 31.67,
+    "lon": 74.84,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Antalya, Turquía",
+    "quoteCatalogName": "Antalya, Turquía",
+    "kind": "airport",
+    "lat": 36.8980983,
+    "lon": 30.5532907,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bhubaneswar, India",
+    "quoteCatalogName": "Bhubaneswar, India",
+    "kind": "airport",
+    "lat": 20.27241,
+    "lon": 85.83385,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Barcelona, España",
+    "quoteCatalogName": "Barcelona, España",
+    "kind": "airport",
+    "lat": 41.38879,
+    "lon": 2.15899,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Vadodara, India",
+    "quoteCatalogName": "Vadodara, India",
+    "kind": "airport",
+    "lat": 22.29941,
+    "lon": 73.20812,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bergamo, Italia",
+    "quoteCatalogName": "Bergamo, Italia",
+    "kind": "airport",
+    "lat": 45.69601,
+    "lon": 9.66721,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bhopal, India",
+    "quoteCatalogName": "Bhopal, India",
+    "kind": "airport",
+    "lat": 23.25469,
+    "lon": 77.40289,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bilbao, España",
+    "quoteCatalogName": "Bilbao, España",
+    "kind": "airport",
+    "lat": 43.26271,
+    "lon": -2.92528,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  }
+]
