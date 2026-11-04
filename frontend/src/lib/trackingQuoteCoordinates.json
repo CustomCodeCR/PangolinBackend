@@ -1281,8 +1281,8 @@
     "name": "Norfolk, Estados Unidos",
     "quoteCatalogName": "Norfolk, Estados Unidos",
     "kind": "seaport",
-    "lat": 44.80089,
-    "lon": -74.99103,
+    "lat": 36.84681,
+    "lon": -76.28522,
     "aliases": [],
     "coordinatePrecision": "city-centroid"
   },
@@ -1290,8 +1290,8 @@
     "name": "Philadelphia, Estados Unidos",
     "quoteCatalogName": "Philadelphia, Estados Unidos",
     "kind": "seaport",
-    "lat": 44.1545,
-    "lon": -75.70882,
+    "lat": 39.95233,
+    "lon": -75.16379,
     "aliases": [],
     "coordinatePrecision": "city-centroid"
   },
@@ -1353,8 +1353,8 @@
     "name": "Bethel, Estados Unidos",
     "quoteCatalogName": "Bethel, Estados Unidos",
     "kind": "airport",
-    "lat": 35.8071,
-    "lon": -77.37886,
+    "lat": 60.79222,
+    "lon": -161.75583,
     "aliases": [],
     "coordinatePrecision": "city-centroid"
   },
