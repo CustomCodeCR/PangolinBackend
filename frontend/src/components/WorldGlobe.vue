@@ -236,7 +236,9 @@ const demoMarkers = () => {
   if (!shipment) return markerData()
   const points = routePoints.value.map((point, index, all) => ({
     id: 'route-stop-' + index, ...point,
-    label: point.name,
+    label: point.precision === 'country-centroid'
+      ? (english.value ? point.name + ' · approximate country reference' : point.name + ' · referencia aproximada del país')
+      : point.name,
     color: index === 0 ? '#1677d2' : index === all.length - 1 ? '#18a86d' : '#b50928',
     count: 1, size: 7
   }))
