@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import IconSymbol from '../components/IconSymbol.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import ItineraryLocationPicker from '../components/ItineraryLocationPicker.vue'
+import { itineraryLocationChoices, type ItineraryLocation } from '../lib/itineraryLocations'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
@@ -66,6 +68,34 @@ const maritimeOptions = computed(() => tm('custom.itinerary.table.modalities.0')
 const groundOptions = computed(() => tm('custom.itinerary.table.modalities.1') as string[])
 const itineraries = ref<Itinerary[]>([createItinerary(1)])
 const advancedFiltersOpen = ref(false)
+const originOptions = ref<ItineraryLocation[]>([])
+const destinationOptions = ref<ItineraryLocation[]>([])
+const locationsLoading = ref(false)
+const locationsError = ref('')
+let locationRequestId = 0
+async function loadFilterLocations(mode: TransportMode | '') {
+  const id = ++locationRequestId
+  locationsLoading.value = true
+  locationsError.value = ''
+  try {
+    const catalogMode = mode || 'all'
+    const [origin, destination] = await Promise.all([
+      itineraryLocationChoices(catalogMode, 'origin'),
+      itineraryLocationChoices(catalogMode, 'destination')
+    ])
+    if (id !== locationRequestId) return
+    originOptions.value = origin
+    destinationOptions.value = destination
+  } catch (error) {
+    if (id !== locationRequestId) return
+    originOptions.value = []
+    destinationOptions.value = []
+    locationsError.value = error instanceof Error ? error.message : 'No se pudieron cargar los lugares.'
+  } finally {
+    if (id === locationRequestId) locationsLoading.value = false
+  }
+}
+
 const activeItineraryId = ref(1)
 const activeItinerary = computed(() => itineraries.value.find(item => item.id === activeItineraryId.value) ?? itineraries.value[0])
 const searchPerformed = ref(false)
@@ -75,6 +105,7 @@ const resultados = ref<ItineraryResultado[]>([])
 const publishedItineraries = ref<ManagedItinerary[]>([])
 onMounted(async () => {
   await refreshSession()
+  void loadFilterLocations(activeItinerary.value?.transport ?? '')
   publishedItineraries.value = readManagedItineraries()
   // Show the complete itinerary summary on entry, without forcing a scroll.
   await searchItineraries(1, false)
@@ -113,6 +144,9 @@ function selectTransport(mode: TransportMode | '') {
   if (!item) return
   item.transport = mode
   changeTransport(item)
+  item.pol = ''
+  item.pod = ''
+  void loadFilterLocations(mode)
 }
 
 function clearFilters() {
@@ -239,8 +273,12 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
         </header>
         <div class="itinerary-form-lines itinerary-filter-card__primary">
           <div class="itinerary-form-line"><strong>{{ t('custom.itinerary.form.status') }}</strong><FieldDropdown :model-value="activeItinerary.status" :options="statusChoices" :aria-label="t('custom.itinerary.form.status')" @update:model-value="value => chooseStatus(activeItinerary, value)" /></div>
-          <label class="itinerary-form-line"><strong>{{ en ? 'Origin / POL' : 'Origen / POL' }}</strong><input v-model="activeItinerary.pol" type="text" maxlength="150" :placeholder="en ? 'Any origin' : 'Cualquier origen'" /></label>
-          <label class="itinerary-form-line"><strong>{{ en ? 'Destination / POD' : 'Destino / POD' }}</strong><input v-model="activeItinerary.pod" type="text" maxlength="150" :placeholder="en ? 'Any destination' : 'Cualquier destino'" /></label>
+          <ItineraryLocationPicker v-model="activeItinerary.pol" :options="originOptions"
+            :loading="locationsLoading" :error="locationsError" :label="en ? 'Origin / POL' : 'Origen / POL'"
+            :placeholder="en ? 'Search an origin' : 'Buscar origen'" />
+          <ItineraryLocationPicker v-model="activeItinerary.pod" :options="destinationOptions"
+            :loading="locationsLoading" :error="locationsError" :label="en ? 'Destination / POD' : 'Destino / POD'"
+            :placeholder="en ? 'Search a destination' : 'Buscar destino'" />
         </div>
         <button type="button" class="itinerary-filter-card__advanced-toggle" :aria-expanded="advancedFiltersOpen" @click="advancedFiltersOpen = !advancedFiltersOpen">
           {{ advancedFiltersOpen ? (en ? 'Fewer filters' : 'Menos filtros') : (en ? 'More filters (optional)' : 'Más filtros (opcional)') }}
