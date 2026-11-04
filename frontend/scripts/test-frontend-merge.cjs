@@ -48,7 +48,13 @@ assert.match(trackingGlobe, /motionMedia\?\.matches \? 0/, 'Respetar movimiento 
 assert.match(trackingGlobe, /const commands: string\[\] = \[\]/, 'La estela se construye con la trayectoria recorrida')
 assert.match(trackingGlobe, /routeTrail\.value = commands\.join\(' '\)/, 'La estela sigue el recorrido del icono')
 assert.match(trackingGlobe, /<svg class="world-globe__route-trail"/, 'Existe un SVG para la estela')
-assert.match(trackingGlobe, /world-globe__ship-profile/, 'Barco horizontal de perfil')
+assert.match(trackingGlobe, /<TrackingTransportModel :glyph="routeVehicle\.glyph" \/>/, 'Cada ícono usa la miniatura con volumen')
+const trackingModels = source('src/components/TrackingTransportModel.vue')
+for (const variant of ["ship", "✈", "truck"]) {
+  assert.ok(trackingModels.includes('glyph === ' + "'" + variant + "'"), 'Existe modelo isométrico de ' + variant)
+}
+assert.match(trackingModels, /linearGradient/, 'Las miniaturas tienen luces y sombras, sin WebGL ni assets externos')
+assert.match(trackingModels, /tracking-model-highlight/, 'Las miniaturas heredan colores del tema')
 
 assert.match(trackingGlobe, /const seaToRoad = legs\.length >= 2/, 'Marítimo con dos tramos activa el cambio de vehículo')
 assert.match(trackingGlobe, /const elevatedPoint = /, 'Icono y estela comparten proyección elevada')
@@ -56,8 +62,15 @@ assert.match(trackingGlobe, /\.22 \* Math\.sin\(Math\.PI \* t\)/, 'Parábola con
 assert.match(trackingGlobe, /projectElevated\(coordinates\.lon, coordinates\.lat/, 'El recorrido se dibuja sobre la esfera')
 assert.match(trackingGlobe, /const projected = elevatedPoint\(leg, activeProgress\)/, 'El icono se mueve sobre la curva')
 assert.match(trackingGlobe, /const p = elevatedPoint\(segment, \(step \/ count\) \* fraction\)/, 'La estela sigue la misma curva')
-assert.match(trackingGlobe, /html\.theme-dark \.world-globe__route-trail path\)\{stroke:#fff/, 'La estela es blanca en oscuro')
-assert.match(trackingGlobe, /height:32px;color:#171717/, 'Icono de transporte negro en claro')
+assert.match(trackingGlobe, /--tracking-trail-gray:#626b77/, 'Estela gris oscura en modo claro')
+assert.match(trackingGlobe, /--tracking-trail-gray:#c4cbd5/, 'Estela gris clara en modo oscuro')
+assert.match(trackingGlobe, /--tracking-trail-glow:/, 'Los dos temas conservan iluminación tenue')
+assert.match(trackingGlobe, /world-globe__route-trail-halo/, 'La estela tiene halo difuminado')
+assert.match(trackingGlobe, /world-globe__route-trail-core/, 'La estela tiene trazo definido')
+assert.match(trackingGlobe, /segment\.glyph === 'truck' \? 0 : \.22 \* Math\.sin\(Math\.PI \* t\)/,
+  'El camión viaja sobre la esfera sin parábola, barco y avión elevados')
+assert.match(trackingGlobe, /projectElevated\(coordinates\.lon, coordinates\.lat, lift\)/,
+  'Ícono y estela usan exactamente la elevación de su tramo')
 const globeRenderer = source('src/lib/castroGlobe.js')
 const globeTypes = source('src/lib/castroGlobe.d.ts')
 assert.match(globeRenderer, /projectElevated\(lon, lat, lift = 0\)/, 'Motor permite dibujar por encima del globo')
