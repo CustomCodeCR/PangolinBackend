@@ -10,6 +10,10 @@ on:
       - "compose.nuxt-preview.yaml"
       - "compose.nuxt-hybrid.yaml"
       - "compose.nuxt-local-hybrid.yaml"
+      - "compose.main2-hybrid.yaml"
+      - "scripts/start-main2-hybrid.ps1"
+      - "scripts/start-main2-hybrid.sh"
+      - "scripts/test-main2-hybrid-compose.py"
       - "scripts/test-nuxt-*.sh"
       - "scripts/test-nuxt-*.py"
       - "deploy/nuxt-local-hybrid-gateway.conf"
@@ -25,6 +29,10 @@ on:
       - "compose.nuxt-preview.yaml"
       - "compose.nuxt-hybrid.yaml"
       - "compose.nuxt-local-hybrid.yaml"
+      - "compose.main2-hybrid.yaml"
+      - "scripts/start-main2-hybrid.ps1"
+      - "scripts/start-main2-hybrid.sh"
+      - "scripts/test-main2-hybrid-compose.py"
       - "scripts/test-nuxt-*.sh"
       - "scripts/test-nuxt-*.py"
       - "deploy/nuxt-local-hybrid-gateway.conf"
@@ -151,3 +159,5 @@ jobs:
           docker compose -f compose.yaml -f compose.nuxt-preview.yaml -f compose.nuxt-local-hybrid.yaml config --quiet
           docker compose -f deploy/docker-compose.images.yml config --services | grep -qx frontend-nuxt
           docker compose -f deploy/docker-compose.images.yml config --services | grep -qx seo-gateway
+          python3 scripts/test-main2-hybrid-compose.py
+          bash -n scripts/start-main2-hybrid.sh

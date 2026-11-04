@@ -35,9 +35,13 @@ case "$action" in
     docker compose "${files[@]}" up -d --build backend frontend-nuxt frontend-legacy-preview nuxt-local-gateway
     docker compose "${files[@]}" ps
     ready=0
+    tmp_dir="$(mktemp -d)"
+    trap 'rm -rf "$tmp_dir"' EXIT
     for attempt in $(seq 1 30); do
-      if curl -fsS --max-time 8 "http://$bind_ip:5173/servicios/transporte-maritimo" | grep -q 'service-landing-page' &&
-         curl -fsS --max-time 8 "http://$bind_ip:5173/bienvenidos" | grep -q 'id="app"'; then
+      if curl -fsS --max-time 8 -o "$tmp_dir/service.html" "http://$bind_ip:5173/servicios/transporte-maritimo" &&
+         grep -q 'service-landing-page' "$tmp_dir/service.html" &&
+         curl -fsS --max-time 8 -o "$tmp_dir/login.html" "http://$bind_ip:5173/bienvenidos" &&
+         grep -q 'id="app"' "$tmp_dir/login.html"; then
         ready=1
         break
       fi
