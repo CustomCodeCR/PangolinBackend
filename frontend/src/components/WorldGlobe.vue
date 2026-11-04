@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import IconSymbol from './IconSymbol.vue'
+import TrackingTransportModel from './TrackingTransportModel.vue'
 import type { TrackingDemoShipment, TrackingPoint } from '../types/tracking'
 import { computed, nextTick, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -18,7 +19,7 @@ const routePoints = computed(() => {
   if (!route) return []
   return route.stops && route.stops.length >= 2 ? route.stops : [route.origin, route.destination]
 })
-// Un solo vehículo recorre todas las escalas; la estela sigue la curva elevada ya transitada.
+// Un solo vehículo recorre todas las escalas; la estela sigue el tramo ya transitado.
 const transportGlyph = computed(() => props.shipment?.transport === 'air' ? '✈'
   : props.shipment?.transport === 'sea' ? 'ship'
   : props.shipment?.transport === 'land' ? 'truck'
@@ -83,12 +84,14 @@ function updateRouteVehicle(now: number) {
 
       const leg = legs[activeIndex]
       const activeGlobe = globe
-      // Exact same elevation as CastroGlobe.drawArcs(): 0 at each stop,
-      // highest over the middle of the leg. The icon follows the lifted arc.
+      // Marítimo y aéreo vuelan sobre la esfera con elevación parabólica.
+      // El camión viaja sobre la superficie: sin elevación en ningún punto.
+      // El ícono y la estela usan siempre la misma proyección.
       const elevatedPoint = (segment: (typeof legs)[number], progress: number) => {
         const t = Math.max(0, Math.min(1, progress))
         const coordinates = illustrativePosition(segment.start, segment.end, t * 100)
-        return activeGlobe.projectElevated(coordinates.lon, coordinates.lat, .22 * Math.sin(Math.PI * t))
+        const lift = segment.glyph === 'truck' ? 0 : .22 * Math.sin(Math.PI * t)
+        return activeGlobe.projectElevated(coordinates.lon, coordinates.lat, lift)
       }
       const projected = elevatedPoint(leg, activeProgress)
       const canvasRect = canvas.value.getBoundingClientRect()
@@ -540,21 +543,13 @@ onBeforeUnmount(() => {
     <canvas ref="canvas" class="world-globe__canvas" :aria-label="$t('custom.tracking.mapAria')"></canvas>
     <div v-if="props.shipment" class="world-globe__route-vehicles" aria-hidden="true">
       <svg class="world-globe__route-trail" :viewBox="'0 0 ' + trailSize.width + ' ' + trailSize.height" preserveAspectRatio="none">
-        <path v-if="routeTrail" :d="routeTrail" />
+        <path v-if="routeTrail" class="world-globe__route-trail-halo" :d="routeTrail" />
+        <path v-if="routeTrail" class="world-globe__route-trail-core" :d="routeTrail" />
       </svg>
       <span v-if="routeVehicle" class="world-globe__route-vehicle"
         :class="{ 'world-globe__route-vehicle--reversed': routeVehicle.reversed }"
         :style="{ left: routeVehicle.left + 'px', top: routeVehicle.top + 'px' }">
-        <!-- Barco de perfil, horizontal y sin el antiguo fondo circular. -->
-        <svg v-if="routeVehicle.glyph === 'ship'" class="world-globe__ship-profile"
-          viewBox="0 0 52 32" fill="none" stroke="currentColor" stroke-width="2.1"
-          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M3 19h46l-7 9H12L3 19Z" fill="currentColor" />
-          <path d="M15 19V10h23v9M21 10V5h11v5" />
-          <path d="M20 14h4m5 0h4" stroke-width="2.5" />
-          <path d="M6 30c3-2 5-2 8 0s5 2 8 0 5-2 8 0 5 2 8 0 5-2 8 0" stroke-width="1.6" />
-        </svg>
-        <IconSymbol v-else :glyph="routeVehicle.glyph" :size="27" />
+        <TrackingTransportModel :glyph="routeVehicle.glyph" />
       </span>
     </div>
     <!-- On phones the location dialog escapes the clipped canvas and the
@@ -597,8 +592,20 @@ onBeforeUnmount(() => {
   </div>
 </template>
 <style scoped>
-.world-globe { --surface-card:#fff; --text-primary:#171923; }
-:global(html.theme-dark .world-globe) { --surface-card:#10182b; --text-primary:#f4f6fb; }
+.world-globe {
+  --surface-card:#fff; --text-primary:#171923;
+  --tracking-model-main:#242932; --tracking-model-shade:#0c1016;
+  --tracking-model-light:#687483; --tracking-model-highlight:#a2acb7;
+  --tracking-model-window:#cee1ed;
+  --tracking-trail-gray:#626b77; --tracking-trail-glow:rgba(65,78,96,.55);
+}
+:global(html.theme-dark .world-globe) {
+  --surface-card:#10182b; --text-primary:#f4f6fb;
+  --tracking-model-main:#c4cbd5; --tracking-model-shade:#626b7a;
+  --tracking-model-light:#e8ecf2; --tracking-model-highlight:#fff;
+  --tracking-model-window:#9fc2d6;
+  --tracking-trail-gray:#c4cbd5; --tracking-trail-glow:rgba(219,228,242,.75);
+}
 .world-globe__location-card {
   position:absolute; z-index:12; width:min(270px,calc(100% - 28px)); max-height:min(290px,calc(100% - 25px));
   overflow-x:hidden; overflow-y:auto; padding:17px 19px; box-sizing:border-box;
@@ -662,13 +669,16 @@ onBeforeUnmount(() => {
 
 .world-globe__route-vehicles{position:absolute;inset:0;z-index:4;pointer-events:none}
 .world-globe__route-trail{position:absolute;inset:0;width:100%;height:100%;overflow:hidden}
-.world-globe__route-trail path{fill:none;stroke:#b50928;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 3px #b5092860)}
-:global(html.theme-dark .world-globe__route-trail path){stroke:#fff;filter:drop-shadow(0 0 3px #ffffff70)}
-.world-globe__route-vehicle{position:absolute;display:grid;place-items:center;width:42px;height:32px;color:#171717;filter:drop-shadow(0 2px 3px #0007);transform:translate(-50%,-50%)}
-:global(html.theme-dark .world-globe__route-vehicle){color:#fff}
+.world-globe__route-trail path{fill:none;stroke:var(--tracking-trail-gray);stroke-linecap:round;stroke-linejoin:round}
+.world-globe__route-trail-halo{stroke-width:9;opacity:.2;filter:blur(2px)}
+.world-globe__route-trail-core{stroke-width:2.8;filter:drop-shadow(0 0 4px var(--tracking-trail-glow))}
+.world-globe__route-vehicle{position:absolute;display:grid;place-items:center;width:60px;height:42px;color:var(--tracking-model-main);transform:translate(-50%,-50%);filter:drop-shadow(0 3px 3px rgba(0,0,0,.24))}
 .world-globe__route-vehicle--reversed{transform:translate(-50%,-50%) scaleX(-1)}
-.world-globe__ship-profile{display:block;width:42px;height:28px}
-@media(max-width:580px){.world-globe__route-vehicle{width:34px;height:28px}.world-globe__ship-profile{width:34px;height:24px}.world-globe__route-trail path{stroke-width:2.5}}
+@media(max-width:580px){
+  .world-globe__route-vehicle{width:48px;height:34px}
+  .world-globe__route-trail-halo{stroke-width:7}
+  .world-globe__route-trail-core{stroke-width:2.3}
+}
 </style>
 
 <!-- route rendering notes: see docs/DHOLE-TRACKING-PREVIEW.md -->
