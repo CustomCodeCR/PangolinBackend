@@ -34,10 +34,29 @@ El valor "0" no se interpreta automáticamente como ausencia de dato. Se mantien
 estructurado aunque el texto de estado del cliente describa otra fecha.
 
 ## Globo
-Cuando ambos puertos están en el catálogo de `frontend/src/lib/trackingRoute.ts`,
-`WorldGlobe` dibuja un arco ilustrativo. Si no se reconocen ambos extremos,
-mantiene la vista predeterminada y muestra un aviso.
-No se muestran posiciones GPS, trayectos marítimos verificados ni porcentajes inventados.
+El globo usa las coordenadas ilustrativas de `frontend/src/lib/trackingPorts.json`,
+que se resuelven en `frontend/src/lib/trackingRoute.ts`. Los nombres marcados como
+`quoteCatalogName` corresponden a ubicaciones marítimas presentes en
+`backend/Database/OfficialQuotesVideoLocations.sql`, el catálogo parcial de
+Cotizaciones obtenido de los videos. Las variantes de Dynamics se reconocen sin
+distinguir tildes, mayúsculas ni abreviaturas como «Pto.».
+
+Por ejemplo, **IDTRA 12753** presenta origen «China», puerto de salida
+«Shenzhen, China», puerto de entrada «Pto. Balboa, Panamá» y destino «Panamá».
+El mapa utiliza los **dos puertos identificables** y representa la trayectoria
+ilustrativa Shenzhen → Balboa. «China» y «Panamá» por sí solos no se convierten
+en puntos inventados. Se conservan las escalas intermedias explícitamente
+proporcionadas por Dynamics, cuando están reconocidas en el catálogo.
+
+El punto aproximado de Shenzhen corresponde a la zona portuaria de Shekou;
+no confirma la terminal del embarque. El registro inicial contiene Qingdao,
+Caldera, Mundra, Cristóbal, San José, Balboa, Shenzhen, Busan y Callao.
+Los puertos no identificados se omiten y, si quedan menos de dos puntos distintos,
+el globo muestra su vista normal con aviso de ruta no disponible.
+
+La animación conserva un único vehículo y una estela que siguen el recorrido
+ilustrativo, no posiciones GPS, trayectos verificados ni porcentajes de avance
+reales. Ni la base de Cotizaciones ni las consultas de Dynamics se modifican.
 El globo de inicio `/home` no cambia.
 
 ## Pruebas para la PR
