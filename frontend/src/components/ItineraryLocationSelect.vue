@@ -9,8 +9,9 @@ const props = withDefaults(defineProps<{
   placeholder?: string
   disabled?: boolean
   loading?: boolean
-}>(), { placeholder: 'Buscar ciudad o país', disabled: false, loading: false })
-const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
+  blocked?: boolean
+}>(), { placeholder: 'Buscar ciudad o país', disabled: false, loading: false, blocked: false })
+const emit = defineEmits<{ 'update:modelValue': [value: string]; 'needs-transport': [] }>()
 const uid = useId()
 const listId = uid + '-locations'
 const input = ref<HTMLInputElement | null>(null)
@@ -66,6 +67,7 @@ function positionMenu() {
   positioned.value = true
 }
 function openMenu() {
+  if (props.blocked) { emit('needs-transport'); return }
   if (props.disabled || props.loading) return
   opened.value = true
   positioned.value = false
@@ -74,6 +76,7 @@ function openMenu() {
 }
 function closeMenu() { opened.value = false; positioned.value = false }
 function onInput(event: Event) {
+  if (props.blocked) return
   query.value = (event.target as HTMLInputElement).value
   // Never submit arbitrary typed text as a location.
   emit('update:modelValue', '')
@@ -90,13 +93,24 @@ function onBlur() {
   query.value = props.modelValue
   closeMenu()
 }
+function clearSelection() {
+  query.value = ''
+  emit('update:modelValue', '')
+  closeMenu()
+}
+function onBlockedClick() {
+  if (props.blocked) emit('needs-transport')
+}
 function toggle() {
+  if (props.blocked) { emit('needs-transport'); return }
+  if (props.modelValue) { clearSelection(); return }
   if (opened.value) { query.value = props.modelValue; closeMenu(); return }
   query.value = ''
   input.value?.focus({ preventScroll: true })
   openMenu()
 }
 function onKeydown(event: KeyboardEvent) {
+  if (props.blocked) { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); emit('needs-transport') }; return }
   if (event.key === 'Escape') {
     if (opened.value) { event.preventDefault(); onBlur() }
   } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -142,15 +156,21 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="root" class="itinerary-location-select">
+  <div ref="root" class="itinerary-location-select" :class="{ 'is-blocked': blocked }">
     <input ref="input" class="itinerary-location-select__input" type="text"
-      :value="query" :disabled="disabled || loading" :placeholder="loading ? 'Cargando ubicaciones…' : placeholder"
+      :value="query" :disabled="disabled || loading" :readonly="blocked"
+      :aria-disabled="blocked || disabled || loading"
+      :placeholder="loading ? 'Cargando ubicaciones…' : placeholder"
       role="combobox" autocomplete="off" aria-autocomplete="list" :aria-label="props['aria-label']"
       :aria-controls="listId" :aria-expanded="opened" :aria-activedescendant="activeId"
-      @focus="openMenu" @input="onInput" @keydown="onKeydown" @blur="onBlur" />
+      @focus="openMenu" @click="onBlockedClick" @input="onInput" @keydown="onKeydown" @blur="onBlur" />
     <button type="button" class="itinerary-location-select__toggle" :disabled="disabled || loading"
-      :aria-label="'Mostrar opciones de ' + props['aria-label']" @mousedown.prevent @click="toggle">
-      <span class="itinerary-location-select__chevron" :class="{ 'is-open': opened }" aria-hidden="true"></span>
+      :aria-label="modelValue ? 'Limpiar ' + props['aria-label'] : 'Mostrar opciones de ' + props['aria-label']"
+      @mousedown.prevent @click="toggle">
+      <svg v-if="modelValue && !blocked" class="itinerary-location-select__clear-icon" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 5l14 14M19 5L5 19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+      </svg>
+      <span v-else class="itinerary-location-select__chevron" :class="{ 'is-open': opened }" aria-hidden="true"></span>
     </button>
     <Teleport to="body">
       <div v-if="opened" :id="listId" ref="menu" class="itinerary-location-select__menu" role="listbox"
@@ -174,6 +194,10 @@ onBeforeUnmount(() => {
 }
 .itinerary-location-select .itinerary-location-select__input:focus-visible {border-color:#b20c2a;box-shadow:0 0 0 3px #b20c2a17;}
 .itinerary-location-select .itinerary-location-select__input:disabled {opacity:.65;cursor:not-allowed;}
+.itinerary-location-select.is-blocked .itinerary-location-select__input {opacity:.64;background:#f2f4f8;cursor:pointer;}
+.itinerary-location-select.is-blocked .itinerary-location-select__input::placeholder {color:#8d97a6;opacity:1;}
+.itinerary-location-select__clear-icon {display:block;transition:color .18s ease;}
+.itinerary-location-select__toggle:hover .itinerary-location-select__clear-icon {color:#b20c2a;}
 .itinerary-location-select .itinerary-location-select__toggle {
   position:absolute; top:0; right:0; height:100%; width:45px; display:grid; place-items:center;
   padding:0; border:0; border-radius:0 13px 13px 0; background:transparent;
@@ -204,6 +228,7 @@ html.theme-dark .itinerary-location-select .itinerary-location-select__input {
   border-color:#3b465f; background:#121a30; color:#fff;
 }
 html.theme-dark .itinerary-location-select .itinerary-location-select__toggle {color:#d0d4df;}
+html.theme-dark .itinerary-location-select.is-blocked .itinerary-location-select__input {background:#222a3b;opacity:.65;}
 html.theme-dark .itinerary-location-select__menu {
   background:#19191c;color:#fff;border-color:#52505b;box-shadow:0 18px 38px rgba(0,0,0,.48);
 }
@@ -214,6 +239,8 @@ html.theme-dark .itinerary-location-select__empty {color:#b9bac2;}
   color:var(--admin-text,#101b32);border-color:var(--admin-border,#cfd3dd);
   font-size:14px;font-weight:400;
 }
+.content-manager .itinerary-location-select.is-blocked .itinerary-location-select__input {background:var(--admin-input,#f7f9fd);opacity:.65;}
+html.theme-dark .content-manager .itinerary-location-select.is-blocked .itinerary-location-select__input {background:#121a30;opacity:.55;}
 html.theme-dark .content-manager .itinerary-location-select .itinerary-location-select__input {
   background:#121a30; color:#fff; border-color:#3b465f;
 }
