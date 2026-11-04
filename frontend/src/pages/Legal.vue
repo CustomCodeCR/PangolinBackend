@@ -7,9 +7,10 @@ import SiteFooter from '../components/SiteFooter.vue'
 
 type LegalSection = { title: string; paragraphs?: string[]; bullets?: string[]; links?: { label: string; href: string }[] }
 type LegalDocument = { title: string; sections: LegalSection[] }
+const props = defineProps<{ pathname?: string }>()
 const { locale } = useI18n({ useScope: 'global' })
 const documentType = computed(() => {
-  const path = window.location.pathname.replace(/\/+$/, '')
+  const path = (props.pathname ?? (typeof window !== 'undefined' ? window.location.pathname : '/privacidad')).replace(/\/+$/, '')
   return path === '/terminos' ? 'terms' : path === '/cookies' ? 'cookies' : path === '/licencias' ? 'licenses' : 'privacy'
 })
 

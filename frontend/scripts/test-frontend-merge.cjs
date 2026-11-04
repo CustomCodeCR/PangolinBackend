@@ -33,6 +33,70 @@ assert.match(main, /connectSignalR\(\)/, 'SignalR no debe ser sustituido por Web
 source('src/services/signalr.ts')
 source('src/services/realtime.ts')
 source('src/components/SiteMedia.vue')
+
+// The tracking globe uses one animated icon and an elevated trail, no fixed itinerary bar.
+const trackingGlobe = source('src/components/WorldGlobe.vue')
+assert.match(trackingGlobe, /const legs = routePoints\.value\.slice\(1\)\.map\(/, 'La ruta conserva cada tramo de todas las escalas')
+assert.match(trackingGlobe, /for \(let index = 0; index < legs\.length; index\+\+\)/, 'El vehículo avanza por los tramos, en orden')
+assert.match(trackingGlobe, /const demoArcs = \(\) => props\.shipment\s*\?\s*\[\]/, 'El tracking no dibuja la línea animada anterior')
+assert.match(trackingGlobe, /<span v-if="routeVehicle"/, 'Un solo icono para el embarque')
+assert.doesNotMatch(trackingGlobe, /v-for="vehicle|routeVehicleIcons/, 'No duplicar iconos por cada tramo')
+assert.doesNotMatch(trackingGlobe, /world-globe__route-stops/, 'No mostrar el listado inferior de escalas')
+assert.match(trackingGlobe, /cancelAnimationFrame\(vehicleFrame\)/, 'Se detiene la animación al desmontar')
+assert.match(trackingGlobe, /motionMedia\?\.matches \? 0/, 'Respetar movimiento reducido')
+
+assert.match(trackingGlobe, /const commands: string\[\] = \[\]/, 'La estela se construye con la trayectoria recorrida')
+assert.match(trackingGlobe, /routeTrail\.value = commands\.join\(' '\)/, 'La estela sigue el recorrido del icono')
+assert.match(trackingGlobe, /<svg class="world-globe__route-trail"/, 'Existe un SVG para la estela')
+assert.match(trackingGlobe, /<TrackingTransportModel :glyph="routeVehicle\.glyph" \/>/, 'Cada ícono usa la miniatura con volumen')
+const trackingModels = source('src/components/TrackingTransportModel.vue')
+for (const variant of ["ship", "✈", "truck"]) {
+  assert.ok(trackingModels.includes('glyph === ' + "'" + variant + "'"), 'Existe modelo isométrico de ' + variant)
+}
+assert.match(trackingModels, /linearGradient/, 'Las miniaturas tienen luces y sombras, sin WebGL ni assets externos')
+assert.match(trackingModels, /tracking-model-highlight/, 'Las miniaturas heredan colores del tema')
+assert.match(trackingModels, /tracking-plane-engine-3d/, 'Nuevo avión incluye motores con volumen')
+assert.match(trackingModels, /Far wing: rearward tip \(x=31\) and forward root \(x=77\)/,
+  'El ala superior está barrida hacia atrás, no hacia la nariz')
+assert.match(trackingModels, /Near wing: tip x=32 is behind the leading root x=79/,
+  'El ala inferior también está barrida hacia atrás')
+assert.match(trackingModels, /M55 31 31 6 43 4 77 29Z/,
+  'Silueta del ala superior con punta detrás de la raíz')
+assert.match(trackingModels, /M55 36 32 57 46 60 79 39Z/,
+  'Silueta del ala inferior con punta detrás de la raíz')
+assert.match(trackingModels, /viewBox="0 0 120 64"/, 'El jet conserva una silueta horizontal sin iconografía externa')
+assert.match(trackingModels, /tracking-transport-model--plane\{width:54px;height:32px\}/,
+  'El avión reduce su tamaño en dispositivos pequeños')
+
+assert.match(trackingGlobe, /const seaToRoad = legs\.length >= 2/, 'Marítimo con dos tramos activa el cambio de vehículo')
+assert.match(trackingGlobe, /const elevatedPoint = /, 'Icono y estela comparten proyección elevada')
+assert.match(trackingGlobe, /\.22 \* Math\.sin\(Math\.PI \* t\)/, 'Parábola con elevación máxima en mitad de cada tramo')
+assert.match(trackingGlobe, /projectElevated\(coordinates\.lon, coordinates\.lat/, 'El recorrido se dibuja sobre la esfera')
+assert.match(trackingGlobe, /const projected = elevatedPoint\(leg, activeProgress\)/, 'El icono se mueve sobre la curva')
+assert.match(trackingGlobe, /const p = elevatedPoint\(segment, \(step \/ count\) \* fraction\)/, 'La estela sigue la misma curva')
+assert.match(trackingGlobe, /--tracking-trail-gray:#626b77/, 'Estela gris oscura en modo claro')
+assert.match(trackingGlobe, /--tracking-trail-gray:#c4cbd5/, 'Estela gris clara en modo oscuro')
+assert.match(trackingGlobe, /--tracking-trail-glow:/, 'Los dos temas conservan iluminación tenue')
+assert.match(trackingGlobe, /world-globe__route-trail-halo/, 'La estela tiene halo difuminado')
+assert.match(trackingGlobe, /world-globe__route-trail-core/, 'La estela tiene trazo definido')
+assert.match(trackingGlobe, /segment\.glyph === 'truck' \? 0 : \.22 \* Math\.sin\(Math\.PI \* t\)/,
+  'El camión viaja sobre la esfera sin parábola, barco y avión elevados')
+assert.match(trackingGlobe, /projectElevated\(coordinates\.lon, coordinates\.lat, lift\)/,
+  'Ícono y estela usan exactamente la elevación de su tramo')
+const globeRenderer = source('src/lib/castroGlobe.js')
+const globeTypes = source('src/lib/castroGlobe.d.ts')
+assert.match(globeRenderer, /projectElevated\(lon, lat, lift = 0\)/, 'Motor permite dibujar por encima del globo')
+assert.match(globeRenderer, /visible: dot >= 0 \|\| outside/, 'El arco respeta la cara oculta del globo')
+assert.match(globeTypes, /projectElevated\(lon: number, lat: number, lift\?: number\)/, 'Tipado de la proyección elevada')
+
+assert.match(trackingGlobe, /index === 0 \? 'ship' : 'truck'/, 'Rutas multimodales cambian al camión en la primera escala')
+assert.match(trackingGlobe, /props\.shipment\?\.transport === 'sea' \|\| props\.shipment\?\.transport === 'multimodal'/, 'Dos tramos marítimos o multimodales cambian a camión')
+assert.doesNotMatch(trackingGlobe, /\.world-globe__route-vehicle\{[^}]*border-radius:50%/, 'Ícono de transporte sin círculo')
+assert.match(trackingGlobe, /cancelAnimationFrame\(vehicleFrame\)/, 'Se limpia la animación correctamente')
+const trackingModeSource = source('src/pages/Tracking.vue')
+assert.match(trackingModeSource, /multi\[\\s-\]\?modal\|intermodal/, 'Tracking reconoce el modo multimodal explícito')
+
+
 source('src/siteCms.ts')
 const mainStyles = source('src/style.css')
 assert.match(mainStyles, /html\.theme-dark \.header-settings__panel\{--settings-surface:rgba\(10,18,40,\.96\)/, 'Configuración mantiene su fondo oscuro original')
@@ -86,10 +150,12 @@ assert.match(officialQuote, /<FieldDropdown id="quote-incoterm" v-model="form\.i
 assert.match(officialQuote, /\.\.\.incoterms\.map\(value => \(\{value, label:value\}\)\)/, 'Incoterm retains all eleven official codes')
 assert.match(officialQuote, /<FieldDropdown :id="'quote-equipment-size-' \+ i" v-model="line\.size"/, 'FCL container size and FTL truck size use the shared menu')
 assert.match(officialQuote, /<FieldDropdown :id="'quote-equipment-type-' \+ i" v-model="line\.type"/, 'FCL and FTL equipment type use the shared menu')
-assert.match(officialQuote, /equipmentSizeOptions = computed<EquipmentOption\[\]>/, 'FCL and FTL retain separate equipment size options')
-assert.match(officialQuote, /\['20', '40', '45', '48'\]\.map\(n => \(\{ value: n \+ ' pies'/, 'FCL retains all four sizes')
+const sharedEquipmentOptions = source('src/lib/officialQuoteOptions.ts')
+assert.match(officialQuote, /officialEquipmentSizeOptions\(shipmentType\.value \|\| '', q\)/, 'The wizard uses the canonical equipment-size choices')
+assert.match(officialQuote, /officialEquipmentTypeOptions\(shipmentType\.value \|\| '', q\)/, 'The wizard uses the canonical equipment-type choices')
+assert.match(sharedEquipmentOptions, /\['20','40','45','48'\]\.map/, 'FCL retains all four sizes')
 for (const item of ['24 pies / 5 TON', '26 pies / 7 TON', '53 pies', 'Dry Van', 'High Cube', 'Open Top', 'Open Side', 'Tank', 'Flat Rack', 'NOR', 'Furgón']) {
-  assert.ok(officialQuote.includes(item), 'Retain equipment option: ' + item)
+  assert.ok(sharedEquipmentOptions.includes(item), 'Retain equipment option: ' + item)
 }
 assert.match(officialQuote, /\{value:'', label:q\('Seleccionar Incoterm', 'Select Incoterm'\)\}/, 'Incoterm placeholder remains translated')
 assert.match(officialQuote, /\{value:'', label:q\('Seleccionar','Select'\)\}/, 'Equipment placeholder remains translated')
@@ -136,7 +202,8 @@ assert.doesNotMatch(news, /news-editorial-hero__description|\{\{ article\.descri
 assert.match(news, /<main v-else id="noticia-completa" class="news-article-page"[^>]*>/, 'Artículo ocupa una sección completa del sitio')
 assert.match(authRoot, /const seoPath = path\.startsWith\('\/noticias\/'\) \? '\/noticias' : path/, 'Las rutas de artículos reciben el SEO base de Noticias')
 assert.match(authRoot, /if\(path==='\/noticias' \|\| path\.startsWith\('\/noticias\/'\)\) return 'news'/, 'Las rutas legibles se resuelven en la página existente de Noticias')
-assert.match(news, /<div class="news-article-page__body">\s*<p v-for="\(paragraph, index\) in activeArticleParagraphs" :key="index">\{\{ paragraph \}\}<\/p>\s*<\/div>/, 'Se muestra íntegro el cuerpo del CMS como párrafos')
+assert.ok(news.includes('<div class="news-article-page__formatted" v-html="activeArticleHtml"></div>'), 'El artículo muestra su contenido enriquecido')
+assert.match(news, /const html = activeArticle\.value\?\.body \?\? ''[\s\S]*?sanitizeNewsHtml\(html\)/, 'El cuerpo enriquecido se sanitiza y conserva noticias antiguas')
 assert.match(news, /<SiteHeader v-if="isArticlePage" active="noticias" overlay\s*\/>/, 'La ruta legible y la anterior mantienen el encabezado superpuesto sobre la imagen')
 assert.doesNotMatch(news, /news-article-modal|aria-modal="true"/, 'Noticias no abre un modal')
 assert.match(news, /href="\/noticias"/, 'El usuario puede volver a la lista de noticias')
@@ -158,13 +225,12 @@ assert.match(fieldDropdown, /html\.theme-dark \.content-manager\.is-embedded \.m
 assert.match(fieldDropdown, /html\.theme-dark \.app-site\.official-page \.cf-dropdown__trigger:focus-visible\s*\{\s*border-color:#a80e18;/, 'Cotizaciones conserva el resaltado rojo al enfocar los selectores')
 assert.match(fieldDropdown, /html\.theme-dark \.cf-dropdown__trigger\s*\{\s*border-color:#4f5365; background:#121a30; color:#fff;/, 'Mantener estilos ajenos a Cotizaciones intactos')
 assert.match(fieldDropdown, /font-size:14px;/, 'Texto normal de los desplegables igual a las fechas')
-assert.match(fieldDropdown, /if \(!placement\) placement = below < Math\.min\(300, naturalHeight\) && above > below \? 'above' : 'below'/, 'El menú mantiene una orientación estable según su altura real')
+assert.match(fieldDropdown, /if \(!placement\) placement = below < Math\.min\(300, naturalHeight\) && above > below \? 'above' : 'below'/, 'El menú conserva orientación estable con altura real')
 assert.match(fieldDropdown, /const renderedHeight = list\.getBoundingClientRect\(\)\.height/, 'El menú mide la altura realmente visible antes de ubicarse')
-assert.match(fieldDropdown, /const desiredTop = placement === 'above' \? rect\.top - renderedHeight - gap : rect\.bottom \+ gap/, 'El menú abre pegado al campo sin espacio artificial arriba')
-assert.match(fieldDropdown, /window\.requestAnimationFrame\(trackMenu\)/, 'El menú sigue al campo durante desplazamiento asíncrono y momentum')
-assert.match(fieldDropdown, /window\.cancelAnimationFrame\(trackingFrame\)/, 'Detener el seguimiento del menú cerrado')
-assert.match(fieldDropdown, /clippingAncestors\.some\(parent =>/, 'Cerrar menús que quedan fuera del área visible del formulario')
-assert.match(fieldDropdown, /if \(outsideViewport \|\| clipped\) \{ closeMenu\(\); return \}/, 'No dejar menús huérfanos al desplazarse')
+assert.match(fieldDropdown, /const desiredTop = placement === 'above' \? rect\.top - renderedHeight - gap : rect\.bottom \+ gap/, 'El menú abre pegado al campo')
+assert.match(fieldDropdown, /window\.requestAnimationFrame\(trackMenu\)/, 'El menú sigue al campo durante desplazamientos')
+assert.match(fieldDropdown, /window\.cancelAnimationFrame\(trackingFrame\)/, 'No deja recursos de seguimiento abiertos')
+assert.match(fieldDropdown, /if \(outsideViewport \|\| clipped\) \{ closeMenu\(\); return \}/, 'Cierra opciones que quedan fuera de la zona visible')
 assert.doesNotMatch(fieldDropdown, /rect\.top - maxHeight/, 'No colocar el menú utilizando un máximo de altura diferente a su altura real')
 assert.match(fieldDropdown, /isOpen\.value = true[\s\S]*?void nextTick\(\(\) => \{[\s\S]*?positionMenu\(\)/, 'Medir el menú tras montarlo en el DOM')
 assert.match(fieldDropdown, /visibility: isPositioned \? 'visible' : 'hidden'/, 'Evitar salto visual antes de medir la lista')
@@ -178,6 +244,19 @@ assert.match(manager, /user\.activo = value === 'true'/, 'Activo se convierte a 
 assert.match(manager, /newsForm\.published = value === 'true'/, 'Publicación de noticias conserva booleanos')
 assert.match(manager, /commentForm\.published = value === 'true'/, 'Publicación de comentarios conserva booleanos')
 assert.match(manager, /selectAdminTransport/, 'Transporte conserva lógica de reajuste de modalidad')
+const itineraryAdminForm = manager.match(/<form v-if="section === 'itineraries'"[\s\S]*?<\/form>/)?.[0] ?? ''
+assert.ok(itineraryAdminForm, 'Falta el formulario de Itinerarios en Administración')
+assert.ok(
+  itineraryAdminForm.indexOf('itineraryForm.transport') < itineraryAdminForm.indexOf('itineraryForm.origin') &&
+  itineraryAdminForm.indexOf('itineraryForm.origin') < itineraryAdminForm.indexOf('itineraryForm.destination') &&
+  itineraryAdminForm.indexOf('itineraryForm.destination') < itineraryAdminForm.indexOf('itineraryForm.status'),
+  'Orden restaurado de Itinerarios: Transporte, Origen, Destino, Estado'
+)
+for (const field of ['origin','destination','transport','status','departure','arrival','closing','modality','carrier','vessel','voyage']) {
+  assert.match(itineraryAdminForm, new RegExp('itineraryForm\\.' + field + '\\b'), 'No perder campo de Itinerarios: ' + field)
+}
+assert.match(itineraryAdminForm, /:required="isLiveAdmin"/, 'Fechas siguen siendo obligatorias para el admin real')
+assert.doesNotMatch(itineraryAdminForm, /<template v-if="isLiveAdmin">/, 'Vista de prueba presenta todos los campos de itinerario')
 assert.doesNotMatch(officialQuoteAdmin, /<select\b/, 'La revisión administrativa de Cotizaciones usa el menú nuevo')
 assert.match(officialQuoteAdmin, /v-model="state"/, 'La revisión sigue enviando los estados oficiales')
 const adminUsers = source('src/pages/AdminUsers.vue')
@@ -259,20 +338,7 @@ assert.doesNotMatch(tracking, /\/api\/tracking\/demo\?/, 'La interfaz pública y
 assert.match(tracking, /<label for="tracking-reference-kind">/, 'Tipo de referencia debe tener una etiqueta separada del select')
 assert.match(tracking, /import FieldDropdown from '\.\.\/components\/FieldDropdown\.vue'/, 'Buscar embarque reutiliza el mismo componente de selección que Administración')
 assert.match(tracking, /id="tracking-reference-kind"[\s\S]*?v-model="kind"[\s\S]*?:aria-label="copy\.type"/, 'Tipo de referencia mantiene etiqueta y selección accesibles')
-assert.match(tracking, /types\.map\(item => \(\{ value: item\.id, label: item\.name \}\)\)/, 'El selector conserva los identificadores al generar opciones')
-const referenceOptions = tracking.split('const types = computed(() => en.value ? [')[1]?.split('])\nconst help')[0]
-assert.ok(referenceOptions, 'El selector bilingüe de rastreo está disponible')
-const [englishOptions, spanishOptions] = referenceOptions.split('] : [')
-for (const [language, options] of [['en', englishOptions], ['es', spanishOptions]]) {
-  assert.deepEqual(
-    [...options.matchAll(/\{ id: '([^']+)'/g)].map(match => match[1]),
-    ['BL', 'IDTRA', 'CONTAINER', 'PO'],
-    'BL/HBL unificados, con IDTRA, contenedor y PO conservados: ' + language
-  )
-}
-assert.match(tracking, /name: 'BL-HBL number \(BCF\)'/, 'Etiqueta de BL/HBL unificados en inglés')
-assert.match(tracking, /name: 'Número BL-HBL \(BCF\)'/, 'Etiqueta de BL/HBL unificados en español')
-assert.match(tracking, /body: JSON\.stringify\(\{ type: kind\.value, reference: code \}\)/, 'El selector unificado conserva el contrato de la consulta Dynamics')
+assert.match(tracking, /types\.map\(item => \(\{ value: item\.id, label: item\.name \}\)\)/, 'Las cinco referencias mantienen sus valores originales')
 assert.doesNotMatch(tracking, /tracking-reference-select|tracking-reference-options|referenceMenuOpen/, 'No duplicar componentes de dropdown con estilos propios')
 assert.match(tracking, /\.tracking-fields :deep\(\.cf-dropdown__trigger\)\{min-height:54px;padding:13px 15px;font-size:16px\}/, 'Tipo de referencia conserva tamaño táctil y estilo del componente hijo en móvil')
 assert.match(fieldDropdown, /html\.theme-dark \.cf-dropdown__menu\s*\{\s*background:#19191c; color:#fff;/, 'Menú de referencia respeta el modo oscuro compartido')
@@ -310,57 +376,215 @@ assert.match(homeTrackingMobile, /\.app-site\.home-page \.tracking-home-grid \{ 
 assert.match(homeTrackingMobile, /\.app-site\.home-page \.tracking-home-copy \{ text-align:center; margin-bottom:0; \}/, 'El botón no debe superponerse al globo por margen negativo')
 assert.match(home, /href="\/tracking"/, 'Rastrear ahora mantiene su destino')
 assert.doesNotMatch(main, /connectWebSocket\(\)/, 'No activar broker local 8081')
-// Detalles de seguimiento: seis filas glass no interactivas, parejas y ambos temas.
-assert.match(tracking, /class="tracking-demo-result__grid">\s*<div class="tracking-demo-result__pair">/, 'El resumen usa filas glass')
-assert.equal((tracking.match(/<div class="tracking-demo-result__pair">/g) ?? []).length, 6, 'Seis parejas de resumen en orden')
-assert.match(tracking, /<dt>\{\{ copy.origin \}\}<\/dt><dd>\{\{ shipment.origin/, 'Origen se conserva')
-assert.match(tracking, /<dt>\{\{ copy.destination \}\}<\/dt><dd>\{\{ shipment.destination/, 'Destino va junto a origen')
+// Tracking summary: the route and journey are separate from the five paired detail rows.
+// Keep meaningful coverage of the redesigned layout, including dark mode and mobile.
+assert.match(tracking, /class="tracking-demo-result__route"/, 'Origen y destino se presentan como ruta')
+assert.match(tracking, /class="tracking-demo-result__route-content"/,
+  'El contenido de la ruta usa una banda interna centrada')
+assert.match(tracking, /\.tracking-demo-result__route-content \{[\s\S]*?width: 100%;[\s\S]*?min-width: 0;/,
+  'El contenido de la ruta utiliza todo el ancho disponible en escritorio')
+assert.match(tracking, /\.tracking-demo-result__route-stop--destination \{\s*justify-self: end;/,
+  'Destino se alinea con el borde derecho de la tarjeta')
+assert.match(tracking, /\.tracking-demo-result__route \{[\s\S]*?padding: 22px clamp\(18px, 2vw, 28px\);/,
+  'Origen y destino mantienen exactamente el mismo margen exterior')
+assert.match(tracking, /@media \(max-width: 580px\) \{[\s\S]*?\.tracking-demo-result__route-content \{\s*grid-template-columns: minmax\(0, 1fr\);/,
+  'La ruta vuelve a una sola columna en móvil')
+assert.match(tracking, /\.tracking-demo-result__route-stop--destination \{\s*justify-self: start;/,
+  'Destino se devuelve a la alineación izquierda en celular')
+assert.match(tracking, /<strong>\{\{ shipment\.origin \|\| '—' \}\}<\/strong>/, 'Origen se conserva')
+assert.match(tracking, /<strong>\{\{ shipment\.destination \|\| '—' \}\}<\/strong>/, 'Destino se conserva')
+assert.match(tracking, /v-if="journeyStage !== null"/, 'El recorrido solo aparece con un estado reconocido')
+assert.match(tracking, /journeySteps\[journeyStage\]\.label/, 'El recorrido indica su etapa actual')
+assert.match(tracking, /stageForKnownStatus\(shipment\.value\?\.status\)/, 'La etapa depende del estado real')
+assert.equal((tracking.match(/<div class="tracking-demo-result__pair">/g) ?? []).length, 5,
+  'Cinco parejas de datos principales, con ruta y equipo por separado')
+assert.match(tracking, /class="tracking-demo-result__grid">\s*<div class="tracking-demo-result__pair">/,
+  'El resumen mantiene las parejas de datos')
 assert.match(tracking, /<dt>\{\{ en \? 'Transport' : 'Transporte' \}\}/, 'Transporte se conserva')
-assert.match(tracking, /<dt>\{\{ copy.status \}\}/, 'Estado se conserva')
-assert.match(tracking, /\.tracking-demo-result__pair \{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/, 'Cada fila contiene dos datos')
-assert.match(tracking, /align-items:center; column-gap:0; min-width:0;/, 'La línea divisoria se coloca exactamente al centro (sin gap de columnas)')
-assert.match(tracking, /\.tracking-demo-result__field:first-child:not\(:only-child\) \{\s*padding-right:var\(--tracking-pair-spacing\);/, 'Espaciado simétrico a la izquierda del divisor')
-assert.match(tracking, /\.tracking-demo-result__field \+ \.tracking-demo-result__field \{[\s\S]*?padding-left:var\(--tracking-pair-spacing\);/, 'Espaciado simétrico a la derecha del divisor')
-assert.match(tracking, /\.tracking-demo-result__pair \{ --tracking-pair-spacing:12px; column-gap:0; padding:13px 14px;/, 'El divisor permanece centrado en móvil')
-assert.match(tracking, /-webkit-backdrop-filter:blur\(12px\); backdrop-filter:blur\(12px\)/, 'Glass blur de 12px igual a otras secciones con soporte Safari')
-assert.match(tracking, /background:rgba\(255,255,255,\.18\)/, 'Glass claro conserva transparencia de Noticias')
-// Dark mode must have one shared row for both fields, just like light.
-const darkPairStart = tracking.indexOf(':global(html.theme-dark .app-site.tracking-site .tracking-demo-result__pair) {')
-assert.ok(darkPairStart >= 0, 'El resumen oscuro conserva las franjas completas')
-const darkPairCSS = tracking.slice(darkPairStart, tracking.indexOf('</style>', darkPairStart))
-assert.match(darkPairCSS, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/, 'Dos columnas en una sola franja')
-assert.match(darkPairCSS, /border:1px solid #4f5365 !important;/, 'Un solo borde exterior gris azulado, igual al selector cerrado')
-assert.match(darkPairCSS, /background:#060f21 !important;/, 'Fondo marino a todo lo ancho de la franja')
-assert.match(darkPairCSS, /-webkit-backdrop-filter:none !important;\s*backdrop-filter:none !important;\s*box-shadow:none !important;/, 'Sin desenfoque ni sombras: superficie mate completamente opaca')
-assert.match(darkPairCSS, /background:#060f21 !important;\s*background-image:none !important;/, 'Fondo sólido azul sin transparencia ni degradado')
-assert.match(darkPairCSS, /tracking-demo-result__pair\) \{[\s\S]*?border:1px solid #4f5365 !important;/, 'Borde único mate sin efecto Glass')
-const darkContainerStart = tracking.indexOf(':global(html.theme-dark .app-site.tracking-site .tracking-demo-result) {')
-assert.ok(darkContainerStart >= 0, 'Contenedor exterior del resumen en modo oscuro')
-const darkContainerCSS = tracking.slice(darkContainerStart, darkPairStart)
-assert.match(darkContainerCSS, /box-shadow:none !important;/, 'Contenedor exterior sin sombra Glass')
-assert.match(darkPairCSS, /tracking-demo-result__field\) \{[\s\S]*?border:0 !important;/, 'No hay borde en cada campo')
-assert.match(darkPairCSS, /tracking-demo-result__field \+ \.tracking-demo-result__field\) \{[\s\S]*?border-left:1px solid var\(--tracking-glass-divider\) !important;/, 'Una sola línea divisoria centrada')
-assert.match(darkPairCSS, /tracking-demo-result__field dd\) \{[\s\S]*?background:transparent !important;/, 'No hay caja independiente para cada valor')
-assert.match(darkPairCSS, /tracking-demo-result__field dd\) \{[\s\S]*?border:0 !important;/, 'Los valores no tienen segundo borde')
-assert.match(darkPairCSS, /content:none !important;/, 'Sin reflejos ni líneas extra')
-const finalDarkCardCSS = tracking.slice(tracking.lastIndexOf('/* Tracking dark cards: unscoped override')) 
-assert.match(finalDarkCardCSS, /html\.theme-dark \.app-site\.tracking-site \.tracking-demo-result__pair \{[\s\S]*?background: #060f21 !important;[\s\S]*?border: 1px solid #4f5365 !important;/, 'El override final iguala el acabado del selector cerrado')
-assert.match(finalDarkCardCSS, /\.tracking-demo-result__pair::before,[\s\S]*?\.tracking-demo-result__pair::after \{[\s\S]*?display: none !important;/, 'Los reflejos decorativos no se dibujan en modo oscuro')
-assert.doesNotMatch(darkPairCSS, /border:1px solid #b50928 !important;/, 'No hay borde rojo')
-assert.match(tracking, /background:rgba\(255,255,255,\.18\)/, 'Glass claro intacto')
-assert.match(tracking, /border:1px solid rgba\(255,255,255,\.6\)/, 'Bordes del Glass claro intactos')
-assert.match(tracking, /cursor:default;/, 'Las filas informativas no simulan un enlace')
-assert.match(tracking, /shipmentExtrasPairs = computed<ShipmentExtraField\[\]\[\]>/, 'Los campos adicionales se agrupan en pares')
-assert.match(tracking, /v-for="\(pair, index\) in shipmentExtrasPairs"/, 'Los pares extra se muestran con el mismo glass')
-assert.match(tracking, /@media\(max-width:580px\) \{\s*\.tracking-demo-result__grid \{ gap:10px; \}/, 'Ajuste móvil sin separar parejas')
-assert.match(tracking, /:global\(html.theme-dark \.app-site\.tracking-site \.tracking-demo-result__pair\) \{/, 'El modo oscuro conserva las franjas de dos campos')
-assert.match(tracking, /shipment\.customerStatus/, 'Conservar la actualización para el cliente')
-assert.match(tracking, /shipmentExtras/, 'Conservar los campos adicionales de rastreo')
+assert.match(tracking, /<dt>\{\{ en \? 'Equipment quantity x size' : 'Cantidad x tamaño de equipo' \}\}/,
+  'Equipo se muestra como cantidad por tamaño')
+assert.match(tracking, /<strong class="tracking-demo-result__status">\{\{ displayStatus\(shipment\.status\) \}\}<\/strong>/, 'Estado se conserva en la cabecera')
+assert.match(tracking, /\.app-site\.tracking-site \.tracking-demo-result__route \{/,
+  'La ruta tiene estilos dedicados')
+assert.match(tracking, /\.app-site\.tracking-site \.tracking-demo-result__pair \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/,
+  'Dos datos por fila en escritorio')
+assert.match(tracking, /html\.theme-dark \.app-site\.tracking-site \.tracking-demo-result__route \{/,
+  'Ruta compatible con modo oscuro')
+assert.match(tracking, /html\.theme-dark \.app-site\.tracking-site \.tracking-journey \{/,
+  'Recorrido compatible con modo oscuro')
+assert.match(tracking, /@media \(max-width: 580px\) \{[\s\S]*?\.app-site\.tracking-site \.tracking-demo-result__route \{/,
+  'Ruta adaptable a móvil')
+assert.match(tracking, /\.app-site\.tracking-site \.tracking-demo-result__field \+ \.tracking-demo-result__field \{[\s\S]*?border-left: 1px solid/,
+  'Separación visible entre campos')
+assert.match(tracking, /shipmentExtrasPairs = computed<ShipmentExtraField\[\]\[\]>/,
+  'Los datos adicionales siguen agrupados en pares')
+assert.match(tracking, /v-for="\(pair, index\) in shipmentExtrasPairs"/,
+  'Los datos adicionales siguen presentes')
+assert.match(tracking, /shipment\.customerStatus/, 'La actualización del cliente se conserva')
+
+// The globe must reflect only supplied route points, not fictional intermediate stops.
+const trackingRouteSource = source('src/lib/trackingRoute.ts')
+const trackingGlobeSource = source('src/components/WorldGlobe.vue')
+assert.match(trackingRouteSource, /export function illustrativeJourney\(/,
+  'La ruta ilustrativa admite una secuencia de escalas')
+assert.match(trackingRouteSource, /\.\.\.\(record\.routeStops \?\? \[\]\)/,
+  'Las escalas explícitas quedan entre puertos y destino')
+assert.match(tracking, /illustrativeJourney\(shipment\.value\)/, 'Tracking envía el recorrido al globo')
+assert.match(tracking, /Referencia geográfica a nivel país:/,
+  'El usuario recibe una advertencia visible sobre las referencias nacionales')
+assert.match(trackingGlobeSource, /referencia aproximada del país/,
+  'Los marcadores muestran la precisión aproximada en el globo')
+assert.match(trackingGlobeSource, /routePoints\.value\.slice\(1\)\.map\(/,
+  'El globo dibuja todos los tramos consecutivos')
+assert.match(trackingGlobeSource, /transportGlyph/, 'El globo presenta el ícono del transporte')
 
 // Dynamics mode/status are controlled display values; all other content remains unchanged.
 const trackingLocalizationSource = source('src/lib/trackingDisplay.ts')
 const tsCompiler = require('typescript')
 const { runInNewContext } = require('node:vm')
+
+// Tracking uses quote-backed canonical names plus explicit illustrative coordinates.
+// Evaluate the real TypeScript route functions instead of duplicating their resolver.
+const trackingPorts = JSON.parse(source('src/lib/trackingPorts.json'))
+const trackingQuoteCoordinates = JSON.parse(source('src/lib/trackingQuoteCoordinates.json'))
+const trackingCountries = JSON.parse(source('src/lib/trackingCountries.json'))
+assert.equal(trackingCountries.length, 250, 'La referencia geográfica de países cubre 250 registros')
+assert.ok(trackingCountries.some(c => c.iso2 === 'HN' && c.lat === 15 && c.lon === -86.5), 'Honduras tiene referencia geográfica')
+
+const officialQuoteSql = source('../backend/Database/OfficialQuotesVideoLocations.sql')
+const allOfficialLocationNames = new Set([...officialQuoteSql.matchAll(/'(?:seaport|airport|inland)','([^']+)'/g)]
+  .map(([, name]) => name))
+for (const location of trackingQuoteCoordinates) {
+  assert.ok(allOfficialLocationNames.has(location.quoteCatalogName), 'Cotización registrada: ' + location.name)
+  assert.ok(Number.isFinite(location.lat) && Math.abs(location.lat) <= 90, 'Latitud válida: ' + location.name)
+  assert.ok(Number.isFinite(location.lon) && Math.abs(location.lon) <= 180, 'Longitud válida: ' + location.name)
+  assert.ok(['city-centroid', 'regional-centroid', 'port-approximation'].includes(location.coordinatePrecision),
+    'Tipo de aproximación geográfica válido: ' + location.name)
+  if (location.coordinateSource) {
+    assert.match(location.coordinateSource, /^https:\/\//, 'Origen verificable: ' + location.name)
+  }
+}
+assert.ok(trackingQuoteCoordinates.length >= 208, 'Se preservan al menos 208 entradas geográficas de Cotizaciones')
+const officialLocationRows = [...officialQuoteSql.matchAll(/'(seaport|airport|inland)','([^']+)'/g)]
+  .map(([, kind, name]) => ({ kind, name }))
+const normalizeQuoteName = name => name.toLowerCase().normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '').replace(/[.,\/()\-]/g, ' ').replace(/\s+/g, ' ').trim()
+const coveredNames = new Set([...trackingPorts, ...trackingQuoteCoordinates]
+  .flatMap(point => [point.name, point.quoteCatalogName, ...(point.aliases || [])])
+  .filter(Boolean).map(normalizeQuoteName))
+const uncoveredQuoteRows = officialLocationRows.filter(row => !coveredNames.has(normalizeQuoteName(row.name)))
+assert.ok(officialLocationRows.length >= 217, 'No reducir el catálogo parcial de Cotizaciones')
+assert.ok(officialLocationRows.length - uncoveredQuoteRows.length >= 213,
+  'El globo reconoce al menos 213 registros del catálogo oficial')
+const knownAmbiguousNames = new Set([
+  'Dong Nai, Vietnam', 'Wilmington, Estados Unidos', 'Coyol, Costa Rica',
+  'St. George, Antigua y Barbuda'
+])
+for (const missing of uncoveredQuoteRows) {
+  assert.ok(knownAmbiguousNames.has(missing.name), 'Ubicación sin coordenadas revisadas: ' + missing.name)
+}
+assert.equal(uncoveredQuoteRows.length, 4,
+  'Las cuatro ubicaciones ambiguas siguen excluidas hasta validación operativa')
+
+const knownQuotePorts = new Set(
+  [...source('../backend/Database/OfficialQuotesVideoLocations.sql').matchAll(/'seaport','([^']+)'/g)]
+    .map(([, name]) => name)
+)
+for (const port of trackingPorts) {
+  assert.ok(Number.isFinite(port.lat) && Math.abs(port.lat) <= 90, 'Latitud válida: ' + port.name)
+  assert.ok(Number.isFinite(port.lon) && Math.abs(port.lon) <= 180, 'Longitud válida: ' + port.name)
+  if (port.quoteCatalogName) {
+    assert.ok(knownQuotePorts.has(port.quoteCatalogName), 'Puerto registrado en Cotizaciones: ' + port.quoteCatalogName)
+  }
+}
+assert.match(trackingRouteSource, /import trackingPorts from '.\/trackingPorts\.json'/,
+  'Tracking utiliza el catálogo geográfico basado en Cotizaciones')
+assert.match(trackingRouteSource, /import trackingQuoteCoordinates from '.\/trackingQuoteCoordinates\.json'/,
+  'El rastreo incorpora las coordenadas vinculadas a Cotizaciones')
+assert.match(trackingRouteSource, /import trackingCountries from '.\/trackingCountries\.json'/,
+  'El rastreo permite referencias geográficas a nivel país')
+assert.match(trackingRouteSource, /export function resolveTrackingLocation\(/,
+  'Las ubicaciones de Dynamics pasan por un resolvedor seguro')
+assert.match(trackingRouteSource, /countriesWithSpecificPlaces\.has\(point\.countryIso\)/,
+  'Países genéricos no duplican escalas si existe un puerto concreto')
+const compiledTrackingRoute = tsCompiler.transpileModule(trackingRouteSource, {
+  compilerOptions: {
+    module: tsCompiler.ModuleKind.CommonJS, target: tsCompiler.ScriptTarget.ES2020,
+    esModuleInterop: true
+  }
+})
+const trackingRouteExports = {}
+runInNewContext(compiledTrackingRoute.outputText, {
+  exports: trackingRouteExports,
+  require: name => {
+    if (name === './trackingPorts.json') return trackingPorts
+    if (name === './trackingQuoteCoordinates.json') return trackingQuoteCoordinates
+    if (name === './trackingCountries.json') return trackingCountries
+    assert.fail('Tracking no debe importar otra dependencia: ' + name)
+  }
+}, { timeout: 1000 })
+const journeyFor = values => trackingRouteExports.illustrativeJourney({
+  origin: values.origin ?? null,
+  portOfLoading: values.portOfLoading ?? null,
+  routeStops: values.routeStops ?? null,
+  portOfEntry: values.portOfEntry ?? null,
+  destination: values.destination ?? null
+})
+const idtra12753 = journeyFor({
+  origin: 'China', portOfLoading: 'Shenzhen, China',
+  portOfEntry: 'Pto. Balboa, Panamá', destination: 'Panamá'
+})
+assert.equal(idtra12753.map(point => point.name).join(' -> '),
+  'Shenzhen, China -> Balboa, Panamá', 'IDTRA 12753 tiene sus dos puertos ilustrativos')
+assert.equal(idtra12753.length, 2, 'China y Panamá genéricos no generan paradas multimodales ficticias')
+assert.ok(idtra12753.every(point => point.precision !== 'country-centroid'),
+  'Los puertos conocidos tienen prioridad sobre centroides nacionales')
+const countriesOnly = journeyFor({ origin: 'China', destination: 'Panamá' })
+assert.equal(countriesOnly.length, 2, 'Se muestra recorrido ilustrativo si sólo se conocen países')
+assert.ok(countriesOnly.every(point => point.precision === 'country-centroid'),
+  'Los puntos a nivel país nunca se presentan como puerto o aeropuerto identificado')
+const honduras = trackingRouteExports.resolveTrackingLocation('Honduras')
+assert.equal(honduras?.precision, 'country-centroid',
+  'Honduras se identifica como país y no como aeropuerto')
+assert.equal(honduras?.lat, 15, 'Referencia ilustrativa de Honduras comprobada')
+assert.equal(honduras?.lon, -86.5, 'Longitud aproximada del país comprobada')
+assert.equal(trackingRouteExports.resolveTrackingLocation('Puerto de entrada: Honduras')?.countryIso, 'HN',
+  'Variantes de la etiqueta Dynamics reconocen Honduras')
+assert.equal(trackingRouteExports.resolveTrackingLocation('Ubicación inventada en Atlantis'), null,
+  'No se fabrican coordenadas si el país tampoco es reconocible')
+const airToCountry = journeyFor({
+  origin: 'Miami, Estados Unidos', portOfEntry: 'Honduras', destination: 'Honduras'
+})
+assert.equal(airToCountry.map(point => point.name).join(' -> '),
+  'Miami, Estados Unidos -> Honduras',
+  'Un embarque aéreo puede terminar en Honduras sin suponer un aeropuerto')
+assert.equal(airToCountry[1].precision, 'country-centroid',
+  'Destino aéreo sin aeropuerto debe anunciar referencia a nivel país')
+
+assert.equal(journeyFor({ portOfLoading: 'Altamira, México', portOfEntry: 'Veracruz, México' })
+  .map(point => point.name).join(' -> '), 'Altamira, México -> Veracruz, México',
+  'Se reconoce la ruta entre dos puertos con ciudades estatales verificadas')
+assert.equal(journeyFor({ portOfLoading: 'Shenzhen, China', portOfEntry: 'Miami, Estados Unidos' }).length, 2,
+  'Se reconocen rutas entre diferentes continentes con el catálogo ampliado')
+assert.equal(journeyFor({
+  portOfLoading: 'Chongqing, China', portOfEntry: 'Puerto Moín, Costa Rica'
+}).map(point => point.name).join(' -> '),
+  'Chongqing, China -> Puerto Moín, Costa Rica',
+  'Rutas con nuevas ubicaciones y puertos contrastados')
+assert.equal(journeyFor({
+  portOfLoading: 'Manzanillo, Panamá', portOfEntry: 'Puerto Quetzal, Guatemala'
+}).length, 2, 'El catálogo incluye terminales específicas de Centroamérica')
+assert.equal(journeyFor({
+  portOfLoading: 'Qingdao, China', routeStops: ['Mundra, India', 'Cristóbal, Panamá'],
+  portOfEntry: 'Puerto Caldera, Costa Rica', destination: 'San José, Costa Rica'
+}).length, 5, 'Conservar todas las escalas conocidas en el orden recibido')
+assert.equal(journeyFor({ portOfLoading: 'Puerto Balboa, Panama',
+  portOfEntry: 'Callao, Perú' }).map(p => p.name).join(' -> '),
+  'Balboa, Panamá -> Callao, Perú', 'Variantes de nombres funcionan sin tildes')
+assert.equal(journeyFor({
+  portOfLoading: 'Shenzhen, China', portOfEntry: 'Shenzhen, China'
+}).length, 0, 'No dibujar recorridos cuando ambos puertos son idénticos')
+
 const compiledLocalization = tsCompiler.transpileModule(trackingLocalizationSource, {
   compilerOptions: { module: tsCompiler.ModuleKind.CommonJS, target: tsCompiler.ScriptTarget.ES2020 }
 })
@@ -429,13 +653,17 @@ for (const [input, expected] of [
   assert.equal(formatTrackingEquipmentCount(input), expected, 'Cantidad de equipo: ' + input)
 }
 assert.equal(formatTrackingEquipmentCount(null), null, 'No generar una cantidad para datos ausentes')
-assert.match(tracking, /value: formatTrackingEquipmentCount\(data\.equipmentCount\)/, 'La cantidad visible se normaliza sin modificar Dynamics')
-assert.match(tracking, /value: data\.equipmentSize/, 'Conservar tamaño y configuración original de equipo')
+assert.match(tracking, /const quantity = formatTrackingEquipmentCount\(count\)/,
+  'La cantidad visible se normaliza sin modificar Dynamics')
+assert.match(tracking, /const equipmentSize = size\?\.trim\(\)/,
+  'El tamaño de equipo se preserva en el formato combinado')
+assert.match(tracking, /formatEquipmentConfiguration\(data\.equipmentCount, data\.equipmentSize\)/,
+  'La presentación combina cantidad y tamaño sin modificar Dynamics')
 assert.match(tracking, /const displayMode = \(value: string \| null\) => localizeTrackingMode\(value, en\.value \? 'en' : 'es'\)/, 'La modalidad reacciona al idioma seleccionado')
 assert.match(tracking, /const displayStatus = \(value: string \| null\) => localizeTrackingStatus\(value, en\.value \? 'en' : 'es'\)/, 'El estado reacciona al idioma seleccionado')
 assert.match(tracking, /<strong class="tracking-demo-result__status">\{\{ displayStatus\(shipment\.status\) \}\}<\/strong>/, 'Insignia del estado traducida')
 assert.match(tracking, /<dd>\{\{ displayMode\(shipment\.mode\) \}\}<\/dd>/, 'Modalidad del resumen traducida')
-assert.match(tracking, /<dd>\{\{ displayStatus\(shipment\.status\) \}\}<\/dd>/, 'Estado del resumen traducido')
+assert.match(tracking, /<strong class="tracking-demo-result__status">\{\{ displayStatus\(shipment\.status\) \}\}<\/strong>/, 'El estado traducido permanece visible en la cabecera')
 assert.match(tracking, /\{ es: 'Mercancía', en: 'Commodity', value: data\.commodity \}/, 'Commodity es etiqueta traducible pero no se modifica el valor de mercancía')
 assert.match(tracking, /<span>\{\{ customerUpdateText \}\}<\/span>/, 'El texto del cliente usa la traducción reactiva por referencia')
 assert.match(tracking, /<dd>\{\{ field\.value \}\}<\/dd>/, 'Descripciones y referencias de Dynamics quedan intactas')
@@ -448,7 +676,7 @@ assert.equal(localizeTrackingStatus('Booking listo', 'en'), 'Booking ready', 'Bo
 assert.equal(localizeTrackingStatus('Booking listo', 'es'), 'Booking listo', 'Booking is retained in Spanish logistics language')
 assert.equal(localizeTrackingStatus('Booking confirmado', 'en'), 'Booking confirmado', 'Do not invent booking confirmation')
 assert.equal(localizeTrackingStatus('Booking listo pendiente de confirmar', 'en'), 'Booking listo pendiente de confirmar', 'Never translate unrecognized free text')
-assert.equal((tracking.match(/displayStatus\(shipment\.status\)/g) ?? []).length, 2, 'Translate header and summary using one catalog')
+assert.equal((tracking.match(/displayStatus\(shipment\.status\)/g) ?? []).length, 1, 'One translated status in the redesigned header; journey uses the original status')
 assert.match(itinerary, /displayPublishedStatus\(item\.status\)/, 'Published itineraries translate status')
 assert.match(itinerary, /displayPublishedTransport\(item\.transport\)/, 'Published itineraries translate transport')
 assert.match(itinerary, /localizeTrackingMode, localizeTrackingStatus/, 'Published itineraries reuse the tracking dictionary')

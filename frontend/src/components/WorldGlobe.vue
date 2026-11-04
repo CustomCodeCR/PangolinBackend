@@ -1,14 +1,162 @@
 <script setup lang="ts">
 import IconSymbol from './IconSymbol.vue'
+import TrackingTransportModel from './TrackingTransportModel.vue'
 import type { TrackingDemoShipment, TrackingPoint } from '../types/tracking'
 import { computed, nextTick, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { CastroGlobe, Marker, ClusterMarker } from '../lib/castroGlobe'
 
-type TrackingRouteShape = Pick<TrackingDemoShipment, 'origin' | 'destination'> & Partial<Pick<TrackingDemoShipment, 'progressPercent'>>
+type TrackingRouteShape = Pick<TrackingDemoShipment, 'origin' | 'destination'> &
+  Partial<Pick<TrackingDemoShipment, 'progressPercent'>> & {
+    stops?: TrackingPoint[]
+    transport?: 'air' | 'sea' | 'land' | 'multimodal' | null
+  }
 const props = defineProps<{ shipment?: TrackingRouteShape | null; initialZoom?: number }>()
 const holder = ref<HTMLElement | null>(null)
 const canvas = ref<HTMLCanvasElement | null>(null)
+const routePoints = computed(() => {
+  const route = props.shipment
+  if (!route) return []
+  return route.stops && route.stops.length >= 2 ? route.stops : [route.origin, route.destination]
+})
+// Un solo vehículo recorre todas las escalas; la estela sigue el tramo ya transitado.
+const transportGlyph = computed(() => props.shipment?.transport === 'air' ? '✈'
+  : props.shipment?.transport === 'sea' ? 'ship'
+  : props.shipment?.transport === 'land' ? 'truck'
+  : props.shipment?.transport === 'multimodal' ? 'ship'
+  : props.shipment ? 'container' : null)
+
+const routeLegs = computed(() => {
+  const legs = routePoints.value.slice(1).map((end, index) => {
+    const start = routePoints.value[index]
+    const rad = Math.PI / 180
+    const cosine = Math.sin(start.lat * rad) * Math.sin(end.lat * rad)
+      + Math.cos(start.lat * rad) * Math.cos(end.lat * rad) * Math.cos((end.lon - start.lon) * rad)
+    const degrees = Math.acos(Math.max(-1, Math.min(1, cosine))) / rad
+    return { start, end, duration: Math.max(2400, Math.min(13000, degrees * 95)) }
+  }).filter(leg => leg.start.lat !== leg.end.lat || leg.start.lon !== leg.end.lon)
+
+  // Dynamics no siempre etiqueta la multimodalidad: un marítimo con dos o
+  // más tramos cambia del barco al camión en la PRIMERA escala.
+  const seaToRoad = legs.length >= 2
+    && (props.shipment?.transport === 'sea' || props.shipment?.transport === 'multimodal')
+  return legs.map((leg, index) => ({
+    ...leg,
+    glyph: seaToRoad ? (index === 0 ? 'ship' : 'truck') : (transportGlyph.value ?? 'container')
+  }))
+})
+
+const routeVehicle = ref<{ left: number; top: number; glyph: string; reversed: boolean } | null>(null)
+const routeTrail = ref('')
+const trailSize = ref({ width: 1, height: 1 })
+let vehicleFrame = 0
+let lastVehicleUpdate = -Infinity
+let lastVehicleClock = 0
+let vehicleElapsedMs = 0
+let motionMedia: MediaQueryList | undefined
+
+function updateRouteVehicle(now: number) {
+  if (disposed) return
+  // No avanzar el tiempo mientras la pestaña esté oculta.
+  if (document.hidden) {
+    lastVehicleClock = 0
+  } else if (now - lastVehicleUpdate >= 42) {
+    lastVehicleUpdate = now
+    const legs = routeLegs.value
+    if (globe && canvas.value && holder.value && legs.length) {
+      if (lastVehicleClock && !motionMedia?.matches) {
+        vehicleElapsedMs += Math.min(100, now - lastVehicleClock)
+      }
+      lastVehicleClock = now
+
+      const total = legs.reduce((sum, leg) => sum + leg.duration, 0)
+      let remaining = motionMedia?.matches ? 0 : vehicleElapsedMs % (total + 900)
+      let activeIndex = legs.length - 1
+      let activeProgress = 1
+      for (let index = 0; index < legs.length; index++) {
+        if (remaining <= legs[index].duration) {
+          activeIndex = index
+          activeProgress = remaining / legs[index].duration
+          break
+        }
+        remaining -= legs[index].duration
+      }
+
+      const leg = legs[activeIndex]
+      const activeGlobe = globe
+      // Marítimo y aéreo vuelan sobre la esfera con elevación parabólica.
+      // El camión viaja sobre la superficie: sin elevación en ningún punto.
+      // El ícono y la estela usan siempre la misma proyección.
+      const elevatedPoint = (segment: (typeof legs)[number], progress: number) => {
+        const t = Math.max(0, Math.min(1, progress))
+        const coordinates = illustrativePosition(segment.start, segment.end, t * 100)
+        const lift = segment.glyph === 'truck' ? 0 : .22 * Math.sin(Math.PI * t)
+        return activeGlobe.projectElevated(coordinates.lon, coordinates.lat, lift)
+      }
+      const projected = elevatedPoint(leg, activeProgress)
+      const canvasRect = canvas.value.getBoundingClientRect()
+      const holderRect = holder.value.getBoundingClientRect()
+      const offsetX = canvasRect.left - holderRect.left
+      const offsetY = canvasRect.top - holderRect.top
+      const width = holderRect.width
+      const height = holderRect.height
+      if (trailSize.value.width !== width || trailSize.value.height !== height) {
+        trailSize.value = { width, height }
+      }
+
+      // Dibujar únicamente la porción ya recorrida de cada tramo, incluyendo
+      // las escalas completadas. Respetar la cara oculta y el borde del globo.
+      if (motionMedia?.matches) {
+        routeTrail.value = ''
+      } else {
+        const commands: string[] = []
+        let previous: { x: number; y: number } | null = null
+        for (let index = 0; index <= activeIndex; index++) {
+          const segment = legs[index]
+          const fraction = index === activeIndex ? activeProgress : 1
+          const count = Math.max(1, Math.ceil(64 * fraction))
+          for (let step = 0; step <= count; step++) {
+            const p = elevatedPoint(segment, (step / count) * fraction)
+            if (!p?.visible) {
+              previous = null
+              continue
+            }
+            const x = p.x + offsetX, y = p.y + offsetY
+            if (!Number.isFinite(x) || !Number.isFinite(y)) {
+              previous = null
+              continue
+            }
+            const contiguous = previous
+              && Math.hypot(x - previous.x, y - previous.y) < Math.max(35, canvasRect.width * .35)
+            commands.push((contiguous ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1))
+            previous = { x, y }
+          }
+        }
+        routeTrail.value = commands.join(' ')
+      }
+
+      if (projected?.visible) {
+        const ahead = elevatedPoint(leg, Math.min(1, activeProgress + .01))
+        const behind = elevatedPoint(leg, Math.max(0, activeProgress - .01))
+        const facingLeft = ahead?.visible && ahead.x !== projected.x
+          ? ahead.x < projected.x
+          : (behind?.visible ? projected.x < behind.x : false)
+
+        routeVehicle.value = {
+          left: projected.x + offsetX,
+          top: projected.y + offsetY,
+          glyph: leg.glyph,
+          reversed: facingLeft
+        }
+      } else routeVehicle.value = null
+    } else {
+      lastVehicleClock = 0
+      routeVehicle.value = null
+      routeTrail.value = ''
+    }
+  }
+  vehicleFrame = requestAnimationFrame(updateRouteVehicle)
+}
 const error = ref('')
 const { locale } = useI18n({ useScope: 'global' })
 const english = computed(() => locale.value.toLowerCase().startsWith('en'))
@@ -86,26 +234,29 @@ function illustrativePosition(start: TrackingPoint, end: TrackingPoint, percenta
 const demoMarkers = () => {
   const shipment = props.shipment
   if (!shipment) return markerData()
+  const points = routePoints.value.map((point, index, all) => ({
+    id: 'route-stop-' + index, ...point,
+    label: point.precision === 'country-centroid'
+      ? (english.value ? point.name + ' · approximate country reference' : point.name + ' · referencia aproximada del país')
+      : point.name,
+    color: index === 0 ? '#1677d2' : index === all.length - 1 ? '#18a86d' : '#b50928',
+    count: 1, size: 7
+  }))
   const progressValue = shipment.progressPercent
-  const progress = illustrativePosition(shipment.origin, shipment.destination, progressValue ?? 50)
-  const points = [
-    { id: 'route-origin', ...shipment.origin, label: shipment.origin.name, color: '#1677d2', count: 1, size: 7 },
-    { id: 'route-destination', ...shipment.destination, label: shipment.destination.name, color: '#18a86d', count: 1, size: 7 }
-  ]
   if (progressValue !== undefined && progressValue > 0 && progressValue < 100) {
-    points.push({ id: 'route-progress', name: 'Progreso DEMO', ...progress, label: 'DEMO · ' + shipment.progressPercent + '%', color: '#f5b700', count: 1, size: 8 })
+    const progress = illustrativePosition(shipment.origin, shipment.destination, progressValue)
+    points.push({ id: 'route-progress', name: 'Progreso DEMO', ...progress,
+      label: 'DEMO · ' + progressValue + '%', color: '#f5b700', count: 1, size: 8 })
   }
   return points
 }
-const demoArcs = () => props.shipment ? [{
-  from: { lat: props.shipment.origin.lat, lon: props.shipment.origin.lon },
-  to: { lat: props.shipment.destination.lat, lon: props.shipment.destination.lon },
-  color: '#b50928', width: 2, duration: 4000
-}] : offices.filter(item => item.countryEs !== 'Costa Rica').map(item => ({
-  from: { lat: 9.9167, lon: -84.0333 },
-  to: { lat: item.lat, lon: item.lon },
-  color: '#a80e18', width: 1.15
-}))
+const demoArcs = () => props.shipment
+  ? [] // El recorrido de tracking se representa solamente con el vehículo móvil.
+  : offices.filter(item => item.countryEs !== 'Costa Rica').map(item => ({
+    from: { lat: 9.9167, lon: -84.0333 },
+    to: { lat: item.lat, lon: item.lon },
+    color: '#a80e18', width: 1.15
+  }))
 const costaRicaCenter = { lat: 9.9417, lon: -84.0583 }
 
 
@@ -311,6 +462,11 @@ async function start() {
       onClick: selectWarehouse,
       arcs: demoArcs(),
     })
+    if (props.shipment && routeLegs.value.length) {
+      const firstLeg = routeLegs.value[0]
+      const center = illustrativePosition(firstLeg.start, firstLeg.end, 50)
+      globe.flyTo(center.lon, center.lat, { instant: true })
+    }
   } catch (e) {
     if (!disposed) error.value =
       e instanceof Error ? e.message : 'Error al iniciar el mapa.'
@@ -319,6 +475,11 @@ async function start() {
 
 watch(locale, () => globe?.setMarkers(demoMarkers()))
 watch(() => props.shipment, (shipment) => {
+  vehicleElapsedMs = 0
+  lastVehicleClock = 0
+  lastVehicleUpdate = -Infinity
+  routeVehicle.value = null
+  routeTrail.value = ''
   if (!globe) return
   cancelAnimationFrame(popupFollowFrame)
   selectedId.value = null
@@ -334,6 +495,8 @@ watch(() => props.shipment, (shipment) => {
   }
 })
 onMounted(() => {
+  motionMedia = window.matchMedia('(prefers-reduced-motion: reduce)')
+  vehicleFrame = requestAnimationFrame(updateRouteVehicle)
   locationMedia = window.matchMedia('(max-width: 800px)')
   syncLocationLayout()
   locationMedia.addEventListener('change', syncLocationLayout)
@@ -368,6 +531,7 @@ onBeforeUnmount(() => {
   themeObserver?.disconnect()
   cancelAnimationFrame(popupFollowFrame)
   cancelAnimationFrame(zoomFrame)
+  cancelAnimationFrame(vehicleFrame)
   globe?.destroy?.()
   globe = undefined
 })
@@ -379,6 +543,17 @@ onBeforeUnmount(() => {
   <div ref="holder" class="world-globe" :aria-label="$t('custom.tracking.globeAria')">
     <div class="world-globe__halo"></div>
     <canvas ref="canvas" class="world-globe__canvas" :aria-label="$t('custom.tracking.mapAria')"></canvas>
+    <div v-if="props.shipment" class="world-globe__route-vehicles" aria-hidden="true">
+      <svg class="world-globe__route-trail" :viewBox="'0 0 ' + trailSize.width + ' ' + trailSize.height" preserveAspectRatio="none">
+        <path v-if="routeTrail" class="world-globe__route-trail-halo" :d="routeTrail" />
+        <path v-if="routeTrail" class="world-globe__route-trail-core" :d="routeTrail" />
+      </svg>
+      <span v-if="routeVehicle" class="world-globe__route-vehicle"
+        :class="{ 'world-globe__route-vehicle--reversed': routeVehicle.reversed }"
+        :style="{ left: routeVehicle.left + 'px', top: routeVehicle.top + 'px' }">
+        <TrackingTransportModel :glyph="routeVehicle.glyph" />
+      </span>
+    </div>
     <!-- On phones the location dialog escapes the clipped canvas and the
          surrounding tracking sections via Teleport and a full-screen layer. -->
     <Teleport to="body" :disabled="!mobileLocationPopup">
@@ -419,8 +594,20 @@ onBeforeUnmount(() => {
   </div>
 </template>
 <style scoped>
-.world-globe { --surface-card:#fff; --text-primary:#171923; }
-:global(html.theme-dark .world-globe) { --surface-card:#10182b; --text-primary:#f4f6fb; }
+.world-globe {
+  --surface-card:#fff; --text-primary:#171923;
+  --tracking-model-main:#242932; --tracking-model-shade:#0c1016;
+  --tracking-model-light:#687483; --tracking-model-highlight:#a2acb7;
+  --tracking-model-window:#cee1ed;
+  --tracking-trail-gray:#626b77; --tracking-trail-glow:rgba(65,78,96,.55);
+}
+:global(html.theme-dark .world-globe) {
+  --surface-card:#10182b; --text-primary:#f4f6fb;
+  --tracking-model-main:#c4cbd5; --tracking-model-shade:#626b7a;
+  --tracking-model-light:#e8ecf2; --tracking-model-highlight:#fff;
+  --tracking-model-window:#9fc2d6;
+  --tracking-trail-gray:#c4cbd5; --tracking-trail-glow:rgba(219,228,242,.75);
+}
 .world-globe__location-card {
   position:absolute; z-index:12; width:min(270px,calc(100% - 28px)); max-height:min(290px,calc(100% - 25px));
   overflow-x:hidden; overflow-y:auto; padding:17px 19px; box-sizing:border-box;
@@ -482,6 +669,18 @@ onBeforeUnmount(() => {
   }
 }
 
+.world-globe__route-vehicles{position:absolute;inset:0;z-index:4;pointer-events:none}
+.world-globe__route-trail{position:absolute;inset:0;width:100%;height:100%;overflow:hidden}
+.world-globe__route-trail path{fill:none;stroke:var(--tracking-trail-gray);stroke-linecap:round;stroke-linejoin:round}
+.world-globe__route-trail-halo{stroke-width:9;opacity:.2;filter:blur(2px)}
+.world-globe__route-trail-core{stroke-width:2.8;filter:drop-shadow(0 0 4px var(--tracking-trail-glow))}
+.world-globe__route-vehicle{position:absolute;display:grid;place-items:center;width:60px;height:42px;color:var(--tracking-model-main);transform:translate(-50%,-50%);filter:drop-shadow(0 3px 3px rgba(0,0,0,.24))}
+.world-globe__route-vehicle--reversed{transform:translate(-50%,-50%) scaleX(-1)}
+@media(max-width:580px){
+  .world-globe__route-vehicle{width:48px;height:34px}
+  .world-globe__route-trail-halo{stroke-width:7}
+  .world-globe__route-trail-core{stroke-width:2.3}
+}
 </style>
 
 <!-- route rendering notes: see docs/DHOLE-TRACKING-PREVIEW.md -->

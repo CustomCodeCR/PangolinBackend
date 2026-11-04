@@ -1,0 +1,308 @@
+[
+  {
+    "slug": "transporte-maritimo",
+    "serviceType": { "es": "Coordinación de transporte marítimo internacional de carga", "en": "International ocean freight coordination" },
+    "title": {
+      "es": "Transporte marítimo de carga",
+      "en": "Ocean freight transportation"
+    },
+    "eyebrow": {
+      "es": "TRANSPORTE MARÍTIMO",
+      "en": "OCEAN FREIGHT"
+    },
+    "lead": {
+      "es": "Coordinamos alternativas de transporte marítimo internacional para importaciones y exportaciones. La ruta y el tipo de embarque se revisan según tu carga.",
+      "en": "We coordinate international ocean freight options for imports and exports. The route and shipment type are reviewed according to your cargo."
+    },
+    "location": {
+      "es": "Operaciones internacionales desde y hacia Costa Rica",
+      "en": "International operations to and from Costa Rica"
+    },
+    "image": "/images/ship.webp",
+    "imageAlt": {
+      "es": "Buque de carga para transporte marítimo internacional",
+      "en": "Cargo ship for international ocean freight"
+    },
+    "sections": [
+      {
+        "title": {
+          "es": "Una opción para planificar tu embarque",
+          "en": "An option for planning your shipment"
+        },
+        "body": {
+          "es": "El transporte marítimo permite organizar cargas internacionales de acuerdo con el volumen, la ruta y las fechas de la operación. Cada alternativa se confirma mediante cotización.",
+          "en": "Ocean freight lets you organize international cargo according to shipment volume, route and timing. Each option is confirmed through a quotation."
+        }
+      },
+      {
+        "title": {
+          "es": "Información para cotizar",
+          "en": "Details for a quotation"
+        },
+        "body": {
+          "es": "Indicá el origen, el destino, la descripción de la mercancía y las fechas estimadas. El equipo revisará la información y te ayudará a definir los siguientes pasos.",
+          "en": "Provide the origin, destination, cargo description and estimated dates. The team will review the details and help you determine the next steps."
+        }
+      }
+    ],
+    "quoteLabel": {
+      "es": "Cotizar transporte marítimo",
+      "en": "Request an ocean freight quote"
+    }
+  },
+  {
+    "slug": "transporte-terrestre",
+    "serviceType": { "es": "Coordinación de transporte terrestre internacional de carga", "en": "International land freight coordination" },
+    "title": {
+      "es": "Transporte terrestre internacional",
+      "en": "International land freight"
+    },
+    "eyebrow": {
+      "es": "TRANSPORTE TERRESTRE",
+      "en": "LAND FREIGHT"
+    },
+    "lead": {
+      "es": "Coordinación de transporte terrestre de carga para operaciones internacionales, con rutas y condiciones sujetas a revisión y cotización.",
+      "en": "Land freight coordination for international operations, with routes and terms subject to review and quotation."
+    },
+    "location": {
+      "es": "Costa Rica y conexiones regionales",
+      "en": "Costa Rica and regional connections"
+    },
+    "image": "/images/truck.webp",
+    "imageAlt": {
+      "es": "Camión de carga en una ruta de transporte terrestre",
+      "en": "Freight truck on a land transportation route"
+    },
+    "sections": [
+      {
+        "title": {
+          "es": "Coordinación según la ruta",
+          "en": "Coordination based on your route"
+        },
+        "body": {
+          "es": "La viabilidad depende del trayecto, las características de la mercancía y las necesidades de la operación. Compartí esos datos para que el equipo valore las opciones disponibles.",
+          "en": "Feasibility depends on the route, cargo characteristics and shipment requirements. Share these details so the team can review available options."
+        }
+      },
+      {
+        "title": {
+          "es": "Del origen al destino",
+          "en": "From origin to destination"
+        },
+        "body": {
+          "es": "Castro Fallas coordina el transporte solicitado y el acompañamiento logístico relacionado, de acuerdo con el alcance confirmado para cada embarque.",
+          "en": "Castro Fallas coordinates the requested transportation and related logistics support according to the scope confirmed for each shipment."
+        }
+      }
+    ],
+    "quoteLabel": {
+      "es": "Cotizar transporte terrestre",
+      "en": "Request a land freight quote"
+    }
+  },
+  {
+    "slug": "transporte-aereo",
+    "serviceType": { "es": "Coordinación de transporte aéreo internacional de carga", "en": "International air freight coordination" },
+    "title": {
+      "es": "Transporte aéreo de carga",
+      "en": "Air freight transportation"
+    },
+    "eyebrow": {
+      "es": "TRANSPORTE AÉREO",
+      "en": "AIR FREIGHT"
+    },
+    "lead": {
+      "es": "Coordinamos alternativas de transporte aéreo internacional para cargas que requieren una planificación distinta. La disponibilidad y condiciones se confirman para cada solicitud.",
+      "en": "We coordinate international air freight options for shipments with specific planning needs. Availability and terms are confirmed for each request."
+    },
+    "location": {
+      "es": "Operaciones internacionales desde y hacia Costa Rica",
+      "en": "International operations to and from Costa Rica"
+    },
+    "image": "/images/air-freight.webp",
+    "imageAlt": {
+      "es": "Avión de carga utilizado para transporte aéreo internacional",
+      "en": "Cargo aircraft used for international air freight"
+    },
+    "sections": [
+      {
+        "title": {
+          "es": "Planificá según tu carga",
+          "en": "Plan around your shipment"
+        },
+        "body": {
+          "es": "La modalidad se evalúa con base en el origen, el destino, el peso, las dimensiones y la fecha requerida. El equipo confirmará si existe una opción adecuada para tu operación.",
+          "en": "The mode is assessed using origin, destination, weight, dimensions and required date. The team will confirm whether an option fits your operation."
+        }
+      },
+      {
+        "title": {
+          "es": "Coordinación y seguimiento",
+          "en": "Coordination and updates"
+        },
+        "body": {
+          "es": "Recibí orientación del equipo sobre la información necesaria para solicitar una cotización y organizar el siguiente paso del embarque.",
+          "en": "Get guidance from the team on the details needed for a quotation and the next step in arranging your shipment."
+        }
+      }
+    ],
+    "quoteLabel": {
+      "es": "Cotizar transporte aéreo",
+      "en": "Request an air freight quote"
+    }
+  },
+  {
+    "slug": "transporte-internacional",
+    "serviceType": { "es": "Coordinación de transporte terrestre, marítimo y aéreo internacional", "en": "International land, ocean and air freight coordination" },
+    "title": {
+      "es": "Transporte internacional de carga",
+      "en": "International freight transportation"
+    },
+    "eyebrow": {
+      "es": "LOGÍSTICA INTERNACIONAL",
+      "en": "INTERNATIONAL LOGISTICS"
+    },
+    "lead": {
+      "es": "Una sola coordinación para explorar transporte terrestre, marítimo o aéreo según el origen, el destino y las características de tu carga.",
+      "en": "One point of coordination to explore land, ocean or air freight based on your cargo, origin and destination."
+    },
+    "location": {
+      "es": "Conectamos Costa Rica con destinos internacionales",
+      "en": "Connecting Costa Rica with international destinations"
+    },
+    "image": "/images/hero.webp",
+    "imageAlt": {
+      "es": "Operación de transporte internacional y logística de carga",
+      "en": "International freight transportation and logistics operation"
+    },
+    "sections": [
+      {
+        "title": {
+          "es": "Tres modalidades, una consulta",
+          "en": "Three modes, one enquiry"
+        },
+        "body": {
+          "es": "El equipo puede revisar alternativas terrestres, marítimas y aéreas. La modalidad, la ruta y la disponibilidad se determinan para cada solicitud; no se asumen tiempos ni tarifas antes de cotizar.",
+          "en": "The team can review land, ocean and air options. Mode, route and availability are determined for each enquiry; timings and rates are not assumed before quotation."
+        }
+      },
+      {
+        "title": {
+          "es": "Prepará los datos de tu envío",
+          "en": "Prepare your shipment details"
+        },
+        "body": {
+          "es": "Para iniciar, compartí origen y destino, descripción de la mercancía, peso o dimensiones aproximadas y fecha estimada. Castro Fallas te contactará para continuar la revisión.",
+          "en": "To get started, provide origin and destination, cargo description, approximate weight or dimensions and estimated date. Castro Fallas will follow up to continue the review."
+        }
+      }
+    ],
+    "quoteLabel": {
+      "es": "Consultar transporte internacional",
+      "en": "Ask about international freight"
+    }
+  },
+  {
+    "slug": "transporte-local",
+    "serviceType": { "es": "Coordinación de transporte local de carga con Neriteka", "en": "Local freight transportation coordination with Neriteka" },
+    "title": {
+      "es": "Transporte local en Costa Rica",
+      "en": "Local transportation in Costa Rica"
+    },
+    "eyebrow": {
+      "es": "TRANSPORTE LOCAL · NERITEKA",
+      "en": "LOCAL TRANSPORTATION · NERITEKA"
+    },
+    "lead": {
+      "es": "Consultá por la coordinación de transporte local en Costa Rica con Neriteka. El alcance del servicio se confirma según el punto de recolección, la entrega y la carga.",
+      "en": "Ask about local transportation coordination in Costa Rica with Neriteka. Service scope is confirmed according to pickup, delivery and cargo details."
+    },
+    "location": {
+      "es": "Costa Rica · Neriteka",
+      "en": "Costa Rica · Neriteka"
+    },
+    "image": "/images/truck.webp",
+    "imageAlt": {
+      "es": "Vehículo de carga para transporte terrestre local",
+      "en": "Freight vehicle for local land transportation"
+    },
+    "sections": [
+      {
+        "title": {
+          "es": "Coordinación local",
+          "en": "Local coordination"
+        },
+        "body": {
+          "es": "Compartí los lugares de recolección y entrega, el tipo de mercancía y la fecha que necesitás. Neriteka y el equipo de Castro Fallas podrán confirmar el alcance y la disponibilidad.",
+          "en": "Share pickup and delivery locations, cargo type and the date you need. Neriteka and the Castro Fallas team can confirm scope and availability."
+        }
+      },
+      {
+        "title": {
+          "es": "Servicio según la operación",
+          "en": "Service based on your shipment"
+        },
+        "body": {
+          "es": "Las condiciones dependen de los detalles de cada traslado. Solicitá una revisión antes de coordinar la carga.",
+          "en": "Terms depend on the details of each move. Request a review before arranging transportation."
+        }
+      }
+    ],
+    "quoteLabel": {
+      "es": "Consultar transporte local",
+      "en": "Ask about local transportation"
+    }
+  },
+  {
+    "slug": "transporte-panama-costa-rica",
+    "serviceType": { "es": "Coordinación de transporte terrestre de carga entre Panamá y Costa Rica", "en": "Land freight coordination between Panama and Costa Rica" },
+    "title": {
+      "es": "Transporte de carga Panamá–Costa Rica",
+      "en": "Panama–Costa Rica freight transportation"
+    },
+    "eyebrow": {
+      "es": "CONEXIÓN REGIONAL · CASTRO FALLAS",
+      "en": "REGIONAL CONNECTION · CASTRO FALLAS"
+    },
+    "lead": {
+      "es": "Coordinamos consultas de transporte terrestre de carga entre Panamá y Costa Rica. La ruta, los documentos y las condiciones se revisan para cada operación.",
+      "en": "We coordinate land freight enquiries between Panama and Costa Rica. The route, documents and terms are reviewed for each operation."
+    },
+    "location": {
+      "es": "Panamá ↔ Costa Rica",
+      "en": "Panama ↔ Costa Rica"
+    },
+    "image": "/images/truck.webp",
+    "imageAlt": {
+      "es": "Camión para transporte terrestre de carga entre Panamá y Costa Rica",
+      "en": "Freight truck for land transportation between Panama and Costa Rica"
+    },
+    "sections": [
+      {
+        "title": {
+          "es": "Una conexión terrestre regional",
+          "en": "A regional land connection"
+        },
+        "body": {
+          "es": "Compartí el punto de origen y destino, el tipo de carga y los datos disponibles del embarque. Castro Fallas revisará si la operación puede atenderse y cuáles serían los siguientes pasos.",
+          "en": "Provide origin and destination, cargo type and the shipment details available. Castro Fallas will review whether the operation can be handled and the next steps."
+        }
+      },
+      {
+        "title": {
+          "es": "Revisión de cada embarque",
+          "en": "Review of each shipment"
+        },
+        "body": {
+          "es": "La disponibilidad, los requisitos de cruce y las condiciones de transporte deben confirmarse antes de coordinar. La solicitud no constituye una tarifa ni una reserva.",
+          "en": "Availability, border requirements and transportation terms must be confirmed before coordination. An enquiry is not a rate or a booking."
+        }
+      }
+    ],
+    "quoteLabel": {
+      "es": "Cotizar ruta Panamá–Costa Rica",
+      "en": "Request a Panama–Costa Rica quote"
+    }
+  }
+]

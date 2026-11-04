@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import type { Component } from 'vue'
-import { Boxes, FileCheck, FileText, Globe, Package, PackageCheck, ShieldCheck, Ship, Truck, Warehouse } from '@lucide/vue'
+import { AlertTriangle, Boxes, FileCheck, FileText, Globe, Layers, Package, PackageCheck, Scale, ShieldCheck, Ship, Truck, Warehouse } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import IconSymbol from '../components/IconSymbol.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import { refreshSession } from '../services/auth'
+import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions } from '../lib/officialQuoteOptions'
 
 const { locale } = useI18n({ useScope: 'global' })
 const q = (es: string, en: string) => locale.value === 'en' ? en : es
@@ -16,7 +17,6 @@ type Mode = 'Maritime' | 'Air' | 'Land'
 type Type = 'FCL' | 'LCL' | 'AIR_LCL' | 'FTL' | 'LTL'
 type Loc = { id: string; displayName: string; code: string | null }
 type ContainerLine = { size: string; type: string; quantity: number; unitWeightsKg: number[] }
-type EquipmentOption = { value: string; label: string }
 type PackageLine = { description: string; quantity: number; weight: number; length: number; width: number; height: number; stackability: 'Stackable' | 'NonStackable' }
 const localQuotePreview = import.meta.env.DEV && new URLSearchParams(window.location.search).get('previewRole') === 'cliente'
 const previewLocations: Loc[] = [
@@ -63,17 +63,8 @@ const typeOptions = computed(() => mode.value === 'Maritime'
 const equipmentMode = computed(() => shipmentType.value === 'FCL' || shipmentType.value === 'FTL')
 type LocationField = 'origin' | 'destination' | 'pod'
 const openLocation = ref<LocationField | null>(null)
-const equipmentSizeOptions = computed<EquipmentOption[]>(() => shipmentType.value === 'FCL'
-  ? ['20', '40', '45', '48'].map(n => ({ value: n + ' pies', label: n + ' ' + q('pies', 'ft') }))
-  : [
-      { value: '24 pies / 5 TON', label: '24 ' + q('pies', 'ft') + ' / 5 TON' },
-      { value: '26 pies / 7 TON', label: '26 ' + q('pies', 'ft') + ' / 7 TON' },
-      { value: '40 pies', label: '40 ' + q('pies', 'ft') },
-      { value: '53 pies', label: '53 ' + q('pies', 'ft') }
-    ])
-const equipmentTypeOptions = computed<EquipmentOption[]>(() => shipmentType.value === 'FCL'
-  ? ['Dry Van', 'High Cube', 'Open Top', 'Open Side', 'Tank', 'Flat Rack', 'NOR'].map(value => ({ value, label: value }))
-  : [{ value: 'Furgón', label: q('Furgón', 'Truck') }])
+const equipmentSizeOptions = computed(() => officialEquipmentSizeOptions(shipmentType.value || '', q))
+const equipmentTypeOptions = computed(() => officialEquipmentTypeOptions(shipmentType.value || '', q))
 function closeOtherDropdowns(event: Event) {
   const target = event.target instanceof Element ? event.target : null
   if (!target || target.closest('.official-location-combobox')) return
@@ -150,7 +141,7 @@ function handleLocationKeydown(field: LocationField, event: KeyboardEvent) {
     openLocation.value = null
   }
 }
-const incoterms = ['EXW','FCA','FAS','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP']
+const incoterms = officialIncoterms
 const serviceOptions = ['Transporte internacional','Agencia de Aduanas CR','Agencia de Aduanas Exterior','Almacenamiento','Control de inventario','Embalaje','Exoneración','Picking Carga','Recepción de carga','Seguro de carga','Transporte entrega','Transporte recolección','Transporte nacional']
 const serviceIcons: Record<string, Component> = {
   'Transporte internacional': Globe,
@@ -168,6 +159,11 @@ const serviceIcons: Record<string, Component> = {
   'Transporte nacional': Truck
 }
 const cargoFlagOptions = ['Carga peligrosa','No estibable','Sobrepeso']
+const cargoFlagIcons: Record<string, Component> = {
+  'Carga peligrosa': AlertTriangle,
+  'No estibable': Layers,
+  'Sobrepeso': Scale
+}
 const visibleCargoFlagOptions = computed(() => shipmentType.value === 'FCL' ? cargoFlagOptions.filter(flag => flag !== 'No estibable') : cargoFlagOptions)
 watch(() => shipmentType.value === 'FCL', (isFullContainer) => {
   if (isFullContainer) form.cargoFlags = form.cargoFlags.filter(flag => flag !== 'No estibable')
@@ -545,7 +541,18 @@ async function submit() {
                 </div>
               </div>
             </div>
-            <div class="official-nested"><h3>{{ q('Opciones de carga', 'Cargo options') }}</h3><div class="official-checks"><label v-for="flag in visibleCargoFlagOptions" :key="flag"><input type="checkbox" :checked="form.cargoFlags.includes(flag)" @change="toggle(form.cargoFlags,flag)" />{{ displayService(flag) }}</label></div><label class="official-single">{{ q('Observaciones', 'Notes') }}<textarea v-model.trim="form.observations" maxlength="4000" rows="3" /></label></div>
+            <div class="official-nested"><h3>{{ q('Opciones de carga', 'Cargo options') }}</h3>
+              <div class="official-service-grid official-cargo-flags-grid">
+                <label v-for="flag in visibleCargoFlagOptions" :key="flag" class="official-service-card"
+                  :class="{ 'official-service-card--selected': form.cargoFlags.includes(flag) }">
+                  <input type="checkbox" :checked="form.cargoFlags.includes(flag)" @change="toggle(form.cargoFlags, flag)" />
+                  <span class="official-service-icon" aria-hidden="true"><component :is="cargoFlagIcons[flag]" :size="22" :stroke-width="1.8" /></span>
+                  <span class="official-service-name">{{ displayService(flag) }}</span>
+                  <span class="official-service-state" aria-hidden="true"><IconSymbol v-if="form.cargoFlags.includes(flag)" glyph="✓" :size="15" /></span>
+                </label>
+              </div>
+              <label class="official-single">{{ q('Observaciones', 'Notes') }}<textarea v-model.trim="form.observations" maxlength="4000" rows="3" /></label>
+            </div>
             <div class="official-nested"><h3>{{ q('Datos de contacto', 'Contact details') }}</h3><div class="official-fields"><label>{{ q('Nombre', 'Name') }} <span>*</span><input v-model.trim="form.contactName" maxlength="150" autocomplete="name" /></label><label>{{ q('Correo', 'Email') }} <span>*</span><input v-model.trim="form.contactEmail" type="email" maxlength="255" autocomplete="email" /></label><label>{{ q('Teléfono', 'Phone') }} <span>*</span><input v-model.trim="form.contactPhone" maxlength="40" autocomplete="tel" /></label></div></div>
             <div class="official-summary"><strong>{{ q('Resumen', 'Summary') }}</strong><span>{{ displayMode(mode) }} · {{ displayShipmentType(shipmentType) }}</span><span>{{ selectedOrigin?.displayName }} → {{ selectedDest?.displayName }}</span><span>{{ form.services.map(displayService).join(', ') }}</span></div>
           </template>

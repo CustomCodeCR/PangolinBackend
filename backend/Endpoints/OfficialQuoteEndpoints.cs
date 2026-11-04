@@ -88,8 +88,19 @@ public static class OfficialQuoteEndpoints
         {
             foreach (var line in s.Equipment!)
             {
-                Required(line.Size, "Tamaño/tipo de equipo", 60);
-                Required(line.Type, "Tipo de equipo", 100);
+                var selectedSize = Required(line.Size, "Tamaño/tipo de equipo", 60);
+                var selectedType = Required(line.Type, "Tipo de equipo", 100);
+                // Compartir las restricciones del cotizador oficial con GIO: no permitir
+                // valores libres de equipo aunque la solicitud llegue por HTTP directo.
+                var allowedSizes = s.ShipmentType == "FCL"
+                    ? new[] { "20 pies", "40 pies", "45 pies", "48 pies" }
+                    : new[] { "24 pies / 5 TON", "26 pies / 7 TON", "40 pies", "53 pies" };
+                var allowedTypes = s.ShipmentType == "FCL"
+                    ? new[] { "Dry Van", "High Cube", "Open Top", "Open Side", "Tank", "Flat Rack", "NOR" }
+                    : new[] { "Furgón" };
+                if (!allowedSizes.Contains(selectedSize, StringComparer.Ordinal) ||
+                    !allowedTypes.Contains(selectedType, StringComparer.Ordinal))
+                    throw new ArgumentException("Seleccioná tamaño y tipo de equipo de las opciones oficiales.");
                 if (line.Quantity is null or < 1 or > 100 ||
                     line.UnitWeightsKg is null || line.UnitWeightsKg.Count != line.Quantity ||
                     line.UnitWeightsKg.Any(x => x <= 0 || x > 100000000))
@@ -146,8 +157,41 @@ public static class OfficialQuoteEndpoints
             throw new ArgumentException("Días de almacenaje sin servicio de almacenamiento.");
     }
 
+    // Public, read-only catalogue for GIO's guest quote builder. Only active,
+    // non-development locations enabled for the requested shipment type and role
+    // are returned. Quote creation still requires the authenticated official API.
+    private static async Task<IResult> GetPublicAssistantLocations(
+        string kind, string shipmentType, string routeRole, AppDbContext db, HttpContext http, CancellationToken ct)
+    {
+        http.Response.Headers.CacheControl = "no-store";
+        var validType = shipmentType switch
+        {
+            "FCL" or "LCL" => kind == "seaport",
+            "AIR_LCL" => kind == "airport",
+            "FTL" or "LTL" => kind == "inland",
+            _ => false
+        };
+        if (!validType || routeRole is not ("origin" or "destination" or "pod") ||
+            (routeRole == "pod" && shipmentType is not ("FCL" or "LCL")))
+            return Results.BadRequest(new { error = "Catálogo solicitado inválido." });
+
+        var items = await db.OfficialQuoteLocations.AsNoTracking()
+            .Where(x => x.Active &&
+                (routeRole == "pod" || x.Kind == kind) &&
+                (x.Code == null || !x.Code.StartsWith("DEV-")) &&
+                db.OfficialQuoteLocationUsages.Any(u => u.LocationId == x.Id &&
+                    u.ShipmentType == shipmentType && u.RouteRole == routeRole))
+            .OrderBy(x => x.DisplayName)
+            .Select(x => new { x.Id, x.DisplayName, x.Code })
+            .Take(500)
+            .ToListAsync(ct);
+        return Results.Ok(new { items });
+    }
+
     public static IEndpointRouteBuilder MapOfficialQuotes(this IEndpointRouteBuilder app)
     {
+        app.MapGet("/api/assistant/quote-locations", GetPublicAssistantLocations)
+            .RequireRateLimiting("auth");
         var group = app.MapGroup("/api/quotes/official").RequireAuthorization("registered");
 
         group.MapGet("/locations", async (string kind, string shipmentType, string routeRole, AppDbContext db, CancellationToken ct) =>

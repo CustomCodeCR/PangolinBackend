@@ -1,0 +1,1897 @@
+[
+  {
+    "name": "Algeciras, España",
+    "quoteCatalogName": "Algeciras, España",
+    "kind": "seaport",
+    "lat": 36.13326,
+    "lon": -5.45051,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Ambarli / Estambul, Turquía",
+    "quoteCatalogName": "Ambarli / Estambul, Turquía",
+    "kind": "seaport",
+    "lat": 41.0053702,
+    "lon": 28.6825162,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Anqing, China",
+    "quoteCatalogName": "Anqing, China",
+    "kind": "seaport",
+    "lat": 30.6592336,
+    "lon": 116.6302585,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Barcelona, España",
+    "quoteCatalogName": "Barcelona, España",
+    "kind": "seaport",
+    "lat": 41.38879,
+    "lon": 2.15899,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Batam, Indonesia",
+    "quoteCatalogName": "Batam, Indonesia",
+    "kind": "seaport",
+    "lat": 1.14937,
+    "lon": 104.02491,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Belawan, Indonesia",
+    "quoteCatalogName": "Belawan, Indonesia",
+    "kind": "seaport",
+    "lat": 3.7755,
+    "lon": 98.6832,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Calcuta, India",
+    "quoteCatalogName": "Calcuta, India",
+    "kind": "seaport",
+    "lat": 22.54111111,
+    "lon": 88.33777778,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Chennai, India",
+    "quoteCatalogName": "Chennai, India",
+    "kind": "seaport",
+    "lat": 13.08784,
+    "lon": 80.27847,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Cochin, India",
+    "quoteCatalogName": "Cochin, India",
+    "kind": "seaport",
+    "lat": 9.93988,
+    "lon": 76.26022,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Colón Container, Panamá",
+    "quoteCatalogName": "Colón Container, Panamá",
+    "kind": "seaport",
+    "lat": 9.35451,
+    "lon": -79.90011,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Dalian, China",
+    "quoteCatalogName": "Dalian, China",
+    "kind": "seaport",
+    "lat": 39.740278,
+    "lon": 122.255833,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Estambul, Turquía",
+    "quoteCatalogName": "Estambul, Turquía",
+    "kind": "seaport",
+    "lat": 41.0053702,
+    "lon": 28.6825162,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Gebze, Turquía",
+    "quoteCatalogName": "Gebze, Turquía",
+    "kind": "seaport",
+    "lat": 40.80276,
+    "lon": 29.43068,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Genoa / Génova, Italia",
+    "quoteCatalogName": "Genoa / Génova, Italia",
+    "kind": "seaport",
+    "lat": 44.40478,
+    "lon": 8.94439,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Guangzhou, China",
+    "quoteCatalogName": "Guangzhou, China",
+    "kind": "seaport",
+    "lat": 23.1301964,
+    "lon": 113.2592945,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Huangshi, China",
+    "quoteCatalogName": "Huangshi, China",
+    "kind": "seaport",
+    "lat": 30.2024971,
+    "lon": 115.0334144,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Itajaí, Brasil",
+    "quoteCatalogName": "Itajaí, Brasil",
+    "kind": "seaport",
+    "lat": -26.90778,
+    "lon": -48.66194,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "La Spezia, Italia",
+    "quoteCatalogName": "La Spezia, Italia",
+    "kind": "seaport",
+    "lat": 44.103,
+    "lon": 9.82375,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Lianyungang, China",
+    "quoteCatalogName": "Lianyungang, China",
+    "kind": "seaport",
+    "lat": 34.5933134,
+    "lon": 119.2171662,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Livorno, Italia",
+    "quoteCatalogName": "Livorno, Italia",
+    "kind": "seaport",
+    "lat": 43.54427,
+    "lon": 10.32615,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Cristóbal, Panamá",
+    "quoteCatalogName": "Cristóbal, Panamá",
+    "kind": "seaport",
+    "lat": 9.35222,
+    "lon": -79.90444,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Limón / Moín, Costa Rica",
+    "quoteCatalogName": "Limón / Moín, Costa Rica",
+    "kind": "seaport",
+    "lat": 9.99074,
+    "lon": -83.03596,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Manzanillo, México",
+    "quoteCatalogName": "Manzanillo, México",
+    "kind": "seaport",
+    "lat": 19.1136,
+    "lon": -104.346,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Mersin, Turquía",
+    "quoteCatalogName": "Mersin, Turquía",
+    "kind": "seaport",
+    "lat": 36.7428767,
+    "lon": 34.3640915,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Milan, Italy (ICD / Inland Point)",
+    "quoteCatalogName": "Milan, Italy (ICD / Inland Point)",
+    "kind": "seaport",
+    "lat": 45.46427,
+    "lon": 9.18951,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Navegantes, Brasil",
+    "quoteCatalogName": "Navegantes, Brasil",
+    "kind": "seaport",
+    "lat": -26.89889,
+    "lon": -48.65417,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Paranaguá, Brasil",
+    "quoteCatalogName": "Paranaguá, Brasil",
+    "kind": "seaport",
+    "lat": -25.51626,
+    "lon": -48.52537,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Puerto Limón, Costa Rica",
+    "quoteCatalogName": "Puerto Limón, Costa Rica",
+    "kind": "seaport",
+    "lat": 9.99074,
+    "lon": -83.03596,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Santos, Brasil",
+    "quoteCatalogName": "Santos, Brasil",
+    "kind": "seaport",
+    "lat": -23.85663,
+    "lon": -46.27055,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Tarragona, España",
+    "quoteCatalogName": "Tarragona, España",
+    "kind": "seaport",
+    "lat": 41.11667,
+    "lon": 1.25,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Vado Ligure, Italia",
+    "quoteCatalogName": "Vado Ligure, Italia",
+    "kind": "seaport",
+    "lat": 44.26913,
+    "lon": 8.43375,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Valencia, España",
+    "quoteCatalogName": "Valencia, España",
+    "kind": "seaport",
+    "lat": 39.46975,
+    "lon": -0.37739,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Colón Free Zone, Panamá",
+    "quoteCatalogName": "Colón Free Zone, Panamá",
+    "kind": "inland",
+    "lat": 9.35451,
+    "lon": -79.90011,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Cartago, Costa Rica",
+    "quoteCatalogName": "Cartago, Costa Rica",
+    "kind": "inland",
+    "lat": 9.86444,
+    "lon": -83.91944,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Alajuela, Costa Rica",
+    "quoteCatalogName": "Alajuela, Costa Rica",
+    "kind": "inland",
+    "lat": 10.01625,
+    "lon": -84.21163,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Heredia, Costa Rica",
+    "quoteCatalogName": "Heredia, Costa Rica",
+    "kind": "inland",
+    "lat": 10.00236,
+    "lon": -84.11651,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Tocumen, Panamá",
+    "quoteCatalogName": "Tocumen, Panamá",
+    "kind": "inland",
+    "lat": 9.08939,
+    "lon": -79.3831,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Madrid, España",
+    "quoteCatalogName": "Madrid, España",
+    "kind": "airport",
+    "lat": 40.4165,
+    "lon": -3.70256,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Adana, Turquía",
+    "quoteCatalogName": "Adana, Turquía",
+    "kind": "airport",
+    "lat": 36.9975753,
+    "lon": 35.1232526,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Aguascalientes, México",
+    "quoteCatalogName": "Aguascalientes, México",
+    "kind": "airport",
+    "lat": 21.88333,
+    "lon": -102.3,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Albenga, Italia",
+    "quoteCatalogName": "Albenga, Italia",
+    "kind": "airport",
+    "lat": 44.04997,
+    "lon": 8.21829,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Ahmedabad, India",
+    "quoteCatalogName": "Ahmedabad, India",
+    "kind": "airport",
+    "lat": 23.02579,
+    "lon": 72.58727,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Amritsar, India",
+    "quoteCatalogName": "Amritsar, India",
+    "kind": "airport",
+    "lat": 31.67,
+    "lon": 74.84,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Antalya, Turquía",
+    "quoteCatalogName": "Antalya, Turquía",
+    "kind": "airport",
+    "lat": 36.8980983,
+    "lon": 30.5532907,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bhubaneswar, India",
+    "quoteCatalogName": "Bhubaneswar, India",
+    "kind": "airport",
+    "lat": 20.27241,
+    "lon": 85.83385,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Barcelona, España",
+    "quoteCatalogName": "Barcelona, España",
+    "kind": "airport",
+    "lat": 41.38879,
+    "lon": 2.15899,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Vadodara, India",
+    "quoteCatalogName": "Vadodara, India",
+    "kind": "airport",
+    "lat": 22.29941,
+    "lon": 73.20812,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bergamo, Italia",
+    "quoteCatalogName": "Bergamo, Italia",
+    "kind": "airport",
+    "lat": 45.69601,
+    "lon": 9.66721,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bhopal, India",
+    "quoteCatalogName": "Bhopal, India",
+    "kind": "airport",
+    "lat": 23.25469,
+    "lon": 77.40289,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bilbao, España",
+    "quoteCatalogName": "Bilbao, España",
+    "kind": "airport",
+    "lat": 43.26271,
+    "lon": -2.92528,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bangkok, Tailandia",
+    "quoteCatalogName": "Bangkok, Tailandia",
+    "kind": "seaport",
+    "lat": 13.75398,
+    "lon": 100.50144,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Barranquilla, Colombia",
+    "quoteCatalogName": "Barranquilla, Colombia",
+    "kind": "seaport",
+    "lat": 10.96854,
+    "lon": -74.78132,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Batangas, Filipinas",
+    "quoteCatalogName": "Batangas, Filipinas",
+    "kind": "seaport",
+    "lat": 13.6874523,
+    "lon": 120.9397771,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bintulu, Malasia",
+    "quoteCatalogName": "Bintulu, Malasia",
+    "kind": "seaport",
+    "lat": 3.16667,
+    "lon": 113.03333,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Buenaventura, Colombia",
+    "quoteCatalogName": "Buenaventura, Colombia",
+    "kind": "seaport",
+    "lat": 3.8801,
+    "lon": -77.03116,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Busan, Corea del Sur",
+    "quoteCatalogName": "Busan, Corea del Sur",
+    "kind": "seaport",
+    "lat": 35.10168,
+    "lon": 129.03004,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Cagayan de Oro, Filipinas",
+    "quoteCatalogName": "Cagayan de Oro, Filipinas",
+    "kind": "seaport",
+    "lat": 8.3827929,
+    "lon": 124.4679145,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Cebu, Filipinas",
+    "quoteCatalogName": "Cebu, Filipinas",
+    "kind": "seaport",
+    "lat": 10.3789228,
+    "lon": 123.7637216,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Danang, Vietnam",
+    "quoteCatalogName": "Danang, Vietnam",
+    "kind": "seaport",
+    "lat": 16.06778,
+    "lon": 108.22083,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Davao, Filipinas",
+    "quoteCatalogName": "Davao, Filipinas",
+    "kind": "seaport",
+    "lat": 7.07306,
+    "lon": 125.61278,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "General Santos, Filipinas",
+    "quoteCatalogName": "General Santos, Filipinas",
+    "kind": "seaport",
+    "lat": 6.1374279,
+    "lon": 124.9927049,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Haiphong, Vietnam",
+    "quoteCatalogName": "Haiphong, Vietnam",
+    "kind": "seaport",
+    "lat": 20.86481,
+    "lon": 106.68345,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Halifax, Canadá",
+    "quoteCatalogName": "Halifax, Canadá",
+    "kind": "seaport",
+    "lat": 44.64533,
+    "lon": -63.57239,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Ho Chi Minh, Vietnam",
+    "quoteCatalogName": "Ho Chi Minh, Vietnam",
+    "kind": "seaport",
+    "lat": 10.82302,
+    "lon": 106.62965,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Incheon / Inchon, Corea del Sur",
+    "quoteCatalogName": "Incheon / Inchon, Corea del Sur",
+    "kind": "seaport",
+    "lat": 37.45646,
+    "lon": 126.70515,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Kota Kinabalu, Malasia",
+    "quoteCatalogName": "Kota Kinabalu, Malasia",
+    "kind": "seaport",
+    "lat": 5.9749,
+    "lon": 116.0724,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Kuantan, Malasia",
+    "quoteCatalogName": "Kuantan, Malasia",
+    "kind": "seaport",
+    "lat": 3.8077,
+    "lon": 103.326,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Kuching, Malasia",
+    "quoteCatalogName": "Kuching, Malasia",
+    "kind": "seaport",
+    "lat": 1.55,
+    "lon": 110.33333,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Kwangyang, Corea del Sur",
+    "quoteCatalogName": "Kwangyang, Corea del Sur",
+    "kind": "seaport",
+    "lat": 34.97528,
+    "lon": 127.58917,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Lat Krabang, Tailandia",
+    "quoteCatalogName": "Lat Krabang, Tailandia",
+    "kind": "seaport",
+    "lat": 13.745,
+    "lon": 100.79224,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Puerto Barrios, Guatemala",
+    "quoteCatalogName": "Puerto Barrios, Guatemala",
+    "kind": "seaport",
+    "lat": 15.72778,
+    "lon": -88.59444,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Saint John NB, Canadá",
+    "quoteCatalogName": "Saint John NB, Canadá",
+    "kind": "seaport",
+    "lat": 45.27271,
+    "lon": -66.06766,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "San Antonio, Chile",
+    "quoteCatalogName": "San Antonio, Chile",
+    "kind": "seaport",
+    "lat": -33.59473,
+    "lon": -71.60746,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Valparaíso, Chile",
+    "quoteCatalogName": "Valparaíso, Chile",
+    "kind": "seaport",
+    "lat": -33.036,
+    "lon": -71.62963,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Vancouver, Canadá",
+    "quoteCatalogName": "Vancouver, Canadá",
+    "kind": "seaport",
+    "lat": 49.24966,
+    "lon": -123.11934,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Puerto Cortés, Honduras",
+    "quoteCatalogName": "Puerto Cortés, Honduras",
+    "kind": "seaport",
+    "lat": 15.79,
+    "lon": -87.849,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "San Pedro Sula, Honduras",
+    "quoteCatalogName": "San Pedro Sula, Honduras",
+    "kind": "inland",
+    "lat": 15.50417,
+    "lon": -88.025,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Puerto Cortés, Honduras",
+    "quoteCatalogName": "Puerto Cortés, Honduras",
+    "kind": "inland",
+    "lat": 15.79,
+    "lon": -87.849,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Tegucigalpa, Honduras",
+    "quoteCatalogName": "Tegucigalpa, Honduras",
+    "kind": "inland",
+    "lat": 14.0818,
+    "lon": -87.20681,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Ciudad de Guatemala, Guatemala",
+    "quoteCatalogName": "Ciudad de Guatemala, Guatemala",
+    "kind": "inland",
+    "lat": 14.64072,
+    "lon": -90.51327,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Antofagasta, Chile",
+    "quoteCatalogName": "Antofagasta, Chile",
+    "kind": "airport",
+    "lat": -23.65236,
+    "lon": -70.3954,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Arica, Chile",
+    "quoteCatalogName": "Arica, Chile",
+    "kind": "airport",
+    "lat": -18.4746,
+    "lon": -70.29792,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Barranquilla, Colombia",
+    "quoteCatalogName": "Barranquilla, Colombia",
+    "kind": "airport",
+    "lat": 10.96854,
+    "lon": -74.78132,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bucaramanga, Colombia",
+    "quoteCatalogName": "Bucaramanga, Colombia",
+    "kind": "airport",
+    "lat": 7.12539,
+    "lon": -73.1198,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Acajutla, El Salvador",
+    "quoteCatalogName": "Acajutla, El Salvador",
+    "kind": "seaport",
+    "lat": 13.59278,
+    "lon": -89.8275,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Antwerp / Amberes, Bélgica",
+    "quoteCatalogName": "Antwerp / Amberes, Bélgica",
+    "kind": "seaport",
+    "lat": 51.21989,
+    "lon": 4.40346,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Callao, Perú",
+    "quoteCatalogName": "Callao, Perú",
+    "kind": "seaport",
+    "lat": -12.05659,
+    "lon": -77.11814,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Dubai, Emiratos Árabes Unidos",
+    "quoteCatalogName": "Dubai, Emiratos Árabes Unidos",
+    "kind": "seaport",
+    "lat": 25.0657,
+    "lon": 55.17128,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Kaohsiung, Taiwán",
+    "quoteCatalogName": "Kaohsiung, Taiwán",
+    "kind": "seaport",
+    "lat": 22.61626,
+    "lon": 120.31333,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Puerto Corinto, Nicaragua",
+    "quoteCatalogName": "Puerto Corinto, Nicaragua",
+    "kind": "seaport",
+    "lat": 12.4825,
+    "lon": -87.17304,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Rotterdam, Países Bajos",
+    "quoteCatalogName": "Rotterdam, Países Bajos",
+    "kind": "seaport",
+    "lat": 51.9225,
+    "lon": 4.47917,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Vlissingen, Países Bajos",
+    "quoteCatalogName": "Vlissingen, Países Bajos",
+    "kind": "seaport",
+    "lat": 51.4425,
+    "lon": 3.57361,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Managua, Nicaragua",
+    "quoteCatalogName": "Managua, Nicaragua",
+    "kind": "inland",
+    "lat": 12.13282,
+    "lon": -86.2504,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "San Salvador, El Salvador",
+    "quoteCatalogName": "San Salvador, El Salvador",
+    "kind": "inland",
+    "lat": 13.68935,
+    "lon": -89.18718,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Adelaide, Australia",
+    "quoteCatalogName": "Adelaide, Australia",
+    "kind": "airport",
+    "lat": -34.92866,
+    "lon": 138.59863,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Ciudad del Este, Paraguay",
+    "quoteCatalogName": "Ciudad del Este, Paraguay",
+    "kind": "airport",
+    "lat": -25.50972,
+    "lon": -54.61111,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Amsterdam, Países Bajos",
+    "quoteCatalogName": "Amsterdam, Países Bajos",
+    "kind": "airport",
+    "lat": 52.37403,
+    "lon": 4.88969,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Antwerp, Bélgica",
+    "quoteCatalogName": "Antwerp, Bélgica",
+    "kind": "airport",
+    "lat": 51.21989,
+    "lon": 4.40346,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Arequipa, Perú",
+    "quoteCatalogName": "Arequipa, Perú",
+    "kind": "airport",
+    "lat": -16.39889,
+    "lon": -71.535,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Alice Springs, Australia",
+    "quoteCatalogName": "Alice Springs, Australia",
+    "kind": "airport",
+    "lat": -23.69748,
+    "lon": 133.88362,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Abu Dhabi, Emiratos Árabes Unidos",
+    "quoteCatalogName": "Abu Dhabi, Emiratos Árabes Unidos",
+    "kind": "airport",
+    "lat": 24.41361,
+    "lon": 54.43295,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Broken Hill, Australia",
+    "quoteCatalogName": "Broken Hill, Australia",
+    "kind": "airport",
+    "lat": -31.9652,
+    "lon": 141.4512,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Chittagong, Bangladesh",
+    "quoteCatalogName": "Chittagong, Bangladesh",
+    "kind": "seaport",
+    "lat": 22.4875,
+    "lon": 91.96333,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Colombo, Sri Lanka",
+    "quoteCatalogName": "Colombo, Sri Lanka",
+    "kind": "seaport",
+    "lat": 6.93548,
+    "lon": 79.84868,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Dili, Timor-Leste",
+    "quoteCatalogName": "Dili, Timor-Leste",
+    "kind": "seaport",
+    "lat": -8.55861,
+    "lon": 125.57361,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Durban, Sudáfrica",
+    "quoteCatalogName": "Durban, Sudáfrica",
+    "kind": "seaport",
+    "lat": -29.8579,
+    "lon": 31.0292,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Gdynia, Polonia",
+    "quoteCatalogName": "Gdynia, Polonia",
+    "kind": "seaport",
+    "lat": 54.51889,
+    "lon": 18.53188,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Guayaquil, Ecuador",
+    "quoteCatalogName": "Guayaquil, Ecuador",
+    "kind": "seaport",
+    "lat": -2.19616,
+    "lon": -79.88621,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Hamburgo, Alemania",
+    "quoteCatalogName": "Hamburgo, Alemania",
+    "kind": "seaport",
+    "lat": 53.57532,
+    "lon": 10.01534,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Aswan, Egipto",
+    "quoteCatalogName": "Aswan, Egipto",
+    "kind": "airport",
+    "lat": 24.09082,
+    "lon": 32.89942,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Belfast, Reino Unido",
+    "quoteCatalogName": "Belfast, Reino Unido",
+    "kind": "airport",
+    "lat": 54.59682,
+    "lon": -5.92541,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Birmingham, Reino Unido",
+    "quoteCatalogName": "Birmingham, Reino Unido",
+    "kind": "airport",
+    "lat": 52.48142,
+    "lon": -1.89983,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Karachi, Pakistán",
+    "quoteCatalogName": "Karachi, Pakistán",
+    "kind": "seaport",
+    "lat": 24.8608,
+    "lon": 67.0104,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Kobe, Japón",
+    "quoteCatalogName": "Kobe, Japón",
+    "kind": "seaport",
+    "lat": 34.6913,
+    "lon": 135.183,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Le Havre, Francia",
+    "quoteCatalogName": "Le Havre, Francia",
+    "kind": "seaport",
+    "lat": 49.4938,
+    "lon": 0.10767,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Lisboa, Portugal",
+    "quoteCatalogName": "Lisboa, Portugal",
+    "kind": "seaport",
+    "lat": 38.72635,
+    "lon": -9.14843,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Abuja, Nigeria",
+    "quoteCatalogName": "Abuja, Nigeria",
+    "kind": "airport",
+    "lat": 9.05785,
+    "lon": 7.49508,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Accra, Ghana",
+    "quoteCatalogName": "Accra, Ghana",
+    "kind": "airport",
+    "lat": 5.55602,
+    "lon": -0.1969,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Addis Ababa, Etiopía",
+    "quoteCatalogName": "Addis Ababa, Etiopía",
+    "kind": "airport",
+    "lat": 9.02497,
+    "lon": 38.74689,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Aden, Yemen",
+    "quoteCatalogName": "Aden, Yemen",
+    "kind": "airport",
+    "lat": 12.77944,
+    "lon": 45.03667,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Amman, Jordania",
+    "quoteCatalogName": "Amman, Jordania",
+    "kind": "airport",
+    "lat": 31.95522,
+    "lon": 35.94503,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Auckland, Nueva Zelanda",
+    "quoteCatalogName": "Auckland, Nueva Zelanda",
+    "kind": "airport",
+    "lat": -36.84853,
+    "lon": 174.76349,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Almaty, Kazajstán",
+    "quoteCatalogName": "Almaty, Kazajstán",
+    "kind": "airport",
+    "lat": 43.25667,
+    "lon": 76.92861,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Algiers, Argelia",
+    "quoteCatalogName": "Algiers, Argelia",
+    "kind": "airport",
+    "lat": 36.73225,
+    "lon": 3.08746,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Aleppo, Siria",
+    "quoteCatalogName": "Aleppo, Siria",
+    "kind": "airport",
+    "lat": 36.20124,
+    "lon": 37.16117,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Apia, Samoa",
+    "quoteCatalogName": "Apia, Samoa",
+    "kind": "airport",
+    "lat": -13.83333,
+    "lon": -171.76666,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Stockholm, Suecia",
+    "quoteCatalogName": "Stockholm, Suecia",
+    "kind": "airport",
+    "lat": 59.33258,
+    "lon": 18.0649,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Ashgabat, Turkmenistán",
+    "quoteCatalogName": "Ashgabat, Turkmenistán",
+    "kind": "airport",
+    "lat": 37.95,
+    "lon": 58.38333,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Asmara, Eritrea",
+    "quoteCatalogName": "Asmara, Eritrea",
+    "kind": "airport",
+    "lat": 15.33805,
+    "lon": 38.93184,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Athens, Grecia",
+    "quoteCatalogName": "Athens, Grecia",
+    "kind": "airport",
+    "lat": 37.98376,
+    "lon": 23.72784,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Atar, Mauritania",
+    "quoteCatalogName": "Atar, Mauritania",
+    "kind": "airport",
+    "lat": 20.5177,
+    "lon": -13.04857,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Oranjestad, Aruba",
+    "quoteCatalogName": "Oranjestad, Aruba",
+    "kind": "airport",
+    "lat": 12.52398,
+    "lon": -70.02703,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Ahwaz, Irán",
+    "quoteCatalogName": "Ahwaz, Irán",
+    "kind": "airport",
+    "lat": 31.31901,
+    "lon": 48.6842,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Manama, Baréin",
+    "quoteCatalogName": "Manama, Baréin",
+    "kind": "airport",
+    "lat": 26.22787,
+    "lon": 50.58565,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bucharest, Rumanía",
+    "quoteCatalogName": "Bucharest, Rumanía",
+    "kind": "airport",
+    "lat": 44.43225,
+    "lon": 26.10626,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Hamilton, Bermudas",
+    "quoteCatalogName": "Hamilton, Bermudas",
+    "kind": "airport",
+    "lat": 32.294,
+    "lon": -64.783,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Benghazi, Libia",
+    "quoteCatalogName": "Benghazi, Libia",
+    "kind": "airport",
+    "lat": 32.11486,
+    "lon": 20.06859,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Beirut, Líbano",
+    "quoteCatalogName": "Beirut, Líbano",
+    "kind": "airport",
+    "lat": 33.89332,
+    "lon": 35.50157,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Galveston TX, Estados Unidos",
+    "quoteCatalogName": "Galveston TX, Estados Unidos",
+    "kind": "seaport",
+    "lat": 29.30135,
+    "lon": -94.7977,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Houston TX, Estados Unidos",
+    "quoteCatalogName": "Houston TX, Estados Unidos",
+    "kind": "seaport",
+    "lat": 29.76328,
+    "lon": -95.36327,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Los Ángeles, Estados Unidos",
+    "quoteCatalogName": "Los Ángeles, Estados Unidos",
+    "kind": "seaport",
+    "lat": 34.05223,
+    "lon": -118.24368,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Manatee, Estados Unidos",
+    "quoteCatalogName": "Manatee, Estados Unidos",
+    "kind": "seaport",
+    "lat": 27.47752,
+    "lon": -82.35754,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Norfolk, Estados Unidos",
+    "quoteCatalogName": "Norfolk, Estados Unidos",
+    "kind": "seaport",
+    "lat": 36.84681,
+    "lon": -76.28522,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Philadelphia, Estados Unidos",
+    "quoteCatalogName": "Philadelphia, Estados Unidos",
+    "kind": "seaport",
+    "lat": 39.95233,
+    "lon": -75.16379,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Port Hueneme, Estados Unidos",
+    "quoteCatalogName": "Port Hueneme, Estados Unidos",
+    "kind": "seaport",
+    "lat": 34.14778,
+    "lon": -119.19511,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Savannah GA, Estados Unidos",
+    "quoteCatalogName": "Savannah GA, Estados Unidos",
+    "kind": "seaport",
+    "lat": 32.08354,
+    "lon": -81.09983,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Tampa, Estados Unidos",
+    "quoteCatalogName": "Tampa, Estados Unidos",
+    "kind": "seaport",
+    "lat": 27.94752,
+    "lon": -82.45843,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Arcata / Eureka, Estados Unidos",
+    "quoteCatalogName": "Arcata / Eureka, Estados Unidos",
+    "kind": "airport",
+    "lat": 40.86652,
+    "lon": -124.08284,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Amarillo, Estados Unidos",
+    "quoteCatalogName": "Amarillo, Estados Unidos",
+    "kind": "airport",
+    "lat": 35.222,
+    "lon": -101.8313,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Austin, Estados Unidos",
+    "quoteCatalogName": "Austin, Estados Unidos",
+    "kind": "airport",
+    "lat": 30.26715,
+    "lon": -97.74306,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bethel, Estados Unidos",
+    "quoteCatalogName": "Bethel, Estados Unidos",
+    "kind": "airport",
+    "lat": 60.79222,
+    "lon": -161.75583,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bangui, República Centroafricana",
+    "quoteCatalogName": "Bangui, República Centroafricana",
+    "kind": "airport",
+    "lat": 4.36122,
+    "lon": 18.55496,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bridgetown, Barbados",
+    "quoteCatalogName": "Bridgetown, Barbados",
+    "kind": "airport",
+    "lat": 13.10732,
+    "lon": -59.62021,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bergen, Noruega",
+    "quoteCatalogName": "Bergen, Noruega",
+    "kind": "airport",
+    "lat": 60.392,
+    "lon": 5.328,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Birmingham, Estados Unidos",
+    "quoteCatalogName": "Birmingham, Estados Unidos",
+    "kind": "airport",
+    "lat": 33.52066,
+    "lon": -86.80249,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Baltimore, Estados Unidos",
+    "quoteCatalogName": "Baltimore, Estados Unidos",
+    "kind": "seaport",
+    "lat": 39.2908816,
+    "lon": -76.610759,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "New Orleans, Estados Unidos",
+    "quoteCatalogName": "New Orleans, Estados Unidos",
+    "kind": "seaport",
+    "lat": 29.95465,
+    "lon": -90.07507,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Port Newark-Elizabeth, Estados Unidos",
+    "quoteCatalogName": "Port Newark-Elizabeth, Estados Unidos",
+    "kind": "seaport",
+    "lat": 40.73566,
+    "lon": -74.17237,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Kodiak, Estados Unidos",
+    "quoteCatalogName": "Kodiak, Estados Unidos",
+    "kind": "airport",
+    "lat": 57.78852,
+    "lon": -152.40533,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Anchorage, Estados Unidos",
+    "quoteCatalogName": "Anchorage, Estados Unidos",
+    "kind": "airport",
+    "lat": 61.21806,
+    "lon": -149.90028,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Hartford, Estados Unidos",
+    "quoteCatalogName": "Hartford, Estados Unidos",
+    "kind": "airport",
+    "lat": 41.76371,
+    "lon": -72.68509,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Billings, Estados Unidos",
+    "quoteCatalogName": "Billings, Estados Unidos",
+    "kind": "airport",
+    "lat": 45.78329,
+    "lon": -108.50069,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bismarck, Estados Unidos",
+    "quoteCatalogName": "Bismarck, Estados Unidos",
+    "kind": "airport",
+    "lat": 46.80833,
+    "lon": -100.78374,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Charleston, Estados Unidos",
+    "quoteCatalogName": "Charleston, Estados Unidos",
+    "kind": "seaport",
+    "lat": 32.77657,
+    "lon": -79.93092,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Long Beach, Estados Unidos",
+    "quoteCatalogName": "Long Beach, Estados Unidos",
+    "kind": "seaport",
+    "lat": 33.76696,
+    "lon": -118.18923,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Miami, Estados Unidos",
+    "quoteCatalogName": "Miami, Estados Unidos",
+    "kind": "seaport",
+    "lat": 25.77427,
+    "lon": -80.19366,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "New York, Estados Unidos",
+    "quoteCatalogName": "New York, Estados Unidos",
+    "kind": "seaport",
+    "lat": 40.71427,
+    "lon": -74.00597,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Oakland, Estados Unidos",
+    "quoteCatalogName": "Oakland, Estados Unidos",
+    "kind": "seaport",
+    "lat": 37.80437,
+    "lon": -122.2708,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Port Everglades, Estados Unidos",
+    "quoteCatalogName": "Port Everglades, Estados Unidos",
+    "kind": "seaport",
+    "lat": 26.12231,
+    "lon": -80.14338,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Albany, Estados Unidos",
+    "quoteCatalogName": "Albany, Estados Unidos",
+    "kind": "airport",
+    "lat": 42.65258,
+    "lon": -73.75623,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Atlanta, Estados Unidos",
+    "quoteCatalogName": "Atlanta, Estados Unidos",
+    "kind": "airport",
+    "lat": 33.749,
+    "lon": -84.38798,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Altamira, México",
+    "quoteCatalogName": "Altamira, México",
+    "kind": "seaport",
+    "lat": 22.39215,
+    "lon": -97.93867,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Veracruz, México",
+    "quoteCatalogName": "Veracruz, México",
+    "kind": "seaport",
+    "lat": 19.18095,
+    "lon": -96.1429,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Acapulco, México",
+    "quoteCatalogName": "Acapulco, México",
+    "kind": "airport",
+    "lat": 16.84942,
+    "lon": -99.90891,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Cartagena, Colombia",
+    "quoteCatalogName": "Cartagena, Colombia",
+    "kind": "seaport",
+    "lat": 10.39972,
+    "lon": -75.51444,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Changsha, China",
+    "quoteCatalogName": "Changsha, China",
+    "kind": "seaport",
+    "lat": 28.1450774,
+    "lon": 113.2384362,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Changzhou, China",
+    "quoteCatalogName": "Changzhou, China",
+    "kind": "seaport",
+    "lat": 31.8122623,
+    "lon": 119.9691539,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Fuzhou, China",
+    "quoteCatalogName": "Fuzhou, China",
+    "kind": "seaport",
+    "lat": 26.0774954,
+    "lon": 119.2918215,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Jinzhou, China",
+    "quoteCatalogName": "Jinzhou, China",
+    "kind": "seaport",
+    "lat": 41.494444,
+    "lon": 121.615278,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Jiujiang, China",
+    "quoteCatalogName": "Jiujiang, China",
+    "kind": "seaport",
+    "lat": 29.388607,
+    "lon": 115.3820227,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Jakarta, Indonesia",
+    "quoteCatalogName": "Jakarta, Indonesia",
+    "kind": "seaport",
+    "lat": -6.1822261,
+    "lon": 106.7952648,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Jambi, Indonesia",
+    "quoteCatalogName": "Jambi, Indonesia",
+    "kind": "seaport",
+    "lat": -1.6,
+    "lon": 103.61667,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bandung-Java Island, Indonesia",
+    "quoteCatalogName": "Bandung-Java Island, Indonesia",
+    "kind": "airport",
+    "lat": -6.92222,
+    "lon": 107.60694,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Belém, Brasil",
+    "quoteCatalogName": "Belém, Brasil",
+    "kind": "airport",
+    "lat": -1.45583,
+    "lon": -48.50444,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Alicante, España",
+    "quoteCatalogName": "Alicante, España",
+    "kind": "airport",
+    "lat": 38.3457685,
+    "lon": -0.4909444,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Buenos Aires, Argentina",
+    "quoteCatalogName": "Buenos Aires, Argentina",
+    "kind": "seaport",
+    "lat": -34.61315,
+    "lon": -58.37723,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://www.geonames.org/3435910"
+  },
+  {
+    "name": "Chongqing, China",
+    "quoteCatalogName": "Chongqing, China",
+    "kind": "seaport",
+    "lat": 29.57,
+    "lon": 106.55,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://ungegn.un.org/dashboard/cities/details?id=1959"
+  },
+  {
+    "name": "Hazira, India",
+    "quoteCatalogName": "Hazira, India",
+    "kind": "seaport",
+    "lat": 21.1076,
+    "lon": 72.65115,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://ship-tracker.org/port-of-hazira/"
+  },
+  {
+    "name": "Hong Kong, China",
+    "quoteCatalogName": "Hong Kong, China",
+    "kind": "seaport",
+    "lat": 22.25,
+    "lon": 114.16667,
+    "aliases": [],
+    "coordinatePrecision": "regional-centroid",
+    "coordinateSource": "https://www.geonames.org/1819730"
+  },
+  {
+    "name": "Kattupalli, India",
+    "quoteCatalogName": "Kattupalli, India",
+    "kind": "seaport",
+    "lat": 13.304198,
+    "lon": 80.332047,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://www.geonames.org/search.html?country=IN&q=Tiruvall%C5%ABr&startRow=50"
+  },
+  {
+    "name": "Keelung, Taiwán",
+    "quoteCatalogName": "Keelung, Taiwán",
+    "kind": "seaport",
+    "lat": 25.13089,
+    "lon": 121.74094,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://www.geonames.org/1678228/keelung.html"
+  },
+  {
+    "name": "Laem Chabang, Tailandia",
+    "quoteCatalogName": "Laem Chabang, Tailandia",
+    "kind": "seaport",
+    "lat": 13.08775,
+    "lon": 100.88433,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://www.geonames.org/advanced-search.html?country=TH&q=&startRow=200"
+  },
+  {
+    "name": "Manzanillo, Panamá",
+    "quoteCatalogName": "Manzanillo, Panamá",
+    "kind": "seaport",
+    "lat": 9.360901,
+    "lon": -79.882632,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://www.geonames.org/advanced-search.html?country=PA&q=&startRow=600"
+  },
+  {
+    "name": "Manzanillo, Panamá",
+    "quoteCatalogName": "Manzanillo, Panamá",
+    "kind": "inland",
+    "lat": 9.360901,
+    "lon": -79.882632,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://www.geonames.org/advanced-search.html?country=PA&q=&startRow=600"
+  },
+  {
+    "name": "Pecém, Brasil",
+    "quoteCatalogName": "Pecém, Brasil",
+    "kind": "seaport",
+    "lat": -3.5487563,
+    "lon": -38.814765,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://es.wikipedia.org/wiki/Puerto_de_Pec%C3%A9m"
+  },
+  {
+    "name": "Puerto Moín, Costa Rica",
+    "quoteCatalogName": "Puerto Moín, Costa Rica",
+    "kind": "seaport",
+    "lat": 10.00423,
+    "lon": -83.07649,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://www.geonames.org/10300300"
+  },
+  {
+    "name": "Puerto Quetzal, Guatemala",
+    "quoteCatalogName": "Puerto Quetzal, Guatemala",
+    "kind": "seaport",
+    "lat": 13.920571,
+    "lon": -90.786767,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://www.geonames.org/search.html?country=GT&q=Guatemala&startRow=150"
+  },
+  {
+    "name": "Rodman, Panamá",
+    "quoteCatalogName": "Rodman, Panamá",
+    "kind": "seaport",
+    "lat": 8.9527,
+    "lon": -79.5744,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://service-finder.shipsgo.com/ports/parod"
+  },
+  {
+    "name": "Samsun, Turquía",
+    "quoteCatalogName": "Samsun, Turquía",
+    "kind": "seaport",
+    "lat": 41.27976,
+    "lon": 36.3361,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://www.geonames.org/search.html?country=TR"
+  },
+  {
+    "name": "Tanjung Priok, Indonesia",
+    "quoteCatalogName": "Tanjung Priok, Indonesia",
+    "kind": "seaport",
+    "lat": -6.1136111,
+    "lon": 106.8908333,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://www.geonames.org/advanced-search.html?country=ID&q=Jakarta"
+  },
+  {
+    "name": "Port Willemstad, Curazao",
+    "quoteCatalogName": "Port Willemstad, Curazao",
+    "kind": "seaport",
+    "lat": 12.116667,
+    "lon": -68.933333,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://www.trackipi.com/port/willemstad/cw-wil/"
+  },
+  {
+    "name": "Port Willemstad, Curazao",
+    "quoteCatalogName": "Port Willemstad, Curazao",
+    "kind": "inland",
+    "lat": 12.116667,
+    "lon": -68.933333,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://www.trackipi.com/port/willemstad/cw-wil/"
+  },
+  {
+    "name": "Río Haina, República Dominicana",
+    "quoteCatalogName": "Río Haina, República Dominicana",
+    "kind": "seaport",
+    "lat": 18.41697,
+    "lon": -70.0198333,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://portuaria.gob.do/puertos/puerto-rio-haina/"
+  },
+  {
+    "name": "Santo Tomás de Castilla, Guatemala",
+    "quoteCatalogName": "Santo Tomás de Castilla, Guatemala",
+    "kind": "inland",
+    "lat": 15.696681,
+    "lon": -88.616512,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://www.geonames.org/search.html?country=GT&q=&startRow=50"
+  },
+  {
+    "name": "Archangelsk, Rusia",
+    "quoteCatalogName": "Archangelsk, Rusia",
+    "kind": "airport",
+    "lat": 64.5461,
+    "lon": 40.55183,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://www.geonames.org/581049/arkhangel-sk.html"
+  },
+  {
+    "name": "Asunción, Paraguay",
+    "quoteCatalogName": "Asunción, Paraguay",
+    "kind": "airport",
+    "lat": -25.28312494,
+    "lon": -57.50917437,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://ungegn.un.org/dashboard/cities/details?id=186"
+  },
+  {
+    "name": "Assiut, Egipto",
+    "quoteCatalogName": "Assiut, Egipto",
+    "kind": "airport",
+    "lat": 27.18096,
+    "lon": 31.18368,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://www.geonames.org/359783/assiut.html"
+  },
+  {
+    "name": "Belgrad, Serbia",
+    "quoteCatalogName": "Belgrad, Serbia",
+    "kind": "airport",
+    "lat": 44.80401,
+    "lon": 20.46513,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://www.geonames.org/792680/belgrade.html"
+  }
+]
