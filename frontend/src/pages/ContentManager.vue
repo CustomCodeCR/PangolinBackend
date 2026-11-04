@@ -47,6 +47,10 @@ const newsExpirationMode = ref<'permanent' | 'scheduled'>('permanent')
 const hasNewsExpired = (item: ManagedNews) => Boolean(item.expiresAt && Date.parse(item.expiresAt) <= Date.now())
 const itineraryForm = ref<ManagedItinerary>(emptyItinerary())
 const initialItineraryLocations = ref<{ origin: string; destination: string; transport: string } | null>(null)
+const showItineraryTransportHint = ref(false)
+function requestItineraryTransport() {
+  if (!itineraryTransport.value) showItineraryTransportHint.value = true
+}
 const itineraryTransport = computed<ItineraryTransport | ''>(() => itineraryForm.value.transport === 'Marítimo' ? 'maritime' : itineraryForm.value.transport === 'Terrestre' ? 'ground' : '')
 const { origins: adminOrigins, destinations: adminDestinations, loadingLocations: adminLocationsLoading, locationError: adminLocationsError } = useItineraryLocations(itineraryTransport)
 const mediaForm = ref<ManagedMedia>(emptyMedia())
@@ -311,6 +315,7 @@ async function deleteUser(user: ManagedUser) {
 function selectAdminTransport(value: string) {
   if (itineraryForm.value.transport === value) return
   itineraryForm.value.transport = value
+  showItineraryTransportHint.value = false
   itineraryForm.value.origin = ''
   itineraryForm.value.destination = ''
   onTransportChange()
@@ -323,7 +328,7 @@ function startNew() {
   editingId.value = null
   mediaUploadFile.value = null
   newsUploadFile.value = null
-  if (section.value === 'itineraries') { itineraryForm.value = emptyItinerary(); initialItineraryLocations.value = null }
+  if (section.value === 'itineraries') { itineraryForm.value = emptyItinerary(); initialItineraryLocations.value = null; showItineraryTransportHint.value = false }
   if (section.value === 'news') { newsForm.value = emptyNews(); newsExpirationMode.value = 'permanent' }
   if (section.value === 'media') mediaForm.value = emptyMedia()
   if (section.value === 'comments') commentForm.value = emptyComment()
@@ -333,6 +338,7 @@ async function edit(entry: ManagedItinerary | ManagedNews | ManagedMedia | Manag
   newsUploadFile.value = null
   editingId.value = entry.id
   if (section.value === 'itineraries') {
+    showItineraryTransportHint.value = false
     itineraryForm.value = { ...(entry as ManagedItinerary) }
     initialItineraryLocations.value = { origin: itineraryForm.value.origin, destination: itineraryForm.value.destination, transport: itineraryForm.value.transport }
     if (isLiveAdmin.value) {
@@ -650,21 +656,21 @@ function useMediaForNews(item: ManagedMedia) {
   {value:'Marítimo',label:displayManagedMode('Marítimo')},
   {value:'Terrestre',label:displayManagedMode('Terrestre')}
 ]" @update:model-value="selectAdminTransport" /></div>
-            <p v-if="!itineraryTransport" class="manager-itinerary-transport-hint" role="status">
+            <div class="manager-select-field manager-itinerary-location-field"><label>{{ en ? 'Origin' : 'Origen' }}</label>
+              <ItineraryLocationSelect v-model="itineraryForm.origin" :options="adminOrigins" :blocked="!itineraryTransport" :loading="adminLocationsLoading" :aria-label="en ? 'Origin' : 'Origen'" :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" @needs-transport="requestItineraryTransport" />
+            </div>
+            <div class="manager-select-field manager-itinerary-location-field"><label>{{ en ? 'Destination' : 'Destino' }}</label>
+              <ItineraryLocationSelect v-model="itineraryForm.destination" :options="adminDestinations" :blocked="!itineraryTransport" :loading="adminLocationsLoading" :aria-label="en ? 'Destination' : 'Destino'" :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" @needs-transport="requestItineraryTransport" />
+            </div>
+            <p v-if="showItineraryTransportHint && !itineraryTransport" class="manager-itinerary-transport-hint manager-itinerary-transport-hint--full" role="status">
               <span aria-hidden="true" class="manager-itinerary-transport-hint__icon">i</span>
-              <span><strong>{{ en ? 'Select transport first' : 'Primero elegí el transporte' }}</strong>
-              {{ en ? 'Origin and destination will show the matching locations.' : 'Después podrás elegir origen y destino entre las ubicaciones correspondientes.' }}</span>
+              <span><strong>{{ en ? 'Choose transport first' : 'Primero elegí el transporte' }}</strong>
+              {{ en ? 'Choose Maritime or Ground to enable origin and destination.' : 'Seleccioná Marítimo o Terrestre para habilitar Origen y Destino.' }}</span>
             </p>
-            <p v-else-if="adminLocationsError" class="manager-itinerary-transport-hint" role="status">
+            <p v-else-if="adminLocationsError" class="manager-itinerary-transport-hint manager-itinerary-transport-hint--full" role="status">
               <span aria-hidden="true" class="manager-itinerary-transport-hint__icon">!</span>
               <span><strong>{{ en ? 'Locations unavailable' : 'No se pudo cargar el catálogo' }}</strong>{{ adminLocationsError }}</span>
             </p>
-            <div class="manager-select-field manager-itinerary-location-field"><label>{{ en ? 'Origin' : 'Origen' }}</label>
-              <ItineraryLocationSelect v-model="itineraryForm.origin" :options="adminOrigins" :disabled="!itineraryTransport" :loading="adminLocationsLoading" :aria-label="en ? 'Origin' : 'Origen'" :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" />
-            </div>
-            <div class="manager-select-field manager-itinerary-location-field"><label>{{ en ? 'Destination' : 'Destino' }}</label>
-              <ItineraryLocationSelect v-model="itineraryForm.destination" :options="adminDestinations" :disabled="!itineraryTransport" :loading="adminLocationsLoading" :aria-label="en ? 'Destination' : 'Destino'" :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" />
-            </div>
             <div class="manager-select-field"><label>{{ en ? 'Status' : 'Estado' }}</label><FieldDropdown v-model="itineraryForm.status" :aria-label="en ? 'Status' : 'Estado'" :options="['Programado','En tránsito','Completado','Demorado'].map(value => ({value,label:displayManagedStatus(value)}))" /></div>
             <div class="manager-form-row"><label>Salida (ETD)<input v-model="itineraryForm.departure" type="date" :required="isLiveAdmin" /></label><label>Llegada (ETA)<input v-model="itineraryForm.arrival" type="date" :required="isLiveAdmin" /></label></div>
             <label>Closing (opcional)<input v-model="itineraryForm.closing" type="date" /></label><div class="manager-select-field"><label>Modalidad</label><FieldDropdown :model-value="itineraryForm.modality ?? ''" @update:model-value="value => itineraryForm.modality = value" aria-label="Modalidad"  :disabled="!itineraryTransport" :options="[{value:'',label:en ? 'Select transport first' : 'Elegí transporte primero'}, ...(itineraryForm.transport === 'Terrestre' ? ['LTL'] : itineraryForm.transport === 'Marítimo' ? ['FCL', 'LCL'] : []).map(value => ({value,label:value}))]" /></div><div class="manager-form-row"><label>Transportista (opcional)<input v-model="itineraryForm.carrier" maxlength="150" /></label><label>Buque (opcional)<input v-model="itineraryForm.vessel" maxlength="150" /></label></div><label>Viaje (opcional)<input v-model="itineraryForm.voyage" maxlength="50" /></label>
@@ -745,6 +751,7 @@ function useMediaForNews(item: ManagedMedia) {
 
 <style scoped>
 .manager-itinerary-transport-hint{display:flex;align-items:flex-start;gap:11px;margin:0;padding:12px 14px;border:1px solid rgba(170,16,44,.22);border-radius:13px;background:rgba(178,12,42,.06);color:var(--admin-text,#3d404a);font-size:13px;line-height:1.5}
+.manager-itinerary-transport-hint--full{grid-column:1/-1;max-width:640px;width:100%;box-sizing:border-box}
 .manager-itinerary-transport-hint strong{display:block;margin-bottom:2px;color:#a80e18}
 .manager-itinerary-transport-hint__icon{display:grid;flex:none;place-items:center;width:24px;height:24px;border-radius:50%;background:#b20c2a;color:#fff;font-weight:800;font-family:serif}
 .manager-itinerary-location-field{min-width:0}
