@@ -8,7 +8,7 @@ import type { CastroGlobe, Marker, ClusterMarker } from '../lib/castroGlobe'
 type TrackingRouteShape = Pick<TrackingDemoShipment, 'origin' | 'destination'> &
   Partial<Pick<TrackingDemoShipment, 'progressPercent'>> & {
     stops?: TrackingPoint[]
-    transport?: 'air' | 'sea' | 'land' | null
+    transport?: 'air' | 'sea' | 'land' | 'multimodal' | null
   }
 const props = defineProps<{ shipment?: TrackingRouteShape | null; initialZoom?: number }>()
 const holder = ref<HTMLElement | null>(null)
@@ -18,11 +18,13 @@ const routePoints = computed(() => {
   if (!route) return []
   return route.stops && route.stops.length >= 2 ? route.stops : [route.origin, route.destination]
 })
-// Un único vehículo recorre todas las escalas conocidas, sin dibujar arcos.
+// Un solo vehículo recorre todas las escalas; una estela roja sigue el camino ya transitado.
 const transportGlyph = computed(() => props.shipment?.transport === 'air' ? '✈'
   : props.shipment?.transport === 'sea' ? 'ship'
   : props.shipment?.transport === 'land' ? 'truck'
+  : props.shipment?.transport === 'multimodal' ? 'ship'
   : props.shipment ? 'container' : null)
+
 const routeLegs = computed(() => routePoints.value.slice(1).map((end, index) => {
   const start = routePoints.value[index]
   const rad = Math.PI / 180
@@ -30,48 +32,117 @@ const routeLegs = computed(() => routePoints.value.slice(1).map((end, index) => 
     + Math.cos(start.lat * rad) * Math.cos(end.lat * rad) * Math.cos((end.lon - start.lon) * rad)
   const degrees = Math.acos(Math.max(-1, Math.min(1, cosine))) / rad
   return { start, end, duration: Math.max(2400, Math.min(13000, degrees * 95)) }
-}).filter(leg => leg.start.lat !== leg.end.lat || leg.start.lon !== leg.end.lon))
-const routeVehicle = ref<{ left: number; top: number } | null>(null)
+}).filter(leg => leg.start.lat !== leg.end.lat || leg.start.lon !== leg.end.lon)
+  .map((leg, index) => ({
+    ...leg,
+    // Sólo cuando Dynamics indica multimodal, se inicia en barco y
+    // se cambia a camión desde la primera escala en adelante.
+    glyph: props.shipment?.transport === 'multimodal'
+      ? (index === 0 ? 'ship' : 'truck')
+      : (transportGlyph.value ?? 'container')
+  })))
+
+const routeVehicle = ref<{ left: number; top: number; glyph: string; reversed: boolean } | null>(null)
+const routeTrail = ref('')
+const trailSize = ref({ width: 1, height: 1 })
 let vehicleFrame = 0
 let lastVehicleUpdate = -Infinity
 let lastVehicleClock = 0
 let vehicleElapsedMs = 0
 let motionMedia: MediaQueryList | undefined
+
 function updateRouteVehicle(now: number) {
   if (disposed) return
+  // No avanzar el tiempo mientras la pestaña esté oculta.
   if (document.hidden) {
     lastVehicleClock = 0
-  } else if (now - lastVehicleUpdate >= 33) {
+  } else if (now - lastVehicleUpdate >= 42) {
     lastVehicleUpdate = now
     const legs = routeLegs.value
-    if (globe && canvas.value && holder.value && transportGlyph.value && legs.length) {
+    if (globe && canvas.value && holder.value && legs.length) {
       if (lastVehicleClock && !motionMedia?.matches) {
         vehicleElapsedMs += Math.min(100, now - lastVehicleClock)
       }
       lastVehicleClock = now
-      const travelDuration = legs.reduce((sum, leg) => sum + leg.duration, 0)
-      let remaining = motionMedia?.matches ? 0 : vehicleElapsedMs % (travelDuration + 900)
-      // Pausa breve en el destino; después inicia nuevamente desde el origen.
-      let current: { lat: number; lon: number } = legs[legs.length - 1].end
-      for (const leg of legs) {
-        if (remaining <= leg.duration) {
-          current = illustrativePosition(leg.start, leg.end, (remaining / leg.duration) * 100)
+
+      const total = legs.reduce((sum, leg) => sum + leg.duration, 0)
+      let remaining = motionMedia?.matches ? 0 : vehicleElapsedMs % (total + 900)
+      let activeIndex = legs.length - 1
+      let activeProgress = 1
+      for (let index = 0; index < legs.length; index++) {
+        if (remaining <= legs[index].duration) {
+          activeIndex = index
+          activeProgress = remaining / legs[index].duration
           break
         }
-        remaining -= leg.duration
+        remaining -= legs[index].duration
       }
-      const point = globe.project(current.lon, current.lat)
-      if (point?.visible) {
-        const rect = canvas.value.getBoundingClientRect()
-        const holderRect = holder.value.getBoundingClientRect()
+
+      const leg = legs[activeIndex]
+      const current = illustrativePosition(leg.start, leg.end, activeProgress * 100)
+      const projected = globe.project(current.lon, current.lat)
+      const canvasRect = canvas.value.getBoundingClientRect()
+      const holderRect = holder.value.getBoundingClientRect()
+      const offsetX = canvasRect.left - holderRect.left
+      const offsetY = canvasRect.top - holderRect.top
+      const width = holderRect.width
+      const height = holderRect.height
+      if (trailSize.value.width !== width || trailSize.value.height !== height) {
+        trailSize.value = { width, height }
+      }
+
+      // Dibujar únicamente la porción ya recorrida de cada tramo, incluyendo
+      // las escalas completadas. Respetar la cara oculta y el borde del globo.
+      if (motionMedia?.matches) {
+        routeTrail.value = ''
+      } else {
+        const commands: string[] = []
+        let previous: { x: number; y: number } | null = null
+        for (let index = 0; index <= activeIndex; index++) {
+          const segment = legs[index]
+          const fraction = index === activeIndex ? activeProgress : 1
+          const count = Math.max(1, Math.ceil(24 * fraction))
+          for (let step = 0; step <= count; step++) {
+            const geo = illustrativePosition(segment.start, segment.end, (step / count) * fraction * 100)
+            const p = globe.project(geo.lon, geo.lat)
+            if (!p?.visible) {
+              previous = null
+              continue
+            }
+            const x = p.x + offsetX, y = p.y + offsetY
+            if (!Number.isFinite(x) || !Number.isFinite(y)) {
+              previous = null
+              continue
+            }
+            const contiguous = previous
+              && Math.hypot(x - previous.x, y - previous.y) < Math.max(35, canvasRect.width * .35)
+            commands.push((contiguous ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1))
+            previous = { x, y }
+          }
+        }
+        routeTrail.value = commands.join(' ')
+      }
+
+      if (projected?.visible) {
+        const lookAhead = illustrativePosition(leg.start, leg.end, Math.min(100, (activeProgress + .01) * 100))
+        const lookBehind = illustrativePosition(leg.start, leg.end, Math.max(0, (activeProgress - .01) * 100))
+        const ahead = globe.project(lookAhead.lon, lookAhead.lat)
+        const behind = globe.project(lookBehind.lon, lookBehind.lat)
+        const facingLeft = ahead?.visible && ahead.x !== projected.x
+          ? ahead.x < projected.x
+          : (behind?.visible ? projected.x < behind.x : false)
+
         routeVehicle.value = {
-          left: rect.left - holderRect.left + point.x,
-          top: rect.top - holderRect.top + point.y
+          left: projected.x + offsetX,
+          top: projected.y + offsetY,
+          glyph: leg.glyph,
+          reversed: facingLeft
         }
       } else routeVehicle.value = null
     } else {
       lastVehicleClock = 0
       routeVehicle.value = null
+      routeTrail.value = ''
     }
   }
   vehicleFrame = requestAnimationFrame(updateRouteVehicle)
@@ -396,6 +467,7 @@ watch(() => props.shipment, (shipment) => {
   lastVehicleClock = 0
   lastVehicleUpdate = -Infinity
   routeVehicle.value = null
+  routeTrail.value = ''
   if (!globe) return
   cancelAnimationFrame(popupFollowFrame)
   selectedId.value = null
@@ -459,10 +531,23 @@ onBeforeUnmount(() => {
   <div ref="holder" class="world-globe" :aria-label="$t('custom.tracking.globeAria')">
     <div class="world-globe__halo"></div>
     <canvas ref="canvas" class="world-globe__canvas" :aria-label="$t('custom.tracking.mapAria')"></canvas>
-    <div v-if="transportGlyph && routeVehicle" class="world-globe__route-vehicles" aria-hidden="true">
-      <span class="world-globe__route-vehicle"
+    <div v-if="props.shipment" class="world-globe__route-vehicles" aria-hidden="true">
+      <svg class="world-globe__route-trail" :viewBox="'0 0 ' + trailSize.width + ' ' + trailSize.height" preserveAspectRatio="none">
+        <path v-if="routeTrail" :d="routeTrail" />
+      </svg>
+      <span v-if="routeVehicle" class="world-globe__route-vehicle"
+        :class="{ 'world-globe__route-vehicle--reversed': routeVehicle.reversed }"
         :style="{ left: routeVehicle.left + 'px', top: routeVehicle.top + 'px' }">
-        <IconSymbol :glyph="transportGlyph" :size="19" />
+        <!-- Barco de perfil, horizontal y sin el antiguo fondo circular. -->
+        <svg v-if="routeVehicle.glyph === 'ship'" class="world-globe__ship-profile"
+          viewBox="0 0 52 32" fill="none" stroke="currentColor" stroke-width="2.1"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 19h46l-7 9H12L3 19Z" fill="currentColor" />
+          <path d="M15 19V10h23v9M21 10V5h11v5" />
+          <path d="M20 14h4m5 0h4" stroke-width="2.5" />
+          <path d="M6 30c3-2 5-2 8 0s5 2 8 0 5-2 8 0 5 2 8 0 5-2 8 0" stroke-width="1.6" />
+        </svg>
+        <IconSymbol v-else :glyph="routeVehicle.glyph" :size="27" />
       </span>
     </div>
     <!-- On phones the location dialog escapes the clipped canvas and the
@@ -569,8 +654,12 @@ onBeforeUnmount(() => {
 }
 
 .world-globe__route-vehicles{position:absolute;inset:0;z-index:4;pointer-events:none}
-.world-globe__route-vehicle{position:absolute;display:grid;place-items:center;width:34px;height:34px;border:2px solid #fff;border-radius:50%;background:#b50928;color:#fff;box-shadow:0 4px 12px #0005;transform:translate(-50%,-50%)}
-@media(max-width:580px){.world-globe__route-vehicle{width:28px;height:28px}}
+.world-globe__route-trail{position:absolute;inset:0;width:100%;height:100%;overflow:hidden}
+.world-globe__route-trail path{fill:none;stroke:#b50928;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 3px #b5092860)}
+.world-globe__route-vehicle{position:absolute;display:grid;place-items:center;width:42px;height:32px;color:#b50928;filter:drop-shadow(0 2px 3px #0007);transform:translate(-50%,-50%)}
+.world-globe__route-vehicle--reversed{transform:translate(-50%,-50%) scaleX(-1)}
+.world-globe__ship-profile{display:block;width:42px;height:28px}
+@media(max-width:580px){.world-globe__route-vehicle{width:34px;height:28px}.world-globe__ship-profile{width:34px;height:24px}.world-globe__route-trail path{stroke-width:2.5}}
 </style>
 
 <!-- route rendering notes: see docs/DHOLE-TRACKING-PREVIEW.md -->
