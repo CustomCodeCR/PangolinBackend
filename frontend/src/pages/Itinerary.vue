@@ -61,7 +61,7 @@ function chooseStatus(item: Itinerary, value: string) {
 }
 const labels = computed(() => tm('custom.itinerary.table.fields') as Record<string, string>)
 const placeholders = computed(() => tm('custom.itinerary.table.values') as Record<string, string>)
-const transportDetails = computed(() => tm('custom.itinerary.table.transportDetails') as Array<{ pol: string; pod: string }>)
+
 const maritimeOptions = computed(() => tm('custom.itinerary.table.modalities.0') as string[])
 const groundOptions = computed(() => tm('custom.itinerary.table.modalities.1') as string[])
 const itineraries = ref<Itinerary[]>([createItinerary(1)])
@@ -104,10 +104,6 @@ function optionsFor(item: Itinerary) {
   return item.transport === 'ground' ? groundOptions.value : maritimeOptions.value
 }
 
-function portPlaceholder(item: Itinerary, port: 'pol' | 'pod') {
-  return transportDetails.value[item.transport === 'maritime' ? 0 : 1][port]
-}
-
 function changeTransport(item: Itinerary) {
   item.modality = ''
 }
@@ -117,14 +113,6 @@ function selectTransport(mode: TransportMode | '') {
   if (!item) return
   item.transport = mode
   changeTransport(item)
-}
-
-function removeItinerary(id: number) {
-  if (itineraries.value.length > 1) {
-    itineraries.value = itineraries.value.filter(item => item.id !== id)
-    if (activeItineraryId.value === id) activeItineraryId.value = itineraries.value[0].id
-    searchPerformed.value = false
-  }
 }
 
 function clearFilters() {
@@ -177,7 +165,7 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
 
     if (response.status === 401 && authState.previewRole) {
       const f = activeItinerary.value
-      if (f) resultados.value = [{ id: 'preview-' + f.id, pol: f.pol || 'San José, Costa Rica', pod: f.pod || 'Miami, Estados Unidos', closing: f.closing || null, status: f.status || 'planning', etd: f.etd || '', eta: f.eta || '', transport: f.transport, modality: f.modality || (f.transport === 'maritime' ? 'FCL' : 'LTL') }]
+      if (f) resultados.value = [{ id: 'preview-' + f.id, pol: f.pol || 'San José, Costa Rica', pod: f.pod || 'Miami, Estados Unidos', closing: f.closing || null, status: f.status || 'planning', etd: f.etd || '', eta: f.eta || '', transport: f.transport || 'maritime', modality: f.modality || (f.transport === 'ground' ? 'LTL' : 'FCL') }]
       totalResults.value = resultados.value.length
       totalPages.value = 1
       currentPage.value = 1
