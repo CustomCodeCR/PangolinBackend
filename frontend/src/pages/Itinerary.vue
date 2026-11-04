@@ -21,7 +21,7 @@ type Itinerary = {
   status: ItineraryStatus | ''
   etd: string
   eta: string
-  transport: TransportMode
+  transport: TransportMode | ''
   modality: string
 }
 
@@ -65,6 +65,7 @@ const transportDetails = computed(() => tm('custom.itinerary.table.transportDeta
 const maritimeOptions = computed(() => tm('custom.itinerary.table.modalities.0') as string[])
 const groundOptions = computed(() => tm('custom.itinerary.table.modalities.1') as string[])
 const itineraries = ref<Itinerary[]>([createItinerary(1)])
+const advancedFiltersOpen = ref(false)
 const activeItineraryId = ref(1)
 const activeItinerary = computed(() => itineraries.value.find(item => item.id === activeItineraryId.value) ?? itineraries.value[0])
 const searchPerformed = ref(false)
@@ -72,7 +73,12 @@ const resultsRef = ref<HTMLElement | null>(null)
 const expandedResultId = ref<string | null>(null)
 const resultados = ref<ItineraryResultado[]>([])
 const publishedItineraries = ref<ManagedItinerary[]>([])
-onMounted(async () => { await refreshSession(); publishedItineraries.value = readManagedItineraries() })
+onMounted(async () => {
+  await refreshSession()
+  publishedItineraries.value = readManagedItineraries()
+  // Show the complete itinerary summary on entry, without forcing a scroll.
+  await searchItineraries(1, false)
+})
 const stopItineraryEvents = ['itineraries', 'sync'].map(resource =>
   subscribeToChanges(resource, () => {
     if (searchPerformed.value && !cargando.value && !authState.previewRole)
@@ -89,13 +95,13 @@ let appliedFilters = ''
 
 function createItinerary(id: number): Itinerary {
   return {
-    id, pol: '', pod: '', status: '', transport: 'maritime', modality: '',
+    id, pol: '', pod: '', status: '', transport: '', modality: '',
     closing: '', etd: '', eta: ''
   }
 }
 
 function optionsFor(item: Itinerary) {
-  return item.transport === 'maritime' ? maritimeOptions.value : groundOptions.value
+  return item.transport === 'ground' ? groundOptions.value : maritimeOptions.value
 }
 
 function portPlaceholder(item: Itinerary, port: 'pol' | 'pod') {
@@ -106,12 +112,11 @@ function changeTransport(item: Itinerary) {
   item.modality = ''
 }
 
-function selectTransport(mode: TransportMode) {
+function selectTransport(mode: TransportMode | '') {
   const item = activeItinerary.value
   if (!item) return
   item.transport = mode
   changeTransport(item)
-  searchPerformed.value = false
 }
 
 function removeItinerary(id: number) {
@@ -122,11 +127,19 @@ function removeItinerary(id: number) {
   }
 }
 
+function clearFilters() {
+  const current = activeItinerary.value
+  if (!current) return
+  Object.assign(current, createItinerary(current.id))
+  advancedFiltersOpen.value = false
+  void searchItineraries(1, false)
+}
+
 function statusLabel(status: ItineraryStatus) {
   return statuses.value.find(option => option.value === status)?.label ?? status
 }
 
-async function searchItineraries(pageNumber = 1) {
+async function searchItineraries(pageNumber = 1, scrollToResults = true) {
   if (cargando.value || pageNumber < 1 || (pageNumber > 1 && pageNumber > totalPages.value)) return
 
   if (pageNumber === 1) {
@@ -196,7 +209,7 @@ async function searchItineraries(pageNumber = 1) {
   } finally {
     cargando.value = false
     await nextTick()
-    resultsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (scrollToResults) resultsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 }
 
@@ -215,6 +228,10 @@ async function searchItineraries(pageNumber = 1) {
 
     <main class="container itinerary-content">
       <nav v-if="activeItinerary" class="itinerary-transport-tabs" :aria-label="t('custom.itinerary.modeLabel')">
+        <button type="button" :class="{ 'is-active': activeItinerary.transport === '' }" :aria-pressed="activeItinerary.transport === ''" @click="selectTransport('')">
+          <IconSymbol glyph="▦" :size="22" />
+          <span>{{ en ? 'All itineraries' : 'Todos los itinerarios' }}</span>
+        </button>
         <button type="button" :class="{ 'is-active': activeItinerary.transport === 'maritime' }" :aria-pressed="activeItinerary.transport === 'maritime'" @click="selectTransport('maritime')">
           <IconSymbol glyph="ship" :size="22" />
           <span>{{ modes[0] }}</span>
@@ -224,27 +241,33 @@ async function searchItineraries(pageNumber = 1) {
           <span>{{ modes[1] }}</span>
         </button>
       </nav>
-      <section v-if="activeItinerary" :key="activeItinerary.id" class="itinerary-form-card">
-        <template v-for="item in [activeItinerary]" :key="item.id">
+      <section v-if="activeItinerary" class="itinerary-form-card itinerary-filter-card">
         <header class="itinerary-form-card__heading">
-          <div><p class="section-tag">{{ t('custom.itinerary.form.eyebrow') }}</p><h2>{{ t('custom.itinerary.form.itemTitle', { number: String(itineraries.findIndex(entry => entry.id === item.id) + 1).padStart(2, '0') }) }}</h2></div>
-          <button v-if="itineraries.length > 1" class="itinerary-remove" type="button" :aria-label="t('custom.itinerary.form.remove')" @click="removeItinerary(item.id)">× <span>{{ t('custom.itinerary.form.remove') }}</span></button>
+          <div>
+            <p class="section-tag">{{ en ? 'FIND A ROUTE' : 'FILTRAR RESULTADOS' }}</p>
+            <h2>{{ en ? 'Search itineraries' : 'Buscar itinerario' }}</h2>
+            <p class="itinerary-filter-card__help">{{ en ? 'Use one or more filters, or leave them empty to see everything.' : 'Usá uno o varios filtros. Si no completás ninguno, verás todos los itinerarios.' }}</p>
+          </div>
         </header>
-
-        <div class="itinerary-form-lines">
-          <div class="itinerary-form-line"><strong>{{ t('custom.itinerary.form.status') }}</strong><FieldDropdown :model-value="item.status" :options="statusChoices" :aria-label="t('custom.itinerary.form.status')" @update:model-value="value => chooseStatus(item, value)" /></div>
-          <label class="itinerary-form-line"><strong>POL</strong><input v-model="item.pol" type="text" :placeholder="portPlaceholder(item, 'pol')" /></label>
-          <label class="itinerary-form-line"><strong>POD</strong><input v-model="item.pod" type="text" :placeholder="portPlaceholder(item, 'pod')" /></label>
-          <label class="itinerary-form-line"><strong>Closing</strong><input v-model="item.closing" type="date" /></label>
-          <label class="itinerary-form-line"><strong>ETD</strong><input v-model="item.etd" type="date" /></label>
-          <label class="itinerary-form-line"><strong>ETA</strong><input v-model="item.eta" type="date" /></label>
-          <div class="itinerary-form-line"><strong>{{ labels.modality }}</strong><FieldDropdown v-model="item.modality" :options="modalityChoices(item)" :aria-label="labels.modality" /></div>
+        <div class="itinerary-form-lines itinerary-filter-card__primary">
+          <div class="itinerary-form-line"><strong>{{ t('custom.itinerary.form.status') }}</strong><FieldDropdown :model-value="activeItinerary.status" :options="statusChoices" :aria-label="t('custom.itinerary.form.status')" @update:model-value="value => chooseStatus(activeItinerary, value)" /></div>
+          <label class="itinerary-form-line"><strong>{{ en ? 'Origin / POL' : 'Origen / POL' }}</strong><input v-model="activeItinerary.pol" type="text" maxlength="150" :placeholder="en ? 'Any origin' : 'Cualquier origen'" /></label>
+          <label class="itinerary-form-line"><strong>{{ en ? 'Destination / POD' : 'Destino / POD' }}</strong><input v-model="activeItinerary.pod" type="text" maxlength="150" :placeholder="en ? 'Any destination' : 'Cualquier destino'" /></label>
         </div>
-        </template>
-
+        <button type="button" class="itinerary-filter-card__advanced-toggle" :aria-expanded="advancedFiltersOpen" @click="advancedFiltersOpen = !advancedFiltersOpen">
+          {{ advancedFiltersOpen ? (en ? 'Fewer filters' : 'Menos filtros') : (en ? 'More filters (optional)' : 'Más filtros (opcional)') }}
+          <IconSymbol glyph="⌄" :size="16" aria-hidden="true" />
+        </button>
+        <div v-if="advancedFiltersOpen" class="itinerary-form-lines itinerary-filter-card__advanced">
+          <div class="itinerary-form-line"><strong>{{ labels.modality }}</strong><FieldDropdown v-model="activeItinerary.modality" :options="modalityChoices(activeItinerary)" :aria-label="labels.modality" /></div>
+          <label class="itinerary-form-line"><strong>Closing</strong><input v-model="activeItinerary.closing" type="date" /></label>
+          <label class="itinerary-form-line"><strong>ETD</strong><input v-model="activeItinerary.etd" type="date" /></label>
+          <label class="itinerary-form-line"><strong>ETA</strong><input v-model="activeItinerary.eta" type="date" /></label>
+        </div>
       </section>
 
       <div class="itinerary-actions">
+        <button class="itinerary-filter-card__clear" type="button" :disabled="cargando" @click="clearFilters">{{ en ? 'Clear filters' : 'Limpiar filtros' }}</button>
         <button class="itinerary-search-button" type="button" :disabled="cargando" @click="searchItineraries(1)"><IconSymbol glyph="⌕" aria-hidden="true" />{{ cargando ? (en ? 'Searching…' : 'Buscando…') : t('custom.itinerary.form.search') }}</button>
       </div>
 
@@ -255,7 +278,7 @@ async function searchItineraries(pageNumber = 1) {
         </header>
         <p v-if="cargando" role="status">{{ en ? "Loading itineraries…" : "Consultando itinerarios…" }}</p>
         <p v-else-if="errorBusqueda" role="alert">{{ errorBusqueda }}</p>
-        <p v-else-if="resultados.length === 0">{{ en ? "No itineraries matched those filters." : "No se encontraron itinerarios con esos filtros." }}</p>
+        <p v-else-if="resultados.length === 0">{{ en ? "No itineraries matched those filters. Try fewer filters." : "No se encontraron itinerarios. Probá con menos filtros." }}</p>
         <article v-for="(item, index) in (!cargando && !errorBusqueda ? resultados : [])" :key="item.id" class="itinerary-result-card">
           <div class="itinerary-result-card__status">
             <small>{{ t('custom.itinerary.form.status') }}</small>
@@ -306,4 +329,23 @@ async function searchItineraries(pageNumber = 1) {
 
 .published-itineraries{margin:36px 0}.published-itineraries h2{margin:0 0 18px;font-size:clamp(24px,3vw,36px)}.published-itinerary-card{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:10px 0;padding:18px 22px;border:1px solid #ffffff3c;border-radius:16px;background:#ffffff0c;backdrop-filter:blur(12px);color:inherit}.published-itinerary-card>div:first-child{display:grid;gap:7px}.published-itinerary-card small,.published-itinerary-dates{opacity:.75}.published-itinerary-card strong{font-size:18px}.published-itinerary-card strong span{color:#ef3340;padding:0 5px}.published-itinerary-dates{display:flex;gap:16px;font-size:13px}@media(max-width:600px){.published-itinerary-card{align-items:flex-start;flex-direction:column}.published-itinerary-card strong{font-size:16px}.published-itinerary-dates{flex-wrap:wrap}}
 
+
+.itinerary-filter-card__help { margin: 9px 0 0; color: inherit; opacity: .78; font-size: 14px; line-height: 1.5; }
+.itinerary-filter-card__primary { margin-top: 22px; }
+.itinerary-filter-card__advanced-toggle,
+.itinerary-filter-card__clear {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 42px; padding: 9px 14px; border: 1px solid rgba(255,255,255,.24);
+  border-radius: 12px; background: rgba(255,255,255,.06); color: inherit;
+  font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.itinerary-filter-card__advanced-toggle { margin-top: 20px; }
+.itinerary-filter-card__advanced { margin-top: 14px; }
+.itinerary-filter-card__clear:disabled { opacity: .55; cursor: not-allowed; }
+.itinerary-filter-card__advanced-toggle:focus-visible,
+.itinerary-filter-card__clear:focus-visible { outline: 2px solid #f04464; outline-offset: 3px; }
+@media (max-width: 600px) {
+  .itinerary-filter-card__help { font-size: 13px; }
+  .itinerary-filter-card__advanced-toggle { width: 100%; }
+}
 </style>
