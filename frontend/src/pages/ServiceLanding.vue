@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import serviceGuides from '../../seo/service-landings.json'
+import { servicePages } from '../content/servicePages'
 
 type GuideText = {
   label: string
@@ -20,20 +21,80 @@ type GuideText = {
   faq: { q: string; a: string }[]
 }
 type Guide = { es: GuideText; en: GuideText }
+type LandingPoint = { title?: string; body: string }
+type LandingFaq = { q: string; a: string }
+type LandingText = {
+  eyebrow: string
+  label: string
+  title: string
+  intro: string
+  location: string
+  ctaLabel: string
+  image: string
+  imageAlt: string
+  answer?: string
+  heading: string
+  body: string
+  points: LandingPoint[]
+  quoteHeading?: string
+  quoteIntro?: string
+  quoteItems?: string[]
+  scopeNote?: string
+  faq: LandingFaq[]
+}
 const guides = serviceGuides as Record<string, Guide>
 const props = defineProps<{ pathname?: string }>()
 const { locale } = useI18n({ useScope: 'global' })
 const lang = computed<'es' | 'en'>(() => String(locale.value).startsWith('en') ? 'en' : 'es')
 const route = (props.pathname || (typeof window === 'undefined' ? '/' : window.location.pathname)).replace(/\/+$/, '') || '/'
-const details = computed(() => guides[route][lang.value])
-const visual = computed(() => {
-  const options: Record<string, { image: string; alt: { es: string; en: string } }> = {
-    '/servicios/almacenamiento-fiscal': { image: '/images/services-warehouse.webp', alt: { es: 'Almacenamiento y manejo logístico de mercancías', en: 'Cargo warehousing and logistics handling' } },
-    '/servicios/bodegaje-general': { image: '/images/warehouse-person.webp', alt: { es: 'Equipo organizando mercancías en una bodega', en: 'Team handling goods in a warehouse' } },
-    '/servicios/agenciamiento-aduanal': { image: '/images/operation.webp', alt: { es: 'Coordinación de documentación para operaciones aduaneras', en: 'Documentation coordination for customs operations' } },
-    '/servicios/consolidadora-de-carga': { image: '/images/ship.webp', alt: { es: 'Buque de carga para operaciones de transporte consolidado', en: 'Cargo vessel for consolidated freight operations' } }
+const detailPage = computed(() => servicePages.find(item => route === `/servicios/${item.slug}`))
+const details = computed<LandingText>(() => {
+  const guide = guides[route]?.[lang.value]
+  if (guide) {
+    const visuals: Record<string, { image: string; alt: { es: string; en: string } }> = {
+      '/servicios/almacenamiento-fiscal': { image: '/images/services-warehouse.webp', alt: { es: 'Almacenamiento y manejo logístico de mercancías', en: 'Cargo warehousing and logistics handling' } },
+      '/servicios/bodegaje-general': { image: '/images/warehouse-person.webp', alt: { es: 'Equipo organizando mercancías en una bodega', en: 'Team handling goods in a warehouse' } },
+      '/servicios/agenciamiento-aduanal': { image: '/images/operation.webp', alt: { es: 'Coordinación de documentación para operaciones aduaneras', en: 'Documentation coordination for customs operations' } },
+      '/servicios/consolidadora-de-carga': { image: '/images/ship.webp', alt: { es: 'Buque de carga para operaciones de transporte consolidado', en: 'Cargo vessel for consolidated freight operations' } }
+    }
+    const visual = visuals[route] ?? { image: '/images/hero.webp', alt: { es: 'Operación logística de Grupo Castro Fallas', en: 'Grupo Castro Fallas logistics operation' } }
+    return {
+      eyebrow: lang.value === 'es' ? 'SOLUCIONES LOGÍSTICAS' : 'LOGISTICS SERVICES',
+      label: guide.label,
+      title: guide.title,
+      intro: guide.intro,
+      location: lang.value === 'es' ? 'Coordinación desde y hacia Costa Rica' : 'Coordination to and from Costa Rica',
+      ctaLabel: lang.value === 'es' ? 'Consultar este servicio' : 'Ask about this service',
+      image: visual.image,
+      imageAlt: visual.alt[lang.value],
+      answer: guide.answer,
+      heading: guide.heading,
+      body: guide.body,
+      points: guide.points.map(body => ({ body })),
+      quoteHeading: guide.quoteHeading,
+      quoteIntro: guide.quoteIntro,
+      quoteItems: guide.quoteItems,
+      scopeNote: guide.scopeNote,
+      faq: guide.faq
+    }
   }
-  return options[route] ?? { image: '/images/hero.webp', alt: { es: 'Operación logística de Grupo Castro Fallas', en: 'Grupo Castro Fallas logistics operation' } }
+
+  const page = detailPage.value ?? servicePages[0]
+  const text = (value: { es: string; en: string }) => value[lang.value]
+  return {
+    eyebrow: text(page.eyebrow),
+    label: text(page.title),
+    title: text(page.title),
+    intro: text(page.lead),
+    location: text(page.location),
+    ctaLabel: text(page.quoteLabel),
+    image: page.image,
+    imageAlt: text(page.imageAlt),
+    heading: lang.value === 'es' ? 'Una operación clara desde el primer paso.' : 'A clear operation from the first step.',
+    body: lang.value === 'es' ? 'Así te acompañamos en cada etapa del servicio.' : 'How we support each stage of the service.',
+    points: page.sections.map(section => ({ title: text(section.title), body: text(section.body) })),
+    faq: page.faqs.map(faq => ({ q: text(faq.question), a: text(faq.answer) }))
+  }
 })
 </script>
 
@@ -50,17 +111,17 @@ const visual = computed(() => {
           </nav>
           <div class="service-landing-hero__grid">
             <div class="service-landing-hero__copy">
-              <p class="section-tag">{{ lang === 'es' ? 'SOLUCIONES LOGÍSTICAS' : 'LOGISTICS SERVICES' }}</p>
+              <p class="section-tag">{{ details.eyebrow }}</p>
               <h1>{{ details.title }}</h1>
               <p class="service-landing-lead">{{ details.intro }}</p>
-              <p class="service-landing-location"><span aria-hidden="true">⌖</span>{{ lang === 'es' ? 'Coordinación desde y hacia Costa Rica' : 'Coordination to and from Costa Rica' }}</p>
+              <p class="service-landing-location"><span aria-hidden="true">⌖</span>{{ details.location }}</p>
               <a class="btn btn-primary" :href="'/cotizaciones?servicio=' + route.split('/').pop()">
-                {{ lang === 'es' ? 'Consultar este servicio' : 'Ask about this service' }} <span aria-hidden="true">↗</span>
+                {{ details.ctaLabel }} <span aria-hidden="true">↗</span>
               </a>
               <p class="service-landing-publisher">{{ lang === 'es' ? 'Información de servicios de Grupo Castro Fallas · Costa Rica' : 'Grupo Castro Fallas service information · Costa Rica' }}</p>
             </div>
             <figure class="service-landing-hero__media">
-              <img :src="visual.image" :alt="visual.alt[lang]" width="1120" height="630" fetchpriority="high" />
+              <img :src="details.image" :alt="details.imageAlt" width="1120" height="630" fetchpriority="high" />
               <figcaption>{{ lang === 'es' ? 'Soluciones logísticas de Grupo Castro Fallas' : 'Logistics solutions by Grupo Castro Fallas' }}</figcaption>
             </figure>
           </div>
@@ -68,7 +129,7 @@ const visual = computed(() => {
       </section>
       <section class="service-landing-content section-spacing">
         <div class="container">
-          <section class="service-landing-answer" aria-labelledby="service-answer-heading">
+          <section v-if="details.answer" class="service-landing-answer" aria-labelledby="service-answer-heading">
             <p class="section-tag">{{ lang === 'es' ? 'RESPUESTA DIRECTA' : 'AT A GLANCE' }}</p>
             <h2 id="service-answer-heading">{{ lang === 'es' ? '¿Qué ofrece Grupo Castro Fallas?' : 'What can Grupo Castro Fallas help with?' }}</h2>
             <p>{{ details.answer }}</p>
@@ -79,21 +140,22 @@ const visual = computed(() => {
               <h2 id="guide-heading">{{ details.heading }}</h2><p>{{ details.body }}</p>
             </div>
             <div class="service-landing-card-grid">
-              <article v-for="(point, index) in details.points" :key="point" class="service-landing-card">
-                <span class="service-landing-card__number">0{{ index + 1 }}</span><p>{{ point }}</p>
+              <article v-for="(point, index) in details.points" :key="point.title || point.body" class="service-landing-card" :class="{ 'service-landing-card--with-title': point.title }">
+                <span class="service-landing-card__number">0{{ index + 1 }}</span>
+                <h3 v-if="point.title">{{ point.title }}</h3><p>{{ point.body }}</p>
               </article>
             </div>
           </section>
-          <section class="service-landing-quote" aria-labelledby="guide-quote">
+          <section v-if="details.quoteHeading" class="service-landing-quote" aria-labelledby="guide-quote">
             <div>
               <p class="section-tag">{{ lang === 'es' ? 'PREPARÁ TU CONSULTA' : 'PREPARE YOUR ENQUIRY' }}</p>
               <h2 id="guide-quote">{{ details.quoteHeading }}</h2><p>{{ details.quoteIntro }}</p>
             </div>
             <ul class="service-landing-quote__list">
-              <li v-for="item in details.quoteItems" :key="item"><span aria-hidden="true">✓</span>{{ item }}</li>
+              <li v-for="item in details.quoteItems || []" :key="item"><span aria-hidden="true">✓</span>{{ item }}</li>
             </ul>
           </section>
-          <aside class="service-landing-scope">
+          <aside v-if="details.scopeNote" class="service-landing-scope">
             <span class="service-landing-scope__icon" aria-hidden="true">i</span>
             <div><h2>{{ lang === 'es' ? 'Alcance y disponibilidad' : 'Scope and availability' }}</h2><p>{{ details.scopeNote }}</p></div>
           </aside>
@@ -152,7 +214,10 @@ const visual = computed(() => {
 .service-landing-card-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
 .service-landing-card{min-height:220px;padding:28px;border:1px solid rgba(128,128,140,.28);border-radius:24px;background:color-mix(in srgb,var(--surface,#fff) 78%,transparent);box-shadow:0 12px 30px rgba(16,20,34,.06)}
 .service-landing-card__number{color:#b20c2a;font-size:13px;font-weight:900;letter-spacing:.12em}
+.service-landing-card h3{margin:40px 0 12px;color:var(--ink,#20242b);font-size:22px;line-height:1.2;letter-spacing:-.02em}
 .service-landing-card p{margin:40px 0 0;color:var(--ink,#20242b);font-size:18px;font-weight:650;line-height:1.6}
+.service-landing-card--with-title h3{margin-top:26px}
+.service-landing-card--with-title p{margin-top:0;color:var(--muted,#595b65);font-size:16px;font-weight:550;line-height:1.65}
 .service-landing-quote{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1fr);gap:36px;align-items:center;margin-bottom:24px;padding:clamp(26px,4vw,48px);border:1px solid rgba(128,128,140,.28);border-radius:26px;background:color-mix(in srgb,var(--surface,#fff) 80%,transparent)}
 .service-landing-quote__list{display:grid;gap:14px;margin:0;padding:0;list-style:none}
 .service-landing-quote__list li{display:flex;gap:13px;align-items:flex-start;color:var(--ink,#20242b);line-height:1.6}
@@ -184,6 +249,6 @@ html:not(.theme-dark) .service-landing-breadcrumbs [aria-current=page],html:not(
 html:not(.theme-dark) .service-landing-hero .section-tag,html:not(.theme-dark) .service-landing-location span{color:#b20c2a}
 html:not(.theme-dark) .service-landing-content{--surface:#fff;--ink:#20242b;--muted:#585a64}
 html:not(.theme-dark) .service-landing-contact{background:linear-gradient(112deg,rgba(178,11,45,.08),rgba(255,255,255,.92))}
-@media(max-width:900px){.service-landing-hero__grid{grid-template-columns:1fr}.service-landing-hero__media,.service-landing-hero__media img{min-height:280px}.service-landing-card-grid{grid-template-columns:1fr}.service-landing-card{min-height:0}.service-landing-card p{margin-top:24px}.service-landing-quote{grid-template-columns:1fr}}
+@media(max-width:900px){.service-landing-hero__grid{grid-template-columns:1fr}.service-landing-hero__media,.service-landing-hero__media img{min-height:280px}.service-landing-card-grid{grid-template-columns:1fr}.service-landing-card{min-height:0}.service-landing-card:not(.service-landing-card--with-title) p{margin-top:24px}.service-landing-quote{grid-template-columns:1fr}}
 @media(max-width:700px){.service-landing-hero{padding:32px 0 50px}.service-landing-content{padding-top:56px;padding-bottom:64px}.service-landing-breadcrumbs{margin-bottom:34px}.service-landing-contact{align-items:flex-start;flex-direction:column}.service-landing-publisher{margin-top:16px}}
 </style>

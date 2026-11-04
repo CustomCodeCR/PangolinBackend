@@ -12,7 +12,6 @@ const Tracking = defineAsyncComponent(() => import('./pages/Tracking.vue'))
 const Itinerary = defineAsyncComponent(() => import('./pages/Itinerary.vue'))
 const Services = defineAsyncComponent(() => import('./pages/Services.vue'))
 const ServiceLanding = defineAsyncComponent(() => import('./pages/ServiceLanding.vue'))
-const ServiceDetail = defineAsyncComponent(() => import('./pages/ServiceDetail.vue'))
 const Legal = defineAsyncComponent(() => import('./pages/Legal.vue'))
 const Administration = defineAsyncComponent(() => import('./pages/Administration.vue'))
 const OfficialQuoteWizard = defineAsyncComponent(() => import('./pages/OfficialQuoteWizard.vue'))
@@ -133,8 +132,7 @@ const page = computed(()=> {
   if(path==='/noticias' || path.startsWith('/noticias/')) return 'news'
   if(path==='/nosotros') return 'about'
   if(path==='/servicios') return 'services'
-  if(Object.prototype.hasOwnProperty.call(serviceGuides, path)) return 'service-landing'
-  if(servicePages.some(item => path === `/servicios/${item.slug}`)) return 'service-detail'
+  if(Object.prototype.hasOwnProperty.call(serviceGuides, path) || servicePages.some(item => path === `/servicios/${item.slug}`)) return 'service-landing'
   if(path==='/tracking') return 'tracking'
   if(path==='/itinerario') return 'itinerary'
   if(path==='/cotizaciones') return officialQuotesEnabled ? 'official-quote' : 'quote-legacy'
@@ -172,7 +170,6 @@ const page = computed(()=> {
   <About v-else-if="page==='about'"/>
   <Services v-else-if="page==='services'"/>
   <ServiceLanding v-else-if="page==='service-landing'"/>
-  <ServiceDetail v-else-if="page==='service-detail'" />
   <div v-else-if="page==='notFound'" class="app-site">
     <SiteHeader />
     <main class="container" style="min-height:60vh;padding-block:6rem">
