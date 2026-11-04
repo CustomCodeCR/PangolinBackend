@@ -60,11 +60,11 @@ check((root/'frontend/src/pages/Services.vue').is_file(), 'Página Servicios inc
 check('selectTransport' in read('frontend/src/pages/Itinerary.vue'), 'Mejoras de transporte incorporadas')
 # Protección frente a las regresiones introducidas por la integración del frontend.
 itinerary = read('frontend/src/pages/Itinerary.vue')
-date_inputs = re.findall(r'<input\s+v-model="item\.(closing|etd|eta)"\s+type="date"', itinerary)
+date_inputs = re.findall(r'<input\s+v-model="activeItinerary\.(closing|etd|eta)"\s+type="date"', itinerary)
 check(len(date_inputs) == 3 and set(date_inputs) == {'closing', 'etd', 'eta'}
       and not any(stale in itinerary for stale in
                   ('closingDesde', 'closingHasta', 'etdDesde', 'etdHasta', 'etaDesde', 'etaHasta')),
-      'Itinerarios: exactamente un Closing, ETD y ETA; no hay fechas duplicadas')
+      'Itinerarios: los filtros avanzados conservan Closing, ETD y ETA sin fechas duplicadas')
 check("['closing', 'etd', 'eta'] as const" in itinerary and
       "filters.set(key, f[key])" in itinerary and
       all(exact in program for exact in ('DateOnly? closing', 'DateOnly? etd', 'DateOnly? eta')),
