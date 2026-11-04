@@ -1159,5 +1159,86 @@
     "lon": 38.93184,
     "aliases": [],
     "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Athens, Grecia",
+    "quoteCatalogName": "Athens, Grecia",
+    "kind": "airport",
+    "lat": 37.98376,
+    "lon": 23.72784,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Atar, Mauritania",
+    "quoteCatalogName": "Atar, Mauritania",
+    "kind": "airport",
+    "lat": 20.5177,
+    "lon": -13.04857,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Oranjestad, Aruba",
+    "quoteCatalogName": "Oranjestad, Aruba",
+    "kind": "airport",
+    "lat": 12.52398,
+    "lon": -70.02703,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Ahwaz, Irán",
+    "quoteCatalogName": "Ahwaz, Irán",
+    "kind": "airport",
+    "lat": 31.31901,
+    "lon": 48.6842,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Manama, Baréin",
+    "quoteCatalogName": "Manama, Baréin",
+    "kind": "airport",
+    "lat": 26.22787,
+    "lon": 50.58565,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bucharest, Rumanía",
+    "quoteCatalogName": "Bucharest, Rumanía",
+    "kind": "airport",
+    "lat": 44.43225,
+    "lon": 26.10626,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Hamilton, Bermudas",
+    "quoteCatalogName": "Hamilton, Bermudas",
+    "kind": "airport",
+    "lat": 32.294,
+    "lon": -64.783,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Benghazi, Libia",
+    "quoteCatalogName": "Benghazi, Libia",
+    "kind": "airport",
+    "lat": 32.11486,
+    "lon": 20.06859,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Beirut, Líbano",
+    "quoteCatalogName": "Beirut, Líbano",
+    "kind": "airport",
+    "lat": 33.89332,
+    "lon": 35.50157,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
   }
 ]
