@@ -9,7 +9,12 @@ export default defineNuxtConfig({
   ssr: true,
   devtools: { enabled: false },
   srcDir: 'app/',
-  app: { head: { meta: [{ name: 'msvalidate.01', content: '3B7ADBDA75E127B245F7E653F3021EE8' }] } },
+  app: {
+    head: {
+      link: [{ rel: 'icon', type: 'image/png', sizes: '192x192', href: '/favicon.png' }],
+      meta: [{ name: 'msvalidate.01', content: '3B7ADBDA75E127B245F7E653F3021EE8' }]
+    }
+  },
   // Reutilizar exactamente las hojas de estilo del sitio actual.
   css: ['@legacy/style.css', '@legacy/styles/frontend6-refinements.css'],
   alias: { '@legacy': legacySource },

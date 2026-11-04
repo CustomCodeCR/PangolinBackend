@@ -7,7 +7,7 @@ import IconSymbol from '../components/IconSymbol.vue'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import WorldGlobe from '../components/WorldGlobe.vue'
-import { illustrativeRoute } from '../lib/trackingRoute'
+import { illustrativeJourney } from '../lib/trackingRoute'
 import { formatTrackingEquipmentCount, localizeTrackingMode, localizeTrackingStatus } from '../lib/trackingDisplay'
 import FieldDropdown from '../components/FieldDropdown.vue'
 interface DynamicsShipment {
@@ -41,6 +41,8 @@ interface DynamicsShipment {
   companyInvoice: string | null
   shipper: string | null
   customerInstructions: string | null
+  /** Ordered intermediate stops, only when the API actually provides them. */
+  routeStops?: string[] | null
 }
 interface LookupResponse {
   source: 'dynamics'
@@ -50,15 +52,26 @@ interface LookupResponse {
 
 const { locale } = useI18n({ useScope: 'global' })
 const en = computed(() => locale.value.toLowerCase().startsWith('en'))
+const localVisualPreview = ['localhost', '127.0.0.1'].includes(window.location.hostname) &&
+  new URLSearchParams(window.location.search).get('previewTracking') === '1'
+const localPreviewShipment: DynamicsShipment = {
+  title: 'Vista de ejemplo', status: 'Carga en Bodega HUB Panamá', origin: 'Qingdao, China', destination: 'San José, Costa Rica',
+  mode: 'Marítimo', portOfLoading: 'Qingdao, China', portOfEntry: 'Puerto Caldera, Costa Rica',
+  etd: '2026-11-13', eta: '2026-12-23', vessel: 'Buque de muestra', container: 'CONTENEDOR-DEMO',
+  bcf: 'REFERENCIA-DEMO', updatedAtUtc: '2026-11-03', customerStatus: null, incoterm: null,
+  equipmentSize: 'LCL', equipmentCount: 'LCL', departureConfirmedAt: null, warehouseReceivedAt: null,
+  destinationEta: null, officializedAt: null, entryAt: null, po: null, packageCount: null,
+  commodity: null, seal: null, invoice: null, companyInvoice: null, shipper: null, customerInstructions: null
+}
 // Display-only translations for known Dynamics values; never mutate the shipment.
 const displayMode = (value: string | null) => localizeTrackingMode(value, en.value ? 'en' : 'es')
 const displayStatus = (value: string | null) => localizeTrackingStatus(value, en.value ? 'en' : 'es')
 const kind = ref('BL')
 const reference = ref('')
-const searched = ref(false)
+const searched = ref(localVisualPreview)
 const loading = ref(false)
-const shipment = ref<DynamicsShipment | null>(null)
-const matches = ref<DynamicsShipment[]>([])
+const shipment = ref<DynamicsShipment | null>(localVisualPreview ? localPreviewShipment : null)
+const matches = ref<DynamicsShipment[]>(localVisualPreview ? [localPreviewShipment] : [])
 const selectedIndex = ref(0)
 const truncated = ref(false)
 
@@ -108,7 +121,60 @@ watch([() => shipment.value?.customerStatus, en], ([raw, english], _previous, on
   })()
 }, { immediate: true })
 
-const globeRoute = computed(() => shipment.value ? illustrativeRoute(shipment.value) : null)
+const globeRoute = computed(() => {
+  if (!shipment.value) return null
+  const stops = illustrativeJourney(shipment.value)
+  if (stops.length < 2) return null
+  const mode = (shipment.value.mode ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  // La modalidad multimodal debe identificarse explícitamente; varias escalas
+  // no significan necesariamente un cambio de barco a camión.
+  const transport: 'air' | 'sea' | 'land' | 'multimodal' | null =
+    /multi[\s-]?modal|intermodal|combinad|combined/.test(mode) ? 'multimodal'
+    : /aere|air|avion/.test(mode) ? 'air'
+    : /marit|sea|ocean|barco/.test(mode) ? 'sea'
+    : /terrest|land|road|truck/.test(mode) ? 'land' : null
+  return { origin: stops[0], destination: stops[stops.length - 1], stops, transport }
+})
+const approximateCountries = computed(() => [...new Set(
+  globeRoute.value?.stops.filter(point => point.precision === 'country-centroid').map(point => point.name) ?? []
+)])
+function normalizeJourneyStatus(value: string | null | undefined) {
+  return value?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/[-_\/]+/g, ' ').replace(/\s+/g, ' ').trim() ?? ''
+}
+function stageForKnownStatus(value: string | null | undefined): number | null {
+  const status = normalizeJourneyStatus(value)
+  if (!status) return null
+
+  // Only statuses with an unambiguous logistics meaning advance the visual journey.
+  // In particular, "Archivado" can mean different things for different operation
+  // types, so it remains visible as received and is not treated as completed here.
+  if ([
+    'finalizado', 'completado', 'completed', 'entregado', 'delivered',
+    'colocacion crc', 'carga en pto entrada', 'carga en pto. entrada',
+    'carga en almacen destino', 'carga en almacen de destino',
+    'carga en almacen destino cr', 'carga en almacen de destino cr',
+    'carga en almacen destino costa rica'
+  ].includes(status)) return 2
+
+  if ([
+    'movimiento panama to crc',
+    'carga en bodega hub panama', 'carga en estacionamiento transitorio',
+    'carga en pto salida', 'carga en pto. salida', 'pendiente descarga pty'
+  ].includes(status)) return 1
+
+  if ([
+    'booking listo', 'booking ready', 'control de inventarios', 'carga whs origen',
+    'picking carga', 'coordinacion origen', 'preliquidacion',
+    'pre liquidacion', 'programado', 'scheduled', 'en proceso', 'in progress'
+  ].includes(status)) return 0
+
+  return null
+}
+const journeyStage = computed(() => stageForKnownStatus(shipment.value?.status))
+const journeySteps = computed(() => en.value
+  ? [{ label: 'Preparation', icon: '▤' }, { label: 'In transit', icon: 'ship' }, { label: 'At destination', icon: '⌖' }]
+  : [{ label: 'Preparación', icon: '▤' }, { label: 'En ruta', icon: 'ship' }, { label: 'En destino', icon: '⌖' }])
 function chooseMatch(next: number) {
   if (next < 0 || next >= matches.value.length) return
   selectedIndex.value = next
@@ -124,6 +190,7 @@ function showDemoRoute() {
 const lookupFailure = ref<'none' | 'missing' | 'invalid' | 'limited' | 'error'>('none')
 let lookupRevision = 0
 watch([kind, reference], () => {
+  if (localVisualPreview) return
   lookupRevision++
   searched.value = false
   loading.value = false
@@ -181,14 +248,26 @@ function formatDate(value: string | null) {
   }).format(date)
 }
 interface ShipmentExtraField { label: string; value: string }
+function formatEquipmentConfiguration(count: string | null, size: string | null) {
+  const quantity = formatTrackingEquipmentCount(count)?.trim() ?? ''
+  const equipmentSize = size?.trim() ?? ''
+  if (!quantity) return equipmentSize || null
+  if (!equipmentSize) return quantity
+
+  // A configured value may already contain its own quantity × size notation.
+  if (/\d\s*[x×]\s*\d/i.test(quantity)) return quantity
+  return `${quantity} x ${equipmentSize}`
+}
+const equipmentConfiguration = computed(() => {
+  const data = shipment.value
+  return data ? formatEquipmentConfiguration(data.equipmentCount, data.equipmentSize) : null
+})
 const shipmentExtras = computed<ShipmentExtraField[]>(() => {
   const data = shipment.value
   if (!data) return []
   const asDate = (value: string | null) => value ? formatDate(value) : null
   const fields: { es: string; en: string; value: string | null }[] = [
     { es: 'Incoterm', en: 'Incoterm', value: data.incoterm },
-    { es: 'Tamaño o modalidad de equipo', en: 'Equipment size or modality', value: data.equipmentSize },
-    { es: 'Cantidad o configuración de equipo', en: 'Equipment quantity or configuration', value: formatTrackingEquipmentCount(data.equipmentCount) },
     { es: 'Confirmación de zarpe', en: 'Departure confirmation', value: asDate(data.departureConfirmedAt) },
     { es: 'Ingreso a bodegas', en: 'Warehouse arrival', value: asDate(data.warehouseReceivedAt) },
     { es: 'ETA en destino', en: 'Destination ETA', value: asDate(data.destinationEta) },
@@ -214,6 +293,17 @@ const shipmentExtrasPairs = computed<ShipmentExtraField[][]>(() => {
   for (let index = 0; index < fields.length; index += 2) rows.push(fields.slice(index, index + 2))
   return rows
 })
+function iconForShipmentField(label: string) {
+  const key = label.toLowerCase()
+  if (/origen|destino|puerto|origin|destination|port|bodega|warehouse/.test(key)) return '⌖'
+  if (/transporte|transport|mode/.test(key)) return 'truck'
+  if (/estado|status|incoterm/.test(key)) return '✓'
+  if (/fecha|date|eta|etd|actualiz|updated|confirm|zarpe|arrival|ingreso|registro/.test(key)) return '◷'
+  if (/buque|vessel|barco/.test(key)) return 'ship'
+  if (/contenedor|container|equipo/.test(key)) return 'container'
+  if (/bulto|package|cantidad|quantity/.test(key)) return '▰'
+  return '▤'
+}
 let tour: Driver | null = null
 const types = computed(() => en.value ? [
   { id: 'BL', name: 'BL-HBL number (BCF)', help: 'Search BL or HBL using the BCF reference.' },
@@ -364,14 +454,14 @@ onBeforeUnmount(() => {
                 <input id="tracking-reference-input" v-model="reference" maxlength="64" autocomplete="off" :placeholder="copy.placeholder" required />
               </div>
             </div>
-            <p class="tracking-hint">{{ help }}</p>
-            <p v-if="searched && !reference.trim()" class="tracking-error" role="alert">{{ copy.required }}</p>
+            <p v-if="!localVisualPreview" class="tracking-hint">{{ help }}</p>
+            <p v-if="searched && !reference.trim() && !localVisualPreview" class="tracking-error" role="alert">{{ copy.required }}</p>
             <button id="tracking-guide-submit" type="submit" class="btn btn-primary tracking-submit" :disabled="loading" :aria-busy="loading">{{ loading ? copy.loading : copy.search }} <IconSymbol glyph="→" /></button>
             <p v-if="loading" class="tracking-hint" role="status">{{ copy.loading }}</p>
             <section v-else-if="shipment" class="tracking-demo-result" role="status" aria-live="polite">
               <div class="tracking-demo-result__heading">
                 <div>
-                  <span class="tracking-demo-result__label">{{ copy.demoLabel }}</span>
+                  <span class="tracking-demo-result__label">{{ localVisualPreview ? (en ? 'LOCAL PREVIEW · SAMPLE DATA' : 'VISTA LOCAL · DATOS DE EJEMPLO') : copy.demoLabel }}</span>
                   <h3>{{ copy.result }} · {{ shipment.title || reference.trim() }}</h3>
                 </div>
                 <strong class="tracking-demo-result__status">{{ displayStatus(shipment.status) }}</strong>
@@ -388,30 +478,53 @@ onBeforeUnmount(() => {
                 <strong>{{ en ? 'Customer update' : 'Actualización para el cliente' }}</strong>
                 <span>{{ customerUpdateText }}</span>
               </p>
+              <div class="tracking-demo-result__route" :aria-label="en ? 'Shipment route' : 'Ruta del embarque'">
+                <div class="tracking-demo-result__route-content">
+                  <div class="tracking-demo-result__route-stop">
+                    <span class="tracking-demo-result__route-icon"><IconSymbol glyph="⌖" :size="19" /></span>
+                    <div><span>{{ copy.origin }}</span><strong>{{ shipment.origin || '—' }}</strong></div>
+                  </div>
+                  <span class="tracking-demo-result__route-connector" aria-hidden="true"><IconSymbol glyph="→" :size="19" /></span>
+                  <div class="tracking-demo-result__route-stop tracking-demo-result__route-stop--destination">
+                    <span class="tracking-demo-result__route-icon"><IconSymbol glyph="⌖" :size="19" /></span>
+                    <div><span>{{ copy.destination }}</span><strong>{{ shipment.destination || '—' }}</strong></div>
+                  </div>
+                </div>
+              </div>
+              <section v-if="journeyStage !== null" class="tracking-journey" :aria-label="en ? 'Shipment journey' : 'Recorrido del embarque'">
+                <div class="tracking-journey__heading">
+                  <div><span>{{ en ? 'LIVE JOURNEY' : 'RECORRIDO DEL EMBARQUE' }}</span><strong>{{ en ? 'Current stage' : 'Etapa actual' }}</strong></div>
+                  <small>{{ journeySteps[journeyStage].label }}</small>
+                </div>
+                <div class="tracking-journey__steps" :style="{ '--journey-progress': journeyStage === 0 ? '0%' : journeyStage === 1 ? '33.333%' : '66.666%' }">
+                  <span class="tracking-journey__rail" aria-hidden="true"></span>
+                  <span class="tracking-journey__progress" aria-hidden="true"></span>
+                  <div v-for="(step, index) in journeySteps" :key="step.label" class="tracking-journey__step" :class="{ 'is-complete': index < journeyStage, 'is-current': index === journeyStage }">
+                    <span class="tracking-journey__node"><IconSymbol :glyph="index < journeyStage ? '✓' : step.icon" :size="17" /></span>
+                    <span>{{ step.label }}</span>
+                  </div>
+                </div>
+              </section>
               <div class="tracking-demo-result__grid">
                 <div class="tracking-demo-result__pair">
-                  <dl class="tracking-demo-result__field"><dt>{{ copy.origin }}</dt><dd>{{ shipment.origin || '—' }}</dd></dl>
-                  <dl class="tracking-demo-result__field"><dt>{{ copy.destination }}</dt><dd>{{ shipment.destination || '—' }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="truck" :size="17" /></span><dt>{{ en ? 'Transport' : 'Transporte' }}</dt><dd>{{ displayMode(shipment.mode) }}</dd></dl>
+                  <dl v-if="equipmentConfiguration" class="tracking-demo-result__field"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="container" :size="17" /></span><dt>{{ en ? 'Equipment quantity x size' : 'Cantidad x tamaño de equipo' }}</dt><dd>{{ equipmentConfiguration }}</dd></dl>
                 </div>
                 <div class="tracking-demo-result__pair">
-                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Transport' : 'Transporte' }}</dt><dd>{{ displayMode(shipment.mode) }}</dd></dl>
-                  <dl class="tracking-demo-result__field"><dt>{{ copy.status }}</dt><dd>{{ displayStatus(shipment.status) }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="⚓" :size="17" /></span><dt>{{ en ? 'Port of loading' : 'Puerto de salida' }}</dt><dd>{{ shipment.portOfLoading || '—' }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="⚓" :size="17" /></span><dt>{{ en ? 'Port of entry' : 'Puerto de entrada' }}</dt><dd>{{ shipment.portOfEntry || '—' }}</dd></dl>
                 </div>
                 <div class="tracking-demo-result__pair">
-                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Port of loading' : 'Puerto de salida' }}</dt><dd>{{ shipment.portOfLoading || '—' }}</dd></dl>
-                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Port of entry' : 'Puerto de entrada' }}</dt><dd>{{ shipment.portOfEntry || '—' }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="◷" :size="17" /></span><dt>{{ copy.estimatedDeparture }}</dt><dd>{{ formatDate(shipment.etd) }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="◷" :size="17" /></span><dt>{{ copy.estimatedArrival }}</dt><dd>{{ formatDate(shipment.eta) }}</dd></dl>
                 </div>
                 <div class="tracking-demo-result__pair">
-                  <dl class="tracking-demo-result__field"><dt>{{ copy.estimatedDeparture }}</dt><dd>{{ formatDate(shipment.etd) }}</dd></dl>
-                  <dl class="tracking-demo-result__field"><dt>{{ copy.estimatedArrival }}</dt><dd>{{ formatDate(shipment.eta) }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="ship" :size="17" /></span><dt>{{ en ? 'Vessel' : 'Buque' }}</dt><dd>{{ shipment.vessel || '—' }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="container" :size="17" /></span><dt>{{ en ? 'Container' : 'Contenedor' }}</dt><dd>{{ shipment.container || '—' }}</dd></dl>
                 </div>
                 <div class="tracking-demo-result__pair">
-                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Vessel' : 'Buque' }}</dt><dd>{{ shipment.vessel || '—' }}</dd></dl>
-                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Container' : 'Contenedor' }}</dt><dd>{{ shipment.container || '—' }}</dd></dl>
-                </div>
-                <div class="tracking-demo-result__pair">
-                  <dl class="tracking-demo-result__field"><dt>BCF</dt><dd>{{ shipment.bcf || '—' }}</dd></dl>
-                  <dl class="tracking-demo-result__field"><dt>{{ en ? 'Last updated' : 'Última actualización' }}</dt><dd>{{ formatDate(shipment.updatedAtUtc) }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="▤" :size="17" /></span><dt>BCF</dt><dd>{{ shipment.bcf || '—' }}</dd></dl>
+                  <dl class="tracking-demo-result__field"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="◷" :size="17" /></span><dt>{{ en ? 'Last updated' : 'Última actualización' }}</dt><dd>{{ formatDate(shipment.updatedAtUtc) }}</dd></dl>
                 </div>
               </div>
               <section v-if="shipmentExtras.length" class="tracking-demo-result__extra">
@@ -419,6 +532,7 @@ onBeforeUnmount(() => {
                 <div class="tracking-demo-result__grid">
                   <div v-for="(pair, index) in shipmentExtrasPairs" :key="index" class="tracking-demo-result__pair">
                     <dl v-for="field in pair" :key="field.label" class="tracking-demo-result__field">
+                      <span class="tracking-demo-result__field-icon"><IconSymbol :glyph="iconForShipmentField(field.label)" :size="17" /></span>
                       <dt>{{ field.label }}</dt><dd>{{ field.value }}</dd>
                     </dl>
                   </div>
@@ -427,6 +541,11 @@ onBeforeUnmount(() => {
               <p class="tracking-demo-result__disclaimer">
                 {{ globeRoute ? copy.demoNotice :
                   (en ? 'Approximate route unavailable for these locations. The globe stays in its default view.' : 'No hay una ruta aproximada reconocida para estos lugares. El globo mantiene su vista predeterminada.') }}
+                <span v-if="globeRoute && approximateCountries.length">
+                  {{ en
+                    ? ' Country-level reference: ' + approximateCountries.join(', ') + '. The exact airport or port has not been identified.'
+                    : ' Referencia geográfica a nivel país: ' + approximateCountries.join(', ') + '. No se ha identificado el puerto o aeropuerto exacto.' }}
+                </span>
               </p>
               <button v-if="globeRoute" type="button" class="tracking-demo-result__view" @click="showDemoRoute">{{ copy.viewRoute }} ↑</button>
             </section>
@@ -763,5 +882,342 @@ html.theme-dark .app-site.tracking-site .tracking-demo-result__pair::after {
 html.theme-dark .app-site.tracking-site
   .tracking-demo-result__pair .tracking-demo-result__field + .tracking-demo-result__field {
   border-left: 1px solid #3b465f !important;
+}
+</style>
+
+<style>
+/* Turn the result into a route summary plus a lighter, icon-led information grid. */
+.app-site.tracking-site .tracking-demo-result__route {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  margin: 22px 0 18px;
+  padding: 22px clamp(18px, 2vw, 28px);
+  border: 1px solid rgba(181, 9, 40, .15);
+  border-radius: 24px;
+  background: linear-gradient(115deg, rgba(181, 9, 40, .07), rgba(255, 255, 255, .06));
+}
+/* Full-width route: equal side padding, origin aligned left, destination right.
+   The arrow stays in the central column on wide screens. */
+.app-site.tracking-site .tracking-demo-result__route-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(16px, 2vw, 28px);
+  width: 100%;
+  min-width: 0;
+}
+.app-site.tracking-site .tracking-demo-result__route-stop--destination {
+  justify-self: end;
+}
+.app-site.tracking-site .tracking-demo-result__route-stop {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+}
+.app-site.tracking-site .tracking-demo-result__route-icon,
+.app-site.tracking-site .tracking-demo-result__field-icon {
+  display: grid;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 14px;
+  background: rgba(181, 9, 40, .09);
+  color: #b50928;
+}
+.app-site.tracking-site .tracking-demo-result__route-stop > div { display: grid; min-width: 0; gap: 5px; }
+.app-site.tracking-site .tracking-demo-result__route-stop > div > span {
+  color: var(--track-muted, #69707c);
+  font-size: 12px;
+  font-weight: 750;
+}
+.app-site.tracking-site .tracking-demo-result__route-stop strong { overflow-wrap: anywhere; font-size: clamp(18px, 1.45vw, 24px); line-height: 1.25; }
+.app-site.tracking-site .tracking-demo-result__route-connector {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 50%;
+  background: #b50928;
+  color: #fff;
+}
+.app-site.tracking-site .tracking-journey {
+  margin: 0 0 19px;
+  padding: 18px 22px 20px;
+  border: 1px solid rgba(181, 9, 40, .16);
+  border-radius: 22px;
+  background: linear-gradient(110deg, rgba(181, 9, 40, .045), rgba(255, 255, 255, .18));
+}
+.app-site.tracking-site .tracking-journey__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.app-site.tracking-site .tracking-journey__heading > div { display: grid; gap: 4px; }
+.app-site.tracking-site .tracking-journey__heading > div > span {
+  color: #b50928;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .12em;
+}
+.app-site.tracking-site .tracking-journey__heading strong { font-size: 15px; }
+.app-site.tracking-site .tracking-journey__heading small {
+  padding: 7px 11px;
+  border: 1px solid rgba(181, 9, 40, .18);
+  border-radius: 999px;
+  background: rgba(181, 9, 40, .075);
+  color: #b50928;
+  font-size: 12px;
+  font-weight: 800;
+}
+.app-site.tracking-site .tracking-journey__steps {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 0;
+}
+.app-site.tracking-site .tracking-journey__rail,
+.app-site.tracking-site .tracking-journey__progress {
+  position: absolute;
+  top: 18px;
+  left: 16.666%;
+  width: 66.666%;
+  height: 2px;
+  border-radius: 2px;
+}
+.app-site.tracking-site .tracking-journey__rail { background: rgba(105, 112, 124, .2); }
+.app-site.tracking-site .tracking-journey__progress {
+  width: var(--journey-progress);
+  background: linear-gradient(90deg, #b50928, #e84b63);
+  transition: width .45s ease;
+}
+.app-site.tracking-site .tracking-journey__step {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--track-muted, #69707c);
+  font-size: 12px;
+  font-weight: 750;
+  text-align: center;
+}
+.app-site.tracking-site .tracking-journey__node {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid rgba(105, 112, 124, .25);
+  border-radius: 50%;
+  background: var(--track-surface, #fff8f8);
+  color: var(--track-muted, #69707c);
+  transition: background .25s ease, color .25s ease, box-shadow .25s ease, transform .25s ease;
+}
+.app-site.tracking-site .tracking-journey__step.is-complete .tracking-journey__node,
+.app-site.tracking-site .tracking-journey__step.is-current .tracking-journey__node {
+  border-color: #b50928;
+  background: #b50928;
+  color: #fff;
+}
+.app-site.tracking-site .tracking-journey__step.is-current { color: var(--track-ink, #20242b); }
+.app-site.tracking-site .tracking-journey__step.is-current .tracking-journey__node {
+  box-shadow: 0 0 0 5px rgba(181, 9, 40, .12), 0 0 22px rgba(181, 9, 40, .24);
+  transform: translateY(-2px);
+  animation: tracking-journey-pulse 2s ease-in-out infinite;
+}
+@keyframes tracking-journey-pulse {
+  50% { box-shadow: 0 0 0 8px rgba(181, 9, 40, .04), 0 0 28px rgba(181, 9, 40, .28); }
+}
+.app-site.tracking-site .tracking-demo-result__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin: 18px 0;
+}
+.app-site.tracking-site .tracking-demo-result__pair {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  min-width: 0;
+}
+.app-site.tracking-site .tracking-demo-result__field {
+  display: grid !important;
+  grid-template-columns: 38px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-content: center;
+  column-gap: 12px;
+  min-width: 0;
+  min-height: 88px;
+  margin: 0 !important;
+  padding: 14px 16px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.app-site.tracking-site .tracking-demo-result__field:first-child:not(:only-child) {
+  padding-right: clamp(10px, 1.5vw, 20px) !important;
+}
+.app-site.tracking-site .tracking-demo-result__field + .tracking-demo-result__field {
+  padding-left: clamp(16px, 2vw, 26px) !important;
+  border-left: 1px solid rgba(91, 105, 125, .34) !important;
+}
+.app-site.tracking-site .tracking-demo-result__field-icon {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  width: 36px;
+  height: 36px;
+  border-radius: 13px;
+}
+.app-site.tracking-site .tracking-demo-result__field dt { grid-column: 2; grid-row: 1; align-self: end; }
+.app-site.tracking-site .tracking-demo-result__field dd {
+  grid-column: 2;
+  grid-row: 2;
+  margin: 4px 0 0 !important;
+  font-size: 15px;
+}
+.app-site.tracking-site .tracking-demo-result__extra .tracking-demo-result__grid { margin-top: 14px; }
+.app-site.tracking-site .tracking-demo-result__extra h4 { margin-bottom: 4px; }
+.app-site.tracking-site .tracking-demo-result__customer-status {
+  border-radius: 8px 20px 20px 8px;
+  padding: 17px 20px;
+}
+html.theme-dark .app-site.tracking-site .tracking-demo-result__route {
+  border-color: rgba(120, 137, 166, .28);
+  background: linear-gradient(112deg, rgba(181, 9, 40, .12), rgba(16, 24, 43, .68));
+}
+html.theme-dark .app-site.tracking-site .tracking-demo-result__route-icon,
+html.theme-dark .app-site.tracking-site .tracking-demo-result__field-icon {
+  background: rgba(181, 9, 40, .19);
+  color: #ff8595;
+}
+html.theme-dark .app-site.tracking-site .tracking-demo-result__field {
+  border-top: 0 !important;
+  border-right: 0 !important;
+  border-bottom: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+html.theme-dark .app-site.tracking-site .tracking-demo-result__field + .tracking-demo-result__field {
+  border-left: 1px solid #3b465f !important;
+}
+html.theme-dark .app-site.tracking-site .tracking-journey {
+  border-color: rgba(120, 137, 166, .27);
+  background: linear-gradient(110deg, rgba(181, 9, 40, .1), rgba(16, 24, 43, .52));
+}
+html.theme-dark .app-site.tracking-site .tracking-journey__heading > div > span,
+html.theme-dark .app-site.tracking-site .tracking-journey__heading small { color: #ff8998; }
+html.theme-dark .app-site.tracking-site .tracking-journey__heading small {
+  border-color: rgba(255, 137, 152, .24);
+  background: rgba(181, 9, 40, .2);
+}
+html.theme-dark .app-site.tracking-site .tracking-journey__node {
+  border-color: rgba(120, 137, 166, .36);
+  background: #10182b;
+  color: #aab4c8;
+}
+html.theme-dark .app-site.tracking-site .tracking-journey__step.is-current { color: #fff; }
+html.theme-dark .app-site.tracking-site .tracking-journey__step.is-complete .tracking-journey__node,
+html.theme-dark .app-site.tracking-site .tracking-journey__step.is-current .tracking-journey__node {
+  border-color: #b50928;
+  background: #b50928;
+  color: #fff;
+}
+@media (max-width: 900px) {
+  .app-site.tracking-site .tracking-demo-result__field { min-height: 82px; }
+}
+@media (max-width: 580px) {
+  .app-site.tracking-site .tracking-demo-result__route {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 18px;
+    border-radius: 21px;
+  }
+  .app-site.tracking-site .tracking-demo-result__route-content {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .app-site.tracking-site .tracking-demo-result__route-stop--destination {
+    justify-self: start;
+  }
+  .app-site.tracking-site .tracking-demo-result__route-stop strong { font-size: 18px; }
+  .app-site.tracking-site .tracking-demo-result__route-connector {
+    width: 34px;
+    height: 34px;
+    margin-left: 2px;
+    transform: rotate(90deg);
+  }
+  .app-site.tracking-site .tracking-journey { padding: 16px 13px; }
+  .app-site.tracking-site .tracking-journey__step { font-size: 10px; }
+  .app-site.tracking-site .tracking-journey__node { width: 34px; height: 34px; }
+  .app-site.tracking-site .tracking-journey__rail,
+  .app-site.tracking-site .tracking-journey__progress { top: 16px; }
+  .app-site.tracking-site .tracking-journey__heading strong { font-size: 13px; }
+  .app-site.tracking-site .tracking-demo-result__pair { grid-template-columns: minmax(0, 1fr); }
+  .app-site.tracking-site .tracking-demo-result__field { min-height: 70px; padding: 12px 8px !important; }
+  .app-site.tracking-site .tracking-demo-result__field + .tracking-demo-result__field {
+    padding-left: 8px !important;
+    border-left: 0 !important;
+    border-top: 1px solid rgba(91, 105, 125, .26) !important;
+  }
+}
+</style>
+
+<style>
+/* Softer tracking surfaces: keep the information layout, reduce the rigid box feel. */
+.app-site.tracking-site .tracking-search {
+  border-radius: 34px;
+  border-color: rgba(181, 9, 40, .22);
+}
+.app-site.tracking-site .tracking-process {
+  border-radius: 34px;
+}
+.app-site.tracking-site .tracking-fields input,
+.app-site.tracking-site .tracking-fields select,
+.app-site.tracking-site .tracking-fields .cf-dropdown__trigger {
+  border-radius: 17px;
+}
+.app-site.tracking-site .tracking-unavailable {
+  border-radius: 21px;
+}
+.app-site.tracking-site .tracking-demo-result {
+  border-radius: 27px;
+}
+.app-site.tracking-site .tracking-demo-result__pair {
+  border-radius: 22px;
+  border-color: rgba(130, 47, 62, .16);
+  box-shadow: 0 7px 24px rgba(30, 20, 30, .07), inset 0 1px 0 rgba(255, 255, 255, .38);
+}
+.app-site.tracking-site .tracking-demo-result__status {
+  border-radius: 999px;
+  padding: 8px 14px;
+}
+.app-site.tracking-site .tracking-demo-result__view,
+.app-site.tracking-site .tracking-results-select button {
+  border-radius: 999px;
+}
+.app-site.tracking-site .tracking-demo-result__customer-status {
+  border-radius: 7px 18px 18px 7px;
+}
+html.theme-dark .app-site.tracking-site .tracking-demo-result__pair {
+  border-radius: 21px;
+}
+@media (max-width: 580px) {
+  .app-site.tracking-site .tracking-search,
+  .app-site.tracking-site .tracking-process {
+    border-radius: 26px;
+  }
+  .app-site.tracking-site .tracking-demo-result {
+    border-radius: 23px;
+  }
+  .app-site.tracking-site .tracking-demo-result__pair {
+    border-radius: 18px;
+  }
 }
 </style>
