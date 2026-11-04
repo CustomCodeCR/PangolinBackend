@@ -105,16 +105,18 @@ function closeMenu() {
   searching.value = false
   query.value = props.modelValue
 }
-function openMenu() {
-  searching.value = false
-  query.value = props.modelValue
+function openMenu(preserveTypedQuery = false) {
+  // Typing into the main field must never reset the search term.
+  if (!preserveTypedQuery) {
+    searching.value = false
+    query.value = props.modelValue
+  }
   highlighted.value = 0
   positioned.value = false
   open.value = true
   void nextTick(() => {
     if (!open.value) return
     positionMenu()
-    trigger.value?.focus({ preventScroll: true })
   })
 }
 function toggleMenu() { if (open.value) closeMenu(); else openMenu() }
@@ -123,7 +125,7 @@ function onInput(event: Event) {
   searching.value = true
   highlighted.value = 0
   if (query.value !== props.modelValue) emit('update:modelValue', '')
-  if (!open.value) openMenu()
+  if (!open.value) openMenu(true)
 }
 function choose(value: string) {
   emit('update:modelValue', value)
@@ -173,7 +175,7 @@ onBeforeUnmount(removeListeners)
         role="combobox" aria-haspopup="listbox" :aria-label="label" aria-autocomplete="list"
         :aria-controls="listId" :aria-expanded="open" autocomplete="off"
         :required="required" :value="query" :placeholder="placeholder"
-        @input="onInput" @focus="openMenu" @keydown="onKeydown" />
+        @input="onInput" @focus="openMenu()" @keydown="onKeydown" />
       <button class="itinerary-location-picker__toggle" type="button"
         :aria-label="label" :aria-expanded="open" @mousedown.prevent @click="toggleMenu">
         <span class="cf-dropdown__chevron" :class="{ 'cf-dropdown__chevron--open': open }" aria-hidden="true"></span>
@@ -190,7 +192,7 @@ onBeforeUnmount(removeListeners)
         <template v-if="!loading && !error">
           <button v-for="(item, index) in matches" :key="item.id" type="button" role="option"
             :aria-selected="item.displayName === modelValue" tabindex="-1"
-            :class="{ 'cf-dropdown__option--selected': item.displayName === modelValue, 'itinerary-location-picker__highlighted': highlighted === index && !!query }"
+            :class="{ 'cf-dropdown__option--selected': item.displayName === modelValue, 'itinerary-location-picker__highlighted': highlighted === index && searching && !!query }"
             @click="choose(item.displayName)">{{ item.displayName }}</button>
         </template>
         <button v-if="modelValue && !required" type="button" class="itinerary-location-picker__clear"
@@ -235,11 +237,15 @@ html.theme-dark .itinerary-location-picker__menu > button.itinerary-location-pic
 .app-site.itinerary-page .itinerary-filter-card__primary > .itinerary-form-line > strong {
   font-size:13px; font-weight:700; line-height:1.5;
 }
-.app-site.itinerary-page .itinerary-location-picker__input {
+/* Match the Estatus trigger; do not override the shared dropdown menu palette. */
+.app-site.itinerary-page .itinerary-filter-card__primary
+  .itinerary-location-picker__control input.itinerary-location-picker__input {
   min-height:42px; font-size:14px; font-weight:600; border-radius:13px;
+  background:#fff; color:#242630; border:1px solid #cfd2dc;
 }
-html.theme-dark .app-site.itinerary-page .itinerary-location-picker__input {
-  background:#121a30; color:#fff; border-color:rgba(255,255,255,.22);
+html.theme-dark .app-site.itinerary-page .itinerary-filter-card__primary
+  .itinerary-location-picker__control input.itinerary-location-picker__input {
+  background:#071225; color:#fff; border-color:rgba(255,255,255,.22);
 }
 .content-manager .manager-editor--itineraries > .itinerary-location-picker {
   display:grid; align-content:start; grid-template-rows:auto auto; gap:9px;
