@@ -275,10 +275,10 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
           <div class="itinerary-form-line"><strong>{{ t('custom.itinerary.form.status') }}</strong><FieldDropdown :model-value="activeItinerary.status" :options="statusChoices" :aria-label="t('custom.itinerary.form.status')" @update:model-value="value => chooseStatus(activeItinerary, value)" /></div>
           <ItineraryLocationPicker v-model="activeItinerary.pol" :options="originOptions"
             :loading="locationsLoading" :error="locationsError" :label="en ? 'Origin / POL' : 'Origen / POL'"
-            :placeholder="en ? 'Search an origin' : 'Buscar origen'" />
+            :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" />
           <ItineraryLocationPicker v-model="activeItinerary.pod" :options="destinationOptions"
             :loading="locationsLoading" :error="locationsError" :label="en ? 'Destination / POD' : 'Destino / POD'"
-            :placeholder="en ? 'Search a destination' : 'Buscar destino'" />
+            :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" />
         </div>
         <button type="button" class="itinerary-filter-card__advanced-toggle" :aria-expanded="advancedFiltersOpen" @click="advancedFiltersOpen = !advancedFiltersOpen">
           {{ advancedFiltersOpen ? (en ? 'Fewer filters' : 'Menos filtros') : (en ? 'More filters (optional)' : 'Más filtros (opcional)') }}
