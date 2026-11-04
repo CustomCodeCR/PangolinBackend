@@ -69,7 +69,7 @@ jobs:
           curl -fsS http://127.0.0.1:3000/servicios | grep -q 'services-page'
           curl -fsS http://127.0.0.1:3000/servicios/almacenamiento-fiscal >/tmp/pangolin-service.html
           grep -q 'Almacenamiento fiscal' /tmp/pangolin-service.html
-          grep -q 'Preguntas frecuentes' /tmp/pangolin-service.html
+          grep -q 'service-landing-faq__item' /tmp/pangolin-service.html
           curl -fsS http://127.0.0.1:3000/empresas/aduanera-castro-fallas >/tmp/pangolin-company.html
           grep -q 'Aduanera Castro Fallas' /tmp/pangolin-company.html
           grep -q 'application/ld+json' /tmp/pangolin-company.html
@@ -83,7 +83,9 @@ jobs:
           for slug in transporte-maritimo transporte-terrestre transporte-aereo transporte-internacional transporte-local transporte-panama-costa-rica; do
             curl -fsS "http://127.0.0.1:3000/servicios/$slug" > /tmp/pangolin-new-service.html
             grep -q '<h1' /tmp/pangolin-new-service.html
-            grep -q 'service-detail-page' /tmp/pangolin-new-service.html
+            grep -q 'service-landing-page' /tmp/pangolin-new-service.html
+            grep -q 'service-landing-hero__grid' /tmp/pangolin-new-service.html
+            grep -q 'service-landing-faq__item' /tmp/pangolin-new-service.html
             grep -q 'application/ld+json' /tmp/pangolin-new-service.html
             grep -q "rel=\"canonical\"" /tmp/pangolin-new-service.html
             grep -q "/servicios/$slug" /tmp/pangolin-sitemap.xml
