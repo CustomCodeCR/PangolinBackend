@@ -1240,5 +1240,158 @@
     "lon": 35.50157,
     "aliases": [],
     "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Galveston TX, Estados Unidos",
+    "quoteCatalogName": "Galveston TX, Estados Unidos",
+    "kind": "seaport",
+    "lat": 29.30135,
+    "lon": -94.7977,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Houston TX, Estados Unidos",
+    "quoteCatalogName": "Houston TX, Estados Unidos",
+    "kind": "seaport",
+    "lat": 29.76328,
+    "lon": -95.36327,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Los Ángeles, Estados Unidos",
+    "quoteCatalogName": "Los Ángeles, Estados Unidos",
+    "kind": "seaport",
+    "lat": 34.05223,
+    "lon": -118.24368,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Manatee, Estados Unidos",
+    "quoteCatalogName": "Manatee, Estados Unidos",
+    "kind": "seaport",
+    "lat": 27.47752,
+    "lon": -82.35754,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Norfolk, Estados Unidos",
+    "quoteCatalogName": "Norfolk, Estados Unidos",
+    "kind": "seaport",
+    "lat": 44.80089,
+    "lon": -74.99103,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Philadelphia, Estados Unidos",
+    "quoteCatalogName": "Philadelphia, Estados Unidos",
+    "kind": "seaport",
+    "lat": 44.1545,
+    "lon": -75.70882,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Port Hueneme, Estados Unidos",
+    "quoteCatalogName": "Port Hueneme, Estados Unidos",
+    "kind": "seaport",
+    "lat": 34.14778,
+    "lon": -119.19511,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Savannah GA, Estados Unidos",
+    "quoteCatalogName": "Savannah GA, Estados Unidos",
+    "kind": "seaport",
+    "lat": 32.08354,
+    "lon": -81.09983,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Tampa, Estados Unidos",
+    "quoteCatalogName": "Tampa, Estados Unidos",
+    "kind": "seaport",
+    "lat": 27.94752,
+    "lon": -82.45843,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Arcata / Eureka, Estados Unidos",
+    "quoteCatalogName": "Arcata / Eureka, Estados Unidos",
+    "kind": "airport",
+    "lat": 40.86652,
+    "lon": -124.08284,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Amarillo, Estados Unidos",
+    "quoteCatalogName": "Amarillo, Estados Unidos",
+    "kind": "airport",
+    "lat": 35.222,
+    "lon": -101.8313,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Austin, Estados Unidos",
+    "quoteCatalogName": "Austin, Estados Unidos",
+    "kind": "airport",
+    "lat": 30.26715,
+    "lon": -97.74306,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bethel, Estados Unidos",
+    "quoteCatalogName": "Bethel, Estados Unidos",
+    "kind": "airport",
+    "lat": 35.8071,
+    "lon": -77.37886,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bangui, República Centroafricana",
+    "quoteCatalogName": "Bangui, República Centroafricana",
+    "kind": "airport",
+    "lat": 4.36122,
+    "lon": 18.55496,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bridgetown, Barbados",
+    "quoteCatalogName": "Bridgetown, Barbados",
+    "kind": "airport",
+    "lat": 13.10732,
+    "lon": -59.62021,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bergen, Noruega",
+    "quoteCatalogName": "Bergen, Noruega",
+    "kind": "airport",
+    "lat": 60.392,
+    "lon": 5.328,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Birmingham, Estados Unidos",
+    "quoteCatalogName": "Birmingham, Estados Unidos",
+    "kind": "airport",
+    "lat": 33.52066,
+    "lon": -86.80249,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
   }
 ]
