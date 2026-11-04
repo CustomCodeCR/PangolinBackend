@@ -135,6 +135,9 @@ const globeRoute = computed(() => {
     : /terrest|land|road|truck/.test(mode) ? 'land' : null
   return { origin: stops[0], destination: stops[stops.length - 1], stops, transport }
 })
+const approximateCountries = computed(() => [...new Set(
+  globeRoute.value?.stops.filter(point => point.precision === 'country-centroid').map(point => point.name) ?? []
+)])
 function normalizeJourneyStatus(value: string | null | undefined) {
   return value?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
     .replace(/[-_\/]+/g, ' ').replace(/\s+/g, ' ').trim() ?? ''
@@ -536,6 +539,11 @@ onBeforeUnmount(() => {
               <p class="tracking-demo-result__disclaimer">
                 {{ globeRoute ? copy.demoNotice :
                   (en ? 'Approximate route unavailable for these locations. The globe stays in its default view.' : 'No hay una ruta aproximada reconocida para estos lugares. El globo mantiene su vista predeterminada.') }}
+                <span v-if="globeRoute && approximateCountries.length">
+                  {{ en
+                    ? ' Country-level reference: ' + approximateCountries.join(', ') + '. The exact airport or port has not been identified.'
+                    : ' Referencia geográfica a nivel país: ' + approximateCountries.join(', ') + '. No se ha identificado el puerto o aeropuerto exacto.' }}
+                </span>
               </p>
               <button v-if="globeRoute" type="button" class="tracking-demo-result__view" @click="showDemoRoute">{{ copy.viewRoute }} ↑</button>
             </section>
