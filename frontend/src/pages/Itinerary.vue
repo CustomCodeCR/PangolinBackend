@@ -264,8 +264,8 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
 
         <div class="itinerary-form-lines">
           <div class="itinerary-form-line"><strong>{{ t('custom.itinerary.form.status') }}</strong><FieldDropdown :model-value="item.status" :options="statusChoices" :aria-label="t('custom.itinerary.form.status')" @update:model-value="value => chooseStatus(item, value)" /></div>
-          <div class="itinerary-form-line"><strong>POL · {{ portPlaceholder(item, 'pol') }}</strong><ItineraryLocationSelect v-model="item.pol" :options="origins" aria-label="POL" :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" :loading="loadingLocations" /></div>
-          <div class="itinerary-form-line"><strong>POD · {{ portPlaceholder(item, 'pod') }}</strong><ItineraryLocationSelect v-model="item.pod" :options="destinations" aria-label="POD" :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" :loading="loadingLocations" /></div>
+          <div class="itinerary-form-line"><strong :title="portPlaceholder(item, 'pol')">POL</strong><ItineraryLocationSelect v-model="item.pol" :options="origins" aria-label="POL" :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" :loading="loadingLocations" /></div>
+          <div class="itinerary-form-line"><strong :title="portPlaceholder(item, 'pod')">POD</strong><ItineraryLocationSelect v-model="item.pod" :options="destinations" aria-label="POD" :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" :loading="loadingLocations" /></div>
           <label class="itinerary-form-line"><strong>Closing</strong><input v-model="item.closing" type="date" /></label>
           <label class="itinerary-form-line"><strong>ETD</strong><input v-model="item.etd" type="date" /></label>
           <label class="itinerary-form-line"><strong>ETA</strong><input v-model="item.eta" type="date" /></label>
