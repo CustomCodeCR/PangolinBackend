@@ -405,6 +405,17 @@ const { runInNewContext } = require('node:vm')
 // Tracking uses quote-backed canonical names plus explicit illustrative coordinates.
 // Evaluate the real TypeScript route functions instead of duplicating their resolver.
 const trackingPorts = JSON.parse(source('src/lib/trackingPorts.json'))
+const trackingQuoteCoordinates = JSON.parse(source('src/lib/trackingQuoteCoordinates.json'))
+const officialQuoteSql = source('../backend/Database/OfficialQuotesVideoLocations.sql')
+const allOfficialLocationNames = new Set([...officialQuoteSql.matchAll(/'(?:seaport|airport|inland)','([^']+)'/g)]
+  .map(([, name]) => name))
+for (const location of trackingQuoteCoordinates) {
+  assert.ok(allOfficialLocationNames.has(location.quoteCatalogName), 'Cotización registrada: ' + location.name)
+  assert.ok(Number.isFinite(location.lat) && Math.abs(location.lat) <= 90, 'Latitud válida: ' + location.name)
+  assert.ok(Number.isFinite(location.lon) && Math.abs(location.lon) <= 180, 'Longitud válida: ' + location.name)
+  assert.equal(location.coordinatePrecision, 'city-centroid', 'Punto geográfico aproximado: ' + location.name)
+}
+assert.ok(trackingQuoteCoordinates.length >= 185, 'Se preservan al menos 185 registros nuevos de Cotizaciones')
 const knownQuotePorts = new Set(
   [...source('../backend/Database/OfficialQuotesVideoLocations.sql').matchAll(/'seaport','([^']+)'/g)]
     .map(([, name]) => name)
@@ -418,6 +429,8 @@ for (const port of trackingPorts) {
 }
 assert.match(trackingRouteSource, /import trackingPorts from '.\/trackingPorts\.json'/,
   'Tracking utiliza el catálogo geográfico basado en Cotizaciones')
+assert.match(trackingRouteSource, /import trackingQuoteCoordinates from '.\/trackingQuoteCoordinates\.json'/,
+  'El rastreo incorpora las coordenadas vinculadas a Cotizaciones')
 const compiledTrackingRoute = tsCompiler.transpileModule(trackingRouteSource, {
   compilerOptions: {
     module: tsCompiler.ModuleKind.CommonJS, target: tsCompiler.ScriptTarget.ES2020,
@@ -428,8 +441,9 @@ const trackingRouteExports = {}
 runInNewContext(compiledTrackingRoute.outputText, {
   exports: trackingRouteExports,
   require: name => {
-    assert.equal(name, './trackingPorts.json', 'Tracking no debe añadir dependencias no previstas')
-    return trackingPorts
+    if (name === './trackingPorts.json') return trackingPorts
+    if (name === './trackingQuoteCoordinates.json') return trackingQuoteCoordinates
+    assert.fail('Tracking no debe importar otra dependencia: ' + name)
   }
 }, { timeout: 1000 })
 const journeyFor = values => trackingRouteExports.illustrativeJourney({
@@ -447,6 +461,11 @@ assert.equal(idtra12753.map(point => point.name).join(' -> '),
   'Shenzhen, China -> Balboa, Panamá', 'IDTRA 12753 tiene sus dos puertos ilustrativos')
 assert.equal(journeyFor({ origin: 'China', destination: 'Panamá' }).length, 0,
   'No inventar coordenadas para países genéricos')
+assert.equal(journeyFor({ portOfLoading: 'Altamira, México', portOfEntry: 'Veracruz, México' })
+  .map(point => point.name).join(' -> '), 'Altamira, México -> Veracruz, México',
+  'Se reconoce la ruta entre dos puertos con ciudades estatales verificadas')
+assert.equal(journeyFor({ portOfLoading: 'Shenzhen, China', portOfEntry: 'Miami, Estados Unidos' }).length, 2,
+  'Se reconocen rutas entre diferentes continentes con el catálogo ampliado')
 assert.equal(journeyFor({
   portOfLoading: 'Qingdao, China', routeStops: ['Mundra, India', 'Cristóbal, Panamá'],
   portOfEntry: 'Puerto Caldera, Costa Rica', destination: 'San José, Costa Rica'
