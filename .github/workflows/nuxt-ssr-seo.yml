@@ -14,6 +14,7 @@ on:
       - "scripts/start-main2-hybrid.ps1"
       - "scripts/start-main2-hybrid.sh"
       - "scripts/test-main2-hybrid-compose.py"
+      - "scripts/test-main2-hybrid-powershell.ps1"
       - "scripts/test-nuxt-*.sh"
       - "scripts/test-nuxt-*.py"
       - "deploy/nuxt-local-hybrid-gateway.conf"
@@ -33,6 +34,7 @@ on:
       - "scripts/start-main2-hybrid.ps1"
       - "scripts/start-main2-hybrid.sh"
       - "scripts/test-main2-hybrid-compose.py"
+      - "scripts/test-main2-hybrid-powershell.ps1"
       - "scripts/test-nuxt-*.sh"
       - "scripts/test-nuxt-*.py"
       - "deploy/nuxt-local-hybrid-gateway.conf"
@@ -41,6 +43,13 @@ on:
 permissions:
   contents: read
 jobs:
+  windows-powershell:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Windows PowerShell 5.1 gateway verification with mocked Docker
+        shell: powershell
+        run: .\scripts\test-main2-hybrid-powershell.ps1
   ssr:
     runs-on: ubuntu-latest
     steps:

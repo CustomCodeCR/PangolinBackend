@@ -38,6 +38,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-main2-hybrid
 
 Este procedimiento no elimina bases de datos, secretos, volúmenes ni contenedores de backend.
 
+## Verificación sin reconstruir Docker (Windows)
+
+Si 5173 y 8083 ya abren, no es necesario reiniciar nada. La comprobación de solo lectura es:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-main2-hybrid.ps1 -Action verify -BindIp 192.168.1.26
+```
+
+Verifica ambos gateways por etiquetas Docker, sus puertos reales y Servicios/Login por HTTP, sin recrear contenedores ni modificar volúmenes.
+
 ## macOS / Linux
 
 ```bash

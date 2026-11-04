@@ -3,7 +3,7 @@
 # Revert:  powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-main2-hybrid.ps1 -Action rollback
 [CmdletBinding()]
 param(
-    [ValidateSet('up', 'status', 'rollback')]
+    [ValidateSet('up', 'status', 'verify', 'rollback')]
     [string]$Action = 'up',
     [string]$BindIp = '127.0.0.1'
 )
@@ -39,6 +39,59 @@ function Invoke-Compose {
         throw "docker compose terminó con código $LASTEXITCODE. No se han borrado volúmenes."
     }
 }
+
+function Assert-GatewayBindings {
+    param([string]$BindIp)
+    foreach ($gateway in @(
+        @{ Name = 'nuxt-main2-gateway'; Port = '5173' },
+        @{ Name = 'nuxt-local-gateway'; Port = '8083' }
+    )) {
+        $serviceName = [string]$gateway['Name']
+        $expectedPort = [string]$gateway['Port']
+        # Use docker ps directly (which already works in Windows logs), not
+        # 'docker compose ps -q', which may return no ID after 'up' on Windows.
+        $ids = @(& docker ps --filter 'label=com.docker.compose.project=castrofallas' --filter "label=com.docker.compose.service=$serviceName" --format '{{.ID}}')
+        if ($LASTEXITCODE -ne 0 -or $ids.Count -ne 1 -or [string]::IsNullOrWhiteSpace([string]$ids[0])) {
+            throw "No hay exactamente un contenedor activo para $serviceName. Verificá docker ps."
+        }
+        $publishedJson = & docker inspect --format '{{json .NetworkSettings.Ports}}' ([string]$ids[0])
+        if ($LASTEXITCODE -ne 0) { throw "No se pudieron consultar los puertos de $serviceName." }
+        $published = $publishedJson | ConvertFrom-Json
+        $actualPorts = @($published.'80/tcp')
+        $matchingPorts = @($actualPorts | Where-Object {
+            [string]$_.HostIp -eq $BindIp -and [string]$_.HostPort -eq $expectedPort
+        })
+        if ($actualPorts.Count -ne 1 -or $matchingPorts.Count -ne 1) {
+            throw "El gateway $serviceName no publicó $($BindIp):$expectedPort. Revisá docker ps."
+        }
+    }
+    Write-Host 'Puertos reales comprobados: 5173 y 8083.'
+}
+function Assert-GatewayHttp {
+    param([string]$BindIp, [int]$Attempts = 1)
+    foreach ($port in @(5173, 8083)) {
+        $ready = $false
+        for ($attempt = 0; $attempt -lt $Attempts; $attempt++) {
+            try {
+                $public = Invoke-WebRequest -Uri "http://$($BindIp):$port/servicios/transporte-maritimo" -UseBasicParsing -TimeoutSec 8
+                $login = Invoke-WebRequest -Uri "http://$($BindIp):$port/bienvenidos" -UseBasicParsing -TimeoutSec 8
+                if ($public.StatusCode -eq 200 -and $public.Content -match 'service-landing-page' -and
+                    $login.StatusCode -eq 200 -and $login.Content -match 'id="app"') {
+                    $ready = $true
+                    break
+                }
+            } catch {
+                # Newly recreated services may need a moment before serving HTTP.
+            }
+            if ($attempt + 1 -lt $Attempts) { Start-Sleep -Seconds 2 }
+        }
+        if (-not $ready) {
+            throw "El puerto $port está publicado, pero Servicios o Login no respondió correctamente."
+        }
+    }
+    Write-Host 'HTTP verificado: Servicios y Login en 5173 y 8083.'
+}
+
 Push-Location $root
 try {
     if (!(Test-Path '.env')) { throw 'Falta .env. Ejecutá primero scripts/setup-docker.ps1 (sin sobrescribir tu .env actual).' }
@@ -65,6 +118,12 @@ try {
     switch ($Action) {
         'status' {
             Invoke-Compose -Arguments ($files + @('ps'))
+        }
+        'verify' {
+            # READ-ONLY: no Docker builds, restarts, stops or volume changes.
+            Assert-GatewayBindings -BindIp $BindIp
+            Assert-GatewayHttp -BindIp $BindIp -Attempts 1
+            Write-Host 'Verificación completada sin reconstruir ni reiniciar Docker.'
         }
         'rollback' {
             # Stopping only the gateway frees port 5173; databases and backend stay intact.
@@ -101,48 +160,8 @@ try {
             # Recreate JUST nginx, without dependencies or volumes, to apply port mappings.
             Invoke-Compose -Arguments ($files + @('up', '-d', '--no-deps', '--force-recreate', 'nuxt-local-gateway', 'nuxt-main2-gateway'))
             Invoke-Compose -Arguments ($files + @('ps'))
-            foreach ($gateway in $gatewayMap) {
-                # Native commands in Windows PowerShell may stringify '$gateway.Name' as
-                # a hashtable plus literal suffix. Resolve to a plain argument first.
-                $serviceName = [string]$gateway['Name']
-                $gatewayId = (& docker compose @files ps -q $serviceName | Select-Object -First 1)
-                if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($gatewayId)) {
-                    throw "No se pudo identificar el contenedor $($gateway.Name)."
-                }
-                $publishedJson = & docker inspect --format '{{json .NetworkSettings.Ports}}' $gatewayId
-                if ($LASTEXITCODE -ne 0) { throw "No se pudo inspeccionar $($gateway.Name)." }
-                $published = $publishedJson | ConvertFrom-Json
-                $actualPorts = @($published.'80/tcp')
-                $matchingPorts = @($actualPorts | Where-Object {
-                    [string]$_.HostPort -eq $gateway.Port -and [string]$_.HostIp -eq $BindIp
-                })
-                if ($matchingPorts.Count -ne 1 -or $actualPorts.Count -ne 1) {
-                    throw "El servicio $($gateway.Name) no publicó $($BindIp):$($gateway.Port). Revisá docker compose ps."
-                }
-            }
-            Write-Host 'Puertos del gateway verificados: 5173 y 8083.'
-
-            $probeIp = if ($BindIp -eq '127.0.0.1') { '127.0.0.1' } else { $BindIp }
-            $publicUrl = "http://$($probeIp):5173/servicios/transporte-maritimo"
-            $loginUrl = "http://$($probeIp):5173/bienvenidos"
-            $ready = $false
-            for ($attempt = 0; $attempt -lt 30; $attempt++) {
-                try {
-                    $public = Invoke-WebRequest -Uri $publicUrl -UseBasicParsing -TimeoutSec 8
-                    $private = Invoke-WebRequest -Uri $loginUrl -UseBasicParsing -TimeoutSec 8
-                    if ($public.StatusCode -eq 200 -and $public.Content -match 'service-landing-page' -and
-                        $private.StatusCode -eq 200 -and $private.Content -match 'id="app"') {
-                        $ready = $true
-                        break
-                    }
-                } catch {
-                    # Services may still be starting; report failure if final attempt also fails.
-                }
-                Start-Sleep -Seconds 2
-            }
-            if (-not $ready) {
-                throw 'El gateway arrancó, pero no pasó el smoke HTTP de Servicios/Login. Revisá docker compose logs; no se hizo rollback automático.'
-            }
+            Assert-GatewayBindings -BindIp $BindIp
+            Assert-GatewayHttp -BindIp $BindIp -Attempts 30
             Write-Host "Híbrido principal: http://$($probeIp):5173/"
             Write-Host "Híbrido alternativo: http://$($probeIp):8083/"
             Write-Host 'Vue/Vite para desarrollo: http://127.0.0.1:5174/'
