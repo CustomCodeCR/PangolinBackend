@@ -1393,5 +1393,77 @@
     "lon": -86.80249,
     "aliases": [],
     "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Baltimore, Estados Unidos",
+    "quoteCatalogName": "Baltimore, Estados Unidos",
+    "kind": "seaport",
+    "lat": 39.2908816,
+    "lon": -76.610759,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "New Orleans, Estados Unidos",
+    "quoteCatalogName": "New Orleans, Estados Unidos",
+    "kind": "seaport",
+    "lat": 29.95465,
+    "lon": -90.07507,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Port Newark-Elizabeth, Estados Unidos",
+    "quoteCatalogName": "Port Newark-Elizabeth, Estados Unidos",
+    "kind": "seaport",
+    "lat": 40.73566,
+    "lon": -74.17237,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Kodiak, Estados Unidos",
+    "quoteCatalogName": "Kodiak, Estados Unidos",
+    "kind": "airport",
+    "lat": 57.78852,
+    "lon": -152.40533,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Anchorage, Estados Unidos",
+    "quoteCatalogName": "Anchorage, Estados Unidos",
+    "kind": "airport",
+    "lat": 61.21806,
+    "lon": -149.90028,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Hartford, Estados Unidos",
+    "quoteCatalogName": "Hartford, Estados Unidos",
+    "kind": "airport",
+    "lat": 41.76371,
+    "lon": -72.68509,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Billings, Estados Unidos",
+    "quoteCatalogName": "Billings, Estados Unidos",
+    "kind": "airport",
+    "lat": 45.78329,
+    "lon": -108.50069,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bismarck, Estados Unidos",
+    "quoteCatalogName": "Bismarck, Estados Unidos",
+    "kind": "airport",
+    "lat": 46.80833,
+    "lon": -100.78374,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
   }
 ]
