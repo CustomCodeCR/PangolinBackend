@@ -225,12 +225,13 @@ assert.match(fieldDropdown, /html\.theme-dark \.content-manager\.is-embedded \.m
 assert.match(fieldDropdown, /html\.theme-dark \.app-site\.official-page \.cf-dropdown__trigger:focus-visible\s*\{\s*border-color:#a80e18;/, 'Cotizaciones conserva el resaltado rojo al enfocar los selectores')
 assert.match(fieldDropdown, /html\.theme-dark \.cf-dropdown__trigger\s*\{\s*border-color:#4f5365; background:#121a30; color:#fff;/, 'Mantener estilos ajenos a Cotizaciones intactos')
 assert.match(fieldDropdown, /font-size:14px;/, 'Texto normal de los desplegables igual a las fechas')
-assert.match(fieldDropdown, /if \(!placement\) placement = below < Math\.min\(300, naturalHeight\) && above > below \? 'above' : 'below'/, 'El menú conserva orientación estable con altura real')
+assert.match(fieldDropdown, /if \(!placement\) placement = below < Math\.min\(300, naturalHeight\) && above > below \? 'above' : 'below'/, 'El menú mantiene una orientación estable según su altura real')
 assert.match(fieldDropdown, /const renderedHeight = list\.getBoundingClientRect\(\)\.height/, 'El menú mide la altura realmente visible antes de ubicarse')
-assert.match(fieldDropdown, /const desiredTop = placement === 'above' \? rect\.top - renderedHeight - gap : rect\.bottom \+ gap/, 'El menú abre pegado al campo')
-assert.match(fieldDropdown, /window\.requestAnimationFrame\(trackMenu\)/, 'El menú sigue al campo durante desplazamientos')
-assert.match(fieldDropdown, /window\.cancelAnimationFrame\(trackingFrame\)/, 'No deja recursos de seguimiento abiertos')
-assert.match(fieldDropdown, /if \(outsideViewport \|\| clipped\) \{ closeMenu\(\); return \}/, 'Cierra opciones que quedan fuera de la zona visible')
+assert.match(fieldDropdown, /const desiredTop = placement === 'above' \? rect\.top - renderedHeight - gap : rect\.bottom \+ gap/, 'El menú abre pegado al campo sin espacio artificial arriba')
+assert.match(fieldDropdown, /window\.requestAnimationFrame\(trackMenu\)/, 'El menú sigue al campo durante desplazamiento asíncrono y momentum')
+assert.match(fieldDropdown, /window\.cancelAnimationFrame\(trackingFrame\)/, 'Detener el seguimiento del menú cerrado')
+assert.match(fieldDropdown, /clippingAncestors\.some\(parent =>/, 'Cerrar menús que quedan fuera del área visible del formulario')
+assert.match(fieldDropdown, /if \(outsideViewport \|\| clipped\) \{ closeMenu\(\); return \}/, 'No dejar menús huérfanos al desplazarse')
 assert.doesNotMatch(fieldDropdown, /rect\.top - maxHeight/, 'No colocar el menú utilizando un máximo de altura diferente a su altura real')
 assert.match(fieldDropdown, /isOpen\.value = true[\s\S]*?void nextTick\(\(\) => \{[\s\S]*?positionMenu\(\)/, 'Medir el menú tras montarlo en el DOM')
 assert.match(fieldDropdown, /visibility: isPositioned \? 'visible' : 'hidden'/, 'Evitar salto visual antes de medir la lista')
@@ -338,7 +339,20 @@ assert.doesNotMatch(tracking, /\/api\/tracking\/demo\?/, 'La interfaz pública y
 assert.match(tracking, /<label for="tracking-reference-kind">/, 'Tipo de referencia debe tener una etiqueta separada del select')
 assert.match(tracking, /import FieldDropdown from '\.\.\/components\/FieldDropdown\.vue'/, 'Buscar embarque reutiliza el mismo componente de selección que Administración')
 assert.match(tracking, /id="tracking-reference-kind"[\s\S]*?v-model="kind"[\s\S]*?:aria-label="copy\.type"/, 'Tipo de referencia mantiene etiqueta y selección accesibles')
-assert.match(tracking, /types\.map\(item => \(\{ value: item\.id, label: item\.name \}\)\)/, 'Las cinco referencias mantienen sus valores originales')
+assert.match(tracking, /types\.map\(item => \(\{ value: item\.id, label: item\.name \}\)\)/, 'El selector conserva los identificadores al generar opciones')
+const referenceOptions = tracking.split('const types = computed(() => en.value ? [')[1]?.split('])\nconst help')[0]
+assert.ok(referenceOptions, 'El selector bilingüe de rastreo está disponible')
+const [englishOptions, spanishOptions] = referenceOptions.split('] : [')
+for (const [language, options] of [['en', englishOptions], ['es', spanishOptions]]) {
+  assert.deepEqual(
+    [...options.matchAll(/\{ id: '([^']+)'/g)].map(match => match[1]),
+    ['BL', 'IDTRA', 'CONTAINER', 'PO'],
+    'BL/HBL unificados, con IDTRA, contenedor y PO conservados: ' + language
+  )
+}
+assert.match(tracking, /name: 'BL-HBL number \(BCF\)'/, 'Etiqueta de BL/HBL unificados en inglés')
+assert.match(tracking, /name: 'Número BL-HBL \(BCF\)'/, 'Etiqueta de BL/HBL unificados en español')
+assert.match(tracking, /body: JSON\.stringify\(\{ type: kind\.value, reference: code \}\)/, 'El selector unificado conserva el contrato de la consulta Dynamics')
 assert.doesNotMatch(tracking, /tracking-reference-select|tracking-reference-options|referenceMenuOpen/, 'No duplicar componentes de dropdown con estilos propios')
 assert.match(tracking, /\.tracking-fields :deep\(\.cf-dropdown__trigger\)\{min-height:54px;padding:13px 15px;font-size:16px\}/, 'Tipo de referencia conserva tamaño táctil y estilo del componente hijo en móvil')
 assert.match(fieldDropdown, /html\.theme-dark \.cf-dropdown__menu\s*\{\s*background:#19191c; color:#fff;/, 'Menú de referencia respeta el modo oscuro compartido')
