@@ -1663,5 +1663,235 @@
     "lon": -0.4909444,
     "aliases": [],
     "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Buenos Aires, Argentina",
+    "quoteCatalogName": "Buenos Aires, Argentina",
+    "kind": "seaport",
+    "lat": -34.61315,
+    "lon": -58.37723,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://www.geonames.org/3435910"
+  },
+  {
+    "name": "Chongqing, China",
+    "quoteCatalogName": "Chongqing, China",
+    "kind": "seaport",
+    "lat": 29.57,
+    "lon": 106.55,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://ungegn.un.org/dashboard/cities/details?id=1959"
+  },
+  {
+    "name": "Hazira, India",
+    "quoteCatalogName": "Hazira, India",
+    "kind": "seaport",
+    "lat": 21.1076,
+    "lon": 72.65115,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://ship-tracker.org/port-of-hazira/"
+  },
+  {
+    "name": "Hong Kong, China",
+    "quoteCatalogName": "Hong Kong, China",
+    "kind": "seaport",
+    "lat": 22.25,
+    "lon": 114.16667,
+    "aliases": [],
+    "coordinatePrecision": "regional-centroid",
+    "coordinateSource": "https://www.geonames.org/1819730"
+  },
+  {
+    "name": "Kattupalli, India",
+    "quoteCatalogName": "Kattupalli, India",
+    "kind": "seaport",
+    "lat": 13.304198,
+    "lon": 80.332047,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://www.geonames.org/search.html?country=IN&q=Tiruvall%C5%ABr&startRow=50"
+  },
+  {
+    "name": "Keelung, Taiwán",
+    "quoteCatalogName": "Keelung, Taiwán",
+    "kind": "seaport",
+    "lat": 25.13089,
+    "lon": 121.74094,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://www.geonames.org/1678228/keelung.html"
+  },
+  {
+    "name": "Laem Chabang, Tailandia",
+    "quoteCatalogName": "Laem Chabang, Tailandia",
+    "kind": "seaport",
+    "lat": 13.08775,
+    "lon": 100.88433,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://www.geonames.org/advanced-search.html?country=TH&q=&startRow=200"
+  },
+  {
+    "name": "Manzanillo, Panamá",
+    "quoteCatalogName": "Manzanillo, Panamá",
+    "kind": "seaport",
+    "lat": 9.360901,
+    "lon": -79.882632,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://www.geonames.org/advanced-search.html?country=PA&q=&startRow=600"
+  },
+  {
+    "name": "Manzanillo, Panamá",
+    "quoteCatalogName": "Manzanillo, Panamá",
+    "kind": "inland",
+    "lat": 9.360901,
+    "lon": -79.882632,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://www.geonames.org/advanced-search.html?country=PA&q=&startRow=600"
+  },
+  {
+    "name": "Pecém, Brasil",
+    "quoteCatalogName": "Pecém, Brasil",
+    "kind": "seaport",
+    "lat": -3.5487563,
+    "lon": -38.814765,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://es.wikipedia.org/wiki/Puerto_de_Pec%C3%A9m"
+  },
+  {
+    "name": "Puerto Moín, Costa Rica",
+    "quoteCatalogName": "Puerto Moín, Costa Rica",
+    "kind": "seaport",
+    "lat": 10.00423,
+    "lon": -83.07649,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://www.geonames.org/10300300"
+  },
+  {
+    "name": "Puerto Quetzal, Guatemala",
+    "quoteCatalogName": "Puerto Quetzal, Guatemala",
+    "kind": "seaport",
+    "lat": 13.920571,
+    "lon": -90.786767,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://www.geonames.org/search.html?country=GT&q=Guatemala&startRow=150"
+  },
+  {
+    "name": "Rodman, Panamá",
+    "quoteCatalogName": "Rodman, Panamá",
+    "kind": "seaport",
+    "lat": 8.9527,
+    "lon": -79.5744,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://service-finder.shipsgo.com/ports/parod"
+  },
+  {
+    "name": "Samsun, Turquía",
+    "quoteCatalogName": "Samsun, Turquía",
+    "kind": "seaport",
+    "lat": 41.27976,
+    "lon": 36.3361,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://www.geonames.org/search.html?country=TR"
+  },
+  {
+    "name": "Tanjung Priok, Indonesia",
+    "quoteCatalogName": "Tanjung Priok, Indonesia",
+    "kind": "seaport",
+    "lat": -6.1136111,
+    "lon": 106.8908333,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://www.geonames.org/advanced-search.html?country=ID&q=Jakarta"
+  },
+  {
+    "name": "Port Willemstad, Curazao",
+    "quoteCatalogName": "Port Willemstad, Curazao",
+    "kind": "seaport",
+    "lat": 12.116667,
+    "lon": -68.933333,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://www.trackipi.com/port/willemstad/cw-wil/"
+  },
+  {
+    "name": "Port Willemstad, Curazao",
+    "quoteCatalogName": "Port Willemstad, Curazao",
+    "kind": "inland",
+    "lat": 12.116667,
+    "lon": -68.933333,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://www.trackipi.com/port/willemstad/cw-wil/"
+  },
+  {
+    "name": "Río Haina, República Dominicana",
+    "quoteCatalogName": "Río Haina, República Dominicana",
+    "kind": "seaport",
+    "lat": 18.41697,
+    "lon": -70.0198333,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://portuaria.gob.do/puertos/puerto-rio-haina/"
+  },
+  {
+    "name": "Santo Tomás de Castilla, Guatemala",
+    "quoteCatalogName": "Santo Tomás de Castilla, Guatemala",
+    "kind": "inland",
+    "lat": 15.696681,
+    "lon": -88.616512,
+    "aliases": [],
+    "coordinatePrecision": "port-approximation",
+    "coordinateSource": "https://www.geonames.org/search.html?country=GT&q=&startRow=50"
+  },
+  {
+    "name": "Archangelsk, Rusia",
+    "quoteCatalogName": "Archangelsk, Rusia",
+    "kind": "airport",
+    "lat": 64.5461,
+    "lon": 40.55183,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://www.geonames.org/581049/arkhangel-sk.html"
+  },
+  {
+    "name": "Asunción, Paraguay",
+    "quoteCatalogName": "Asunción, Paraguay",
+    "kind": "airport",
+    "lat": -25.28312494,
+    "lon": -57.50917437,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://ungegn.un.org/dashboard/cities/details?id=186"
+  },
+  {
+    "name": "Assiut, Egipto",
+    "quoteCatalogName": "Assiut, Egipto",
+    "kind": "airport",
+    "lat": 27.18096,
+    "lon": 31.18368,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://www.geonames.org/359783/assiut.html"
+  },
+  {
+    "name": "Belgrad, Serbia",
+    "quoteCatalogName": "Belgrad, Serbia",
+    "kind": "airport",
+    "lat": 44.80401,
+    "lon": 20.46513,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid",
+    "coordinateSource": "https://www.geonames.org/792680/belgrade.html"
   }
 ]
