@@ -892,20 +892,23 @@ html.theme-dark .app-site.tracking-site
   grid-template-columns: minmax(0, 1fr);
   align-items: center;
   margin: 22px 0 18px;
-  padding: 22px 24px;
+  padding: 22px clamp(18px, 2vw, 28px);
   border: 1px solid rgba(181, 9, 40, .15);
   border-radius: 24px;
   background: linear-gradient(115deg, rgba(181, 9, 40, .07), rgba(255, 255, 255, .06));
 }
-/* Keep the full-width card, but group the actual route details in a
-   readable, centered band on widescreen displays. */
+/* Full-width route: equal side padding, origin aligned left, destination right.
+   The arrow stays in the central column on wide screens. */
 .app-site.tracking-site .tracking-demo-result__route-content {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr);
   align-items: center;
   gap: clamp(16px, 2vw, 28px);
-  width: min(100%, 820px);
-  margin-inline: auto;
+  width: 100%;
+  min-width: 0;
+}
+.app-site.tracking-site .tracking-demo-result__route-stop--destination {
+  justify-self: end;
 }
 .app-site.tracking-site .tracking-demo-result__route-stop {
   display: flex;
@@ -1139,6 +1142,9 @@ html.theme-dark .app-site.tracking-site .tracking-journey__step.is-current .trac
   .app-site.tracking-site .tracking-demo-result__route-content {
     grid-template-columns: minmax(0, 1fr);
     gap: 12px;
+  }
+  .app-site.tracking-site .tracking-demo-result__route-stop--destination {
+    justify-self: start;
   }
   .app-site.tracking-site .tracking-demo-result__route-stop strong { font-size: 18px; }
   .app-site.tracking-site .tracking-demo-result__route-connector {
