@@ -34,31 +34,63 @@ defineProps<{ glyph: string }>()
       stroke="var(--tracking-model-light)" stroke-width="1.8" stroke-linecap="round" opacity=".75" />
   </svg>
 
+  <!-- Sleek three-quarter-view cargo jet: fuselage, swept wings,
+       tail fin, engine nacelles and separate light / shadow planes. -->
   <svg v-else-if="glyph === '✈'" class="tracking-transport-model tracking-transport-model--plane"
-    viewBox="0 0 100 62" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    viewBox="0 0 120 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <defs>
       <linearGradient id="tracking-plane-body-3d" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" style="stop-color:var(--tracking-model-highlight)" />
-        <stop offset="48%" style="stop-color:var(--tracking-model-main)" />
+        <stop offset="42%" style="stop-color:var(--tracking-model-light)" />
+        <stop offset="70%" style="stop-color:var(--tracking-model-main)" />
         <stop offset="100%" style="stop-color:var(--tracking-model-shade)" />
       </linearGradient>
       <linearGradient id="tracking-plane-wing-3d" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" style="stop-color:var(--tracking-model-light)" />
-        <stop offset="100%" style="stop-color:var(--tracking-model-main)" />
+        <stop offset="0%" style="stop-color:var(--tracking-model-highlight)" />
+        <stop offset="58%" style="stop-color:var(--tracking-model-light)" />
+        <stop offset="100%" style="stop-color:var(--tracking-model-shade)" />
+      </linearGradient>
+      <linearGradient id="tracking-plane-engine-3d" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" style="stop-color:var(--tracking-model-highlight)" />
+        <stop offset="100%" style="stop-color:var(--tracking-model-shade)" />
       </linearGradient>
     </defs>
-    <path d="M14 30 8 20 21 22 29 29Z" fill="var(--tracking-model-shade)" />
-    <path d="m14 34-7 9 15-2 9-7Z" fill="var(--tracking-model-light)" />
-    <path d="M38 27 51 6 65 5 60 28Z" fill="url(#tracking-plane-wing-3d)" />
-    <path d="m39 34 14 22 15 1-8-23Z" fill="var(--tracking-model-shade)" />
-    <path d="m39 34 15 18 10 2-8-21Z" fill="var(--tracking-model-light)" opacity=".7" />
-    <path d="M8 28 75 25q15 0 19 5 3 6-18 7L9 35Z" fill="url(#tracking-plane-body-3d)" />
-    <path d="M13 29 76 27q11 0 15 3" fill="none" stroke="var(--tracking-model-highlight)"
-      stroke-width="2.2" opacity=".8" stroke-linecap="round" />
-    <path d="m42 28 15-20 12-1-10 21Z" fill="var(--tracking-model-highlight)" opacity=".8" />
-    <path d="M71 30h6m-13 0h4m-11 0h4" stroke="var(--tracking-model-window)" stroke-width="2.8"
-      stroke-linecap="round" />
-    <path d="m20 35 44 1" stroke="var(--tracking-model-highlight)" stroke-width="1" opacity=".75" />
+    <!-- Rear tailplane and vertical stabilizer sit behind the fuselage. -->
+    <path d="M13 32 6 24 27 26 39 33Z" fill="var(--tracking-model-light)" />
+    <path d="M18 34 8 12 15 10 31 33Z" fill="url(#tracking-plane-wing-3d)" />
+    <path d="M13 38 5 47 27 44 40 37Z" fill="var(--tracking-model-shade)" />
+    <path d="M14 15 26 31" stroke="var(--tracking-model-highlight)" stroke-width="1.4"
+      opacity=".8" stroke-linecap="round" />
+    <!-- Far swept wing, with a highlighted leading edge. -->
+    <path d="M43 30 59 7 69 4 77 7 66 33Z" fill="var(--tracking-model-shade)" />
+    <path d="M44 30 61 8 72 7 62 32Z" fill="url(#tracking-plane-wing-3d)" />
+    <path d="m49 27 13-17 8-2" stroke="var(--tracking-model-highlight)"
+      stroke-width="1.9" opacity=".78" fill="none" stroke-linecap="round" />
+    <!-- Long, tapered fuselage and sharply shaped nose. -->
+    <path d="M11 33 C26 28 59 26 88 26 C101 26 111 29 117 33
+      C111 38 101 41 88 41 L25 41 C14 40 9 38 11 33Z"
+      fill="url(#tracking-plane-body-3d)" />
+    <path d="M16 33 C42 30 81 29 102 30" stroke="var(--tracking-model-highlight)"
+      stroke-width="1.9" opacity=".85" fill="none" stroke-linecap="round" />
+    <path d="M25 38 Q64 41 96 38" stroke="var(--tracking-model-shade)"
+      stroke-width="1.4" opacity=".45" fill="none" />
+    <!-- Cockpit glazing and understated cabin windows. -->
+    <path d="m95 28 8 1.2 7 3.1-14 .3Z" fill="var(--tracking-model-window)" />
+    <path d="m99 29 4 1 3 1.4" fill="none" stroke="var(--tracking-model-highlight)"
+      stroke-width="1" stroke-linecap="round" />
+    <path d="M86 32h3m-10 0h3m-10 0h3m-10 0h3" stroke="var(--tracking-model-window)"
+      stroke-width="2.1" stroke-linecap="round" />
+    <!-- Near wing and two small jet engines give the silhouette depth. -->
+    <path d="M46 35 68 58 82 60 67 36Z" fill="var(--tracking-model-shade)" />
+    <path d="m48 35 23 20 9 3-16-22Z" fill="url(#tracking-plane-wing-3d)" />
+    <path d="m52 37 19 17" stroke="var(--tracking-model-highlight)"
+      stroke-width="1.7" opacity=".7" fill="none" stroke-linecap="round" />
+    <path d="M65 41q5-3 11 0l5 8q-6 3-12 0Z" fill="url(#tracking-plane-engine-3d)" />
+    <path d="M70 42q5-2 7 1" stroke="var(--tracking-model-highlight)"
+      stroke-width="1.6" fill="none" stroke-linecap="round" />
+    <path d="M84 40q3-2 7 0l4 5q-4 2-7 0Z" fill="url(#tracking-plane-engine-3d)" />
+    <path d="M34 36 91 35" stroke="var(--tracking-model-accent, #b50928)"
+      stroke-width="1.1" opacity=".8" stroke-linecap="round" />
   </svg>
 
   <svg v-else-if="glyph === 'truck'" class="tracking-transport-model tracking-transport-model--truck"
@@ -101,9 +133,9 @@ defineProps<{ glyph: string }>()
   overflow:visible;
   filter:drop-shadow(0 2px 2px rgba(0,0,0,.3));
 }
-.tracking-transport-model--plane{width:60px}
+.tracking-transport-model--plane{width:70px;height:40px}
 @media (max-width:580px){
   .tracking-transport-model{width:45px;height:32px}
-  .tracking-transport-model--plane{width:47px}
+  .tracking-transport-model--plane{width:54px;height:32px}
 }
 </style>
