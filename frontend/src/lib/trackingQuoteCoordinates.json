@@ -916,5 +916,95 @@
     "lon": 141.4512,
     "aliases": [],
     "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Chittagong, Bangladesh",
+    "quoteCatalogName": "Chittagong, Bangladesh",
+    "kind": "seaport",
+    "lat": 22.4875,
+    "lon": 91.96333,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Colombo, Sri Lanka",
+    "quoteCatalogName": "Colombo, Sri Lanka",
+    "kind": "seaport",
+    "lat": 6.93548,
+    "lon": 79.84868,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Dili, Timor-Leste",
+    "quoteCatalogName": "Dili, Timor-Leste",
+    "kind": "seaport",
+    "lat": -8.55861,
+    "lon": 125.57361,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Durban, Sudáfrica",
+    "quoteCatalogName": "Durban, Sudáfrica",
+    "kind": "seaport",
+    "lat": -29.8579,
+    "lon": 31.0292,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Gdynia, Polonia",
+    "quoteCatalogName": "Gdynia, Polonia",
+    "kind": "seaport",
+    "lat": 54.51889,
+    "lon": 18.53188,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Guayaquil, Ecuador",
+    "quoteCatalogName": "Guayaquil, Ecuador",
+    "kind": "seaport",
+    "lat": -2.19616,
+    "lon": -79.88621,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Hamburgo, Alemania",
+    "quoteCatalogName": "Hamburgo, Alemania",
+    "kind": "seaport",
+    "lat": 53.57532,
+    "lon": 10.01534,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Aswan, Egipto",
+    "quoteCatalogName": "Aswan, Egipto",
+    "kind": "airport",
+    "lat": 24.09082,
+    "lon": 32.89942,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Belfast, Reino Unido",
+    "quoteCatalogName": "Belfast, Reino Unido",
+    "kind": "airport",
+    "lat": 54.59682,
+    "lon": -5.92541,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Birmingham, Reino Unido",
+    "quoteCatalogName": "Birmingham, Reino Unido",
+    "kind": "airport",
+    "lat": 52.48142,
+    "lon": -1.89983,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
   }
 ]
