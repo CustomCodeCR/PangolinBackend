@@ -53,26 +53,43 @@ no confirma la terminal del embarque. El registro base contiene Qingdao,
 Caldera, Mundra, Cristóbal, San José, Balboa, Shenzhen, Busan y Callao.
 
 Se incorpora además `frontend/src/lib/trackingQuoteCoordinates.json` con
-**185 entradas** de Cotizaciones georreferenciadas con puntos de referencia
-de ciudad (no terminales portuarias ni GPS). La base del mapa y el catálogo
-ampliado identifican **190 de los 217 registros** del catálogo parcial
-`OfficialQuotesVideoLocations.sql`. Quedan **27 registros pendientes** por
-ambigüedad del nombre, ausencia de un centroide inequívoco o necesidad de
-verificación del terminal. No se les asignan coordenadas inventadas. Los
-registros repetidos por modalidad se cuentan según su presencia en Cotizaciones.
+**208 registros georreferenciados de Cotizaciones**. Contando el catálogo
+anterior del globo, la cobertura es de **213 de los 217 registros** del catálogo
+parcial `OfficialQuotesVideoLocations.sql` (varias modalidades pueden compartir
+el mismo nombre). No se alteran la base de Cotizaciones, la API ni Dynamics.
 
-**Origen y licencia de la geografía:** los centroides de ciudad provienen de
-[World Countries, States & Cities Database de Santiago Restrepo](https://github.com/srestre/world-countries-cities-db),
-que deriva de la base `dr5hn/countries-states-cities-database`. Los datos
-están disponibles bajo la [Open Database License (ODbL) v1.0](https://opendatacommons.org/licenses/odbl/1-0/);
-las coordenadas adaptadas de `trackingQuoteCoordinates.json` están sujetas
-a esa misma licencia. Los nombres de Cotizaciones corresponden al catálogo
-propio del proyecto y no cambian. Las coordenadas ilustrativas se basan en
-ciudades, no en instalaciones específicas, y deben validarse operativamente
-si se requiere precisión de terminal.
+Los puntos son orientativos. `coordinatePrecision` distingue centroides de
+ciudad, centroides regionales y aproximaciones de puertos. Cada punto contrastado
+adicionalmente tiene una URL `coordinateSource` para auditoría. No se muestran
+posición real de barcos, aeropuertos/terminales exactos si no fueron confirmados,
+ni seguimiento GPS. El mapa solo construye la trayectoria con las ubicaciones
+reconocidas y efectivamente mencionadas en el embarque.
 
-Cuando quedan menos de dos puntos reconocidos, el globo muestra su vista
-predeterminada con aviso de ruta no disponible.
+**Orígenes y atribución de los datos geográficos:**
+- Los primeros 185 registros provienen de [World Countries, States & Cities
+  Database de Santiago Restrepo](https://github.com/srestre/world-countries-cities-db),
+  derivada de `dr5hn/countries-states-cities-database`, bajo licencia
+  [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/).
+- Los 23 registros nuevos se contrastaron con fuentes específicas indicadas
+  en `coordinateSource`, entre ellas [GeoNames](https://www.geonames.org/)
+  ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)), fuentes
+  de Naciones Unidas y administraciones portuarias. Los materiales de cada
+  fuente conservan sus propias condiciones de atribución.
+- El conjunto de datos derivado debe respetar tanto las obligaciones de la base
+  ODbL como las atribuciones de las fuentes adicionales.
+
+**Cuatro referencias pendientes de validación operativa:**
+- `Dong Nai, Vietnam`: el operador posee varias terminales con coordenadas
+  diferentes, sin identificar la terminal concreta en el catálogo.
+- `Wilmington, Estados Unidos`: hay puertos en distintos estados con ese nombre.
+- `Coyol, Costa Rica`: existen varias localidades con ese nombre; hay que
+  confirmar si se refiere al centro logístico de Alajuela.
+- `St. George, Antigua y Barbuda`: la referencia aérea no identifica de forma
+  inequívoca el aeropuerto o municipio.
+
+Estas cuatro referencias NO se geolocalizan por aproximación arbitraria. Los
+registros ya reconocidos permanecen disponibles y, cuando quedan menos de dos
+puntos diferentes, el globo muestra su vista predeterminada con aviso.
 
 La animación conserva un único vehículo y una estela que siguen el recorrido
 ilustrativo, no posiciones GPS, trayectos verificados ni porcentajes de avance
