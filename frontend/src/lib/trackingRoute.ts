@@ -1,6 +1,8 @@
 // Approximate geographic points for illustration only; never vessel GPS.
-// trackingQuoteCoordinates.json contains city-centroid data (ODbL v1.0) and
-// is kept separate from the official quote catalog and its operational data.
+// trackingQuoteCoordinates.json contains approximate city and port geography:
+// the original city dataset is ODbL 1.0; additional locations retain per-source
+// attribution (see docs/DHOLE-TRACKING-PREVIEW.md). This data is separate from
+// the official quote database and its operational data.
 // The quoteCatalogName entries reuse verified names from the official quote catalog
 // without changing its database, selectable locations or API.
 import type { TrackingPoint } from '../types/tracking'
