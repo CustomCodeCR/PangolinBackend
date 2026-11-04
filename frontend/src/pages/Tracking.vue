@@ -126,7 +126,11 @@ const globeRoute = computed(() => {
   const stops = illustrativeJourney(shipment.value)
   if (stops.length < 2) return null
   const mode = (shipment.value.mode ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-  const transport: 'air' | 'sea' | 'land' | null = /aere|air|avion/.test(mode) ? 'air'
+  // La modalidad multimodal debe identificarse explícitamente; varias escalas
+  // no significan necesariamente un cambio de barco a camión.
+  const transport: 'air' | 'sea' | 'land' | 'multimodal' | null =
+    /multi[\s-]?modal|intermodal|combinad|combined/.test(mode) ? 'multimodal'
+    : /aere|air|avion/.test(mode) ? 'air'
     : /marit|sea|ocean|barco/.test(mode) ? 'sea'
     : /terrest|land|road|truck/.test(mode) ? 'land' : null
   return { origin: stops[0], destination: stops[stops.length - 1], stops, transport }
