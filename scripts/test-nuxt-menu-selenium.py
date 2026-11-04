@@ -30,6 +30,29 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896
             driver.refresh()
             wait = WebDriverWait(driver, 22)
             wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".nav-dropdown--services")))
+            # Large-logo regression from PR #143, with responsive collision guard.
+            brand = driver.execute_script("""
+              const img = document.querySelector('.site-header .site-brand img');
+              const toggle = document.querySelector('.site-header .menu-toggle');
+              if (!img || !toggle) return null;
+              const a = img.getBoundingClientRect(), t = toggle.getBoundingClientRect();
+              return {width:a.width, height:a.height, right:a.right,
+                toggleLeft:t.left, toggleDisplay:getComputedStyle(toggle).display};
+            """)
+            assert brand, f"Header brand missing: {label}/{theme}"
+            expected_width = 144 if width <= 1080 else 157.5
+            maximum_height = 56 if width <= 1080 else 66
+            assert abs(brand["width"] - expected_width) <= 2, (
+                f"Logo size lost in {label}/{theme}: {brand}"
+            )
+            assert brand["height"] <= maximum_height + 1, (
+                f"Logo overflows header in {label}/{theme}: {brand}"
+            )
+            if width <= 1080:
+                assert brand["toggleDisplay"] != "none", f"Menu toggle hidden: {label}/{theme}"
+                assert brand["right"] <= brand["toggleLeft"] - 8, (
+                    f"Large logo overlaps menu toggle in {label}/{theme}: {brand}"
+                )
             if width <= 1080:
                 wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
             wait.until(EC.element_to_be_clickable((

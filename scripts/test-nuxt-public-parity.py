@@ -62,6 +62,19 @@ def snapshot(driver, base, route):
         gioCount: document.querySelectorAll('button.site-assistant__mascot').length,
         progressCount: document.querySelectorAll('button.scroll-progress-button').length,
         heroCms: hero ? getComputedStyle(hero).backgroundImage.includes('/api/content/media/') : null,
+        unifiedService: (() => {
+          const page = document.querySelector('.service-landing-page');
+          if (!page) return null;
+          const image = page.querySelector('.service-landing-hero__media img');
+          return {
+            hasHero: !!page.querySelector('.service-landing-hero__grid'),
+            hasCards: !!page.querySelector('.service-landing-card-grid'),
+            cardCount: page.querySelectorAll('.service-landing-card').length,
+            faqCount: page.querySelectorAll('.service-landing-faq__item').length,
+            image: image ? new URL(image.getAttribute('src'), location.href).pathname : null,
+            quoteHref: page.querySelector('.service-landing-hero__copy a[href*="/cotizaciones"]')?.getAttribute('href') || ''
+          };
+        })(),
         errorScreen: /502 Bad Gateway|503 Service Unavailable|404 · Página no encontrada/.test(
           document.body.innerText.slice(0, 400)
         )
@@ -107,6 +120,14 @@ try:
             assert old["heroCms"] and new["heroCms"], (
                 f"Published CMS hero background not present in both apps: {old}, {new}"
             )
+        if route.startswith("/servicios/"):
+            assert old["unifiedService"] == new["unifiedService"], (
+                f"Unified services differ between Vue and Nuxt: {route}, Vue={old['unifiedService']}, Nuxt={new['unifiedService']}"
+            )
+            service = new["unifiedService"]
+            assert service and service["hasHero"] and service["hasCards"], f"Missing unified services layout: {route}"
+            assert service["cardCount"] >= 2 and service["faqCount"] >= 2, f"Missing services content: {route}: {service}"
+            assert service["image"] and service["quoteHref"], f"Service image or quote link missing: {route}: {service}"
         print(f"PASS public parity {route}: H1, internal links, published CMS assets", flush=True)
 finally:
     driver.quit()
