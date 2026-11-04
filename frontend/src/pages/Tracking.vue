@@ -479,14 +479,16 @@ onBeforeUnmount(() => {
                 <span>{{ customerUpdateText }}</span>
               </p>
               <div class="tracking-demo-result__route" :aria-label="en ? 'Shipment route' : 'Ruta del embarque'">
-                <div class="tracking-demo-result__route-stop">
-                  <span class="tracking-demo-result__route-icon"><IconSymbol glyph="⌖" :size="19" /></span>
-                  <div><span>{{ copy.origin }}</span><strong>{{ shipment.origin || '—' }}</strong></div>
-                </div>
-                <span class="tracking-demo-result__route-connector" aria-hidden="true"><IconSymbol glyph="→" :size="19" /></span>
-                <div class="tracking-demo-result__route-stop tracking-demo-result__route-stop--destination">
-                  <span class="tracking-demo-result__route-icon"><IconSymbol glyph="⌖" :size="19" /></span>
-                  <div><span>{{ copy.destination }}</span><strong>{{ shipment.destination || '—' }}</strong></div>
+                <div class="tracking-demo-result__route-content">
+                  <div class="tracking-demo-result__route-stop">
+                    <span class="tracking-demo-result__route-icon"><IconSymbol glyph="⌖" :size="19" /></span>
+                    <div><span>{{ copy.origin }}</span><strong>{{ shipment.origin || '—' }}</strong></div>
+                  </div>
+                  <span class="tracking-demo-result__route-connector" aria-hidden="true"><IconSymbol glyph="→" :size="19" /></span>
+                  <div class="tracking-demo-result__route-stop tracking-demo-result__route-stop--destination">
+                    <span class="tracking-demo-result__route-icon"><IconSymbol glyph="⌖" :size="19" /></span>
+                    <div><span>{{ copy.destination }}</span><strong>{{ shipment.destination || '—' }}</strong></div>
+                  </div>
                 </div>
               </div>
               <section v-if="journeyStage !== null" class="tracking-journey" :aria-label="en ? 'Shipment journey' : 'Recorrido del embarque'">
@@ -887,14 +889,23 @@ html.theme-dark .app-site.tracking-site
 /* Turn the result into a route summary plus a lighter, icon-led information grid. */
 .app-site.tracking-site .tracking-demo-result__route {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  gap: 18px;
   margin: 22px 0 18px;
   padding: 22px 24px;
   border: 1px solid rgba(181, 9, 40, .15);
   border-radius: 24px;
   background: linear-gradient(115deg, rgba(181, 9, 40, .07), rgba(255, 255, 255, .06));
+}
+/* Keep the full-width card, but group the actual route details in a
+   readable, centered band on widescreen displays. */
+.app-site.tracking-site .tracking-demo-result__route-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(16px, 2vw, 28px);
+  width: min(100%, 820px);
+  margin-inline: auto;
 }
 .app-site.tracking-site .tracking-demo-result__route-stop {
   display: flex;
@@ -919,7 +930,7 @@ html.theme-dark .app-site.tracking-site
   font-size: 12px;
   font-weight: 750;
 }
-.app-site.tracking-site .tracking-demo-result__route-stop strong { overflow-wrap: anywhere; font-size: 18px; }
+.app-site.tracking-site .tracking-demo-result__route-stop strong { overflow-wrap: anywhere; font-size: clamp(18px, 1.45vw, 24px); line-height: 1.25; }
 .app-site.tracking-site .tracking-demo-result__route-connector {
   display: grid;
   width: 42px;
@@ -1122,10 +1133,14 @@ html.theme-dark .app-site.tracking-site .tracking-journey__step.is-current .trac
 @media (max-width: 580px) {
   .app-site.tracking-site .tracking-demo-result__route {
     grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
     padding: 18px;
     border-radius: 21px;
   }
+  .app-site.tracking-site .tracking-demo-result__route-content {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .app-site.tracking-site .tracking-demo-result__route-stop strong { font-size: 18px; }
   .app-site.tracking-site .tracking-demo-result__route-connector {
     width: 34px;
     height: 34px;
