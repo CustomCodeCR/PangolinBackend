@@ -662,10 +662,10 @@ function useMediaForNews(item: ManagedMedia) {
 ]" @update:model-value="selectAdminTransport" /></div>
             <ItineraryLocationPicker v-model="itineraryForm.origin" :options="adminOriginOptions"
               :loading="adminLocationsLoading" :error="adminLocationsError" :label="en ? 'Origin' : 'Origen'"
-              :placeholder="en ? 'Search origin' : 'Buscar origen'" required />
+              :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" required />
             <ItineraryLocationPicker v-model="itineraryForm.destination" :options="adminDestinationOptions"
               :loading="adminLocationsLoading" :error="adminLocationsError" :label="en ? 'Destination' : 'Destino'"
-              :placeholder="en ? 'Search destination' : 'Buscar destino'" required />
+              :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" required />
             <div class="manager-select-field"><label>{{ en ? 'Status' : 'Estado' }}</label><FieldDropdown v-model="itineraryForm.status" :aria-label="en ? 'Status' : 'Estado'" :options="['Programado','En tránsito','Completado','Demorado'].map(value => ({value,label:displayManagedStatus(value)}))" /></div>
             <div class="manager-form-row"><label>Salida (ETD)<input v-model="itineraryForm.departure" type="date" :required="isLiveAdmin" /></label><label>Llegada (ETA)<input v-model="itineraryForm.arrival" type="date" :required="isLiveAdmin" /></label></div>
             <label>Closing (opcional)<input v-model="itineraryForm.closing" type="date" /></label><div class="manager-select-field"><label>Modalidad</label><FieldDropdown :model-value="itineraryForm.modality ?? ''" @update:model-value="value => itineraryForm.modality = value" aria-label="Modalidad" :options="(itineraryForm.transport === 'Terrestre' ? ['LTL'] : ['FCL', 'LCL']).map(value => ({value,label:value}))" /></div><div class="manager-form-row"><label>Transportista (opcional)<input v-model="itineraryForm.carrier" maxlength="150" /></label><label>Buque (opcional)<input v-model="itineraryForm.vessel" maxlength="150" /></label></div><label>Viaje (opcional)<input v-model="itineraryForm.voyage" maxlength="50" /></label>
