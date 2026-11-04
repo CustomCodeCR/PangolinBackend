@@ -258,7 +258,7 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
       <section v-if="activeItinerary" :key="activeItinerary.id" class="itinerary-form-card">
         <template v-for="item in [activeItinerary]" :key="item.id">
         <header class="itinerary-form-card__heading">
-          <div><p class="section-tag">{{ en ? 'SEARCH FILTERS' : 'FILTROS DE BÚSQUEDA' }}</p><h2>{{ en ? 'Filter itineraries' : 'Filtrar itinerarios' }}</h2></div>
+          <div><p class="section-tag">{{ en ? 'SEARCH FILTERS' : 'FILTROS DE BÚSQUEDA' }}</p><h2>{{ en ? 'Search itineraries' : 'Buscar itinerarios' }}</h2></div>
           <button v-if="itineraries.length > 1" class="itinerary-remove" type="button" :aria-label="t('custom.itinerary.form.remove')" @click="removeItinerary(item.id)">× <span>{{ t('custom.itinerary.form.remove') }}</span></button>
         </header>
 
