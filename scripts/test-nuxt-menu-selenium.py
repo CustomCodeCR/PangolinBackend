@@ -321,6 +321,89 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896
             driver.quit()
 print("PASS all eight mega-menu and locale combinations")
 
+# An authenticated administrator has extra navigation rows (Administracion
+# and Cuenta), which the guest-only regression above does not exercise.
+# Mock only /api/auth/me in the test browser; no real session or permissions
+# are modified. BOTH color themes must share the same Cargo geometry.
+for theme in ("light", "dark"):
+    options = Options()
+    for arg in ("--headless=new", "--no-sandbox", "--disable-gpu",
+                "--disable-dev-shm-usage", "--disable-extensions",
+                "--no-first-run", "--window-size=960,590"):
+        options.add_argument(arg)
+    driver = webdriver.Chrome(options=options)
+    try:
+        driver.set_window_size(960, 590)
+        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": """
+          (() => {
+            const originalFetch = window.fetch.bind(window);
+            window.fetch = (resource, init) => {
+              const url = typeof resource === 'string' ? resource : resource?.url;
+              if (url && new URL(url, location.origin).pathname === '/api/auth/me') {
+                return Promise.resolve(new Response(
+                  JSON.stringify({user:{role:'administrador', correo:'visual-test@example.invalid', nombre:'UI regression test'}}),
+                  {status:200, headers:{'Content-Type':'application/json'}}
+                ));
+              }
+              return originalFetch(resource, init);
+            };
+          })();
+        """})
+        driver.get(BASE + "/noticias")
+        driver.execute_script("localStorage.setItem('castrofallas-theme', arguments[0])", theme)
+        driver.refresh()
+        wait = WebDriverWait(driver, 22)
+        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".nav-admin-entry")))
+        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".header-profile__trigger")))
+        wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
+        wait.until(EC.element_to_be_clickable((
+            By.CSS_SELECTOR,
+            ".main-nav .nav-dropdown:not(.nav-dropdown--services) > button.nav-dropdown__trigger"
+        ))).click()
+        geometry = wait.until(lambda d: d.execute_script("""
+          const h = document.querySelector('body > .site-header--menu-open');
+          const p = h?.querySelector('.main-nav .nav-dropdown:not(.nav-dropdown--services) > .nav-dropdown__menu');
+          const admin = h?.querySelector('.nav-admin-entry');
+          const actions = h?.querySelector('.header-account-tools');
+          const last = p?.querySelector('a:last-child');
+          if (!h || !p || !admin || !actions || !last) return false;
+          const panel = p.getBoundingClientRect();
+          const adminBounds = admin.getBoundingClientRect();
+          const actionsBounds = actions.getBoundingClientRect();
+          const lastBounds = last.getBoundingClientRect();
+          const bottom = Math.min(innerHeight, h.getBoundingClientRect().bottom);
+          if (lastBounds.bottom > bottom - 3 || actionsBounds.bottom > bottom - 3) return false;
+          return {
+            position:getComputedStyle(p).position,
+            height:panel.height,
+            panelBottom:panel.bottom,
+            adminTop:adminBounds.top,
+            actionsTop:actionsBounds.top,
+            actionsBottom:actionsBounds.bottom,
+            bottom,
+            scrollTop:h.scrollTop,
+            links:p.querySelectorAll('a').length,
+            viewportWidth:innerWidth,
+            viewportHeight:innerHeight
+          };
+        """))
+        assert geometry["viewportWidth"] > 800 and geometry["viewportWidth"] <= 1080, f"Wrong regression breakpoint: {geometry}"
+        assert geometry["viewportHeight"] < 500, f"Window is not short: {geometry}"
+        assert geometry["position"] == "relative", f"{theme} Cargo escapes layout flow: {geometry}"
+        assert geometry["links"] == 3, f"{theme} Cargo links are missing: {geometry}"
+        assert geometry["adminTop"] >= geometry["panelBottom"] - 3, (
+            f"{theme} Cargo overlays Administracion: {geometry}"
+        )
+        assert geometry["actionsTop"] >= geometry["adminTop"], f"{theme} Account controls overlap Admin: {geometry}"
+        assert geometry["scrollTop"] > 0, f"{theme} compact header did not scroll: {geometry}"
+        driver.save_screenshot(str(ARTIFACTS / f"admin-compact-short-{theme}-cargo.png"))
+        print(f"PASS admin Cargo same layout and scrolling in {theme}: {geometry}", flush=True)
+    except Exception:
+        driver.save_screenshot(str(ARTIFACTS / f"debug-admin-compact-short-{theme}.png"))
+        raise
+    finally:
+        driver.quit()
+
 # Short-window regression: browser heights such as the reported 487px cannot
 # fit every navigation row simultaneously. Reveal the Cargo choices AND
 # bottom actions inside the header, never by scrolling the background page.

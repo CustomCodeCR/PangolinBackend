@@ -91,6 +91,25 @@ html.theme-dark .site-header .header-settings__panel {
   box-shadow: 0 14px 34px rgba(0,0,0,.28);
 }
 
+/* One geometry for light AND dark Cargo dropdowns across the full
+   compact breakpoint (<=1080px). Dark-mode style.css previously forced
+   position:absolute and reverted it only below 800px: this let Cargo
+   overlap Administracion and the footer controls at tablet/window widths.
+   Keep desktop popovers anchored; compact cards stay in document flow. */
+@media (max-width: 1080px) {
+  html .site-header.site-header--menu-open .main-nav.main-nav--open
+    .nav-dropdown:not(.nav-dropdown--services) > .nav-dropdown__menu {
+    position: relative !important;
+    inset: auto !important;
+    transform: none !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    box-sizing: border-box;
+  }
+}
+
 /* News / story headers normally use transparent hero overlays.
    Only the OPEN compact menu must be an opaque red surface. An existing
    News.vue dark-mode rule must never change its position to absolute. */
