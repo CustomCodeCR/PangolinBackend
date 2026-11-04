@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import LegacyServiceLanding from '@legacy/pages/ServiceLanding.vue'
-import LegacyServiceDetail from '@legacy/pages/ServiceDetail.vue'
 import serviceGuides from '../../../../seo/service-landings.json'
 import servicePages from '../../../../seo/service-pages.json'
 import serviceFaqs from '../../../../seo/service-faqs.json'
@@ -61,6 +60,5 @@ usePublicSeo({
 </script>
 
 <template>
-  <LegacyServiceLanding v-if="guide" :pathname="path" />
-  <LegacyServiceDetail v-else :pathname="path" />
+  <LegacyServiceLanding :pathname="path" />
 </template>

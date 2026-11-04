@@ -53,7 +53,7 @@ if [[ "$ready" != 1 ]]; then
   echo "FAIL gateway Nuxt no responde" >&2
   exit 1
 fi
-grep -q 'service-detail-page' /tmp/cf-hybrid-service.html
+grep -q 'service-landing-page' /tmp/cf-hybrid-service.html
 # No basta con comprobar HTML: las vistas públicas y privadas, sus imágenes,
 # el CMS publicado y los bundles Nuxt/Vue deben cargar bajo el MISMO origen.
 for route in / /nosotros /servicios /noticias /empresas \
@@ -128,7 +128,7 @@ new_nuxt_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddres
 }
 recovered=0
 for _ in $(seq 1 60); do
-  if curl -fsS --max-time 4 -o /tmp/cf-hybrid-recovered.html "$base/servicios/transporte-maritimo" 2>/dev/null && grep -q 'service-detail-page' /tmp/cf-hybrid-recovered.html; then
+  if curl -fsS --max-time 4 -o /tmp/cf-hybrid-recovered.html "$base/servicios/transporte-maritimo" 2>/dev/null && grep -q 'service-landing-page' /tmp/cf-hybrid-recovered.html; then
     recovered=1
     break
   fi

@@ -19,7 +19,7 @@ for (const item of newServices) {
   assert.ok(item.slug && item.title?.es && item.title?.en && item.lead?.es, 'Contenido bilingüe de servicio incompleto')
   assert.ok(serviceFaqs[item.slug]?.length >= 2, 'Faltan preguntas frecuentes en: ' + item.slug)
 }
-assert.match(source('app/pages/servicios/[slug].vue'), /LegacyServiceDetail/, 'Las seis páginas nuevas no tienen renderizado Nuxt')
+assert.match(source('app/pages/servicios/[slug].vue'), /LegacyServiceLanding/, 'Las seis páginas nuevas usan el diseño unificado en Nuxt')
 assert.match(source('server/routes/sitemap.xml.ts'), /servicePages/, 'Las páginas nuevas faltan del sitemap de Nuxt')
 assert.match(source('nuxt.config.ts'), /servicePages\.map/, 'Las páginas nuevas faltan del prerender')
 assert.match(source('scripts/stage-public.mjs'), /BingSiteAuth.xml/, 'Falta publicar verificación Bing en Nuxt')
@@ -50,5 +50,8 @@ assert.match(source('server/routes/sitemap.xml.ts'), /articlePath/, 'Las noticia
 assert.match(source('app/pages/noticias/[slug].vue'), /statusCode: 404/, 'Noticia inexistente debe devolver HTTP 404')
 assert.match(source('app/pages/servicios/[slug].vue'), /LegacyServiceLanding/, 'Páginas Nuxt deben reutilizar el diseño original')
 assert.match(source('../src/pages/ServiceLanding.vue'), /details\.faq/, 'Las preguntas AEO deben mostrarse en el componente original')
+assert.match(source('../src/pages/ServiceLanding.vue'), /service-landing-card-grid/, 'Faltan tarjetas del diseño unificado')
+assert.match(source('../src/pages/ServiceLanding.vue'), /servicePages\.find/, 'Deben conservarse los datos de las seis páginas de transporte')
+assert.doesNotMatch(source('app/pages/servicios/[slug].vue'), /LegacyServiceDetail/, 'No mezclar dos diseños en SSR')
 assert.match(source('../src/pages/News.vue'), /sanitizeNewsHtml\(/, 'La noticia debe sanear su HTML')
 console.log('Contrato estático SEO/GEO/AEO/AIO Nuxt: OK (no sustituye pruebas de build, SSR o navegador)')
