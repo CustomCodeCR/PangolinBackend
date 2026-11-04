@@ -20,6 +20,14 @@ function docker {
     param([Parameter(ValueFromRemainingArguments=$true)][string[]]$DockerArgs)
     $global:LASTEXITCODE = 0
     $global:MockDockerCalls += ,@($DockerArgs)
+    if ($DockerArgs.Count -gt 0 -and $DockerArgs[0] -eq 'compose') {
+        $composeText = $DockerArgs -join ' '
+        if ($composeText.Contains('config') -and $composeText.Contains('--format json')) {
+            return '{"services":{"nuxt-main2-gateway":{"ports":[{"published":"5173","host_ip":"127.0.0.1","target":80}]},"nuxt-local-gateway":{"ports":[{"published":"8083","host_ip":"127.0.0.1","target":80}]}}}'
+        }
+        # Simulate successful docker compose config / up / ps without touching the daemon.
+        return
+    }
     if ($DockerArgs.Count -gt 0 -and $DockerArgs[0] -eq 'ps') {
         $filterText = $DockerArgs -join ' '
         if ($filterText.Contains('service=nuxt-main2-gateway')) { return 'fake-main2-id' }
@@ -57,6 +65,18 @@ try {
         }
     }
     Write-Host 'PASS Windows PowerShell 5.1: verificación sin reconstruir Docker.'
+
+    # Regression for the FULL -Action up path: previously threw on undefined probeIp
+    # after successfully building and verifying real gateway bindings.
+    $global:MockDockerCalls = @()
+    & $launcher -Action up -BindIp '127.0.0.1'
+    $composeUps = @($global:MockDockerCalls | Where-Object {
+        ($_[0] -eq 'compose') -and ($_ -contains 'up')
+    })
+    if ($composeUps.Count -ne 3) {
+        throw "Se esperaban 3 comandos docker compose up simulados, se recibieron $($composeUps.Count)."
+    }
+    Write-Host 'PASS Windows PowerShell 5.1: -Action up completo con Docker simulado.'
 } finally {
     Remove-Item -Path $testEnv -ErrorAction SilentlyContinue
     Remove-Variable -Scope Global -Name MockDockerCalls -ErrorAction SilentlyContinue
