@@ -34,8 +34,8 @@ defineProps<{ glyph: string }>()
       stroke="var(--tracking-model-light)" stroke-width="1.8" stroke-linecap="round" opacity=".75" />
   </svg>
 
-  <!-- Sleek three-quarter-view cargo jet: fuselage, swept wings,
-       tail fin, engine nacelles and separate light / shadow planes. -->
+  <!-- Cargo jet facing right. Both main wingtips sit BEHIND their roots
+       (smaller x), creating anatomically correct swept-back wings. -->
   <svg v-else-if="glyph === '✈'" class="tracking-transport-model tracking-transport-model--plane"
     viewBox="0 0 120 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <defs>
@@ -61,11 +61,11 @@ defineProps<{ glyph: string }>()
     <path d="M13 38 5 47 27 44 40 37Z" fill="var(--tracking-model-shade)" />
     <path d="M14 15 26 31" stroke="var(--tracking-model-highlight)" stroke-width="1.4"
       opacity=".8" stroke-linecap="round" />
-    <!-- Far swept wing, with a highlighted leading edge. -->
-    <path d="M43 30 59 7 69 4 77 7 66 33Z" fill="var(--tracking-model-shade)" />
-    <path d="M44 30 61 8 72 7 62 32Z" fill="url(#tracking-plane-wing-3d)" />
-    <path d="m49 27 13-17 8-2" stroke="var(--tracking-model-highlight)"
-      stroke-width="1.9" opacity=".78" fill="none" stroke-linecap="round" />
+    <!-- Far wing: rearward tip (x=31) and forward root (x=77). -->
+    <path d="M55 31 31 6 43 4 77 29Z" fill="var(--tracking-model-shade)" />
+    <path d="M57 30 36 7 43 6 72 30Z" fill="url(#tracking-plane-wing-3d)" />
+    <path d="M40 8 71 29" stroke="var(--tracking-model-highlight)"
+      stroke-width="1.9" opacity=".8" fill="none" stroke-linecap="round" />
     <!-- Long, tapered fuselage and sharply shaped nose. -->
     <path d="M11 33 C26 28 59 26 88 26 C101 26 111 29 117 33
       C111 38 101 41 88 41 L25 41 C14 40 9 38 11 33Z"
@@ -80,11 +80,12 @@ defineProps<{ glyph: string }>()
       stroke-width="1" stroke-linecap="round" />
     <path d="M86 32h3m-10 0h3m-10 0h3m-10 0h3" stroke="var(--tracking-model-window)"
       stroke-width="2.1" stroke-linecap="round" />
-    <!-- Near wing and two small jet engines give the silhouette depth. -->
-    <path d="M46 35 68 58 82 60 67 36Z" fill="var(--tracking-model-shade)" />
-    <path d="m48 35 23 20 9 3-16-22Z" fill="url(#tracking-plane-wing-3d)" />
-    <path d="m52 37 19 17" stroke="var(--tracking-model-highlight)"
-      stroke-width="1.7" opacity=".7" fill="none" stroke-linecap="round" />
+    <!-- Near wing: tip x=32 is behind the leading root x=79. -->
+    <path d="M55 36 32 57 46 60 79 39Z" fill="var(--tracking-model-shade)" />
+    <path d="M57 37 38 56 45 57 74 39Z" fill="url(#tracking-plane-wing-3d)" />
+    <path d="M73 39 42 55" stroke="var(--tracking-model-highlight)"
+      stroke-width="1.7" opacity=".75" fill="none" stroke-linecap="round" />
+    <!-- Two compact nacelles under the wing, away from the nose. -->
     <path d="M65 41q5-3 11 0l5 8q-6 3-12 0Z" fill="url(#tracking-plane-engine-3d)" />
     <path d="M70 42q5-2 7 1" stroke="var(--tracking-model-highlight)"
       stroke-width="1.6" fill="none" stroke-linecap="round" />
