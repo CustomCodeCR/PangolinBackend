@@ -413,9 +413,34 @@ for (const location of trackingQuoteCoordinates) {
   assert.ok(allOfficialLocationNames.has(location.quoteCatalogName), 'Cotización registrada: ' + location.name)
   assert.ok(Number.isFinite(location.lat) && Math.abs(location.lat) <= 90, 'Latitud válida: ' + location.name)
   assert.ok(Number.isFinite(location.lon) && Math.abs(location.lon) <= 180, 'Longitud válida: ' + location.name)
-  assert.equal(location.coordinatePrecision, 'city-centroid', 'Punto geográfico aproximado: ' + location.name)
+  assert.ok(['city-centroid', 'regional-centroid', 'port-approximation'].includes(location.coordinatePrecision),
+    'Tipo de aproximación geográfica válido: ' + location.name)
+  if (location.coordinateSource) {
+    assert.match(location.coordinateSource, /^https:\/\//, 'Origen verificable: ' + location.name)
+  }
 }
-assert.ok(trackingQuoteCoordinates.length >= 185, 'Se preservan al menos 185 registros nuevos de Cotizaciones')
+assert.ok(trackingQuoteCoordinates.length >= 208, 'Se preservan al menos 208 entradas geográficas de Cotizaciones')
+const officialLocationRows = [...officialQuoteSql.matchAll(/'(seaport|airport|inland)','([^']+)'/g)]
+  .map(([, kind, name]) => ({ kind, name }))
+const normalizeQuoteName = name => name.toLowerCase().normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '').replace(/[.,\/()\-]/g, ' ').replace(/\s+/g, ' ').trim()
+const coveredNames = new Set([...trackingPorts, ...trackingQuoteCoordinates]
+  .flatMap(point => [point.name, point.quoteCatalogName, ...(point.aliases || [])])
+  .filter(Boolean).map(normalizeQuoteName))
+const uncoveredQuoteRows = officialLocationRows.filter(row => !coveredNames.has(normalizeQuoteName(row.name)))
+assert.ok(officialLocationRows.length >= 217, 'No reducir el catálogo parcial de Cotizaciones')
+assert.ok(officialLocationRows.length - uncoveredQuoteRows.length >= 213,
+  'El globo reconoce al menos 213 registros del catálogo oficial')
+const knownAmbiguousNames = new Set([
+  'Dong Nai, Vietnam', 'Wilmington, Estados Unidos', 'Coyol, Costa Rica',
+  'St. George, Antigua y Barbuda'
+])
+for (const missing of uncoveredQuoteRows) {
+  assert.ok(knownAmbiguousNames.has(missing.name), 'Ubicación sin coordenadas revisadas: ' + missing.name)
+}
+assert.equal(uncoveredQuoteRows.length, 4,
+  'Las cuatro ubicaciones ambiguas siguen excluidas hasta validación operativa')
+
 const knownQuotePorts = new Set(
   [...source('../backend/Database/OfficialQuotesVideoLocations.sql').matchAll(/'seaport','([^']+)'/g)]
     .map(([, name]) => name)
@@ -466,6 +491,14 @@ assert.equal(journeyFor({ portOfLoading: 'Altamira, México', portOfEntry: 'Vera
   'Se reconoce la ruta entre dos puertos con ciudades estatales verificadas')
 assert.equal(journeyFor({ portOfLoading: 'Shenzhen, China', portOfEntry: 'Miami, Estados Unidos' }).length, 2,
   'Se reconocen rutas entre diferentes continentes con el catálogo ampliado')
+assert.equal(journeyFor({
+  portOfLoading: 'Chongqing, China', portOfEntry: 'Puerto Moín, Costa Rica'
+}).map(point => point.name).join(' -> '),
+  'Chongqing, China -> Puerto Moín, Costa Rica',
+  'Rutas con nuevas ubicaciones y puertos contrastados')
+assert.equal(journeyFor({
+  portOfLoading: 'Manzanillo, Panamá', portOfEntry: 'Puerto Quetzal, Guatemala'
+}).length, 2, 'El catálogo incluye terminales específicas de Centroamérica')
 assert.equal(journeyFor({
   portOfLoading: 'Qingdao, China', routeStops: ['Mundra, India', 'Cristóbal, Panamá'],
   portOfEntry: 'Puerto Caldera, Costa Rica', destination: 'San José, Costa Rica'
