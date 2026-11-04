@@ -56,7 +56,14 @@ for (const variant of ["ship", "✈", "truck"]) {
 assert.match(trackingModels, /linearGradient/, 'Las miniaturas tienen luces y sombras, sin WebGL ni assets externos')
 assert.match(trackingModels, /tracking-model-highlight/, 'Las miniaturas heredan colores del tema')
 assert.match(trackingModels, /tracking-plane-engine-3d/, 'Nuevo avión incluye motores con volumen')
-assert.match(trackingModels, /Far swept wing/, 'Nuevo avión tiene alas barridas')
+assert.match(trackingModels, /Far wing: rearward tip \(x=31\) and forward root \(x=77\)/,
+  'El ala superior está barrida hacia atrás, no hacia la nariz')
+assert.match(trackingModels, /Near wing: tip x=32 is behind the leading root x=79/,
+  'El ala inferior también está barrida hacia atrás')
+assert.match(trackingModels, /M55 31 31 6 43 4 77 29Z/,
+  'Silueta del ala superior con punta detrás de la raíz')
+assert.match(trackingModels, /M55 36 32 57 46 60 79 39Z/,
+  'Silueta del ala inferior con punta detrás de la raíz')
 assert.match(trackingModels, /viewBox="0 0 120 64"/, 'El jet conserva una silueta horizontal sin iconografía externa')
 assert.match(trackingModels, /tracking-transport-model--plane\{width:54px;height:32px\}/,
   'El avión reduce su tamaño en dispositivos pequeños')
@@ -361,10 +368,16 @@ assert.doesNotMatch(main, /connectWebSocket\(\)/, 'No activar broker local 8081'
 assert.match(tracking, /class="tracking-demo-result__route"/, 'Origen y destino se presentan como ruta')
 assert.match(tracking, /class="tracking-demo-result__route-content"/,
   'El contenido de la ruta usa una banda interna centrada')
-assert.match(tracking, /\.tracking-demo-result__route-content \{[\s\S]*?width: min\(100%, 820px\);[\s\S]*?margin-inline: auto;/,
-  'La ruta se centra y deja márgenes equilibrados en pantallas amplias')
+assert.match(tracking, /\.tracking-demo-result__route-content \{[\s\S]*?width: 100%;[\s\S]*?min-width: 0;/,
+  'El contenido de la ruta utiliza todo el ancho disponible en escritorio')
+assert.match(tracking, /\.tracking-demo-result__route-stop--destination \{\s*justify-self: end;/,
+  'Destino se alinea con el borde derecho de la tarjeta')
+assert.match(tracking, /\.tracking-demo-result__route \{[\s\S]*?padding: 22px clamp\(18px, 2vw, 28px\);/,
+  'Origen y destino mantienen exactamente el mismo margen exterior')
 assert.match(tracking, /@media \(max-width: 580px\) \{[\s\S]*?\.tracking-demo-result__route-content \{\s*grid-template-columns: minmax\(0, 1fr\);/,
   'La ruta vuelve a una sola columna en móvil')
+assert.match(tracking, /\.tracking-demo-result__route-stop--destination \{\s*justify-self: start;/,
+  'Destino se devuelve a la alineación izquierda en celular')
 assert.match(tracking, /<strong>\{\{ shipment\.origin \|\| '—' \}\}<\/strong>/, 'Origen se conserva')
 assert.match(tracking, /<strong>\{\{ shipment\.destination \|\| '—' \}\}<\/strong>/, 'Destino se conserva')
 assert.match(tracking, /v-if="journeyStage !== null"/, 'El recorrido solo aparece con un estado reconocido')
