@@ -91,6 +91,39 @@ Estas cuatro referencias NO se geolocalizan por aproximación arbitraria. Los
 registros ya reconocidos permanecen disponibles y, cuando quedan menos de dos
 puntos diferentes, el globo muestra su vista predeterminada con aviso.
 
+### Reconocimiento flexible de datos incompletos de Dynamics
+
+El rastreo incorpora `frontend/src/lib/trackingCountries.json` con **250 países**
+y coordenadas geográficas de referencia, basadas en la base abierta
+[World Countries, States & Cities](https://github.com/srestre/world-countries-cities-db)
+(ODbL 1.0). Esto complementa las 213 referencias mapeadas de Cotizaciones.
+
+El resolvedor de `trackingRoute.ts` busca, por orden:
+
+1. Un puerto, aeropuerto o ciudad ya georreferenciado en los catálogos del proyecto,
+   normalizando acentos, puntuación y abreviaturas.
+2. Si no existe, un país explícitamente identificable al final del campo o
+   escrito solo, usando su punto de referencia geográfico nacional.
+
+Ejemplo: el IDTRA **12836** puede indicar «Honduras» como puerto de entrada
+de un aéreo. La ruta puede utilizar una posición **a nivel país**, sin afirmar
+que el aeropuerto sea Tegucigalpa, San Pedro Sula u otro no identificado.
+El resultado y la etiqueta del globo indican que es una aproximación.
+
+Un país genérico se descarta cuando el embarque ya contiene un puerto/ciudad
+específico reconocido en ese mismo país. Esto evita añadir escalas ficticias
+o activar cambios multimodales barco → camión por error. Dos países diferentes
+sí pueden mostrar una ruta *ilustrativa*. Si solo hay un punto distinto,
+se conserva la vista normal sin fabricar el otro extremo.
+
+**Alcance de la primera fase:** la resolución es local mediante catálogos
+versionados. Todavía **no** se consulta un servicio de geocodificación externo
+en tiempo real ni se almacenan resultados nuevos en una base de datos.
+Para una fase posterior, cualquier geocodificador y caché deberán usar el
+backend autenticado, verificaciones por país, límites de uso, atribución
+y revisión de coincidencias ambiguas, sin enviar referencias de embarques
+a servicios geográficos externos.
+
 La animación conserva un único vehículo y una estela que siguen el recorrido
 ilustrativo, no posiciones GPS, trayectos verificados ni porcentajes de avance
 reales. Ni la base de Cotizaciones ni las consultas de Dynamics se modifican.
