@@ -195,6 +195,8 @@ onBeforeUnmount(() => {
 .itinerary-location-select .itinerary-location-select__input:focus-visible {border-color:#b20c2a;box-shadow:0 0 0 3px #b20c2a17;}
 .itinerary-location-select .itinerary-location-select__input:disabled {opacity:.65;cursor:not-allowed;}
 .itinerary-location-select.is-blocked .itinerary-location-select__input {opacity:.64;background:#f2f4f8;cursor:pointer;}
+.app-site.itinerary-page .itinerary-form-line .itinerary-location-select__input {padding-right:52px;}
+.content-manager .manager-form .itinerary-location-select__input {padding-right:52px;}
 .itinerary-location-select.is-blocked .itinerary-location-select__input::placeholder {color:#8d97a6;opacity:1;}
 .itinerary-location-select__clear-icon {display:block;transition:color .18s ease;}
 .itinerary-location-select__toggle:hover .itinerary-location-select__clear-icon {color:#b20c2a;}
