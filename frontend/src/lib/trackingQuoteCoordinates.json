@@ -1537,5 +1537,131 @@
     "lon": -84.38798,
     "aliases": [],
     "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Altamira, México",
+    "quoteCatalogName": "Altamira, México",
+    "kind": "seaport",
+    "lat": 22.39215,
+    "lon": -97.93867,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Veracruz, México",
+    "quoteCatalogName": "Veracruz, México",
+    "kind": "seaport",
+    "lat": 19.18095,
+    "lon": -96.1429,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Acapulco, México",
+    "quoteCatalogName": "Acapulco, México",
+    "kind": "airport",
+    "lat": 16.84942,
+    "lon": -99.90891,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Cartagena, Colombia",
+    "quoteCatalogName": "Cartagena, Colombia",
+    "kind": "seaport",
+    "lat": 10.39972,
+    "lon": -75.51444,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Changsha, China",
+    "quoteCatalogName": "Changsha, China",
+    "kind": "seaport",
+    "lat": 28.1450774,
+    "lon": 113.2384362,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Changzhou, China",
+    "quoteCatalogName": "Changzhou, China",
+    "kind": "seaport",
+    "lat": 31.8122623,
+    "lon": 119.9691539,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Fuzhou, China",
+    "quoteCatalogName": "Fuzhou, China",
+    "kind": "seaport",
+    "lat": 26.0774954,
+    "lon": 119.2918215,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Jinzhou, China",
+    "quoteCatalogName": "Jinzhou, China",
+    "kind": "seaport",
+    "lat": 41.494444,
+    "lon": 121.615278,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Jiujiang, China",
+    "quoteCatalogName": "Jiujiang, China",
+    "kind": "seaport",
+    "lat": 29.388607,
+    "lon": 115.3820227,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Jakarta, Indonesia",
+    "quoteCatalogName": "Jakarta, Indonesia",
+    "kind": "seaport",
+    "lat": -6.1822261,
+    "lon": 106.7952648,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Jambi, Indonesia",
+    "quoteCatalogName": "Jambi, Indonesia",
+    "kind": "seaport",
+    "lat": -1.6,
+    "lon": 103.61667,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Bandung-Java Island, Indonesia",
+    "quoteCatalogName": "Bandung-Java Island, Indonesia",
+    "kind": "airport",
+    "lat": -6.92222,
+    "lon": 107.60694,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Belém, Brasil",
+    "quoteCatalogName": "Belém, Brasil",
+    "kind": "airport",
+    "lat": -1.45583,
+    "lon": -48.50444,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Alicante, España",
+    "quoteCatalogName": "Alicante, España",
+    "kind": "airport",
+    "lat": 38.3457685,
+    "lon": -0.4909444,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
   }
 ]
