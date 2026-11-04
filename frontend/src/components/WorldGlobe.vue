@@ -18,29 +18,32 @@ const routePoints = computed(() => {
   if (!route) return []
   return route.stops && route.stops.length >= 2 ? route.stops : [route.origin, route.destination]
 })
-// Un solo vehículo recorre todas las escalas; una estela roja sigue el camino ya transitado.
+// Un solo vehículo recorre todas las escalas; la estela sigue la curva elevada ya transitada.
 const transportGlyph = computed(() => props.shipment?.transport === 'air' ? '✈'
   : props.shipment?.transport === 'sea' ? 'ship'
   : props.shipment?.transport === 'land' ? 'truck'
   : props.shipment?.transport === 'multimodal' ? 'ship'
   : props.shipment ? 'container' : null)
 
-const routeLegs = computed(() => routePoints.value.slice(1).map((end, index) => {
-  const start = routePoints.value[index]
-  const rad = Math.PI / 180
-  const cosine = Math.sin(start.lat * rad) * Math.sin(end.lat * rad)
-    + Math.cos(start.lat * rad) * Math.cos(end.lat * rad) * Math.cos((end.lon - start.lon) * rad)
-  const degrees = Math.acos(Math.max(-1, Math.min(1, cosine))) / rad
-  return { start, end, duration: Math.max(2400, Math.min(13000, degrees * 95)) }
-}).filter(leg => leg.start.lat !== leg.end.lat || leg.start.lon !== leg.end.lon)
-  .map((leg, index) => ({
+const routeLegs = computed(() => {
+  const legs = routePoints.value.slice(1).map((end, index) => {
+    const start = routePoints.value[index]
+    const rad = Math.PI / 180
+    const cosine = Math.sin(start.lat * rad) * Math.sin(end.lat * rad)
+      + Math.cos(start.lat * rad) * Math.cos(end.lat * rad) * Math.cos((end.lon - start.lon) * rad)
+    const degrees = Math.acos(Math.max(-1, Math.min(1, cosine))) / rad
+    return { start, end, duration: Math.max(2400, Math.min(13000, degrees * 95)) }
+  }).filter(leg => leg.start.lat !== leg.end.lat || leg.start.lon !== leg.end.lon)
+
+  // Dynamics no siempre etiqueta la multimodalidad: un marítimo con dos o
+  // más tramos cambia del barco al camión en la PRIMERA escala.
+  const seaToRoad = legs.length >= 2
+    && (props.shipment?.transport === 'sea' || props.shipment?.transport === 'multimodal')
+  return legs.map((leg, index) => ({
     ...leg,
-    // Sólo cuando Dynamics indica multimodal, se inicia en barco y
-    // se cambia a camión desde la primera escala en adelante.
-    glyph: props.shipment?.transport === 'multimodal'
-      ? (index === 0 ? 'ship' : 'truck')
-      : (transportGlyph.value ?? 'container')
-  })))
+    glyph: seaToRoad ? (index === 0 ? 'ship' : 'truck') : (transportGlyph.value ?? 'container')
+  }))
+})
 
 const routeVehicle = ref<{ left: number; top: number; glyph: string; reversed: boolean } | null>(null)
 const routeTrail = ref('')
@@ -79,8 +82,15 @@ function updateRouteVehicle(now: number) {
       }
 
       const leg = legs[activeIndex]
-      const current = illustrativePosition(leg.start, leg.end, activeProgress * 100)
-      const projected = globe.project(current.lon, current.lat)
+      const activeGlobe = globe
+      // Exact same elevation as CastroGlobe.drawArcs(): 0 at each stop,
+      // highest over the middle of the leg. The icon follows the lifted arc.
+      const elevatedPoint = (segment: (typeof legs)[number], progress: number) => {
+        const t = Math.max(0, Math.min(1, progress))
+        const coordinates = illustrativePosition(segment.start, segment.end, t * 100)
+        return activeGlobe.projectElevated(coordinates.lon, coordinates.lat, .22 * Math.sin(Math.PI * t))
+      }
+      const projected = elevatedPoint(leg, activeProgress)
       const canvasRect = canvas.value.getBoundingClientRect()
       const holderRect = holder.value.getBoundingClientRect()
       const offsetX = canvasRect.left - holderRect.left
@@ -101,10 +111,9 @@ function updateRouteVehicle(now: number) {
         for (let index = 0; index <= activeIndex; index++) {
           const segment = legs[index]
           const fraction = index === activeIndex ? activeProgress : 1
-          const count = Math.max(1, Math.ceil(24 * fraction))
+          const count = Math.max(1, Math.ceil(64 * fraction))
           for (let step = 0; step <= count; step++) {
-            const geo = illustrativePosition(segment.start, segment.end, (step / count) * fraction * 100)
-            const p = globe.project(geo.lon, geo.lat)
+            const p = elevatedPoint(segment, (step / count) * fraction)
             if (!p?.visible) {
               previous = null
               continue
@@ -124,10 +133,8 @@ function updateRouteVehicle(now: number) {
       }
 
       if (projected?.visible) {
-        const lookAhead = illustrativePosition(leg.start, leg.end, Math.min(100, (activeProgress + .01) * 100))
-        const lookBehind = illustrativePosition(leg.start, leg.end, Math.max(0, (activeProgress - .01) * 100))
-        const ahead = globe.project(lookAhead.lon, lookAhead.lat)
-        const behind = globe.project(lookBehind.lon, lookBehind.lat)
+        const ahead = elevatedPoint(leg, Math.min(1, activeProgress + .01))
+        const behind = elevatedPoint(leg, Math.max(0, activeProgress - .01))
         const facingLeft = ahead?.visible && ahead.x !== projected.x
           ? ahead.x < projected.x
           : (behind?.visible ? projected.x < behind.x : false)
@@ -656,7 +663,9 @@ onBeforeUnmount(() => {
 .world-globe__route-vehicles{position:absolute;inset:0;z-index:4;pointer-events:none}
 .world-globe__route-trail{position:absolute;inset:0;width:100%;height:100%;overflow:hidden}
 .world-globe__route-trail path{fill:none;stroke:#b50928;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 3px #b5092860)}
-.world-globe__route-vehicle{position:absolute;display:grid;place-items:center;width:42px;height:32px;color:#b50928;filter:drop-shadow(0 2px 3px #0007);transform:translate(-50%,-50%)}
+:global(html.theme-dark .world-globe__route-trail path){stroke:#fff;filter:drop-shadow(0 0 3px #ffffff70)}
+.world-globe__route-vehicle{position:absolute;display:grid;place-items:center;width:42px;height:32px;color:#171717;filter:drop-shadow(0 2px 3px #0007);transform:translate(-50%,-50%)}
+:global(html.theme-dark .world-globe__route-vehicle){color:#fff}
 .world-globe__route-vehicle--reversed{transform:translate(-50%,-50%) scaleX(-1)}
 .world-globe__ship-profile{display:block;width:42px;height:28px}
 @media(max-width:580px){.world-globe__route-vehicle{width:34px;height:28px}.world-globe__ship-profile{width:34px;height:24px}.world-globe__route-trail path{stroke-width:2.5}}
