@@ -571,6 +571,7 @@ app.MapGet("/api/itinerarios", async (
         .Skip((int)offset).Take(currentPageSize)
         .Select(x => new {
             x.Id, x.Pol, x.Pod, x.Closing, x.Status, x.Etd, x.Eta,
+            x.Carrier, x.Vessel, x.Voyage,
             Transport = x.Transporte, Modality = x.Modalidad
         }).ToListAsync(ct);
     http.Response.Headers.CacheControl = "no-store";
