@@ -15,11 +15,11 @@ if ($source.Contains('compose @files ps -q')) {
 }
 $testEnv = Join-Path $root '.env'
 if (Test-Path $testEnv) { throw 'La prueba simulada no debe ejecutarse con .env existente.' }
-$script:dockerCalls = @()
+$global:MockDockerCalls = @()
 function docker {
     param([Parameter(ValueFromRemainingArguments=$true)][string[]]$DockerArgs)
     $global:LASTEXITCODE = 0
-    $script:dockerCalls += ,@($DockerArgs)
+    $global:MockDockerCalls += ,@($DockerArgs)
     if ($DockerArgs.Count -gt 0 -and $DockerArgs[0] -eq 'ps') {
         $filterText = $DockerArgs -join ' '
         if ($filterText.Contains('service=nuxt-main2-gateway')) { return 'fake-main2-id' }
@@ -48,10 +48,10 @@ function Invoke-WebRequest {
 try {
     Set-Content -Path $testEnv -Value '# Test fixture sin secretos.' -Encoding UTF8
     & $launcher -Action verify -BindIp '127.0.0.1'
-    if ($script:dockerCalls.Count -ne 4) {
-        throw "Esperábamos dos consultas Docker ps y dos inspect, recibimos $($script:dockerCalls.Count)."
+    if ($global:MockDockerCalls.Count -ne 4) {
+        throw "Esperábamos dos consultas Docker ps y dos inspect, recibimos $($global:MockDockerCalls.Count)."
     }
-    foreach ($call in $script:dockerCalls) {
+    foreach ($call in $global:MockDockerCalls) {
         if ($call -contains 'up' -or $call -contains 'stop' -or $call -contains 'rm' -or $call -contains 'restart') {
             throw "La verificación intentó modificar contenedores: $($call -join ' ')"
         }
@@ -59,4 +59,5 @@ try {
     Write-Host 'PASS Windows PowerShell 5.1: verificación sin reconstruir Docker.'
 } finally {
     Remove-Item -Path $testEnv -ErrorAction SilentlyContinue
+    Remove-Variable -Scope Global -Name MockDockerCalls -ErrorAction SilentlyContinue
 }
