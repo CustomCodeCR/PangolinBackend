@@ -244,6 +244,19 @@ assert.match(manager, /user\.activo = value === 'true'/, 'Activo se convierte a 
 assert.match(manager, /newsForm\.published = value === 'true'/, 'Publicación de noticias conserva booleanos')
 assert.match(manager, /commentForm\.published = value === 'true'/, 'Publicación de comentarios conserva booleanos')
 assert.match(manager, /selectAdminTransport/, 'Transporte conserva lógica de reajuste de modalidad')
+const itineraryAdminForm = manager.match(/<form v-if="section === 'itineraries'"[\s\S]*?<\/form>/)?.[0] ?? ''
+assert.ok(itineraryAdminForm, 'Falta el formulario de Itinerarios en Administración')
+assert.ok(
+  itineraryAdminForm.indexOf('itineraryForm.transport') < itineraryAdminForm.indexOf('itineraryForm.origin') &&
+  itineraryAdminForm.indexOf('itineraryForm.origin') < itineraryAdminForm.indexOf('itineraryForm.destination') &&
+  itineraryAdminForm.indexOf('itineraryForm.destination') < itineraryAdminForm.indexOf('itineraryForm.status'),
+  'Orden restaurado de Itinerarios: Transporte, Origen, Destino, Estado'
+)
+for (const field of ['origin','destination','transport','status','departure','arrival','closing','modality','carrier','vessel','voyage']) {
+  assert.match(itineraryAdminForm, new RegExp('itineraryForm\\.' + field + '\\b'), 'No perder campo de Itinerarios: ' + field)
+}
+assert.match(itineraryAdminForm, /:required="isLiveAdmin"/, 'Fechas siguen siendo obligatorias para el admin real')
+assert.doesNotMatch(itineraryAdminForm, /<template v-if="isLiveAdmin">/, 'Vista de prueba presenta todos los campos de itinerario')
 assert.doesNotMatch(officialQuoteAdmin, /<select\b/, 'La revisión administrativa de Cotizaciones usa el menú nuevo')
 assert.match(officialQuoteAdmin, /v-model="state"/, 'La revisión sigue enviando los estados oficiales')
 const adminUsers = source('src/pages/AdminUsers.vue')

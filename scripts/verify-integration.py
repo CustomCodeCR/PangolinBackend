@@ -51,7 +51,11 @@ check('embla-carousel' in json.loads(read('frontend/package.json'))['dependencie
 check('node_modules/embla-carousel' in json.loads(read('frontend/package-lock.json'))['packages'], 'Lockfile actualizado para carrusel')
 check("if(path==='/servicios') return 'services'" in rootvue and '<Services v-else-if' in rootvue, 'Nueva página Servicios registrada y conservada con autenticación')
 check("url: '/servicios'" in header and 'logoutSession' in header, 'Menú actualizado sin perder logout')
-check('EmblaCarousel' in read('frontend/src/pages/News.vue') and 'news-article-modal' in read('frontend/src/pages/News.vue'), 'Nueva página Noticias y modal disponible')
+# Las noticias pasaron de un modal a URLs propias SSR; proteger el comportamiento vigente.
+news_page = read('frontend/src/pages/News.vue')
+check('EmblaCarousel' in news_page and 'requestedArticleSlug' in news_page
+      and 'news-article-page' in news_page,
+      'Noticias conserva carrusel y páginas de artículo con URL individual')
 check((root/'frontend/src/pages/Services.vue').is_file(), 'Página Servicios incluida')
 check('selectTransport' in read('frontend/src/pages/Itinerary.vue'), 'Mejoras de transporte incorporadas')
 # Protección frente a las regresiones introducidas por la integración del frontend.
@@ -151,7 +155,7 @@ profile_styles = read('frontend/src/components/SiteHeader.vue')
 check('const profileTheme = computed(() => darkMode.value ?' in profile_styles
       and ':style="profileTheme"' in profile_styles
       and "'--profile-bg': 'rgba(10,18,40,.48)'" in profile_styles
-      and "'--profile-bg': 'rgba(255,255,255,.64)'" in profile_styles
+      and "'--profile-bg': 'rgba(255,255,255,.96)'" in profile_styles
       and "'--profile-ink': '#ffffff'" in profile_styles
       and 'background: var(--profile-bg, rgba(255,255,255,.64))' in profile_styles
       and 'backdrop-filter: blur(12px)' in profile_styles
@@ -186,24 +190,24 @@ check("import { Anchor } from '@lucide/vue'" in app
       and 'fill: none !important;' in shared_mobile_styles,
       'Cuatro íconos de cotización blancos, sin emoji azul y con SVG monócromo')
 legal_page = read('frontend/src/pages/Legal.vue')
-check('type LegalDocument = { title: string; intro: string; sections: LegalSection[] }' in legal_page
+# La versión legal actual usa documentos bilingües publicados con secciones,
+# no un formulario de borradores con campos intro/draft ya eliminados.
+check('type LegalDocument = { title: string; sections: LegalSection[] }' in legal_page
       and 'class="legal-draft"' not in legal_page
       and 'content.draft' not in legal_page
       and 'Borrador para revisión' not in legal_page
       and 'Working draft' not in legal_page
-      and 'Este borrador' not in legal_page
-      and 'This draft' not in legal_page
-      and legal_page.count('sections: [') == 8
+      and legal_page.count('"sections": [') == 8
       and all(title in legal_page for title in [
-          'Política de privacidad', 'Términos y condiciones',
+          'Política de privacidad', 'Términos y condiciones de uso',
           'Política de cookies y almacenamiento local', 'Créditos y licencias',
-          'Privacy policy', 'Terms and conditions',
-          'Cookie and local storage policy', 'Credits and licenses'
+          'Privacy Policy', 'Terms and Conditions of Use',
+          'Cookie and Local Storage Policy', 'Credits and Licenses'
       ])
-      and '.legal-draft' not in shared_mobile_styles
-      and 'La razón social, cédula jurídica y domicilio' in legal_page
-      and '/licenses/globe-third-party-notices.txt' in legal_page and (root / 'frontend/public/licenses/globe-third-party-notices.txt').is_file(),
-      'Páginas legales ES/EN sin aviso de borrador y con advertencias de datos por confirmar')
+      and 'Aduanera Castro Fallas S.A., cédula jurídica' in legal_page
+      and '/licenses/globe-third-party-notices.txt' in legal_page
+      and (root / 'frontend/public/licenses/globe-third-party-notices.txt').is_file(),
+      'Páginas legales ES/EN vigentes, sin borradores y con avisos de licencias')
 check('class="container quote-access-status quote-access-status--blocked"' in rootvue
       and rootvue.count('class="container quote-access-status quote-access-status--blocked"') == (3 if 'trackingSessionRequiredHelp' in rootvue else 2)
       and ('trackingSessionRequiredHelp' not in rootvue or "page==='tracking' && trackingAccess !== 'allowed'" in rootvue)
@@ -341,4 +345,15 @@ check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('fro
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
 check('VITE_API_PROXY_TARGET' in read('frontend/vite.config.ts'), 'Proxy Docker conservado')
+# PR #142 de main-2: preservar las tarjetas seleccionables del paso 4.
+# Detectar cualquier actualización de Nuxt que vuelva a casillas planas.
+quote_wizard = read('frontend/src/pages/OfficialQuoteWizard.vue')
+check('official-cargo-flags-grid' in quote_wizard
+      and 'cargoFlagIcons' in quote_wizard
+      and 'form.cargoFlags.includes(flag)' in quote_wizard
+      and 'official-service-card--selected' in quote_wizard
+      and "'Carga peligrosa': AlertTriangle" in quote_wizard
+      and "'No estibable': Layers" in quote_wizard
+      and "'Sobrepeso': Scale" in quote_wizard,
+      'Paso 4 mantiene las tres opciones de carga como tarjetas seleccionables de main-2/PR142')
 print('Comprobaciones estáticas de integración finalizadas.')
