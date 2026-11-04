@@ -20,6 +20,11 @@ const positioned = ref(false)
 const query = ref(props.modelValue)
 const searching = ref(false)
 const highlighted = ref(0)
+// The active option uses the same highlight treatment as FieldDropdown.
+const activeOption = computed(() => {
+  const chosen = matches.value.findIndex(item => item.displayName === props.modelValue)
+  return searching.value ? highlighted.value : chosen >= 0 ? chosen : 0
+})
 const trigger = ref<HTMLInputElement | null>(null)
 const menu = ref<HTMLElement | null>(null)
 
@@ -111,7 +116,7 @@ function openMenu(preserveTypedQuery = false) {
     searching.value = false
     query.value = props.modelValue
   }
-  highlighted.value = 0
+  highlighted.value = Math.max(0, props.options.findIndex(item => item.displayName === props.modelValue))
   positioned.value = false
   open.value = true
   void nextTick(() => {
@@ -131,7 +136,6 @@ function choose(value: string) {
   emit('update:modelValue', value)
   closeMenu()
   query.value = value
-  trigger.value?.focus({ preventScroll: true })
 }
 function outsidePointer(event: PointerEvent) {
   const target = event.target
@@ -192,11 +196,11 @@ onBeforeUnmount(removeListeners)
         <template v-if="!loading && !error">
           <button v-for="(item, index) in matches" :key="item.id" type="button" role="option"
             :aria-selected="item.displayName === modelValue" tabindex="-1"
-            :class="{ 'cf-dropdown__option--selected': item.displayName === modelValue, 'itinerary-location-picker__highlighted': highlighted === index && searching && !!query }"
-            @click="choose(item.displayName)">{{ item.displayName }}</button>
+            :class="{ 'cf-dropdown__option--selected': activeOption === index }"
+            @mousedown.prevent @click="choose(item.displayName)">{{ item.displayName }}</button>
         </template>
         <button v-if="modelValue && !required" type="button" class="itinerary-location-picker__clear"
-          @click="choose('')">Limpiar selección</button>
+          @mousedown.prevent @click="choose('')">Limpiar selección</button>
       </div>
     </Teleport>
   </div>
@@ -214,20 +218,18 @@ onBeforeUnmount(removeListeners)
 .itinerary-location-picker__control input.itinerary-location-picker__input:focus-visible {
   outline:2px solid #b20c2a; outline-offset:2px;
 }
+/* Pointer opening should not show a different red border from other selects. */
+.itinerary-location-picker__control input.itinerary-location-picker__input:focus:not(:focus-visible) {
+  outline:none; box-shadow:none;
+}
 .itinerary-location-picker__toggle {
   position:absolute; right:0; top:0; bottom:0;
   width:44px; display:grid; place-items:center; border:0;
   border-radius:0 12px 12px 0; background:transparent; color:inherit; cursor:pointer;
 }
 .itinerary-location-picker__toggle .cf-dropdown__chevron { pointer-events:none; }
-.itinerary-location-picker__menu > button.itinerary-location-picker__highlighted {
-  background:#f7e8eb; color:#a80e18;
-}
 .itinerary-location-picker__menu > .itinerary-location-picker__clear { border-top:1px solid #8884; border-radius:0; }
 .itinerary-location-picker__menu > .itinerary-location-picker__message { padding:12px; font-size:13px; color:inherit; }
-html.theme-dark .itinerary-location-picker__menu > button.itinerary-location-picker__highlighted {
-  background:#30262d; color:#ff806f;
-}
 .app-site.itinerary-page .itinerary-filter-card__primary > .itinerary-location-picker,
 .app-site.itinerary-page .itinerary-filter-card__primary > .itinerary-form-line { align-self:start; }
 .app-site.itinerary-page .itinerary-filter-card__primary > .itinerary-form-line {
