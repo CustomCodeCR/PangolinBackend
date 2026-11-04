@@ -258,7 +258,7 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
       <section v-if="activeItinerary" :key="activeItinerary.id" class="itinerary-form-card">
         <template v-for="item in [activeItinerary]" :key="item.id">
         <header class="itinerary-form-card__heading">
-          <div><p class="section-tag">{{ t('custom.itinerary.form.eyebrow') }}</p><h2>{{ t('custom.itinerary.form.itemTitle', { number: String(itineraries.findIndex(entry => entry.id === item.id) + 1).padStart(2, '0') }) }}</h2></div>
+          <div><p class="section-tag">{{ en ? 'SEARCH FILTERS' : 'FILTROS DE BÚSQUEDA' }}</p><h2>{{ en ? 'Filter itineraries' : 'Filtrar itinerarios' }}</h2></div>
           <button v-if="itineraries.length > 1" class="itinerary-remove" type="button" :aria-label="t('custom.itinerary.form.remove')" @click="removeItinerary(item.id)">× <span>{{ t('custom.itinerary.form.remove') }}</span></button>
         </header>
 
@@ -336,6 +336,12 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
 <style scoped>
 
 .itinerary-location-feedback{margin:12px 0 0;color:#a80e18;font-size:12px;font-weight:600}
+.itinerary-result-card{grid-template-columns:minmax(130px,.65fr) minmax(0,3fr);gap:18px 24px}
+.itinerary-result-card__details{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:13px 20px;border-top:1px solid #eee7e9;padding-top:15px}
+.itinerary-result-card__details>span{min-width:0}
+.itinerary-result-card__details strong{font-size:12px;overflow-wrap:anywhere}
+@media(max-width:760px){.itinerary-result-card{grid-template-columns:minmax(0,1fr)}.itinerary-result-card__details{grid-column:1/-1;grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:390px){.itinerary-result-card__details{grid-template-columns:minmax(0,1fr)}}
 .published-itineraries{margin:36px 0}.published-itineraries h2{margin:0 0 18px;font-size:clamp(24px,3vw,36px)}.published-itinerary-card{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:10px 0;padding:18px 22px;border:1px solid #ffffff3c;border-radius:16px;background:#ffffff0c;backdrop-filter:blur(12px);color:inherit}.published-itinerary-card>div:first-child{display:grid;gap:7px}.published-itinerary-card small,.published-itinerary-dates{opacity:.75}.published-itinerary-card strong{font-size:18px}.published-itinerary-card strong span{color:#ef3340;padding:0 5px}.published-itinerary-dates{display:flex;gap:16px;font-size:13px}@media(max-width:600px){.published-itinerary-card{align-items:flex-start;flex-direction:column}.published-itinerary-card strong{font-size:16px}.published-itinerary-dates{flex-wrap:wrap}}
 
 </style>
