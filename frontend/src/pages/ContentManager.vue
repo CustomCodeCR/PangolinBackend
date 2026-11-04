@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { localizeTrackingMode, localizeTrackingStatus } from '../lib/trackingDisplay'
 import IconSymbol from '../components/IconSymbol.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
+import ItineraryLocationPicker from '../components/ItineraryLocationPicker.vue'
+import { itineraryLocationChoices, type ItineraryLocation } from '../lib/itineraryLocations'
 import SiteVisualEditor from './SiteVisualEditor.vue'
 import NewsRichTextEditor from '../components/NewsRichTextEditor.vue'
 import OfficialQuoteAdmin from './OfficialQuoteAdmin.vue'
@@ -44,6 +46,34 @@ const newsForm = ref<ManagedNews>(emptyNews())
 const newsExpirationMode = ref<'permanent' | 'scheduled'>('permanent')
 const hasNewsExpired = (item: ManagedNews) => Boolean(item.expiresAt && Date.parse(item.expiresAt) <= Date.now())
 const itineraryForm = ref<ManagedItinerary>(emptyItinerary())
+const adminOriginOptions = ref<ItineraryLocation[]>([])
+const adminDestinationOptions = ref<ItineraryLocation[]>([])
+const adminLocationsLoading = ref(false)
+const adminLocationsError = ref('')
+let adminLocationRequest = 0
+async function loadAdminLocations() {
+  const id = ++adminLocationRequest
+  adminLocationsLoading.value = true
+  adminLocationsError.value = ''
+  const mode = itineraryForm.value.transport === 'Terrestre' ? 'ground'
+    : itineraryForm.value.transport === 'Marítimo' ? 'maritime' : 'all'
+  try {
+    const [origin, destination] = await Promise.all([
+      itineraryLocationChoices(mode, 'origin'),
+      itineraryLocationChoices(mode, 'destination')
+    ])
+    if (id !== adminLocationRequest) return
+    adminOriginOptions.value = origin
+    adminDestinationOptions.value = destination
+  } catch (error) {
+    if (id !== adminLocationRequest) return
+    adminOriginOptions.value = []
+    adminDestinationOptions.value = []
+    adminLocationsError.value = error instanceof Error ? error.message : 'No se pudieron cargar los lugares.'
+  } finally {
+    if (id === adminLocationRequest) adminLocationsLoading.value = false
+  }
+}
 const mediaForm = ref<ManagedMedia>(emptyMedia())
 const commentForm = ref<ManagedComment>(emptyComment())
 const mediaUploadFile = ref<File | null>(null)
@@ -130,6 +160,7 @@ onMounted(async () => {
   await refreshSession()
   if (!isLiveAdmin.value) reload()
   else await Promise.all([loadItineraries(), loadNews(), loadComments(), loadMedia(), checkStorageMode(), loadQuotesTotal()])
+  if (section.value === 'itineraries') void loadAdminLocations()
   if (section.value === 'users') await loadUsers()
 })
 
@@ -142,7 +173,7 @@ function selectSection(next: Section) {
   else url.searchParams.delete('tab')
   window.history.replaceState({}, '', url)
   if (next === 'users') void loadUsers()
-  else if (next === 'itineraries') void loadItineraries()
+  else if (next === 'itineraries') { void loadItineraries(); void loadAdminLocations() }
   else if (next === 'news') void loadNews()
   else if (next === 'comments') void loadComments()
   else if (next === 'media') void loadMedia()
@@ -306,6 +337,9 @@ async function deleteUser(user: ManagedUser) {
 function selectAdminTransport(value: string) {
   itineraryForm.value.transport = value
   onTransportChange()
+  itineraryForm.value.origin = ''
+  itineraryForm.value.destination = ''
+  void loadAdminLocations()
 }
 function onTransportChange() {
   itineraryForm.value.modality = itineraryForm.value.transport === 'Terrestre' ? 'LTL' : 'FCL'
@@ -626,8 +660,12 @@ function useMediaForNews(item: ManagedMedia) {
   {value:'Terrestre',label:displayManagedMode('Terrestre')},
   ...(!isLiveAdmin ? [{value:'Aéreo',label:displayManagedMode('Aéreo')},{value:'Multimodal',label:displayManagedMode('Multimodal')}] : [])
 ]" @update:model-value="selectAdminTransport" /></div>
-            <label>Origen<input v-model="itineraryForm.origin" required maxlength="120" placeholder="San José, Costa Rica" /></label>
-            <label>Destino<input v-model="itineraryForm.destination" required maxlength="120" placeholder="Miami, Estados Unidos" /></label>
+            <ItineraryLocationPicker v-model="itineraryForm.origin" :options="adminOriginOptions"
+              :loading="adminLocationsLoading" :error="adminLocationsError" :label="en ? 'Origin' : 'Origen'"
+              :placeholder="en ? 'Search origin' : 'Buscar origen'" required />
+            <ItineraryLocationPicker v-model="itineraryForm.destination" :options="adminDestinationOptions"
+              :loading="adminLocationsLoading" :error="adminLocationsError" :label="en ? 'Destination' : 'Destino'"
+              :placeholder="en ? 'Search destination' : 'Buscar destino'" required />
             <div class="manager-select-field"><label>{{ en ? 'Status' : 'Estado' }}</label><FieldDropdown v-model="itineraryForm.status" :aria-label="en ? 'Status' : 'Estado'" :options="['Programado','En tránsito','Completado','Demorado'].map(value => ({value,label:displayManagedStatus(value)}))" /></div>
             <div class="manager-form-row"><label>Salida (ETD)<input v-model="itineraryForm.departure" type="date" :required="isLiveAdmin" /></label><label>Llegada (ETA)<input v-model="itineraryForm.arrival" type="date" :required="isLiveAdmin" /></label></div>
             <label>Closing (opcional)<input v-model="itineraryForm.closing" type="date" /></label><div class="manager-select-field"><label>Modalidad</label><FieldDropdown :model-value="itineraryForm.modality ?? ''" @update:model-value="value => itineraryForm.modality = value" aria-label="Modalidad" :options="(itineraryForm.transport === 'Terrestre' ? ['LTL'] : ['FCL', 'LCL']).map(value => ({value,label:value}))" /></div><div class="manager-form-row"><label>Transportista (opcional)<input v-model="itineraryForm.carrier" maxlength="150" /></label><label>Buque (opcional)<input v-model="itineraryForm.vessel" maxlength="150" /></label></div><label>Viaje (opcional)<input v-model="itineraryForm.voyage" maxlength="50" /></label>
