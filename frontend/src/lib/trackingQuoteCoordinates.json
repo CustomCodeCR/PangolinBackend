@@ -754,5 +754,167 @@
     "lon": -73.1198,
     "aliases": [],
     "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Acajutla, El Salvador",
+    "quoteCatalogName": "Acajutla, El Salvador",
+    "kind": "seaport",
+    "lat": 13.59278,
+    "lon": -89.8275,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Antwerp / Amberes, Bélgica",
+    "quoteCatalogName": "Antwerp / Amberes, Bélgica",
+    "kind": "seaport",
+    "lat": 51.21989,
+    "lon": 4.40346,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Callao, Perú",
+    "quoteCatalogName": "Callao, Perú",
+    "kind": "seaport",
+    "lat": -12.05659,
+    "lon": -77.11814,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Dubai, Emiratos Árabes Unidos",
+    "quoteCatalogName": "Dubai, Emiratos Árabes Unidos",
+    "kind": "seaport",
+    "lat": 25.0657,
+    "lon": 55.17128,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Kaohsiung, Taiwán",
+    "quoteCatalogName": "Kaohsiung, Taiwán",
+    "kind": "seaport",
+    "lat": 22.61626,
+    "lon": 120.31333,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Puerto Corinto, Nicaragua",
+    "quoteCatalogName": "Puerto Corinto, Nicaragua",
+    "kind": "seaport",
+    "lat": 12.4825,
+    "lon": -87.17304,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Rotterdam, Países Bajos",
+    "quoteCatalogName": "Rotterdam, Países Bajos",
+    "kind": "seaport",
+    "lat": 51.9225,
+    "lon": 4.47917,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Vlissingen, Países Bajos",
+    "quoteCatalogName": "Vlissingen, Países Bajos",
+    "kind": "seaport",
+    "lat": 51.4425,
+    "lon": 3.57361,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Managua, Nicaragua",
+    "quoteCatalogName": "Managua, Nicaragua",
+    "kind": "inland",
+    "lat": 12.13282,
+    "lon": -86.2504,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "San Salvador, El Salvador",
+    "quoteCatalogName": "San Salvador, El Salvador",
+    "kind": "inland",
+    "lat": 13.68935,
+    "lon": -89.18718,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Adelaide, Australia",
+    "quoteCatalogName": "Adelaide, Australia",
+    "kind": "airport",
+    "lat": -34.92866,
+    "lon": 138.59863,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Ciudad del Este, Paraguay",
+    "quoteCatalogName": "Ciudad del Este, Paraguay",
+    "kind": "airport",
+    "lat": -25.50972,
+    "lon": -54.61111,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Amsterdam, Países Bajos",
+    "quoteCatalogName": "Amsterdam, Países Bajos",
+    "kind": "airport",
+    "lat": 52.37403,
+    "lon": 4.88969,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Antwerp, Bélgica",
+    "quoteCatalogName": "Antwerp, Bélgica",
+    "kind": "airport",
+    "lat": 51.21989,
+    "lon": 4.40346,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Arequipa, Perú",
+    "quoteCatalogName": "Arequipa, Perú",
+    "kind": "airport",
+    "lat": -16.39889,
+    "lon": -71.535,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Alice Springs, Australia",
+    "quoteCatalogName": "Alice Springs, Australia",
+    "kind": "airport",
+    "lat": -23.69748,
+    "lon": 133.88362,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Abu Dhabi, Emiratos Árabes Unidos",
+    "quoteCatalogName": "Abu Dhabi, Emiratos Árabes Unidos",
+    "kind": "airport",
+    "lat": 24.41361,
+    "lon": 54.43295,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Broken Hill, Australia",
+    "quoteCatalogName": "Broken Hill, Australia",
+    "kind": "airport",
+    "lat": -31.9652,
+    "lon": 141.4512,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
   }
 ]
