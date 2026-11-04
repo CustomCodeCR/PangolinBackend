@@ -1006,5 +1006,86 @@
     "lon": -1.89983,
     "aliases": [],
     "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Karachi, Pakistán",
+    "quoteCatalogName": "Karachi, Pakistán",
+    "kind": "seaport",
+    "lat": 24.8608,
+    "lon": 67.0104,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Kobe, Japón",
+    "quoteCatalogName": "Kobe, Japón",
+    "kind": "seaport",
+    "lat": 34.6913,
+    "lon": 135.183,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Le Havre, Francia",
+    "quoteCatalogName": "Le Havre, Francia",
+    "kind": "seaport",
+    "lat": 49.4938,
+    "lon": 0.10767,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Lisboa, Portugal",
+    "quoteCatalogName": "Lisboa, Portugal",
+    "kind": "seaport",
+    "lat": 38.72635,
+    "lon": -9.14843,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Abuja, Nigeria",
+    "quoteCatalogName": "Abuja, Nigeria",
+    "kind": "airport",
+    "lat": 9.05785,
+    "lon": 7.49508,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Accra, Ghana",
+    "quoteCatalogName": "Accra, Ghana",
+    "kind": "airport",
+    "lat": 5.55602,
+    "lon": -0.1969,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Addis Ababa, Etiopía",
+    "quoteCatalogName": "Addis Ababa, Etiopía",
+    "kind": "airport",
+    "lat": 9.02497,
+    "lon": 38.74689,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Aden, Yemen",
+    "quoteCatalogName": "Aden, Yemen",
+    "kind": "airport",
+    "lat": 12.77944,
+    "lon": 45.03667,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Amman, Jordania",
+    "quoteCatalogName": "Amman, Jordania",
+    "kind": "airport",
+    "lat": 31.95522,
+    "lon": 35.94503,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
   }
 ]
