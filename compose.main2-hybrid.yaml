@@ -1,0 +1,9 @@
+# Opt-in entrypoint for main-2 development. Use with compose.yaml,
+# compose.nuxt-preview.yaml and compose.nuxt-local-hybrid.yaml.
+# Launch via scripts/start-main2-hybrid.ps1 or scripts/start-main2-hybrid.sh:
+# the launcher moves host Vite to 5174 BEFORE opening 5173 here.
+# This overlay never modifies production/compose.production.yaml.
+services:
+  nuxt-local-gateway:
+    ports:
+      - "${NUXT_LOCAL_GATEWAY_BIND_IP:-127.0.0.1}:${NUXT_MAIN2_PORT:-5173}:80"
