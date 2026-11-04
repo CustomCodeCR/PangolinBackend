@@ -401,6 +401,63 @@ assert.match(trackingGlobeSource, /transportGlyph/, 'El globo presenta el ícono
 const trackingLocalizationSource = source('src/lib/trackingDisplay.ts')
 const tsCompiler = require('typescript')
 const { runInNewContext } = require('node:vm')
+
+// Tracking uses quote-backed canonical names plus explicit illustrative coordinates.
+// Evaluate the real TypeScript route functions instead of duplicating their resolver.
+const trackingPorts = JSON.parse(source('src/lib/trackingPorts.json'))
+const knownQuotePorts = new Set(
+  [...source('../backend/Database/OfficialQuotesVideoLocations.sql').matchAll(/'seaport','([^']+)'/g)]
+    .map(([, name]) => name)
+)
+for (const port of trackingPorts) {
+  assert.ok(Number.isFinite(port.lat) && Math.abs(port.lat) <= 90, 'Latitud válida: ' + port.name)
+  assert.ok(Number.isFinite(port.lon) && Math.abs(port.lon) <= 180, 'Longitud válida: ' + port.name)
+  if (port.quoteCatalogName) {
+    assert.ok(knownQuotePorts.has(port.quoteCatalogName), 'Puerto registrado en Cotizaciones: ' + port.quoteCatalogName)
+  }
+}
+assert.match(trackingRouteSource, /import trackingPorts from '.\/trackingPorts\.json'/,
+  'Tracking utiliza el catálogo geográfico basado en Cotizaciones')
+const compiledTrackingRoute = tsCompiler.transpileModule(trackingRouteSource, {
+  compilerOptions: {
+    module: tsCompiler.ModuleKind.CommonJS, target: tsCompiler.ScriptTarget.ES2020,
+    esModuleInterop: true
+  }
+})
+const trackingRouteExports = {}
+runInNewContext(compiledTrackingRoute.outputText, {
+  exports: trackingRouteExports,
+  require: name => {
+    assert.equal(name, './trackingPorts.json', 'Tracking no debe añadir dependencias no previstas')
+    return trackingPorts
+  }
+}, { timeout: 1000 })
+const journeyFor = values => trackingRouteExports.illustrativeJourney({
+  origin: values.origin ?? null,
+  portOfLoading: values.portOfLoading ?? null,
+  routeStops: values.routeStops ?? null,
+  portOfEntry: values.portOfEntry ?? null,
+  destination: values.destination ?? null
+})
+const idtra12753 = journeyFor({
+  origin: 'China', portOfLoading: 'Shenzhen, China',
+  portOfEntry: 'Pto. Balboa, Panamá', destination: 'Panamá'
+})
+assert.equal(idtra12753.map(point => point.name).join(' -> '),
+  'Shenzhen, China -> Balboa, Panamá', 'IDTRA 12753 tiene sus dos puertos ilustrativos')
+assert.equal(journeyFor({ origin: 'China', destination: 'Panamá' }).length, 0,
+  'No inventar coordenadas para países genéricos')
+assert.equal(journeyFor({
+  portOfLoading: 'Qingdao, China', routeStops: ['Mundra, India', 'Cristóbal, Panamá'],
+  portOfEntry: 'Puerto Caldera, Costa Rica', destination: 'San José, Costa Rica'
+}).length, 5, 'Conservar todas las escalas conocidas en el orden recibido')
+assert.equal(journeyFor({ portOfLoading: 'Puerto Balboa, Panama',
+  portOfEntry: 'Callao, Perú' }).map(p => p.name).join(' -> '),
+  'Balboa, Panamá -> Callao, Perú', 'Variantes de nombres funcionan sin tildes')
+assert.equal(journeyFor({
+  portOfLoading: 'Shenzhen, China', portOfEntry: 'Shenzhen, China'
+}).length, 0, 'No dibujar recorridos cuando ambos puertos son idénticos')
+
 const compiledLocalization = tsCompiler.transpileModule(trackingLocalizationSource, {
   compilerOptions: { module: tsCompiler.ModuleKind.CommonJS, target: tsCompiler.ScriptTarget.ES2020 }
 })
