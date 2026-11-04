@@ -1,9 +1,19 @@
-# Opt-in entrypoint for main-2 development. Use with compose.yaml,
-# compose.nuxt-preview.yaml and compose.nuxt-local-hybrid.yaml.
-# Launch via scripts/start-main2-hybrid.ps1 or scripts/start-main2-hybrid.sh:
-# the launcher moves host Vite to 5174 BEFORE opening 5173 here.
-# This overlay never modifies production/compose.production.yaml.
+# Opt-in main-2: a second nginx proxy on 5173 while the existing hybrid
+# gateway stays on 8083. Separate containers avoid duplicate published ports
+# on the same container target (80/tcp) across multiple Compose overlays.
+# Both proxies share routing configuration, Nuxt, Vue and the same backend.
 services:
-  nuxt-local-gateway:
+  nuxt-main2-gateway:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    volumes:
+      - ./deploy/nuxt-local-hybrid-gateway.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
       - "${NUXT_LOCAL_GATEWAY_BIND_IP:-127.0.0.1}:${NUXT_MAIN2_PORT:-5173}:80"
+    depends_on:
+      frontend-legacy-preview:
+        condition: service_healthy
+      frontend-nuxt:
+        condition: service_healthy
+      backend:
+        condition: service_started

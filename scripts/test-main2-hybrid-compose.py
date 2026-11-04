@@ -51,11 +51,11 @@ assert "nuxt-local-gateway" not in original["services"], (
 hybrid = config(FULL, ENV)
 services = hybrid["services"]
 vite = bindings(services["frontend"])
-gateway = bindings(services["nuxt-local-gateway"])
+gateway = bindings(services["nuxt-main2-gateway"])
+alternate = bindings(services["nuxt-local-gateway"])
 assert vite == {("127.0.0.1", "5174", 5173)}, f"Vite port mismatch: {vite}"
-assert gateway == {
-    ("127.0.0.1", "5173", 80), ("127.0.0.1", "8083", 80)
-}, f"Gateway must own 5173 AND 8083: {gateway}"
+assert gateway == {("127.0.0.1", "5173", 80)}, f"Main nginx must own only 5173: {gateway}"
+assert alternate == {("127.0.0.1", "8083", 80)}, f"Alternate nginx must own only 8083: {alternate}"
 assert ("127.0.0.1", "8082", 3000) in bindings(services["frontend-nuxt"]), (
     "Nuxt direct preview must stay on 8082"
 )
@@ -66,9 +66,12 @@ for svc_name in ("backend", "postgres"):
 
 # Prove a concrete LAN IPv4 is published for gateway ONLY, without opening Vite/API.
 lan = config(FULL, ENV | {"NUXT_LOCAL_GATEWAY_BIND_IP": "192.168.1.26"})
+assert bindings(lan["services"]["nuxt-main2-gateway"]) == {
+    ("192.168.1.26", "5173", 80)
+}, "LAN main entrypoint not bound to the explicit interface"
 assert bindings(lan["services"]["nuxt-local-gateway"]) == {
-    ("192.168.1.26", "5173", 80), ("192.168.1.26", "8083", 80)
-}, "LAN entrypoints not bound to the explicit interface"
+    ("192.168.1.26", "8083", 80)
+}, "LAN alternate entrypoint not bound to the explicit interface"
 assert bindings(lan["services"]["frontend"]) == vite, "Vite unexpectedly exposed on LAN"
 for launcher in ("scripts/start-main2-hybrid.ps1", "scripts/start-main2-hybrid.sh"):
     text = (ROOT / launcher).read_text(encoding="utf-8")
@@ -76,4 +79,29 @@ for launcher in ("scripts/start-main2-hybrid.ps1", "scripts/start-main2-hybrid.s
     assert "--force-recreate" in text, f"Launcher must recreate stale gateways: {launcher}"
     assert ("docker inspect" in text), f"Launcher must verify actual port bindings: {launcher}"
 
-print("PASS main-2: legacy 5173 fallback; hybrid 5173/8083, Vite 5174; LAN isolated")
+print("PASS main-2: isolated nginx 5173 and 8083, Vite 5174, legacy fallback; LAN isolated")
+
+if "--runtime" in __import__("sys").argv:
+    proxies = ("nuxt-main2-gateway", "nuxt-local-gateway")
+    def docker(*args):
+        result = subprocess.run(
+            ["docker", *args], cwd=ROOT, env=ENV,
+            text=True, capture_output=True, check=False,
+        )
+        if result.returncode:
+            raise RuntimeError("Docker command failed: " + " ".join(args) + "\\n" + result.stderr)
+        return result.stdout.strip()
+    try:
+        docker("compose", *FULL, "up", "-d", "--no-deps", "--force-recreate", *proxies)
+        for service, port in (("nuxt-main2-gateway", "5173"), ("nuxt-local-gateway", "8083")):
+            cid = docker("compose", *FULL, "ps", "-q", service)
+            assert cid, f"Container absent: {service}"
+            mapping = json.loads(docker("inspect", "--format", "{{json .NetworkSettings.Ports}}", cid))
+            assert mapping["80/tcp"] == [{"HostIp": "127.0.0.1", "HostPort": port}], (
+                f"{service} has wrong actual host mapping: {mapping}"
+            )
+        print("PASS real Docker runtime publishes both fixed localhost ports")
+    finally:
+        subprocess.run(["docker", "compose", *FULL, "stop", *proxies], cwd=ROOT, env=ENV, capture_output=True)
+        subprocess.run(["docker", "compose", *FULL, "rm", "-f", *proxies], cwd=ROOT, env=ENV, capture_output=True)
+

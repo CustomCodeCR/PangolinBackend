@@ -22,7 +22,7 @@ case "$action" in
     docker compose "${files[@]}" ps
     ;;
   rollback)
-    docker compose "${files[@]}" stop nuxt-local-gateway
+    docker compose "${files[@]}" stop nuxt-main2-gateway nuxt-local-gateway
     # Restore legacy host port from .env, without deleting containers or named volumes.
     env -u FRONTEND_HOST_PORT -u FRONTEND_BIND_IP \
       docker compose -f compose.yaml up -d --no-deps --force-recreate frontend
@@ -34,18 +34,21 @@ case "$action" in
     docker compose "${files[@]}" up -d --build frontend
     docker compose "${files[@]}" up -d --build backend frontend-nuxt frontend-legacy-preview
     # Recreate existing nginx to apply both published host ports (no volumes removed).
-    docker compose "${files[@]}" up -d --no-deps --force-recreate nuxt-local-gateway
+    docker compose "${files[@]}" up -d --no-deps --force-recreate nuxt-local-gateway nuxt-main2-gateway
     docker compose "${files[@]}" ps
-    gateway_id="$(docker compose "${files[@]}" ps -q nuxt-local-gateway)"
-    [[ -n "$gateway_id" ]] || { echo "Missing nginx gateway container" >&2; exit 1; }
-    published="$(docker inspect --format '{{json .NetworkSettings.Ports}}' "$gateway_id")"
-    python3 - "$bind_ip" "$published" <<'PY_PORTS'
+    for service_and_port in "nuxt-main2-gateway:5173" "nuxt-local-gateway:8083"; do
+      service="${service_and_port%%:*}"
+      expected_port="${service_and_port##*:}"
+      gateway_id="$(docker compose "${files[@]}" ps -q "$service")"
+      [[ -n "$gateway_id" ]] || { echo "Missing $service container" >&2; exit 1; }
+      published="$(docker inspect --format '{{json .NetworkSettings.Ports}}' "$gateway_id")"
+      python3 - "$bind_ip" "$expected_port" "$published" <<'PY_PORTS'
 import json, sys
-ip, raw = sys.argv[1:]
+ip, port, raw = sys.argv[1:]
 actual = {(entry["HostIp"], entry["HostPort"]) for entry in json.loads(raw).get("80/tcp", []) or []}
-expected = {(ip, "5173"), (ip, "8083")}
-assert expected <= actual, f"Gateway published {actual}, expected {expected}"
+assert actual == {(ip, port)}, f"Gateway published {actual}, expected {ip}:{port}"
 PY_PORTS
+    done
     ready=0
     tmp_dir="$(mktemp -d)"
     trap 'rm -rf "$tmp_dir"' EXIT

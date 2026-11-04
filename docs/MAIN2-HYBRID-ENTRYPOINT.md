@@ -5,7 +5,7 @@
 | URL en la computadora anfitriona | Función |
 | --- | --- |
 | http://127.0.0.1:5173/ | Gateway híbrido principal al arrancar con el lanzador |
-| http://127.0.0.1:8083/ | Segundo puerto del mismo gateway |
+| http://127.0.0.1:8083/ | Gateway alternativo, idénticas rutas y servicios |
 | http://127.0.0.1:5174/ | Vue/Vite original con recarga para desarrollo |
 | http://127.0.0.1:8082/ | Vista Nuxt directa; no sirve rutas privadas |
 
@@ -52,8 +52,8 @@ Usa una IPv4 privada propia en el segundo argumento solo si necesitás compartir
 
 - `compose.yaml` **sigue igual**: `docker compose up` a secas mantiene Vite por defecto en 5173 para no romper a otros desarrolladores.
 - El lanzador ejecuta el mismo proyecto `castrofallas` de Docker, pero aplica cuatro archivos Compose y mueve el puerto de host de Vite a 5174 antes de publicar 5173 en Nginx.
-- Para actualizar instalaciones anteriores, recrea **solo el contenedor Nginx del gateway** con `--force-recreate --no-deps`. Comprueba las publicaciones reales de 5173 y 8083; si falta alguna, muestra error en vez de declarar éxito. No borra datos.
-- `compose.main2-hybrid.yaml` agrega 5173 al gateway existente; la 8083 ya está en `compose.nuxt-local-hybrid.yaml`. Ambas rutas usan el mismo proxy y origen de sesión.
+- Para actualizar instalaciones anteriores, recrea **solo los dos contenedores Nginx** con `--force-recreate --no-deps`. Cada uno publica un único puerto; esto evita el problema observado en Docker Desktop Windows con dos publicaciones al mismo puerto interno. Comprueba las publicaciones reales de 5173 y 8083. No borra datos.
+- `compose.main2-hybrid.yaml` añade un servicio Nginx separado `nuxt-main2-gateway` para 5173; `nuxt-local-gateway` sigue usando 8083. Comparten exactamente el mismo Nginx y conectan a los mismos Nuxt, Vue y backend. No duplican bases de datos ni sesiones.
 - El backend y los volúmenes de PostgreSQL/Redis/Mongo no se recrean desde cero ni se borran. Nunca uses `docker compose down -v`.
 - Si alguien usa comandos Compose manuales después del arranque, debe mantener las mismas variables y los cuatro `-f`. Lo más sencillo es usar los comandos `-Action status` y `-Action rollback` del lanzador.
 - Las rutas /administracion, /tracking, /cotizaciones, /itinerario y /bienvenidos siguen en Vue por diseño. El 8082 directo entrega 404 en esas rutas.
