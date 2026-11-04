@@ -1,6 +1,6 @@
 # Castro Fallas — Rediseño 8 + Docker GitHub
 
-> **main-2, acceso recomendado para el equipo:** el gateway híbrido Nuxt 4 + Vue ahora tiene lanzadores de desarrollo para usar **5173** como entrada principal, **8083** como alternativa y **5174** para Vite. Son opt-in para no romper instalaciones existentes. En Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\start-main2-hybrid.ps1 -BindIp 192.168.1.26` (sustituí la IP por la de tu PC). En Mac/Linux: `bash scripts/start-main2-hybrid.sh up 127.0.0.1`. [Guía y rollback](docs/MAIN2-HYBRID-ENTRYPOINT.md).
+> **main-2, acceso recomendado para el equipo:** el gateway híbrido Nuxt 4 + Vue ahora tiene lanzadores de desarrollo para usar **5173** como entrada principal, **8083** como alternativa y **5174** para Vite. Son opt-in para no romper instalaciones existentes. En Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-main2-hybrid.ps1 -BindIp 192.168.1.26` (sustituí la IP por la de tu PC). En Mac/Linux: `bash scripts/start-main2-hybrid.sh up 127.0.0.1`. [Guía y rollback](docs/MAIN2-HYBRID-ENTRYPOINT.md).
 
 Esta entrega es la fusión de **`castrofallas-rediseno 8.zip` (interfaz principal)** con **`castrofallas-unificado-actualizado (2).zip` (API, autenticación, PostgreSQL y Docker)**. Está pensada para desarrollo local, **no** para producción directamente.
 
