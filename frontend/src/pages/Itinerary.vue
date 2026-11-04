@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import IconSymbol from '../components/IconSymbol.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
+import ItineraryLocationSelect from '../components/ItineraryLocationSelect.vue'
+import { useItineraryLocations } from '../lib/itineraryLocations'
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
@@ -36,6 +38,9 @@ type ItineraryResultado = {
   eta: string
   transport: TransportMode
   modality: string
+  carrier?: string | null
+  vessel?: string | null
+  voyage?: string | null
 }
 
 type ItineraryPageResponse = {
@@ -69,16 +74,22 @@ const activeItineraryId = ref(1)
 const activeItinerary = computed(() => itineraries.value.find(item => item.id === activeItineraryId.value) ?? itineraries.value[0])
 const searchPerformed = ref(false)
 const resultsRef = ref<HTMLElement | null>(null)
-const expandedResultId = ref<string | null>(null)
 const resultados = ref<ItineraryResultado[]>([])
 const publishedItineraries = ref<ManagedItinerary[]>([])
-onMounted(async () => { await refreshSession(); publishedItineraries.value = readManagedItineraries() })
+onMounted(async () => {
+  await refreshSession()
+  publishedItineraries.value = readManagedItineraries()
+  await searchItineraries(1, false)
+})
 const stopItineraryEvents = ['itineraries', 'sync'].map(resource =>
   subscribeToChanges(resource, () => {
     if (searchPerformed.value && !cargando.value && !authState.previewRole)
       void searchItineraries(currentPage.value)
   }))
-onUnmounted(() => stopItineraryEvents.forEach(stop => stop()))
+onUnmounted(() => {
+  stopItineraryEvents.forEach(stop => stop())
+  searchController?.abort()
+})
 const cargando = ref(false)
 const errorBusqueda = ref('')
 const currentPage = ref(1)
@@ -86,6 +97,11 @@ const totalPages = ref(0)
 const totalResults = ref(0)
 const pageSize = 20
 let appliedFilters = ''
+let searchController: AbortController | null = null
+let searchGeneration = 0
+const { origins, destinations, loadingLocations, locationError } = useItineraryLocations(
+  computed(() => activeItinerary.value?.transport ?? '')
+)
 
 function createItinerary(id: number): Itinerary {
   return {
@@ -104,14 +120,17 @@ function portPlaceholder(item: Itinerary, port: 'pol' | 'pod') {
 
 function changeTransport(item: Itinerary) {
   item.modality = ''
+  item.pol = ''
+  item.pod = ''
 }
 
 function selectTransport(mode: TransportMode) {
   const item = activeItinerary.value
   if (!item) return
+  if (item.transport === mode) return
   item.transport = mode
   changeTransport(item)
-  searchPerformed.value = false
+  void searchItineraries(1, false)
 }
 
 function removeItinerary(id: number) {
@@ -126,16 +145,18 @@ function statusLabel(status: ItineraryStatus) {
   return statuses.value.find(option => option.value === status)?.label ?? status
 }
 
-async function searchItineraries(pageNumber = 1) {
-  if (cargando.value || pageNumber < 1 || (pageNumber > 1 && pageNumber > totalPages.value)) return
+async function searchItineraries(pageNumber = 1, scrollToResults = true) {
+  if (pageNumber < 1 || (pageNumber > 1 && pageNumber > totalPages.value)) return
 
   if (pageNumber === 1) {
     const f = activeItinerary.value
     if (!f) return
 
     const filters = new URLSearchParams()
-    if (f.pol.trim()) filters.set('pol', f.pol.trim())
-    if (f.pod.trim()) filters.set('pod', f.pod.trim())
+    // The catalogue uses complete city/country labels; older itineraries may
+    // store only the city. Filter on the city part to match both spellings.
+    if (f.pol.trim()) filters.set('pol', f.pol.split(',')[0].trim())
+    if (f.pod.trim()) filters.set('pod', f.pod.split(',')[0].trim())
     if (f.status) filters.set('status', f.status)
     if (f.transport) filters.set('transporte', f.transport)
     if (f.modality) filters.set('modalidad', f.modality)
@@ -150,18 +171,22 @@ async function searchItineraries(pageNumber = 1) {
   qs.set('page', String(pageNumber))
   qs.set('pageSize', String(pageSize))
 
+  searchController?.abort()
+  const controller = new AbortController()
+  searchController = controller
+  const generation = ++searchGeneration
   cargando.value = true
   errorBusqueda.value = ''
-  resultados.value = []
   searchPerformed.value = true
-  expandedResultId.value = null
 
   try {
     const response = await fetch(`/api/itinerarios?${qs.toString()}`, {
       credentials: 'same-origin',
       cache: 'no-store',
+      signal: controller.signal,
     })
 
+    if (generation !== searchGeneration) return
     if (response.status === 401 && authState.previewRole) {
       const f = activeItinerary.value
       if (f) resultados.value = [{ id: 'preview-' + f.id, pol: f.pol || 'San José, Costa Rica', pod: f.pod || 'Miami, Estados Unidos', closing: f.closing || null, status: f.status || 'planning', etd: f.etd || '', eta: f.eta || '', transport: f.transport, modality: f.modality || (f.transport === 'maritime' ? 'FCL' : 'LTL') }]
@@ -183,20 +208,26 @@ async function searchItineraries(pageNumber = 1) {
       || !('totalPages' in data) || typeof data.totalPages !== 'number') {
       throw new Error('La API devolvió un formato inesperado.')
     }
+    if (generation !== searchGeneration) return
     const result = data as ItineraryPageResponse
     resultados.value = result.items
     totalResults.value = result.total
     totalPages.value = result.totalPages
     currentPage.value = result.page
   } catch (error) {
+    if (controller.signal.aborted || generation !== searchGeneration) return
     errorBusqueda.value = error instanceof Error ? error.message : 'Error desconocido.'
     resultados.value = []
     totalResults.value = 0
     totalPages.value = 0
   } finally {
-    cargando.value = false
-    await nextTick()
-    resultsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (generation === searchGeneration) {
+      cargando.value = false
+      if (scrollToResults) {
+        await nextTick()
+        resultsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }
   }
 }
 
@@ -233,13 +264,14 @@ async function searchItineraries(pageNumber = 1) {
 
         <div class="itinerary-form-lines">
           <div class="itinerary-form-line"><strong>{{ t('custom.itinerary.form.status') }}</strong><FieldDropdown :model-value="item.status" :options="statusChoices" :aria-label="t('custom.itinerary.form.status')" @update:model-value="value => chooseStatus(item, value)" /></div>
-          <label class="itinerary-form-line"><strong>POL</strong><input v-model="item.pol" type="text" :placeholder="portPlaceholder(item, 'pol')" /></label>
-          <label class="itinerary-form-line"><strong>POD</strong><input v-model="item.pod" type="text" :placeholder="portPlaceholder(item, 'pod')" /></label>
+          <div class="itinerary-form-line"><strong>POL · {{ portPlaceholder(item, 'pol') }}</strong><ItineraryLocationSelect v-model="item.pol" :options="origins" aria-label="POL" :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" :loading="loadingLocations" /></div>
+          <div class="itinerary-form-line"><strong>POD · {{ portPlaceholder(item, 'pod') }}</strong><ItineraryLocationSelect v-model="item.pod" :options="destinations" aria-label="POD" :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" :loading="loadingLocations" /></div>
           <label class="itinerary-form-line"><strong>Closing</strong><input v-model="item.closing" type="date" /></label>
           <label class="itinerary-form-line"><strong>ETD</strong><input v-model="item.etd" type="date" /></label>
           <label class="itinerary-form-line"><strong>ETA</strong><input v-model="item.eta" type="date" /></label>
           <div class="itinerary-form-line"><strong>{{ labels.modality }}</strong><FieldDropdown v-model="item.modality" :options="modalityChoices(item)" :aria-label="labels.modality" /></div>
         </div>
+        <p v-if="locationError" class="itinerary-location-feedback" role="status">{{ locationError }} {{ en ? 'Other filters still work.' : 'Podés seguir usando los demás filtros.' }}</p>
         </template>
 
       </section>
@@ -270,13 +302,12 @@ async function searchItineraries(pageNumber = 1) {
             </div>
             <div class="itinerary-result-card__dates"><span><small>Closing</small><strong>{{ item.closing || t('custom.itinerary.form.notSpecified') }}</strong></span><span><small>ETD</small><strong>{{ item.etd || t('custom.itinerary.form.notSpecified') }}</strong></span><span><small>ETA</small><strong>{{ item.eta || t('custom.itinerary.form.notSpecified') }}</strong></span></div>
           </div>
-          <div class="itinerary-result-card__actions">
-            <button type="button" :aria-expanded="expandedResultId === item.id" @click="expandedResultId = expandedResultId === item.id ? null : item.id">{{ expandedResultId === item.id ? t('custom.itinerary.form.hideDetails') : t('custom.itinerary.form.viewDetails') }}</button>
-          </div>
-          <div v-if="expandedResultId === item.id" class="itinerary-result-card__details">
+          <div class="itinerary-result-card__details">
             <span><small>{{ labels.transport }}</small><strong>{{ modes[item.transport === 'maritime' ? 0 : 1] }}</strong></span>
             <span><small>{{ labels.modality }}</small><strong>{{ item.modality }}</strong></span>
-            <span><small>{{ t('custom.itinerary.form.status') }}</small><strong>{{ statusLabel(item.status) }}</strong></span>
+            <span><small>{{ en ? 'Carrier' : 'Transportista' }}</small><strong>{{ item.carrier || t('custom.itinerary.form.notSpecified') }}</strong></span>
+            <span><small>{{ en ? 'Vessel' : 'Buque' }}</small><strong>{{ item.vessel || t('custom.itinerary.form.notSpecified') }}</strong></span>
+            <span><small>{{ en ? 'Voyage' : 'Viaje' }}</small><strong>{{ item.voyage || t('custom.itinerary.form.notSpecified') }}</strong></span>
           </div>
         </article>
         <nav v-if="!cargando && !errorBusqueda && totalPages > 1" class="itinerary-pagination" :aria-label="t('custom.itinerary.form.paginationLabel')">
@@ -304,6 +335,7 @@ async function searchItineraries(pageNumber = 1) {
 
 <style scoped>
 
+.itinerary-location-feedback{margin:12px 0 0;color:#a80e18;font-size:12px;font-weight:600}
 .published-itineraries{margin:36px 0}.published-itineraries h2{margin:0 0 18px;font-size:clamp(24px,3vw,36px)}.published-itinerary-card{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:10px 0;padding:18px 22px;border:1px solid #ffffff3c;border-radius:16px;background:#ffffff0c;backdrop-filter:blur(12px);color:inherit}.published-itinerary-card>div:first-child{display:grid;gap:7px}.published-itinerary-card small,.published-itinerary-dates{opacity:.75}.published-itinerary-card strong{font-size:18px}.published-itinerary-card strong span{color:#ef3340;padding:0 5px}.published-itinerary-dates{display:flex;gap:16px;font-size:13px}@media(max-width:600px){.published-itinerary-card{align-items:flex-start;flex-direction:column}.published-itinerary-card strong{font-size:16px}.published-itinerary-dates{flex-wrap:wrap}}
 
 </style>
