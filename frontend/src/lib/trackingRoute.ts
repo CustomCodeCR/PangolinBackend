@@ -1,8 +1,11 @@
-// Approximate port coordinates for illustration only; never vessel GPS.
+// Approximate geographic points for illustration only; never vessel GPS.
+// trackingQuoteCoordinates.json contains city-centroid data (ODbL v1.0) and
+// is kept separate from the official quote catalog and its operational data.
 // The quoteCatalogName entries reuse verified names from the official quote catalog
 // without changing its database, selectable locations or API.
 import type { TrackingPoint } from '../types/tracking'
 import trackingPorts from './trackingPorts.json'
+import trackingQuoteCoordinates from './trackingQuoteCoordinates.json'
 
 type KnownPort = { name: string; lat: number; lon: number; aliases: string[]; quoteCatalogName?: string }
 
@@ -16,7 +19,7 @@ function normalize(value: string): string {
 
 // Pre-normalize aliases once; require token boundaries so generic country
 // names never masquerade as an actual port.
-const portCatalog = (trackingPorts as KnownPort[]).map(port => ({
+const portCatalog = ([...trackingPorts, ...trackingQuoteCoordinates] as KnownPort[]).map(port => ({
   point: { name: port.name, lat: port.lat, lon: port.lon },
   aliases: [port.name, port.quoteCatalogName, ...port.aliases]
     .filter((value): value is string => !!value)
