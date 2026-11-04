@@ -1465,5 +1465,77 @@
     "lon": -100.78374,
     "aliases": [],
     "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Charleston, Estados Unidos",
+    "quoteCatalogName": "Charleston, Estados Unidos",
+    "kind": "seaport",
+    "lat": 32.77657,
+    "lon": -79.93092,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Long Beach, Estados Unidos",
+    "quoteCatalogName": "Long Beach, Estados Unidos",
+    "kind": "seaport",
+    "lat": 33.76696,
+    "lon": -118.18923,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Miami, Estados Unidos",
+    "quoteCatalogName": "Miami, Estados Unidos",
+    "kind": "seaport",
+    "lat": 25.77427,
+    "lon": -80.19366,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "New York, Estados Unidos",
+    "quoteCatalogName": "New York, Estados Unidos",
+    "kind": "seaport",
+    "lat": 40.71427,
+    "lon": -74.00597,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Oakland, Estados Unidos",
+    "quoteCatalogName": "Oakland, Estados Unidos",
+    "kind": "seaport",
+    "lat": 37.80437,
+    "lon": -122.2708,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Port Everglades, Estados Unidos",
+    "quoteCatalogName": "Port Everglades, Estados Unidos",
+    "kind": "seaport",
+    "lat": 26.12231,
+    "lon": -80.14338,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Albany, Estados Unidos",
+    "quoteCatalogName": "Albany, Estados Unidos",
+    "kind": "airport",
+    "lat": 42.65258,
+    "lon": -73.75623,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
+  },
+  {
+    "name": "Atlanta, Estados Unidos",
+    "quoteCatalogName": "Atlanta, Estados Unidos",
+    "kind": "airport",
+    "lat": 33.749,
+    "lon": -84.38798,
+    "aliases": [],
+    "coordinatePrecision": "city-centroid"
   }
 ]
