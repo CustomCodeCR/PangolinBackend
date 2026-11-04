@@ -393,6 +393,10 @@ assert.match(trackingRouteSource, /export function illustrativeJourney\(/,
 assert.match(trackingRouteSource, /\.\.\.\(record\.routeStops \?\? \[\]\)/,
   'Las escalas explícitas quedan entre puertos y destino')
 assert.match(tracking, /illustrativeJourney\(shipment\.value\)/, 'Tracking envía el recorrido al globo')
+assert.match(tracking, /Referencia geográfica a nivel país:/,
+  'El usuario recibe una advertencia visible sobre las referencias nacionales')
+assert.match(trackingGlobeSource, /referencia aproximada del país/,
+  'Los marcadores muestran la precisión aproximada en el globo')
 assert.match(trackingGlobeSource, /routePoints\.value\.slice\(1\)\.map\(/,
   'El globo dibuja todos los tramos consecutivos')
 assert.match(trackingGlobeSource, /transportGlyph/, 'El globo presenta el ícono del transporte')
@@ -406,6 +410,10 @@ const { runInNewContext } = require('node:vm')
 // Evaluate the real TypeScript route functions instead of duplicating their resolver.
 const trackingPorts = JSON.parse(source('src/lib/trackingPorts.json'))
 const trackingQuoteCoordinates = JSON.parse(source('src/lib/trackingQuoteCoordinates.json'))
+const trackingCountries = JSON.parse(source('src/lib/trackingCountries.json'))
+assert.equal(trackingCountries.length, 250, 'La referencia geográfica de países cubre 250 registros')
+assert.ok(trackingCountries.some(c => c.iso2 === 'HN' && c.lat === 15 && c.lon === -86.5), 'Honduras tiene referencia geográfica')
+
 const officialQuoteSql = source('../backend/Database/OfficialQuotesVideoLocations.sql')
 const allOfficialLocationNames = new Set([...officialQuoteSql.matchAll(/'(?:seaport|airport|inland)','([^']+)'/g)]
   .map(([, name]) => name))
@@ -456,6 +464,12 @@ assert.match(trackingRouteSource, /import trackingPorts from '.\/trackingPorts\.
   'Tracking utiliza el catálogo geográfico basado en Cotizaciones')
 assert.match(trackingRouteSource, /import trackingQuoteCoordinates from '.\/trackingQuoteCoordinates\.json'/,
   'El rastreo incorpora las coordenadas vinculadas a Cotizaciones')
+assert.match(trackingRouteSource, /import trackingCountries from '.\/trackingCountries\.json'/,
+  'El rastreo permite referencias geográficas a nivel país')
+assert.match(trackingRouteSource, /export function resolveTrackingLocation\(/,
+  'Las ubicaciones de Dynamics pasan por un resolvedor seguro')
+assert.match(trackingRouteSource, /countriesWithSpecificPlaces\.has\(point\.countryIso\)/,
+  'Países genéricos no duplican escalas si existe un puerto concreto')
 const compiledTrackingRoute = tsCompiler.transpileModule(trackingRouteSource, {
   compilerOptions: {
     module: tsCompiler.ModuleKind.CommonJS, target: tsCompiler.ScriptTarget.ES2020,
@@ -468,6 +482,7 @@ runInNewContext(compiledTrackingRoute.outputText, {
   require: name => {
     if (name === './trackingPorts.json') return trackingPorts
     if (name === './trackingQuoteCoordinates.json') return trackingQuoteCoordinates
+    if (name === './trackingCountries.json') return trackingCountries
     assert.fail('Tracking no debe importar otra dependencia: ' + name)
   }
 }, { timeout: 1000 })
@@ -484,8 +499,31 @@ const idtra12753 = journeyFor({
 })
 assert.equal(idtra12753.map(point => point.name).join(' -> '),
   'Shenzhen, China -> Balboa, Panamá', 'IDTRA 12753 tiene sus dos puertos ilustrativos')
-assert.equal(journeyFor({ origin: 'China', destination: 'Panamá' }).length, 0,
-  'No inventar coordenadas para países genéricos')
+assert.equal(idtra12753.length, 2, 'China y Panamá genéricos no generan paradas multimodales ficticias')
+assert.ok(idtra12753.every(point => point.precision !== 'country-centroid'),
+  'Los puertos conocidos tienen prioridad sobre centroides nacionales')
+const countriesOnly = journeyFor({ origin: 'China', destination: 'Panamá' })
+assert.equal(countriesOnly.length, 2, 'Se muestra recorrido ilustrativo si sólo se conocen países')
+assert.ok(countriesOnly.every(point => point.precision === 'country-centroid'),
+  'Los puntos a nivel país nunca se presentan como puerto o aeropuerto identificado')
+const honduras = trackingRouteExports.resolveTrackingLocation('Honduras')
+assert.equal(honduras?.precision, 'country-centroid',
+  'Honduras se identifica como país y no como aeropuerto')
+assert.equal(honduras?.lat, 15, 'Referencia ilustrativa de Honduras comprobada')
+assert.equal(honduras?.lon, -86.5, 'Longitud aproximada del país comprobada')
+assert.equal(trackingRouteExports.resolveTrackingLocation('Puerto de entrada: Honduras')?.countryIso, 'HN',
+  'Variantes de la etiqueta Dynamics reconocen Honduras')
+assert.equal(trackingRouteExports.resolveTrackingLocation('Ubicación inventada en Atlantis'), null,
+  'No se fabrican coordenadas si el país tampoco es reconocible')
+const airToCountry = journeyFor({
+  origin: 'Miami, Estados Unidos', portOfEntry: 'Honduras', destination: 'Honduras'
+})
+assert.equal(airToCountry.map(point => point.name).join(' -> '),
+  'Miami, Estados Unidos -> Honduras',
+  'Un embarque aéreo puede terminar en Honduras sin suponer un aeropuerto')
+assert.equal(airToCountry[1].precision, 'country-centroid',
+  'Destino aéreo sin aeropuerto debe anunciar referencia a nivel país')
+
 assert.equal(journeyFor({ portOfLoading: 'Altamira, México', portOfEntry: 'Veracruz, México' })
   .map(point => point.name).join(' -> '), 'Altamira, México -> Veracruz, México',
   'Se reconoce la ruta entre dos puertos con ciudades estatales verificadas')
