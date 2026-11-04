@@ -49,10 +49,30 @@ en puntos inventados. Se conservan las escalas intermedias explícitamente
 proporcionadas por Dynamics, cuando están reconocidas en el catálogo.
 
 El punto aproximado de Shenzhen corresponde a la zona portuaria de Shekou;
-no confirma la terminal del embarque. El registro inicial contiene Qingdao,
+no confirma la terminal del embarque. El registro base contiene Qingdao,
 Caldera, Mundra, Cristóbal, San José, Balboa, Shenzhen, Busan y Callao.
-Los puertos no identificados se omiten y, si quedan menos de dos puntos distintos,
-el globo muestra su vista normal con aviso de ruta no disponible.
+
+Se incorpora además `frontend/src/lib/trackingQuoteCoordinates.json` con
+**185 entradas** de Cotizaciones georreferenciadas con puntos de referencia
+de ciudad (no terminales portuarias ni GPS). La base del mapa y el catálogo
+ampliado identifican **190 de los 217 registros** del catálogo parcial
+`OfficialQuotesVideoLocations.sql`. Quedan **27 registros pendientes** por
+ambigüedad del nombre, ausencia de un centroide inequívoco o necesidad de
+verificación del terminal. No se les asignan coordenadas inventadas. Los
+registros repetidos por modalidad se cuentan según su presencia en Cotizaciones.
+
+**Origen y licencia de la geografía:** los centroides de ciudad provienen de
+[World Countries, States & Cities Database de Santiago Restrepo](https://github.com/srestre/world-countries-cities-db),
+que deriva de la base `dr5hn/countries-states-cities-database`. Los datos
+están disponibles bajo la [Open Database License (ODbL) v1.0](https://opendatacommons.org/licenses/odbl/1-0/);
+las coordenadas adaptadas de `trackingQuoteCoordinates.json` están sujetas
+a esa misma licencia. Los nombres de Cotizaciones corresponden al catálogo
+propio del proyecto y no cambian. Las coordenadas ilustrativas se basan en
+ciudades, no en instalaciones específicas, y deben validarse operativamente
+si se requiere precisión de terminal.
+
+Cuando quedan menos de dos puntos reconocidos, el globo muestra su vista
+predeterminada con aviso de ruta no disponible.
 
 La animación conserva un único vehículo y una estela que siguen el recorrido
 ilustrativo, no posiciones GPS, trayectos verificados ni porcentajes de avance
