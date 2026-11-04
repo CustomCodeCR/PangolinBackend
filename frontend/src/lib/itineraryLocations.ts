@@ -18,9 +18,16 @@ function loadRole(mode: ItineraryTransport, role: ItineraryLocationRole): Promis
   const types = mode === 'maritime' ? ['FCL', 'LCL'] : ['FTL', 'LTL']
   const request = Promise.all(types.map(async shipmentType => {
     const qs = new URLSearchParams({ kind, shipmentType, routeRole: role })
-    const response = await fetch('/api/quotes/official/locations?' + qs.toString(), {
+    let response = await fetch('/api/quotes/official/locations?' + qs.toString(), {
       credentials: 'same-origin', cache: 'no-store'
     })
+    // Development previews may not have a registered cookie. Reuse the guest
+    // quote catalogue in that case; both endpoints read the same location tables.
+    if (response.status === 401 || response.status === 403) {
+      response = await fetch('/api/assistant/quote-locations?' + qs.toString(), {
+        credentials: 'same-origin', cache: 'no-store'
+      })
+    }
     if (!response.ok) throw new Error('No se pudo cargar el catálogo de ubicaciones.')
     const data = await response.json() as CatalogueResponse
     if (!Array.isArray(data.items)) throw new Error('El catálogo devolvió datos inesperados.')
