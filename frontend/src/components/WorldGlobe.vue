@@ -36,13 +36,13 @@ const routeLegs = computed(() => {
     return { start, end, duration: Math.max(2400, Math.min(13000, degrees * 95)) }
   }).filter(leg => leg.start.lat !== leg.end.lat || leg.start.lon !== leg.end.lon)
 
-  // La ruta, las escalas y sus tiempos se conservan. Solo el último tramo
-  // multimodal usa la proyección de carretera; el marítimo mantiene el barco.
-  const finalMultimodalRoadLeg = props.shipment?.transport === 'multimodal' && legs.length > 1
+  // Dynamics no siempre etiqueta la multimodalidad: un marítimo con dos o
+  // más tramos cambia del barco al camión en la PRIMERA escala.
+  const seaToRoad = legs.length >= 2
+    && (props.shipment?.transport === 'sea' || props.shipment?.transport === 'multimodal')
   return legs.map((leg, index) => ({
     ...leg,
-    glyph: finalMultimodalRoadLeg && index === legs.length - 1
-      ? 'truck' : (transportGlyph.value ?? 'container')
+    glyph: seaToRoad ? (index === 0 ? 'ship' : 'truck') : (transportGlyph.value ?? 'container')
   }))
 })
 
@@ -145,11 +145,7 @@ function updateRouteVehicle(now: number) {
         routeVehicle.value = {
           left: projected.x + offsetX,
           top: projected.y + offsetY,
-          // El multimodal se representa como barco hasta acercarse al destino.
-          // No se modifica el progreso, la trayectoria ni la velocidad.
-          glyph: props.shipment?.transport === 'multimodal'
-            ? (activeIndex === legs.length - 1 && activeProgress >= 0.8 ? 'truck' : 'ship')
-            : leg.glyph,
+          glyph: leg.glyph,
           reversed: facingLeft
         }
       } else routeVehicle.value = null
@@ -549,14 +545,6 @@ onBeforeUnmount(() => {
     <canvas ref="canvas" class="world-globe__canvas" :aria-label="$t('custom.tracking.mapAria')"></canvas>
     <div v-if="props.shipment" class="world-globe__route-vehicles" aria-hidden="true">
       <svg class="world-globe__route-trail" :viewBox="'0 0 ' + trailSize.width + ' ' + trailSize.height" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="world-globe-route-crimson" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" style="stop-color:var(--tracking-trail-red)" stop-opacity=".32" />
-            <stop offset="55%" style="stop-color:var(--tracking-trail-red)" stop-opacity=".82" />
-            <stop offset="100%" style="stop-color:var(--tracking-trail-red-bright)" stop-opacity="1" />
-          </linearGradient>
-        </defs>
-        <path v-if="routeTrail" class="world-globe__route-trail-ambient" :d="routeTrail" />
         <path v-if="routeTrail" class="world-globe__route-trail-halo" :d="routeTrail" />
         <path v-if="routeTrail" class="world-globe__route-trail-core" :d="routeTrail" />
       </svg>
@@ -608,23 +596,17 @@ onBeforeUnmount(() => {
 <style scoped>
 .world-globe {
   --surface-card:#fff; --text-primary:#171923;
-  --tracking-model-main:#242932; --tracking-model-shade:#0c1016;
-  --tracking-model-light:#687483; --tracking-model-highlight:#a2acb7;
-  --tracking-model-window:#cee1ed;
-  --tracking-vehicle-red-main:#c20b30; --tracking-vehicle-red-dark:#69071e;
-  --tracking-vehicle-red-light:#ff657e; --tracking-vehicle-red-shine:#ffe5e9;
-  --tracking-trail-red:#c60a2e; --tracking-trail-red-bright:#ff536c;
-  --tracking-trail-glow:rgba(223,12,55,.68);
+  --tracking-model-main:#01081d; --tracking-model-shade:#00040f;
+  --tracking-model-light:#253650; --tracking-model-highlight:#667990;
+  --tracking-model-window:#dce5ef;
+  --tracking-trail-gray:#01081d; --tracking-trail-glow:rgba(1,8,29,.55);
 }
 :global(html.theme-dark .world-globe) {
   --surface-card:#10182b; --text-primary:#f4f6fb;
-  --tracking-model-main:#c4cbd5; --tracking-model-shade:#626b7a;
-  --tracking-model-light:#e8ecf2; --tracking-model-highlight:#fff;
-  --tracking-model-window:#9fc2d6;
-  --tracking-vehicle-red-main:#e31b46; --tracking-vehicle-red-dark:#770c2a;
-  --tracking-vehicle-red-light:#ff8295; --tracking-vehicle-red-shine:#fff2f4;
-  --tracking-trail-red:#e51b48; --tracking-trail-red-bright:#ff8295;
-  --tracking-trail-glow:rgba(255,57,103,.82);
+  --tracking-model-main:#fff; --tracking-model-shade:#cbd3e0;
+  --tracking-model-light:#f4f7fb; --tracking-model-highlight:#fff;
+  --tracking-model-window:#01081d;
+  --tracking-trail-gray:#fff; --tracking-trail-glow:rgba(255,255,255,.75);
 }
 .world-globe__location-card {
   position:absolute; z-index:12; width:min(270px,calc(100% - 28px)); max-height:min(290px,calc(100% - 25px));
@@ -689,17 +671,15 @@ onBeforeUnmount(() => {
 
 .world-globe__route-vehicles{position:absolute;inset:0;z-index:4;pointer-events:none}
 .world-globe__route-trail{position:absolute;inset:0;width:100%;height:100%;overflow:hidden}
-.world-globe__route-trail path{fill:none;stroke:url(#world-globe-route-crimson);stroke-linecap:round;stroke-linejoin:round}
-.world-globe__route-trail-ambient{stroke-width:22;opacity:.22;filter:blur(9px)}
-.world-globe__route-trail-halo{stroke-width:10;opacity:.46;filter:blur(3.5px)}
-.world-globe__route-trail-core{stroke-width:3;filter:drop-shadow(0 0 5px var(--tracking-trail-glow))}
-.world-globe__route-vehicle{position:absolute;display:grid;place-items:center;width:66px;height:45px;color:var(--tracking-vehicle-red-main);transform:translate(-50%,-50%);filter:drop-shadow(0 4px 6px rgba(145,5,36,.30))}
+.world-globe__route-trail path{fill:none;stroke:var(--tracking-trail-gray);stroke-linecap:round;stroke-linejoin:round}
+.world-globe__route-trail-halo{stroke-width:9;opacity:.2;filter:blur(2px)}
+.world-globe__route-trail-core{stroke-width:2.8;filter:drop-shadow(0 0 4px var(--tracking-trail-glow))}
+.world-globe__route-vehicle{position:absolute;display:grid;place-items:center;width:60px;height:42px;color:var(--tracking-model-main);transform:translate(-50%,-50%);filter:drop-shadow(0 3px 3px rgba(0,0,0,.24))}
 .world-globe__route-vehicle--reversed{transform:translate(-50%,-50%) scaleX(-1)}
 @media(max-width:580px){
-  .world-globe__route-vehicle{width:50px;height:36px}
-  .world-globe__route-trail-ambient{stroke-width:16}
+  .world-globe__route-vehicle{width:48px;height:34px}
   .world-globe__route-trail-halo{stroke-width:7}
-  .world-globe__route-trail-core{stroke-width:2.4}
+  .world-globe__route-trail-core{stroke-width:2.3}
 }
 </style>
 
