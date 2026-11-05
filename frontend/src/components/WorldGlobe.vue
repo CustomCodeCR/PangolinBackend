@@ -74,8 +74,8 @@ function makePlaneContrail(points: PlaneTrailPoint[], id: string): PlaneContrail
       const distanceFromCenter = side * (2.9 + variance)
       const x = point.x + nx * distanceFromCenter
       const y = point.y + ny * distanceFromCenter
-      const command = (i === 0 ? 'M' : 'L') + x.toFixed(1) + ' ' + y.toFixed(1)
-      ;(side < 0 ? left : right).push(command)
+      const target = side < 0 ? left : right
+      target.push((target.length ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1))
       // Mechones diminutos, separados y con tamaño variable: no un halo brillante.
       if (i > 0 && i < points.length - 2 && i % 3 === 1) {
         mist.push({
