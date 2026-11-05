@@ -598,9 +598,10 @@ onBeforeUnmount(() => {
 .world-globe {
   --surface-card:#fff; --text-primary:#171923;
   /* Both themes use white 3-D vehicles with graphite-gray facets and outlines. */
-  --tracking-model-main:#fff; --tracking-model-shade:#8b96a5;
+  --tracking-model-main:#fff; --tracking-model-shade:#8190a0;
   --tracking-model-light:#e7ecf1; --tracking-model-highlight:#fff;
-  --tracking-model-window:#8c939d; --tracking-model-outline:#606b78;
+  --tracking-model-window:#64748b; --tracking-model-outline:#475569;
+  --tracking-model-detail:#536174;
   --tracking-model-shadow:rgba(36,46,60,.32);
   --tracking-vehicle-shadow:rgba(47,57,71,.26);
   /* Light mode: white core, burgundy border and a subtle wine-red glow. */
@@ -611,9 +612,10 @@ onBeforeUnmount(() => {
 :global(html.theme-dark .world-globe) {
   --surface-card:#10182b; --text-primary:#f4f6fb;
   /* Exact same 3-D vehicle palette as light mode. */
-  --tracking-model-main:#fff; --tracking-model-shade:#8b96a5;
+  --tracking-model-main:#fff; --tracking-model-shade:#8190a0;
   --tracking-model-light:#e7ecf1; --tracking-model-highlight:#fff;
-  --tracking-model-window:#8c939d; --tracking-model-outline:#606b78;
+  --tracking-model-window:#64748b; --tracking-model-outline:#475569;
+  --tracking-model-detail:#536174;
   --tracking-model-shadow:rgba(36,46,60,.32);
   --tracking-vehicle-shadow:rgba(47,57,71,.26);
   /* Dark mode: warm white core, ruby border and red glow. */
