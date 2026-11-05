@@ -11,7 +11,7 @@ type TrackingRouteShape = Pick<TrackingDemoShipment, 'origin' | 'destination'> &
     stops?: TrackingPoint[]
     transport?: 'air' | 'sea' | 'land' | 'multimodal' | null
   }
-const props = defineProps<{ shipment?: TrackingRouteShape | null; initialZoom?: number }>()
+const props = defineProps<{ shipment?: TrackingRouteShape | null; initialZoom?: number; satelliteSurface?: boolean }>()
 const holder = ref<HTMLElement | null>(null)
 const canvas = ref<HTMLCanvasElement | null>(null)
 const routePoints = computed(() => {
@@ -408,6 +408,8 @@ async function start() {
       // The home globe keeps its existing default zoom.
       zoom: props.initialZoom ?? 1,
       transparentBackground: true,
+      // Explicit opt-in: only Tracking.vue can enable the photographic globe.
+      satelliteSurface: props.satelliteSurface === true,
       // Colores corporativos Castro Fallas
       theme: themePalette(),
 
