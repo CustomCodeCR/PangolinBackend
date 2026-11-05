@@ -200,6 +200,17 @@ defineProps<{ glyph: string }>()
   filter:drop-shadow(0 2px 2px var(--tracking-model-shadow, rgba(0,0,0,.3)));
 }
 .tracking-transport-model--ship{width:78px;height:51px}
+/* Same truck in both themes: white 3-D body, grey shaded faces,
+   grey outline, neutral-grey windows and identical drop shadow. */
+.tracking-transport-model--truck{
+  --tracking-model-main:#fff;
+  --tracking-model-shade:#8b96a5;
+  --tracking-model-light:#e7ecf1;
+  --tracking-model-highlight:#fff;
+  --tracking-model-window:#8c939d;
+  --tracking-model-outline:#606b78;
+  --tracking-model-shadow:rgba(36,46,60,.32);
+}
 .tracking-transport-model--plane{width:70px;height:40px}
 @media (max-width:580px){
   .tracking-transport-model{width:45px;height:32px}
