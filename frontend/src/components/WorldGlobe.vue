@@ -603,8 +603,8 @@ onBeforeUnmount(() => {
   --tracking-model-window:#8c939d; --tracking-model-outline:#606b78;
   --tracking-model-shadow:rgba(36,46,60,.32);
   --tracking-vehicle-shadow:rgba(47,57,71,.26);
-  /* Light mode: keep the white/wine trail, add a golden glow inspired by animated routes. */
-  --tracking-trail-gray:#fff; --tracking-trail-border:#741126;
+  /* Light mode: white core, amber-orange border and golden glow inspired by animated routes. */
+  --tracking-trail-gray:#fff; --tracking-trail-border:#d97706;
   --tracking-trail-halo:#f5b700; --tracking-trail-halo-opacity:.72;
   --tracking-trail-glow:rgba(245,183,0,.72);
 }
