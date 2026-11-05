@@ -74,7 +74,7 @@ assert.match(trackingGlobe, /\.22 \* Math\.sin\(Math\.PI \* t\)/, 'Parábola con
 assert.match(trackingGlobe, /projectElevated\(coordinates\.lon, coordinates\.lat/, 'El recorrido se dibuja sobre la esfera')
 assert.match(trackingGlobe, /const projected = elevatedPoint\(leg, activeProgress\)/, 'El icono se mueve sobre la curva')
 assert.match(trackingGlobe, /const p = elevatedPoint\(segment, \(step \/ count\) \* fraction\)/, 'La estela sigue la misma curva')
-assert.match(trackingGlobe, /--tracking-trail-gray:#fff; --tracking-trail-border:#741126/, 'La trayectoria clara es blanca con borde vino para contrastar')
+assert.match(trackingGlobe, /--tracking-trail-gray:#fff; --tracking-trail-border:#d97706/, 'La trayectoria clara es blanca con borde naranja ámbar para combinar con el brillo dorado')
 assert.match(trackingGlobe, /--tracking-trail-halo:#f5b700; --tracking-trail-halo-opacity:\.72/, 'La estela clara usa un halo amarillo dorado para contrastar con el fondo')
 assert.match(trackingGlobe, /--tracking-trail-glow:rgba\(245,183,0,\.72\)/, 'El núcleo claro proyecta un brillo amarillo dorado')
 assert.match(trackingGlobe, /--tracking-model-main:#fff; --tracking-model-shade:#8b96a5/, 'El vehículo en tema claro es blanco con volumen gris')
