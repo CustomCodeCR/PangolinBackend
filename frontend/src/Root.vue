@@ -75,6 +75,10 @@ applyPageSeo()
 const officialQuotesEnabled = import.meta.env.VITE_OFFICIAL_QUOTES_ENABLED === 'true'
 const quoteAccess = ref<'checking' | 'allowed' | 'denied' | 'forbidden'>('checking')
 const trackingAccess = ref<'checking' | 'allowed' | 'denied'>('checking')
+// Preview strictly local and development-only: no authenticated search is unlocked.
+const localTrackingVisualPreview = import.meta.env.DEV
+  && ['localhost', '127.0.0.1'].includes(window.location.hostname)
+  && new URLSearchParams(window.location.search).get('previewTracking') === '1'
 const requestPath = window.location.pathname.replace(/\/+$/, '') || '/'
 const legacyAdminRoute = requestPath === '/admin/contenido' || requestPath === '/admin/usuarios'
 const officialAdminRoute = requestPath === '/administracion/cotizaciones-oficiales'
@@ -111,7 +115,8 @@ onMounted(async () => {
     return
   }
   if (requestPath === '/tracking') {
-    trackingAccess.value = user && (role === 'cliente' || role === 'administrador') ? 'allowed' : 'denied'
+    trackingAccess.value = localTrackingVisualPreview || !!user && (role === 'cliente' || role === 'administrador')
+      ? 'allowed' : 'denied'
   }
   if (requestPath === '/itinerario' && role !== 'cliente' && role !== 'administrador') {
     window.location.replace('/home?acceso=cliente')

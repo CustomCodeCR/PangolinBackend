@@ -34,8 +34,89 @@ source('src/services/signalr.ts')
 source('src/services/realtime.ts')
 source('src/components/SiteMedia.vue')
 
+// GIO mantiene la mascota accesible, mientras su aviso se muestra solo tras scroll.
+const gioAssistant = source('src/components/AssistantBot.vue')
+assert.match(gioAssistant, /const hasPageScrolled = ref\(false\)/,
+  'El aviso de GIO inicia oculto en la parte superior de cualquier página')
+assert.match(gioAssistant, /window\.scrollY,[\s\S]*?document\.documentElement\.scrollTop,[\s\S]*?document\.body\.scrollTop[\s\S]*?\) > 0/,
+  'El aviso se activa solo cuando el scroll real de la página supera cero')
+assert.match(gioAssistant, /window\.addEventListener\('scroll', syncPageScroll, \{ passive: true \}\)/,
+  'El listener de scroll de GIO es pasivo')
+assert.match(gioAssistant, /window\.removeEventListener\('scroll', syncPageScroll\)/,
+  'El listener se retira al desmontar GIO')
+assert.match(gioAssistant, /window\.addEventListener\('pageshow', syncPageScroll\)/,
+  'Se sincroniza la visibilidad al restaurar una página')
+assert.match(gioAssistant, /:class="\{ 'site-assistant__hint--visible': hasPageScrolled \}"/,
+  'Solo la nube del comentario cambia con el scroll')
+assert.match(gioAssistant, /\.site-assistant__mascot \.site-assistant__hint\{[\s\S]*?opacity:0;[\s\S]*?transition:opacity \.35s ease,transform \.35s ease;/,
+  'La nube empieza invisible y aparece gradualmente')
+assert.match(gioAssistant, /\.site-assistant__mascot \.site-assistant__hint--visible\{[\s\S]*?opacity:1;/,
+  'La nube alcanza su opacidad original tras bajar')
+assert.match(gioAssistant, /@media\(prefers-reduced-motion:reduce\)/,
+  'La transición respeta movimiento reducido')
+assert.match(gioAssistant, /background:rgba\(255,255,255,\.74\)/,
+  'La nube de GIO tiene un fondo blanco translúcido')
+assert.match(gioAssistant, /-webkit-backdrop-filter:blur\(2px\)/,
+  'El desenfoque de fondo funciona también en Safari')
+assert.match(gioAssistant, /backdrop-filter:blur\(2px\)/,
+  'La nube tiene un efecto glass sutil sin desenfocar el texto')
+assert.match(gioAssistant, /\.site-assistant__mascot \.site-assistant__hint::before\{/,
+  'La nube conserva un reflejo superior discreto')
+assert.match(gioAssistant, /\.site-assistant__mascot \.site-assistant__hint::after\{/,
+  'La nube conserva un reflejo lateral discreto')
+assert.match(gioAssistant, /:global\(html\.theme-dark\) \.site-assistant__mascot \.site-assistant__hint\{/,
+  'El glass se adapta al tema oscuro')
+assert.match(gioAssistant, /background:rgba\(18,27,44,\.68\)/,
+  'La nube no pierde legibilidad en tema oscuro')
+assert.match(gioAssistant, /box-shadow:0 3px 10px rgba\(0,0,0,\.07\)/,
+  'La sombra clara del glass es más discreta')
+assert.match(gioAssistant, /rgba\(255,255,255,\.38\),transparent/,
+  'El reflejo superior del aviso es más suave')
+assert.match(gioAssistant, /<button class="site-assistant__mascot" type="button"/,
+  'El botón de GIO nunca se oculta')
+const gioMascotButton = gioAssistant.split('<button class="site-assistant__mascot"')[1]?.split('</button>')[0] ?? ''
+assert.match(gioMascotButton, /@click="togglePanel"/,
+  'La mascota utiliza el controlador único para abrir o cerrar GIO')
+assert.match(gioMascotButton, /<span class="site-assistant__hint"[^>]*>\{\{ isEnglish/,
+  'La nube clicable es parte del mismo botón, sin botón anidado ni segundo evento')
+assert.match(gioAssistant, /\.site-assistant__mascot \.site-assistant__hint--visible\{[\s\S]*?pointer-events:auto;[\s\S]*?cursor:pointer;/,
+  'La nube visible recibe los clics y el botón padre abre el chat')
+assert.match(gioAssistant, /\.site-assistant__mascot \.site-assistant__hint\{[\s\S]*?pointer-events:none;/,
+  'La nube invisible no intercepta clics al estar arriba')
+
 // The tracking globe uses one animated icon and an elevated trail, no fixed itinerary bar.
 const trackingGlobe = source('src/components/WorldGlobe.vue')
+// Los colores históricos se restauran SOLO en la esfera 3D. La estela vino/rubí
+// que ya se aprobó permanece independiente de los tonos del océano y la tierra.
+const globePalette = trackingGlobe.split('function themePalette() {')[1]?.split('function animateZoom(')[0] ?? ''
+assert.match(globePalette, /const dark = document\.documentElement\.classList\.contains\('theme-dark'\)/,
+  'El globo vuelve a seguir el tema claro u oscuro de la web')
+assert.ok(globePalette.includes("ocean: (dark ? ['#3d424b','#141820'] : ['#fffafa','#fffafa'])"),
+  'Océano original: blanco en claro y gris oscuro casi negro en oscuro')
+assert.ok(globePalette.includes("land:'#a80e18', marker:'#a80e18', arc:'#a80e18'"),
+  'Continentes rojos corporativos y marcadores/arcos conservados')
+assert.ok(globePalette.includes("label: dark ? '#ffffff' : '#30333c'"),
+  'Las etiquetas originales contrastan correctamente con cada tema')
+assert.ok(globePalette.includes("labelStroke: dark ? 'rgba(10,12,18,.93)' : 'rgba(255,255,255,.98)'"),
+  'Los contornos de etiquetas varían según fondo oscuro o claro')
+assert.ok(globePalette.includes("graticule: dark ? 'rgba(203,212,231,.22)' : 'rgba(0,0,0,0)'"),
+  'La cuadrícula sutil aparece solo en tema oscuro')
+assert.ok(globePalette.includes("showGraticule: dark"),
+  'La cuadrícula no oscurece el fondo blanco')
+assert.ok(globePalette.includes("shadeStrength: dark ? .67 : .20"),
+  'Se recuperan los valores originales de profundidad de la esfera')
+assert.match(globePalette, /if \(props\.realisticColors\) \{/,
+  'La paleta realista se utiliza únicamente mediante un permiso visual explícito')
+assert.ok(globePalette.includes("ocean: ['#1e5f8f','#0f2f4f']") &&
+  globePalette.includes("land:'#5e8d52'") &&
+  globePalette.includes("border:'#83aa79'"),
+  'El embarque encontrado recupera la paleta realista de la rama de respaldo')
+assert.match(trackingGlobe, /realisticColors\?: boolean/,
+  'Los colores realistas son opcionales y por defecto no afectan otros globos')
+assert.match(trackingGlobe, /watch\(\(\) => props\.realisticColors, \(\) => globe\?\.setTheme\(themePalette\(\)\)\)/,
+  'La esfera cambia de color al encontrar o limpiar el embarque sin recrear el mapa')
+assert.match(trackingGlobe, /MutationObserver\(\(\) => globe\?\.setTheme\(themePalette\(\)\)\)/,
+  'El observador del tema se conserva sin afectar los colores del globo')
 assert.match(trackingGlobe, /const legs = routePoints\.value\.slice\(1\)\.map\(/, 'La ruta conserva cada tramo de todas las escalas')
 assert.match(trackingGlobe, /for \(let index = 0; index < legs\.length; index\+\+\)/, 'El vehículo avanza por los tramos, en orden')
 assert.match(trackingGlobe, /const demoArcs = \(\) => props\.shipment\s*\?\s*\[\]/, 'El tracking no dibuja la línea animada anterior')
@@ -74,10 +155,31 @@ assert.match(trackingGlobe, /\.22 \* Math\.sin\(Math\.PI \* t\)/, 'Parábola con
 assert.match(trackingGlobe, /projectElevated\(coordinates\.lon, coordinates\.lat/, 'El recorrido se dibuja sobre la esfera')
 assert.match(trackingGlobe, /const projected = elevatedPoint\(leg, activeProgress\)/, 'El icono se mueve sobre la curva')
 assert.match(trackingGlobe, /const p = elevatedPoint\(segment, \(step \/ count\) \* fraction\)/, 'La estela sigue la misma curva')
-assert.match(trackingGlobe, /--tracking-trail-gray:#626b77/, 'Estela gris oscura en modo claro')
-assert.match(trackingGlobe, /--tracking-trail-gray:#c4cbd5/, 'Estela gris clara en modo oscuro')
+assert.match(trackingGlobe, /--tracking-trail-gray:#fff; --tracking-trail-border:#741126/, 'La trayectoria clara es blanca con borde vino para contrastar')
+assert.match(trackingGlobe, /--tracking-trail-halo:#67091e; --tracking-trail-halo-opacity:\.45/, 'La estela clara tiene un halo rojo vino tenue')
+assert.match(trackingGlobe, /--tracking-trail-glow:rgba\(103,9,30,\.45\)/, 'El núcleo claro proyecta un brillo vino tenue')
+assert.match(trackingGlobe, /--tracking-model-main:#fff; --tracking-model-shade:#8b96a5/, 'El vehículo en tema claro es blanco con volumen gris')
+assert.match(trackingGlobe, /--tracking-model-outline:#606b78/, 'Los bordes del vehículo en tema claro son grises')
+assert.match(trackingGlobe, /:global\(html\.theme-dark \.world-globe\)\s*\{[\s\S]*?--tracking-model-main:#fff; --tracking-model-shade:#8b96a5;[\s\S]*?--tracking-model-light:#e7ecf1; --tracking-model-highlight:#fff;[\s\S]*?--tracking-model-window:#8c939d; --tracking-model-outline:#606b78;/,
+  'El barco en modo oscuro es idéntico al claro: blanco con caras y bordes grises')
+assert.match(trackingModels, /stroke="var\(--tracking-model-outline, transparent\)"/, 'Los SVG isométricos preservan contorno dependiente del tema')
+assert.match(trackingModels, /filter:none;/, 'El vehículo animado no genera sombras proyectadas fantasma')
+assert.match(trackingGlobe, /\.world-globe__route-vehicle\{[^}]*filter:none\}/, 'El globo no proyecta una segunda sombra del vehículo')
+assert.doesNotMatch(trackingModels, /<ellipse\b/, 'No dibujar óvalos de sombra debajo del barco ni el camión')
+assert.match(trackingGlobe, /:global\(html\.theme-dark \.world-globe\)\s*\{[\s\S]*?--tracking-trail-gray:#fff7f8; --tracking-trail-border:#ca2948;/,
+  'La ruta del modo oscuro usa núcleo cálido y borde rubí')
+assert.match(trackingGlobe, /--tracking-trail-halo:#ea4664; --tracking-trail-halo-opacity:\.55/, 'La estela oscura tiene un halo rubí más visible')
+assert.match(trackingGlobe, /--tracking-trail-glow:rgba\(234,70,100,\.55\)/, 'El núcleo oscuro proyecta un brillo rubí')
+assert.match(trackingGlobe, /class="world-globe__route-trail-border" :d="routeTrail"/, 'La línea de recorrido incluye el borde independiente')
+assert.match(trackingGlobe, /\.world-globe__route-trail-border\{stroke:var\(--tracking-trail-border\)!important;stroke-width:6\.2\}/, 'El borde de color es fino y no invade el núcleo blanco')
+assert.match(trackingModels, /tracking-transport-model--truck\{[\s\S]*?--tracking-model-main:#fff;[\s\S]*?--tracking-model-window:#8c939d;[\s\S]*?--tracking-model-outline:#606b78;/,
+  'Camión idéntico en claro y oscuro, con ventanas grises y contorno reforzado')
+assert.match(trackingGlobe, /\.world-globe__route-trail-border\{stroke-width:5\}/, 'El contorno de color sigue visible en móvil')
+assert.match(trackingModels, /tracking-ship-deck-3d/, 'El barco muestra cubierta iluminada con profundidad')
+assert.match(trackingModels, /tracking-ship-side-3d/, 'El casco tiene caras laterales y sombra tridimensional')
+assert.match(trackingModels, /tracking-transport-model--ship\{width:78px;height:51px\}/, 'El barco conserva dimensiones visibles en escritorio')
 assert.match(trackingGlobe, /--tracking-trail-glow:/, 'Los dos temas conservan iluminación tenue')
-assert.match(trackingGlobe, /world-globe__route-trail-halo/, 'La estela tiene halo difuminado')
+assert.match(trackingGlobe, /\.world-globe__route-trail-halo\{stroke:var\(--tracking-trail-halo\)!important;stroke-width:9;opacity:var\(--tracking-trail-halo-opacity\);filter:blur\(2px\)\}/, 'La estela tiene halo difuminado configurable por tema')
 assert.match(trackingGlobe, /world-globe__route-trail-core/, 'La estela tiene trazo definido')
 assert.match(trackingGlobe, /segment\.glyph === 'truck' \? 0 : \.22 \* Math\.sin\(Math\.PI \* t\)/,
   'El camión viaja sobre la esfera sin parábola, barco y avión elevados')
@@ -330,8 +432,18 @@ const dholeTracking = source('../backend/Endpoints/DholeTrackingEndpoints.cs')
 assert.match(dholeTracking, /RequireAuthorization\("registered"\)/, 'Dynamics exige una cuenta cliente o administradora autenticada')
 assert.match(dholeTracking, /RequireRateLimiting\("tracking"\)/, 'Dynamics limita las consultas por referencia')
 assert.doesNotMatch(dholeTracking, /MapPost\("\/api\/tracking\/search"/, 'No reintroducir consultas anónimas alternativas')
-assert.match(authRoot, /trackingAccess\.value = user && \(role === 'cliente' \|\| role === 'administrador'\)/, 'La página de rastreo requiere sesión real')
-assert.match(tracking, /<WorldGlobe :shipment="globeRoute" :initial-zoom="0\.8"\s*\/>/, 'El globo conserva el zoom inicial y utiliza rutas ilustrativas')
+assert.match(authRoot, /trackingAccess\.value = localTrackingVisualPreview \|\| !!user && \(role === 'cliente' \|\| role === 'administrador'\)/, 'La página de rastreo exige sesión real salvo preview local explícita')
+assert.match(authRoot, /const localTrackingVisualPreview = import\.meta\.env\.DEV/, 'La preview de tracking solo existe en desarrollo')
+assert.match(authRoot, /\['localhost', '127\.0\.0\.1'\]\.includes\(window\.location\.hostname\)/, 'La preview de tracking solo está disponible en localhost')
+assert.match(tracking, /const localVisualPreview = import\.meta\.env\.DEV/, 'Los datos ficticios no se habilitan en producción')
+assert.match(tracking, /<WorldGlobe :shipment="globeRoute" :initial-zoom="0\.8" :realistic-colors="realisticGlobeColors"\s*\/>/,
+  'Tracking controla explícitamente el color de la esfera sin cambiar el zoom ni las rutas')
+assert.match(tracking, /const realisticGlobeColors = computed\(\(\) => !localVisualPreview\s*&& !!shipment\.value && matches\.value\.includes\(shipment\.value\)\)/,
+  'Solo una referencia real encontrada en Dynamics activa los colores naturales')
+assert.match(tracking, /if \(data\.source !== 'dynamics' \|\| !Array\.isArray\(data\.records\)\) throw new Error/,
+  'Los colores naturales no se activan para respuestas ajenas al proveedor autenticado')
+assert.match(tracking, /shipment\.value = null\s*matches\.value = \[\]/,
+  'Al iniciar una nueva búsqueda se vuelven a aplicar los colores corporativos')
 assert.match(tracking, /\/api\/tracking\/dynamics\/search/, 'Se consultan datos de Dynamics desde el backend')
 assert.match(tracking, /credentials: 'same-origin'/, 'La consulta utiliza la sesión autenticada')
 assert.match(tracking, /Illustrative route only, not a live GPS position/, 'El globo advierte que no es un GPS')
@@ -604,7 +716,7 @@ const compiledLocalization = tsCompiler.transpileModule(trackingLocalizationSour
 })
 const trackingLocalizationExports = {}
 runInNewContext(compiledLocalization.outputText, { exports: trackingLocalizationExports }, { timeout: 1000 })
-const { formatTrackingEquipmentCount, localizeTrackingMode, localizeTrackingStatus } = trackingLocalizationExports
+const { formatTrackingEquipmentCount, isTrackingConsolidatedEquipment, localizeTrackingMode, localizeTrackingStatus } = trackingLocalizationExports
 assert.equal(typeof localizeTrackingMode, 'function')
 assert.equal(typeof localizeTrackingStatus, 'function')
 for (const [original, es, en] of [
@@ -667,6 +779,34 @@ for (const [input, expected] of [
   assert.equal(formatTrackingEquipmentCount(input), expected, 'Cantidad de equipo: ' + input)
 }
 assert.equal(formatTrackingEquipmentCount(null), null, 'No generar una cantidad para datos ausentes')
+for (const [mode, count, size, consolidated] of [
+  ['Marítimo', 'LCL', 'LCL', true],
+  ['Marítimo LCL', '1', '40 HC', true],
+  ['Sea/LCL', null, null, true],
+  ['Marítimo', '1', 'CONSOLIDADO', true],
+  ['Terrestre LTL', '1', 'pallet', true],
+  ['Marítimo FCL', 'LCL', 'LCL', false],
+  ['Marítimo', '2 contenedores', '40 HC', false],
+  ['Marítimo', '1', 'FCL', false],
+  ['Terrestre FTL', '1', '40', false],
+  ['Marítimo', null, null, false],
+  [null, null, null, false]
+]) {
+  assert.equal(isTrackingConsolidatedEquipment(mode, count, size), consolidated,
+    'Ícono según carga completa o consolidada: ' + [mode, count, size].join(' / '))
+}
+const iconSource = source('src/components/IconSymbol.vue')
+assert.match(iconSource, /<svg v-if="glyph === 'container-open'"/, 'LCL utiliza un contenedor abierto, no una caja de paquetería')
+assert.match(iconSource, /M6 6 1 3\.5V20l5-2\.5M18 6l5-2\.5V20l-5-2\.5/, 'El contenedor tiene dos puertas abiertas hacia afuera')
+assert.match(iconSource, /M8 15h4v5H8zM12 12h4v8h-4zM10 9h3v3h-3z/, 'El contenedor abierto contiene carga visible')
+assert.match(iconSource, /fill="none" stroke="currentColor" stroke-width="1\.8"/, 'El nuevo ícono mantiene el estilo de trazos de Lucide')
+assert.match(iconSource, /container: Container/, 'FCL conserva el ícono cerrado de Lucide')
+assert.doesNotMatch(iconSource, /PackageOpen/, 'El ícono no debe parecer un paquete abierto')
+assert.match(tracking, /<IconSymbol :glyph="equipmentIcon" :size="17" \/>/, 'Solo el campo de equipo elige el ícono dinámicamente')
+assert.match(tracking, /isTrackingConsolidatedEquipment\(data\.mode, data\.equipmentCount, data\.equipmentSize\)/,
+  'La decisión del ícono depende de datos de modalidad y equipo')
+assert.match(tracking, /<dd>\{\{ equipmentConfiguration \}\}<\/dd>/,
+  'El texto de cantidad y tamaño se conserva sin modificaciones')
 assert.match(tracking, /const quantity = formatTrackingEquipmentCount\(count\)/,
   'La cantidad visible se normaliza sin modificar Dynamics')
 assert.match(tracking, /const equipmentSize = size\?\.trim\(\)/,
