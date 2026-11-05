@@ -74,7 +74,9 @@ assert.match(trackingGlobe, /\.22 \* Math\.sin\(Math\.PI \* t\)/, 'Parábola con
 assert.match(trackingGlobe, /projectElevated\(coordinates\.lon, coordinates\.lat/, 'El recorrido se dibuja sobre la esfera')
 assert.match(trackingGlobe, /const projected = elevatedPoint\(leg, activeProgress\)/, 'El icono se mueve sobre la curva')
 assert.match(trackingGlobe, /const p = elevatedPoint\(segment, \(step \/ count\) \* fraction\)/, 'La estela sigue la misma curva')
-assert.match(trackingGlobe, /--tracking-trail-gray:#fff; --tracking-trail-border:#79838f/, 'La trayectoria clara es blanca con borde gris fino')
+assert.match(trackingGlobe, /--tracking-trail-gray:#fff; --tracking-trail-border:#741126/, 'La trayectoria clara es blanca con borde vino para contrastar')
+assert.match(trackingGlobe, /--tracking-trail-halo:#67091e; --tracking-trail-halo-opacity:\.45/, 'La estela clara tiene un halo rojo vino tenue')
+assert.match(trackingGlobe, /--tracking-trail-glow:rgba\(103,9,30,\.45\)/, 'El núcleo claro proyecta un brillo vino tenue')
 assert.match(trackingGlobe, /--tracking-model-main:#fff; --tracking-model-shade:#8b96a5/, 'El vehículo en tema claro es blanco con volumen gris')
 assert.match(trackingGlobe, /--tracking-model-outline:#606b78/, 'Los bordes del vehículo en tema claro son grises')
 assert.match(trackingGlobe, /:global\(html\.theme-dark \.world-globe\)\s*\{[\s\S]*?--tracking-model-main:#fff; --tracking-model-shade:#8b96a5;[\s\S]*?--tracking-model-light:#e7ecf1; --tracking-model-highlight:#fff;[\s\S]*?--tracking-model-window:#8c939d; --tracking-model-outline:#606b78;/,
@@ -83,18 +85,20 @@ assert.match(trackingModels, /stroke="var\(--tracking-model-outline, transparent
 assert.match(trackingModels, /filter:none;/, 'El vehículo animado no genera sombras proyectadas fantasma')
 assert.match(trackingGlobe, /\.world-globe__route-vehicle\{[^}]*filter:none\}/, 'El globo no proyecta una segunda sombra del vehículo')
 assert.doesNotMatch(trackingModels, /<ellipse\b/, 'No dibujar óvalos de sombra debajo del barco ni el camión')
-assert.match(trackingGlobe, /:global\(html\.theme-dark \.world-globe\)\s*\{[\s\S]*?--tracking-trail-gray:#fff; --tracking-trail-border:#79838f;/,
-  'La ruta del modo oscuro también es blanca y tiene exactamente el mismo borde gris')
+assert.match(trackingGlobe, /:global\(html\.theme-dark \.world-globe\)\s*\{[\s\S]*?--tracking-trail-gray:#fff7f8; --tracking-trail-border:#ca2948;/,
+  'La ruta del modo oscuro usa núcleo cálido y borde rubí')
+assert.match(trackingGlobe, /--tracking-trail-halo:#ea4664; --tracking-trail-halo-opacity:\.55/, 'La estela oscura tiene un halo rubí más visible')
+assert.match(trackingGlobe, /--tracking-trail-glow:rgba\(234,70,100,\.55\)/, 'El núcleo oscuro proyecta un brillo rubí')
 assert.match(trackingGlobe, /class="world-globe__route-trail-border" :d="routeTrail"/, 'La línea de recorrido incluye el borde independiente')
-assert.match(trackingGlobe, /\.world-globe__route-trail-border\{stroke:var\(--tracking-trail-border\)!important;stroke-width:6\.2\}/, 'El borde gris es fino y no invade el núcleo blanco')
+assert.match(trackingGlobe, /\.world-globe__route-trail-border\{stroke:var\(--tracking-trail-border\)!important;stroke-width:6\.2\}/, 'El borde de color es fino y no invade el núcleo blanco')
 assert.match(trackingModels, /tracking-transport-model--truck\{[\s\S]*?--tracking-model-main:#fff;[\s\S]*?--tracking-model-window:#8c939d;[\s\S]*?--tracking-model-outline:#606b78;/,
   'Camión idéntico en claro y oscuro, con ventanas grises y contorno reforzado')
-assert.match(trackingGlobe, /\.world-globe__route-trail-border\{stroke-width:5\}/, 'El contorno gris sigue visible en móvil')
+assert.match(trackingGlobe, /\.world-globe__route-trail-border\{stroke-width:5\}/, 'El contorno de color sigue visible en móvil')
 assert.match(trackingModels, /tracking-ship-deck-3d/, 'El barco muestra cubierta iluminada con profundidad')
 assert.match(trackingModels, /tracking-ship-side-3d/, 'El casco tiene caras laterales y sombra tridimensional')
 assert.match(trackingModels, /tracking-transport-model--ship\{width:78px;height:51px\}/, 'El barco conserva dimensiones visibles en escritorio')
 assert.match(trackingGlobe, /--tracking-trail-glow:/, 'Los dos temas conservan iluminación tenue')
-assert.match(trackingGlobe, /world-globe__route-trail-halo/, 'La estela tiene halo difuminado')
+assert.match(trackingGlobe, /\.world-globe__route-trail-halo\{stroke:var\(--tracking-trail-halo\)!important;stroke-width:9;opacity:var\(--tracking-trail-halo-opacity\);filter:blur\(2px\)\}/, 'La estela tiene halo difuminado configurable por tema')
 assert.match(trackingGlobe, /world-globe__route-trail-core/, 'La estela tiene trazo definido')
 assert.match(trackingGlobe, /segment\.glyph === 'truck' \? 0 : \.22 \* Math\.sin\(Math\.PI \* t\)/,
   'El camión viaja sobre la esfera sin parábola, barco y avión elevados')
