@@ -271,17 +271,15 @@ let zoomFrame = 0
 
 
 function themePalette() {
-  // Mismo globo 3D en modo claro y oscuro; el tema de la página sigue siendo independiente.
+  const dark = document.documentElement.classList.contains('theme-dark')
   return {
-    ocean: ['#1e5f8f','#0f2f4f'] as [string,string],
-    land:'#5e8d52',
-    border:'#83aa79',
-    marker:'#a80e18', arc:'#a80e18',
-    label:'#ffffff',
-    labelStroke:'rgba(10,12,18,.93)',
-    graticule:'rgba(203,212,231,.22)',
-    showGraticule:true,
-    shadeStrength:.52
+    ocean: (dark ? ['#3d424b','#141820'] : ['#fffafa','#fffafa']) as [string,string],
+    land:'#a80e18', marker:'#a80e18', arc:'#a80e18',
+    label: dark ? '#ffffff' : '#30333c',
+    labelStroke: dark ? 'rgba(10,12,18,.93)' : 'rgba(255,255,255,.98)',
+    graticule: dark ? 'rgba(203,212,231,.22)' : 'rgba(0,0,0,0)',
+    showGraticule: dark,
+    shadeStrength: dark ? .67 : .20
   }
 }
 function animateZoom(target: number) {
