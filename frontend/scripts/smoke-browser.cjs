@@ -65,7 +65,7 @@ function dumpDom(chrome, url, label) {
     '--disable-dev-shm-usage', '--no-first-run',
     '--no-default-browser-check', '--disable-background-networking',
     '--disable-extensions', '--hide-scrollbars',
-    '--virtual-time-budget=8000',
+    '--virtual-time-budget=12000', '--window-size=1440,1200',
     '--user-data-dir=' + profile, '--dump-dom', url
   ]
   return new Promise((resolve, reject) => {
@@ -113,6 +113,9 @@ async function main() {
       { url: '/noticias', role: null, must: ['news-page', 'news-editorial-hero'] },
       { url: '/bienvenidos', role: null, must: ['login-screen', 'login-auth-form'] },
       { url: '/cotizaciones', role: null, must: ['quote-access-status--blocked'] },
+      // Real-browser verification: wait for the local JPEG to load and the
+      // actual Tracking globe to render satellite pixels, not the old fallback.
+      { url: '/tracking', role: 'cliente', must: ['class="world-globe"', 'data-globe-surface="satellite"'] },
       { url: '/cotizaciones', role: 'cliente', must: ['quote-flow-page', 'quote-landing-grid', 'quote-quick-form'] },
       { url: '/administracion', role: 'administrador', must: ['administration-page', 'content-manager', 'manager-heading'] },
       { url: '/administracion', role: null, must: ['login-screen', 'login-auth-form'] }
