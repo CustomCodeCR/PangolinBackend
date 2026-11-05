@@ -103,18 +103,12 @@ assert.match(trackingGlobe, /\.world-globe__plane-smoke-stamp\{pointer-events:no
   'La textura no interfiere con la interacción')
 assert.match(trackingGlobe, /planeContrails\.value = \[\]/,
   'La estela se limpia al cambiar embarque o reducir movimiento')
-const airplaneCss = trackingGlobe.split('/* Humo translúcido tipo vidrio esmerilado:')[1]
+const airplaneCss = trackingGlobe.split('/* Textura blanca repetida')[1]
   ?.split('.world-globe__route-vehicle{')[0] ?? ''
 assert.ok(airplaneCss.includes('.world-globe__plane-smoke-stamp'),
   'Se mantiene el estilo específico del humo')
-assert.match(airplaneCss, /\.world-globe__plane-contrail\{\s*opacity:\.56;\s*filter:blur\(\.35px\);/,
-  'Acabado glass sutil: humo translúcido con desenfoque mínimo')
-assert.match(airplaneCss, /stroke:#7b8794;stroke-width:\.75;opacity:\.17;/,
-  'La guía de condensación no cubre el mapa en modo claro')
-assert.match(airplaneCss, /stroke:#c5cede;opacity:\.15;/,
-  'La guía se mantiene discreta en modo oscuro')
-assert.doesNotMatch(airplaneCss, /drop-shadow\(|box-shadow\s*:|backdrop-filter\s*:/,
-  'El humo no agrega brillo, sombras ni un backdrop-filter costoso')
+assert.doesNotMatch(airplaneCss, /filter\s*:|drop-shadow\(/,
+  'No se añade ningún glow ni filtro luminoso al humo')
 
 assert.match(trackingGlobe, /<svg class="world-globe__route-trail"/, 'Existe un SVG para la estela')
 assert.match(trackingGlobe, /<TrackingTransportModel :glyph="routeVehicle\.glyph" \/>/, 'Cada ícono usa la miniatura con volumen')
