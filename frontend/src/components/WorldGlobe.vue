@@ -11,7 +11,7 @@ type TrackingRouteShape = Pick<TrackingDemoShipment, 'origin' | 'destination'> &
     stops?: TrackingPoint[]
     transport?: 'air' | 'sea' | 'land' | 'multimodal' | null
   }
-const props = defineProps<{ shipment?: TrackingRouteShape | null; initialZoom?: number }>()
+const props = defineProps<{ shipment?: TrackingRouteShape | null; initialZoom?: number; realisticColors?: boolean }>()
 const holder = ref<HTMLElement | null>(null)
 const canvas = ref<HTMLCanvasElement | null>(null)
 const routePoints = computed(() => {
@@ -271,6 +271,21 @@ let zoomFrame = 0
 
 
 function themePalette() {
+  // Solo un embarque REAL encontrado en Tracking puede pedir esta paleta.
+  // Las demás instancias del globo conservan el blanco/rojo o grafito/rojo.
+  if (props.realisticColors) {
+    return {
+      ocean: ['#1e5f8f','#0f2f4f'] as [string,string],
+      land:'#5e8d52',
+      border:'#83aa79',
+      marker:'#a80e18', arc:'#a80e18',
+      label:'#ffffff',
+      labelStroke:'rgba(10,12,18,.93)',
+      graticule:'rgba(203,212,231,.22)',
+      showGraticule:true,
+      shadeStrength:.52
+    }
+  }
   const dark = document.documentElement.classList.contains('theme-dark')
   return {
     ocean: (dark ? ['#3d424b','#141820'] : ['#fffafa','#fffafa']) as [string,string],
@@ -474,6 +489,8 @@ async function start() {
 }
 
 watch(locale, () => globe?.setMarkers(demoMarkers()))
+// La esfera es un canvas: cambiar una prop no repinta sus colores sin setTheme.
+watch(() => props.realisticColors, () => globe?.setTheme(themePalette()))
 watch(() => props.shipment, (shipment) => {
   vehicleElapsedMs = 0
   lastVehicleClock = 0

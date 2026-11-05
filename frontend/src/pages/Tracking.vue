@@ -145,6 +145,10 @@ const globeRoute = computed(() => {
     : /terrest|land|road|truck/.test(mode) ? 'land' : null
   return { origin: stops[0], destination: stops[stops.length - 1], stops, transport }
 })
+// El color realista se activa exclusivamente con una respuesta válida de Dynamics.
+// No aplicarlo a la vista local de ejemplo ni a resultados vacíos o fallidos.
+const realisticGlobeColors = computed(() => !localVisualPreview
+  && !!shipment.value && matches.value.includes(shipment.value))
 const approximateCountries = computed(() => [...new Set(
   globeRoute.value?.stops.filter(point => point.precision === 'country-centroid').map(point => point.name) ?? []
 )])
@@ -441,7 +445,7 @@ onBeforeUnmount(() => {
             <h1>{{ copy.title }} <span>{{ copy.accent }}</span></h1>
             <p class="tracking-lead">{{ copy.intro }}</p>
           </div>
-          <WorldGlobe :shipment="globeRoute" :initial-zoom="0.8" />
+          <WorldGlobe :shipment="globeRoute" :initial-zoom="0.8" :realistic-colors="realisticGlobeColors" />
         </section>
         <section class="tracking-search-section">
           <form class="tracking-search" @submit.prevent="searchShipment" novalidate>
