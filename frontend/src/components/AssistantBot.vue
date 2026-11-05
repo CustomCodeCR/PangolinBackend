@@ -57,7 +57,18 @@ const copy = computed(() => isEnglish.value ? {
   offline: 'Ahora no puedo consultar la IA, así que esta es una orientación basada en el sitio: ', openLink: 'Abrir sección', status: 'Disponible'
 })
 const assistantRoot = ref<HTMLElement | null>(null)
+const hasPageScrolled = ref(false)
 const isOpen = ref(false)
+
+// El mensaje flotante aparece únicamente después de abandonar el inicio de
+// la página. La mascota y el botón para abrir GIO siguen disponibles siempre.
+function syncPageScroll() {
+  hasPageScrolled.value = Math.max(
+    window.scrollY,
+    document.documentElement.scrollTop,
+    document.body.scrollTop
+  ) > 0
+}
 const isClosing = ref(false)
 const panelSettled = ref(false)
 const draft = ref('')
@@ -193,8 +204,17 @@ function handleOutsidePointerDown(event: PointerEvent) {
   const root = assistantRoot.value
   if (root && !event.composedPath().includes(root)) closePanel()
 }
-onMounted(() => document.addEventListener('pointerdown', handleOutsidePointerDown, true))
-onUnmounted(() => document.removeEventListener('pointerdown', handleOutsidePointerDown, true))
+onMounted(() => {
+  document.addEventListener('pointerdown', handleOutsidePointerDown, true)
+  syncPageScroll()
+  window.addEventListener('scroll', syncPageScroll, { passive: true })
+  window.addEventListener('pageshow', syncPageScroll)
+})
+onUnmounted(() => {
+  document.removeEventListener('pointerdown', handleOutsidePointerDown, true)
+  window.removeEventListener('scroll', syncPageScroll)
+  window.removeEventListener('pageshow', syncPageScroll)
+})
 
 function finishOpen() { panelSettled.value = true }
 function finishClose() { isClosing.value = false }
@@ -242,12 +262,60 @@ function finishClose() { isClosing.value = false }
         <img class="site-assistant__figure-base" src="/images/gio-assistant-base.png" alt="" />
         <img class="site-assistant__wave-hand" src="/images/gio-assistant-hand.png" alt="" />
       </span>
-        <span class="site-assistant__hint">{{ isEnglish ? 'Ask GIO' : 'Hablar con GIO' }}</span>
+        <span class="site-assistant__hint" :class="{ 'site-assistant__hint--visible': hasPageScrolled }" aria-hidden="true">{{ isEnglish ? 'Ask GIO' : 'Hablar con GIO' }}</span>
     </button>
   </aside>
 </template>
 
 <style scoped>
+/* El globo de texto, no la mascota, se desvanece al volver a scroll = 0.
+   La especificidad evita que hover/focus lo muestre mientras estamos arriba. */
+.site-assistant__mascot .site-assistant__hint{
+  opacity:0;
+  transform:translateX(-4px);
+  pointer-events:none;
+  transition:opacity .35s ease,transform .35s ease;
+  /* Glass tenue: un poco más sólido y con menos desenfoque para mejor lectura. */
+  background:rgba(255,255,255,.74);
+  -webkit-backdrop-filter:blur(2px);
+  backdrop-filter:blur(2px);
+  border:1px solid rgba(255,255,255,.42);
+  box-shadow:0 3px 10px rgba(0,0,0,.07),inset 0 1px 0 rgba(255,255,255,.26);
+  color:#1d2532;
+  overflow:hidden;
+}
+.site-assistant__mascot .site-assistant__hint::before{
+  content:'';
+  position:absolute;
+  inset:0 0 auto;
+  height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.38),transparent);
+  pointer-events:none;
+}
+.site-assistant__mascot .site-assistant__hint::after{
+  content:'';
+  position:absolute;
+  inset:0 auto 0 0;
+  width:1px;
+  background:linear-gradient(180deg,rgba(255,255,255,.32),transparent,rgba(255,255,255,.12));
+  pointer-events:none;
+}
+:global(html.theme-dark) .site-assistant__mascot .site-assistant__hint{
+  background:rgba(18,27,44,.68);
+  border-color:rgba(255,255,255,.18);
+  color:#fff;
+  box-shadow:0 3px 10px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.12);
+}
+.site-assistant__mascot .site-assistant__hint--visible{
+  opacity:1;
+  transform:translateX(0);
+  /* El aviso vive dentro del botón de GIO: el clic abre el mismo chat. */
+  pointer-events:auto;
+  cursor:pointer;
+}
+@media(prefers-reduced-motion:reduce){
+  .site-assistant__mascot .site-assistant__hint{transition:none}
+}
 .site-assistant__menu{border:1px solid var(--gio-line,#666);border-radius:9px;background:var(--gio-action,transparent);color:var(--gio-ink,#fff);padding:7px 10px;font-size:11px;cursor:pointer}
 .site-assistant__menu:hover{border-color:#b20c2a}
 .site-assistant__panel--workflow{height:min(68vh,520px)}

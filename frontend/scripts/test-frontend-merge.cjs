@@ -34,6 +34,56 @@ source('src/services/signalr.ts')
 source('src/services/realtime.ts')
 source('src/components/SiteMedia.vue')
 
+// GIO mantiene la mascota accesible, mientras su aviso se muestra solo tras scroll.
+const gioAssistant = source('src/components/AssistantBot.vue')
+assert.match(gioAssistant, /const hasPageScrolled = ref\(false\)/,
+  'El aviso de GIO inicia oculto en la parte superior de cualquier página')
+assert.match(gioAssistant, /window\.scrollY,[\s\S]*?document\.documentElement\.scrollTop,[\s\S]*?document\.body\.scrollTop[\s\S]*?\) > 0/,
+  'El aviso se activa solo cuando el scroll real de la página supera cero')
+assert.match(gioAssistant, /window\.addEventListener\('scroll', syncPageScroll, \{ passive: true \}\)/,
+  'El listener de scroll de GIO es pasivo')
+assert.match(gioAssistant, /window\.removeEventListener\('scroll', syncPageScroll\)/,
+  'El listener se retira al desmontar GIO')
+assert.match(gioAssistant, /window\.addEventListener\('pageshow', syncPageScroll\)/,
+  'Se sincroniza la visibilidad al restaurar una página')
+assert.match(gioAssistant, /:class="\{ 'site-assistant__hint--visible': hasPageScrolled \}"/,
+  'Solo la nube del comentario cambia con el scroll')
+assert.match(gioAssistant, /\.site-assistant__mascot \.site-assistant__hint\{[\s\S]*?opacity:0;[\s\S]*?transition:opacity \.35s ease,transform \.35s ease;/,
+  'La nube empieza invisible y aparece gradualmente')
+assert.match(gioAssistant, /\.site-assistant__mascot \.site-assistant__hint--visible\{[\s\S]*?opacity:1;/,
+  'La nube alcanza su opacidad original tras bajar')
+assert.match(gioAssistant, /@media\(prefers-reduced-motion:reduce\)/,
+  'La transición respeta movimiento reducido')
+assert.match(gioAssistant, /background:rgba\(255,255,255,\.74\)/,
+  'La nube de GIO tiene un fondo blanco translúcido')
+assert.match(gioAssistant, /-webkit-backdrop-filter:blur\(2px\)/,
+  'El desenfoque de fondo funciona también en Safari')
+assert.match(gioAssistant, /backdrop-filter:blur\(2px\)/,
+  'La nube tiene un efecto glass sutil sin desenfocar el texto')
+assert.match(gioAssistant, /\.site-assistant__mascot \.site-assistant__hint::before\{/,
+  'La nube conserva un reflejo superior discreto')
+assert.match(gioAssistant, /\.site-assistant__mascot \.site-assistant__hint::after\{/,
+  'La nube conserva un reflejo lateral discreto')
+assert.match(gioAssistant, /:global\(html\.theme-dark\) \.site-assistant__mascot \.site-assistant__hint\{/,
+  'El glass se adapta al tema oscuro')
+assert.match(gioAssistant, /background:rgba\(18,27,44,\.68\)/,
+  'La nube no pierde legibilidad en tema oscuro')
+assert.match(gioAssistant, /box-shadow:0 3px 10px rgba\(0,0,0,\.07\)/,
+  'La sombra clara del glass es más discreta')
+assert.match(gioAssistant, /rgba\(255,255,255,\.38\),transparent/,
+  'El reflejo superior del aviso es más suave')
+assert.match(gioAssistant, /<button class="site-assistant__mascot" type="button"/,
+  'El botón de GIO nunca se oculta')
+const gioMascotButton = gioAssistant.split('<button class="site-assistant__mascot"')[1]?.split('</button>')[0] ?? ''
+assert.match(gioMascotButton, /@click="togglePanel"/,
+  'La mascota utiliza el controlador único para abrir o cerrar GIO')
+assert.match(gioMascotButton, /<span class="site-assistant__hint"[^>]*>\{\{ isEnglish/,
+  'La nube clicable es parte del mismo botón, sin botón anidado ni segundo evento')
+assert.match(gioAssistant, /\.site-assistant__mascot \.site-assistant__hint--visible\{[\s\S]*?pointer-events:auto;[\s\S]*?cursor:pointer;/,
+  'La nube visible recibe los clics y el botón padre abre el chat')
+assert.match(gioAssistant, /\.site-assistant__mascot \.site-assistant__hint\{[\s\S]*?pointer-events:none;/,
+  'La nube invisible no intercepta clics al estar arriba')
+
 // The tracking globe uses one animated icon and an elevated trail, no fixed itinerary bar.
 const trackingGlobe = source('src/components/WorldGlobe.vue')
 // Ambos temas deben reutilizar exactamente la misma paleta del globo.
