@@ -250,10 +250,22 @@ function finishClose() { isClosing.value = false }
       :aria-label="isEnglish ? 'Ask GIO' : 'Hablar con GIO'"
       @click="togglePanel"
     >
+      <span class="site-assistant__hint-glass" aria-hidden="true"></span>
       <svg class="site-assistant__hint-cloud" viewBox="0 0 168 100" aria-hidden="true" focusable="false">
-        <path d="M 35 32 C 30 22 36 14 47 16 C 52 5 65 6 72 13 C 83 2 96 5 101 16 C 113 11 125 17 125 27 C 139 25 148 34 143 46 C 153 54 148 66 136 68 C 133 79 120 83 111 76 C 100 88 86 85 79 77 C 67 86 54 82 50 74 C 37 79 25 71 29 60 C 16 61 12 51 19 42 C 14 31 23 25 35 32 Z" fill="#fff" stroke="#a7a7a7" stroke-width="1.4" stroke-linejoin="round" />
-        <circle cx="14" cy="69" r="5" fill="#fff" stroke="#a7a7a7" stroke-width="1.25" />
-        <circle cx="5" cy="82" r="3" fill="#fff" stroke="#a7a7a7" stroke-width="1.1" />
+        <defs>
+          <!-- Clip the blurred backdrop to the whole cloud, including the thought bubbles. -->
+          <clipPath id="gio-thought-cloud-clip" clipPathUnits="objectBoundingBox">
+            <g transform="scale(0.005952381 0.01)">
+              <path d="M 35 32 C 30 22 36 14 47 16 C 52 5 65 6 72 13 C 83 2 96 5 101 16 C 113 11 125 17 125 27 C 139 25 148 34 143 46 C 153 54 148 66 136 68 C 133 79 120 83 111 76 C 100 88 86 85 79 77 C 67 86 54 82 50 74 C 37 79 25 71 29 60 C 16 61 12 51 19 42 C 14 31 23 25 35 32 Z" />
+              <circle cx="14" cy="69" r="5" />
+              <circle cx="5" cy="82" r="3" />
+            </g>
+          </clipPath>
+        </defs>
+        <path class="site-assistant__hint-cloud-main" d="M 35 32 C 30 22 36 14 47 16 C 52 5 65 6 72 13 C 83 2 96 5 101 16 C 113 11 125 17 125 27 C 139 25 148 34 143 46 C 153 54 148 66 136 68 C 133 79 120 83 111 76 C 100 88 86 85 79 77 C 67 86 54 82 50 74 C 37 79 25 71 29 60 C 16 61 12 51 19 42 C 14 31 23 25 35 32 Z" />
+        <circle class="site-assistant__hint-cloud-bubble" cx="14" cy="69" r="5" />
+        <circle class="site-assistant__hint-cloud-bubble" cx="5" cy="82" r="3" />
+        <path class="site-assistant__hint-cloud-highlight" d="M 42 23 C 60 12 88 11 106 20" />
       </svg>
       <span class="site-assistant__hint-label">{{ isEnglish ? 'Ask GIO' : 'Hablar con GIO' }}</span>
     </button>
