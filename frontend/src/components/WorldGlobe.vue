@@ -271,15 +271,17 @@ let zoomFrame = 0
 
 
 function themePalette() {
-  const dark = document.documentElement.classList.contains('theme-dark')
+  // Mismo globo 3D en modo claro y oscuro; el tema de la página sigue siendo independiente.
   return {
-    ocean: (dark ? ['#3d424b','#141820'] : ['#fffafa','#fffafa']) as [string,string],
-    land:'#a80e18', marker:'#a80e18', arc:'#a80e18',
-    label: dark ? '#ffffff' : '#30333c',
-    labelStroke: dark ? 'rgba(10,12,18,.93)' : 'rgba(255,255,255,.98)',
-    graticule: dark ? 'rgba(203,212,231,.22)' : 'rgba(0,0,0,0)',
-    showGraticule: dark,
-    shadeStrength: dark ? .67 : .20
+    ocean: ['#1e5f8f','#0f2f4f'] as [string,string],
+    land:'#5e8d52',
+    border:'#83aa79',
+    marker:'#a80e18', arc:'#a80e18',
+    label:'#ffffff',
+    labelStroke:'rgba(10,12,18,.93)',
+    graticule:'rgba(203,212,231,.22)',
+    showGraticule:true,
+    shadeStrength:.52
   }
 }
 function animateZoom(target: number) {
@@ -603,9 +605,10 @@ onBeforeUnmount(() => {
   --tracking-model-window:#8c939d; --tracking-model-outline:#606b78;
   --tracking-model-shadow:rgba(36,46,60,.32);
   --tracking-vehicle-shadow:rgba(47,57,71,.26);
-  /* White route, with the same thin grey edge in both themes. */
-  --tracking-trail-gray:#fff; --tracking-trail-border:#79838f;
-  --tracking-trail-glow:rgba(255,255,255,.65);
+  /* Light theme: crisp white core, deep burgundy edge and soft wine-red glow. */
+  --tracking-trail-gray:#fff; --tracking-trail-border:#741126;
+  --tracking-trail-halo:#67091e; --tracking-trail-halo-opacity:.45;
+  --tracking-trail-glow:rgba(103,9,30,.45);
 }
 :global(html.theme-dark .world-globe) {
   --surface-card:#10182b; --text-primary:#f4f6fb;
@@ -615,8 +618,10 @@ onBeforeUnmount(() => {
   --tracking-model-window:#8c939d; --tracking-model-outline:#606b78;
   --tracking-model-shadow:rgba(36,46,60,.32);
   --tracking-vehicle-shadow:rgba(47,57,71,.26);
-  --tracking-trail-gray:#fff; --tracking-trail-border:#79838f;
-  --tracking-trail-glow:rgba(255,255,255,.65);
+  /* Dark theme: warm white core, ruby edge and lighter red glow for contrast. */
+  --tracking-trail-gray:#fff7f8; --tracking-trail-border:#ca2948;
+  --tracking-trail-halo:#ea4664; --tracking-trail-halo-opacity:.55;
+  --tracking-trail-glow:rgba(234,70,100,.55);
 }
 .world-globe__location-card {
   position:absolute; z-index:12; width:min(270px,calc(100% - 28px)); max-height:min(290px,calc(100% - 25px));
@@ -682,7 +687,7 @@ onBeforeUnmount(() => {
 .world-globe__route-vehicles{position:absolute;inset:0;z-index:4;pointer-events:none}
 .world-globe__route-trail{position:absolute;inset:0;width:100%;height:100%;overflow:hidden}
 .world-globe__route-trail path{fill:none;stroke:var(--tracking-trail-gray);stroke-linecap:round;stroke-linejoin:round}
-.world-globe__route-trail-halo{stroke-width:9;opacity:.2;filter:blur(2px)}
+.world-globe__route-trail-halo{stroke:var(--tracking-trail-halo)!important;stroke-width:9;opacity:var(--tracking-trail-halo-opacity);filter:blur(2px)}
 .world-globe__route-trail-border{stroke:var(--tracking-trail-border)!important;stroke-width:6.2}
 .world-globe__route-trail-core{stroke-width:2.8;filter:drop-shadow(0 0 4px var(--tracking-trail-glow))}
 .world-globe__route-vehicle{position:absolute;display:grid;place-items:center;width:60px;height:42px;color:var(--tracking-model-main);transform:translate(-50%,-50%);filter:none}
