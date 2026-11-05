@@ -127,33 +127,39 @@ assert.match(trackingGlobe, /projectElevated\(coordinates\.lon, coordinates\.lat
   'Ícono y estela usan exactamente la elevación de su tramo')
 const globeRenderer = source('src/lib/castroGlobe.js')
 const satelliteSurface = source('src/lib/satelliteSurface.js')
-// Photographic surface is the only new visual layer. Keep original route logic.
+// Only the Tracking page opts in: Home, other pages and shared UI remain unchanged.
+assert.match(trackingGlobe, /satelliteSurface\?: boolean/, 'El globo compartido no cambia sin la propiedad explicita')
+assert.match(trackingGlobe, /satelliteSurface: props\.satelliteSurface === true/,
+  'La textura se activa solo cuando Tracking lo solicita')
+assert.match(globeRenderer, /this\.satelliteSurface = this\.options\.satelliteSurface === true/,
+  'El motor no inicia satelite en Inicio ni en el resto de paginas')
 assert.match(globeRenderer, /createSatelliteSurface\(\(\) => this\.invalidate\(\)\)/,
-  'El motor carga la textura del planeta sin alterar controles ni rutas')
+  'El motor actualiza la esfera cuando la imagen local termina de cargar')
 assert.match(globeRenderer, /ctx\.drawImage\(this\.satelliteSurface\.canvas, 0, 0, w, h\)/,
-  'La textura se dibuja exclusivamente sobre la superficie esférica')
+  'La fotografia sustituye solo la superficie; rutas y pines van encima')
 assert.match(globeRenderer, /const satelliteReady = this\.satelliteSurface\?\.render/,
-  'WebGL es opcional; si falla, se conserva el renderizador anterior')
+  'Cuando no hay textura disponible el render original sigue operativo')
 assert.match(globeRenderer, /if \(satelliteReady\) \{[\s\S]*?\} else \{[\s\S]*?draw\(countries\)/,
-  'La esfera anterior permanece como contingencia cuando falla la textura')
+  'La esfera geografica anterior permanece como respaldo sin conexion')
 assert.match(globeRenderer, /this\.satelliteSurface\?\.destroy\(\)/,
-  'Las texturas GPU se liberan al cerrar el mapa')
-assert.match(satelliteSurface, /const EARTH_MAP_URL =\s*'\/images\/earth-satellite-daymap\.jpg'/,
-  'El relieve satelital se sirve localmente sin dependencias CORS externas')
-assert.match(satelliteSurface, /Solar System Scope \/ Wikimedia Commons/,
-  'La textura conserva en el codigo la atribucion CC BY 4.0')
-assert.match(satelliteSurface, /image\.crossOrigin = 'anonymous'/,
-  'La carga de imagen remota es compatible con Canvas y WebGL')
-assert.match(satelliteSurface, /float longitude = atan\(surface\.y, surface\.x\)/,
-  'La textura utiliza coordenadas esféricas exactas')
-assert.match(satelliteSurface, /vec3 surface = normalize\(east \* sphere\.x \+ north \* sphere\.y \+ forward \* sphere\.z\)/,
-  'La textura rota con las mismas coordenadas ortográficas de d3-geo')
-assert.match(satelliteSurface, /gl\.UNPACK_FLIP_Y_WEBGL, true/,
-  'La textura conserva los polos en su orientación geográfica correcta')
-assert.match(satelliteSurface, /gl\.drawArrays\(gl\.TRIANGLES, 0, 6\)/,
-  'El shader GPU pinta la esfera sin generar mallas adicionales')
-assert.match(satelliteSurface, /preserveDrawingBuffer: true/,
-  'La textura GPU puede componerse en el canvas principal')
+  'La memoria de la imagen se limpia cuando se desmonta el globo')
+assert.match(satelliteSurface, /const TEXTURE_URL = '\/images\/earth-satellite-daymap\.jpg'/,
+  'La textura se sirve desde los assets del mismo frontend')
+assert.match(satelliteSurface, /Solar System Scope/, 'La atribucion de la textura se conserva')
+assert.match(satelliteSurface, /canvas\.getContext\('2d', \{ alpha: true \}\)/,
+  'Safari y Firefox pueden pintar la esfera sin WebGL')
+assert.doesNotMatch(satelliteSurface, /getContext\('webgl/,
+  'La superficie no debe depender de GPU o shaders de WebGL')
+assert.match(satelliteSurface, /pixels = sourceCtx\.getImageData/,
+  'La textura fotografica se carga antes del primer dibujo')
+assert.match(satelliteSurface, /const mapLon = Math\.atan2\(earthY, earthX\)/,
+  'La tierra utiliza proyeccion ortografica inversa')
+assert.match(satelliteSurface, /const mapLat = Math\.asin\(clamp\(earthZ, -1, 1\)\)/,
+  'Los polos mantienen sus coordenadas reales')
+assert.match(satelliteSurface, /ctx\.putImageData\(output, 0, 0\)/,
+  'Los pixeles se dibujan realmente en un canvas visible por el motor')
+assert.match(satelliteSurface, /const MAX_SURFACE_PIXELS = 500/,
+  'El renderizado por CPU mantiene limite de resolucion en Mac antiguos')
 
 const globeTypes = source('src/lib/castroGlobe.d.ts')
 assert.match(globeRenderer, /projectElevated\(lon, lat, lift = 0\)/, 'Motor permite dibujar por encima del globo')
@@ -404,7 +410,8 @@ assert.match(authRoot, /trackingAccess\.value = localTrackingVisualPreview \|\| 
 assert.match(authRoot, /const localTrackingVisualPreview = import\.meta\.env\.DEV/, 'La preview de tracking solo existe en desarrollo')
 assert.match(authRoot, /\['localhost', '127\.0\.0\.1'\]\.includes\(window\.location\.hostname\)/, 'La preview de tracking solo está disponible en localhost')
 assert.match(tracking, /const localVisualPreview = import\.meta\.env\.DEV/, 'Los datos ficticios no se habilitan en producción')
-assert.match(tracking, /<WorldGlobe :shipment="globeRoute" :initial-zoom="0\.8"\s*\/>/, 'El globo conserva el zoom inicial y utiliza rutas ilustrativas')
+assert.match(tracking, /<WorldGlobe :shipment="globeRoute" :initial-zoom="0\.8" :satellite-surface="true"\s*\/>/,
+  'Tracking conserva zoom y rutas, pero activa explicitamente la Tierra realista')
 assert.match(tracking, /\/api\/tracking\/dynamics\/search/, 'Se consultan datos de Dynamics desde el backend')
 assert.match(tracking, /credentials: 'same-origin'/, 'La consulta utiliza la sesión autenticada')
 assert.match(tracking, /Illustrative route only, not a live GPS position/, 'El globo advierte que no es un GPS')
