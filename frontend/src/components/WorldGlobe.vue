@@ -603,10 +603,10 @@ onBeforeUnmount(() => {
   --tracking-model-window:#8c939d; --tracking-model-outline:#606b78;
   --tracking-model-shadow:rgba(36,46,60,.32);
   --tracking-vehicle-shadow:rgba(47,57,71,.26);
-  /* Light mode: white core, burgundy border and a subtle wine-red glow. */
+  /* Light mode: keep the white/wine trail, add a golden glow inspired by animated routes. */
   --tracking-trail-gray:#fff; --tracking-trail-border:#741126;
-  --tracking-trail-halo:#67091e; --tracking-trail-halo-opacity:.45;
-  --tracking-trail-glow:rgba(103,9,30,.45);
+  --tracking-trail-halo:#f5b700; --tracking-trail-halo-opacity:.72;
+  --tracking-trail-glow:rgba(245,183,0,.72);
 }
 :global(html.theme-dark .world-globe) {
   --surface-card:#10182b; --text-primary:#f4f6fb;
