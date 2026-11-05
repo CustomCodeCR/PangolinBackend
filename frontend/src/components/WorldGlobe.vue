@@ -600,11 +600,11 @@ onBeforeUnmount(() => {
   /* Light mode: white 3-D vehicle with graphite-grey contours and cast shadows. */
   --tracking-model-main:#fff; --tracking-model-shade:#8b96a5;
   --tracking-model-light:#e7ecf1; --tracking-model-highlight:#fff;
-  --tracking-model-window:#8195a7; --tracking-model-outline:#7d8794;
+  --tracking-model-window:#8c939d; --tracking-model-outline:#606b78;
   --tracking-model-shadow:rgba(36,46,60,.32);
   --tracking-vehicle-shadow:rgba(47,57,71,.26);
   /* White route, with only a thin grey edge in the light theme. */
-  --tracking-trail-gray:#fff; --tracking-trail-border:#9ca5b0;
+  --tracking-trail-gray:#fff; --tracking-trail-border:#79838f;
   --tracking-trail-glow:rgba(255,255,255,.65);
 }
 :global(html.theme-dark .world-globe) {
@@ -683,14 +683,14 @@ onBeforeUnmount(() => {
 .world-globe__route-trail{position:absolute;inset:0;width:100%;height:100%;overflow:hidden}
 .world-globe__route-trail path{fill:none;stroke:var(--tracking-trail-gray);stroke-linecap:round;stroke-linejoin:round}
 .world-globe__route-trail-halo{stroke-width:9;opacity:.2;filter:blur(2px)}
-.world-globe__route-trail-border{stroke:var(--tracking-trail-border)!important;stroke-width:4.6}
+.world-globe__route-trail-border{stroke:var(--tracking-trail-border)!important;stroke-width:6.2}
 .world-globe__route-trail-core{stroke-width:2.8;filter:drop-shadow(0 0 4px var(--tracking-trail-glow))}
 .world-globe__route-vehicle{position:absolute;display:grid;place-items:center;width:60px;height:42px;color:var(--tracking-model-main);transform:translate(-50%,-50%);filter:drop-shadow(0 3px 3px var(--tracking-vehicle-shadow))}
 .world-globe__route-vehicle--reversed{transform:translate(-50%,-50%) scaleX(-1)}
 @media(max-width:580px){
   .world-globe__route-vehicle{width:48px;height:34px}
   .world-globe__route-trail-halo{stroke-width:7}
-  .world-globe__route-trail-border{stroke-width:3.9}
+  .world-globe__route-trail-border{stroke-width:5}
   .world-globe__route-trail-core{stroke-width:2.3}
 }
 </style>
