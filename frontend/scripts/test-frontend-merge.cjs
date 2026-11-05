@@ -821,4 +821,74 @@ assert.match(tracking, /customerUpdateTranslations\.value\[language \+ ':' \+ so
 assert.doesNotMatch(tracking, /shipment\.value\.customerStatus\s*=/, 'Nunca escribir una traducción en Dynamics o mutar el registro')
 assert.doesNotMatch(trackingTranslationBackend, /logger\.Log(?:Warning|Error|Information)\([^\n]*(?:source|message)\b/, 'No registrar el mensaje privado en logs')
 
+// Execute the satellite rasterizer (rather than just checking its source).
+// The mock texture has red and blue hemispheres: a change in longitude must
+// change the rendered center pixel, proving real rotation and image sampling.
+const earthImagePath = path.join(root, 'public/images/earth-satellite-daymap.jpg')
+assert.ok(fs.existsSync(earthImagePath) && fs.statSync(earthImagePath).size > 300000,
+  'El planeta fotografico debe estar incluido en la compilacion, no ser un enlace externo')
+class SatelliteCanvasMock {
+  constructor() { this.width = 0; this.height = 0; this.lastImage = null }
+  getContext(kind) {
+    assert.equal(kind, '2d', 'El globo fotografico requiere Canvas2D compatible con Safari')
+    return {
+      drawImage() {},
+      getImageData(_x, _y, w, h) {
+        const data = new Uint8ClampedArray(w * h * 4)
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+          const j = (y * w + x) * 4
+          data[j] = x < w / 2 ? 230 : 20
+          data[j + 1] = x < w / 2 ? 40 : 90
+          data[j + 2] = x < w / 2 ? 40 : 190
+          data[j + 3] = 255
+        }
+        return { data }
+      },
+      createImageData(w, h) { return { data: new Uint8ClampedArray(w * h * 4) } },
+      putImageData(image) { this.__canvas.lastImage = image }
+    }
+  }
+}
+const syntheticCanvases = []
+const syntheticDocument = { createElement(tag) {
+  assert.equal(tag, 'canvas')
+  const canvas = new SatelliteCanvasMock()
+  const getContext = canvas.getContext.bind(canvas)
+  canvas.getContext = (kind) => {
+    const ctx = getContext(kind)
+    ctx.__canvas = canvas
+    return ctx
+  }
+  syntheticCanvases.push(canvas)
+  return canvas
+} }
+class SatelliteImageMock {
+  constructor() { this.naturalWidth = 16; this.naturalHeight = 8 }
+  set src(value) { if (value) { this.loadedFrom = value; this.onload?.() } }
+}
+const syntheticModule = { exports: null }
+runInNewContext(
+  satelliteSurface.replace('export function createSatelliteSurface', 'function createSatelliteSurface') +
+    '\nmodule.exports = createSatelliteSurface',
+  { document: syntheticDocument, Image: SatelliteImageMock, Math, Uint8ClampedArray, module: syntheticModule },
+  { timeout: 2000 }
+)
+let satelliteReadyEvents = 0
+const realSurface = syntheticModule.exports(() => { satelliteReadyEvents++ })
+assert.equal(satelliteReadyEvents, 1, 'El mapa fotografico debe avisar cuando la textura carga')
+assert.ok(realSurface.render(160, 160, 1, 70, 0, 0), 'La Tierra se dibuja sin necesidad de WebGL')
+const centerOffset = (80 * 160 + 80) * 4
+const centerFront = Array.from(realSurface.canvas.lastImage.data.slice(centerOffset, centerOffset + 4))
+assert.equal(centerFront[3], 255, 'La Tierra fotografica es visible y opaca en el centro')
+assert.ok(centerFront[2] > centerFront[0], 'Se ve el océano de la textura en el primer hemisferio')
+assert.ok(realSurface.render(160, 160, 1, 70, -90, 0), 'La Tierra admite rotación')
+const centerAfterRotation = Array.from(realSurface.canvas.lastImage.data.slice(centerOffset, centerOffset + 4))
+assert.ok(centerAfterRotation[0] > centerAfterRotation[2],
+  'Al girar el globo cambia visiblemente la superficie fotografica')
+assert.equal(realSurface.canvas.lastImage.data[3], 0,
+  'La esfera mantiene transparente el exterior, conservando el diseño de Tracking')
+realSurface.destroy()
+assert.equal(realSurface.render(160, 160, 1, 70, 0, 0), false,
+  'El renderizado se detiene y libera memoria al desmontar Tracking')
+
 console.log('OK: SignalR, CMS, MinIO, news, itinerary and tracking contracts.')
