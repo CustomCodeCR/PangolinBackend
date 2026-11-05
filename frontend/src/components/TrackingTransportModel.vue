@@ -38,14 +38,14 @@ defineProps<{ glyph: string }>()
     <!-- Long, bevelled hull: lit upper rim, shaded broadside, deeper bow face. -->
     <path d="M8 37 101 34 88 57 29 62 17 54Z"
       fill="url(#tracking-ship-hull-3d)" stroke="var(--tracking-model-outline, transparent)"
-      stroke-width="1.25" stroke-linejoin="round" />
+      stroke-width="1.5" stroke-linejoin="round" />
     <path d="M17 44 30 58 86 54 94 43 88 57 29 62 17 54Z"
       fill="url(#tracking-ship-side-3d)" opacity=".85" />
     <path d="M101 34 88 57 78 53 90 37Z"
       fill="var(--tracking-model-shade)" opacity=".74" />
     <path d="M8 37 21 42 88 40 101 34 92 30 19 32Z"
       fill="url(#tracking-ship-deck-3d)" stroke="var(--tracking-model-outline, transparent)"
-      stroke-width=".95" stroke-linejoin="round" />
+      stroke-width="1.1" stroke-linejoin="round" />
     <path d="M12 37 22 39 85 37 96 34" stroke="var(--tracking-model-highlight)"
       stroke-width="2.2" fill="none" stroke-linecap="round" opacity=".94" />
     <path d="M28 57 80 53" stroke="var(--tracking-model-highlight)"
@@ -55,18 +55,18 @@ defineProps<{ glyph: string }>()
 
     <!-- Raised deck units: visible top and side facets rather than flat rectangles. -->
     <path d="M21 30V23l7-4h17v11Z" fill="url(#tracking-ship-side-3d)"
-      stroke="var(--tracking-model-outline, transparent)" stroke-width=".7" />
-    <path d="M21 23 28 19h17l-7 4Z" fill="var(--tracking-model-highlight)" />
+      stroke="var(--tracking-model-outline, transparent)" stroke-width=".85" />
+    <path d="M21 23 28 19h17l-7 4Z" fill="var(--tracking-model-highlight)" stroke="var(--tracking-model-outline, transparent)" stroke-width=".6" />
     <path d="M38 23 45 19v11l-7 3Z" fill="var(--tracking-model-shade)" opacity=".55" />
     <path d="M46 30V23l6-4h17v11Z" fill="url(#tracking-ship-side-3d)"
-      stroke="var(--tracking-model-outline, transparent)" stroke-width=".7" />
-    <path d="M46 23 52 19h17l-6 4Z" fill="var(--tracking-model-highlight)" />
+      stroke="var(--tracking-model-outline, transparent)" stroke-width=".85" />
+    <path d="M46 23 52 19h17l-6 4Z" fill="var(--tracking-model-highlight)" stroke="var(--tracking-model-outline, transparent)" stroke-width=".6" />
     <path d="M63 23 69 19v11l-6 3Z" fill="var(--tracking-model-shade)" opacity=".52" />
 
     <!-- Wheelhouse: front, angled side, roof and glazed windows. -->
     <path d="M38 18 45 12h29l9 22-41 1Z"
       fill="url(#tracking-ship-house-3d)" stroke="var(--tracking-model-outline, transparent)"
-      stroke-width="1" stroke-linejoin="round" />
+      stroke-width="1.2" stroke-linejoin="round" />
     <path d="M69 18 75 14l8 20-13 1Z"
       fill="var(--tracking-model-shade)" opacity=".65" />
     <path d="M38 18 46 12h29l-6 6Z"
@@ -74,7 +74,7 @@ defineProps<{ glyph: string }>()
       stroke-width=".8" stroke-linejoin="round" />
     <path d="M44 21h11v7H44zm14 0h10l3 7H58Z"
       fill="var(--tracking-model-window)" stroke="var(--tracking-model-outline, transparent)"
-      stroke-width=".6" />
+      stroke-width=".8" />
     <path d="M45 22h9m5 0h8" stroke="var(--tracking-model-highlight)"
       stroke-width=".95" opacity=".65" />
     <path d="M46 12V6h4v6m25 3V8" stroke="var(--tracking-model-shade)"
@@ -119,14 +119,14 @@ defineProps<{ glyph: string }>()
     <path d="M14 15 26 31" stroke="var(--tracking-model-highlight)" stroke-width="1.4"
       opacity=".8" stroke-linecap="round" />
     <!-- Far wing: rearward tip (x=31) and forward root (x=77). -->
-    <path d="M55 31 31 6 43 4 77 29Z" fill="var(--tracking-model-shade)" />
+    <path d="M55 31 31 6 43 4 77 29Z" fill="var(--tracking-model-shade)" stroke="var(--tracking-model-outline, transparent)" stroke-width=".8" />
     <path d="M57 30 36 7 43 6 72 30Z" fill="url(#tracking-plane-wing-3d)" />
     <path d="M40 8 71 29" stroke="var(--tracking-model-highlight)"
       stroke-width="1.9" opacity=".8" fill="none" stroke-linecap="round" />
     <!-- Long, tapered fuselage and sharply shaped nose. -->
     <path d="M11 33 C26 28 59 26 88 26 C101 26 111 29 117 33
       C111 38 101 41 88 41 L25 41 C14 40 9 38 11 33Z"
-      fill="url(#tracking-plane-body-3d)" />
+      fill="url(#tracking-plane-body-3d)" stroke="var(--tracking-model-outline, transparent)" stroke-width="1.1" />
     <path d="M16 33 C42 30 81 29 102 30" stroke="var(--tracking-model-highlight)"
       stroke-width="1.9" opacity=".85" fill="none" stroke-linecap="round" />
     <path d="M25 38 Q64 41 96 38" stroke="var(--tracking-model-shade)"
@@ -138,7 +138,7 @@ defineProps<{ glyph: string }>()
     <path d="M86 32h3m-10 0h3m-10 0h3m-10 0h3" stroke="var(--tracking-model-window)"
       stroke-width="2.1" stroke-linecap="round" />
     <!-- Near wing: tip x=32 is behind the leading root x=79. -->
-    <path d="M55 36 32 57 46 60 79 39Z" fill="var(--tracking-model-shade)" />
+    <path d="M55 36 32 57 46 60 79 39Z" fill="var(--tracking-model-shade)" stroke="var(--tracking-model-outline, transparent)" stroke-width=".8" />
     <path d="M57 37 38 56 45 57 74 39Z" fill="url(#tracking-plane-wing-3d)" />
     <path d="M73 39 42 55" stroke="var(--tracking-model-highlight)"
       stroke-width="1.7" opacity=".75" fill="none" stroke-linecap="round" />
@@ -164,13 +164,13 @@ defineProps<{ glyph: string }>()
       </linearGradient>
     </defs>
     <path d="M8 17 16 11h51l-6 6Z" fill="var(--tracking-model-highlight)"
-      stroke="var(--tracking-model-outline, transparent)" stroke-width=".85" stroke-linejoin="round" />
+      stroke="var(--tracking-model-outline, transparent)" stroke-width="1" stroke-linejoin="round" />
     <path d="M8 17h53v28H8Z" fill="url(#tracking-truck-box-3d)"
-      stroke="var(--tracking-model-outline, transparent)" stroke-width="1.05" stroke-linejoin="round" />
+      stroke="var(--tracking-model-outline, transparent)" stroke-width="1.2" stroke-linejoin="round" />
     <path d="m61 17 6-6v34h-6Z" fill="var(--tracking-model-shade)" opacity=".6" />
-    <path d="M13 21h41v16H13Z" fill="none" stroke="var(--tracking-model-highlight)" stroke-width="1.2" opacity=".45" />
+    <path d="M13 21h41v16H13Z" fill="none" stroke="var(--tracking-model-detail, #536174)" stroke-width="1.2" opacity=".55" />
     <path d="M61 31 69 22h16l10 12v12H61Z" fill="url(#tracking-truck-cab-3d)"
-      stroke="var(--tracking-model-outline, transparent)" stroke-width="1.1" stroke-linejoin="round" />
+      stroke="var(--tracking-model-outline, transparent)" stroke-width="1.3" stroke-linejoin="round" />
     <path d="m69 22 6-6h12l8 18-10-12Z" fill="var(--tracking-model-light)"
       stroke="var(--tracking-model-outline, transparent)" stroke-width=".8" stroke-linejoin="round" />
     <path d="M72 25h11l6 9H66Z" fill="var(--tracking-model-window)" />
@@ -201,11 +201,12 @@ defineProps<{ glyph: string }>()
    grey outline, neutral-grey windows and identical drop shadow. */
 .tracking-transport-model--truck{
   --tracking-model-main:#fff;
-  --tracking-model-shade:#8b96a5;
+  --tracking-model-shade:#8190a0;
   --tracking-model-light:#e7ecf1;
   --tracking-model-highlight:#fff;
-  --tracking-model-window:#8c939d;
-  --tracking-model-outline:#606b78;
+  --tracking-model-window:#64748b;
+  --tracking-model-outline:#475569;
+  --tracking-model-detail:#536174;
   --tracking-model-shadow:rgba(36,46,60,.32);
 }
 .tracking-transport-model--plane{width:70px;height:40px}
