@@ -61,10 +61,14 @@ void main() {
 
   // The image contains actual geographic relief, coastlines, ice and oceans.
   vec3 daylight = texture2D(uEarth, uv).rgb;
+  // The reference has clear azure oceans rather than the source's dark navy.
+  // Affect only blue-dominant water pixels; preserve the natural land relief.
+  float water = smoothstep(0.06, 0.20, daylight.b - max(daylight.r, daylight.g));
+  vec3 terrainAndOcean = mix(daylight, vec3(0.045, 0.43, 0.73), 0.72 * water);
   // Gentle physical shading, without the flat polygon or graticule effect.
   float diffuse = 0.88 + 0.12 * max(0.0, dot(sphere, normalize(vec3(-0.3, 0.65, 1.0))));
   float limb = 0.74 + 0.26 * pow(sphere.z, 0.46);
-  vec3 color = pow(daylight, vec3(0.93)) * diffuse * limb;
+  vec3 color = pow(terrainAndOcean, vec3(0.93)) * diffuse * limb;
   // Fine cool atmospheric rim inside the sphere, no external glow or shadow.
   float rim = pow(1.0 - sphere.z, 7.0);
   color += vec3(0.03, 0.10, 0.16) * rim;
