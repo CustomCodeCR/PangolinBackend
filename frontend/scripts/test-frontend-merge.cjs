@@ -77,12 +77,14 @@ assert.match(trackingGlobe, /const p = elevatedPoint\(segment, \(step \/ count\)
 assert.match(trackingGlobe, /--tracking-trail-gray:#fff; --tracking-trail-border:#79838f/, 'La trayectoria clara es blanca con borde gris fino')
 assert.match(trackingGlobe, /--tracking-model-main:#fff; --tracking-model-shade:#8b96a5/, 'El vehículo en tema claro es blanco con volumen gris')
 assert.match(trackingGlobe, /--tracking-model-outline:#606b78/, 'Los bordes del vehículo en tema claro son grises')
-assert.match(trackingGlobe, /--tracking-model-outline:transparent; --tracking-model-shadow:rgba\(0,0,0,\.3\)/, 'En tema oscuro no se añaden bordes ni se cambian las sombras originales')
+assert.match(trackingGlobe, /:global\(html\.theme-dark \.world-globe\)\s*\{[\s\S]*?--tracking-model-main:#fff; --tracking-model-shade:#8b96a5;[\s\S]*?--tracking-model-light:#e7ecf1; --tracking-model-highlight:#fff;[\s\S]*?--tracking-model-window:#8c939d; --tracking-model-outline:#606b78;/,
+  'El barco en modo oscuro es idéntico al claro: blanco con caras y bordes grises')
 assert.match(trackingModels, /stroke="var\(--tracking-model-outline, transparent\)"/, 'Los SVG isométricos preservan contorno dependiente del tema')
 assert.match(trackingModels, /filter:none;/, 'El vehículo animado no genera sombras proyectadas fantasma')
 assert.match(trackingGlobe, /\.world-globe__route-vehicle\{[^}]*filter:none\}/, 'El globo no proyecta una segunda sombra del vehículo')
 assert.doesNotMatch(trackingModels, /<ellipse\b/, 'No dibujar óvalos de sombra debajo del barco ni el camión')
-assert.match(trackingGlobe, /--tracking-trail-gray:#fff; --tracking-trail-border:transparent/, 'La trayectoria en modo oscuro sigue blanca, sin borde nuevo')
+assert.match(trackingGlobe, /:global\(html\.theme-dark \.world-globe\)\s*\{[\s\S]*?--tracking-trail-gray:#fff; --tracking-trail-border:#79838f;/,
+  'La ruta del modo oscuro también es blanca y tiene exactamente el mismo borde gris')
 assert.match(trackingGlobe, /class="world-globe__route-trail-border" :d="routeTrail"/, 'La línea de recorrido incluye el borde independiente')
 assert.match(trackingGlobe, /\.world-globe__route-trail-border\{stroke:var\(--tracking-trail-border\)!important;stroke-width:6\.2\}/, 'El borde gris es fino y no invade el núcleo blanco')
 assert.match(trackingModels, /tracking-transport-model--truck\{[\s\S]*?--tracking-model-main:#fff;[\s\S]*?--tracking-model-window:#8c939d;[\s\S]*?--tracking-model-outline:#606b78;/,
