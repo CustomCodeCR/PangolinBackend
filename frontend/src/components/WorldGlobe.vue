@@ -273,13 +273,16 @@ let zoomFrame = 0
 function themePalette() {
   const dark = document.documentElement.classList.contains('theme-dark')
   return {
-    ocean: (dark ? ['#3d424b','#141820'] : ['#fffafa','#fffafa']) as [string,string],
-    land:'#a80e18', marker:'#a80e18', arc:'#a80e18',
+    // Agua y continentes diferenciados por tema, sin alterar los marcadores corporativos.
+    ocean: (dark ? ['#1e5f8f','#0f2f4f'] : ['#8fd3ff','#4fb4e8']) as [string,string],
+    land: dark ? '#5e8d52' : '#7fb36a',
+    border: dark ? '#83aa79' : '#568448',
+    marker:'#a80e18', arc:'#a80e18',
     label: dark ? '#ffffff' : '#30333c',
     labelStroke: dark ? 'rgba(10,12,18,.93)' : 'rgba(255,255,255,.98)',
     graticule: dark ? 'rgba(203,212,231,.22)' : 'rgba(0,0,0,0)',
     showGraticule: dark,
-    shadeStrength: dark ? .67 : .20
+    shadeStrength: dark ? .52 : .20
   }
 }
 function animateZoom(target: number) {
