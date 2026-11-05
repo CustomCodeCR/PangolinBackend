@@ -1,220 +1,171 @@
 /**
- * Satellite-textured sphere underneath the existing CastroGlobe canvas layers.
+ * Natural Earth photographic surface for the Tracking globe only.
  *
- * The photographic day map is sourced from Solar System Scope / Wikimedia Commons
- * (CC BY 4.0): https://commons.wikimedia.org/wiki/File:Solarsystemscope_texture_2k_earth_daymap.jpg
- * Attribution: Solar System Scope (solarsystemscope.com), CC BY 4.0,
- * https://creativecommons.org/licenses/by/4.0/ . No modifications to the source
- * image, bundled unchanged in public/images/earth-satellite-daymap.jpg.
- * The lighting below is applied only by the rendering shader.
+ * Source texture: Solar System Scope's earth daymap, distributed as CC BY 4.0.
+ * Attribution: Solar System Scope (https://www.solarsystemscope.com/textures/).
+ * Wikimedia Commons:
+ * https://commons.wikimedia.org/wiki/File:Solarsystemscope_texture_2k_earth_daymap.jpg
+ * License: https://creativecommons.org/licenses/by/4.0/
  *
- * This helper never creates markers, arcs, controls or DOM layout. It shares
- * exactly the orthographic center/radius of the existing d3-geo renderer.
- * WebGL and texture loading are optional: if either fails, the original
- * geographic canvas drawing remains fully operational.
+ * The unmodified texture is bundled in public/images/earth-satellite-daymap.jpg.
+ * Canvas 2D is used deliberately: it works on Safari / Firefox / older Macs
+ * without a WebGL context, GPU shader availability or cross-origin requests.
+ * This module draws only the sphere; original markers, paths, controls and
+ * typography are still drawn by CastroGlobe on top of the resulting canvas.
  */
 
-const EARTH_MAP_URL =
-  '/images/earth-satellite-daymap.jpg'
-
-const VERTEX_SHADER = `
-attribute vec2 aPosition;
-void main() {
-  gl_Position = vec4(aPosition, 0.0, 1.0);
-}
-`
-
-const FRAGMENT_SHADER = `
-precision highp float;
-uniform sampler2D uEarth;
-uniform vec2 uViewport;
-uniform float uRadius;
-uniform float uLongitude;
-uniform float uLatitude;
-
-const float PI = 3.14159265358979323846;
-const float TAU = 6.28318530717958647692;
-
-void main() {
-  // gl_FragCoord has origin at the bottom left. Positive y means north.
-  vec2 pos = (gl_FragCoord.xy - uViewport * 0.5) / uRadius;
-  float distanceSquared = dot(pos, pos);
-  if (distanceSquared > 1.0) discard;
-
-  vec3 sphere = vec3(pos, sqrt(max(0.0, 1.0 - distanceSquared)));
-  float yaw = uLongitude;
-  float pitch = uLatitude;
-  float sinLon = sin(yaw);
-  float cosLon = cos(yaw);
-  float sinLat = sin(pitch);
-  float cosLat = cos(pitch);
-
-  // Exact inverse of the globe's existing orthographic geographic projection.
-  vec3 forward = vec3(cosLat * cosLon, cosLat * sinLon, sinLat);
-  vec3 east = vec3(-sinLon, cosLon, 0.0);
-  vec3 north = vec3(-sinLat * cosLon, -sinLat * sinLon, cosLat);
-  vec3 surface = normalize(east * sphere.x + north * sphere.y + forward * sphere.z);
-
-  float longitude = atan(surface.y, surface.x);
-  float latitude = asin(clamp(surface.z, -1.0, 1.0));
-  vec2 uv = vec2(longitude / TAU + 0.5, latitude / PI + 0.5);
-
-  // The image contains actual geographic relief, coastlines, ice and oceans.
-  vec3 daylight = texture2D(uEarth, uv).rgb;
-  // The reference has clear azure oceans rather than the source's dark navy.
-  // Affect only blue-dominant water pixels; preserve the natural land relief.
-  float water = smoothstep(0.06, 0.20, daylight.b - max(daylight.r, daylight.g));
-  vec3 terrainAndOcean = mix(daylight, vec3(0.045, 0.43, 0.73), 0.72 * water);
-  // Gentle physical shading, without the flat polygon or graticule effect.
-  float diffuse = 0.88 + 0.12 * max(0.0, dot(sphere, normalize(vec3(-0.3, 0.65, 1.0))));
-  float limb = 0.74 + 0.26 * pow(sphere.z, 0.46);
-  vec3 color = pow(terrainAndOcean, vec3(0.93)) * diffuse * limb;
-  // Fine cool atmospheric rim inside the sphere, no external glow or shadow.
-  float rim = pow(1.0 - sphere.z, 7.0);
-  color += vec3(0.03, 0.10, 0.16) * rim;
-  gl_FragColor = vec4(color, 1.0);
-}
-`
-
-function compileShader(gl, type, source) {
-  const shader = gl.createShader(type)
-  if (!shader) return null
-  gl.shaderSource(shader, source)
-  gl.compileShader(shader)
-  if (gl.getShaderParameter(shader, gl.COMPILE_STATUS)) return shader
-  gl.deleteShader(shader)
-  return null
-}
-
-function buildProgram(gl) {
-  const vertex = compileShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER)
-  const fragment = compileShader(gl, gl.FRAGMENT_SHADER, FRAGMENT_SHADER)
-  if (!vertex || !fragment) {
-    if (vertex) gl.deleteShader(vertex)
-    if (fragment) gl.deleteShader(fragment)
-    return null
-  }
-  const program = gl.createProgram()
-  if (!program) return null
-  gl.attachShader(program, vertex)
-  gl.attachShader(program, fragment)
-  gl.linkProgram(program)
-  gl.deleteShader(vertex)
-  gl.deleteShader(fragment)
-  if (gl.getProgramParameter(program, gl.LINK_STATUS)) return program
-  gl.deleteProgram(program)
-  return null
-}
+const TEXTURE_URL = '/images/earth-satellite-daymap.jpg'
+const PI = Math.PI
+const HALF_PI = PI / 2
+const TWO_PI = PI * 2
+const RAD = PI / 180
+const MAX_SURFACE_PIXELS = 500
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
 
 export function createSatelliteSurface(onReady) {
   if (typeof document === 'undefined' || typeof Image === 'undefined') return null
-  try {
-    const canvas = document.createElement('canvas')
-    const gl = canvas.getContext('webgl', {
-      alpha: true, antialias: false, depth: false, stencil: false,
-      premultipliedAlpha: false, preserveDrawingBuffer: true
-    })
-    if (!gl) return null
 
-    const program = buildProgram(gl)
-    const texture = gl.createTexture()
-    const buffer = gl.createBuffer()
-    if (!program || !texture || !buffer) return null
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d', { alpha: true })
+  const sourceCanvas = document.createElement('canvas')
+  const sourceCtx = sourceCanvas.getContext('2d', { willReadFrequently: true })
+  if (!ctx || !sourceCtx) return null
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-      -1, -1, 1, -1, -1, 1,
-      -1, 1, 1, -1, 1, 1
-    ]), gl.STATIC_DRAW)
-    gl.useProgram(program)
-    const attrib = gl.getAttribLocation(program, 'aPosition')
-    if (attrib < 0) return null
-    gl.enableVertexAttribArray(attrib)
-    gl.vertexAttribPointer(attrib, 2, gl.FLOAT, false, 0, 0)
+  let disposed = false
+  let pixels = null
+  let textureWidth = 0
+  let textureHeight = 0
+  let output = null
 
-    gl.activeTexture(gl.TEXTURE0)
-    gl.bindTexture(gl.TEXTURE_2D, texture)
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-
-    const uniforms = {
-      map: gl.getUniformLocation(program, 'uEarth'),
-      viewport: gl.getUniformLocation(program, 'uViewport'),
-      radius: gl.getUniformLocation(program, 'uRadius'),
-      lon: gl.getUniformLocation(program, 'uLongitude'),
-      lat: gl.getUniformLocation(program, 'uLatitude')
-    }
-    gl.uniform1i(uniforms.map, 0)
-    let ready = false
-    let disposed = false
-    const image = new Image()
-    image.crossOrigin = 'anonymous'
-    image.decoding = 'async'
-    image.onload = () => {
-      if (disposed) return
-      try {
-        gl.bindTexture(gl.TEXTURE_2D, texture)
-        // North is at the top of the JPEG; WebGL v=1 must mean north.
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image)
-        ready = true
-        onReady?.()
-      } catch {
-        // Keep the already functioning original geographic renderer.
-      }
-    }
-    image.onerror = () => {
-      // Network/CORS problems must not break the globe or shipment tracking.
-    }
-    const onContextLost = event => {
-      event.preventDefault()
-      ready = false
+  const image = new Image()
+  image.decoding = 'async'
+  image.onload = () => {
+    if (disposed) return
+    try {
+      // 2K resolution retains mountain chains and detailed coastlines while
+      // bounding the CPU and memory needed to sample the atlas.
+      textureWidth = Math.min(2048, image.naturalWidth || image.width)
+      textureHeight = Math.max(1, Math.round(textureWidth *
+        (image.naturalHeight || image.height) / (image.naturalWidth || image.width)))
+      if (!textureWidth || !Number.isFinite(textureHeight)) return
+      sourceCanvas.width = textureWidth
+      sourceCanvas.height = textureHeight
+      sourceCtx.drawImage(image, 0, 0, textureWidth, textureHeight)
+      pixels = sourceCtx.getImageData(0, 0, textureWidth, textureHeight).data
       onReady?.()
+    } catch {
+      // Preserve the old flat map if the bundled resource is unavailable.
+      pixels = null
     }
-    canvas.addEventListener('webglcontextlost', onContextLost)
-    image.src = EARTH_MAP_URL
+  }
+  image.onerror = () => { pixels = null }
+  image.src = TEXTURE_URL
 
-    return {
-      canvas,
-      render(width, height, pixelRatio, radius, longitude, latitude) {
-        if (!ready || disposed || !width || !height || radius <= 0) return false
-        const widthPx = Math.max(1, Math.round(width * pixelRatio))
-        const heightPx = Math.max(1, Math.round(height * pixelRatio))
-        if (canvas.width !== widthPx || canvas.height !== heightPx) {
-          canvas.width = widthPx
-          canvas.height = heightPx
-        }
-        gl.viewport(0, 0, widthPx, heightPx)
-        gl.clearColor(0, 0, 0, 0)
-        gl.clear(gl.COLOR_BUFFER_BIT)
-        gl.useProgram(program)
-        gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
-        gl.enableVertexAttribArray(attrib)
-        gl.vertexAttribPointer(attrib, 2, gl.FLOAT, false, 0, 0)
-        gl.activeTexture(gl.TEXTURE0)
-        gl.bindTexture(gl.TEXTURE_2D, texture)
-        gl.uniform2f(uniforms.viewport, widthPx, heightPx)
-        gl.uniform1f(uniforms.radius, radius * pixelRatio)
-        gl.uniform1f(uniforms.lon, longitude * Math.PI / 180)
-        gl.uniform1f(uniforms.lat, latitude * Math.PI / 180)
-        gl.drawArrays(gl.TRIANGLES, 0, 6)
-        return true
-      },
-      destroy() {
-        disposed = true
-        ready = false
-        image.onload = null
-        image.onerror = null
-        image.src = ''
-        canvas.removeEventListener('webglcontextlost', onContextLost)
-        gl.deleteTexture(texture)
-        gl.deleteBuffer(buffer)
-        gl.deleteProgram(program)
+  return {
+    canvas,
+    render(width, height, pixelRatio, radius, longitude, latitude) {
+      if (!pixels || disposed || width <= 0 || height <= 0 || radius <= 0) return false
+
+      // Drawing a capped off-screen surface prevents high-DPI devices from
+      // spending too long in CPU-based texture sampling during auto-rotation.
+      const scale = Math.min(pixelRatio, 1, MAX_SURFACE_PIXELS / Math.max(width, height))
+      const outWidth = Math.max(1, Math.round(width * scale))
+      const outHeight = Math.max(1, Math.round(height * scale))
+      if (canvas.width !== outWidth || canvas.height !== outHeight || !output) {
+        canvas.width = outWidth
+        canvas.height = outHeight
+        output = ctx.createImageData(outWidth, outHeight)
       }
+
+      const data = output.data
+      data.fill(0)
+      const cx = outWidth / 2
+      const cy = outHeight / 2
+      const r = radius * scale
+      const invR = 1 / r
+      const lon = longitude * RAD
+      const lat = latitude * RAD
+      const sinLon = Math.sin(lon)
+      const cosLon = Math.cos(lon)
+      const sinLat = Math.sin(lat)
+      const cosLat = Math.cos(lat)
+
+      // Inverse of d3.geoOrthographic with the SAME center and radius.
+      // Sphere x is east and sphere y is north in screen coordinates.
+      const fwdX = cosLat * cosLon
+      const fwdY = cosLat * sinLon
+      const fwdZ = sinLat
+      const eastX = -sinLon
+      const eastY = cosLon
+      const northX = -sinLat * cosLon
+      const northY = -sinLat * sinLon
+      const northZ = cosLat
+
+      const xMin = Math.max(0, Math.floor(cx - r))
+      const xMax = Math.min(outWidth, Math.ceil(cx + r))
+      const yMin = Math.max(0, Math.floor(cy - r))
+      const yMax = Math.min(outHeight, Math.ceil(cy + r))
+      for (let y = yMin; y < yMax; y++) {
+        const screenNorth = (cy - y - 0.5) * invR
+        const northSquared = screenNorth * screenNorth
+        const rowOffset = y * outWidth * 4
+        for (let x = xMin; x < xMax; x++) {
+          const screenEast = (x + 0.5 - cx) * invR
+          const d2 = screenEast * screenEast + northSquared
+          if (d2 > 1) continue
+          const depth = Math.sqrt(1 - d2)
+
+          const earthX = eastX * screenEast + northX * screenNorth + fwdX * depth
+          const earthY = eastY * screenEast + northY * screenNorth + fwdY * depth
+          const earthZ = northZ * screenNorth + fwdZ * depth
+          const mapLon = Math.atan2(earthY, earthX)
+          const mapLat = Math.asin(clamp(earthZ, -1, 1))
+
+          // Equirectangular image: x goes west -> east; y goes north -> south.
+          const u = clamp((mapLon / TWO_PI + 0.5), 0, 0.999999)
+          const v = clamp((HALF_PI - mapLat) / PI, 0, 0.999999)
+          const tx = Math.floor(u * textureWidth)
+          const ty = Math.floor(v * textureHeight)
+          const input = (ty * textureWidth + tx) * 4
+          let red = pixels[input]
+          let green = pixels[input + 1]
+          let blue = pixels[input + 2]
+
+          // Azure ocean from the reference; mountain/country relief retains
+          // original photographic detail rather than flat vector polygons.
+          const waterBias = blue - Math.max(red, green)
+          const water = clamp((waterBias - 14) / 38, 0, 1) * 0.72
+          red += (12 - red) * water
+          green += (110 - green) * water
+          blue += (186 - blue) * water
+
+          // Soft directional daylight and naturally darkened silhouette edge.
+          const diffuse = 0.88 + 0.12 * Math.max(0,
+            (-0.3 * screenEast + 0.65 * screenNorth + depth) / 1.23)
+          const limb = 0.74 + 0.26 * Math.pow(depth, 0.46)
+          const brightness = diffuse * limb
+          const rim = Math.pow(1 - depth, 7)
+          const dest = rowOffset + x * 4
+          data[dest] = clamp(red * brightness + rim * 8, 0, 255)
+          data[dest + 1] = clamp(green * brightness + rim * 25, 0, 255)
+          data[dest + 2] = clamp(blue * brightness + rim * 41, 0, 255)
+          data[dest + 3] = 255
+        }
+      }
+      ctx.putImageData(output, 0, 0)
+      return true
+    },
+    destroy() {
+      disposed = true
+      pixels = null
+      output = null
+      image.onload = null
+      image.onerror = null
+      image.src = ''
+      canvas.width = 0
+      canvas.height = 0
+      sourceCanvas.width = 0
+      sourceCanvas.height = 0
     }
-  } catch {
-    return null
   }
 }
