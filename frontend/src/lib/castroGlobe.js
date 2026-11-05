@@ -244,8 +244,19 @@ export class CastroGlobe {
       // Only replace the surface's colors; arcs, pins, labels and interaction
       // are rendered by the unchanged functions below, in the same coordinates.
       ctx.drawImage(this.satelliteSurface.canvas, 0, 0, w, h)
+    } else if (this.options.satelliteSurface === true) {
+      // Tracking must never flash the old vector/polygon globe while JPEG loads.
+      // A temporary blue sphere makes a failed texture visible as "loading"
+      // rather than silently showing the outdated world in red.
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
+      const water = ctx.createRadialGradient(cx - r * .25, cy - r * .35,
+        r * .08, cx, cy, r)
+      water.addColorStop(0, '#1687ce')
+      water.addColorStop(1, '#0a355d')
+      ctx.fillStyle = water
+      ctx.fill()
     } else {
-      // Offline, unsupported WebGL or failed CORS: retain the original map.
+      // Home retains its unmodified, original vector map rendering.
       ctx.save()
       ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
       const ocean = ctx.createRadialGradient(cx - r * .32, cy - r * .4, r * .05, cx, cy, r * 1.12)
