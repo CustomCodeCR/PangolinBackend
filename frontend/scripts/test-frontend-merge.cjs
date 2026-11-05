@@ -142,7 +142,7 @@ assert.match(satelliteSurface, /Solarsystemscope_texture_2k_earth_daymap\.jpg/,
   'La fuente del relieve satelital es la imagen global con licencia atribuida')
 assert.match(satelliteSurface, /image\.crossOrigin = 'anonymous'/,
   'La carga de imagen remota es compatible con Canvas y WebGL')
-assert.match(satelliteSurface, /const longitude = atan\(surface\.y, surface\.x\)/,
+assert.match(satelliteSurface, /float longitude = atan\(surface\.y, surface\.x\)/,
   'La textura utiliza coordenadas esféricas exactas')
 assert.match(satelliteSurface, /vec3 surface = normalize\(east \* sphere\.x \+ north \* sphere\.y \+ forward \* sphere\.z\)/,
   'La textura rota con las mismas coordenadas ortográficas de d3-geo')
