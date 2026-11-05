@@ -7,6 +7,7 @@
 import { geoGraticule, geoInterpolate, geoOrthographic, geoPath } from 'd3-geo'
 import { feature } from 'topojson-client'
 import worldAtlas from 'world-atlas/countries-110m.json'
+import { createSatelliteSurface } from './satelliteSurface.js'
 
 const countries = feature(worldAtlas, worldAtlas.objects.countries)
 const DEG = Math.PI / 180
@@ -88,6 +89,8 @@ export class CastroGlobe {
     }, { rootMargin: '80px' }) : null
     this.intersectionObserver?.observe(canvas)
     document.addEventListener('visibilitychange', this.bound.visibility)
+    // Surface only: the original globe keeps its projection, arc and marker layers.
+    this.satelliteSurface = createSatelliteSurface(() => this.invalidate())
     this.resize()
   }
 
@@ -227,29 +230,39 @@ export class CastroGlobe {
     }
     if (this.options.stars) this.drawStars(p.stars)
     const cx = w / 2, cy = h / 2, r = this.radius
-    ctx.save()
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
-    const ocean = ctx.createRadialGradient(cx - r * .32, cy - r * .4, r * .05, cx, cy, r * 1.12)
-    ocean.addColorStop(0, p.seaTop); ocean.addColorStop(1, p.seaBottom)
-    ctx.fillStyle = ocean; ctx.fill()
-    ctx.clip()
-    const draw = this.path
-    if (this.options.graticule && this.options.theme?.showGraticule !== false) {
-      ctx.beginPath(); draw(this.graticule)
-      ctx.strokeStyle = p.grid; ctx.lineWidth = .8; ctx.stroke()
+    const satelliteReady = this.satelliteSurface?.render(
+      w, h, this.pixelRatio, r, this.lon, this.lat
+    )
+    if (satelliteReady) {
+      // Only replace the surface's colors; arcs, pins, labels and interaction
+      // are rendered by the unchanged functions below, in the same coordinates.
+      ctx.drawImage(this.satelliteSurface.canvas, 0, 0, w, h)
+    } else {
+      // Offline, unsupported WebGL or failed CORS: retain the original map.
+      ctx.save()
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
+      const ocean = ctx.createRadialGradient(cx - r * .32, cy - r * .4, r * .05, cx, cy, r * 1.12)
+      ocean.addColorStop(0, p.seaTop); ocean.addColorStop(1, p.seaBottom)
+      ctx.fillStyle = ocean; ctx.fill()
+      ctx.clip()
+      const draw = this.path
+      if (this.options.graticule && this.options.theme?.showGraticule !== false) {
+        ctx.beginPath(); draw(this.graticule)
+        ctx.strokeStyle = p.grid; ctx.lineWidth = .8; ctx.stroke()
+      }
+      ctx.beginPath(); draw(countries)
+      ctx.fillStyle = p.land; ctx.fill()
+      ctx.strokeStyle = p.border; ctx.lineWidth = .65; ctx.stroke()
+      if (this.options.shade) {
+        const shade = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r)
+        const strength = clamp(Number(this.options.theme?.shadeStrength ?? .5), .05, .85)
+        shade.addColorStop(0, 'rgba(255,255,255,.10)')
+        shade.addColorStop(.45, 'rgba(0,0,0,0)')
+        shade.addColorStop(1, `rgba(0,0,0,${strength})`)
+        ctx.fillStyle = shade; ctx.fillRect(cx - r, cy - r, r * 2, r * 2)
+      }
+      ctx.restore()
     }
-    ctx.beginPath(); draw(countries)
-    ctx.fillStyle = p.land; ctx.fill()
-    ctx.strokeStyle = p.border; ctx.lineWidth = .65; ctx.stroke()
-    if (this.options.shade) {
-      const shade = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r)
-      const strength = clamp(Number(this.options.theme?.shadeStrength ?? .5), .05, .85)
-      shade.addColorStop(0, 'rgba(255,255,255,.10)')
-      shade.addColorStop(.45, 'rgba(0,0,0,0)')
-      shade.addColorStop(1, `rgba(0,0,0,${strength})`)
-      ctx.fillStyle = shade; ctx.fillRect(cx - r, cy - r, r * 2, r * 2)
-    }
-    ctx.restore()
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
     ctx.strokeStyle = 'rgba(192,203,226,.5)'; ctx.lineWidth = 1; ctx.stroke()
     this.drawArcs(p)
@@ -495,6 +508,8 @@ export class CastroGlobe {
     this.canvas.removeEventListener('click', this.bound.click)
     this.canvas.removeEventListener('keydown', this.bound.key)
     this.markerHits = []
+    this.satelliteSurface?.destroy()
+    this.satelliteSurface = null
   }
 }
 
