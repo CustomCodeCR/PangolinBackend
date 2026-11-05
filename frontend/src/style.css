@@ -2895,7 +2895,7 @@ html.theme-dark .header-settings__panel .language-switcher__menu button,html.the
 .site-assistant__figure{position:relative;display:block;width:56px;height:84px;overflow:visible}
 .site-assistant__figure-base{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
 .site-assistant__wave-hand{position:absolute;left:76.17%;top:24.74%;width:23.83%;height:14.32%;object-fit:contain;transform-origin:45.5% 91%;animation:gio-wave-hand .55s ease-in-out infinite alternate}
-/* Nube de pensamiento de GIO: compacta, separada del personaje y clicable. */
+/* Nube de GIO: glass sutil sin desenfocar un rectángulo fuera de la silueta. */
 .site-assistant__hint{
   position:absolute;
   left:79px;
@@ -2916,32 +2916,66 @@ html.theme-dark .header-settings__panel .language-switcher__menu button,html.the
   touch-action:manipulation;
   -webkit-tap-highlight-color:transparent;
 }
+/* La capa glass sigue el contorno SVG, incluyendo las burbujitas. */
+.site-assistant__hint-glass{
+  position:absolute;
+  inset:0;
+  z-index:0;
+  clip-path:url("#gio-thought-cloud-clip");
+  -webkit-clip-path:url("#gio-thought-cloud-clip");
+  background:rgba(255,255,255,.05);
+  backdrop-filter:blur(3px);
+  -webkit-backdrop-filter:blur(3px);
+  pointer-events:none;
+}
 .site-assistant__hint-cloud{
+  position:relative;
+  z-index:1;
   display:block;
   width:100%;
   height:100%;
   overflow:visible;
-  filter:drop-shadow(0 2px 3px rgba(70,70,70,.24));
+  filter:drop-shadow(0 2px 3px rgba(65,65,65,.16));
   transition:filter .18s ease;
+  pointer-events:none;
+}
+.site-assistant__hint-cloud-main{
+  fill:rgba(255,255,255,.64);
+  stroke:rgba(255,255,255,.57);
+  stroke-width:1.2;
+  stroke-linejoin:round;
+}
+.site-assistant__hint-cloud-bubble{
+  fill:rgba(255,255,255,.63);
+  stroke:rgba(255,255,255,.52);
+  stroke-width:1.1;
+}
+.site-assistant__hint-cloud-highlight{
+  fill:none;
+  stroke:rgba(255,255,255,.35);
+  stroke-width:2;
+  stroke-linecap:round;
 }
 .site-assistant__hint-label{
   position:absolute;
+  z-index:2;
   left:50%;
   top:44%;
   transform:translate(-50%,-50%);
   white-space:nowrap;
-  color:#24242a;
+  color:#1f2328;
   font-size:10px;
   font-weight:850;
   line-height:1.2;
+  text-shadow:0 1px 0 rgba(255,255,255,.22);
   pointer-events:none;
 }
 .site-assistant__hint:hover .site-assistant__hint-cloud,
 .site-assistant__hint:focus-visible .site-assistant__hint-cloud{
-  filter:drop-shadow(0 3px 5px rgba(70,70,70,.34));
+  filter:drop-shadow(0 3px 4px rgba(65,65,65,.24));
 }
 .site-assistant__hint:focus-visible{
-  outline:2px solid #a80e18;
+  outline:2px solid rgba(168,14,24,.75);
   outline-offset:2px;
 }
 .site-assistant--open .site-assistant__mascot{animation-play-state:paused}
