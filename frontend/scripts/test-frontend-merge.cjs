@@ -36,17 +36,27 @@ source('src/components/SiteMedia.vue')
 
 // The tracking globe uses one animated icon and an elevated trail, no fixed itinerary bar.
 const trackingGlobe = source('src/components/WorldGlobe.vue')
-// El mapa debe representar agua celeste/azul y tierra verde según el tema.
-assert.ok(trackingGlobe.includes("ocean: (dark ? ['#1e5f8f','#0f2f4f'] : ['#8fd3ff','#4fb4e8'])"),
-  'Océano celeste en claro y azul profundo en oscuro')
-assert.ok(trackingGlobe.includes("land: dark ? '#5e8d52' : '#7fb36a'"),
-  'Los continentes son verdes con contraste específico por tema')
-assert.ok(trackingGlobe.includes("border: dark ? '#83aa79' : '#568448'"),
-  'Los contornos de la tierra armonizan con ambos verdes')
-assert.ok(trackingGlobe.includes("marker:'#a80e18', arc:'#a80e18'"),
+// Ambos temas deben reutilizar exactamente la misma paleta del globo.
+const globePalette = trackingGlobe.split('function themePalette() {')[1]?.split('function animateZoom(')[0] ?? ''
+assert.ok(globePalette.includes("ocean: ['#1e5f8f','#0f2f4f']"),
+  'Ambos temas muestran el mismo océano azul profundo')
+assert.ok(globePalette.includes("land:'#5e8d52'"),
+  'Ambos temas comparten los mismos continentes verdes')
+assert.ok(globePalette.includes("border:'#83aa79'"),
+  'Los contornos de tierra son idénticos')
+assert.ok(globePalette.includes("marker:'#a80e18', arc:'#a80e18'"),
   'Marcadores y arcos corporativos conservan su color')
+assert.ok(globePalette.includes("label:'#ffffff'") &&
+  globePalette.includes("labelStroke:'rgba(10,12,18,.93)'"),
+  'Etiquetas del globo con igual contraste en ambos modos')
+assert.ok(globePalette.includes("graticule:'rgba(203,212,231,.22)'") &&
+  globePalette.includes("showGraticule:true") &&
+  globePalette.includes("shadeStrength:.52"),
+  'Líneas geográficas y sombreado iguales en ambos modos')
+assert.doesNotMatch(globePalette, /\bdark\s*\?|classList\.contains\('theme-dark'\)/,
+  'La paleta del globo no depende del tema de la página')
 assert.match(trackingGlobe, /MutationObserver\(\(\) => globe\?\.setTheme\(themePalette\(\)\)\)/,
-  'El mapa actualiza los colores al alternar el tema')
+  'El observador del tema se conserva sin afectar los colores del globo')
 assert.match(trackingGlobe, /const legs = routePoints\.value\.slice\(1\)\.map\(/, 'La ruta conserva cada tramo de todas las escalas')
 assert.match(trackingGlobe, /for \(let index = 0; index < legs\.length; index\+\+\)/, 'El vehículo avanza por los tramos, en orden')
 assert.match(trackingGlobe, /const demoArcs = \(\) => props\.shipment\s*\?\s*\[\]/, 'El tracking no dibuja la línea animada anterior')
