@@ -690,8 +690,12 @@ for (const [mode, count, size, consolidated] of [
     'Ícono según carga completa o consolidada: ' + [mode, count, size].join(' / '))
 }
 const iconSource = source('src/components/IconSymbol.vue')
-assert.match(iconSource, /PackageOpen/, 'Lucide proporciona el ícono abierto para LCL')
-assert.match(iconSource, /'container-open': PackageOpen/, 'El ícono abierto se registra sin alterar el contenedor cerrado')
+assert.match(iconSource, /<svg v-if="glyph === 'container-open'"/, 'LCL utiliza un contenedor abierto, no una caja de paquetería')
+assert.match(iconSource, /M6 6 1 3\.5V20l5-2\.5M18 6l5-2\.5V20l-5-2\.5/, 'El contenedor tiene dos puertas abiertas hacia afuera')
+assert.match(iconSource, /M8 15h4v5H8zM12 12h4v8h-4zM10 9h3v3h-3z/, 'El contenedor abierto contiene carga visible')
+assert.match(iconSource, /fill="none" stroke="currentColor" stroke-width="1\.8"/, 'El nuevo ícono mantiene el estilo de trazos de Lucide')
+assert.match(iconSource, /container: Container/, 'FCL conserva el ícono cerrado de Lucide')
+assert.doesNotMatch(iconSource, /PackageOpen/, 'El ícono no debe parecer un paquete abierto')
 assert.match(tracking, /<IconSymbol :glyph="equipmentIcon" :size="17" \/>/, 'Solo el campo de equipo elige el ícono dinámicamente')
 assert.match(tracking, /isTrackingConsolidatedEquipment\(data\.mode, data\.equipmentCount, data\.equipmentSize\)/,
   'La decisión del ícono depende de datos de modalidad y equipo')
