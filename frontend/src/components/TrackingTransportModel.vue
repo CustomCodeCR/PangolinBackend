@@ -7,35 +7,92 @@ defineProps<{ glyph: string }>()
 </script>
 
 <template>
+  <!-- Layered isometric cargo vessel: illuminated deck, bevelled freeboard,
+       shaded bow, raised bridge and contact shadow. Geometric depth is preserved
+       in both themes; only the colour palette is theme-dependent. -->
   <svg v-if="glyph === 'ship'" class="tracking-transport-model tracking-transport-model--ship"
-    viewBox="0 0 96 62" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    viewBox="0 0 112 72" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <defs>
-      <linearGradient id="tracking-ship-hull-3d" x1="0" y1="0" x2=".6" y2="1">
-        <stop offset="0%" style="stop-color:var(--tracking-model-light)" />
-        <stop offset="55%" style="stop-color:var(--tracking-model-main)" />
+      <linearGradient id="tracking-ship-hull-3d" x1="0" y1="0" x2=".24" y2="1">
+        <stop offset="0%" style="stop-color:var(--tracking-model-highlight)" />
+        <stop offset="20%" style="stop-color:var(--tracking-model-main)" />
+        <stop offset="50%" style="stop-color:var(--tracking-model-light)" />
         <stop offset="100%" style="stop-color:var(--tracking-model-shade)" />
       </linearGradient>
-      <linearGradient id="tracking-ship-house-3d" x1="0" y1="0" x2="1" y2="1">
+      <linearGradient id="tracking-ship-side-3d" x1="0" y1="0" x2=".75" y2="1">
         <stop offset="0%" style="stop-color:var(--tracking-model-light)" />
-        <stop offset="100%" style="stop-color:var(--tracking-model-main)" />
+        <stop offset="100%" style="stop-color:var(--tracking-model-shade)" />
+      </linearGradient>
+      <linearGradient id="tracking-ship-deck-3d" x1="0" y1="0" x2=".92" y2="1">
+        <stop offset="0%" style="stop-color:var(--tracking-model-highlight)" />
+        <stop offset="68%" style="stop-color:var(--tracking-model-main)" />
+        <stop offset="100%" style="stop-color:var(--tracking-model-light)" />
+      </linearGradient>
+      <linearGradient id="tracking-ship-house-3d" x1="0" y1="0" x2=".8" y2="1">
+        <stop offset="0%" style="stop-color:var(--tracking-model-highlight)" />
+        <stop offset="42%" style="stop-color:var(--tracking-model-main)" />
+        <stop offset="100%" style="stop-color:var(--tracking-model-shade)" />
       </linearGradient>
     </defs>
-    <ellipse cx="47" cy="54" rx="34" ry="3" fill="var(--tracking-model-shade)" opacity=".17" />
-    <path d="M10 33 84 31 73 48 24 53 14 45Z" fill="url(#tracking-ship-hull-3d)"
-      stroke="var(--tracking-model-outline, transparent)" stroke-width="1.15" stroke-linejoin="round" />
-    <path d="M10 33 22 37 72 36 84 31 76 28 18 29Z" fill="var(--tracking-model-light)"
-      stroke="var(--tracking-model-outline, transparent)" stroke-width=".65" stroke-linejoin="round" />
-    <path d="m84 31-11 17-7-3 9-13Z" fill="var(--tracking-model-shade)" opacity=".55" />
-    <path d="M27 17h33l5 13H24Z" fill="url(#tracking-ship-house-3d)"
-      stroke="var(--tracking-model-outline, transparent)" stroke-width=".9" stroke-linejoin="round" />
-    <path d="m27 17 7-6h32l-6 6Z" fill="var(--tracking-model-highlight)"
-      stroke="var(--tracking-model-outline, transparent)" stroke-width=".65" stroke-linejoin="round" />
-    <path d="M33 20h8v5h-8zm12 0h8v5h-8z" fill="var(--tracking-model-window)" />
-    <path d="M35 10V5h4v5M66 12V6" stroke="var(--tracking-model-main)" stroke-width="2" stroke-linecap="round" />
-    <path d="M17 29V22h16v7m3 0v-7h16v7" stroke="var(--tracking-model-shade)" stroke-width="1.4" opacity=".55" />
-    <path d="m25 48 44-4" stroke="var(--tracking-model-highlight)" stroke-width="1.8" opacity=".85" stroke-linecap="round" />
-    <path d="M16 56q5-2 10 0t10 0t10 0t10 0t10 0t10 0" fill="none"
-      stroke="var(--tracking-model-light)" stroke-width="1.8" stroke-linecap="round" opacity=".75" />
+
+    <!-- Cast shadow at waterline gives separation from the globe. -->
+    <ellipse cx="55" cy="63" rx="43" ry="5.2" fill="var(--tracking-model-shade)" opacity=".28" />
+    <ellipse cx="56" cy="65" rx="34" ry="2" fill="var(--tracking-model-light)" opacity=".28" />
+
+    <!-- Long, bevelled hull: lit upper rim, shaded broadside, deeper bow face. -->
+    <path d="M8 37 101 34 88 57 29 62 17 54Z"
+      fill="url(#tracking-ship-hull-3d)" stroke="var(--tracking-model-outline, transparent)"
+      stroke-width="1.25" stroke-linejoin="round" />
+    <path d="M17 44 30 58 86 54 94 43 88 57 29 62 17 54Z"
+      fill="url(#tracking-ship-side-3d)" opacity=".85" />
+    <path d="M101 34 88 57 78 53 90 37Z"
+      fill="var(--tracking-model-shade)" opacity=".74" />
+    <path d="M8 37 21 42 88 40 101 34 92 30 19 32Z"
+      fill="url(#tracking-ship-deck-3d)" stroke="var(--tracking-model-outline, transparent)"
+      stroke-width=".95" stroke-linejoin="round" />
+    <path d="M12 37 22 39 85 37 96 34" stroke="var(--tracking-model-highlight)"
+      stroke-width="2.2" fill="none" stroke-linecap="round" opacity=".94" />
+    <path d="M28 57 80 53" stroke="var(--tracking-model-highlight)"
+      stroke-width="2" fill="none" stroke-linecap="round" opacity=".85" />
+    <path d="M30 59 78 55" stroke="var(--tracking-model-shade)"
+      stroke-width="1" fill="none" opacity=".42" />
+
+    <!-- Raised deck units: visible top and side facets rather than flat rectangles. -->
+    <path d="M21 30V23l7-4h17v11Z" fill="url(#tracking-ship-side-3d)"
+      stroke="var(--tracking-model-outline, transparent)" stroke-width=".7" />
+    <path d="M21 23 28 19h17l-7 4Z" fill="var(--tracking-model-highlight)" />
+    <path d="M38 23 45 19v11l-7 3Z" fill="var(--tracking-model-shade)" opacity=".55" />
+    <path d="M46 30V23l6-4h17v11Z" fill="url(#tracking-ship-side-3d)"
+      stroke="var(--tracking-model-outline, transparent)" stroke-width=".7" />
+    <path d="M46 23 52 19h17l-6 4Z" fill="var(--tracking-model-highlight)" />
+    <path d="M63 23 69 19v11l-6 3Z" fill="var(--tracking-model-shade)" opacity=".52" />
+
+    <!-- Wheelhouse: front, angled side, roof and glazed windows. -->
+    <path d="M38 18 45 12h29l9 22-41 1Z"
+      fill="url(#tracking-ship-house-3d)" stroke="var(--tracking-model-outline, transparent)"
+      stroke-width="1" stroke-linejoin="round" />
+    <path d="M69 18 75 14l8 20-13 1Z"
+      fill="var(--tracking-model-shade)" opacity=".65" />
+    <path d="M38 18 46 12h29l-6 6Z"
+      fill="var(--tracking-model-highlight)" stroke="var(--tracking-model-outline, transparent)"
+      stroke-width=".8" stroke-linejoin="round" />
+    <path d="M44 21h11v7H44zm14 0h10l3 7H58Z"
+      fill="var(--tracking-model-window)" stroke="var(--tracking-model-outline, transparent)"
+      stroke-width=".6" />
+    <path d="M45 22h9m5 0h8" stroke="var(--tracking-model-highlight)"
+      stroke-width=".95" opacity=".65" />
+    <path d="M46 12V6h4v6m25 3V8" stroke="var(--tracking-model-shade)"
+      stroke-width="1.7" stroke-linecap="round" fill="none" />
+    <path d="M44 5h9" stroke="var(--tracking-model-highlight)" stroke-width="1.4" />
+
+    <!-- Fine rails and multiple water reflections provide scale and dimensionality. -->
+    <path d="M19 32v-6m8 5v-4m46 4v-4m11 4v-4m8 6v-4"
+      stroke="var(--tracking-model-outline, transparent)" stroke-width="1.1" fill="none" />
+    <path d="M16 32 34 31m39 0 22-1" stroke="var(--tracking-model-highlight)"
+      stroke-width="1.1" opacity=".88" stroke-linecap="round" />
+    <path d="M20 65q6-2 12 0t12 0t12 0t12 0t12 0t12 0"
+      stroke="var(--tracking-model-highlight)" stroke-width="1.8" opacity=".8"
+      fill="none" stroke-linecap="round" />
   </svg>
 
   <!-- Cargo jet facing right. Both main wingtips sit BEHIND their roots
@@ -142,9 +199,11 @@ defineProps<{ glyph: string }>()
   overflow:visible;
   filter:drop-shadow(0 2px 2px var(--tracking-model-shadow, rgba(0,0,0,.3)));
 }
+.tracking-transport-model--ship{width:78px;height:51px}
 .tracking-transport-model--plane{width:70px;height:40px}
 @media (max-width:580px){
   .tracking-transport-model{width:45px;height:32px}
+  .tracking-transport-model--ship{width:61px;height:39px}
   .tracking-transport-model--plane{width:54px;height:32px}
 }
 </style>
