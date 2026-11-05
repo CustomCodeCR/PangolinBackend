@@ -54,11 +54,11 @@ assert.match(gioAssistant, /\.site-assistant__mascot \.site-assistant__hint--vis
   'La nube alcanza su opacidad original tras bajar')
 assert.match(gioAssistant, /@media\(prefers-reduced-motion:reduce\)/,
   'La transición respeta movimiento reducido')
-assert.match(gioAssistant, /background:rgba\(255,255,255,\.52\)/,
+assert.match(gioAssistant, /background:rgba\(255,255,255,\.74\)/,
   'La nube de GIO tiene un fondo blanco translúcido')
-assert.match(gioAssistant, /-webkit-backdrop-filter:blur\(5px\)/,
+assert.match(gioAssistant, /-webkit-backdrop-filter:blur\(2px\)/,
   'El desenfoque de fondo funciona también en Safari')
-assert.match(gioAssistant, /backdrop-filter:blur\(5px\)/,
+assert.match(gioAssistant, /backdrop-filter:blur\(2px\)/,
   'La nube tiene un efecto glass sutil sin desenfocar el texto')
 assert.match(gioAssistant, /\.site-assistant__mascot \.site-assistant__hint::before\{/,
   'La nube conserva un reflejo superior discreto')
@@ -66,8 +66,12 @@ assert.match(gioAssistant, /\.site-assistant__mascot \.site-assistant__hint::aft
   'La nube conserva un reflejo lateral discreto')
 assert.match(gioAssistant, /:global\(html\.theme-dark\) \.site-assistant__mascot \.site-assistant__hint\{/,
   'El glass se adapta al tema oscuro')
-assert.match(gioAssistant, /background:rgba\(18,27,44,\.48\)/,
+assert.match(gioAssistant, /background:rgba\(18,27,44,\.68\)/,
   'La nube no pierde legibilidad en tema oscuro')
+assert.match(gioAssistant, /box-shadow:0 3px 10px rgba\(0,0,0,\.07\)/,
+  'La sombra clara del glass es más discreta')
+assert.match(gioAssistant, /rgba\(255,255,255,\.38\),transparent/,
+  'El reflejo superior del aviso es más suave')
 assert.match(gioAssistant, /<button class="site-assistant__mascot" type="button"/,
   'El botón de GIO nunca se oculta')
 const gioMascotButton = gioAssistant.split('<button class="site-assistant__mascot"')[1]?.split('</button>')[0] ?? ''
