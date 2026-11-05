@@ -52,11 +52,19 @@ interface LookupResponse {
 
 const { locale } = useI18n({ useScope: 'global' })
 const en = computed(() => locale.value.toLowerCase().startsWith('en'))
-const localVisualPreview = ['localhost', '127.0.0.1'].includes(window.location.hostname) &&
-  new URLSearchParams(window.location.search).get('previewTracking') === '1'
+const localVisualPreview = import.meta.env.DEV
+  && ['localhost', '127.0.0.1'].includes(window.location.hostname)
+  && new URLSearchParams(window.location.search).get('previewTracking') === '1'
+const previewMode = new URLSearchParams(window.location.search).get('previewMode')
+const previewIsLand = localVisualPreview && previewMode === 'land'
+const previewIsMultimodal = localVisualPreview && previewMode === 'multimodal'
 const localPreviewShipment: DynamicsShipment = {
-  title: 'Vista de ejemplo', status: 'Carga en Bodega HUB Panamá', origin: 'Qingdao, China', destination: 'San José, Costa Rica',
-  mode: 'Marítimo', portOfLoading: 'Qingdao, China', portOfEntry: 'Puerto Caldera, Costa Rica',
+  title: 'Vista de ejemplo', status: 'Carga en Bodega HUB Panamá',
+  origin: previewIsLand ? 'San José, Costa Rica' : 'Qingdao, China',
+  destination: previewIsLand ? 'Managua, Nicaragua' : previewIsMultimodal ? 'San José, Costa Rica' : 'Puerto Caldera, Costa Rica',
+  mode: previewIsLand ? 'Terrestre' : previewIsMultimodal ? 'Multimodal' : 'Marítimo',
+  portOfLoading: previewIsLand ? null : 'Qingdao, China',
+  portOfEntry: previewIsLand ? null : 'Puerto Caldera, Costa Rica',
   etd: '2026-11-13', eta: '2026-12-23', vessel: 'Buque de muestra', container: 'CONTENEDOR-DEMO',
   bcf: 'REFERENCIA-DEMO', updatedAtUtc: '2026-11-03', customerStatus: null, incoterm: null,
   equipmentSize: 'LCL', equipmentCount: 'LCL', departureConfirmedAt: null, warehouseReceivedAt: null,
