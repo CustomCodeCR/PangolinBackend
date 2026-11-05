@@ -597,26 +597,26 @@ onBeforeUnmount(() => {
 <style scoped>
 .world-globe {
   --surface-card:#fff; --text-primary:#171923;
-  /* Light mode: white 3-D vehicle with graphite-grey contours and cast shadows. */
+  /* Both themes use white 3-D vehicles with graphite-gray facets and outlines. */
   --tracking-model-main:#fff; --tracking-model-shade:#8b96a5;
   --tracking-model-light:#e7ecf1; --tracking-model-highlight:#fff;
   --tracking-model-window:#8c939d; --tracking-model-outline:#606b78;
   --tracking-model-shadow:rgba(36,46,60,.32);
   --tracking-vehicle-shadow:rgba(47,57,71,.26);
-  /* White route, with only a thin grey edge in the light theme. */
+  /* White route, with the same thin grey edge in both themes. */
   --tracking-trail-gray:#fff; --tracking-trail-border:#79838f;
   --tracking-trail-glow:rgba(255,255,255,.65);
 }
 :global(html.theme-dark .world-globe) {
   --surface-card:#10182b; --text-primary:#f4f6fb;
-  --tracking-model-main:#fff; --tracking-model-shade:#cbd3e0;
-  --tracking-model-light:#f4f7fb; --tracking-model-highlight:#fff;
-  --tracking-model-window:#01081d;
-  /* Keep the previous dark-mode appearance, without additional contours. */
-  --tracking-model-outline:transparent; --tracking-model-shadow:rgba(0,0,0,.3);
-  --tracking-vehicle-shadow:rgba(0,0,0,.24);
-  --tracking-trail-gray:#fff; --tracking-trail-border:transparent;
-  --tracking-trail-glow:rgba(255,255,255,.75);
+  /* Exact same 3-D vehicle palette as light mode. */
+  --tracking-model-main:#fff; --tracking-model-shade:#8b96a5;
+  --tracking-model-light:#e7ecf1; --tracking-model-highlight:#fff;
+  --tracking-model-window:#8c939d; --tracking-model-outline:#606b78;
+  --tracking-model-shadow:rgba(36,46,60,.32);
+  --tracking-vehicle-shadow:rgba(47,57,71,.26);
+  --tracking-trail-gray:#fff; --tracking-trail-border:#79838f;
+  --tracking-trail-glow:rgba(255,255,255,.65);
 }
 .world-globe__location-card {
   position:absolute; z-index:12; width:min(270px,calc(100% - 28px)); max-height:min(290px,calc(100% - 25px));
