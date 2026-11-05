@@ -546,6 +546,7 @@ onBeforeUnmount(() => {
     <div v-if="props.shipment" class="world-globe__route-vehicles" aria-hidden="true">
       <svg class="world-globe__route-trail" :viewBox="'0 0 ' + trailSize.width + ' ' + trailSize.height" preserveAspectRatio="none">
         <path v-if="routeTrail" class="world-globe__route-trail-halo" :d="routeTrail" />
+        <path v-if="routeTrail" class="world-globe__route-trail-border" :d="routeTrail" />
         <path v-if="routeTrail" class="world-globe__route-trail-core" :d="routeTrail" />
       </svg>
       <span v-if="routeVehicle" class="world-globe__route-vehicle"
@@ -596,17 +597,26 @@ onBeforeUnmount(() => {
 <style scoped>
 .world-globe {
   --surface-card:#fff; --text-primary:#171923;
-  --tracking-model-main:#242932; --tracking-model-shade:#0c1016;
-  --tracking-model-light:#687483; --tracking-model-highlight:#a2acb7;
-  --tracking-model-window:#cee1ed;
-  --tracking-trail-gray:#626b77; --tracking-trail-glow:rgba(65,78,96,.55);
+  /* Both themes use white 3-D vehicles with graphite-gray facets and outlines. */
+  --tracking-model-main:#fff; --tracking-model-shade:#8b96a5;
+  --tracking-model-light:#e7ecf1; --tracking-model-highlight:#fff;
+  --tracking-model-window:#8c939d; --tracking-model-outline:#606b78;
+  --tracking-model-shadow:rgba(36,46,60,.32);
+  --tracking-vehicle-shadow:rgba(47,57,71,.26);
+  /* White route, with the same thin grey edge in both themes. */
+  --tracking-trail-gray:#fff; --tracking-trail-border:#79838f;
+  --tracking-trail-glow:rgba(255,255,255,.65);
 }
 :global(html.theme-dark .world-globe) {
   --surface-card:#10182b; --text-primary:#f4f6fb;
-  --tracking-model-main:#c4cbd5; --tracking-model-shade:#626b7a;
-  --tracking-model-light:#e8ecf2; --tracking-model-highlight:#fff;
-  --tracking-model-window:#9fc2d6;
-  --tracking-trail-gray:#c4cbd5; --tracking-trail-glow:rgba(219,228,242,.75);
+  /* Exact same 3-D vehicle palette as light mode. */
+  --tracking-model-main:#fff; --tracking-model-shade:#8b96a5;
+  --tracking-model-light:#e7ecf1; --tracking-model-highlight:#fff;
+  --tracking-model-window:#8c939d; --tracking-model-outline:#606b78;
+  --tracking-model-shadow:rgba(36,46,60,.32);
+  --tracking-vehicle-shadow:rgba(47,57,71,.26);
+  --tracking-trail-gray:#fff; --tracking-trail-border:#79838f;
+  --tracking-trail-glow:rgba(255,255,255,.65);
 }
 .world-globe__location-card {
   position:absolute; z-index:12; width:min(270px,calc(100% - 28px)); max-height:min(290px,calc(100% - 25px));
@@ -673,12 +683,14 @@ onBeforeUnmount(() => {
 .world-globe__route-trail{position:absolute;inset:0;width:100%;height:100%;overflow:hidden}
 .world-globe__route-trail path{fill:none;stroke:var(--tracking-trail-gray);stroke-linecap:round;stroke-linejoin:round}
 .world-globe__route-trail-halo{stroke-width:9;opacity:.2;filter:blur(2px)}
+.world-globe__route-trail-border{stroke:var(--tracking-trail-border)!important;stroke-width:6.2}
 .world-globe__route-trail-core{stroke-width:2.8;filter:drop-shadow(0 0 4px var(--tracking-trail-glow))}
-.world-globe__route-vehicle{position:absolute;display:grid;place-items:center;width:60px;height:42px;color:var(--tracking-model-main);transform:translate(-50%,-50%);filter:drop-shadow(0 3px 3px rgba(0,0,0,.24))}
+.world-globe__route-vehicle{position:absolute;display:grid;place-items:center;width:60px;height:42px;color:var(--tracking-model-main);transform:translate(-50%,-50%);filter:none}
 .world-globe__route-vehicle--reversed{transform:translate(-50%,-50%) scaleX(-1)}
 @media(max-width:580px){
   .world-globe__route-vehicle{width:48px;height:34px}
   .world-globe__route-trail-halo{stroke-width:7}
+  .world-globe__route-trail-border{stroke-width:5}
   .world-globe__route-trail-core{stroke-width:2.3}
 }
 </style>

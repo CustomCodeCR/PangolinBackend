@@ -8,7 +8,7 @@ import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import WorldGlobe from '../components/WorldGlobe.vue'
 import { illustrativeJourney } from '../lib/trackingRoute'
-import { formatTrackingEquipmentCount, localizeTrackingMode, localizeTrackingStatus } from '../lib/trackingDisplay'
+import { formatTrackingEquipmentCount, isTrackingConsolidatedEquipment, localizeTrackingMode, localizeTrackingStatus } from '../lib/trackingDisplay'
 import FieldDropdown from '../components/FieldDropdown.vue'
 interface DynamicsShipment {
   title: string | null
@@ -52,14 +52,24 @@ interface LookupResponse {
 
 const { locale } = useI18n({ useScope: 'global' })
 const en = computed(() => locale.value.toLowerCase().startsWith('en'))
-const localVisualPreview = ['localhost', '127.0.0.1'].includes(window.location.hostname) &&
-  new URLSearchParams(window.location.search).get('previewTracking') === '1'
+const localVisualPreview = import.meta.env.DEV
+  && ['localhost', '127.0.0.1'].includes(window.location.hostname)
+  && new URLSearchParams(window.location.search).get('previewTracking') === '1'
+const previewMode = new URLSearchParams(window.location.search).get('previewMode')
+const previewIsLand = localVisualPreview && previewMode === 'land'
+const previewIsMultimodal = localVisualPreview && previewMode === 'multimodal'
+const previewIsFullContainer = localVisualPreview && new URLSearchParams(window.location.search).get('previewEquipment')?.toUpperCase() === 'FCL'
 const localPreviewShipment: DynamicsShipment = {
-  title: 'Vista de ejemplo', status: 'Carga en Bodega HUB Panamá', origin: 'Qingdao, China', destination: 'San José, Costa Rica',
-  mode: 'Marítimo', portOfLoading: 'Qingdao, China', portOfEntry: 'Puerto Caldera, Costa Rica',
+  title: 'Vista de ejemplo', status: 'Carga en Bodega HUB Panamá',
+  origin: previewIsLand ? 'San José, Costa Rica' : 'Qingdao, China',
+  destination: previewIsLand ? 'Managua, Nicaragua' : previewIsMultimodal ? 'San José, Costa Rica' : 'Puerto Caldera, Costa Rica',
+  mode: previewIsLand ? 'Terrestre' : previewIsMultimodal ? 'Multimodal' : 'Marítimo',
+  portOfLoading: previewIsLand ? null : 'Qingdao, China',
+  portOfEntry: previewIsLand ? null : 'Puerto Caldera, Costa Rica',
   etd: '2026-11-13', eta: '2026-12-23', vessel: 'Buque de muestra', container: 'CONTENEDOR-DEMO',
   bcf: 'REFERENCIA-DEMO', updatedAtUtc: '2026-11-03', customerStatus: null, incoterm: null,
-  equipmentSize: 'LCL', equipmentCount: 'LCL', departureConfirmedAt: null, warehouseReceivedAt: null,
+  equipmentSize: previewIsFullContainer ? '40 HC' : 'LCL',
+  equipmentCount: previewIsFullContainer ? '1 contenedor' : 'LCL', departureConfirmedAt: null, warehouseReceivedAt: null,
   destinationEta: null, officializedAt: null, entryAt: null, po: null, packageCount: null,
   commodity: null, seal: null, invoice: null, companyInvoice: null, shipper: null, customerInstructions: null
 }
@@ -261,6 +271,11 @@ function formatEquipmentConfiguration(count: string | null, size: string | null)
 const equipmentConfiguration = computed(() => {
   const data = shipment.value
   return data ? formatEquipmentConfiguration(data.equipmentCount, data.equipmentSize) : null
+})
+const equipmentIcon = computed(() => {
+  const data = shipment.value
+  return data && isTrackingConsolidatedEquipment(data.mode, data.equipmentCount, data.equipmentSize)
+    ? 'container-open' : 'container'
 })
 const shipmentExtras = computed<ShipmentExtraField[]>(() => {
   const data = shipment.value
@@ -508,7 +523,7 @@ onBeforeUnmount(() => {
               <div class="tracking-demo-result__grid">
                 <div class="tracking-demo-result__pair">
                   <dl class="tracking-demo-result__field"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="truck" :size="17" /></span><dt>{{ en ? 'Transport' : 'Transporte' }}</dt><dd>{{ displayMode(shipment.mode) }}</dd></dl>
-                  <dl v-if="equipmentConfiguration" class="tracking-demo-result__field"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="container" :size="17" /></span><dt>{{ en ? 'Equipment quantity x size' : 'Cantidad x tamaño de equipo' }}</dt><dd>{{ equipmentConfiguration }}</dd></dl>
+                  <dl v-if="equipmentConfiguration" class="tracking-demo-result__field"><span class="tracking-demo-result__field-icon"><IconSymbol :glyph="equipmentIcon" :size="17" /></span><dt>{{ en ? 'Equipment quantity x size' : 'Cantidad x tamaño de equipo' }}</dt><dd>{{ equipmentConfiguration }}</dd></dl>
                 </div>
                 <div class="tracking-demo-result__pair">
                   <dl class="tracking-demo-result__field"><span class="tracking-demo-result__field-icon"><IconSymbol glyph="⚓" :size="17" /></span><dt>{{ en ? 'Port of loading' : 'Puerto de salida' }}</dt><dd>{{ shipment.portOfLoading || '—' }}</dd></dl>
