@@ -138,8 +138,10 @@ assert.match(globeRenderer, /if \(satelliteReady\) \{[\s\S]*?\} else \{[\s\S]*?d
   'La esfera anterior permanece como contingencia cuando falla la textura')
 assert.match(globeRenderer, /this\.satelliteSurface\?\.destroy\(\)/,
   'Las texturas GPU se liberan al cerrar el mapa')
-assert.match(satelliteSurface, /Solarsystemscope_texture_2k_earth_daymap\.jpg/,
-  'La fuente del relieve satelital es la imagen global con licencia atribuida')
+assert.match(satelliteSurface, /const EARTH_MAP_URL =\s*'\/images\/earth-satellite-daymap\.jpg'/,
+  'El relieve satelital se sirve localmente sin dependencias CORS externas')
+assert.match(satelliteSurface, /Solar System Scope \/ Wikimedia Commons/,
+  'La textura conserva en el codigo la atribucion CC BY 4.0')
 assert.match(satelliteSurface, /image\.crossOrigin = 'anonymous'/,
   'La carga de imagen remota es compatible con Canvas y WebGL')
 assert.match(satelliteSurface, /float longitude = atan\(surface\.y, surface\.x\)/,
