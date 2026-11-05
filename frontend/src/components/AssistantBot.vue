@@ -275,6 +275,36 @@ function finishClose() { isClosing.value = false }
   transform:translateX(-4px);
   pointer-events:none;
   transition:opacity .35s ease,transform .35s ease;
+  /* Glass ligero: permite ver el fondo sin perder la lectura de GIO. */
+  background:rgba(255,255,255,.52);
+  -webkit-backdrop-filter:blur(5px);
+  backdrop-filter:blur(5px);
+  border:1px solid rgba(255,255,255,.58);
+  box-shadow:0 5px 16px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.42);
+  color:#1d2532;
+  overflow:hidden;
+}
+.site-assistant__mascot .site-assistant__hint::before{
+  content:'';
+  position:absolute;
+  inset:0 0 auto;
+  height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);
+  pointer-events:none;
+}
+.site-assistant__mascot .site-assistant__hint::after{
+  content:'';
+  position:absolute;
+  inset:0 auto 0 0;
+  width:1px;
+  background:linear-gradient(180deg,rgba(255,255,255,.55),transparent,rgba(255,255,255,.2));
+  pointer-events:none;
+}
+:global(html.theme-dark) .site-assistant__mascot .site-assistant__hint{
+  background:rgba(18,27,44,.48);
+  border-color:rgba(255,255,255,.26);
+  color:#fff;
+  box-shadow:0 5px 16px rgba(0,0,0,.14),inset 0 1px 0 rgba(255,255,255,.2);
 }
 .site-assistant__mascot .site-assistant__hint--visible{
   opacity:1;
