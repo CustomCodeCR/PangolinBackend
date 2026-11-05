@@ -48,7 +48,62 @@ const routeLegs = computed(() => {
 
 const routeVehicle = ref<{ left: number; top: number; glyph: string; reversed: boolean } | null>(null)
 const routeTrail = ref('')
+// Dos finas estelas de condensación, solo en los tramos aéreos.
+type PlaneTrailPoint = { x: number; y: number }
+type PlaneSmokeStamp = { id: number; transform: string; opacity: number }
+type PlaneContrail = { id: string; left: string; right: string; stamps: PlaneSmokeStamp[] }
+const planeContrails = ref<PlaneContrail[]>([])
 const trailSize = ref({ width: 1, height: 1 })
+
+// Cada segmento es una pequeña copia recta de la textura transparente tomada
+// de la referencia. Se repite siguiendo la tangente del recorrido del avión.
+function makePlaneContrail(points: PlaneTrailPoint[], id: string): PlaneContrail {
+  const left: string[] = []
+  const right: string[] = []
+  const stamps: PlaneSmokeStamp[] = []
+  const separation = 4.15, spacing = 16
+  let walked = 0, nextStamp = 8
+  for (let i = 0; i < points.length; i++) {
+    const point = points[i]
+    const previous = points[Math.max(0, i - 1)]
+    const next = points[Math.min(points.length - 1, i + 1)]
+    const dx = next.x - previous.x, dy = next.y - previous.y
+    const distance = Math.hypot(dx, dy)
+    if (distance < .01) continue
+    const nx = -dy / distance, ny = dx / distance
+    for (const side of [-1, 1]) {
+      const target = side < 0 ? left : right
+      target.push((target.length ? 'L' : 'M')
+        + (point.x + nx * separation * side).toFixed(1) + ' '
+        + (point.y + ny * separation * side).toFixed(1))
+    }
+    if (!i) continue
+    const a = points[i - 1]
+    const vx = point.x - a.x, vy = point.y - a.y
+    const len = Math.hypot(vx, vy)
+    if (len < .01) continue
+    const px = -vy / len, py = vx / len
+    const angle = Math.atan2(vy, vx) * 180 / Math.PI
+    while (walked + len >= nextStamp && stamps.length < 160) {
+      const t = (nextStamp - walked) / len
+      const x = a.x + vx * t, y = a.y + vy * t
+      const scale = .96 + .06 * Math.sin(nextStamp * .4)
+      for (const side of [-1, 1]) {
+        const sx = x + px * separation * side
+        const sy = y + py * separation * side
+        stamps.push({
+          id: stamps.length,
+          transform: 'translate(' + sx.toFixed(1) + ' ' + sy.toFixed(1)
+            + ') rotate(' + angle.toFixed(1) + ') scale(' + scale.toFixed(2) + ')',
+          opacity: .86 + .1 * Math.sin(nextStamp * .17 + side)
+        })
+      }
+      nextStamp += spacing
+    }
+    walked += len
+  }
+  return { id, left: left.join(' '), right: right.join(' '), stamps }
+}
 let vehicleFrame = 0
 let lastVehicleUpdate = -Infinity
 let lastVehicleClock = 0
@@ -108,6 +163,7 @@ function updateRouteVehicle(now: number) {
       // las escalas completadas. Respetar la cara oculta y el borde del globo.
       if (motionMedia?.matches) {
         routeTrail.value = ''
+        planeContrails.value = []
       } else {
         const commands: string[] = []
         let previous: { x: number; y: number } | null = null
@@ -133,6 +189,52 @@ function updateRouteVehicle(now: number) {
           }
         }
         routeTrail.value = commands.join(' ')
+
+        // Construir exclusivamente la estela aérea, con la misma proyección
+        // elevada y los mismos cortes por cara oculta que usa la ruta original.
+        if (props.shipment?.transport === 'air') {
+          const contrails: PlaneContrail[] = []
+          for (let index = 0; index <= activeIndex; index++) {
+            const segment = legs[index]
+            if (segment.glyph !== '✈') continue
+            const fraction = index === activeIndex ? activeProgress : 1
+            const count = Math.max(1, Math.ceil(64 * fraction))
+            const runs: PlaneTrailPoint[][] = []
+            let run: PlaneTrailPoint[] = []
+            let previous: PlaneTrailPoint | null = null
+            for (let step = 0; step <= count; step++) {
+              // La cuadrícula es estable, excepto el último punto que sigue
+              // el avance real. Así la textura no vibra durante la animación.
+              const progress = step === count ? fraction : step / 64
+              const point = elevatedPoint(segment, progress)
+              if (!point?.visible) {
+                if (run.length > 1) runs.push(run)
+                run = []
+                previous = null
+                continue
+              }
+              const current = { x: point.x + offsetX, y: point.y + offsetY }
+              if (!Number.isFinite(current.x) || !Number.isFinite(current.y)) {
+                if (run.length > 1) runs.push(run)
+                run = []
+                previous = null
+                continue
+              }
+              const contiguous = previous && Math.hypot(current.x - previous.x, current.y - previous.y)
+                < Math.max(35, canvasRect.width * .35)
+              if (!contiguous && run.length > 1) runs.push(run)
+              if (!contiguous) run = []
+              run.push(current)
+              previous = current
+            }
+            if (run.length > 1) runs.push(run)
+            runs.forEach((points, runIndex) =>
+              contrails.push(makePlaneContrail(points, index + ':' + runIndex)))
+          }
+          planeContrails.value = contrails
+        } else {
+          planeContrails.value = []
+        }
       }
 
       if (projected?.visible) {
@@ -153,6 +255,7 @@ function updateRouteVehicle(now: number) {
       lastVehicleClock = 0
       routeVehicle.value = null
       routeTrail.value = ''
+      planeContrails.value = []
     }
   }
   vehicleFrame = requestAnimationFrame(updateRouteVehicle)
@@ -482,6 +585,7 @@ watch(() => props.shipment, (shipment) => {
   lastVehicleUpdate = -Infinity
   routeVehicle.value = null
   routeTrail.value = ''
+  planeContrails.value = []
   if (!globe) return
   cancelAnimationFrame(popupFollowFrame)
   selectedId.value = null
@@ -547,9 +651,20 @@ onBeforeUnmount(() => {
     <canvas ref="canvas" class="world-globe__canvas" :aria-label="$t('custom.tracking.mapAria')"></canvas>
     <div v-if="props.shipment" class="world-globe__route-vehicles" aria-hidden="true">
       <svg class="world-globe__route-trail" :viewBox="'0 0 ' + trailSize.width + ' ' + trailSize.height" preserveAspectRatio="none">
-        <path v-if="routeTrail" class="world-globe__route-trail-halo" :d="routeTrail" />
-        <path v-if="routeTrail" class="world-globe__route-trail-border" :d="routeTrail" />
-        <path v-if="routeTrail" class="world-globe__route-trail-core" :d="routeTrail" />
+        <!-- La estela vino/rubí se mantiene sin cambios para barco y camión. -->
+        <path v-if="routeTrail && props.shipment?.transport !== 'air'" class="world-globe__route-trail-halo" :d="routeTrail" />
+        <path v-if="routeTrail && props.shipment?.transport !== 'air'" class="world-globe__route-trail-border" :d="routeTrail" />
+        <path v-if="routeTrail && props.shipment?.transport !== 'air'" class="world-globe__route-trail-core" :d="routeTrail" />
+        <!-- Dos tiras de humo real recortado y repetido, sin brillos. -->
+        <g v-for="contrail in planeContrails" :key="contrail.id" class="world-globe__plane-contrail">
+          <path class="world-globe__plane-contrail-guide" :d="contrail.left" />
+          <path class="world-globe__plane-contrail-guide" :d="contrail.right" />
+          <image v-for="stamp in contrail.stamps" :key="stamp.id"
+            class="world-globe__plane-smoke-stamp"
+            href="/images/tracking-aircraft-smoke-tile.png"
+            x="-13" y="-3.25" width="26" height="6.5"
+            preserveAspectRatio="none" :transform="stamp.transform" :opacity="stamp.opacity" />
+        </g>
       </svg>
       <span v-if="routeVehicle" class="world-globe__route-vehicle"
         :class="{ 'world-globe__route-vehicle--reversed': routeVehicle.reversed }"
@@ -690,6 +805,15 @@ onBeforeUnmount(() => {
 .world-globe__route-trail-halo{stroke:var(--tracking-trail-halo)!important;stroke-width:9;opacity:var(--tracking-trail-halo-opacity);filter:blur(2px)}
 .world-globe__route-trail-border{stroke:var(--tracking-trail-border)!important;stroke-width:6.2}
 .world-globe__route-trail-core{stroke-width:2.8;filter:drop-shadow(0 0 4px var(--tracking-trail-glow))}
+/* Textura blanca repetida en dos franjas; guía gris mínima para fondo claro.
+   No se utiliza blur, brillo, halo luminoso ni recursos externos. */
+.world-globe__route-trail .world-globe__plane-contrail-guide{
+  stroke:#7b8794;stroke-width:.85;opacity:.38;
+}
+.world-globe__plane-smoke-stamp{pointer-events:none}
+:global(html.theme-dark .world-globe__route-trail .world-globe__plane-contrail-guide){
+  stroke:#c5cede;opacity:.28;
+}
 .world-globe__route-vehicle{position:absolute;display:grid;place-items:center;width:60px;height:42px;color:var(--tracking-model-main);transform:translate(-50%,-50%);filter:none}
 .world-globe__route-vehicle--reversed{transform:translate(-50%,-50%) scaleX(-1)}
 @media(max-width:580px){
@@ -697,6 +821,7 @@ onBeforeUnmount(() => {
   .world-globe__route-trail-halo{stroke-width:7}
   .world-globe__route-trail-border{stroke-width:5}
   .world-globe__route-trail-core{stroke-width:2.3}
+  .world-globe__route-trail .world-globe__plane-contrail-guide{stroke-width:.7}
 }
 </style>
 

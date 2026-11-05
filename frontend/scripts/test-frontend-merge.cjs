@@ -68,6 +68,48 @@ assert.match(trackingGlobe, /motionMedia\?\.matches \? 0/, 'Respetar movimiento 
 
 assert.match(trackingGlobe, /const commands: string\[\] = \[\]/, 'La estela se construye con la trayectoria recorrida')
 assert.match(trackingGlobe, /routeTrail\.value = commands\.join\(' '\)/, 'La estela sigue el recorrido del icono')
+// El avión usa un diminuto sprite real de humo, repetido sobre dos rutas.
+assert.match(trackingGlobe, /type PlaneContrail = \{ id: string; left: string; right: string; stamps: PlaneSmokeStamp\[\] \}/,
+  'Las estelas aéreas tienen dos bandas y sus propios sprites')
+assert.match(trackingGlobe, /function makePlaneContrail\(points: PlaneTrailPoint\[\], id: string\)/,
+  'El humo sigue la proyección del globo')
+assert.match(trackingGlobe, /const separation = 4\.15, spacing = 16/,
+  'Las franjas son separadas y el humo se repite cada 16 píxeles')
+assert.match(trackingGlobe, /for \(const side of \[-1, 1\]\)/,
+  'Se duplican los fragmentos de humo a ambos lados de la ruta')
+assert.match(trackingGlobe, /const angle = Math\.atan2\(vy, vx\) \* 180 \/ Math\.PI/,
+  'Cada fragmento recto rota para seguir la curva')
+assert.match(trackingGlobe, /stamps\.length < 160/,
+  'Hay un máximo de copias SVG para proteger el rendimiento')
+assert.match(trackingGlobe, /const progress = step === count \? fraction : step \/ 64/,
+  'El avance conserva muestras estables')
+assert.match(trackingGlobe, /if \(!point\?\.visible\)/,
+  'El humo no atraviesa la cara oculta')
+assert.match(trackingGlobe, /if \(!contiguous && run\.length > 1\) runs\.push\(run\)/,
+  'Las estelas no cruzan saltos en la proyección')
+assert.match(trackingGlobe, /props\.shipment\?\.transport === 'air'/,
+  'El humo solo aparece en embarques aéreos')
+assert.match(trackingGlobe, /v-if="routeTrail && props\.shipment\?\.transport !== 'air'"/,
+  'Barco y camión conservan el trazado original')
+assert.match(trackingGlobe, /v-for="stamp in contrail\.stamps"/,
+  'El humo se crea mediante copias de un mismo sprite')
+assert.match(trackingGlobe, /href="\/images\/tracking-aircraft-smoke-tile\.png"/,
+  'Se utiliza el humo recortado de la imagen de referencia local')
+assert.match(trackingGlobe, /class="world-globe__plane-contrail-guide" :d="contrail\.left"/,
+  'Primera línea de humo con contraste tenue')
+assert.match(trackingGlobe, /class="world-globe__plane-contrail-guide" :d="contrail\.right"/,
+  'Segunda línea de humo con contraste tenue')
+assert.match(trackingGlobe, /\.world-globe__plane-smoke-stamp\{pointer-events:none\}/,
+  'La textura no interfiere con la interacción')
+assert.match(trackingGlobe, /planeContrails\.value = \[\]/,
+  'La estela se limpia al cambiar embarque o reducir movimiento')
+const airplaneCss = trackingGlobe.split('/* Textura blanca repetida')[1]
+  ?.split('.world-globe__route-vehicle{')[0] ?? ''
+assert.ok(airplaneCss.includes('.world-globe__plane-smoke-stamp'),
+  'Se mantiene el estilo específico del humo')
+assert.doesNotMatch(airplaneCss, /filter\s*:|drop-shadow\(/,
+  'No se añade ningún glow ni filtro luminoso al humo')
+
 assert.match(trackingGlobe, /<svg class="world-globe__route-trail"/, 'Existe un SVG para la estela')
 assert.match(trackingGlobe, /<TrackingTransportModel :glyph="routeVehicle\.glyph" \/>/, 'Cada ícono usa la miniatura con volumen')
 const trackingModels = source('src/components/TrackingTransportModel.vue')
