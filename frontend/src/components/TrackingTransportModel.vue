@@ -21,11 +21,15 @@ defineProps<{ glyph: string }>()
       </linearGradient>
     </defs>
     <ellipse cx="47" cy="54" rx="34" ry="3" fill="var(--tracking-model-shade)" opacity=".17" />
-    <path d="M10 33 84 31 73 48 24 53 14 45Z" fill="url(#tracking-ship-hull-3d)" />
-    <path d="M10 33 22 37 72 36 84 31 76 28 18 29Z" fill="var(--tracking-model-light)" />
+    <path d="M10 33 84 31 73 48 24 53 14 45Z" fill="url(#tracking-ship-hull-3d)"
+      stroke="var(--tracking-model-outline, transparent)" stroke-width="1.15" stroke-linejoin="round" />
+    <path d="M10 33 22 37 72 36 84 31 76 28 18 29Z" fill="var(--tracking-model-light)"
+      stroke="var(--tracking-model-outline, transparent)" stroke-width=".65" stroke-linejoin="round" />
     <path d="m84 31-11 17-7-3 9-13Z" fill="var(--tracking-model-shade)" opacity=".55" />
-    <path d="M27 17h33l5 13H24Z" fill="url(#tracking-ship-house-3d)" />
-    <path d="m27 17 7-6h32l-6 6Z" fill="var(--tracking-model-highlight)" />
+    <path d="M27 17h33l5 13H24Z" fill="url(#tracking-ship-house-3d)"
+      stroke="var(--tracking-model-outline, transparent)" stroke-width=".9" stroke-linejoin="round" />
+    <path d="m27 17 7-6h32l-6 6Z" fill="var(--tracking-model-highlight)"
+      stroke="var(--tracking-model-outline, transparent)" stroke-width=".65" stroke-linejoin="round" />
     <path d="M33 20h8v5h-8zm12 0h8v5h-8z" fill="var(--tracking-model-window)" />
     <path d="M35 10V5h4v5M66 12V6" stroke="var(--tracking-model-main)" stroke-width="2" stroke-linecap="round" />
     <path d="M17 29V22h16v7m3 0v-7h16v7" stroke="var(--tracking-model-shade)" stroke-width="1.4" opacity=".55" />
@@ -107,12 +111,16 @@ defineProps<{ glyph: string }>()
       </linearGradient>
     </defs>
     <ellipse cx="49" cy="53" rx="43" ry="3" fill="var(--tracking-model-shade)" opacity=".18" />
-    <path d="M8 17 16 11h51l-6 6Z" fill="var(--tracking-model-highlight)" />
-    <path d="M8 17h53v28H8Z" fill="url(#tracking-truck-box-3d)" />
+    <path d="M8 17 16 11h51l-6 6Z" fill="var(--tracking-model-highlight)"
+      stroke="var(--tracking-model-outline, transparent)" stroke-width=".85" stroke-linejoin="round" />
+    <path d="M8 17h53v28H8Z" fill="url(#tracking-truck-box-3d)"
+      stroke="var(--tracking-model-outline, transparent)" stroke-width="1.05" stroke-linejoin="round" />
     <path d="m61 17 6-6v34h-6Z" fill="var(--tracking-model-shade)" opacity=".6" />
     <path d="M13 21h41v16H13Z" fill="none" stroke="var(--tracking-model-highlight)" stroke-width="1.2" opacity=".45" />
-    <path d="M61 31 69 22h16l10 12v12H61Z" fill="url(#tracking-truck-cab-3d)" />
-    <path d="m69 22 6-6h12l8 18-10-12Z" fill="var(--tracking-model-light)" />
+    <path d="M61 31 69 22h16l10 12v12H61Z" fill="url(#tracking-truck-cab-3d)"
+      stroke="var(--tracking-model-outline, transparent)" stroke-width="1.1" stroke-linejoin="round" />
+    <path d="m69 22 6-6h12l8 18-10-12Z" fill="var(--tracking-model-light)"
+      stroke="var(--tracking-model-outline, transparent)" stroke-width=".8" stroke-linejoin="round" />
     <path d="M72 25h11l6 9H66Z" fill="var(--tracking-model-window)" />
     <path d="M68 36h9" stroke="var(--tracking-model-highlight)" stroke-width="2" stroke-linecap="round" />
     <path d="M8 44h87v4H8Z" fill="var(--tracking-model-shade)" />
@@ -132,7 +140,7 @@ defineProps<{ glyph: string }>()
   width:58px;
   height:40px;
   overflow:visible;
-  filter:drop-shadow(0 2px 2px rgba(0,0,0,.3));
+  filter:drop-shadow(0 2px 2px var(--tracking-model-shadow, rgba(0,0,0,.3)));
 }
 .tracking-transport-model--plane{width:70px;height:40px}
 @media (max-width:580px){
