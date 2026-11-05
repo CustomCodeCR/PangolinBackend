@@ -596,9 +596,11 @@ onBeforeUnmount(() => {
 <style scoped>
 .world-globe {
   --surface-card:#fff; --text-primary:#171923;
-  --tracking-model-main:#01081d; --tracking-model-shade:#00040f;
-  --tracking-model-light:#253650; --tracking-model-highlight:#667990;
-  --tracking-model-window:#dce5ef;
+  /* Light mode: white 3-D vehicle with graphite-grey contours and cast shadows. */
+  --tracking-model-main:#fff; --tracking-model-shade:#8b96a5;
+  --tracking-model-light:#e7ecf1; --tracking-model-highlight:#fff;
+  --tracking-model-window:#8195a7; --tracking-model-outline:#7d8794;
+  --tracking-model-shadow:rgba(18,27,40,.34);
   --tracking-trail-gray:#01081d; --tracking-trail-glow:rgba(1,8,29,.55);
 }
 :global(html.theme-dark .world-globe) {
@@ -606,6 +608,8 @@ onBeforeUnmount(() => {
   --tracking-model-main:#fff; --tracking-model-shade:#cbd3e0;
   --tracking-model-light:#f4f7fb; --tracking-model-highlight:#fff;
   --tracking-model-window:#01081d;
+  /* Keep the previous dark-mode appearance, without additional contours. */
+  --tracking-model-outline:transparent; --tracking-model-shadow:rgba(0,0,0,.3);
   --tracking-trail-gray:#fff; --tracking-trail-glow:rgba(255,255,255,.75);
 }
 .world-globe__location-card {
