@@ -234,6 +234,12 @@ export class CastroGlobe {
     const satelliteReady = this.satelliteSurface?.render(
       w, h, this.pixelRatio, r, this.lon, this.lat
     )
+    // Make the actual painted state detectable by browser regression checks.
+    // Never mark or alter the Home globe (it does not opt in to satellites).
+    if (this.options.satelliteSurface === true) {
+      const status = satelliteReady ? 'satellite' : 'fallback'
+      if (this.canvas.dataset.globeSurface !== status) this.canvas.dataset.globeSurface = status
+    }
     if (satelliteReady) {
       // Only replace the surface's colors; arcs, pins, labels and interaction
       // are rendered by the unchanged functions below, in the same coordinates.
