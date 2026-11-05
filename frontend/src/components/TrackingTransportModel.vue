@@ -8,7 +8,7 @@ defineProps<{ glyph: string }>()
 
 <template>
   <!-- Layered isometric cargo vessel: illuminated deck, bevelled freeboard,
-       shaded bow, raised bridge and contact shadow. Geometric depth is preserved
+       shaded bow and raised bridge. Geometric depth is preserved
        in both themes; only the colour palette is theme-dependent. -->
   <svg v-if="glyph === 'ship'" class="tracking-transport-model tracking-transport-model--ship"
     viewBox="0 0 112 72" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -34,10 +34,6 @@ defineProps<{ glyph: string }>()
         <stop offset="100%" style="stop-color:var(--tracking-model-shade)" />
       </linearGradient>
     </defs>
-
-    <!-- Cast shadow at waterline gives separation from the globe. -->
-    <ellipse cx="55" cy="63" rx="43" ry="5.2" fill="var(--tracking-model-shade)" opacity=".28" />
-    <ellipse cx="56" cy="65" rx="34" ry="2" fill="var(--tracking-model-light)" opacity=".28" />
 
     <!-- Long, bevelled hull: lit upper rim, shaded broadside, deeper bow face. -->
     <path d="M8 37 101 34 88 57 29 62 17 54Z"
@@ -167,7 +163,6 @@ defineProps<{ glyph: string }>()
         <stop offset="100%" style="stop-color:var(--tracking-model-main)" />
       </linearGradient>
     </defs>
-    <ellipse cx="49" cy="53" rx="43" ry="3" fill="var(--tracking-model-shade)" opacity=".18" />
     <path d="M8 17 16 11h51l-6 6Z" fill="var(--tracking-model-highlight)"
       stroke="var(--tracking-model-outline, transparent)" stroke-width=".85" stroke-linejoin="round" />
     <path d="M8 17h53v28H8Z" fill="url(#tracking-truck-box-3d)"
@@ -197,7 +192,9 @@ defineProps<{ glyph: string }>()
   width:58px;
   height:40px;
   overflow:visible;
-  filter:drop-shadow(0 2px 2px var(--tracking-model-shadow, rgba(0,0,0,.3)));
+  /* Avoid Safari's detached/ghost cast shadows on the moving SVG.
+     Bevels, gradients, and gray outlines supply the 3-D volume. */
+  filter:none;
 }
 .tracking-transport-model--ship{width:78px;height:51px}
 /* Same truck in both themes: white 3-D body, grey shaded faces,
