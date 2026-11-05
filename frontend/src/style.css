@@ -5651,3 +5651,33 @@ html.theme-dark .site-header .services-transport-group__submenu a:is(:hover, :fo
     background: #9f0921 !important;
   }
 }
+
+
+/* Admin Itinerarios: dark transport-required notice.
+   Global CSS avoids interference from the component's scoped selectors.
+   Deliberately leaves the light theme exactly as it is. */
+html.theme-dark .content-manager .manager-itinerary-location-field .manager-itinerary-hint-popover {
+  background: #2d222a !important;
+  background-color: #2d222a !important;
+  border-color: #7e4b5a !important;
+  color: #f0e7ec !important;
+  box-shadow: 0 12px 32px rgba(0,0,0,.44) !important;
+}
+html.theme-dark .content-manager .manager-itinerary-location-field .manager-itinerary-hint-popover::after {
+  background: #2d222a !important;
+  border-color: #7e4b5a !important;
+}
+html.theme-dark .content-manager .manager-itinerary-location-field .manager-itinerary-hint-popover > div,
+html.theme-dark .content-manager .manager-itinerary-location-field .manager-itinerary-hint-popover > div > span {
+  color: #f0e7ec !important;
+}
+html.theme-dark .content-manager .manager-itinerary-location-field .manager-itinerary-hint-popover strong {
+  color: #ffacb8 !important;
+}
+html.theme-dark .content-manager .manager-itinerary-location-field .manager-itinerary-hint-popover button {
+  color: #f0e7ec !important;
+}
+html.theme-dark .content-manager .manager-itinerary-location-field .manager-itinerary-hint-popover button:is(:hover,:focus-visible) {
+  color: #fff !important;
+  background: #50343f !important;
+}
