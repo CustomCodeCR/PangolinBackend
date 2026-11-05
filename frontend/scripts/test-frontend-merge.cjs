@@ -59,7 +59,14 @@ assert.match(trackingGlobe, /MutationObserver\(\(\) => globe\?\.setTheme\(themeP
   'El observador del tema se conserva sin afectar los colores del globo')
 assert.match(trackingGlobe, /const legs = routePoints\.value\.slice\(1\)\.map\(/, 'La ruta conserva cada tramo de todas las escalas')
 assert.match(trackingGlobe, /for \(let index = 0; index < legs\.length; index\+\+\)/, 'El vehículo avanza por los tramos, en orden')
-assert.match(trackingGlobe, /const demoArcs = \(\) => props\.shipment\s*\?\s*\[\]/, 'El tracking no dibuja la línea animada anterior')
+assert.match(trackingGlobe, /const demoArcs = \(\) => props\.shipment \|\| props\.satelliteSurface\s*\? \[\]/,
+  'Tracking satelital nunca dibuja arcos globales decorativos rojos')
+assert.match(trackingGlobe, /center: props\.satelliteSurface && !props\.shipment[\s\S]*?\{lon:-75,lat:3\}/,
+  'Tracking sin embarque comienza sobre América igual que la referencia')
+assert.match(trackingGlobe, /\.world-globe\.world-globe--satellite \{[\s\S]*?--tracking-trail-border:#7d8c9d/,
+  'La ruta de Tracking satelital conserva blanco y borde gris sin rojo')
+assert.match(trackingGlobe, /:global\(html\.theme-dark \.world-globe\.world-globe--satellite\)/,
+  'La apariencia natural de Tracking también aplica al tema oscuro')
 assert.match(trackingGlobe, /<span v-if="routeVehicle"/, 'Un solo icono para el embarque')
 assert.doesNotMatch(trackingGlobe, /v-for="vehicle|routeVehicleIcons/, 'No duplicar iconos por cada tramo')
 assert.doesNotMatch(trackingGlobe, /world-globe__route-stops/, 'No mostrar el listado inferior de escalas')
@@ -139,8 +146,10 @@ assert.match(globeRenderer, /ctx\.drawImage\(this\.satelliteSurface\.canvas, 0, 
   'La fotografia sustituye solo la superficie; rutas y pines van encima')
 assert.match(globeRenderer, /const satelliteReady = this\.satelliteSurface\?\.render/,
   'Cuando no hay textura disponible el render original sigue operativo')
-assert.match(globeRenderer, /if \(satelliteReady\) \{[\s\S]*?\} else \{[\s\S]*?draw\(countries\)/,
-  'La esfera geografica anterior permanece como respaldo sin conexion')
+assert.match(globeRenderer, /if \(satelliteReady\) \{[\s\S]*?\} else if \(this\.options\.satelliteSurface === true\)[\s\S]*?\} else \{[\s\S]*?draw\(countries\)/,
+  'Tracking usa un océano azul mientras carga; solo Inicio conserva su mapa de polígonos')
+assert.match(globeRenderer, /water\.addColorStop\(0, '#1687ce'\)/,
+  'El primer fotograma de Tracking no puede mostrar continentes de color rojo')
 assert.match(globeRenderer, /this\.satelliteSurface\?\.destroy\(\)/,
   'La memoria de la imagen se limpia cuando se desmonta el globo')
 assert.match(satelliteSurface, /const TEXTURE_URL = '\/images\/earth-satellite-daymap\.jpg'/,
