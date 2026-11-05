@@ -70,6 +70,15 @@ assert.match(gioAssistant, /background:rgba\(18,27,44,\.48\)/,
   'La nube no pierde legibilidad en tema oscuro')
 assert.match(gioAssistant, /<button class="site-assistant__mascot" type="button"/,
   'El botón de GIO nunca se oculta')
+const gioMascotButton = gioAssistant.split('<button class="site-assistant__mascot"')[1]?.split('</button>')[0] ?? ''
+assert.match(gioMascotButton, /@click="togglePanel"/,
+  'La mascota utiliza el controlador único para abrir o cerrar GIO')
+assert.match(gioMascotButton, /<span class="site-assistant__hint"[^>]*>\{\{ isEnglish/,
+  'La nube clicable es parte del mismo botón, sin botón anidado ni segundo evento')
+assert.match(gioAssistant, /\.site-assistant__mascot \.site-assistant__hint--visible\{[\s\S]*?pointer-events:auto;[\s\S]*?cursor:pointer;/,
+  'La nube visible recibe los clics y el botón padre abre el chat')
+assert.match(gioAssistant, /\.site-assistant__mascot \.site-assistant__hint\{[\s\S]*?pointer-events:none;/,
+  'La nube invisible no intercepta clics al estar arriba')
 
 // The tracking globe uses one animated icon and an elevated trail, no fixed itinerary bar.
 const trackingGlobe = source('src/components/WorldGlobe.vue')
