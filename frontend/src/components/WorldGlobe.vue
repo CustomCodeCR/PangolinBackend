@@ -47,7 +47,10 @@ const routeLegs = computed(() => {
 })
 
 const routeVehicle = ref<{ left: number; top: number; glyph: string; reversed: boolean } | null>(null)
-const routeTrail = ref('')
+// Ruta vectorial dividida por tipo de transporte para itinerarios multimodales.
+type TrailKind = 'air' | 'sea' | 'land' | 'standard'
+type RouteTrail = { index: number; kind: TrailKind; d: string }
+const routeTrails = ref<RouteTrail[]>([])
 const trailSize = ref({ width: 1, height: 1 })
 let vehicleFrame = 0
 let lastVehicleUpdate = -Infinity
@@ -104,17 +107,18 @@ function updateRouteVehicle(now: number) {
         trailSize.value = { width, height }
       }
 
-      // Dibujar únicamente la porción ya recorrida de cada tramo, incluyendo
-      // las escalas completadas. Respetar la cara oculta y el borde del globo.
+      // Los mismos puntos que recorre el vehículo, sin conectar saltos,
+      // la cara oculta ni efectos distintos al cambiar de medio en una escala.
       if (motionMedia?.matches) {
-        routeTrail.value = ''
+        routeTrails.value = []
       } else {
-        const commands: string[] = []
-        let previous: { x: number; y: number } | null = null
+        const trails: RouteTrail[] = []
         for (let index = 0; index <= activeIndex; index++) {
           const segment = legs[index]
           const fraction = index === activeIndex ? activeProgress : 1
           const count = Math.max(1, Math.ceil(64 * fraction))
+          const commands: string[] = []
+          let previous: { x: number; y: number } | null = null
           for (let step = 0; step <= count; step++) {
             const p = elevatedPoint(segment, (step / count) * fraction)
             if (!p?.visible) {
@@ -131,8 +135,13 @@ function updateRouteVehicle(now: number) {
             commands.push((contiguous ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1))
             previous = { x, y }
           }
+          if (!commands.length) continue
+          const kind: TrailKind = segment.glyph === '✈' ? 'air'
+            : segment.glyph === 'ship' ? 'sea'
+            : segment.glyph === 'truck' ? 'land' : 'standard'
+          trails.push({ index, kind, d: commands.join(' ') })
         }
-        routeTrail.value = commands.join(' ')
+        routeTrails.value = trails
       }
 
       if (projected?.visible) {
@@ -152,7 +161,7 @@ function updateRouteVehicle(now: number) {
     } else {
       lastVehicleClock = 0
       routeVehicle.value = null
-      routeTrail.value = ''
+      routeTrails.value = []
     }
   }
   vehicleFrame = requestAnimationFrame(updateRouteVehicle)
@@ -479,7 +488,7 @@ watch(() => props.shipment, (shipment) => {
   lastVehicleClock = 0
   lastVehicleUpdate = -Infinity
   routeVehicle.value = null
-  routeTrail.value = ''
+  routeTrails.value = []
   if (!globe) return
   cancelAnimationFrame(popupFollowFrame)
   selectedId.value = null
@@ -545,9 +554,15 @@ onBeforeUnmount(() => {
     <canvas ref="canvas" class="world-globe__canvas" :aria-label="$t('custom.tracking.mapAria')"></canvas>
     <div v-if="props.shipment" class="world-globe__route-vehicles" aria-hidden="true">
       <svg class="world-globe__route-trail" :viewBox="'0 0 ' + trailSize.width + ' ' + trailSize.height" preserveAspectRatio="none">
-        <path v-if="routeTrail" class="world-globe__route-trail-halo" :d="routeTrail" />
-        <path v-if="routeTrail" class="world-globe__route-trail-border" :d="routeTrail" />
-        <path v-if="routeTrail" class="world-globe__route-trail-core" :d="routeTrail" />
+        <g v-for="trail in routeTrails" :key="trail.index"
+          class="world-globe__route-trail-segment"
+          :class="'world-globe__route-trail-segment--' + trail.kind">
+          <path class="world-globe__route-trail-halo" :d="trail.d" />
+          <path class="world-globe__route-trail-border" :d="trail.d" />
+          <path class="world-globe__route-trail-core" :d="trail.d" />
+          <path class="world-globe__route-trail-texture" :d="trail.d" />
+          <path class="world-globe__route-trail-spray" :d="trail.d" />
+        </g>
       </svg>
       <span v-if="routeVehicle" class="world-globe__route-vehicle"
         :class="{ 'world-globe__route-vehicle--reversed': routeVehicle.reversed }"
