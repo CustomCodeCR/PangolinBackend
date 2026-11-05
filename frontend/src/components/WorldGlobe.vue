@@ -49,8 +49,86 @@ const routeLegs = computed(() => {
 const routeVehicle = ref<{ left: number; top: number; glyph: string; reversed: boolean } | null>(null)
 // Ruta vectorial dividida por tipo de transporte para itinerarios multimodales.
 type TrailKind = 'air' | 'sea' | 'land' | 'standard'
-type RouteTrail = { index: number; kind: TrailKind; d: string }
+type TrailPoint = { x: number; y: number; progress: number }
+type TrailParticle = { x: number; y: number; r: number; opacity: number }
+type RouteTrail = {
+  index: number; kind: TrailKind; d: string; left: string; right: string
+  foam: TrailParticle[]; dust: TrailParticle[]
+}
 const routeTrails = ref<RouteTrail[]>([])
+
+// Convertir puntos visibles en trazos paralelos de verdad: las estelas de
+// avión son DOS líneas, la espuma rodea un canal y el polvo son partículas.
+function makeTransportTrail(index: number, kind: TrailKind, runs: TrailPoint[][], fraction: number): RouteTrail {
+  const path = (points: { x: number; y: number }[]) =>
+    points.map((p, i) => (i ? 'L' : 'M') + p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' ')
+  const center: string[] = []
+  const left: string[] = []
+  const right: string[] = []
+  const foam: TrailParticle[] = []
+  const dust: TrailParticle[] = []
+  const visibleUntil = Math.max(fraction, 1 / 64)
+
+  for (const run of runs) {
+    if (!run.length) continue
+    center.push(path(run))
+    if (run.length < 2 || kind === 'standard') continue
+
+    const leftPoints: TrailPoint[] = []
+    const rightPoints: TrailPoint[] = []
+    for (let i = 0; i < run.length; i++) {
+      const p = run[i]
+      const from = run[Math.max(0, i - 1)]
+      const to = run[Math.min(run.length - 1, i + 1)]
+      const dx = to.x - from.x
+      const dy = to.y - from.y
+      const length = Math.hypot(dx, dy) || 1
+      const nx = -dy / length
+      const ny = dx / length
+      const age = Math.max(0, Math.min(1, (visibleUntil - p.progress) / visibleUntil))
+      // En el avión dos estelas independientes; en el barco la espuma se abre
+      // progresivamente hacia atrás, sin alejarse demasiado de la ruta.
+      const separation = kind === 'air' ? 3.1 : kind === 'sea' ? 2.1 + 2.4 * age : 0
+      const ripple = kind === 'sea' ? 0.35 * Math.sin(p.progress * 76) : 0
+      const spread = separation + ripple
+      leftPoints.push({ ...p, x: p.x + nx * spread, y: p.y + ny * spread })
+      rightPoints.push({ ...p, x: p.x - nx * spread, y: p.y - ny * spread })
+
+      // Puntos anclados al progreso geográfico, no aleatorios por fotograma.
+      // Saltar los extremos evita una explosión alrededor del vehículo.
+      const grid = Math.round(p.progress * 64)
+      if (p.progress > 0 && age > 0.018 && Math.abs(p.progress * 64 - grid) < 0.06) {
+        if (kind === 'sea' && grid % 4 === 0) {
+          for (const side of [-1, 1]) {
+            const drift = spread + 1.25 + (grid % 3) * 0.4
+            foam.push({
+              x: p.x + nx * drift * side,
+              y: p.y + ny * drift * side,
+              r: 0.8 + (grid % 3) * 0.25,
+              opacity: 0.62 + (grid % 3) * 0.1
+            })
+          }
+        }
+        if (kind === 'land' && grid % 3 === 0) {
+          const side = grid % 2 ? 1 : -1
+          const drift = 1.8 + (grid % 5) * 0.75
+          dust.push({
+            x: p.x + nx * drift * side,
+            y: p.y + ny * drift * side,
+            r: 0.75 + (grid % 4) * 0.35,
+            opacity: 0.3 + (grid % 4) * 0.12
+          })
+        }
+      }
+    }
+    if (kind === 'air' || kind === 'sea') {
+      left.push(path(leftPoints))
+      right.push(path(rightPoints))
+    }
+  }
+  return { index, kind, d: center.join(' '), left: left.join(' '),
+    right: right.join(' '), foam, dust }
+}
 const trailSize = ref({ width: 1, height: 1 })
 let vehicleFrame = 0
 let lastVehicleUpdate = -Infinity
@@ -117,29 +195,41 @@ function updateRouteVehicle(now: number) {
           const segment = legs[index]
           const fraction = index === activeIndex ? activeProgress : 1
           const count = Math.max(1, Math.ceil(64 * fraction))
-          const commands: string[] = []
+          const runs: TrailPoint[][] = []
+          let run: TrailPoint[] = []
           let previous: { x: number; y: number } | null = null
+          // Cuadrícula de muestreo estable: los puntos no cambian de lugar al avanzar.
           for (let step = 0; step <= count; step++) {
-            const p = elevatedPoint(segment, (step / count) * fraction)
+            const progress = Math.min(fraction, step / 64)
+            const p = elevatedPoint(segment, progress)
             if (!p?.visible) {
+              if (run.length) runs.push(run)
+              run = []
               previous = null
               continue
             }
             const x = p.x + offsetX, y = p.y + offsetY
             if (!Number.isFinite(x) || !Number.isFinite(y)) {
+              if (run.length) runs.push(run)
+              run = []
               previous = null
               continue
             }
             const contiguous = previous
               && Math.hypot(x - previous.x, y - previous.y) < Math.max(35, canvasRect.width * .35)
-            commands.push((contiguous ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1))
+            if (!contiguous && run.length) {
+              runs.push(run)
+              run = []
+            }
+            run.push({ x, y, progress })
             previous = { x, y }
           }
-          if (!commands.length) continue
+          if (run.length) runs.push(run)
+          if (!runs.length) continue
           const kind: TrailKind = segment.glyph === '✈' ? 'air'
             : segment.glyph === 'ship' ? 'sea'
             : segment.glyph === 'truck' ? 'land' : 'standard'
-          trails.push({ index, kind, d: commands.join(' ') })
+          trails.push(makeTransportTrail(index, kind, runs, fraction))
         }
         routeTrails.value = trails
       }
@@ -555,13 +645,35 @@ onBeforeUnmount(() => {
     <div v-if="props.shipment" class="world-globe__route-vehicles" aria-hidden="true">
       <svg class="world-globe__route-trail" :viewBox="'0 0 ' + trailSize.width + ' ' + trailSize.height" preserveAspectRatio="none">
         <g v-for="trail in routeTrails" :key="trail.index"
-          class="world-globe__route-trail-segment"
-          :class="'world-globe__route-trail-segment--' + trail.kind">
-          <path class="world-globe__route-trail-halo" :d="trail.d" />
-          <path class="world-globe__route-trail-border" :d="trail.d" />
-          <path class="world-globe__route-trail-core" :d="trail.d" />
-          <path class="world-globe__route-trail-texture" :d="trail.d" />
-          <path class="world-globe__route-trail-spray" :d="trail.d" />
+          class="world-globe__route-trail-segment">
+          <template v-if="trail.kind === 'air'">
+            <!-- Dos estelas de condensación independientes, paralelas al vuelo. -->
+            <path class="world-globe__contrail-outline" :d="trail.left" />
+            <path class="world-globe__contrail-outline" :d="trail.right" />
+            <path class="world-globe__contrail-white" :d="trail.left" />
+            <path class="world-globe__contrail-white" :d="trail.right" />
+          </template>
+          <template v-else-if="trail.kind === 'sea'">
+            <!-- Canal central azulado, dos bordes de espuma y burbujas. -->
+            <path class="world-globe__wake-channel" :d="trail.d" />
+            <path class="world-globe__wake-foam" :d="trail.left" />
+            <path class="world-globe__wake-foam" :d="trail.right" />
+            <circle v-for="(bubble, bubbleIndex) in trail.foam" :key="bubbleIndex"
+              class="world-globe__wake-bubble" :cx="bubble.x" :cy="bubble.y"
+              :r="bubble.r" :opacity="bubble.opacity" />
+          </template>
+          <template v-else-if="trail.kind === 'land'">
+            <!-- Polvo independiente, anclado al camino, no tres líneas sólidas. -->
+            <path class="world-globe__dust-ground" :d="trail.d" />
+            <circle v-for="(particle, particleIndex) in trail.dust" :key="particleIndex"
+              class="world-globe__dust-particle" :cx="particle.x" :cy="particle.y"
+              :r="particle.r" :opacity="particle.opacity" />
+          </template>
+          <template v-else>
+            <path class="world-globe__route-trail-halo" :d="trail.d" />
+            <path class="world-globe__route-trail-border" :d="trail.d" />
+            <path class="world-globe__route-trail-core" :d="trail.d" />
+          </template>
         </g>
       </svg>
       <span v-if="routeVehicle" class="world-globe__route-vehicle"
@@ -702,82 +814,55 @@ onBeforeUnmount(() => {
 .world-globe__route-vehicles{position:absolute;inset:0;z-index:4;pointer-events:none}
 .world-globe__route-trail{position:absolute;inset:0;width:100%;height:100%;overflow:hidden}
 .world-globe__route-trail path{fill:none;stroke-linecap:round;stroke-linejoin:round}
-/* La estela corporativa vino se mantiene como reserva para transporte no identificado. */
-.world-globe__route-trail-segment{
-  --trail-halo:var(--tracking-trail-halo);
-  --trail-border:var(--tracking-trail-border);
-  --trail-core:var(--tracking-trail-gray);
-  --trail-glow:var(--tracking-trail-glow);
-  --trail-halo-opacity:var(--tracking-trail-halo-opacity);
-  --trail-halo-width:9;--trail-border-width:6.2;--trail-core-width:2.8;
-  --trail-texture:transparent;--trail-spray:transparent;
-  --trail-texture-width:0;--trail-spray-width:0;
-  --trail-texture-dash:1 9;--trail-spray-dash:.5 12;
+/* Los tres rastros tienen geometría distinta, no una misma línea recoloreada. */
+.world-globe__contrail-outline{
+  stroke:#8499b0;stroke-width:3.8;stroke-opacity:.73;
 }
-/* Aire: pequeñas nubes blancas vectoriales con borde gris para el océano claro. */
-.world-globe__route-trail-segment--air{
-  --trail-halo:#8d9bb2;--trail-border:#a8b6cc;--trail-core:#fff;
-  --trail-glow:rgba(141,155,178,.3);--trail-halo-opacity:.34;
-  --trail-halo-width:7;--trail-border-width:4.6;--trail-core-width:2.5;
-  --trail-texture:#fff;--trail-spray:#e7edff;
-  --trail-texture-width:5.2;--trail-spray-width:3.1;
-  --trail-texture-dash:.7 7;--trail-spray-dash:.5 11;
+.world-globe__contrail-white{
+  stroke:#fff;stroke-width:2.1;
 }
-/* Mar: canal azul fino con espuma blanca y burbujas sobre la misma curva. */
-.world-globe__route-trail-segment--sea{
-  --trail-halo:#51b9e9;--trail-border:#1683b5;--trail-core:#e4f9ff;
-  --trail-glow:rgba(55,171,222,.35);--trail-halo-opacity:.37;
-  --trail-halo-width:7.4;--trail-border-width:4.8;--trail-core-width:2.3;
-  --trail-texture:#fff;--trail-spray:#c8f6ff;
-  --trail-texture-width:4.2;--trail-spray-width:5.5;
-  --trail-texture-dash:1.8 5.8;--trail-spray-dash:.5 10;
+:global(html.theme-dark .world-globe__contrail-outline){
+  stroke:#b8c7e1;stroke-opacity:.7;
 }
-/* Tierra: polvo arena ligeramente discontinuo, nunca una nube gruesa. */
-.world-globe__route-trail-segment--land{
-  --trail-halo:#b58f70;--trail-border:#957256;--trail-core:#dfc1a1;
-  --trail-glow:rgba(173,132,97,.3);--trail-halo-opacity:.31;
-  --trail-halo-width:6.7;--trail-border-width:4;--trail-core-width:2;
-  --trail-texture:#f3dbc0;--trail-spray:#d0aa86;
-  --trail-texture-width:3.6;--trail-spray-width:4.6;
-  --trail-texture-dash:.9 6.8;--trail-spray-dash:.4 11.5;
+.world-globe__wake-channel{
+  stroke:#53bce5;stroke-width:7;stroke-opacity:.42;
 }
-:global(html.theme-dark .world-globe__route-trail-segment--air){
-  --trail-halo:#b7c8e2;--trail-border:#b6c7df;--trail-core:#fff;
-  --trail-glow:rgba(198,213,241,.4);
+.world-globe__wake-foam{
+  stroke:#f8ffff;stroke-width:1.85;stroke-dasharray:5 3;
+  filter:drop-shadow(0 0 1px #168ab9);
 }
-:global(html.theme-dark .world-globe__route-trail-segment--sea){
-  --trail-halo:#5bc3f0;--trail-border:#35a6db;--trail-core:#edfcff;
-  --trail-glow:rgba(81,190,238,.45);
+.world-globe__wake-bubble{fill:#e2faff;stroke:#209acb;stroke-width:.35}
+.world-globe__dust-ground{
+  stroke:#b68e6d;stroke-width:1.35;stroke-dasharray:1.6 6.5;stroke-opacity:.7;
 }
-:global(html.theme-dark .world-globe__route-trail-segment--land){
-  --trail-halo:#c8ac8a;--trail-border:#c6a07a;--trail-core:#f2dbc0;
-  --trail-glow:rgba(207,170,131,.34);
-}
+.world-globe__dust-particle{fill:#bc9675;stroke:#edd7ba;stroke-width:.25}
+:global(html.theme-dark .world-globe__wake-channel){stroke:#64cef2;stroke-opacity:.55}
+:global(html.theme-dark .world-globe__wake-foam){stroke:#f5ffff}
+:global(html.theme-dark .world-globe__dust-particle){fill:#d3b28e;stroke:#fae8d0}
+/* Fallback corporativo cuando el transporte no se ha identificado. */
 .world-globe__route-trail-halo{
-  stroke:var(--trail-halo);stroke-width:var(--trail-halo-width);
-  opacity:var(--trail-halo-opacity);filter:blur(1.5px);
+  stroke:var(--tracking-trail-halo);stroke-width:9;
+  opacity:var(--tracking-trail-halo-opacity);filter:blur(2px);
 }
-.world-globe__route-trail-border{stroke:var(--trail-border);stroke-width:var(--trail-border-width)}
+.world-globe__route-trail-border{
+  stroke:var(--tracking-trail-border);stroke-width:6.2;
+}
 .world-globe__route-trail-core{
-  stroke:var(--trail-core);stroke-width:var(--trail-core-width);
-  filter:drop-shadow(0 0 3px var(--trail-glow));
-}
-.world-globe__route-trail-texture{
-  stroke:var(--trail-texture);stroke-width:var(--trail-texture-width);
-  stroke-dasharray:var(--trail-texture-dash);opacity:.9;
-}
-.world-globe__route-trail-spray{
-  stroke:var(--trail-spray);stroke-width:var(--trail-spray-width);
-  stroke-dasharray:var(--trail-spray-dash);stroke-dashoffset:3;opacity:.75;
+  stroke:var(--tracking-trail-gray);stroke-width:2.8;
+  filter:drop-shadow(0 0 4px var(--tracking-trail-glow));
 }
 .world-globe__route-vehicle{position:absolute;display:grid;place-items:center;width:60px;height:42px;color:var(--tracking-model-main);transform:translate(-50%,-50%);filter:none}
 .world-globe__route-vehicle--reversed{transform:translate(-50%,-50%) scaleX(-1)}
 @media(max-width:580px){
   .world-globe__route-vehicle{width:48px;height:34px}
-  .world-globe__route-trail-segment{--trail-halo-width:7;--trail-border-width:5;--trail-core-width:2.3}
-  .world-globe__route-trail-segment--air{--trail-halo-width:6;--trail-border-width:4;--trail-core-width:2.1;--trail-texture-width:4.5}
-  .world-globe__route-trail-segment--sea{--trail-halo-width:6.5;--trail-border-width:4.2;--trail-core-width:2.1;--trail-texture-width:3.6;--trail-spray-width:4.7}
-  .world-globe__route-trail-segment--land{--trail-halo-width:5.8;--trail-border-width:3.5;--trail-core-width:1.9;--trail-texture-width:3.2}
+  .world-globe__contrail-outline{stroke-width:3.2}
+  .world-globe__contrail-white{stroke-width:1.8}
+  .world-globe__wake-channel{stroke-width:6}
+  .world-globe__wake-foam{stroke-width:1.6}
+  .world-globe__dust-ground{stroke-width:1.2}
+  .world-globe__route-trail-halo{stroke-width:7}
+  .world-globe__route-trail-border{stroke-width:5}
+  .world-globe__route-trail-core{stroke-width:2.3}
 }
 </style>
 
