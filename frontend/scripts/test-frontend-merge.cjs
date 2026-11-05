@@ -86,25 +86,27 @@ assert.match(gioAssistant, /\.site-assistant__mascot \.site-assistant__hint\{[\s
 
 // The tracking globe uses one animated icon and an elevated trail, no fixed itinerary bar.
 const trackingGlobe = source('src/components/WorldGlobe.vue')
-// Ambos temas deben reutilizar exactamente la misma paleta del globo.
+// Los colores históricos se restauran SOLO en la esfera 3D. La estela vino/rubí
+// que ya se aprobó permanece independiente de los tonos del océano y la tierra.
 const globePalette = trackingGlobe.split('function themePalette() {')[1]?.split('function animateZoom(')[0] ?? ''
-assert.ok(globePalette.includes("ocean: ['#1e5f8f','#0f2f4f']"),
-  'Ambos temas muestran el mismo océano azul profundo')
-assert.ok(globePalette.includes("land:'#5e8d52'"),
-  'Ambos temas comparten los mismos continentes verdes')
-assert.ok(globePalette.includes("border:'#83aa79'"),
-  'Los contornos de tierra son idénticos')
-assert.ok(globePalette.includes("marker:'#a80e18', arc:'#a80e18'"),
-  'Marcadores y arcos corporativos conservan su color')
-assert.ok(globePalette.includes("label:'#ffffff'") &&
-  globePalette.includes("labelStroke:'rgba(10,12,18,.93)'"),
-  'Etiquetas del globo con igual contraste en ambos modos')
-assert.ok(globePalette.includes("graticule:'rgba(203,212,231,.22)'") &&
-  globePalette.includes("showGraticule:true") &&
-  globePalette.includes("shadeStrength:.52"),
-  'Líneas geográficas y sombreado iguales en ambos modos')
-assert.doesNotMatch(globePalette, /\bdark\s*\?|classList\.contains\('theme-dark'\)/,
-  'La paleta del globo no depende del tema de la página')
+assert.match(globePalette, /const dark = document\.documentElement\.classList\.contains\('theme-dark'\)/,
+  'El globo vuelve a seguir el tema claro u oscuro de la web')
+assert.ok(globePalette.includes("ocean: (dark ? ['#3d424b','#141820'] : ['#fffafa','#fffafa'])"),
+  'Océano original: blanco en claro y gris oscuro casi negro en oscuro')
+assert.ok(globePalette.includes("land:'#a80e18', marker:'#a80e18', arc:'#a80e18'"),
+  'Continentes rojos corporativos y marcadores/arcos conservados')
+assert.ok(globePalette.includes("label: dark ? '#ffffff' : '#30333c'"),
+  'Las etiquetas originales contrastan correctamente con cada tema')
+assert.ok(globePalette.includes("labelStroke: dark ? 'rgba(10,12,18,.93)' : 'rgba(255,255,255,.98)'"),
+  'Los contornos de etiquetas varían según fondo oscuro o claro')
+assert.ok(globePalette.includes("graticule: dark ? 'rgba(203,212,231,.22)' : 'rgba(0,0,0,0)'"),
+  'La cuadrícula sutil aparece solo en tema oscuro')
+assert.ok(globePalette.includes("showGraticule: dark"),
+  'La cuadrícula no oscurece el fondo blanco')
+assert.ok(globePalette.includes("shadeStrength: dark ? .67 : .20"),
+  'Se recuperan los valores originales de profundidad de la esfera')
+assert.doesNotMatch(globePalette, /#1e5f8f|#0f2f4f|#5e8d52|#83aa79/,
+  'La paleta azul-verde realista permanece únicamente en la rama de respaldo')
 assert.match(trackingGlobe, /MutationObserver\(\(\) => globe\?\.setTheme\(themePalette\(\)\)\)/,
   'El observador del tema se conserva sin afectar los colores del globo')
 assert.match(trackingGlobe, /const legs = routePoints\.value\.slice\(1\)\.map\(/, 'La ruta conserva cada tramo de todas las escalas')
