@@ -90,7 +90,8 @@ export class CastroGlobe {
     this.intersectionObserver?.observe(canvas)
     document.addEventListener('visibilitychange', this.bound.visibility)
     // Surface only: the original globe keeps its projection, arc and marker layers.
-    this.satelliteSurface = createSatelliteSurface(() => this.invalidate())
+    this.satelliteSurface = this.options.satelliteSurface === true
+      ? createSatelliteSurface(() => this.invalidate()) : null
     this.resize()
   }
 
