@@ -2895,10 +2895,60 @@ html.theme-dark .header-settings__panel .language-switcher__menu button,html.the
 .site-assistant__figure{position:relative;display:block;width:56px;height:84px;overflow:visible}
 .site-assistant__figure-base{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
 .site-assistant__wave-hand{position:absolute;left:76.17%;top:24.74%;width:23.83%;height:14.32%;object-fit:contain;transform-origin:45.5% 91%;animation:gio-wave-hand .55s ease-in-out infinite alternate}
-/* GIO's invitation stays visible without hover, with a small speech-bubble tail. */
-.site-assistant__hint{position:absolute;left:54px;bottom:16px;white-space:nowrap;padding:7px 10px;border:1px solid rgba(168,14,24,.25);border-radius:999px;background:#fff;color:#24242a;font-size:10px;font-weight:850;box-shadow:0 4px 15px #0002;opacity:1;transform:none;transition:box-shadow .18s}
-.site-assistant__hint::before{content:"";position:absolute;left:-5px;bottom:9px;width:9px;height:9px;background:#fff;border-left:1px solid rgba(168,14,24,.25);border-bottom:1px solid rgba(168,14,24,.25);transform:rotate(45deg)}
-.site-assistant__mascot:hover .site-assistant__hint,.site-assistant__mascot:focus-visible .site-assistant__hint{box-shadow:0 5px 18px #0003}
+/* GIO: nube de diálogo fija a la altura de la cabeza del personaje. */
+.site-assistant__hint{
+  position:absolute;
+  left:60px;
+  bottom:61px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-sizing:border-box;
+  width:122px;
+  min-height:50px;
+  padding:9px 11px;
+  border:0;
+  border-radius:48% 54% 46% 50% / 51% 48% 53% 49%;
+  background:#fff;
+  color:#24242a;
+  font-size:10px;
+  font-weight:850;
+  line-height:1.2;
+  text-align:center;
+  white-space:nowrap;
+  box-shadow:0 5px 15px #0002;
+  opacity:1;
+  transform:none;
+  transition:box-shadow .18s ease;
+}
+/* Los lóbulos superiores dibujan una nube en lugar de una pastilla. */
+.site-assistant__hint::before{
+  content:"";
+  position:absolute;
+  top:-8px;
+  left:18px;
+  width:24px;
+  height:20px;
+  border-radius:50%;
+  background:#fff;
+  box-shadow:23px -5px 0 2px #fff,48px -4px 0 1px #fff,69px 4px 0 -3px #fff;
+  pointer-events:none;
+}
+/* Burbujitas de pensamiento orientadas hacia GIO. */
+.site-assistant__hint::after{
+  content:"";
+  position:absolute;
+  left:-10px;
+  bottom:5px;
+  width:9px;
+  height:9px;
+  border-radius:50%;
+  background:#fff;
+  box-shadow:-10px 12px 0 -2px #fff;
+  pointer-events:none;
+}
+.site-assistant__mascot:hover .site-assistant__hint,
+.site-assistant__mascot:focus-visible .site-assistant__hint{box-shadow:0 7px 20px #0003}
 .site-assistant--open .site-assistant__mascot{animation-play-state:paused}
 .site-assistant__panel{position:absolute;left:14px;bottom:96px;display:flex;flex-direction:column;width:min(350px,calc(100vw - 28px));max-height:min(68vh,520px);overflow:hidden;pointer-events:auto;border:1px solid rgba(168,14,24,.3);border-radius:20px;background:rgba(255,255,255,.96);color:#22242b;box-shadow:0 18px 55px rgba(0,0,0,.25);backdrop-filter:blur(14px)}
 .site-assistant__header{display:flex;align-items:center;gap:10px;padding:12px 13px;background:linear-gradient(110deg,#a80e18,#77101c);color:#fff}
@@ -2937,7 +2987,7 @@ html.theme-dark .site-assistant__form{border-color:#ffffff1f}
 html.theme-dark .site-assistant__form input{border-color:#ffffff30;background:#0b1222;color:#fff}
 html.theme-dark .site-assistant__quick button{border-color:#ff7583;background:#191f31;color:#fff}
 @keyframes gio-wave-hand{from{transform:rotate(-9deg)}to{transform:rotate(9deg)}}
-@media(max-width:580px){.site-assistant{bottom:6px;height:82px}.site-assistant__mascot{left:7px;width:48px;height:72px}.site-assistant__figure{width:48px;height:72px}.site-assistant__panel{left:9px;bottom:82px;width:min(345px,calc(100vw - 18px));max-height:65vh}.site-assistant__hint{left:46px;bottom:12px}}
+@media(max-width:580px){.site-assistant{bottom:6px;height:82px}.site-assistant__mascot{left:7px;width:48px;height:72px}.site-assistant__figure{width:48px;height:72px}.site-assistant__panel{left:9px;bottom:82px;width:min(345px,calc(100vw - 18px));max-height:65vh}.site-assistant__hint{left:50px;bottom:56px;width:116px;min-height:48px}}
 html.theme-dark .itinerary-cta .btn-white,
 html.theme-dark .itinerary-cta .btn-white span{color:#111!important}
 html.theme-dark .itinerary-back{color:#fff!important}
