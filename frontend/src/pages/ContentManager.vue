@@ -818,6 +818,35 @@ function useMediaForNews(item: ManagedMedia) {
 }
 :global(html.theme-dark) .manager-itinerary-hint-popover strong {color:#ffacb8}
 :global(html.theme-dark) .manager-itinerary-hint-popover button {color:#f0e7ec}
+/* The embedded admin's generic form surface can override the light popover
+   background. Explicitly scope the entire notice, arrow and text to the dark
+   admin theme so the warning is legible without changing light mode. */
+:global(html.theme-dark) .content-manager .manager-form .manager-itinerary-location-field .manager-itinerary-hint-popover,
+:global(html.theme-dark) .content-manager.is-embedded .manager-form .manager-itinerary-location-field .manager-itinerary-hint-popover {
+  background:#2d222a !important;
+  border-color:#7e4b5a !important;
+  color:#f0e7ec !important;
+  box-shadow:0 12px 32px rgba(0,0,0,.44) !important;
+}
+:global(html.theme-dark) .content-manager .manager-itinerary-hint-popover::after {
+  background:#2d222a !important;
+  border-color:#7e4b5a !important;
+}
+:global(html.theme-dark) .content-manager .manager-itinerary-hint-popover > div,
+:global(html.theme-dark) .content-manager .manager-itinerary-hint-popover > div > span {
+  color:#f0e7ec !important;
+}
+:global(html.theme-dark) .content-manager .manager-itinerary-hint-popover strong {
+  color:#ffacb8 !important;
+}
+:global(html.theme-dark) .content-manager .manager-itinerary-hint-popover button {
+  color:#f0e7ec !important;
+}
+:global(html.theme-dark) .content-manager .manager-itinerary-hint-popover button:is(:hover,:focus-visible) {
+  background:#50343f !important;
+  color:#fff !important;
+}
+
 .manager-submit:disabled{opacity:.55;cursor:not-allowed}
 :global(html.theme-dark) .manager-itinerary-transport-hint{border-color:rgba(255,128,111,.34);background:rgba(178,12,42,.13);color:#e5e5ee}
 :global(html.theme-dark) .manager-itinerary-transport-hint strong{color:#ffacb8}
