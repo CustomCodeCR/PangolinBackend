@@ -309,6 +309,9 @@ function finishClose() { isClosing.value = false }
 .site-assistant__mascot .site-assistant__hint--visible{
   opacity:1;
   transform:translateX(0);
+  /* El aviso vive dentro del botón de GIO: el clic abre el mismo chat. */
+  pointer-events:auto;
+  cursor:pointer;
 }
 @media(prefers-reduced-motion:reduce){
   .site-assistant__mascot .site-assistant__hint{transition:none}
