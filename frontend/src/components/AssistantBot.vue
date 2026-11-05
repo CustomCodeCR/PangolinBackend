@@ -242,14 +242,20 @@ function finishClose() { isClosing.value = false }
         <img class="site-assistant__figure-base" src="/images/gio-assistant-base.png" alt="" />
         <img class="site-assistant__wave-hand" src="/images/gio-assistant-hand.png" alt="" />
       </span>
-      <span class="site-assistant__hint">
-        <svg class="site-assistant__hint-cloud" viewBox="0 0 168 100" aria-hidden="true" focusable="false">
-          <path d="M 35 32 C 30 22 36 14 47 16 C 52 5 65 6 72 13 C 83 2 96 5 101 16 C 113 11 125 17 125 27 C 139 25 148 34 143 46 C 153 54 148 66 136 68 C 133 79 120 83 111 76 C 100 88 86 85 79 77 C 67 86 54 82 50 74 C 37 79 25 71 29 60 C 16 61 12 51 19 42 C 14 31 23 25 35 32 Z" fill="#fff" />
-          <circle cx="14" cy="69" r="5" fill="#fff" />
-          <circle cx="5" cy="82" r="3" fill="#fff" />
-        </svg>
-        <span class="site-assistant__hint-label">{{ isEnglish ? 'Ask GIO' : 'Hablar con GIO' }}</span>
-      </span>
+    </button>
+    <button
+      v-if="!isOpen && !isClosing"
+      class="site-assistant__hint"
+      type="button"
+      :aria-label="isEnglish ? 'Ask GIO' : 'Hablar con GIO'"
+      @click="togglePanel"
+    >
+      <svg class="site-assistant__hint-cloud" viewBox="0 0 168 100" aria-hidden="true" focusable="false">
+        <path d="M 35 32 C 30 22 36 14 47 16 C 52 5 65 6 72 13 C 83 2 96 5 101 16 C 113 11 125 17 125 27 C 139 25 148 34 143 46 C 153 54 148 66 136 68 C 133 79 120 83 111 76 C 100 88 86 85 79 77 C 67 86 54 82 50 74 C 37 79 25 71 29 60 C 16 61 12 51 19 42 C 14 31 23 25 35 32 Z" fill="#fff" stroke="#a7a7a7" stroke-width="1.4" stroke-linejoin="round" />
+        <circle cx="14" cy="69" r="5" fill="#fff" stroke="#a7a7a7" stroke-width="1.25" />
+        <circle cx="5" cy="82" r="3" fill="#fff" stroke="#a7a7a7" stroke-width="1.1" />
+      </svg>
+      <span class="site-assistant__hint-label">{{ isEnglish ? 'Ask GIO' : 'Hablar con GIO' }}</span>
     </button>
   </aside>
 </template>
