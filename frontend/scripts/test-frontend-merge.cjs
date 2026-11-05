@@ -126,6 +126,33 @@ assert.match(trackingGlobe, /segment\.glyph === 'truck' \? 0 : \.22 \* Math\.sin
 assert.match(trackingGlobe, /projectElevated\(coordinates\.lon, coordinates\.lat, lift\)/,
   'Ícono y estela usan exactamente la elevación de su tramo')
 const globeRenderer = source('src/lib/castroGlobe.js')
+const satelliteSurface = source('src/lib/satelliteSurface.js')
+// Photographic surface is the only new visual layer. Keep original route logic.
+assert.match(globeRenderer, /createSatelliteSurface\(\(\) => this\.invalidate\(\)\)/,
+  'El motor carga la textura del planeta sin alterar controles ni rutas')
+assert.match(globeRenderer, /ctx\.drawImage\(this\.satelliteSurface\.canvas, 0, 0, w, h\)/,
+  'La textura se dibuja exclusivamente sobre la superficie esférica')
+assert.match(globeRenderer, /const satelliteReady = this\.satelliteSurface\?\.render/,
+  'WebGL es opcional; si falla, se conserva el renderizador anterior')
+assert.match(globeRenderer, /if \(satelliteReady\) \{[\s\S]*?\} else \{[\s\S]*?draw\(countries\)/,
+  'La esfera anterior permanece como contingencia cuando falla la textura')
+assert.match(globeRenderer, /this\.satelliteSurface\?\.destroy\(\)/,
+  'Las texturas GPU se liberan al cerrar el mapa')
+assert.match(satelliteSurface, /Solarsystemscope_texture_2k_earth_daymap\.jpg/,
+  'La fuente del relieve satelital es la imagen global con licencia atribuida')
+assert.match(satelliteSurface, /image\.crossOrigin = 'anonymous'/,
+  'La carga de imagen remota es compatible con Canvas y WebGL')
+assert.match(satelliteSurface, /const longitude = atan\(surface\.y, surface\.x\)/,
+  'La textura utiliza coordenadas esféricas exactas')
+assert.match(satelliteSurface, /vec3 surface = normalize\(east \* sphere\.x \+ north \* sphere\.y \+ forward \* sphere\.z\)/,
+  'La textura rota con las mismas coordenadas ortográficas de d3-geo')
+assert.match(satelliteSurface, /gl\.UNPACK_FLIP_Y_WEBGL, true/,
+  'La textura conserva los polos en su orientación geográfica correcta')
+assert.match(satelliteSurface, /gl\.drawArrays\(gl\.TRIANGLES, 0, 6\)/,
+  'El shader GPU pinta la esfera sin generar mallas adicionales')
+assert.match(satelliteSurface, /preserveDrawingBuffer: true/,
+  'La textura GPU puede componerse en el canvas principal')
+
 const globeTypes = source('src/lib/castroGlobe.d.ts')
 assert.match(globeRenderer, /projectElevated\(lon, lat, lift = 0\)/, 'Motor permite dibujar por encima del globo')
 assert.match(globeRenderer, /visible: dot >= 0 \|\| outside/, 'El arco respeta la cara oculta del globo')
