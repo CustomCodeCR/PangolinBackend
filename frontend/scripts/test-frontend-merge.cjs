@@ -45,13 +45,22 @@ assert.doesNotMatch(trackingGlobe, /world-globe__route-stops/, 'No mostrar el li
 assert.match(trackingGlobe, /cancelAnimationFrame\(vehicleFrame\)/, 'Se detiene la animación al desmontar')
 assert.match(trackingGlobe, /motionMedia\?\.matches \? 0/, 'Respetar movimiento reducido')
 
-assert.match(trackingGlobe, /const commands: string\[\] = \[\]/, 'La estela se construye con la trayectoria recorrida')
-assert.match(trackingGlobe, /trails\.push\(\{ index, kind, d: commands\.join\(' '\) \}\)/, 'Cada tramo conserva la curva exacta del vehículo y su efecto propio')
-assert.match(trackingGlobe, /const commands: string\[\] = \[\][\s\S]*?let previous:/, 'Las escalas no conectan saltos ni caras ocultas')
-assert.match(trackingGlobe, /const kind: TrailKind = segment\.glyph === '✈' \? 'air'/, 'El avión usa un rastro de nube')
-assert.match(trackingGlobe, /: segment\.glyph === 'ship' \? 'sea'/, 'El barco usa un rastro de espuma')
-assert.match(trackingGlobe, /: segment\.glyph === 'truck' \? 'land' : 'standard'/, 'El camión usa un rastro de polvo')
-assert.match(trackingGlobe, /if \(motionMedia\?\.matches\) \{\s*routeTrails\.value = \[\]/, 'Movimiento reducido oculta las estelas animadas')
+assert.match(trackingGlobe, /function makeTransportTrail\(index: number, kind: TrailKind, runs: TrailPoint\[\]\[\], fraction: number\)/,
+  'Cada medio utiliza una geometría de estela diferente')
+assert.match(trackingGlobe, /trails\.push\(makeTransportTrail\(index, kind, runs, fraction\)\)/,
+  'Cada tramo mantiene la ruta calculada y una estela específica')
+assert.match(trackingGlobe, /if \(!contiguous && run\.length\) \{\s*runs\.push\(run\)/,
+  'Los trazos nunca unen partes ocultas o puntos discontinuos')
+assert.match(trackingGlobe, /const progress = Math\.min\(fraction, step \/ 64\)/,
+  'El muestreo no salta de posición al avanzar')
+assert.match(trackingGlobe, /const kind: TrailKind = segment\.glyph === '✈' \? 'air'/,
+  'El avión recibe condensación')
+assert.match(trackingGlobe, /: segment\.glyph === 'ship' \? 'sea'/,
+  'El barco recibe espuma')
+assert.match(trackingGlobe, /: segment\.glyph === 'truck' \? 'land' : 'standard'/,
+  'El camión recibe polvo')
+assert.match(trackingGlobe, /if \(motionMedia\?\.matches\) \{\s*routeTrails\.value = \[\]/,
+  'Movimiento reducido apaga los rastros')
 assert.match(trackingGlobe, /<svg class="world-globe__route-trail"/, 'Existe un SVG para la estela')
 assert.match(trackingGlobe, /<TrackingTransportModel :glyph="routeVehicle\.glyph" \/>/, 'Cada ícono usa la miniatura con volumen')
 const trackingModels = source('src/components/TrackingTransportModel.vue')
@@ -78,7 +87,8 @@ assert.match(trackingGlobe, /const elevatedPoint = /, 'Icono y estela comparten 
 assert.match(trackingGlobe, /\.22 \* Math\.sin\(Math\.PI \* t\)/, 'Parábola con elevación máxima en mitad de cada tramo')
 assert.match(trackingGlobe, /projectElevated\(coordinates\.lon, coordinates\.lat/, 'El recorrido se dibuja sobre la esfera')
 assert.match(trackingGlobe, /const projected = elevatedPoint\(leg, activeProgress\)/, 'El icono se mueve sobre la curva')
-assert.match(trackingGlobe, /const p = elevatedPoint\(segment, \(step \/ count\) \* fraction\)/, 'La estela sigue la misma curva')
+assert.match(trackingGlobe, /const p = elevatedPoint\(segment, progress\)/,
+  'La estela utiliza los mismos puntos proyectados del vehículo')
 assert.match(trackingGlobe, /--tracking-trail-gray:#fff; --tracking-trail-border:#741126/, 'La trayectoria clara es blanca con borde vino para contrastar')
 assert.match(trackingGlobe, /--tracking-trail-halo:#67091e; --tracking-trail-halo-opacity:\.45/, 'La estela clara tiene un halo rojo vino tenue')
 assert.match(trackingGlobe, /--tracking-trail-glow:rgba\(103,9,30,\.45\)/, 'El núcleo claro proyecta un brillo vino tenue')
@@ -95,16 +105,39 @@ assert.match(trackingGlobe, /:global\(html\.theme-dark \.world-globe\)\s*\{[\s\S
   'La ruta del modo oscuro usa núcleo cálido y borde rubí')
 assert.match(trackingGlobe, /--tracking-trail-halo:#ea4664; --tracking-trail-halo-opacity:\.55/, 'La estela oscura tiene un halo rubí más visible')
 assert.match(trackingGlobe, /--tracking-trail-glow:rgba\(234,70,100,\.55\)/, 'El núcleo oscuro proyecta un brillo rubí')
-assert.match(trackingGlobe, /class="world-globe__route-trail-border" :d="trail\.d"/, 'Cada tramo tiene borde independiente sobre la misma curva')
-assert.match(trackingGlobe, /class="world-globe__route-trail-texture" :d="trail\.d"/, 'Texturas vectoriales siguen exactamente cada tramo')
-assert.match(trackingGlobe, /class="world-globe__route-trail-spray" :d="trail\.d"/, 'Partículas discretas siguen exactamente cada tramo')
-assert.match(trackingGlobe, /v-for="trail in routeTrails"/, 'Multimodal conserva separadas las estelas marítimas y terrestres')
-assert.match(trackingGlobe, /\.world-globe__route-trail-border\{stroke:var\(--trail-border\);stroke-width:var\(--trail-border-width\)\}/, 'Los estilos vectoriales mantienen los bordes finos')
+assert.match(trackingGlobe, /v-for="trail in routeTrails"/, 'Las rutas multimodales mantienen cada tramo')
+assert.match(trackingGlobe, /<template v-if="trail\.kind === 'air'">/,
+  'El avión usa elementos SVG propios')
+assert.match(trackingGlobe, /class="world-globe__contrail-white" :d="trail\.left"/,
+  'Primera estela blanca paralela del avión')
+assert.match(trackingGlobe, /class="world-globe__contrail-white" :d="trail\.right"/,
+  'Segunda estela blanca paralela del avión')
+assert.match(trackingGlobe, /const separation = kind === 'air' \? 3\.1/,
+  'Las estelas del avión se separan a ambos lados del eje')
+assert.match(trackingGlobe, /<template v-else-if="trail\.kind === 'sea'">/,
+  'La espuma usa su propia geometría')
+assert.match(trackingGlobe, /class="world-globe__wake-foam" :d="trail\.left"/,
+  'La espuma se abre hacia un lado del barco')
+assert.match(trackingGlobe, /class="world-globe__wake-foam" :d="trail\.right"/,
+  'La espuma se abre hacia el otro lado del barco')
+assert.match(trackingGlobe, /kind === 'sea' \? 2\.1 \+ 2\.4 \* age/,
+  'El canal de espuma se abre ligeramente detrás del barco')
+assert.match(trackingGlobe, /v-for="\(bubble, bubbleIndex\) in trail\.foam"/,
+  'Las burbujas marinas son partículas independientes')
+assert.match(trackingGlobe, /<template v-else-if="trail\.kind === 'land'">/,
+  'El polvo del camión no reutiliza líneas de avión o barco')
+assert.match(trackingGlobe, /v-for="\(particle, particleIndex\) in trail\.dust"/,
+  'El polvo se representa con partículas alrededor del camino')
+assert.doesNotMatch(trackingGlobe, /world-globe__route-trail-texture|world-globe__route-trail-spray/,
+  'Se eliminan las cinco capas de trazos iguales de la implementación anterior')
 assert.match(trackingModels, /tracking-transport-model--truck\{[\s\S]*?--tracking-model-main:#fff;[\s\S]*?--tracking-model-window:#64748b;[\s\S]*?--tracking-model-outline:#475569;[\s\S]*?--tracking-model-detail:#536174;/,
   'Camión idéntico en claro y oscuro, con ventanas grafito y contorno reforzado')
-assert.match(trackingGlobe, /\.world-globe__route-trail-segment\{--trail-halo-width:7;--trail-border-width:5;--trail-core-width:2\.3\}/, 'El rastro conserva sus proporciones en móvil')
-assert.match(trackingGlobe, /\.world-globe__route-trail-segment--sea\{--trail-halo-width:6\.5;--trail-border-width:4\.2;/, 'La espuma se afina en móvil')
-assert.match(trackingGlobe, /\.world-globe__route-trail-segment--air\{--trail-halo-width:6;--trail-border-width:4;/, 'Las nubes se afinan en móvil')
+assert.match(trackingGlobe, /\.world-globe__contrail-white\{stroke-width:1\.8\}/,
+  'El avión conserva dos estelas finas en móvil')
+assert.match(trackingGlobe, /\.world-globe__wake-foam\{stroke-width:1\.6\}/,
+  'La espuma sigue fina en móvil')
+assert.match(trackingGlobe, /\.world-globe__dust-ground\{stroke-width:1\.2\}/,
+  'El polvo conserva su trazo ligero en móvil')
 assert.match(trackingModels, /tracking-ship-deck-3d/, 'El barco muestra cubierta iluminada con profundidad')
 assert.match(trackingModels, /fill="url\(#tracking-plane-body-3d\)" stroke="var\(--tracking-model-outline, transparent\)" stroke-width="1\.1"/, 'El avión conserva su cuerpo y añade una silueta grafito discreta')
 assert.match(trackingModels, /M21 23 28 19h17l-7 4Z" fill="var\(--tracking-model-highlight\)" stroke="var\(--tracking-model-outline, transparent\)"/, 'Las tapas de los contenedores se distinguen sin redibujarse')
@@ -112,12 +145,18 @@ assert.match(trackingModels, /stroke="var\(--tracking-model-detail, #536174\)" s
 assert.match(trackingModels, /tracking-ship-side-3d/, 'El casco tiene caras laterales y sombra tridimensional')
 assert.match(trackingModels, /tracking-transport-model--ship\{width:78px;height:51px\}/, 'El barco conserva dimensiones visibles en escritorio')
 assert.match(trackingGlobe, /--tracking-trail-glow:/, 'Los dos temas conservan iluminación tenue')
-assert.match(trackingGlobe, /\.world-globe__route-trail-halo\{\s*stroke:var\(--trail-halo\);stroke-width:var\(--trail-halo-width\);/, 'La estela tiene halo difuminado por tipo de vehículo')
-assert.match(trackingGlobe, /\.world-globe__route-trail-segment--air\{[\s\S]*?--trail-texture-dash:\.7 7;/, 'Nubes vectoriales blancas con textura en puntos')
-assert.match(trackingGlobe, /\.world-globe__route-trail-segment--sea\{[\s\S]*?--trail-texture:#fff;--trail-spray:#c8f6ff;/, 'Espuma marina azulada con burbujas blancas')
-assert.match(trackingGlobe, /\.world-globe__route-trail-segment--land\{[\s\S]*?--trail-texture:#f3dbc0;--trail-spray:#d0aa86;/, 'Polvo terrestre beige sutil')
-assert.match(trackingGlobe, /:global\(html\.theme-dark \.world-globe__route-trail-segment--sea\)/, 'La espuma conserva contraste en oscuro')
-assert.doesNotMatch(trackingGlobe, /stroke-dasharray:.*url\(/, 'Las estelas son vectoriales sin texturas externas')
+assert.match(trackingGlobe, /\.world-globe__contrail-outline\{\s*stroke:#8499b0;stroke-width:3\.8;/,
+  'El avión usa dos contrails blancas con una base azul-gris')
+assert.match(trackingGlobe, /\.world-globe__wake-channel\{\s*stroke:#53bce5;stroke-width:7;/,
+  'El barco dibuja un canal acuático en el centro')
+assert.match(trackingGlobe, /\.world-globe__wake-foam\{\s*stroke:#f8ffff;stroke-width:1\.85;/,
+  'Dos líneas de espuma blanca bordean el canal')
+assert.match(trackingGlobe, /\.world-globe__dust-particle\{fill:#bc9675;/,
+  'El camión levanta partículas beige en vez de una línea continua gruesa')
+assert.match(trackingGlobe, /:global\(html\.theme-dark \.world-globe__wake-channel\)/,
+  'La espuma conserva contraste nocturno')
+assert.doesNotMatch(trackingGlobe, /stroke-dasharray:.*url\(/,
+  'Los efectos usan vectores sin texturas externas')
 assert.match(trackingGlobe, /world-globe__route-trail-core/, 'La estela tiene trazo definido')
 assert.match(trackingGlobe, /segment\.glyph === 'truck' \? 0 : \.22 \* Math\.sin\(Math\.PI \* t\)/,
   'El camión viaja sobre la esfera sin parábola, barco y avión elevados')
