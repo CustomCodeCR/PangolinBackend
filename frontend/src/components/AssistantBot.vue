@@ -57,7 +57,18 @@ const copy = computed(() => isEnglish.value ? {
   offline: 'Ahora no puedo consultar la IA, así que esta es una orientación basada en el sitio: ', openLink: 'Abrir sección', status: 'Disponible'
 })
 const assistantRoot = ref<HTMLElement | null>(null)
+const hasPageScrolled = ref(false)
 const isOpen = ref(false)
+
+// El mensaje flotante aparece únicamente después de abandonar el inicio de
+// la página. La mascota y el botón para abrir GIO siguen disponibles siempre.
+function syncPageScroll() {
+  hasPageScrolled.value = Math.max(
+    window.scrollY,
+    document.documentElement.scrollTop,
+    document.body.scrollTop
+  ) > 0
+}
 const isClosing = ref(false)
 const panelSettled = ref(false)
 const draft = ref('')
@@ -193,8 +204,17 @@ function handleOutsidePointerDown(event: PointerEvent) {
   const root = assistantRoot.value
   if (root && !event.composedPath().includes(root)) closePanel()
 }
-onMounted(() => document.addEventListener('pointerdown', handleOutsidePointerDown, true))
-onUnmounted(() => document.removeEventListener('pointerdown', handleOutsidePointerDown, true))
+onMounted(() => {
+  document.addEventListener('pointerdown', handleOutsidePointerDown, true)
+  syncPageScroll()
+  window.addEventListener('scroll', syncPageScroll, { passive: true })
+  window.addEventListener('pageshow', syncPageScroll)
+})
+onUnmounted(() => {
+  document.removeEventListener('pointerdown', handleOutsidePointerDown, true)
+  window.removeEventListener('scroll', syncPageScroll)
+  window.removeEventListener('pageshow', syncPageScroll)
+})
 
 function finishOpen() { panelSettled.value = true }
 function finishClose() { isClosing.value = false }
@@ -242,12 +262,27 @@ function finishClose() { isClosing.value = false }
         <img class="site-assistant__figure-base" src="/images/gio-assistant-base.png" alt="" />
         <img class="site-assistant__wave-hand" src="/images/gio-assistant-hand.png" alt="" />
       </span>
-        <span class="site-assistant__hint">{{ isEnglish ? 'Ask GIO' : 'Hablar con GIO' }}</span>
+        <span class="site-assistant__hint" :class="{ 'site-assistant__hint--visible': hasPageScrolled }" aria-hidden="true">{{ isEnglish ? 'Ask GIO' : 'Hablar con GIO' }}</span>
     </button>
   </aside>
 </template>
 
 <style scoped>
+/* El globo de texto, no la mascota, se desvanece al volver a scroll = 0.
+   La especificidad evita que hover/focus lo muestre mientras estamos arriba. */
+.site-assistant__mascot .site-assistant__hint{
+  opacity:0;
+  transform:translateX(-4px);
+  pointer-events:none;
+  transition:opacity .35s ease,transform .35s ease;
+}
+.site-assistant__mascot .site-assistant__hint--visible{
+  opacity:1;
+  transform:translateX(0);
+}
+@media(prefers-reduced-motion:reduce){
+  .site-assistant__mascot .site-assistant__hint{transition:none}
+}
 .site-assistant__menu{border:1px solid var(--gio-line,#666);border-radius:9px;background:var(--gio-action,transparent);color:var(--gio-ink,#fff);padding:7px 10px;font-size:11px;cursor:pointer}
 .site-assistant__menu:hover{border-color:#b20c2a}
 .site-assistant__panel--workflow{height:min(68vh,520px)}
