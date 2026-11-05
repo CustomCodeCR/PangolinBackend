@@ -5,7 +5,8 @@
  * (CC BY 4.0): https://commons.wikimedia.org/wiki/File:Solarsystemscope_texture_2k_earth_daymap.jpg
  * Attribution: Solar System Scope (solarsystemscope.com), CC BY 4.0,
  * https://creativecommons.org/licenses/by/4.0/ . No modifications to the source
- * image. The lighting below is applied only by the rendering shader.
+ * image, bundled unchanged in public/images/earth-satellite-daymap.jpg.
+ * The lighting below is applied only by the rendering shader.
  *
  * This helper never creates markers, arcs, controls or DOM layout. It shares
  * exactly the orthographic center/radius of the existing d3-geo renderer.
@@ -14,7 +15,7 @@
  */
 
 const EARTH_MAP_URL =
-  'https://upload.wikimedia.org/wikipedia/commons/c/c3/Solarsystemscope_texture_2k_earth_daymap.jpg'
+  '/images/earth-satellite-daymap.jpg'
 
 const VERTEX_SHADER = `
 attribute vec2 aPosition;
