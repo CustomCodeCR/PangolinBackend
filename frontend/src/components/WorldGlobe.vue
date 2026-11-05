@@ -701,17 +701,83 @@ onBeforeUnmount(() => {
 
 .world-globe__route-vehicles{position:absolute;inset:0;z-index:4;pointer-events:none}
 .world-globe__route-trail{position:absolute;inset:0;width:100%;height:100%;overflow:hidden}
-.world-globe__route-trail path{fill:none;stroke:var(--tracking-trail-gray);stroke-linecap:round;stroke-linejoin:round}
-.world-globe__route-trail-halo{stroke:var(--tracking-trail-halo)!important;stroke-width:9;opacity:var(--tracking-trail-halo-opacity);filter:blur(2px)}
-.world-globe__route-trail-border{stroke:var(--tracking-trail-border)!important;stroke-width:6.2}
-.world-globe__route-trail-core{stroke-width:2.8;filter:drop-shadow(0 0 4px var(--tracking-trail-glow))}
+.world-globe__route-trail path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+/* La estela corporativa vino se mantiene como reserva para transporte no identificado. */
+.world-globe__route-trail-segment{
+  --trail-halo:var(--tracking-trail-halo);
+  --trail-border:var(--tracking-trail-border);
+  --trail-core:var(--tracking-trail-gray);
+  --trail-glow:var(--tracking-trail-glow);
+  --trail-halo-opacity:var(--tracking-trail-halo-opacity);
+  --trail-halo-width:9;--trail-border-width:6.2;--trail-core-width:2.8;
+  --trail-texture:transparent;--trail-spray:transparent;
+  --trail-texture-width:0;--trail-spray-width:0;
+  --trail-texture-dash:1 9;--trail-spray-dash:.5 12;
+}
+/* Aire: pequeñas nubes blancas vectoriales con borde gris para el océano claro. */
+.world-globe__route-trail-segment--air{
+  --trail-halo:#8d9bb2;--trail-border:#a8b6cc;--trail-core:#fff;
+  --trail-glow:rgba(141,155,178,.3);--trail-halo-opacity:.34;
+  --trail-halo-width:7;--trail-border-width:4.6;--trail-core-width:2.5;
+  --trail-texture:#fff;--trail-spray:#e7edff;
+  --trail-texture-width:5.2;--trail-spray-width:3.1;
+  --trail-texture-dash:.7 7;--trail-spray-dash:.5 11;
+}
+/* Mar: canal azul fino con espuma blanca y burbujas sobre la misma curva. */
+.world-globe__route-trail-segment--sea{
+  --trail-halo:#51b9e9;--trail-border:#1683b5;--trail-core:#e4f9ff;
+  --trail-glow:rgba(55,171,222,.35);--trail-halo-opacity:.37;
+  --trail-halo-width:7.4;--trail-border-width:4.8;--trail-core-width:2.3;
+  --trail-texture:#fff;--trail-spray:#c8f6ff;
+  --trail-texture-width:4.2;--trail-spray-width:5.5;
+  --trail-texture-dash:1.8 5.8;--trail-spray-dash:.5 10;
+}
+/* Tierra: polvo arena ligeramente discontinuo, nunca una nube gruesa. */
+.world-globe__route-trail-segment--land{
+  --trail-halo:#b58f70;--trail-border:#957256;--trail-core:#dfc1a1;
+  --trail-glow:rgba(173,132,97,.3);--trail-halo-opacity:.31;
+  --trail-halo-width:6.7;--trail-border-width:4;--trail-core-width:2;
+  --trail-texture:#f3dbc0;--trail-spray:#d0aa86;
+  --trail-texture-width:3.6;--trail-spray-width:4.6;
+  --trail-texture-dash:.9 6.8;--trail-spray-dash:.4 11.5;
+}
+:global(html.theme-dark .world-globe__route-trail-segment--air){
+  --trail-halo:#b7c8e2;--trail-border:#b6c7df;--trail-core:#fff;
+  --trail-glow:rgba(198,213,241,.4);
+}
+:global(html.theme-dark .world-globe__route-trail-segment--sea){
+  --trail-halo:#5bc3f0;--trail-border:#35a6db;--trail-core:#edfcff;
+  --trail-glow:rgba(81,190,238,.45);
+}
+:global(html.theme-dark .world-globe__route-trail-segment--land){
+  --trail-halo:#c8ac8a;--trail-border:#c6a07a;--trail-core:#f2dbc0;
+  --trail-glow:rgba(207,170,131,.34);
+}
+.world-globe__route-trail-halo{
+  stroke:var(--trail-halo);stroke-width:var(--trail-halo-width);
+  opacity:var(--trail-halo-opacity);filter:blur(1.5px);
+}
+.world-globe__route-trail-border{stroke:var(--trail-border);stroke-width:var(--trail-border-width)}
+.world-globe__route-trail-core{
+  stroke:var(--trail-core);stroke-width:var(--trail-core-width);
+  filter:drop-shadow(0 0 3px var(--trail-glow));
+}
+.world-globe__route-trail-texture{
+  stroke:var(--trail-texture);stroke-width:var(--trail-texture-width);
+  stroke-dasharray:var(--trail-texture-dash);opacity:.9;
+}
+.world-globe__route-trail-spray{
+  stroke:var(--trail-spray);stroke-width:var(--trail-spray-width);
+  stroke-dasharray:var(--trail-spray-dash);stroke-dashoffset:3;opacity:.75;
+}
 .world-globe__route-vehicle{position:absolute;display:grid;place-items:center;width:60px;height:42px;color:var(--tracking-model-main);transform:translate(-50%,-50%);filter:none}
 .world-globe__route-vehicle--reversed{transform:translate(-50%,-50%) scaleX(-1)}
 @media(max-width:580px){
   .world-globe__route-vehicle{width:48px;height:34px}
-  .world-globe__route-trail-halo{stroke-width:7}
-  .world-globe__route-trail-border{stroke-width:5}
-  .world-globe__route-trail-core{stroke-width:2.3}
+  .world-globe__route-trail-segment{--trail-halo-width:7;--trail-border-width:5;--trail-core-width:2.3}
+  .world-globe__route-trail-segment--air{--trail-halo-width:6;--trail-border-width:4;--trail-core-width:2.1;--trail-texture-width:4.5}
+  .world-globe__route-trail-segment--sea{--trail-halo-width:6.5;--trail-border-width:4.2;--trail-core-width:2.1;--trail-texture-width:3.6;--trail-spray-width:4.7}
+  .world-globe__route-trail-segment--land{--trail-halo-width:5.8;--trail-border-width:3.5;--trail-core-width:1.9;--trail-texture-width:3.2}
 }
 </style>
 
