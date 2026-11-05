@@ -250,8 +250,8 @@ const demoMarkers = () => {
   }
   return points
 }
-const demoArcs = () => props.shipment
-  ? [] // El recorrido de tracking se representa solamente con el vehículo móvil.
+const demoArcs = () => props.shipment || props.satelliteSurface
+  ? [] // Tracking: Tierra natural sin arcos decorativos rojos; el envío mantiene su recorrido móvil.
   : offices.filter(item => item.countryEs !== 'Costa Rica').map(item => ({
     from: { lat: 9.9167, lon: -84.0333 },
     to: { lat: item.lat, lon: item.lon },
@@ -407,6 +407,10 @@ async function start() {
       // /tracking should begin at the full-world reset view, not a close-up.
       // The home globe keeps its existing default zoom.
       zoom: props.initialZoom ?? 1,
+      // Photographic Tracking starts over the Americas just like the supplied video.
+      // Home and actual shipment targeting keep their original behavior.
+      center: props.satelliteSurface && !props.shipment
+        ? {lon:-75,lat:3} : undefined,
       transparentBackground: true,
       // Explicit opt-in: only Tracking.vue can enable the photographic globe.
       satelliteSurface: props.satelliteSurface === true,
@@ -544,7 +548,8 @@ onBeforeUnmount(() => {
 
 
 <template>
-  <div ref="holder" class="world-globe" :aria-label="$t('custom.tracking.globeAria')">
+  <div ref="holder" class="world-globe" :class="{ 'world-globe--satellite': props.satelliteSurface }"
+    :aria-label="$t('custom.tracking.globeAria')">
     <div class="world-globe__halo"></div>
     <canvas ref="canvas" class="world-globe__canvas" :aria-label="$t('custom.tracking.mapAria')"></canvas>
     <div v-if="props.shipment" class="world-globe__route-vehicles" aria-hidden="true">
@@ -686,6 +691,22 @@ onBeforeUnmount(() => {
   }
 }
 
+/* Only Tracking's satellite globe uses a neutral route: the Earth itself
+   never has bright red route overlays. All other globe styles stay untouched. */
+.world-globe.world-globe--satellite {
+  --tracking-trail-gray:#ffffff;
+  --tracking-trail-border:#7d8c9d;
+  --tracking-trail-halo:#73879b;
+  --tracking-trail-halo-opacity:.24;
+  --tracking-trail-glow:rgba(190,206,220,.45);
+}
+:global(html.theme-dark .world-globe.world-globe--satellite) {
+  --tracking-trail-gray:#ffffff;
+  --tracking-trail-border:#7d8c9d;
+  --tracking-trail-halo:#73879b;
+  --tracking-trail-halo-opacity:.24;
+  --tracking-trail-glow:rgba(190,206,220,.45);
+}
 .world-globe__route-vehicles{position:absolute;inset:0;z-index:4;pointer-events:none}
 .world-globe__route-trail{position:absolute;inset:0;width:100%;height:100%;overflow:hidden}
 .world-globe__route-trail path{fill:none;stroke:var(--tracking-trail-gray);stroke-linecap:round;stroke-linejoin:round}
