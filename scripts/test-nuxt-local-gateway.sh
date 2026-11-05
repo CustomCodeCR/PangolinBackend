@@ -54,6 +54,13 @@ if [[ "$ready" != 1 ]]; then
   exit 1
 fi
 grep -q 'service-landing-page' /tmp/cf-hybrid-service.html
+# El gateway híbrido debe entregar la imagen PNG real, no HTML de una ruta fallback.
+curl -fsS --max-time 12 "$base/favicon.png" -o /tmp/cf-hybrid-favicon.png
+cmp frontend/public/favicon.png /tmp/cf-hybrid-favicon.png || {
+  echo "FAIL favicon de Castro Fallas no coincide en el gateway Nuxt" >&2
+  exit 1
+}
+echo "PASS favicon Nuxt idéntico al PNG de marca"
 # No basta con comprobar HTML: las vistas públicas y privadas, sus imágenes,
 # el CMS publicado y los bundles Nuxt/Vue deben cargar bajo el MISMO origen.
 for route in / /nosotros /servicios /noticias /empresas \

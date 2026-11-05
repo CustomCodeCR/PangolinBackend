@@ -82,6 +82,12 @@ jobs:
           grep -q '<h1' /tmp/pangolin-home.html
           grep -q 'home-page' /tmp/pangolin-home.html
           grep -q 'application/ld+json' /tmp/pangolin-home.html
+          # La portada Nuxt debe anunciar y servir el mismo PNG real que Vue.
+          # Una ruta que devuelva HTML 200 no sirve como favicon para Google.
+          grep -Fq 'href="/favicon.png"' /tmp/pangolin-home.html
+          cmp frontend/public/favicon.png frontend/nuxt/public/favicon.png
+          curl -fsS --max-time 10 http://127.0.0.1:3000/favicon.png -o /tmp/pangolin-nuxt-favicon.png
+          cmp frontend/public/favicon.png /tmp/pangolin-nuxt-favicon.png
           curl -fsS http://127.0.0.1:3000/nosotros | grep -q 'about-reference-page'
           curl -fsS http://127.0.0.1:3000/servicios | grep -q 'services-page'
           curl -fsS http://127.0.0.1:3000/servicios/almacenamiento-fiscal >/tmp/pangolin-service.html
