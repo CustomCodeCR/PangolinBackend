@@ -805,14 +805,19 @@ onBeforeUnmount(() => {
 .world-globe__route-trail-halo{stroke:var(--tracking-trail-halo)!important;stroke-width:9;opacity:var(--tracking-trail-halo-opacity);filter:blur(2px)}
 .world-globe__route-trail-border{stroke:var(--tracking-trail-border)!important;stroke-width:6.2}
 .world-globe__route-trail-core{stroke-width:2.8;filter:drop-shadow(0 0 4px var(--tracking-trail-glow))}
-/* Textura blanca repetida en dos franjas; guía gris mínima para fondo claro.
-   No se utiliza blur, brillo, halo luminoso ni recursos externos. */
+/* Humo translúcido tipo vidrio esmerilado: deja ver el globo por debajo.
+   Blur mínimo por grupo, no backdrop-filter: evita desenfocar el mapa completo
+   o aplicar 160 filtros individuales a las copias de la textura. Sin glow. */
+.world-globe__plane-contrail{
+  opacity:.56;
+  filter:blur(.35px);
+}
 .world-globe__route-trail .world-globe__plane-contrail-guide{
-  stroke:#7b8794;stroke-width:.85;opacity:.38;
+  stroke:#7b8794;stroke-width:.75;opacity:.17;
 }
 .world-globe__plane-smoke-stamp{pointer-events:none}
 :global(html.theme-dark .world-globe__route-trail .world-globe__plane-contrail-guide){
-  stroke:#c5cede;opacity:.28;
+  stroke:#c5cede;opacity:.15;
 }
 .world-globe__route-vehicle{position:absolute;display:grid;place-items:center;width:60px;height:42px;color:var(--tracking-model-main);transform:translate(-50%,-50%);filter:none}
 .world-globe__route-vehicle--reversed{transform:translate(-50%,-50%) scaleX(-1)}
