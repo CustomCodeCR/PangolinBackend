@@ -105,8 +105,16 @@ assert.ok(globePalette.includes("showGraticule: dark"),
   'La cuadrícula no oscurece el fondo blanco')
 assert.ok(globePalette.includes("shadeStrength: dark ? .67 : .20"),
   'Se recuperan los valores originales de profundidad de la esfera')
-assert.doesNotMatch(globePalette, /#1e5f8f|#0f2f4f|#5e8d52|#83aa79/,
-  'La paleta azul-verde realista permanece únicamente en la rama de respaldo')
+assert.match(globePalette, /if \(props\.realisticColors\) \{/,
+  'La paleta realista se utiliza únicamente mediante un permiso visual explícito')
+assert.ok(globePalette.includes("ocean: ['#1e5f8f','#0f2f4f']") &&
+  globePalette.includes("land:'#5e8d52'") &&
+  globePalette.includes("border:'#83aa79'"),
+  'El embarque encontrado recupera la paleta realista de la rama de respaldo')
+assert.match(trackingGlobe, /realisticColors\?: boolean/,
+  'Los colores realistas son opcionales y por defecto no afectan otros globos')
+assert.match(trackingGlobe, /watch\(\(\) => props\.realisticColors, \(\) => globe\?\.setTheme\(themePalette\(\)\)\)/,
+  'La esfera cambia de color al encontrar o limpiar el embarque sin recrear el mapa')
 assert.match(trackingGlobe, /MutationObserver\(\(\) => globe\?\.setTheme\(themePalette\(\)\)\)/,
   'El observador del tema se conserva sin afectar los colores del globo')
 assert.match(trackingGlobe, /const legs = routePoints\.value\.slice\(1\)\.map\(/, 'La ruta conserva cada tramo de todas las escalas')
@@ -427,7 +435,14 @@ assert.match(authRoot, /trackingAccess\.value = localTrackingVisualPreview \|\| 
 assert.match(authRoot, /const localTrackingVisualPreview = import\.meta\.env\.DEV/, 'La preview de tracking solo existe en desarrollo')
 assert.match(authRoot, /\['localhost', '127\.0\.0\.1'\]\.includes\(window\.location\.hostname\)/, 'La preview de tracking solo está disponible en localhost')
 assert.match(tracking, /const localVisualPreview = import\.meta\.env\.DEV/, 'Los datos ficticios no se habilitan en producción')
-assert.match(tracking, /<WorldGlobe :shipment="globeRoute" :initial-zoom="0\.8"\s*\/>/, 'El globo conserva el zoom inicial y utiliza rutas ilustrativas')
+assert.match(tracking, /<WorldGlobe :shipment="globeRoute" :initial-zoom="0\.8" :realistic-colors="realisticGlobeColors"\s*\/>/,
+  'Tracking controla explícitamente el color de la esfera sin cambiar el zoom ni las rutas')
+assert.match(tracking, /const realisticGlobeColors = computed\(\(\) => !localVisualPreview\s*&& !!shipment\.value && matches\.value\.includes\(shipment\.value\)\)/,
+  'Solo una referencia real encontrada en Dynamics activa los colores naturales')
+assert.match(tracking, /if \(data\.source !== 'dynamics' \|\| !Array\.isArray\(data\.records\)\) throw new Error/,
+  'Los colores naturales no se activan para respuestas ajenas al proveedor autenticado')
+assert.match(tracking, /shipment\.value = null\s*matches\.value = \[\]/,
+  'Al iniciar una nueva búsqueda se vuelven a aplicar los colores corporativos')
 assert.match(tracking, /\/api\/tracking\/dynamics\/search/, 'Se consultan datos de Dynamics desde el backend')
 assert.match(tracking, /credentials: 'same-origin'/, 'La consulta utiliza la sesión autenticada')
 assert.match(tracking, /Illustrative route only, not a live GPS position/, 'El globo advierte que no es un GPS')
