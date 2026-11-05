@@ -39,6 +39,8 @@ export interface GlobeOptions {
   center?: { lat: number; lon: number };
   theme?: GlobeTheme;
   transparentBackground?: boolean;
+  /** Render photographic Earth surface only when the Tracking view opts in. */
+  satelliteSurface?: boolean;
   autoRotate?: boolean;
   rotateSpeed?: number;
   zoomable?: boolean;
