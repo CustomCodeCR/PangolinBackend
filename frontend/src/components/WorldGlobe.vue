@@ -50,17 +50,19 @@ const routeVehicle = ref<{ left: number; top: number; glyph: string; reversed: b
 const routeTrail = ref('')
 // Dos finas estelas de condensación, solo en los tramos aéreos.
 type PlaneTrailPoint = { x: number; y: number }
-type PlaneMistPuff = { x: number; y: number; radius: number; opacity: number }
-type PlaneContrail = { id: string; left: string; right: string; mist: PlaneMistPuff[] }
+type PlaneSmokeStamp = { id: number; transform: string; opacity: number }
+type PlaneContrail = { id: string; left: string; right: string; stamps: PlaneSmokeStamp[] }
 const planeContrails = ref<PlaneContrail[]>([])
 const trailSize = ref({ width: 1, height: 1 })
 
-// Trazos SVG orgánicos y estables: sin imágenes externas, luces ni ruido aleatorio
-// por fotograma. La normal local sigue la curvatura proyectada del avión.
+// Cada segmento es una pequeña copia recta de la textura transparente tomada
+// de la referencia. Se repite siguiendo la tangente del recorrido del avión.
 function makePlaneContrail(points: PlaneTrailPoint[], id: string): PlaneContrail {
   const left: string[] = []
   const right: string[] = []
-  const mist: PlaneMistPuff[] = []
+  const stamps: PlaneSmokeStamp[] = []
+  const separation = 4.15, spacing = 16
+  let walked = 0, nextStamp = 8
   for (let i = 0; i < points.length; i++) {
     const point = points[i]
     const previous = points[Math.max(0, i - 1)]
@@ -69,25 +71,38 @@ function makePlaneContrail(points: PlaneTrailPoint[], id: string): PlaneContrail
     const distance = Math.hypot(dx, dy)
     if (distance < .01) continue
     const nx = -dy / distance, ny = dx / distance
-    const variance = .18 * Math.sin(i * 2.3) + .1 * Math.sin(i * 4.1)
     for (const side of [-1, 1]) {
-      const distanceFromCenter = side * (2.9 + variance)
-      const x = point.x + nx * distanceFromCenter
-      const y = point.y + ny * distanceFromCenter
       const target = side < 0 ? left : right
-      target.push((target.length ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1))
-      // Mechones diminutos, separados y con tamaño variable: no un halo brillante.
-      if (i > 0 && i < points.length - 2 && i % 3 === 1) {
-        mist.push({
-          x: x + nx * side * .35,
-          y: y + ny * side * .35,
-          radius: .55 + (i % 4) * .16,
-          opacity: .42 + (i % 3) * .12
+      target.push((target.length ? 'L' : 'M')
+        + (point.x + nx * separation * side).toFixed(1) + ' '
+        + (point.y + ny * separation * side).toFixed(1))
+    }
+    if (!i) continue
+    const a = points[i - 1]
+    const vx = point.x - a.x, vy = point.y - a.y
+    const len = Math.hypot(vx, vy)
+    if (len < .01) continue
+    const px = -vy / len, py = vx / len
+    const angle = Math.atan2(vy, vx) * 180 / Math.PI
+    while (walked + len >= nextStamp && stamps.length < 160) {
+      const t = (nextStamp - walked) / len
+      const x = a.x + vx * t, y = a.y + vy * t
+      const scale = .96 + .06 * Math.sin(nextStamp * .4)
+      for (const side of [-1, 1]) {
+        const sx = x + px * separation * side
+        const sy = y + py * separation * side
+        stamps.push({
+          id: stamps.length,
+          transform: 'translate(' + sx.toFixed(1) + ' ' + sy.toFixed(1)
+            + ') rotate(' + angle.toFixed(1) + ') scale(' + scale.toFixed(2) + ')',
+          opacity: .86 + .1 * Math.sin(nextStamp * .17 + side)
         })
       }
+      nextStamp += spacing
     }
+    walked += len
   }
-  return { id, left: left.join(' '), right: right.join(' '), mist }
+  return { id, left: left.join(' '), right: right.join(' '), stamps }
 }
 let vehicleFrame = 0
 let lastVehicleUpdate = -Infinity
@@ -640,15 +655,15 @@ onBeforeUnmount(() => {
         <path v-if="routeTrail && props.shipment?.transport !== 'air'" class="world-globe__route-trail-halo" :d="routeTrail" />
         <path v-if="routeTrail && props.shipment?.transport !== 'air'" class="world-globe__route-trail-border" :d="routeTrail" />
         <path v-if="routeTrail && props.shipment?.transport !== 'air'" class="world-globe__route-trail-core" :d="routeTrail" />
-        <!-- Avión: dos franjas de humo delgadas y con mechones, sin glow. -->
+        <!-- Dos tiras de humo real recortado y repetido, sin brillos. -->
         <g v-for="contrail in planeContrails" :key="contrail.id" class="world-globe__plane-contrail">
-          <path class="world-globe__plane-contrail-edge" :d="contrail.left" />
-          <path class="world-globe__plane-contrail-edge" :d="contrail.right" />
-          <path class="world-globe__plane-contrail-core" :d="contrail.left" />
-          <path class="world-globe__plane-contrail-core" :d="contrail.right" />
-          <circle v-for="(puff, puffIndex) in contrail.mist" :key="puffIndex"
-            class="world-globe__plane-contrail-mist"
-            :cx="puff.x" :cy="puff.y" :r="puff.radius" :opacity="puff.opacity" />
+          <path class="world-globe__plane-contrail-guide" :d="contrail.left" />
+          <path class="world-globe__plane-contrail-guide" :d="contrail.right" />
+          <image v-for="stamp in contrail.stamps" :key="stamp.id"
+            class="world-globe__plane-smoke-stamp"
+            href="/images/tracking-aircraft-smoke-tile.png"
+            x="-13" y="-3.25" width="26" height="6.5"
+            preserveAspectRatio="none" :transform="stamp.transform" :opacity="stamp.opacity" />
         </g>
       </svg>
       <span v-if="routeVehicle" class="world-globe__route-vehicle"
@@ -790,17 +805,14 @@ onBeforeUnmount(() => {
 .world-globe__route-trail-halo{stroke:var(--tracking-trail-halo)!important;stroke-width:9;opacity:var(--tracking-trail-halo-opacity);filter:blur(2px)}
 .world-globe__route-trail-border{stroke:var(--tracking-trail-border)!important;stroke-width:6.2}
 .world-globe__route-trail-core{stroke-width:2.8;filter:drop-shadow(0 0 4px var(--tracking-trail-glow))}
-/* Dos franjas de condensación independientes; bordes grises solo por contraste.
-   Ninguna sombra luminosa, blur ni filtro de resplandor sobre estas estelas. */
-.world-globe__route-trail .world-globe__plane-contrail-edge{
-  stroke:#929aa7;stroke-width:2.8;opacity:.62;
+/* Textura blanca repetida en dos franjas; guía gris mínima para fondo claro.
+   No se utiliza blur, brillo, halo luminoso ni recursos externos. */
+.world-globe__route-trail .world-globe__plane-contrail-guide{
+  stroke:#7b8794;stroke-width:.85;opacity:.38;
 }
-.world-globe__route-trail .world-globe__plane-contrail-core{
-  stroke:#fff;stroke-width:1.45;opacity:.98;
-}
-.world-globe__plane-contrail-mist{fill:#fff}
-:global(html.theme-dark .world-globe__route-trail .world-globe__plane-contrail-edge){
-  stroke:#c5cede;opacity:.72;
+.world-globe__plane-smoke-stamp{pointer-events:none}
+:global(html.theme-dark .world-globe__route-trail .world-globe__plane-contrail-guide){
+  stroke:#c5cede;opacity:.28;
 }
 .world-globe__route-vehicle{position:absolute;display:grid;place-items:center;width:60px;height:42px;color:var(--tracking-model-main);transform:translate(-50%,-50%);filter:none}
 .world-globe__route-vehicle--reversed{transform:translate(-50%,-50%) scaleX(-1)}
@@ -809,8 +821,7 @@ onBeforeUnmount(() => {
   .world-globe__route-trail-halo{stroke-width:7}
   .world-globe__route-trail-border{stroke-width:5}
   .world-globe__route-trail-core{stroke-width:2.3}
-  .world-globe__route-trail .world-globe__plane-contrail-edge{stroke-width:2.4}
-  .world-globe__route-trail .world-globe__plane-contrail-core{stroke-width:1.3}
+  .world-globe__route-trail .world-globe__plane-contrail-guide{stroke-width:.7}
 }
 </style>
 
