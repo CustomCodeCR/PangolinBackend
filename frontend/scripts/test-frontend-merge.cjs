@@ -610,7 +610,7 @@ const compiledLocalization = tsCompiler.transpileModule(trackingLocalizationSour
 })
 const trackingLocalizationExports = {}
 runInNewContext(compiledLocalization.outputText, { exports: trackingLocalizationExports }, { timeout: 1000 })
-const { formatTrackingEquipmentCount, localizeTrackingMode, localizeTrackingStatus } = trackingLocalizationExports
+const { formatTrackingEquipmentCount, isTrackingConsolidatedEquipment, localizeTrackingMode, localizeTrackingStatus } = trackingLocalizationExports
 assert.equal(typeof localizeTrackingMode, 'function')
 assert.equal(typeof localizeTrackingStatus, 'function')
 for (const [original, es, en] of [
@@ -673,6 +673,30 @@ for (const [input, expected] of [
   assert.equal(formatTrackingEquipmentCount(input), expected, 'Cantidad de equipo: ' + input)
 }
 assert.equal(formatTrackingEquipmentCount(null), null, 'No generar una cantidad para datos ausentes')
+for (const [mode, count, size, consolidated] of [
+  ['Marítimo', 'LCL', 'LCL', true],
+  ['Marítimo LCL', '1', '40 HC', true],
+  ['Sea/LCL', null, null, true],
+  ['Marítimo', '1', 'CONSOLIDADO', true],
+  ['Terrestre LTL', '1', 'pallet', true],
+  ['Marítimo FCL', 'LCL', 'LCL', false],
+  ['Marítimo', '2 contenedores', '40 HC', false],
+  ['Marítimo', '1', 'FCL', false],
+  ['Terrestre FTL', '1', '40', false],
+  ['Marítimo', null, null, false],
+  [null, null, null, false]
+]) {
+  assert.equal(isTrackingConsolidatedEquipment(mode, count, size), consolidated,
+    'Ícono según carga completa o consolidada: ' + [mode, count, size].join(' / '))
+}
+const iconSource = source('src/components/IconSymbol.vue')
+assert.match(iconSource, /PackageOpen/, 'Lucide proporciona el ícono abierto para LCL')
+assert.match(iconSource, /'container-open': PackageOpen/, 'El ícono abierto se registra sin alterar el contenedor cerrado')
+assert.match(tracking, /<IconSymbol :glyph="equipmentIcon" :size="17" \/>/, 'Solo el campo de equipo elige el ícono dinámicamente')
+assert.match(tracking, /isTrackingConsolidatedEquipment\(data\.mode, data\.equipmentCount, data\.equipmentSize\)/,
+  'La decisión del ícono depende de datos de modalidad y equipo')
+assert.match(tracking, /<dd>\{\{ equipmentConfiguration \}\}<\/dd>/,
+  'El texto de cantidad y tamaño se conserva sin modificaciones')
 assert.match(tracking, /const quantity = formatTrackingEquipmentCount\(count\)/,
   'La cantidad visible se normaliza sin modificar Dynamics')
 assert.match(tracking, /const equipmentSize = size\?\.trim\(\)/,
