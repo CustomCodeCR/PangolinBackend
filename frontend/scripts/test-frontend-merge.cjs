@@ -68,6 +68,42 @@ assert.match(trackingGlobe, /motionMedia\?\.matches \? 0/, 'Respetar movimiento 
 
 assert.match(trackingGlobe, /const commands: string\[\] = \[\]/, 'La estela se construye con la trayectoria recorrida')
 assert.match(trackingGlobe, /routeTrail\.value = commands\.join\(' '\)/, 'La estela sigue el recorrido del icono')
+// El avión usa dos curvas de condensación con textura, no la misma estela recoloreada.
+assert.match(trackingGlobe, /type PlaneContrail = \{ id: string; left: string; right: string; mist: PlaneMistPuff\[\] \}/,
+  'El avión tiene dos franjas y partículas propias')
+assert.match(trackingGlobe, /function makePlaneContrail\(points: PlaneTrailPoint\[\], id: string\)/,
+  'Los dos rastros se construyen desde los puntos proyectados')
+assert.match(trackingGlobe, /const nx = -dy \/ distance, ny = dx \/ distance/,
+  'Las franjas se calculan perpendicularmente a la curva')
+assert.match(trackingGlobe, /side \* \(2\.9 \+ variance\)/,
+  'Las franjas son finas, separadas y ligeramente irregulares')
+assert.match(trackingGlobe, /const progress = step === count \? fraction : step \/ 64/,
+  'La textura conserva muestras estables mientras avanza el avión')
+assert.match(trackingGlobe, /if \(!point\?\.visible\)/,
+  'No se dibuja condensación en la cara oculta')
+assert.match(trackingGlobe, /if \(!contiguous && run\.length > 1\) runs\.push\(run\)/,
+  'La condensación no conecta saltos de la proyección')
+assert.match(trackingGlobe, /props\.shipment\?\.transport === 'air'/,
+  'El efecto de humo solo se activa para los embarques aéreos')
+assert.match(trackingGlobe, /v-if="routeTrail && props\.shipment\?\.transport !== 'air'"/,
+  'El barco y el camión mantienen su estela original')
+assert.match(trackingGlobe, /class="world-globe__plane-contrail-core" :d="contrail\.left"/,
+  'El avión deja una primera franja blanca')
+assert.match(trackingGlobe, /class="world-globe__plane-contrail-core" :d="contrail\.right"/,
+  'El avión deja una segunda franja blanca')
+assert.match(trackingGlobe, /v-for="\(puff, puffIndex\) in contrail\.mist"/,
+  'La condensación incorpora pequeños mechones de humo')
+assert.match(trackingGlobe, /\.world-globe__route-trail \.world-globe__plane-contrail-core\{\s*stroke:#fff;stroke-width:1\.45;/,
+  'La condensación blanca es fina')
+assert.match(trackingGlobe, /\.world-globe__route-trail \.world-globe__plane-contrail-edge\{\s*stroke:#929aa7;stroke-width:2\.8;/,
+  'El contorno gris suave distingue las estelas sobre océanos claros')
+assert.match(trackingGlobe, /planeContrails\.value = \[\]/,
+  'El efecto se limpia al cambiar de embarque o reducir movimiento')
+const airplaneCss = trackingGlobe.split('/* Dos franjas de condensación independientes')[1]
+  ?.split('.world-globe__route-vehicle{')[0] ?? ''
+assert.doesNotMatch(airplaneCss, /filter\s*:|drop-shadow\(/,
+  'El efecto del avión no incorpora brillo ni sombras luminosas')
+
 assert.match(trackingGlobe, /<svg class="world-globe__route-trail"/, 'Existe un SVG para la estela')
 assert.match(trackingGlobe, /<TrackingTransportModel :glyph="routeVehicle\.glyph" \/>/, 'Cada ícono usa la miniatura con volumen')
 const trackingModels = source('src/components/TrackingTransportModel.vue')
