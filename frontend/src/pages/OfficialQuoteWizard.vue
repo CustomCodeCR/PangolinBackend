@@ -32,7 +32,8 @@ const step = ref(1)
 const mode = ref<Mode | null>(null)
 const shipmentType = ref<Type | null>(null)
 const busy = ref(false)
-type GioReceipt = { at: number; id: string; status: string; mode: string; origin: string; destination: string }
+type GioReceiptDetail = { key: string; value: string }
+type GioReceipt = { at: number; id: string; status: string; mode: string; origin: string; destination: string; details?: GioReceiptDetail[] }
 const gioReceipt = ref<GioReceipt | null>(null)
 const error = ref('')
 const createdId = ref('')
@@ -175,6 +176,76 @@ watch(() => shipmentType.value === 'FCL', (isFullContainer) => {
   if (isFullContainer) form.cargoFlags = form.cargoFlags.filter(flag => flag !== 'No estibable')
 })
 const stepNames = computed(() => [q('Modalidad', 'Mode'), q('Embarque', 'Shipment'), q('Información', 'Information'), q('Carga y envío', 'Cargo and delivery')])
+
+// Receipt details are a snapshot of this visitor's own confirmed submission.
+// They are never fetched from a public /api/quotes/official/{id} endpoint.
+const receiptFieldLabels: Record<string, [string, string]> = {
+  mode:['Modalidad','Mode'], shipmentType:['Tipo de embarque','Shipment type'],
+  origin:['Origen','Origin'], destination:['Destino','Destination'],
+  pod:['Puerto de descarga (POD)','Port of discharge (POD)'],
+  incoterm:['Incoterm','Incoterm'], cargoReadyDate:['Carga lista','Cargo ready'],
+  exwCargoStatus:['Estado EXW','EXW status'], exwPickupAddress:['Recolección EXW','EXW pickup'],
+  services:['Servicios solicitados','Requested services'],
+  cargoDescription:['Mercancía','Goods'], dangerousGoods:['Carga peligrosa','Dangerous goods'],
+  equipmentSize:['Tamaño del equipo','Equipment size'], equipmentType:['Tipo de equipo','Equipment type'],
+  equipmentQuantity:['Cantidad de equipos','Equipment quantity'],
+  equipmentWeights:['Pesos por unidad (kg)','Weights per unit (kg)'],
+  equipmentSummary:['Equipos y pesos','Equipment and weights'],
+  packageQuantity:['Cantidad de bultos','Number of packages'], packageWeight:['Peso por bulto (kg)','Weight per package (kg)'],
+  packageLength:['Largo (cm)','Length (cm)'], packageWidth:['Ancho (cm)','Width (cm)'],
+  packageHeight:['Alto (cm)','Height (cm)'], stackable:['Estibable','Stackable'],
+  packagesSummary:['Bultos y dimensiones','Packages and dimensions'],
+  contactName:['Nombre de contacto','Contact name'], contactEmail:['Correo','Email'], contactPhone:['Teléfono','Phone']
+}
+const receiptGroupDefinitions = [
+  { id:'route', name:['Ruta y condiciones','Route and terms'], fields:['mode','shipmentType','origin','destination','pod','incoterm','cargoReadyDate','exwCargoStatus','exwPickupAddress','services'] },
+  { id:'cargo', name:['Detalles de la carga','Cargo details'], fields:['cargoDescription','dangerousGoods','equipmentSummary','equipmentSize','equipmentType','equipmentQuantity','equipmentWeights','packagesSummary','packageQuantity','packageWeight','packageLength','packageWidth','packageHeight','stackable'] },
+  { id:'contact', name:['Datos de contacto','Contact details'], fields:['contactName','contactEmail','contactPhone'] }
+] as const
+
+const receiptSections = computed(() => {
+  if (!createdId.value) return []
+  let fields: Record<string,string> = {}
+  if (gioReceipt.value) {
+    for (const item of gioReceipt.value.details || []) fields[item.key] = item.value
+    // Support receipts created before the detailed handoff was introduced.
+    if (!fields.mode) fields.mode = gioReceipt.value.mode
+    if (!fields.origin) fields.origin = gioReceipt.value.origin
+    if (!fields.destination) fields.destination = gioReceipt.value.destination
+  } else {
+    // Direct wizard submissions also get a summary of their own submitted form.
+    fields = {
+      mode: displayMode(mode.value),
+      shipmentType: displayShipmentType(shipmentType.value),
+      origin: selectedOrigin.value?.displayName || locationSearch.origin,
+      destination: selectedDest.value?.displayName || locationSearch.destination,
+      pod: podOptions.value.find(x => x.id === form.podLocationId)?.displayName || '',
+      incoterm: form.incoterm, cargoReadyDate: form.cargoReadyDate,
+      exwCargoStatus: form.exwCargoStatus, exwPickupAddress: form.exwPickupAddress,
+      services: form.services.map(displayService).join(', '),
+      cargoDescription: form.cargoDescription,
+      dangerousGoods: form.cargoFlags.includes('Carga peligrosa') ? q('Sí', 'Yes') : '',
+      equipmentSummary: equipmentMode.value
+        ? form.equipment.map((item, i) =>
+          String(i+1) + '. ' + item.quantity + ' × ' + item.size + ' · ' + item.type +
+          ' · ' + item.unitWeightsKg.join(', ') + ' kg').join('\n')
+        : '',
+      packagesSummary: !equipmentMode.value
+        ? form.packages.map((item, i) =>
+          String(i+1) + '. ' + item.description + ' · ' + item.quantity + ' × ' + item.weight +
+          ' kg · ' + item.length + ' × ' + item.width + ' × ' + item.height + ' ' + form.dimensionUnit).join('\n')
+        : '',
+      contactName: form.contactName, contactEmail: form.contactEmail, contactPhone: form.contactPhone
+    }
+  }
+  return receiptGroupDefinitions.map(group => ({
+    id:group.id, name:q(group.name[0], group.name[1]),
+    rows:group.fields.filter(key => typeof fields[key] === 'string' && fields[key].trim()).map(key => ({
+      key, label:q(receiptFieldLabels[key][0],receiptFieldLabels[key][1]), value:fields[key]
+    }))
+  })).filter(group => group.rows.length)
+})
+
 function displayMode(value: Mode | null) {
   if (value === 'Maritime') return q('Marítimo', 'Ocean')
   if (value === 'Air') return q('Aéreo', 'Air')
@@ -283,7 +354,21 @@ onMounted(async () => {
             Date.now() - saved.at <= 30 * 60 * 1000 &&
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(saved.id) &&
             ['Maritime','Air','Land'].includes(saved.mode)) {
-          gioReceipt.value = saved
+          // Only recognized fields from this same-tab, short-lived receipt may
+          // appear in the summary. Vue renders all values as escaped text.
+          const details = Array.isArray(saved.details)
+            ? saved.details.filter((item): item is GioReceiptDetail =>
+                !!item && typeof item.key === 'string' &&
+                Object.prototype.hasOwnProperty.call(receiptFieldLabels, item.key) &&
+                typeof item.value === 'string' && item.value.length <= 4000
+              ).slice(0, 32)
+            : []
+          gioReceipt.value = {
+            at:saved.at, id:saved.id, status:typeof saved.status === 'string' ? saved.status : '',
+            mode:saved.mode, origin:typeof saved.origin === 'string' ? saved.origin.slice(0, 180) : '',
+            destination:typeof saved.destination === 'string' ? saved.destination.slice(0, 180) : '',
+            details
+          }
           createdId.value = saved.id
         }
       }
@@ -387,8 +472,25 @@ async function submit() {
           <h2>{{ q('¡Solicitud recibida!', 'Request received!') }}</h2>
           <p>{{ q('Se guardó correctamente y está pendiente de revisión administrativa. Todavía no se ha enviado a Dhole.', 'Your request was saved and is awaiting administrative review. It has not been sent to Dhole.') }}</p>
           <p class="official-id">{{ q('Número de referencia:', 'Reference number:') }} {{ createdId }}</p>
-          <p v-if="gioReceipt">{{ gioReceipt.origin }} → {{ gioReceipt.destination }} · {{ gioReceipt.mode }}</p>
-          <a class="official-link" href="/home">{{ q('Volver al inicio', 'Back to home') }}</a>
+          <section v-if="receiptSections.length" class="official-receipt" aria-labelledby="official-receipt-title">
+            <h3 id="official-receipt-title">{{ q('Resumen de tu solicitud', 'Your request summary') }}</h3>
+            <p class="official-receipt-intro">{{ q('Estos son los datos que enviaste al equipo. El precio, la disponibilidad y las condiciones finales se confirmarán durante la revisión.', 'These are the details you submitted. Rates, availability, and final terms will be confirmed during review.') }}</p>
+            <div class="official-receipt-grid">
+              <section v-for="group in receiptSections" :key="group.id" class="official-receipt-group" :class="'official-receipt-group--' + group.id">
+                <h4>{{ group.name }}</h4>
+                <dl>
+                  <div v-for="item in group.rows" :key="item.key" class="official-receipt-row">
+                    <dt>{{ item.label }}</dt>
+                    <dd>{{ item.value }}</dd>
+                  </div>
+                </dl>
+              </section>
+            </div>
+          </section>
+          <nav class="official-receipt-actions" :aria-label="q('Acciones después del envío', 'Actions after submission')">
+            <a class="official-link" href="/home">{{ q('Volver al inicio', 'Back to home') }}</a>
+            <a class="official-link official-link--subtle" href="/cotizaciones">{{ q('Nueva solicitud', 'New request') }}</a>
+          </nav>
       </div>
       <template v-else>
         <nav class="official-progress" :aria-label="q('Progreso de la solicitud', 'Request progress')">
@@ -644,6 +746,36 @@ async function submit() {
 :global(html.theme-dark) .official-page .official-link { background:#b20c2a!important; color:#fff!important; }
 :global(html.theme-dark) .official-page .official-kicker { color:#ff8ca2!important; }
 @media (prefers-reduced-motion:reduce) { .official-page * { scroll-behavior:auto!important; } }
+
+
+/* Detailed, same-tab request receipt. No public detail endpoint or price promises. */
+.official-receipt{max-width:860px;margin:32px auto 0;padding-top:25px;border-top:1px solid #e5dae0;text-align:left}
+.official-receipt h3{margin:0 0 8px;font-size:clamp(19px,2.4vw,24px);letter-spacing:-.025em}
+.official-receipt-intro{max-width:750px;margin:0 0 21px;color:#626778;font-size:13px;line-height:1.7}
+.official-receipt-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.official-receipt-group{min-width:0;padding:20px;border:1px solid #e9e0e5;border-radius:16px;background:#f9f7f9}
+.official-receipt-group--route{grid-column:1/-1}
+.official-receipt-group h4{margin:0 0 16px;font-size:15px;font-weight:850;color:#aa1834}
+.official-receipt-group dl{margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px}
+.official-receipt-row{min-width:0;text-align:left}
+.official-receipt-row dt{margin:0 0 5px;font-size:11px;font-weight:800;color:#666b78}
+.official-receipt-row dd{margin:0;font-size:13px;line-height:1.55;font-weight:650;overflow-wrap:anywhere;white-space:pre-line}
+.official-receipt-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin-top:25px}
+.official-receipt-actions .official-link{margin-top:0;text-decoration:none}
+.official-link--subtle{color:#a71130!important;background:transparent!important;border:1px solid #a71130}
+:global(html.theme-dark) .official-page .official-receipt{border-top-color:#4d4554}
+:global(html.theme-dark) .official-page .official-receipt-intro,
+:global(html.theme-dark) .official-page .official-receipt-row dt{color:#c7c9d4}
+:global(html.theme-dark) .official-page .official-receipt-group{background:#161b2b;border-color:#484659}
+:global(html.theme-dark) .official-page .official-receipt-group h4{color:#ff8296}
+:global(html.theme-dark) .official-page .official-receipt-row dd{color:#fff}
+:global(html.theme-dark) .official-page .official-link--subtle{color:#fff!important;border-color:#ff8296}
+@media(max-width:670px){
+  .official-receipt-grid,.official-receipt-group dl{grid-template-columns:1fr}
+  .official-receipt-group--route{grid-column:auto}
+  .official-receipt-group{padding:17px}
+  .official-receipt-actions .official-link{flex:1 1 160px;text-align:center}
+}
 </style>
 
 <style>
