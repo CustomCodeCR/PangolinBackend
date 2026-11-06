@@ -7,7 +7,6 @@ import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
  */
 const props = defineProps<{ sourceCanvas: HTMLCanvasElement | null }>()
 const stage = ref<'ready' | 'incoming' | 'impact' | 'broken'>('ready')
-const fragments = ref<HTMLCanvasElement[]>([])
 const leftFragment = ref<HTMLCanvasElement | null>(null)
 const rightFragment = ref<HTMLCanvasElement | null>(null)
 const bounds = ref({ left: 0, top: 0, width: 0, height: 0 })
