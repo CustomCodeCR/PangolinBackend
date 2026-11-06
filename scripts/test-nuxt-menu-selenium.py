@@ -180,7 +180,7 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896
             # and the picture must never paint in front of the open menu.
             if width <= 1080:
                 driver.get(BASE + "/nosotros")
-                wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".about-image-card")))
+                wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".cf-about-story__primary")))
                 driver.execute_script("document.documentElement.style.scrollBehavior = 'auto'; window.scrollTo(0, 0)")
                 before_scroll = driver.execute_script("return window.scrollY")
                 before = driver.execute_script("""
@@ -189,9 +189,9 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896
                     return {top:r.top, left:r.left};
                   };
                   return {
-                    title: rect('.about-hero__copy h1'),
-                    years: rect('.about-hero__copy .big-years'),
-                    image: rect('.about-image-card')
+                    title: rect('.cf-about-hero h1'),
+                    years: rect('.cf-about-hero__years'),
+                    image: rect('.cf-about-story__primary')
                   };
                 """)
                 wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
@@ -237,11 +237,11 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896
                     viewportHeight:innerHeight, rootInert:!!root?.inert,
                     backdropVisible:!!backdrop && getComputedStyle(backdrop).display !== 'none',
                     backdropCoversPage:backdrop === backdropHit,
-                    title:rect('.about-hero__copy h1'),
-                    years:rect('.about-hero__copy .big-years'),
-                    image:rect('.about-image-card'),
-                    titleCoverage:coverage('.about-hero__copy h1'),
-                    imageCoverage:coverage('.about-image-card')
+                    title:rect('.cf-about-hero h1'),
+                    years:rect('.cf-about-hero__years'),
+                    image:rect('.cf-about-story__primary'),
+                    titleCoverage:coverage('.cf-about-hero h1'),
+                    imageCoverage:coverage('.cf-about-story__primary')
                   };
                 """)
                 assert overlay.get("position") == "fixed", f"Compact menu is not fixed: {overlay}"
