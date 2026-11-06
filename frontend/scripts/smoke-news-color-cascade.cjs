@@ -15,15 +15,14 @@ assert.ok(match, 'Missing NewsRichTextEditor scoped styles in built CSS')
 const scope = ' data-v-' + match[1]
 const green = 'rgb(33, 170, 85)'
 const darkText = 'rgb(255, 255, 255)'
-const ids = ['editor', 'editorUnderlined', 'preview', 'previewUnderlined', 'published', 'publishedUnderlined']
+const ids = ['editor', 'editorUnderlined', 'preview', 'previewUnderlined', 'published', 'publishedUnderlined', 'outsideText']
 const escapedCss = css.replace(/<\/style/gi, '<\\/style')
 function html(dark) {
-  const article = '<p><span style="color:#21aa55">Test <u>subrayado</u></span></p>'
   const sample = name => '<div class="news-rich-editor__content"' + scope + '><p><span id="' + name + '" style="color:#21aa55">Verde <u id="' + name + 'Underlined">subrayado</u></span></p><p id="' + name + 'Default">Texto normal</p></div>'
   const payload = [
     '<!DOCTYPE html><html' + (dark ? ' class="theme-dark"' : '') + '><head><meta charset="utf-8">',
     '<style>' + escapedCss + '</style></head><body>',
-    '<div class="app-site administration-page"><div class="content-manager is-embedded"><div class="manager-form">' + sample('editor') + '<div class="news-rich-editor__preview">' + sample('preview') + '</div></div></div></div>',
+    '<div class="app-site administration-page"><p id="outsideText">Navigation text</p><div class="content-manager is-embedded"><div class="manager-form">' + sample('editor') + '<div class="news-rich-editor__preview">' + sample('preview') + '</div></div></div></div>',
     '<div class="app-site news-page"><main class="news-article-page"><section class="news-article-page__body"><div class="news-article-page__formatted"><p><span id="published" style="color:#21aa55">Verde <u id="publishedUnderlined">subrayado</u></span></p></div></section></main></div>',
     '<output id="color-probe"></output>',
     '<script>document.querySelector("#color-probe").textContent = JSON.stringify(' + JSON.stringify(ids) + '.map(id => { const element = document.getElementById(id); const style = getComputedStyle(element); return { id, inline:element.style.color, color:style.color, fill:style.webkitTextFillColor }; }));</script>',
@@ -46,12 +45,12 @@ try {
     const results = JSON.parse(matchResult[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&'))
     console.log((dark ? 'DARK' : 'LIGHT') + ' computed colors:', JSON.stringify(results))
     for (const row of results) {
+      if (row.id === 'outsideText') {
+        if (dark) assert.equal(row.color, darkText, 'Default UI text outside article must remain white in dark theme')
+        continue
+      }
       assert.equal(row.color, green, (dark ? 'Dark' : 'Light') + ' ' + row.id + ' changed requested text color')
       assert.equal(row.fill, green, (dark ? 'Dark' : 'Light') + ' ' + row.id + ' changed visible text fill')
-    }
-    if (dark) {
-      const defaultColor = darkText
-      assert.equal(defaultColor, darkText)
     }
   }
   console.log('PASS: editor, preview and published article preserve custom colors in both themes, including nested underline')
