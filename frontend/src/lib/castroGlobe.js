@@ -241,6 +241,37 @@ export class CastroGlobe {
     }
     if (satelliteReady) {
       ctx.drawImage(this.satelliteSurface.canvas, 0, 0, w, h)
+
+      // Light/shadow is confined to the physical sphere. This is deliberately
+      // opt-in to Tracking and does not tint the Home/corporate globe, routes,
+      // labels or interactive pins.
+      ctx.save()
+      ctx.beginPath()
+      ctx.arc(cx, cy, r, 0, Math.PI * 2)
+      ctx.clip()
+
+      // Oblique sunlight: broad highlight on the upper-left hemisphere and
+      // soft falloff on the lower-right hemisphere, like the reference globe.
+      const terminator = ctx.createLinearGradient(
+        cx - r * .85, cy - r * .55, cx + r * .9, cy + r * .72
+      )
+      terminator.addColorStop(0, 'rgba(255,255,255,.09)')
+      terminator.addColorStop(.29, 'rgba(255,255,255,.025)')
+      terminator.addColorStop(.53, 'rgba(9,22,43,0)')
+      terminator.addColorStop(.80, 'rgba(5,17,36,.12)')
+      terminator.addColorStop(1, 'rgba(4,13,31,.29)')
+      ctx.fillStyle = terminator
+      ctx.fillRect(cx - r, cy - r, r * 2, r * 2)
+
+      // Atmospheric falloff around the limb supplies a strong sense of volume
+      // without washing out satellite land colors or turning oceans grey.
+      const atmosphere = ctx.createRadialGradient(cx, cy, r * .60, cx, cy, r)
+      atmosphere.addColorStop(0, 'rgba(0,0,0,0)')
+      atmosphere.addColorStop(.72, 'rgba(0,0,0,0)')
+      atmosphere.addColorStop(1, 'rgba(6,28,52,.24)')
+      ctx.fillStyle = atmosphere
+      ctx.fillRect(cx - r, cy - r, r * 2, r * 2)
+      ctx.restore()
     } else if (this.options.satelliteSurface === true) {
       // Do not flash the previous red vector world before the photograph loads.
       ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
