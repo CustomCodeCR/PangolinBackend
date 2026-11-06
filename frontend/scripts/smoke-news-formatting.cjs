@@ -57,10 +57,11 @@ const client = String.raw`
     return node
   }
   const selectMenu = async (name, label) => {
-    const trigger = document.querySelector('.news-rich-editor [role="combobox"][aria-label="' + name + '"]')
+    const section = Array.from(document.querySelectorAll('.news-rich-editor__option')).find(element => element.querySelector('span')?.textContent.trim() === name)
+    const trigger = section?.querySelector('[role="combobox"]')
     if (!trigger) throw Error('Missing dropdown '+name+'; DOM '+document.querySelector('.news-rich-editor')?.outerHTML.slice(0,1800))
     await click(trigger)
-    const menu = await until('.cf-dropdown__menu[aria-label="' + name + '"]')
+    const menu = await until('#'+trigger.getAttribute('aria-controls'))
     const option = Array.from(menu.querySelectorAll('[role="option"]')).find(item => item.textContent.trim() === label)
     if (!option) throw Error('Option missing: ' + name + ': ' + label)
     await click(option)
