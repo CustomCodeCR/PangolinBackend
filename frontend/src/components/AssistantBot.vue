@@ -318,14 +318,45 @@ function finishClose() { isClosing.value = false }
 }
 .site-assistant__menu{border:1px solid var(--gio-line,#666);border-radius:9px;background:var(--gio-action,transparent);color:var(--gio-ink,#fff);padding:7px 10px;font-size:11px;cursor:pointer}
 .site-assistant__menu:hover{border-color:#b20c2a}
-.site-assistant__panel--workflow{height:min(68vh,520px)}
-.site-assistant__panel--medium{width:min(520px,calc(100vw - 28px));height:min(76vh,650px);max-height:min(76vh,650px)}
-.site-assistant__panel--wide{width:min(760px,calc(100vw - 28px));height:min(86vh,800px);max-height:min(86vh,800px)}
+/* GIO is anchored above the mascot: subtract BOTH offsets and a top
+   breathing space from the visible viewport before sizing its dialog. */
+.site-assistant{
+  --gio-side-margin:14px;
+  --gio-top-margin:max(12px,env(safe-area-inset-top,0px));
+  --gio-panel-room:calc(100dvh - 25px - 96px - var(--gio-top-margin));
+}
+.site-assistant__panel{
+  box-sizing:border-box;
+  max-width:calc(100vw - var(--gio-side-margin) - var(--gio-side-margin));
+  max-height:min(68dvh,520px,var(--gio-panel-room));
+}
+.site-assistant__panel--workflow{height:min(68dvh,520px,var(--gio-panel-room));max-height:var(--gio-panel-room)}
+.site-assistant__panel--medium{width:min(520px,calc(100vw - 28px));height:min(76dvh,650px,var(--gio-panel-room));max-height:var(--gio-panel-room)}
+.site-assistant__panel--wide{width:min(760px,calc(100vw - 28px));height:min(86dvh,800px,var(--gio-panel-room));max-height:var(--gio-panel-room)}
+/* If a screen is short, allow suggestions and chat history to scroll inside GIO
+   while keeping the header, close button and message input available. */
+.site-assistant__header,.site-assistant__form{flex-shrink:0}
+.site-assistant__messages,.site-assistant__quick{min-height:0}
+.site-assistant__quick{overflow-y:auto}
 .site-assistant__resize{display:flex;align-items:center;gap:5px;flex:0 0 auto}
 .site-assistant__resize button{display:grid;place-items:center;width:32px;height:32px;border:1px solid var(--gio-line,#666);border-radius:9px;background:transparent;color:var(--gio-ink,#fff);cursor:pointer}
 .site-assistant__resize button:hover,.site-assistant__resize button:focus-visible{border-color:#c51e42;outline-offset:2px}
 .site-assistant__panel--medium :deep(.gio-ops__card dl){grid-template-columns:repeat(2,minmax(0,1fr))}
 .site-assistant__panel--wide :deep(.gio-ops__card dl){grid-template-columns:repeat(3,minmax(0,1fr))}
-@media(max-width:800px){.site-assistant__panel--workflow{height:100dvh;max-height:none}.site-assistant__resize{display:none}.site-assistant__panel--medium,.site-assistant__panel--wide{width:100%;height:100dvh;max-height:none}}
+@media(max-width:800px){
+  /* Previously 100dvh ignored the space occupied by the mascot below GIO. */
+  .site-assistant__panel--workflow,
+  .site-assistant__panel--medium,
+  .site-assistant__panel--wide{height:var(--gio-panel-room);max-height:var(--gio-panel-room)}
+  .site-assistant__resize{display:none}
+  .site-assistant__panel--medium,.site-assistant__panel--wide{width:100%}
+}
+@media(max-width:580px){
+  /* Mobile anchor: assistant 12px from bottom, panel 82px above it. */
+  .site-assistant{
+    --gio-side-margin:9px;
+    --gio-panel-room:calc(100dvh - 12px - 82px - var(--gio-top-margin));
+  }
+}
 
 </style>
