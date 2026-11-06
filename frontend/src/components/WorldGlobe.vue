@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import IconSymbol from './IconSymbol.vue'
 import TrackingTransportModel from './TrackingTransportModel.vue'
+import GlobeDestructionDemo from './GlobeDestructionDemo.vue'
 import type { TrackingDemoShipment, TrackingPoint } from '../types/tracking'
 import { computed, nextTick, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -12,6 +13,8 @@ type TrackingRouteShape = Pick<TrackingDemoShipment, 'origin' | 'destination'> &
     transport?: 'air' | 'sea' | 'land' | 'multimodal' | null
   }
 const props = defineProps<{ shipment?: TrackingRouteShape | null; initialZoom?: number; realisticColors?: boolean }>()
+// Isolated demo switch; normal tracking and the main site are unchanged.
+const destructionDemoEnabled = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('globeDestruction') === '1'
 const holder = ref<HTMLElement | null>(null)
 const canvas = ref<HTMLCanvasElement | null>(null)
 const routePoints = computed(() => {
@@ -560,6 +563,7 @@ onBeforeUnmount(() => {
   <div ref="holder" class="world-globe" :aria-label="$t('custom.tracking.globeAria')">
     <div class="world-globe__halo"></div>
     <canvas ref="canvas" class="world-globe__canvas" :aria-label="$t('custom.tracking.mapAria')"></canvas>
+    <GlobeDestructionDemo v-if="destructionDemoEnabled && canvas" :source-canvas="canvas" />
     <div v-if="props.shipment" class="world-globe__route-vehicles" aria-hidden="true">
       <svg class="world-globe__route-trail" :viewBox="'0 0 ' + trailSize.width + ' ' + trailSize.height" preserveAspectRatio="none">
         <path v-if="routeTrail" class="world-globe__route-trail-halo" :d="routeTrail" />
