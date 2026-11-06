@@ -66,12 +66,15 @@ def snapshot(driver, base, route):
           const page = document.querySelector('.service-landing-page');
           if (!page) return null;
           const image = page.querySelector('.service-landing-hero__media img');
+          const video = page.querySelector('.service-landing-story__media video source');
           return {
-            hasHero: !!page.querySelector('.service-landing-hero__grid'),
-            hasCards: !!page.querySelector('.service-landing-card-grid'),
-            cardCount: page.querySelectorAll('.service-landing-card').length,
+            hasHero: !!page.querySelector('.service-landing-hero__inner .service-landing-hero__media img') &&
+              !!page.querySelector('.service-landing-story__frame'),
+            hasCards: !!page.querySelector('.service-landing-feature-grid'),
+            cardCount: page.querySelectorAll('.service-landing-feature').length,
             faqCount: page.querySelectorAll('.service-landing-faq__item').length,
             image: image ? new URL(image.getAttribute('src'), location.href).pathname : null,
+            video: video ? new URL(video.getAttribute('src'), location.href).pathname : null,
             quoteHref: page.querySelector('.service-landing-hero__copy a[href*="/cotizaciones"]')?.getAttribute('href') || ''
           };
         })(),
@@ -127,7 +130,7 @@ try:
             service = new["unifiedService"]
             assert service and service["hasHero"] and service["hasCards"], f"Missing unified services layout: {route}"
             assert service["cardCount"] >= 2 and service["faqCount"] >= 2, f"Missing services content: {route}: {service}"
-            assert service["image"] and service["quoteHref"], f"Service image or quote link missing: {route}: {service}"
+            assert service["image"] and service["video"] and service["quoteHref"], f"Service image, video or quote link missing: {route}: {service}"
         print(f"PASS public parity {route}: H1, internal links, published CMS assets", flush=True)
 finally:
     driver.quit()
