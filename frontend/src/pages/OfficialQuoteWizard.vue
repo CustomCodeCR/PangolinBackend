@@ -32,7 +32,8 @@ const step = ref(1)
 const mode = ref<Mode | null>(null)
 const shipmentType = ref<Type | null>(null)
 const busy = ref(false)
-const sessionOk = ref(false)
+type GioReceipt = { at: number; id: string; status: string; mode: string; origin: string; destination: string }
+const gioReceipt = ref<GioReceipt | null>(null)
 const error = ref('')
 const createdId = ref('')
 const earliestReadyDate = ref(costaRicaToday())
@@ -273,10 +274,23 @@ async function loadLocations() {
 onMounted(async () => {
   syncEarliestReadyDate()
   earliestReadyTimer = window.setInterval(syncEarliestReadyDate, 60_000)
+  if (new URLSearchParams(window.location.search).get('gioReceipt') === '1') {
+    try {
+      const raw = sessionStorage.getItem('gcf-gio-quote-receipt-v1')
+      if (raw) {
+        const saved = JSON.parse(raw) as GioReceipt
+        if (typeof saved.at === 'number' && Date.now() >= saved.at &&
+            Date.now() - saved.at <= 30 * 60 * 1000 &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(saved.id) &&
+            ['Maritime','Air','Land'].includes(saved.mode)) {
+          gioReceipt.value = saved
+          createdId.value = saved.id
+        }
+      }
+    } catch { /* Invalid or blocked storage: leave the normal quote form available. */ }
+  }
   const user = await refreshSession()
-  if (!user || !['cliente','administrador'].includes(user.role)) return
-  sessionOk.value = true
-  form.contactEmail = user.correo
+  if (user && ['cliente','administrador'].includes(user.role)) form.contactEmail = user.correo
 })
 onUnmounted(() => {
   if (earliestReadyTimer !== undefined) window.clearInterval(earliestReadyTimer)
@@ -335,7 +349,7 @@ function payload() {
   }
 }
 async function submit() {
-  if (!sessionOk.value || busy.value) return
+  if (busy.value) return
   // Recheck on submit: a wizard can stay open across midnight in Costa Rica.
   if (!isCargoReadyDateOnOrAfterToday(form.cargoReadyDate)) {
     error.value = cargoReadyDateError()
@@ -373,6 +387,7 @@ async function submit() {
           <h2>{{ q('¡Solicitud recibida!', 'Request received!') }}</h2>
           <p>{{ q('Se guardó correctamente y está pendiente de revisión administrativa. Todavía no se ha enviado a Dhole.', 'Your request was saved and is awaiting administrative review. It has not been sent to Dhole.') }}</p>
           <p class="official-id">{{ q('Número de referencia:', 'Reference number:') }} {{ createdId }}</p>
+          <p v-if="gioReceipt">{{ gioReceipt.origin }} → {{ gioReceipt.destination }} · {{ gioReceipt.mode }}</p>
           <a class="official-link" href="/home">{{ q('Volver al inicio', 'Back to home') }}</a>
       </div>
       <template v-else>
@@ -578,7 +593,7 @@ async function submit() {
           <footer class="official-buttons">
             <button v-if="step>1" type="button" class="official-back" :disabled="busy" @click="back">{{ q('Atrás', 'Back') }}</button><span v-else></span>
             <button v-if="step<4" type="button" class="official-primary" @click="next">{{ q('Continuar', 'Continue') }}</button>
-            <button v-else type="button" class="official-primary" :disabled="busy || !sessionOk" @click="submit">{{ busy ? q('Enviando…', 'Sending…') : q('Enviar solicitud', 'Submit request') + ' →' }}</button>
+            <button v-else type="button" class="official-primary" :disabled="busy" @click="submit">{{ busy ? q('Enviando…', 'Sending…') : q('Enviar solicitud', 'Submit request') + ' →' }}</button>
           </footer>
         </section>
       </template>
