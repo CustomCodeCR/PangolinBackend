@@ -525,7 +525,10 @@ async function submitQuote() {
     sessionStorage.removeItem(STORAGE_KEY)
     sessionStorage.setItem('gcf-gio-quote-receipt-v1', JSON.stringify({
       at:Date.now(), id:quoteId.value, status:quoteStatus.value,
-      mode:values.mode, origin:values.origin, destination:values.destination
+      mode:values.mode, origin:values.origin, destination:values.destination,
+      // Snapshot only the fields confirmed and submitted. Nothing goes in the URL,
+      // and the public receipt never fetches other customers' requests by ID.
+      details:summary.value.map(({ key, value }) => ({ key, value }))
     }))
   } catch { /* storage disabled; GIO still shows the verified receipt */ }
   phase.value = 'result'
