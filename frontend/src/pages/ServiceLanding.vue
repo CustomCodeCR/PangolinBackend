@@ -271,6 +271,9 @@ onBeforeUnmount(() => {
                       <p>{{ details.body }}</p>
                       <p v-if="details.answer" class="service-landing-answer">{{ details.answer }}</p>
                     </div>
+                    <figure class="service-landing-detail-visual">
+                      <img :src="details.image" :alt="details.imageAlt" loading="lazy" decoding="async" />
+                    </figure>
                   </div>
                 </section>
 
