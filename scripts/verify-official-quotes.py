@@ -9,6 +9,8 @@ ROOT = Path(__file__).resolve().parents[1]
 api = (ROOT / "backend/Endpoints/OfficialQuoteEndpoints.cs").read_text(encoding="utf-8")
 model = (ROOT / "backend/Models/OfficialQuoteModels.cs").read_text(encoding="utf-8")
 wizard = (ROOT / "frontend/src/pages/OfficialQuoteWizard.vue").read_text(encoding="utf-8")
+gio = (ROOT / "frontend/src/components/GioOperations.vue").read_text(encoding="utf-8")
+date_helper = (ROOT / "frontend/src/lib/costaRicaDate.ts").read_text(encoding="utf-8")
 root = (ROOT / "frontend/src/Root.vue").read_text(encoding="utf-8")
 admin = (ROOT / "frontend/src/pages/ContentManager.vue").read_text(encoding="utf-8")
 schema = (ROOT / "backend/Database/OfficialQuotesSchema.sql").read_text(encoding="utf-8")
@@ -37,6 +39,23 @@ checks = {
         and "form.fiscalStorageDays" in wizard
     ),
     "LCL exige POD": 's.ShipmentType == "LCL" && s.PodLocationId is null' in api,
+    "cotizador exige fecha de hoy o posterior": (
+        'isCargoReadyDateOnOrAfterToday(form.cargoReadyDate)' in wizard
+        and ':min="earliestReadyDate"' in wizard
+    ),
+    "GIO comprueba fechas anteriores al día de hoy": (
+        "key === 'cargoReadyDate' && !isCargoReadyDateOnOrAfterToday(value)" in gio
+        and "const issue = validation(pending.key, pending.value)" in gio
+    ),
+    "día real de Costa Rica compartido": (
+        "timeZone: 'America/Costa_Rica'" in date_helper
+        and 'formatToParts(now)' in date_helper
+    ),
+    "servidor rechaza fechas pasadas": (
+        's.CargoReadyDate.Value < TodayInCostaRica()' in api
+        and 'TimeZoneInfo.FindSystemTimeZoneById("America/Costa_Rica")' in api
+        and 'Results.BadRequest(new { error = ex.Message })' in api
+    ),
     "ubicaciones por campo autorizadas": "official_quote_location_usage" in schema and "requiredUses" in api,
     "sin mapas para direcciones": "google.maps" not in wizard.lower() and "mapbox" not in wizard.lower(),
     "rollback V2 conservado": "VITE_OFFICIAL_QUOTES_ENABLED" in root and "QuoteApp" in root,
