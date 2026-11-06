@@ -40,14 +40,12 @@
 .service-landing-step--benefits .service-landing-feature h3{margin:0;font-size:15px}
 .service-landing-step--benefits .service-landing-feature p{max-width:none;margin:0;padding:0;color:#526078;font-size:14px;line-height:1.5}
 .service-landing-step--benefits .service-landing-feature--featured p{color:rgba(255,255,255,.92)}
-.service-landing-step--details .service-landing-detail-grid{grid-template-columns:1fr;gap:24px;margin:0}
+.service-landing-step--details .service-landing-detail-grid{grid-template-columns:minmax(0,1fr);gap:0;margin:0}
 .service-landing-step--details .service-landing-section-heading{max-width:none;margin:0}
-.service-landing-step--details .service-landing-section-heading h2{max-width:700px;margin:0 0 16px;color:#152b54;font-size:clamp(29px,3.2vw,40px);line-height:1.08}
-.service-landing-step--details .service-landing-section-heading>p:not(.section-tag){max-width:720px;margin:0;color:#526078;font-size:16px;line-height:1.6}
-.service-landing-step--details .service-landing-section-heading .service-landing-answer{margin:12px 0 0;color:#526078;font-size:14px;line-height:1.55}
-.service-landing-step--details .service-landing-visual{height:clamp(150px,22vh,220px);margin:0;border-radius:16px;clip-path:none;box-shadow:none}
-.service-landing-step--details .service-landing-visual::after{display:none}
-.service-landing-step--details .service-landing-visual figcaption{display:none}
+.service-landing-step--details .service-landing-section-heading--text-only{max-width:min(100%,1120px)}
+.service-landing-step--details .service-landing-section-heading h2{max-width:900px;margin:0 0 18px;color:#152b54;font-size:clamp(29px,3.2vw,40px);line-height:1.08}
+.service-landing-step--details .service-landing-section-heading>p:not(.section-tag){max-width:1080px;margin:0;color:#526078;font-size:clamp(17px,1.35vw,20px);line-height:1.7}
+.service-landing-step--details .service-landing-section-heading .service-landing-answer{max-width:1080px;margin:16px 0 0;color:#526078;font-size:clamp(16px,1.15vw,18px);line-height:1.7}
 .service-landing-step--quote{gap:24px}
 .service-landing-step--quote .service-landing-quote{grid-template-columns:1fr;gap:16px;margin:0;padding:0;border:0;border-radius:0;background:transparent;color:#15213a}
 .service-landing-step--quote .service-landing-quote::after{display:none}
@@ -94,7 +92,7 @@ html.theme-dark .service-landing-step--faq .service-landing-faq__item{border-col
   .service-landing-page.has-scroll-reveal .service-landing-step[data-step]{z-index:auto}
   .service-landing-step::before{top:10px;right:18px;font-size:clamp(82px,16vw,120px)}
   .service-landing-step--benefits .service-landing-feature-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .service-landing-step--details .service-landing-visual{height:clamp(180px,36vw,280px)}
+
 }
 @media(max-width:560px){
   .service-landing-step--benefits .service-landing-feature-grid{grid-template-columns:1fr}
@@ -207,6 +205,5 @@ html.theme-dark .service-landing-page.has-scroll-reveal .service-landing-story .
 
 /* Display the full detail image at its intrinsic ratio; the figure no longer imposes a crop. */
 .service-landing-story .service-landing-step--details{justify-content:flex-start}
-.service-landing-story .service-landing-step--details .service-landing-detail-grid{flex:0 0 auto;height:auto!important;min-height:0!important;align-content:start;grid-template-rows:auto auto}
-.service-landing-story .service-landing-step--details .service-landing-visual{position:relative!important;display:block!important;width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;aspect-ratio:auto!important;flex:none!important;overflow:hidden!important;border-radius:16px;background:transparent}
-.service-landing-story .service-landing-step--details .service-landing-visual img,.service-landing-story .service-landing-step--details .service-landing-visual__image{position:static!important;display:block!important;width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;max-width:100%!important;aspect-ratio:auto!important;object-fit:unset!important;object-position:center!important;border-radius:inherit}
+.service-landing-story .service-landing-step--details{justify-content:flex-start}
+.service-landing-story .service-landing-step--details .service-landing-detail-grid{flex:0 0 auto;height:auto!important;min-height:0!important;align-content:start;grid-template-rows:auto}

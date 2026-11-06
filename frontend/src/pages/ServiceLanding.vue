@@ -113,7 +113,12 @@ const details = computed<LandingText>(() => {
     imageAlt: text(page.imageAlt),
     video: serviceVideo(route),
     heading: lang.value === 'es' ? 'Una operación clara desde el primer paso.' : 'A clear operation from the first step.',
-    body: lang.value === 'es' ? 'Así te acompañamos en cada etapa del servicio.' : 'How we support each stage of the service.',
+    body: lang.value === 'es'
+      ? 'Antes de coordinar, se revisan las características de la carga, los puntos de salida y entrega, y la fecha requerida. El alcance, las condiciones y la disponibilidad se confirman para cada operación.'
+      : 'Before coordination, the cargo characteristics, pickup and delivery points, and required date are reviewed. Scope, terms and availability are confirmed for each operation.',
+    answer: lang.value === 'es'
+      ? 'Compartir una descripción clara de la carga y los datos de la ruta ayuda al equipo a orientar la revisión y definir los siguientes pasos.'
+      : 'A clear cargo description and route details help the team assess the request and outline the next steps.',
     points: page.sections.map(section => ({ title: text(section.title), body: text(section.body) })),
     faq: page.faqs.map(faq => ({ q: text(faq.question), a: text(faq.answer) }))
   }
@@ -260,16 +265,12 @@ onBeforeUnmount(() => {
 
                 <section class="service-landing-step service-landing-step--details" data-step="02" aria-labelledby="guide-heading">
                   <div class="service-landing-detail-grid">
-                    <div class="service-landing-section-heading">
+                    <div class="service-landing-section-heading service-landing-section-heading--text-only">
                       <p class="section-tag">{{ lang === 'es' ? 'EL SERVICIO' : 'THE SERVICE' }}</p>
                       <h2 id="guide-heading">{{ details.heading }}</h2>
                       <p>{{ details.body }}</p>
                       <p v-if="details.answer" class="service-landing-answer">{{ details.answer }}</p>
                     </div>
-                    <figure class="service-landing-visual">
-                      <img class="service-landing-visual__image" :src="details.image" :alt="details.imageAlt" loading="lazy" />
-                      <figcaption>{{ lang === 'es' ? 'Soluciones logísticas de Grupo Castro Fallas' : 'Logistics solutions by Grupo Castro Fallas' }}</figcaption>
-                    </figure>
                   </div>
                 </section>
 
