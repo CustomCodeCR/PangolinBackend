@@ -32,6 +32,22 @@ const quoteId = ref('')
 const quoteStatus = ref('')
 const quoteResultUrl = ref('/cotizaciones')
 const quoteResultAdmin = ref(false)
+const itineraryResultUrl = computed(() => {
+  const query = new URLSearchParams({ from: 'gio', pol: values.origin || '', pod: values.destination || '' })
+  if (values.transport) query.set('transporte', values.transport)
+  if (values.departure) query.set('etdDesde', values.departure)
+  return '/itinerario?' + query.toString()
+})
+// A short-lived same-tab handoff keeps shipment references out of URL logs.
+function saveTrackingHandoff() {
+  if (!/^(BCF|BL|HBL|CONTAINER|PO|IDTRA)$/.test(values.referenceType || '') ||
+      !/^[a-z0-9_-]{3,64}$/i.test(values.reference || '')) return
+  try {
+    sessionStorage.setItem('gcf-gio-tracking-handoff-v1', JSON.stringify({
+      at: Date.now(), type: values.referenceType, reference: values.reference
+    }))
+  } catch { /* private browsing: manual lookup remains available */ }
+}
 const itineraries = ref<Itinerary[]>([])
 const itineraryTotal = ref(0)
 const shipments = ref<Shipment[]>([])
@@ -502,7 +518,13 @@ async function submitQuote() {
   quoteId.value = String(data.id || '')
   quoteStatus.value = String(data.status || '')
   if (!quoteId.value) throw new Error(tr('No recibimos el identificador de la solicitud. Consultá con soporte antes de repetir el envío.','No request ID was returned. Contact support before submitting again.'))
-  try { sessionStorage.removeItem(STORAGE_KEY) } catch { /* storage disabled */ }
+  try {
+    sessionStorage.removeItem(STORAGE_KEY)
+    sessionStorage.setItem('gcf-gio-quote-receipt-v1', JSON.stringify({
+      at:Date.now(), id:quoteId.value, status:quoteStatus.value,
+      mode:values.mode, origin:values.origin, destination:values.destination
+    }))
+  } catch { /* storage disabled; GIO still shows the verified receipt */ }
   phase.value = 'result'
 }
 async function chooseLocation(loc: Location) {
@@ -537,15 +559,17 @@ async function perform() {
   busy.value = true
   error.value = ''
   try {
-    const user = await refreshSession()
-    if (!user) { saveDraft(); phase.value = 'auth'; return }
+    // Public actions do not require a user session.
     if (props.kind === 'quote') {
-      quoteResultAdmin.value = user.role === 'administrador'
-      quoteResultUrl.value = quoteResultAdmin.value ? '/administracion?tab=cotizaciones' : '/cotizaciones'
+      const user = await refreshSession()
+      quoteResultAdmin.value = user?.role === 'administrador'
+      quoteResultUrl.value = quoteResultAdmin.value ? '/administracion?tab=cotizaciones' : '/cotizaciones?gioReceipt=1'
       await submitQuote()
     }
     if (props.kind === 'itinerary') await searchItineraries()
     if (props.kind === 'tracking') {
+      const user = await refreshSession()
+      if (!user) { phase.value = 'auth'; return }
       // The existing Dynamics lookup has no verified client-to-shipment ownership check.
       // Never expose that unscoped lookup to a customer from the conversational interface.
       if (user.role !== 'administrador') { restrictedTracking.value = true; phase.value = 'result'; return }
@@ -630,13 +654,14 @@ async function perform() {
           <section v-for="item in itineraries" :key="item.id" class="gio-ops__card">
             <h3><Ship :size="17" />{{ item.pol }} → {{ item.pod }}</h3>
             <dl><div><dt>ETD</dt><dd>{{ item.etd }}</dd></div><div><dt>ETA</dt><dd>{{ item.eta }}</dd></div><div><dt>{{ tr('Modalidad','Mode') }}</dt><dd>{{ item.modality }}</dd></div><div><dt>{{ tr('Estado','Status') }}</dt><dd>{{ item.status }}</dd></div></dl>
-            <a class="gio-ops__link" href="/itinerario">{{ tr('Ver en itinerarios','View itineraries') }}</a>
+            <a class="gio-ops__link" :href="itineraryResultUrl">{{ tr('Ver en itinerarios','View itineraries') }}</a>
           </section>
+          <a v-if="!itineraries.length" class="gio-ops__secondary gio-ops__link" :href="itineraryResultUrl">{{ tr('Abrir búsqueda en itinerarios','Open itinerary search') }}</a>
           <p v-if="itineraryTotal > itineraries.length" class="gio-ops__note">{{ tr('Mostrando los primeros cinco resultados.','Showing the first five results.') }}</p>
         </template>
         <template v-else-if="restrictedTracking">
           <div class="gio-ops__bubble">{{ tr('La consulta conversacional de embarques para clientes necesita una verificación adicional de titularidad. No mostraré información privada sin ella.','Customer shipment chat lookup requires additional ownership verification. I cannot show private information without it.') }}</div>
-          <a class="gio-ops__secondary gio-ops__link" href="/tracking">{{ tr('Abrir página de tracking','Open tracking page') }}</a>
+          <a class="gio-ops__secondary gio-ops__link" href="/tracking?from=gio" @click="saveTrackingHandoff">{{ tr('Abrir página de tracking','Open tracking page') }}</a>
         </template>
         <template v-else>
           <div class="gio-ops__bubble">{{ shipments.length ? tr('Encontré esta información en Dynamics:','I found this information in Dynamics:') : tr('No se encontraron embarques para esa referencia.','No shipments matched that reference.') }}</div>
@@ -645,7 +670,7 @@ async function perform() {
             <dl><div v-for="field in ([['status',tr('Estado','Status')],['origin',tr('Origen','Origin')],['destination',tr('Destino','Destination')],['etd','ETD'],['eta','ETA'],['vessel',tr('Buque','Vessel')],['customerStatus',tr('Actualización','Update')]] as const)" :key="field[0]" v-show="item[field[0]]"><dt>{{ field[1] }}</dt><dd>{{ item[field[0]] }}</dd></div></dl>
           </section>
           <p v-if="shipmentTruncated" class="gio-ops__note">{{ tr('Hay más resultados. Consulta la página de tracking.','There are more results. Check the tracking page.') }}</p>
-          <a class="gio-ops__secondary gio-ops__link" href="/tracking">{{ tr('Abrir tracking completo','Open full tracking') }}</a>
+          <a class="gio-ops__secondary gio-ops__link" href="/tracking?from=gio" @click="saveTrackingHandoff">{{ tr('Abrir tracking completo','Open full tracking') }}</a>
         </template>
         <button class="gio-ops__secondary" type="button" @click="edit"><Search :size="15" />{{ tr('Nueva consulta','New search') }}</button>
       </template>
@@ -654,7 +679,7 @@ async function perform() {
     <section v-if="phase === 'collect' && current && isCatalogueLocation(current.key)" class="gio-ops__location-dock" aria-label="Sugerencias de ubicación">
       <div class="gio-ops__location-heading"><MapPin :size="14" /><strong>{{ tr('Ubicaciones disponibles','Available locations') }}</strong></div>
       <p v-if="locationLoading" class="gio-ops__note" role="status">{{ tr('Buscando ubicaciones…','Loading locations…') }}</p>
-      <p v-else-if="locationLoadError" class="gio-ops__error" role="alert">{{ locationLoadError }} <a v-if="kind === 'itinerary'" :href="loginLink()">{{ tr('Iniciar sesión','Sign in') }}</a></p>
+      <p v-else-if="locationLoadError" class="gio-ops__error" role="alert">{{ locationLoadError }}</p>
       <p v-else-if="!locationChoices.length" class="gio-ops__note">{{ tr('No hay ubicaciones habilitadas para esta modalidad.','No enabled locations for this shipment type.') }}</p>
       <div v-else-if="filteredLocations.length" class="gio-ops__choices gio-ops__location-list" role="listbox" :aria-label="tr('Ubicaciones disponibles','Available locations')">
         <button v-for="loc in filteredLocations" :key="loc.id" type="button" role="option" :aria-selected="false" @click="accept(loc.displayName, loc.id)"><MapPin :size="14" /><span>{{ loc.displayName }}</span><ChevronRight :size="14" /></button>
