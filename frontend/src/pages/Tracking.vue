@@ -430,8 +430,8 @@ onMounted(async () => {
     sessionStorage.removeItem('gcf-gio-tracking-handoff-v1')
     if (!raw) return
     const saved = JSON.parse(raw) as { at?: number; type?: string; reference?: string }
-    if (!Number.isFinite(saved.at) || Date.now() - saved.at! < 0 ||
-        Date.now() - saved.at! > 5 * 60 * 1000 ||
+    if (typeof saved.at !== 'number' || !Number.isFinite(saved.at) ||
+        Date.now() - saved.at < 0 || Date.now() - saved.at > 5 * 60 * 1000 ||
         !/^(BCF|BL|HBL|IDTRA|CONTAINER|PO)$/.test(saved.type || '') ||
         !/^[a-z0-9_-]{3,64}$/i.test(saved.reference || '')) return
     kind.value = saved.type === 'BCF' || saved.type === 'HBL' ? 'BL' : saved.type!
