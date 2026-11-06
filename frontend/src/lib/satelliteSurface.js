@@ -22,6 +22,10 @@ const RAD = PI / 180
 // Higher definition on capable devices; older Macs render a smaller surface.
 const SURFACE_PIXELS_BY_QUALITY = [400, 500, 620]
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
+const smoothstep = (min, max, value) => {
+  const t = clamp((value - min) / (max - min), 0, 1)
+  return t * t * (3 - 2 * t)
+}
 
 export function createSatelliteSurface(onReady) {
   if (typeof document === 'undefined' || typeof Image === 'undefined') return null
@@ -235,21 +239,48 @@ export function createSatelliteSurface(onReady) {
               + pixels[i01 + 2] * w01 + pixels[i11 + 2] * w11
           }
 
-          // Ocean pixels are identified by their blue dominance in the satellite
-          // texture. A smooth mask keeps beaches, reefs and coastlines natural.
-          // Non-water pixels retain their original photographic land colors.
+          // The original satellite daymap already has natural variation.
+          // Use its blue dominance to isolate the sea, retaining the shoreline
+          // and preventing any ocean shading from tinting continents.
           const waterBias = blue - Math.max(red, green)
-          const waterCandidate = clamp((waterBias - 12) / 40, 0, 1)
-          const water = waterCandidate * waterCandidate * (3 - 2 * waterCandidate)
+          const water = smoothstep(10, 45, waterBias)
+          let oceanGlint = 0
+          let oceanFresnel = 0
           if (water > 0) {
-            // Retain the imagery's sea-floor/coastal color variations instead of
-            // flattening every sea pixel to the same bright artificial blue.
-            const sourceLuminance = (red + green + blue) / 3
-            const shallow = clamp((sourceLuminance - 74) / 90, 0, 1)
-            const tintAmount = water * .26
-            red += (10 + shallow * 18 - red) * tintAmount
-            green += (77 + shallow * 53 - green) * tintAmount
-            blue += (154 + shallow * 42 - blue) * tintAmount
+            const sourceLuminance = (red * .2126 + green * .7152 + blue * .0722)
+            const shallow = smoothstep(74, 151, sourceLuminance)
+            // Broad, planet-scale ocean currents add slight color variation.
+            // These are locked to the geography (not the screen), so they
+            // naturally rotate with Earth without creating fake animated waves.
+            const currentField = Math.sin(mapLon * 2.4 + mapLat * 1.1)
+              * Math.cos(mapLat * 2.8)
+            const deepR = 7 + currentField * 2
+            const deepG = 62 + currentField * 7
+            const deepB = 129 + currentField * 11
+            const targetR = deepR + (30 - deepR) * shallow
+            const targetG = deepG + (118 - deepG) * shallow
+            const targetB = deepB + (178 - deepB) * shallow
+            // Modest color grading preserves the photographic bathymetry and
+            // turquoise shelf water rather than repainting a flat blue sphere.
+            const tint = water * .28
+            red += (targetR - red) * tint
+            green += (targetG - green) * tint
+            blue += (targetB - blue) * tint
+
+            // Gentle deep-water attenuation gives offshore water more depth.
+            const deepening = 1 - (1 - shallow) * .07 * water
+            red *= deepening
+            green *= deepening
+            blue *= deepening
+
+            // Narrow, physically oriented sunlight reflection. Distinct broad
+            // and tight lobes emulate rough sea surfaces without plastic gloss.
+            const facingSun = Math.max(0,
+              -.30 * screenEast + .42 * screenNorth + .86 * depth)
+            const broadGlint = Math.pow(facingSun, 34)
+            const fineGlint = Math.pow(facingSun, 78)
+            oceanGlint = water * (broadGlint * 11 + fineGlint * 9)
+            oceanFresnel = water * Math.pow(1 - depth, 2.6) * 5
           }
 
           // Ocean relief is negligible at orbital scale. Land alone gets
@@ -267,18 +298,10 @@ export function createSatelliteSurface(onReady) {
           const brightness = clamp(sphereGrid.light[gridIndex] + terrainShade, .36, 1.1)
           const rim = sphereGrid.border[gridIndex]
 
-          // View-space sphere normal = (screenEast, screenNorth, depth).
-          // A broad, restrained highlight simulates reflective ocean water;
-          // the specular term follows the rotating globe's actual curvature.
-          const oceanSpecular = water > 0
-            ? water * Math.pow(Math.max(0,
-              -0.32 * screenEast + 0.48 * screenNorth + 0.81 * depth), 46)
-            : 0
-          const oceanFresnel = water * (1 - depth) * (1 - depth) * (1 - depth)
           const dest = rowOffset + x * 4
-          data[dest] = clamp(red * brightness + rim * 4 + oceanSpecular * 14 + oceanFresnel * 3, 0, 255)
-          data[dest + 1] = clamp(green * brightness + rim * 12 + oceanSpecular * 20 + oceanFresnel * 7, 0, 255)
-          data[dest + 2] = clamp(blue * brightness + rim * 20 + oceanSpecular * 28 + oceanFresnel * 11, 0, 255)
+          data[dest] = clamp(red * brightness + rim * 4 + oceanGlint * .55 + oceanFresnel * .12, 0, 255)
+          data[dest + 1] = clamp(green * brightness + rim * 12 + oceanGlint * .79 + oceanFresnel * .30, 0, 255)
+          data[dest + 2] = clamp(blue * brightness + rim * 20 + oceanGlint + oceanFresnel * .56, 0, 255)
           data[dest + 3] = 255
         }
       }
