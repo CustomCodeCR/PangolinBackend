@@ -28,8 +28,8 @@ assert.match(home, /if \(commentsRequested\) void loadPublicComments\(\)/, 'Sign
 assert.match(home, /fetch\('\/api\/content\/news'/, 'Las noticias deben seguir cargándose al iniciar Home')
 assert.match(instagram, /reelObserver = new IntersectionObserver\(/, 'Instagram debe esperar a estar cerca de la pantalla')
 assert.match(instagram, /if \(!reelRequested\) return/, 'Un cambio del CMS no debe anticipar la descarga del Reel')
-assert.match(home, /<WorldGlobe satellite-surface \\/>/, 'La portada utiliza la superficie terrestre fotográfica')
-assert.match(globe, /satelliteSurface: props\\.satelliteSurface === true && !props\\.shipment/,
+assert.ok(home.includes('<WorldGlobe satellite-surface />'), 'La portada utiliza la superficie terrestre fotográfica')
+assert.ok(globe.includes('satelliteSurface: props.satelliteSurface === true && !props.shipment'),
   'La fotografía solo se activa por solicitud explícita y nunca en embarques')
 assert.doesNotMatch(read('src/pages/Tracking.vue'), /satellite-surface|satelliteSurface/,
   'No modificar la apariencia de Tracking')
