@@ -248,7 +248,7 @@ async function main() {
     await click('.gio-ops__primary')
     await waitFor(()=>has('2026-12-05'))
     assert.equal(itineraryReads,1,'Public itinerary API should be called exactly once')
-    const itineraryLink = await evaluate('document.querySelector(".gio-ops__card a[href^=\"/itinerario?\"]")?.getAttribute("href") || ""')
+    const itineraryLink = await evaluate(`document.querySelector('.gio-ops__card a[href^="/itinerario?"]')?.getAttribute('href') || ''`)
     const itineraryParams = new URL(itineraryLink || '/itinerario', 'http://example.invalid').searchParams
     assert.equal(itineraryParams.get('pol'),'Shanghái','GIO must hand off the searched origin')
     assert.equal(itineraryParams.get('pod'),'Puerto Caldera','GIO must hand off the searched destination')
