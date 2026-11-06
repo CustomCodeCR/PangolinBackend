@@ -19,7 +19,8 @@ const PI = Math.PI
 const HALF_PI = PI / 2
 const TWO_PI = PI * 2
 const RAD = PI / 180
-const MAX_SURFACE_PIXELS = 500
+// Higher definition on capable devices; older Macs render a smaller surface.
+const SURFACE_PIXELS_BY_QUALITY = [400, 500, 620]
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
 
 export function createSatelliteSurface(onReady) {
@@ -36,6 +37,7 @@ export function createSatelliteSurface(onReady) {
   let textureWidth = 0
   let textureHeight = 0
   let output = null
+  let sphereGrid = null
 
   const image = new Image()
   image.decoding = 'async'
@@ -63,18 +65,21 @@ export function createSatelliteSurface(onReady) {
 
   return {
     canvas,
-    render(width, height, pixelRatio, radius, longitude, latitude) {
+    render(width, height, pixelRatio, radius, longitude, latitude, quality = 2) {
       if (!pixels || disposed || width <= 0 || height <= 0 || radius <= 0) return false
 
       // Drawing a capped off-screen surface prevents high-DPI devices from
       // spending too long in CPU-based texture sampling during auto-rotation.
-      const scale = Math.min(pixelRatio, 1, MAX_SURFACE_PIXELS / Math.max(width, height))
+      const qualityLevel = clamp(Math.floor(quality), 0, 2)
+      const maxPixels = SURFACE_PIXELS_BY_QUALITY[qualityLevel]
+      const scale = Math.min(pixelRatio, 1, maxPixels / Math.max(width, height))
       const outWidth = Math.max(1, Math.round(width * scale))
       const outHeight = Math.max(1, Math.round(height * scale))
       if (canvas.width !== outWidth || canvas.height !== outHeight || !output) {
         canvas.width = outWidth
         canvas.height = outHeight
         output = ctx.createImageData(outWidth, outHeight)
+        sphereGrid = null
       }
 
       const data = output.data
@@ -85,6 +90,45 @@ export function createSatelliteSurface(onReady) {
       const invR = 1 / r
       const lon = longitude * RAD
       const lat = latitude * RAD
+      // Precompute projection shape and illumination once per size/zoom.
+      // Dragging the globe can then reuse the same pixels rather than running
+      // sqrt, shading and edge calculations across the entire disc each frame.
+      if (!sphereGrid || Math.abs(sphereGrid.radius - r) > .01) {
+        const area = outWidth * outHeight
+        const east = new Float32Array(area)
+        const north = new Float32Array(area)
+        const depth = new Float32Array(area)
+        const light = new Float32Array(area)
+        const border = new Float32Array(area)
+        const rowStart = new Int32Array(outHeight)
+        const rowEnd = new Int32Array(outHeight)
+        for (let y = 0; y < outHeight; y++) {
+          const n = (cy - y - .5) * invR
+          const n2 = n * n
+          const left = Math.max(0, Math.floor(cx - r))
+          const right = Math.min(outWidth, Math.ceil(cx + r))
+          rowStart[y] = right
+          rowEnd[y] = right
+          for (let x = left; x < right; x++) {
+            const e = (x + .5 - cx) * invR
+            const d2 = e * e + n2
+            if (d2 > 1) continue
+            if (rowStart[y] === right) rowStart[y] = x
+            rowEnd[y] = x + 1
+            const z = Math.sqrt(1 - d2)
+            const index = y * outWidth + x
+            east[index] = e
+            north[index] = n
+            depth[index] = z
+            const diffuse = .92 + .08 * Math.max(0, (-.3 * e + .65 * n + z) / 1.23)
+            const limb = .81 + .19 * Math.pow(z, .46)
+            light[index] = diffuse * limb
+            border[index] = Math.pow(1 - z, 7)
+          }
+        }
+        sphereGrid = { radius: r, east, north, depth, light, border, rowStart, rowEnd }
+      }
+
       const sinLon = Math.sin(lon)
       const cosLon = Math.cos(lon)
       const sinLat = Math.sin(lat)
@@ -101,19 +145,14 @@ export function createSatelliteSurface(onReady) {
       const northY = -sinLat * sinLon
       const northZ = cosLat
 
-      const xMin = Math.max(0, Math.floor(cx - r))
-      const xMax = Math.min(outWidth, Math.ceil(cx + r))
-      const yMin = Math.max(0, Math.floor(cy - r))
-      const yMax = Math.min(outHeight, Math.ceil(cy + r))
-      for (let y = yMin; y < yMax; y++) {
-        const screenNorth = (cy - y - 0.5) * invR
-        const northSquared = screenNorth * screenNorth
+      for (let y = 0; y < outHeight; y++) {
         const rowOffset = y * outWidth * 4
-        for (let x = xMin; x < xMax; x++) {
-          const screenEast = (x + 0.5 - cx) * invR
-          const d2 = screenEast * screenEast + northSquared
-          if (d2 > 1) continue
-          const depth = Math.sqrt(1 - d2)
+        for (let x = sphereGrid.rowStart[y]; x < sphereGrid.rowEnd[y]; x++) {
+          const gridIndex = y * outWidth + x
+          const screenEast = sphereGrid.east[gridIndex]
+          const screenNorth = sphereGrid.north[gridIndex]
+          const depth = sphereGrid.depth[gridIndex]
+          if (screenEast * screenEast + screenNorth * screenNorth > 1) continue
 
           const earthX = eastX * screenEast + northX * screenNorth + fwdX * depth
           const earthY = eastY * screenEast + northY * screenNorth + fwdY * depth
@@ -124,12 +163,37 @@ export function createSatelliteSurface(onReady) {
           // Equirectangular image: x goes west -> east; y goes north -> south.
           const u = clamp((mapLon / TWO_PI + 0.5), 0, 0.999999)
           const v = clamp((HALF_PI - mapLat) / PI, 0, 0.999999)
-          const tx = Math.floor(u * textureWidth)
-          const ty = Math.floor(v * textureHeight)
-          const input = (ty * textureWidth + tx) * 4
-          let red = pixels[input]
-          let green = pixels[input + 1]
-          let blue = pixels[input + 2]
+          const textureX = u * textureWidth - .5
+          const textureY = v * textureHeight - .5
+          const tx = Math.floor(textureX)
+          const ty = clamp(Math.floor(textureY), 0, textureHeight - 1)
+          const tx0 = (tx + textureWidth) % textureWidth
+          const tx1 = (tx0 + 1) % textureWidth
+          const ty1 = Math.min(textureHeight - 1, ty + 1)
+          const fx = textureX - tx
+          const fy = clamp(textureY - ty, 0, 1)
+          const input = (ty * textureWidth + tx0) * 4
+          let red, green, blue
+          if (qualityLevel === 0) {
+            red = pixels[input]
+            green = pixels[input + 1]
+            blue = pixels[input + 2]
+          } else {
+            // Bilinear satellite sampling prevents the blocky coastlines and
+            // crawling texels that made the original rotation look stiff.
+            const i10 = (ty * textureWidth + tx1) * 4
+            const i01 = (ty1 * textureWidth + tx0) * 4
+            const i11 = (ty1 * textureWidth + tx1) * 4
+            const w00 = (1 - fx) * (1 - fy)
+            const w10 = fx * (1 - fy)
+            const w01 = (1 - fx) * fy
+            const w11 = fx * fy
+            red = pixels[input] * w00 + pixels[i10] * w10 + pixels[i01] * w01 + pixels[i11] * w11
+            green = pixels[input + 1] * w00 + pixels[i10 + 1] * w10
+              + pixels[i01 + 1] * w01 + pixels[i11 + 1] * w11
+            blue = pixels[input + 2] * w00 + pixels[i10 + 2] * w10
+              + pixels[i01 + 2] * w01 + pixels[i11 + 2] * w11
+          }
 
           // Ocean pixels are identified by their blue dominance in the satellite
           // texture. A smooth mask keeps beaches, reefs and coastlines natural.
@@ -142,19 +206,16 @@ export function createSatelliteSurface(onReady) {
             // flattening every sea pixel to the same bright artificial blue.
             const sourceLuminance = (red + green + blue) / 3
             const shallow = clamp((sourceLuminance - 74) / 90, 0, 1)
-            const tintAmount = water * 0.42
-            red += (10 + shallow * 21 - red) * tintAmount
-            green += (75 + shallow * 58 - green) * tintAmount
-            blue += (142 + shallow * 54 - blue) * tintAmount
+            const tintAmount = water * .26
+            red += (10 + shallow * 18 - red) * tintAmount
+            green += (77 + shallow * 53 - green) * tintAmount
+            blue += (154 + shallow * 42 - blue) * tintAmount
           }
 
           // Daylight and curvature shade every surface naturally. Only the
           // ocean receives soft sunlight reflections and subtle blue Fresnel.
-          const diffuse = 0.88 + 0.12 * Math.max(0,
-            (-0.3 * screenEast + 0.65 * screenNorth + depth) / 1.23)
-          const limb = 0.74 + 0.26 * Math.pow(depth, 0.46)
-          const brightness = diffuse * limb
-          const rim = Math.pow(1 - depth, 7)
+          const brightness = sphereGrid.light[gridIndex]
+          const rim = sphereGrid.border[gridIndex]
 
           // View-space sphere normal = (screenEast, screenNorth, depth).
           // A broad, restrained highlight simulates reflective ocean water;
@@ -165,9 +226,9 @@ export function createSatelliteSurface(onReady) {
             : 0
           const oceanFresnel = water * (1 - depth) * (1 - depth) * (1 - depth)
           const dest = rowOffset + x * 4
-          data[dest] = clamp(red * brightness + rim * 8 + oceanSpecular * 24 + oceanFresnel * 4, 0, 255)
-          data[dest + 1] = clamp(green * brightness + rim * 25 + oceanSpecular * 32 + oceanFresnel * 8, 0, 255)
-          data[dest + 2] = clamp(blue * brightness + rim * 41 + oceanSpecular * 42 + oceanFresnel * 14, 0, 255)
+          data[dest] = clamp(red * brightness + rim * 4 + oceanSpecular * 14 + oceanFresnel * 3, 0, 255)
+          data[dest + 1] = clamp(green * brightness + rim * 12 + oceanSpecular * 20 + oceanFresnel * 7, 0, 255)
+          data[dest + 2] = clamp(blue * brightness + rim * 20 + oceanSpecular * 28 + oceanFresnel * 11, 0, 255)
           data[dest + 3] = 255
         }
       }
@@ -178,6 +239,7 @@ export function createSatelliteSurface(onReady) {
       disposed = true
       pixels = null
       output = null
+      sphereGrid = null
       image.onload = null
       image.onerror = null
       image.src = ''
