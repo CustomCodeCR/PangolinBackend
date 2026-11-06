@@ -170,6 +170,16 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
             AutoReplenishment = true
         }));
+    // Guest quote submissions must be throttled independently of login and reads.
+    options.AddPolicy("public-quote", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 12,
+            Window = TimeSpan.FromMinutes(10),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        }));
     options.AddPolicy("assistant", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
@@ -500,8 +510,7 @@ app.MapGet("/api/quotes/{id:guid}", async (
 }).RequireAuthorization("registered");
 
 
-// Autocomplete para el itinerario conversacional: los valores deben proceder
-// exclusivamente de los itinerarios existentes. Esta lectura requiere sesión.
+// Autocomplete público del catálogo de itinerarios publicado, sin acceso a edición.
 app.MapGet("/api/assistant/itinerary-locations", async (
     string routeRole, string? origin, AppDbContext db, HttpContext http, CancellationToken ct) =>
 {
@@ -515,10 +524,10 @@ app.MapGet("/api/assistant/itinerary-locations", async (
     var names = await locations.Where(value => value != null && value != "")
         .Distinct().OrderBy(value => value).Take(300).ToListAsync(ct);
     return Results.Ok(new { items = names.Select(name => new { id = name, displayName = name, code = (string?)null }) });
-}).RequireAuthorization("registered").RequireRateLimiting("auth");
+}).RequireRateLimiting("auth");
 
 app.MapGet("/api/itinerarios", async (
-    AppDbContext db, AuthService auth, HttpContext http,
+    AppDbContext db, HttpContext http,
     string? pol, string? pod, string? status, string? transporte,
     string? modalidad, DateOnly? closing, DateOnly? etd, DateOnly? eta,
     DateOnly? closingDesde, DateOnly? closingHasta,
@@ -526,9 +535,6 @@ app.MapGet("/api/itinerarios", async (
     DateOnly? etaDesde, DateOnly? etaHasta,
     int? page, int? pageSize, CancellationToken ct) =>
 {
-    if (await auth.GetIdentityAsync(http, ct) is null)
-        return Results.Unauthorized();
-
     var currentPage = page ?? 1;
     var currentPageSize = pageSize ?? 20;
     // Límites explícitos: evitan desbordamientos en Skip y consultas excesivas.
@@ -582,7 +588,7 @@ app.MapGet("/api/itinerarios", async (
         pageSize = currentPageSize,
         totalPages = (int)Math.Ceiling((double)total / currentPageSize)
     });
-}).RequireAuthorization("registered");
+}).RequireRateLimiting("auth");
 
 // CRUD administrativo aislado del frontend: política admin en cada ruta de escritura.
 app.MapItinerariosCrud();
