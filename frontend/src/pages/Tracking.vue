@@ -445,7 +445,7 @@ onBeforeUnmount(() => {
             <h1>{{ copy.title }} <span>{{ copy.accent }}</span></h1>
             <p class="tracking-lead">{{ copy.intro }}</p>
           </div>
-          <WorldGlobe :shipment="globeRoute" :initial-zoom="0.8" :realistic-colors="realisticGlobeColors" />
+          <WorldGlobe :shipment="globeRoute" :initial-zoom="0.8" :realistic-colors="realisticGlobeColors" satellite-surface />
         </section>
         <section class="tracking-search-section">
           <form class="tracking-search" @submit.prevent="searchShipment" novalidate>

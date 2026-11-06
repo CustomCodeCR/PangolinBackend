@@ -28,11 +28,13 @@ assert.match(home, /if \(commentsRequested\) void loadPublicComments\(\)/, 'Sign
 assert.match(home, /fetch\('\/api\/content\/news'/, 'Las noticias deben seguir cargándose al iniciar Home')
 assert.match(instagram, /reelObserver = new IntersectionObserver\(/, 'Instagram debe esperar a estar cerca de la pantalla')
 assert.match(instagram, /if \(!reelRequested\) return/, 'Un cambio del CMS no debe anticipar la descarga del Reel')
-assert.ok(home.includes('<WorldGlobe satellite-surface />'), 'La portada utiliza la superficie terrestre fotográfica')
-assert.ok(globe.includes('satelliteSurface: props.satelliteSurface === true && !props.shipment'),
-  'La fotografía solo se activa por solicitud explícita y nunca en embarques')
-assert.doesNotMatch(read('src/pages/Tracking.vue'), /satellite-surface|satelliteSurface/,
-  'No modificar la apariencia de Tracking')
+assert.ok(home.includes('<WorldGlobe />'), 'El globo de la portada conserva la apariencia original')
+assert.ok(!home.includes('satellite-surface'), 'El globo fotográfico no debe activarse en Home')
+const tracking = read('src/pages/Tracking.vue')
+assert.ok(tracking.includes('<WorldGlobe :shipment="globeRoute" :initial-zoom="0.8" :realistic-colors="realisticGlobeColors" satellite-surface />'),
+  'La Tierra fotográfica se muestra en Rastreo, incluso sin una búsqueda')
+assert.ok(globe.includes('satelliteSurface: props.satelliteSurface === true,'),
+  'La textura realista permanece activa después de consultar un embarque')
 assert.ok(fs.statSync(path.join(root, 'public/images/earth-satellite-daymap.jpg')).size > 100000,
   'La textura fotográfica debe estar empaquetada localmente')
 assert.match(home, /<HomeInstagramReel \/>/, 'Instagram sigue presente en Home')

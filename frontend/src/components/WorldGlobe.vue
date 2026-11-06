@@ -252,6 +252,8 @@ const demoMarkers = () => {
 }
 const demoArcs = () => props.shipment
   ? [] // El recorrido de tracking se representa solamente con el vehículo móvil.
+  : props.satelliteSurface
+    ? [] // En Rastreo, la Tierra realista no debe quedar cubierta por arcos rojos decorativos.
   : offices.filter(item => item.countryEs !== 'Costa Rica').map(item => ({
     from: { lat: 9.9167, lon: -84.0333 },
     to: { lat: item.lat, lon: item.lon },
@@ -420,9 +422,10 @@ async function start() {
       // /tracking should begin at the full-world reset view, not a close-up.
       // The home globe keeps its existing default zoom.
       zoom: props.initialZoom ?? 1,
-      // The international cargo globe begins above the Americas, as in the supplied reference.
+      // Tracking begins with the Americas in view, matching the supplied reference.
       center: props.satelliteSurface && !props.shipment ? { lon: -76, lat: 9 } : undefined,
-      satelliteSurface: props.satelliteSurface === true && !props.shipment,
+      // Keep the photograph visible with or without a searched shipment.
+      satelliteSurface: props.satelliteSurface === true,
       transparentBackground: true,
       // Colores corporativos Castro Fallas
       theme: themePalette(),

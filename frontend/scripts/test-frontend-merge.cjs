@@ -386,7 +386,7 @@ assert.match(globe, /animateZoom\(/, 'Conservar zoom animado')
 assert.match(globe, /initialZoom\?: number/, 'El globo acepta una escala inicial por sección')
 assert.match(globe, /zoom: props\.initialZoom \?\? 1,/, 'La escala inicial conserva el comportamiento de Home sin cambiarlo')
 assert.match(globe, /animateZoom\(props\.initialZoom \?\? 1\)/, 'Volver a la escala elegida al retirar un embarque')
-assert.match(home, /<WorldGlobe satellite-surface \/>/, 'La página principal activa la Tierra fotográfica sin alterar Tracking')
+assert.match(home, /<WorldGlobe\s*\/>/, 'La página principal conserva su globo original')
 
 assert.match(globe, /<Teleport to="body" :disabled="!mobileLocationPopup">/, 'La ficha móvil puede salir del contenedor sin modificar el comportamiento de escritorio')
 assert.match(globe, /const markerX = selectedCostaRica\.value \? rect\.left \+ rect\.width \/ 2 : rect\.left \+ point\.x/, 'Ubicar la ficha junto a la ubicación del marcador y el globo')
@@ -435,14 +435,14 @@ assert.match(authRoot, /trackingAccess\.value = localTrackingVisualPreview \|\| 
 assert.match(authRoot, /const localTrackingVisualPreview = import\.meta\.env\.DEV/, 'La preview de tracking solo existe en desarrollo')
 assert.match(authRoot, /\['localhost', '127\.0\.0\.1'\]\.includes\(window\.location\.hostname\)/, 'La preview de tracking solo está disponible en localhost')
 assert.match(tracking, /const localVisualPreview = import\.meta\.env\.DEV/, 'Los datos ficticios no se habilitan en producción')
-assert.match(tracking, /<WorldGlobe :shipment="globeRoute" :initial-zoom="0\.8" :realistic-colors="realisticGlobeColors"\s*\/>/,
-  'Tracking controla explícitamente el color de la esfera sin cambiar el zoom ni las rutas')
+assert.match(tracking, /<WorldGlobe :shipment="globeRoute" :initial-zoom="0\.8" :realistic-colors="realisticGlobeColors" satellite-surface\s*\/>/,
+  'Tracking usa la Tierra fotográfica sin cambiar el zoom ni las rutas')
 assert.match(tracking, /const realisticGlobeColors = computed\(\(\) => !localVisualPreview\s*&& !!shipment\.value && matches\.value\.includes\(shipment\.value\)\)/,
-  'Solo una referencia real encontrada en Dynamics activa los colores naturales')
+  'Se conserva la paleta de respaldo para registros reales de Dynamics')
 assert.match(tracking, /if \(data\.source !== 'dynamics' \|\| !Array\.isArray\(data\.records\)\) throw new Error/,
-  'Los colores naturales no se activan para respuestas ajenas al proveedor autenticado')
+  'No se aceptan respuestas ajenas al proveedor autenticado')
 assert.match(tracking, /shipment\.value = null\s*matches\.value = \[\]/,
-  'Al iniciar una nueva búsqueda se vuelven a aplicar los colores corporativos')
+  'Al iniciar una nueva búsqueda se restablecen los datos de rastreo')
 assert.match(tracking, /\/api\/tracking\/dynamics\/search/, 'Se consultan datos de Dynamics desde el backend')
 assert.match(tracking, /credentials: 'same-origin'/, 'La consulta utiliza la sesión autenticada')
 assert.match(tracking, /Illustrative route only, not a live GPS position/, 'El globo advierte que no es un GPS')
