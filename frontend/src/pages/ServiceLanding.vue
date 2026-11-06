@@ -267,7 +267,7 @@ onBeforeUnmount(() => {
                       <p v-if="details.answer" class="service-landing-answer">{{ details.answer }}</p>
                     </div>
                     <figure class="service-landing-visual">
-                      <img :src="details.image" :alt="details.imageAlt" loading="lazy" />
+                      <img class="service-landing-visual__image" :src="details.image" :alt="details.imageAlt" loading="lazy" />
                       <figcaption>{{ lang === 'es' ? 'Soluciones logísticas de Grupo Castro Fallas' : 'Logistics solutions by Grupo Castro Fallas' }}</figcaption>
                     </figure>
                   </div>
