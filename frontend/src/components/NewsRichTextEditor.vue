@@ -4,10 +4,11 @@ import { sanitizeNewsHtml } from '../lib/newsRichText'
 import FieldDropdown from './FieldDropdown.vue'
 import { AlignLeft, AlignCenter, AlignRight, AlignJustify } from '@lucide/vue'
 
-const props = defineProps<{ modelValue: string }>()
+const props = defineProps<{ modelValue: string; previewImage?: string; previewTitle?: string; previewCategory?: string; previewDescription?: string; previewAuthor?: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 const editor = ref<HTMLElement | null>(null)
 let savedRange: Range | null = null
+let lastEmittedValue: string | null = null
 const tab = ref<'inicio'|'insertar'|'diseno'|'vista'>('inicio')
 const selectedFont = ref('')
 const selectedStyle = ref('')
@@ -39,20 +40,36 @@ const palette = [
     })
   )
 ]
-function applyColor(color:string) {
-  if (!/^#[0-9a-fA-F]{6}$/.test(color) || !openColors.value) return
-  if (openColors.value === 'foreColor') customHex.value = color
-  else highlightHex.value = color
+// Replacing an existing color must also clear colors nested inside the selection.
+ // Bold, underline, font and other unrelated formatting remain unchanged.
+function clearSelectedColor(fragment: DocumentFragment, kind: 'foreColor' | 'hiliteColor') {
+  fragment.querySelectorAll<HTMLElement>('*').forEach(element => {
+    if (kind === 'foreColor') {
+      element.style.removeProperty('color')
+      if (element.tagName === 'FONT') element.removeAttribute('color')
+    } else {
+      element.style.removeProperty('background-color')
+      element.style.removeProperty('background')
+    }
+  })
+}
+function applyColor(color: string | null) {
+  const kind = openColors.value
+  if (!kind || (color !== null && !/^#[0-9a-fA-F]{6}$/.test(color))) return
+  if (color) {
+    if (kind === 'foreColor') customHex.value = color
+    else highlightHex.value = color
+  }
   restoreSelection()
   const selection = window.getSelection()
   const range = selection?.rangeCount ? selection.getRangeAt(0) : null
-  // Apply the color directly to the selected text; the native command can
-  // silently fall back to the white inherited color when the editor loses focus.
   if (range && !range.collapsed && editor.value?.contains(range.commonAncestorContainer)) {
+    const fragment = range.extractContents()
+    clearSelectedColor(fragment, kind)
     const span = document.createElement('span')
-    if (openColors.value === 'foreColor') span.style.color = color
-    else span.style.backgroundColor = color
-    span.appendChild(range.extractContents())
+    if (kind === 'foreColor') span.style.color = color ?? 'var(--news-richtext-color)'
+    else span.style.backgroundColor = color ?? 'var(--news-richtext-background)'
+    span.appendChild(fragment)
     range.insertNode(span)
     selection?.removeAllRanges()
     const after = document.createRange()
@@ -60,12 +77,13 @@ function applyColor(color:string) {
     selection?.addRange(after)
     savedRange = after.cloneRange()
     sync()
-  } else {
+  } else if (color) {
+    // Collapsed selection: retain the browser's behavior for the next typed text.
     document.execCommand('styleWithCSS', false, 'true')
-    choose(openColors.value, color)
+    choose(kind, color)
   }
-  recentColors.value=[color,...recentColors.value.filter(c=>c!==color)].slice(0,8)
-  openColors.value=null
+  if (color) recentColors.value = [color, ...recentColors.value.filter(c => c !== color)].slice(0, 8)
+  openColors.value = null
 }
 function toggleColors(kind:'foreColor'|'hiliteColor', event: MouseEvent) {
   rememberSelection()
@@ -105,6 +123,7 @@ function restoreSelection() {
   editor.value?.focus()
   if (!savedRange) return
   const selection = window.getSelection()
+  if (!editor.value?.contains(savedRange.commonAncestorContainer)) { savedRange = null; return }
   selection?.removeAllRanges()
   selection?.addRange(savedRange)
 }
@@ -124,6 +143,9 @@ function sizeText(value: string) {
   rememberSelection()
 }
 watch(() => props.modelValue, async value => {
+  // An editor emission is not an external content change. Do not replace DOM
+  // after blur: doing so invalidates the saved selection before using the palette.
+  if (value === lastEmittedValue) return
   await nextTick()
   if (editor.value && document.activeElement !== editor.value && !openColors.value) {
     const html = sanitizeNewsHtml(value || '')
@@ -132,10 +154,14 @@ watch(() => props.modelValue, async value => {
 }, { immediate: true })
 
 function sync() {
-  emit('update:modelValue', sanitizeNewsHtml(editor.value?.innerHTML || ''))
+  const html = sanitizeNewsHtml(editor.value?.innerHTML || '')
+  if (html !== props.modelValue) {
+    lastEmittedValue = html
+    emit('update:modelValue', html)
+  }
 }
 function format(command: string, value?: string) {
-  editor.value?.focus()
+  restoreSelection()
   document.execCommand(command, false, value)
   sync()
   rememberSelection()
@@ -177,6 +203,7 @@ function pastePlain(event: ClipboardEvent) {
         <div v-if="openColors" class="news-rich-editor__palette" :style="{top: paletteTop + 'px', left: paletteLeft + 'px', transform: paletteAbove ? 'translateY(-100%)' : 'none'}" role="group" :aria-label="openColors==='foreColor'?'Color del texto':'Color de resaltado'">
           <div class="news-rich-editor__palette-heading"><strong>{{openColors==='foreColor'?'Color del texto':'Color de resaltado'}}</strong><button type="button" @click="openColors=null" aria-label="Cerrar paleta">×</button></div>
           <span>Colores predefinidos</span>
+          <button type="button" class="news-rich-editor__reset-color" @click="applyColor(null)">{{ openColors === 'foreColor' ? 'Sin color de texto (predeterminado)' : 'Sin resaltado (predeterminado)' }}</button>
           <div class="news-rich-editor__swatches"><button v-for="color in palette" :key="color" type="button" :title="color" :aria-label="'Seleccionar '+color" :style="{backgroundColor:color}" @click="applyColor(color)"></button></div>
           <span>Recientes</span>
           <div class="news-rich-editor__swatches news-rich-editor__recent"><button v-for="color in recentColors" :key="color" type="button" :title="color" :style="{backgroundColor:color}" @click="applyColor(color)"></button></div>
@@ -190,7 +217,20 @@ function pastePlain(event: ClipboardEvent) {
       aria-label="Contenido completo de la noticia" aria-multiline="true" spellcheck="true"
       data-placeholder="Escribí el artículo y usá la barra para dar formato a los títulos y párrafos."
       @input="sync" @keyup="rememberSelection" @mouseup="rememberSelection" @blur="sync" @paste="pastePlain"></div>
-    <div v-if="tab==='vista'" class="news-rich-editor__content" v-html="previewHtml"></div>
+    <div v-if="tab==='vista'" class="news-rich-editor__content news-rich-editor__preview">
+      <header v-if="previewTitle || previewCategory" class="news-rich-editor__preview-heading">
+        <p v-if="previewCategory" class="news-rich-editor__preview-category">{{ previewCategory }}</p>
+        <h2 v-if="previewTitle">{{ previewTitle }}</h2>
+      </header>
+      <div class="news-rich-editor__preview-reading">
+        <figure v-if="previewImage" class="news-rich-editor__preview-image">
+          <img :src="previewImage" alt="Imagen principal de la noticia" />
+        </figure>
+        <p v-if="previewDescription" class="news-rich-editor__preview-description">{{ previewDescription }}</p>
+        <div class="news-rich-editor__preview-article" v-html="previewHtml"></div>
+        <p v-if="previewAuthor" class="news-rich-editor__preview-author">Autor: <strong>{{ previewAuthor }}</strong></p>
+      </div>
+    </div>
     <small>Seleccioná el texto y aplicá el formato. Los cambios se mostrarán en la noticia publicada.</small>
   </div>
 </template>
@@ -202,7 +242,9 @@ function pastePlain(event: ClipboardEvent) {
 .news-rich-editor__toolbar button:hover{border-color:#ad0922}
 .news-rich-editor__option{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700}
 .news-rich-editor__option select{max-width:148px;border-radius:7px;border:1px solid var(--admin-border,#cfd3dd);padding:6px;background:var(--admin-input,#fff);color:inherit;font:inherit}
-.news-rich-editor__content{min-height:240px;max-height:550px;overflow:auto;padding:15px;outline:none;font-size:15px;line-height:1.7;white-space:normal}
+.news-rich-editor__content{--news-richtext-color:var(--admin-text,#171923);--news-richtext-background:var(--admin-input,#fff);min-height:240px;max-height:550px;overflow:auto;padding:15px;outline:none;color:var(--admin-text,#171923);font-size:15px;line-height:1.7;white-space:normal}
+/* Explicit user colors must remain visible when the admin theme uses white text. */
+.news-rich-editor__content :deep(*){-webkit-text-fill-color:currentColor !important}
 .news-rich-editor__content:empty:before{content:attr(data-placeholder);color:var(--admin-muted,#737b89)}
 .news-rich-editor__content :deep(h1){font-size:1.8em;font-weight:750;margin:1em 0 .5em}
 .news-rich-editor__content :deep(h2){font-size:1.45em;font-weight:700;margin:1em 0 .5em}
@@ -245,6 +287,18 @@ function pastePlain(event: ClipboardEvent) {
 .news-rich-editor__custom input[type=color]{width:43px;height:39px;padding:2px;border:1px solid var(--admin-border,#cfd3dd);border-radius:8px;background:transparent;cursor:pointer}
 .news-rich-editor__custom button{padding:9px 14px;border-radius:8px;border:0;background:#ab0b2c;color:white;cursor:pointer}
 .news-rich-editor__custom button:disabled{opacity:.5;cursor:not-allowed}
+.news-rich-editor__reset-color{justify-self:start;width:100%!important;text-align:left!important;font-size:12px!important;border-style:dashed!important}
+.news-rich-editor__preview{max-height:min(75vh,850px);padding:clamp(16px,3vw,30px);line-height:1.8}
+.news-rich-editor__preview-heading{margin-bottom:22px}
+.news-rich-editor__preview-category{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#cf2443}
+.news-rich-editor__preview-heading h2{margin:8px 0 0;font-size:clamp(24px,3vw,34px);line-height:1.2}
+.news-rich-editor__preview-reading{display:flow-root}
+.news-rich-editor__preview-image{float:right;width:42%;margin:0 0 22px 26px;overflow:hidden;aspect-ratio:1.55;border-radius:16px;background:#1b2537}
+.news-rich-editor__preview-image img{display:block;width:100%;height:100%;object-fit:cover}
+.news-rich-editor__preview-description{font-size:clamp(17px,2vw,22px);font-weight:700;line-height:1.4}
+.news-rich-editor__preview-article{overflow-wrap:anywhere}
+.news-rich-editor__preview-author{clear:both;padding-top:14px;border-top:1px solid var(--admin-border,#cfd3dd);font-size:13px}
+@media(max-width:650px){.news-rich-editor__preview-image{float:none;width:100%;margin:0 0 20px}}
 @media(max-width:550px){.news-rich-editor__palette{width:min(380px,calc(100% - 12px))}.news-rich-editor__swatches{grid-template-columns:repeat(12,minmax(0,1fr))}.news-rich-editor__swatches button{height:18px}}
 html.theme-dark .content-manager .news-rich-editor__color-trigger{background:#0a1224;border-color:#3b465f;color:#fff}
 .news-rich-editor__color-trigger:hover,.news-rich-editor__color-trigger:focus-visible{border-color:#b10d30;outline-offset:2px}
