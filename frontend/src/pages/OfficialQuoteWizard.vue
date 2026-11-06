@@ -36,7 +36,7 @@ const sessionOk = ref(false)
 const error = ref('')
 const createdId = ref('')
 const earliestReadyDate = ref(costaRicaToday())
-let earliestReadyTimer: ReturnType<typeof setInterval> | undefined
+let earliestReadyTimer: number | undefined
 const syncEarliestReadyDate = () => { earliestReadyDate.value = costaRicaToday() }
 const cargoReadyDateError = () => q('La fecha de carga lista debe ser hoy o posterior (hora de Costa Rica).', 'The cargo ready date must be today or later (Costa Rica time).')
 const locations = ref<Loc[]>([])
