@@ -34,6 +34,10 @@ export function createSatelliteSurface(onReady) {
 
   let disposed = false
   let pixels = null
+  // Textural relief is computed once at image load, never inside animation.
+  // This is a visual bump approximation, not geographic elevation data.
+  let reliefX = null
+  let reliefY = null
   let textureWidth = 0
   let textureHeight = 0
   let output = null
@@ -54,6 +58,38 @@ export function createSatelliteSurface(onReady) {
       sourceCanvas.height = textureHeight
       sourceCtx.drawImage(image, 0, 0, textureWidth, textureHeight)
       pixels = sourceCtx.getImageData(0, 0, textureWidth, textureHeight).data
+
+      // Estimate terrain direction from local contrasts in the satellite image.
+      // Cache two small signed arrays so rotation never resamples neighbors
+      // repeatedly. Ocean pixels are always excluded from land bump effects.
+      const count = textureWidth * textureHeight
+      reliefX = new Int8Array(count)
+      reliefY = new Int8Array(count)
+      const luminance = new Uint8Array(count)
+      const landMask = new Uint8Array(count)
+      for (let i = 0; i < count; i++) {
+        const j = i * 4
+        const rr = pixels[j], gg = pixels[j + 1], bb = pixels[j + 2]
+        luminance[i] = (rr * 0.2126 + gg * 0.7152 + bb * 0.0722) | 0
+        const blueBias = bb - Math.max(rr, gg)
+        landMask[i] = blueBias < 18 ? 1 : 0
+      }
+      for (let y = 1; y < textureHeight - 1; y++) {
+        const row = y * textureWidth
+        for (let x = 0; x < textureWidth; x++) {
+          const index = row + x
+          if (!landMask[index]) continue
+          const west = row + (x + textureWidth - 2) % textureWidth
+          const east = row + (x + 2) % textureWidth
+          const north = (y - 1) * textureWidth + x
+          const south = (y + 1) * textureWidth + x
+          // Reject artificial coast cliffs; small tonal differences on land
+          // are treated as slopes, not as physical height measurements.
+          if (!landMask[west] || !landMask[east] || !landMask[north] || !landMask[south]) continue
+          reliefX[index] = clamp(Math.round((luminance[east] - luminance[west]) * .8), -95, 95)
+          reliefY[index] = clamp(Math.round((luminance[south] - luminance[north]) * .8), -95, 95)
+        }
+      }
       onReady?.()
     } catch {
       // Preserve the old flat map if the bundled resource is unavailable.
@@ -120,8 +156,12 @@ export function createSatelliteSurface(onReady) {
             east[index] = e
             north[index] = n
             depth[index] = z
-            const diffuse = .92 + .08 * Math.max(0, (-.3 * e + .65 * n + z) / 1.23)
-            const limb = .81 + .19 * Math.pow(z, .46)
+            // A wide studio-style light from the upper left creates an
+            // unmistakable spherical silhouette without making half of Earth
+            // pitch black. Unlike a flat color filter this follows the normal.
+            const sun = Math.max(0, -.48 * e + .40 * n + .78 * z)
+            const diffuse = .56 + .44 * Math.min(1, sun)
+            const limb = .78 + .22 * Math.pow(z, .45)
             light[index] = diffuse * limb
             border[index] = Math.pow(1 - z, 7)
           }
@@ -212,9 +252,19 @@ export function createSatelliteSurface(onReady) {
             blue += (154 + shallow * 42 - blue) * tintAmount
           }
 
-          // Daylight and curvature shade every surface naturally. Only the
-          // ocean receives soft sunlight reflections and subtle blue Fresnel.
-          const brightness = sphereGrid.light[gridIndex]
+          // Ocean relief is negligible at orbital scale. Land alone gets
+          // subtle directional shading derived from the source photograph,
+          // which makes mountains and valleys read as raised features.
+          let terrainShade = 0
+          if (water < .75 && reliefX && reliefY) {
+            const land = 1 - water
+            const gradientX = reliefX[ty * textureWidth + tx0] / 95
+            const gradientY = reliefY[ty * textureWidth + tx0] / 95
+            const relativeLon = mapLon - lon
+            const tangentToLight = -.65 * Math.cos(relativeLon) - .35 * Math.sin(relativeLon)
+            terrainShade = clamp((-gradientX * tangentToLight + gradientY * .46) * .19, -.14, .14) * land
+          }
+          const brightness = clamp(sphereGrid.light[gridIndex] + terrainShade, .36, 1.1)
           const rim = sphereGrid.border[gridIndex]
 
           // View-space sphere normal = (screenEast, screenNorth, depth).
@@ -238,6 +288,8 @@ export function createSatelliteSurface(onReady) {
     destroy() {
       disposed = true
       pixels = null
+      reliefX = null
+      reliefY = null
       output = null
       sphereGrid = null
       image.onload = null
