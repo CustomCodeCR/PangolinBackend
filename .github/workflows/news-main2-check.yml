@@ -9,6 +9,7 @@ on:
       - "frontend/src/pages/Services.vue"
       - "frontend/src/style.css"
       - "frontend/scripts/smoke-news-i18n.cjs"
+      - "frontend/scripts/smoke-news-formatting.cjs"
       - "backend/Program.cs"
       - "backend/Services/ContentEndpoints.cs"
       - "backend/Services/NewsTranslationService.cs"
@@ -54,6 +55,8 @@ jobs:
         run: node frontend/scripts/smoke-news-i18n.cjs
       - name: Comprobar colores reales de noticias en ambos temas (Chrome)
         run: node frontend/scripts/smoke-news-color-cascade.cjs
+      - name: Comprobar tamaños y estilos del editor en ambos temas (Chrome)
+        run: node frontend/scripts/smoke-news-formatting.cjs
       - name: Verificar página de Noticias y rutas existentes
         run: node frontend/scripts/smoke-browser.cjs
       - name: Verificar contratos de integración del frontend
