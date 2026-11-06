@@ -79,6 +79,7 @@ const client = String.raw`
   const results = { theme: document.documentElement.classList.contains('theme-dark') ? 'dark' : 'light' }
   try {
     await until('.manager-subtabs')
+    results.theme = document.documentElement.classList.contains('theme-dark') ? 'dark' : 'light'
     const newsButton = Array.from(document.querySelectorAll('.manager-subtabs button')).find(b => b.textContent.includes('Noticias'))
     if (!newsButton) throw Error('Missing news tab')
     await click(newsButton)
@@ -125,6 +126,22 @@ const client = String.raw`
     selectText('Encabezado', editor)
     await selectMenu('Estilo', 'Párrafo normal')
     results.paragraph = heading()
+    await changeTab('Diseño')
+    await reset('<p>Antes <span style="font-size:12px;color:#047857"><u>Primera</u></span> y <span style="font-size:24px;color:#1d4ed8"><b>Segunda</b></span> después</p>')
+    const first = getText('Primera', editor)
+    const second = getText('Segunda', editor)
+    const mixedRange = document.createRange()
+    mixedRange.setStart(first.node, first.index)
+    mixedRange.setEnd(second.node, second.index + 'Segunda'.length)
+    window.getSelection().removeAllRanges()
+    window.getSelection().addRange(mixedRange)
+    editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
+    await selectMenu('Tamaño', '28px')
+    results.mixed = {
+      first: sizeAt('Primera').size,
+      second: sizeAt('Segunda').size,
+      html: editor.innerHTML
+    }
     output.textContent = JSON.stringify(results)
   } catch (error) {
     output.textContent = JSON.stringify({ ...results, error: String(error && (error.stack || error)) })
@@ -197,6 +214,8 @@ async function main() {
       assert.ok(parseFloat(result.h2.size) > 14, 'Heading H2 must visually override prior 14px inline size')
       assert.ok(parseFloat(result.h1.size) > parseFloat(result.h2.size), 'H1 must visually be larger than H2')
       assert.equal(result.paragraph.size, '15px', 'Normal paragraph should restore default size')
+      assert.equal(result.mixed.first, '28px', 'Mixed-format selection: first size did not change')
+      assert.equal(result.mixed.second, '28px', 'Mixed-format selection: second size did not change')
     }
     console.log('PASS: repeated sizes, headings, paragraph, colors, underline and preview')
   } finally { await new Promise(resolve => server.close(resolve)) }
