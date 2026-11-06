@@ -80,6 +80,8 @@ html.theme-dark .about-reference-page .cf-about-story__secondary{border-color:#0
 
 @media(max-width:1080px){
   .about-reference-page .cf-about-hero__years{left:max(20px,4vw);right:auto}
+  /* The photo must not shift when copy metrics change during the mobile menu lock. */
+  .about-reference-page .cf-about-story__grid{align-items:start}
 }
 @media(max-width:1050px){
   .about-reference-page .cf-about-story__grid{gap:40px}
