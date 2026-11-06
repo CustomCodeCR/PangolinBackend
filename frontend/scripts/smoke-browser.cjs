@@ -109,7 +109,7 @@ async function main() {
       { url: '/servicios/bodegaje-general', role: null, must: ['service-landing-page', 'Bodegaje general y almacenamiento'] },
       { url: '/servicios/agenciamiento-aduanal', role: null, must: ['service-landing-page', 'Agenciamiento aduanal para importaciones'] },
       { url: '/servicios/consolidadora-de-carga', role: null, must: ['service-landing-page', 'Consolidadora de carga y transporte'] },
-      { url: '/nosotros', role: null, must: ['about-reference-page', 'about-reference-intro'] },
+      { url: '/nosotros', role: null, must: ['about-reference-page', 'about-reference-intro', 'cf-about-hero__years', 'cf-about-story__grid', 'cf-about-values__grid', 'cf-about-cta__primary'] },
       { url: '/noticias', role: null, must: ['news-page', 'news-editorial-hero'] },
       { url: '/bienvenidos', role: null, must: ['login-screen', 'login-auth-form'] },
       { url: '/cotizaciones', role: null, must: ['quote-access-status--blocked'] },
@@ -123,6 +123,11 @@ async function main() {
       const html = await dumpDom(chrome, 'http://' + host + ':' + previewPort + scenario.url, scenario.url + ' [' + (activeRole || 'invitado') + ']')
       for (const marker of scenario.must) {
         assert.ok(html.includes(marker), 'No se encontró "' + marker + '" en ' + scenario.url + ' (' + (activeRole || 'invitado') + '); DOM: ' + html.slice(-800))
+      }
+      if (scenario.url === '/nosotros') {
+        assert.equal((html.match(/class="cf-about-value"/g) || []).length, 5, 'Nosotros debe mostrar los cinco valores de la empresa')
+        assert.ok(html.includes('href="#nuestra-historia"') && html.includes('href="/servicios"') &&
+          html.includes('href="/cotizaciones"'), 'Faltan los accesos internos del rediseño de Nosotros')
       }
       if (scenario.url === '/servicios' || scenario.url.startsWith('/servicios/')) {
         assert.ok(html.includes('class="nav-dropdown nav-dropdown--services"') || html.includes('nav-dropdown--services'), 'No está el desplegable de Servicios en el encabezado: ' + scenario.url)

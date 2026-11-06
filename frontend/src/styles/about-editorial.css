@@ -24,7 +24,7 @@
 .about-reference-page .cf-about-hero__rail{position:absolute;z-index:2;right:0;bottom:0;left:0;display:flex;justify-content:space-between;gap:16px;padding:11px max(5vw,calc((100vw - 1180px)/2));color:rgba(255,255,255,.77);border-top:1px solid rgba(255,255,255,.21);font-size:10px;font-weight:800;letter-spacing:.16em}
 
 /* A readable, two-column company story with restrained editorial photo layering. */
-.about-reference-page .cf-about-story{position:relative;margin:0!important;padding:clamp(66px,7.8vw,106px) 0!important;background:var(--cf-about-paper);scroll-margin-top:100px}
+.about-reference-page .about-reference-intro.cf-about-story{position:relative;margin:0!important;padding:clamp(66px,7.8vw,106px) 0!important;background:var(--cf-about-paper);scroll-margin-top:100px}
 .about-reference-page .cf-about-story__grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.9fr);align-items:center;gap:clamp(35px,6vw,92px)}
 .about-reference-page .cf-about-story__copy{min-width:0}
 .about-reference-page .cf-about-story__copy h2{max-width:570px;margin:0 0 24px;font-family:"Arial Black",Inter,"Segoe UI",sans-serif;font-size:clamp(32px,3.7vw,53px);line-height:1.12;letter-spacing:-.055em;font-weight:900;color:var(--cf-about-ink);text-wrap:balance}
