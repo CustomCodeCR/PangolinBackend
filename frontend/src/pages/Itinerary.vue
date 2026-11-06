@@ -7,7 +7,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
-import { authState, refreshSession } from '../services/auth'
+import { authState } from '../services/auth'
 import { subscribeToChanges } from '../services/realtime'
 import { readManagedItineraries, type ManagedItinerary } from '../adminContent'
 import { localizeTrackingMode, localizeTrackingStatus } from '../lib/trackingDisplay'
@@ -124,11 +124,11 @@ function createItinerary(id: number): Itinerary {
 }
 
 function optionsFor(item: Itinerary) {
-  return item.transport === 'maritime' ? maritimeOptions.value : groundOptions.value
+  return item.transport === 'maritime' ? maritimeOptions.value : item.transport === 'ground' ? groundOptions.value : []
 }
 
 function portPlaceholder(item: Itinerary, port: 'pol' | 'pod') {
-  return transportDetails.value[item.transport === 'maritime' ? 0 : 1][port]
+  return item.transport ? transportDetails.value[item.transport === 'maritime' ? 0 : 1][port] : port.toUpperCase()
 }
 
 function changeTransport(item: Itinerary) {
@@ -207,10 +207,6 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
       totalResults.value = resultados.value.length
       totalPages.value = 1
       currentPage.value = 1
-      return
-    }
-    if (response.status === 401) {
-      window.location.assign('/bienvenidos?next=' + encodeURIComponent(window.location.pathname + window.location.search))
       return
     }
     if (!response.ok) throw new Error(`No se pudieron consultar itinerarios (${response.status}).`)
