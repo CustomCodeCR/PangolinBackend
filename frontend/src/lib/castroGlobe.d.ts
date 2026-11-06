@@ -39,6 +39,8 @@ export interface GlobeOptions {
   center?: { lat: number; lon: number };
   theme?: GlobeTheme;
   transparentBackground?: boolean;
+  /** Replace only this globe's surface with a geographic satellite texture. */
+  satelliteSurface?: boolean;
   autoRotate?: boolean;
   rotateSpeed?: number;
   zoomable?: boolean;

@@ -329,7 +329,7 @@ onUnmounted(() => {
             </a>
           </div>
 
-          <WorldGlobe />
+          <WorldGlobe satellite-surface />
         </div>
       </section>
 

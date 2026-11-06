@@ -147,3 +147,11 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+
+===========================================================================
+Satellite Earth daymap (Carga Internacional)
+Source: Solar System Scope, https://www.solarsystemscope.com/textures/
+Source download reference: https://commons.wikimedia.org/wiki/File:Solarsystemscope_texture_2k_earth_daymap.jpg
+Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0).
+License: https://creativecommons.org/licenses/by/4.0/
+The reference image is used as an equirectangular day map and adjusted at render time for daytime shading and ocean color.

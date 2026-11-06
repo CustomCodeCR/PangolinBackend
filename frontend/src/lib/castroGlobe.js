@@ -7,6 +7,7 @@
 import { geoGraticule, geoInterpolate, geoOrthographic, geoPath } from 'd3-geo'
 import { feature } from 'topojson-client'
 import worldAtlas from 'world-atlas/countries-110m.json'
+import { createSatelliteSurface } from './satelliteSurface.js'
 
 const countries = feature(worldAtlas, worldAtlas.objects.countries)
 const DEG = Math.PI / 180
@@ -88,6 +89,9 @@ export class CastroGlobe {
     }, { rootMargin: '80px' }) : null
     this.intersectionObserver?.observe(canvas)
     document.addEventListener('visibilitychange', this.bound.visibility)
+    // Opt-in surface: every other instance keeps its existing corporate globe.
+    this.satelliteSurface = this.options.satelliteSurface === true
+      ? createSatelliteSurface(() => this.invalidate()) : null
     this.resize()
   }
 
@@ -227,6 +231,21 @@ export class CastroGlobe {
     }
     if (this.options.stars) this.drawStars(p.stars)
     const cx = w / 2, cy = h / 2, r = this.radius
+    const satelliteReady = this.satelliteSurface?.render(w, h, this.pixelRatio, r, this.lon, this.lat)
+    // A deterministic state attribute allows the browser smoke test to verify
+    // that the PHOTO is painted, not just that the feature was configured.
+    if (this.options.satelliteSurface === true) {
+      this.canvas.dataset.globeSurface = satelliteReady ? 'satellite' : 'loading'
+    }
+    if (satelliteReady) {
+      ctx.drawImage(this.satelliteSurface.canvas, 0, 0, w, h)
+    } else if (this.options.satelliteSurface === true) {
+      // Do not flash the previous red vector world before the photograph loads.
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
+      const ocean = ctx.createRadialGradient(cx - r * .25, cy - r * .35, r * .08, cx, cy, r)
+      ocean.addColorStop(0, '#1687ce'); ocean.addColorStop(1, '#0a355d')
+      ctx.fillStyle = ocean; ctx.fill()
+    } else {
     ctx.save()
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
     const ocean = ctx.createRadialGradient(cx - r * .32, cy - r * .4, r * .05, cx, cy, r * 1.12)
@@ -250,6 +269,7 @@ export class CastroGlobe {
       ctx.fillStyle = shade; ctx.fillRect(cx - r, cy - r, r * 2, r * 2)
     }
     ctx.restore()
+    }
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
     ctx.strokeStyle = 'rgba(192,203,226,.5)'; ctx.lineWidth = 1; ctx.stroke()
     this.drawArcs(p)
@@ -495,6 +515,8 @@ export class CastroGlobe {
     this.canvas.removeEventListener('click', this.bound.click)
     this.canvas.removeEventListener('keydown', this.bound.key)
     this.markerHits = []
+    this.satelliteSurface?.destroy()
+    this.satelliteSurface = null
   }
 }
 

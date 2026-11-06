@@ -11,7 +11,7 @@ type TrackingRouteShape = Pick<TrackingDemoShipment, 'origin' | 'destination'> &
     stops?: TrackingPoint[]
     transport?: 'air' | 'sea' | 'land' | 'multimodal' | null
   }
-const props = defineProps<{ shipment?: TrackingRouteShape | null; initialZoom?: number; realisticColors?: boolean }>()
+const props = defineProps<{ shipment?: TrackingRouteShape | null; initialZoom?: number; realisticColors?: boolean; satelliteSurface?: boolean }>()
 const holder = ref<HTMLElement | null>(null)
 const canvas = ref<HTMLCanvasElement | null>(null)
 const routePoints = computed(() => {
@@ -420,6 +420,9 @@ async function start() {
       // /tracking should begin at the full-world reset view, not a close-up.
       // The home globe keeps its existing default zoom.
       zoom: props.initialZoom ?? 1,
+      // The international cargo globe begins above the Americas, as in the supplied reference.
+      center: props.satelliteSurface && !props.shipment ? { lon: -76, lat: 9 } : undefined,
+      satelliteSurface: props.satelliteSurface === true && !props.shipment,
       transparentBackground: true,
       // Colores corporativos Castro Fallas
       theme: themePalette(),
