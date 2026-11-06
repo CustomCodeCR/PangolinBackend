@@ -215,6 +215,10 @@ async function main() {
     assert.equal(quoteWrites.length,1,'Guest quote must be created exactly once')
     const guestReceipt = await evaluate('(()=>{try{return JSON.parse(sessionStorage.getItem("gcf-gio-quote-receipt-v1")||"null")}catch{return null}})()')
     assert.equal(guestReceipt?.id,'33333333-3333-3333-3333-333333333333','Guest must retain the issued receipt')
+    assert.ok(Array.isArray(guestReceipt?.details) && guestReceipt.details.length > 10,
+      'GIO must preserve the complete submitted summary rather than only route and ID')
+    assert.equal(guestReceipt.details.find(x=>x.key==='contactName')?.value, 'Edited Client')
+    assert.equal(guestReceipt.details.find(x=>x.key==='equipmentWeights')?.value, '8000')
     assert.equal(quoteWrites[0].shipmentType,'FCL')
     assert.equal(quoteWrites[0].equipment[0].size,'40 pies')
     assert.equal(quoteWrites[0].equipment[0].type,'Dry Van')
@@ -262,7 +266,25 @@ async function main() {
     await click('.gio-ops__primary')
     await waitFor(()=>has('verificación adicional de titularidad'))
     assert.equal(trackingReads,0,'Customer shipment must not call unscoped Dynamics lookup')
-    console.log('PASS: guest quotes, verified equipment choices, GIO receipt, admin direct link, public itineraries, and tracking guards')
+    role = null
+    await cdp('Page.navigate',{url:'http://'+host+':5189/cotizaciones?gioReceipt=1'})
+    await waitFor(()=>evaluate('!!document.querySelector(".official-success .official-receipt")'),24000)
+    const receiptPage = await evaluate(`(()=>{
+      const root=document.querySelector('.official-success');
+      return {
+        reference:root?.querySelector('.official-id')?.textContent||'',
+        headings:[...root.querySelectorAll('.official-receipt-group h4')].map(x=>x.textContent),
+        text:root?.querySelector('.official-receipt')?.innerText||'',
+        returnHome:!!root?.querySelector('a[href="/home"]'),
+        newRequest:!!root?.querySelector('a[href="/cotizaciones"]')
+      }
+    })()`)
+    assert.ok(receiptPage.reference.includes('33333333-3333-3333-3333-333333333333'))
+    assert.equal(receiptPage.headings.length,3,'Receipt needs route, cargo and contact sections')
+    assert.ok(receiptPage.text.includes('Shanghái') && receiptPage.text.includes('Puerto Caldera'))
+    assert.ok(receiptPage.text.includes('Edited Client') && receiptPage.text.includes('8000'))
+    assert.ok(receiptPage.returnHome && receiptPage.newRequest,'Receipt must keep useful next actions')
+    console.log('PASS: guest quotes, equipment choices, complete receipt summary, GIO handoff, public itineraries, and tracking guards')
   } finally {
     try { socket?.close() } catch {}
     if (chrome) chrome.kill('SIGKILL')
