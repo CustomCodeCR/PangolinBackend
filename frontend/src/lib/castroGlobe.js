@@ -243,7 +243,9 @@ export class CastroGlobe {
       // Do not flash the previous red vector world before the photograph loads.
       ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
       const ocean = ctx.createRadialGradient(cx - r * .25, cy - r * .35, r * .08, cx, cy, r)
-      ocean.addColorStop(0, '#1687ce'); ocean.addColorStop(1, '#0a355d')
+      ocean.addColorStop(0, '#3e9dd3')
+      ocean.addColorStop(0.38, '#1978b7')
+      ocean.addColorStop(1, '#082b4a')
       ctx.fillStyle = ocean; ctx.fill()
     } else {
     ctx.save()
