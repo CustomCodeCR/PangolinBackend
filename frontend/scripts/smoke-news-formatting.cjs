@@ -57,7 +57,8 @@ const client = String.raw`
     return node
   }
   const selectMenu = async (name, label) => {
-    const trigger = await until('.news-rich-editor [role="combobox"][aria-label="' + name + '"]')
+    const trigger = document.querySelector('.news-rich-editor [role="combobox"][aria-label="' + name + '"]')
+    if (!trigger) throw Error('Missing dropdown '+name+'; DOM '+document.querySelector('.news-rich-editor')?.outerHTML.slice(0,1800))
     await click(trigger)
     const menu = await until('.cf-dropdown__menu[aria-label="' + name + '"]')
     const option = Array.from(menu.querySelectorAll('[role="option"]')).find(item => item.textContent.trim() === label)
@@ -143,7 +144,7 @@ const server = http.createServer((req, res) => {
   const mime = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css', '.svg':'image/svg+xml', '.png':'image/png', '.webp':'image/webp', '.jpeg':'image/jpeg', '.jpg':'image/jpeg' }
   let content = fs.readFileSync(file)
   if (ext === '.html') {
-    const theme = pathname.includes('test-dark') ? 'dark' : 'light'
+    const theme = new URL(req.url || '/', 'http://localhost').searchParams.has('test-dark') ? 'dark' : 'light'
     const injection = '<script>localStorage.setItem("castrofallas-theme",'+JSON.stringify(theme)+');</script>'
     content = Buffer.from(content.toString('utf8').replace('</head>', injection + '</head>').replace('</body>', '<script>' + client + '</script></body>'))
   }
