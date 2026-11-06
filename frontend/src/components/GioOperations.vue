@@ -563,8 +563,10 @@ async function perform() {
     if (props.kind === 'quote') {
       const user = await refreshSession()
       quoteResultAdmin.value = user?.role === 'administrador'
-      quoteResultUrl.value = quoteResultAdmin.value ? '/administracion?tab=cotizaciones' : '/cotizaciones?gioReceipt=1'
+      quoteResultUrl.value = '/cotizaciones?gioReceipt=1'
       await submitQuote()
+      if (quoteResultAdmin.value)
+        quoteResultUrl.value = '/administracion/cotizaciones-oficiales?quote=' + encodeURIComponent(quoteId.value)
     }
     if (props.kind === 'itinerary') await searchItineraries()
     if (props.kind === 'tracking') {
