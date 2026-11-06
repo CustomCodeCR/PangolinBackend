@@ -1,5 +1,5 @@
 /**
- * Natural Earth photographic surface for the Home / Carga Internacional globe only.
+ * Natural Earth photographic surface for the Tracking / Rastreo globe only.
  *
  * Source texture: Solar System Scope's earth daymap, distributed as CC BY 4.0.
  * Attribution: Solar System Scope (https://www.solarsystemscope.com/textures/).
@@ -131,24 +131,43 @@ export function createSatelliteSurface(onReady) {
           let green = pixels[input + 1]
           let blue = pixels[input + 2]
 
-          // Azure ocean from the reference; mountain/country relief retains
-          // original photographic detail rather than flat vector polygons.
+          // Ocean pixels are identified by their blue dominance in the satellite
+          // texture. A smooth mask keeps beaches, reefs and coastlines natural.
+          // Non-water pixels retain their original photographic land colors.
           const waterBias = blue - Math.max(red, green)
-          const water = clamp((waterBias - 14) / 38, 0, 1) * 0.72
-          red += (12 - red) * water
-          green += (110 - green) * water
-          blue += (186 - blue) * water
+          const waterCandidate = clamp((waterBias - 12) / 40, 0, 1)
+          const water = waterCandidate * waterCandidate * (3 - 2 * waterCandidate)
+          if (water > 0) {
+            // Retain the imagery's sea-floor/coastal color variations instead of
+            // flattening every sea pixel to the same bright artificial blue.
+            const sourceLuminance = (red + green + blue) / 3
+            const shallow = clamp((sourceLuminance - 74) / 90, 0, 1)
+            const tintAmount = water * 0.42
+            red += (10 + shallow * 21 - red) * tintAmount
+            green += (75 + shallow * 58 - green) * tintAmount
+            blue += (142 + shallow * 54 - blue) * tintAmount
+          }
 
-          // Soft directional daylight and naturally darkened silhouette edge.
+          // Daylight and curvature shade every surface naturally. Only the
+          // ocean receives soft sunlight reflections and subtle blue Fresnel.
           const diffuse = 0.88 + 0.12 * Math.max(0,
             (-0.3 * screenEast + 0.65 * screenNorth + depth) / 1.23)
           const limb = 0.74 + 0.26 * Math.pow(depth, 0.46)
           const brightness = diffuse * limb
           const rim = Math.pow(1 - depth, 7)
+
+          // View-space sphere normal = (screenEast, screenNorth, depth).
+          // A broad, restrained highlight simulates reflective ocean water;
+          // the specular term follows the rotating globe's actual curvature.
+          const oceanSpecular = water > 0
+            ? water * Math.pow(Math.max(0,
+              -0.32 * screenEast + 0.48 * screenNorth + 0.81 * depth), 46)
+            : 0
+          const oceanFresnel = water * (1 - depth) * (1 - depth) * (1 - depth)
           const dest = rowOffset + x * 4
-          data[dest] = clamp(red * brightness + rim * 8, 0, 255)
-          data[dest + 1] = clamp(green * brightness + rim * 25, 0, 255)
-          data[dest + 2] = clamp(blue * brightness + rim * 41, 0, 255)
+          data[dest] = clamp(red * brightness + rim * 8 + oceanSpecular * 24 + oceanFresnel * 4, 0, 255)
+          data[dest + 1] = clamp(green * brightness + rim * 25 + oceanSpecular * 32 + oceanFresnel * 8, 0, 255)
+          data[dest + 2] = clamp(blue * brightness + rim * 41 + oceanSpecular * 42 + oceanFresnel * 14, 0, 255)
           data[dest + 3] = 255
         }
       }
