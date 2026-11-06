@@ -50,7 +50,6 @@ const api = http.createServer(async (req, res) => {
     return send(201,{id:'33333333-3333-3333-3333-333333333333',status:'Received'})
   }
   if (url.pathname === '/api/assistant/itinerary-locations') {
-    if (role !== 'cliente' && role !== 'administrador') return send(401,{error:'Unauthorized'})
     const isOrigin = url.searchParams.get('routeRole') === 'origin'
     const name = isOrigin ? 'Shanghái' : 'Puerto Caldera'
     return send(200,{items:[{id:name,displayName:name,code:null}]})
@@ -212,12 +211,10 @@ async function main() {
     await waitFor(()=>has('Confirmar y enviar solicitud'))
     assert.equal(quoteWrites.length,0,'Quote sent without user confirmation')
     await click('.gio-ops__primary')
-    await waitFor(()=>has('Iniciar sesión'))
-    assert.equal(quoteWrites.length,0,'Anonymous quote submission')
-    role = 'cliente'
-    await evaluate('([...document.querySelectorAll(".gio-ops__secondary")].find(b=>b.textContent.includes("Ya inicié sesión"))||{}).click?.()')
     await waitFor(()=>has('33333333-3333-3333-3333-333333333333'))
-    assert.equal(quoteWrites.length,1,'Quote must be created exactly once')
+    assert.equal(quoteWrites.length,1,'Guest quote must be created exactly once')
+    const guestReceipt = await evaluate('(()=>{try{return JSON.parse(sessionStorage.getItem("gcf-gio-quote-receipt-v1")||"null")}catch{return null}})()')
+    assert.equal(guestReceipt?.id,'33333333-3333-3333-3333-333333333333','Guest must retain the issued receipt')
     assert.equal(quoteWrites[0].shipmentType,'FCL')
     assert.equal(quoteWrites[0].equipment[0].size,'40 pies')
     assert.equal(quoteWrites[0].equipment[0].type,'Dry Van')
@@ -225,7 +222,7 @@ async function main() {
     assert.deepEqual(quoteWrites[0].equipment[0].unitWeightsKg,[8000])
     assert.equal(quoteWrites[0].originLocationId,'11111111-1111-1111-1111-111111111111')
     assert.equal(quoteWrites[0].destinationLocationId,'22222222-2222-2222-2222-222222222222')
-    assert.ok(await evaluate(`!!document.querySelector('.gio-ops__card a[href="/cotizaciones"]')`),'Customer should see quote section link')
+    assert.ok(await evaluate(`!!document.querySelector('.gio-ops__card a[href="/cotizaciones?gioReceipt=1"]')`),'Guest must see the direct quote receipt link')
     // Reuse confirmed fields to request a distinct quote as an admin.
     role = 'administrador'
     const newQuote = await evaluate('(()=>{const b=[...document.querySelectorAll(".gio-ops__secondary")].find(x=>x.textContent.includes("Nueva consulta"));if(!b)return false;b.click();return true})()')
@@ -233,9 +230,9 @@ async function main() {
     await choose('Marítimo')
     await waitFor(()=>has('Confirmar y enviar solicitud'))
     await click('.gio-ops__primary')
-    await waitFor(()=>evaluate(`!!document.querySelector('.gio-ops__card a[href*="tab=cotizaciones"]')`))
+    await waitFor(()=>evaluate(`!!document.querySelector('.gio-ops__card a[href*="cotizaciones-oficiales?quote="]')`))
     assert.equal(quoteWrites.length,2,'Admin second quote should be submitted once')
-    role = 'cliente'
+    role = null
     await click('.gio-ops__back')
     await waitFor(()=>evaluate('document.querySelectorAll(".site-assistant__quick button").length===4'))
     await evaluate('document.querySelectorAll(".site-assistant__quick button")[2].click()')
@@ -250,7 +247,12 @@ async function main() {
     await waitFor(()=>has('Consultar'))
     await click('.gio-ops__primary')
     await waitFor(()=>has('2026-12-05'))
-    assert.equal(itineraryReads,1,'Itinerary API should be called once')
+    assert.equal(itineraryReads,1,'Public itinerary API should be called exactly once')
+    const itineraryLink = await evaluate('document.querySelector(".gio-ops__card a[href^=\"/itinerario?\"]")?.getAttribute("href") || ""')
+    const itineraryParams = new URL(itineraryLink || '/itinerario', 'http://example.invalid').searchParams
+    assert.equal(itineraryParams.get('pol'),'Shanghái','GIO must hand off the searched origin')
+    assert.equal(itineraryParams.get('pod'),'Puerto Caldera','GIO must hand off the searched destination')
+    assert.equal(itineraryParams.get('transporte'),'maritime','GIO must hand off the transport mode')
     await click('.gio-ops__back')
     await waitFor(()=>evaluate('document.querySelectorAll(".site-assistant__quick button").length===4'))
     await evaluate('document.querySelectorAll(".site-assistant__quick button")[1].click()')
@@ -259,7 +261,7 @@ async function main() {
     await click('.gio-ops__primary')
     await waitFor(()=>has('verificación adicional de titularidad'))
     assert.equal(trackingReads,0,'Customer shipment must not call unscoped Dynamics lookup')
-    console.log('PASS: official equipment choices, visible dock, hidden import codes, customer/admin quote links, itinerary and tracking guards')
+    console.log('PASS: guest quotes, verified equipment choices, GIO receipt, admin direct link, public itineraries, and tracking guards')
   } finally {
     try { socket?.close() } catch {}
     if (chrome) chrome.kill('SIGKILL')
