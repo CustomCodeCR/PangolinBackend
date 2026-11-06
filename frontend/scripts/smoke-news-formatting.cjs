@@ -165,6 +165,14 @@ const client = String.raw`
       firstSize: getComputedStyle(getText('BloqueUno', editor).node.parentElement).fontSize,
       secondSize: getComputedStyle(getText('BloqueDos', editor).node.parentElement).fontSize
     }
+    await changeTab('Diseño')
+    await reset('<p><span style="font-size:12px;color:#047857">ConCSS</span></p>')
+    selectText('ConCSS', editor)
+    // applyColor() enables styleWithCSS when coloring at a collapsed caret.
+    // The browser then emits CSS-sized spans instead of <font size="7">.
+    document.execCommand('styleWithCSS', false, 'true')
+    await selectMenu('Tamaño', '20px')
+    results.cssModeSize = sizeAt('ConCSS')
     output.textContent = JSON.stringify(results)
   } catch (error) {
     output.textContent = JSON.stringify({ ...results, error: String(error && (error.stack || error)) })
@@ -245,6 +253,7 @@ async function main() {
       assert.equal(result.multiBlock.secondTag, 'H2', 'Second selected block failed to become H2')
       assert.ok(parseFloat(result.multiBlock.firstSize) > 20, 'First selected H2 kept previous inline size')
       assert.ok(parseFloat(result.multiBlock.secondSize) > 20, 'Second selected H2 kept previous inline size')
+      assert.equal(result.cssModeSize.size, '20px', 'Changing size after the editor enabled styleWithCSS must work')
     }
     console.log('PASS: repeated sizes, headings, paragraph, colors, underline and preview')
   } finally { await new Promise(resolve => server.close(resolve)) }
