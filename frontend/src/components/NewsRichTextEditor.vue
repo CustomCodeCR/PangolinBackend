@@ -108,7 +108,30 @@ onMounted(() => document.addEventListener('pointerdown', dismissPalette, true))
 onUnmounted(() => document.removeEventListener('pointerdown', dismissPalette, true))
 watch(tab, () => { openColors.value = null })
 const previewHtml = computed(() => sanitizeNewsHtml(props.modelValue || ''))
-function setStyle(value: string) { selectedStyle.value=value; if(value) choose('formatBlock',value) }
+// Heading and paragraph styles must actually change the visible size. Browsers
+// keep nested inline font-size rules when formatBlock changes only the outer tag.
+// Remove ONLY those sizes from the blocks changed by this action; preserve color,
+// underline, bold, highlighting and font family.
+function setStyle(value: string) {
+  selectedStyle.value = value
+  if (!['p', 'h1', 'h2', 'h3'].includes(value)) return
+  restoreSelection()
+  document.execCommand('formatBlock', false, value)
+  const selection = window.getSelection()
+  const range = selection?.rangeCount ? selection.getRangeAt(0) : null
+  if (range && editor.value?.contains(range.commonAncestorContainer)) {
+    editor.value.querySelectorAll<HTMLElement>('p, h1, h2, h3').forEach(block => {
+      if (!range.intersectsNode(block)) return
+      block.style.removeProperty('font-size')
+      block.querySelectorAll<HTMLElement>('[style], font[size]').forEach(child => {
+        child.style.removeProperty('font-size')
+        if (child.tagName === 'FONT') child.removeAttribute('size')
+      })
+    })
+  }
+  sync()
+  rememberSelection()
+}
 function setFont(value: string) { selectedFont.value=value; if(value) choose('fontName',value) }
 function setSize(value: string) { selectedSize.value=value; sizeText(value) }
 const fonts = ["Arial","Arial Black","Arial Narrow","Calibri","Cambria","Candara","Consolas","Constantia","Corbel","Georgia","Verdana","Tahoma","Times New Roman","Courier New","Trebuchet MS","Impact","Palatino Linotype","Book Antiqua","Garamond","Century Gothic","Franklin Gothic Medium","Lucida Sans Unicode","Lucida Console","Segoe UI","Helvetica","Helvetica Neue","Geneva","Optima","Gill Sans","Futura","Baskerville","Didot","Rockwell","Copperplate","Brush Script MT","Comic Sans MS","Monaco","Menlo","Andale Mono","Roboto","Open Sans","Lato","Montserrat","Poppins","Inter","Nunito","Raleway","Oswald","Merriweather","Playfair Display","Source Sans 3","PT Sans","PT Serif","Noto Sans","Noto Serif","Ubuntu","Rubik","Work Sans","DM Sans","Libre Baskerville"]
@@ -134,7 +157,19 @@ function choose(command: string, value: string) {
 function sizeText(value: string) {
   if (!sizes.includes(value)) return
   restoreSelection()
-  document.execCommand('fontSize', false, '7')
+  // execCommand('fontSize', '7') produces <font size="7"> in HTML mode,
+  // but generates CSS 'xxx-large' spans when styleWithCSS was enabled by
+  // a previous color action. Our sanitizer rejects that keyword, and 20px
+  // may appear as 48px. Temporarily use HTML mode for this one operation,
+  // then restore the browser's original setting for other format commands.
+  let hadCssMode = false
+  try { hadCssMode = document.queryCommandState('styleWithCSS') } catch { /* unsupported browser */ }
+  if (hadCssMode) document.execCommand('styleWithCSS', false, 'false')
+  try {
+    document.execCommand('fontSize', false, '7')
+  } finally {
+    if (hadCssMode) document.execCommand('styleWithCSS', false, 'true')
+  }
   editor.value?.querySelectorAll('font[size="7"]').forEach(element => {
     element.removeAttribute('size')
     ;(element as HTMLElement).style.fontSize = value
