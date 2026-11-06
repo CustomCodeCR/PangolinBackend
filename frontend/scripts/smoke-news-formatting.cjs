@@ -173,6 +173,9 @@ const client = String.raw`
     document.execCommand('styleWithCSS', false, 'true')
     await selectMenu('Tamaño', '20px')
     results.cssModeSize = sizeAt('ConCSS')
+    results.cssModeRestored = document.queryCommandState('styleWithCSS')
+    await changeTab('Vista previa')
+    results.cssModePreview = getComputedStyle(getText('ConCSS', await until('.news-rich-editor__preview-article')).node.parentElement).fontSize
     output.textContent = JSON.stringify(results)
   } catch (error) {
     output.textContent = JSON.stringify({ ...results, error: String(error && (error.stack || error)) })
@@ -254,6 +257,8 @@ async function main() {
       assert.ok(parseFloat(result.multiBlock.firstSize) > 20, 'First selected H2 kept previous inline size')
       assert.ok(parseFloat(result.multiBlock.secondSize) > 20, 'Second selected H2 kept previous inline size')
       assert.equal(result.cssModeSize.size, '20px', 'Changing size after the editor enabled styleWithCSS must work')
+      assert.equal(result.cssModeRestored, true, 'Applying a size must restore previous browser formatting mode')
+      assert.equal(result.cssModePreview, '20px', 'Corrected size must persist through sanitization to preview')
     }
     console.log('PASS: repeated sizes, headings, paragraph, colors, underline and preview')
   } finally { await new Promise(resolve => server.close(resolve)) }
