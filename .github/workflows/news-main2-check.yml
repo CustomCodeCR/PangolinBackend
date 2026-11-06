@@ -52,6 +52,8 @@ jobs:
           NODE
       - name: Comprobar lectura de noticias completas, traducciones y temas
         run: node frontend/scripts/smoke-news-i18n.cjs
+      - name: Comprobar colores reales de noticias en ambos temas (Chrome)
+        run: node frontend/scripts/smoke-news-color-cascade.cjs
       - name: Verificar página de Noticias y rutas existentes
         run: node frontend/scripts/smoke-browser.cjs
       - name: Verificar contratos de integración del frontend
