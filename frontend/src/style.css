@@ -5717,3 +5717,38 @@ html.theme-dark .content-manager .manager-itinerary-location-field .manager-itin
   color: #fff !important;
   background: #50343f !important;
 }
+
+
+/* About hero: keep the yard photograph visible behind the experience claim.
+   The hero grows along with the intro/values flow; nothing overlaps or is
+   shifted independently. The existing light/dark fade colors stay unchanged. */
+.about-reference-page .inner-hero--about {
+  height: 455px;
+}
+.about-reference-page .inner-hero--about::after {
+  height: 26%;
+}
+.about-reference-page .about-hero__copy {
+  position: relative;
+  z-index: 2;
+}
+.about-reference-page .about-hero__copy .big-years span {
+  text-shadow: 0 2px 12px rgba(40, 8, 20, .46);
+}
+@media (max-width: 800px) {
+  .about-reference-page .inner-hero--about {
+    min-height: 390px;
+    height: auto;
+  }
+  .about-reference-page .inner-hero--about::after {
+    height: 29%;
+  }
+}
+@media (max-width: 580px) {
+  .about-reference-page .inner-hero--about {
+    min-height: 365px;
+  }
+  .about-reference-page .inner-hero--about::after {
+    height: 33%;
+  }
+}
