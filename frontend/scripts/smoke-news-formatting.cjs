@@ -162,7 +162,7 @@ async function run(dark) {
     const port = server.address().port
     const url = 'http://127.0.0.1:' + port + '/administracion' + (dark ? '?test-dark' : '')
     return await new Promise((resolve,reject) => {
-      const chrome = spawn(browser, ['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--disable-extensions','--disable-background-networking','--virtual-time-budget=17000','--user-data-dir='+profile,'--dump-dom',url], {stdio:['ignore','pipe','pipe']})
+      const chrome = spawn(browser, ['--headless=new','--window-size=1600,2200','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--disable-extensions','--disable-background-networking','--virtual-time-budget=17000','--user-data-dir='+profile,'--dump-dom',url], {stdio:['ignore','pipe','pipe']})
       let text = '', err = ''
       const timer = setTimeout(() => chrome.kill('SIGKILL'), 40000)
       chrome.stdout.on('data', b => text += b)
