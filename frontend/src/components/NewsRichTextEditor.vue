@@ -157,7 +157,19 @@ function choose(command: string, value: string) {
 function sizeText(value: string) {
   if (!sizes.includes(value)) return
   restoreSelection()
-  document.execCommand('fontSize', false, '7')
+  // execCommand('fontSize', '7') produces <font size="7"> in HTML mode,
+  // but generates CSS 'xxx-large' spans when styleWithCSS was enabled by
+  // a previous color action. Our sanitizer rejects that keyword, and 20px
+  // may appear as 48px. Temporarily use HTML mode for this one operation,
+  // then restore the browser's original setting for other format commands.
+  let hadCssMode = false
+  try { hadCssMode = document.queryCommandState('styleWithCSS') } catch { /* unsupported browser */ }
+  if (hadCssMode) document.execCommand('styleWithCSS', false, 'false')
+  try {
+    document.execCommand('fontSize', false, '7')
+  } finally {
+    if (hadCssMode) document.execCommand('styleWithCSS', false, 'true')
+  }
   editor.value?.querySelectorAll('font[size="7"]').forEach(element => {
     element.removeAttribute('size')
     ;(element as HTMLElement).style.fontSize = value
