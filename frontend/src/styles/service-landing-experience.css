@@ -199,3 +199,10 @@ html:not(.theme-dark) .service-landing-hero::after{position:absolute;z-index:2;r
 html.theme-dark .service-landing-story .service-landing-step,
 html.theme-dark .service-landing-page.has-scroll-reveal .service-landing-story .service-landing-step{border-color:transparent!important;background:transparent!important;box-shadow:none!important}
 .service-landing-story .service-landing-step--quote .service-landing-quote{border:0!important;background:transparent!important;box-shadow:none!important}
+
+/* Center each glyph inside its existing tile without changing benefit-card sizing. */
+.service-landing-story .service-landing-step--benefits .service-landing-feature__icon{display:grid;place-items:center}
+.service-landing-story .service-landing-step--details{justify-content:flex-start}
+.service-landing-story .service-landing-step--details .service-landing-detail-grid{flex:0 0 auto}
+.service-landing-story .service-landing-step--details .service-landing-visual{width:100%;height:auto;min-height:0;aspect-ratio:auto;flex:0 0 auto;overflow:visible;background:transparent}
+.service-landing-story .service-landing-step--details .service-landing-visual img{display:block;width:100%;height:auto;max-width:100%;aspect-ratio:auto;object-fit:initial;object-position:center;border-radius:inherit}
