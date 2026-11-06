@@ -18,10 +18,10 @@
 .about-reference-page .cf-about-hero__explore{display:inline-flex;align-items:center;justify-content:space-between;gap:25px;min-height:46px;padding:12px 17px 12px 19px;border:1px solid rgba(255,255,255,.45);border-radius:100px;color:#fff;background:rgba(255,255,255,.1);backdrop-filter:blur(8px);font-size:13px;font-weight:780;transition:background .24s,border-color .24s,transform .24s}
 .about-reference-page .cf-about-hero__explore:hover{transform:translateY(-2px);border-color:#fff;background:rgba(255,255,255,.22)}
 .about-reference-page .cf-about-hero__explore:focus-visible,.about-reference-page .cf-about-cta a:focus-visible{outline:3px solid #ff8295;outline-offset:4px}
-.about-reference-page .cf-about-hero__years{position:absolute;z-index:2;right:max(5vw,calc((100vw - 1180px)/2));bottom:68px;display:flex;align-items:center;gap:14px;padding:15px 20px;border-left:3px solid #e83454;color:#fff;background:rgba(12,18,32,.44);backdrop-filter:blur(12px)}
+.about-reference-page .cf-about-hero__years{position:absolute;z-index:2;right:max(5vw,calc(50vw - 590px));bottom:68px;display:flex;align-items:center;gap:14px;padding:15px 20px;border-left:3px solid #e83454;color:#fff;background:rgba(12,18,32,.44);backdrop-filter:blur(12px)}
 .about-reference-page .cf-about-hero__years strong{font-family:"Arial Black",Inter,sans-serif;font-size:clamp(45px,5.5vw,72px);line-height:.9;letter-spacing:-.08em}
 .about-reference-page .cf-about-hero__years span{max-width:95px;font-size:12px;line-height:1.35;letter-spacing:.1em;font-weight:800}
-.about-reference-page .cf-about-hero__rail{position:absolute;z-index:2;right:0;bottom:0;left:0;display:flex;justify-content:space-between;gap:16px;padding:11px max(5vw,calc((100vw - 1180px)/2));color:rgba(255,255,255,.77);border-top:1px solid rgba(255,255,255,.21);font-size:10px;font-weight:800;letter-spacing:.16em}
+.about-reference-page .cf-about-hero__rail{position:absolute;z-index:2;right:0;bottom:0;left:0;display:flex;justify-content:space-between;gap:16px;padding:11px max(5vw,calc(50vw - 590px));color:rgba(255,255,255,.77);border-top:1px solid rgba(255,255,255,.21);font-size:10px;font-weight:800;letter-spacing:.16em}
 
 /* A readable, two-column company story with restrained editorial photo layering. */
 .about-reference-page .about-reference-intro.cf-about-story{position:relative;margin:0!important;padding:clamp(66px,7.8vw,106px) 0!important;background:var(--cf-about-paper);scroll-margin-top:100px}
