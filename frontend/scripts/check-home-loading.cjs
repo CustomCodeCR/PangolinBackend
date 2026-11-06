@@ -28,7 +28,13 @@ assert.match(home, /if \(commentsRequested\) void loadPublicComments\(\)/, 'Sign
 assert.match(home, /fetch\('\/api\/content\/news'/, 'Las noticias deben seguir cargándose al iniciar Home')
 assert.match(instagram, /reelObserver = new IntersectionObserver\(/, 'Instagram debe esperar a estar cerca de la pantalla')
 assert.match(instagram, /if \(!reelRequested\) return/, 'Un cambio del CMS no debe anticipar la descarga del Reel')
-assert.match(home, /<WorldGlobe \/>/, 'El globo sigue presente en Home')
+assert.match(home, /<WorldGlobe satellite-surface \\/>/, 'La portada utiliza la superficie terrestre fotográfica')
+assert.match(globe, /satelliteSurface: props\\.satelliteSurface === true && !props\\.shipment/,
+  'La fotografía solo se activa por solicitud explícita y nunca en embarques')
+assert.doesNotMatch(read('src/pages/Tracking.vue'), /satellite-surface|satelliteSurface/,
+  'No modificar la apariencia de Tracking')
+assert.ok(fs.statSync(path.join(root, 'public/images/earth-satellite-daymap.jpg')).size > 100000,
+  'La textura fotográfica debe estar empaquetada localmente')
 assert.match(home, /<HomeInstagramReel \/>/, 'Instagram sigue presente en Home')
 
 // Verify the actual production build has a separate renderer chunk, not just a
