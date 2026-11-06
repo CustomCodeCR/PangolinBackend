@@ -412,7 +412,10 @@ onMounted(() => {
   applyInitialQuestion()
 })
 function loginLink(): string {
-  return '/bienvenidos?next=' + encodeURIComponent(window.location.pathname + window.location.search)
+  const next = props.kind === 'tracking'
+    ? '/tracking?from=gio'
+    : window.location.pathname + window.location.search
+  return '/bienvenidos?next=' + encodeURIComponent(next)
 }
 function errorFromStatus(status: number) {
   return status === 401 ? tr('Tu sesión expiró. Inicia sesión e inténtalo de nuevo.','Your session expired. Sign in and try again.')
@@ -571,7 +574,7 @@ async function perform() {
     if (props.kind === 'itinerary') await searchItineraries()
     if (props.kind === 'tracking') {
       const user = await refreshSession()
-      if (!user) { phase.value = 'auth'; return }
+      if (!user) { saveTrackingHandoff(); phase.value = 'auth'; return }
       // The existing Dynamics lookup has no verified client-to-shipment ownership check.
       // Never expose that unscoped lookup to a customer from the conversational interface.
       if (user.role !== 'administrador') { restrictedTracking.value = true; phase.value = 'result'; return }
@@ -633,7 +636,7 @@ async function perform() {
         <button class="gio-ops__secondary" type="button" :disabled="busy" @click="edit">{{ tr('Modificar datos','Edit information') }}</button>
       </template>
       <template v-else-if="phase === 'auth'">
-        <div class="gio-ops__bubble">{{ kind === 'quote' ? tr('Para enviar la solicitud necesitas una cuenta autorizada. El borrador permanecerá en esta pestaña hasta 30 minutos. Al volver, abre GIO y elige Cotización.','To submit this request you need an authorized account. Your draft stays in this tab for up to 30 minutes. On return, open GIO and select Quote.') : tr('Necesitas una cuenta autorizada para consultar esta información. Inicia sesión y vuelve a realizar la búsqueda.','You need an authorized account to search this information. Sign in, then start the search again.') }}</div>
+        <div class="gio-ops__bubble">{{ tr('Para consultar este embarque necesitás iniciar sesión. Después se abrirá tracking con la referencia que acabás de ingresar, sin repetir la búsqueda.','Sign in to view this shipment. Tracking will open with the reference you just entered, without searching again.') }}</div>
         <a class="gio-ops__primary" :href="loginLink()"><ShieldCheck :size="16" />{{ tr('Iniciar sesión','Sign in') }}</a>
         <button class="gio-ops__secondary" type="button" @click="perform">{{ tr('Ya inicié sesión','I have signed in') }}</button>
       </template>
