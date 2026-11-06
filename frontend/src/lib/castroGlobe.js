@@ -43,6 +43,7 @@ export class CastroGlobe {
     this.target = null
     this.running = true
     this.drag = null
+    this.inertia = null
     this.activePointers = new Map()
     this.pinch = null
     this.markerHits = []
@@ -66,7 +67,7 @@ export class CastroGlobe {
       visibility: () => {
         this.pageVisible = !document.hidden
         if (this.pageVisible) { this.lastFrame = 0; this.invalidate() }
-        else this.pause()
+        else { this.inertia = null; this.pause() }
       }
     }
     canvas.style.touchAction = 'none'
@@ -149,6 +150,7 @@ export class CastroGlobe {
     return this
   }
   flyTo(lon, lat, opts = {}) {
+    this.inertia = null
     const to = { lon: wrap(Number(lon)), lat: clamp(Number(lat), -85, 85) }
     if (opts.instant || noMotion()) { this.lon = to.lon; this.lat = to.lat; this.target = null }
     else this.target = { ...to, started: performance.now(), fromLon: this.lon,
@@ -400,6 +402,20 @@ export class CastroGlobe {
       this.lat = lerp(this.target.fromLat, this.target.lat, t)
       if (progress >= 1) this.target = null
       rotating = true
+    } else if (this.inertia && !this.drag && !reducedMotion) {
+      // The reference rotates smoothly after a drag instead of stopping abruptly.
+      // Exponential damping is frame-time independent, so slower machines behave
+      // like faster ones. Limit this interaction to the photographic Tracking globe.
+      const movement = this.inertia
+      this.lon = wrap(this.lon + movement.lon * dt)
+      const nextLat = clamp(this.lat + movement.lat * dt, -85, 85)
+      if (nextLat === this.lat && movement.lat * dt !== 0) movement.lat = 0
+      this.lat = nextLat
+      const damping = Math.exp(-dt / 520)
+      movement.lon *= damping
+      movement.lat *= damping
+      if (Math.hypot(movement.lon, movement.lat) < 0.003) this.inertia = null
+      rotating = true
     } else if (!this.drag && this.options.autoRotate && !reducedMotion) {
       this.lon = wrap(this.lon + (this.options.rotateSpeed ?? .09) * dt / 33)
       rotating = true
@@ -442,6 +458,7 @@ export class CastroGlobe {
   pointerDown(event) {
     if (!this.options.interactive) return
     this.target = null
+    this.inertia = null
     const p = this.canvasPoint(event)
     this.activePointers.set(event.pointerId, p)
     this.canvas.setPointerCapture?.(event.pointerId)
@@ -451,7 +468,9 @@ export class CastroGlobe {
       this.drag = null
       this.ignoreClick = true
     } else if (this.activePointers.size === 1) {
-      this.drag = { x: p.x, y: p.y, lon: this.lon, lat: this.lat, moved: false, pointer: event.pointerId }
+      this.drag = { x: p.x, y: p.y, lon: this.lon, lat: this.lat, moved: false,
+        pointer: event.pointerId, lastX: p.x, lastY: p.y, lastMoveAt: performance.now(),
+        velocityLon: 0, velocityLat: 0 }
     }
   }
   pointerMove(event) {
@@ -468,6 +487,18 @@ export class CastroGlobe {
     const dx = p.x - this.drag.x, dy = p.y - this.drag.y
     if (Math.abs(dx) + Math.abs(dy) > 4) this.drag.moved = true
     const factor = 90 / Math.max(120, this.radius)
+    const now = performance.now()
+    const dt = now - this.drag.lastMoveAt
+    // Track recent pointer speed (degrees/ms) for a short, natural spin after release.
+    if (this.options.satelliteSurface && dt >= 5 && dt < 150) {
+      const vLon = -(p.x - this.drag.lastX) * factor / dt
+      const vLat = (p.y - this.drag.lastY) * factor / dt
+      this.drag.velocityLon = clamp(this.drag.velocityLon * .3 + vLon * .7, -.45, .45)
+      this.drag.velocityLat = clamp(this.drag.velocityLat * .3 + vLat * .7, -.45, .45)
+    }
+    this.drag.lastX = p.x
+    this.drag.lastY = p.y
+    this.drag.lastMoveAt = now
     this.lon = wrap(this.drag.lon - dx * factor)
     this.lat = clamp(this.drag.lat + dy * factor, -85, 85)
     this.invalidate()
@@ -476,9 +507,17 @@ export class CastroGlobe {
     if (!this.activePointers.has(event.pointerId)) return
     this.activePointers.delete(event.pointerId)
     if (this.pinch) this.ignoreClick = true
-    else if (this.drag?.pointer === event.pointerId) this.ignoreClick = this.drag.moved
+    else if (this.drag?.pointer === event.pointerId) {
+      this.ignoreClick = this.drag.moved
+      const recent = performance.now() - this.drag.lastMoveAt < 110
+      if (this.options.satelliteSurface && this.drag.moved && recent
+        && !noMotion() && Math.hypot(this.drag.velocityLon, this.drag.velocityLat) > .015) {
+        this.inertia = { lon: this.drag.velocityLon, lat: this.drag.velocityLat }
+      }
+    }
     this.pinch = null
     this.drag = null
+    if (this.inertia) this.invalidate()
   }
   onWheel(event) {
     if (!this.options.interactive || !this.options.zoomable) return
@@ -493,6 +532,7 @@ export class CastroGlobe {
   }
   onKey(event) {
     if (!this.options.interactive) return
+    this.inertia = null
     let used = true
     if (event.key === 'ArrowLeft') this.lon = wrap(this.lon - 8)
     else if (event.key === 'ArrowRight') this.lon = wrap(this.lon + 8)
