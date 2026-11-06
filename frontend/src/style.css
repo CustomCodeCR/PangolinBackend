@@ -94,10 +94,22 @@ html.theme-dark .app-site {
   color: #fff !important;
 }
 
-/* Texto blanco */
+/* En tema oscuro, los componentes normales conservan el blanco.
+   Los textos enriquecidos de noticias son una excepción: sus colores son
+   formatos elegidos por el editor y deben ganar sobre esta regla global.
+   :where() mantiene la especificidad original sin elevar prioridades. */
+html.theme-dark .app-site,
+html.theme-dark .app-site :not(:where(
+  .news-rich-editor__content,
+  .news-rich-editor__content *,
+  .news-article-page__formatted,
+  .news-article-page__formatted *
+)) {
+  color: #fff !important;
+}
+/* Preservar los bordes existentes; la excepción es SOLO para color. */
 html.theme-dark .app-site,
 html.theme-dark .app-site * {
-  color: #fff !important;
   border-color: #555 !important;
 }
 
@@ -129,10 +141,22 @@ html.theme-dark .app-site {
   color: #fff !important;
 }
 
-/* Texto blanco */
+/* En tema oscuro, los componentes normales conservan el blanco.
+   Los textos enriquecidos de noticias son una excepción: sus colores son
+   formatos elegidos por el editor y deben ganar sobre esta regla global.
+   :where() mantiene la especificidad original sin elevar prioridades. */
+html.theme-dark .app-site,
+html.theme-dark .app-site :not(:where(
+  .news-rich-editor__content,
+  .news-rich-editor__content *,
+  .news-article-page__formatted,
+  .news-article-page__formatted *
+)) {
+  color: #fff !important;
+}
+/* Preservar los bordes existentes; la excepción es SOLO para color. */
 html.theme-dark .app-site,
 html.theme-dark .app-site * {
-  color: #fff !important;
   border-color: #555 !important;
 }
 
@@ -164,10 +188,22 @@ html.theme-dark .app-site {
   color: #fff !important;
 }
 
-/* Texto blanco */
+/* En tema oscuro, los componentes normales conservan el blanco.
+   Los textos enriquecidos de noticias son una excepción: sus colores son
+   formatos elegidos por el editor y deben ganar sobre esta regla global.
+   :where() mantiene la especificidad original sin elevar prioridades. */
+html.theme-dark .app-site,
+html.theme-dark .app-site :not(:where(
+  .news-rich-editor__content,
+  .news-rich-editor__content *,
+  .news-article-page__formatted,
+  .news-article-page__formatted *
+)) {
+  color: #fff !important;
+}
+/* Preservar los bordes existentes; la excepción es SOLO para color. */
 html.theme-dark .app-site,
 html.theme-dark .app-site * {
-  color: #fff !important;
   border-color: #555 !important;
 }
 
