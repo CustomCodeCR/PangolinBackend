@@ -282,7 +282,10 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
           <div class="itinerary-form-line"><strong :title="portPlaceholder(item, 'pod')">POD</strong><ItineraryLocationSelect v-model="item.pod" :options="destinations" aria-label="POD" :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" :loading="loadingLocations" /></div>
           <label class="itinerary-form-line"><strong>Closing</strong><input v-model="item.closing" type="date" /></label>
           <label class="itinerary-form-line"><strong>ETD</strong><input v-model="item.etd" type="date" /></label>
-          <label class="itinerary-form-line"><strong>{{ en ? 'ETD from' : 'ETD desde' }}</strong><input v-model="earliestDeparture" type="date" /></label>
+          <div v-if="earliestDeparture" class="itinerary-location-feedback">
+            {{ en ? 'Showing departures from' : 'Mostrando salidas desde' }} {{ earliestDeparture }}
+            <button type="button" @click="earliestDeparture = ''; searchItineraries(1, false)">{{ en ? 'Clear filter' : 'Quitar filtro' }}</button>
+          </div>
           <label class="itinerary-form-line"><strong>ETA</strong><input v-model="item.eta" type="date" /></label>
           <div class="itinerary-form-line"><strong>{{ labels.modality }}</strong><FieldDropdown v-model="item.modality" :options="modalityChoices(item)" :aria-label="labels.modality" /></div>
         </div>
