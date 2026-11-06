@@ -11,7 +11,7 @@ const copy = computed(() => isEnglish.value ? {
   title: 'GIO', subtitle: 'Virtual assistant · Grupo Castro Fallas', greeting: 'Hi! I can help you find services, tracking, quotes or contact details. Try a keyword.',
   placeholder: 'Write a question…', send: 'Send', close: 'Close assistant', open: 'Open logistics assistant',
   quick: ['Request a quote', 'Check my shipment', 'Find itineraries', 'Services and contact'],
-  quote: 'I can prepare a transport quote request here, ask for the missing shipment details and show a summary for your confirmation. Sending requires an authorized account. Castro Fallas confirms rates and availability.',
+  quote: 'I can prepare a transport quote request here, ask for the missing shipment details and show a summary for your confirmation. Visitors can submit a quote request without signing in. Castro Fallas confirms rates and availability.',
   tracking: 'You can use the authorized tracking page after signing in. Shipment lookups inside the GIO chat are temporarily restricted to administrators until customer ownership can be verified. GIO never invents shipment statuses.',
   service: 'Castro Fallas presents air, ocean, ground and multimodal transport, along with customs and logistics support. The right option depends on the route, cargo, timing and handling needs. The team can assess your operation and confirm the available service.',
   modalities: 'As a general guide: air freight is usually chosen when speed is a priority; ocean freight moves cargo by ship and can use a full container (FCL) or consolidated cargo (LCL); ground transport moves cargo by truck and can use a full truckload (FTL) or consolidated freight (LTL); multimodal transport combines two or more modes in one coordinated route. These are general logistics explanations, not confirmation of a specific offer. Castro Fallas should confirm availability, transit time and price for your cargo. You can reach the team at comercial@castrofallas.com or +506 2272-6772.',
@@ -25,17 +25,17 @@ const copy = computed(() => isEnglish.value ? {
   ftlLtl: 'FTL is a full-truckload move; LTL combines cargo from multiple shippers in one truck. The best fit depends on volume, route, timing and handling. Ask for a quote to compare the options for your shipment.',
   fclLcl: 'FCL uses a full container for one shipment; LCL consolidates cargo from different shippers in a container. The appropriate option depends on cargo volume, route and schedule; the team can confirm the available service.',
   contact: 'You can contact Castro Fallas at comercial@castrofallas.com or +506 2272-6772. WhatsApp: +506 7078-6860. Office hours shown on the site: Monday to Friday, 7:30 a.m. to 5:15 p.m. Costa Rica time.',
-  account: 'Sign in with an authorized account to submit a quote request. Public visitors can explore the site, but quote submission requires an enabled account.',
-  navigation: 'Website guide: Home /home, Services /servicios, About /nosotros, News /noticias, Sign in /bienvenidos. Quotes /cotizaciones, Itineraries /itinerario and Tracking /tracking require an authorized login.',
+  account: 'You can submit an official quote request or browse published itineraries without signing in. Tracking still requires an authorized account.',
+  navigation: 'Website guide: Home /home, Services /servicios, About /nosotros, News /noticias, Sign in /bienvenidos. Quotes /cotizaciones and Itineraries /itinerario are public. Tracking /tracking requires an authorized login.',
   news: 'Read published articles at /noticias. GIO does not fetch live news.',
-  itinerary: 'Select Find itineraries in GIO to search published routes after signing in. The search results come from the site database, not from invented schedules.',
+  itinerary: 'Select Find itineraries in GIO to search published routes without signing in. The search results come from the site database, not from invented schedules.',
   greetingReply: 'Hello! I can explain Castro Fallas services, quote requests, customs support, cargo storage, transport modes or how to contact the team.', fallback: 'I do not have that detail confirmed, so I will not guess. It is best to contact Grupo Castro Fallas directly at comercial@castrofallas.com, +506 2272-6772 or WhatsApp +506 7078-6860. I can also explain the services, quotes, customs, warehousing or transport modes.',
   offline: 'I cannot reach the AI right now, so this is guidance from the site: ', openLink: 'Open section', status: 'Available'
 } : {
   title: 'GIO', subtitle: 'Asistente virtual · Grupo Castro Fallas', greeting: '¡Hola! Puedo ofrecer información sobre servicios, seguimiento, cotizaciones y contacto. Escribe una palabra clave.',
   placeholder: 'Escribe tu consulta…', send: 'Enviar', close: 'Cerrar asistente', open: 'Abrir asistente logístico',
   quick: ['Solicitar cotización', 'Consultar mi embarque', 'Buscar itinerarios', 'Servicios y contacto'],
-  quote: 'Puedo preparar la solicitud desde este chat, preguntarte los datos que falten y mostrarte un resumen para confirmar. Para enviarla necesitarás una cuenta autorizada. Castro Fallas confirma el precio y la disponibilidad.',
+  quote: 'Puedo preparar la solicitud desde este chat, preguntarte los datos que falten y mostrarte un resumen para confirmar. Podés enviarla sin iniciar sesión. Castro Fallas confirma el precio y la disponibilidad.',
   tracking: 'Puedes consultar seguimiento desde la sección de tracking con una cuenta autorizada. La búsqueda conversacional de embarques en GIO está limitada a administradores hasta verificar la titularidad del cliente. Nunca inventaré estados de carga.',
   service: 'Castro Fallas presenta transporte aéreo, marítimo, terrestre y multimodal, además de apoyo aduanero y logístico. La opción adecuada depende de la ruta, la carga, el plazo y las necesidades de manejo. El equipo puede revisar tu operación y confirmar el servicio disponible.',
   modalities: 'Como guía general: el transporte aéreo suele elegirse cuando la rapidez es prioridad; el marítimo mueve la carga por barco y puede ser en contenedor completo (FCL) o consolidado (LCL); el terrestre mueve la carga en camión y puede ser camión completo (FTL) o carga consolidada (LTL); el multimodal combina dos o más medios en una ruta coordinada. Esto explica las modalidades en general, no confirma una oferta específica. Castro Fallas debe confirmar disponibilidad, tiempo y precio según tu carga. Puedes consultar en comercial@castrofallas.com o al +506 2272-6772.',
@@ -49,10 +49,10 @@ const copy = computed(() => isEnglish.value ? {
   ftlLtl: 'FTL es una carga que ocupa un camión completo; LTL combina carga de varios clientes en un mismo camión. La mejor opción depende del volumen, la ruta, el plazo y el manejo. Puedes solicitar una cotización para comparar alternativas para el envío.',
   fclLcl: 'FCL utiliza un contenedor completo para un envío; LCL consolida carga de varios clientes en un contenedor. La opción adecuada depende del volumen, la ruta y el itinerario; el equipo puede confirmar qué servicio está disponible.',
   contact: 'Puedes contactar a Castro Fallas en comercial@castrofallas.com o al +506 2272-6772. WhatsApp: +506 7078-6860. El horario publicado es de lunes a viernes, de 7:30 a. m. a 5:15 p. m., hora de Costa Rica.',
-  account: 'Inicia sesión con una cuenta autorizada para enviar una solicitud de cotización. Las personas visitantes pueden explorar el sitio; para registrar una cotización se necesita una cuenta habilitada.',
-  navigation: 'Guía de la web: Inicio /home, Servicios /servicios, Nosotros /nosotros, Noticias /noticias, iniciar sesión /bienvenidos. Cotizaciones /cotizaciones, Itinerarios /itinerario y Tracking /tracking requieren cuenta autorizada.',
+  account: 'Podés solicitar una cotización oficial o consultar itinerarios publicados sin iniciar sesión. Tracking requiere una cuenta autorizada.',
+  navigation: 'Guía de la web: Inicio /home, Servicios /servicios, Nosotros /nosotros, Noticias /noticias, iniciar sesión /bienvenidos. Cotizaciones /cotizaciones e Itinerarios /itinerario son públicos. Tracking /tracking requiere cuenta autorizada.',
   news: 'Las noticias publicadas están en /noticias. GIO no conoce publicaciones en tiempo real.',
-  itinerary: 'Elige Buscar itinerarios en GIO para consultar rutas publicadas después de iniciar sesión. Los resultados provienen de la base de datos del sitio.',
+  itinerary: 'Elegí Buscar itinerarios en GIO para consultar rutas publicadas sin iniciar sesión. Los resultados provienen de la base de datos del sitio.',
   greetingReply: '¡Hola! Puedo explicarte los servicios de Castro Fallas, cómo pedir una cotización, el apoyo aduanero, el almacenamiento, las modalidades de transporte o cómo contactar al equipo.', fallback: 'No tengo ese dato confirmado, así que no quiero inventarlo. Es mejor comunicarte directamente con Grupo Castro Fallas en comercial@castrofallas.com, al +506 2272-6772 o por WhatsApp al +506 7078-6860. También puedo explicarte los servicios, cotizaciones, aduanas, almacenamiento o modalidades de transporte.',
   offline: 'Ahora no puedo consultar la IA, así que esta es una orientación basada en el sitio: ', openLink: 'Abrir sección', status: 'Disponible'
 })
@@ -111,12 +111,12 @@ function answerFor(question: string): Omit<Message, 'id' | 'role'> {
 
   // Respuestas verificadas, sin gastar llamadas a la IA en consultas rápidas.
   if (contains(text, ['guia de la web', 'navegar la web', 'mapa del sitio', 'website guide', 'site map'])) return { text: copy.value.navigation, href: '/servicios', linkText: copy.value.openLink }
-  if (contains(text, ['itinerario', 'itinerarios', 'itinerary'])) return { text: copy.value.itinerary, href: '/bienvenidos', linkText: copy.value.openLink }
+  if (contains(text, ['itinerario', 'itinerarios', 'itinerary'])) return { text: copy.value.itinerary, href: '/itinerario', linkText: copy.value.openLink }
   if (contains(text, ['noticias', 'noticia', 'news'])) return { text: copy.value.news, href: '/noticias', linkText: copy.value.openLink }
   if (contains(text, ['cotiz', 'tarifa', 'precio', 'quote', 'rate', 'cuanto cuesta', 'cuanto vale'])) {
     const mode = contains(text, ['aerea', 'aereo', 'air']) ? 'aérea' : contains(text, ['maritima', 'maritimo', 'ocean', 'ship']) ? 'marítima' : contains(text, ['terrestre', 'camion', 'ground', 'truck']) ? 'terrestre' : contains(text, ['multimodal']) ? 'multimodal' : ''
     const response = mode ? `${copy.value.quote} Modalidad consultada: ${mode}.` : copy.value.quote
-    return { text: response, href: '/bienvenidos?next=%2Fcotizaciones', linkText: copy.value.openLink }
+    return { text: response, href: '/cotizaciones', linkText: copy.value.openLink }
   } else if (contains(text, ['modalidad', 'modalidades', 'diferencia entre', 'que conviene'])) {
     return { text: copy.value.modalities, href: '/servicios', linkText: copy.value.openLink }
   } else if (contains(text, ['ftl', 'ltl', 'carga completa', 'carga consolidada terrestre'])) {

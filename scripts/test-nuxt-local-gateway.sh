@@ -103,8 +103,10 @@ for page in "bienvenidos" "cotizaciones?servicio=Maritime"; do
   if [[ "$page" == bienvenidos ]]; then
     grep -q 'login-screen' <<< "$html" || { echo "FAIL login vacío" >&2; exit 1; }
   else
-    grep -q 'quote-access-status--blocked' <<< "$html" || {
-      echo "FAIL cotizaciones en blanco o sin control de sesión" >&2
+    # En la preview híbrida las cotizaciones oficiales son públicas.
+    # Validar que el formulario real está visible, no solo un contenedor Vue.
+    grep -q 'official-page' <<< "$html" && grep -q 'official-panel' <<< "$html" || {
+      echo "FAIL cotizaciones públicas no muestran el formulario oficial" >&2
       echo "$html" | tail -c 1000 >&2
       exit 1
     }

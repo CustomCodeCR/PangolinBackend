@@ -4,8 +4,8 @@ namespace CastroFallas.MiniQuote.Api.Models;
 public sealed class OfficialQuoteRequest
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid ClienteId { get; set; }
-    public Guid UsuarioId { get; set; }
+    public Guid? ClienteId { get; set; }
+    public Guid? UsuarioId { get; set; }
     public string CustomerName { get; set; } = "";
     public string ContactName { get; set; } = "";
     public string ContactEmail { get; set; } = "";

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { driver, type Driver } from 'driver.js'
 import 'driver.js/dist/driver.css'
@@ -422,8 +422,24 @@ function handleGuideKeydown(event: KeyboardEvent) {
 }
 
 // The guide is opt-in: auto-opening its overlay can intercept mobile select taps.
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('keydown', handleGuideKeydown, true)
+  if (localVisualPreview || new URLSearchParams(window.location.search).get('from') !== 'gio') return
+  try {
+    const raw = sessionStorage.getItem('gcf-gio-tracking-handoff-v1')
+    sessionStorage.removeItem('gcf-gio-tracking-handoff-v1')
+    if (!raw) return
+    const saved = JSON.parse(raw) as { at?: number; type?: string; reference?: string }
+    if (typeof saved.at !== 'number' || !Number.isFinite(saved.at) ||
+        Date.now() - saved.at < 0 || Date.now() - saved.at > 5 * 60 * 1000 ||
+        !/^(BCF|BL|HBL|IDTRA|CONTAINER|PO)$/.test(saved.type || '') ||
+        !/^[a-z0-9_-]{3,64}$/i.test(saved.reference || '')) return
+    kind.value = saved.type === 'BCF' || saved.type === 'HBL' ? 'BL' : saved.type!
+    reference.value = saved.reference!
+    // Flush the form's watchers before running the real, access-controlled lookup.
+    await nextTick()
+    await searchShipment()
+  } catch { /* Missing or blocked storage: keep the normal search form. */ }
 })
 
 onBeforeUnmount(() => {

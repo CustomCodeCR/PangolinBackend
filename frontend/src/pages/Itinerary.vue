@@ -7,12 +7,12 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
-import { authState, refreshSession } from '../services/auth'
+import { authState } from '../services/auth'
 import { subscribeToChanges } from '../services/realtime'
 import { readManagedItineraries, type ManagedItinerary } from '../adminContent'
 import { localizeTrackingMode, localizeTrackingStatus } from '../lib/trackingDisplay'
 
-type TransportMode = 'maritime' | 'ground'
+type TransportMode = 'maritime' | 'ground' | ''
 type ItineraryStatus = 'planning' | 'transit' | 'delivered' | 'delayed'
 // Formulario de búsqueda: id numérico local (NO es un registro de PostgreSQL).
 type Itinerary = {
@@ -76,8 +76,21 @@ const searchPerformed = ref(false)
 const resultsRef = ref<HTMLElement | null>(null)
 const resultados = ref<ItineraryResultado[]>([])
 const publishedItineraries = ref<ManagedItinerary[]>([])
+const earliestDeparture = ref('')
 onMounted(async () => {
-  await refreshSession()
+  // GIO carries the exact filters into this public results screen.
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('from') === 'gio') {
+    const selected = activeItinerary.value
+    if (selected) {
+      selected.pol = (params.get('pol') || '').slice(0, 150)
+      selected.pod = (params.get('pod') || '').slice(0, 150)
+      const transport = params.get('transporte')
+      selected.transport = transport === 'maritime' || transport === 'ground' ? transport : ''
+      const departure = params.get('etdDesde') || ''
+      if (/^\d{4}-\d{2}-\d{2}$/.test(departure)) earliestDeparture.value = departure
+    }
+  }
   publishedItineraries.value = readManagedItineraries()
   await searchItineraries(1, false)
 })
@@ -111,11 +124,11 @@ function createItinerary(id: number): Itinerary {
 }
 
 function optionsFor(item: Itinerary) {
-  return item.transport === 'maritime' ? maritimeOptions.value : groundOptions.value
+  return item.transport === 'maritime' ? maritimeOptions.value : item.transport === 'ground' ? groundOptions.value : []
 }
 
 function portPlaceholder(item: Itinerary, port: 'pol' | 'pod') {
-  return transportDetails.value[item.transport === 'maritime' ? 0 : 1][port]
+  return item.transport ? transportDetails.value[item.transport === 'maritime' ? 0 : 1][port] : port.toUpperCase()
 }
 
 function changeTransport(item: Itinerary) {
@@ -159,6 +172,7 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
     if (f.pod.trim()) filters.set('pod', f.pod.split(',')[0].trim())
     if (f.status) filters.set('status', f.status)
     if (f.transport) filters.set('transporte', f.transport)
+    if (earliestDeparture.value) filters.set('etdDesde', earliestDeparture.value)
     if (f.modality) filters.set('modalidad', f.modality)
     // La API acepta fechas exactas: closing, etd y eta; sin rangos duplicados.
     for (const key of ['closing', 'etd', 'eta'] as const) {
@@ -193,10 +207,6 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
       totalResults.value = resultados.value.length
       totalPages.value = 1
       currentPage.value = 1
-      return
-    }
-    if (response.status === 401) {
-      window.location.assign('/bienvenidos?next=' + encodeURIComponent(window.location.pathname + window.location.search))
       return
     }
     if (!response.ok) throw new Error(`No se pudieron consultar itinerarios (${response.status}).`)
@@ -246,6 +256,10 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
 
     <main class="container itinerary-content">
       <nav v-if="activeItinerary" class="itinerary-transport-tabs" :aria-label="t('custom.itinerary.modeLabel')">
+        <button type="button" :class="{ 'is-active': activeItinerary.transport === '' }" :aria-pressed="activeItinerary.transport === ''" @click="selectTransport('')">
+          <IconSymbol glyph="⌕" :size="22" />
+          <span>{{ en ? 'All' : 'Todos' }}</span>
+        </button>
         <button type="button" :class="{ 'is-active': activeItinerary.transport === 'maritime' }" :aria-pressed="activeItinerary.transport === 'maritime'" @click="selectTransport('maritime')">
           <IconSymbol glyph="ship" :size="22" />
           <span>{{ modes[0] }}</span>
@@ -268,6 +282,10 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
           <div class="itinerary-form-line"><strong :title="portPlaceholder(item, 'pod')">POD</strong><ItineraryLocationSelect v-model="item.pod" :options="destinations" aria-label="POD" :placeholder="en ? 'Search city or country' : 'Buscar ciudad o país'" :loading="loadingLocations" /></div>
           <label class="itinerary-form-line"><strong>Closing</strong><input v-model="item.closing" type="date" /></label>
           <label class="itinerary-form-line"><strong>ETD</strong><input v-model="item.etd" type="date" /></label>
+          <div v-if="earliestDeparture" class="itinerary-location-feedback">
+            {{ en ? 'Showing departures from' : 'Mostrando salidas desde' }} {{ earliestDeparture }}
+            <button type="button" @click="earliestDeparture = ''; searchItineraries(1, false)">{{ en ? 'Clear filter' : 'Quitar filtro' }}</button>
+          </div>
           <label class="itinerary-form-line"><strong>ETA</strong><input v-model="item.eta" type="date" /></label>
           <div class="itinerary-form-line"><strong>{{ labels.modality }}</strong><FieldDropdown v-model="item.modality" :options="modalityChoices(item)" :aria-label="labels.modality" /></div>
         </div>

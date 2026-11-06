@@ -11,8 +11,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_official_quote_locations_kind_code
     ON public.official_quote_locations(kind,code) WHERE code IS NOT NULL;
 CREATE TABLE IF NOT EXISTS public.official_quote_requests (
     id UUID PRIMARY KEY,
-    cliente_id UUID NOT NULL REFERENCES public.clientes(uuid) ON DELETE RESTRICT,
-    usuario_id UUID NOT NULL REFERENCES public.usuarios(uuid) ON DELETE RESTRICT,
+    cliente_id UUID NULL REFERENCES public.clientes(uuid) ON DELETE RESTRICT,
+    usuario_id UUID NULL REFERENCES public.usuarios(uuid) ON DELETE RESTRICT,
     customer_name VARCHAR(200) NOT NULL,
     contact_name VARCHAR(150) NOT NULL,
     contact_email VARCHAR(255) NOT NULL,
@@ -36,6 +36,11 @@ CREATE TABLE IF NOT EXISTS public.official_quote_requests (
         (mode = 'Land' AND shipment_type IN ('FTL','LTL'))
     )
 );
+-- Migración aditiva: una solicitud de invitado no pertenece a una cuenta registrada.
+-- Mantener las FK para solicitudes autenticadas y sus permisos de lectura.
+ALTER TABLE public.official_quote_requests ALTER COLUMN cliente_id DROP NOT NULL;
+ALTER TABLE public.official_quote_requests ALTER COLUMN usuario_id DROP NOT NULL;
+
 CREATE INDEX IF NOT EXISTS ix_official_quotes_customer_date
     ON public.official_quote_requests(cliente_id,created_at_utc DESC);
 CREATE INDEX IF NOT EXISTS ix_official_quotes_review_date
