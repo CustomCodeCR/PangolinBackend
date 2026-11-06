@@ -103,6 +103,7 @@ async function main() {
     const scenarios = [
       { url: '/', role: null, must: ['class="app-site home-page"', 'home-hero__content'] },
       { url: '/servicios', role: null, must: ['services-page', 'services-page__transport'] },
+      { url: '/tracking', role: 'cliente', must: ['class="app-site tracking-site"', 'data-globe-surface="satellite"'] },
       { url: '/servicios/almacenamiento-fiscal', role: null, must: ['service-landing-page', 'Almacenamiento fiscal de mercancías en Costa Rica'] },
       { url: '/servicios/transporte-maritimo', role: null, must: ['service-landing-page', 'service-landing-hero__grid', 'service-landing-faq__item'] },
       { url: '/servicios/transporte-panama-costa-rica', role: null, must: ['service-landing-page', 'service-landing-hero__grid', 'service-landing-faq__item'] },
