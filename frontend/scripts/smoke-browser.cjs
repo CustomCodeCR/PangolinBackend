@@ -121,7 +121,16 @@ async function main() {
     for (const scenario of scenarios) {
       activeRole = scenario.role
       const before = sessionCalls
-      const html = await dumpDom(chrome, 'http://' + host + ':' + previewPort + scenario.url, scenario.url + ' [' + (activeRole || 'invitado') + ']')
+      const url = 'http://' + host + ':' + previewPort + scenario.url
+      const label = scenario.url + ' [' + (activeRole || 'invitado') + ']'
+      let html = await dumpDom(chrome, url, label)
+      if (scenario.url === '/tracking') {
+        // The photographic sphere is lazy-loaded by IntersectionObserver and Image.onload.
+        // Browser startup and runner CPU loads vary: retry until the texture is truly painted.
+        for (let attempt = 0; attempt < 2 && !html.includes('data-globe-surface="satellite"'); attempt++) {
+          html = await dumpDom(chrome, url, label + ' / texture retry ' + (attempt + 1))
+        }
+      }
       for (const marker of scenario.must) {
         assert.ok(html.includes(marker), 'No se encontró "' + marker + '" en ' + scenario.url + ' (' + (activeRole || 'invitado') + '); DOM: ' + html.slice(-800))
       }
