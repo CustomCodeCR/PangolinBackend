@@ -254,6 +254,7 @@ async function main() {
     assert.equal(itineraryParams.get('pod'),'Puerto Caldera','GIO must hand off the searched destination')
     assert.equal(itineraryParams.get('transporte'),'maritime','GIO must hand off the transport mode')
     await click('.gio-ops__back')
+    role = 'cliente'
     await waitFor(()=>evaluate('document.querySelectorAll(".site-assistant__quick button").length===4'))
     await evaluate('document.querySelectorAll(".site-assistant__quick button")[1].click()')
     await choose('BCF / BL / HBL')
