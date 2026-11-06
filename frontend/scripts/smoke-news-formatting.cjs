@@ -142,6 +142,29 @@ const client = String.raw`
       second: sizeAt('Segunda').size,
       html: editor.innerHTML
     }
+    await changeTab('Vista previa')
+    const mixedPreview = await until('.news-rich-editor__preview-article')
+    results.mixedPreview = {
+      first: getComputedStyle(getText('Primera', mixedPreview).node.parentElement).fontSize,
+      second: getComputedStyle(getText('Segunda', mixedPreview).node.parentElement).fontSize
+    }
+    await changeTab('Inicio')
+    await reset('<p><span style="font-size:12px;color:#047857">BloqueUno</span></p><p><u style="font-size:24px">BloqueDos</u></p>')
+    const blockFirst = getText('BloqueUno', editor)
+    const blockSecond = getText('BloqueDos', editor)
+    const blockRange = document.createRange()
+    blockRange.setStart(blockFirst.node, blockFirst.index)
+    blockRange.setEnd(blockSecond.node, blockSecond.index + 'BloqueDos'.length)
+    window.getSelection().removeAllRanges()
+    window.getSelection().addRange(blockRange)
+    editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
+    await selectMenu('Estilo', 'Título H2')
+    results.multiBlock = {
+      firstTag: getText('BloqueUno', editor).node.parentElement.closest('h2,p')?.tagName,
+      secondTag: getText('BloqueDos', editor).node.parentElement.closest('h2,p')?.tagName,
+      firstSize: getComputedStyle(getText('BloqueUno', editor).node.parentElement).fontSize,
+      secondSize: getComputedStyle(getText('BloqueDos', editor).node.parentElement).fontSize
+    }
     output.textContent = JSON.stringify(results)
   } catch (error) {
     output.textContent = JSON.stringify({ ...results, error: String(error && (error.stack || error)) })
@@ -216,6 +239,12 @@ async function main() {
       assert.equal(result.paragraph.size, '15px', 'Normal paragraph should restore default size')
       assert.equal(result.mixed.first, '28px', 'Mixed-format selection: first size did not change')
       assert.equal(result.mixed.second, '28px', 'Mixed-format selection: second size did not change')
+      assert.equal(result.mixedPreview.first, '28px', 'First mixed-format size lost in preview')
+      assert.equal(result.mixedPreview.second, '28px', 'Second mixed-format size lost in preview')
+      assert.equal(result.multiBlock.firstTag, 'H2', 'First selected block failed to become H2')
+      assert.equal(result.multiBlock.secondTag, 'H2', 'Second selected block failed to become H2')
+      assert.ok(parseFloat(result.multiBlock.firstSize) > 20, 'First selected H2 kept previous inline size')
+      assert.ok(parseFloat(result.multiBlock.secondSize) > 20, 'Second selected H2 kept previous inline size')
     }
     console.log('PASS: repeated sizes, headings, paragraph, colors, underline and preview')
   } finally { await new Promise(resolve => server.close(resolve)) }
