@@ -83,7 +83,7 @@ const requestPath = window.location.pathname.replace(/\/+$/, '') || '/'
 const legacyAdminRoute = requestPath === '/admin/contenido' || requestPath === '/admin/usuarios'
 const officialAdminRoute = requestPath === '/administracion/cotizaciones-oficiales'
 const adminRoute = requestPath === '/administracion' || legacyAdminRoute || officialAdminRoute
-const restrictedRoute = requestPath === '/tracking' || requestPath === '/itinerario' || adminRoute
+const restrictedRoute = requestPath === '/tracking' || adminRoute
 const routeAccess = ref<'checking' | 'ready'>(restrictedRoute ? 'checking' : 'ready')
 const loginNextHref = '/bienvenidos?next=' + encodeURIComponent(window.location.pathname + window.location.search)
 // La página pública no recibe borradores: consulta solamente la API publicada.
@@ -101,9 +101,10 @@ onMounted(async () => {
     return
   }
   if (requestPath === '/cotizaciones' || requestPath === '/cotizaciones/nuevo') {
-    // En desarrollo, permite mostrar el cotizador para revisión visual sin sesión.
-    // El asistente mantiene bloqueado el envío porque sessionOk depende de una sesión real.
-    if (!user && import.meta.env.DEV && authState.previewRole === 'cliente') quoteAccess.value = 'allowed'
+    // El formulario oficial recibe solicitudes públicas. El cotizador V2
+    // conserva su restricción para no abrir consultas privadas por accidente.
+    if (officialQuotesEnabled) quoteAccess.value = 'allowed'
+    else if (!user && import.meta.env.DEV && authState.previewRole === 'cliente') quoteAccess.value = 'allowed'
     else if (!user) quoteAccess.value = 'denied'
     else quoteAccess.value = role === 'cliente' || role === 'administrador' ? 'allowed' : 'forbidden'
   }
@@ -117,10 +118,6 @@ onMounted(async () => {
   if (requestPath === '/tracking') {
     trackingAccess.value = localTrackingVisualPreview || !!user && (role === 'cliente' || role === 'administrador')
       ? 'allowed' : 'denied'
-  }
-  if (requestPath === '/itinerario' && role !== 'cliente' && role !== 'administrador') {
-    window.location.replace('/home?acceso=cliente')
-    return
   }
   nextTick(() => {
     if (window.location.hash) document.getElementById(decodeURIComponent(window.location.hash.slice(1)))?.scrollIntoView()
