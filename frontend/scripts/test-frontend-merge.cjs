@@ -238,6 +238,33 @@ assert.match(manager, /manager-tabs\.manager-subtabs:not\(\.manager-subtabs--wit
 assert.match(manager, /manager-tabs\.manager-subtabs > button\s*\{\s*display:grid;\s*grid-template-columns:clamp\(28px,8vw,34px\) minmax\(0,1fr\) auto;/, 'Las subpestañas móviles deben alinear icono, texto y contador en tres columnas')
 assert.match(manager, /class="manager-tab-label">Editor visual<\/span> <span>0<\/span>/, 'El contador de Editor visual queda como tercera columna junto al texto')
 const officialQuote = source('src/pages/OfficialQuoteWizard.vue')
+// Bloquear fechas vencidas en ambos cotizadores y en la API, sin afectar filtros
+// históricos de itinerarios. Toda la lógica usa el día local de Costa Rica.
+const gioQuoteFlow = source('src/components/GioOperations.vue')
+const officialQuoteEndpoint = source('../backend/Endpoints/OfficialQuoteEndpoints.cs')
+assert.ok(officialQuote.includes(':min="earliestReadyDate"') &&
+  officialQuote.includes('type="date"') &&
+  officialQuote.includes('@focus="syncEarliestReadyDate"'),
+  'El calendario de cotizaciones bloquea días previos al día actual en Costa Rica')
+assert.ok(officialQuote.includes('window.setInterval(syncEarliestReadyDate, 60_000)') &&
+  officialQuote.includes('window.clearInterval(earliestReadyTimer)'),
+  'El límite del calendario se actualiza si el formulario permanece abierto')
+assert.ok(officialQuote.includes('if (!isCargoReadyDateOnOrAfterToday(form.cargoReadyDate)) return cargoReadyDateError()') &&
+  officialQuote.includes('step.value = 3\n    syncEarliestReadyDate()'),
+  'El asistente normal valida la fecha al avanzar y nuevamente al enviar')
+assert.ok(gioQuoteFlow.includes("if (key === 'cargoReadyDate' && !isCargoReadyDateOnOrAfterToday(value))") &&
+  gioQuoteFlow.includes('const issue = validation(pending.key, pending.value)') &&
+  gioQuoteFlow.includes('delete values[item.key]'),
+  'GIO rechaza fechas vencidas incluso si provienen de un borrador o confirmación')
+assert.ok(gioQuoteFlow.includes('if (day && isCargoReadyDateOnOrAfterToday(day[0])) values.cargoReadyDate = day[0]') &&
+  gioQuoteFlow.includes('if (day && validDate(day[0])) values.departure = day[0]'),
+  'GIO no precarga cotizaciones vencidas y mantiene filtros históricos de itinerarios')
+assert.ok(officialQuoteEndpoint.includes('TimeZoneInfo.FindSystemTimeZoneById("America/Costa_Rica")') &&
+  officialQuoteEndpoint.includes('TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CostaRicaTimeZone)') &&
+  officialQuoteEndpoint.includes('if (s.CargoReadyDate.Value < TodayInCostaRica())') &&
+  officialQuoteEndpoint.includes('return Results.BadRequest(new { error = ex.Message });'),
+  'El servidor compara el día real de Costa Rica y devuelve HTTP 400 ante fechas anteriores')
+
 // Preserve the independent clear-in-place behavior merged in main-2 PR #78.
 for (const [field, id] of [['origin', 'originLocationId'], ['destination', 'destinationLocationId'], ['pod', 'podLocationId']]) {
   assert.ok(officialQuote.includes(`'official-location-toggle--clear': !!form.${id}`), 'X reemplaza la flecha solo al seleccionar ' + field)
@@ -554,6 +581,30 @@ assert.match(trackingGlobeSource, /transportGlyph/, 'El globo presenta el ícono
 const trackingLocalizationSource = source('src/lib/trackingDisplay.ts')
 const tsCompiler = require('typescript')
 const { runInNewContext } = require('node:vm')
+
+// Run the actual TypeScript calendar helpers with fixed instants around the UTC
+// midnight / Costa Rica midnight boundary, including a year transition.
+const compiledQuoteDates = tsCompiler.transpileModule(source('src/lib/costaRicaDate.ts'), {
+  compilerOptions: { module: tsCompiler.ModuleKind.CommonJS, target: tsCompiler.ScriptTarget.ES2020 }
+})
+const quoteDates = {}
+runInNewContext(compiledQuoteDates.outputText, { exports: quoteDates, Intl, Date }, { timeout: 1000 })
+const crToday = quoteDates.costaRicaToday
+const validCargoDate = quoteDates.isCargoReadyDateOnOrAfterToday
+const validCalendarDate = quoteDates.isCalendarDate
+assert.equal(crToday(new Date('2026-11-06T05:59:59Z')), '2026-11-05', 'Antes de las 06 UTC aún es el día anterior en Costa Rica')
+assert.equal(crToday(new Date('2026-11-06T06:00:00Z')), '2026-11-06', 'A las 06 UTC cambia el día en Costa Rica')
+assert.equal(crToday(new Date('2027-01-01T05:59:59Z')), '2026-12-31', 'El cambio de año utiliza el calendario de Costa Rica')
+assert.equal(crToday(new Date('2027-01-01T06:00:00Z')), '2027-01-01', 'Se actualiza el año al llegar medianoche en Costa Rica')
+const nowCR = new Date('2026-11-06T12:00:00Z')
+assert.equal(validCargoDate('2026-11-05', nowCR), false, 'La fecha pasada se rechaza')
+assert.equal(validCargoDate('2026-11-06', nowCR), true, 'Se acepta la fecha de hoy')
+assert.equal(validCargoDate('2026-11-07', nowCR), true, 'Se acepta una fecha futura')
+assert.equal(validCargoDate('2026-11-31', nowCR), false, 'No se aceptan días inexistentes')
+assert.equal(validCargoDate('2026-02-29', nowCR), false, 'No se acepta un 29 de febrero en año común')
+assert.equal(validCalendarDate('2024-02-29'), true, 'El 29 de febrero bisiesto es válido')
+assert.equal(validCargoDate('2026-11-06T00:00:00Z', nowCR), false, 'Las cotizaciones requieren fechas ISO sin hora')
+
 
 // Tracking uses quote-backed canonical names plus explicit illustrative coordinates.
 // Evaluate the real TypeScript route functions instead of duplicating their resolver.

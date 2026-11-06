@@ -14,6 +14,12 @@ public static class OfficialQuoteEndpoints
         ["EXW", "FCA", "FAS", "FOB", "CFR", "CIF", "CPT", "CIP", "DAP", "DPU", "DDP"];
     private static readonly string[] States = ["Received", "InReview", "AwaitingInformation", "Closed"];
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    // Usar el día calendario de Costa Rica, no UTC ni la zona horaria del servidor.
+    private static readonly TimeZoneInfo CostaRicaTimeZone =
+        TimeZoneInfo.FindSystemTimeZoneById("America/Costa_Rica");
+
+    private static DateOnly TodayInCostaRica() =>
+        DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CostaRicaTimeZone));
 
     private static async Task<OfficialQuotePermission?> Permission(
         AppDbContext db, AuthIdentity? user, CancellationToken ct)
@@ -68,6 +74,8 @@ public static class OfficialQuoteEndpoints
         if (s.Incoterm is not null && !Incoterms.Contains(s.Incoterm))
             throw new ArgumentException("Incoterm inválido.");
         if (s.CargoReadyDate is null) throw new ArgumentException("Indicá la fecha de carga lista.");
+        if (s.CargoReadyDate.Value < TodayInCostaRica())
+            throw new ArgumentException("La fecha de carga lista debe ser hoy o posterior (hora de Costa Rica).");
         Required(s.ContactName, "Nombre de contacto", 150);
         var email = Required(s.ContactEmail, "Correo", 255);
         if (!MailAddress.TryCreate(email, out var parsed) ||

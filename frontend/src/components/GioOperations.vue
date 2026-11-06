@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ArrowLeft, CheckCircle2, ChevronRight, FileText, LoaderCircle, MapPin, Search, ShieldCheck, Ship } from '@lucide/vue'
 import { refreshSession } from '../services/auth'
 import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions } from '../lib/officialQuoteOptions'
+import { isCalendarDate, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
 
 type Kind = 'quote' | 'tracking' | 'itinerary'
 type Phase = 'collect' | 'confirm' | 'review' | 'auth' | 'location' | 'result'
@@ -128,8 +129,7 @@ const summary = computed(() => steps.value.map(step => ({
 })).filter(item => item.value))
 const filteredLocations = computed(() => locationChoices.value.filter(loc =>
   norm(loc.displayName).includes(norm(locationTerm.value))).slice(0, 30))
-const validDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(new Date(v + 'T12:00:00Z').getTime()) &&
-  new Date(v + 'T12:00:00Z').toISOString().slice(0, 10) === v
+const validDate = isCalendarDate
 const norm = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
 const positive = (s: string) => Number.isFinite(Number(s)) && Number(s) > 0
 const integer = (s: string, max: number) => /^\d+$/.test(s) && Number(s) > 0 && Number(s) <= max
@@ -144,6 +144,8 @@ function validation(key: string, value: string): string {
   if (!value && spec?.optional) return ''
   if (!value) return tr('Este dato es obligatorio.', 'This field is required.')
   if (['cargoReadyDate', 'departure'].includes(key) && !validDate(value)) return tr('Usa una fecha real con formato AAAA-MM-DD.', 'Enter a real date as YYYY-MM-DD.')
+  if (key === 'cargoReadyDate' && !isCargoReadyDateOnOrAfterToday(value))
+    return tr('La fecha de carga lista debe ser hoy o posterior (hora de Costa Rica). Escribí otra fecha.', 'The cargo ready date must be today or later (Costa Rica time). Enter a new date.')
   if (key === 'contactEmail' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return tr('Correo electrónico inválido.', 'Invalid email.')
   if (key === 'contactPhone' && !/^[+0-9 ()-]{7,40}$/.test(value)) return tr('Escribe un teléfono válido.', 'Enter a valid phone number.')
   if (key === 'reference' && !/^[a-zA-Z0-9_-]{3,64}$/.test(value)) return tr('Referencia inválida: de 3 a 64 caracteres, letras, números o guiones.', 'Invalid reference. Use 3–64 letters, numbers or dashes.')
@@ -173,6 +175,14 @@ function advanceFrom(start: number) {
   while (stepIndex.value < steps.value.length) {
     const item = steps.value[stepIndex.value]
     const value = values[item.key]
+    // Descartar fechas de borradores guardados que quedaron en el pasado.
+    if (props.kind === 'quote' && item.key === 'cargoReadyDate' && value && !isCargoReadyDateOnOrAfterToday(value)) {
+      delete values[item.key]
+      prefillConfirmation.delete(item.key)
+      phase.value = 'collect'
+      error.value = validation(item.key, value)
+      return
+    }
     if (value && item.choices && !item.choices.some(choice => choice.value === value)) {
       delete values[item.key]
       phase.value = 'collect'
@@ -265,6 +275,15 @@ function accept(value = input.value, explicitLocationId?: string) {
 function confirmPending() {
   const pending = pendingValue.value
   if (!pending || phase.value !== 'confirm' || !current.value || pending.key !== current.value.key) return
+  // La confirmación puede ocurrir después del cambio de día.
+  const issue = validation(pending.key, pending.value)
+  if (issue) {
+    pendingValue.value = null
+    phase.value = 'collect'
+    error.value = issue
+    input.value = pending.value
+    return
+  }
   pendingValue.value = null
   phase.value = 'collect'
   commitValue(current.value, pending.value, pending.locationId)
@@ -335,7 +354,7 @@ function applyInitialQuestion() {
     const incoterm = question.match(/\b(exw|fca|fas|fob|cfr|cif|cpt|cip|dap|dpu|ddp)\b/)
     if (incoterm) values.incoterm = incoterm[1].toUpperCase()
     const day = question.match(/\b20\d{2}-\d{2}-\d{2}\b/)
-    if (day && validDate(day[0])) values.cargoReadyDate = day[0]
+    if (day && isCargoReadyDateOnOrAfterToday(day[0])) values.cargoReadyDate = day[0]
     const size = question.match(/\b(20|40|45|48|53)\s*(?:pies|ft|hc|high cube)\b/)
     if (size) {
       const candidate = size[1] + ' pies'
