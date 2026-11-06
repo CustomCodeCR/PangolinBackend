@@ -94,7 +94,8 @@ async function main() {
     const apiPort = await listen(api)
     vite = launch(process.execPath,[path.join(frontend,'node_modules/vite/bin/vite.js'),
       '--host',host,'--port','5189','--strictPort'],{
-      cwd:frontend,env:{...process.env,VITE_API_PROXY_TARGET:'http://'+host+':'+apiPort},stdio:'ignore'
+      cwd:frontend,env:{...process.env,VITE_API_PROXY_TARGET:'http://'+host+':'+apiPort,
+         VITE_OFFICIAL_QUOTES_ENABLED:'true'},stdio:'ignore'
     })
     await waitFor(async () => {
       const res = await fetch('http://'+host+':5189/')
