@@ -233,7 +233,7 @@ export class CastroGlobe {
     }
     if (this.options.stars) this.drawStars(p.stars)
     const cx = w / 2, cy = h / 2, r = this.radius
-    const satelliteReady = this.satelliteSurface?.render(w, h, this.pixelRatio, r, this.lon, this.lat)
+    const satelliteReady = this.satelliteSurface?.render(w, h, this.pixelRatio, r, this.lon, this.lat, this.quality)
     // A deterministic state attribute allows the browser smoke test to verify
     // that the PHOTO is painted, not just that the feature was configured.
     if (this.options.satelliteSurface === true) {
