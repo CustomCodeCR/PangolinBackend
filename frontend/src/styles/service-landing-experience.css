@@ -207,3 +207,65 @@ html.theme-dark .service-landing-page.has-scroll-reveal .service-landing-story .
 .service-landing-story .service-landing-step--details{justify-content:flex-start}
 .service-landing-story .service-landing-step--details{justify-content:flex-start}
 .service-landing-story .service-landing-step--details .service-landing-detail-grid{flex:0 0 auto;height:auto!important;min-height:0!important;align-content:start;grid-template-rows:auto}
+
+
+/* Give service cards and scroll stages intentional breathing room. */
+.service-landing-story .service-landing-step--benefits .service-landing-feature-grid{
+  display:grid;
+  gap:clamp(18px,1.8vw,26px);
+}
+.service-landing-story .service-landing-step--benefits .service-landing-feature{
+  min-width:0;
+}
+.service-landing-story .service-landing-step--details .service-landing-detail-grid{
+  display:grid;
+  gap:clamp(26px,3vw,42px);
+}
+.service-landing-story .service-landing-detail-visual{
+  position:relative;
+  width:100%;
+  min-width:0;
+  height:clamp(210px,30vh,310px);
+  margin:0;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:20px;
+  background:#161e30;
+  box-shadow:0 16px 36px rgba(0,0,0,.18);
+}
+.service-landing-story .service-landing-detail-visual img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center;
+}
+html:not(.theme-dark) .service-landing-story .service-landing-detail-visual{
+  border-color:rgba(21,43,84,.15);
+  box-shadow:0 16px 36px rgba(22,30,48,.1);
+}
+@media(max-width:900px){
+  .service-landing-story .service-landing-steps,
+  .service-landing-page.has-scroll-reveal .service-landing-story .service-landing-steps{
+    gap:clamp(20px,4vw,32px);
+  }
+  .service-landing-story .service-landing-step--benefits .service-landing-feature-grid{
+    gap:16px;
+  }
+  .service-landing-story .service-landing-detail-visual{
+    height:clamp(220px,32vw,310px);
+  }
+}
+@media(max-width:600px){
+  .service-landing-story .service-landing-steps,
+  .service-landing-page.has-scroll-reveal .service-landing-story .service-landing-steps{
+    gap:24px;
+  }
+  .service-landing-story .service-landing-step--benefits .service-landing-feature-grid{
+    gap:18px;
+  }
+  .service-landing-story .service-landing-detail-visual{
+    height:210px;
+    border-radius:16px;
+  }
+}
