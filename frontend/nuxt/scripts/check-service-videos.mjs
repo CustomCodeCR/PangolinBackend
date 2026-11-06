@@ -27,7 +27,11 @@ for (const name of expectedVideos) {
 }
 
 const landing = fs.readFileSync(path.join(frontend, 'src/pages/ServiceLanding.vue'), 'utf8')
-assert.match(landing, /<figure class="service-landing-story__media">[\\s\\S]*?<video[\\s\\S]*?<source :src="details\\.video" type="video\\/mp4"/, 'Los MP4 deben mostrarse en el panel izquierdo de Servicios')
+const panelStart = landing.indexOf('<figure class="service-landing-story__media">')
+const panelEnd = landing.indexOf('</figure>', panelStart)
+const videoElement = landing.indexOf('<video', panelStart)
+const videoSource = landing.indexOf('<source :src="details.video" type="video/mp4"', videoElement)
+assert.ok(panelStart >= 0 && videoElement > panelStart && videoSource > videoElement && panelEnd > videoSource, 'Los MP4 deben estar dentro del panel izquierdo de Servicios')
 for (const [route, video] of [
   ['transporte-aereo', 'service-air.mp4'],
   ['transporte-terrestre', 'service-road.mp4'],
