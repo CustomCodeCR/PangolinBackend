@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import type { Component } from 'vue'
 import { AlertTriangle, Boxes, FileCheck, FileText, Globe, Layers, Package, PackageCheck, Scale, ShieldCheck, Ship, Truck, Warehouse } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
@@ -9,6 +9,7 @@ import IconSymbol from '../components/IconSymbol.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import { refreshSession } from '../services/auth'
 import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions } from '../lib/officialQuoteOptions'
+import { costaRicaToday, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
 
 const { locale } = useI18n({ useScope: 'global' })
 const q = (es: string, en: string) => locale.value === 'en' ? en : es
@@ -34,6 +35,10 @@ const busy = ref(false)
 const sessionOk = ref(false)
 const error = ref('')
 const createdId = ref('')
+const earliestReadyDate = ref(costaRicaToday())
+let earliestReadyTimer: ReturnType<typeof setInterval> | undefined
+const syncEarliestReadyDate = () => { earliestReadyDate.value = costaRicaToday() }
+const cargoReadyDateError = () => q('La fecha de carga lista debe ser hoy o posterior (hora de Costa Rica).', 'The cargo ready date must be today or later (Costa Rica time).')
 const locations = ref<Loc[]>([])
 const destinations = ref<Loc[]>([])
 const podOptions = ref<Loc[]>([])
@@ -266,10 +271,15 @@ async function loadLocations() {
   finally { locationLoading.value = false }
 }
 onMounted(async () => {
+  syncEarliestReadyDate()
+  earliestReadyTimer = window.setInterval(syncEarliestReadyDate, 60_000)
   const user = await refreshSession()
   if (!user || !['cliente','administrador'].includes(user.role)) return
   sessionOk.value = true
   form.contactEmail = user.correo
+})
+onUnmounted(() => {
+  if (earliestReadyTimer !== undefined) window.clearInterval(earliestReadyTimer)
 })
 function validate(): string {
   if (step.value === 1) return mode.value ? '' : q('Seleccioná la modalidad.', 'Select a transport mode.')
@@ -279,6 +289,7 @@ function validate(): string {
     if (shipmentType.value === 'LCL' && !form.podLocationId) return q('Seleccioná el POD requerido en marítimo LCL.', 'Select the required POD for ocean LCL.')
     if (!form.incoterm) return q('Seleccioná un Incoterm.', 'Select an Incoterm.')
     if (!form.cargoReadyDate) return q('Indicá la fecha de carga lista.', 'Enter the cargo ready date.')
+    if (!isCargoReadyDateOnOrAfterToday(form.cargoReadyDate)) return cargoReadyDateError()
     if (!form.services.length) return q('Seleccioná al menos un servicio.', 'Select at least one service.')
     if (form.services.includes('Transporte entrega') && !form.deliveryAddress.trim()) return q('Escribí la dirección de entrega.', 'Enter the delivery address.')
     if (form.services.includes('Transporte recolección') && !form.pickupAddress.trim()) return q('Escribí la dirección de recolección.', 'Enter the pickup address.')
@@ -325,6 +336,13 @@ function payload() {
 }
 async function submit() {
   if (!sessionOk.value || busy.value) return
+  // Recheck on submit: a wizard can stay open across midnight in Costa Rica.
+  if (!isCargoReadyDateOnOrAfterToday(form.cargoReadyDate)) {
+    error.value = cargoReadyDateError()
+    step.value = 3
+    syncEarliestReadyDate()
+    return
+  }
   error.value = validate()
   if (error.value) return
   busy.value = true
@@ -436,7 +454,7 @@ async function submit() {
                     ...incoterms.map(value => ({value, label:value}))
                   ]" />
               </div>
-              <label>{{ q('Fecha de carga lista', 'Cargo ready date') }} <span>*</span><input v-model="form.cargoReadyDate" type="date" required /></label>
+              <label>{{ q('Fecha de carga lista', 'Cargo ready date') }} <span>*</span><input v-model="form.cargoReadyDate" type="date" :min="earliestReadyDate" @focus="syncEarliestReadyDate" required /></label>
             </div>
             <div v-if="form.incoterm === 'EXW'" class="official-nested">
               <h3>{{ q('Información adicional para EXW', 'Additional EXW information') }}</h3>
