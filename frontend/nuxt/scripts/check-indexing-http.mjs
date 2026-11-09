@@ -80,28 +80,17 @@ if (robotsResponse.status !== 200) fail('/robots.txt', 'HTTP ' + robotsResponse.
 else {
   const robots = await robotsResponse.text()
   if (!robots.includes('Sitemap: ' + canonicalOrigin + '/sitemap.xml')) fail('/robots.txt', 'Sitemap no canónico')
-
-  // Validar exactamente las excepciones públicas sin abrir el resto de /api.
-  // Se usa la regla coincidente más específica, según Google Search Central.
-  const groups = robots.trim().split(/\\r?\\n\\s*\\r?\\n/).map(section => section.split(/\\r?\\n/).map(line => line.trim()).filter(Boolean))
+  // Validar excepciones CMS públicas mediante la regla más específica.
+  const groups = robots.trim().split(/\r?\n\s*\r?\n/).map(section => section.split(/\r?\n/).map(line => line.trim()).filter(Boolean))
   function canCrawl(agent, route) {
     const exact = groups.find(lines => lines.some(line => line.toLowerCase() === 'user-agent: ' + agent.toLowerCase()))
     const wildcard = groups.find(lines => lines.some(line => line.toLowerCase() === 'user-agent: *'))
     const lines = exact || wildcard || []
     const rules = lines.flatMap(line => {
-      const match = /^(allow|disallow):\\s*(\\S+)/i.exec(line)
+      const match = /^(allow|disallow):\s*(\S+)/i.exec(line)
       if (!match) return []
       const rule = match[2]
-      const exactPath = rule.endsWith('
-}
-
-if (failed.length) {
-  for (const issue of failed) console.error('FAIL SEO:', issue)
-  process.exitCode = 1
-} else {
-  console.log('PASS SEO indexación HTTP:', paths.length, 'URLs del sitemap con 200, H1, canonical único y robots indexable; 404 reales, /home 301 y robots.txt')
-}
-)
+      const exactPath = rule.endsWith('$')
       const prefix = exactPath ? rule.slice(0, -1) : rule
       const matches = exactPath ? route === prefix : route.startsWith(prefix)
       return matches ? [{ allow: match[1].toLowerCase() === 'allow', length: rule.length }] : []
