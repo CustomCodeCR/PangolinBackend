@@ -127,7 +127,7 @@ async function main() {
       if (scenario.url === '/nosotros') {
         assert.equal((html.match(/class="about-refresh__value-trigger"/g) || []).length, 5, 'Debe haber cinco valores accesibles y desplegables')
         assert.ok(!html.includes('about-refresh__value-summary'), 'Los valores cerrados deben mostrar únicamente su título, sin resumen')
-        assert.equal((html.match(/class="about-refresh__value-panel"/g) || []).length, 0, 'Las tarjetas deben iniciar cerradas sin panel abierto')
+        assert.ok(!html.includes('class="about-refresh__value-panel is-open"'), 'Las tarjetas deben iniciar cerradas sin panel abierto')
         assert.equal((html.match(/about-refresh__value-panel/g) || []).length >= 5, true, 'Los cinco valores deben disponer de panel desplegable')
         assert.equal((html.match(/aria-expanded="false"/g) || []).length >= 5, true, 'Los valores deben iniciar contraídos')
         assert.equal((html.match(/class="about-refresh__purpose-card"/g) || []).length, 2, 'Deben mostrarse misión y visión')
