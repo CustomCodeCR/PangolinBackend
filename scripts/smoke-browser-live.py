@@ -194,10 +194,43 @@ def main():
                 assert len(buttons) == 5, "Se esperan cinco valores corporativos"
                 assert not driver.find_elements(By.CSS_SELECTOR, ".about-refresh__value-summary"), "No debe haber resúmenes visibles al inicio"
                 assert all(button.get_attribute("aria-expanded") == "false" for button in buttons), "Los valores deben empezar cerrados"
-                # Real mouse hover must open; moving to another value closes the previous one.
+                # Dark mode should use matching mission/value surfaces; chevrons must be centered.
+                appearance = driver.execute_script("""
+                    const root=document.documentElement;
+                    const old=root.classList.contains('theme-dark');
+                    root.classList.add('theme-dark');
+                    try {
+                        const mission=getComputedStyle(document.querySelector('.about-refresh__purpose-card')).backgroundColor;
+                        const value=getComputedStyle(document.querySelector('.about-refresh__value')).backgroundColor;
+                        const centered=[...document.querySelectorAll('.about-refresh__value-trigger')].every(button => {
+                            const arrow=button.querySelector('.about-refresh__value-chevron');
+                            const b=button.getBoundingClientRect(), a=arrow.getBoundingClientRect();
+                            return Math.abs((a.top+a.bottom)/2-(b.top+b.bottom)/2)<5;
+                        });
+                        return {mission, value, centered};
+                    } finally {
+                        if (!old) root.classList.remove('theme-dark');
+                    }
+                """)
+                assert appearance["mission"] == appearance["value"], "Misión/visión y valores deben usar el mismo color de tarjeta en modo oscuro"
+                assert appearance["centered"], "Las flechas de valores deben quedar centradas verticalmente"
+                                # Real mouse hover must open; moving to another value closes the previous one.
                 ActionChains(driver).move_to_element(buttons[0]).perform()
                 WebDriverWait(driver, WAIT).until(lambda _: buttons[0].get_attribute("aria-expanded") == "true")
                 assert driver.find_elements(By.CSS_SELECTOR, ".about-refresh__value-panel.is-open"), "Debe abrirse la descripción al pasar el cursor"
+                icon_style = driver.execute_script("""
+                    const root=document.documentElement;
+                    const old=root.classList.contains('theme-dark');
+                    root.classList.add('theme-dark');
+                    try {
+                        const icon=document.querySelector('.about-refresh__value.is-open .about-refresh__value-icon');
+                        return {background:getComputedStyle(icon).backgroundColor, foreground:getComputedStyle(icon).color};
+                    } finally {
+                        if (!old) root.classList.remove('theme-dark');
+                    }
+                """)
+                assert icon_style["background"] == "rgb(176, 9, 41)", "El ícono abierto debe tener fondo rojo en oscuro"
+                assert icon_style["foreground"] == "rgb(255, 255, 255)", "El ícono abierto debe ser blanco en oscuro"
                 ActionChains(driver).move_to_element(buttons[1]).perform()
                 WebDriverWait(driver, WAIT).until(lambda _: buttons[0].get_attribute("aria-expanded") == "false" and buttons[1].get_attribute("aria-expanded") == "true")
                 ActionChains(driver).move_to_element(driver.find_element(By.CSS_SELECTOR, ".about-refresh__section-heading h2")).perform()
