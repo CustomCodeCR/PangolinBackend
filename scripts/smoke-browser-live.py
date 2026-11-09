@@ -214,7 +214,7 @@ def main():
                 """)
                 assert appearance["mission"] == appearance["value"], "Misión/visión y valores deben usar el mismo color de tarjeta en modo oscuro"
                 assert appearance["centered"], "Las flechas de valores deben quedar centradas verticalmente"
-                                # Real mouse hover must open; moving to another value closes the previous one.
+                # Real mouse hover must open; moving to another value closes the previous one.
                 ActionChains(driver).move_to_element(buttons[0]).perform()
                 WebDriverWait(driver, WAIT).until(lambda _: buttons[0].get_attribute("aria-expanded") == "true")
                 assert driver.find_elements(By.CSS_SELECTOR, ".about-refresh__value-panel.is-open"), "Debe abrirse la descripción al pasar el cursor"
