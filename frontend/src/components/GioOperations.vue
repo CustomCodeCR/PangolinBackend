@@ -531,13 +531,14 @@ async function submitQuote() {
     return
   }
   const equipment = isEquipment.value
+  const requestedServices = values.services.split('|')
   const weights = equipment ? values.equipmentWeights.split(',').map(x => Number(x.trim())) : []
   const payload = {
     mode:values.mode, shipmentType:values.shipmentType,
     originLocationId:selectedLocations.origin, destinationLocationId:selectedLocations.destination,
     podLocationId:values.shipmentType === 'LCL' ? selectedLocations.pod : null,
     contactName:values.contactName, contactEmail:values.contactEmail,contactPhone:values.contactPhone,
-    incoterm:values.incoterm,cargoReadyDate:values.cargoReadyDate,services:['Transporte internacional'],
+    incoterm:values.incoterm,cargoReadyDate:values.cargoReadyDate,services:requestedServices,
     equipment:equipment ? [{size:values.equipmentSize,type:values.equipmentType,quantity:Number(values.equipmentQuantity),unitWeightsKg:weights}] : [],
     packages:equipment ? [] : [{
       description:values.cargoDescription,quantity:Number(values.packageQuantity),
@@ -550,7 +551,9 @@ async function submitQuote() {
     cargoDescription:values.cargoDescription,cabysCode:null,cargoValue:null,declaredWeight:null,
     declaredPackages:null,observations:values.dangerousGoods === 'unsure' ? 'La peligrosidad de la carga está pendiente de confirmar.' : null,
     cargoFlags:[...(values.dangerousGoods === 'yes' ? ['Carga peligrosa'] : []),...(!equipment && values.stackable === 'NonStackable' ? ['No estibable'] : [])],destinationHandling:null,
-    deliveryAddress:null,pickupAddress:null,fiscalStorageDays:null
+    deliveryAddress:requestedServices.includes('Transporte entrega') ? values.deliveryAddress : null,
+    pickupAddress:requestedServices.includes('Transporte recolección') ? values.pickupAddress : null,
+    fiscalStorageDays:requestedServices.includes('Almacenamiento') ? Number(values.fiscalStorageDays) : null
   }
   const data = await jsonResponse(await fetch('/api/quotes/official',{method:'POST',credentials:'same-origin',
     headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}))
@@ -645,7 +648,14 @@ async function perform() {
       </div>
       <template v-if="phase === 'collect' && current">
         <div class="gio-ops__bubble">{{ current.prompt }}</div>
-        <div v-if="current.choices" class="gio-ops__choices">
+        <div v-if="current.key === 'services'" class="gio-ops__services">
+          <label v-for="service in serviceChoices" :key="service.value" class="gio-ops__service">
+            <input type="checkbox" :checked="selectedServices.includes(service.value)" @change="toggleService(service.value)" />
+            <span>{{ service.label }}</span>
+          </label>
+          <button class="gio-ops__primary" type="button" :disabled="busy || !selectedServices.length" @click="accept(selectedServices.join('|'))">{{ tr('Continuar con servicios','Continue with services') }} <ChevronRight :size="15" /></button>
+        </div>
+        <div v-else-if="current.choices" class="gio-ops__choices">
           <button v-for="choice in current.choices" :key="choice.label" type="button" :disabled="busy" @click="accept(choice.value)">{{ choice.label }} <ChevronRight :size="14" /></button>
         </div>
         <div v-else-if="isCatalogueLocation(current.key)" class="gio-ops__bubble gio-ops__bubble--quiet">{{ tr('Busca y selecciona una ubicación válida en la lista justo encima del campo de búsqueda.','Search and select a valid location from the list above the search field.') }}</div>
@@ -731,9 +741,9 @@ async function perform() {
       <p v-else class="gio-ops__note">{{ tr('Sin coincidencias. Escribe otra ciudad o puerto.','No matches. Try a different city or port.') }}</p>
       <p v-if="error" class="gio-ops__error" role="alert">{{ error }}</p>
     </section>
-    <form v-if="phase === 'collect' && current && !current.choices" class="gio-ops__form" @submit.prevent="isCatalogueLocation(current.key) ? accept(locationTerm) : accept()">
+    <form v-if="phase === 'collect' && current && !current.choices && current.key !== 'services'" class="gio-ops__form" @submit.prevent="isCatalogueLocation(current.key) ? accept(locationTerm) : accept()">
       <input v-if="isCatalogueLocation(current.key)" v-model="locationTerm" :placeholder="tr('Buscar ciudad, puerto o aeropuerto…','Search city, port or airport…')" :aria-label="current.prompt" :disabled="locationLoading || !!locationLoadError || !locationChoices.length" maxlength="120" autocomplete="off" />
-      <input v-else v-model="input" :placeholder="current.hint || tr('Escribe tu respuesta…','Type your answer…')" :aria-label="current.prompt" :disabled="busy" maxlength="400" />
+      <input v-else v-model="input" :placeholder="current.hint || tr('Escribe tu respuesta…','Type your answer…')" :aria-label="current.prompt" :disabled="busy" :maxlength="['deliveryAddress','pickupAddress'].includes(current.key) ? 800 : 400" />
       <button type="submit" :disabled="busy || (isCatalogueLocation(current.key) ? !locationTerm.trim() || locationLoading || !locationChoices.length : !input.trim() && !current.optional)" :aria-label="tr('Continuar','Continue')"><ChevronRight :size="19" /></button>
     </form>
   </div>
@@ -748,7 +758,14 @@ async function perform() {
 .gio-ops__bubble{align-self:flex-start;max-width:94%;padding:10px 12px;border:1px solid var(--gio-line,#555);border-radius:14px;background:var(--gio-bubble,#24212a);line-height:1.5;overflow-wrap:anywhere}
 .gio-ops__history{display:contents}.gio-ops__bubble--quiet{opacity:.75}.gio-ops__bubble--answer{align-self:flex-end;background:#9c1731;color:white;border-color:#9c1731}
 .gio-ops__choices{display:flex;flex-wrap:wrap;gap:7px}.gio-ops__choices button{display:flex;align-items:center;justify-content:space-between;gap:9px;text-align:left;border:1px solid var(--gio-line,#555);border-radius:11px;padding:10px 12px;background:var(--gio-action,#24212a);color:var(--gio-ink,#fff);cursor:pointer;font-size:12px;min-height:39px}
-.gio-ops__choices button:hover{border-color:#bb193c}.gio-ops__location-list{max-height:195px;overflow-y:auto}.gio-ops__location-list button{width:100%}
+.gio-ops__choices button:hover{border-color:#bb193c}
+.gio-ops__services{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.gio-ops__services .gio-ops__primary{grid-column:1/-1}
+.gio-ops__service{display:flex;gap:8px;align-items:center;min-width:0;padding:9px;border:1px solid var(--gio-line,#555);border-radius:10px;background:var(--gio-action,#24212a);cursor:pointer;line-height:1.3}
+.gio-ops__service input{accent-color:#b20c2a;flex:0 0 auto}
+.gio-ops__service span{overflow-wrap:anywhere}
+.gio-ops__service:has(input:checked){border-color:#d33e5b;background:color-mix(in srgb,var(--gio-action,#24212a) 82%,#b20c2a)}
+.gio-ops__location-list{max-height:195px;overflow-y:auto}.gio-ops__location-list button{width:100%}
 .gio-ops__card{background:var(--gio-action,#24212a);border:1px solid var(--gio-line,#555);border-radius:14px;padding:12px;display:grid;gap:10px}
 .gio-ops__card h3{display:flex;align-items:center;gap:7px;margin:0;font-size:13px;font-weight:750}
 .gio-ops__card h3 svg{color:#da2042;flex-shrink:0}.gio-ops__card dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:0}
