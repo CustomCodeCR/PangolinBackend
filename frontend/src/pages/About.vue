@@ -452,7 +452,7 @@ html.theme-dark .about-refresh__capability:hover{background:rgba(255,255,255,.05
 .about-refresh__capability:hover{transform:translateY(-3px);box-shadow:0 13px 29px rgba(39,29,35,.10);border-color:rgba(176,9,41,.32);background:#fff}
 html.theme-dark .about-refresh__capability,
 html.theme-dark .about-refresh__capability:last-child{background:#111b31;border-color:rgba(255,255,255,.20)}
-html.theme-dark .about-refresh__capability:hover{background:#1b2845;border-color:rgba(240,113,137,.55)}
+html.theme-dark .about-refresh__capability:hover{background:#111b31;border-color:rgba(255,255,255,.20)}
 @media(max-width:1320px){
   .about-refresh__value-trigger{min-height:86px}
   .about-refresh__capability,.about-refresh__capability:last-child{border:1px solid rgba(35,39,47,.13);border-bottom:2px solid rgba(176,9,41,.26)}
