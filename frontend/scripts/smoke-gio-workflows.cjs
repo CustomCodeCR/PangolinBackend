@@ -14,6 +14,8 @@ const frontend = path.resolve(__dirname, '..')
 const host = '127.0.0.1'
 let role = null
 let quoteWrites = []
+let failNextQuote = false
+let rejectedQuoteAttempts = 0
 let trackingReads = 0
 let itineraryReads = 0
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
@@ -46,7 +48,13 @@ const api = http.createServer(async (req, res) => {
   if (url.pathname === '/api/quotes/official' && req.method === 'POST') {
     const chunks = []
     for await (const chunk of req) chunks.push(chunk)
-    quoteWrites.push(JSON.parse(Buffer.concat(chunks).toString()))
+    const body = JSON.parse(Buffer.concat(chunks).toString())
+    if (failNextQuote) {
+      failNextQuote = false
+      rejectedQuoteAttempts++
+      return send(503,{error:'Proveedor temporalmente no disponible'})
+    }
+    quoteWrites.push(body)
     return send(201,{id:'33333333-3333-3333-3333-333333333333',status:'Received'})
   }
   if (url.pathname === '/api/assistant/itinerary-locations') {
@@ -240,6 +248,13 @@ async function main() {
     await answer('Edited Client')
     await waitFor(()=>has('Confirmar y enviar solicitud'))
     assert.equal(quoteWrites.length,0,'Quote sent without user confirmation')
+    failNextQuote = true
+    await click('.gio-ops__primary')
+    await waitFor(()=>has('Proveedor temporalmente no disponible'))
+    assert.equal(rejectedQuoteAttempts,1,'Exactly one simulated provider failure should occur')
+    assert.equal(quoteWrites.length,0,'A failed request must not be counted as a created quote')
+    assert.ok(await evaluate('!!document.querySelector(".gio-ops__card .gio-ops__edit")'),
+      'GIO must retain the review after a server failure')
     await click('.gio-ops__primary')
     await waitFor(()=>has('33333333-3333-3333-3333-333333333333'))
     assert.equal(quoteWrites.length,1,'Guest quote must be created exactly once')
