@@ -187,6 +187,20 @@ def main():
             ("/noticias", ".news-editorial-hero")
         ]:
             assert_public(driver, route, marker)
+            if route == "/nosotros":
+                buttons = driver.find_elements(By.CSS_SELECTOR, ".about-refresh__value-trigger")
+                assert len(buttons) == 5, "Se esperan cinco valores corporativos"
+                assert all(button.get_attribute("aria-expanded") == "false" for button in buttons), "Los valores deben empezar cerrados"
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", buttons[0])
+                buttons[0].click()
+                WebDriverWait(driver, WAIT).until(lambda _: buttons[0].get_attribute("aria-expanded") == "true")
+                assert driver.find_elements(By.CSS_SELECTOR, ".about-refresh__value-panel.is-open"), "El detalle del valor seleccionado debe abrir"
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", buttons[1])
+                buttons[1].click()
+                WebDriverWait(driver, WAIT).until(lambda _: buttons[0].get_attribute("aria-expanded") == "false" and buttons[1].get_attribute("aria-expanded") == "true")
+                buttons[1].click()
+                WebDriverWait(driver, WAIT).until(lambda _: buttons[1].get_attribute("aria-expanded") == "false")
+                print("PASS Chrome: cinco valores y acordeón accesible en Sobre nosotros", flush=True)
             shot = {"/": ("01-inicio-escritorio", "Inicio", "Portada y navegación"),
                     "/servicios": ("02-servicios-escritorio", "Servicios", "Servicios logísticos"),
                     "/nosotros": ("03-nosotros-escritorio", "Sobre nosotros", "Información de la empresa"),
@@ -198,6 +212,7 @@ def main():
         for route, marker, slug, title in [
             ("/", ".home-hero__content", "05-inicio-movil", "Inicio móvil"),
             ("/servicios", ".services-page__transport", "06-servicios-movil", "Servicios móvil"),
+            ("/nosotros", ".about-refresh__intro-grid", "07b-nosotros-movil", "Sobre nosotros móvil"),
             ("/noticias", ".news-editorial-hero", "07-noticias-movil", "Noticias móvil")
         ]:
             driver.get(BASE + route)
