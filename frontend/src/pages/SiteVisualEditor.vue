@@ -421,7 +421,7 @@ onMounted(load)
               aria-label="Video original para el Reel destacado"
               :disabled="!isLiveAdmin || loading || savingFeaturedReel"
               :options="[
-                {value:'', label:'Solo enlace de Instagram (abrir Reel en Instagram)'},
+                {value:'', label:'Solo enlace (intentará reproductor oficial de Instagram)'},
                 ...featuredVideoChoices.map(item => ({value:item.id, label:item.name}))
               ]" />
           </div>
@@ -430,7 +430,7 @@ onMounted(load)
             <input id="featured-reel-upload" type="file" accept="video/mp4,video/webm"
               :disabled="!isLiveAdmin || loading || savingFeaturedReel" @change="uploadFeaturedReelVideo" />
           </label>
-          <p v-else class="visual-editor__hint">Para reproducir el Reel dentro del Home, necesitás un video original autorizado y MinIO. Con solo el enlace, el visitante podrá abrir el Reel en Instagram.</p>
+          <p v-else class="visual-editor__hint">Con solo el enlace, la web intentará el reproductor oficial de Instagram. Si Instagram lo bloquea, aparecerá un enlace externo. Para reproducir de forma más fiable, asociá un video original autorizado mediante MinIO.</p>
           <video v-if="selectedFeaturedVideo" class="visual-editor__featured-video-preview"
             :key="selectedFeaturedVideo.id" :src="`/api/admin/content/media/${selectedFeaturedVideo.id}/file`"
             controls muted playsinline preload="metadata" aria-label="Vista previa del video original" />
@@ -444,10 +444,10 @@ onMounted(load)
       </form>
       <p v-if="featuredReelError" class="visual-editor__error" role="alert">{{ featuredReelError }}</p>
       <p v-if="featuredReelNotice" class="visual-editor__success" role="status">{{ featuredReelNotice }}</p>
-      <p v-if="publishedReel" class="visual-editor__featured-reel-current">Publicado: <a :href="publishedReel" target="_blank" rel="noopener noreferrer">{{ publishedReel }}</a> · {{ publishedReelMediaId ? 'Video original integrado' : 'Enlace al Reel en Instagram' }}</p>
+      <p v-if="publishedReel" class="visual-editor__featured-reel-current">Publicado: <a :href="publishedReel" target="_blank" rel="noopener noreferrer">{{ publishedReel }}</a> · {{ publishedReelMediaId ? 'Video original integrado' : 'Reproductor oficial de Instagram (sujeto a permisos)' }}</p>
       <p v-else class="visual-editor__featured-reel-current">Sin Reel elegido. La web mostrará el enlace al perfil de Instagram.</p>
       <p v-if="!isLiveAdmin" class="visual-editor__hint">Necesitás una sesión administradora real para modificar el Reel.</p>
-      <small class="visual-editor__hint">Instagram puede impedir que un Reel se muestre incrustado aunque el enlace funcione. Con solo el enlace, la web muestra una tarjeta con acceso directo al Reel. Para reproducir dentro de la tarjeta, asociá un MP4/WebM original autorizado o configurá la API oficial de Instagram para obtener una URL de video válida. Nunca se descarga el Reel de forma no autorizada.</small>
+      <small class="visual-editor__hint">Con solo pegar el enlace, el Home intentará el reproductor oficial de Instagram cuando el visitante pulse reproducir. Si la cuenta o el navegador bloquean la inserción, el Reel podrá abrirse en Instagram. Para reproducción integrada más fiable, asociá un MP4/WebM original autorizado o una URL de video válida de la API oficial de Instagram. No se extrae el video del enlace.</small>
       <div class="visual-editor__social-divider" role="separator"></div>
       <h4>Video de Facebook del Home</h4>
       <p class="visual-editor__hint">Página oficial: <a href="https://www.facebook.com/grupocastrofallas1" target="_blank" rel="noopener noreferrer">Grupo Castro Fallas en Facebook ↗</a>. Elegí un video o Reel público específico; el Home no extrae publicaciones automáticamente.</p>
