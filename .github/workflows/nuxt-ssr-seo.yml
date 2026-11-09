@@ -70,11 +70,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # CMS falso aislado para que la prueba HTTP de /noticias no dependa
+          # de secretos, servicios externos ni de la disponibilidad del backend.
           export NUXT_CMS_API_BASE=http://127.0.0.1:59999
           export NUXT_PUBLIC_SITE_URL=https://www.logisticacastrofallas.com
+          node -e 'require("node:http").createServer((req, res) => { if (req.url === "/api/content/news") { res.writeHead(200, {"Content-Type": "application/json"}); res.end("[]"); } else { res.writeHead(404); res.end("Not found"); } }).listen(59999, "127.0.0.1")' > /tmp/pangolin-cms-smoke.log 2>&1 &
+          cms_pid=$!
           (cd frontend/nuxt && npm run start) > /tmp/pangolin-nuxt.log 2>&1 &
           pid=$!
-          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          trap 'kill "$pid" "$cms_pid" 2>/dev/null || true' EXIT
           for i in $(seq 1 35); do
             if curl -fsS http://127.0.0.1:3000/ >/tmp/pangolin-home.html; then break; fi
             sleep 1
