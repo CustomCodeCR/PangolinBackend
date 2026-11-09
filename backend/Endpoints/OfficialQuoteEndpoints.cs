@@ -13,6 +13,14 @@ public static class OfficialQuoteEndpoints
     private static readonly string[] Incoterms =
         ["EXW", "FCA", "FAS", "FOB", "CFR", "CIF", "CPT", "CIP", "DAP", "DPU", "DDP"];
     private static readonly string[] States = ["Received", "InReview", "AwaitingInformation", "Closed"];
+    // Solo servicios ofrecidos por el formulario y GIO. Validar también en HTTP directo.
+    private static readonly HashSet<string> AllowedServices = new(StringComparer.Ordinal)
+    {
+        "Transporte internacional", "Agencia de Aduanas CR", "Agencia de Aduanas Exterior",
+        "Almacenamiento", "Control de inventario", "Embalaje", "Exoneración",
+        "Picking Carga", "Recepción de carga", "Seguro de carga", "Transporte entrega",
+        "Transporte recolección", "Transporte nacional"
+    };
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     // Usar el día calendario de Costa Rica, no UTC ni la zona horaria del servidor.
     private static readonly TimeZoneInfo CostaRicaTimeZone =
@@ -86,6 +94,8 @@ public static class OfficialQuoteEndpoints
             s.Services.Any(x => string.IsNullOrWhiteSpace(x) || x.Length > 100) ||
             s.Services.Distinct(StringComparer.OrdinalIgnoreCase).Count() != s.Services.Count)
             throw new ArgumentException("Seleccioná al menos un servicio válido.");
+        if (s.Services.Any(service => !AllowedServices.Contains(service)))
+            throw new ArgumentException("Seleccioná servicios del catálogo oficial.");
         if (s.Equipment?.Count > 25 || s.Packages?.Count > 25)
             throw new ArgumentException("Se permiten hasta 25 líneas de carga.");
         bool equipment = s.ShipmentType is "FCL" or "FTL";
