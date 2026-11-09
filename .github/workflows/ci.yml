@@ -40,6 +40,8 @@ jobs:
           dotnet-version: 10.0.x
       - name: Compilar API
         run: dotnet build backend/CastroFallas.MiniQuote.Api.csproj --configuration Release
+      - name: Validar contratos de cotizaciones y despliegue seguro
+        run: python3 scripts/verify-official-quotes.py
 
   nginx-http-seo:
     name: Nginx production routing and SEO HTTP
