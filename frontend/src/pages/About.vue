@@ -162,32 +162,6 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
         </div>
       </section>
 
-      <section class="about-refresh__services section-spacing">
-        <div class="container">
-          <div class="about-refresh__section-heading">
-            <div>
-              <p class="about-refresh__eyebrow">{{ copy.servicesTag }}</p>
-              <h2>{{ copy.capabilitiesTitle }}</h2>
-            </div>
-          </div>
-          <div class="about-refresh__capabilities">
-            <article v-for="(name, index) in copy.capabilityNames" :key="index" class="about-refresh__capability">
-              <div class="about-refresh__capability-icon">
-                <component :is="capabilityIcons[index]" :size="30" :stroke-width="1.7" aria-hidden="true" />
-              </div>
-              <h3>{{ name }}</h3>
-              <p>{{ copy.capabilityDetails[index] }}</p>
-            </article>
-          </div>
-
-          <div class="about-refresh__services-footer">
-            <div class="about-refresh__actions">
-              <RouterLink to="/servicios" class="about-refresh__button about-refresh__button--primary">{{ copy.serviceAction }} <span aria-hidden="true">↗</span></RouterLink>
-              <RouterLink to="/cotizaciones" class="about-refresh__button about-refresh__button--secondary">{{ copy.quoteAction }} <span aria-hidden="true">↗</span></RouterLink>
-            </div>
-          </div>
-        </div>
-      </section>
       <section id="nuestros-valores" class="about-refresh__values section-spacing">
         <div class="container">
           <div class="about-refresh__section-heading">
@@ -221,6 +195,32 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
         </div>
       </section>
 
+      <section class="about-refresh__services section-spacing">
+        <div class="container">
+          <div class="about-refresh__section-heading">
+            <div>
+              <p class="about-refresh__eyebrow">{{ copy.servicesTag }}</p>
+              <h2>{{ copy.capabilitiesTitle }}</h2>
+            </div>
+          </div>
+          <div class="about-refresh__capabilities">
+            <article v-for="(name, index) in copy.capabilityNames" :key="index" class="about-refresh__capability">
+              <div class="about-refresh__capability-icon">
+                <component :is="capabilityIcons[index]" :size="30" :stroke-width="1.7" aria-hidden="true" />
+              </div>
+              <h3>{{ name }}</h3>
+              <p>{{ copy.capabilityDetails[index] }}</p>
+            </article>
+          </div>
+
+          <div class="about-refresh__services-footer">
+            <div class="about-refresh__actions">
+              <RouterLink to="/servicios" class="about-refresh__button about-refresh__button--primary">{{ copy.serviceAction }} <span aria-hidden="true">↗</span></RouterLink>
+              <RouterLink to="/cotizaciones" class="about-refresh__button about-refresh__button--secondary">{{ copy.quoteAction }} <span aria-hidden="true">↗</span></RouterLink>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
     <SiteFooter />
   </div>
