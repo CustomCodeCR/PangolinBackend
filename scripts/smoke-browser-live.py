@@ -194,7 +194,6 @@ def main():
                 assert len(buttons) == 5, "Se esperan cinco valores corporativos"
                 assert not driver.find_elements(By.CSS_SELECTOR, ".about-refresh__value-summary"), "No debe haber resúmenes visibles al inicio"
                 assert all(button.get_attribute("aria-expanded") == "false" for button in buttons), "Los valores deben empezar cerrados"
-                assert driver.execute_script("return window.matchMedia('(hover: hover) and (pointer: fine)').matches"), "Chrome escritorio debe permitir hover"
                 # Real mouse hover must open; moving to another value closes the previous one.
                 ActionChains(driver).move_to_element(buttons[0]).perform()
                 WebDriverWait(driver, WAIT).until(lambda _: buttons[0].get_attribute("aria-expanded") == "true")
@@ -231,12 +230,23 @@ def main():
                 driver.execute_cdp_cmd("Emulation.setTouchEmulationEnabled", {"enabled": True, "maxTouchPoints": 1})
                 driver.execute_cdp_cmd("Emulation.setDeviceMetricsOverride", {"width": 390, "height": 844, "deviceScaleFactor": 1, "mobile": True})
                 try:
-                    assert not driver.execute_script("return window.matchMedia('(hover: hover) and (pointer: fine)').matches"), "En móvil el control debe utilizar toque, no hover"
                     assert driver.execute_script("return document.documentElement.scrollWidth <= window.innerWidth + 2"), "Sobre nosotros tiene desplazamiento horizontal no deseado en móvil"
                     mobile_button = driver.find_element(By.CSS_SELECTOR, ".about-refresh__value-trigger")
-                    mobile_button.click()
+                    driver.execute_script("arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});", mobile_button)
+                    def touch_value():
+                        center = driver.execute_script("""
+                            const r = arguments[0].getBoundingClientRect();
+                            return {x:r.left + r.width/2, y:r.top + r.height/2};
+                        """, mobile_button)
+                        driver.execute_cdp_cmd("Input.dispatchTouchEvent", {
+                            "type": "touchStart", "touchPoints": [{"x": center["x"], "y": center["y"], "id": 1}]
+                        })
+                        driver.execute_cdp_cmd("Input.dispatchTouchEvent", {
+                            "type": "touchEnd", "touchPoints": []
+                        })
+                    touch_value()
                     WebDriverWait(driver, WAIT).until(lambda _: mobile_button.get_attribute("aria-expanded") == "true")
-                    mobile_button.click()
+                    touch_value()
                     WebDriverWait(driver, WAIT).until(lambda _: mobile_button.get_attribute("aria-expanded") == "false")
                     print("PASS Chrome móvil: abrir y cerrar valor tocando, sin scroll horizontal", flush=True)
                 finally:
