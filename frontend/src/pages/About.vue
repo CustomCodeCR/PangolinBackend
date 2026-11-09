@@ -160,7 +160,7 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
             <p>{{ copy.servicesBody }}</p>
             <div class="about-refresh__actions">
               <RouterLink to="/servicios" class="about-refresh__button about-refresh__button--primary">{{ copy.serviceAction }} <span aria-hidden="true">↗</span></RouterLink>
-              <RouterLink to="/cotizacion" class="about-refresh__button about-refresh__button--secondary">{{ copy.quoteAction }} <span aria-hidden="true">↗</span></RouterLink>
+              <RouterLink to="/cotizaciones" class="about-refresh__button about-refresh__button--secondary">{{ copy.quoteAction }} <span aria-hidden="true">↗</span></RouterLink>
             </div>
           </div>
           <div class="about-refresh__services-art" role="img" :aria-label="copy.purposeImage"></div>
