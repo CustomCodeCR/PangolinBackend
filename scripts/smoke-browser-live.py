@@ -243,13 +243,26 @@ def main():
                 print("PASS Chrome: hover, mouse leave and keyboard accordion in Sobre nosotros", flush=True)
                 # Follow both CTAs in the actual browser, not just their href attributes.
                 assert not driver.find_elements(By.CSS_SELECTOR, ".about-refresh__hero-subtitle"), "Debe quitarse el subtítulo de +48 años"
-                driver.find_element(By.CSS_SELECTOR, 'a.about-refresh__button--primary[href="/servicios"]').click()
+                def click_about_link(selector):
+                    element = await_css(driver, selector)
+                    driver.execute_script("""
+                        const previous = document.documentElement.style.scrollBehavior;
+                        document.documentElement.style.scrollBehavior = 'auto';
+                        arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});
+                        document.documentElement.style.scrollBehavior = previous;
+                    """, element)
+                    WebDriverWait(driver, WAIT).until(lambda _: driver.execute_script("""
+                        const r=arguments[0].getBoundingClientRect();
+                        return r.top >= 0 && r.bottom <= window.innerHeight;
+                    """, element))
+                    element.click()
+                click_about_link('a.about-refresh__button--primary[href="/servicios"]')
                 WebDriverWait(driver, WAIT).until(lambda d: d.current_url.split("?")[0].rstrip("/").endswith("/servicios"))
                 await_css(driver, ".services-page__transport")
                 print("PASS Chrome: Conocer servicios abre /servicios", flush=True)
                 driver.get(BASE + "/nosotros")
                 await_css(driver, ".about-refresh__actions")
-                driver.find_element(By.CSS_SELECTOR, 'a.about-refresh__button--secondary[href="/cotizaciones"]').click()
+                click_about_link('a.about-refresh__button--secondary[href="/cotizaciones"]')
                 WebDriverWait(driver, WAIT).until(lambda d: d.current_url.split("?")[0].rstrip("/").endswith("/cotizaciones"))
                 WebDriverWait(driver, WAIT).until(lambda d: bool(d.find_elements(By.CSS_SELECTOR, ".quote-flow-page")))
                 print("PASS Chrome: Solicitar cotización abre /cotizaciones", flush=True)
