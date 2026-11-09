@@ -8,7 +8,7 @@ import SiteFooter from '../components/SiteFooter.vue'
 import IconSymbol from '../components/IconSymbol.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import { refreshSession } from '../services/auth'
-import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions } from '../lib/officialQuoteOptions'
+import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
 import { costaRicaToday, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
 
 const { locale } = useI18n({ useScope: 'global' })
@@ -149,7 +149,7 @@ function handleLocationKeydown(field: LocationField, event: KeyboardEvent) {
   }
 }
 const incoterms = officialIncoterms
-const serviceOptions = ['Transporte internacional','Agencia de Aduanas CR','Agencia de Aduanas Exterior','Almacenamiento','Control de inventario','Embalaje','Exoneración','Picking Carga','Recepción de carga','Seguro de carga','Transporte entrega','Transporte recolección','Transporte nacional']
+const serviceOptions = officialServiceOptions
 const serviceIcons: Record<string, Component> = {
   'Transporte internacional': Globe,
   'Agencia de Aduanas CR': FileCheck,
@@ -261,26 +261,7 @@ function displayShipmentType(value: Type | null) {
   return value || ''
 }
 function displayService(value: string) {
-  const labels: Record<string, [string, string]> = {
-    'Transporte internacional': ['Transporte internacional', 'International transportation'],
-    'Agencia de Aduanas CR': ['Agencia de Aduanas CR', 'Costa Rica customs brokerage'],
-    'Agencia de Aduanas Exterior': ['Agencia de Aduanas Exterior', 'Foreign customs brokerage'],
-    'Almacenamiento': ['Almacenamiento', 'Warehousing'],
-    'Control de inventario': ['Control de inventario', 'Inventory control'],
-    'Embalaje': ['Embalaje', 'Packing'],
-    'Exoneración': ['Exoneración', 'Duty exemption'],
-    'Picking Carga': ['Picking Carga', 'Cargo picking'],
-    'Recepción de carga': ['Recepción de carga', 'Cargo receiving'],
-    'Seguro de carga': ['Seguro de carga', 'Cargo insurance'],
-    'Transporte entrega': ['Transporte entrega', 'Delivery transportation'],
-    'Transporte recolección': ['Transporte recolección', 'Pickup transportation'],
-    'Transporte nacional': ['Transporte nacional', 'Domestic transportation'],
-    'Carga peligrosa': ['Carga peligrosa', 'Dangerous goods'],
-    'No estibable': ['No estibable', 'Non-stackable'],
-    'Sobrepeso': ['Sobrepeso', 'Overweight']
-  }
-  const pair = labels[value]
-  return pair ? q(pair[0], pair[1]) : value
+  return officialServiceName(value, q)
 }
 function selectMode(value: Mode) {
   if (mode.value !== value) {
