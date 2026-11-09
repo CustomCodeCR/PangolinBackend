@@ -186,6 +186,8 @@ const receiptFieldLabels: Record<string, [string, string]> = {
   incoterm:['Incoterm','Incoterm'], cargoReadyDate:['Carga lista','Cargo ready'],
   exwCargoStatus:['Estado EXW','EXW status'], exwPickupAddress:['Recolección EXW','EXW pickup'],
   services:['Servicios solicitados','Requested services'],
+  fiscalStorageDays:['Días de almacenaje fiscal','Fiscal storage days'],
+  deliveryAddress:['Dirección de entrega','Delivery address'], pickupAddress:['Dirección de recolección','Pickup address'],
   cargoDescription:['Mercancía','Goods'], dangerousGoods:['Carga peligrosa','Dangerous goods'],
   equipmentSize:['Tamaño del equipo','Equipment size'], equipmentType:['Tipo de equipo','Equipment type'],
   equipmentQuantity:['Cantidad de equipos','Equipment quantity'],
@@ -198,7 +200,7 @@ const receiptFieldLabels: Record<string, [string, string]> = {
   contactName:['Nombre de contacto','Contact name'], contactEmail:['Correo','Email'], contactPhone:['Teléfono','Phone']
 }
 const receiptGroupDefinitions = [
-  { id:'route', name:['Ruta y condiciones','Route and terms'], fields:['mode','shipmentType','origin','destination','pod','incoterm','cargoReadyDate','exwCargoStatus','exwPickupAddress','services'] },
+  { id:'route', name:['Ruta y condiciones','Route and terms'], fields:['mode','shipmentType','origin','destination','pod','incoterm','cargoReadyDate','exwCargoStatus','exwPickupAddress','services','fiscalStorageDays','deliveryAddress','pickupAddress'] },
   { id:'cargo', name:['Detalles de la carga','Cargo details'], fields:['cargoDescription','dangerousGoods','equipmentSummary','equipmentSize','equipmentType','equipmentQuantity','equipmentWeights','packagesSummary','packageQuantity','packageWeight','packageLength','packageWidth','packageHeight','stackable'] },
   { id:'contact', name:['Datos de contacto','Contact details'], fields:['contactName','contactEmail','contactPhone'] }
 ] as const
@@ -223,6 +225,9 @@ const receiptSections = computed(() => {
       incoterm: form.incoterm, cargoReadyDate: form.cargoReadyDate,
       exwCargoStatus: form.exwCargoStatus, exwPickupAddress: form.exwPickupAddress,
       services: form.services.map(displayService).join(', '),
+      fiscalStorageDays: form.services.includes('Almacenamiento') ? String(form.fiscalStorageDays) : '',
+      deliveryAddress: form.services.includes('Transporte entrega') ? form.deliveryAddress : '',
+      pickupAddress: form.services.includes('Transporte recolección') ? form.pickupAddress : '',
       cargoDescription: form.cargoDescription,
       dangerousGoods: form.cargoFlags.includes('Carga peligrosa') ? q('Sí', 'Yes') : '',
       equipmentSummary: equipmentMode.value
