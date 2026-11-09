@@ -7,6 +7,8 @@ from pathlib import Path
 from urllib.request import urlopen
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import TimeoutException
@@ -190,19 +192,23 @@ def main():
             if route == "/nosotros":
                 buttons = driver.find_elements(By.CSS_SELECTOR, ".about-refresh__value-trigger")
                 assert len(buttons) == 5, "Se esperan cinco valores corporativos"
+                assert not driver.find_elements(By.CSS_SELECTOR, ".about-refresh__value-summary"), "No debe haber resúmenes visibles al inicio"
                 assert all(button.get_attribute("aria-expanded") == "false" for button in buttons), "Los valores deben empezar cerrados"
-                driver.execute_script("arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});", buttons[0])
-                WebDriverWait(driver, WAIT).until(lambda _: driver.execute_script("const r=arguments[0].getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight;", buttons[0]))
-                buttons[0].click()
+                assert driver.execute_script("return window.matchMedia('(hover: hover) and (pointer: fine)').matches"), "Chrome escritorio debe permitir hover"
+                # Real mouse hover must open; moving to another value closes the previous one.
+                ActionChains(driver).move_to_element(buttons[0]).perform()
                 WebDriverWait(driver, WAIT).until(lambda _: buttons[0].get_attribute("aria-expanded") == "true")
-                assert driver.find_elements(By.CSS_SELECTOR, ".about-refresh__value-panel.is-open"), "El detalle del valor seleccionado debe abrir"
-                driver.execute_script("arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});", buttons[1])
-                WebDriverWait(driver, WAIT).until(lambda _: driver.execute_script("const r=arguments[0].getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight;", buttons[1]))
-                buttons[1].click()
+                assert driver.find_elements(By.CSS_SELECTOR, ".about-refresh__value-panel.is-open"), "Debe abrirse la descripción al pasar el cursor"
+                ActionChains(driver).move_to_element(buttons[1]).perform()
                 WebDriverWait(driver, WAIT).until(lambda _: buttons[0].get_attribute("aria-expanded") == "false" and buttons[1].get_attribute("aria-expanded") == "true")
-                buttons[1].click()
+                ActionChains(driver).move_to_element(driver.find_element(By.CSS_SELECTOR, ".about-refresh__section-heading h2")).perform()
                 WebDriverWait(driver, WAIT).until(lambda _: buttons[1].get_attribute("aria-expanded") == "false")
-                print("PASS Chrome: cinco valores y acordeón accesible en Sobre nosotros", flush=True)
+                # Keyboard users can toggle the same native button without a mouse.
+                buttons[0].send_keys(Keys.ENTER)
+                WebDriverWait(driver, WAIT).until(lambda _: buttons[0].get_attribute("aria-expanded") == "true")
+                buttons[0].send_keys(Keys.ENTER)
+                WebDriverWait(driver, WAIT).until(lambda _: buttons[0].get_attribute("aria-expanded") == "false")
+                print("PASS Chrome: hover, mouse leave and keyboard accordion in Sobre nosotros", flush=True)
             shot = {"/": ("01-inicio-escritorio", "Inicio", "Portada y navegación"),
                     "/servicios": ("02-servicios-escritorio", "Servicios", "Servicios logísticos"),
                     "/nosotros": ("03-nosotros-escritorio", "Sobre nosotros", "Información de la empresa"),
@@ -220,6 +226,23 @@ def main():
             driver.get(BASE + route)
             await_css(driver, marker)
             screenshot(driver, slug, title, route, "Captura a 390 × 844 píxeles")
+            if route == "/nosotros":
+                # Emulate a touch-first device and verify tap-to-expand / tap-to-collapse.
+                driver.execute_cdp_cmd("Emulation.setTouchEmulationEnabled", {"enabled": True, "maxTouchPoints": 1})
+                driver.execute_cdp_cmd("Emulation.setDeviceMetricsOverride", {"width": 390, "height": 844, "deviceScaleFactor": 1, "mobile": True})
+                try:
+                    assert not driver.execute_script("return window.matchMedia('(hover: hover) and (pointer: fine)').matches"), "En móvil el control debe utilizar toque, no hover"
+                    assert driver.execute_script("return document.documentElement.scrollWidth <= window.innerWidth + 2"), "Sobre nosotros tiene desplazamiento horizontal no deseado en móvil"
+                    mobile_button = driver.find_element(By.CSS_SELECTOR, ".about-refresh__value-trigger")
+                    mobile_button.click()
+                    WebDriverWait(driver, WAIT).until(lambda _: mobile_button.get_attribute("aria-expanded") == "true")
+                    mobile_button.click()
+                    WebDriverWait(driver, WAIT).until(lambda _: mobile_button.get_attribute("aria-expanded") == "false")
+                    print("PASS Chrome móvil: abrir y cerrar valor tocando, sin scroll horizontal", flush=True)
+                finally:
+                    driver.execute_cdp_cmd("Emulation.clearDeviceMetricsOverride", {})
+                    driver.execute_cdp_cmd("Emulation.setTouchEmulationEnabled", {"enabled": False})
+
         driver.set_window_size(1440, 1100)
 
         driver.get(BASE + "/cotizaciones")
