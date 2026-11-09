@@ -8,7 +8,7 @@ import SiteFooter from '../components/SiteFooter.vue'
 import IconSymbol from '../components/IconSymbol.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import { refreshSession } from '../services/auth'
-import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions } from '../lib/officialQuoteOptions'
+import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
 import { costaRicaToday, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
 
 const { locale } = useI18n({ useScope: 'global' })
@@ -149,7 +149,7 @@ function handleLocationKeydown(field: LocationField, event: KeyboardEvent) {
   }
 }
 const incoterms = officialIncoterms
-const serviceOptions = ['Transporte internacional','Agencia de Aduanas CR','Agencia de Aduanas Exterior','Almacenamiento','Control de inventario','Embalaje','Exoneración','Picking Carga','Recepción de carga','Seguro de carga','Transporte entrega','Transporte recolección','Transporte nacional']
+const serviceOptions = officialServiceOptions
 const serviceIcons: Record<string, Component> = {
   'Transporte internacional': Globe,
   'Agencia de Aduanas CR': FileCheck,
@@ -186,6 +186,8 @@ const receiptFieldLabels: Record<string, [string, string]> = {
   incoterm:['Incoterm','Incoterm'], cargoReadyDate:['Carga lista','Cargo ready'],
   exwCargoStatus:['Estado EXW','EXW status'], exwPickupAddress:['Recolección EXW','EXW pickup'],
   services:['Servicios solicitados','Requested services'],
+  fiscalStorageDays:['Días de almacenaje fiscal','Fiscal storage days'],
+  deliveryAddress:['Dirección de entrega','Delivery address'], pickupAddress:['Dirección de recolección','Pickup address'],
   cargoDescription:['Mercancía','Goods'], dangerousGoods:['Carga peligrosa','Dangerous goods'],
   equipmentSize:['Tamaño del equipo','Equipment size'], equipmentType:['Tipo de equipo','Equipment type'],
   equipmentQuantity:['Cantidad de equipos','Equipment quantity'],
@@ -198,7 +200,7 @@ const receiptFieldLabels: Record<string, [string, string]> = {
   contactName:['Nombre de contacto','Contact name'], contactEmail:['Correo','Email'], contactPhone:['Teléfono','Phone']
 }
 const receiptGroupDefinitions = [
-  { id:'route', name:['Ruta y condiciones','Route and terms'], fields:['mode','shipmentType','origin','destination','pod','incoterm','cargoReadyDate','exwCargoStatus','exwPickupAddress','services'] },
+  { id:'route', name:['Ruta y condiciones','Route and terms'], fields:['mode','shipmentType','origin','destination','pod','incoterm','cargoReadyDate','exwCargoStatus','exwPickupAddress','services','fiscalStorageDays','deliveryAddress','pickupAddress'] },
   { id:'cargo', name:['Detalles de la carga','Cargo details'], fields:['cargoDescription','dangerousGoods','equipmentSummary','equipmentSize','equipmentType','equipmentQuantity','equipmentWeights','packagesSummary','packageQuantity','packageWeight','packageLength','packageWidth','packageHeight','stackable'] },
   { id:'contact', name:['Datos de contacto','Contact details'], fields:['contactName','contactEmail','contactPhone'] }
 ] as const
@@ -223,6 +225,9 @@ const receiptSections = computed(() => {
       incoterm: form.incoterm, cargoReadyDate: form.cargoReadyDate,
       exwCargoStatus: form.exwCargoStatus, exwPickupAddress: form.exwPickupAddress,
       services: form.services.map(displayService).join(', '),
+      fiscalStorageDays: form.services.includes('Almacenamiento') ? String(form.fiscalStorageDays) : '',
+      deliveryAddress: form.services.includes('Transporte entrega') ? form.deliveryAddress : '',
+      pickupAddress: form.services.includes('Transporte recolección') ? form.pickupAddress : '',
       cargoDescription: form.cargoDescription,
       dangerousGoods: form.cargoFlags.includes('Carga peligrosa') ? q('Sí', 'Yes') : '',
       equipmentSummary: equipmentMode.value
@@ -261,26 +266,7 @@ function displayShipmentType(value: Type | null) {
   return value || ''
 }
 function displayService(value: string) {
-  const labels: Record<string, [string, string]> = {
-    'Transporte internacional': ['Transporte internacional', 'International transportation'],
-    'Agencia de Aduanas CR': ['Agencia de Aduanas CR', 'Costa Rica customs brokerage'],
-    'Agencia de Aduanas Exterior': ['Agencia de Aduanas Exterior', 'Foreign customs brokerage'],
-    'Almacenamiento': ['Almacenamiento', 'Warehousing'],
-    'Control de inventario': ['Control de inventario', 'Inventory control'],
-    'Embalaje': ['Embalaje', 'Packing'],
-    'Exoneración': ['Exoneración', 'Duty exemption'],
-    'Picking Carga': ['Picking Carga', 'Cargo picking'],
-    'Recepción de carga': ['Recepción de carga', 'Cargo receiving'],
-    'Seguro de carga': ['Seguro de carga', 'Cargo insurance'],
-    'Transporte entrega': ['Transporte entrega', 'Delivery transportation'],
-    'Transporte recolección': ['Transporte recolección', 'Pickup transportation'],
-    'Transporte nacional': ['Transporte nacional', 'Domestic transportation'],
-    'Carga peligrosa': ['Carga peligrosa', 'Dangerous goods'],
-    'No estibable': ['No estibable', 'Non-stackable'],
-    'Sobrepeso': ['Sobrepeso', 'Overweight']
-  }
-  const pair = labels[value]
-  return pair ? q(pair[0], pair[1]) : value
+  return officialServiceName(value, q)
 }
 function selectMode(value: Mode) {
   if (mode.value !== value) {
@@ -2087,5 +2073,60 @@ html.theme-dark .app-site.official-page .official-service-card--selected .offici
 @media (prefers-reduced-motion: reduce) {
   .app-site.official-page .official-service-card { transition: none; }
 }
+
+/* Contraste de cotizaciones: botones compactos y tarjetas legibles en ambos temas. */
+/* Override the generic light-quote header rule (:is(.main-nav a, ...)) without
+   changing the other menu labels. The fallback also covers the mobile Teleport. */
+html:not(.theme-dark) .app-site.official-page > .site-header.site-header--quotes .main-nav .header-account-tools > a.nav-login,
+html:not(.theme-dark) .site-header.site-header--quotes .main-nav .header-account-tools > a.nav-login,
+html:not(.theme-dark) .site-header.site-header--quotes .main-nav .header-account-tools > a.nav-login:visited,
+html:not(.theme-dark) .site-header.site-header--quotes .main-nav .header-account-tools > a.nav-login svg {
+  color:#fff !important;
+  stroke:currentColor;
+}
+.app-site.official-page .official-receipt-actions .official-link {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  box-sizing:border-box;
+  margin-top:0;
+  padding:10px 17px;
+  min-height:40px;
+  font-size:13px;
+  line-height:1.3;
+  border:1px solid #a80e18;
+  background:#a80e18 !important;
+  color:#fff !important;
+  text-decoration:none;
+}
+.app-site.official-page .official-receipt-actions .official-link--subtle {
+  background:#97122a !important;
+  border-color:#97122a !important;
+  color:#fff !important;
+}
+html.theme-dark .app-site.official-page .official-receipt-actions .official-link,
+html.theme-dark .app-site.official-page .official-receipt-actions .official-link--subtle {
+  background:#a80e18 !important;
+  border-color:#c93b52 !important;
+  color:#fff !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-success .official-receipt-group {
+  background:#f9f7f9 !important;
+  border-color:#e9e0e5 !important;
+  color:#242630 !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-success .official-receipt-group h4 { color:#a80e18 !important; }
+html:not(.theme-dark) .app-site.official-page .official-success .official-receipt-row dt { color:#596170 !important; }
+html:not(.theme-dark) .app-site.official-page .official-success .official-receipt-row dd { color:#252937 !important; }
+html.theme-dark .app-site.official-page .official-success .official-receipt-group {
+  background:#171c2b !important;
+  border-color:#495268 !important;
+  color:#fff !important;
+}
+html.theme-dark .app-site.official-page .official-success .official-receipt-group h4 { color:#ff8ba0 !important; }
+html.theme-dark .app-site.official-page .official-success .official-receipt-row dt { color:#c5cfdd !important; }
+html.theme-dark .app-site.official-page .official-success .official-receipt-row dd { color:#fff !important; }
+html.theme-dark .app-site.official-page .official-success .official-receipt-intro { color:#d2d6e0 !important; }
+
 </style>
 
