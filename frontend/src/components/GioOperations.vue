@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ArrowLeft, CheckCircle2, ChevronRight, FileText, LoaderCircle, MapPin, Search, ShieldCheck, Ship } from '@lucide/vue'
 import { refreshSession } from '../services/auth'
-import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions } from '../lib/officialQuoteOptions'
+import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
 import { isCalendarDate, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
 
 type Kind = 'quote' | 'tracking' | 'itinerary'
@@ -68,6 +68,16 @@ const isCatalogueLocation = (key: string) => isQuoteLocation(key) || (props.kind
 const i = (es: string, en: string) => tr(es, en)
 const modes = computed<Choice[]>(() => [{value:'Maritime',label:i('Marítimo','Ocean')},{value:'Air',label:i('Aéreo','Air')},{value:'Land',label:i('Terrestre','Ground')}])
 const terms = officialIncoterms.map(value => ({value,label:value}))
+const serviceChoices = computed<Choice[]>(() => officialServiceOptions.map(value => ({
+  value, label:officialServiceName(value,tr)
+})))
+const selectedServices = ref<string[]>(['Transporte internacional'])
+const serviceNames = (value: string) => value.split('|').filter(Boolean).map(name => officialServiceName(name,tr)).join(', ')
+function toggleService(value: string) {
+  selectedServices.value = selectedServices.value.includes(value)
+    ? selectedServices.value.filter(item => item !== value)
+    : [...selectedServices.value, value]
+}
 const equipmentSizes = computed<Choice[]>(() => officialEquipmentSizeOptions(values.shipmentType || '', tr))
 const equipmentTypes = computed<Choice[]>(() => officialEquipmentTypeOptions(values.shipmentType || '', tr))
 const isEquipment = computed(() => ['FCL', 'FTL'].includes(values.shipmentType))
@@ -101,6 +111,14 @@ const steps = computed<Step[]>(() => {
     {key:'exwCargoStatus',prompt:i('¿La carga EXW está nacionalizada o en régimen fiscal?','Is the EXW cargo nationalized or under fiscal regime?'),choices:[{value:'nationalized',label:i('Nacionalizada','Nationalized')},{value:'fiscal',label:i('Fiscal','Fiscal')}]},
     {key:'exwPickupAddress',prompt:i('¿Cuál es la dirección de recolección EXW?','What is the EXW pickup address?')}
   )
+  result.push({key:'services',prompt:i('¿Qué servicios necesitas? Podés elegir varios.','Which services do you need? You can select more than one.')})
+  const requestedServices = (values.services || '').split('|')
+  if (requestedServices.includes('Almacenamiento'))
+    result.push({key:'fiscalStorageDays',prompt:i('¿Cuántos días de almacenaje fiscal necesitas?','How many fiscal storage days do you need?')})
+  if (requestedServices.includes('Transporte entrega'))
+    result.push({key:'deliveryAddress',prompt:i('¿Cuál es la dirección de entrega?','What is the delivery address?')})
+  if (requestedServices.includes('Transporte recolección'))
+    result.push({key:'pickupAddress',prompt:i('¿Cuál es la dirección de recolección?','What is the pickup address?')})
   result.push(
     {key:'cargoDescription',prompt:i('Describe la mercancía que necesitas transportar.','Describe the goods you need to transport.')},
     {key:'dangerousGoods',prompt:i('¿La mercancía es peligrosa o requiere manejo especial?','Is this dangerous cargo or does it require special handling?'),choices:[{value:'yes',label:i('Sí','Yes')},{value:'no',label:'No'},{value:'unsure',label:i('No estoy seguro','Not sure')}]}
@@ -136,12 +154,14 @@ const fieldLabels: Record<string, [string, string]> = {
   equipmentQuantity:['Cantidad equipos','Equipment quantity'],equipmentWeights:['Pesos por unidad (kg)','Weights per unit (kg)'],
   packageQuantity:['Bultos','Packages'],packageWeight:['Peso por bulto (kg)','Weight per package (kg)'],
   packageLength:['Largo (cm)','Length (cm)'],packageWidth:['Ancho (cm)','Width (cm)'],packageHeight:['Alto (cm)','Height (cm)'],
-  stackable:['Estibable','Stackable'],contactName:['Contacto','Contact'],contactEmail:['Correo','Email'],contactPhone:['Teléfono','Phone'],
+  stackable:['Estibable','Stackable'], services:['Servicios solicitados','Requested services'],
+  fiscalStorageDays:['Días de almacenaje fiscal','Fiscal storage days'], deliveryAddress:['Dirección de entrega','Delivery address'], pickupAddress:['Dirección de recolección','Pickup address'],
+  contactName:['Contacto','Contact'],contactEmail:['Correo','Email'],contactPhone:['Teléfono','Phone'],
   reference:['Referencia','Reference'],referenceType:['Tipo de referencia','Reference type'],transport:['Transporte','Transport'],departure:['Desde la fecha','Departure from']
 }
 const summary = computed(() => steps.value.map(step => ({
   key:step.key, label: tr((fieldLabels[step.key] ?? [step.key,step.key])[0], (fieldLabels[step.key] ?? [step.key,step.key])[1]),
-  value: step.choices?.find(option => option.value === values[step.key])?.label ?? values[step.key]
+  value: step.key === 'services' ? serviceNames(values.services || '') : step.choices?.find(option => option.value === values[step.key])?.label ?? values[step.key]
 })).filter(item => item.value))
 const filteredLocations = computed(() => locationChoices.value.filter(loc =>
   norm(loc.displayName).includes(norm(locationTerm.value))).slice(0, 30))
@@ -152,6 +172,13 @@ const integer = (s: string, max: number) => /^\d+$/.test(s) && Number(s) > 0 && 
 const scrollEnd = async () => { await nextTick(); scroller.value?.scrollTo({top:scroller.value.scrollHeight,behavior:'smooth'}) }
 
 function validation(key: string, value: string): string {
+  if (key === 'services') {
+    const list = value.split('|').filter(Boolean)
+    if (!list.length || new Set(list).size !== list.length ||
+        list.some(service => !(officialServiceOptions as readonly string[]).includes(service)))
+      return tr('Seleccioná al menos un servicio del catálogo oficial.','Select at least one service from the official list.')
+    return ''
+  }
   const spec = steps.value.find(step => step.key === key)
   if (spec?.choices) {
     if (spec.choices.some(choice => choice.value === value)) return ''
@@ -165,6 +192,7 @@ function validation(key: string, value: string): string {
   if (key === 'contactEmail' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return tr('Correo electrónico inválido.', 'Invalid email.')
   if (key === 'contactPhone' && !/^[+0-9 ()-]{7,40}$/.test(value)) return tr('Escribe un teléfono válido.', 'Enter a valid phone number.')
   if (key === 'reference' && !/^[a-zA-Z0-9_-]{3,64}$/.test(value)) return tr('Referencia inválida: de 3 a 64 caracteres, letras, números o guiones.', 'Invalid reference. Use 3–64 letters, numbers or dashes.')
+  if (key === 'fiscalStorageDays' && !integer(value,36500)) return tr('Los días de almacenaje deben ser un entero entre 1 y 36500.','Storage days must be a whole number between 1 and 36500.')
   if (['equipmentQuantity','packageQuantity'].includes(key) && !integer(value,key === 'equipmentQuantity' ? 25 : 10000)) return tr('Escribe una cantidad entera positiva.', 'Enter a positive whole number.')
   if (['packageWeight','packageLength','packageWidth','packageHeight'].includes(key) &&
       (!positive(value) || Number(value) > (key === 'packageWeight' ? 100000000 : 100000)))
@@ -175,9 +203,9 @@ function validation(key: string, value: string): string {
       return tr('Debe haber un peso positivo por cada unidad de equipo.', 'Provide one positive weight per equipment unit.')
   }
   const maxLength: Record<string,number> = {cargoDescription:4000, contactName:150, contactEmail:255,
-    contactPhone:40, exwPickupAddress:800, reference:64, equipmentWeights:400}
+    contactPhone:40, exwPickupAddress:800, deliveryAddress:800, pickupAddress:800, reference:64, equipmentWeights:400}
   if (value.length > (maxLength[key] ?? 200)) return tr('El dato es demasiado largo.', 'This value is too long.')
-  if (['cargoDescription','contactName','exwPickupAddress'].includes(key)) {
+  if (['cargoDescription','contactName','exwPickupAddress','deliveryAddress','pickupAddress'].includes(key)) {
     const letters = (value.match(/\p{L}/gu) || []).length
     if (letters < 2 || /(.)\1{6,}/iu.test(value) || /^\W+$/u.test(value))
       return tr('Escribe una descripción clara en lugar de caracteres repetidos.', 'Please use a clear description rather than repeated characters.')
@@ -210,7 +238,7 @@ function advanceFrom(start: number) {
     }
     if (value && prefillConfirmation.has(item.key)) {
       prefillConfirmation.delete(item.key)
-      pendingValue.value = { key:item.key, value, display:item.choices?.find(choice=>choice.value===value)?.label || value }
+      pendingValue.value = { key:item.key, value, display:item.key === 'services' ? serviceNames(value) : item.choices?.find(choice=>choice.value===value)?.label || value }
       phase.value = 'confirm'
       return
     }
@@ -239,13 +267,20 @@ function commitValue(item: Step, value: string, locationId?: string) {
     delete values.exwCargoStatus
     delete values.exwPickupAddress
   }
+  if (item.key === 'services') {
+    const selected = value.split('|')
+    if (!selected.includes('Almacenamiento')) delete values.fiscalStorageDays
+    if (!selected.includes('Transporte entrega')) delete values.deliveryAddress
+    if (!selected.includes('Transporte recolección')) delete values.pickupAddress
+    selectedServices.value = selected
+  }
   if (item.key === 'equipmentQuantity' && values.equipmentQuantity !== value) delete values.equipmentWeights
   if (isQuoteLocation(item.key)) {
     if (locationId) selectedLocations[item.key] = locationId
     else delete selectedLocations[item.key]
   }
   values[item.key] = value
-  const display = item.choices?.find(choice => choice.value === value)?.label || value || tr('Omitido','Skipped')
+  const display = item.key === 'services' ? serviceNames(value) : item.choices?.find(choice => choice.value === value)?.label || value || tr('Omitido','Skipped')
   history.value.push({question:item.prompt,answer:display})
   input.value = ''
   const edited = editingField.value !== ''
@@ -281,7 +316,7 @@ function accept(value = input.value, explicitLocationId?: string) {
     }
   }
   if (!item.choices && v) {
-    pendingValue.value = {key:item.key, value:v, display:v, locationId}
+    pendingValue.value = {key:item.key, value:v, display:item.key === 'services' ? serviceNames(v) : v, locationId}
     phase.value = 'confirm'
     void scrollEnd()
     return
@@ -326,6 +361,7 @@ function editField(key: string) {
   editingField.value = key
   stepIndex.value = index
   input.value = values[key] || proposedLocations[key] || ''
+  if (key === 'services') selectedServices.value = (values.services || 'Transporte internacional').split('|').filter(Boolean)
   history.value = []
   void scrollEnd()
 }
