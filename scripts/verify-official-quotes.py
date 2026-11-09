@@ -15,6 +15,8 @@ root = (ROOT / "frontend/src/Root.vue").read_text(encoding="utf-8")
 admin = (ROOT / "frontend/src/pages/ContentManager.vue").read_text(encoding="utf-8")
 schema = (ROOT / "backend/Database/OfficialQuotesSchema.sql").read_text(encoding="utf-8")
 verified = (ROOT / "backend/Database/OfficialQuotesVerifiedLocations.sql").read_text(encoding="utf-8")
+release = (ROOT / ".github/workflows/pangolin-images.yml").read_text(encoding="utf-8")
+
 prod_compose = (ROOT / "deploy/docker-compose.images.yml").read_text(encoding="utf-8")
 prod_workflow = (ROOT / ".github/workflows/pangolin-images.yml").read_text(encoding="utf-8")
 
@@ -64,6 +66,36 @@ checks = {
     "Cotizaciones en Contenido": "OfficialQuoteAdmin v-else-if" in admin,
     "13 ubicaciones terrestres": unique_land_rows,
     "no borrar registros": all(x not in verified.upper() for x in ("DELETE FROM", "DROP TABLE", "TRUNCATE")),
+    "backend admite invitados sin quitar privacidad": (
+        'MapGroup("/api/quotes/official");' in api
+        and '.RequireRateLimiting("public-quote")' in api
+        and 'group.MapGet("/{id:guid}"' in api
+        and '.RequireAuthorization("registered")' in api
+        and 'app.MapGroup("/api/admin/quotes/official").RequireAuthorization("admin")' in api
+    ),
+    "modelo y SQL admiten cliente/usuario opcionales": (
+        'Guid? ClienteId' in model and 'Guid? UsuarioId' in model
+        and 'ALTER COLUMN cliente_id DROP NOT NULL' in schema
+        and 'ALTER COLUMN usuario_id DROP NOT NULL' in schema
+    ),
+    "publicación activa cotizaciones oficiales": 'VITE_OFFICIAL_QUOTES_ENABLED=true' in release,
+    "preflight publica catálogo e itinerarios": (
+        "catalog_http" in release and '"$catalog_http" != "200"' in release
+        and '"items"' in release
+        and "itinerary_http" in release and '"$itinerary_http" != "200"' in release
+    ),
+    "preflight mantiene privadas las lecturas individuales": (
+        "for protected_path in '/api/quotes/official/00000000-0000-0000-0000-000000000000'" in release
+        and "'/api/admin/quotes/official/permissions/me'" in release
+        and '"$quote_http" != "401" && "$quote_http" != "403"' in release
+        and "for protected_path in '/api/quotes/official/locations" not in release
+    ),
+    "despliegue verifica migración de invitados": (
+        'nullable_columns="$(pg_query' in release and '"$nullable_columns" != "2"' in release
+        and release.index("pg_dump -Fc") < release.index("OfficialQuotesSchema.sql")
+        < release.index('nullable_columns="$(pg_query') < release.index('up -d --no-build --no-deps backend frontend')
+    ),
+
     "frontend oficial habilitado en producción": "VITE_OFFICIAL_QUOTES_ENABLED=true" in prod_workflow,
     "API oficial habilitada en producción": 'Features__OfficialQuotesEnabled: "true"' in prod_compose,
     "migración y catálogo no ficticio preparados": all(
