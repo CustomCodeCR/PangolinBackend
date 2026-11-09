@@ -51,7 +51,6 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
   valueLead: 'Principles that guide our daily work and strengthen the trust of our customers and partners.',
   historyAction: 'Discover our history',
   capabilitiesTitle: 'Our capabilities',
-  capabilitiesSubtitle: 'Integrated solutions so your freight can move without borders.',
   capabilityNames: ['Logistics', 'Customs', 'International transport', 'Imports', 'Exports'],
   capabilityDetails: [
     'Coordinated solutions across the supply chain.',
@@ -71,7 +70,6 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
   discover: 'Hover over a value to learn more, or tap to open it on touch screens',
   servicesTag: 'WHAT WE DO',
   servicesTitle: 'Logistics solutions for every stage.',
-  servicesBody: 'From freight transportation to import and export coordination, we help businesses move their cargo with confidence.',
   serviceAction: 'Explore our services',
   quoteAction: 'Request a quote',
   imageLabel: 'OPERATIONS IN COSTA RICA',
@@ -91,7 +89,6 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
   valueLead: 'Principios que guían nuestro trabajo diario y fortalecen la confianza de nuestros clientes, colaboradores y aliados estratégicos.',
   historyAction: 'Conocer nuestra historia',
   capabilitiesTitle: 'Nuestras capacidades',
-  capabilitiesSubtitle: 'Soluciones integrales para que su carga se mueva sin límites.',
   capabilityNames: ['Logística', 'Aduanas', 'Transporte internacional', 'Importación', 'Exportación'],
   capabilityDetails: [
     'Soluciones coordinadas para la cadena de suministro.',
@@ -111,7 +108,6 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
   discover: 'Pasá el cursor para ver cada valor o tocá la tarjeta en el celular',
   servicesTag: 'LO QUE HACEMOS',
   servicesTitle: 'Soluciones para cada etapa logística.',
-  servicesBody: 'Desde el transporte de carga hasta la coordinación de importaciones y exportaciones, acompañamos a las empresas en cada movimiento.',
   serviceAction: 'Conocer servicios',
   quoteAction: 'Solicitar cotización',
   imageLabel: 'OPERACIONES EN COSTA RICA',
@@ -204,7 +200,6 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
               <p class="about-refresh__eyebrow">{{ copy.servicesTag }}</p>
               <h2>{{ copy.capabilitiesTitle }}</h2>
             </div>
-            <p>{{ copy.capabilitiesSubtitle }}</p>
           </div>
           <div class="about-refresh__capabilities">
             <article v-for="(name, index) in copy.capabilityNames" :key="index" class="about-refresh__capability">
@@ -222,7 +217,6 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
             <img src="/images/warehouse-person.webp" :alt="copy.galleryAlts[2]" loading="lazy" />
           </div>
           <div class="about-refresh__services-footer">
-            <p>{{ copy.servicesBody }}</p>
             <div class="about-refresh__actions">
               <RouterLink to="/servicios" class="about-refresh__button about-refresh__button--primary">{{ copy.serviceAction }} <span aria-hidden="true">↗</span></RouterLink>
               <RouterLink to="/cotizaciones" class="about-refresh__button about-refresh__button--secondary">{{ copy.quoteAction }} <span aria-hidden="true">↗</span></RouterLink>
@@ -490,5 +484,58 @@ html.theme-dark .about-refresh__capability:hover{background:#1b2845;border-color
 }
 @media(prefers-reduced-motion:reduce){
   .about-refresh__value,.about-refresh__value-panel,.about-refresh__value-chevron,.about-refresh__capability{transition:none!important}
+}
+
+/* Final spacing pass: remove excessive blank bands between page sections. */
+.about-refresh__intro{padding-bottom:clamp(12px,1.5vw,24px)}
+.about-refresh__purpose{
+  padding-top:clamp(22px,2.5vw,36px);
+  padding-bottom:clamp(14px,2vw,29px)
+}
+.about-refresh__values{
+  padding-top:clamp(28px,3.3vw,47px);
+  padding-bottom:clamp(29px,3.5vw,53px)
+}
+.about-refresh__services{
+  padding-top:clamp(25px,3.6vw,54px);
+  padding-bottom:clamp(55px,6vw,86px)
+}
+.about-refresh__gallery{margin-top:clamp(25px,3.2vw,44px)}
+.about-refresh__services-footer{
+  justify-content:flex-end;align-items:center;
+  margin-top:clamp(19px,2vw,31px);padding-top:clamp(18px,2vw,28px)
+}
+/* Mission and vision use the exact same card surface as the value cards. */
+.about-refresh__purpose-card{background:#fff;border-color:rgba(35,39,47,.15)}
+html.theme-dark .about-refresh__purpose-card{
+  background:#111b31;border-color:rgba(255,255,255,.23)
+}
+/* Center the chevron within the card's heading, rather than below the name. */
+.about-refresh__value-trigger{
+  display:flex;align-items:center;gap:clamp(9px,.9vw,14px);
+  min-height:82px;padding:14px 16px
+}
+.about-refresh__value-text{flex:1;min-width:0;padding:0}
+.about-refresh__value-chevron{
+  position:static;right:auto;bottom:auto;
+  flex:0 0 20px;width:20px;height:20px;
+  align-self:center;margin-left:auto
+}
+/* Open icon: corporate red with a high-contrast white glyph in both modes. */
+.about-refresh__value.is-open .about-refresh__value-icon,
+html.theme-dark .about-refresh__value.is-open .about-refresh__value-icon{
+  background:#b00929;color:#fff
+}
+@media(max-width:950px){
+  .about-refresh__value-trigger{min-height:79px;padding:13px 16px}
+}
+@media(max-width:580px){
+  .about-refresh__intro{padding-bottom:12px}
+  .about-refresh__purpose{padding-top:18px;padding-bottom:15px}
+  .about-refresh__values{padding:29px 0 40px}
+  .about-refresh__services{padding-top:27px;padding-bottom:55px}
+  .about-refresh__value-trigger{min-height:76px;padding:12px 16px}
+  .about-refresh__services-footer{justify-content:center}
+  .about-refresh__actions{justify-content:center}
 }
 </style>
