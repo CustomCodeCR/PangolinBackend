@@ -89,7 +89,8 @@ const sessionUser = computed(() => authState.user)
 const loggingOut = ref(false)
 const isAuthenticated = computed(() => !!sessionUser.value)
 const isAdministrator = computed(() => currentRole() === 'administrador')
-const canAccessCargo = computed(() => currentRole() === 'cliente' || currentRole() === 'administrador' || (typeof window !== 'undefined' && window.location.pathname.replace(/\/+$/, '') === '/cotizaciones'))
+// Cotizaciones e itinerarios son públicos; tracking conserva control de sesión.
+const canAccessCargo = true
 const settingsOpen = ref(false)
 const profileOpen = ref(false)
 const profileButton = ref<HTMLButtonElement | null>(null)

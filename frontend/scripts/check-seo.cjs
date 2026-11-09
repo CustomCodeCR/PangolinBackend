@@ -70,6 +70,11 @@ for (const [route, guide] of Object.entries(serviceGuides)) {
   }
 }
 assert.ok(robots.includes('User-agent: OAI-SearchBot'), 'Falta OAI-SearchBot en robots.txt')
+for (const allowed of ['Allow: /api/content/media/', 'Allow: /api/content/news$', 'Allow: /api/content/site$', 'Allow: /api/public-news$']) {
+  assert.ok(robots.includes(allowed), 'El robots legacy bloquea recurso CMS público: ' + allowed)
+}
+assert.ok(robots.includes('Disallow: /api/'), 'Las APIs privadas deben seguir restringidas')
+assert.ok(robots.includes('User-agent: GPTBot') && robots.includes('Disallow: /'), 'Conservar la política de GPTBot')
 assert.ok(root.includes("import routeSeo from '../seo/routes.json'"), 'Las rutas no comparten la configuración SEO')
 assert.ok(index.includes('Consolidado LCL/LTL') && index.includes('Panamá–Costa Rica'), 'La descripción SEO inicial debe incluir los servicios y la ruta')
 assert.ok(routes['/'].description.toLowerCase().includes('agencia aduanal') && routes['/'].description.includes('marítimo') && routes['/'].description.includes('aéreo') && routes['/'].description.includes('terrestre'), 'La descripcion SEO del inicio debe abarcar los servicios principales')

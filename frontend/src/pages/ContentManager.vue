@@ -67,6 +67,12 @@ const mediaForm = ref<ManagedMedia>(emptyMedia())
 const commentForm = ref<ManagedComment>(emptyComment())
 const mediaUploadFile = ref<File | null>(null)
 const newsUploadFile = ref<File | null>(null)
+const newsUploadPreviewUrl = ref('')
+function clearNewsUploadPreview() {
+  if (newsUploadPreviewUrl.value) URL.revokeObjectURL(newsUploadPreviewUrl.value)
+  newsUploadPreviewUrl.value = ''
+}
+onUnmounted(clearNewsUploadPreview)
 const storageMode = ref<'checking' | 's3' | 'legacy' | 'error'>('checking')
 const currentList = computed(() => section.value === 'itineraries' ? itineraries.value : section.value === 'news' ? news.value : section.value === 'comments' ? comments.value : media.value)
 
@@ -338,6 +344,7 @@ function startNew() {
   editingId.value = null
   mediaUploadFile.value = null
   newsUploadFile.value = null
+  clearNewsUploadPreview()
   if (section.value === 'itineraries') { itineraryForm.value = emptyItinerary(); initialItineraryLocations.value = null; showItineraryTransportHint.value = null }
   if (section.value === 'news') { newsForm.value = emptyNews(); newsExpirationMode.value = 'permanent' }
   if (section.value === 'media') mediaForm.value = emptyMedia()
@@ -346,6 +353,7 @@ function startNew() {
 async function edit(entry: ManagedItinerary | ManagedNews | ManagedMedia | ManagedComment) {
   mediaUploadFile.value = null
   newsUploadFile.value = null
+  clearNewsUploadPreview()
   editingId.value = entry.id
   if (section.value === 'itineraries') {
     showItineraryTransportHint.value = null
@@ -438,6 +446,7 @@ function newsPreviewSrc(item: ManagedNews): string {
   const match = new RegExp("^/api/content/media/([0-9a-f-]{36})/file$", "i").exec(item.image)
   return match ? `/api/admin/content/media/${match[1]}/file` : item.image
 }
+const newsPreviewImage = computed(() => newsUploadPreviewUrl.value || newsPreviewSrc(newsForm.value))
 
 async function submitNews() {
   const isPublishing = newsForm.value.published
@@ -582,8 +591,11 @@ function selectFile(event: Event, target: 'news' | 'media') {
   }
   if (file.size > format.limit) { notice.value = 'El archivo supera el tamaño permitido.'; return }
   if (isLiveAdmin.value && storageMode.value === 's3') {
-    if (target === 'news') newsUploadFile.value = file
-    else { mediaUploadFile.value = file; mediaForm.value.kind = format.kind; mediaForm.value.name ||= file.name }
+    if (target === 'news') {
+      clearNewsUploadPreview()
+      newsUploadFile.value = file
+      newsUploadPreviewUrl.value = URL.createObjectURL(file)
+    } else { mediaUploadFile.value = file; mediaForm.value.kind = format.kind; mediaForm.value.name ||= file.name }
     notice.value = `Archivo seleccionado: ${file.name}. Se subirá al guardar.`
     return
   }
@@ -596,7 +608,7 @@ function selectFile(event: Event, target: 'news' | 'media') {
     notice.value = 'Sin MinIO solo se permiten imágenes de hasta 2.5 MB. Para videos y PDF usá un enlace HTTPS.'
     return
   }
-  if (target === 'news') newsUploadFile.value = null
+  if (target === 'news') { newsUploadFile.value = null; clearNewsUploadPreview() }
   else mediaUploadFile.value = null
   const reader = new FileReader()
   reader.onerror = () => { notice.value = 'No se pudo leer la imagen seleccionada.' }
@@ -610,6 +622,7 @@ function useMediaForNews(item: ManagedMedia) {
   if (item.kind !== 'Imagen') return
   selectSection('news')
   newsUploadFile.value = null
+  clearNewsUploadPreview()
   newsForm.value.image = item.src
   notice.value = `Imagen “${item.name}” seleccionada para la noticia.`
 }
@@ -708,7 +721,7 @@ function useMediaForNews(item: ManagedMedia) {
             <label>Categoría<input v-model="newsForm.category" required maxlength="60" placeholder="LOGÍSTICA" /></label>
             <div class="manager-form-row"><label>Autor<input v-model.trim="newsForm.author" maxlength="160" placeholder="Nombre del autor" /></label><label>Fecha de publicación<input v-model="newsForm.publishedAt" type="date" /></label></div>
             <label>Resumen (visible en tarjetas)<textarea v-model="newsForm.description" required maxlength="1200" rows="3" placeholder="Resumen breve de la noticia" /></label>
-            <div class="manager-rich-news-field"><label>Contenido completo</label><NewsRichTextEditor :model-value="newsForm.body ?? ''" @update:model-value="value => newsForm.body = value" /></div>
+            <div class="manager-rich-news-field"><label>Contenido completo</label><NewsRichTextEditor :model-value="newsForm.body ?? ''" :preview-image="newsPreviewImage" :preview-title="newsForm.title" :preview-category="newsForm.category" :preview-description="newsForm.description" :preview-author="newsForm.author" @update:model-value="value => newsForm.body = value" /></div>
             <label>Imagen ({{ storageMode === 's3' ? 'MinIO' : 'archivo local' }})<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="selectFile($event, 'news')" /></label>
             <p v-if="newsUploadFile" class="manager-publication-hint">Imagen seleccionada: {{ newsUploadFile.name }}. Se subirá a MinIO al guardar.</p>
             <label>o URL de imagen<input v-model="newsForm.image" placeholder="/images/mi-imagen.webp" /></label>

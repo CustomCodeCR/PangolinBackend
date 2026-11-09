@@ -5,7 +5,7 @@
       "title": "Almacenamiento fiscal de mercancías en Costa Rica",
       "intro": "Grupo Castro Fallas ofrece coordinación logística y documental para operaciones de almacenamiento fiscal vinculadas a importaciones en Costa Rica. Cada operación está sujeta al régimen aduanero aplicable y a la disponibilidad de instalaciones autorizadas.",
       "heading": "¿Cómo funciona el almacenamiento fiscal?",
-      "body": "La mercancía puede permanecer bajo control aduanero de acuerdo con las reglas de su régimen. Conviene coordinar previamente documentos, llegada de la carga y condiciones de almacenamiento.",
+      "body": "La mercancía puede permanecer bajo control aduanero de acuerdo con las reglas de su régimen. Conviene coordinar previamente documentos, llegada de la carga y condiciones de almacenamiento. También se revisan el régimen aplicable, la documentación disponible y las autorizaciones necesarias antes de coordinar la operación.",
       "points": [
         "Coordinación de la llegada y documentación de la carga.",
         "Evaluación de instalaciones, condiciones y plazos según la operación.",
@@ -48,7 +48,7 @@
       "title": "Bonded warehousing in Costa Rica",
       "intro": "Grupo Castro Fallas helps coordinate documentation and logistics for customs-controlled storage of imported cargo in Costa Rica, subject to the applicable regime and authorized facility availability.",
       "heading": "How does bonded warehousing work?",
-      "body": "Cargo may remain under customs supervision according to applicable rules. Documents, arrival and storage conditions should be coordinated in advance.",
+      "body": "Cargo may remain under customs supervision according to applicable rules. Documents, arrival and storage conditions should be coordinated in advance. The applicable regime, available documents and required authorizations are also reviewed before coordinating the operation.",
       "points": [
         "Coordinate shipment arrival and documentation.",
         "Review facility availability, conditions and storage periods.",
@@ -93,7 +93,7 @@
       "title": "Bodegaje general y almacenamiento de mercancías en Costa Rica",
       "intro": "El bodegaje general ayuda a planificar la recepción, resguardo y despacho de mercancías. Grupo Castro Fallas puede evaluar alternativas de almacenamiento y coordinación logística según la naturaleza, cantidad y movimiento de la carga.",
       "heading": "¿Cuándo conviene el bodegaje general?",
-      "body": "Es útil cuando la llegada de la mercancía y su entrega ocurren en momentos diferentes, o se necesita organizar despachos de manera planificada.",
+      "body": "Es útil cuando la llegada de la mercancía y su entrega ocurren en momentos diferentes, o se necesita organizar despachos de manera planificada. La evaluación también considera el volumen, el tiempo de permanencia y la frecuencia de entradas y salidas de la carga.",
       "points": [
         "Evaluación de volumen, peso y duración del almacenamiento.",
         "Coordinación de recepción y salida de productos según el servicio contratado.",
@@ -136,7 +136,7 @@
       "title": "General cargo warehousing in Costa Rica",
       "intro": "General warehousing helps plan cargo receipt, storage and dispatch. Grupo Castro Fallas can assess warehousing and logistics coordination options according to shipment needs.",
       "heading": "When is general warehousing useful?",
-      "body": "It can be useful when goods arrive before they need to be delivered, or when dispatches require planning.",
+      "body": "It can be useful when goods arrive before they need to be delivered, or when dispatches require planning. The assessment also considers cargo volume, storage duration and the frequency of inbound and outbound movements.",
       "points": [
         "Assess cargo volume, weight and storage duration.",
         "Coordinate receiving and dispatch within the agreed service.",
@@ -181,7 +181,7 @@
       "title": "Agenciamiento aduanal para importaciones y exportaciones en Costa Rica",
       "intro": "Grupo Castro Fallas brinda acompañamiento y coordinación documental para trámites aduaneros de importación y exportación en Costa Rica. Los requisitos dependen del tipo de mercancía, la clasificación y el régimen aplicable.",
       "heading": "¿Qué abarca la coordinación aduanera?",
-      "body": "La gestión requiere información consistente entre los documentos comerciales, los transportistas y las autoridades competentes.",
+      "body": "La gestión requiere información consistente entre los documentos comerciales, los transportistas y las autoridades competentes. Una descripción precisa de los productos y los documentos disponibles ayuda a revisar los requisitos antes de iniciar el trámite.",
       "points": [
         "Revisión inicial de factura comercial y documento de transporte.",
         "Coordinación de información y soportes necesarios para el trámite.",
@@ -224,7 +224,7 @@
       "title": "Customs brokerage for imports and exports in Costa Rica",
       "intro": "Grupo Castro Fallas assists with customs documentation and coordination for imports and exports in Costa Rica. Requirements depend on the cargo, tariff classification and customs regime.",
       "heading": "What does customs coordination include?",
-      "body": "Clearance needs consistent information among commercial documents, carriers and authorities.",
+      "body": "Clearance needs consistent information among commercial documents, carriers and authorities. An accurate product description and available documents help review requirements before the process begins.",
       "points": [
         "Initial review of invoices and shipping documents.",
         "Coordination of shipment details and required documents.",
@@ -269,7 +269,7 @@
       "title": "Consolidadora de carga y transporte consolidado LCL y LTL",
       "intro": "Grupo Castro Fallas evalúa alternativas de consolidación para mercancías que no requieren un contenedor o camión completo. LCL corresponde al transporte marítimo compartido y LTL al transporte terrestre parcial, según ruta y disponibilidad.",
       "heading": "¿Qué es la consolidación de carga?",
-      "body": "Consiste en organizar embarques en una operación de transporte compartida. Para decidir, se comparan ruta, tiempos, dimensiones y costo total.",
+      "body": "Consiste en organizar embarques en una operación de transporte compartida. Para decidir, se comparan ruta, tiempos, dimensiones y costo total. La compatibilidad de la carga, la frecuencia de salida y el espacio disponible se confirman al evaluar cada embarque.",
       "points": [
         "LCL marítimo para cargas que no necesitan un contenedor completo.",
         "LTL terrestre para cargas parciales en rutas disponibles.",
@@ -312,7 +312,7 @@
       "title": "Ocean LCL and road LTL freight consolidation",
       "intro": "Grupo Castro Fallas assesses shared shipping alternatives for cargo that does not require a full container or truck. Ocean LCL and road LTL depend on route and availability.",
       "heading": "What is freight consolidation?",
-      "body": "Shipments share transport capacity. Route, transit time, volume and total cost determine the right option.",
+      "body": "Shipments share transport capacity. Route, transit time, volume and total cost determine the right option. Cargo compatibility, departure frequency and available capacity are confirmed for each shipment.",
       "points": [
         "Ocean LCL for cargo that does not need a full container.",
         "Road LTL for partial truckload shipments.",

@@ -9,6 +9,23 @@ function source(relative) {
   assert.ok(fs.existsSync(filename), 'Falta archivo requerido: ' + relative)
   return fs.readFileSync(filename, 'utf8')
 }
+// Google lee el favicon desde la raíz del host. Nuxt y Vue deben publicar
+// los mismos bytes PNG, no un icono transparente ni un 404 en la ruta SSR.
+const vueFavicon = fs.readFileSync(path.join(root, 'public/favicon.png'))
+const nuxtFaviconPath = path.join(root, 'nuxt/public/favicon.png')
+assert.ok(fs.existsSync(nuxtFaviconPath), 'Nuxt debe publicar /favicon.png en su directorio public')
+const nuxtFavicon = fs.readFileSync(nuxtFaviconPath)
+assert.ok(vueFavicon.equals(nuxtFavicon), 'Nuxt y Vue deben publicar exactamente el mismo favicon corporativo')
+assert.equal(nuxtFavicon.subarray(0, 8).toString('hex'), '89504e470d0a1a0a', 'El favicon debe ser un PNG válido')
+const faviconWidth = nuxtFavicon.readUInt32BE(16)
+const faviconHeight = nuxtFavicon.readUInt32BE(20)
+assert.ok(faviconWidth >= 48 && faviconWidth === faviconHeight,
+  'Google necesita un favicon cuadrado de al menos 48 px para calidad óptima')
+assert.match(source('nuxt/nuxt.config.ts'), /href: '\/favicon\.png'/,
+  'El head SSR debe anunciar el PNG publicado')
+assert.match(source('index.html'), /rel="icon"[^>]*href="\/favicon\.png"/,
+  'La aplicación Vue debe anunciar el mismo PNG')
+
 const main = source('src/main.ts')
 // Session-required screens (quote v1/v2 and tracking) must translate without changing the login redirect.
 const authRoot = source('src/Root.vue')
@@ -86,37 +103,24 @@ assert.match(gioAssistant, /\.site-assistant__mascot \.site-assistant__hint\{[\s
 
 // The tracking globe uses one animated icon and an elevated trail, no fixed itinerary bar.
 const trackingGlobe = source('src/components/WorldGlobe.vue')
-// Los colores históricos se restauran SOLO en la esfera 3D. La estela vino/rubí
-// que ya se aprobó permanece independiente de los tonos del océano y la tierra.
+// Los océanos azules y continentes verdes son permanentes en Inicio y Tracking.
+// La estela y los marcadores de los embarques siguen siendo independientes.
 const globePalette = trackingGlobe.split('function themePalette() {')[1]?.split('function animateZoom(')[0] ?? ''
-assert.match(globePalette, /const dark = document\.documentElement\.classList\.contains\('theme-dark'\)/,
-  'El globo vuelve a seguir el tema claro u oscuro de la web')
-assert.ok(globePalette.includes("ocean: (dark ? ['#3d424b','#141820'] : ['#fffafa','#fffafa'])"),
-  'Océano original: blanco en claro y gris oscuro casi negro en oscuro')
-assert.ok(globePalette.includes("land:'#a80e18', marker:'#a80e18', arc:'#a80e18'"),
-  'Continentes rojos corporativos y marcadores/arcos conservados')
-assert.ok(globePalette.includes("label: dark ? '#ffffff' : '#30333c'"),
-  'Las etiquetas originales contrastan correctamente con cada tema')
-assert.ok(globePalette.includes("labelStroke: dark ? 'rgba(10,12,18,.93)' : 'rgba(255,255,255,.98)'"),
-  'Los contornos de etiquetas varían según fondo oscuro o claro')
-assert.ok(globePalette.includes("graticule: dark ? 'rgba(203,212,231,.22)' : 'rgba(0,0,0,0)'"),
-  'La cuadrícula sutil aparece solo en tema oscuro')
-assert.ok(globePalette.includes("showGraticule: dark"),
-  'La cuadrícula no oscurece el fondo blanco')
-assert.ok(globePalette.includes("shadeStrength: dark ? .67 : .20"),
-  'Se recuperan los valores originales de profundidad de la esfera')
-assert.match(globePalette, /if \(props\.realisticColors\) \{/,
-  'La paleta realista se utiliza únicamente mediante un permiso visual explícito')
 assert.ok(globePalette.includes("ocean: ['#1e5f8f','#0f2f4f']") &&
   globePalette.includes("land:'#5e8d52'") &&
   globePalette.includes("border:'#83aa79'"),
-  'El embarque encontrado recupera la paleta realista de la rama de respaldo')
-assert.match(trackingGlobe, /realisticColors\?: boolean/,
-  'Los colores realistas son opcionales y por defecto no afectan otros globos')
-assert.match(trackingGlobe, /watch\(\(\) => props\.realisticColors, \(\) => globe\?\.setTheme\(themePalette\(\)\)\)/,
-  'La esfera cambia de color al encontrar o limpiar el embarque sin recrear el mapa')
+  'Océanos azules y continentes verdes en todas las instancias del globo')
+assert.ok(globePalette.includes("marker:'#a80e18', arc:'#a80e18'") &&
+  globePalette.includes("shadeStrength:.52"),
+  'Marcadores rojos y sombreado natural conservados')
+assert.doesNotMatch(globePalette, /props\.realisticColors|theme-dark|#fffafa|#3d424b/,
+  'La paleta no depende de embarques ni del tema claro/oscuro')
+assert.doesNotMatch(trackingGlobe, /realisticColors|realistic-colors/,
+  'El componente no expone una opción para desactivar la paleta natural')
+assert.doesNotMatch(source('src/pages/Tracking.vue'), /realisticGlobeColors|realistic-colors/,
+  'Tracking no condiciona los colores del globo al resultado de Dynamics')
 assert.match(trackingGlobe, /MutationObserver\(\(\) => globe\?\.setTheme\(themePalette\(\)\)\)/,
-  'El observador del tema se conserva sin afectar los colores del globo')
+  'El cambio de tema repinta los pines sin cambiar los tonos de mar y tierra')
 assert.match(trackingGlobe, /const legs = routePoints\.value\.slice\(1\)\.map\(/, 'La ruta conserva cada tramo de todas las escalas')
 assert.match(trackingGlobe, /for \(let index = 0; index < legs\.length; index\+\+\)/, 'El vehículo avanza por los tramos, en orden')
 assert.match(trackingGlobe, /const demoArcs = \(\) => props\.shipment\s*\?\s*\[\]/, 'El tracking no dibuja la línea animada anterior')
@@ -238,6 +242,33 @@ assert.match(manager, /manager-tabs\.manager-subtabs:not\(\.manager-subtabs--wit
 assert.match(manager, /manager-tabs\.manager-subtabs > button\s*\{\s*display:grid;\s*grid-template-columns:clamp\(28px,8vw,34px\) minmax\(0,1fr\) auto;/, 'Las subpestañas móviles deben alinear icono, texto y contador en tres columnas')
 assert.match(manager, /class="manager-tab-label">Editor visual<\/span> <span>0<\/span>/, 'El contador de Editor visual queda como tercera columna junto al texto')
 const officialQuote = source('src/pages/OfficialQuoteWizard.vue')
+// Bloquear fechas vencidas en ambos cotizadores y en la API, sin afectar filtros
+// históricos de itinerarios. Toda la lógica usa el día local de Costa Rica.
+const gioQuoteFlow = source('src/components/GioOperations.vue')
+const officialQuoteEndpoint = source('../backend/Endpoints/OfficialQuoteEndpoints.cs')
+assert.ok(officialQuote.includes(':min="earliestReadyDate"') &&
+  officialQuote.includes('type="date"') &&
+  officialQuote.includes('@focus="syncEarliestReadyDate"'),
+  'El calendario de cotizaciones bloquea días previos al día actual en Costa Rica')
+assert.ok(officialQuote.includes('window.setInterval(syncEarliestReadyDate, 60_000)') &&
+  officialQuote.includes('window.clearInterval(earliestReadyTimer)'),
+  'El límite del calendario se actualiza si el formulario permanece abierto')
+assert.ok(officialQuote.includes('if (!isCargoReadyDateOnOrAfterToday(form.cargoReadyDate)) return cargoReadyDateError()') &&
+  officialQuote.includes('step.value = 3\n    syncEarliestReadyDate()'),
+  'El asistente normal valida la fecha al avanzar y nuevamente al enviar')
+assert.ok(gioQuoteFlow.includes("if (key === 'cargoReadyDate' && !isCargoReadyDateOnOrAfterToday(value))") &&
+  gioQuoteFlow.includes('const issue = validation(pending.key, pending.value)') &&
+  gioQuoteFlow.includes('delete values[item.key]'),
+  'GIO rechaza fechas vencidas incluso si provienen de un borrador o confirmación')
+assert.ok(gioQuoteFlow.includes('if (day && isCargoReadyDateOnOrAfterToday(day[0])) values.cargoReadyDate = day[0]') &&
+  gioQuoteFlow.includes('if (day && validDate(day[0])) values.departure = day[0]'),
+  'GIO no precarga cotizaciones vencidas y mantiene filtros históricos de itinerarios')
+assert.ok(officialQuoteEndpoint.includes('TimeZoneInfo.FindSystemTimeZoneById("America/Costa_Rica")') &&
+  officialQuoteEndpoint.includes('TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CostaRicaTimeZone)') &&
+  officialQuoteEndpoint.includes('if (s.CargoReadyDate.Value < TodayInCostaRica())') &&
+  officialQuoteEndpoint.includes('return Results.BadRequest(new { error = ex.Message });'),
+  'El servidor compara el día real de Costa Rica y devuelve HTTP 400 ante fechas anteriores')
+
 // Preserve the independent clear-in-place behavior merged in main-2 PR #78.
 for (const [field, id] of [['origin', 'originLocationId'], ['destination', 'destinationLocationId'], ['pod', 'podLocationId']]) {
   assert.ok(officialQuote.includes(`'official-location-toggle--clear': !!form.${id}`), 'X reemplaza la flecha solo al seleccionar ' + field)
@@ -436,14 +467,14 @@ assert.match(authRoot, /trackingAccess\.value = localTrackingVisualPreview \|\| 
 assert.match(authRoot, /const localTrackingVisualPreview = import\.meta\.env\.DEV/, 'La preview de tracking solo existe en desarrollo')
 assert.match(authRoot, /\['localhost', '127\.0\.0\.1'\]\.includes\(window\.location\.hostname\)/, 'La preview de tracking solo está disponible en localhost')
 assert.match(tracking, /const localVisualPreview = import\.meta\.env\.DEV/, 'Los datos ficticios no se habilitan en producción')
-assert.match(tracking, /<WorldGlobe :shipment="globeRoute" :initial-zoom="0\.8" :realistic-colors="realisticGlobeColors"\s*\/>/,
-  'Tracking controla explícitamente el color de la esfera sin cambiar el zoom ni las rutas')
-assert.match(tracking, /const realisticGlobeColors = computed\(\(\) => !localVisualPreview\s*&& !!shipment\.value && matches\.value\.includes\(shipment\.value\)\)/,
-  'Solo una referencia real encontrada en Dynamics activa los colores naturales')
+assert.match(tracking, /<WorldGlobe :shipment="globeRoute" :initial-zoom="0\.8"\s*\/>/,
+  'Tracking conserva el zoom inicial y la ruta con una sola paleta permanente')
+assert.doesNotMatch(tracking, /realisticGlobeColors|realistic-colors/,
+  'El color natural del globo no depende de haber encontrado un embarque')
 assert.match(tracking, /if \(data\.source !== 'dynamics' \|\| !Array\.isArray\(data\.records\)\) throw new Error/,
-  'Los colores naturales no se activan para respuestas ajenas al proveedor autenticado')
+  'La validación de las respuestas autenticadas de Dynamics sigue vigente')
 assert.match(tracking, /shipment\.value = null\s*matches\.value = \[\]/,
-  'Al iniciar una nueva búsqueda se vuelven a aplicar los colores corporativos')
+  'Al iniciar una nueva búsqueda se limpian las referencias anteriores sin cambiar la paleta')
 assert.match(tracking, /\/api\/tracking\/dynamics\/search/, 'Se consultan datos de Dynamics desde el backend')
 assert.match(tracking, /credentials: 'same-origin'/, 'La consulta utiliza la sesión autenticada')
 assert.match(tracking, /Illustrative route only, not a live GPS position/, 'El globo advierte que no es un GPS')
@@ -568,6 +599,30 @@ assert.match(trackingGlobeSource, /transportGlyph/, 'El globo presenta el ícono
 const trackingLocalizationSource = source('src/lib/trackingDisplay.ts')
 const tsCompiler = require('typescript')
 const { runInNewContext } = require('node:vm')
+
+// Run the actual TypeScript calendar helpers with fixed instants around the UTC
+// midnight / Costa Rica midnight boundary, including a year transition.
+const compiledQuoteDates = tsCompiler.transpileModule(source('src/lib/costaRicaDate.ts'), {
+  compilerOptions: { module: tsCompiler.ModuleKind.CommonJS, target: tsCompiler.ScriptTarget.ES2020 }
+})
+const quoteDates = {}
+runInNewContext(compiledQuoteDates.outputText, { exports: quoteDates, Intl, Date }, { timeout: 1000 })
+const crToday = quoteDates.costaRicaToday
+const validCargoDate = quoteDates.isCargoReadyDateOnOrAfterToday
+const validCalendarDate = quoteDates.isCalendarDate
+assert.equal(crToday(new Date('2026-11-06T05:59:59Z')), '2026-11-05', 'Antes de las 06 UTC aún es el día anterior en Costa Rica')
+assert.equal(crToday(new Date('2026-11-06T06:00:00Z')), '2026-11-06', 'A las 06 UTC cambia el día en Costa Rica')
+assert.equal(crToday(new Date('2027-01-01T05:59:59Z')), '2026-12-31', 'El cambio de año utiliza el calendario de Costa Rica')
+assert.equal(crToday(new Date('2027-01-01T06:00:00Z')), '2027-01-01', 'Se actualiza el año al llegar medianoche en Costa Rica')
+const nowCR = new Date('2026-11-06T12:00:00Z')
+assert.equal(validCargoDate('2026-11-05', nowCR), false, 'La fecha pasada se rechaza')
+assert.equal(validCargoDate('2026-11-06', nowCR), true, 'Se acepta la fecha de hoy')
+assert.equal(validCargoDate('2026-11-07', nowCR), true, 'Se acepta una fecha futura')
+assert.equal(validCargoDate('2026-11-31', nowCR), false, 'No se aceptan días inexistentes')
+assert.equal(validCargoDate('2026-02-29', nowCR), false, 'No se acepta un 29 de febrero en año común')
+assert.equal(validCalendarDate('2024-02-29'), true, 'El 29 de febrero bisiesto es válido')
+assert.equal(validCargoDate('2026-11-06T00:00:00Z', nowCR), false, 'Las cotizaciones requieren fechas ISO sin hora')
+
 
 // Tracking uses quote-backed canonical names plus explicit illustrative coordinates.
 // Evaluate the real TypeScript route functions instead of duplicating their resolver.

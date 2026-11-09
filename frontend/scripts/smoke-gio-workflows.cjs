@@ -14,6 +14,8 @@ const frontend = path.resolve(__dirname, '..')
 const host = '127.0.0.1'
 let role = null
 let quoteWrites = []
+let failNextQuote = false
+let rejectedQuoteAttempts = 0
 let trackingReads = 0
 let itineraryReads = 0
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
@@ -46,11 +48,16 @@ const api = http.createServer(async (req, res) => {
   if (url.pathname === '/api/quotes/official' && req.method === 'POST') {
     const chunks = []
     for await (const chunk of req) chunks.push(chunk)
-    quoteWrites.push(JSON.parse(Buffer.concat(chunks).toString()))
+    const body = JSON.parse(Buffer.concat(chunks).toString())
+    if (failNextQuote) {
+      failNextQuote = false
+      rejectedQuoteAttempts++
+      return send(503,{error:'Proveedor temporalmente no disponible'})
+    }
+    quoteWrites.push(body)
     return send(201,{id:'33333333-3333-3333-3333-333333333333',status:'Received'})
   }
   if (url.pathname === '/api/assistant/itinerary-locations') {
-    if (role !== 'cliente' && role !== 'administrador') return send(401,{error:'Unauthorized'})
     const isOrigin = url.searchParams.get('routeRole') === 'origin'
     const name = isOrigin ? 'Shanghái' : 'Puerto Caldera'
     return send(200,{items:[{id:name,displayName:name,code:null}]})
@@ -95,7 +102,8 @@ async function main() {
     const apiPort = await listen(api)
     vite = launch(process.execPath,[path.join(frontend,'node_modules/vite/bin/vite.js'),
       '--host',host,'--port','5189','--strictPort'],{
-      cwd:frontend,env:{...process.env,VITE_API_PROXY_TARGET:'http://'+host+':'+apiPort},stdio:'ignore'
+      cwd:frontend,env:{...process.env,VITE_API_PROXY_TARGET:'http://'+host+':'+apiPort,
+         VITE_OFFICIAL_QUOTES_ENABLED:'true'},stdio:'ignore'
     })
     await waitFor(async () => {
       const res = await fetch('http://'+host+':5189/')
@@ -136,6 +144,17 @@ async function main() {
       const ok = await waitFor(()=>evaluate('(()=>{const b=[...document.querySelectorAll(".gio-ops__choices button")].find(x=>x.textContent.trim().includes('+JSON.stringify(text)+'));if(!b)return false;b.click();return true})()'))
       assert.ok(ok,'Missing choice: '+text)
       await sleep(70)
+    }
+    const chooseService = async name => {
+      const clicked = await evaluate('(()=>{const target=[...document.querySelectorAll(".gio-ops__service")].find(x=>x.textContent.includes('+JSON.stringify(name)+'));if(!target)return false;target.querySelector("input")?.click();return true})()')
+      assert.ok(clicked,'Missing service option: '+name)
+      await sleep(40)
+    }
+    const rejectValue = async (value, message) => {
+      const attempted = await evaluate('(()=>{const field=document.querySelector(".gio-ops__form input");if(!field)return false;const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(field,'+JSON.stringify(value)+');field.dispatchEvent(new Event("input",{bubbles:true}));field.closest("form").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));return true})()')
+      assert.ok(attempted,'Missing answer field for invalid '+value)
+      await waitFor(()=>has(message))
+      assert.equal(await evaluate('!!document.querySelector(".gio-ops__confirmation")'),false,'Invalid value must not advance: '+value)
     }
     const confirm = async () => {
       await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__confirmation")'))
@@ -190,7 +209,24 @@ async function main() {
     await choose('Puerto Caldera')
     await confirm()
     await choose('FOB')
-    await answer('2026-11-20')
+    await rejectValue('2020-01-01', 'La fecha de carga lista debe ser hoy o posterior')
+    const futureReadyDate = new Date(Date.now() + 45 * 86400000).toISOString().slice(0,10)
+    await answer(futureReadyDate)
+    await waitFor(()=>evaluate('document.querySelectorAll(".gio-ops__service").length === 13'))
+    assert.equal(await evaluate('document.querySelectorAll(".gio-ops__service input:checked").length'),1,'International transportation is initially selected')
+    await chooseService('Transporte internacional')
+    assert.equal(await evaluate('document.querySelectorAll(".gio-ops__service input:checked").length'),0,'All services can be unchecked')
+    assert.equal(await evaluate('document.querySelector(".gio-ops__services .gio-ops__primary").disabled'),true,'Cannot submit an empty service selection')
+    await chooseService('Transporte internacional')
+    await chooseService('Almacenamiento')
+    await chooseService('Transporte entrega')
+    assert.ok(await click('.gio-ops__services .gio-ops__primary'),'Service selection must continue')
+    await waitFor(()=>has('¿Está correcto?'))
+    await confirm()
+    await rejectValue('0', 'Los días de almacenaje deben ser un entero')
+    await answer('12')
+    await rejectValue('x', 'Escribe una descripción clara')
+    await answer('Centro de distribución, San José, Costa Rica')
     assert.ok(await evaluate('(()=>{const field=document.querySelector(".gio-ops__form input");const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(field,"es pan");field.dispatchEvent(new Event("input",{bubbles:true}));field.closest("form").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));return true})()'))
     await waitFor(()=>has('¿Está correcto?'))
     assert.ok(await click('.gio-ops__confirm-actions .gio-ops__secondary'),'Correction control missing')
@@ -203,6 +239,7 @@ async function main() {
     await answer('1')
     await answer('8000')
     await answer('Test Client')
+    await rejectValue('correo-invalido', 'Correo electrónico inválido')
     await answer('test@example.invalid')
     await answer('+506 2272 6772')
     await waitFor(()=>has('Confirmar y enviar solicitud'))
@@ -211,13 +248,29 @@ async function main() {
     await answer('Edited Client')
     await waitFor(()=>has('Confirmar y enviar solicitud'))
     assert.equal(quoteWrites.length,0,'Quote sent without user confirmation')
+    failNextQuote = true
     await click('.gio-ops__primary')
-    await waitFor(()=>has('Iniciar sesión'))
-    assert.equal(quoteWrites.length,0,'Anonymous quote submission')
-    role = 'cliente'
-    await evaluate('([...document.querySelectorAll(".gio-ops__secondary")].find(b=>b.textContent.includes("Ya inicié sesión"))||{}).click?.()')
+    await waitFor(()=>has('Proveedor temporalmente no disponible'))
+    assert.equal(rejectedQuoteAttempts,1,'Exactly one simulated provider failure should occur')
+    assert.equal(quoteWrites.length,0,'A failed request must not be counted as a created quote')
+    assert.ok(await evaluate('!!document.querySelector(".gio-ops__card .gio-ops__edit")'),
+      'GIO must retain the review after a server failure')
+    await click('.gio-ops__primary')
     await waitFor(()=>has('33333333-3333-3333-3333-333333333333'))
-    assert.equal(quoteWrites.length,1,'Quote must be created exactly once')
+    assert.equal(quoteWrites.length,1,'Guest quote must be created exactly once')
+    const guestReceipt = await evaluate('(()=>{try{return JSON.parse(sessionStorage.getItem("gcf-gio-quote-receipt-v1")||"null")}catch{return null}})()')
+    assert.equal(guestReceipt?.id,'33333333-3333-3333-3333-333333333333','Guest must retain the issued receipt')
+    assert.ok(Array.isArray(guestReceipt?.details) && guestReceipt.details.length > 10,
+      'GIO must preserve the complete submitted summary rather than only route and ID')
+    assert.equal(guestReceipt.details.find(x=>x.key==='contactName')?.value, 'Edited Client')
+    assert.equal(guestReceipt.details.find(x=>x.key==='equipmentWeights')?.value, '8000')
+    assert.deepEqual(quoteWrites[0].services,['Transporte internacional','Almacenamiento','Transporte entrega'])
+    assert.equal(quoteWrites[0].fiscalStorageDays,12,'Fiscal storage days must be included')
+    assert.equal(quoteWrites[0].deliveryAddress,'Centro de distribución, San José, Costa Rica')
+    assert.equal(quoteWrites[0].pickupAddress,null,'Unselected pickup service must not send an address')
+    assert.ok(guestReceipt.details.find(x=>x.key==='services')?.value?.includes('Almacenamiento'),
+      'Receipt must include the confirmed service list')
+    assert.equal(guestReceipt.details.find(x=>x.key==='fiscalStorageDays')?.value,'12')
     assert.equal(quoteWrites[0].shipmentType,'FCL')
     assert.equal(quoteWrites[0].equipment[0].size,'40 pies')
     assert.equal(quoteWrites[0].equipment[0].type,'Dry Van')
@@ -225,7 +278,7 @@ async function main() {
     assert.deepEqual(quoteWrites[0].equipment[0].unitWeightsKg,[8000])
     assert.equal(quoteWrites[0].originLocationId,'11111111-1111-1111-1111-111111111111')
     assert.equal(quoteWrites[0].destinationLocationId,'22222222-2222-2222-2222-222222222222')
-    assert.ok(await evaluate(`!!document.querySelector('.gio-ops__card a[href="/cotizaciones"]')`),'Customer should see quote section link')
+    assert.ok(await evaluate(`!!document.querySelector('.gio-ops__card a[href="/cotizaciones?gioReceipt=1"]')`),'Guest must see the direct quote receipt link')
     // Reuse confirmed fields to request a distinct quote as an admin.
     role = 'administrador'
     const newQuote = await evaluate('(()=>{const b=[...document.querySelectorAll(".gio-ops__secondary")].find(x=>x.textContent.includes("Nueva consulta"));if(!b)return false;b.click();return true})()')
@@ -233,9 +286,10 @@ async function main() {
     await choose('Marítimo')
     await waitFor(()=>has('Confirmar y enviar solicitud'))
     await click('.gio-ops__primary')
-    await waitFor(()=>evaluate(`!!document.querySelector('.gio-ops__card a[href*="tab=cotizaciones"]')`))
+    await waitFor(()=>evaluate(`!!document.querySelector('.gio-ops__card a[href*="cotizaciones-oficiales?quote="]')`))
     assert.equal(quoteWrites.length,2,'Admin second quote should be submitted once')
-    role = 'cliente'
+    assert.deepEqual(quoteWrites[1].services,quoteWrites[0].services,'Admin must preserve the selected services')
+    role = null
     await click('.gio-ops__back')
     await waitFor(()=>evaluate('document.querySelectorAll(".site-assistant__quick button").length===4'))
     await evaluate('document.querySelectorAll(".site-assistant__quick button")[2].click()')
@@ -250,8 +304,14 @@ async function main() {
     await waitFor(()=>has('Consultar'))
     await click('.gio-ops__primary')
     await waitFor(()=>has('2026-12-05'))
-    assert.equal(itineraryReads,1,'Itinerary API should be called once')
+    assert.equal(itineraryReads,1,'Public itinerary API should be called exactly once')
+    const itineraryLink = await evaluate(`document.querySelector('.gio-ops__card a[href^="/itinerario?"]')?.getAttribute('href') || ''`)
+    const itineraryParams = new URL(itineraryLink || '/itinerario', 'http://example.invalid').searchParams
+    assert.equal(itineraryParams.get('pol'),'Shanghái','GIO must hand off the searched origin')
+    assert.equal(itineraryParams.get('pod'),'Puerto Caldera','GIO must hand off the searched destination')
+    assert.equal(itineraryParams.get('transporte'),'maritime','GIO must hand off the transport mode')
     await click('.gio-ops__back')
+    role = 'cliente'
     await waitFor(()=>evaluate('document.querySelectorAll(".site-assistant__quick button").length===4'))
     await evaluate('document.querySelectorAll(".site-assistant__quick button")[1].click()')
     await choose('BCF / BL / HBL')
@@ -259,7 +319,34 @@ async function main() {
     await click('.gio-ops__primary')
     await waitFor(()=>has('verificación adicional de titularidad'))
     assert.equal(trackingReads,0,'Customer shipment must not call unscoped Dynamics lookup')
-    console.log('PASS: official equipment choices, visible dock, hidden import codes, customer/admin quote links, itinerary and tracking guards')
+    role = null
+    await cdp('Page.navigate',{url:'http://'+host+':5189/cotizaciones?gioReceipt=1'})
+    await waitFor(()=>evaluate('!!document.querySelector(".official-success .official-receipt")'),24000)
+    const receiptPage = await evaluate(`(()=>{
+      const root=document.querySelector('.official-success');
+      return {
+        reference:root?.querySelector('.official-id')?.textContent||'',
+        headings:[...root.querySelectorAll('.official-receipt-group h4')].map(x=>x.textContent),
+        text:root?.querySelector('.official-receipt')?.innerText||'',
+        returnHome:!!root?.querySelector('a[href="/home"]'),
+        newRequest:!!root?.querySelector('a[href="/cotizaciones"]')
+      }
+    })()`)
+    assert.ok(receiptPage.reference.includes('33333333-3333-3333-3333-333333333333'))
+    assert.equal(receiptPage.headings.length,3,'Receipt needs route, cargo and contact sections')
+    assert.ok(receiptPage.text.includes('Shanghái') && receiptPage.text.includes('Puerto Caldera'))
+    assert.ok(receiptPage.text.includes('Edited Client') && receiptPage.text.includes('8000'))
+    assert.ok(receiptPage.returnHome && receiptPage.newRequest,'Receipt must keep useful next actions')
+    const contrastLight = await evaluate('(()=>{const root=document.querySelector(".official-success");const group=root.querySelector(".official-receipt-group");const link=root.querySelector(".official-link--subtle");const welcome=document.querySelector(".site-header--quotes .nav-login");return {text:getComputedStyle(group.querySelector("dd")).color,button:getComputedStyle(link).color,background:getComputedStyle(link).backgroundColor,welcome:welcome?getComputedStyle(welcome).color:null}})()')
+    assert.equal(contrastLight.button,'rgb(255, 255, 255)','New request button must have white text in light mode')
+    assert.notEqual(contrastLight.background,'rgba(0, 0, 0, 0)','New request button needs a solid red background')
+    if (contrastLight.welcome) assert.equal(contrastLight.welcome,'rgb(255, 255, 255)','Welcome button must be white in light mode')
+    await evaluate('document.documentElement.classList.add("theme-dark")')
+    const contrastDark = await evaluate('(()=>{const root=document.querySelector(".official-success");const group=root.querySelector(".official-receipt-group");return {groupBg:getComputedStyle(group).backgroundColor,heading:getComputedStyle(group.querySelector("h4")).color,value:getComputedStyle(group.querySelector("dd")).color,button:getComputedStyle(root.querySelector(".official-link--subtle")).color}})()')
+    assert.equal(contrastDark.value,'rgb(255, 255, 255)','Dark mode receipt values must stay white')
+    assert.equal(contrastDark.button,'rgb(255, 255, 255)','Dark mode new request button stays white')
+    assert.notEqual(contrastDark.groupBg,'rgb(249, 247, 249)','Dark mode receipt cards must not keep their light background')
+    console.log('PASS: guest/admin quotes, services, storage/delivery requirements, invalid inputs, contrast, complete receipts, itineraries, and tracking guards')
   } finally {
     try { socket?.close() } catch {}
     if (chrome) chrome.kill('SIGKILL')

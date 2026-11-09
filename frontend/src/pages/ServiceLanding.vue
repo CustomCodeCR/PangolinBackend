@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
+import IconSymbol from '../components/IconSymbol.vue'
 import serviceGuides from '../../seo/service-landings.json'
 import { servicePages } from '../content/servicePages'
 
@@ -32,6 +33,7 @@ type LandingText = {
   ctaLabel: string
   image: string
   imageAlt: string
+  video: string
   answer?: string
   heading: string
   body: string
@@ -46,8 +48,20 @@ const guides = serviceGuides as Record<string, Guide>
 const props = defineProps<{ pathname?: string }>()
 const { locale } = useI18n({ useScope: 'global' })
 const lang = computed<'es' | 'en'>(() => String(locale.value).startsWith('en') ? 'en' : 'es')
+const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+let serviceScrollListener: (() => void) | undefined
+let serviceResizeListener: (() => void) | undefined
+let serviceScrollDirection: 'up' | 'down' = 'down'
+let serviceStepFrame = 0
 const route = (props.pathname || (typeof window === 'undefined' ? '/' : window.location.pathname)).replace(/\/+$/, '') || '/'
 const detailPage = computed(() => servicePages.find(item => route === `/servicios/${item.slug}`))
+const serviceVideo = (pathname: string) => {
+  if (pathname.endsWith('/transporte-aereo')) return '/videos/service-air.mp4'
+  if (pathname.endsWith('/transporte-terrestre') || pathname.endsWith('/transporte-local') || pathname.endsWith('/transporte-panama-costa-rica')) return '/videos/service-road.mp4'
+  if (pathname.endsWith('/almacenamiento-fiscal') || pathname.endsWith('/bodegaje-general')) return '/videos/service-warehouse.mp4'
+  return '/videos/service-maritime.mp4'
+}
+const pointIcon = (index: number) => ['✦', '⇄', '⌖', '◎'][index % 4]
 const details = computed<LandingText>(() => {
   const guide = guides[route]?.[lang.value]
   if (guide) {
@@ -58,15 +72,22 @@ const details = computed<LandingText>(() => {
       '/servicios/consolidadora-de-carga': { image: '/images/ship.webp', alt: { es: 'Buque de carga para operaciones de transporte consolidado', en: 'Cargo vessel for consolidated freight operations' } }
     }
     const visual = visuals[route] ?? { image: '/images/hero.webp', alt: { es: 'Operación logística de Grupo Castro Fallas', en: 'Grupo Castro Fallas logistics operation' } }
+    const locations: Record<string, { es: string; en: string }> = {
+      '/servicios/almacenamiento-fiscal': { es: 'Almacenamiento fiscal en Costa Rica', en: 'Fiscal warehousing in Costa Rica' },
+      '/servicios/bodegaje-general': { es: 'Bodegaje general en Costa Rica', en: 'General warehousing in Costa Rica' },
+      '/servicios/agenciamiento-aduanal': { es: 'Gestiones aduanales en Costa Rica', en: 'Customs coordination in Costa Rica' },
+      '/servicios/consolidadora-de-carga': { es: 'Coordinación de carga consolidada', en: 'Consolidated cargo coordination' }
+    }
     return {
       eyebrow: lang.value === 'es' ? 'SOLUCIONES LOGÍSTICAS' : 'LOGISTICS SERVICES',
       label: guide.label,
       title: guide.title,
       intro: guide.intro,
-      location: lang.value === 'es' ? 'Coordinación desde y hacia Costa Rica' : 'Coordination to and from Costa Rica',
+      location: locations[route]?.[lang.value] ?? (lang.value === 'es' ? 'Servicios logísticos en Costa Rica' : 'Logistics services in Costa Rica'),
       ctaLabel: lang.value === 'es' ? 'Consultar este servicio' : 'Ask about this service',
       image: visual.image,
       imageAlt: visual.alt[lang.value],
+      video: serviceVideo(route),
       answer: guide.answer,
       heading: guide.heading,
       body: guide.body,
@@ -90,90 +111,201 @@ const details = computed<LandingText>(() => {
     ctaLabel: text(page.quoteLabel),
     image: page.image,
     imageAlt: text(page.imageAlt),
+    video: serviceVideo(route),
     heading: lang.value === 'es' ? 'Una operación clara desde el primer paso.' : 'A clear operation from the first step.',
-    body: lang.value === 'es' ? 'Así te acompañamos en cada etapa del servicio.' : 'How we support each stage of the service.',
+    body: lang.value === 'es'
+      ? 'Antes de coordinar, se revisan las características de la carga, los puntos de salida y entrega, y la fecha requerida. El alcance, las condiciones y la disponibilidad se confirman para cada operación.'
+      : 'Before coordination, the cargo characteristics, pickup and delivery points, and required date are reviewed. Scope, terms and availability are confirmed for each operation.',
+    answer: lang.value === 'es'
+      ? 'Compartir una descripción clara de la carga y los datos de la ruta ayuda al equipo a orientar la revisión y definir los siguientes pasos.'
+      : 'A clear cargo description and route details help the team assess the request and outline the next steps.',
     points: page.sections.map(section => ({ title: text(section.title), body: text(section.body) })),
     faq: page.faqs.map(faq => ({ q: text(faq.question), a: text(faq.answer) }))
   }
+})
+
+onMounted(async () => {
+  await nextTick()
+  const page = document.querySelector('.service-landing-page')
+  const steps = page ? Array.from(page.querySelectorAll<HTMLElement>('.service-landing-step')) : []
+  if (!page || !steps.length) return
+  let previousScrollY = window.scrollY
+
+  const clearTransition = () => {
+    page.classList.remove('has-scroll-reveal')
+    steps.forEach(step => {
+      step.inert = false
+      step.classList.remove('is-visible', 'is-exiting-up', 'is-exiting-down')
+      step.style.removeProperty('--service-step-entry-offset')
+    })
+  }
+
+  const showStep = (index: number) => {
+    const previous = steps.findIndex(step => step.classList.contains('is-visible'))
+    if (previous === index) return
+
+    if (previous >= 0) {
+      const outgoing = steps[previous]
+      outgoing.classList.remove('is-visible', 'is-exiting-up', 'is-exiting-down')
+      outgoing.classList.add(serviceScrollDirection === 'down' ? 'is-exiting-up' : 'is-exiting-down')
+      outgoing.inert = true
+    }
+
+    const incoming = steps[index]
+    incoming.classList.remove('is-exiting-up', 'is-exiting-down')
+    incoming.style.setProperty('--service-step-entry-offset', serviceScrollDirection === 'down' ? '42px' : '-42px')
+    incoming.inert = false
+    window.requestAnimationFrame(() => {
+      if (steps[index] === incoming) incoming.classList.add('is-visible')
+    })
+  }
+
+  const documentTop = (element: HTMLElement) => {
+    let top = 0
+    let current: HTMLElement | null = element
+    while (current && current !== document.documentElement) {
+      top += current.offsetTop
+      current = current.offsetParent as HTMLElement | null
+    }
+    return top
+  }
+
+  const updateActiveStep = () => {
+    serviceStepFrame = 0
+    const narrowScreen = window.matchMedia('(max-width: 900px)').matches
+    if (narrowScreen) {
+      clearTransition()
+      return
+    }
+
+    page.classList.add('has-scroll-reveal')
+    steps.forEach(step => { if (!step.classList.contains('is-visible')) step.inert = true })
+    let activeIndex = 0
+    steps.forEach((step, index) => {
+      if (documentTop(step) <= window.scrollY + 32) activeIndex = index
+    })
+    showStep(activeIndex)
+  }
+
+  const scheduleStepUpdate = () => {
+    const currentScrollY = window.scrollY
+    if (currentScrollY !== previousScrollY) serviceScrollDirection = currentScrollY > previousScrollY ? 'down' : 'up'
+    previousScrollY = currentScrollY
+    if (!serviceStepFrame) serviceStepFrame = window.requestAnimationFrame(updateActiveStep)
+  }
+  serviceScrollListener = scheduleStepUpdate
+  serviceResizeListener = scheduleStepUpdate
+  window.addEventListener('scroll', serviceScrollListener, { passive: true })
+  window.addEventListener('resize', serviceResizeListener, { passive: true })
+  updateActiveStep()
+})
+
+onBeforeUnmount(() => {
+  if (serviceScrollListener) window.removeEventListener('scroll', serviceScrollListener)
+  if (serviceResizeListener) window.removeEventListener('resize', serviceResizeListener)
+  if (serviceStepFrame) window.cancelAnimationFrame(serviceStepFrame)
 })
 </script>
 
 <template>
   <div class="app-site service-landing-page">
-    <SiteHeader active="soluciones" />
+    <SiteHeader active="soluciones" overlay />
     <main>
-      <section class="service-landing-hero">
+      <section class="service-landing-hero" aria-labelledby="service-landing-title">
         <div class="container service-landing-hero__inner">
-          <nav class="service-landing-breadcrumbs" :aria-label="lang === 'es' ? 'Migas de pan' : 'Breadcrumbs'">
-            <a href="/">{{ lang === 'es' ? 'Inicio' : 'Home' }}</a><span aria-hidden="true">/</span>
-            <span>{{ lang === 'es' ? 'Servicios' : 'Services' }}</span><span aria-hidden="true">/</span>
-            <span aria-current="page">{{ details.label }}</span>
-          </nav>
-          <div class="service-landing-hero__grid">
-            <div class="service-landing-hero__copy">
-              <p class="section-tag">{{ details.eyebrow }}</p>
-              <h1>{{ details.title }}</h1>
-              <p class="service-landing-lead">{{ details.intro }}</p>
-              <p class="service-landing-location"><span aria-hidden="true">⌖</span>{{ details.location }}</p>
-              <a class="btn btn-primary" :href="'/cotizaciones?servicio=' + route.split('/').pop()">
-                {{ details.ctaLabel }} <span aria-hidden="true">↗</span>
-              </a>
-              <p class="service-landing-publisher">{{ lang === 'es' ? 'Información de servicios de Grupo Castro Fallas · Costa Rica' : 'Grupo Castro Fallas service information · Costa Rica' }}</p>
-            </div>
-            <figure class="service-landing-hero__media">
-              <img :src="details.image" :alt="details.imageAlt" width="1120" height="630" fetchpriority="high" />
-              <figcaption>{{ lang === 'es' ? 'Soluciones logísticas de Grupo Castro Fallas' : 'Logistics solutions by Grupo Castro Fallas' }}</figcaption>
-            </figure>
+          <figure class="service-landing-hero__media" aria-hidden="true">
+            <img :src="details.image" alt="" width="1920" height="1080" fetchpriority="high" />
+            <div class="service-landing-hero__blur"></div>
+          </figure>
+          <div class="service-landing-hero__copy">
+            <p class="section-tag">{{ details.eyebrow }}</p>
+            <h1 id="service-landing-title" :class="{ 'service-landing-hero__title--long': details.title.length > 42 }">{{ details.title }}</h1>
+            <p class="service-landing-lead">{{ details.intro }}</p>
+            <p class="service-landing-location"><span aria-hidden="true">⌖</span>{{ details.location }}</p>
+            <a class="btn btn-primary" :href="'/cotizaciones?servicio=' + route.split('/').pop()">
+              {{ details.ctaLabel }} <span aria-hidden="true">↗</span>
+            </a>
           </div>
         </div>
       </section>
-      <section class="service-landing-content section-spacing">
-        <div class="container">
-          <section v-if="details.answer" class="service-landing-answer" aria-labelledby="service-answer-heading">
-            <p class="section-tag">{{ lang === 'es' ? 'RESPUESTA DIRECTA' : 'AT A GLANCE' }}</p>
-            <h2 id="service-answer-heading">{{ lang === 'es' ? '¿Qué ofrece Grupo Castro Fallas?' : 'What can Grupo Castro Fallas help with?' }}</h2>
-            <p>{{ details.answer }}</p>
-          </section>
-          <section class="service-landing-process" aria-labelledby="guide-heading">
-            <div class="service-landing-section-heading">
-              <p class="section-tag">{{ lang === 'es' ? 'ASÍ TE ACOMPAÑAMOS' : 'HOW WE SUPPORT YOU' }}</p>
-              <h2 id="guide-heading">{{ details.heading }}</h2><p>{{ details.body }}</p>
+
+      <section class="service-landing-story" :aria-label="details.label">
+        <div class="service-landing-story__frame">
+          <figure class="service-landing-story__media">
+            <video
+              class="service-landing-story__video"
+              :poster="details.image"
+              :autoplay="!prefersReducedMotion"
+              muted
+              loop
+              playsinline
+              preload="metadata"
+              aria-hidden="true"
+            >
+              <source :src="details.video" type="video/mp4" />
+            </video>
+            <figcaption>{{ details.label }}</figcaption>
+          </figure>
+          <div class="service-landing-story__copy">
+            <div class="service-landing-content">
+              <div class="service-landing-steps">
+                <section class="service-landing-step service-landing-step--benefits" data-step="01" aria-labelledby="guide-benefits">
+                  <div class="service-landing-benefits-heading">
+                    <p class="section-tag">{{ lang === 'es' ? 'BENEFICIOS' : 'BENEFITS' }}</p>
+                    <h2 id="guide-benefits">{{ lang === 'es' ? 'Ventajas de este servicio' : 'Benefits of this service' }}</h2>
+                  </div>
+                  <div class="service-landing-feature-grid">
+                    <article v-for="(point, index) in details.points" :key="point.title || point.body" class="service-landing-feature" :class="{ 'service-landing-feature--with-title': point.title }">
+                      <span class="service-landing-feature__icon"><IconSymbol :glyph="pointIcon(index)" :size="23" /></span>
+                      <h3 v-if="point.title">{{ point.title }}</h3>
+                      <p>{{ point.body }}</p>
+                    </article>
+                  </div>
+                </section>
+
+                <section class="service-landing-step service-landing-step--details" data-step="02" aria-labelledby="guide-heading">
+                  <div class="service-landing-detail-grid">
+                    <div class="service-landing-section-heading service-landing-section-heading--text-only">
+                      <p class="section-tag">{{ lang === 'es' ? 'EL SERVICIO' : 'THE SERVICE' }}</p>
+                      <h2 id="guide-heading">{{ details.heading }}</h2>
+                      <p>{{ details.body }}</p>
+                      <p v-if="details.answer" class="service-landing-answer">{{ details.answer }}</p>
+                    </div>
+                    <figure class="service-landing-detail-visual">
+                      <img :src="details.image" :alt="details.imageAlt" loading="lazy" decoding="async" />
+                    </figure>
+                  </div>
+                </section>
+
+                <section v-if="details.quoteHeading || details.scopeNote" class="service-landing-step service-landing-step--quote" data-step="03">
+                  <section v-if="details.quoteHeading" class="service-landing-quote" aria-labelledby="guide-quote">
+                    <div>
+                      <p class="section-tag">{{ lang === 'es' ? 'PARA COTIZAR' : 'FOR A QUOTE' }}</p>
+                      <h2 id="guide-quote">{{ details.quoteHeading }}</h2>
+                      <p>{{ details.quoteIntro }}</p>
+                    </div>
+                    <ul class="service-landing-quote__list">
+                      <li v-for="item in details.quoteItems || []" :key="item"><span aria-hidden="true">✓</span>{{ item }}</li>
+                    </ul>
+                  </section>
+                  <aside v-if="details.scopeNote" class="service-landing-scope">
+                    <span class="service-landing-scope__icon" aria-hidden="true">i</span>
+                    <div><h2>{{ lang === 'es' ? 'Alcance y disponibilidad' : 'Scope and availability' }}</h2><p>{{ details.scopeNote }}</p></div>
+                  </aside>
+                </section>
+
+                <section class="service-landing-step service-landing-step--faq" :data-step="details.quoteHeading || details.scopeNote ? '04' : '03'" aria-labelledby="guide-faq">
+                  <div class="service-landing-faq">
+                    <p class="section-tag">{{ lang === 'es' ? 'PREGUNTAS FRECUENTES' : 'FREQUENTLY ASKED QUESTIONS' }}</p>
+                    <h2 id="guide-faq">{{ lang === 'es' ? 'Respuestas sobre este servicio.' : 'Answers about this service.' }}</h2>
+                    <details v-for="item in details.faq" :key="item.q" class="service-landing-faq__item">
+                      <summary>{{ item.q }}<span aria-hidden="true">+</span></summary><p>{{ item.a }}</p>
+                    </details>
+                  </div>
+                </section>
+              </div>
             </div>
-            <div class="service-landing-card-grid">
-              <article v-for="(point, index) in details.points" :key="point.title || point.body" class="service-landing-card" :class="{ 'service-landing-card--with-title': point.title }">
-                <span class="service-landing-card__number">0{{ index + 1 }}</span>
-                <h3 v-if="point.title">{{ point.title }}</h3><p>{{ point.body }}</p>
-              </article>
-            </div>
-          </section>
-          <section v-if="details.quoteHeading" class="service-landing-quote" aria-labelledby="guide-quote">
-            <div>
-              <p class="section-tag">{{ lang === 'es' ? 'PREPARÁ TU CONSULTA' : 'PREPARE YOUR ENQUIRY' }}</p>
-              <h2 id="guide-quote">{{ details.quoteHeading }}</h2><p>{{ details.quoteIntro }}</p>
-            </div>
-            <ul class="service-landing-quote__list">
-              <li v-for="item in details.quoteItems || []" :key="item"><span aria-hidden="true">✓</span>{{ item }}</li>
-            </ul>
-          </section>
-          <aside v-if="details.scopeNote" class="service-landing-scope">
-            <span class="service-landing-scope__icon" aria-hidden="true">i</span>
-            <div><h2>{{ lang === 'es' ? 'Alcance y disponibilidad' : 'Scope and availability' }}</h2><p>{{ details.scopeNote }}</p></div>
-          </aside>
-          <section class="service-landing-faq" aria-labelledby="guide-faq">
-            <p class="section-tag">{{ lang === 'es' ? 'PREGUNTAS FRECUENTES' : 'FREQUENTLY ASKED QUESTIONS' }}</p>
-            <h2 id="guide-faq">{{ lang === 'es' ? 'Respuestas sobre este servicio.' : 'Answers about this service.' }}</h2>
-            <details v-for="item in details.faq" :key="item.q" class="service-landing-faq__item">
-              <summary>{{ item.q }}<span aria-hidden="true">+</span></summary><p>{{ item.a }}</p>
-            </details>
-          </section>
-          <aside class="service-landing-contact">
-            <div>
-              <p class="section-tag">{{ lang === 'es' ? '¿TENÉS UNA OPERACIÓN EN MENTE?' : 'PLANNING A SHIPMENT?' }}</p>
-              <h2>{{ lang === 'es' ? 'Revisemos los detalles.' : 'Let’s review the details.' }}</h2>
-              <p>{{ lang === 'es' ? 'La disponibilidad y las condiciones se confirman con el equipo para cada solicitud.' : 'Availability and terms are confirmed with the team for each request.' }}</p>
-            </div>
-            <a class="btn btn-primary" href="mailto:comercial@castrofallas.com">{{ lang === 'es' ? 'Contactar a Castro Fallas' : 'Contact Castro Fallas' }} <span aria-hidden="true">↗</span></a>
-          </aside>
+          </div>
         </div>
       </section>
     </main>
@@ -252,3 +384,5 @@ html:not(.theme-dark) .service-landing-contact{background:linear-gradient(112deg
 @media(max-width:900px){.service-landing-hero__grid{grid-template-columns:1fr}.service-landing-hero__media,.service-landing-hero__media img{min-height:280px}.service-landing-card-grid{grid-template-columns:1fr}.service-landing-card{min-height:0}.service-landing-card:not(.service-landing-card--with-title) p{margin-top:24px}.service-landing-quote{grid-template-columns:1fr}}
 @media(max-width:700px){.service-landing-hero{padding:32px 0 50px}.service-landing-content{padding-top:56px;padding-bottom:64px}.service-landing-breadcrumbs{margin-bottom:34px}.service-landing-contact{align-items:flex-start;flex-direction:column}.service-landing-publisher{margin-top:16px}}
 </style>
+
+<style src="../styles/service-landing-experience.css"></style>

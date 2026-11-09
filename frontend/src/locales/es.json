@@ -316,6 +316,9 @@
         "profile": "Ver perfil de Instagram",
         "reel": "Último Reel de Grupo Castro Fallas",
         "play": "Reproducir el último Reel",
+        "playExternal": "Ver el Reel en Instagram (se abre en otra pestaña)",
+        "embedLoading": "Cargando reproductor de Instagram…",
+        "embedUnavailable": "Instagram no permitió cargar el reproductor aquí. Podés abrir el Reel en Instagram.",
         "open": "Abrir Reel",
         "unavailable": "Visita nuestro perfil para ver nuestros Reels",
         "loading": "Buscando nuestro último Reel…"

@@ -295,10 +295,10 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896
                 driver.save_screenshot(str(ARTIFACTS / f"{label}-{theme}-news-opaque-nav.png"))
                 print(f"PASS News opaque red menu {label}/{theme}", flush=True)
 
-                # Cargo is available on /cotizaciones even in the guest
-                # access-blocked view; this tests layout but never sends a quote.
+                # Cargo is available to guests on the official quote screen.
+                # Test menu geometry without submitting any quote.
                 driver.get(BASE + "/cotizaciones")
-                wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".quote-access-status--blocked")))
+                wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".official-panel")))
                 wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
                 cargo = wait.until(EC.element_to_be_clickable((
                     By.CSS_SELECTOR,
@@ -444,7 +444,7 @@ for width, height, label in [(896, 590, "compact-short"), (390, 590, "phone-shor
             driver.execute_script("localStorage.setItem('castrofallas-theme', arguments[0])", theme)
             driver.refresh()
             wait = WebDriverWait(driver, 22)
-            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".quote-access-status--blocked")))
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".official-panel")))
             wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
             wait.until(EC.element_to_be_clickable((
                 By.CSS_SELECTOR,

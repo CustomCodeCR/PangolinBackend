@@ -12,6 +12,18 @@ const legacyModules = path.join(root, 'node_modules')
 const nuxtModules = path.resolve(import.meta.dirname, '../node_modules')
 if (!fs.existsSync(legacyModules)) fs.symlinkSync(nuxtModules, legacyModules, 'dir')
 fs.cpSync(images, path.join(output, 'images'), { recursive: true, force: true })
+// Los videos de la PR #179 aparecen a la izquierda en cada ficha de servicio.
+// Publicarlos también en Nuxt: el gateway híbrido sirve estas rutas desde Nitro.
+// Copiar solo los MP4 finales, nunca los archivos de trabajo .source-* o .tmp.
+const serviceVideos = ["service-air.mp4","service-maritime.mp4","service-road.mp4","service-warehouse.mp4"]
+const videoSource = path.join(root, 'public/videos')
+const videoTarget = path.join(output, 'videos')
+fs.mkdirSync(videoTarget, { recursive: true })
+for (const name of serviceVideos) {
+  const source = path.join(videoSource, name)
+  if (!fs.existsSync(source)) throw new Error('Falta el video de servicio: ' + source)
+  fs.copyFileSync(source, path.join(videoTarget, name))
+}
 // Las páginas legales incluyen referencias a avisos de terceros.
 fs.cpSync(path.join(root, 'public/licenses'), path.join(output, 'licenses'), { recursive: true, force: true })
 fs.copyFileSync(path.join(root, 'public/favicon.png'), path.join(output, 'favicon.png'))

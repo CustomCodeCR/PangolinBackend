@@ -47,6 +47,13 @@ function loadRole(mode: ItineraryTransport, role: ItineraryLocationRole): Promis
   return request
 }
 
+async function loadAllRoles(role: ItineraryLocationRole): Promise<ItineraryLocationChoice[]> {
+  const [sea, land] = await Promise.all([loadRole('maritime', role), loadRole('ground', role)])
+  const unique = new Map<string, ItineraryLocationChoice>()
+  for (const item of [...sea, ...land]) unique.set(item.value.toLocaleLowerCase(), item)
+  return [...unique.values()].sort((a, b) => a.label.localeCompare(b.label, 'es'))
+}
+
 export function useItineraryLocations(transport: Ref<ItineraryTransport | ''>) {
   const origins = ref<ItineraryLocationChoice[]>([])
   const destinations = ref<ItineraryLocationChoice[]>([])
@@ -59,12 +66,12 @@ export function useItineraryLocations(transport: Ref<ItineraryTransport | ''>) {
     origins.value = []
     destinations.value = []
     locationError.value = ''
-    loadingLocations.value = !!mode
-    if (!mode) return
+    loadingLocations.value = true
 
     try {
       const [origin, destination] = await Promise.all([
-        loadRole(mode, 'origin'), loadRole(mode, 'destination')
+        mode ? loadRole(mode, 'origin') : loadAllRoles('origin'),
+        mode ? loadRole(mode, 'destination') : loadAllRoles('destination')
       ])
       if (current !== generation) return
       origins.value = origin

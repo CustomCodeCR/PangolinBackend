@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Compare the same compiled Vue pages through legacy Nginx and hybrid Nginx.
 
-These read-only, guest-session tests intentionally do not exercise authenticated
-mutations or invent a login. Those require an isolated real backend test fixture.
+These read-only, guest-session tests validate public quote and itinerary
+screens while keeping tracking and admin access restricted. They never
+submit a quote or invent a login. Authenticated mutations require a real fixture.
 """
 import sys
 from urllib.parse import urlsplit
@@ -16,10 +17,10 @@ ARTIFACTS = Path("artifacts/nuxt-hybrid-visual")
 ARTIFACTS.mkdir(parents=True, exist_ok=True)
 PAGES = (
     ("/bienvenidos", "login-screen"),
-    ("/cotizaciones?servicio=Maritime", "quote-access-status--blocked"),
-    ("/cotizaciones/nuevo", "quote-access-status--blocked"),
+    ("/cotizaciones?servicio=Maritime", "official-panel"),
+    ("/cotizaciones/nuevo", "official-panel"),
     ("/tracking", "quote-access-status--blocked"),
-    ("/itinerario", None),
+    ("/itinerario", "itinerary-content"),
     ("/administracion", None),
     ("/administracion/cotizaciones-oficiales", None),
     ("/admin/contenido", None),
@@ -31,8 +32,7 @@ def snapshot(driver, base, route, marker):
     # Guest-only protected routes must complete their authorization redirect
     # before we inspect the DOM. Otherwise we may sample a half-loaded page.
     target_paths = (
-        ("/", "/home") if route == "/itinerario"
-        else ("/bienvenidos",) if route.startswith(("/administracion", "/admin/"))
+        ("/bienvenidos",) if route.startswith(("/administracion", "/admin/"))
         else None
     )
     if target_paths:
@@ -83,9 +83,14 @@ def snapshot(driver, base, route, marker):
        }
     """)
     assert not result["badServerPage"], f"Server error at {base + route}: {result}"
-    if marker:
+    if marker == "official-panel":
+        assert result["quoteFormVisible"] and not result["deniedQuote"], (
+            f"Guest official quote form unavailable: {base + route}")
+    elif marker == "itinerary-content":
+        assert result["path"] == "/itinerario", f"Guest itineraries unexpectedly redirected: {base + route}"
+    elif marker:
         assert result["login"] or result["deniedQuote"], f"Guest access exposed restricted content: {base + route}"
-        assert not result["quoteFormVisible"], f"Guest could see authenticated quote form: {base + route}"
+        assert not result["quoteFormVisible"], f"Guest could see restricted quote form: {base + route}"
     # Redirected public Home has its own full CMS image audit. On private
     # pages, explicitly decode the published logo instead of confusing
     # pending lazy loading with a broken file.

@@ -316,6 +316,9 @@
         "profile": "View Instagram profile",
         "reel": "Grupo Castro Fallas latest Reel",
         "play": "Play the latest Reel",
+        "playExternal": "Watch the Reel on Instagram (opens in a new tab)",
+        "embedLoading": "Loading Instagram player…",
+        "embedUnavailable": "Instagram did not allow the player to load here. You can open the Reel on Instagram.",
         "open": "Open Reel",
         "unavailable": "Visit our profile to see our Reels",
         "loading": "Looking for our latest Reel…"
