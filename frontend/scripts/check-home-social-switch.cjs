@@ -30,8 +30,8 @@ assert.match(component, /\.home-instagram-section__reel-head small\s*\{[^}]*colo
 assert.match(component, /\.home-instagram-section__open\s*\{[^}]*color:\s*#fff;/s,
   'Reel open link must stay white')
 assert.match(component, /8500/, 'Automated network rotation must remain delayed')
-assert.match(component, /playingNative\.value \|\| facebookPlaying\.value/,
-  'Playing a video must block automatic switching')
+assert.match(component, /playingNative\.value \|\| instagramEmbedState\.value === 'loading' \|\| instagramEmbedState\.value === 'ready' \|\| facebookPlaying\.value/,
+  'Playing a video or loading an official Instagram embed must block automatic switching')
 assert.match(component, /prefers-reduced-motion: reduce/, 'Reduced-motion preferences must be respected')
 assert.doesNotMatch(component, /<iframe[^>]*home-instagram-section__embed(?![^>]*facebook)/,
   'Do not render a direct Instagram iframe; the official embed.js builds the embed')
