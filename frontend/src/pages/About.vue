@@ -540,4 +540,8 @@ html.theme-dark .about-refresh__value.is-open .about-refresh__value-icon{
   .about-refresh__values .about-refresh__gallery{margin-top:34px}
   .about-refresh__values{padding-bottom:28px}
 }
+/* Keep the experience divider fully white in dark mode. */
+html.theme-dark .about-refresh .about-refresh__hero-copy .big-years span {
+  border-left-color: #fff !important;
+}
 </style>
