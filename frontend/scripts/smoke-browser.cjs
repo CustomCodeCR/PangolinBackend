@@ -131,6 +131,11 @@ async function main() {
         assert.equal((html.match(/about-refresh__value-panel/g) || []).length >= 5, true, 'Los cinco valores deben disponer de panel desplegable')
         assert.equal((html.match(/aria-expanded="false"/g) || []).length >= 5, true, 'Los valores deben iniciar contraídos')
         assert.equal((html.match(/class="about-refresh__purpose-card"/g) || []).length, 2, 'Deben mostrarse misión y visión')
+        assert.ok(!html.includes('about-refresh__hero-subtitle'), 'No debe renderizarse el texto bajo +48 años')
+        assert.ok(!html.includes('Soluciones logísticas, aduaneras y de transporte internacional desde Costa Rica.'), 'Debe eliminarse la frase del hero')
+        assert.ok(html.includes('href="/servicios" class="about-refresh__button about-refresh__button--primary"'), 'Conocer servicios debe ser enlace navegable a /servicios')
+        assert.ok(html.includes('href="/cotizaciones" class="about-refresh__button about-refresh__button--secondary"'), 'Solicitar cotización debe ser enlace navegable a /cotizaciones')
+        assert.ok(!html.includes('<routerlink'), 'Los botones no deben usar RouterLink en la SPA sin router registrado')
         assert.ok(!html.includes('Soluciones integrales para que su carga se mueva sin límites.'), 'La sección de capacidades no debe mostrar el texto lateral eliminado')
         assert.ok(!html.includes('Desde el transporte de carga hasta la coordinación de importaciones y exportaciones,'), 'El cierre de capacidades no debe mostrar el párrafo eliminado')
         for (const value of ['Compromiso', 'Ética', 'Trabajo en equipo', 'Experiencia', 'Calidad']) {
