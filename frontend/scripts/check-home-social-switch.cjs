@@ -30,9 +30,21 @@ assert.match(component, /\.home-instagram-section__reel-head small\s*\{[^}]*colo
 assert.match(component, /\.home-instagram-section__open\s*\{[^}]*color:\s*#fff;/s,
   'Reel open link must stay white')
 assert.match(component, /8500/, 'Automated network rotation must remain delayed')
-assert.match(component, /playingNative\.value \|\| isPlaying\.value \|\| facebookPlaying\.value/,
+assert.match(component, /playingNative\.value \|\| facebookPlaying\.value/,
   'Playing a video must block automatic switching')
 assert.match(component, /prefers-reduced-motion: reduce/, 'Reduced-motion preferences must be respected')
+assert.doesNotMatch(component, /<iframe[^>]*home-instagram-section__embed(?![^>]*facebook)/,
+  'Instagram must not render an iframe that browsers reject')
+assert.doesNotMatch(component, /\$\{reelUrl\.value\}embed\//,
+  'Do not generate direct Instagram iframe URLs')
+assert.match(component, /class="home-instagram-section__play home-instagram-section__play--external"[\s\S]*?:href="reelUrl" target="_blank" rel="noopener noreferrer"/,
+  'A link-only Instagram Reel must open safely in a new tab')
+assert.match(component, /<video class="home-instagram-section__native-video" :key="videoSrc"/,
+  'An authorized/uploaded Instagram video still plays natively in the card')
+assert.match(component, /https:\/\/www\.facebook\.com\/plugins\/video\.php/,
+  'The existing Facebook player must remain available')
+assert.match(editor, /Solo enlace de Instagram \(abrir Reel en Instagram\)/,
+  'The admin editor must explain the link-only behavior')
 assert.match(component, /reelObserver = new IntersectionObserver/, 'Network requests should be lazy')
 assert.match(component, /if \(!reelRequested\) return/, 'Realtime updates cannot trigger eager requests')
 assert.match(component, /\/api\/social\/facebook\/featured-video/, 'Facebook video must come from the public API')
