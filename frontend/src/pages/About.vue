@@ -13,7 +13,22 @@ const values = computed(() => [0, 1, 2, 3, 4].map(index => siteText(`about.value
 const valueIcons = [Handshake, Scale, UsersRound, Award, ShieldCheck]
 const capabilityIcons = [Truck, ClipboardCheck, Globe2, Boxes, Ship]
 const openedValue = ref<number | null>(null)
-const toggleValue = (index: number) => {
+// Hover-capable desktop pointers open a card on entry; touch screens use taps.
+// Keyboard activation still toggles via the native button click (detail === 0).
+const canHoverValues = () => typeof window !== 'undefined'
+  && window.matchMedia('(hover: hover) and (pointer: fine)').matches
+const onValuePointerEnter = (index: number, event: PointerEvent) => {
+  if (event.pointerType === 'mouse' && canHoverValues()) openedValue.value = index
+}
+const onValuePointerLeave = (index: number, event: PointerEvent) => {
+  if (event.pointerType === 'mouse' && canHoverValues() && openedValue.value === index) openedValue.value = null
+}
+const toggleValue = (index: number, event: MouseEvent) => {
+  if (event.detail > 0 && canHoverValues()) {
+    // Desktop clicks should not close a value that remains under the mouse.
+    openedValue.value = index
+    return
+  }
   openedValue.value = openedValue.value === index ? null : index
 }
 
@@ -43,7 +58,6 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
     'Support for exporting and moving cargo to other markets.'
   ],
   galleryAlts: ['Cargo storage in a logistics warehouse', 'Castro Fallas cargo truck and transport', 'Forklift and warehouse cargo handling'],
-  valueSummaries: ['We honor our commitments.', 'We act with integrity and transparency.', 'We bring skills and experience together.', 'Decades supporting logistics operations.', 'We pursue reliable service standards.'],
   valueDetails: [
     'We take ownership of every commitment and work toward dependable results.',
     'We act transparently and responsibly in every business relationship.',
@@ -51,7 +65,7 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
     'Our experience helps us anticipate challenges and guide each operation.',
     'We pursue reliable processes and continuous improvement in our services.'
   ],
-  discover: 'Tap a value to learn more',
+  discover: 'Hover over a value to learn more, or tap to open it on touch screens',
   servicesTag: 'WHAT WE DO',
   servicesTitle: 'Logistics solutions for every stage.',
   servicesBody: 'From freight transportation to import and export coordination, we help businesses move their cargo with confidence.',
@@ -84,7 +98,6 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
     'Acompañamiento para enviar tu carga a otros mercados.'
   ],
   galleryAlts: ['Almacenamiento de mercancías en bodega logística', 'Camión de transporte de carga', 'Manejo de mercancías en bodega'],
-  valueSummaries: ['Cumplimos lo que prometemos.', 'Actuamos con integridad y transparencia.', 'Unimos capacidades y experiencias.', 'Más de 48 años de conocimiento logístico.', 'Nos exigimos altos estándares de servicio.'],
   valueDetails: [
     'Asumimos nuestros compromisos con responsabilidad y orientación a resultados.',
     'Actuamos con transparencia y respeto en cada relación comercial.',
@@ -92,7 +105,7 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
     'Nuestra trayectoria nos ayuda a anticipar desafíos y acompañar cada proceso.',
     'Buscamos procesos confiables y la mejora continua de nuestros servicios.'
   ],
-  discover: 'Tocá un valor para conocer más',
+  discover: 'Pasá el cursor para ver cada valor o tocá la tarjeta en el celular',
   servicesTag: 'LO QUE HACEMOS',
   servicesTitle: 'Soluciones para cada etapa logística.',
   servicesBody: 'Desde el transporte de carga hasta la coordinación de importaciones y exportaciones, acompañamos a las empresas en cada movimiento.',
@@ -159,15 +172,14 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
               <p class="about-refresh__eyebrow">{{ copy.culture }}</p>
               <h2>{{ siteText('about.values.heading', t('custom.about.valuesTitle'), locale) }}</h2>
             </div>
-            <p>{{ copy.valueLead }}</p>
           </div>
 
           <div class="about-refresh__accordion">
-            <article v-for="(value, index) in values" :key="index" class="about-refresh__value" :class="{ 'is-open': openedValue === index }">
+            <article v-for="(value, index) in values" :key="index" class="about-refresh__value" :class="{ 'is-open': openedValue === index }" @pointerenter="onValuePointerEnter(index, $event)" @pointerleave="onValuePointerLeave(index, $event)">
               <h3>
-                <button type="button" class="about-refresh__value-trigger" :aria-expanded="openedValue === index" :aria-controls="`about-value-detail-${index}`" @click="toggleValue(index)">
+                <button type="button" class="about-refresh__value-trigger" :aria-expanded="openedValue === index" :aria-controls="`about-value-detail-${index}`" @click="toggleValue(index, $event)">
                   <span class="about-refresh__value-icon"><component :is="valueIcons[index]" :size="26" :stroke-width="1.8" aria-hidden="true" /></span>
-                  <span class="about-refresh__value-text"><strong class="about-refresh__value-name">{{ value }}</strong><span class="about-refresh__value-summary">{{ copy.valueSummaries[index] }}</span></span>
+                  <span class="about-refresh__value-text"><strong class="about-refresh__value-name">{{ value }}</strong></span>
                   <ChevronDown class="about-refresh__value-chevron" :size="22" :stroke-width="2" aria-hidden="true" />
                 </button>
               </h3>
@@ -418,5 +430,62 @@ html.theme-dark .about-refresh__capability:hover{background:rgba(255,255,255,.05
   .about-refresh__value-trigger{min-height:105px}
   .about-refresh__capability{border-right:0!important}
   .about-refresh__gallery img{height:225px}
+}
+
+/* Compact spacing and value cards: hover for fine pointers, taps on touch. */
+.about-refresh__purpose{padding-bottom:clamp(30px,3.8vw,55px)}
+.about-refresh__values{padding-top:clamp(40px,4.8vw,72px);padding-bottom:clamp(55px,6.5vw,96px)}
+.about-refresh__services{padding-top:clamp(54px,6.5vw,94px)}
+.about-refresh__section-heading{margin-bottom:clamp(26px,2.8vw,40px)}
+.about-refresh__hint{margin-top:20px}
+.about-refresh__value-trigger{
+  display:flex;align-items:center;gap:13px;min-height:92px;
+  padding:19px 18px 22px
+}
+.about-refresh__value-text{display:block;min-width:0;padding:0 12px 0 0}
+.about-refresh__value-name{display:block;font-size:clamp(15px,1.12vw,18px);line-height:1.3}
+.about-refresh__value-chevron{bottom:13px;right:13px}
+.about-refresh__value.is-open{box-shadow:0 12px 26px rgba(55,26,37,.10)}
+.about-refresh__value.is-open .about-refresh__value-icon{background:#f4dae1}
+.about-refresh__value-inner p{padding:5px 20px 25px;font-size:14px;line-height:1.65}
+.about-refresh__capabilities{
+  gap:clamp(13px,1.7vw,26px);
+  border:0
+}
+.about-refresh__capability,
+.about-refresh__capability:last-child{
+  border:1px solid rgba(35,39,47,.13);border-bottom:2px solid rgba(176,9,41,.26);
+  background:rgba(255,255,255,.95);
+  border-radius:18px;box-shadow:0 8px 24px rgba(39,29,35,.055);
+  padding:30px 17px 34px;min-height:190px;
+  transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease
+}
+.about-refresh__capability:hover{transform:translateY(-3px);box-shadow:0 13px 29px rgba(39,29,35,.10);border-color:rgba(176,9,41,.32);background:#fff}
+html.theme-dark .about-refresh__capability,
+html.theme-dark .about-refresh__capability:last-child{background:#111b31;border-color:rgba(255,255,255,.20)}
+html.theme-dark .about-refresh__capability:hover{background:#1b2845;border-color:rgba(240,113,137,.55)}
+@media(max-width:1320px){
+  .about-refresh__value-trigger{min-height:86px}
+  .about-refresh__capability,.about-refresh__capability:last-child{border:1px solid rgba(35,39,47,.13);border-bottom:2px solid rgba(176,9,41,.26)}
+}
+@media(max-width:950px){
+  .about-refresh__value-trigger{min-height:88px}
+  .about-refresh__value-name{font-size:17px}
+  .about-refresh__capability,.about-refresh__capability:last-child{border:1px solid rgba(35,39,47,.13);border-bottom:2px solid rgba(176,9,41,.26)}
+}
+@media(max-width:580px){
+  .about-refresh__purpose{padding-bottom:28px}
+  .about-refresh__values{padding:42px 0 64px}
+  .about-refresh__services{padding-top:58px}
+  .about-refresh__accordion{gap:14px}
+  .about-refresh__value-trigger{min-height:78px;padding:13px 19px 17px;gap:16px}
+  .about-refresh__value-icon{width:46px;height:46px;flex-basis:46px}
+  .about-refresh__value-name{font-size:17px}
+  .about-refresh__value-inner p{padding:2px 21px 23px 81px}
+  .about-refresh__capabilities{gap:15px}
+  .about-refresh__capability,.about-refresh__capability:last-child{min-height:0;padding:26px 20px 30px;border-radius:17px}
+}
+@media(prefers-reduced-motion:reduce){
+  .about-refresh__value,.about-refresh__value-panel,.about-refresh__value-chevron,.about-refresh__capability{transition:none!important}
 }
 </style>
