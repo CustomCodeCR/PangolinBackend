@@ -21,18 +21,19 @@ const toggleValue = (index: number) => {
 const copy = computed(() => locale.value.startsWith('en') ? ({
   who: 'WHO WE ARE',
   heading: 'Castro Fallas International Logistics',
+  heroSubtitle: 'Logistics, customs and international freight solutions from Costa Rica.',
   description: 'We coordinate and supervise cargo transportation for import and export operations, nationally and internationally.',
   missionTag: 'OUR PURPOSE',
   mission: 'Mission',
-  missionBody: 'To accompany each logistics operation with coordination, responsibility and solutions adapted to our customers’ needs.',
+  missionBody: 'To offer integrated, safe and efficient logistics solutions that support our clients’ domestic and international trade, with valuable and trustworthy service.',
   visionTag: 'OUR DIRECTION',
   vision: 'Vision',
-  visionBody: 'To continue building trusted logistics connections through experience, quality and close customer service.',
+  visionBody: 'To become a leading logistics solutions provider in the region, recognized for experience, reliability, innovation and commitment to excellent service.',
   culture: 'OUR CULTURE',
-  valueLead: 'Explore the principles behind our work.',
-  historyAction: 'Discover our values',
+  valueLead: 'Principles that guide our daily work and strengthen the trust of our customers and partners.',
+  historyAction: 'Discover our history',
   capabilitiesTitle: 'Our capabilities',
-  capabilitiesSubtitle: 'We coordinate every step of your cargo journey.',
+  capabilitiesSubtitle: 'Integrated solutions so your freight can move without borders.',
   capabilityNames: ['Logistics', 'Customs', 'International transport', 'Imports', 'Exports'],
   capabilityDetails: [
     'Coordinated solutions across the supply chain.',
@@ -41,7 +42,8 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
     'Coordination of incoming cargo operations.',
     'Support for exporting and moving cargo to other markets.'
   ],
-  galleryAlts: ['Cargo storage in a logistics warehouse', 'Freight operation and cargo coordination', 'International maritime transportation'],
+  galleryAlts: ['Cargo storage in a logistics warehouse', 'Castro Fallas cargo truck and transport', 'Forklift and warehouse cargo handling'],
+  valueSummaries: ['We honor our commitments.', 'We act with integrity and transparency.', 'We bring skills and experience together.', 'Decades supporting logistics operations.', 'We pursue reliable service standards.'],
   valueDetails: [
     'We take ownership of every commitment and work toward dependable results.',
     'We act transparently and responsibly in every business relationship.',
@@ -60,18 +62,19 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 }) : ({
   who: 'QUIÉNES SOMOS',
   heading: 'Castro Fallas Logística Internacional',
+  heroSubtitle: 'Soluciones logísticas, aduaneras y de transporte internacional desde Costa Rica.',
   description: 'Coordinamos y supervisamos el transporte de mercancías para operaciones de importación y exportación, a nivel nacional e internacional.',
   missionTag: 'NUESTRO PROPÓSITO',
   mission: 'Misión',
-  missionBody: 'Acompañar cada operación logística con coordinación, responsabilidad y soluciones ajustadas a las necesidades de nuestros clientes.',
+  missionBody: 'Brindar soluciones logísticas integrales, seguras y eficientes, que faciliten el comercio nacional e internacional de nuestros clientes, con un servicio de alto valor y confianza.',
   visionTag: 'HACIA DÓNDE VAMOS',
   vision: 'Visión',
-  visionBody: 'Seguir construyendo conexiones logísticas de confianza mediante experiencia, calidad y una atención cercana.',
+  visionBody: 'Ser la empresa líder en soluciones logísticas en la región, reconocida por nuestra experiencia, confiabilidad, innovación y compromiso con la excelencia en el servicio.',
   culture: 'NUESTRA CULTURA',
-  valueLead: 'Descubrí los principios que orientan nuestro trabajo.',
-  historyAction: 'Conocer nuestros valores',
+  valueLead: 'Principios que guían nuestro trabajo diario y fortalecen la confianza de nuestros clientes, colaboradores y aliados estratégicos.',
+  historyAction: 'Conocer nuestra historia',
   capabilitiesTitle: 'Nuestras capacidades',
-  capabilitiesSubtitle: 'Coordinamos cada etapa del movimiento de tu carga.',
+  capabilitiesSubtitle: 'Soluciones integrales para que su carga se mueva sin límites.',
   capabilityNames: ['Logística', 'Aduanas', 'Transporte internacional', 'Importación', 'Exportación'],
   capabilityDetails: [
     'Soluciones coordinadas para la cadena de suministro.',
@@ -80,7 +83,8 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
     'Coordinación de operaciones de ingreso de mercancías.',
     'Acompañamiento para enviar tu carga a otros mercados.'
   ],
-  galleryAlts: ['Almacenamiento de mercancías en bodega logística', 'Operación y coordinación de carga', 'Transporte marítimo internacional'],
+  galleryAlts: ['Almacenamiento de mercancías en bodega logística', 'Camión de transporte de carga', 'Manejo de mercancías en bodega'],
+  valueSummaries: ['Cumplimos lo que prometemos.', 'Actuamos con integridad y transparencia.', 'Unimos capacidades y experiencias.', 'Más de 48 años de conocimiento logístico.', 'Nos exigimos altos estándares de servicio.'],
   valueDetails: [
     'Asumimos nuestros compromisos con responsabilidad y orientación a resultados.',
     'Actuamos con transparencia y respeto en cada relación comercial.',
@@ -107,6 +111,7 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
       <div class="container inner-hero__copy about-hero__copy about-refresh__hero-copy">
         <h1>{{ siteText('about.hero.title', t('custom.about.title'), locale) }}</h1>
         <div class="big-years"><strong>+48</strong><span>{{ t('custom.about.years') }}</span></div>
+        <p class="about-refresh__hero-subtitle">{{ copy.heroSubtitle }}</p>
       </div>
     </section>
 
@@ -117,7 +122,7 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
             <p class="about-refresh__eyebrow">{{ copy.who }}</p>
             <h2>{{ copy.heading }}</h2>
             <p class="about-refresh__body">{{ siteText('about.intro', t('custom.about.introduction'), locale) }}</p>
-            <a class="about-refresh__intro-link" href="#nuestros-valores">{{ copy.historyAction }} <IconSymbol glyph="↗" /></a>
+            <a class="about-refresh__intro-link" href="#nuestra-historia">{{ copy.historyAction }} <IconSymbol glyph="↗" /></a>
           </div>
           <div class="about-refresh__photo about-image-card">
             <SiteMedia slot-key="about.operations.media" fallback="/images/about-operations-enhanced.jpg" :alt="copy.imageLabel" />
@@ -126,7 +131,7 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
         </div>
       </section>
 
-      <section class="about-refresh__purpose section-spacing" :aria-label="locale.startsWith('en') ? 'Mission and vision' : 'Misión y visión'">
+      <section id="nuestra-historia" class="about-refresh__purpose section-spacing" :aria-label="locale.startsWith('en') ? 'Mission and vision' : 'Misión y visión'">
         <div class="container about-refresh__purpose-grid">
           <article class="about-refresh__purpose-card">
             <div class="about-refresh__purpose-symbol"><Target :size="30" :stroke-width="1.8" aria-hidden="true" /></div>
@@ -162,7 +167,7 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
               <h3>
                 <button type="button" class="about-refresh__value-trigger" :aria-expanded="openedValue === index" :aria-controls="`about-value-detail-${index}`" @click="toggleValue(index)">
                   <span class="about-refresh__value-icon"><component :is="valueIcons[index]" :size="26" :stroke-width="1.8" aria-hidden="true" /></span>
-                  <span class="about-refresh__value-name">{{ value }}</span>
+                  <span class="about-refresh__value-text"><strong class="about-refresh__value-name">{{ value }}</strong><span class="about-refresh__value-summary">{{ copy.valueSummaries[index] }}</span></span>
                   <ChevronDown class="about-refresh__value-chevron" :size="22" :stroke-width="2" aria-hidden="true" />
                 </button>
               </h3>
@@ -198,8 +203,8 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 
           <div class="about-refresh__gallery">
             <img src="/images/services-warehouse.webp" :alt="copy.galleryAlts[0]" loading="lazy" />
-            <img src="/images/operation.webp" :alt="copy.galleryAlts[1]" loading="lazy" />
-            <img src="/images/ship.webp" :alt="copy.galleryAlts[2]" loading="lazy" />
+            <img src="/images/truck.webp" :alt="copy.galleryAlts[1]" loading="lazy" />
+            <img src="/images/warehouse-person.webp" :alt="copy.galleryAlts[2]" loading="lazy" />
           </div>
           <div class="about-refresh__services-footer">
             <p>{{ copy.servicesBody }}</p>
@@ -305,4 +310,113 @@ html.theme-dark .about-refresh__value.is-open{border-color:#f07189}
 html.theme-dark .about-refresh__value-trigger{color:#fff}
 html.theme-dark .about-refresh__services-footer{border-top-color:rgba(255,255,255,.25)}
 html.theme-dark .about-refresh__button--secondary{color:#fff}
+
+/* Reference-led layout: preserve the corporate visual language without overcrowding. */
+.about-refresh .inner-hero--about{
+  min-height:clamp(335px,30vw,465px);
+  height:auto;
+}
+.about-refresh .about-refresh__hero-copy{padding-top:clamp(110px,10vw,142px);padding-bottom:46px}
+.about-refresh .about-refresh__hero-copy h1{font-size:clamp(42px,4.7vw,70px);line-height:1.04;letter-spacing:-.035em}
+.about-refresh .about-refresh__hero-copy .big-years{
+  display:flex;flex-direction:row;align-items:center;gap:clamp(16px,2vw,34px);margin-top:8px;
+}
+.about-refresh .about-refresh__hero-copy .big-years strong{font-size:clamp(96px,10vw,155px);letter-spacing:-.085em;line-height:.94}
+.about-refresh .about-refresh__hero-copy .big-years span{
+  max-width:240px;padding-left:clamp(14px,1.8vw,27px);border-left:2px solid rgba(255,255,255,.72);
+  font-size:clamp(19px,2.1vw,30px);line-height:1.08;letter-spacing:-.04em
+}
+.about-refresh__hero-subtitle{margin:18px 0 0;color:#fff;font-size:clamp(13px,1.05vw,16px);line-height:1.55;font-weight:550}
+.about-refresh__intro{padding-block:clamp(68px,6vw,100px) clamp(28px,3vw,55px)}
+.about-refresh__intro-grid{gap:clamp(38px,5vw,88px)}
+.about-refresh .about-refresh__photo{height:clamp(260px,23vw,365px)}
+.about-refresh__intro-copy h2{font-size:clamp(30px,3vw,45px)}
+.about-refresh__body{
+  padding-left:20px;border-left:3px solid rgba(176,9,41,.76);line-height:1.68;
+  margin-top:22px
+}
+.about-refresh__intro-link{margin-top:24px}
+.about-refresh__purpose{padding-block:clamp(36px,4vw,64px) clamp(68px,7vw,108px);scroll-margin-top:50px}
+.about-refresh__purpose-grid{gap:clamp(22px,2.6vw,44px)}
+.about-refresh__purpose-card{
+  min-height:162px;grid-template-columns:72px minmax(0,1fr);align-items:center;gap:clamp(18px,2.4vw,38px);
+  padding:clamp(23px,2.5vw,39px);background:linear-gradient(135deg,#fcf5f7,#f8ecef);
+  border-radius:22px;box-shadow:0 10px 26px rgba(45,25,31,.035)
+}
+.about-refresh__purpose-symbol{background:var(--about-red);color:#fff;width:68px;height:68px;border-radius:16px}
+.about-refresh__purpose-content h2{font-size:clamp(26px,2.6vw,36px)}
+.about-refresh__purpose-content .about-refresh__eyebrow{display:none}
+.about-refresh__purpose-content>p:last-child{margin-top:9px;line-height:1.62;font-size:clamp(14px,1.1vw,16px)}
+.about-refresh__values{padding-block:clamp(76px,7.6vw,125px)}
+.about-refresh__section-heading{margin-bottom:clamp(27px,3vw,46px)}
+.about-refresh__accordion{grid-template-columns:repeat(5,minmax(0,1fr));gap:clamp(13px,1.2vw,22px)}
+.about-refresh__value{
+  border-radius:16px;min-width:0;
+  border-color:rgba(35,39,47,.17);border-bottom:3px solid var(--about-red)
+}
+.about-refresh__value-trigger{
+  display:grid;grid-template-columns:50px minmax(0,1fr);align-items:start;gap:15px;position:relative;
+  min-height:154px;padding:19px 17px 21px
+}
+.about-refresh__value-icon{flex:none;width:50px;height:50px;border-radius:13px}
+.about-refresh__value-text{display:flex;flex-direction:column;align-items:start;gap:8px;min-width:0;padding-top:3px;padding-right:7px}
+.about-refresh__value-name{font-size:clamp(14px,1.04vw,17px);line-height:1.27}
+.about-refresh__value-summary{font-size:clamp(12px,.91vw,14px);font-weight:450;line-height:1.52;color:var(--about-muted)}
+.about-refresh__value-chevron{position:absolute;right:12px;bottom:12px;width:17px;height:17px}
+.about-refresh__value-inner p{padding:0 19px 26px;line-height:1.62;font-size:14px}
+.about-refresh__services{padding-block:clamp(84px,9vw,143px)}
+.about-refresh__capabilities{
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;
+  border-top:1px solid rgba(35,39,47,.12);border-bottom:1px solid rgba(35,39,47,.12)
+}
+.about-refresh__capability{
+  min-width:0;min-height:0;text-align:center;padding:36px 22px 35px;border:0;
+  border-right:1px solid rgba(35,39,47,.16);border-radius:0;box-shadow:none
+}
+.about-refresh__capability:last-child{border-right:0}
+.about-refresh__capability:hover{transform:none;box-shadow:none;background:rgba(176,9,41,.045)}
+.about-refresh__capability-icon{margin-bottom:14px}
+.about-refresh__capability-icon :deep(svg){width:36px;height:36px}
+.about-refresh__capability h3{font-size:clamp(15px,1.25vw,19px);line-height:1.25}
+.about-refresh__capability p{margin:12px auto 0;font-size:clamp(12px,.95vw,15px);line-height:1.6}
+.about-refresh__gallery{gap:clamp(16px,2vw,31px);margin-top:clamp(39px,5vw,70px)}
+.about-refresh__gallery img{height:clamp(200px,19vw,300px);border-radius:19px}
+.about-refresh__services-footer{margin-top:clamp(34px,4vw,55px)}
+html.theme-dark .about-refresh__value-summary{color:#cdd2dc}
+html.theme-dark .about-refresh__purpose-symbol{background:#aa1736;color:#fff}
+html.theme-dark .about-refresh__capabilities{border-color:rgba(255,255,255,.21)}
+html.theme-dark .about-refresh__capability{border-right-color:rgba(255,255,255,.21)}
+html.theme-dark .about-refresh__capability:hover{background:rgba(255,255,255,.05)}
+@media(max-width:1320px){
+  .about-refresh__accordion{grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+  .about-refresh__value-trigger{min-height:128px}
+  .about-refresh__capabilities{grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:0}
+  .about-refresh__capability{border-bottom:1px solid rgba(35,39,47,.16)}
+  .about-refresh__capability:nth-child(3){border-right:0}
+  .about-refresh__capability:last-child{border-right:1px solid rgba(35,39,47,.16)}
+}
+@media(max-width:950px){
+  .about-refresh__accordion,.about-refresh__capabilities{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .about-refresh__capability:nth-child(3){border-right:1px solid rgba(35,39,47,.16)}
+  .about-refresh__capability:nth-child(2n){border-right:0}
+  .about-refresh__capability:last-child{border-right:1px solid rgba(35,39,47,.16)}
+  .about-refresh__purpose-card{grid-template-columns:62px 1fr}
+  .about-refresh__purpose-symbol{width:60px;height:60px}
+}
+@media(max-width:580px){
+  .about-refresh .about-refresh__hero-copy{padding-top:102px;padding-bottom:31px}
+  .about-refresh .about-refresh__hero-copy h1{font-size:clamp(35px,9vw,44px)}
+  .about-refresh .about-refresh__hero-copy .big-years strong{font-size:clamp(75px,23vw,110px)}
+  .about-refresh .about-refresh__hero-copy .big-years span{font-size:clamp(15px,4vw,20px)}
+  .about-refresh__hero-subtitle{font-size:12px}
+  .about-refresh__intro{padding-block:64px 28px}
+  .about-refresh__purpose{padding-block:40px 75px}
+  .about-refresh__purpose-card{min-height:0;padding:21px;grid-template-columns:48px 1fr;gap:15px}
+  .about-refresh__purpose-symbol{width:47px;height:47px;border-radius:12px}
+  .about-refresh__purpose-symbol :deep(svg){width:24px;height:24px}
+  .about-refresh__accordion,.about-refresh__capabilities{grid-template-columns:1fr}
+  .about-refresh__value-trigger{min-height:105px}
+  .about-refresh__capability{border-right:0!important}
+  .about-refresh__gallery img{height:225px}
+}
 </style>
