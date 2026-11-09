@@ -39,7 +39,6 @@ const toggleValue = (index: number, event: MouseEvent) => {
 const copy = computed(() => locale.value.startsWith('en') ? ({
   who: 'WHO WE ARE',
   heading: 'Castro Fallas International Logistics',
-  heroSubtitle: 'Logistics, customs and international freight solutions from Costa Rica.',
   description: 'We coordinate and supervise cargo transportation for import and export operations, nationally and internationally.',
   missionTag: 'OUR PURPOSE',
   mission: 'Mission',
@@ -76,7 +75,6 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 }) : ({
   who: 'QUIÉNES SOMOS',
   heading: 'Castro Fallas Logística Internacional',
-  heroSubtitle: 'Soluciones logísticas, aduaneras y de transporte internacional desde Costa Rica.',
   description: 'Coordinamos y supervisamos el transporte de mercancías para operaciones de importación y exportación, a nivel nacional e internacional.',
   missionTag: 'NUESTRO PROPÓSITO',
   mission: 'Misión',
@@ -121,7 +119,6 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
       <div class="container inner-hero__copy about-hero__copy about-refresh__hero-copy">
         <h1>{{ siteText('about.hero.title', t('custom.about.title'), locale) }}</h1>
         <div class="big-years"><strong>+48</strong><span>{{ t('custom.about.years') }}</span></div>
-        <p class="about-refresh__hero-subtitle">{{ copy.heroSubtitle }}</p>
       </div>
     </section>
 
@@ -215,8 +212,8 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 
           <div class="about-refresh__services-footer">
             <div class="about-refresh__actions">
-              <RouterLink to="/servicios" class="about-refresh__button about-refresh__button--primary">{{ copy.serviceAction }} <span aria-hidden="true">↗</span></RouterLink>
-              <RouterLink to="/cotizaciones" class="about-refresh__button about-refresh__button--secondary">{{ copy.quoteAction }} <span aria-hidden="true">↗</span></RouterLink>
+              <a href="/servicios" class="about-refresh__button about-refresh__button--primary">{{ copy.serviceAction }} <span aria-hidden="true">↗</span></a>
+              <a href="/cotizaciones" class="about-refresh__button about-refresh__button--secondary">{{ copy.quoteAction }} <span aria-hidden="true">↗</span></a>
             </div>
           </div>
         </div>
