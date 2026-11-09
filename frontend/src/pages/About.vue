@@ -67,7 +67,6 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
     'Our experience helps us anticipate challenges and guide each operation.',
     'We pursue reliable processes and continuous improvement in our services.'
   ],
-  discover: 'Hover over a value to learn more, or tap to open it on touch screens',
   servicesTag: 'WHAT WE DO',
   servicesTitle: 'Logistics solutions for every stage.',
   serviceAction: 'Explore our services',
@@ -105,7 +104,6 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
     'Nuestra trayectoria nos ayuda a anticipar desafíos y acompañar cada proceso.',
     'Buscamos procesos confiables y la mejora continua de nuestros servicios.'
   ],
-  discover: 'Pasá el cursor para ver cada valor o tocá la tarjeta en el celular',
   servicesTag: 'LO QUE HACEMOS',
   servicesTitle: 'Soluciones para cada etapa logística.',
   serviceAction: 'Conocer servicios',
@@ -189,7 +187,11 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
               </div>
             </article>
           </div>
-          <p class="about-refresh__hint">{{ copy.discover }}</p>
+          <div class="about-refresh__gallery">
+            <img src="/images/services-warehouse.webp" :alt="copy.galleryAlts[0]" loading="lazy" />
+            <img src="/images/truck.webp" :alt="copy.galleryAlts[1]" loading="lazy" />
+            <img src="/images/warehouse-person.webp" :alt="copy.galleryAlts[2]" loading="lazy" />
+          </div>
         </div>
       </section>
 
@@ -211,11 +213,6 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
             </article>
           </div>
 
-          <div class="about-refresh__gallery">
-            <img src="/images/services-warehouse.webp" :alt="copy.galleryAlts[0]" loading="lazy" />
-            <img src="/images/truck.webp" :alt="copy.galleryAlts[1]" loading="lazy" />
-            <img src="/images/warehouse-person.webp" :alt="copy.galleryAlts[2]" loading="lazy" />
-          </div>
           <div class="about-refresh__services-footer">
             <div class="about-refresh__actions">
               <RouterLink to="/servicios" class="about-refresh__button about-refresh__button--primary">{{ copy.serviceAction }} <span aria-hidden="true">↗</span></RouterLink>
@@ -267,7 +264,6 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 .about-refresh__value-panel.is-open{grid-template-rows:1fr;opacity:1;visibility:visible}
 .about-refresh__value-inner{min-height:0;overflow:hidden}
 .about-refresh__value-inner p{margin:0;padding:0 24px 25px;color:var(--about-muted);font-size:15px;line-height:1.7}
-.about-refresh__hint{margin:28px 0 0;color:var(--about-muted);font-size:13px}
 .about-refresh__services{padding-block:clamp(92px,10vw,160px)}
 .about-refresh__capabilities{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(18px,2.3vw,36px)}
 .about-refresh__capability{padding:29px 27px 34px;border:1px solid rgba(37,41,49,.13);border-radius:22px;background:#fff;min-height:220px;transition:transform .2s,box-shadow .2s}
@@ -434,7 +430,6 @@ html.theme-dark .about-refresh__capability:hover{background:rgba(255,255,255,.05
 .about-refresh__values{padding-top:clamp(40px,4.8vw,72px);padding-bottom:clamp(55px,6.5vw,96px)}
 .about-refresh__services{padding-top:clamp(54px,6.5vw,94px)}
 .about-refresh__section-heading{margin-bottom:clamp(26px,2.8vw,40px)}
-.about-refresh__hint{margin-top:20px}
 .about-refresh__value-trigger{
   display:flex;align-items:center;gap:13px;min-height:92px;
   padding:19px 18px 22px
@@ -537,5 +532,12 @@ html.theme-dark .about-refresh__value.is-open .about-refresh__value-icon{
   .about-refresh__value-trigger{min-height:76px;padding:12px 16px}
   .about-refresh__services-footer{justify-content:center}
   .about-refresh__actions{justify-content:center}
+}
+
+/* The three supporting photographs now belong directly to Values. */
+.about-refresh__values .about-refresh__gallery{margin-top:clamp(24px,3vw,42px)}
+.about-refresh__values .about-refresh__gallery img{object-fit:cover}
+@media(max-width:580px){
+  .about-refresh__values .about-refresh__gallery{margin-top:22px}
 }
 </style>
