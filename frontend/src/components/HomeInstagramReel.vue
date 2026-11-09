@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { ExternalLink, Play } from '@lucide/vue'
 import FacebookGlyph from './FacebookGlyph.vue'
 import InstagramGlyph from './InstagramGlyph.vue'
@@ -34,6 +34,80 @@ let visibilityObserver: IntersectionObserver | undefined
 let rotationTimer: ReturnType<typeof setInterval> | undefined
 
 const reel = ref<LatestReel | null>(null)
+type InstagramEmbedState = 'preview' | 'loading' | 'ready' | 'unavailable'
+const instagramEmbedState = ref<InstagramEmbedState>('preview')
+const instagramEmbedHost = ref<HTMLElement | null>(null)
+let instagramEmbedObserver: MutationObserver | undefined
+let instagramEmbedTimeout: ReturnType<typeof setTimeout> | undefined
+type OfficialInstagramWindow = Window & { instgrm?: { Embeds?: { process: () => void } } }
+let instagramEmbedScript: Promise<void> | null = null
+function clearInstagramEmbedObservers() {
+  instagramEmbedObserver?.disconnect()
+  instagramEmbedObserver = undefined
+  if (instagramEmbedTimeout) clearTimeout(instagramEmbedTimeout)
+  instagramEmbedTimeout = undefined
+}
+function resetInstagramEmbed() {
+  clearInstagramEmbedObservers()
+  instagramEmbedState.value = 'preview'
+}
+// Instagram's documented blockquote + embed.js flow is different from placing
+// instagram.com/reel/... directly into an iframe (which may be denied).
+// A public Reel must still allow embeds; neither method overrides Meta policy.
+function loadOfficialInstagramEmbed(): Promise<void> {
+  const instagram = (window as OfficialInstagramWindow).instgrm?.Embeds
+  if (instagram?.process) return Promise.resolve()
+  if (instagramEmbedScript) return instagramEmbedScript
+  instagramEmbedScript = new Promise<void>((resolve, reject) => {
+    const script = document.createElement('script')
+    script.src = 'https://www.instagram.com/embed.js'
+    script.async = true
+    script.setAttribute('data-castrofallas-instagram-embed', 'true')
+    script.onload = () => {
+      if ((window as OfficialInstagramWindow).instgrm?.Embeds?.process) resolve()
+      else reject(new Error('Instagram embed API is unavailable'))
+    }
+    script.onerror = () => { script.remove(); reject(new Error('Instagram embed script blocked')) }
+    document.head.appendChild(script)
+  }).catch(error => {
+    instagramEmbedScript = null
+    document.querySelector('script[data-castrofallas-instagram-embed]')?.remove()
+    throw error
+  })
+  return instagramEmbedScript
+}
+async function playInstagramInsidePage() {
+  if (!reelUrl.value || instagramEmbedState.value === 'loading') return
+  clearInstagramEmbedObservers()
+  instagramEmbedState.value = 'loading'
+  await nextTick()
+  const host = instagramEmbedHost.value
+  if (!host) { instagramEmbedState.value = 'unavailable'; return }
+  const foundPlayer = () => {
+    if (!host.querySelector('iframe')) return
+    clearInstagramEmbedObservers()
+    instagramEmbedState.value = 'ready'
+  }
+  instagramEmbedObserver = new MutationObserver(foundPlayer)
+  instagramEmbedObserver.observe(host, { childList: true, subtree: true })
+  instagramEmbedTimeout = setTimeout(() => {
+    if (instagramEmbedState.value === 'loading') {
+      clearInstagramEmbedObservers()
+      instagramEmbedState.value = 'unavailable'
+    }
+  }, 10000)
+  try {
+    await loadOfficialInstagramEmbed()
+    if (instagramEmbedState.value !== 'loading') return
+    ;(window as OfficialInstagramWindow).instgrm?.Embeds?.process()
+    foundPlayer()
+  } catch {
+    if (instagramEmbedState.value === 'loading') {
+      clearInstagramEmbedObservers()
+      instagramEmbedState.value = 'unavailable'
+    }
+  }
+}
 const videoFailed = ref(false)
 const loaded = ref(false)
 const reelSection = ref<HTMLElement | null>(null)
@@ -116,6 +190,7 @@ async function loadFacebookVideo() {
 function switchNetwork(network: Network) {
   if (activeNetwork.value === network) return
   reelSection.value?.querySelectorAll('video').forEach(video => video.pause())
+  resetInstagramEmbed()
   facebookPlaying.value = false
   playingNative.value = false
   activeNetwork.value = network
@@ -125,7 +200,7 @@ function resetRotation() {
   if (rotationTimer) clearInterval(rotationTimer)
   rotationTimer = setInterval(() => {
     if (!inView.value || document.hidden || isHovered.value || hasFocus.value ||
-        playingNative.value || facebookPlaying.value) return
+        playingNative.value || instagramEmbedState.value === 'loading' || instagramEmbedState.value === 'ready' || facebookPlaying.value) return
     switchNetwork(activeNetwork.value === 'instagram' ? 'facebook' : 'instagram')
   }, 8500)
 }
@@ -135,6 +210,7 @@ const stopSiteUpdates = subscribeToChanges('site', () => {
   // When an admin publishes a different Reel, return to the preview and refresh.
   facebookPlaying.value = false
   playingNative.value = false
+  resetInstagramEmbed()
   videoFailed.value = false
   void loadLatestReel()
   void loadFacebookVideo()
@@ -169,6 +245,7 @@ onUnmounted(() => {
   reelObserver?.disconnect()
   visibilityObserver?.disconnect()
   if (rotationTimer) clearInterval(rotationTimer)
+  clearInstagramEmbedObservers()
   stopSiteUpdates()
   abortController.abort()
 })
@@ -240,6 +317,23 @@ onUnmounted(() => {
           </a>
         </template>
         <template v-else-if="reelUrl">
+          <div v-if="instagramEmbedState === 'loading' || instagramEmbedState === 'ready'"
+            class="home-instagram-section__ig-embed">
+            <div ref="instagramEmbedHost" class="home-instagram-section__ig-stage">
+              <blockquote class="instagram-media" :data-instgrm-permalink="reelUrl" data-instgrm-version="14">
+                <a :href="reelUrl" target="_blank" rel="noopener noreferrer">{{ t('custom.home.instagram.open') }}</a>
+              </blockquote>
+            </div>
+            <div v-if="instagramEmbedState === 'loading'" class="home-instagram-section__ig-loading" role="status">
+              <InstagramGlyph :size="30" aria-hidden="true" />
+              <span>{{ t('custom.home.instagram.embedLoading') }}</span>
+            </div>
+            <a class="home-instagram-section__open home-instagram-section__ig-open"
+              :href="reelUrl" target="_blank" rel="noopener noreferrer">
+              {{ t('custom.home.instagram.open') }} <ExternalLink :size="13" aria-hidden="true" />
+            </a>
+          </div>
+          <template v-else>
           <img v-if="reel?.thumbnailUrl" :src="reel.thumbnailUrl"
             :alt="t('custom.home.instagram.reel')" loading="lazy" referrerpolicy="no-referrer" />
           <div v-else class="home-instagram-section__placeholder">
@@ -250,17 +344,18 @@ onUnmounted(() => {
             <span class="home-instagram-section__avatar"><InstagramGlyph :size="19" /></span>
             <span><strong>grupocastrofallas1</strong><small>Reels</small></span>
           </div>
-          <!-- Instagram can reject iframe embedding even when the Reel is public.
-               An authorized or uploaded MP4 (above) plays inline; otherwise
-               open the verified permalink rather than an unplayable iframe. -->
-          <a class="home-instagram-section__play home-instagram-section__play--external"
-            :href="reelUrl" target="_blank" rel="noopener noreferrer"
-            :aria-label="t('custom.home.instagram.playExternal')">
-            <ExternalLink :size="28" aria-hidden="true" />
-          </a>
+          <button class="home-instagram-section__play" type="button"
+            :aria-label="t('custom.home.instagram.play')"
+            @click="playInstagramInsidePage">
+            <Play :size="30" fill="currentColor" aria-hidden="true" />
+          </button>
+          <p v-if="instagramEmbedState === 'unavailable'" class="home-instagram-section__ig-error" role="status">
+            {{ t('custom.home.instagram.embedUnavailable') }}
+          </p>
           <a class="home-instagram-section__open" :href="reelUrl" target="_blank" rel="noopener noreferrer">
             {{ t('custom.home.instagram.open') }} <ExternalLink :size="13" aria-hidden="true" />
           </a>
+          </template>
         </template>
         <a v-else class="home-instagram-section__placeholder home-instagram-section__placeholder--link"
           :href="profileUrl" target="_blank" rel="noopener noreferrer">
@@ -450,8 +545,27 @@ onUnmounted(() => {
   background: rgba(0, 0, 0, .51); color: #fff;
 }
 .home-instagram-section__play:hover, .home-instagram-section__play:focus-visible { background: #aa164b; }
-.home-instagram-section__play--external { text-decoration: none; }
-.home-instagram-section__play--external:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
+.home-instagram-section__ig-embed { position: absolute; inset: 0; overflow: hidden; background: #fff; }
+.home-instagram-section__ig-stage {
+  position: absolute; top: 0; left: 0; width: 326px; min-height: 580px;
+  transform: scale(.635); transform-origin: top left;
+}
+.home-instagram-section__ig-stage :deep(.instagram-media) {
+  display: block; width: 326px !important; min-width: 326px !important;
+  max-width: 326px !important; margin: 0 !important;
+}
+.home-instagram-section__ig-loading {
+  position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px; padding: 22px;
+  background: linear-gradient(155deg,#3e1534,#061226 70%);
+  color: #fff; font-size: 12px; text-align: center;
+}
+.home-instagram-section__ig-open { z-index: 2; }
+.home-instagram-section__ig-error {
+  position: absolute; left: 12px; right: 12px; bottom: 51px; margin: 0;
+  padding: 8px; border-radius: 8px; background: rgba(6,11,28,.9);
+  color: #fff; font-size: 11px; line-height: 1.45; text-align: center;
+}
 .home-instagram-section__open {
   position: absolute; right: 10px; bottom: 10px;
   display: flex; align-items: center; gap: 5px;
