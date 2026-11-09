@@ -55,8 +55,8 @@ assert.match(component, /<video class="home-instagram-section__native-video" :ke
   'An authorized/uploaded Instagram video still plays natively in the card')
 assert.match(component, /https:\/\/www\.facebook\.com\/plugins\/video\.php/,
   'The existing Facebook player must remain available')
-assert.match(editor, /Solo enlace de Instagram \(abrir Reel en Instagram\)/,
-  'The admin editor must explain the link-only behavior')
+assert.match(editor, /Solo enlace \(intentará reproductor oficial de Instagram\)/,
+  'The admin editor must explain that a pasted link attempts the official embed')
 assert.match(component, /reelObserver = new IntersectionObserver/, 'Network requests should be lazy')
 assert.match(component, /if \(!reelRequested\) return/, 'Realtime updates cannot trigger eager requests')
 assert.match(component, /\/api\/social\/facebook\/featured-video/, 'Facebook video must come from the public API')
