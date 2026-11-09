@@ -119,6 +119,9 @@ jobs:
           curl -fsS http://127.0.0.1:3000/BingSiteAuth.xml | grep -q '3B7ADBDA75E127B245F7E653F3021EE8'
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/home)" = "301"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/servicios/ruta-inexistente)" = "404"
+          # Contrato anti-regresiones de indexabilidad: cada loc del sitemap
+          # debe responder 200, HTML SSR indexable y canonical consistente.
+          node frontend/nuxt/scripts/check-indexing-http.mjs http://127.0.0.1:3000
       - name: SSR news and dynamic sitemap integration test
         run: npm run test:ssr-news
         working-directory: frontend/nuxt
