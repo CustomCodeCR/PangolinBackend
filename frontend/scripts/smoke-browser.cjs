@@ -131,6 +131,8 @@ async function main() {
         assert.equal((html.match(/about-refresh__value-panel/g) || []).length >= 5, true, 'Los cinco valores deben disponer de panel desplegable')
         assert.equal((html.match(/aria-expanded="false"/g) || []).length >= 5, true, 'Los valores deben iniciar contraídos')
         assert.equal((html.match(/class="about-refresh__purpose-card"/g) || []).length, 2, 'Deben mostrarse misión y visión')
+        assert.ok(!html.includes('Soluciones integrales para que su carga se mueva sin límites.'), 'La sección de capacidades no debe mostrar el texto lateral eliminado')
+        assert.ok(!html.includes('Desde el transporte de carga hasta la coordinación de importaciones y exportaciones,'), 'El cierre de capacidades no debe mostrar el párrafo eliminado')
         for (const value of ['Compromiso', 'Ética', 'Trabajo en equipo', 'Experiencia', 'Calidad']) {
           assert.ok(html.includes(value), 'Falta el valor corporativo: ' + value)
         }
