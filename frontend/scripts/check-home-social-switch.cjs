@@ -34,11 +34,23 @@ assert.match(component, /playingNative\.value \|\| facebookPlaying\.value/,
   'Playing a video must block automatic switching')
 assert.match(component, /prefers-reduced-motion: reduce/, 'Reduced-motion preferences must be respected')
 assert.doesNotMatch(component, /<iframe[^>]*home-instagram-section__embed(?![^>]*facebook)/,
-  'Instagram must not render an iframe that browsers reject')
+  'Do not render a direct Instagram iframe; the official embed.js builds the embed')
 assert.doesNotMatch(component, /\$\{reelUrl\.value\}embed\//,
-  'Do not generate direct Instagram iframe URLs')
-assert.match(component, /class="home-instagram-section__play home-instagram-section__play--external"[\s\S]*?:href="reelUrl" target="_blank" rel="noopener noreferrer"/,
-  'A link-only Instagram Reel must open safely in a new tab')
+  'Do not generate unsupported direct Instagram iframe URLs')
+assert.match(component, /https:\/\/www\.instagram\.com\/embed\.js/,
+  'Load the official Instagram embed SDK on user interaction')
+assert.match(component, /<blockquote class="instagram-media" :data-instgrm-permalink="reelUrl"/,
+  'Use the official Instagram post/Reel blockquote based on the sanitized URL')
+assert.match(component, /playInstagramInsidePage/,
+  'The visitor must be able to try playback inside the page from a link-only Reel')
+assert.match(component, /<button class="home-instagram-section__play" type="button"[\s\S]*?@click="playInstagramInsidePage"/,
+  'The play button must activate the official embed')
+assert.match(component, /instagramEmbedState\.value = 'unavailable'/,
+  'Script failure or embed timeout must provide a fallback')
+assert.match(component, /:href="reelUrl" target="_blank" rel="noopener noreferrer"/,
+  'Keep a safe external fallback if the Reel cannot be embedded')
+assert.doesNotMatch(component, /onMounted\(\(\) => \{[\s\S]*?loadOfficialInstagramEmbed\(/,
+  'The Instagram embed script must not load before the user clicks Play')
 assert.match(component, /<video class="home-instagram-section__native-video" :key="videoSrc"/,
   'An authorized/uploaded Instagram video still plays natively in the card')
 assert.match(component, /https:\/\/www\.facebook\.com\/plugins\/video\.php/,
