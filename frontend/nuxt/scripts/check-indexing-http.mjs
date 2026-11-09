@@ -8,7 +8,7 @@ const canonicalOrigin = 'https://www.logisticacastrofallas.com'
 const privatePrefixes = ['/api', '/admin', '/administracion', '/bienvenidos', '/cotizaciones', '/tracking', '/itinerario']
 const requiredPaths = ['/', '/nosotros', '/servicios', '/noticias', '/empresas']
 const failed = []
-const htmlAttribute = (tag, name) => tag.match(new RegExp('\\b' + name + '=["\\\']([^"\\\']+)["\\\']', 'i'))?.[1]
+const htmlAttribute = (tag, name) => tag.match(new RegExp('\\b' + name + '="([^"]*)"', 'i'))?.[1]
 
 async function get(path) {
   return fetch(previewOrigin + path, { redirect: 'manual', signal: AbortSignal.timeout(15000) })
