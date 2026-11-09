@@ -531,10 +531,13 @@ html.theme-dark .about-refresh__value.is-open .about-refresh__value-icon{
   .about-refresh__actions{justify-content:center}
 }
 
-/* The three supporting photographs now belong directly to Values. */
-.about-refresh__values .about-refresh__gallery{margin-top:clamp(24px,3vw,42px)}
+/* Allow the gallery to sit a little lower below the cards without
+   introducing extra empty space before the next section. */
+.about-refresh__values .about-refresh__gallery{margin-top:clamp(52px,5vw,74px)}
 .about-refresh__values .about-refresh__gallery img{object-fit:cover}
+.about-refresh__values{padding-bottom:clamp(8px,1.5vw,23px)}
 @media(max-width:580px){
-  .about-refresh__values .about-refresh__gallery{margin-top:22px}
+  .about-refresh__values .about-refresh__gallery{margin-top:34px}
+  .about-refresh__values{padding-bottom:28px}
 }
 </style>
