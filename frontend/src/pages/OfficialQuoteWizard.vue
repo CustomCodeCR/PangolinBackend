@@ -2075,8 +2075,9 @@ html.theme-dark .app-site.official-page .official-service-card--selected .offici
 }
 
 /* Contraste de cotizaciones: botones compactos y tarjetas legibles en ambos temas. */
-html:not(.theme-dark) .app-site.official-page > .site-header.site-header--quotes .header-account-tools .nav-login,
-html:not(.theme-dark) .app-site.official-page > .site-header.site-header--quotes .header-account-tools .nav-login svg {
+html:not(.theme-dark) .site-header.site-header--quotes .header-account-tools .nav-login,
+html:not(.theme-dark) .site-header.site-header--quotes .header-account-tools .nav-login:visited,
+html:not(.theme-dark) .site-header.site-header--quotes .header-account-tools .nav-login svg {
   color:#fff !important;
   stroke:currentColor;
 }
