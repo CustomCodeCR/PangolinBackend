@@ -2087,5 +2087,56 @@ html.theme-dark .app-site.official-page .official-service-card--selected .offici
 @media (prefers-reduced-motion: reduce) {
   .app-site.official-page .official-service-card { transition: none; }
 }
+
+/* Contraste de cotizaciones: botones compactos y tarjetas legibles en ambos temas. */
+html:not(.theme-dark) .app-site.official-page > .site-header.site-header--quotes .header-account-tools .nav-login,
+html:not(.theme-dark) .app-site.official-page > .site-header.site-header--quotes .header-account-tools .nav-login svg {
+  color:#fff !important;
+  stroke:currentColor;
+}
+.app-site.official-page .official-receipt-actions .official-link {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  box-sizing:border-box;
+  margin-top:0;
+  padding:10px 17px;
+  min-height:40px;
+  font-size:13px;
+  line-height:1.3;
+  border:1px solid #a80e18;
+  background:#a80e18 !important;
+  color:#fff !important;
+  text-decoration:none;
+}
+.app-site.official-page .official-receipt-actions .official-link--subtle {
+  background:#97122a !important;
+  border-color:#97122a !important;
+  color:#fff !important;
+}
+html.theme-dark .app-site.official-page .official-receipt-actions .official-link,
+html.theme-dark .app-site.official-page .official-receipt-actions .official-link--subtle {
+  background:#a80e18 !important;
+  border-color:#c93b52 !important;
+  color:#fff !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-success .official-receipt-group {
+  background:#f9f7f9 !important;
+  border-color:#e9e0e5 !important;
+  color:#242630 !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-success .official-receipt-group h4 { color:#a80e18 !important; }
+html:not(.theme-dark) .app-site.official-page .official-success .official-receipt-row dt { color:#596170 !important; }
+html:not(.theme-dark) .app-site.official-page .official-success .official-receipt-row dd { color:#252937 !important; }
+html.theme-dark .app-site.official-page .official-success .official-receipt-group {
+  background:#171c2b !important;
+  border-color:#495268 !important;
+  color:#fff !important;
+}
+html.theme-dark .app-site.official-page .official-success .official-receipt-group h4 { color:#ff8ba0 !important; }
+html.theme-dark .app-site.official-page .official-success .official-receipt-row dt { color:#c5cfdd !important; }
+html.theme-dark .app-site.official-page .official-success .official-receipt-row dd { color:#fff !important; }
+html.theme-dark .app-site.official-page .official-success .official-receipt-intro { color:#d2d6e0 !important; }
+
 </style>
 
