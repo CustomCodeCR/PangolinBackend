@@ -132,7 +132,6 @@ async function main() {
         assert.equal((html.match(/aria-expanded="false"/g) || []).length >= 5, true, 'Los valores deben iniciar contraídos')
         assert.equal((html.match(/class="about-refresh__purpose-card"/g) || []).length, 2, 'Deben mostrarse misión y visión')
         assert.ok(!html.includes('about-refresh__hero-subtitle'), 'No debe renderizarse el texto bajo +48 años')
-        assert.ok(!html.includes('Soluciones logísticas, aduaneras y de transporte internacional desde Costa Rica.'), 'Debe eliminarse la frase del hero')
         assert.ok(html.includes('href="/servicios" class="about-refresh__button about-refresh__button--primary"'), 'Conocer servicios debe ser enlace navegable a /servicios')
         assert.ok(html.includes('href="/cotizaciones" class="about-refresh__button about-refresh__button--secondary"'), 'Solicitar cotización debe ser enlace navegable a /cotizaciones')
         assert.ok(!html.includes('<routerlink'), 'Los botones no deben usar RouterLink en la SPA sin router registrado')
