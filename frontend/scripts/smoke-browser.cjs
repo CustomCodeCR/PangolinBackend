@@ -126,12 +126,13 @@ async function main() {
       }
       if (scenario.url === '/nosotros') {
         assert.equal((html.match(/class="about-refresh__value-trigger"/g) || []).length, 5, 'Debe haber cinco valores accesibles y desplegables')
+        assert.equal((html.match(/class="about-refresh__value-summary"/g) || []).length, 5, 'Cada valor debe presentar un resumen breve')
         assert.equal((html.match(/aria-expanded="false"/g) || []).length >= 5, true, 'Los valores deben iniciar contraídos')
         assert.equal((html.match(/class="about-refresh__purpose-card"/g) || []).length, 2, 'Deben mostrarse misión y visión')
         for (const value of ['Compromiso', 'Ética', 'Trabajo en equipo', 'Experiencia', 'Calidad']) {
           assert.ok(html.includes(value), 'Falta el valor corporativo: ' + value)
         }
-        for (const image of ['/images/services-warehouse.webp', '/images/operation.webp', '/images/ship.webp']) {
+        for (const image of ['/images/services-warehouse.webp', '/images/truck.webp', '/images/warehouse-person.webp']) {
           assert.ok(html.includes(image), 'Falta la imagen de capacidades: ' + image)
         }
       }
