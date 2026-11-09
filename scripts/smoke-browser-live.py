@@ -183,7 +183,7 @@ def main():
         for route, marker in [
             ("/", ".home-hero__content"),
             ("/servicios", ".services-page__transport"),
-            ("/nosotros", ".about-reference-intro"),
+            ("/nosotros", ".about-refresh__intro-grid"),
             ("/noticias", ".news-editorial-hero")
         ]:
             assert_public(driver, route, marker)
