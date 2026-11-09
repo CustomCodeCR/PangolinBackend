@@ -191,11 +191,13 @@ def main():
                 buttons = driver.find_elements(By.CSS_SELECTOR, ".about-refresh__value-trigger")
                 assert len(buttons) == 5, "Se esperan cinco valores corporativos"
                 assert all(button.get_attribute("aria-expanded") == "false" for button in buttons), "Los valores deben empezar cerrados"
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", buttons[0])
+                driver.execute_script("arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});", buttons[0])
+                WebDriverWait(driver, WAIT).until(lambda _: driver.execute_script("const r=arguments[0].getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight;", buttons[0]))
                 buttons[0].click()
                 WebDriverWait(driver, WAIT).until(lambda _: buttons[0].get_attribute("aria-expanded") == "true")
                 assert driver.find_elements(By.CSS_SELECTOR, ".about-refresh__value-panel.is-open"), "El detalle del valor seleccionado debe abrir"
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", buttons[1])
+                driver.execute_script("arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});", buttons[1])
+                WebDriverWait(driver, WAIT).until(lambda _: driver.execute_script("const r=arguments[0].getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight;", buttons[1]))
                 buttons[1].click()
                 WebDriverWait(driver, WAIT).until(lambda _: buttons[0].get_attribute("aria-expanded") == "false" and buttons[1].get_attribute("aria-expanded") == "true")
                 buttons[1].click()
