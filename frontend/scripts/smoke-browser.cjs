@@ -109,7 +109,7 @@ async function main() {
       { url: '/servicios/bodegaje-general', role: null, must: ['service-landing-page', 'Bodegaje general y almacenamiento'] },
       { url: '/servicios/agenciamiento-aduanal', role: null, must: ['service-landing-page', 'Agenciamiento aduanal para importaciones'] },
       { url: '/servicios/consolidadora-de-carga', role: null, must: ['service-landing-page', 'Consolidadora de carga y transporte'] },
-      { url: '/nosotros', role: null, must: ['about-reference-page', 'about-reference-intro'] },
+      { url: '/nosotros', role: null, must: ['about-reference-page', 'about-refresh__intro-grid', 'about-refresh__purpose-card', 'about-refresh__value-trigger', 'about-refresh__capabilities', 'about-refresh__gallery'] },
       { url: '/noticias', role: null, must: ['news-page', 'news-editorial-hero'] },
       { url: '/bienvenidos', role: null, must: ['login-screen', 'login-auth-form'] },
       { url: '/cotizaciones', role: null, must: ['quote-access-status--blocked'] },
@@ -123,6 +123,31 @@ async function main() {
       const html = await dumpDom(chrome, 'http://' + host + ':' + previewPort + scenario.url, scenario.url + ' [' + (activeRole || 'invitado') + ']')
       for (const marker of scenario.must) {
         assert.ok(html.includes(marker), 'No se encontró "' + marker + '" en ' + scenario.url + ' (' + (activeRole || 'invitado') + '); DOM: ' + html.slice(-800))
+      }
+      if (scenario.url === '/nosotros') {
+        assert.equal((html.match(/class="about-refresh__value-trigger"/g) || []).length, 5, 'Debe haber cinco valores accesibles y desplegables')
+        assert.ok(!html.includes('about-refresh__value-summary'), 'Los valores cerrados deben mostrar únicamente su título, sin resumen')
+        assert.ok(!html.includes('class="about-refresh__value-panel is-open"'), 'Las tarjetas deben iniciar cerradas sin panel abierto')
+        assert.equal((html.match(/about-refresh__value-panel/g) || []).length >= 5, true, 'Los cinco valores deben disponer de panel desplegable')
+        assert.equal((html.match(/aria-expanded="false"/g) || []).length >= 5, true, 'Los valores deben iniciar contraídos')
+        assert.equal((html.match(/class="about-refresh__purpose-card"/g) || []).length, 2, 'Deben mostrarse misión y visión')
+        assert.ok(!html.includes('about-refresh__hero-subtitle'), 'No debe renderizarse el texto bajo +48 años')
+        assert.ok(html.includes('href="/servicios" class="about-refresh__button about-refresh__button--primary"'), 'Conocer servicios debe ser enlace navegable a /servicios')
+        assert.ok(html.includes('href="/cotizaciones" class="about-refresh__button about-refresh__button--secondary"'), 'Solicitar cotización debe ser enlace navegable a /cotizaciones')
+        assert.ok(!html.includes('<routerlink'), 'Los botones no deben usar RouterLink en la SPA sin router registrado')
+        assert.ok(!html.includes('Soluciones integrales para que su carga se mueva sin límites.'), 'La sección de capacidades no debe mostrar el texto lateral eliminado')
+        assert.ok(!html.includes('Desde el transporte de carga hasta la coordinación de importaciones y exportaciones,'), 'El cierre de capacidades no debe mostrar el párrafo eliminado')
+        for (const value of ['Compromiso', 'Ética', 'Trabajo en equipo', 'Experiencia', 'Calidad']) {
+          assert.ok(html.includes(value), 'Falta el valor corporativo: ' + value)
+        }
+        const valuesStart = html.indexOf('id="nuestros-valores"')
+        const galleryStart = html.indexOf('class="about-refresh__gallery"')
+        const capabilitiesStart = html.indexOf('class="about-refresh__services section-spacing"')
+        assert.ok(valuesStart >= 0 && galleryStart > valuesStart && galleryStart < capabilitiesStart, 'Las tres imágenes deben quedar debajo de Valores y antes de Capacidades')
+        assert.ok(!html.includes('Pasá el cursor para ver cada valor o tocá la tarjeta en el celular'), 'No debe aparecer la indicación de hover o toque')
+        for (const image of ['/images/services-warehouse.webp', '/images/truck.webp', '/images/warehouse-person.webp']) {
+          assert.ok(html.includes(image), 'Falta la imagen de capacidades: ' + image)
+        }
       }
       if (scenario.url === '/servicios' || scenario.url.startsWith('/servicios/')) {
         assert.ok(html.includes('class="nav-dropdown nav-dropdown--services"') || html.includes('nav-dropdown--services'), 'No está el desplegable de Servicios en el encabezado: ' + scenario.url)
