@@ -207,12 +207,14 @@ def main():
                             const b=button.getBoundingClientRect(), a=arrow.getBoundingClientRect();
                             return Math.abs((a.top+a.bottom)/2-(b.top+b.bottom)/2)<5;
                         });
-                        return {mission, value, centered};
+                        const heroDivider=getComputedStyle(document.querySelector('.about-refresh__hero-copy .big-years span')).borderLeftColor;
+                        return {mission, value, centered, heroDivider};
                     } finally {
                         if (!old) root.classList.remove('theme-dark');
                     }
                 """)
                 assert appearance["mission"] == appearance["value"], "Misión/visión y valores deben usar el mismo color de tarjeta en modo oscuro"
+                assert appearance["heroDivider"] == "rgb(255, 255, 255)", "El separador de +48 años debe ser blanco en modo oscuro"
                 assert appearance["centered"], "Las flechas de valores deben quedar centradas verticalmente"
                 # Real mouse hover must open; moving to another value closes the previous one.
                 ActionChains(driver).move_to_element(buttons[0]).perform()
