@@ -136,6 +136,11 @@ async function main() {
         for (const value of ['Compromiso', 'Ética', 'Trabajo en equipo', 'Experiencia', 'Calidad']) {
           assert.ok(html.includes(value), 'Falta el valor corporativo: ' + value)
         }
+        const valuesStart = html.indexOf('id="nuestros-valores"')
+        const galleryStart = html.indexOf('class="about-refresh__gallery"')
+        const capabilitiesStart = html.indexOf('class="about-refresh__services section-spacing"')
+        assert.ok(valuesStart >= 0 && galleryStart > valuesStart && galleryStart < capabilitiesStart, 'Las tres imágenes deben quedar debajo de Valores y antes de Capacidades')
+        assert.ok(!html.includes('Pasá el cursor para ver cada valor o tocá la tarjeta en el celular'), 'No debe aparecer la indicación de hover o toque')
         for (const image of ['/images/services-warehouse.webp', '/images/truck.webp', '/images/warehouse-person.webp']) {
           assert.ok(html.includes(image), 'Falta la imagen de capacidades: ' + image)
         }
