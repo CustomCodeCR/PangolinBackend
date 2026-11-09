@@ -80,6 +80,43 @@ if (robotsResponse.status !== 200) fail('/robots.txt', 'HTTP ' + robotsResponse.
 else {
   const robots = await robotsResponse.text()
   if (!robots.includes('Sitemap: ' + canonicalOrigin + '/sitemap.xml')) fail('/robots.txt', 'Sitemap no canónico')
+  // Validar excepciones CMS públicas mediante la regla más específica.
+  const groups = robots.trim().split(/\r?\n\s*\r?\n/).map(section => section.split(/\r?\n/).map(line => line.trim()).filter(Boolean))
+  function canCrawl(agent, route) {
+    const exact = groups.find(lines => lines.some(line => line.toLowerCase() === 'user-agent: ' + agent.toLowerCase()))
+    const wildcard = groups.find(lines => lines.some(line => line.toLowerCase() === 'user-agent: *'))
+    const lines = exact || wildcard || []
+    const rules = lines.flatMap(line => {
+      const match = /^(allow|disallow):\s*(\S+)/i.exec(line)
+      if (!match) return []
+      const rule = match[2]
+      const exactPath = rule.endsWith('$')
+      const prefix = exactPath ? rule.slice(0, -1) : rule
+      const matches = exactPath ? route === prefix : route.startsWith(prefix)
+      return matches ? [{ allow: match[1].toLowerCase() === 'allow', length: rule.length }] : []
+    })
+    rules.sort((a, b) => b.length - a.length || Number(b.allow) - Number(a.allow))
+    return rules.length ? rules[0].allow : true
+  }
+  const publicResources = [
+    '/api/content/media/18f28700-8a4c-470c-b2db-8ea661fbd038/file',
+    '/api/content/news',
+    '/api/content/site',
+    '/api/public-news'
+  ]
+  const internalResources = [
+    '/api/auth/me',
+    '/api/admin/content/news',
+    '/api/hubs/updates/negotiate',
+    '/api/content/news/00000000-0000-0000-0000-000000000000/translation'
+  ]
+  for (const agent of ['Googlebot', 'Googlebot-Image', 'OAI-SearchBot', 'ChatGPT-User']) {
+    for (const path of publicResources) if (!canCrawl(agent, path)) fail('/robots.txt', agent + ' no puede rastrear recurso público ' + path)
+    for (const path of internalResources) if (canCrawl(agent, path)) fail('/robots.txt', agent + ' puede rastrear API interna ' + path)
+  }
+  for (const path of ['/', '/noticias', '/api/content/media/18f28700-8a4c-470c-b2db-8ea661fbd038/file']) {
+    if (canCrawl('GPTBot', path)) fail('/robots.txt', 'Se modificó la política existente de GPTBot para ' + path)
+  }
 }
 
 if (failed.length) {
