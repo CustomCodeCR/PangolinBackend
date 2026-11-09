@@ -86,37 +86,24 @@ assert.match(gioAssistant, /\.site-assistant__mascot \.site-assistant__hint\{[\s
 
 // The tracking globe uses one animated icon and an elevated trail, no fixed itinerary bar.
 const trackingGlobe = source('src/components/WorldGlobe.vue')
-// Los colores históricos se restauran SOLO en la esfera 3D. La estela vino/rubí
-// que ya se aprobó permanece independiente de los tonos del océano y la tierra.
+// Los océanos azules y continentes verdes son permanentes en Inicio y Tracking.
+// La estela y los marcadores de los embarques siguen siendo independientes.
 const globePalette = trackingGlobe.split('function themePalette() {')[1]?.split('function animateZoom(')[0] ?? ''
-assert.match(globePalette, /const dark = document\.documentElement\.classList\.contains\('theme-dark'\)/,
-  'El globo vuelve a seguir el tema claro u oscuro de la web')
-assert.ok(globePalette.includes("ocean: (dark ? ['#3d424b','#141820'] : ['#fffafa','#fffafa'])"),
-  'Océano original: blanco en claro y gris oscuro casi negro en oscuro')
-assert.ok(globePalette.includes("land:'#a80e18', marker:'#a80e18', arc:'#a80e18'"),
-  'Continentes rojos corporativos y marcadores/arcos conservados')
-assert.ok(globePalette.includes("label: dark ? '#ffffff' : '#30333c'"),
-  'Las etiquetas originales contrastan correctamente con cada tema')
-assert.ok(globePalette.includes("labelStroke: dark ? 'rgba(10,12,18,.93)' : 'rgba(255,255,255,.98)'"),
-  'Los contornos de etiquetas varían según fondo oscuro o claro')
-assert.ok(globePalette.includes("graticule: dark ? 'rgba(203,212,231,.22)' : 'rgba(0,0,0,0)'"),
-  'La cuadrícula sutil aparece solo en tema oscuro')
-assert.ok(globePalette.includes("showGraticule: dark"),
-  'La cuadrícula no oscurece el fondo blanco')
-assert.ok(globePalette.includes("shadeStrength: dark ? .67 : .20"),
-  'Se recuperan los valores originales de profundidad de la esfera')
-assert.match(globePalette, /if \(props\.realisticColors\) \{/,
-  'La paleta realista se utiliza únicamente mediante un permiso visual explícito')
 assert.ok(globePalette.includes("ocean: ['#1e5f8f','#0f2f4f']") &&
   globePalette.includes("land:'#5e8d52'") &&
   globePalette.includes("border:'#83aa79'"),
-  'El embarque encontrado recupera la paleta realista de la rama de respaldo')
-assert.match(trackingGlobe, /realisticColors\?: boolean/,
-  'Los colores realistas son opcionales y por defecto no afectan otros globos')
-assert.match(trackingGlobe, /watch\(\(\) => props\.realisticColors, \(\) => globe\?\.setTheme\(themePalette\(\)\)\)/,
-  'La esfera cambia de color al encontrar o limpiar el embarque sin recrear el mapa')
+  'Océanos azules y continentes verdes en todas las instancias del globo')
+assert.ok(globePalette.includes("marker:'#a80e18', arc:'#a80e18'") &&
+  globePalette.includes("shadeStrength:.52"),
+  'Marcadores rojos y sombreado natural conservados')
+assert.doesNotMatch(globePalette, /props\.realisticColors|theme-dark|#fffafa|#3d424b/,
+  'La paleta no depende de embarques ni del tema claro/oscuro')
+assert.doesNotMatch(trackingGlobe, /realisticColors|realistic-colors/,
+  'El componente no expone una opción para desactivar la paleta natural')
+assert.doesNotMatch(source('src/pages/Tracking.vue'), /realisticGlobeColors|realistic-colors/,
+  'Tracking no condiciona los colores del globo al resultado de Dynamics')
 assert.match(trackingGlobe, /MutationObserver\(\(\) => globe\?\.setTheme\(themePalette\(\)\)\)/,
-  'El observador del tema se conserva sin afectar los colores del globo')
+  'El cambio de tema repinta los pines sin cambiar los tonos de mar y tierra')
 assert.match(trackingGlobe, /const legs = routePoints\.value\.slice\(1\)\.map\(/, 'La ruta conserva cada tramo de todas las escalas')
 assert.match(trackingGlobe, /for \(let index = 0; index < legs\.length; index\+\+\)/, 'El vehículo avanza por los tramos, en orden')
 assert.match(trackingGlobe, /const demoArcs = \(\) => props\.shipment\s*\?\s*\[\]/, 'El tracking no dibuja la línea animada anterior')
