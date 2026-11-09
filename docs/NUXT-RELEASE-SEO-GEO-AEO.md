@@ -53,3 +53,52 @@ Esto desactiva el router Nuxt y deja el router Vue activo; no modifica PostgreSQ
 Después del deploy, verificar `https://www.logisticacastrofallas.com/robots.txt`, `sitemap.xml`, canonical, Search Console, Bing Webmaster Tools y logs de Cloudflare para `OAI-SearchBot`. Publicar contenido original, mejorar la presencia pública de las marcas del grupo y verificar citas en motores de respuesta. Permitir rastreadores no garantiza aparición en ChatGPT.
 
 **El dominio raíz no cambia**: para consolidar resultados de Google y evitar duplicidad, acordar después el host canónico único con el equipo de Fennec y aplicar redirecciones sin interrumpir la aplicación.
+
+## Reversión compatible con cotizaciones de invitados (2026-11-09)
+
+**Importante:** el nuevo backend permite crear solicitudes oficiales sin iniciar sesión.
+`official_quote_requests.cliente_id` y `usuario_id` son nullable en la migración aditiva.
+El backend previo a esta versión mapea ambos campos a `Guid` no anulables;
+si existen solicitudes anónimas podría fallar al recuperar registros completos.
+No asumir que revertir todas las imágenes a la última etiqueta antigua es inocuo.
+
+### Decisión según el alcance del incidente
+
+1. **Solo falla Nuxt, SEO o la interfaz pública:** revertir el router de Nuxt para WWW al frontend legacy
+   (procedimiento de la sección anterior); mantener el backend nuevo y la base sin modificar.
+   Esto **no** revierte cambios del backend, cotizaciones ni migraciones.
+2. **Falla solo una función de frontend:** evaluar desplegar temporalmente una imagen frontend anterior
+   compatible con el backend nuevo. Confirmar el estado de `VITE_OFFICIAL_QUOTES_ENABLED`
+   y las rutas; no eliminar solicitudes ni revertir la base de datos.
+3. **Se plantea volver al backend anterior:** **detener la reversión** hasta comprobar si existen
+   solicitudes de invitados. Consulta de solo lectura sobre la BD `pangolin` (usuario autorizado,
+   sin compartir credenciales ni resultados que incluyan datos personales):
+
+   ```sql
+   SELECT COUNT(*) AS solicitudes_invitadas
+   FROM public.official_quote_requests
+   WHERE cliente_id IS NULL OR usuario_id IS NULL;
+   ```
+
+   - Resultado **mayor que 0**: NO desplegar la imagen de backend anterior sin preparar y verificar
+     una variante compatible con columnas nullable (o una solución correctiva en la nueva versión).
+     Conservar los datos y continuar la recuperación con revisión de backend/DB.
+   - Resultado **0**: el riesgo concreto de materialización de filas nulas no se presenta;
+     aun así realizar preflight, revisar las demás diferencias de API y validar login/quoting/CMS
+     antes de retroceder el backend.
+4. **Restauración de PostgreSQL:** el respaldo `pg_dump -Fc` del pipeline está destinado a
+   recuperación de desastre. **Nunca restaurarlo automáticamente** para revertir un cambio visual:
+   una restauración completa eliminaría cotizaciones, noticias u otras escrituras posteriores al backup.
+   Si una restauración completa fuera imprescindible, planificar previamente una conservación/reconciliación
+   de los datos creados desde la copia, con autorización de operaciones.
+
+### Condiciones antes de fusionar a producción
+
+- Verificar el preflight del workflow de publicación: catálogo oficial público HTTP 200 con `items`,
+  itinerarios públicos HTTP 200, rutas privadas HTTP 401/403.
+- Comprobar antes del despliegue que `cliente_id` y `usuario_id` están marcados `IS_NULLABLE=YES`.
+- Revisar la etiqueta inmutable de la versión actual y confirmar los pasos de rollback del router de WWW.
+- No confundir el rollback automático de Nuxt con un rollback total: el pipeline actual activa
+  primero el backend/frontend y **solo revierte el router Nuxt** ante fallo en la conmutación WWW.
+- Realizar pruebas reales autorizadas de autenticación, GIO, cotización y seguimiento sin crear
+  solicitudes ficticias en producción. Si hay incertidumbre, conservar la PR en borrador.
