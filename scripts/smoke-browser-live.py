@@ -241,6 +241,21 @@ def main():
                 buttons[0].send_keys(Keys.ENTER)
                 WebDriverWait(driver, WAIT).until(lambda _: buttons[0].get_attribute("aria-expanded") == "false")
                 print("PASS Chrome: hover, mouse leave and keyboard accordion in Sobre nosotros", flush=True)
+                # Follow both CTAs in the actual browser, not just their href attributes.
+                assert not driver.find_elements(By.CSS_SELECTOR, ".about-refresh__hero-subtitle"), "Debe quitarse el subtítulo de +48 años"
+                driver.find_element(By.CSS_SELECTOR, 'a.about-refresh__button--primary[href="/servicios"]').click()
+                WebDriverWait(driver, WAIT).until(lambda d: d.current_url.split("?")[0].rstrip("/").endswith("/servicios"))
+                await_css(driver, ".services-page__transport")
+                print("PASS Chrome: Conocer servicios abre /servicios", flush=True)
+                driver.get(BASE + "/nosotros")
+                await_css(driver, ".about-refresh__actions")
+                driver.find_element(By.CSS_SELECTOR, 'a.about-refresh__button--secondary[href="/cotizaciones"]').click()
+                WebDriverWait(driver, WAIT).until(lambda d: d.current_url.split("?")[0].rstrip("/").endswith("/cotizaciones"))
+                WebDriverWait(driver, WAIT).until(lambda d: bool(d.find_elements(By.CSS_SELECTOR, ".quote-flow-page")))
+                assert not driver.find_elements(By.CSS_SELECTOR, ".container h1")[0].text.startswith("404"), "Cotizaciones no debe terminar en 404"
+                print("PASS Chrome: Solicitar cotización abre /cotizaciones", flush=True)
+                driver.get(BASE + "/nosotros")
+                await_css(driver, ".about-refresh__intro-grid")
             shot = {"/": ("01-inicio-escritorio", "Inicio", "Portada y navegación"),
                     "/servicios": ("02-servicios-escritorio", "Servicios", "Servicios logísticos"),
                     "/nosotros": ("03-nosotros-escritorio", "Sobre nosotros", "Información de la empresa"),
