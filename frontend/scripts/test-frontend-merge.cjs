@@ -9,6 +9,23 @@ function source(relative) {
   assert.ok(fs.existsSync(filename), 'Falta archivo requerido: ' + relative)
   return fs.readFileSync(filename, 'utf8')
 }
+// Google lee el favicon desde la raíz del host. Nuxt y Vue deben publicar
+// los mismos bytes PNG, no un icono transparente ni un 404 en la ruta SSR.
+const vueFavicon = fs.readFileSync(path.join(root, 'public/favicon.png'))
+const nuxtFaviconPath = path.join(root, 'nuxt/public/favicon.png')
+assert.ok(fs.existsSync(nuxtFaviconPath), 'Nuxt debe publicar /favicon.png en su directorio public')
+const nuxtFavicon = fs.readFileSync(nuxtFaviconPath)
+assert.ok(vueFavicon.equals(nuxtFavicon), 'Nuxt y Vue deben publicar exactamente el mismo favicon corporativo')
+assert.equal(nuxtFavicon.subarray(0, 8).toString('hex'), '89504e470d0a1a0a', 'El favicon debe ser un PNG válido')
+const faviconWidth = nuxtFavicon.readUInt32BE(16)
+const faviconHeight = nuxtFavicon.readUInt32BE(20)
+assert.ok(faviconWidth >= 48 && faviconWidth === faviconHeight,
+  'Google necesita un favicon cuadrado de al menos 48 px para calidad óptima')
+assert.match(source('nuxt/nuxt.config.ts'), /href: '\/favicon\.png'/,
+  'El head SSR debe anunciar el PNG publicado')
+assert.match(source('index.html'), /rel="icon"[^>]*href="\/favicon\.png"/,
+  'La aplicación Vue debe anunciar el mismo PNG')
+
 const main = source('src/main.ts')
 // Session-required screens (quote v1/v2 and tracking) must translate without changing the login redirect.
 const authRoot = source('src/Root.vue')
