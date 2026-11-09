@@ -34,7 +34,6 @@ let visibilityObserver: IntersectionObserver | undefined
 let rotationTimer: ReturnType<typeof setInterval> | undefined
 
 const reel = ref<LatestReel | null>(null)
-const isPlaying = ref(false)
 const videoFailed = ref(false)
 const loaded = ref(false)
 const reelSection = ref<HTMLElement | null>(null)
@@ -48,7 +47,6 @@ const reelUrl = computed(() => {
   if (!value || !/^https:\/\/www\.instagram\.com\/reel\/[\w-]+\/$/.test(value)) return null
   return value
 })
-const embedUrl = computed(() => reelUrl.value ? `${reelUrl.value}embed/` : null)
 const facebookUrl = computed(() => {
   const value = facebookVideo.value?.permalink
   if (!value) return null
@@ -118,7 +116,6 @@ async function loadFacebookVideo() {
 function switchNetwork(network: Network) {
   if (activeNetwork.value === network) return
   reelSection.value?.querySelectorAll('video').forEach(video => video.pause())
-  isPlaying.value = false
   facebookPlaying.value = false
   playingNative.value = false
   activeNetwork.value = network
@@ -128,7 +125,7 @@ function resetRotation() {
   if (rotationTimer) clearInterval(rotationTimer)
   rotationTimer = setInterval(() => {
     if (!inView.value || document.hidden || isHovered.value || hasFocus.value ||
-        playingNative.value || isPlaying.value || facebookPlaying.value) return
+        playingNative.value || facebookPlaying.value) return
     switchNetwork(activeNetwork.value === 'instagram' ? 'facebook' : 'instagram')
   }, 8500)
 }
@@ -136,7 +133,6 @@ const stopSiteUpdates = subscribeToChanges('site', () => {
   // Do not start a background request before the visitor approaches Instagram.
   if (!reelRequested) return
   // When an admin publishes a different Reel, return to the preview and refresh.
-  isPlaying.value = false
   facebookPlaying.value = false
   playingNative.value = false
   videoFailed.value = false
@@ -243,11 +239,6 @@ onUnmounted(() => {
             Instagram <ExternalLink :size="13" aria-hidden="true" />
           </a>
         </template>
-        <iframe v-else-if="isPlaying && embedUrl" class="home-instagram-section__embed"
-          :src="embedUrl" :title="t('custom.home.instagram.reel')"
-          loading="lazy" allow="encrypted-media; picture-in-picture"
-          scrolling="no"
-          referrerpolicy="strict-origin-when-cross-origin"></iframe>
         <template v-else-if="reelUrl">
           <img v-if="reel?.thumbnailUrl" :src="reel.thumbnailUrl"
             :alt="t('custom.home.instagram.reel')" loading="lazy" referrerpolicy="no-referrer" />
@@ -259,10 +250,14 @@ onUnmounted(() => {
             <span class="home-instagram-section__avatar"><InstagramGlyph :size="19" /></span>
             <span><strong>grupocastrofallas1</strong><small>Reels</small></span>
           </div>
-          <button class="home-instagram-section__play" type="button"
-            :aria-label="t('custom.home.instagram.play')" @click="isPlaying = true">
-            <Play :size="30" fill="currentColor" aria-hidden="true" />
-          </button>
+          <!-- Instagram can reject iframe embedding even when the Reel is public.
+               An authorized or uploaded MP4 (above) plays inline; otherwise
+               open the verified permalink rather than an unplayable iframe. -->
+          <a class="home-instagram-section__play home-instagram-section__play--external"
+            :href="reelUrl" target="_blank" rel="noopener noreferrer"
+            :aria-label="t('custom.home.instagram.playExternal')">
+            <ExternalLink :size="28" aria-hidden="true" />
+          </a>
           <a class="home-instagram-section__open" :href="reelUrl" target="_blank" rel="noopener noreferrer">
             {{ t('custom.home.instagram.open') }} <ExternalLink :size="13" aria-hidden="true" />
           </a>
@@ -430,16 +425,9 @@ onUnmounted(() => {
 .home-instagram-section__reel > img, .home-instagram-section__embed, .home-instagram-section__native-video {
   width: 100%; height: 100%; display: block; object-fit: cover; border: 0;
 }
-/* Experimental Instagram fallback: crop the cross-origin embed as a whole.
-   At the card's 9:16 aspect ratio, magnifying around the centre keeps most
-   of the video visible while clipping Instagram's white header/footer and
-   scrollbars. We cannot edit the iframe's internal content. Do not apply this
-   to the native MP4 / authorized Meta video player. */
 .home-instagram-section__embed {
   position: absolute;
   inset: 0;
-  transform: translateY(1.5%) scale(1.52);
-  transform-origin: center center;
   background: #020717;
 }
 .home-instagram-section__native-video { background: #020717; }
@@ -462,6 +450,8 @@ onUnmounted(() => {
   background: rgba(0, 0, 0, .51); color: #fff;
 }
 .home-instagram-section__play:hover, .home-instagram-section__play:focus-visible { background: #aa164b; }
+.home-instagram-section__play--external { text-decoration: none; }
+.home-instagram-section__play--external:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
 .home-instagram-section__open {
   position: absolute; right: 10px; bottom: 10px;
   display: flex; align-items: center; gap: 5px;
