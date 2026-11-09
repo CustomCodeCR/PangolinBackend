@@ -13,23 +13,26 @@ const values = computed(() => [0, 1, 2, 3, 4].map(index => siteText(`about.value
 const valueIcons = [Handshake, Scale, UsersRound, Award, ShieldCheck]
 const capabilityIcons = [Truck, ClipboardCheck, Globe2, Boxes, Ship]
 const openedValue = ref<number | null>(null)
-// Hover-capable desktop pointers open a card on entry; touch screens use taps.
-// Keyboard activation still toggles via the native button click (detail === 0).
-const canHoverValues = () => typeof window !== 'undefined'
-  && window.matchMedia('(hover: hover) and (pointer: fine)').matches
+// Pointer events distinguish desktop mouse hover from touch, including
+// headless Chrome, where media queries for hover-capability are unreliable.
+let lastPressedPointer: string | null = null
 const onValuePointerEnter = (index: number, event: PointerEvent) => {
-  if (event.pointerType === 'mouse' && canHoverValues()) openedValue.value = index
+  if (event.pointerType === 'mouse') openedValue.value = index
 }
 const onValuePointerLeave = (index: number, event: PointerEvent) => {
-  if (event.pointerType === 'mouse' && canHoverValues() && openedValue.value === index) openedValue.value = null
+  if (event.pointerType === 'mouse' && openedValue.value === index) openedValue.value = null
+}
+const onValuePointerDown = (event: PointerEvent) => {
+  lastPressedPointer = event.pointerType
 }
 const toggleValue = (index: number, event: MouseEvent) => {
-  if (event.detail > 0 && canHoverValues()) {
-    // Desktop clicks should not close a value that remains under the mouse.
+  // Mouse click keeps the hovered value open; touch and keyboard can toggle.
+  if (event.detail > 0 && (lastPressedPointer === 'mouse' || (event as PointerEvent).pointerType === 'mouse')) {
     openedValue.value = index
-    return
+  } else {
+    openedValue.value = openedValue.value === index ? null : index
   }
-  openedValue.value = openedValue.value === index ? null : index
+  lastPressedPointer = null
 }
 
 // Proposed copy for review: mission and vision are not presented as officially approved statements.
@@ -175,7 +178,7 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
           </div>
 
           <div class="about-refresh__accordion">
-            <article v-for="(value, index) in values" :key="index" class="about-refresh__value" :class="{ 'is-open': openedValue === index }" @pointerenter="onValuePointerEnter(index, $event)" @pointerleave="onValuePointerLeave(index, $event)">
+            <article v-for="(value, index) in values" :key="index" class="about-refresh__value" :class="{ 'is-open': openedValue === index }" @pointerenter="onValuePointerEnter(index, $event)" @pointerleave="onValuePointerLeave(index, $event)" @pointerdown="onValuePointerDown($event)">
               <h3>
                 <button type="button" class="about-refresh__value-trigger" :aria-expanded="openedValue === index" :aria-controls="`about-value-detail-${index}`" @click="toggleValue(index, $event)">
                   <span class="about-refresh__value-icon"><component :is="valueIcons[index]" :size="26" :stroke-width="1.8" aria-hidden="true" /></span>
