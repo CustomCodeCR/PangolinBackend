@@ -305,41 +305,9 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
 }
 .services-directory__card:focus-visible { outline: 2px solid #b30c2d; }
 
-/* El CSS global de Castro Fallas fuerza texto blanco en modo oscuro.
-   Forzamos TAMBIÉN la superficie de las tarjetas a azul oscuro sólido
-   para evitar el bug de texto blanco sobre una tarjeta blanquecina. */
-:global(html.theme-dark) .services-directory {
-  background: #0b1428 !important;
-}
-:global(html.theme-dark) .services-directory__intro { color: #ced3df !important; }
-:global(html.theme-dark) .services-directory__group-heading { border-color: rgba(255, 255, 255, .20) !important; }
-:global(html.theme-dark) .services-directory__group-heading h3 { color: #f3f5fa !important; }
-:global(html.theme-dark) .services-directory__count { color: #f5a0ae !important; }
-:global(html.theme-dark) .services-directory .services-directory__card,
-:global(html.theme-dark) .services-directory .services-directory__card:is(:link, :visited) {
-  background: #101b30 !important;
-  background-image: none !important;
-  color: #f4f6fa !important;
-  border-color: #39445a !important;
-  box-shadow: none;
-}
-:global(html.theme-dark) .services-directory .services-directory__card-title { color: #f4f6fa !important; }
-:global(html.theme-dark) .services-directory .services-directory__card-index { color: #ff8da1 !important; }
-:global(html.theme-dark) .services-directory .services-directory__card-arrow {
-  background: #291b31 !important;
-  color: #ff9dad !important;
-  border-color: #7b3b51 !important;
-}
-:global(html.theme-dark) .services-directory .services-directory__card:is(:hover, :focus-visible) {
-  background: #182640 !important;
-  border-color: #d43a59 !important;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, .22);
-}
-:global(html.theme-dark) .services-directory .services-directory__card:is(:hover, :focus-visible) .services-directory__card-arrow {
-  background: #b30c2d !important;
-  color: #fff !important;
-}
-:global(html.theme-dark) .services-directory .services-directory__card:focus-visible { outline-color: #ff97a9; }
+/* Los colores en tema oscuro se definen en style.css, después de las
+   reglas globales del tema, para garantizar contraste sin importar el orden
+   de inyección de los estilos scoped en Nuxt/Vite. */
 @media (max-width: 980px) {
   .services-directory__links,
   .services-directory__links--logistics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
