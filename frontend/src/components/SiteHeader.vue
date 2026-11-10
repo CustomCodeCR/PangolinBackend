@@ -111,7 +111,7 @@ const profileTheme = computed(() => darkMode.value ? {
   '--profile-glow': 'radial-gradient(ellipse at center,rgba(214,14,52,.46) 0%,rgba(178,11,45,.29) 38%,rgba(126,10,34,.13) 58%,transparent 76%)',
   '--profile-shadow': '0 14px 34px rgba(0,0,0,.25)'
 } : {
-  '--profile-bg': 'rgba(255,255,255,.64)',
+  '--profile-bg': 'rgba(255,255,255,.96)',
   '--profile-ink': '#20242b',
   '--profile-muted': '#4d4953',
   '--profile-heading': '#20242b',
@@ -123,7 +123,7 @@ const profileTheme = computed(() => darkMode.value ? {
 const rolePreviewSuffix = computed(() => authState.previewRole ? `?previewRole=${authState.previewRole}` : '')
 const administrationHref = computed(() => `/administracion${authState.previewRole ? `?previewRole=${encodeURIComponent(authState.previewRole)}` : ''}`)
 const baseLinks = [
-  { key: 'servicios', id: 'principal', url: '/home' },
+  { key: 'servicios', id: 'principal', url: '/' },
   { key: 'noticias', id: 'noticias', url: '/noticias' },
   { key: 'nosotros', id: 'nosotros', url: '/nosotros' }
 ]
@@ -344,7 +344,7 @@ function toggleTheme() {
   <Teleport to="body" :disabled="!expanded || !mobileMenuActive">
   <header ref="headerElement" class="site-header" :class="{ 'site-header--overlay': props.overlay, 'site-header--menu-open': expanded, 'site-header--quotes': props.active === 'cotizaciones' }">
     <div class="header-inner">
-      <a class="site-brand" href="/home" :aria-label="$t('phrases.p138')"><SiteMedia slot-key="shared.logo.media" fallback="/images/logo.png" alt="Castro Fallas" /></a>
+      <a class="site-brand" href="/" :aria-label="$t('phrases.p138')"><SiteMedia slot-key="shared.logo.media" fallback="/images/logo.png" alt="Castro Fallas" /></a>
       <button ref="menuToggle" class="menu-toggle" type="button" :aria-expanded="expanded" aria-controls="site-primary-navigation" :aria-label="expanded ? $t('custom.home.close') : $t('phrases.p137')" @click="expanded = !expanded"><X v-if="expanded" :size="22" aria-hidden="true" /><Menu v-else :size="22" aria-hidden="true" /></button>
       <nav id="site-primary-navigation" class="main-nav" :class="{ 'main-nav--open': expanded }" :aria-label="$t('phrases.p136')">
         <a v-for="link in visibleLinks" :key="link.id" :class="{ 'is-active': props.active === link.id }" :href="link.url" @click="expanded = false">{{ link.label }}</a>
