@@ -4,7 +4,7 @@ import SiteMedia from './SiteMedia.vue'
 <template>
   <footer class="site-footer">
     <div class="container footer-top">
-      <div class="footer-identity"><a href="/home"><SiteMedia slot-key="shared.logo.media" fallback="/images/logo.png" alt="Castro Fallas" /></a><p>{{ $t('phrases.p099') }}</p></div>
+      <div class="footer-identity"><a href="/"><SiteMedia slot-key="shared.logo.media" fallback="/images/logo.png" alt="Castro Fallas" /></a><p>{{ $t('phrases.p099') }}</p></div>
       <div><h3>{{ $t('phrases.p096') }}</h3><a href="tel:+50622726772">+506 2272-6772</a><a href="mailto:comercial@castrofallas.com">comercial@castrofallas.com</a></div>
       <div><h3>{{ $t('phrases.p097') }}</h3><a href="/servicios">{{ $t('navLinks.soluciones') }}</a><a href="/empresas">Empresas del grupo</a><a href="/tracking">{{ $t('custom.home.trackingTitle') }}</a><a href="/cotizaciones">{{ $t('phrases.p098') }}</a></div>
     </div>
