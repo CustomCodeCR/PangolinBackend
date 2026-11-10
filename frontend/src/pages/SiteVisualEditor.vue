@@ -5,7 +5,8 @@ import { authState } from '../services/auth'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import { subscribeToChanges } from '../services/realtime'
 import i18n from '../i18n'
-import { siteSlotCatalog, type EditableSiteSlot, type SiteSlotDefinition } from '../siteCms'
+import { siteSlotCatalog } from '../siteCmsCatalog'
+import type { EditableSiteSlot, SiteSlotDefinition } from '../siteCms'
 import type { ManagedMedia } from '../adminContent'
 
 const page = ref('home')
