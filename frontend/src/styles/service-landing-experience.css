@@ -178,6 +178,12 @@ html:not(.theme-dark) .service-landing-hero__copy .section-tag,html:not(.theme-d
    toward the footer. Keep normal wheel/touch behavior; on narrow screens cards
    already use the natural, non-sticky flow and need no additional blank space. */
 @media (min-width:901px) {
+  /* The global .app-site overflow:hidden creates a non-scrolling ancestor and
+     breaks viewport sticky positioning. clip still clips horizontal overflow
+     without creating a scroll container. Scope this to service landings. */
+  .app-site.service-landing-page {
+    overflow:clip;
+  }
   .service-landing-story .service-landing-steps {
     padding-bottom:clamp(340px,62svh,720px);
   }
