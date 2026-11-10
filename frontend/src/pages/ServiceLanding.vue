@@ -124,6 +124,113 @@ const details = computed<LandingText>(() => {
   }
 })
 
+
+// Supplement only service pages whose benefits do not fill the 2×2 grid.
+// Keep the original benefits and editorial/SEO source data unchanged.
+// Each addition is grounded in that service's own description, scope or FAQ;
+// these describe coordination/evaluation rather than guaranteed availability.
+const extraBenefitsByRoute: Record<string, Record<'es' | 'en', LandingPoint[]>> = {
+  '/servicios/almacenamiento-fiscal': {
+    es: [
+      { body: 'Revisión de los registros y controles de mercancías según el depósito autorizado y el servicio acordado.' }
+    ],
+    en: [
+      { body: 'Review of cargo records and controls according to the authorized warehouse and agreed service.' }
+    ]
+  },
+  '/servicios/bodegaje-general': {
+    es: [
+      { body: 'Planificación de entradas, salidas y registros de inventario según el servicio contratado.' }
+    ],
+    en: [
+      { body: 'Planning of inbound, outbound and inventory records according to the contracted service.' }
+    ]
+  },
+  '/servicios/agenciamiento-aduanal': {
+    es: [
+      { body: 'Revisión de clasificación conocida, permisos y certificaciones aplicables a la mercancía.' }
+    ],
+    en: [
+      { body: 'Review of known cargo classification, permits and applicable certificates.' }
+    ]
+  },
+  '/servicios/consolidadora-de-carga': {
+    es: [
+      { body: 'Evaluación de compatibilidad, frecuencia de salida y capacidad disponible para cada consolidación.' }
+    ],
+    en: [
+      { body: 'Assessment of cargo compatibility, departure frequency and available consolidation capacity.' }
+    ]
+  },
+  '/servicios/transporte-maritimo': {
+    es: [
+      { title: 'Importación y exportación', body: 'Revisión de opciones marítimas de entrada o salida según la ruta solicitada.' },
+      { title: 'Condiciones del embarque', body: 'Modalidad, fechas y alcance sujetos a confirmación durante la cotización.' }
+    ],
+    en: [
+      { title: 'Imports and exports', body: 'Review of inbound and outbound ocean options for the requested route.' },
+      { title: 'Shipment terms', body: 'Mode, dates and scope are confirmed during the quotation process.' }
+    ]
+  },
+  '/servicios/transporte-terrestre': {
+    es: [
+      { title: 'Características de la carga', body: 'Evaluación de peso, dimensiones y necesidades particulares del traslado.' },
+      { title: 'Opciones regionales', body: 'Revisión de rutas y disponibilidad internacional antes de confirmar el servicio.' }
+    ],
+    en: [
+      { title: 'Cargo characteristics', body: 'Assessment of weight, dimensions and specific transport requirements.' },
+      { title: 'Regional options', body: 'Review of international routes and availability before confirming the service.' }
+    ]
+  },
+  '/servicios/transporte-aereo': {
+    es: [
+      { title: 'Fechas requeridas', body: 'Revisión de la fecha solicitada al evaluar alternativas de transporte aéreo.' },
+      { title: 'Disponibilidad y condiciones', body: 'Confirmación de las opciones aéreas aplicables antes de coordinar el envío.' }
+    ],
+    en: [
+      { title: 'Required dates', body: 'Review of the requested date when evaluating air freight alternatives.' },
+      { title: 'Availability and terms', body: 'Confirmation of suitable air freight options before arranging shipment.' }
+    ]
+  },
+  '/servicios/transporte-internacional': {
+    es: [
+      { title: 'Revisión de rutas', body: 'Se analizan trayectos y disponibilidad según la modalidad solicitada.' },
+      { title: 'Próximos pasos', body: 'Orientación para continuar con la evaluación y coordinación del envío.' }
+    ],
+    en: [
+      { title: 'Route review', body: 'Routes and availability are considered for the requested transport mode.' },
+      { title: 'Next steps', body: 'Guidance to continue shipment assessment and coordination.' }
+    ]
+  },
+  '/servicios/transporte-local': {
+    es: [
+      { title: 'Puntos de recolección y entrega', body: 'Se revisan los lugares solicitados según la cobertura disponible.' },
+      { title: 'Coordinación con Neriteka', body: 'Evaluación del alcance según la carga y la fecha requerida.' }
+    ],
+    en: [
+      { title: 'Pickup and delivery points', body: 'Review of requested locations based on available coverage.' },
+      { title: 'Coordination with Neriteka', body: 'Scope assessment based on cargo details and required date.' }
+    ]
+  },
+  '/servicios/transporte-panama-costa-rica': {
+    es: [
+      { title: 'Cruce fronterizo', body: 'Revisión documental de los requisitos aplicables al traslado entre ambos países.' },
+      { title: 'Ruta y alcance', body: 'Evaluación del recorrido y sus condiciones antes de coordinar el embarque.' }
+    ],
+    en: [
+      { title: 'Border crossing', body: 'Document review of requirements for freight moving between the two countries.' },
+      { title: 'Route and scope', body: 'Assessment of the route and its terms before coordinating the shipment.' }
+    ]
+  }
+}
+
+const benefitCards = computed<LandingPoint[]>(() => {
+  const existing = details.value.points
+  const missing = Math.max(0, 4 - existing.length)
+  if (!missing) return existing
+  return [...existing, ...(extraBenefitsByRoute[route]?.[lang.value] ?? []).slice(0, missing)]
+})
+
 onMounted(async () => {
   await nextTick()
   const page = document.querySelector('.service-landing-page')
@@ -255,7 +362,7 @@ onBeforeUnmount(() => {
                     <h2 id="guide-benefits">{{ lang === 'es' ? 'Ventajas de este servicio' : 'Benefits of this service' }}</h2>
                   </div>
                   <div class="service-landing-feature-grid">
-                    <article v-for="(point, index) in details.points" :key="point.title || point.body" class="service-landing-feature" :class="{ 'service-landing-feature--with-title': point.title }">
+                    <article v-for="(point, index) in benefitCards" :key="point.title || point.body" class="service-landing-feature" :class="{ 'service-landing-feature--with-title': point.title }">
                       <span class="service-landing-feature__icon"><IconSymbol :glyph="pointIcon(index)" :size="23" /></span>
                       <h3 v-if="point.title">{{ point.title }}</h3>
                       <p>{{ point.body }}</p>
