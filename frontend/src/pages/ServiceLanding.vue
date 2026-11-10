@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import IconSymbol from '../components/IconSymbol.vue'
+import SiteMedia from '../components/SiteMedia.vue'
+import { siteText } from '../siteCms'
 import serviceGuides from '../../seo/service-landings.json'
 import { servicePages } from '../content/servicePages'
 
@@ -48,7 +50,6 @@ const guides = serviceGuides as Record<string, Guide>
 const props = defineProps<{ pathname?: string }>()
 const { locale } = useI18n({ useScope: 'global' })
 const lang = computed<'es' | 'en'>(() => String(locale.value).startsWith('en') ? 'en' : 'es')
-const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 let serviceScrollListener: (() => void) | undefined
 let serviceResizeListener: (() => void) | undefined
 let serviceScrollDirection: 'up' | 'down' = 'down'
@@ -62,65 +63,74 @@ const serviceVideo = (pathname: string) => {
   return '/videos/service-maritime.mp4'
 }
 const pointIcon = (index: number) => ['✦', '⇄', '⌖', 'boxes'][index % 4]
+const serviceSlug=route.split('/').pop() || ''
+const serviceHeroKey='service.'+serviceSlug+'.hero.media'
+const serviceStoryKey='service.'+serviceSlug+'.story.media'
 const details = computed<LandingText>(() => {
-  const guide = guides[route]?.[lang.value]
-  if (guide) {
-    const visuals: Record<string, { image: string; alt: { es: string; en: string } }> = {
-      '/servicios/almacenamiento-fiscal': { image: '/images/services-warehouse.webp', alt: { es: 'Almacenamiento y manejo logístico de mercancías', en: 'Cargo warehousing and logistics handling' } },
-      '/servicios/bodegaje-general': { image: '/images/warehouse-person.webp', alt: { es: 'Equipo organizando mercancías en una bodega', en: 'Team handling goods in a warehouse' } },
-      '/servicios/agenciamiento-aduanal': { image: '/images/operation.webp', alt: { es: 'Coordinación de documentación para operaciones aduaneras', en: 'Documentation coordination for customs operations' } },
-      '/servicios/consolidadora-de-carga': { image: '/images/ship.webp', alt: { es: 'Buque de carga para operaciones de transporte consolidado', en: 'Cargo vessel for consolidated freight operations' } }
+  const cms=(field:string, original:string) => siteText('service.'+serviceSlug+'.'+field,original,lang.value)
+  const guide=guides[route]?.[lang.value]
+  if(guide) {
+    const visuals:Record<string,{image:string;alt:{es:string;en:string}}>={
+      '/servicios/almacenamiento-fiscal':{image:'/images/services-warehouse.webp',alt:{es:'Almacenamiento y manejo logístico de mercancías',en:'Cargo warehousing and logistics handling'}},
+      '/servicios/bodegaje-general':{image:'/images/warehouse-person.webp',alt:{es:'Equipo organizando mercancías en una bodega',en:'Team handling goods in a warehouse'}},
+      '/servicios/agenciamiento-aduanal':{image:'/images/operation.webp',alt:{es:'Coordinación de documentación para operaciones aduaneras',en:'Documentation coordination for customs operations'}},
+      '/servicios/consolidadora-de-carga':{image:'/images/ship.webp',alt:{es:'Buque de carga para operaciones de transporte consolidado',en:'Cargo vessel for consolidated freight operations'}}
     }
-    const visual = visuals[route] ?? { image: '/images/hero.webp', alt: { es: 'Operación logística de Grupo Castro Fallas', en: 'Grupo Castro Fallas logistics operation' } }
-    const locations: Record<string, { es: string; en: string }> = {
-      '/servicios/almacenamiento-fiscal': { es: 'Almacenamiento fiscal en Costa Rica', en: 'Fiscal warehousing in Costa Rica' },
-      '/servicios/bodegaje-general': { es: 'Bodegaje general en Costa Rica', en: 'General warehousing in Costa Rica' },
-      '/servicios/agenciamiento-aduanal': { es: 'Gestiones aduanales en Costa Rica', en: 'Customs coordination in Costa Rica' },
-      '/servicios/consolidadora-de-carga': { es: 'Coordinación de carga consolidada', en: 'Consolidated cargo coordination' }
+    const visual=visuals[route] || {image:'/images/hero.webp',alt:{es:'Operación logística de Grupo Castro Fallas',en:'Grupo Castro Fallas logistics operation'}}
+    const locations:Record<string,{es:string;en:string}>={
+      '/servicios/almacenamiento-fiscal':{es:'Almacenamiento fiscal en Costa Rica',en:'Fiscal warehousing in Costa Rica'},
+      '/servicios/bodegaje-general':{es:'Bodegaje general en Costa Rica',en:'General warehousing in Costa Rica'},
+      '/servicios/agenciamiento-aduanal':{es:'Gestiones aduanales en Costa Rica',en:'Customs coordination in Costa Rica'},
+      '/servicios/consolidadora-de-carga':{es:'Coordinación de carga consolidada',en:'Consolidated cargo coordination'}
     }
     return {
-      eyebrow: lang.value === 'es' ? 'SOLUCIONES LOGÍSTICAS' : 'LOGISTICS SERVICES',
-      label: guide.label,
-      title: guide.title,
-      intro: guide.intro,
-      location: locations[route]?.[lang.value] ?? (lang.value === 'es' ? 'Servicios logísticos en Costa Rica' : 'Logistics services in Costa Rica'),
-      ctaLabel: lang.value === 'es' ? 'Consultar este servicio' : 'Ask about this service',
-      image: visual.image,
-      imageAlt: visual.alt[lang.value],
-      video: serviceVideo(route),
-      answer: guide.answer,
-      heading: guide.heading,
-      body: guide.body,
-      points: guide.points.map(body => ({ body })),
-      quoteHeading: guide.quoteHeading,
-      quoteIntro: guide.quoteIntro,
-      quoteItems: guide.quoteItems,
-      scopeNote: guide.scopeNote,
-      faq: guide.faq
+      eyebrow:cms('eyebrow',lang.value==='es'?'SOLUCIONES LOGÍSTICAS':'LOGISTICS SERVICES'),
+      label:cms('label',guide.label),
+      title:cms('title',guide.title),
+      intro:cms('intro',guide.intro),
+      location:cms('location',locations[route]?.[lang.value] || (lang.value==='es'?'Servicios logísticos en Costa Rica':'Logistics services in Costa Rica')),
+      ctaLabel:cms('ctaLabel',lang.value==='es'?'Consultar este servicio':'Ask about this service'),
+      image:visual.image,
+      imageAlt:visual.alt[lang.value],
+      video:serviceVideo(route),
+      answer:cms('answer',guide.answer),
+      heading:cms('heading',guide.heading),
+      body:cms('body',guide.body),
+      points:guide.points.map((body,i)=>({body:cms('point.'+i+'.body',body)})),
+      quoteHeading:cms('quoteHeading',guide.quoteHeading),
+      quoteIntro:cms('quoteIntro',guide.quoteIntro),
+      quoteItems:guide.quoteItems.map((value,i)=>cms('quoteItem.'+i,value)),
+      scopeNote:cms('scopeNote',guide.scopeNote),
+      faq:guide.faq.map((item,i)=>({q:cms('faq.'+i+'.q',item.q),a:cms('faq.'+i+'.a',item.a)}))
     }
   }
-
-  const page = detailPage.value ?? servicePages[0]
-  const text = (value: { es: string; en: string }) => value[lang.value]
+  const page=detailPage.value ?? servicePages[0]
+  const localized=(v:{es:string;en:string})=>v[lang.value]
   return {
-    eyebrow: text(page.eyebrow),
-    label: text(page.title),
-    title: text(page.title),
-    intro: text(page.lead),
-    location: text(page.location),
-    ctaLabel: text(page.quoteLabel),
-    image: page.image,
-    imageAlt: text(page.imageAlt),
-    video: serviceVideo(route),
-    heading: lang.value === 'es' ? 'Una operación clara desde el primer paso.' : 'A clear operation from the first step.',
-    body: lang.value === 'es'
-      ? 'Antes de coordinar, se revisan las características de la carga, los puntos de salida y entrega, y la fecha requerida. El alcance, las condiciones y la disponibilidad se confirman para cada operación.'
-      : 'Before coordination, the cargo characteristics, pickup and delivery points, and required date are reviewed. Scope, terms and availability are confirmed for each operation.',
-    answer: lang.value === 'es'
-      ? 'Compartir una descripción clara de la carga y los datos de la ruta ayuda al equipo a orientar la revisión y definir los siguientes pasos.'
-      : 'A clear cargo description and route details help the team assess the request and outline the next steps.',
-    points: page.sections.map(section => ({ title: text(section.title), body: text(section.body) })),
-    faq: page.faqs.map(faq => ({ q: text(faq.question), a: text(faq.answer) }))
+    eyebrow:cms('eyebrow',localized(page.eyebrow)),
+    label:cms('label',localized(page.title)),
+    title:cms('title',localized(page.title)),
+    intro:cms('intro',localized(page.lead)),
+    location:cms('location',localized(page.location)),
+    ctaLabel:cms('ctaLabel',localized(page.quoteLabel)),
+    image:page.image,
+    imageAlt:localized(page.imageAlt),
+    video:serviceVideo(route),
+    heading:cms('heading',lang.value==='es'?'Una operación clara desde el primer paso.':'A clear operation from the first step.'),
+    body:cms('body',lang.value==='es'
+      ?'Antes de coordinar, se revisan las características de la carga, los puntos de salida y entrega, y la fecha requerida. El alcance, las condiciones y la disponibilidad se confirman para cada operación.'
+      :'Before coordination, the cargo characteristics, pickup and delivery points, and required date are reviewed. Scope, terms and availability are confirmed for each operation.'),
+    answer:cms('answer',lang.value==='es'
+      ?'Compartir una descripción clara de la carga y los datos de la ruta ayuda al equipo a orientar la revisión y definir los siguientes pasos.'
+      :'A clear cargo description and route details help the team assess the request and outline the next steps.'),
+    points:page.sections.map((section,i)=>({
+      title:cms('point.'+i+'.title',localized(section.title)),
+      body:cms('point.'+i+'.body',localized(section.body))
+    })),
+    faq:page.faqs.map((faq,i)=>({
+      q:cms('faq.'+i+'.q',localized(faq.question)),
+      a:cms('faq.'+i+'.a',localized(faq.answer))
+    }))
   }
 })
 
@@ -214,7 +224,7 @@ onBeforeUnmount(() => {
       <section class="service-landing-hero" aria-labelledby="service-landing-title">
         <div class="container service-landing-hero__inner">
           <figure class="service-landing-hero__media" aria-hidden="true">
-            <img :src="details.image" alt="" width="1920" height="1080" fetchpriority="high" />
+            <SiteMedia :slot-key="serviceHeroKey" :fallback="details.image" :alt="details.imageAlt" priority />
             <div class="service-landing-hero__blur"></div>
           </figure>
           <div class="service-landing-hero__copy">
@@ -232,18 +242,7 @@ onBeforeUnmount(() => {
       <section class="service-landing-story" :aria-label="details.label">
         <div class="service-landing-story__frame">
           <figure class="service-landing-story__media">
-            <video
-              class="service-landing-story__video"
-              :poster="details.image"
-              :autoplay="!prefersReducedMotion"
-              muted
-              loop
-              playsinline
-              preload="metadata"
-              aria-hidden="true"
-            >
-              <source :src="details.video" type="video/mp4" />
-            </video>
+            <SiteMedia class="service-landing-story__video" :slot-key="serviceStoryKey" :fallback="details.video" default-kind="Video" :poster="details.image" :alt="details.imageAlt" />
             <figcaption>{{ details.label }}</figcaption>
           </figure>
           <div class="service-landing-story__copy">
@@ -272,7 +271,7 @@ onBeforeUnmount(() => {
                       <p v-if="details.answer" class="service-landing-answer">{{ details.answer }}</p>
                     </div>
                     <figure class="service-landing-detail-visual">
-                      <img :src="details.image" :alt="details.imageAlt" loading="lazy" decoding="async" />
+                      <SiteMedia :slot-key="serviceHeroKey" :fallback="details.image" :alt="details.imageAlt" />
                     </figure>
                   </div>
                 </section>
@@ -334,7 +333,7 @@ onBeforeUnmount(() => {
 .service-landing-publisher{font-size:13px;line-height:1.6;margin:20px 0 0;opacity:.75}
 .service-landing-publisher{color:#565b66}
 .service-landing-hero__media{position:relative;overflow:hidden;min-height:360px;margin:0;border:1px solid rgba(255,255,255,.28);border-radius:28px;background:rgba(255,255,255,.08);box-shadow:0 22px 70px rgba(0,0,0,.25)}
-.service-landing-hero__media img{display:block;width:100%;height:100%;min-height:360px;object-fit:cover}
+.service-landing-hero__media img,.service-landing-hero__media video{display:block;width:100%;height:100%;min-height:360px;object-fit:cover}
 .service-landing-hero__media::after{position:absolute;inset:35% 0 0;content:"";background:linear-gradient(transparent,rgba(13,16,29,.65));pointer-events:none}
 .service-landing-hero__media figcaption{position:absolute;z-index:1;right:22px;bottom:18px;left:22px;color:#fff;font-size:13px;font-weight:700}
 .service-landing-content{padding-top:80px;padding-bottom:90px;background:var(--surface,#f7f4f5)}
