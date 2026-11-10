@@ -160,14 +160,17 @@ async function assertServicesTheme(chrome, url) {
     const light = await probe(false)
     assert.equal(light.background, 'rgb(255, 255, 255)', 'Tema claro: tarjeta no blanca')
     const dark = await probe(true)
-    if (dark.background !== 'rgb(16, 27, 48)') {
+    if (dark.background !== 'rgb(11, 20, 40)') {
       const details = await evaluate("(() => { const a = document.querySelector('.services-directory__card'); const css = []; for (const sheet of document.styleSheets) { try { for (const rule of sheet.cssRules) { if (rule.selectorText?.includes('services-directory__card')) css.push({ selector: rule.selectorText.slice(0, 140), background: rule.style.background, important: rule.style.getPropertyPriority('background') }); } } catch {} } return { root: document.documentElement.className, app: a?.closest('.app-site')?.className, matching: a?.matches('html.theme-dark .app-site.services-page .services-directory a.services-directory__card'), sheets: document.styleSheets.length, rules: css.slice(-18) }; })()")
       console.log('Diagnóstico contraste Servicios:', JSON.stringify({ dark, details }))
     }
-    assert.equal(dark.background, 'rgb(16, 27, 48)', 'Tema oscuro: tarjeta blanquecina')
+    assert.equal(dark.background, 'rgb(11, 20, 40)', 'Tema oscuro: tarjeta blanquecina')
     assert.equal(dark.image, 'none', 'Tema oscuro: gradiente claro superpuesto')
     assert.equal(dark.text, 'rgb(244, 246, 250)', 'Tema oscuro: título invisible')
     assert.equal(dark.fill, 'rgb(244, 246, 250)', 'Tema oscuro: text-fill-color invisible')
+    const arrowGeometry = await evaluate("(() => { const circle = document.querySelector('.services-directory__card-arrow').getBoundingClientRect(); const icon = document.querySelector('.services-directory__card-arrow svg').getBoundingClientRect(); return { dx: Math.abs(circle.left + circle.width / 2 - icon.left - icon.width / 2), dy: Math.abs(circle.top + circle.height / 2 - icon.top - icon.height / 2), icons: document.querySelectorAll('.services-directory__card-arrow svg').length }; })()")
+    assert.equal(arrowGeometry.icons, 10, 'Los 10 enlaces necesitan flechas SVG centradas')
+    assert.ok(arrowGeometry.dx <= 1 && arrowGeometry.dy <= 1, 'Flecha descentrada dentro de círculo: ' + JSON.stringify(arrowGeometry))
     console.log('PASS Chrome: 10 tarjetas con contraste real claro/oscuro')
   } finally {
     try { ws?.close() } catch {}
