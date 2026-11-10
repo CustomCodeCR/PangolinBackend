@@ -25,6 +25,21 @@ const serviceDirectory = computed(() => {
     ...Object.entries(serviceGuides).map(([href, guide]) => ({ href, label: guide[lang].label }))
   ]
 })
+const serviceDirectoryGroups = computed(() => {
+  const es = locale.value.toLowerCase().startsWith('es')
+  return [
+    {
+      id: 'transport',
+      title: es ? 'Transporte de carga' : 'Freight transportation',
+      links: serviceDirectory.value.slice(0, servicePages.length)
+    },
+    {
+      id: 'logistics',
+      title: es ? 'Logística y aduanas' : 'Logistics and customs',
+      links: serviceDirectory.value.slice(servicePages.length)
+    }
+  ]
+})
 const activeService = ref<ServiceKey>('Air')
 const modalService = ref<ServiceKey | null>(null)
 const modalPhoto = computed(() => siteCssImage(`services.${modalService.value?.toLowerCase()}.media`, baseServices.find(service => service.key === modalService.value)?.photo ?? '/images/hero.webp'))
@@ -125,14 +140,27 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
       </section>
 
       <section class="services-directory" aria-labelledby="services-directory-heading">
-        <div class="container">
-          <p class="section-tag center">{{ locale.toLowerCase().startsWith('es') ? 'EXPLORAR SERVICIOS' : 'EXPLORE SERVICES' }}</p>
-          <h2 id="services-directory-heading" class="section-title centered">{{ locale.toLowerCase().startsWith('es') ? 'Conocé cada solución en detalle' : 'Explore each service in detail' }}</h2>
-          <nav class="services-directory__links" :aria-label="locale.toLowerCase().startsWith('es') ? 'Páginas detalladas de servicios' : 'Detailed service pages'">
-            <a v-for="link in serviceDirectory" :key="link.href" :href="link.href">
-              <span>{{ link.label }}</span><span aria-hidden="true">↗</span>
-            </a>
-          </nav>
+        <div class="container services-directory__container">
+          <div class="services-directory__heading">
+            <p class="section-tag center">{{ locale.toLowerCase().startsWith('es') ? 'EXPLORAR SERVICIOS' : 'EXPLORE SERVICES' }}</p>
+            <h2 id="services-directory-heading" class="section-title centered">{{ locale.toLowerCase().startsWith('es') ? 'Conocé cada solución en detalle' : 'Explore each service in detail' }}</h2>
+            <p class="services-directory__intro">{{ locale.toLowerCase().startsWith('es') ? 'Todo lo que tu carga necesita, desde el primer movimiento hasta su destino.' : 'Everything your cargo needs, from its first move to its destination.' }}</p>
+          </div>
+          <div class="services-directory__groups">
+            <section v-for="group in serviceDirectoryGroups" :key="group.id" class="services-directory__group">
+              <div class="services-directory__group-heading">
+                <h3>{{ group.title }}</h3>
+                <span class="services-directory__count">{{ String(group.links.length).padStart(2, '0') }} {{ locale.toLowerCase().startsWith('es') ? 'SERVICIOS' : 'SERVICES' }}</span>
+              </div>
+              <nav class="services-directory__links" :class="`services-directory__links--${group.id}`" :aria-label="group.title">
+                <a v-for="(link, index) in group.links" :key="link.href" :href="link.href" class="services-directory__card">
+                  <span class="services-directory__card-index" aria-hidden="true">{{ String(index + 1).padStart(2, '0') }}</span>
+                  <strong class="services-directory__card-title">{{ link.label }}</strong>
+                  <span class="services-directory__card-arrow" aria-hidden="true">↗</span>
+                </a>
+              </nav>
+            </section>
+          </div>
         </div>
       </section>
     </main>
@@ -157,10 +185,186 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
 </template>
 
 <style scoped>
-.services-directory{padding:24px 0 70px}
-.services-directory__links{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:11px;margin-top:26px}
-.services-directory__links a{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 17px;border:1px solid currentColor;border-radius:10px;color:inherit;text-decoration:none;font-weight:600;outline-offset:3px}
-.services-directory__links a:hover,.services-directory__links a:focus-visible{border-color:#b00e2d;text-decoration:underline;text-underline-offset:4px}
-.services-directory__links a span:last-child{color:#b00e2d}
-@media(max-width:560px){.services-directory{padding:15px 0 48px}.services-directory__links{grid-template-columns:1fr}}
+.services-directory {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 64px 0 88px;
+  background: linear-gradient(140deg, #f8e8ec 0%, #fcf8f9 52%, #fff 100%);
+}
+.services-directory::before {
+  content: "";
+  position: absolute;
+  inset: -180px auto auto -200px;
+  width: 640px;
+  height: 480px;
+  background: radial-gradient(ellipse, rgba(177, 12, 43, .09), transparent 70%);
+  pointer-events: none;
+}
+.services-directory__container { position: relative; z-index: 1; max-width: 1220px; }
+.services-directory__heading { max-width: 780px; margin: 0 auto 48px; text-align: center; }
+.services-directory__heading .section-title {
+  font-size: clamp(32px, 3.5vw, 51px);
+  line-height: 1.1;
+  margin: 12px 0 14px;
+}
+.services-directory__intro {
+  max-width: 590px;
+  margin: 0 auto;
+  color: #6c5a63;
+  font-size: 15px;
+  line-height: 1.65;
+}
+.services-directory__group + .services-directory__group { margin-top: 34px; }
+.services-directory__group-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid rgba(114, 42, 56, .19);
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+}
+.services-directory__group-heading h3 {
+  margin: 0;
+  color: #252630;
+  font-size: 14px;
+  font-weight: 850;
+  letter-spacing: .075em;
+  text-transform: uppercase;
+}
+.services-directory__count {
+  color: #a95768;
+  flex: none;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .15em;
+}
+.services-directory__links {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.services-directory__links--logistics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.services-directory__card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto 1fr;
+  gap: 20px 12px;
+  min-width: 0;
+  min-height: 143px;
+  padding: 22px;
+  border: 1px solid rgba(113, 47, 62, .17);
+  border-radius: 18px;
+  background: linear-gradient(155deg, rgba(255, 255, 255, .94), rgba(255, 255, 255, .67));
+  box-shadow: 0 5px 24px rgba(65, 17, 35, .045);
+  color: #24252e;
+  text-decoration: none;
+  outline-offset: 4px;
+  overflow: hidden;
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease, background-color .22s ease;
+}
+.services-directory__card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 22px;
+  width: 48px;
+  height: 3px;
+  background: #b30c2d;
+  border-radius: 0 0 3px 3px;
+}
+.services-directory__card-index {
+  grid-column: 1;
+  grid-row: 1;
+  color: #ad1734;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .19em;
+}
+.services-directory__card-title {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: end;
+  font-size: clamp(14px, 1.2vw, 17px);
+  line-height: 1.35;
+  font-weight: 850;
+  overflow-wrap: break-word;
+}
+.services-directory__card-arrow {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: end;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(179, 12, 45, .22);
+  border-radius: 50%;
+  background: #f9e9ed;
+  color: #b30c2d;
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1;
+  transition: background .22s ease, color .22s ease, transform .22s ease;
+}
+.services-directory__card:is(:hover, :focus-visible) {
+  transform: translateY(-4px);
+  border-color: rgba(179, 12, 45, .45);
+  box-shadow: 0 16px 38px rgba(99, 15, 39, .12);
+  background: #fff;
+}
+.services-directory__card:is(:hover, :focus-visible) .services-directory__card-arrow {
+  transform: rotate(45deg);
+  background: #b30c2d;
+  color: #fff;
+}
+:global(html.theme-dark) .services-directory {
+  background: linear-gradient(140deg, #0b1428, #151629 60%, #241320) !important;
+}
+:global(html.theme-dark) .services-directory__intro { color: #d4c7cf !important; }
+:global(html.theme-dark) .services-directory__group-heading { border-color: rgba(255, 255, 255, .2) !important; }
+:global(html.theme-dark) .services-directory__count { color: #ff9bab !important; }
+:global(html.theme-dark) .services-directory__card {
+  background: linear-gradient(150deg, rgba(255, 255, 255, .095), rgba(255, 255, 255, .035)) !important;
+  border-color: rgba(255, 255, 255, .2) !important;
+  box-shadow: 0 5px 25px rgba(0, 0, 0, .1);
+}
+:global(html.theme-dark) .services-directory__card-index { color: #ff91a3 !important; }
+:global(html.theme-dark) .services-directory__card-arrow {
+  background: rgba(179, 12, 45, .3) !important;
+  border-color: rgba(255, 145, 163, .35) !important;
+  color: #ffadb9 !important;
+}
+:global(html.theme-dark) .services-directory__card:is(:hover, :focus-visible) {
+  border-color: rgba(255, 145, 163, .7) !important;
+  background: rgba(178, 11, 45, .20) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .25);
+}
+:global(html.theme-dark) .services-directory__card:is(:hover, :focus-visible) .services-directory__card-arrow {
+  background: #bd1435 !important;
+  color: #fff !important;
+}
+@media (max-width: 920px) {
+  .services-directory__links,
+  .services-directory__links--logistics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 580px) {
+  .services-directory { padding: 54px 0 64px; }
+  .services-directory__heading { margin-bottom: 34px; }
+  .services-directory__group-heading { align-items: center; }
+  .services-directory__count { font-size: 9px; letter-spacing: .1em; }
+  .services-directory__links,
+  .services-directory__links--logistics { grid-template-columns: 1fr; gap: 10px; }
+  .services-directory__card { min-height: 104px; padding: 17px 18px; gap: 12px; border-radius: 14px; }
+  .services-directory__card::before { left: 18px; }
+  .services-directory__card-title { font-size: 15px; }
+  .services-directory__card-arrow { width: 34px; height: 34px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .services-directory__card,
+  .services-directory__card-arrow { transition: none; }
+  .services-directory__card:is(:hover, :focus-visible) { transform: none; }
+}
 </style>
