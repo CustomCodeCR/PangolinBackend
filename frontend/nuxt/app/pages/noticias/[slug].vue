@@ -10,6 +10,10 @@ const article = (data.value || []).find(item => articleSlug(item) === route.para
 if (!article) throw createError({ statusCode: 404, statusMessage: 'Noticia no encontrada' })
 const path = '/noticias/' + articleSlug(article)
 const image = article.image?.startsWith('/images/') ? article.image : '/images/cover-logistics.jpeg'
+const rawDescription = plainArticleText(article.description || article.body)
+const metaDescription = rawDescription.length > 155
+  ? rawDescription.slice(0, 154).replace(/\s+\S*$/, '') + '…'
+  : rawDescription
 const schema = {
   '@type': 'Article',
   '@id': 'https://www.logisticacastrofallas.com' + path + '#articulo',
@@ -23,7 +27,7 @@ const schema = {
 }
 usePublicSeo({
   path, title: article.title + ' | Grupo Castro Fallas',
-  description: article.description || plainArticleText(article.body).slice(0, 160),
+  description: metaDescription,
   type: 'article', image, schema: [schema]
 })
 useSeoMeta({
