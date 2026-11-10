@@ -39,9 +39,10 @@ assert.match(serviceIndex, /:href="link.href"/, 'Las guías deben tener enlaces 
 assert.match(serviceIndex, /min-height:\s*76px/, 'Tarjetas SEO en escritorio deben ser compactas')
 assert.match(serviceIndex, /min-height:\s*66px/, 'Tarjetas SEO en móvil deben ser compactas')
 assert.match(serviceIndex, /services-directory__card:focus-visible/, 'Enlaces SEO necesitan foco visible')
+assert.match(serviceIndex, /services-directory__card-arrow.*<svg/, 'Flechas de Servicios deben usar un SVG centrable, no un glifo tipográfico')
 const serviceGlobalCss = source('../src/style.css')
 assert.match(serviceGlobalCss, /html\.theme-dark \.app-site\.services-page \.services-directory a\.services-directory__card/, 'Colores oscuros de servicios requieren selector global final')
-assert.match(serviceGlobalCss, /background:\s*#101b30\s*!important/, 'Tarjetas SEO oscuras necesitan fondo azul sólido')
+assert.match(serviceGlobalCss, /background:\s*#0b1428\s*!important/, 'Tarjetas SEO oscuras necesitan el azul corporativo de referencia')
 assert.match(serviceGlobalCss, /background-image:\s*none\s*!important/, 'Tarjetas SEO oscuras no deben tener degradado claro')
 assert.match(serviceGlobalCss, /-webkit-text-fill-color:\s*#f4f6fa\s*!important/, 'Contraste de texto oscuro debe ignorar reglas globales heredadas')
 
