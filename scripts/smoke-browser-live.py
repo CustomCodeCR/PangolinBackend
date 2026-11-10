@@ -286,12 +286,14 @@ def main():
             return {
                 stages: stack.querySelectorAll('.service-landing-step').length,
                 padding: parseFloat(getComputedStyle(stack).paddingBottom),
-                sticky: getComputedStyle(last).position
+                sticky: getComputedStyle(last).position,
+                rootOverflow: getComputedStyle(document.querySelector('.app-site.service-landing-page')).overflowY
             };
         """)
         assert transport_state["stages"] >= 3, "Transporte debe tener etapas numeradas"
         assert transport_state["padding"] >= 320, "La última etapa necesita distancia de desplazamiento adicional"
         assert transport_state["sticky"] == "sticky", "En escritorio las etapas siguen siendo sticky"
+        assert transport_state["rootOverflow"] == "clip", "El contenedor principal no debe desactivar el sticky con overflow hidden"
         driver.execute_script("""
             document.querySelector('.service-landing-story .service-landing-steps')
                 .lastElementChild.scrollIntoView({block: 'start', behavior: 'instant'});
