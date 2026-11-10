@@ -21,9 +21,18 @@ Verificar que GIO recolecte información válida sin saltarse las restricciones 
 | Email y medidas | Rechaza email incorrecto, cantidades no positivas y pesos inconsistentes |
 | Fallo transitorio HTTP 503 al guardar | Retiene resumen editable y permite reintentar sin registrar una cotización fallida |
 | Invitado e itinerarios | Lectura pública sin acceder a operaciones privadas |
-| Tracking de un cliente | No consulta Dynamics sin verificación de titularidad |
+| Tracking de un cliente | Exige una sesión de cliente o administrador y una referencia válida; **no** exige que el embarque pertenezca a la empresa autenticada. Solo administradores reciben campos comerciales restringidos |
 | Recibo claro/oscuro | Verificar contraste de botones y valores contra tarjetas |
 | Apariencia de la ventana de GIO | Comprueba tamaños compacto, mediano y ampliado |
+
+### Política de acceso a tracking confirmada (2026-11-10)
+
+- Decisión del producto: **cualquier cliente autenticado puede consultar un embarque si conoce su referencia**, independientemente de la empresa titular. Los administradores también tienen acceso.
+- No se exige verificación de titularidad por `ClienteId` ni `UsuarioId`: así funciona `POST /api/tracking/dynamics/search` con la política `registered` (roles `client` y `admin`).
+- Sin iniciar sesión, la ruta de búsqueda permanece protegida. Continúan las validaciones de formato y limitación de solicitudes.
+- Los datos logísticos de la respuesta se exponen a cualquier cuenta autenticada que conozca la referencia. Los campos comerciales adicionales permanecen restringidos a administradores.
+- Esta decisión implica que **conocer la referencia permite ver determinados datos de un embarque ajeno**. Si más adelante se requiere confidencialidad por empresa, habrá que implantar un control de titularidad antes de consultar o devolver resultados.
+- El smoke automatizado utiliza un backend falso; la conexión real con Dynamics/Dhole y los permisos del proveedor requieren verificación autorizada independiente.
 
 La prueba automatizada del navegador está en `frontend/scripts/smoke-gio-workflows.cjs`, con Chrome/Chromium y API falsa. No usa credenciales, embarques o cotizaciones reales.
 
