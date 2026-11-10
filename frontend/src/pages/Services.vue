@@ -8,12 +8,23 @@ import { services as baseServices, type ServiceKey } from '../content'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import serviceFaqData from '../../seo/service-faqs.json'
+import serviceGuides from '../../seo/service-landings.json'
+import servicePages from '../../seo/service-pages.json'
 
 const { t, locale } = useI18n({ useScope: 'global' })
 const serviceFaqs = computed(() => serviceFaqData.servicios.map(faq => ({
   question: locale.value.toLowerCase().startsWith('es') ? faq.question.es : faq.question.en,
   answer: locale.value.toLowerCase().startsWith('es') ? faq.answer.es : faq.answer.en
 })))
+// Enlaces HTML visibles para que usuarios y rastreadores descubran las páginas
+// comerciales. No dependen de abrir pestañas, modales ni ejecutar un clic.
+const serviceDirectory = computed(() => {
+  const lang: 'es' | 'en' = locale.value.toLowerCase().startsWith('es') ? 'es' : 'en'
+  return [
+    ...servicePages.map(item => ({ href: '/servicios/' + item.slug, label: item.title[lang] })),
+    ...Object.entries(serviceGuides).map(([href, guide]) => ({ href, label: guide[lang].label }))
+  ]
+})
 const activeService = ref<ServiceKey>('Air')
 const modalService = ref<ServiceKey | null>(null)
 const modalPhoto = computed(() => siteCssImage(`services.${modalService.value?.toLowerCase()}.media`, baseServices.find(service => service.key === modalService.value)?.photo ?? '/images/hero.webp'))
@@ -112,6 +123,18 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
                 <SiteMedia v-if="siteVisual('services.quote.media', '/images/services-crane.webp').kind.startsWith('Video')" slot-key="services.quote.media" fallback="/images/services-crane.webp" background /><IconSymbol glyph="➜" /><strong>{{ $t('custom.home.quoteCardTitle') }}</strong></a></div>
         </div>
       </section>
+
+      <section class="services-directory" aria-labelledby="services-directory-heading">
+        <div class="container">
+          <p class="section-tag center">{{ locale.toLowerCase().startsWith('es') ? 'EXPLORAR SERVICIOS' : 'EXPLORE SERVICES' }}</p>
+          <h2 id="services-directory-heading" class="section-title centered">{{ locale.toLowerCase().startsWith('es') ? 'Conocé cada solución en detalle' : 'Explore each service in detail' }}</h2>
+          <nav class="services-directory__links" :aria-label="locale.toLowerCase().startsWith('es') ? 'Páginas detalladas de servicios' : 'Detailed service pages'">
+            <a v-for="link in serviceDirectory" :key="link.href" :href="link.href">
+              <span>{{ link.label }}</span><span aria-hidden="true">↗</span>
+            </a>
+          </nav>
+        </div>
+      </section>
     </main>
     <div v-if="modalService" class="service-modal-backdrop" @click.self="modalService = null">
       <section class="service-modal" role="dialog" aria-modal="true" :aria-label="serviceInfo[modalService].title" :style="{ '--modal-service-photo': modalPhoto }">
@@ -132,3 +155,12 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
     <SiteFooter />
   </div>
 </template>
+
+<style scoped>
+.services-directory{padding:24px 0 70px}
+.services-directory__links{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:11px;margin-top:26px}
+.services-directory__links a{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 17px;border:1px solid currentColor;border-radius:10px;color:inherit;text-decoration:none;font-weight:600;outline-offset:3px}
+.services-directory__links a:hover,.services-directory__links a:focus-visible{border-color:#b00e2d;text-decoration:underline;text-underline-offset:4px}
+.services-directory__links a span:last-child{color:#b00e2d}
+@media(max-width:560px){.services-directory{padding:15px 0 48px}.services-directory__links{grid-template-columns:1fr}}
+</style>
