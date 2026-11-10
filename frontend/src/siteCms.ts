@@ -1117,9 +1117,9 @@ export function siteText(key: string, fallback: string, locale: string): string 
   const value = locale === 'en' ? entry?.textEn : entry?.textEs
   return value?.trim() || fallback
 }
-export function siteVisual(key: string, fallback: string): {src: string; kind: string} {
+export function siteVisual(key: string, fallback: string, fallbackKind: 'Imagen' | 'Video' = 'Imagen'): {src: string; kind: string} {
   const entry = published[key]
-  return {src: entry?.mediaSrc || fallback, kind: entry?.mediaKind || 'Imagen'}
+  return {src: entry?.mediaSrc || fallback, kind: entry?.mediaKind || fallbackKind}
 }
 export function siteCssImage(key: string, fallback: string): string {
   const visual = siteVisual(key, fallback)
