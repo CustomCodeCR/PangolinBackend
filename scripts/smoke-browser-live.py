@@ -276,6 +276,45 @@ def main():
                     "/noticias": ("04-noticias-escritorio", "Noticias", "Sección pública de noticias")}
             screenshot(driver, shot[route][0], shot[route][1], route, shot[route][2])
 
+        # Regression: the last numbered transport stage must remain pinned briefly
+        # instead of dropping the user into the footer on the next scroll.
+        driver.get(BASE + "/servicios/transporte-maritimo")
+        await_css(driver, ".service-landing-story .service-landing-step")
+        transport_state = driver.execute_script("""
+            const stack = document.querySelector('.service-landing-story .service-landing-steps');
+            const last = stack.lastElementChild;
+            return {
+                stages: stack.querySelectorAll('.service-landing-step').length,
+                padding: parseFloat(getComputedStyle(stack).paddingBottom),
+                sticky: getComputedStyle(last).position
+            };
+        """)
+        assert transport_state["stages"] >= 3, "Transporte debe tener etapas numeradas"
+        assert transport_state["padding"] >= 320, "La última etapa necesita distancia de desplazamiento adicional"
+        assert transport_state["sticky"] == "sticky", "En escritorio las etapas siguen siendo sticky"
+        driver.execute_script("""
+            document.querySelector('.service-landing-story .service-landing-steps')
+                .lastElementChild.scrollIntoView({block: 'start', behavior: 'instant'});
+        """)
+        before = driver.execute_script("""
+            const last = document.querySelector('.service-landing-story .service-landing-steps').lastElementChild;
+            return { y: window.scrollY, top: last.getBoundingClientRect().top };
+        """)
+        driver.execute_script("window.scrollBy({top: 240, behavior: 'instant'});")
+        after = driver.execute_script("""
+            const last = document.querySelector('.service-landing-story .service-landing-steps').lastElementChild;
+            return {
+                y: window.scrollY,
+                top: last.getBoundingClientRect().top,
+                footer: document.querySelector('.site-footer, footer').getBoundingClientRect().top,
+                viewport: window.innerHeight
+            };
+        """)
+        assert after["y"] - before["y"] >= 200, "El scroll debe continuar naturalmente"
+        assert abs(after["top"] - before["top"]) < 8, "La última etapa debe permanecer visible al seguir bajando"
+        assert after["footer"] >= after["viewport"] * .7, "El pie no debe saltar de inmediato dentro de la pantalla"
+        print("PASS Chrome: última etapa de transporte permanece visible sin salto al footer", flush=True)
+
         # Capture the responsive public site with a real mobile-sized viewport.
         driver.set_window_size(390, 844)
         for route, marker, slug, title in [
