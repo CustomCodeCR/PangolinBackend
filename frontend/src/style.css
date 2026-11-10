@@ -5752,3 +5752,65 @@ html.theme-dark .content-manager .manager-itinerary-location-field .manager-itin
     height: 30%;
   }
 }
+
+/* Servicios: contraste real de los enlaces SEO en modo oscuro.
+   El CSS base fuerza texto blanco en toda la web. Estas superficies DEBEN
+   ser oscuras, con regla global específica posterior a los estilos generales.
+   Evitar que el scoped CSS de Vue o el orden de carga Nuxt/Vite cambie esto. */
+html.theme-dark .app-site.services-page .services-directory {
+  background: #0b1428 !important;
+  background-color: #0b1428 !important;
+  background-image: none !important;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__intro {
+  color: #cbd2df !important;
+  -webkit-text-fill-color: #cbd2df !important;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__group-heading {
+  border-color: rgba(255,255,255,.23) !important;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__group-heading h3 {
+  color: #f4f6fa !important;
+  -webkit-text-fill-color: #f4f6fa !important;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__count {
+  color: #ffa6b6 !important;
+  -webkit-text-fill-color: #ffa6b6 !important;
+}
+html.theme-dark .app-site.services-page .services-directory a.services-directory__card,
+html.theme-dark .app-site.services-page .services-directory a.services-directory__card:is(:link,:visited) {
+  background: #101b30 !important;
+  background-color: #101b30 !important;
+  background-image: none !important;
+  border: 1px solid #435069 !important;
+  color: #f4f6fa !important;
+  -webkit-text-fill-color: #f4f6fa !important;
+  box-shadow: none !important;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__card .services-directory__card-title {
+  color: #f4f6fa !important;
+  -webkit-text-fill-color: #f4f6fa !important;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__card .services-directory__card-index {
+  color: #ffa2b2 !important;
+  -webkit-text-fill-color: #ffa2b2 !important;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__card .services-directory__card-arrow {
+  background: #301e34 !important;
+  background-image: none !important;
+  border-color: #805068 !important;
+  color: #ffc1cb !important;
+  -webkit-text-fill-color: #ffc1cb !important;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__card:is(:hover,:focus-visible) {
+  background: #1c2a42 !important;
+  background-color: #1c2a42 !important;
+  background-image: none !important;
+  border-color: #e45775 !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,.25) !important;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__card:is(:hover,:focus-visible) .services-directory__card-arrow {
+  background: #b30c2d !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
