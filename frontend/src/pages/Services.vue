@@ -13,16 +13,16 @@ import servicePages from '../../seo/service-pages.json'
 
 const { t, locale } = useI18n({ useScope: 'global' })
 const serviceFaqs = computed(() => serviceFaqData.servicios.map(faq => ({
-  question: locale.value.toLowerCase().startsWith('es') ? faq.question.es : faq.question.en,
-  answer: locale.value.toLowerCase().startsWith('es') ? faq.answer.es : faq.answer.en
+  question: siteText('services.faq.' + serviceFaqData.servicios.indexOf(faq) + '.q', locale.value.toLowerCase().startsWith('es') ? faq.question.es : faq.question.en, locale.value),
+  answer: siteText('services.faq.' + serviceFaqData.servicios.indexOf(faq) + '.a', locale.value.toLowerCase().startsWith('es') ? faq.answer.es : faq.answer.en, locale.value)
 })))
 // Enlaces HTML visibles para que usuarios y rastreadores descubran las páginas
 // comerciales. No dependen de abrir pestañas, modales ni ejecutar un clic.
 const serviceDirectory = computed(() => {
   const lang: 'es' | 'en' = locale.value.toLowerCase().startsWith('es') ? 'es' : 'en'
   return [
-    ...servicePages.map(item => ({ href: '/servicios/' + item.slug, label: item.title[lang] })),
-    ...Object.entries(serviceGuides).map(([href, guide]) => ({ href, label: guide[lang].label }))
+    ...servicePages.map(item => ({ href: '/servicios/' + item.slug, label: siteText('service.' + item.slug + '.title', item.title[lang], locale.value) })),
+    ...Object.entries(serviceGuides).map(([href, guide]) => ({ href, label: siteText('service.' + href.split('/').pop() + '.label', guide[lang].label, locale.value) }))
   ]
 })
 const serviceDirectoryGroups = computed(() => {
@@ -30,12 +30,12 @@ const serviceDirectoryGroups = computed(() => {
   return [
     {
       id: 'transport',
-      title: es ? 'Transporte de carga' : 'Freight transportation',
+      title: siteText('services.directory.transport.title', es ? 'Transporte de carga' : 'Freight transportation', locale.value),
       links: serviceDirectory.value.slice(0, servicePages.length)
     },
     {
       id: 'logistics',
-      title: es ? 'Logística y aduanas' : 'Logistics and customs',
+      title: siteText('services.directory.logistics.title', es ? 'Logística y aduanas' : 'Logistics and customs', locale.value),
       links: serviceDirectory.value.slice(servicePages.length)
     }
   ]
@@ -120,7 +120,7 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
       <section class="services-faq section-spacing" aria-labelledby="services-faq-title">
         <div class="container services-faq__inner">
           <p class="section-tag center">{{ locale.toLowerCase().startsWith('es') ? 'PREGUNTAS FRECUENTES' : 'FREQUENTLY ASKED QUESTIONS' }}</p>
-          <h2 id="services-faq-title" class="section-title centered">{{ locale.toLowerCase().startsWith('es') ? 'Más sobre nuestros servicios' : 'More about our services' }}</h2>
+          <h2 id="services-faq-title" class="section-title centered">{{ siteText('services.faq.heading', locale.toLowerCase().startsWith('es') ? 'Más sobre nuestros servicios' : 'More about our services', locale) }}</h2>
           <details v-for="faq in serviceFaqs" :key="faq.question" class="services-faq__item">
             <summary>{{ faq.question }}</summary>
             <p>{{ faq.answer }}</p>
@@ -131,11 +131,11 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
       <section class="section-spacing about-access services-page__digital">
         <div class="container">
           <p class="section-tag center">{{ $t('phrases.p060') }}</p>
-          <h2 class="section-title centered">{{ $t('phrases.p061') }} <span>{{ $t('phrases.p062') }}</span></h2>
-          <p class="section-desc centered">{{ $t('phrases.p063') }}</p>
+          <h2 class="section-title centered">{{ siteText('services.access.heading1', $t('phrases.p061'), locale) }} <span>{{ siteText('services.access.heading2', $t('phrases.p062'), locale) }}</span></h2>
+          <p class="section-desc centered">{{ siteText('services.access.intro', $t('phrases.p063'), locale) }}</p>
           <div class="access-grid"><a class="access-card access-card--tracking" href="/tracking" :style="{ '--cms-access-tracking': siteCssImage('services.tracking.media', '/images/tracking-red.webp') }">
-                <SiteMedia v-if="siteVisual('services.tracking.media', '/images/tracking-red.webp').kind.startsWith('Video')" slot-key="services.tracking.media" fallback="/images/tracking-red.webp" background /><IconSymbol glyph="→" /><strong>{{ $t('custom.home.trackingTitle') }}</strong></a><a class="access-card access-card--quote" href="/cotizaciones" :style="{ '--cms-access-quote': siteCssImage('services.quote.media', '/images/services-crane.webp') }">
-                <SiteMedia v-if="siteVisual('services.quote.media', '/images/services-crane.webp').kind.startsWith('Video')" slot-key="services.quote.media" fallback="/images/services-crane.webp" background /><IconSymbol glyph="➜" /><strong>{{ $t('custom.home.quoteCardTitle') }}</strong></a></div>
+                <SiteMedia v-if="siteVisual('services.tracking.media', '/images/tracking-red.webp').kind.startsWith('Video')" slot-key="services.tracking.media" fallback="/images/tracking-red.webp" background /><IconSymbol glyph="→" /><strong>{{ siteText('services.access.tracking', $t('custom.home.trackingTitle'), locale) }}</strong></a><a class="access-card access-card--quote" href="/cotizaciones" :style="{ '--cms-access-quote': siteCssImage('services.quote.media', '/images/services-crane.webp') }">
+                <SiteMedia v-if="siteVisual('services.quote.media', '/images/services-crane.webp').kind.startsWith('Video')" slot-key="services.quote.media" fallback="/images/services-crane.webp" background /><IconSymbol glyph="➜" /><strong>{{ siteText('services.access.quote', $t('custom.home.quoteCardTitle'), locale) }}</strong></a></div>
         </div>
       </section>
 
@@ -143,8 +143,8 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
         <div class="container services-directory__container">
           <div class="services-directory__heading">
             <p class="section-tag center">{{ locale.toLowerCase().startsWith('es') ? 'EXPLORAR SERVICIOS' : 'EXPLORE SERVICES' }}</p>
-            <h2 id="services-directory-heading" class="section-title centered">{{ locale.toLowerCase().startsWith('es') ? 'Conocé cada solución en detalle' : 'Explore each service in detail' }}</h2>
-            <p class="services-directory__intro">{{ locale.toLowerCase().startsWith('es') ? 'Todo lo que tu carga necesita, desde el primer movimiento hasta su destino.' : 'Everything your cargo needs, from its first move to its destination.' }}</p>
+            <h2 id="services-directory-heading" class="section-title centered">{{ siteText('services.directory.heading', locale.toLowerCase().startsWith('es') ? 'Conocé cada solución en detalle' : 'Explore each service in detail', locale) }}</h2>
+            <p class="services-directory__intro">{{ siteText('services.directory.intro', locale.toLowerCase().startsWith('es') ? 'Todo lo que tu carga necesita, desde el primer movimiento hasta su destino.' : 'Everything your cargo needs, from its first move to its destination.', locale) }}</p>
           </div>
           <div class="services-directory__groups">
             <section v-for="group in serviceDirectoryGroups" :key="group.id" class="services-directory__group">
