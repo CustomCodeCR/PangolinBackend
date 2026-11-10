@@ -121,7 +121,7 @@ public static class SiteCmsEndpoints
             var prefix = "service." + slug + ".";
             MediaKeys.Add(prefix + "hero.media");
             MediaKeys.Add(prefix + "story.media");
-            foreach (var field in new[] { "label", "title", "intro" }) TextKeys.Add(prefix + field);
+            foreach (var field in new[] { "label", "title", "intro", "eyebrow", "location", "ctaLabel" }) TextKeys.Add(prefix + field);
         }
         foreach (var slug in guideSlugs)
         {
@@ -140,7 +140,7 @@ public static class SiteCmsEndpoints
         foreach (var slug in transportSlugs)
         {
             var prefix = "service." + slug + ".";
-            foreach (var field in new[] { "eyebrow", "location", "ctaLabel" }) TextKeys.Add(prefix + field);
+            foreach (var field in new[] { "heading", "body", "answer" }) TextKeys.Add(prefix + field);
             for(var i=0;i<2;i++)
             {
                 TextKeys.Add(prefix + "point." + i + ".title");
