@@ -89,7 +89,8 @@ const sessionUser = computed(() => authState.user)
 const loggingOut = ref(false)
 const isAuthenticated = computed(() => !!sessionUser.value)
 const isAdministrator = computed(() => currentRole() === 'administrador')
-const canAccessCargo = computed(() => currentRole() === 'cliente' || currentRole() === 'administrador' || (typeof window !== 'undefined' && window.location.pathname.replace(/\/+$/, '') === '/cotizaciones'))
+// Cotizaciones e itinerarios son públicos; tracking conserva control de sesión.
+const canAccessCargo = true
 const settingsOpen = ref(false)
 const profileOpen = ref(false)
 const profileButton = ref<HTMLButtonElement | null>(null)
@@ -122,7 +123,7 @@ const profileTheme = computed(() => darkMode.value ? {
 const rolePreviewSuffix = computed(() => authState.previewRole ? `?previewRole=${authState.previewRole}` : '')
 const administrationHref = computed(() => `/administracion${authState.previewRole ? `?previewRole=${encodeURIComponent(authState.previewRole)}` : ''}`)
 const baseLinks = [
-  { key: 'servicios', id: 'principal', url: '/home' },
+  { key: 'servicios', id: 'principal', url: '/' },
   { key: 'noticias', id: 'noticias', url: '/noticias' },
   { key: 'nosotros', id: 'nosotros', url: '/nosotros' }
 ]
@@ -343,7 +344,7 @@ function toggleTheme() {
   <Teleport to="body" :disabled="!expanded || !mobileMenuActive">
   <header ref="headerElement" class="site-header" :class="{ 'site-header--overlay': props.overlay, 'site-header--menu-open': expanded, 'site-header--quotes': props.active === 'cotizaciones' }">
     <div class="header-inner">
-      <a class="site-brand" href="/home" :aria-label="$t('phrases.p138')"><SiteMedia slot-key="shared.logo.media" fallback="/images/logo.png" alt="Castro Fallas" /></a>
+      <a class="site-brand" href="/" :aria-label="$t('phrases.p138')"><SiteMedia slot-key="shared.logo.media" fallback="/images/logo.png" alt="Castro Fallas" /></a>
       <button ref="menuToggle" class="menu-toggle" type="button" :aria-expanded="expanded" aria-controls="site-primary-navigation" :aria-label="expanded ? $t('custom.home.close') : $t('phrases.p137')" @click="expanded = !expanded"><X v-if="expanded" :size="22" aria-hidden="true" /><Menu v-else :size="22" aria-hidden="true" /></button>
       <nav id="site-primary-navigation" class="main-nav" :class="{ 'main-nav--open': expanded }" :aria-label="$t('phrases.p136')">
         <a v-for="link in visibleLinks" :key="link.id" :class="{ 'is-active': props.active === link.id }" :href="link.url" @click="expanded = false">{{ link.label }}</a>

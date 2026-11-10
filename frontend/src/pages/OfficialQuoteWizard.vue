@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import type { Component } from 'vue'
 import { AlertTriangle, Boxes, FileCheck, FileText, Globe, Layers, Package, PackageCheck, Scale, ShieldCheck, Ship, Truck, Warehouse } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
@@ -8,7 +8,8 @@ import SiteFooter from '../components/SiteFooter.vue'
 import IconSymbol from '../components/IconSymbol.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import { refreshSession } from '../services/auth'
-import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions } from '../lib/officialQuoteOptions'
+import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
+import { costaRicaToday, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
 
 const { locale } = useI18n({ useScope: 'global' })
 const q = (es: string, en: string) => locale.value === 'en' ? en : es
@@ -31,9 +32,15 @@ const step = ref(1)
 const mode = ref<Mode | null>(null)
 const shipmentType = ref<Type | null>(null)
 const busy = ref(false)
-const sessionOk = ref(false)
+type GioReceiptDetail = { key: string; value: string }
+type GioReceipt = { at: number; id: string; status: string; mode: string; origin: string; destination: string; details?: GioReceiptDetail[] }
+const gioReceipt = ref<GioReceipt | null>(null)
 const error = ref('')
 const createdId = ref('')
+const earliestReadyDate = ref(costaRicaToday())
+let earliestReadyTimer: number | undefined
+const syncEarliestReadyDate = () => { earliestReadyDate.value = costaRicaToday() }
+const cargoReadyDateError = () => q('La fecha de carga lista debe ser hoy o posterior (hora de Costa Rica).', 'The cargo ready date must be today or later (Costa Rica time).')
 const locations = ref<Loc[]>([])
 const destinations = ref<Loc[]>([])
 const podOptions = ref<Loc[]>([])
@@ -142,7 +149,7 @@ function handleLocationKeydown(field: LocationField, event: KeyboardEvent) {
   }
 }
 const incoterms = officialIncoterms
-const serviceOptions = ['Transporte internacional','Agencia de Aduanas CR','Agencia de Aduanas Exterior','Almacenamiento','Control de inventario','Embalaje','Exoneración','Picking Carga','Recepción de carga','Seguro de carga','Transporte entrega','Transporte recolección','Transporte nacional']
+const serviceOptions = officialServiceOptions
 const serviceIcons: Record<string, Component> = {
   'Transporte internacional': Globe,
   'Agencia de Aduanas CR': FileCheck,
@@ -169,6 +176,81 @@ watch(() => shipmentType.value === 'FCL', (isFullContainer) => {
   if (isFullContainer) form.cargoFlags = form.cargoFlags.filter(flag => flag !== 'No estibable')
 })
 const stepNames = computed(() => [q('Modalidad', 'Mode'), q('Embarque', 'Shipment'), q('Información', 'Information'), q('Carga y envío', 'Cargo and delivery')])
+
+// Receipt details are a snapshot of this visitor's own confirmed submission.
+// They are never fetched from a public /api/quotes/official/{id} endpoint.
+const receiptFieldLabels: Record<string, [string, string]> = {
+  mode:['Modalidad','Mode'], shipmentType:['Tipo de embarque','Shipment type'],
+  origin:['Origen','Origin'], destination:['Destino','Destination'],
+  pod:['Puerto de descarga (POD)','Port of discharge (POD)'],
+  incoterm:['Incoterm','Incoterm'], cargoReadyDate:['Carga lista','Cargo ready'],
+  exwCargoStatus:['Estado EXW','EXW status'], exwPickupAddress:['Recolección EXW','EXW pickup'],
+  services:['Servicios solicitados','Requested services'],
+  fiscalStorageDays:['Días de almacenaje fiscal','Fiscal storage days'],
+  deliveryAddress:['Dirección de entrega','Delivery address'], pickupAddress:['Dirección de recolección','Pickup address'],
+  cargoDescription:['Mercancía','Goods'], dangerousGoods:['Carga peligrosa','Dangerous goods'],
+  equipmentSize:['Tamaño del equipo','Equipment size'], equipmentType:['Tipo de equipo','Equipment type'],
+  equipmentQuantity:['Cantidad de equipos','Equipment quantity'],
+  equipmentWeights:['Pesos por unidad (kg)','Weights per unit (kg)'],
+  equipmentSummary:['Equipos y pesos','Equipment and weights'],
+  packageQuantity:['Cantidad de bultos','Number of packages'], packageWeight:['Peso por bulto (kg)','Weight per package (kg)'],
+  packageLength:['Largo (cm)','Length (cm)'], packageWidth:['Ancho (cm)','Width (cm)'],
+  packageHeight:['Alto (cm)','Height (cm)'], stackable:['Estibable','Stackable'],
+  packagesSummary:['Bultos y dimensiones','Packages and dimensions'],
+  contactName:['Nombre de contacto','Contact name'], contactEmail:['Correo','Email'], contactPhone:['Teléfono','Phone']
+}
+const receiptGroupDefinitions = [
+  { id:'route', name:['Ruta y condiciones','Route and terms'], fields:['mode','shipmentType','origin','destination','pod','incoterm','cargoReadyDate','exwCargoStatus','exwPickupAddress','services','fiscalStorageDays','deliveryAddress','pickupAddress'] },
+  { id:'cargo', name:['Detalles de la carga','Cargo details'], fields:['cargoDescription','dangerousGoods','equipmentSummary','equipmentSize','equipmentType','equipmentQuantity','equipmentWeights','packagesSummary','packageQuantity','packageWeight','packageLength','packageWidth','packageHeight','stackable'] },
+  { id:'contact', name:['Datos de contacto','Contact details'], fields:['contactName','contactEmail','contactPhone'] }
+] as const
+
+const receiptSections = computed(() => {
+  if (!createdId.value) return []
+  let fields: Record<string,string> = {}
+  if (gioReceipt.value) {
+    for (const item of gioReceipt.value.details || []) fields[item.key] = item.value
+    // Support receipts created before the detailed handoff was introduced.
+    if (!fields.mode) fields.mode = gioReceipt.value.mode
+    if (!fields.origin) fields.origin = gioReceipt.value.origin
+    if (!fields.destination) fields.destination = gioReceipt.value.destination
+  } else {
+    // Direct wizard submissions also get a summary of their own submitted form.
+    fields = {
+      mode: displayMode(mode.value),
+      shipmentType: displayShipmentType(shipmentType.value),
+      origin: selectedOrigin.value?.displayName || locationSearch.origin,
+      destination: selectedDest.value?.displayName || locationSearch.destination,
+      pod: podOptions.value.find(x => x.id === form.podLocationId)?.displayName || '',
+      incoterm: form.incoterm, cargoReadyDate: form.cargoReadyDate,
+      exwCargoStatus: form.exwCargoStatus, exwPickupAddress: form.exwPickupAddress,
+      services: form.services.map(displayService).join(', '),
+      fiscalStorageDays: form.services.includes('Almacenamiento') ? String(form.fiscalStorageDays) : '',
+      deliveryAddress: form.services.includes('Transporte entrega') ? form.deliveryAddress : '',
+      pickupAddress: form.services.includes('Transporte recolección') ? form.pickupAddress : '',
+      cargoDescription: form.cargoDescription,
+      dangerousGoods: form.cargoFlags.includes('Carga peligrosa') ? q('Sí', 'Yes') : '',
+      equipmentSummary: equipmentMode.value
+        ? form.equipment.map((item, i) =>
+          String(i+1) + '. ' + item.quantity + ' × ' + item.size + ' · ' + item.type +
+          ' · ' + item.unitWeightsKg.join(', ') + ' kg').join('\n')
+        : '',
+      packagesSummary: !equipmentMode.value
+        ? form.packages.map((item, i) =>
+          String(i+1) + '. ' + item.description + ' · ' + item.quantity + ' × ' + item.weight +
+          ' kg · ' + item.length + ' × ' + item.width + ' × ' + item.height + ' ' + form.dimensionUnit).join('\n')
+        : '',
+      contactName: form.contactName, contactEmail: form.contactEmail, contactPhone: form.contactPhone
+    }
+  }
+  return receiptGroupDefinitions.map(group => ({
+    id:group.id, name:q(group.name[0], group.name[1]),
+    rows:group.fields.filter(key => typeof fields[key] === 'string' && fields[key].trim()).map(key => ({
+      key, label:q(receiptFieldLabels[key][0],receiptFieldLabels[key][1]), value:fields[key]
+    }))
+  })).filter(group => group.rows.length)
+})
+
 function displayMode(value: Mode | null) {
   if (value === 'Maritime') return q('Marítimo', 'Ocean')
   if (value === 'Air') return q('Aéreo', 'Air')
@@ -184,26 +266,7 @@ function displayShipmentType(value: Type | null) {
   return value || ''
 }
 function displayService(value: string) {
-  const labels: Record<string, [string, string]> = {
-    'Transporte internacional': ['Transporte internacional', 'International transportation'],
-    'Agencia de Aduanas CR': ['Agencia de Aduanas CR', 'Costa Rica customs brokerage'],
-    'Agencia de Aduanas Exterior': ['Agencia de Aduanas Exterior', 'Foreign customs brokerage'],
-    'Almacenamiento': ['Almacenamiento', 'Warehousing'],
-    'Control de inventario': ['Control de inventario', 'Inventory control'],
-    'Embalaje': ['Embalaje', 'Packing'],
-    'Exoneración': ['Exoneración', 'Duty exemption'],
-    'Picking Carga': ['Picking Carga', 'Cargo picking'],
-    'Recepción de carga': ['Recepción de carga', 'Cargo receiving'],
-    'Seguro de carga': ['Seguro de carga', 'Cargo insurance'],
-    'Transporte entrega': ['Transporte entrega', 'Delivery transportation'],
-    'Transporte recolección': ['Transporte recolección', 'Pickup transportation'],
-    'Transporte nacional': ['Transporte nacional', 'Domestic transportation'],
-    'Carga peligrosa': ['Carga peligrosa', 'Dangerous goods'],
-    'No estibable': ['No estibable', 'Non-stackable'],
-    'Sobrepeso': ['Sobrepeso', 'Overweight']
-  }
-  const pair = labels[value]
-  return pair ? q(pair[0], pair[1]) : value
+  return officialServiceName(value, q)
 }
 function selectMode(value: Mode) {
   if (mode.value !== value) {
@@ -266,10 +329,42 @@ async function loadLocations() {
   finally { locationLoading.value = false }
 }
 onMounted(async () => {
+  syncEarliestReadyDate()
+  earliestReadyTimer = window.setInterval(syncEarliestReadyDate, 60_000)
+  if (new URLSearchParams(window.location.search).get('gioReceipt') === '1') {
+    try {
+      const raw = sessionStorage.getItem('gcf-gio-quote-receipt-v1')
+      if (raw) {
+        const saved = JSON.parse(raw) as GioReceipt
+        if (typeof saved.at === 'number' && Date.now() >= saved.at &&
+            Date.now() - saved.at <= 30 * 60 * 1000 &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(saved.id) &&
+            ['Maritime','Air','Land'].includes(saved.mode)) {
+          // Only recognized fields from this same-tab, short-lived receipt may
+          // appear in the summary. Vue renders all values as escaped text.
+          const details = Array.isArray(saved.details)
+            ? saved.details.filter((item): item is GioReceiptDetail =>
+                !!item && typeof item.key === 'string' &&
+                Object.prototype.hasOwnProperty.call(receiptFieldLabels, item.key) &&
+                typeof item.value === 'string' && item.value.length <= 4000
+              ).slice(0, 32)
+            : []
+          gioReceipt.value = {
+            at:saved.at, id:saved.id, status:typeof saved.status === 'string' ? saved.status : '',
+            mode:saved.mode, origin:typeof saved.origin === 'string' ? saved.origin.slice(0, 180) : '',
+            destination:typeof saved.destination === 'string' ? saved.destination.slice(0, 180) : '',
+            details
+          }
+          createdId.value = saved.id
+        }
+      }
+    } catch { /* Invalid or blocked storage: leave the normal quote form available. */ }
+  }
   const user = await refreshSession()
-  if (!user || !['cliente','administrador'].includes(user.role)) return
-  sessionOk.value = true
-  form.contactEmail = user.correo
+  if (user && ['cliente','administrador'].includes(user.role)) form.contactEmail = user.correo
+})
+onUnmounted(() => {
+  if (earliestReadyTimer !== undefined) window.clearInterval(earliestReadyTimer)
 })
 function validate(): string {
   if (step.value === 1) return mode.value ? '' : q('Seleccioná la modalidad.', 'Select a transport mode.')
@@ -279,6 +374,7 @@ function validate(): string {
     if (shipmentType.value === 'LCL' && !form.podLocationId) return q('Seleccioná el POD requerido en marítimo LCL.', 'Select the required POD for ocean LCL.')
     if (!form.incoterm) return q('Seleccioná un Incoterm.', 'Select an Incoterm.')
     if (!form.cargoReadyDate) return q('Indicá la fecha de carga lista.', 'Enter the cargo ready date.')
+    if (!isCargoReadyDateOnOrAfterToday(form.cargoReadyDate)) return cargoReadyDateError()
     if (!form.services.length) return q('Seleccioná al menos un servicio.', 'Select at least one service.')
     if (form.services.includes('Transporte entrega') && !form.deliveryAddress.trim()) return q('Escribí la dirección de entrega.', 'Enter the delivery address.')
     if (form.services.includes('Transporte recolección') && !form.pickupAddress.trim()) return q('Escribí la dirección de recolección.', 'Enter the pickup address.')
@@ -324,7 +420,14 @@ function payload() {
   }
 }
 async function submit() {
-  if (!sessionOk.value || busy.value) return
+  if (busy.value) return
+  // Recheck on submit: a wizard can stay open across midnight in Costa Rica.
+  if (!isCargoReadyDateOnOrAfterToday(form.cargoReadyDate)) {
+    error.value = cargoReadyDateError()
+    step.value = 3
+    syncEarliestReadyDate()
+    return
+  }
   error.value = validate()
   if (error.value) return
   busy.value = true
@@ -355,7 +458,25 @@ async function submit() {
           <h2>{{ q('¡Solicitud recibida!', 'Request received!') }}</h2>
           <p>{{ q('Se guardó correctamente y está pendiente de revisión administrativa. Todavía no se ha enviado a Dhole.', 'Your request was saved and is awaiting administrative review. It has not been sent to Dhole.') }}</p>
           <p class="official-id">{{ q('Número de referencia:', 'Reference number:') }} {{ createdId }}</p>
-          <a class="official-link" href="/home">{{ q('Volver al inicio', 'Back to home') }}</a>
+          <section v-if="receiptSections.length" class="official-receipt" aria-labelledby="official-receipt-title">
+            <h3 id="official-receipt-title">{{ q('Resumen de tu solicitud', 'Your request summary') }}</h3>
+            <p class="official-receipt-intro">{{ q('Estos son los datos que enviaste al equipo. El precio, la disponibilidad y las condiciones finales se confirmarán durante la revisión.', 'These are the details you submitted. Rates, availability, and final terms will be confirmed during review.') }}</p>
+            <div class="official-receipt-grid">
+              <section v-for="group in receiptSections" :key="group.id" class="official-receipt-group" :class="'official-receipt-group--' + group.id">
+                <h4>{{ group.name }}</h4>
+                <dl>
+                  <div v-for="item in group.rows" :key="item.key" class="official-receipt-row">
+                    <dt>{{ item.label }}</dt>
+                    <dd>{{ item.value }}</dd>
+                  </div>
+                </dl>
+              </section>
+            </div>
+          </section>
+          <nav class="official-receipt-actions" :aria-label="q('Acciones después del envío', 'Actions after submission')">
+            <a class="official-link" href="/home">{{ q('Volver al inicio', 'Back to home') }}</a>
+            <a class="official-link official-link--subtle" href="/cotizaciones">{{ q('Nueva solicitud', 'New request') }}</a>
+          </nav>
       </div>
       <template v-else>
         <nav class="official-progress" :aria-label="q('Progreso de la solicitud', 'Request progress')">
@@ -436,7 +557,7 @@ async function submit() {
                     ...incoterms.map(value => ({value, label:value}))
                   ]" />
               </div>
-              <label>{{ q('Fecha de carga lista', 'Cargo ready date') }} <span>*</span><input v-model="form.cargoReadyDate" type="date" required /></label>
+              <label>{{ q('Fecha de carga lista', 'Cargo ready date') }} <span>*</span><input v-model="form.cargoReadyDate" type="date" :min="earliestReadyDate" @focus="syncEarliestReadyDate" required /></label>
             </div>
             <div v-if="form.incoterm === 'EXW'" class="official-nested">
               <h3>{{ q('Información adicional para EXW', 'Additional EXW information') }}</h3>
@@ -560,7 +681,7 @@ async function submit() {
           <footer class="official-buttons">
             <button v-if="step>1" type="button" class="official-back" :disabled="busy" @click="back">{{ q('Atrás', 'Back') }}</button><span v-else></span>
             <button v-if="step<4" type="button" class="official-primary" @click="next">{{ q('Continuar', 'Continue') }}</button>
-            <button v-else type="button" class="official-primary" :disabled="busy || !sessionOk" @click="submit">{{ busy ? q('Enviando…', 'Sending…') : q('Enviar solicitud', 'Submit request') + ' →' }}</button>
+            <button v-else type="button" class="official-primary" :disabled="busy" @click="submit">{{ busy ? q('Enviando…', 'Sending…') : q('Enviar solicitud', 'Submit request') + ' →' }}</button>
           </footer>
         </section>
       </template>
@@ -611,6 +732,36 @@ async function submit() {
 :global(html.theme-dark) .official-page .official-link { background:#b20c2a!important; color:#fff!important; }
 :global(html.theme-dark) .official-page .official-kicker { color:#ff8ca2!important; }
 @media (prefers-reduced-motion:reduce) { .official-page * { scroll-behavior:auto!important; } }
+
+
+/* Detailed, same-tab request receipt. No public detail endpoint or price promises. */
+.official-receipt{max-width:860px;margin:32px auto 0;padding-top:25px;border-top:1px solid #e5dae0;text-align:left}
+.official-receipt h3{margin:0 0 8px;font-size:clamp(19px,2.4vw,24px);letter-spacing:-.025em}
+.official-receipt-intro{max-width:750px;margin:0 0 21px;color:#626778;font-size:13px;line-height:1.7}
+.official-receipt-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.official-receipt-group{min-width:0;padding:20px;border:1px solid #e9e0e5;border-radius:16px;background:#f9f7f9}
+.official-receipt-group--route{grid-column:1/-1}
+.official-receipt-group h4{margin:0 0 16px;font-size:15px;font-weight:850;color:#aa1834}
+.official-receipt-group dl{margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px}
+.official-receipt-row{min-width:0;text-align:left}
+.official-receipt-row dt{margin:0 0 5px;font-size:11px;font-weight:800;color:#666b78}
+.official-receipt-row dd{margin:0;font-size:13px;line-height:1.55;font-weight:650;overflow-wrap:anywhere;white-space:pre-line}
+.official-receipt-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin-top:25px}
+.official-receipt-actions .official-link{margin-top:0;text-decoration:none}
+.official-link--subtle{color:#a71130!important;background:transparent!important;border:1px solid #a71130}
+:global(html.theme-dark) .official-page .official-receipt{border-top-color:#4d4554}
+:global(html.theme-dark) .official-page .official-receipt-intro,
+:global(html.theme-dark) .official-page .official-receipt-row dt{color:#c7c9d4}
+:global(html.theme-dark) .official-page .official-receipt-group{background:#161b2b;border-color:#484659}
+:global(html.theme-dark) .official-page .official-receipt-group h4{color:#ff8296}
+:global(html.theme-dark) .official-page .official-receipt-row dd{color:#fff}
+:global(html.theme-dark) .official-page .official-link--subtle{color:#fff!important;border-color:#ff8296}
+@media(max-width:670px){
+  .official-receipt-grid,.official-receipt-group dl{grid-template-columns:1fr}
+  .official-receipt-group--route{grid-column:auto}
+  .official-receipt-group{padding:17px}
+  .official-receipt-actions .official-link{flex:1 1 160px;text-align:center}
+}
 </style>
 
 <style>
@@ -1922,5 +2073,60 @@ html.theme-dark .app-site.official-page .official-service-card--selected .offici
 @media (prefers-reduced-motion: reduce) {
   .app-site.official-page .official-service-card { transition: none; }
 }
+
+/* Contraste de cotizaciones: botones compactos y tarjetas legibles en ambos temas. */
+/* Override the generic light-quote header rule (:is(.main-nav a, ...)) without
+   changing the other menu labels. The fallback also covers the mobile Teleport. */
+html:not(.theme-dark) .app-site.official-page > .site-header.site-header--quotes .main-nav .header-account-tools > a.nav-login,
+html:not(.theme-dark) .site-header.site-header--quotes .main-nav .header-account-tools > a.nav-login,
+html:not(.theme-dark) .site-header.site-header--quotes .main-nav .header-account-tools > a.nav-login:visited,
+html:not(.theme-dark) .site-header.site-header--quotes .main-nav .header-account-tools > a.nav-login svg {
+  color:#fff !important;
+  stroke:currentColor;
+}
+.app-site.official-page .official-receipt-actions .official-link {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  box-sizing:border-box;
+  margin-top:0;
+  padding:10px 17px;
+  min-height:40px;
+  font-size:13px;
+  line-height:1.3;
+  border:1px solid #a80e18;
+  background:#a80e18 !important;
+  color:#fff !important;
+  text-decoration:none;
+}
+.app-site.official-page .official-receipt-actions .official-link--subtle {
+  background:#97122a !important;
+  border-color:#97122a !important;
+  color:#fff !important;
+}
+html.theme-dark .app-site.official-page .official-receipt-actions .official-link,
+html.theme-dark .app-site.official-page .official-receipt-actions .official-link--subtle {
+  background:#a80e18 !important;
+  border-color:#c93b52 !important;
+  color:#fff !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-success .official-receipt-group {
+  background:#f9f7f9 !important;
+  border-color:#e9e0e5 !important;
+  color:#242630 !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-success .official-receipt-group h4 { color:#a80e18 !important; }
+html:not(.theme-dark) .app-site.official-page .official-success .official-receipt-row dt { color:#596170 !important; }
+html:not(.theme-dark) .app-site.official-page .official-success .official-receipt-row dd { color:#252937 !important; }
+html.theme-dark .app-site.official-page .official-success .official-receipt-group {
+  background:#171c2b !important;
+  border-color:#495268 !important;
+  color:#fff !important;
+}
+html.theme-dark .app-site.official-page .official-success .official-receipt-group h4 { color:#ff8ba0 !important; }
+html.theme-dark .app-site.official-page .official-success .official-receipt-row dt { color:#c5cfdd !important; }
+html.theme-dark .app-site.official-page .official-success .official-receipt-row dd { color:#fff !important; }
+html.theme-dark .app-site.official-page .official-success .official-receipt-intro { color:#d2d6e0 !important; }
+
 </style>
 

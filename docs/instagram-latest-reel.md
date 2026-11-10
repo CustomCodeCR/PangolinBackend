@@ -8,7 +8,7 @@ La sección de Instagram aparece **antes de las cinco tarjetas de contacto**, en
 2. Entrá con un administrador real a **Administración → Contenido → Editor visual**.
 3. Arriba del editor, buscá el campo **«Reel de Instagram del Home»**, pegá el enlace y pulsá **«Guardar y mostrar Reel»**.
 4. Para reproducir **sin la interfaz de Instagram**, seleccioná o subí el MP4/WebM original de la empresa (máximo **20 MB**, requiere MinIO) antes de pulsar Guardar. Se reproducirá con el reproductor nativo a ancho y alto completos del cuadro, manteniendo el enlace al Reel original.
-5. Si no tenés el archivo original, podés guardar únicamente el enlace. Si Instagram Login ya está conectado y Meta devuelve `media_url` para ese Reel, se usa el reproductor nativo sin interfaz de Instagram. En caso contrario, se usa el reproductor incrustado, cuya interfaz no se puede ocultar desde nuestra web.
+5. Si no tenés el archivo original, podés guardar únicamente el enlace. Si Instagram Login está conectado y Meta devuelve `media_url` utilizable para ese Reel, se usa el reproductor nativo. En caso contrario, al pulsar reproducir en el Home, **se intenta el código de inserción oficial** (`instagram-media` y `https://www.instagram.com/embed.js`). No se usa un iframe directo inventado. Si Instagram o un bloqueador impide cargar el reproductor, permanece el enlace al Reel original. La inserción no está garantizada cuando Meta la restringe.
 6. Para cambiarlo, pegá otro enlace (y, si corresponde, elegí otro video) y guardá. Para quitar el elegido, pulsá **«Quitar Reel»**.
 
 ### Alcance de seguridad y persistencia
@@ -18,7 +18,7 @@ La sección de Instagram aparece **antes de las cinco tarjetas de contacto**, en
 - El archivo de video opcional se sube mediante el mecanismo existente de medios de MinIO/S3 con límite de 20 MB, validación de formato y autenticación de administrador. Solo se puede asignar un video almacenado en la biblioteca. La URL pública solo se sirve cuando el video está publicado en el slot CMS del Reel. No se descarga ni extrae contenido de Instagram.
 - El valor se almacena en la tabla existente `SiteCmsSlots` (`home.instagram.reel`), **sin migraciones de base de datos ni cambios en MinIO**. Guardar publica en un solo paso y envía un aviso `site` a las pestañas conectadas.
 - `GET /api/social/instagram/latest-reel` sirve el elegido, sin caché del navegador en modo manual. Si no hay elegido, conserva la opción anterior de obtener el último Reel mediante un token de Meta, si estuviera configurado.
-- Si solo se pega un enlace, el contenido sigue alojado en Instagram. Con un token autorizado, el servidor intenta obtener `media_url` desde Meta para usar un reproductor nativo; cuando no esté disponible o no pueda reproducirse, conserva el reproductor oficial y el enlace al Reel. Sin conexión Meta, para lograr un reproductor nativo se necesita una copia autorizada del archivo original en MinIO.
+- Si solo se pega un enlace, el contenido sigue alojado en Instagram. Con un token autorizado, el servidor intenta obtener `media_url` desde Meta para usar un reproductor nativo. Sin `media_url`, el usuario puede **intentar la inserción oficial bajo demanda con un clic**; conserva un enlace externo si Instagram no lo permite. Para reproducir de forma más estable dentro de la web, se necesita una copia original autorizada en MinIO.
 - El reproductor oficial se carga bajo demanda al pulsar «Reproducir». No se realizan solicitudes de video a Instagram mientras el visitante no lo haya solicitado.
 - Al quitar el enlace manual, si tampoco hay integración automática configurada, el Home vuelve a mostrar el acceso al perfil.
 
@@ -28,7 +28,7 @@ La integración de Meta es opcional y se puede configurar más adelante. La secc
 
 ## Activar lectura de Reels con Instagram Login (sin Facebook)
 
-Esta integración ya permite utilizar un video de Meta con reproducción nativa siempre que la API oficial entregue `media_url`; no se hace scraping ni se descarga el Reel. La API devuelve URLs temporales y **no todos los Reels incluyen `media_url`** (por ejemplo, por restricciones de derechos). Si una URL de video falla al reproducir, el visitante puede volver al Reel incrustado o abrir Instagram.
+Esta integración ya permite utilizar un video de Meta con reproducción nativa siempre que la API oficial entregue `media_url`; no se hace scraping ni se descarga el Reel. La API devuelve URLs temporales y **no todos los Reels incluyen `media_url`** (por ejemplo, por restricciones de derechos). Si una URL de video falla, la tarjeta ofrece intentar la inserción oficial de Instagram y un enlace externo; no se construye manualmente la ruta `/reel/{id}/embed/` que puede bloquearse.
 
 **Para quienes administran Meta:**
 
@@ -63,7 +63,7 @@ La cuenta debe ser profesional (empresa o creador). No necesita página de Faceb
 - Se consulta un máximo de 50 publicaciones recientes y se elige el Reel más reciente por fecha. Si no hay Reels entre esos elementos, la página ofrece el enlace al perfil.
 - Caché en memoria del backend: **10 minutos** cuando hay Reel y **2 minutos** cuando no lo hay. El navegador puede guardar respuesta hasta 2 minutos. La actualización ocurre automáticamente sin editar el sitio.
 - Si el token caduca o se revoca, el Home sigue operativo y muestra el enlace del perfil. **La renovación automática del token no forma parte de este cambio**: deberá implementarse y probarse con el flujo de autorización de Meta antes de prometer actualización indefinida.
-- El reproductor insertado es el oficial de Instagram y se carga **solo después de hacer clic**. Depende de las reglas de acceso, cookies y disponibilidad del contenido en Meta.
+- Al pulsar «Reproducir» con solo un enlace, el cliente carga el JavaScript oficial `https://www.instagram.com/embed.js` y su bloque `instagram-media`. No crea un iframe directo `/reel/.../embed/`. Si no aparece el reproductor dentro del plazo, restaura la vista previa y un mensaje con enlace externo. Si Meta genera un iframe pero después deniega su contenido, la web no puede inspeccionar el estado por las restricciones de origen: por eso **el enlace externo permanece accesible incluso cuando el embed parece listo**. Los videos originales autorizados y `media_url` válidas continúan con el reproductor nativo.
 
 ## Validación recomendada
 

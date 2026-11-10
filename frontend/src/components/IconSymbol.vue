@@ -2,7 +2,7 @@
 import type { Component } from 'vue'
 import {
   Anchor, ArrowDown, ArrowDownRight, ArrowLeft, ArrowLeftRight, ArrowRight, ArrowUp, ArrowUpRight,
-  Check, CircleDot, Clock3, Container, List, Mail, MapPin, Menu, MessageCircle, Minus,
+  Boxes, Check, CircleDot, Clock3, Container, List, Mail, MapPin, Menu, MessageCircle, Minus,
   Moon, Newspaper, Image, Package, Pencil, Phone, Plane, Plus, Search, Settings, Ship, Sparkles, Sun, Trash2, Truck, UserRound, X
 } from '@lucide/vue'
 
@@ -13,7 +13,7 @@ const icons: Record<string, Component> = {
   '☎': Phone, '✉': Mail, '◉': MessageCircle, '⌖': MapPin, '◷': Clock3,
   '×': X, '✓': Check, '−': Minus, '+': Plus, '▰': Package, '▤': List,
   '⌕': Search, '⚙': Settings, '☀': Sun, '☾': Moon, '☰': Menu,
-  '◎': CircleDot, '✦': Sparkles, '⚓': Ship, '⇄': ArrowLeftRight,
+  '◎': CircleDot, '✦': Sparkles, '⚓': Ship, '⇄': ArrowLeftRight, 'boxes': Boxes,
   ship: Ship, anchor: Anchor, truck: Truck, container: Container, multimodal: ArrowLeftRight, user: UserRound, newspaper: Newspaper, image: Image, 'message-circle': MessageCircle, pencil: Pencil, trash: Trash2
 }
 </script>

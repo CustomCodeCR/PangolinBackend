@@ -43,7 +43,15 @@ async function decide(choice:'Authorized'|'Rejected'){if(!detail.value||busy.val
   const id=detail.value.id;await load();await open(id)
 }catch(e){error.value=msg(e)}finally{busy.value=false}}
 onMounted(async()=>{const user=await refreshSession();if(user?.role!=='administrador'){error.value='Requiere sesión de administrador.';return}
-  try{permissions.value=await api('/api/admin/quotes/official/permissions/me');if(permissions.value.canView) await load()}catch(e){error.value=msg(e)}
+  try {
+    permissions.value = await api('/api/admin/quotes/official/permissions/me')
+    if (permissions.value.canView) {
+      await load()
+      const selected = new URLSearchParams(window.location.search).get('quote') || ''
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(selected))
+        await open(selected)
+    }
+  } catch(e) { error.value = msg(e) }
 })
 
 const statusNames: Record<string, string> = {

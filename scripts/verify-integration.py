@@ -59,8 +59,10 @@ itinerary = read('frontend/src/pages/Itinerary.vue')
 date_inputs = re.findall(r'<input\s+v-model="item\.(closing|etd|eta)"\s+type="date"', itinerary)
 check(len(date_inputs) == 3 and set(date_inputs) == {'closing', 'etd', 'eta'}
       and not any(stale in itinerary for stale in
-                  ('closingDesde', 'closingHasta', 'etdDesde', 'etdHasta', 'etaDesde', 'etaHasta')),
-      'Itinerarios: exactamente un Closing, ETD y ETA; no hay fechas duplicadas')
+                  ('closingDesde', 'closingHasta', 'etdHasta', 'etaDesde', 'etaHasta')),
+      'Itinerarios: exactamente un Closing, ETD y ETA; sin controles de fecha duplicados')
+check("params.get('etdDesde')" in itinerary and "filters.set('etdDesde', earliestDeparture.value)" in itinerary,
+      'Itinerarios: traspaso de ETD desde GIO sin duplicar la casilla ETD')
 check("['closing', 'etd', 'eta'] as const" in itinerary and
       "filters.set(key, f[key])" in itinerary and
       all(exact in program for exact in ('DateOnly? closing', 'DateOnly? etd', 'DateOnly? eta')),

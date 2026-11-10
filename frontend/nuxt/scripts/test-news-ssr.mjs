@@ -7,7 +7,7 @@ import path from 'node:path'
 const news = [{
   id: '123e4567-e89b-12d3-a456-426614174000',
   title: 'Logística Costa Rica',
-  description: 'Información verificada sobre rutas de importación.',
+  description: 'Información verificada sobre rutas de importación. '.repeat(12),
   body: '<p>Las operaciones requieren documentación aduanera.</p>',
   author: 'Equipo Castro Fallas',
   image: '/images/cover-logistics.jpeg',
@@ -63,8 +63,27 @@ try {
   assert.match(html, /application\/ld\+json/)
   assert.match(html, /schema.org/)
   assert.match(html, /rel="canonical"/)
+  const descriptionTag = (html.match(/<meta\b[^>]*>/g) || []).find(tag => /name="description"/.test(tag))
+  const descriptionValue = descriptionTag?.match(/content="([^"]*)"/)?.[1] || ''
+  assert.ok(descriptionValue.length > 0 && descriptionValue.length <= 155,
+    'La meta description de una noticia no debe ser larga ni quedar vacía')
   const sitemap = await (await fetch(base + '/sitemap.xml')).text()
   assert.ok(sitemap.includes(slug), 'Noticia ausente en sitemap dinámico')
+  // SEO: las páginas comerciales del sitemap deben tener enlaces HTML
+  // visibles en el catálogo, sin depender de interacción con pestañas.
+  const servicesIndex = await fetch(base + '/servicios')
+  assert.equal(servicesIndex.status, 200)
+  const servicesHtml = await servicesIndex.text()
+  for (const route of [
+    '/servicios/transporte-maritimo',
+    '/servicios/transporte-aereo',
+    '/servicios/transporte-terrestre',
+    '/servicios/almacenamiento-fiscal',
+    '/servicios/bodegaje-general',
+    '/servicios/agenciamiento-aduanal'
+  ]) {
+    assert.ok(servicesHtml.includes('href="' + route + '"'), 'Falta enlace HTML SSR a ' + route)
+  }
   const missing = await fetch(base + '/noticias/no-existe')
   assert.equal(missing.status, 404)
   console.log('Noticias SSR, Article JSON-LD, sitemap dinámico y 404: OK')

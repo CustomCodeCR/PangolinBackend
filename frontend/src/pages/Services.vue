@@ -8,12 +8,38 @@ import { services as baseServices, type ServiceKey } from '../content'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import serviceFaqData from '../../seo/service-faqs.json'
+import serviceGuides from '../../seo/service-landings.json'
+import servicePages from '../../seo/service-pages.json'
 
 const { t, locale } = useI18n({ useScope: 'global' })
 const serviceFaqs = computed(() => serviceFaqData.servicios.map(faq => ({
   question: locale.value.toLowerCase().startsWith('es') ? faq.question.es : faq.question.en,
   answer: locale.value.toLowerCase().startsWith('es') ? faq.answer.es : faq.answer.en
 })))
+// Enlaces HTML visibles para que usuarios y rastreadores descubran las páginas
+// comerciales. No dependen de abrir pestañas, modales ni ejecutar un clic.
+const serviceDirectory = computed(() => {
+  const lang: 'es' | 'en' = locale.value.toLowerCase().startsWith('es') ? 'es' : 'en'
+  return [
+    ...servicePages.map(item => ({ href: '/servicios/' + item.slug, label: item.title[lang] })),
+    ...Object.entries(serviceGuides).map(([href, guide]) => ({ href, label: guide[lang].label }))
+  ]
+})
+const serviceDirectoryGroups = computed(() => {
+  const es = locale.value.toLowerCase().startsWith('es')
+  return [
+    {
+      id: 'transport',
+      title: es ? 'Transporte de carga' : 'Freight transportation',
+      links: serviceDirectory.value.slice(0, servicePages.length)
+    },
+    {
+      id: 'logistics',
+      title: es ? 'Logística y aduanas' : 'Logistics and customs',
+      links: serviceDirectory.value.slice(servicePages.length)
+    }
+  ]
+})
 const activeService = ref<ServiceKey>('Air')
 const modalService = ref<ServiceKey | null>(null)
 const modalPhoto = computed(() => siteCssImage(`services.${modalService.value?.toLowerCase()}.media`, baseServices.find(service => service.key === modalService.value)?.photo ?? '/images/hero.webp'))
@@ -112,6 +138,31 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
                 <SiteMedia v-if="siteVisual('services.quote.media', '/images/services-crane.webp').kind.startsWith('Video')" slot-key="services.quote.media" fallback="/images/services-crane.webp" background /><IconSymbol glyph="➜" /><strong>{{ $t('custom.home.quoteCardTitle') }}</strong></a></div>
         </div>
       </section>
+
+      <section class="services-directory" aria-labelledby="services-directory-heading">
+        <div class="container services-directory__container">
+          <div class="services-directory__heading">
+            <p class="section-tag center">{{ locale.toLowerCase().startsWith('es') ? 'EXPLORAR SERVICIOS' : 'EXPLORE SERVICES' }}</p>
+            <h2 id="services-directory-heading" class="section-title centered">{{ locale.toLowerCase().startsWith('es') ? 'Conocé cada solución en detalle' : 'Explore each service in detail' }}</h2>
+            <p class="services-directory__intro">{{ locale.toLowerCase().startsWith('es') ? 'Todo lo que tu carga necesita, desde el primer movimiento hasta su destino.' : 'Everything your cargo needs, from its first move to its destination.' }}</p>
+          </div>
+          <div class="services-directory__groups">
+            <section v-for="group in serviceDirectoryGroups" :key="group.id" class="services-directory__group">
+              <div class="services-directory__group-heading">
+                <h3>{{ group.title }}</h3>
+                <span class="services-directory__count">{{ String(group.links.length).padStart(2, '0') }} {{ locale.toLowerCase().startsWith('es') ? 'SERVICIOS' : 'SERVICES' }}</span>
+              </div>
+              <nav class="services-directory__links" :class="`services-directory__links--${group.id}`" :aria-label="group.title">
+                <a v-for="(link, index) in group.links" :key="link.href" :href="link.href" class="services-directory__card">
+                  <span class="services-directory__card-index" aria-hidden="true">{{ String(index + 1).padStart(2, '0') }}</span>
+                  <strong class="services-directory__card-title">{{ link.label }}</strong>
+                  <span class="services-directory__card-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M7 17 17 7M8 7h9v9" /></svg></span>
+                </a>
+              </nav>
+            </section>
+          </div>
+        </div>
+      </section>
     </main>
     <div v-if="modalService" class="service-modal-backdrop" @click.self="modalService = null">
       <section class="service-modal" role="dialog" aria-modal="true" :aria-label="serviceInfo[modalService].title" :style="{ '--modal-service-photo': modalPhoto }">
@@ -132,3 +183,157 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
     <SiteFooter />
   </div>
 </template>
+
+<style scoped>
+/* Directorio SEO: mismo lenguaje visual de los FAQ y bloques de servicios.
+   Las tarjetas son enlaces reales, compactos y visibles sin interacciones. */
+.services-directory {
+  position: relative;
+  padding: 48px 0 64px;
+  background: #fcf7f8;
+}
+.services-directory__container { max-width: 1180px; }
+.services-directory__heading { max-width: 780px; margin: 0 auto 32px; text-align: center; }
+.services-directory__heading .section-title {
+  font-size: clamp(29px, 3vw, 43px);
+  line-height: 1.13;
+  margin: 9px 0 10px;
+}
+.services-directory__intro {
+  max-width: 570px;
+  margin: 0 auto;
+  color: #68616a;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.services-directory__group + .services-directory__group { margin-top: 26px; }
+.services-directory__group-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(90, 61, 72, .18);
+}
+.services-directory__group-heading h3 {
+  margin: 0;
+  color: #272831;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .075em;
+  text-transform: uppercase;
+}
+.services-directory__count {
+  color: #a45164;
+  flex: none;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+.services-directory__links {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.services-directory__links--logistics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.services-directory__card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 76px;
+  padding: 13px 16px;
+  border: 1px solid rgba(110, 71, 83, .22);
+  border-radius: 13px;
+  background: #fff;
+  color: #24252e;
+  text-decoration: none;
+  box-shadow: 0 3px 12px rgba(50, 24, 36, .035);
+  outline-offset: 3px;
+  overflow: hidden;
+  transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+}
+.services-directory__card::before {
+  content: "";
+  position: absolute;
+  inset: 13px auto 13px 0;
+  width: 3px;
+  background: #b30c2d;
+  border-radius: 0 3px 3px 0;
+}
+.services-directory__card-index {
+  grid-column: 1;
+  color: #b30c2d;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .06em;
+}
+.services-directory__card-title {
+  grid-column: 2;
+  min-width: 0;
+  color: #24252e;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: break-word;
+}
+.services-directory__card-arrow {
+  grid-column: 3;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(179, 12, 45, .25);
+  border-radius: 50%;
+  color: #af0d2d;
+  background: #faeaf0;
+  font-size: 17px;
+  line-height: 1;
+  transition: background-color .2s ease, color .2s ease;
+}
+.services-directory__card-arrow svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex: none;
+  pointer-events: none;
+}
+.services-directory__card:is(:hover, :focus-visible) {
+  border-color: #b30c2d;
+  background: #fffafa;
+  box-shadow: 0 6px 18px rgba(108, 15, 39, .11);
+}
+.services-directory__card:is(:hover, :focus-visible) .services-directory__card-arrow {
+  background: #b30c2d;
+  color: #fff;
+}
+.services-directory__card:focus-visible { outline: 2px solid #b30c2d; }
+
+/* Los colores en tema oscuro se definen en style.css, después de las
+   reglas globales del tema, para garantizar contraste sin importar el orden
+   de inyección de los estilos scoped en Nuxt/Vite. */
+@media (max-width: 980px) {
+  .services-directory__links,
+  .services-directory__links--logistics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 620px) {
+  .services-directory { padding: 40px 0 52px; }
+  .services-directory__heading { margin-bottom: 26px; }
+  .services-directory__group-heading { align-items: center; }
+  .services-directory__count { font-size: 9px; }
+  .services-directory__links,
+  .services-directory__links--logistics { grid-template-columns: 1fr; gap: 9px; }
+  .services-directory__card { min-height: 66px; padding: 11px 13px; gap: 9px; }
+  .services-directory__card::before { inset-block: 10px; }
+  .services-directory__card-title { font-size: 13px; }
+  .services-directory__card-arrow { width: 28px; height: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .services-directory__card,
+  .services-directory__card-arrow { transition: none; }
+}
+</style>

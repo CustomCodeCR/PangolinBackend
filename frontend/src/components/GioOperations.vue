@@ -2,7 +2,8 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ArrowLeft, CheckCircle2, ChevronRight, FileText, LoaderCircle, MapPin, Search, ShieldCheck, Ship } from '@lucide/vue'
 import { refreshSession } from '../services/auth'
-import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions } from '../lib/officialQuoteOptions'
+import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
+import { isCalendarDate, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
 
 type Kind = 'quote' | 'tracking' | 'itinerary'
 type Phase = 'collect' | 'confirm' | 'review' | 'auth' | 'location' | 'result'
@@ -31,6 +32,22 @@ const quoteId = ref('')
 const quoteStatus = ref('')
 const quoteResultUrl = ref('/cotizaciones')
 const quoteResultAdmin = ref(false)
+const itineraryResultUrl = computed(() => {
+  const query = new URLSearchParams({ from: 'gio', pol: values.origin || '', pod: values.destination || '' })
+  if (values.transport) query.set('transporte', values.transport)
+  if (values.departure) query.set('etdDesde', values.departure)
+  return '/itinerario?' + query.toString()
+})
+// A short-lived same-tab handoff keeps shipment references out of URL logs.
+function saveTrackingHandoff() {
+  if (!/^(BCF|BL|HBL|CONTAINER|PO|IDTRA)$/.test(values.referenceType || '') ||
+      !/^[a-z0-9_-]{3,64}$/i.test(values.reference || '')) return
+  try {
+    sessionStorage.setItem('gcf-gio-tracking-handoff-v1', JSON.stringify({
+      at: Date.now(), type: values.referenceType, reference: values.reference
+    }))
+  } catch { /* private browsing: manual lookup remains available */ }
+}
 const itineraries = ref<Itinerary[]>([])
 const itineraryTotal = ref(0)
 const shipments = ref<Shipment[]>([])
@@ -51,6 +68,16 @@ const isCatalogueLocation = (key: string) => isQuoteLocation(key) || (props.kind
 const i = (es: string, en: string) => tr(es, en)
 const modes = computed<Choice[]>(() => [{value:'Maritime',label:i('Marítimo','Ocean')},{value:'Air',label:i('Aéreo','Air')},{value:'Land',label:i('Terrestre','Ground')}])
 const terms = officialIncoterms.map(value => ({value,label:value}))
+const serviceChoices = computed<Choice[]>(() => officialServiceOptions.map(value => ({
+  value, label:officialServiceName(value,tr)
+})))
+const selectedServices = ref<string[]>(['Transporte internacional'])
+const serviceNames = (value: string) => value.split('|').filter(Boolean).map(name => officialServiceName(name,tr)).join(', ')
+function toggleService(value: string) {
+  selectedServices.value = selectedServices.value.includes(value)
+    ? selectedServices.value.filter(item => item !== value)
+    : [...selectedServices.value, value]
+}
 const equipmentSizes = computed<Choice[]>(() => officialEquipmentSizeOptions(values.shipmentType || '', tr))
 const equipmentTypes = computed<Choice[]>(() => officialEquipmentTypeOptions(values.shipmentType || '', tr))
 const isEquipment = computed(() => ['FCL', 'FTL'].includes(values.shipmentType))
@@ -84,6 +111,14 @@ const steps = computed<Step[]>(() => {
     {key:'exwCargoStatus',prompt:i('¿La carga EXW está nacionalizada o en régimen fiscal?','Is the EXW cargo nationalized or under fiscal regime?'),choices:[{value:'nationalized',label:i('Nacionalizada','Nationalized')},{value:'fiscal',label:i('Fiscal','Fiscal')}]},
     {key:'exwPickupAddress',prompt:i('¿Cuál es la dirección de recolección EXW?','What is the EXW pickup address?')}
   )
+  result.push({key:'services',prompt:i('¿Qué servicios necesitas? Podés elegir varios.','Which services do you need? You can select more than one.')})
+  const requestedServices = (values.services || '').split('|')
+  if (requestedServices.includes('Almacenamiento'))
+    result.push({key:'fiscalStorageDays',prompt:i('¿Cuántos días de almacenaje fiscal necesitas?','How many fiscal storage days do you need?')})
+  if (requestedServices.includes('Transporte entrega'))
+    result.push({key:'deliveryAddress',prompt:i('¿Cuál es la dirección de entrega?','What is the delivery address?')})
+  if (requestedServices.includes('Transporte recolección'))
+    result.push({key:'pickupAddress',prompt:i('¿Cuál es la dirección de recolección?','What is the pickup address?')})
   result.push(
     {key:'cargoDescription',prompt:i('Describe la mercancía que necesitas transportar.','Describe the goods you need to transport.')},
     {key:'dangerousGoods',prompt:i('¿La mercancía es peligrosa o requiere manejo especial?','Is this dangerous cargo or does it require special handling?'),choices:[{value:'yes',label:i('Sí','Yes')},{value:'no',label:'No'},{value:'unsure',label:i('No estoy seguro','Not sure')}]}
@@ -119,23 +154,31 @@ const fieldLabels: Record<string, [string, string]> = {
   equipmentQuantity:['Cantidad equipos','Equipment quantity'],equipmentWeights:['Pesos por unidad (kg)','Weights per unit (kg)'],
   packageQuantity:['Bultos','Packages'],packageWeight:['Peso por bulto (kg)','Weight per package (kg)'],
   packageLength:['Largo (cm)','Length (cm)'],packageWidth:['Ancho (cm)','Width (cm)'],packageHeight:['Alto (cm)','Height (cm)'],
-  stackable:['Estibable','Stackable'],contactName:['Contacto','Contact'],contactEmail:['Correo','Email'],contactPhone:['Teléfono','Phone'],
+  stackable:['Estibable','Stackable'], services:['Servicios solicitados','Requested services'],
+  fiscalStorageDays:['Días de almacenaje fiscal','Fiscal storage days'], deliveryAddress:['Dirección de entrega','Delivery address'], pickupAddress:['Dirección de recolección','Pickup address'],
+  contactName:['Contacto','Contact'],contactEmail:['Correo','Email'],contactPhone:['Teléfono','Phone'],
   reference:['Referencia','Reference'],referenceType:['Tipo de referencia','Reference type'],transport:['Transporte','Transport'],departure:['Desde la fecha','Departure from']
 }
 const summary = computed(() => steps.value.map(step => ({
   key:step.key, label: tr((fieldLabels[step.key] ?? [step.key,step.key])[0], (fieldLabels[step.key] ?? [step.key,step.key])[1]),
-  value: step.choices?.find(option => option.value === values[step.key])?.label ?? values[step.key]
+  value: step.key === 'services' ? serviceNames(values.services || '') : step.choices?.find(option => option.value === values[step.key])?.label ?? values[step.key]
 })).filter(item => item.value))
 const filteredLocations = computed(() => locationChoices.value.filter(loc =>
   norm(loc.displayName).includes(norm(locationTerm.value))).slice(0, 30))
-const validDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(new Date(v + 'T12:00:00Z').getTime()) &&
-  new Date(v + 'T12:00:00Z').toISOString().slice(0, 10) === v
+const validDate = isCalendarDate
 const norm = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
 const positive = (s: string) => Number.isFinite(Number(s)) && Number(s) > 0
 const integer = (s: string, max: number) => /^\d+$/.test(s) && Number(s) > 0 && Number(s) <= max
 const scrollEnd = async () => { await nextTick(); scroller.value?.scrollTo({top:scroller.value.scrollHeight,behavior:'smooth'}) }
 
 function validation(key: string, value: string): string {
+  if (key === 'services') {
+    const list = value.split('|').filter(Boolean)
+    if (!list.length || new Set(list).size !== list.length ||
+        list.some(service => !(officialServiceOptions as readonly string[]).includes(service)))
+      return tr('Seleccioná al menos un servicio del catálogo oficial.','Select at least one service from the official list.')
+    return ''
+  }
   const spec = steps.value.find(step => step.key === key)
   if (spec?.choices) {
     if (spec.choices.some(choice => choice.value === value)) return ''
@@ -144,9 +187,12 @@ function validation(key: string, value: string): string {
   if (!value && spec?.optional) return ''
   if (!value) return tr('Este dato es obligatorio.', 'This field is required.')
   if (['cargoReadyDate', 'departure'].includes(key) && !validDate(value)) return tr('Usa una fecha real con formato AAAA-MM-DD.', 'Enter a real date as YYYY-MM-DD.')
+  if (key === 'cargoReadyDate' && !isCargoReadyDateOnOrAfterToday(value))
+    return tr('La fecha de carga lista debe ser hoy o posterior (hora de Costa Rica). Escribí otra fecha.', 'The cargo ready date must be today or later (Costa Rica time). Enter a new date.')
   if (key === 'contactEmail' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return tr('Correo electrónico inválido.', 'Invalid email.')
   if (key === 'contactPhone' && !/^[+0-9 ()-]{7,40}$/.test(value)) return tr('Escribe un teléfono válido.', 'Enter a valid phone number.')
   if (key === 'reference' && !/^[a-zA-Z0-9_-]{3,64}$/.test(value)) return tr('Referencia inválida: de 3 a 64 caracteres, letras, números o guiones.', 'Invalid reference. Use 3–64 letters, numbers or dashes.')
+  if (key === 'fiscalStorageDays' && !integer(value,36500)) return tr('Los días de almacenaje deben ser un entero entre 1 y 36500.','Storage days must be a whole number between 1 and 36500.')
   if (['equipmentQuantity','packageQuantity'].includes(key) && !integer(value,key === 'equipmentQuantity' ? 25 : 10000)) return tr('Escribe una cantidad entera positiva.', 'Enter a positive whole number.')
   if (['packageWeight','packageLength','packageWidth','packageHeight'].includes(key) &&
       (!positive(value) || Number(value) > (key === 'packageWeight' ? 100000000 : 100000)))
@@ -157,9 +203,9 @@ function validation(key: string, value: string): string {
       return tr('Debe haber un peso positivo por cada unidad de equipo.', 'Provide one positive weight per equipment unit.')
   }
   const maxLength: Record<string,number> = {cargoDescription:4000, contactName:150, contactEmail:255,
-    contactPhone:40, exwPickupAddress:800, reference:64, equipmentWeights:400}
+    contactPhone:40, exwPickupAddress:800, deliveryAddress:800, pickupAddress:800, reference:64, equipmentWeights:400}
   if (value.length > (maxLength[key] ?? 200)) return tr('El dato es demasiado largo.', 'This value is too long.')
-  if (['cargoDescription','contactName','exwPickupAddress'].includes(key)) {
+  if (['cargoDescription','contactName','exwPickupAddress','deliveryAddress','pickupAddress'].includes(key)) {
     const letters = (value.match(/\p{L}/gu) || []).length
     if (letters < 2 || /(.)\1{6,}/iu.test(value) || /^\W+$/u.test(value))
       return tr('Escribe una descripción clara en lugar de caracteres repetidos.', 'Please use a clear description rather than repeated characters.')
@@ -173,6 +219,14 @@ function advanceFrom(start: number) {
   while (stepIndex.value < steps.value.length) {
     const item = steps.value[stepIndex.value]
     const value = values[item.key]
+    // Descartar fechas de borradores guardados que quedaron en el pasado.
+    if (props.kind === 'quote' && item.key === 'cargoReadyDate' && value && !isCargoReadyDateOnOrAfterToday(value)) {
+      delete values[item.key]
+      prefillConfirmation.delete(item.key)
+      phase.value = 'collect'
+      error.value = validation(item.key, value)
+      return
+    }
     if (value && item.choices && !item.choices.some(choice => choice.value === value)) {
       delete values[item.key]
       phase.value = 'collect'
@@ -184,7 +238,7 @@ function advanceFrom(start: number) {
     }
     if (value && prefillConfirmation.has(item.key)) {
       prefillConfirmation.delete(item.key)
-      pendingValue.value = { key:item.key, value, display:item.choices?.find(choice=>choice.value===value)?.label || value }
+      pendingValue.value = { key:item.key, value, display:item.key === 'services' ? serviceNames(value) : item.choices?.find(choice=>choice.value===value)?.label || value }
       phase.value = 'confirm'
       return
     }
@@ -213,13 +267,20 @@ function commitValue(item: Step, value: string, locationId?: string) {
     delete values.exwCargoStatus
     delete values.exwPickupAddress
   }
+  if (item.key === 'services') {
+    const selected = value.split('|')
+    if (!selected.includes('Almacenamiento')) delete values.fiscalStorageDays
+    if (!selected.includes('Transporte entrega')) delete values.deliveryAddress
+    if (!selected.includes('Transporte recolección')) delete values.pickupAddress
+    selectedServices.value = selected
+  }
   if (item.key === 'equipmentQuantity' && values.equipmentQuantity !== value) delete values.equipmentWeights
   if (isQuoteLocation(item.key)) {
     if (locationId) selectedLocations[item.key] = locationId
     else delete selectedLocations[item.key]
   }
   values[item.key] = value
-  const display = item.choices?.find(choice => choice.value === value)?.label || value || tr('Omitido','Skipped')
+  const display = item.key === 'services' ? serviceNames(value) : item.choices?.find(choice => choice.value === value)?.label || value || tr('Omitido','Skipped')
   history.value.push({question:item.prompt,answer:display})
   input.value = ''
   const edited = editingField.value !== ''
@@ -255,7 +316,7 @@ function accept(value = input.value, explicitLocationId?: string) {
     }
   }
   if (!item.choices && v) {
-    pendingValue.value = {key:item.key, value:v, display:v, locationId}
+    pendingValue.value = {key:item.key, value:v, display:item.key === 'services' ? serviceNames(v) : v, locationId}
     phase.value = 'confirm'
     void scrollEnd()
     return
@@ -265,6 +326,15 @@ function accept(value = input.value, explicitLocationId?: string) {
 function confirmPending() {
   const pending = pendingValue.value
   if (!pending || phase.value !== 'confirm' || !current.value || pending.key !== current.value.key) return
+  // La confirmación puede ocurrir después del cambio de día.
+  const issue = validation(pending.key, pending.value)
+  if (issue) {
+    pendingValue.value = null
+    phase.value = 'collect'
+    error.value = issue
+    input.value = pending.value
+    return
+  }
   pendingValue.value = null
   phase.value = 'collect'
   commitValue(current.value, pending.value, pending.locationId)
@@ -291,6 +361,7 @@ function editField(key: string) {
   editingField.value = key
   stepIndex.value = index
   input.value = values[key] || proposedLocations[key] || ''
+  if (key === 'services') selectedServices.value = (values.services || 'Transporte internacional').split('|').filter(Boolean)
   history.value = []
   void scrollEnd()
 }
@@ -335,7 +406,7 @@ function applyInitialQuestion() {
     const incoterm = question.match(/\b(exw|fca|fas|fob|cfr|cif|cpt|cip|dap|dpu|ddp)\b/)
     if (incoterm) values.incoterm = incoterm[1].toUpperCase()
     const day = question.match(/\b20\d{2}-\d{2}-\d{2}\b/)
-    if (day && validDate(day[0])) values.cargoReadyDate = day[0]
+    if (day && isCargoReadyDateOnOrAfterToday(day[0])) values.cargoReadyDate = day[0]
     const size = question.match(/\b(20|40|45|48|53)\s*(?:pies|ft|hc|high cube)\b/)
     if (size) {
       const candidate = size[1] + ' pies'
@@ -377,7 +448,10 @@ onMounted(() => {
   applyInitialQuestion()
 })
 function loginLink(): string {
-  return '/bienvenidos?next=' + encodeURIComponent(window.location.pathname + window.location.search)
+  const next = props.kind === 'tracking'
+    ? '/tracking?from=gio'
+    : window.location.pathname + window.location.search
+  return '/bienvenidos?next=' + encodeURIComponent(next)
 }
 function errorFromStatus(status: number) {
   return status === 401 ? tr('Tu sesión expiró. Inicia sesión e inténtalo de nuevo.','Your session expired. Sign in and try again.')
@@ -457,13 +531,14 @@ async function submitQuote() {
     return
   }
   const equipment = isEquipment.value
+  const requestedServices = values.services.split('|')
   const weights = equipment ? values.equipmentWeights.split(',').map(x => Number(x.trim())) : []
   const payload = {
     mode:values.mode, shipmentType:values.shipmentType,
     originLocationId:selectedLocations.origin, destinationLocationId:selectedLocations.destination,
     podLocationId:values.shipmentType === 'LCL' ? selectedLocations.pod : null,
     contactName:values.contactName, contactEmail:values.contactEmail,contactPhone:values.contactPhone,
-    incoterm:values.incoterm,cargoReadyDate:values.cargoReadyDate,services:['Transporte internacional'],
+    incoterm:values.incoterm,cargoReadyDate:values.cargoReadyDate,services:requestedServices,
     equipment:equipment ? [{size:values.equipmentSize,type:values.equipmentType,quantity:Number(values.equipmentQuantity),unitWeightsKg:weights}] : [],
     packages:equipment ? [] : [{
       description:values.cargoDescription,quantity:Number(values.packageQuantity),
@@ -476,14 +551,25 @@ async function submitQuote() {
     cargoDescription:values.cargoDescription,cabysCode:null,cargoValue:null,declaredWeight:null,
     declaredPackages:null,observations:values.dangerousGoods === 'unsure' ? 'La peligrosidad de la carga está pendiente de confirmar.' : null,
     cargoFlags:[...(values.dangerousGoods === 'yes' ? ['Carga peligrosa'] : []),...(!equipment && values.stackable === 'NonStackable' ? ['No estibable'] : [])],destinationHandling:null,
-    deliveryAddress:null,pickupAddress:null,fiscalStorageDays:null
+    deliveryAddress:requestedServices.includes('Transporte entrega') ? values.deliveryAddress : null,
+    pickupAddress:requestedServices.includes('Transporte recolección') ? values.pickupAddress : null,
+    fiscalStorageDays:requestedServices.includes('Almacenamiento') ? Number(values.fiscalStorageDays) : null
   }
   const data = await jsonResponse(await fetch('/api/quotes/official',{method:'POST',credentials:'same-origin',
     headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}))
   quoteId.value = String(data.id || '')
   quoteStatus.value = String(data.status || '')
   if (!quoteId.value) throw new Error(tr('No recibimos el identificador de la solicitud. Consultá con soporte antes de repetir el envío.','No request ID was returned. Contact support before submitting again.'))
-  try { sessionStorage.removeItem(STORAGE_KEY) } catch { /* storage disabled */ }
+  try {
+    sessionStorage.removeItem(STORAGE_KEY)
+    sessionStorage.setItem('gcf-gio-quote-receipt-v1', JSON.stringify({
+      at:Date.now(), id:quoteId.value, status:quoteStatus.value,
+      mode:values.mode, origin:values.origin, destination:values.destination,
+      // Snapshot only the fields confirmed and submitted. Nothing goes in the URL,
+      // and the public receipt never fetches other customers' requests by ID.
+      details:summary.value.map(({ key, value }) => ({ key, value }))
+    }))
+  } catch { /* storage disabled; GIO still shows the verified receipt */ }
   phase.value = 'result'
 }
 async function chooseLocation(loc: Location) {
@@ -518,15 +604,19 @@ async function perform() {
   busy.value = true
   error.value = ''
   try {
-    const user = await refreshSession()
-    if (!user) { saveDraft(); phase.value = 'auth'; return }
+    // Public actions do not require a user session.
     if (props.kind === 'quote') {
-      quoteResultAdmin.value = user.role === 'administrador'
-      quoteResultUrl.value = quoteResultAdmin.value ? '/administracion?tab=cotizaciones' : '/cotizaciones'
+      const user = await refreshSession()
+      quoteResultAdmin.value = user?.role === 'administrador'
+      quoteResultUrl.value = '/cotizaciones?gioReceipt=1'
       await submitQuote()
+      if (quoteResultAdmin.value)
+        quoteResultUrl.value = '/administracion/cotizaciones-oficiales?quote=' + encodeURIComponent(quoteId.value)
     }
     if (props.kind === 'itinerary') await searchItineraries()
     if (props.kind === 'tracking') {
+      const user = await refreshSession()
+      if (!user) { saveTrackingHandoff(); phase.value = 'auth'; return }
       // The existing Dynamics lookup has no verified client-to-shipment ownership check.
       // Never expose that unscoped lookup to a customer from the conversational interface.
       if (user.role !== 'administrador') { restrictedTracking.value = true; phase.value = 'result'; return }
@@ -558,7 +648,14 @@ async function perform() {
       </div>
       <template v-if="phase === 'collect' && current">
         <div class="gio-ops__bubble">{{ current.prompt }}</div>
-        <div v-if="current.choices" class="gio-ops__choices">
+        <div v-if="current.key === 'services'" class="gio-ops__services">
+          <label v-for="service in serviceChoices" :key="service.value" class="gio-ops__service">
+            <input type="checkbox" :checked="selectedServices.includes(service.value)" @change="toggleService(service.value)" />
+            <span>{{ service.label }}</span>
+          </label>
+          <button class="gio-ops__primary" type="button" :disabled="busy || !selectedServices.length" @click="accept(selectedServices.join('|'))">{{ tr('Continuar con servicios','Continue with services') }} <ChevronRight :size="15" /></button>
+        </div>
+        <div v-else-if="current.choices" class="gio-ops__choices">
           <button v-for="choice in current.choices" :key="choice.label" type="button" :disabled="busy" @click="accept(choice.value)">{{ choice.label }} <ChevronRight :size="14" /></button>
         </div>
         <div v-else-if="isCatalogueLocation(current.key)" class="gio-ops__bubble gio-ops__bubble--quiet">{{ tr('Busca y selecciona una ubicación válida en la lista justo encima del campo de búsqueda.','Search and select a valid location from the list above the search field.') }}</div>
@@ -588,7 +685,7 @@ async function perform() {
         <button class="gio-ops__secondary" type="button" :disabled="busy" @click="edit">{{ tr('Modificar datos','Edit information') }}</button>
       </template>
       <template v-else-if="phase === 'auth'">
-        <div class="gio-ops__bubble">{{ kind === 'quote' ? tr('Para enviar la solicitud necesitas una cuenta autorizada. El borrador permanecerá en esta pestaña hasta 30 minutos. Al volver, abre GIO y elige Cotización.','To submit this request you need an authorized account. Your draft stays in this tab for up to 30 minutes. On return, open GIO and select Quote.') : tr('Necesitas una cuenta autorizada para consultar esta información. Inicia sesión y vuelve a realizar la búsqueda.','You need an authorized account to search this information. Sign in, then start the search again.') }}</div>
+        <div class="gio-ops__bubble">{{ tr('Para consultar este embarque necesitás iniciar sesión. Después se abrirá tracking con la referencia que acabás de ingresar, sin repetir la búsqueda.','Sign in to view this shipment. Tracking will open with the reference you just entered, without searching again.') }}</div>
         <a class="gio-ops__primary" :href="loginLink()"><ShieldCheck :size="16" />{{ tr('Iniciar sesión','Sign in') }}</a>
         <button class="gio-ops__secondary" type="button" @click="perform">{{ tr('Ya inicié sesión','I have signed in') }}</button>
       </template>
@@ -611,13 +708,14 @@ async function perform() {
           <section v-for="item in itineraries" :key="item.id" class="gio-ops__card">
             <h3><Ship :size="17" />{{ item.pol }} → {{ item.pod }}</h3>
             <dl><div><dt>ETD</dt><dd>{{ item.etd }}</dd></div><div><dt>ETA</dt><dd>{{ item.eta }}</dd></div><div><dt>{{ tr('Modalidad','Mode') }}</dt><dd>{{ item.modality }}</dd></div><div><dt>{{ tr('Estado','Status') }}</dt><dd>{{ item.status }}</dd></div></dl>
-            <a class="gio-ops__link" href="/itinerario">{{ tr('Ver en itinerarios','View itineraries') }}</a>
+            <a class="gio-ops__link" :href="itineraryResultUrl">{{ tr('Ver en itinerarios','View itineraries') }}</a>
           </section>
+          <a v-if="!itineraries.length" class="gio-ops__secondary gio-ops__link" :href="itineraryResultUrl">{{ tr('Abrir búsqueda en itinerarios','Open itinerary search') }}</a>
           <p v-if="itineraryTotal > itineraries.length" class="gio-ops__note">{{ tr('Mostrando los primeros cinco resultados.','Showing the first five results.') }}</p>
         </template>
         <template v-else-if="restrictedTracking">
           <div class="gio-ops__bubble">{{ tr('La consulta conversacional de embarques para clientes necesita una verificación adicional de titularidad. No mostraré información privada sin ella.','Customer shipment chat lookup requires additional ownership verification. I cannot show private information without it.') }}</div>
-          <a class="gio-ops__secondary gio-ops__link" href="/tracking">{{ tr('Abrir página de tracking','Open tracking page') }}</a>
+          <a class="gio-ops__secondary gio-ops__link" href="/tracking?from=gio" @click="saveTrackingHandoff">{{ tr('Abrir página de tracking','Open tracking page') }}</a>
         </template>
         <template v-else>
           <div class="gio-ops__bubble">{{ shipments.length ? tr('Encontré esta información en Dynamics:','I found this information in Dynamics:') : tr('No se encontraron embarques para esa referencia.','No shipments matched that reference.') }}</div>
@@ -626,7 +724,7 @@ async function perform() {
             <dl><div v-for="field in ([['status',tr('Estado','Status')],['origin',tr('Origen','Origin')],['destination',tr('Destino','Destination')],['etd','ETD'],['eta','ETA'],['vessel',tr('Buque','Vessel')],['customerStatus',tr('Actualización','Update')]] as const)" :key="field[0]" v-show="item[field[0]]"><dt>{{ field[1] }}</dt><dd>{{ item[field[0]] }}</dd></div></dl>
           </section>
           <p v-if="shipmentTruncated" class="gio-ops__note">{{ tr('Hay más resultados. Consulta la página de tracking.','There are more results. Check the tracking page.') }}</p>
-          <a class="gio-ops__secondary gio-ops__link" href="/tracking">{{ tr('Abrir tracking completo','Open full tracking') }}</a>
+          <a class="gio-ops__secondary gio-ops__link" href="/tracking?from=gio" @click="saveTrackingHandoff">{{ tr('Abrir tracking completo','Open full tracking') }}</a>
         </template>
         <button class="gio-ops__secondary" type="button" @click="edit"><Search :size="15" />{{ tr('Nueva consulta','New search') }}</button>
       </template>
@@ -635,7 +733,7 @@ async function perform() {
     <section v-if="phase === 'collect' && current && isCatalogueLocation(current.key)" class="gio-ops__location-dock" aria-label="Sugerencias de ubicación">
       <div class="gio-ops__location-heading"><MapPin :size="14" /><strong>{{ tr('Ubicaciones disponibles','Available locations') }}</strong></div>
       <p v-if="locationLoading" class="gio-ops__note" role="status">{{ tr('Buscando ubicaciones…','Loading locations…') }}</p>
-      <p v-else-if="locationLoadError" class="gio-ops__error" role="alert">{{ locationLoadError }} <a v-if="kind === 'itinerary'" :href="loginLink()">{{ tr('Iniciar sesión','Sign in') }}</a></p>
+      <p v-else-if="locationLoadError" class="gio-ops__error" role="alert">{{ locationLoadError }}</p>
       <p v-else-if="!locationChoices.length" class="gio-ops__note">{{ tr('No hay ubicaciones habilitadas para esta modalidad.','No enabled locations for this shipment type.') }}</p>
       <div v-else-if="filteredLocations.length" class="gio-ops__choices gio-ops__location-list" role="listbox" :aria-label="tr('Ubicaciones disponibles','Available locations')">
         <button v-for="loc in filteredLocations" :key="loc.id" type="button" role="option" :aria-selected="false" @click="accept(loc.displayName, loc.id)"><MapPin :size="14" /><span>{{ loc.displayName }}</span><ChevronRight :size="14" /></button>
@@ -643,9 +741,9 @@ async function perform() {
       <p v-else class="gio-ops__note">{{ tr('Sin coincidencias. Escribe otra ciudad o puerto.','No matches. Try a different city or port.') }}</p>
       <p v-if="error" class="gio-ops__error" role="alert">{{ error }}</p>
     </section>
-    <form v-if="phase === 'collect' && current && !current.choices" class="gio-ops__form" @submit.prevent="isCatalogueLocation(current.key) ? accept(locationTerm) : accept()">
+    <form v-if="phase === 'collect' && current && !current.choices && current.key !== 'services'" class="gio-ops__form" @submit.prevent="isCatalogueLocation(current.key) ? accept(locationTerm) : accept()">
       <input v-if="isCatalogueLocation(current.key)" v-model="locationTerm" :placeholder="tr('Buscar ciudad, puerto o aeropuerto…','Search city, port or airport…')" :aria-label="current.prompt" :disabled="locationLoading || !!locationLoadError || !locationChoices.length" maxlength="120" autocomplete="off" />
-      <input v-else v-model="input" :placeholder="current.hint || tr('Escribe tu respuesta…','Type your answer…')" :aria-label="current.prompt" :disabled="busy" maxlength="400" />
+      <input v-else v-model="input" :placeholder="current.hint || tr('Escribe tu respuesta…','Type your answer…')" :aria-label="current.prompt" :disabled="busy" :maxlength="['deliveryAddress','pickupAddress'].includes(current.key) ? 800 : 400" />
       <button type="submit" :disabled="busy || (isCatalogueLocation(current.key) ? !locationTerm.trim() || locationLoading || !locationChoices.length : !input.trim() && !current.optional)" :aria-label="tr('Continuar','Continue')"><ChevronRight :size="19" /></button>
     </form>
   </div>
@@ -660,7 +758,14 @@ async function perform() {
 .gio-ops__bubble{align-self:flex-start;max-width:94%;padding:10px 12px;border:1px solid var(--gio-line,#555);border-radius:14px;background:var(--gio-bubble,#24212a);line-height:1.5;overflow-wrap:anywhere}
 .gio-ops__history{display:contents}.gio-ops__bubble--quiet{opacity:.75}.gio-ops__bubble--answer{align-self:flex-end;background:#9c1731;color:white;border-color:#9c1731}
 .gio-ops__choices{display:flex;flex-wrap:wrap;gap:7px}.gio-ops__choices button{display:flex;align-items:center;justify-content:space-between;gap:9px;text-align:left;border:1px solid var(--gio-line,#555);border-radius:11px;padding:10px 12px;background:var(--gio-action,#24212a);color:var(--gio-ink,#fff);cursor:pointer;font-size:12px;min-height:39px}
-.gio-ops__choices button:hover{border-color:#bb193c}.gio-ops__location-list{max-height:195px;overflow-y:auto}.gio-ops__location-list button{width:100%}
+.gio-ops__choices button:hover{border-color:#bb193c}
+.gio-ops__services{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.gio-ops__services .gio-ops__primary{grid-column:1/-1}
+.gio-ops__service{display:flex;gap:8px;align-items:center;min-width:0;padding:9px;border:1px solid var(--gio-line,#555);border-radius:10px;background:var(--gio-action,#24212a);cursor:pointer;line-height:1.3}
+.gio-ops__service input{accent-color:#b20c2a;flex:0 0 auto}
+.gio-ops__service span{overflow-wrap:anywhere}
+.gio-ops__service:has(input:checked){border-color:#d33e5b;background:color-mix(in srgb,var(--gio-action,#24212a) 82%,#b20c2a)}
+.gio-ops__location-list{max-height:195px;overflow-y:auto}.gio-ops__location-list button{width:100%}
 .gio-ops__card{background:var(--gio-action,#24212a);border:1px solid var(--gio-line,#555);border-radius:14px;padding:12px;display:grid;gap:10px}
 .gio-ops__card h3{display:flex;align-items:center;gap:7px;margin:0;font-size:13px;font-weight:750}
 .gio-ops__card h3 svg{color:#da2042;flex-shrink:0}.gio-ops__card dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:0}

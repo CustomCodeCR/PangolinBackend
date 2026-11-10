@@ -366,7 +366,14 @@ jobs:
             echo "::error::Missing official quotes tables after migration."
             exit 1
           fi
-          echo "Official quote schema and all 12 location roles verified. No development fixtures loaded."
+          # Invitados: si alguna columna sigue NOT NULL el nuevo backend devolvería 500
+          # al guardar una solicitud sin cuenta. Verificar antes de desplegar imágenes.
+          nullable_columns="$(pg_query "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='official_quote_requests' AND column_name IN ('cliente_id','usuario_id') AND is_nullable='YES'")"
+          if [[ "$nullable_columns" != "2" ]]; then
+            echo "::error::Guest quote columns are not nullable; refusing to deploy."
+            exit 1
+          fi
+          echo "Official quote schema, guest columns and all 12 location roles verified. No development fixtures loaded."
           unset PGPASSWORD
 
       - name: Apply additive CMS news metadata migration before starting new code
@@ -434,15 +441,28 @@ jobs:
             echo "::error::Traefik WWW route did not return Pangolin backend readiness."
             exit 1
           fi
-          # Sin cookie, la API protegida debe responder 401/403 (no 404 ni 5xx).
-          for protected_path in '/api/quotes/official/locations?kind=seaport&shipmentType=FCL&routeRole=origin' '/api/admin/quotes/official/permissions/me'; do
+          # El catálogo oficial y los itinerarios publicados son públicos en main-2.
+          # Los detalles de una cotización y las operaciones administrativas NO lo son.
+          catalog_path='/api/quotes/official/locations?kind=seaport&shipmentType=FCL&routeRole=origin'
+          catalog_http="$(curl -sS -o /tmp/pangolin-official-catalog.json -w '%{http_code}' --max-time 5 "http://127.0.0.1:$local_port$catalog_path")"
+          if [[ "$catalog_http" != "200" ]] || ! grep -q '"items"' /tmp/pangolin-official-catalog.json; then
+            echo "::error::Public official quote catalog unavailable or invalid (HTTP $catalog_http)."
+            exit 1
+          fi
+          itinerary_http="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$local_port/api/itinerarios?page=1&pageSize=1")"
+          if [[ "$itinerary_http" != "200" ]]; then
+            echo "::error::Public itineraries API unavailable (HTTP $itinerary_http)."
+            exit 1
+          fi
+          # Un ID con formato válido no debe permitir leer solicitudes ajenas sin sesión.
+          for protected_path in '/api/quotes/official/00000000-0000-0000-0000-000000000000' '/api/admin/quotes/official/permissions/me'; do
             quote_http="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$local_port$protected_path")"
             if [[ "$quote_http" != "401" && "$quote_http" != "403" ]]; then
-              echo "::error::Protected official quotes API unexpected response (HTTP $quote_http)."
+              echo "::error::Private official quote API unexpectedly accessible (HTTP $quote_http)."
               exit 1
             fi
           done
-          echo "Official quote and admin routes respond with authentication required."
+          echo "Public catalogs respond successfully; private quote and admin reads require authentication."
           # Reproducir un POST real de navegador con TLS terminado en Traefik:
           # Logout sin cookie no revoca sesiones ni envía OTP.
           # Ambas variantes del dominio deben validar su propio Origin y Host.

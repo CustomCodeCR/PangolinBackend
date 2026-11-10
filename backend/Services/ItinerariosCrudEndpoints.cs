@@ -38,7 +38,7 @@ public static class ItinerariosCrudEndpoints
 {
     public static void MapItinerariosCrud(this IEndpointRouteBuilder app)
     {
-        // La consulta individual, igual que el listado existente, admite client y admin.
+        // Consulta pública de itinerarios; las escrituras permanecen reservadas a admin.
         app.MapGet("/api/itinerarios/{id:guid}", async (
             Guid id, AppDbContext db, HttpContext http, CancellationToken ct) =>
         {
@@ -47,7 +47,7 @@ public static class ItinerariosCrudEndpoints
             return item is null
                 ? Results.NotFound(new { error = "Itinerario no encontrado." })
                 : Results.Ok(ToResponse(item));
-        }).RequireAuthorization("registered");
+        }).RequireRateLimiting("auth");
 
         // Todos los cambios requieren JWT con role=admin, además de la sesión
         // revocable comprobada por JwtBearer/OnTokenValidated.

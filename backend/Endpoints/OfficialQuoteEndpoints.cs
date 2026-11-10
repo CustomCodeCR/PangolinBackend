@@ -13,7 +13,21 @@ public static class OfficialQuoteEndpoints
     private static readonly string[] Incoterms =
         ["EXW", "FCA", "FAS", "FOB", "CFR", "CIF", "CPT", "CIP", "DAP", "DPU", "DDP"];
     private static readonly string[] States = ["Received", "InReview", "AwaitingInformation", "Closed"];
+    // Solo servicios ofrecidos por el formulario y GIO. Validar también en HTTP directo.
+    private static readonly HashSet<string> AllowedServices = new(StringComparer.Ordinal)
+    {
+        "Transporte internacional", "Agencia de Aduanas CR", "Agencia de Aduanas Exterior",
+        "Almacenamiento", "Control de inventario", "Embalaje", "Exoneración",
+        "Picking Carga", "Recepción de carga", "Seguro de carga", "Transporte entrega",
+        "Transporte recolección", "Transporte nacional"
+    };
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    // Usar el día calendario de Costa Rica, no UTC ni la zona horaria del servidor.
+    private static readonly TimeZoneInfo CostaRicaTimeZone =
+        TimeZoneInfo.FindSystemTimeZoneById("America/Costa_Rica");
+
+    private static DateOnly TodayInCostaRica() =>
+        DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CostaRicaTimeZone));
 
     private static async Task<OfficialQuotePermission?> Permission(
         AppDbContext db, AuthIdentity? user, CancellationToken ct)
@@ -68,6 +82,8 @@ public static class OfficialQuoteEndpoints
         if (s.Incoterm is not null && !Incoterms.Contains(s.Incoterm))
             throw new ArgumentException("Incoterm inválido.");
         if (s.CargoReadyDate is null) throw new ArgumentException("Indicá la fecha de carga lista.");
+        if (s.CargoReadyDate.Value < TodayInCostaRica())
+            throw new ArgumentException("La fecha de carga lista debe ser hoy o posterior (hora de Costa Rica).");
         Required(s.ContactName, "Nombre de contacto", 150);
         var email = Required(s.ContactEmail, "Correo", 255);
         if (!MailAddress.TryCreate(email, out var parsed) ||
@@ -78,6 +94,8 @@ public static class OfficialQuoteEndpoints
             s.Services.Any(x => string.IsNullOrWhiteSpace(x) || x.Length > 100) ||
             s.Services.Distinct(StringComparer.OrdinalIgnoreCase).Count() != s.Services.Count)
             throw new ArgumentException("Seleccioná al menos un servicio válido.");
+        if (s.Services.Any(service => !AllowedServices.Contains(service)))
+            throw new ArgumentException("Seleccioná servicios del catálogo oficial.");
         if (s.Equipment?.Count > 25 || s.Packages?.Count > 25)
             throw new ArgumentException("Se permiten hasta 25 líneas de carga.");
         bool equipment = s.ShipmentType is "FCL" or "FTL";
@@ -159,7 +177,7 @@ public static class OfficialQuoteEndpoints
 
     // Public, read-only catalogue for GIO's guest quote builder. Only active,
     // non-development locations enabled for the requested shipment type and role
-    // are returned. Quote creation still requires the authenticated official API.
+    // are returned. Public quote creation uses server validation and rate limiting.
     private static async Task<IResult> GetPublicAssistantLocations(
         string kind, string shipmentType, string routeRole, AppDbContext db, HttpContext http, CancellationToken ct)
     {
@@ -192,33 +210,17 @@ public static class OfficialQuoteEndpoints
     {
         app.MapGet("/api/assistant/quote-locations", GetPublicAssistantLocations)
             .RequireRateLimiting("auth");
-        var group = app.MapGroup("/api/quotes/official").RequireAuthorization("registered");
+        var group = app.MapGroup("/api/quotes/official");
 
-        group.MapGet("/locations", async (string kind, string shipmentType, string routeRole, AppDbContext db, CancellationToken ct) =>
-        {
-            if (kind is not ("seaport" or "airport" or "inland") ||
-                shipmentType is not ("FCL" or "LCL" or "AIR_LCL" or "FTL" or "LTL") ||
-                routeRole is not ("origin" or "destination" or "pod") ||
-                (routeRole == "pod" && shipmentType is not ("FCL" or "LCL")) ||
-                (shipmentType is "FCL" or "LCL" ? kind != "seaport" :
-                 shipmentType == "AIR_LCL" ? kind != "airport" : kind != "inland"))
-                return Results.BadRequest(new { error = "Selección de catálogo inválida." });
-            var items = await db.OfficialQuoteLocations.AsNoTracking()
-                .Where(x => x.Active && (routeRole == "pod" || x.Kind == kind) &&
-                    db.OfficialQuoteLocationUsages.Any(u => u.LocationId == x.Id &&
-                        u.ShipmentType == shipmentType && u.RouteRole == routeRole))
-                // No mezclar lugares ficticios en una lista que ya contiene opciones verificadas.
-                .OrderBy(x => x.DisplayName).Select(x => new { x.Id, x.DisplayName, x.Code }).Take(500).ToListAsync(ct);
-            if (items.Any(x => x.Code is not null && !x.Code.StartsWith("DEV-", StringComparison.Ordinal)))
-                items = items.Where(x => x.Code is null || !x.Code.StartsWith("DEV-", StringComparison.Ordinal)).ToList();
-            return Results.Ok(new { items });
-        });
+        // Use the same verified public catalogue for the standalone form and GIO.
+        group.MapGet("/locations", GetPublicAssistantLocations)
+            .RequireRateLimiting("auth");
 
         group.MapPost("", async (OfficialQuoteSubmit input, AppDbContext db, AuthService auth,
             HttpContext http, CancellationToken ct) =>
         {
+            // Guest submissions are independent from registered customer accounts.
             var user = await auth.GetIdentityAsync(http, ct);
-            if (user is null) return Results.Unauthorized();
             try
             {
                 Validate(input);
@@ -244,8 +246,9 @@ public static class OfficialQuoteEndpoints
                     return Results.BadRequest(new { error = "La ubicación no está habilitada para este campo y modalidad." });
                 var quote = new OfficialQuoteRequest
                 {
-                    Id = Guid.NewGuid(), ClienteId = user.ClienteId, UsuarioId = user.UsuarioId,
-                    CustomerName = Required(user.NombreCliente, "Cliente", 200),
+                    Id = Guid.NewGuid(), ClienteId = user?.ClienteId, UsuarioId = user?.UsuarioId,
+                    CustomerName = user is null ? Required(input.ContactName, "Cliente", 150)
+                        : Required(user.NombreCliente, "Cliente", 200),
                     ContactName = input.ContactName!.Trim(), ContactEmail = input.ContactEmail!.Trim(),
                     ContactPhone = input.ContactPhone!.Trim(),
                     Mode = input.Mode!, ShipmentType = input.ShipmentType!,
@@ -265,7 +268,7 @@ public static class OfficialQuoteEndpoints
             {
                 return Results.BadRequest(new { error = ex.Message });
             }
-        }).RequireRateLimiting("auth");
+        }).RequireRateLimiting("public-quote");
 
         group.MapGet("/{id:guid}", async (Guid id, AppDbContext db, AuthService auth,
             HttpContext http, CancellationToken ct) =>
@@ -283,7 +286,7 @@ public static class OfficialQuoteEndpoints
                 quote.Id, quote.Mode, quote.ShipmentType, quote.Status, quote.Authorization,
                 quote.CreatedAtUtc, form = JsonSerializer.Deserialize<JsonElement>(quote.FormJson)
             });
-        });
+        }).RequireAuthorization("registered");
 
         var admin = app.MapGroup("/api/admin/quotes/official").RequireAuthorization("admin");
         admin.MapGet("/permissions/me", async (AppDbContext db, AuthService auth, HttpContext http,

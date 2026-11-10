@@ -7,6 +7,8 @@ from pathlib import Path
 from urllib.request import urlopen
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import TimeoutException
@@ -183,26 +185,188 @@ def main():
         for route, marker in [
             ("/", ".home-hero__content"),
             ("/servicios", ".services-page__transport"),
-            ("/nosotros", ".about-reference-intro"),
+            ("/nosotros", ".about-refresh__intro-grid"),
             ("/noticias", ".news-editorial-hero")
         ]:
             assert_public(driver, route, marker)
+            if route == "/nosotros":
+                buttons = driver.find_elements(By.CSS_SELECTOR, ".about-refresh__value-trigger")
+                assert len(buttons) == 5, "Se esperan cinco valores corporativos"
+                assert not driver.find_elements(By.CSS_SELECTOR, ".about-refresh__value-summary"), "No debe haber resúmenes visibles al inicio"
+                assert all(button.get_attribute("aria-expanded") == "false" for button in buttons), "Los valores deben empezar cerrados"
+                # Dark mode should use matching mission/value surfaces; chevrons must be centered.
+                appearance = driver.execute_script("""
+                    const root=document.documentElement;
+                    const old=root.classList.contains('theme-dark');
+                    root.classList.add('theme-dark');
+                    try {
+                        const mission=getComputedStyle(document.querySelector('.about-refresh__purpose-card')).backgroundColor;
+                        const value=getComputedStyle(document.querySelector('.about-refresh__value')).backgroundColor;
+                        const centered=[...document.querySelectorAll('.about-refresh__value-trigger')].every(button => {
+                            const arrow=button.querySelector('.about-refresh__value-chevron');
+                            const b=button.getBoundingClientRect(), a=arrow.getBoundingClientRect();
+                            return Math.abs((a.top+a.bottom)/2-(b.top+b.bottom)/2)<5;
+                        });
+                        const heroDivider=getComputedStyle(document.querySelector('.about-refresh__hero-copy .big-years span')).borderLeftColor;
+                        return {mission, value, centered, heroDivider};
+                    } finally {
+                        if (!old) root.classList.remove('theme-dark');
+                    }
+                """)
+                assert appearance["mission"] == appearance["value"], "Misión/visión y valores deben usar el mismo color de tarjeta en modo oscuro"
+                assert appearance["heroDivider"] == "rgb(255, 255, 255)", "El separador de +48 años debe ser blanco en modo oscuro"
+                assert appearance["centered"], "Las flechas de valores deben quedar centradas verticalmente"
+                # Real mouse hover must open; moving to another value closes the previous one.
+                ActionChains(driver).move_to_element(buttons[0]).perform()
+                WebDriverWait(driver, WAIT).until(lambda _: buttons[0].get_attribute("aria-expanded") == "true")
+                assert driver.find_elements(By.CSS_SELECTOR, ".about-refresh__value-panel.is-open"), "Debe abrirse la descripción al pasar el cursor"
+                icon_style = driver.execute_script("""
+                    const root=document.documentElement;
+                    const old=root.classList.contains('theme-dark');
+                    root.classList.add('theme-dark');
+                    try {
+                        const icon=document.querySelector('.about-refresh__value.is-open .about-refresh__value-icon');
+                        return {background:getComputedStyle(icon).backgroundColor, foreground:getComputedStyle(icon).color};
+                    } finally {
+                        if (!old) root.classList.remove('theme-dark');
+                    }
+                """)
+                assert icon_style["background"] == "rgb(176, 9, 41)", "El ícono abierto debe tener fondo rojo en oscuro"
+                assert icon_style["foreground"] == "rgb(255, 255, 255)", "El ícono abierto debe ser blanco en oscuro"
+                ActionChains(driver).move_to_element(buttons[1]).perform()
+                WebDriverWait(driver, WAIT).until(lambda _: buttons[0].get_attribute("aria-expanded") == "false" and buttons[1].get_attribute("aria-expanded") == "true")
+                ActionChains(driver).move_to_element(driver.find_element(By.CSS_SELECTOR, ".about-refresh__section-heading h2")).perform()
+                WebDriverWait(driver, WAIT).until(lambda _: buttons[1].get_attribute("aria-expanded") == "false")
+                # Keyboard users can toggle the same native button without a mouse.
+                buttons[0].send_keys(Keys.ENTER)
+                WebDriverWait(driver, WAIT).until(lambda _: buttons[0].get_attribute("aria-expanded") == "true")
+                buttons[0].send_keys(Keys.ENTER)
+                WebDriverWait(driver, WAIT).until(lambda _: buttons[0].get_attribute("aria-expanded") == "false")
+                print("PASS Chrome: hover, mouse leave and keyboard accordion in Sobre nosotros", flush=True)
+                # Follow both CTAs in the actual browser, not just their href attributes.
+                assert not driver.find_elements(By.CSS_SELECTOR, ".about-refresh__hero-subtitle"), "Debe quitarse el subtítulo de +48 años"
+                def click_about_link(selector):
+                    element = await_css(driver, selector)
+                    driver.execute_script("""
+                        const previous = document.documentElement.style.scrollBehavior;
+                        document.documentElement.style.scrollBehavior = 'auto';
+                        arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});
+                        document.documentElement.style.scrollBehavior = previous;
+                    """, element)
+                    WebDriverWait(driver, WAIT).until(lambda _: driver.execute_script("""
+                        const r=arguments[0].getBoundingClientRect();
+                        return r.top >= 0 && r.bottom <= window.innerHeight;
+                    """, element))
+                    element.click()
+                click_about_link('a.about-refresh__button--primary[href="/servicios"]')
+                WebDriverWait(driver, WAIT).until(lambda d: d.current_url.split("?")[0].rstrip("/").endswith("/servicios"))
+                await_css(driver, ".services-page__transport")
+                print("PASS Chrome: Conocer servicios abre /servicios", flush=True)
+                driver.get(BASE + "/nosotros")
+                await_css(driver, ".about-refresh__actions")
+                click_about_link('a.about-refresh__button--secondary[href="/cotizaciones"]')
+                WebDriverWait(driver, WAIT).until(lambda d: d.current_url.split("?")[0].rstrip("/").endswith("/cotizaciones"))
+                WebDriverWait(driver, WAIT).until(lambda d: bool(d.find_elements(By.CSS_SELECTOR, ".quote-flow-page")))
+                print("PASS Chrome: Solicitar cotización abre /cotizaciones", flush=True)
+                driver.get(BASE + "/nosotros")
+                await_css(driver, ".about-refresh__intro-grid")
             shot = {"/": ("01-inicio-escritorio", "Inicio", "Portada y navegación"),
                     "/servicios": ("02-servicios-escritorio", "Servicios", "Servicios logísticos"),
                     "/nosotros": ("03-nosotros-escritorio", "Sobre nosotros", "Información de la empresa"),
                     "/noticias": ("04-noticias-escritorio", "Noticias", "Sección pública de noticias")}
             screenshot(driver, shot[route][0], shot[route][1], route, shot[route][2])
 
+        # Regression: the last numbered transport stage must remain pinned briefly
+        # instead of dropping the user into the footer on the next scroll.
+        driver.get(BASE + "/servicios/transporte-maritimo")
+        await_css(driver, ".service-landing-story .service-landing-step")
+        transport_state = driver.execute_script("""
+            const stack = document.querySelector('.service-landing-story .service-landing-steps');
+            const last = stack.querySelector('.service-landing-step--faq');
+            return {
+                stages: stack.querySelectorAll('.service-landing-step').length,
+                runway: parseFloat(getComputedStyle(stack.querySelector('.service-landing-steps__runway')).height),
+                sticky: getComputedStyle(last).position,
+                rootOverflow: getComputedStyle(document.querySelector('.app-site.service-landing-page')).overflowY
+            };
+        """)
+        assert transport_state["stages"] >= 3, "Transporte debe tener etapas numeradas"
+        assert transport_state["runway"] >= 320, "La última etapa necesita distancia de desplazamiento adicional"
+        assert transport_state["sticky"] == "sticky", "En escritorio las etapas siguen siendo sticky"
+        assert transport_state["rootOverflow"] == "clip", "El contenedor principal no debe desactivar el sticky con overflow hidden"
+        driver.execute_script("""
+            const stack = document.querySelector('.service-landing-story .service-landing-steps');
+            const last = stack.querySelector('.service-landing-step--faq');
+            // Measure the last card's natural location rather than invoking
+            // scrollIntoView on a sticky (already visually displaced) element.
+            const naturalTop = window.scrollY + stack.getBoundingClientRect().top + last.offsetTop;
+            window.scrollTo({top: naturalTop + 40, behavior: 'instant'});
+        """)
+        # Wait for the scroll-reveal transition to settle before comparing geometry.
+        WebDriverWait(driver, WAIT).until(lambda d: d.execute_script("""
+            return document.querySelector('.service-landing-story .service-landing-steps')
+                .querySelector('.service-landing-step--faq').classList.contains('is-visible');
+        """))
+        time.sleep(.95)
+        before = driver.execute_script("""
+            const last = document.querySelector('.service-landing-story .service-landing-steps').querySelector('.service-landing-step--faq');
+            return { y: window.scrollY, top: last.getBoundingClientRect().top };
+        """)
+        driver.execute_script("window.scrollBy({top: 240, behavior: 'instant'});")
+        after = driver.execute_script("""
+            const last = document.querySelector('.service-landing-story .service-landing-steps').querySelector('.service-landing-step--faq');
+            return {
+                y: window.scrollY,
+                top: last.getBoundingClientRect().top,
+                footer: document.querySelector('.site-footer, footer').getBoundingClientRect().top,
+                viewport: window.innerHeight
+            };
+        """)
+        print("DEBUG last transport stage:", before, after, flush=True)
+        assert after["y"] - before["y"] >= 200, "El scroll debe continuar naturalmente"
+        assert abs(after["top"] - before["top"]) < 8, "La última etapa debe permanecer visible al seguir bajando"
+        assert after["footer"] >= after["viewport"] * .7, "El pie no debe saltar de inmediato dentro de la pantalla"
+        print("PASS Chrome: última etapa de transporte permanece visible sin salto al footer", flush=True)
+
         # Capture the responsive public site with a real mobile-sized viewport.
         driver.set_window_size(390, 844)
         for route, marker, slug, title in [
             ("/", ".home-hero__content", "05-inicio-movil", "Inicio móvil"),
             ("/servicios", ".services-page__transport", "06-servicios-movil", "Servicios móvil"),
+            ("/nosotros", ".about-refresh__intro-grid", "07b-nosotros-movil", "Sobre nosotros móvil"),
             ("/noticias", ".news-editorial-hero", "07-noticias-movil", "Noticias móvil")
         ]:
             driver.get(BASE + route)
             await_css(driver, marker)
             screenshot(driver, slug, title, route, "Captura a 390 × 844 píxeles")
+            if route == "/nosotros":
+                # Emulate a touch-first device and verify tap-to-expand / tap-to-collapse.
+                driver.execute_cdp_cmd("Emulation.setTouchEmulationEnabled", {"enabled": True, "maxTouchPoints": 1})
+                driver.execute_cdp_cmd("Emulation.setDeviceMetricsOverride", {"width": 390, "height": 844, "deviceScaleFactor": 1, "mobile": True})
+                try:
+                    assert driver.execute_script("return document.documentElement.scrollWidth <= window.innerWidth + 2"), "Sobre nosotros tiene desplazamiento horizontal no deseado en móvil"
+                    mobile_button = driver.find_element(By.CSS_SELECTOR, ".about-refresh__value-trigger")
+                    driver.execute_script("arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});", mobile_button)
+                    def touch_value():
+                        center = driver.execute_script("""
+                            const r = arguments[0].getBoundingClientRect();
+                            return {x:r.left + r.width/2, y:r.top + r.height/2};
+                        """, mobile_button)
+                        driver.execute_cdp_cmd("Input.dispatchTouchEvent", {
+                            "type": "touchStart", "touchPoints": [{"x": center["x"], "y": center["y"], "id": 1}]
+                        })
+                        driver.execute_cdp_cmd("Input.dispatchTouchEvent", {
+                            "type": "touchEnd", "touchPoints": []
+                        })
+                    touch_value()
+                    WebDriverWait(driver, WAIT).until(lambda _: mobile_button.get_attribute("aria-expanded") == "true")
+                    touch_value()
+                    WebDriverWait(driver, WAIT).until(lambda _: mobile_button.get_attribute("aria-expanded") == "false")
+                    print("PASS Chrome móvil: abrir y cerrar valor tocando, sin scroll horizontal", flush=True)
+                finally:
+                    driver.execute_cdp_cmd("Emulation.clearDeviceMetricsOverride", {})
+                    driver.execute_cdp_cmd("Emulation.setTouchEmulationEnabled", {"enabled": False})
+
         driver.set_window_size(1440, 1100)
 
         driver.get(BASE + "/cotizaciones")
