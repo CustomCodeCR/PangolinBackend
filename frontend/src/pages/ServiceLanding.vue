@@ -61,7 +61,7 @@ const serviceVideo = (pathname: string) => {
   if (pathname.endsWith('/almacenamiento-fiscal') || pathname.endsWith('/bodegaje-general')) return '/videos/service-warehouse.mp4'
   return '/videos/service-maritime.mp4'
 }
-const pointIcon = (index: number) => ['✦', '⇄', '⌖', '◎'][index % 4]
+const pointIcon = (index: number) => ['✦', '⇄', '⌖', 'boxes'][index % 4]
 const details = computed<LandingText>(() => {
   const guide = guides[route]?.[lang.value]
   if (guide) {
