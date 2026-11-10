@@ -645,6 +645,18 @@ html.theme-dark .visual-editor__featured-reel :is(header>a,.visual-editor__featu
 .visual-editor__library-field > label{font-size:13px;font-weight:750}
 .visual-editor__locations input,.visual-editor__details textarea,.visual-editor__details input,.visual-editor__details select{min-width:0;width:100%;padding:11px;border-radius:9px;border:1px solid #cbd1d8;font:inherit;background:white;color:#202126}
 .visual-editor__locations button{display:grid;gap:4px;text-align:left;padding:12px;border:1px solid #e1e4e9;border-radius:12px;background:#fff;color:#202126;cursor:pointer}
+/* El selector de servicios reutiliza FieldDropdown: no debe heredar la
+   cuadrícula de los botones de ubicaciones (desplazaba la flecha abajo). */
+.visual-editor .visual-editor__locations .visual-editor__library-field .cf-dropdown__trigger{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  width:100%;min-width:0;
+}
+.visual-editor .visual-editor__locations .visual-editor__library-field .cf-dropdown__value{
+  flex:1 1 auto;min-width:0;
+}
+.visual-editor .visual-editor__locations .visual-editor__library-field .cf-dropdown__chevron{
+  flex:0 0 8px;margin-left:auto;
+}
 .visual-editor__locations button.active{border-color:#a70c2b;background:rgba(168,14,24,.08)}
 .visual-editor__locations small,.visual-editor__description,.visual-editor__hint{color:#657079;font-size:12px;line-height:1.5}
 .visual-editor__slot-type{font-size:10px;color:#9c0b28;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
