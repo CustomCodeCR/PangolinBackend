@@ -69,6 +69,91 @@ public static class SiteCmsEndpoints
         "services.multimodal.detail"
     };
 
+
+    // Los campos nuevos están estrictamente enumerados; el cliente no puede
+    // crear claves arbitrarias. No se eliminan datos CMS existentes.
+    static SiteCmsEndpoints()
+    {
+        foreach (var retired in new[] {
+            "home.digital.card.0.title", "home.digital.card.0.subtitle",
+            "home.digital.card.1.title", "home.digital.card.1.subtitle",
+            "home.digital.card.2.title", "home.digital.card.2.subtitle"
+        }) TextKeys.Remove(retired);
+
+        foreach (var field in new[] {
+            "who", "heading", "historyAction", "imageLabel", "missionTag", "mission", "missionBody",
+            "visionTag", "vision", "visionBody", "culture", "servicesTag", "capabilitiesTitle",
+            "serviceAction", "quoteAction"
+        }) TextKeys.Add("about.copy." + field);
+        for (var i=0;i<5;i++)
+        {
+            TextKeys.Add("about.valueDetails." + i);
+            TextKeys.Add("about.capability." + i + ".title");
+            TextKeys.Add("about.capability." + i + ".detail");
+        }
+        for (var i=0;i<3;i++) MediaKeys.Add("about.gallery." + i + ".media");
+
+        foreach (var field in new[] {
+            "home.tracking.heading1", "home.tracking.heading2", "home.tracking.intro",
+            "home.access.heading1", "home.access.heading2", "home.access.tracking", "home.access.quote",
+            "home.news.heading", "services.faq.heading",
+            "services.directory.heading", "services.directory.intro",
+            "services.directory.transport.title", "services.directory.logistics.title",
+            "services.access.heading1", "services.access.heading2", "services.access.intro",
+            "services.access.tracking", "services.access.quote"
+        }) TextKeys.Add(field);
+        for(var i=0;i<4;i++)
+        {
+            TextKeys.Add("home.stats." + i + ".label");
+            TextKeys.Add("services.faq." + i + ".q");
+            TextKeys.Add("services.faq." + i + ".a");
+        }
+
+        var guideSlugs = new[] {
+            "almacenamiento-fiscal", "bodegaje-general", "agenciamiento-aduanal", "consolidadora-de-carga"
+        };
+        var transportSlugs = new[] {
+            "transporte-maritimo", "transporte-terrestre", "transporte-aereo",
+            "transporte-internacional", "transporte-local", "transporte-panama-costa-rica"
+        };
+        foreach (var slug in guideSlugs.Concat(transportSlugs))
+        {
+            var prefix = "service." + slug + ".";
+            MediaKeys.Add(prefix + "hero.media");
+            MediaKeys.Add(prefix + "story.media");
+            foreach (var field in new[] { "label", "title", "intro" }) TextKeys.Add(prefix + field);
+        }
+        foreach (var slug in guideSlugs)
+        {
+            var prefix = "service." + slug + ".";
+            foreach (var field in new[] {
+                "heading", "body", "answer", "quoteHeading", "quoteIntro", "scopeNote"
+            }) TextKeys.Add(prefix + field);
+            for(var i=0;i<4;i++) TextKeys.Add(prefix + "point." + i + ".body");
+            for(var i=0;i<3;i++) TextKeys.Add(prefix + "quoteItem." + i);
+            for(var i=0;i<5;i++)
+            {
+                TextKeys.Add(prefix + "faq." + i + ".q");
+                TextKeys.Add(prefix + "faq." + i + ".a");
+            }
+        }
+        foreach (var slug in transportSlugs)
+        {
+            var prefix = "service." + slug + ".";
+            foreach (var field in new[] { "eyebrow", "location", "ctaLabel" }) TextKeys.Add(prefix + field);
+            for(var i=0;i<2;i++)
+            {
+                TextKeys.Add(prefix + "point." + i + ".title");
+                TextKeys.Add(prefix + "point." + i + ".body");
+            }
+            for(var i=0;i<3;i++)
+            {
+                TextKeys.Add(prefix + "faq." + i + ".q");
+                TextKeys.Add(prefix + "faq." + i + ".a");
+            }
+        }
+    }
+
     public static void MapSiteCms(this IEndpointRouteBuilder app)
     {
         app.MapGet("/api/content/site", async (AppDbContext db, HttpContext http, CancellationToken ct) =>
