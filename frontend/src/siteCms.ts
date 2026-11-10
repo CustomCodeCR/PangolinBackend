@@ -1049,6 +1049,16 @@ const guideImages:Record<string,string>={
 for(const [route,guide] of Object.entries(serviceGuides)){
   const slug=route.split('/').pop() || ''
   const name=guide.es.label
+  const guideLocations:Record<string,[string,string]>={
+    'almacenamiento-fiscal':['Almacenamiento fiscal en Costa Rica','Fiscal warehousing in Costa Rica'],
+    'bodegaje-general':['Bodegaje general en Costa Rica','General warehousing in Costa Rica'],
+    'agenciamiento-aduanal':['Gestiones aduanales en Costa Rica','Customs coordination in Costa Rica'],
+    'consolidadora-de-carga':['Coordinación de carga consolidada','Consolidated cargo coordination']
+  }
+  const place=guideLocations[slug] || ['Servicios logísticos en Costa Rica','Logistics services in Costa Rica']
+  detailText(slug,name,'eyebrow','Portada','Antetítulo','SOLUCIONES LOGÍSTICAS','LOGISTICS SERVICES')
+  detailText(slug,name,'location','Portada','Ubicación',place[0],place[1])
+  detailText(slug,name,'ctaLabel','Portada','Botón de consulta','Consultar este servicio','Ask about this service')
   detailMedia(slug,name,'hero.media','Portada','Imagen de portada y explicación',guideImages[slug]||'/images/hero.webp')
   detailMedia(slug,name,'story.media','Beneficios','Video o imagen de beneficios',defaultVideo(slug),'Video')
   ;([
@@ -1075,13 +1085,21 @@ for(const service of servicePages){
   detailMedia(slug,name,'hero.media','Portada','Imagen de portada y explicación',service.image)
   detailMedia(slug,name,'story.media','Beneficios','Video o imagen de beneficios',defaultVideo(slug),'Video')
   ;([
-    ['label','Nombre',service.serviceType.es,service.serviceType.en],
+    ['label','Nombre',service.title.es,service.title.en],
     ['title','Título',service.title.es,service.title.en],
     ['eyebrow','Antetítulo',service.eyebrow.es,service.eyebrow.en],
     ['intro','Introducción',service.lead.es,service.lead.en],
     ['location','Ubicación',service.location.es,service.location.en],
     ['ctaLabel','Botón de cotización',service.quoteLabel.es,service.quoteLabel.en]
   ] as Array<[string,string,string,string]>).forEach(([field,label,es,en])=>detailText(slug,name,field,'Portada',label,es,en))
+  detailText(slug,name,'heading','Explicación','Título',
+    'Una operación clara desde el primer paso.','A clear operation from the first step.')
+  detailText(slug,name,'body','Explicación','Descripción',
+    'Antes de coordinar, se revisan las características de la carga, los puntos de salida y entrega, y la fecha requerida. El alcance, las condiciones y la disponibilidad se confirman para cada operación.',
+    'Before coordination, the cargo characteristics, pickup and delivery points, and required date are reviewed. Scope, terms and availability are confirmed for each operation.')
+  detailText(slug,name,'answer','Explicación','Resumen',
+    'Compartir una descripción clara de la carga y los datos de la ruta ayuda al equipo a orientar la revisión y definir los siguientes pasos.',
+    'A clear cargo description and route details help the team assess the request and outline the next steps.')
   service.sections.forEach((item,i)=>{
     detailText(slug,name,'point.'+i+'.title','Beneficios','Beneficio '+(i+1)+': título',item.title.es,item.title.en)
     detailText(slug,name,'point.'+i+'.body','Beneficios','Beneficio '+(i+1)+': descripción',item.body.es,item.body.en)
