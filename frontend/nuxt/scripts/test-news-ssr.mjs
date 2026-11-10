@@ -65,6 +65,21 @@ try {
   assert.match(html, /rel="canonical"/)
   const sitemap = await (await fetch(base + '/sitemap.xml')).text()
   assert.ok(sitemap.includes(slug), 'Noticia ausente en sitemap dinámico')
+  // SEO: las páginas comerciales del sitemap deben tener enlaces HTML
+  // visibles en el catálogo, sin depender de interacción con pestañas.
+  const servicesIndex = await fetch(base + '/servicios')
+  assert.equal(servicesIndex.status, 200)
+  const servicesHtml = await servicesIndex.text()
+  for (const route of [
+    '/servicios/transporte-maritimo',
+    '/servicios/transporte-aereo',
+    '/servicios/transporte-terrestre',
+    '/servicios/almacenamiento-fiscal',
+    '/servicios/bodegaje-general',
+    '/servicios/agenciamiento-aduanal'
+  ]) {
+    assert.ok(servicesHtml.includes('href="' + route + '"'), 'Falta enlace HTML SSR a ' + route)
+  }
   const missing = await fetch(base + '/noticias/no-existe')
   assert.equal(missing.status, 404)
   console.log('Noticias SSR, Article JSON-LD, sitemap dinámico y 404: OK')
