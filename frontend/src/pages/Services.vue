@@ -185,186 +185,179 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
 </template>
 
 <style scoped>
+/* Directorio SEO: mismo lenguaje visual de los FAQ y bloques de servicios.
+   Las tarjetas son enlaces reales, compactos y visibles sin interacciones. */
 .services-directory {
   position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  padding: 64px 0 88px;
-  background: linear-gradient(140deg, #f8e8ec 0%, #fcf8f9 52%, #fff 100%);
+  padding: 48px 0 64px;
+  background: #fcf7f8;
 }
-.services-directory::before {
-  content: "";
-  position: absolute;
-  inset: -180px auto auto -200px;
-  width: 640px;
-  height: 480px;
-  background: radial-gradient(ellipse, rgba(177, 12, 43, .09), transparent 70%);
-  pointer-events: none;
-}
-.services-directory__container { position: relative; z-index: 1; max-width: 1220px; }
-.services-directory__heading { max-width: 780px; margin: 0 auto 48px; text-align: center; }
+.services-directory__container { max-width: 1180px; }
+.services-directory__heading { max-width: 780px; margin: 0 auto 32px; text-align: center; }
 .services-directory__heading .section-title {
-  font-size: clamp(32px, 3.5vw, 51px);
-  line-height: 1.1;
-  margin: 12px 0 14px;
+  font-size: clamp(29px, 3vw, 43px);
+  line-height: 1.13;
+  margin: 9px 0 10px;
 }
 .services-directory__intro {
-  max-width: 590px;
+  max-width: 570px;
   margin: 0 auto;
-  color: #6c5a63;
-  font-size: 15px;
-  line-height: 1.65;
+  color: #68616a;
+  font-size: 14px;
+  line-height: 1.6;
 }
-.services-directory__group + .services-directory__group { margin-top: 34px; }
+.services-directory__group + .services-directory__group { margin-top: 26px; }
 .services-directory__group-heading {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 16px;
-  border-bottom: 1px solid rgba(114, 42, 56, .19);
-  padding-bottom: 14px;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(90, 61, 72, .18);
 }
 .services-directory__group-heading h3 {
   margin: 0;
-  color: #252630;
-  font-size: 14px;
+  color: #272831;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: .075em;
   text-transform: uppercase;
 }
 .services-directory__count {
-  color: #a95768;
+  color: #a45164;
   flex: none;
   font-size: 10px;
-  font-weight: 850;
-  letter-spacing: .15em;
+  font-weight: 800;
+  letter-spacing: .1em;
 }
 .services-directory__links {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  gap: 10px;
 }
-.services-directory__links--logistics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.services-directory__links--logistics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .services-directory__card {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto 1fr;
-  gap: 20px 12px;
+  grid-template-columns: 24px minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 12px;
   min-width: 0;
-  min-height: 143px;
-  padding: 22px;
-  border: 1px solid rgba(113, 47, 62, .17);
-  border-radius: 18px;
-  background: linear-gradient(155deg, rgba(255, 255, 255, .94), rgba(255, 255, 255, .67));
-  box-shadow: 0 5px 24px rgba(65, 17, 35, .045);
+  min-height: 76px;
+  padding: 13px 16px;
+  border: 1px solid rgba(110, 71, 83, .22);
+  border-radius: 13px;
+  background: #fff;
   color: #24252e;
   text-decoration: none;
-  outline-offset: 4px;
+  box-shadow: 0 3px 12px rgba(50, 24, 36, .035);
+  outline-offset: 3px;
   overflow: hidden;
-  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease, background-color .22s ease;
+  transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
 }
 .services-directory__card::before {
   content: "";
   position: absolute;
-  top: 0;
-  left: 22px;
-  width: 48px;
-  height: 3px;
+  inset: 13px auto 13px 0;
+  width: 3px;
   background: #b30c2d;
-  border-radius: 0 0 3px 3px;
+  border-radius: 0 3px 3px 0;
 }
 .services-directory__card-index {
   grid-column: 1;
-  grid-row: 1;
-  color: #ad1734;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: .19em;
+  color: #b30c2d;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .06em;
 }
 .services-directory__card-title {
-  grid-column: 1;
-  grid-row: 2;
-  align-self: end;
-  font-size: clamp(14px, 1.2vw, 17px);
+  grid-column: 2;
+  min-width: 0;
+  color: #24252e;
+  font-size: 14px;
+  font-weight: 800;
   line-height: 1.35;
-  font-weight: 850;
   overflow-wrap: break-word;
 }
 .services-directory__card-arrow {
-  grid-column: 2;
-  grid-row: 1 / 3;
-  align-self: end;
+  grid-column: 3;
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid rgba(179, 12, 45, .22);
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(179, 12, 45, .25);
   border-radius: 50%;
-  background: #f9e9ed;
-  color: #b30c2d;
-  font-size: 20px;
-  font-weight: 650;
+  color: #af0d2d;
+  background: #faeaf0;
+  font-size: 17px;
   line-height: 1;
-  transition: background .22s ease, color .22s ease, transform .22s ease;
+  transition: background-color .2s ease, color .2s ease;
 }
 .services-directory__card:is(:hover, :focus-visible) {
-  transform: translateY(-4px);
-  border-color: rgba(179, 12, 45, .45);
-  box-shadow: 0 16px 38px rgba(99, 15, 39, .12);
-  background: #fff;
+  border-color: #b30c2d;
+  background: #fffafa;
+  box-shadow: 0 6px 18px rgba(108, 15, 39, .11);
 }
 .services-directory__card:is(:hover, :focus-visible) .services-directory__card-arrow {
-  transform: rotate(45deg);
   background: #b30c2d;
   color: #fff;
 }
+.services-directory__card:focus-visible { outline: 2px solid #b30c2d; }
+
+/* El CSS global de Castro Fallas fuerza texto blanco en modo oscuro.
+   Forzamos TAMBIÉN la superficie de las tarjetas a azul oscuro sólido
+   para evitar el bug de texto blanco sobre una tarjeta blanquecina. */
 :global(html.theme-dark) .services-directory {
-  background: linear-gradient(140deg, #0b1428, #151629 60%, #241320) !important;
+  background: #0b1428 !important;
 }
-:global(html.theme-dark) .services-directory__intro { color: #d4c7cf !important; }
-:global(html.theme-dark) .services-directory__group-heading { border-color: rgba(255, 255, 255, .2) !important; }
-:global(html.theme-dark) .services-directory__count { color: #ff9bab !important; }
-:global(html.theme-dark) .services-directory__card {
-  background: linear-gradient(150deg, rgba(255, 255, 255, .095), rgba(255, 255, 255, .035)) !important;
-  border-color: rgba(255, 255, 255, .2) !important;
-  box-shadow: 0 5px 25px rgba(0, 0, 0, .1);
+:global(html.theme-dark) .services-directory__intro { color: #ced3df !important; }
+:global(html.theme-dark) .services-directory__group-heading { border-color: rgba(255, 255, 255, .20) !important; }
+:global(html.theme-dark) .services-directory__group-heading h3 { color: #f3f5fa !important; }
+:global(html.theme-dark) .services-directory__count { color: #f5a0ae !important; }
+:global(html.theme-dark) .services-directory .services-directory__card,
+:global(html.theme-dark) .services-directory .services-directory__card:is(:link, :visited) {
+  background: #101b30 !important;
+  background-image: none !important;
+  color: #f4f6fa !important;
+  border-color: #39445a !important;
+  box-shadow: none;
 }
-:global(html.theme-dark) .services-directory__card-index { color: #ff91a3 !important; }
-:global(html.theme-dark) .services-directory__card-arrow {
-  background: rgba(179, 12, 45, .3) !important;
-  border-color: rgba(255, 145, 163, .35) !important;
-  color: #ffadb9 !important;
+:global(html.theme-dark) .services-directory .services-directory__card-title { color: #f4f6fa !important; }
+:global(html.theme-dark) .services-directory .services-directory__card-index { color: #ff8da1 !important; }
+:global(html.theme-dark) .services-directory .services-directory__card-arrow {
+  background: #291b31 !important;
+  color: #ff9dad !important;
+  border-color: #7b3b51 !important;
 }
-:global(html.theme-dark) .services-directory__card:is(:hover, :focus-visible) {
-  border-color: rgba(255, 145, 163, .7) !important;
-  background: rgba(178, 11, 45, .20) !important;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, .25);
+:global(html.theme-dark) .services-directory .services-directory__card:is(:hover, :focus-visible) {
+  background: #182640 !important;
+  border-color: #d43a59 !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .22);
 }
-:global(html.theme-dark) .services-directory__card:is(:hover, :focus-visible) .services-directory__card-arrow {
-  background: #bd1435 !important;
+:global(html.theme-dark) .services-directory .services-directory__card:is(:hover, :focus-visible) .services-directory__card-arrow {
+  background: #b30c2d !important;
   color: #fff !important;
 }
-@media (max-width: 920px) {
+:global(html.theme-dark) .services-directory .services-directory__card:focus-visible { outline-color: #ff97a9; }
+@media (max-width: 980px) {
   .services-directory__links,
   .services-directory__links--logistics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media (max-width: 580px) {
-  .services-directory { padding: 54px 0 64px; }
-  .services-directory__heading { margin-bottom: 34px; }
+@media (max-width: 620px) {
+  .services-directory { padding: 40px 0 52px; }
+  .services-directory__heading { margin-bottom: 26px; }
   .services-directory__group-heading { align-items: center; }
-  .services-directory__count { font-size: 9px; letter-spacing: .1em; }
+  .services-directory__count { font-size: 9px; }
   .services-directory__links,
-  .services-directory__links--logistics { grid-template-columns: 1fr; gap: 10px; }
-  .services-directory__card { min-height: 104px; padding: 17px 18px; gap: 12px; border-radius: 14px; }
-  .services-directory__card::before { left: 18px; }
-  .services-directory__card-title { font-size: 15px; }
-  .services-directory__card-arrow { width: 34px; height: 34px; }
+  .services-directory__links--logistics { grid-template-columns: 1fr; gap: 9px; }
+  .services-directory__card { min-height: 66px; padding: 11px 13px; gap: 9px; }
+  .services-directory__card::before { inset-block: 10px; }
+  .services-directory__card-title { font-size: 13px; }
+  .services-directory__card-arrow { width: 28px; height: 28px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .services-directory__card,
   .services-directory__card-arrow { transition: none; }
-  .services-directory__card:is(:hover, :focus-visible) { transform: none; }
 }
 </style>
