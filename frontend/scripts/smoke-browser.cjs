@@ -151,7 +151,11 @@ async function assertServicesTheme(chrome, url) {
     assert.ok(ready, 'No aparecieron las 10 tarjetas del directorio')
     const probe = async dark => {
       const action = dark ? 'add' : 'remove'
-      return evaluate("(() => { document.documentElement.classList." + action + "('theme-dark'); const a = document.querySelector('.services-directory__card'); const card = getComputedStyle(a); const title = getComputedStyle(a.querySelector('.services-directory__card-title')); return { background: card.backgroundColor, image: card.backgroundImage, text: title.color, fill: title.webkitTextFillColor }; })()")
+      await evaluate("document.documentElement.classList." + action + "('theme-dark')")
+      // El componente tiene transición CSS de background-color de .2s.
+      // Medir el estado final, no el primer frame blanco de la transición.
+      await new Promise(resolve => setTimeout(resolve, 400))
+      return evaluate("(() => { const a = document.querySelector('.services-directory__card'); const card = getComputedStyle(a); const title = getComputedStyle(a.querySelector('.services-directory__card-title')); return { background: card.backgroundColor, image: card.backgroundImage, text: title.color, fill: title.webkitTextFillColor }; })()")
     }
     const light = await probe(false)
     assert.equal(light.background, 'rgb(255, 255, 255)', 'Tema claro: tarjeta no blanca')
