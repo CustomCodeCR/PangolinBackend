@@ -295,8 +295,12 @@ def main():
         assert transport_state["sticky"] == "sticky", "En escritorio las etapas siguen siendo sticky"
         assert transport_state["rootOverflow"] == "clip", "El contenedor principal no debe desactivar el sticky con overflow hidden"
         driver.execute_script("""
-            document.querySelector('.service-landing-story .service-landing-steps')
-                .lastElementChild.scrollIntoView({block: 'start', behavior: 'instant'});
+            const stack = document.querySelector('.service-landing-story .service-landing-steps');
+            const last = stack.lastElementChild;
+            // Measure the last card's natural location rather than invoking
+            // scrollIntoView on a sticky (already visually displaced) element.
+            const naturalTop = window.scrollY + stack.getBoundingClientRect().top + last.offsetTop;
+            window.scrollTo({top: naturalTop + 40, behavior: 'instant'});
         """)
         # Wait for the scroll-reveal transition to settle before comparing geometry.
         WebDriverWait(driver, WAIT).until(lambda d: d.execute_script("""
