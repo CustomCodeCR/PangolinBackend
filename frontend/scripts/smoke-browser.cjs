@@ -156,6 +156,10 @@ async function assertServicesTheme(chrome, url) {
     const light = await probe(false)
     assert.equal(light.background, 'rgb(255, 255, 255)', 'Tema claro: tarjeta no blanca')
     const dark = await probe(true)
+    if (dark.background !== 'rgb(16, 27, 48)') {
+      const details = await evaluate("(() => { const a = document.querySelector('.services-directory__card'); const css = []; for (const sheet of document.styleSheets) { try { for (const rule of sheet.cssRules) { if (rule.selectorText?.includes('services-directory__card')) css.push({ selector: rule.selectorText.slice(0, 140), background: rule.style.background, important: rule.style.getPropertyPriority('background') }); } } catch {} } return { root: document.documentElement.className, app: a?.closest('.app-site')?.className, matching: a?.matches('html.theme-dark .app-site.services-page .services-directory a.services-directory__card'), sheets: document.styleSheets.length, rules: css.slice(-18) }; })()")
+      console.log('Diagnóstico contraste Servicios:', JSON.stringify({ dark, details }))
+    }
     assert.equal(dark.background, 'rgb(16, 27, 48)', 'Tema oscuro: tarjeta blanquecina')
     assert.equal(dark.image, 'none', 'Tema oscuro: gradiente claro superpuesto')
     assert.equal(dark.text, 'rgb(244, 246, 250)', 'Tema oscuro: título invisible')
