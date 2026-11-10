@@ -303,6 +303,8 @@ onBeforeUnmount(() => {
                     </details>
                   </div>
                 </section>
+                <!-- Extends the natural flow past the last sticky service stage. -->
+                <div class="service-landing-steps__runway" aria-hidden="true"></div>
               </div>
             </div>
           </div>
