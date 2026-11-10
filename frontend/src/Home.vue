@@ -45,10 +45,10 @@ const faqs = computed(() => baseFaqs.map((faq, index) => ({
   a: siteText(`home.faq.${index}.a`, t(`content.faqs.${index}.a`), locale.value)
 })))
 const stats = computed(() => [
-  { value: '+25', label: t('custom.home.stats.0') },
-  { value: '#1', label: t('custom.home.stats.1') },
-  { value: '+105', label: t('custom.home.stats.2') },
-  { value: '24/7', label: t('custom.home.stats.3') }
+  { value: '+25', label: siteText('home.stats.0.label', t('custom.home.stats.0'), locale.value) },
+  { value: '#1', label: siteText('home.stats.1.label', t('custom.home.stats.1'), locale.value) },
+  { value: '+105', label: siteText('home.stats.2.label', t('custom.home.stats.2'), locale.value) },
+  { value: '24/7', label: siteText('home.stats.3.label', t('custom.home.stats.3'), locale.value) }
 ])
 const publicComments = ref<ManagedComment[]>([])
 const commentsLoaded = ref(false)
@@ -232,7 +232,7 @@ onUnmounted(() => {
 
           <aside class="home-news-sidebar" :class="{ 'home-news-sidebar--single': homeNews.length === 1 }" :aria-label="$t('custom.home.newsAria')">
             <div class="home-hero-news__header">
-              <span>{{ $t('custom.home.newsHeader') }}</span>
+              <span>{{ siteText('home.news.heading', $t('custom.home.newsHeader'), locale) }}</span>
               <a href="/noticias">{{ $t('custom.home.allNews') }}</a>
             </div>
             <p v-if="!homeNews.length" class="home-news-empty" role="status">{{ !homeNewsLoaded ? 'Cargando noticias…' : homeNewsError ? 'No se pudieron cargar las noticias.' : 'Próximamente compartiremos noticias y novedades.' }}</p>
@@ -320,9 +320,9 @@ onUnmounted(() => {
         <div class="container tracking-home-grid">
           <div class="tracking-home-copy">
             <p class="section-tag">{{ $t('phrases.p020') }}</p>
-            <h2 class="section-title">{{ $t('phrases.p021') }}<br /><span>{{ $t('phrases.p022') }}</span></h2>
+            <h2 class="section-title">{{ siteText('home.tracking.heading1', $t('phrases.p021'), locale) }}<br /><span>{{ siteText('home.tracking.heading2', $t('phrases.p022'), locale) }}</span></h2>
             <p class="section-desc">
-              {{ $t('phrases.p023') }}
+              {{ siteText('home.tracking.intro', $t('phrases.p023'), locale) }}
             </p>
             <a class="btn btn-primary" href="/tracking">
               {{ $t('phrases.p024') }} <IconSymbol glyph="↗" />
@@ -378,7 +378,7 @@ onUnmounted(() => {
         <div class="container">
           <p class="section-tag center">{{ $t('phrases.p060') }}</p>
           <h2 class="section-title centered">
-            {{ $t('phrases.p061') }} <span>{{ $t('phrases.p062') }}</span>
+            {{ siteText('home.access.heading1', $t('phrases.p061'), locale) }} <span>{{ siteText('home.access.heading2', $t('phrases.p062'), locale) }}</span>
           </h2>
           <p class="section-desc centered">
             {{ siteText('home.digital.intro', $t('phrases.p063'), locale) }}
@@ -388,12 +388,12 @@ onUnmounted(() => {
             <a class="access-card access-card--tracking" href="/tracking" :style="{ '--cms-access-tracking': siteCssImage('home.tracking.media', '/images/tracking-red.webp') }">
                <SiteMedia v-if="siteVisual('home.tracking.media', '/images/tracking-red.webp').kind.startsWith('Video')" slot-key="home.tracking.media" fallback="/images/tracking-red.webp" background />
               <IconSymbol glyph="→" :size="22" />
-              <strong>{{ $t('custom.home.trackingTitle') }}</strong>
+              <strong>{{ siteText('home.access.tracking', $t('custom.home.trackingTitle'), locale) }}</strong>
             </a>
             <a class="access-card access-card--quote" href="/cotizaciones" :style="{ '--cms-access-quote': siteCssImage('home.quote.media', '/images/services-crane.webp') }">
                <SiteMedia v-if="siteVisual('home.quote.media', '/images/services-crane.webp').kind.startsWith('Video')" slot-key="home.quote.media" fallback="/images/services-crane.webp" background />
               <IconSymbol glyph="➜" :size="22" />
-              <strong>{{ $t('custom.home.quoteCardTitle') }}</strong>
+              <strong>{{ siteText('home.access.quote', $t('custom.home.quoteCardTitle'), locale) }}</strong>
             </a>
           </div>
         </div>
