@@ -156,7 +156,7 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
                 <a v-for="(link, index) in group.links" :key="link.href" :href="link.href" class="services-directory__card">
                   <span class="services-directory__card-index" aria-hidden="true">{{ String(index + 1).padStart(2, '0') }}</span>
                   <strong class="services-directory__card-title">{{ link.label }}</strong>
-                  <span class="services-directory__card-arrow" aria-hidden="true">↗</span>
+                  <span class="services-directory__card-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M7 17 17 7M8 7h9v9" /></svg></span>
                 </a>
               </nav>
             </section>
@@ -293,6 +293,14 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
   font-size: 17px;
   line-height: 1;
   transition: background-color .2s ease, color .2s ease;
+}
+.services-directory__card-arrow svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex: none;
+  pointer-events: none;
 }
 .services-directory__card:is(:hover, :focus-visible) {
   border-color: #b30c2d;
