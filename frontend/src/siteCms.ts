@@ -1,6 +1,9 @@
 import { reactive } from 'vue'
+import serviceGuides from '../seo/service-landings.json'
+import servicePages from '../seo/service-pages.json'
+import serviceFaqs from '../seo/service-faqs.json'
 
-export interface SiteSlotDefinition { page: string; pageLabel: string; key: string; section: string; type: 'media' | 'text'; label: string; help: string; fallback: string }
+export interface SiteSlotDefinition { page: string; pageLabel: string; key: string; section: string; type: 'media' | 'text'; label: string; help: string; fallback: string; originalEs?: string; originalEn?: string; fallbackKind?: 'Imagen' | 'Video' }
 export interface PublishedSiteSlot { key: string; textEs?: string | null; textEn?: string | null; mediaSrc?: string | null; mediaKind?: string | null }
 export interface EditableSiteSlot { key: string; draftEs?: string | null; draftEn?: string | null; draftMediaId?: string | null; publishedEs?: string | null; publishedEn?: string | null; publishedMediaId?: string | null; updatedAt?: string; publishedAt?: string | null }
 
@@ -926,6 +929,170 @@ export const siteSlotCatalog: SiteSlotDefinition[] = [
     "section": "Identidad de marca"
   }
 ]
+
+
+// Catálogo sincronizado con el sitio actual. Ocultar una ubicación obsoleta
+// no elimina sus registros históricos ni archivos almacenados en el CMS.
+const retiredKeys = new Set(['home.digital.card.0.title','home.digital.card.0.subtitle',
+  'home.digital.card.1.title','home.digital.card.1.subtitle',
+  'home.digital.card.2.title','home.digital.card.2.subtitle'])
+for (let i=siteSlotCatalog.length-1;i>=0;i--)
+  if (retiredKeys.has(siteSlotCatalog[i].key)) siteSlotCatalog.splice(i,1)
+
+const additional: SiteSlotDefinition[]=[]
+const addText=(page:string,pageLabel:string,key:string,section:string,label:string,es:string,en:string) =>
+  additional.push({page,pageLabel,key,section,label,type:'text',fallback:es,originalEs:es,originalEn:en,
+    help:'Texto visible en esta sección. Se edita por idioma.'})
+const addTranslation=(page:string,pageLabel:string,key:string,section:string,label:string,fallback:string) =>
+  additional.push({page,pageLabel,key,section,label,type:'text',fallback,
+    help:'Texto visible de esta sección. Idiomas español e inglés.'})
+const addMedia=(page:string,pageLabel:string,key:string,section:string,label:string,fallback:string,fallbackKind:'Imagen'|'Video'='Imagen') =>
+  additional.push({page,pageLabel,key,section,label,type:'media',fallback,fallbackKind,
+    help:'Imagen o video de esta ubicación. Cambiarlo no modifica los otros espacios.'})
+
+// Nueva sección de Nosotros: portada, misión, visión, valores, galería y capacidades.
+const aboutFields: Array<[string,string,string,string,string]> = [
+  ['who','Presentación','Antetítulo','QUIÉNES SOMOS','WHO WE ARE'],
+  ['heading','Presentación','Título','Castro Fallas Logística Internacional','Castro Fallas International Logistics'],
+  ['historyAction','Presentación','Botón de historia','Conocer nuestra historia','Discover our history'],
+  ['imageLabel','Presentación','Etiqueta de foto','OPERACIONES EN COSTA RICA','OPERATIONS IN COSTA RICA'],
+  ['missionTag','Misión y visión','Antetítulo de misión','NUESTRO PROPÓSITO','OUR PURPOSE'],
+  ['mission','Misión y visión','Título de misión','Misión','Mission'],
+  ['missionBody','Misión y visión','Texto de misión','Brindar soluciones logísticas integrales, seguras y eficientes, que faciliten el comercio nacional e internacional de nuestros clientes, con un servicio de alto valor y confianza.','To offer integrated, safe and efficient logistics solutions that support our clients’ domestic and international trade, with valuable and trustworthy service.'],
+  ['visionTag','Misión y visión','Antetítulo de visión','HACIA DÓNDE VAMOS','OUR DIRECTION'],
+  ['vision','Misión y visión','Título de visión','Visión','Vision'],
+  ['visionBody','Misión y visión','Texto de visión','Ser la empresa líder en soluciones logísticas en la región, reconocida por nuestra experiencia, confiabilidad, innovación y compromiso con la excelencia en el servicio.','To become a leading logistics solutions provider in the region, recognized for experience, reliability, innovation and commitment to excellent service.'],
+  ['culture','Valores','Antetítulo','NUESTRA CULTURA','OUR CULTURE'],
+  ['servicesTag','Capacidades','Antetítulo','LO QUE HACEMOS','WHAT WE DO'],
+  ['capabilitiesTitle','Capacidades','Título','Nuestras capacidades','Our capabilities'],
+  ['serviceAction','Capacidades','Botón ver servicios','Conocer servicios','Explore our services'],
+  ['quoteAction','Capacidades','Botón de cotización','Solicitar cotización','Request a quote']
+]
+aboutFields.forEach(([field,section,label,es,en])=>addText('about','Sobre nosotros','about.copy.'+field,section,label,es,en))
+const valueDetails: Array<[string,string]> = [
+  ['Asumimos nuestros compromisos con responsabilidad y orientación a resultados.','We take ownership of every commitment and work toward dependable results.'],
+  ['Actuamos con transparencia y respeto en cada relación comercial.','We act transparently and responsibly in every business relationship.'],
+  ['Sumamos conocimientos y capacidades para atender mejor cada operación.','Different perspectives and skills come together to serve our customers.'],
+  ['Nuestra trayectoria nos ayuda a anticipar desafíos y acompañar cada proceso.','Our experience helps us anticipate challenges and guide each operation.'],
+  ['Buscamos procesos confiables y la mejora continua de nuestros servicios.','We pursue reliable processes and continuous improvement in our services.']
+]
+valueDetails.forEach(([es,en],i)=>addText('about','Sobre nosotros','about.valueDetails.'+i,'Valores','Valor '+(i+1)+': descripción',es,en))
+const capabilityTitles: Array<[string,string]> = [
+  ['Logística','Logistics'],['Aduanas','Customs'],['Transporte internacional','International transport'],['Importación','Imports'],['Exportación','Exports']
+]
+const capabilityBodies: Array<[string,string]> = [
+  ['Soluciones coordinadas para la cadena de suministro.','Coordinated solutions across the supply chain.'],
+  ['Apoyo en trámites y documentación aduanera.','Support with customs procedures and documentation.'],
+  ['Transporte de carga en rutas nacionales e internacionales.','Cargo transportation across national and international routes.'],
+  ['Coordinación de operaciones de ingreso de mercancías.','Coordination of incoming cargo operations.'],
+  ['Acompañamiento para enviar tu carga a otros mercados.','Support for exporting and moving cargo to other markets.']
+]
+capabilityTitles.forEach(([es,en],i)=>{
+  addText('about','Sobre nosotros','about.capability.'+i+'.title','Capacidades','Capacidad '+(i+1)+': título',es,en)
+  addText('about','Sobre nosotros','about.capability.'+i+'.detail','Capacidades','Capacidad '+(i+1)+': texto',capabilityBodies[i][0],capabilityBodies[i][1])
+})
+;['/images/services-warehouse.webp','/images/truck.webp','/images/warehouse-person.webp'].forEach((src,i)=>
+  addMedia('about','Sobre nosotros','about.gallery.'+i+'.media','Galería','Foto '+(i+1),src))
+
+// Inicio: nuevos títulos de rastreo, indicadores, noticias y accesos.
+const homeExtra: Array<[string,string,string,string]> = [
+  ['home.tracking.heading1','Rastreo','Título 1','phrases.p021'],
+  ['home.tracking.heading2','Rastreo','Título 2','phrases.p022'],
+  ['home.tracking.intro','Rastreo','Descripción','phrases.p023'],
+  ['home.access.heading1','Accesos digitales','Título 1','phrases.p061'],
+  ['home.access.heading2','Accesos digitales','Título 2','phrases.p062'],
+  ['home.access.tracking','Accesos digitales','Tarjeta rastreo','custom.home.trackingTitle'],
+  ['home.access.quote','Accesos digitales','Tarjeta cotización','custom.home.quoteCardTitle'],
+  ['home.news.heading','Noticias','Encabezado','custom.home.newsHeader']
+]
+homeExtra.forEach(([key,section,label,fallback])=>addTranslation('home','Inicio',key,section,label,fallback))
+for(let i=0;i<4;i++)addTranslation('home','Inicio','home.stats.'+i+'.label','Indicadores','Indicador '+(i+1),'custom.home.stats.'+i)
+
+// Servicios: contenido de FAQ, accesos y nuevo directorio de rutas.
+const servicesExtra: Array<[string,string,string,string,string]> = [
+ ['services.faq.heading','Preguntas frecuentes','Título','Más sobre nuestros servicios','More about our services'],
+ ['services.directory.heading','Directorio','Título','Conocé cada solución en detalle','Explore each service in detail'],
+ ['services.directory.intro','Directorio','Descripción','Todo lo que tu carga necesita, desde el primer movimiento hasta su destino.','Everything your cargo needs, from its first move to its destination.'],
+ ['services.directory.transport.title','Directorio','Grupo transporte','Transporte de carga','Freight transportation'],
+ ['services.directory.logistics.title','Directorio','Grupo logística','Logística y aduanas','Logistics and customs']
+]
+servicesExtra.forEach(([key,section,label,es,en])=>addText('services','Servicios',key,section,label,es,en))
+;([
+ ['services.access.heading1','Título digital 1','phrases.p061'],
+ ['services.access.heading2','Título digital 2','phrases.p062'],
+ ['services.access.intro','Descripción digital','phrases.p063'],
+ ['services.access.tracking','Tarjeta rastreo','custom.home.trackingTitle'],
+ ['services.access.quote','Tarjeta cotización','custom.home.quoteCardTitle']
+] as Array<[string,string,string]>).forEach(([key,label,fallback])=>addTranslation('services','Servicios',key,'Accesos digitales',label,fallback))
+serviceFaqs.servicios.forEach((item,i)=>{
+  addText('services','Servicios','services.faq.'+i+'.q','Preguntas frecuentes','Pregunta '+(i+1),item.question.es,item.question.en)
+  addText('services','Servicios','services.faq.'+i+'.a','Preguntas frecuentes','Respuesta '+(i+1),item.answer.es,item.answer.en)
+})
+
+// Cada servicio individual tiene su propio texto y medios. Los nombres estables
+// usan el slug real de la ruta, nunca el índice de una tarjeta de navegación.
+const detailPage='details', detailLabel='Servicios individuales'
+const detailText=(slug:string,name:string,field:string,section:string,label:string,es:string,en:string)=>
+  addText(detailPage,detailLabel,'service.'+slug+'.'+field,name+' · '+section,label,es,en)
+const detailMedia=(slug:string,name:string,field:string,section:string,label:string,src:string,kind:'Imagen'|'Video'='Imagen')=>
+  addMedia(detailPage,detailLabel,'service.'+slug+'.'+field,name+' · '+section,label,src,kind)
+const defaultVideo=(slug:string):string=>
+  slug==='transporte-aereo'?'/videos/service-air.mp4':
+  ['transporte-terrestre','transporte-local','transporte-panama-costa-rica'].includes(slug)?'/videos/service-road.mp4':
+  ['almacenamiento-fiscal','bodegaje-general'].includes(slug)?'/videos/service-warehouse.mp4':'/videos/service-maritime.mp4'
+const guideImages:Record<string,string>={
+  'almacenamiento-fiscal':'/images/services-warehouse.webp',
+  'bodegaje-general':'/images/warehouse-person.webp',
+  'agenciamiento-aduanal':'/images/operation.webp',
+  'consolidadora-de-carga':'/images/ship.webp'
+}
+for(const [route,guide] of Object.entries(serviceGuides)){
+  const slug=route.split('/').pop() || ''
+  const name=guide.es.label
+  detailMedia(slug,name,'hero.media','Portada','Imagen de portada y explicación',guideImages[slug]||'/images/hero.webp')
+  detailMedia(slug,name,'story.media','Beneficios','Video o imagen de beneficios',defaultVideo(slug),'Video')
+  ;([
+    ['label','Nombre',guide.es.label,guide.en.label],
+    ['title','Título',guide.es.title,guide.en.title],
+    ['intro','Introducción',guide.es.intro,guide.en.intro],
+    ['heading','Título de explicación',guide.es.heading,guide.en.heading],
+    ['body','Explicación',guide.es.body,guide.en.body],
+    ['answer','Resumen',guide.es.answer,guide.en.answer],
+    ['quoteHeading','Título de cotización',guide.es.quoteHeading,guide.en.quoteHeading],
+    ['quoteIntro','Texto de cotización',guide.es.quoteIntro,guide.en.quoteIntro],
+    ['scopeNote','Alcance',guide.es.scopeNote,guide.en.scopeNote]
+  ] as Array<[string,string,string,string]>).forEach(([field,label,es,en])=>
+    detailText(slug,name,field,field.startsWith('quote')||field==='scopeNote'?'Cotización':'Portada y explicación',label,es,en))
+  guide.es.points.forEach((es,i)=>detailText(slug,name,'point.'+i+'.body','Beneficios','Beneficio '+(i+1),es,guide.en.points[i]))
+  guide.es.quoteItems.forEach((es,i)=>detailText(slug,name,'quoteItem.'+i,'Cotización','Requisito '+(i+1),es,guide.en.quoteItems[i]))
+  guide.es.faq.forEach((item,i)=>{
+    detailText(slug,name,'faq.'+i+'.q','Preguntas frecuentes','Pregunta '+(i+1),item.q,guide.en.faq[i].q)
+    detailText(slug,name,'faq.'+i+'.a','Preguntas frecuentes','Respuesta '+(i+1),item.a,guide.en.faq[i].a)
+  })
+}
+for(const service of servicePages){
+  const slug=service.slug,name=service.title.es
+  detailMedia(slug,name,'hero.media','Portada','Imagen de portada y explicación',service.image)
+  detailMedia(slug,name,'story.media','Beneficios','Video o imagen de beneficios',defaultVideo(slug),'Video')
+  ;([
+    ['label','Nombre',service.serviceType.es,service.serviceType.en],
+    ['title','Título',service.title.es,service.title.en],
+    ['eyebrow','Antetítulo',service.eyebrow.es,service.eyebrow.en],
+    ['intro','Introducción',service.lead.es,service.lead.en],
+    ['location','Ubicación',service.location.es,service.location.en],
+    ['ctaLabel','Botón de cotización',service.quoteLabel.es,service.quoteLabel.en]
+  ] as Array<[string,string,string,string]>).forEach(([field,label,es,en])=>detailText(slug,name,field,'Portada',label,es,en))
+  service.sections.forEach((item,i)=>{
+    detailText(slug,name,'point.'+i+'.title','Beneficios','Beneficio '+(i+1)+': título',item.title.es,item.title.en)
+    detailText(slug,name,'point.'+i+'.body','Beneficios','Beneficio '+(i+1)+': descripción',item.body.es,item.body.en)
+  })
+  const faqs=serviceFaqs[slug as keyof typeof serviceFaqs]
+  if(faqs)faqs.forEach((item,i)=>{
+    detailText(slug,name,'faq.'+i+'.q','Preguntas frecuentes','Pregunta '+(i+1),item.question.es,item.question.en)
+    detailText(slug,name,'faq.'+i+'.a','Preguntas frecuentes','Respuesta '+(i+1),item.answer.es,item.answer.en)
+  })
+}
+siteSlotCatalog.push(...additional)
 
 const published = reactive<Record<string, PublishedSiteSlot>>({})
 let pending: Promise<void> | null = null
