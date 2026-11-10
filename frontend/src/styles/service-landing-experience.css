@@ -173,6 +173,16 @@ html:not(.theme-dark) .service-landing-hero__copy .section-tag,html:not(.theme-d
 }
 @media(prefers-reduced-motion:reduce){.service-landing-story .service-landing-step{transition:opacity .2s linear,filter .2s linear}}
 
+/* Give the final sticky stage a genuine scroll runway. Without this, the last
+   numbered card releases as soon as the stage stack ends, making the page jump
+   toward the footer. Keep normal wheel/touch behavior; on narrow screens cards
+   already use the natural, non-sticky flow and need no additional blank space. */
+@media (min-width:901px) {
+  .service-landing-story .service-landing-steps {
+    padding-bottom:clamp(340px,62svh,720px);
+  }
+}
+
 /* Keep the information sections open; reserve the glass treatment for their actual cards. */
 .service-landing-story .service-landing-step,
 .service-landing-page.has-scroll-reveal .service-landing-story .service-landing-step{border-color:transparent;background:transparent;box-shadow:none}
