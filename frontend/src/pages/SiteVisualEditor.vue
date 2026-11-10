@@ -11,6 +11,7 @@ import type { ManagedMedia } from '../adminContent'
 const page = ref('home')
 const query = ref('')
 const typeFilter = ref<'all' | 'media' | 'text'>('all')
+const serviceFilter = ref('')
 const previewError = reactive({ published: false, draft: false })
 const currentKey = ref('home.hero.media')
 const rows = ref<EditableSiteSlot[]>([])
@@ -46,8 +47,10 @@ const featuredVideoChoices = computed(() => media.value.filter(item =>
 const selectedFeaturedVideo = computed(() => featuredVideoChoices.value.find(item => item.id === featuredReelMediaId.value))
 const selectedFacebookVideo = computed(() => featuredVideoChoices.value.find(item => item.id === featuredFacebookMediaId.value))
 const pages = [...new Map(siteSlotCatalog.map(slot => [slot.page, { id: slot.page, label: slot.pageLabel }])).values()]
+const serviceOptions = computed(() => [...new Set(siteSlotCatalog.filter(slot => slot.page === 'details').map(slot => slot.section.split(' · ')[0]))])
 const visible = computed(() => siteSlotCatalog.filter(slot =>
   slot.page === page.value &&
+  (!serviceFilter.value || slot.section.startsWith(serviceFilter.value + ' · ')) &&
   (typeFilter.value === 'all' || slot.type === typeFilter.value) &&
   (slot.label + ' ' + slot.section + ' ' + slot.help + ' ' + slot.key + ' ' + slot.fallback).toLocaleLowerCase('es')
     .includes(query.value.trim().toLocaleLowerCase('es'))))
@@ -58,12 +61,13 @@ const selectableMedia = computed(() => media.value.filter(x => x.kind === 'Image
 const selectedMedia = computed(() => media.value.find(x => x.id === mediaId.value))
 const publishedMedia = computed(() => media.value.find(x => x.id === row.value?.publishedMediaId))
 const draftSrc = computed(() => selectedMedia.value ? previewSrc(selectedMedia.value) : selected.value.type === 'media' ? selected.value.fallback : '')
-const draftIsVideo = computed(() => selectedMedia.value?.kind.startsWith('Video') ?? false)
+const draftIsVideo = computed(() => selectedMedia.value ? selectedMedia.value.kind.startsWith('Video') : selected.value.fallbackKind === 'Video')
 const publishedSrc = computed(() => publishedMedia.value ? previewSrc(publishedMedia.value) : selected.value.fallback)
-const publishedIsVideo = computed(() => publishedMedia.value?.kind === 'Video')
-const pageHref = computed(() => ({ home: '/home', services: '/servicios', about: '/nosotros', login: '/bienvenidos', shared: '/home' } as Record<string,string>)[selected.value.page] || '/home')
+const publishedIsVideo = computed(() => publishedMedia.value ? publishedMedia.value.kind.startsWith('Video') : selected.value.fallbackKind === 'Video')
+const pageHref = computed(() => selected.value.page === 'details' ? '/servicios/' + selected.value.key.split('.')[1] : ({ home: '/home', services: '/servicios', about: '/nosotros', login: '/bienvenidos', shared: '/home' } as Record<string,string>)[selected.value.page] || '/home')
 watch([currentKey, mediaId, rows], () => { previewError.published = false; previewError.draft = false })
-const defaultCopy = computed(() => selected.value.type === 'text' ? i18n.global.t(selected.value.fallback) : '')
+const defaultCopy = computed(() => selected.value.type === 'text' ? selected.value.originalEs ?? i18n.global.t(selected.value.fallback) : '')
+const defaultCopyEn = computed(() => selected.value.type === 'text' ? selected.value.originalEn ?? '' : '')
 
 function previewSrc(item: ManagedMedia): string {
   return item.objectKey ? `/api/admin/content/media/${encodeURIComponent(item.id)}/file` : item.src
@@ -79,7 +83,7 @@ function select(slot: SiteSlotDefinition) {
   previewError.published = false
   previewError.draft = false
 }
-watch([query, typeFilter], () => {
+watch([query, typeFilter, serviceFilter], () => {
   if (visible.value.length && !visible.value.some(slot => slot.key === currentKey.value))
     select(visible.value[0])
 })
@@ -87,6 +91,7 @@ function switchPage(next: string) {
   page.value = next
   query.value = ''
   typeFilter.value = 'all'
+  serviceFilter.value = ''
   const first = siteSlotCatalog.find(x => x.page === next)
   if (first) select(first)
 }
@@ -505,6 +510,11 @@ onMounted(load)
       <div class="visual-editor__columns">
         <aside class="visual-editor__locations">
           <label>Buscar ubicación <input v-model="query" type="search" placeholder="Ej. Portada, servicio aéreo…" /></label>
+          <div v-if="page === 'details'" class="visual-editor__library-field">
+            <label>Elegir servicio</label>
+            <FieldDropdown v-model="serviceFilter" aria-label="Filtrar por servicio"
+              :options="[{value:'',label:'Todos los servicios'},...serviceOptions.map(item=>({value:item,label:item}))]" />
+          </div>
           <div class="visual-editor__filters" role="group" aria-label="Filtrar ubicaciones por tipo">
             <button type="button" :aria-pressed="typeFilter === 'all'" :class="{ active: typeFilter === 'all' }" @click="typeFilter = 'all'">Todos</button>
             <button type="button" :aria-pressed="typeFilter === 'media'" :class="{ active: typeFilter === 'media' }" @click="typeFilter = 'media'">Imágenes / videos</button>
@@ -528,9 +538,10 @@ onMounted(load)
             <a :href="pageHref" target="_blank" rel="noopener noreferrer">Ver página real ↗</a>
           </div>
           <template v-if="selected.type === 'text'">
-            <p class="visual-editor__hint">Texto original: {{ defaultCopy }}</p>
+            <p class="visual-editor__hint">Texto original (ES): {{ defaultCopy }}</p>
+            <p v-if="defaultCopyEn" class="visual-editor__hint">Texto original (EN): {{ defaultCopyEn }}</p>
             <label>Texto en español <textarea v-model="textEs" maxlength="1600" rows="4" :placeholder="defaultCopy" /></label>
-            <label>Texto en inglés <textarea v-model="textEn" maxlength="1600" rows="4" placeholder="Dejalo vacío para usar el texto inglés original" /></label>
+            <label>Texto en inglés <textarea v-model="textEn" maxlength="1600" rows="4" :placeholder="defaultCopyEn || 'Dejalo vacío para usar el texto inglés original'" /></label>
             <p class="visual-editor__hint">Si un idioma queda vacío, se mostrará el texto original traducido de la web.</p>
             <div class="visual-editor__text-preview"><strong>Vista previa (ES)</strong><p>{{ textEs || defaultCopy }}</p></div>
           </template>
@@ -551,7 +562,7 @@ onMounted(load)
             <div class="visual-editor__library-field">
               <label>Archivo de la biblioteca de MinIO</label>
               <FieldDropdown v-model="mediaId" aria-label="Archivo de la biblioteca de MinIO" :options="[
-                { value:'', label:selected.fallback ? 'Usar imagen original de esta ubicación' : 'Sin imagen asignada' },
+                { value:'', label:selected.fallback ? 'Usar archivo original de esta ubicación' : 'Sin archivo asignado' },
                 ...selectableMedia.map(file => ({value:file.id,label:file.name + ' (' + file.kind + ')'}))
               ]" />
             </div>
