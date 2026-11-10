@@ -184,9 +184,15 @@ html:not(.theme-dark) .service-landing-hero__copy .section-tag,html:not(.theme-d
   .app-site.service-landing-page {
     overflow:clip;
   }
-  .service-landing-story .service-landing-steps {
-    padding-bottom:clamp(340px,62svh,720px);
+  .service-landing-story .service-landing-steps__runway {
+    display:block;
+    height:clamp(340px,62svh,720px);
+    pointer-events:none;
   }
+}
+
+@media (max-width:900px) {
+  .service-landing-story .service-landing-steps__runway { display:none; }
 }
 
 /* Keep the information sections open; reserve the glass treatment for their actual cards. */
