@@ -6,6 +6,19 @@
 - `main-2`: revisiones, pruebas y compilación Nuxt, sin despliegue a producción.
 - `logisticacastrofallas.com` **sin WWW** permanece en Fennec; no modificar su enrutamiento ni reclamar la raíz a espaldas de Fennec.
 
+## Política vigente de dos dominios independientes (2026-11-10)
+
+La dirección confirmó que Castro Fallas **mantendrá por ahora las dos webs**. La posible unificación o redirección requiere decisión posterior del jefe; **no** forma parte del lanzamiento de `main-2`.
+
+- `https://www.logisticacastrofallas.com` se sigue publicando en **Dhole** desde `main`.
+- `https://logisticacastrofallas.com` se sigue sirviendo desde **Fennec** y **no** se modifica su router, DNS, infraestructura ni despliegue.
+- Los dos sitios pueden seguir respondiendo **HTTP 200**. Para contenido idéntico, ambos deben declarar el `rel="canonical"` a la URL correspondiente con **WWW**, que debe tener canonical autorreferencial, ser indexable y aparecer en el sitemap preferido. Esto **no** exige una redirección 301.
+- Las páginas privadas (`/administracion`, `/tracking`, `/bienvenidos`, etc.) permanecen excluidas según su naturaleza; nunca marcar páginas públicas importantes como `noindex` para resolver duplicados.
+- Asegurar enlaces HTML visibles a las páginas comerciales, especialmente guías de servicios, y enlaces a `/` en lugar de `/home` desde la navegación pública.
+- El informe de Search Console registra `https://logisticacastrofallas.com/noticias` como **Soft 404**, último rastreo 2026-10-25; el estado **no** se declara resuelto por un `200` actual o por mejorar `main-2`. Comparar HTML útil de ambos sitios y solicitar prueba en vivo después de verificar la causa.
+- El informe también contiene páginas comerciales **Descubierta: actualmente sin indexar**. La preparación SSR, el sitemap y los enlaces facilitan el rastreo, pero **no garantizan la indexación** y esta solo podrá revisarse nuevamente cuando Google haya rastreado la nueva versión publicada.
+- **Bloqueo de publicación:** no fusionar ni desplegar sin corregir defectos técnicos verificables, revisar backup/canary/rollback y obtener autorización expresa de producción. El sitio actual sin WWW no se actualiza automáticamente al fusionar `main`.
+
 ## Enrutamiento
 
 `https://www.logisticacastrofallas.com`:
