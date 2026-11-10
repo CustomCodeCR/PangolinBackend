@@ -10,25 +10,16 @@ const os = require('node:os')
 const root = path.resolve(__dirname, '..')
 const host = '127.0.0.1'
 const previewPort = 4178
-const apiPort = Number(process.env.SMOKE_API_PORT || 5000)
+const apiPort = 5000
 let activeRole = null
 let sessionCalls = 0
 function findChrome() {
-  const windowsPaths = process.platform === 'win32'
-    ? ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-       'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-       'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-       'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe']
-    : []
-  const options = [process.env.CHROME_BIN, ...windowsPaths,
-    'google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser'].filter(Boolean)
-  const lookup = process.platform === 'win32' ? 'where.exe' : 'which'
+  const options = [process.env.CHROME_BIN, 'google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser'].filter(Boolean)
   for (const name of options) {
-    if (path.isAbsolute(name) && fs.existsSync(name)) return name
-    const r = spawnSync(lookup, [name], { encoding: 'utf8' })
-    if (r.status === 0) return r.stdout.split(/\r?\n/)[0].trim()
+    const r = spawnSync('which', [name], { encoding: 'utf8' })
+    if (r.status === 0) return r.stdout.trim()
   }
-  throw Error('Se requiere Chrome/Chromium para validar rutas en navegador.')
+  throw Error('Se requiere Chrome/Chromium en el runner para validar rutas en navegador.')
 }
 function listen(server, port) {
   return new Promise((resolve, reject) => {
@@ -98,6 +89,85 @@ function dumpDom(chrome, url, label) {
     })
   })
 }
+
+// Comprueba el color CALCULADO por Chrome, no la presencia de CSS en el código.
+async function assertServicesTheme(chrome, url) {
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-services-theme-'))
+  const browser = spawn(chrome, [
+    '--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
+    '--no-first-run', '--no-default-browser-check',
+    '--remote-allow-origins=*', '--remote-debugging-port=0',
+    '--user-data-dir=' + profile, 'about:blank'
+  ], { stdio: ['ignore', 'ignore', 'pipe'] })
+  let stderr = ''
+  browser.stderr.on('data', chunk => { if (stderr.length < 2000) stderr += String(chunk) })
+  let ws
+  try {
+    let port = 0
+    for (let i = 0; i < 100; i++) {
+      try {
+        port = Number(fs.readFileSync(path.join(profile, 'DevToolsActivePort'), 'utf8').split('\n')[0])
+        if (port > 0) break
+      } catch { /* Chrome aún está iniciando */ }
+      await new Promise(resolve => setTimeout(resolve, 120))
+    }
+    assert.ok(port > 0, 'Chrome DevTools no inició: ' + stderr.slice(-400))
+    const target = await (await fetch('http://127.0.0.1:' + port + '/json/new?' + encodeURIComponent(url), { method: 'PUT' })).json()
+    assert.ok(target.webSocketDebuggerUrl, 'No hay WebSocket de DevTools')
+    ws = new WebSocket(target.webSocketDebuggerUrl)
+    await new Promise((resolve, reject) => {
+      ws.addEventListener('open', resolve, { once: true })
+      ws.addEventListener('error', reject, { once: true })
+    })
+    const pending = new Map()
+    let nextId = 0
+    ws.addEventListener('message', event => {
+      const message = JSON.parse(String(event.data))
+      if (!message.id || !pending.has(message.id)) return
+      const { resolve, reject } = pending.get(message.id)
+      pending.delete(message.id)
+      message.error ? reject(Error(message.error.message)) : resolve(message.result)
+    })
+    const send = (method, params = {}) => new Promise((resolve, reject) => {
+      const id = ++nextId
+      pending.set(id, { resolve, reject })
+      ws.send(JSON.stringify({ id, method, params }))
+    })
+    const evaluate = async expression => {
+      const r = await send('Runtime.evaluate', { expression, returnByValue: true })
+      if (r.exceptionDetails) throw Error('Falló inspección Chrome: ' + r.exceptionDetails.text)
+      return r.result.value
+    }
+    await send('Runtime.enable')
+    await send('Page.enable')
+    const nav = await send('Page.navigate', { url })
+    assert.ok(!nav.errorText, 'Chrome no pudo abrir Servicios: ' + nav.errorText)
+    let ready = false
+    for (let i = 0; i < 100; i++) {
+      ready = await evaluate("document.querySelectorAll('.services-directory__card').length === 10")
+      if (ready) break
+      await new Promise(resolve => setTimeout(resolve, 120))
+    }
+    assert.ok(ready, 'No aparecieron las 10 tarjetas del directorio')
+    const probe = async dark => {
+      const action = dark ? 'add' : 'remove'
+      return evaluate("(() => { document.documentElement.classList." + action + "('theme-dark'); const a = document.querySelector('.services-directory__card'); const card = getComputedStyle(a); const title = getComputedStyle(a.querySelector('.services-directory__card-title')); return { background: card.backgroundColor, image: card.backgroundImage, text: title.color, fill: title.webkitTextFillColor }; })()")
+    }
+    const light = await probe(false)
+    assert.equal(light.background, 'rgb(255, 255, 255)', 'Tema claro: tarjeta no blanca')
+    const dark = await probe(true)
+    assert.equal(dark.background, 'rgb(16, 27, 48)', 'Tema oscuro: tarjeta blanquecina')
+    assert.equal(dark.image, 'none', 'Tema oscuro: gradiente claro superpuesto')
+    assert.equal(dark.text, 'rgb(244, 246, 250)', 'Tema oscuro: título invisible')
+    assert.equal(dark.fill, 'rgb(244, 246, 250)', 'Tema oscuro: text-fill-color invisible')
+    console.log('PASS Chrome: 10 tarjetas con contraste real claro/oscuro')
+  } finally {
+    try { ws?.close() } catch {}
+    browser.kill('SIGKILL')
+    fs.rmSync(profile, { recursive: true, force: true })
+  }
+}
+
 async function main() {
   const chrome = findChrome()
   let preview
@@ -174,6 +244,7 @@ async function main() {
       assert.ok(sessionCalls > before, 'No se comprobó la sesión para ' + scenario.url)
       console.log('PASS navegador: ' + scenario.url + ' [' + (activeRole || 'invitado') + ']')
     }
+    await assertServicesTheme(chrome, 'http://' + host + ':' + previewPort + '/servicios')
     if (serverError.includes('Error')) console.log('Vite stderr: ' + serverError.slice(-500))
     console.log('OK: páginas públicas, login, control de acceso, cotizaciones y administración renderizadas en Chrome.')
   } finally {
