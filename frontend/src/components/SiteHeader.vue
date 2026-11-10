@@ -111,7 +111,7 @@ const profileTheme = computed(() => darkMode.value ? {
   '--profile-glow': 'radial-gradient(ellipse at center,rgba(214,14,52,.46) 0%,rgba(178,11,45,.29) 38%,rgba(126,10,34,.13) 58%,transparent 76%)',
   '--profile-shadow': '0 14px 34px rgba(0,0,0,.25)'
 } : {
-  '--profile-bg': 'rgba(255,255,255,.96)',
+  '--profile-bg': 'rgba(255,255,255,.64)',
   '--profile-ink': '#20242b',
   '--profile-muted': '#4d4953',
   '--profile-heading': '#20242b',
