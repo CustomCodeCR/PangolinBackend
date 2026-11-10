@@ -28,6 +28,15 @@ jobs:
       - name: Probar pantallas publicas, login, cotizaciones y administracion con Chrome
         run: node scripts/smoke-browser.cjs
         working-directory: frontend
+      - name: Probar flujos completos de GIO con API simulada en Chrome
+        run: node scripts/smoke-gio-workflows.cjs
+        working-directory: frontend
+      - name: Probar noticias multilingües y formatos en Chrome
+        run: |
+          node scripts/smoke-news-i18n.cjs
+          node scripts/smoke-news-color-cascade.cjs
+          node scripts/smoke-news-formatting.cjs
+        working-directory: frontend
       - name: Verificar contratos preservados al integrar frontend
         run: node scripts/test-frontend-merge.cjs
         working-directory: frontend
