@@ -22,7 +22,7 @@ type GuideText = {
   faq: { q: string; a: string }[]
 }
 type Guide = { es: GuideText; en: GuideText }
-type LandingPoint = { title?: string; body: string }
+type LandingPoint = { title?: string; body: string; icon?: string }
 type LandingFaq = { q: string; a: string }
 type LandingText = {
   eyebrow: string
@@ -132,94 +132,94 @@ const details = computed<LandingText>(() => {
 const extraBenefitsByRoute: Record<string, Record<'es' | 'en', LandingPoint[]>> = {
   '/servicios/almacenamiento-fiscal': {
     es: [
-      { body: 'Revisión de los registros y controles de mercancías según el depósito autorizado y el servicio acordado.' }
+      { body: 'Revisión de los registros y controles de mercancías según el depósito autorizado y el servicio acordado.', icon: '▰' }
     ],
     en: [
-      { body: 'Review of cargo records and controls according to the authorized warehouse and agreed service.' }
+      { body: 'Review of cargo records and controls according to the authorized warehouse and agreed service.', icon: '▰' }
     ]
   },
   '/servicios/bodegaje-general': {
     es: [
-      { body: 'Planificación de entradas, salidas y registros de inventario según el servicio contratado.' }
+      { body: 'Planificación de entradas, salidas y registros de inventario según el servicio contratado.', icon: '▤' }
     ],
     en: [
-      { body: 'Planning of inbound, outbound and inventory records according to the contracted service.' }
+      { body: 'Planning of inbound, outbound and inventory records according to the contracted service.', icon: '▤' }
     ]
   },
   '/servicios/agenciamiento-aduanal': {
     es: [
-      { body: 'Revisión de clasificación conocida, permisos y certificaciones aplicables a la mercancía.' }
+      { body: 'Revisión de clasificación conocida, permisos y certificaciones aplicables a la mercancía.', icon: '▤' }
     ],
     en: [
-      { body: 'Review of known cargo classification, permits and applicable certificates.' }
+      { body: 'Review of known cargo classification, permits and applicable certificates.', icon: '▤' }
     ]
   },
   '/servicios/consolidadora-de-carga': {
     es: [
-      { body: 'Evaluación de compatibilidad, frecuencia de salida y capacidad disponible para cada consolidación.' }
+      { body: 'Evaluación de compatibilidad, frecuencia de salida y capacidad disponible para cada consolidación.', icon: 'container-open' }
     ],
     en: [
-      { body: 'Assessment of cargo compatibility, departure frequency and available consolidation capacity.' }
+      { body: 'Assessment of cargo compatibility, departure frequency and available consolidation capacity.', icon: 'container-open' }
     ]
   },
   '/servicios/transporte-maritimo': {
     es: [
-      { title: 'Importación y exportación', body: 'Revisión de opciones marítimas de entrada o salida según la ruta solicitada.' },
-      { title: 'Condiciones del embarque', body: 'Modalidad, fechas y alcance sujetos a confirmación durante la cotización.' }
+      { title: 'Importación y exportación', body: 'Revisión de opciones marítimas de entrada o salida según la ruta solicitada.', icon: '⚓' },
+      { title: 'Condiciones del embarque', body: 'Modalidad, fechas y alcance sujetos a confirmación durante la cotización.', icon: 'container-open' }
     ],
     en: [
-      { title: 'Imports and exports', body: 'Review of inbound and outbound ocean options for the requested route.' },
-      { title: 'Shipment terms', body: 'Mode, dates and scope are confirmed during the quotation process.' }
+      { title: 'Imports and exports', body: 'Review of inbound and outbound ocean options for the requested route.', icon: '⚓' },
+      { title: 'Shipment terms', body: 'Mode, dates and scope are confirmed during the quotation process.', icon: 'container-open' }
     ]
   },
   '/servicios/transporte-terrestre': {
     es: [
-      { title: 'Características de la carga', body: 'Evaluación de peso, dimensiones y necesidades particulares del traslado.' },
-      { title: 'Opciones regionales', body: 'Revisión de rutas y disponibilidad internacional antes de confirmar el servicio.' }
+      { title: 'Características de la carga', body: 'Evaluación de peso, dimensiones y necesidades particulares del traslado.', icon: '▰' },
+      { title: 'Opciones regionales', body: 'Revisión de rutas y disponibilidad internacional antes de confirmar el servicio.', icon: 'truck' }
     ],
     en: [
-      { title: 'Cargo characteristics', body: 'Assessment of weight, dimensions and specific transport requirements.' },
-      { title: 'Regional options', body: 'Review of international routes and availability before confirming the service.' }
+      { title: 'Cargo characteristics', body: 'Assessment of weight, dimensions and specific transport requirements.', icon: '▰' },
+      { title: 'Regional options', body: 'Review of international routes and availability before confirming the service.', icon: 'truck' }
     ]
   },
   '/servicios/transporte-aereo': {
     es: [
-      { title: 'Fechas requeridas', body: 'Revisión de la fecha solicitada al evaluar alternativas de transporte aéreo.' },
-      { title: 'Disponibilidad y condiciones', body: 'Confirmación de las opciones aéreas aplicables antes de coordinar el envío.' }
+      { title: 'Fechas requeridas', body: 'Revisión de la fecha solicitada al evaluar alternativas de transporte aéreo.', icon: '◷' },
+      { title: 'Disponibilidad y condiciones', body: 'Confirmación de las opciones aéreas aplicables antes de coordinar el envío.', icon: '✈' }
     ],
     en: [
-      { title: 'Required dates', body: 'Review of the requested date when evaluating air freight alternatives.' },
-      { title: 'Availability and terms', body: 'Confirmation of suitable air freight options before arranging shipment.' }
+      { title: 'Required dates', body: 'Review of the requested date when evaluating air freight alternatives.', icon: '◷' },
+      { title: 'Availability and terms', body: 'Confirmation of suitable air freight options before arranging shipment.', icon: '✈' }
     ]
   },
   '/servicios/transporte-internacional': {
     es: [
-      { title: 'Revisión de rutas', body: 'Se analizan trayectos y disponibilidad según la modalidad solicitada.' },
-      { title: 'Próximos pasos', body: 'Orientación para continuar con la evaluación y coordinación del envío.' }
+      { title: 'Revisión de rutas', body: 'Se analizan trayectos y disponibilidad según la modalidad solicitada.', icon: '⌖' },
+      { title: 'Próximos pasos', body: 'Orientación para continuar con la evaluación y coordinación del envío.', icon: 'container-open' }
     ],
     en: [
-      { title: 'Route review', body: 'Routes and availability are considered for the requested transport mode.' },
-      { title: 'Next steps', body: 'Guidance to continue shipment assessment and coordination.' }
+      { title: 'Route review', body: 'Routes and availability are considered for the requested transport mode.', icon: '⌖' },
+      { title: 'Next steps', body: 'Guidance to continue shipment assessment and coordination.', icon: 'container-open' }
     ]
   },
   '/servicios/transporte-local': {
     es: [
-      { title: 'Puntos de recolección y entrega', body: 'Se revisan los lugares solicitados según la cobertura disponible.' },
-      { title: 'Coordinación con Neriteka', body: 'Evaluación del alcance según la carga y la fecha requerida.' }
+      { title: 'Puntos de recolección y entrega', body: 'Se revisan los lugares solicitados según la cobertura disponible.', icon: '⌖' },
+      { title: 'Coordinación con Neriteka', body: 'Evaluación del alcance según la carga y la fecha requerida.', icon: 'truck' }
     ],
     en: [
-      { title: 'Pickup and delivery points', body: 'Review of requested locations based on available coverage.' },
-      { title: 'Coordination with Neriteka', body: 'Scope assessment based on cargo details and required date.' }
+      { title: 'Pickup and delivery points', body: 'Review of requested locations based on available coverage.', icon: '⌖' },
+      { title: 'Coordination with Neriteka', body: 'Scope assessment based on cargo details and required date.', icon: 'truck' }
     ]
   },
   '/servicios/transporte-panama-costa-rica': {
     es: [
-      { title: 'Cruce fronterizo', body: 'Revisión documental de los requisitos aplicables al traslado entre ambos países.' },
-      { title: 'Ruta y alcance', body: 'Evaluación del recorrido y sus condiciones antes de coordinar el embarque.' }
+      { title: 'Cruce fronterizo', body: 'Revisión documental de los requisitos aplicables al traslado entre ambos países.', icon: '▤' },
+      { title: 'Ruta y alcance', body: 'Evaluación del recorrido y sus condiciones antes de coordinar el embarque.', icon: 'truck' }
     ],
     en: [
-      { title: 'Border crossing', body: 'Document review of requirements for freight moving between the two countries.' },
-      { title: 'Route and scope', body: 'Assessment of the route and its terms before coordinating the shipment.' }
+      { title: 'Border crossing', body: 'Document review of requirements for freight moving between the two countries.', icon: '▤' },
+      { title: 'Route and scope', body: 'Assessment of the route and its terms before coordinating the shipment.', icon: 'truck' }
     ]
   }
 }
@@ -363,7 +363,7 @@ onBeforeUnmount(() => {
                   </div>
                   <div class="service-landing-feature-grid">
                     <article v-for="(point, index) in benefitCards" :key="point.title || point.body" class="service-landing-feature" :class="{ 'service-landing-feature--with-title': point.title }">
-                      <span class="service-landing-feature__icon"><IconSymbol :glyph="pointIcon(index)" :size="23" /></span>
+                      <span class="service-landing-feature__icon"><IconSymbol :glyph="point.icon || pointIcon(index)" :size="23" /></span>
                       <h3 v-if="point.title">{{ point.title }}</h3>
                       <p>{{ point.body }}</p>
                     </article>
