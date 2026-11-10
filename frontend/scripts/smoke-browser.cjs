@@ -195,6 +195,10 @@ async function main() {
       { url: '/servicios', role: null, must: ['services-page', 'services-page__transport'] },
       { url: '/servicios/almacenamiento-fiscal', role: null, must: ['service-landing-page', 'Almacenamiento fiscal de mercancías en Costa Rica'] },
       { url: '/servicios/transporte-maritimo', role: null, must: ['service-landing-page', 'service-landing-hero__inner', 'service-landing-story__frame', 'service-landing-feature-grid', 'service-landing-faq__item'] },
+      { url: '/servicios/transporte-terrestre', role: null, must: ['service-landing-page', 'service-landing-feature-grid'] },
+      { url: '/servicios/transporte-aereo', role: null, must: ['service-landing-page', 'service-landing-feature-grid'] },
+      { url: '/servicios/transporte-internacional', role: null, must: ['service-landing-page', 'service-landing-feature-grid'] },
+      { url: '/servicios/transporte-local', role: null, must: ['service-landing-page', 'service-landing-feature-grid'] },
       { url: '/servicios/transporte-panama-costa-rica', role: null, must: ['service-landing-page', 'service-landing-hero__inner', 'service-landing-story__frame', 'service-landing-feature-grid', 'service-landing-faq__item'] },
       { url: '/servicios/bodegaje-general', role: null, must: ['service-landing-page', 'Bodegaje general y almacenamiento'] },
       { url: '/servicios/agenciamiento-aduanal', role: null, must: ['service-landing-page', 'Agenciamiento aduanal para importaciones'] },
@@ -238,6 +242,23 @@ async function main() {
         for (const image of ['/images/services-warehouse.webp', '/images/truck.webp', '/images/warehouse-person.webp']) {
           assert.ok(html.includes(image), 'Falta la imagen de capacidades: ' + image)
         }
+      }
+      if (scenario.url.startsWith('/servicios/')) {
+        const cards = html.match(/class="service-landing-feature(?:\s[^"]*)?"/g) || []
+        assert.equal(cards.length, 4, 'Cada servicio debe mostrar exactamente cuatro tarjetas de beneficios: ' + scenario.url)
+        const newCopy = {
+          '/servicios/almacenamiento-fiscal': 'Revisión de los registros y controles de mercancías',
+          '/servicios/bodegaje-general': 'Planificación de entradas, salidas y registros de inventario',
+          '/servicios/agenciamiento-aduanal': 'Revisión de clasificación conocida, permisos',
+          '/servicios/consolidadora-de-carga': 'Evaluación de compatibilidad, frecuencia de salida',
+          '/servicios/transporte-maritimo': 'Condiciones del embarque',
+          '/servicios/transporte-terrestre': 'Opciones regionales',
+          '/servicios/transporte-aereo': 'Disponibilidad y condiciones',
+          '/servicios/transporte-internacional': 'Próximos pasos',
+          '/servicios/transporte-local': 'Coordinación con Neriteka',
+          '/servicios/transporte-panama-costa-rica': 'Cruce fronterizo'
+        }[scenario.url]
+        assert.ok(newCopy && html.includes(newCopy), 'Falta el beneficio específico del servicio: ' + scenario.url)
       }
       if (scenario.url === '/servicios' || scenario.url.startsWith('/servicios/')) {
         assert.ok(html.includes('class="nav-dropdown nav-dropdown--services"') || html.includes('nav-dropdown--services'), 'No está el desplegable de Servicios en el encabezado: ' + scenario.url)
