@@ -298,6 +298,12 @@ def main():
             document.querySelector('.service-landing-story .service-landing-steps')
                 .lastElementChild.scrollIntoView({block: 'start', behavior: 'instant'});
         """)
+        # Wait for the scroll-reveal transition to settle before comparing geometry.
+        WebDriverWait(driver, WAIT).until(lambda d: d.execute_script("""
+            return document.querySelector('.service-landing-story .service-landing-steps')
+                .lastElementChild.classList.contains('is-visible');
+        """))
+        time.sleep(.95)
         before = driver.execute_script("""
             const last = document.querySelector('.service-landing-story .service-landing-steps').lastElementChild;
             return { y: window.scrollY, top: last.getBoundingClientRect().top };
@@ -312,6 +318,7 @@ def main():
                 viewport: window.innerHeight
             };
         """)
+        print("DEBUG last transport stage:", before, after, flush=True)
         assert after["y"] - before["y"] >= 200, "El scroll debe continuar naturalmente"
         assert abs(after["top"] - before["top"]) < 8, "La última etapa debe permanecer visible al seguir bajando"
         assert after["footer"] >= after["viewport"] * .7, "El pie no debe saltar de inmediato dentro de la pantalla"
