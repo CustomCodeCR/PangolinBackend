@@ -29,9 +29,17 @@ for (const name of expectedVideos) {
 const landing = fs.readFileSync(path.join(frontend, 'src/pages/ServiceLanding.vue'), 'utf8')
 const panelStart = landing.indexOf('<figure class="service-landing-story__media">')
 const panelEnd = landing.indexOf('</figure>', panelStart)
+// El panel acepta video directo o SiteMedia: esta última opción permite
+// reemplazar el MP4 por un recurso publicado desde el editor visual (CMS).
 const videoElement = landing.indexOf('<video', panelStart)
 const videoSource = landing.indexOf('<source :src="details.video" type="video/mp4"', videoElement)
-assert.ok(panelStart >= 0 && videoElement > panelStart && videoSource > videoElement && panelEnd > videoSource, 'Los MP4 deben estar dentro del panel izquierdo de Servicios')
+const cmsVideo = landing.indexOf('<SiteMedia class="service-landing-story__video"', panelStart)
+const originalVideo = panelStart >= 0 && videoElement > panelStart && videoSource > videoElement && panelEnd > videoSource
+const editableVideo = panelStart >= 0 && cmsVideo > panelStart && panelEnd > cmsVideo &&
+  landing.slice(cmsVideo, panelEnd).includes(':slot-key="serviceStoryKey"') &&
+  landing.slice(cmsVideo, panelEnd).includes(':fallback="details.video"') &&
+  landing.slice(cmsVideo, panelEnd).includes('default-kind="Video"')
+assert.ok(originalVideo || editableVideo, 'Los MP4 o su componente CMS deben estar dentro del panel izquierdo de Servicios')
 for (const [route, video] of [
   ['transporte-aereo', 'service-air.mp4'],
   ['transporte-terrestre', 'service-road.mp4'],
