@@ -282,21 +282,21 @@ def main():
         await_css(driver, ".service-landing-story .service-landing-step")
         transport_state = driver.execute_script("""
             const stack = document.querySelector('.service-landing-story .service-landing-steps');
-            const last = stack.lastElementChild;
+            const last = stack.querySelector('.service-landing-step--faq');
             return {
                 stages: stack.querySelectorAll('.service-landing-step').length,
-                padding: parseFloat(getComputedStyle(stack).paddingBottom),
+                runway: parseFloat(getComputedStyle(stack.querySelector('.service-landing-steps__runway')).height),
                 sticky: getComputedStyle(last).position,
                 rootOverflow: getComputedStyle(document.querySelector('.app-site.service-landing-page')).overflowY
             };
         """)
         assert transport_state["stages"] >= 3, "Transporte debe tener etapas numeradas"
-        assert transport_state["padding"] >= 320, "La última etapa necesita distancia de desplazamiento adicional"
+        assert transport_state["runway"] >= 320, "La última etapa necesita distancia de desplazamiento adicional"
         assert transport_state["sticky"] == "sticky", "En escritorio las etapas siguen siendo sticky"
         assert transport_state["rootOverflow"] == "clip", "El contenedor principal no debe desactivar el sticky con overflow hidden"
         driver.execute_script("""
             const stack = document.querySelector('.service-landing-story .service-landing-steps');
-            const last = stack.lastElementChild;
+            const last = stack.querySelector('.service-landing-step--faq');
             // Measure the last card's natural location rather than invoking
             // scrollIntoView on a sticky (already visually displaced) element.
             const naturalTop = window.scrollY + stack.getBoundingClientRect().top + last.offsetTop;
@@ -305,16 +305,16 @@ def main():
         # Wait for the scroll-reveal transition to settle before comparing geometry.
         WebDriverWait(driver, WAIT).until(lambda d: d.execute_script("""
             return document.querySelector('.service-landing-story .service-landing-steps')
-                .lastElementChild.classList.contains('is-visible');
+                .querySelector('.service-landing-step--faq').classList.contains('is-visible');
         """))
         time.sleep(.95)
         before = driver.execute_script("""
-            const last = document.querySelector('.service-landing-story .service-landing-steps').lastElementChild;
+            const last = document.querySelector('.service-landing-story .service-landing-steps').querySelector('.service-landing-step--faq');
             return { y: window.scrollY, top: last.getBoundingClientRect().top };
         """)
         driver.execute_script("window.scrollBy({top: 240, behavior: 'instant'});")
         after = driver.execute_script("""
-            const last = document.querySelector('.service-landing-story .service-landing-steps').lastElementChild;
+            const last = document.querySelector('.service-landing-story .service-landing-steps').querySelector('.service-landing-step--faq');
             return {
                 y: window.scrollY,
                 top: last.getBoundingClientRect().top,
