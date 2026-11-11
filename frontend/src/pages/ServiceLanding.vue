@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { extraBenefitsByRoute } from '../lib/serviceExtraBenefits'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
@@ -64,6 +65,16 @@ const serviceVideo = (pathname: string) => {
 }
 const pointIcon = (index: number) => ['✦', '⇄', '⌖', 'boxes'][index % 4]
 const serviceSlug=route.split('/').pop() || ''
+const openServiceFaq = ref<number | null>(null)
+const serviceFaqRef = ref<HTMLElement | null>(null)
+const closeServiceFaqOutside = (event: PointerEvent) => {
+  if (openServiceFaq.value === null || !(event.target instanceof Node)) return
+  const opened = serviceFaqRef.value?.querySelector<HTMLElement>(`[data-faq-index="${openServiceFaq.value}"]`)
+  if (opened && !opened.contains(event.target)) openServiceFaq.value = null
+}
+const closeServiceFaqOnEscape = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') openServiceFaq.value = null
+}
 const serviceHeroKey='service.'+serviceSlug+'.hero.media'
 const serviceStoryKey='service.'+serviceSlug+'.story.media'
 const details = computed<LandingText>(() => {
@@ -135,113 +146,24 @@ const details = computed<LandingText>(() => {
 })
 
 
-// Supplement only service pages whose benefits do not fill the 2×2 grid.
-// Keep the original benefits and editorial/SEO source data unchanged.
-// Each addition is grounded in that service's own description, scope or FAQ;
-// these describe coordination/evaluation rather than guaranteed availability.
-const extraBenefitsByRoute: Record<string, Record<'es' | 'en', LandingPoint[]>> = {
-  '/servicios/almacenamiento-fiscal': {
-    es: [
-      { body: 'Revisión de los registros y controles de mercancías según el depósito autorizado y el servicio acordado.', icon: '▰' }
-    ],
-    en: [
-      { body: 'Review of cargo records and controls according to the authorized warehouse and agreed service.', icon: '▰' }
-    ]
-  },
-  '/servicios/bodegaje-general': {
-    es: [
-      { body: 'Planificación de entradas, salidas y registros de inventario según el servicio contratado.', icon: '▤' }
-    ],
-    en: [
-      { body: 'Planning of inbound, outbound and inventory records according to the contracted service.', icon: '▤' }
-    ]
-  },
-  '/servicios/agenciamiento-aduanal': {
-    es: [
-      { body: 'Revisión de clasificación conocida, permisos y certificaciones aplicables a la mercancía.', icon: '▤' }
-    ],
-    en: [
-      { body: 'Review of known cargo classification, permits and applicable certificates.', icon: '▤' }
-    ]
-  },
-  '/servicios/consolidadora-de-carga': {
-    es: [
-      { body: 'Evaluación de compatibilidad, frecuencia de salida y capacidad disponible para cada consolidación.', icon: 'container-open' }
-    ],
-    en: [
-      { body: 'Assessment of cargo compatibility, departure frequency and available consolidation capacity.', icon: 'container-open' }
-    ]
-  },
-  '/servicios/transporte-maritimo': {
-    es: [
-      { title: 'Importación y exportación', body: 'Revisión de opciones marítimas de entrada o salida según la ruta solicitada.', icon: '⚓' },
-      { title: 'Condiciones del embarque', body: 'Modalidad, fechas y alcance sujetos a confirmación durante la cotización.', icon: 'container-open' }
-    ],
-    en: [
-      { title: 'Imports and exports', body: 'Review of inbound and outbound ocean options for the requested route.', icon: '⚓' },
-      { title: 'Shipment terms', body: 'Mode, dates and scope are confirmed during the quotation process.', icon: 'container-open' }
-    ]
-  },
-  '/servicios/transporte-terrestre': {
-    es: [
-      { title: 'Características de la carga', body: 'Evaluación de peso, dimensiones y necesidades particulares del traslado.', icon: '▰' },
-      { title: 'Opciones regionales', body: 'Revisión de rutas y disponibilidad internacional antes de confirmar el servicio.', icon: 'truck' }
-    ],
-    en: [
-      { title: 'Cargo characteristics', body: 'Assessment of weight, dimensions and specific transport requirements.', icon: '▰' },
-      { title: 'Regional options', body: 'Review of international routes and availability before confirming the service.', icon: 'truck' }
-    ]
-  },
-  '/servicios/transporte-aereo': {
-    es: [
-      { title: 'Fechas requeridas', body: 'Revisión de la fecha solicitada al evaluar alternativas de transporte aéreo.', icon: '◷' },
-      { title: 'Disponibilidad y condiciones', body: 'Confirmación de las opciones aéreas aplicables antes de coordinar el envío.', icon: '✈' }
-    ],
-    en: [
-      { title: 'Required dates', body: 'Review of the requested date when evaluating air freight alternatives.', icon: '◷' },
-      { title: 'Availability and terms', body: 'Confirmation of suitable air freight options before arranging shipment.', icon: '✈' }
-    ]
-  },
-  '/servicios/transporte-internacional': {
-    es: [
-      { title: 'Revisión de rutas', body: 'Se analizan trayectos y disponibilidad según la modalidad solicitada.', icon: '⌖' },
-      { title: 'Próximos pasos', body: 'Orientación para continuar con la evaluación y coordinación del envío.', icon: 'container-open' }
-    ],
-    en: [
-      { title: 'Route review', body: 'Routes and availability are considered for the requested transport mode.', icon: '⌖' },
-      { title: 'Next steps', body: 'Guidance to continue shipment assessment and coordination.', icon: 'container-open' }
-    ]
-  },
-  '/servicios/transporte-local': {
-    es: [
-      { title: 'Puntos de recolección y entrega', body: 'Se revisan los lugares solicitados según la cobertura disponible.', icon: '⌖' },
-      { title: 'Coordinación con Neriteka', body: 'Evaluación del alcance según la carga y la fecha requerida.', icon: 'truck' }
-    ],
-    en: [
-      { title: 'Pickup and delivery points', body: 'Review of requested locations based on available coverage.', icon: '⌖' },
-      { title: 'Coordination with Neriteka', body: 'Scope assessment based on cargo details and required date.', icon: 'truck' }
-    ]
-  },
-  '/servicios/transporte-panama-costa-rica': {
-    es: [
-      { title: 'Cruce fronterizo', body: 'Revisión documental de los requisitos aplicables al traslado entre ambos países.', icon: '▤' },
-      { title: 'Ruta y alcance', body: 'Evaluación del recorrido y sus condiciones antes de coordinar el embarque.', icon: 'truck' }
-    ],
-    en: [
-      { title: 'Border crossing', body: 'Document review of requirements for freight moving between the two countries.', icon: '▤' },
-      { title: 'Route and scope', body: 'Assessment of the route and its terms before coordinating the shipment.', icon: 'truck' }
-    ]
-  }
-}
-
 const benefitCards = computed<LandingPoint[]>(() => {
   const existing = details.value.points
   const missing = Math.max(0, 4 - existing.length)
   if (!missing) return existing
-  return [...existing, ...(extraBenefitsByRoute[route]?.[lang.value] ?? []).slice(0, missing)]
+  const extras = (extraBenefitsByRoute[route]?.[lang.value] ?? []).slice(0, missing)
+  return [...existing, ...extras.map((point, index) => {
+    const position = existing.length + index
+    return {
+      ...point,
+      ...(point.title ? { title: siteText('service.' + serviceSlug + '.point.' + position + '.title', point.title, lang.value) } : {}),
+      body: siteText('service.' + serviceSlug + '.point.' + position + '.body', point.body, lang.value)
+    }
+  })]
 })
 
 onMounted(async () => {
+  document.addEventListener('pointerdown', closeServiceFaqOutside)
+  document.addEventListener('keydown', closeServiceFaqOnEscape)
   await nextTick()
   const page = document.querySelector('.service-landing-page')
   const steps = page ? Array.from(page.querySelectorAll<HTMLElement>('.service-landing-step')) : []
@@ -318,6 +240,8 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', closeServiceFaqOutside)
+  document.removeEventListener('keydown', closeServiceFaqOnEscape)
   if (serviceScrollListener) window.removeEventListener('scroll', serviceScrollListener)
   if (serviceResizeListener) window.removeEventListener('resize', serviceResizeListener)
   if (serviceStepFrame) window.cancelAnimationFrame(serviceStepFrame)
@@ -401,12 +325,23 @@ onBeforeUnmount(() => {
                 </section>
 
                 <section class="service-landing-step service-landing-step--faq" :data-step="details.quoteHeading || details.scopeNote ? '04' : '03'" aria-labelledby="guide-faq">
-                  <div class="service-landing-faq">
+                  <div ref="serviceFaqRef" class="service-landing-faq">
                     <p class="section-tag">{{ lang === 'es' ? 'PREGUNTAS FRECUENTES' : 'FREQUENTLY ASKED QUESTIONS' }}</p>
                     <h2 id="guide-faq">{{ lang === 'es' ? 'Respuestas sobre este servicio.' : 'Answers about this service.' }}</h2>
-                    <details v-for="item in details.faq" :key="item.q" class="service-landing-faq__item">
-                      <summary>{{ item.q }}<span aria-hidden="true">+</span></summary><p>{{ item.a }}</p>
-                    </details>
+                    <div v-for="(item, index) in details.faq" :key="index"
+                      class="service-landing-faq__item" :data-faq-index="index"
+                      :class="{ 'is-open': openServiceFaq === index }">
+                      <button type="button" :aria-expanded="openServiceFaq === index"
+                        :aria-controls="`service-faq-${serviceSlug}-${index}`"
+                        @click="openServiceFaq = openServiceFaq === index ? null : index">
+                        {{ item.q }}<span aria-hidden="true">+</span>
+                      </button>
+                      <div :id="`service-faq-${serviceSlug}-${index}`" class="service-landing-faq__panel"
+                        :class="{ 'is-open': openServiceFaq === index }"
+                        :aria-hidden="openServiceFaq !== index" :inert="openServiceFaq !== index">
+                        <div class="service-landing-faq__panel-clip"><p>{{ item.a }}</p></div>
+                      </div>
+                    </div>
                   </div>
                 </section>
                 <!-- Extends the natural flow past the last sticky service stage. -->
@@ -469,11 +404,15 @@ onBeforeUnmount(() => {
 .service-landing-faq{max-width:950px;margin:0 auto 58px}
 .service-landing-faq h2{margin-bottom:24px}
 .service-landing-faq__item{margin:12px 0;padding:20px 22px;border:1px solid rgba(128,128,140,.25);border-radius:16px;background:color-mix(in srgb,var(--surface,#fff) 86%,transparent)}
-.service-landing-faq__item summary{display:flex;justify-content:space-between;gap:20px;align-items:center;color:var(--ink,#20242b);font-weight:750;cursor:pointer;list-style:none}
-.service-landing-faq__item summary::-webkit-details-marker{display:none}
-.service-landing-faq__item summary span{color:#b20c2a;font-size:24px}
-.service-landing-faq__item[open] summary span{transform:rotate(45deg)}
+.service-landing-faq__item > button{display:flex;width:100%;justify-content:space-between;gap:20px;align-items:center;padding:0;border:0;background:transparent;text-align:left;font:inherit;color:var(--ink,#20242b);font-weight:750;cursor:pointer}
+.service-landing-faq__item > button span{color:#b20c2a;font-size:24px;transition:transform .28s ease}
+.service-landing-faq__item.is-open > button span{transform:rotate(45deg)}
+.service-landing-faq__item > button:focus-visible{outline:2px solid #b20c2a;outline-offset:4px;border-radius:4px}
+.service-landing-faq__panel{display:grid;grid-template-rows:0fr;opacity:0;visibility:hidden;transition:grid-template-rows .3s ease,opacity .25s ease,visibility .3s}
+.service-landing-faq__panel.is-open{grid-template-rows:1fr;opacity:1;visibility:visible;transition:grid-template-rows .3s ease,opacity .25s ease,visibility 0s}
+.service-landing-faq__panel-clip{min-height:0;overflow:hidden}
 .service-landing-faq__item p{margin:14px 0 0;color:var(--muted,#595b65);line-height:1.7}
+@media(prefers-reduced-motion:reduce){.service-landing-faq__panel,.service-landing-faq__panel.is-open,.service-landing-faq__item > button span{transition:none!important}}
 .service-landing-contact{display:flex;justify-content:space-between;align-items:center;gap:30px;padding:clamp(25px,4vw,48px);border:1px solid rgba(178,11,45,.25);border-radius:24px;background:linear-gradient(112deg,rgba(178,11,45,.09),rgba(255,255,255,.4))}
 .service-landing-contact h2{margin:12px 0}
 .service-landing-contact p{max-width:680px;margin:0}

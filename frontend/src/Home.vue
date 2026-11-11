@@ -39,6 +39,15 @@ const serviceInfo = computed(() => Object.fromEntries((['Maritime', 'Land', 'Air
   }]
 })) as Record<ServiceKey, { title: string; sections: { heading: string; items: string[] }[] }>)
 const expandedFaq = ref<number | null>(0)
+const faqListRef = ref<HTMLElement | null>(null)
+const closeFaqOnOutsidePointer = (event: PointerEvent) => {
+  if (expandedFaq.value === null || !(event.target instanceof Node)) return
+  const activeItem = faqListRef.value?.querySelector<HTMLElement>(`[data-faq-index="${expandedFaq.value}"]`)
+  if (activeItem && !activeItem.contains(event.target)) expandedFaq.value = null
+}
+const closeFaqOnEscape = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') expandedFaq.value = null
+}
 const faqs = computed(() => baseFaqs.map((faq, index) => ({
   ...faq,
   q: siteText(`home.faq.${index}.q`, t(`content.faqs.${index}.q`), locale.value),
@@ -120,6 +129,8 @@ function requestComments() {
 }
 
 onMounted(async () => {
+  document.addEventListener('pointerdown', closeFaqOnOutsidePointer)
+  document.addEventListener('keydown', closeFaqOnEscape)
   // Comments live below the first screen; do not compete with hero/news on load.
   if (typeof IntersectionObserver === 'undefined' || !commentsSection.value) {
     requestComments()
@@ -147,6 +158,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('pointerdown', closeFaqOnOutsidePointer)
+  document.removeEventListener('keydown', closeFaqOnEscape)
   commentsObserver?.disconnect()
   unsubscribeComments()
   if (statsTimer) window.clearInterval(statsTimer)
@@ -407,22 +420,28 @@ onUnmounted(() => {
             {{ siteText('home.faq.heading2', $t('phrases.p033'), locale) }}<br />{{ siteText('home.faq.heading3', $t('phrases.p034'), locale) }}
           </h2>
 
-          <div class="faq-list">
+          <div ref="faqListRef" class="faq-list">
             <div
               v-for="(faq, index) in faqs"
               :key="faq.q"
               class="faq-item"
+              :data-faq-index="index"
               :class="{ 'faq-item--open': expandedFaq === index }"
             >
               <button
                 :aria-expanded="expandedFaq === index"
+                :aria-controls="`home-faq-answer-${index}`"
                 type="button"
                 @click="expandedFaq = expandedFaq === index ? null : index"
               >
                 <span>{{ faq.q }}</span>
                 <IconSymbol :glyph="expandedFaq === index ? '−' : '+'" :size="18" />
               </button>
-              <div v-if="expandedFaq === index" class="faq-answer">{{ faq.a }}</div>
+              <div :id="`home-faq-answer-${index}`" class="faq-answer-panel"
+                :class="{ 'is-open': expandedFaq === index }"
+                :aria-hidden="expandedFaq !== index" :inert="expandedFaq !== index">
+                <div class="faq-answer-clip"><div class="faq-answer">{{ faq.a }}</div></div>
+              </div>
             </div>
           </div>
         </div>

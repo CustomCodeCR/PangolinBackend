@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Target, Eye, Handshake, Scale, UsersRound, Award, ShieldCheck, Truck, ClipboardCheck, Globe2, Boxes, Ship, ChevronDown } from '@lucide/vue'
 import IconSymbol from '../components/IconSymbol.vue'
@@ -13,6 +13,23 @@ const values = computed(() => [0, 1, 2, 3, 4].map(index => siteText(`about.value
 const valueIcons = [Handshake, Scale, UsersRound, Award, ShieldCheck]
 const capabilityIcons = [Truck, ClipboardCheck, Globe2, Boxes, Ship]
 const openedValue = ref<number | null>(null)
+const valuesAccordionRef = ref<HTMLElement | null>(null)
+const closeValueOnOutsidePointer = (event: PointerEvent) => {
+  if (openedValue.value === null || !(event.target instanceof Node)) return
+  const openCard = valuesAccordionRef.value?.querySelector<HTMLElement>(`[data-value-index="${openedValue.value}"]`)
+  if (openCard && !openCard.contains(event.target)) openedValue.value = null
+}
+const closeValueOnEscape = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') openedValue.value = null
+}
+onMounted(() => {
+  document.addEventListener('pointerdown', closeValueOnOutsidePointer)
+  document.addEventListener('keydown', closeValueOnEscape)
+})
+onUnmounted(() => {
+  document.removeEventListener('pointerdown', closeValueOnOutsidePointer)
+  document.removeEventListener('keydown', closeValueOnEscape)
+})
 // Pointer events distinguish desktop mouse hover from touch, including
 // headless Chrome, where media queries for hover-capability are unreliable.
 let lastPressedPointer: string | null = null
@@ -168,8 +185,8 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
             </div>
           </div>
 
-          <div class="about-refresh__accordion">
-            <article v-for="(value, index) in values" :key="index" class="about-refresh__value" :class="{ 'is-open': openedValue === index }" @pointerenter="onValuePointerEnter(index, $event)" @pointerleave="onValuePointerLeave(index, $event)" @pointerdown="onValuePointerDown($event)">
+          <div ref="valuesAccordionRef" class="about-refresh__accordion">
+            <article v-for="(value, index) in values" :key="index" :data-value-index="index" class="about-refresh__value" :class="{ 'is-open': openedValue === index }" @pointerenter="onValuePointerEnter(index, $event)" @pointerleave="onValuePointerLeave(index, $event)" @pointerdown="onValuePointerDown($event)">
               <h3>
                 <button type="button" class="about-refresh__value-trigger" :aria-expanded="openedValue === index" :aria-controls="`about-value-detail-${index}`" @click="toggleValue(index, $event)">
                   <span class="about-refresh__value-icon"><component :is="valueIcons[index]" :size="26" :stroke-width="1.8" aria-hidden="true" /></span>
@@ -540,6 +557,35 @@ html.theme-dark .about-refresh__value.is-open .about-refresh__value-icon{
   .about-refresh__values .about-refresh__gallery{margin-top:34px}
   .about-refresh__values{padding-bottom:28px}
 }
+/* Center incomplete card rows without changing the original card sizes.
+   Desktop retains its five-column grid; three/two-column breakpoints wrap
+   with equal-sized cards, and the mobile one-column layout is unchanged. */
+@media (min-width:581px) and (max-width:1320px) {
+  .about-refresh__accordion,
+  .about-refresh__capabilities {
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    align-items:flex-start;
+  }
+  .about-refresh__accordion > .about-refresh__value {
+    box-sizing:border-box;
+    flex:0 0 calc((100% - 40px) / 3);
+  }
+  .about-refresh__capabilities > .about-refresh__capability {
+    box-sizing:border-box;
+    flex:0 0 calc((100% - 2 * clamp(13px,1.7vw,26px)) / 3);
+  }
+}
+@media (min-width:581px) and (max-width:950px) {
+  .about-refresh__accordion > .about-refresh__value {
+    flex-basis:calc((100% - 20px) / 2);
+  }
+  .about-refresh__capabilities > .about-refresh__capability {
+    flex-basis:calc((100% - clamp(13px,1.7vw,26px)) / 2);
+  }
+}
+
 /* Keep the experience divider fully white in dark mode. */
 html.theme-dark .about-refresh .about-refresh__hero-copy .big-years span {
   border-left-color: #fff !important;

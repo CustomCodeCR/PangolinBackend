@@ -8,11 +8,13 @@ const { spawn, spawnSync } = require('node:child_process')
 const fs = require('node:fs')
 const os = require('node:os')
 const root = path.resolve(__dirname, '..')
+const serviceGuides = require('../seo/service-landings.json')
 const host = '127.0.0.1'
 const previewPort = 4178
 const apiPort = 5000
 let activeRole = null
 let sessionCalls = 0
+let publishedSiteSlots = []
 function findChrome() {
   const options = [process.env.CHROME_BIN, 'google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser'].filter(Boolean)
   for (const name of options) {
@@ -43,7 +45,7 @@ const api = http.createServer((req, res) => {
       : send(401, { error: 'No autenticado' })
   }
   if (pathname === '/api/content/news') return send(200, [])
-  if (pathname === '/api/content/site') return send(200, {})
+  if (pathname === '/api/content/site') return send(200, publishedSiteSlots)
   if (pathname.startsWith('/api/admin/')) return send(200, [])
   send(404, { error: 'Endpoint no simulado' })
 })
@@ -172,10 +174,179 @@ async function assertServicesTheme(chrome, url) {
     assert.equal(arrowGeometry.icons, 10, 'Los 10 enlaces necesitan flechas SVG centradas')
     assert.ok(arrowGeometry.dx <= 1 && arrowGeometry.dy <= 1, 'Flecha descentrada dentro de círculo: ' + JSON.stringify(arrowGeometry))
     console.log('PASS Chrome: 10 tarjetas con contraste real claro/oscuro')
+    // About: five cards should keep 3/2, 2/2/1 and single-column
+    // layouts, with every incomplete final row centered in its container.
+    const aboutUrl = new URL('/nosotros', url).href
+    for (const scenario of [
+      { width: 1100, rows: [3, 2] },
+      { width: 800, rows: [2, 2, 1] },
+      { width: 480, rows: [1, 1, 1, 1, 1] }
+    ]) {
+      await send('Emulation.setDeviceMetricsOverride', {
+        width: scenario.width, height: 950, deviceScaleFactor: 1, mobile: false
+      })
+      const aboutNavigation = await send('Page.navigate', { url: aboutUrl })
+      assert.ok(!aboutNavigation.errorText, 'Chrome no pudo abrir Nosotros: ' + aboutNavigation.errorText)
+      let aboutLoaded = false
+      for (let attempt = 0; attempt < 100; attempt++) {
+        aboutLoaded = await evaluate("document.querySelectorAll('.about-refresh__value').length === 5 && document.querySelectorAll('.about-refresh__capability').length === 5")
+        if (aboutLoaded) break
+        await new Promise(resolve => setTimeout(resolve, 120))
+      }
+      assert.ok(aboutLoaded, 'No cargaron los valores y capacidades en ' + scenario.width + 'px')
+      for (const selector of ['.about-refresh__accordion', '.about-refresh__capabilities']) {
+        const geometry = await evaluate(`(() => {
+          const parent = document.querySelector(${JSON.stringify(selector)})
+          const bounds = parent.getBoundingClientRect()
+          const cards = [...parent.children].map(card => card.getBoundingClientRect())
+          const rows = []
+          for (const card of cards) {
+            const row = rows.find(items => Math.abs(items[0].top - card.top) < 2)
+            if (row) row.push(card)
+            else rows.push([card])
+          }
+          const last = rows[rows.length - 1]
+          const rowCenter = (last[0].left + last[last.length - 1].right) / 2
+          return {
+            count: cards.length, rows: rows.map(row => row.length),
+            delta: Math.abs(rowCenter - (bounds.left + bounds.right) / 2),
+            widths: cards.map(card => card.width)
+          }
+        })()`)
+        assert.equal(geometry.count, 5, 'Faltan tarjetas en ' + selector)
+        assert.deepEqual(geometry.rows, scenario.rows, 'Filas inesperadas en ' + selector + ' (' + scenario.width + 'px): ' + JSON.stringify(geometry))
+        assert.ok(geometry.delta <= 2, 'Última fila descentrada en ' + selector + ' (' + scenario.width + 'px): ' + JSON.stringify(geometry))
+        assert.ok(Math.max(...geometry.widths) - Math.min(...geometry.widths) <= 2,
+          'Las tarjetas dejaron de tener el mismo ancho: ' + selector + ' (' + scenario.width + 'px)')
+      }
+    }
+    console.log('PASS Chrome: últimas filas centradas en Valores y Capacidades (1100, 800 y 480px)')
+    // Contacto en Home: mantener cinco tarjetas iguales y centrar las
+    // filas incompletas sin ensanchar la última tarjeta en móvil.
+    const contactUrl = new URL('/', url).href
+    for (const scenario of [
+      { width: 900, rows: [3, 2] },
+      { width: 600, rows: [2, 2, 1] },
+      { width: 375, rows: [1, 1, 1, 1, 1] }
+    ]) {
+      await send('Emulation.setDeviceMetricsOverride', {
+        width: scenario.width, height: 950, deviceScaleFactor: 1, mobile: false
+      })
+      const homeNavigation = await send('Page.navigate', { url: contactUrl })
+      assert.ok(!homeNavigation.errorText, 'Chrome no pudo abrir Inicio: ' + homeNavigation.errorText)
+      let contactReady = false
+      for (let attempt = 0; attempt < 100; attempt++) {
+        contactReady = await evaluate("document.querySelectorAll('.home-contact-grid > .home-contact-card').length === 5")
+        if (contactReady) break
+        await new Promise(resolve => setTimeout(resolve, 120))
+      }
+      assert.ok(contactReady, 'No cargaron las cinco tarjetas de Contacto a ' + scenario.width + 'px')
+      const contactGeometry = await evaluate(`(() => {
+        const parent = document.querySelector('.home-contact-grid')
+        const bounds = parent.getBoundingClientRect()
+        const cards = [...parent.children].map(card => card.getBoundingClientRect())
+        const rows = []
+        for (const card of cards) {
+          const row = rows.find(items => Math.abs(items[0].top - card.top) < 2)
+          if (row) row.push(card)
+          else rows.push([card])
+        }
+        const last = rows[rows.length - 1]
+        return {
+          count: cards.length,
+          rows: rows.map(row => row.length),
+          delta: Math.abs((last[0].left + last[last.length - 1].right) / 2 - (bounds.left + bounds.right) / 2),
+          widths: cards.map(card => card.width)
+        }
+      })()`)
+      assert.equal(contactGeometry.count, 5, 'Faltan tarjetas de Contacto')
+      assert.deepEqual(contactGeometry.rows, scenario.rows,
+        'Filas incorrectas en Contacto (' + scenario.width + 'px): ' + JSON.stringify(contactGeometry))
+      assert.ok(contactGeometry.delta <= 2,
+        'Fila final de Contacto descentrada (' + scenario.width + 'px): ' + JSON.stringify(contactGeometry))
+      assert.ok(Math.max(...contactGeometry.widths) - Math.min(...contactGeometry.widths) <= 2,
+        'Las tarjetas de Contacto deben conservar anchos iguales (' + scenario.width + 'px)')
+    }
+    console.log('PASS Chrome: cinco tarjetas de Contacto centradas (900, 600 y 375px)')
+
+    // In both accordions, a real toggle must expose state accessibly, animate,
+    // dismiss on outside pointerdown and Escape, and keep only one item open.
+    await send('Emulation.setDeviceMetricsOverride', {
+      width: 900, height: 950, deviceScaleFactor: 1, mobile: false
+    })
+    for (const accordion of [
+      { path: '/', item: '.faq-item', panel: '.faq-answer-panel' },
+      { path: '/servicios/transporte-local', item: '.service-landing-faq__item', panel: '.service-landing-faq__panel' },
+      { path: '/nosotros', item: '.about-refresh__value', panel: '.about-refresh__value-panel' }
+    ]) {
+      const navigation = await send('Page.navigate', { url: new URL(accordion.path, url).href })
+      assert.ok(!navigation.errorText, 'Navegación fallida para FAQ: ' + accordion.path)
+      const items = JSON.stringify(accordion.item)
+      const panel = JSON.stringify(accordion.panel)
+      let faqReady = false
+      for (let attempt = 0; attempt < 100; attempt++) {
+        faqReady = await evaluate("document.querySelectorAll(" + items + ").length >= 3")
+        if (faqReady) break
+        await new Promise(resolve => setTimeout(resolve, 120))
+      }
+      assert.ok(faqReady, 'No cargaron las preguntas frecuentes de ' + accordion.path)
+
+      const itemState = `(() => {
+        const cards = [...document.querySelectorAll(${items})]
+        const trigger = cards[1].querySelector('button')
+        const answer = cards[1].querySelector(${panel})
+        return {
+          opened: cards.filter(card => card.querySelector('button').getAttribute('aria-expanded') === 'true').length,
+          expanded: trigger.getAttribute('aria-expanded'),
+          controls: trigger.getAttribute('aria-controls') === answer.id,
+          hidden: answer.getAttribute('aria-hidden'),
+          inert: answer.inert,
+          transitions: getComputedStyle(answer).transitionDuration
+        }
+      })()`
+      await evaluate("document.querySelectorAll(" + items + ")[1].querySelector('button').click(); true")
+      let state = null
+      for (let attempt = 0; attempt < 30; attempt++) {
+        state = await evaluate(itemState)
+        if (state.expanded === 'true') break
+        await new Promise(resolve => setTimeout(resolve, 30))
+      }
+      assert.equal(state.expanded, 'true', 'La FAQ no abrió: ' + accordion.path)
+      assert.equal(state.opened, 1, 'Debe abrirse una sola respuesta: ' + accordion.path)
+      assert.equal(state.controls, true, 'El botón no enlaza el panel con aria-controls')
+      assert.equal(state.hidden, 'false', 'La respuesta abierta no debe quedar oculta')
+      assert.equal(state.inert, false, 'La respuesta abierta no debe estar inerte')
+      if (!await evaluate("matchMedia('(prefers-reduced-motion: reduce)').matches")) {
+        assert.ok(state.transitions.split(',').some(value => parseFloat(value) > 0),
+          'La FAQ debe animar la apertura y cierre: ' + accordion.path)
+      }
+
+      await evaluate("document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse' })); true")
+      state = await evaluate(itemState)
+      assert.equal(state.expanded, 'false', 'La FAQ no se cerró al pulsar afuera: ' + accordion.path)
+      assert.equal(state.hidden, 'true', 'Respuesta cerrada no oculta para lectores')
+      assert.equal(state.inert, true, 'Respuesta cerrada debe quedar inerte')
+
+      await evaluate("document.querySelectorAll(" + items + ")[1].querySelector('button').click(); true")
+      await evaluate("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); true")
+      state = await evaluate(itemState)
+      assert.equal(state.expanded, 'false', 'Escape no cerró la FAQ: ' + accordion.path)
+    }
+    console.log('PASS Chrome: FAQ Inicio/Servicios y Valores con animación, click afuera, Escape y ARIA')
+
+
+
   } finally {
     try { ws?.close() } catch {}
-    browser.kill('SIGKILL')
-    fs.rmSync(profile, { recursive: true, force: true })
+    // Wait for Chromium to release its profile before removing it: killing
+    // and immediately deleting the directory can race Chrome's final writes
+    // and produce ENOTEMPTY even when every browser assertion passed.
+    await new Promise(resolve => {
+      if (browser.exitCode !== null) return resolve()
+      browser.once('close', resolve)
+      browser.kill('SIGKILL')
+    })
+    fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   }
 }
 
@@ -246,11 +417,10 @@ async function main() {
       if (scenario.url.startsWith('/servicios/')) {
         const cards = html.match(/class="service-landing-feature(?:\s[^"]*)?"/g) || []
         assert.equal(cards.length, 4, 'Cada servicio debe mostrar exactamente cuatro tarjetas de beneficios: ' + scenario.url)
-        const newCopy = {
-          '/servicios/almacenamiento-fiscal': 'Revisión de los registros y controles de mercancías',
-          '/servicios/bodegaje-general': 'Planificación de entradas, salidas y registros de inventario',
-          '/servicios/agenciamiento-aduanal': 'Revisión de clasificación conocida, permisos',
-          '/servicios/consolidadora-de-carga': 'Evaluación de compatibilidad, frecuencia de salida',
+        // Las fichas logísticas ya traen cuatro beneficios en su JSON.
+        // Probar el contenido actual evita fallos falsos cuando cambia la redacción.
+        const guideBenefit = serviceGuides[scenario.url]?.es.points[3]
+        const newCopy = guideBenefit || {
           '/servicios/transporte-maritimo': 'Condiciones del embarque',
           '/servicios/transporte-terrestre': 'Opciones regionales',
           '/servicios/transporte-aereo': 'Disponibilidad y condiciones',
@@ -276,6 +446,18 @@ async function main() {
       assert.ok(sessionCalls > before, 'No se comprobó la sesión para ' + scenario.url)
       console.log('PASS navegador: ' + scenario.url + ' [' + (activeRole || 'invitado') + ']')
     }
+    // Publicaciones del CMS deben reemplazar textos de tarjetas adicionales
+    // sin romper las cuatro tarjetas ni afectar al resto del contenido.
+    publishedSiteSlots = [
+      { key: 'service.transporte-maritimo.point.2.title', textEs: 'Beneficio CMS de prueba 3', textEn: 'CMS benefit test 3' },
+      { key: 'service.transporte-maritimo.point.3.body', textEs: 'Descripción CMS publicada en tarjeta 4', textEn: 'Published CMS body for card 4' }
+    ]
+    const publishedHtml = await dumpDom(chrome, 'http://' + host + ':' + previewPort + '/servicios/transporte-maritimo', 'servicio marítimo con CMS')
+    assert.ok(publishedHtml.includes('Beneficio CMS de prueba 3'), 'El CMS no actualizó el título de la tercera tarjeta')
+    assert.ok(publishedHtml.includes('Descripción CMS publicada en tarjeta 4'), 'El CMS no actualizó el texto de la cuarta tarjeta')
+    assert.equal((publishedHtml.match(/class="service-landing-feature(?:\s[^"]*)?"/g) || []).length, 4,
+      'La publicación CMS debe conservar las cuatro tarjetas')
+    console.log('PASS Chrome: las tarjetas adicionales de transporte leen textos publicados del CMS')
     await assertServicesTheme(chrome, 'http://' + host + ':' + previewPort + '/servicios')
     if (serverError.includes('Error')) console.log('Vite stderr: ' + serverError.slice(-500))
     console.log('OK: páginas públicas, login, control de acceso, cotizaciones y administración renderizadas en Chrome.')
