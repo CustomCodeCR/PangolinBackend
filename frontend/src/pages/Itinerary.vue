@@ -332,7 +332,7 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
                 <small>{{ t('custom.itinerary.form.loadingPort') }}</small>
               </div>
             </div>
-            <div class="itinerary-summary-card__route-line" aria-hidden="true"><span>→</span></div>
+            <div class="itinerary-summary-card__route-line" aria-hidden="true"><span class="itinerary-summary-card__route-arrow"><IconSymbol glyph="→" :size="18" /></span></div>
             <div class="itinerary-summary-card__stop itinerary-summary-card__stop--destination">
               <span class="itinerary-summary-card__pin" aria-hidden="true"><IconSymbol glyph="⌖" :size="19" /></span>
               <div class="itinerary-summary-card__stop-copy">
@@ -393,12 +393,16 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
 
 /* Logistics itinerary cards use the same calm white/glass hierarchy as the
    Dynamics shipment summary, without changing search, pagination or API data. */
+.itinerary-search-results{
+  /* Match the content width of the rest of the site on wide monitors. */
+  width:100%;max-width:1180px;margin-inline:auto;
+}
 .itinerary-summary-card{
   --itinerary-result-border:rgba(174,38,66,.18);
   --itinerary-result-line:rgba(137,82,97,.17);
   --itinerary-result-muted:#737780;
   position:relative;isolation:isolate;overflow:hidden;
-  margin-top:14px;padding:clamp(16px,2.2vw,25px);
+  margin-top:12px;padding:clamp(14px,1.7vw,20px);
   border:1px solid var(--itinerary-result-border);border-radius:22px;
   background:linear-gradient(125deg,#fff8f9 0%,#fff 42%,#fff 100%);
   box-shadow:0 12px 30px rgba(47,18,28,.06);color:#20242b;
@@ -409,7 +413,7 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
 }
 .itinerary-summary-card__header{
   display:flex;align-items:center;justify-content:space-between;
-  gap:16px 26px;flex-wrap:wrap;margin-bottom:18px;
+  gap:12px 22px;flex-wrap:wrap;margin-bottom:13px;
 }
 .itinerary-summary-card__heading{display:grid;gap:5px;min-width:0}
 .itinerary-summary-card__eyebrow{
@@ -428,9 +432,9 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
 }
 .itinerary-summary-card__mode .lucide-symbol{flex:none;color:#b20c2a}
 .itinerary-summary-card__route{
-  display:grid;grid-template-columns:minmax(0,1fr) minmax(58px,.32fr) minmax(0,1fr);
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(50px,.24fr) minmax(0,1fr);
   align-items:center;gap:clamp(8px,1.7vw,22px);
-  padding:clamp(14px,2vw,20px);border:1px solid rgba(178,12,42,.13);
+  padding:clamp(12px,1.3vw,16px);border:1px solid rgba(178,12,42,.13);
   border-radius:18px;background:rgba(176,12,42,.035);
 }
 .itinerary-summary-card__stop{display:flex;align-items:center;gap:clamp(8px,1vw,14px);min-width:0}
@@ -456,14 +460,19 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
 .itinerary-summary-card__route-line::before{
   content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:#d9a4af;
 }
-.itinerary-summary-card__route-line span{
-  position:relative;display:grid;place-items:center;width:34px;height:34px;
+.itinerary-summary-card__route-line > .itinerary-summary-card__route-arrow{
+  position:relative;display:flex;align-items:center;justify-content:center;
+  width:34px;height:34px;padding:0;flex:0 0 34px;line-height:0;
   border-radius:50%;background:#b20c2a;color:#fff;
-  font-size:19px;line-height:1;box-shadow:0 3px 10px rgba(178,12,42,.18);
+  box-shadow:0 3px 10px rgba(178,12,42,.18);
+}
+.itinerary-summary-card__route-arrow :deep(.lucide-symbol){
+  display:flex;align-items:center;justify-content:center;
+  width:18px;height:18px;line-height:0;
 }
 .itinerary-summary-card__information{
-  display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:17px;
-  padding:16px 0 0;border-top:1px solid var(--itinerary-result-line);
+  display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:12px;
+  padding:12px 0 0;border-top:1px solid var(--itinerary-result-line);
 }
 .itinerary-summary-card__facts{
   display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 16px;min-width:0;
@@ -512,7 +521,7 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
   }
   .itinerary-summary-card__stop{gap:5px}
   .itinerary-summary-card__pin{display:none}
-  .itinerary-summary-card__route-line span{width:28px;height:28px;font-size:17px}
+  .itinerary-summary-card__route-line > .itinerary-summary-card__route-arrow{width:28px;height:28px;flex-basis:28px}
   .itinerary-summary-card__stop-copy strong{font-size:14px}
   .itinerary-summary-card__stop-copy small{font-size:9px}
   .itinerary-summary-card__facts{gap:10px}
