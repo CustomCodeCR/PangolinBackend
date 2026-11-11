@@ -540,6 +540,35 @@ html.theme-dark .about-refresh__value.is-open .about-refresh__value-icon{
   .about-refresh__values .about-refresh__gallery{margin-top:34px}
   .about-refresh__values{padding-bottom:28px}
 }
+/* Center incomplete card rows without changing the original card sizes.
+   Desktop retains its five-column grid; three/two-column breakpoints wrap
+   with equal-sized cards, and the mobile one-column layout is unchanged. */
+@media (min-width:581px) and (max-width:1320px) {
+  .about-refresh__accordion,
+  .about-refresh__capabilities {
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    align-items:flex-start;
+  }
+  .about-refresh__accordion > .about-refresh__value {
+    box-sizing:border-box;
+    flex:0 0 calc((100% - 40px) / 3);
+  }
+  .about-refresh__capabilities > .about-refresh__capability {
+    box-sizing:border-box;
+    flex:0 0 calc((100% - 2 * clamp(13px,1.7vw,26px)) / 3);
+  }
+}
+@media (min-width:581px) and (max-width:950px) {
+  .about-refresh__accordion > .about-refresh__value {
+    flex-basis:calc((100% - 20px) / 2);
+  }
+  .about-refresh__capabilities > .about-refresh__capability {
+    flex-basis:calc((100% - clamp(13px,1.7vw,26px)) / 2);
+  }
+}
+
 /* Keep the experience divider fully white in dark mode. */
 html.theme-dark .about-refresh .about-refresh__hero-copy .big-years span {
   border-left-color: #fff !important;
