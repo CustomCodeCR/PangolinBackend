@@ -141,7 +141,7 @@ public static class SiteCmsEndpoints
         {
             var prefix = "service." + slug + ".";
             foreach (var field in new[] { "heading", "body", "answer" }) TextKeys.Add(prefix + field);
-            for(var i=0;i<2;i++)
+            for(var i=0;i<4;i++)
             {
                 TextKeys.Add(prefix + "point." + i + ".title");
                 TextKeys.Add(prefix + "point." + i + ".body");

@@ -8,11 +8,13 @@ const { spawn, spawnSync } = require('node:child_process')
 const fs = require('node:fs')
 const os = require('node:os')
 const root = path.resolve(__dirname, '..')
+const serviceGuides = require('../seo/service-landings.json')
 const host = '127.0.0.1'
 const previewPort = 4178
 const apiPort = 5000
 let activeRole = null
 let sessionCalls = 0
+let publishedSiteSlots = []
 function findChrome() {
   const options = [process.env.CHROME_BIN, 'google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser'].filter(Boolean)
   for (const name of options) {
@@ -43,7 +45,7 @@ const api = http.createServer((req, res) => {
       : send(401, { error: 'No autenticado' })
   }
   if (pathname === '/api/content/news') return send(200, [])
-  if (pathname === '/api/content/site') return send(200, {})
+  if (pathname === '/api/content/site') return send(200, publishedSiteSlots)
   if (pathname.startsWith('/api/admin/')) return send(200, [])
   send(404, { error: 'Endpoint no simulado' })
 })
@@ -246,11 +248,10 @@ async function main() {
       if (scenario.url.startsWith('/servicios/')) {
         const cards = html.match(/class="service-landing-feature(?:\s[^"]*)?"/g) || []
         assert.equal(cards.length, 4, 'Cada servicio debe mostrar exactamente cuatro tarjetas de beneficios: ' + scenario.url)
-        const newCopy = {
-          '/servicios/almacenamiento-fiscal': 'Revisión de los registros y controles de mercancías',
-          '/servicios/bodegaje-general': 'Planificación de entradas, salidas y registros de inventario',
-          '/servicios/agenciamiento-aduanal': 'Revisión de clasificación conocida, permisos',
-          '/servicios/consolidadora-de-carga': 'Evaluación de compatibilidad, frecuencia de salida',
+        // Las fichas logísticas ya traen cuatro beneficios en su JSON.
+        // Probar el contenido actual evita fallos falsos cuando cambia la redacción.
+        const guideBenefit = serviceGuides[scenario.url]?.es.points[3]
+        const newCopy = guideBenefit || {
           '/servicios/transporte-maritimo': 'Condiciones del embarque',
           '/servicios/transporte-terrestre': 'Opciones regionales',
           '/servicios/transporte-aereo': 'Disponibilidad y condiciones',
@@ -276,6 +277,18 @@ async function main() {
       assert.ok(sessionCalls > before, 'No se comprobó la sesión para ' + scenario.url)
       console.log('PASS navegador: ' + scenario.url + ' [' + (activeRole || 'invitado') + ']')
     }
+    // Publicaciones del CMS deben reemplazar textos de tarjetas adicionales
+    // sin romper las cuatro tarjetas ni afectar al resto del contenido.
+    publishedSiteSlots = [
+      { key: 'service.transporte-maritimo.point.2.title', textEs: 'Beneficio CMS de prueba 3', textEn: 'CMS benefit test 3' },
+      { key: 'service.transporte-maritimo.point.3.body', textEs: 'Descripción CMS publicada en tarjeta 4', textEn: 'Published CMS body for card 4' }
+    ]
+    const publishedHtml = await dumpDom(chrome, 'http://' + host + ':' + previewPort + '/servicios/transporte-maritimo', 'servicio marítimo con CMS')
+    assert.ok(publishedHtml.includes('Beneficio CMS de prueba 3'), 'El CMS no actualizó el título de la tercera tarjeta')
+    assert.ok(publishedHtml.includes('Descripción CMS publicada en tarjeta 4'), 'El CMS no actualizó el texto de la cuarta tarjeta')
+    assert.equal((publishedHtml.match(/class="service-landing-feature(?:\s[^"]*)?"/g) || []).length, 4,
+      'La publicación CMS debe conservar las cuatro tarjetas')
+    console.log('PASS Chrome: las tarjetas adicionales de transporte leen textos publicados del CMS')
     await assertServicesTheme(chrome, 'http://' + host + ':' + previewPort + '/servicios')
     if (serverError.includes('Error')) console.log('Vite stderr: ' + serverError.slice(-500))
     console.log('OK: páginas públicas, login, control de acceso, cotizaciones y administración renderizadas en Chrome.')
