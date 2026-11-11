@@ -318,7 +318,8 @@ onUnmounted(() => {
         </template>
         <template v-else-if="reelUrl">
           <div v-if="instagramEmbedState === 'loading' || instagramEmbedState === 'ready'"
-            class="home-instagram-section__ig-embed">
+            class="home-instagram-section__ig-embed"
+            :class="{ 'home-instagram-section__ig-embed--video-crop': instagramEmbedState === 'ready' }">
             <div ref="instagramEmbedHost" class="home-instagram-section__ig-stage">
               <blockquote class="instagram-media" :data-instgrm-permalink="reelUrl" data-instgrm-version="14">
                 <a :href="reelUrl" target="_blank" rel="noopener noreferrer">{{ t('custom.home.instagram.open') }}</a>
@@ -553,6 +554,36 @@ onUnmounted(() => {
 .home-instagram-section__ig-stage :deep(.instagram-media) {
   display: block; width: 326px !important; min-width: 326px !important;
   max-width: 326px !important; margin: 0 !important;
+}
+/* Only crop the official embed AFTER embed.js has created its iframe.
+   The fixed 207px / 9:16 viewer stays unchanged. Instagram's 326px
+   embed contains chrome around a smaller 9:16 video, so enlarge the
+   existing stage and offset it within the clipped viewer. This changes
+   neither the embed URL nor its playback lifecycle. */
+.home-instagram-section__ig-embed--video-crop { background: #020717; }
+.home-instagram-section__ig-embed--video-crop .home-instagram-section__ig-stage {
+  top: -53px;
+  left: -44px;
+  transform: scale(.91);
+}
+/* Keep the official external link available to mouse/keyboard users
+   without overlaying the video at rest. */
+.home-instagram-section__ig-embed--video-crop .home-instagram-section__ig-open {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease;
+}
+.home-instagram-section__ig-embed--video-crop:hover .home-instagram-section__ig-open,
+.home-instagram-section__ig-embed--video-crop:focus-within .home-instagram-section__ig-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+@media (max-width: 680px) {
+  .home-instagram-section__ig-embed--video-crop .home-instagram-section__ig-stage {
+    top: -53px;
+    left: -45px;
+    transform: scale(.905);
+  }
 }
 .home-instagram-section__ig-loading {
   position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column;
