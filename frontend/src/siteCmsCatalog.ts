@@ -2,6 +2,7 @@ import type { SiteSlotDefinition } from './siteCms'
 import serviceGuides from '../seo/service-landings.json'
 import servicePages from '../seo/service-pages.json'
 import serviceFaqs from '../seo/service-faqs.json'
+import { extraBenefitsByRoute } from './lib/serviceExtraBenefits'
 
 export const siteSlotCatalog: SiteSlotDefinition[] = [
   {
@@ -1100,6 +1101,18 @@ for(const service of servicePages){
     detailText(slug,name,'point.'+i+'.title','Beneficios','Beneficio '+(i+1)+': título',item.title.es,item.title.en)
     detailText(slug,name,'point.'+i+'.body','Beneficios','Beneficio '+(i+1)+': descripción',item.body.es,item.body.en)
   })
+  // Tarjetas adicionales (3 y 4) con valores predeterminados compartidos con la página.
+  const extraBenefits = extraBenefitsByRoute['/servicios/' + slug]
+  if (extraBenefits) {
+    const missing = Math.max(0, 4 - service.sections.length)
+    for (let i=0; i<Math.min(missing,extraBenefits.es.length,extraBenefits.en.length); i++) {
+      const position = service.sections.length + i
+      const es = extraBenefits.es[i], en = extraBenefits.en[i]
+      if (es.title && en.title)
+        detailText(slug,name,'point.'+position+'.title','Beneficios','Beneficio '+(position+1)+': título',es.title,en.title)
+      detailText(slug,name,'point.'+position+'.body','Beneficios','Beneficio '+(position+1)+': descripción',es.body,en.body)
+    }
+  }
   const faqs=serviceFaqs[slug as keyof typeof serviceFaqs]
   if(faqs)faqs.forEach((item,i)=>{
     detailText(slug,name,'faq.'+i+'.q','Preguntas frecuentes','Pregunta '+(i+1),item.question.es,item.question.en)
