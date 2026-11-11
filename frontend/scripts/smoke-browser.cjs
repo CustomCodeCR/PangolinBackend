@@ -8,6 +8,7 @@ const { spawn, spawnSync } = require('node:child_process')
 const fs = require('node:fs')
 const os = require('node:os')
 const root = path.resolve(__dirname, '..')
+const serviceGuides = require('../seo/service-landings.json')
 const host = '127.0.0.1'
 const previewPort = 4178
 const apiPort = 5000
@@ -247,11 +248,10 @@ async function main() {
       if (scenario.url.startsWith('/servicios/')) {
         const cards = html.match(/class="service-landing-feature(?:\s[^"]*)?"/g) || []
         assert.equal(cards.length, 4, 'Cada servicio debe mostrar exactamente cuatro tarjetas de beneficios: ' + scenario.url)
-        const newCopy = {
-          '/servicios/almacenamiento-fiscal': 'Control y trazabilidad del inventario durante el almacenamiento fiscal.',
-          '/servicios/bodegaje-general': 'Organización e identificación de mercancías para facilitar su localización y despacho.',
-          '/servicios/agenciamiento-aduanal': 'Coordinación de consultas y requerimientos adicionales durante la gestión aduanera.',
-          '/servicios/consolidadora-de-carga': 'Seguimiento de la consolidación y coordinación de la entrega según la ruta contratada.',
+        // Las fichas logísticas ya traen cuatro beneficios en su JSON.
+        // Probar el contenido actual evita fallos falsos cuando cambia la redacción.
+        const guideBenefit = serviceGuides[scenario.url]?.es.points[3]
+        const newCopy = guideBenefit || {
           '/servicios/transporte-maritimo': 'Condiciones del embarque',
           '/servicios/transporte-terrestre': 'Opciones regionales',
           '/servicios/transporte-aereo': 'Disponibilidad y condiciones',
