@@ -276,7 +276,8 @@ async function assertServicesTheme(chrome, url) {
     })
     for (const accordion of [
       { path: '/', item: '.faq-item', panel: '.faq-answer-panel' },
-      { path: '/servicios/transporte-local', item: '.service-landing-faq__item', panel: '.service-landing-faq__panel' }
+      { path: '/servicios/transporte-local', item: '.service-landing-faq__item', panel: '.service-landing-faq__panel' },
+      { path: '/nosotros', item: '.about-refresh__value', panel: '.about-refresh__value-panel' }
     ]) {
       const navigation = await send('Page.navigate', { url: new URL(accordion.path, url).href })
       assert.ok(!navigation.errorText, 'Navegación fallida para FAQ: ' + accordion.path)
@@ -331,7 +332,7 @@ async function assertServicesTheme(chrome, url) {
       state = await evaluate(itemState)
       assert.equal(state.expanded, 'false', 'Escape no cerró la FAQ: ' + accordion.path)
     }
-    console.log('PASS Chrome: FAQ Inicio y Servicios con animación, click afuera, Escape y ARIA')
+    console.log('PASS Chrome: FAQ Inicio/Servicios y Valores con animación, click afuera, Escape y ARIA')
 
 
 
