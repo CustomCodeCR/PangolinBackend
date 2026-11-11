@@ -286,7 +286,7 @@ async function main() {
     const publishedHtml = await dumpDom(chrome, 'http://' + host + ':' + previewPort + '/servicios/transporte-maritimo', 'servicio marítimo con CMS')
     assert.ok(publishedHtml.includes('Beneficio CMS de prueba 3'), 'El CMS no actualizó el título de la tercera tarjeta')
     assert.ok(publishedHtml.includes('Descripción CMS publicada en tarjeta 4'), 'El CMS no actualizó el texto de la cuarta tarjeta')
-    assert.equal((publishedHtml.match(/class="service-landing-feature(?:\\s[^"]*)?"/g) || []).length, 4,
+    assert.equal((publishedHtml.match(/class="service-landing-feature(?:\s[^"]*)?"/g) || []).length, 4,
       'La publicación CMS debe conservar las cuatro tarjetas')
     console.log('PASS Chrome: las tarjetas adicionales de transporte leen textos publicados del CMS')
     await assertServicesTheme(chrome, 'http://' + host + ':' + previewPort + '/servicios')
