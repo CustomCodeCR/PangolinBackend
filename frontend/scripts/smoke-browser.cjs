@@ -269,6 +269,71 @@ async function assertServicesTheme(chrome, url) {
     }
     console.log('PASS Chrome: cinco tarjetas de Contacto centradas (900, 600 y 375px)')
 
+    // In both accordions, a real toggle must expose state accessibly, animate,
+    // dismiss on outside pointerdown and Escape, and keep only one item open.
+    await send('Emulation.setDeviceMetricsOverride', {
+      width: 900, height: 950, deviceScaleFactor: 1, mobile: false
+    })
+    for (const accordion of [
+      { path: '/', item: '.faq-item', panel: '.faq-answer-panel' },
+      { path: '/servicios/transporte-local', item: '.service-landing-faq__item', panel: '.service-landing-faq__panel' }
+    ]) {
+      const navigation = await send('Page.navigate', { url: new URL(accordion.path, url).href })
+      assert.ok(!navigation.errorText, 'Navegación fallida para FAQ: ' + accordion.path)
+      const items = JSON.stringify(accordion.item)
+      const panel = JSON.stringify(accordion.panel)
+      let faqReady = false
+      for (let attempt = 0; attempt < 100; attempt++) {
+        faqReady = await evaluate("document.querySelectorAll(" + items + ").length >= 3")
+        if (faqReady) break
+        await new Promise(resolve => setTimeout(resolve, 120))
+      }
+      assert.ok(faqReady, 'No cargaron las preguntas frecuentes de ' + accordion.path)
+
+      const itemState = `(() => {
+        const cards = [...document.querySelectorAll(${items})]
+        const trigger = cards[1].querySelector('button')
+        const answer = cards[1].querySelector(${panel})
+        return {
+          opened: cards.filter(card => card.querySelector('button').getAttribute('aria-expanded') === 'true').length,
+          expanded: trigger.getAttribute('aria-expanded'),
+          controls: trigger.getAttribute('aria-controls') === answer.id,
+          hidden: answer.getAttribute('aria-hidden'),
+          inert: answer.inert,
+          transitions: getComputedStyle(answer).transitionDuration
+        }
+      })()`
+      await evaluate("document.querySelectorAll(" + items + ")[1].querySelector('button').click(); true")
+      let state = null
+      for (let attempt = 0; attempt < 30; attempt++) {
+        state = await evaluate(itemState)
+        if (state.expanded === 'true') break
+        await new Promise(resolve => setTimeout(resolve, 30))
+      }
+      assert.equal(state.expanded, 'true', 'La FAQ no abrió: ' + accordion.path)
+      assert.equal(state.opened, 1, 'Debe abrirse una sola respuesta: ' + accordion.path)
+      assert.equal(state.controls, true, 'El botón no enlaza el panel con aria-controls')
+      assert.equal(state.hidden, 'false', 'La respuesta abierta no debe quedar oculta')
+      assert.equal(state.inert, false, 'La respuesta abierta no debe estar inerte')
+      if (!await evaluate("matchMedia('(prefers-reduced-motion: reduce)').matches")) {
+        assert.ok(state.transitions.split(',').some(value => parseFloat(value) > 0),
+          'La FAQ debe animar la apertura y cierre: ' + accordion.path)
+      }
+
+      await evaluate("document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse' })); true")
+      state = await evaluate(itemState)
+      assert.equal(state.expanded, 'false', 'La FAQ no se cerró al pulsar afuera: ' + accordion.path)
+      assert.equal(state.hidden, 'true', 'Respuesta cerrada no oculta para lectores')
+      assert.equal(state.inert, true, 'Respuesta cerrada debe quedar inerte')
+
+      await evaluate("document.querySelectorAll(" + items + ")[1].querySelector('button').click(); true")
+      await evaluate("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); true")
+      state = await evaluate(itemState)
+      assert.equal(state.expanded, 'false', 'Escape no cerró la FAQ: ' + accordion.path)
+    }
+    console.log('PASS Chrome: FAQ Inicio y Servicios con animación, click afuera, Escape y ARIA')
+
+
 
   } finally {
     try { ws?.close() } catch {}
