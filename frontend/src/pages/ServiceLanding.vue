@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { extraBenefitsByRoute } from '../lib/serviceExtraBenefits'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
@@ -65,6 +65,16 @@ const serviceVideo = (pathname: string) => {
 }
 const pointIcon = (index: number) => ['✦', '⇄', '⌖', 'boxes'][index % 4]
 const serviceSlug=route.split('/').pop() || ''
+const openServiceFaq = ref<number | null>(null)
+const serviceFaqRef = ref<HTMLElement | null>(null)
+const closeServiceFaqOutside = (event: PointerEvent) => {
+  if (openServiceFaq.value === null || !(event.target instanceof Node)) return
+  const opened = serviceFaqRef.value?.querySelector<HTMLElement>(`[data-faq-index="${openServiceFaq.value}"]`)
+  if (opened && !opened.contains(event.target)) openServiceFaq.value = null
+}
+const closeServiceFaqOnEscape = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') openServiceFaq.value = null
+}
 const serviceHeroKey='service.'+serviceSlug+'.hero.media'
 const serviceStoryKey='service.'+serviceSlug+'.story.media'
 const details = computed<LandingText>(() => {
@@ -152,6 +162,8 @@ const benefitCards = computed<LandingPoint[]>(() => {
 })
 
 onMounted(async () => {
+  document.addEventListener('pointerdown', closeServiceFaqOutside)
+  document.addEventListener('keydown', closeServiceFaqOnEscape)
   await nextTick()
   const page = document.querySelector('.service-landing-page')
   const steps = page ? Array.from(page.querySelectorAll<HTMLElement>('.service-landing-step')) : []
@@ -228,6 +240,8 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', closeServiceFaqOutside)
+  document.removeEventListener('keydown', closeServiceFaqOnEscape)
   if (serviceScrollListener) window.removeEventListener('scroll', serviceScrollListener)
   if (serviceResizeListener) window.removeEventListener('resize', serviceResizeListener)
   if (serviceStepFrame) window.cancelAnimationFrame(serviceStepFrame)
@@ -311,12 +325,23 @@ onBeforeUnmount(() => {
                 </section>
 
                 <section class="service-landing-step service-landing-step--faq" :data-step="details.quoteHeading || details.scopeNote ? '04' : '03'" aria-labelledby="guide-faq">
-                  <div class="service-landing-faq">
+                  <div ref="serviceFaqRef" class="service-landing-faq">
                     <p class="section-tag">{{ lang === 'es' ? 'PREGUNTAS FRECUENTES' : 'FREQUENTLY ASKED QUESTIONS' }}</p>
                     <h2 id="guide-faq">{{ lang === 'es' ? 'Respuestas sobre este servicio.' : 'Answers about this service.' }}</h2>
-                    <details v-for="item in details.faq" :key="item.q" class="service-landing-faq__item">
-                      <summary>{{ item.q }}<span aria-hidden="true">+</span></summary><p>{{ item.a }}</p>
-                    </details>
+                    <div v-for="(item, index) in details.faq" :key="index"
+                      class="service-landing-faq__item" :data-faq-index="index"
+                      :class="{ 'is-open': openServiceFaq === index }">
+                      <button type="button" :aria-expanded="openServiceFaq === index"
+                        :aria-controls="`service-faq-${serviceSlug}-${index}`"
+                        @click="openServiceFaq = openServiceFaq === index ? null : index">
+                        {{ item.q }}<span aria-hidden="true">+</span>
+                      </button>
+                      <div :id="`service-faq-${serviceSlug}-${index}`" class="service-landing-faq__panel"
+                        :class="{ 'is-open': openServiceFaq === index }"
+                        :aria-hidden="openServiceFaq !== index" :inert="openServiceFaq !== index">
+                        <div class="service-landing-faq__panel-clip"><p>{{ item.a }}</p></div>
+                      </div>
+                    </div>
                   </div>
                 </section>
                 <!-- Extends the natural flow past the last sticky service stage. -->
@@ -379,11 +404,15 @@ onBeforeUnmount(() => {
 .service-landing-faq{max-width:950px;margin:0 auto 58px}
 .service-landing-faq h2{margin-bottom:24px}
 .service-landing-faq__item{margin:12px 0;padding:20px 22px;border:1px solid rgba(128,128,140,.25);border-radius:16px;background:color-mix(in srgb,var(--surface,#fff) 86%,transparent)}
-.service-landing-faq__item summary{display:flex;justify-content:space-between;gap:20px;align-items:center;color:var(--ink,#20242b);font-weight:750;cursor:pointer;list-style:none}
-.service-landing-faq__item summary::-webkit-details-marker{display:none}
-.service-landing-faq__item summary span{color:#b20c2a;font-size:24px}
-.service-landing-faq__item[open] summary span{transform:rotate(45deg)}
+.service-landing-faq__item > button{display:flex;width:100%;justify-content:space-between;gap:20px;align-items:center;padding:0;border:0;background:transparent;text-align:left;font:inherit;color:var(--ink,#20242b);font-weight:750;cursor:pointer}
+.service-landing-faq__item > button span{color:#b20c2a;font-size:24px;transition:transform .28s ease}
+.service-landing-faq__item.is-open > button span{transform:rotate(45deg)}
+.service-landing-faq__item > button:focus-visible{outline:2px solid #b20c2a;outline-offset:4px;border-radius:4px}
+.service-landing-faq__panel{display:grid;grid-template-rows:0fr;opacity:0;visibility:hidden;transition:grid-template-rows .3s ease,opacity .25s ease,visibility .3s}
+.service-landing-faq__panel.is-open{grid-template-rows:1fr;opacity:1;visibility:visible;transition:grid-template-rows .3s ease,opacity .25s ease,visibility 0s}
+.service-landing-faq__panel-clip{min-height:0;overflow:hidden}
 .service-landing-faq__item p{margin:14px 0 0;color:var(--muted,#595b65);line-height:1.7}
+@media(prefers-reduced-motion:reduce){.service-landing-faq__panel,.service-landing-faq__panel.is-open,.service-landing-faq__item > button span{transition:none!important}}
 .service-landing-contact{display:flex;justify-content:space-between;align-items:center;gap:30px;padding:clamp(25px,4vw,48px);border:1px solid rgba(178,11,45,.25);border-radius:24px;background:linear-gradient(112deg,rgba(178,11,45,.09),rgba(255,255,255,.4))}
 .service-landing-contact h2{margin:12px 0}
 .service-landing-contact p{max-width:680px;margin:0}
