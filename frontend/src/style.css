@@ -1554,10 +1554,23 @@ html.theme-dark .quote-flow .quote-cargo-form button,html.theme-dark .quote-flow
 .home-contact-card small{color:rgba(255,255,255,.88)!important;font-size:12px;line-height:1.55;overflow-wrap:anywhere}
 html.theme-dark .home-contact-details{background:#01081D!important}
 html.theme-dark .home-contact-card,html.theme-dark .home-contact-card *{color:#fff!important}
-@media(max-width:1050px){.home-contact-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:650px){.home-contact-details{padding:18px 0 55px}.home-contact-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.home-contact-card{min-height:180px;padding:20px 12px}.home-contact-card strong{font-size:12px}.home-contact-card small{font-size:11px}}
-@media(min-width:391px) and (max-width:650px){.home-contact-grid>.home-contact-card:last-child{grid-column:1/-1}}
-@media(max-width:390px){.home-contact-grid{grid-template-columns:1fr}}
+/* Center the incomplete last row: 3+2 on tablet, 2+2+1 on
+   smaller screens, while preserving five equal tiles on desktop. */
+@media(max-width:1050px){
+  .home-contact-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
+  .home-contact-grid>.home-contact-card{box-sizing:border-box;min-width:0;flex:0 0 calc((100% - 32px)/3)}
+}
+@media(max-width:650px){
+  .home-contact-details{padding:18px 0 55px}
+  .home-contact-grid{gap:11px}
+  .home-contact-grid>.home-contact-card{flex-basis:calc((100% - 11px)/2)}
+  .home-contact-card{min-height:180px;padding:20px 12px}
+  .home-contact-card strong{font-size:12px}
+  .home-contact-card small{font-size:11px}
+}
+@media(max-width:390px){
+  .home-contact-grid>.home-contact-card{flex-basis:100%}
+}
 @media(prefers-reduced-motion:reduce){.faq-background:after{animation:none;left:20%;opacity:.55}}
 
 /* Keep the FAQ photo visible in dark mode and blend the animated red glow over it. */
