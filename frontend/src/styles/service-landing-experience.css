@@ -62,7 +62,7 @@
 .service-landing-step--faq .service-landing-faq>.section-tag{color:#b20c2a}
 .service-landing-step--faq .service-landing-faq h2{margin:0 0 20px;color:#152b54;font-size:clamp(29px,3.2vw,40px);line-height:1.08}
 .service-landing-step--faq .service-landing-faq__item{margin:10px 0;padding:16px 18px;border-radius:14px;background:rgba(255,255,255,.86);box-shadow:none}
-.service-landing-step--faq .service-landing-faq__item summary{font-size:14px}
+.service-landing-step--faq .service-landing-faq__item > button{font-size:14px}
 .service-landing-step--faq .service-landing-faq__item p{font-size:14px;line-height:1.55}
 html.theme-dark .service-landing-step{border-color:rgba(255,255,255,.14);background:linear-gradient(145deg,rgba(40,19,35,.9),rgba(17,23,41,.96) 58%,rgba(11,20,41,.96));box-shadow:0 20px 50px rgba(0,0,0,.2)}
 html.theme-dark .service-landing-step::before{color:rgba(255,113,134,.1)}
