@@ -221,6 +221,54 @@ async function assertServicesTheme(chrome, url) {
       }
     }
     console.log('PASS Chrome: últimas filas centradas en Valores y Capacidades (1100, 800 y 480px)')
+    // Contacto en Home: mantener cinco tarjetas iguales y centrar las
+    // filas incompletas sin ensanchar la última tarjeta en móvil.
+    const contactUrl = new URL('/', url).href
+    for (const scenario of [
+      { width: 900, rows: [3, 2] },
+      { width: 600, rows: [2, 2, 1] },
+      { width: 375, rows: [1, 1, 1, 1, 1] }
+    ]) {
+      await send('Emulation.setDeviceMetricsOverride', {
+        width: scenario.width, height: 950, deviceScaleFactor: 1, mobile: false
+      })
+      const homeNavigation = await send('Page.navigate', { url: contactUrl })
+      assert.ok(!homeNavigation.errorText, 'Chrome no pudo abrir Inicio: ' + homeNavigation.errorText)
+      let contactReady = false
+      for (let attempt = 0; attempt < 100; attempt++) {
+        contactReady = await evaluate("document.querySelectorAll('.home-contact-grid > .home-contact-card').length === 5")
+        if (contactReady) break
+        await new Promise(resolve => setTimeout(resolve, 120))
+      }
+      assert.ok(contactReady, 'No cargaron las cinco tarjetas de Contacto a ' + scenario.width + 'px')
+      const contactGeometry = await evaluate(`(() => {
+        const parent = document.querySelector('.home-contact-grid')
+        const bounds = parent.getBoundingClientRect()
+        const cards = [...parent.children].map(card => card.getBoundingClientRect())
+        const rows = []
+        for (const card of cards) {
+          const row = rows.find(items => Math.abs(items[0].top - card.top) < 2)
+          if (row) row.push(card)
+          else rows.push([card])
+        }
+        const last = rows[rows.length - 1]
+        return {
+          count: cards.length,
+          rows: rows.map(row => row.length),
+          delta: Math.abs((last[0].left + last[last.length - 1].right) / 2 - (bounds.left + bounds.right) / 2),
+          widths: cards.map(card => card.width)
+        }
+      })()`)
+      assert.equal(contactGeometry.count, 5, 'Faltan tarjetas de Contacto')
+      assert.deepEqual(contactGeometry.rows, scenario.rows,
+        'Filas incorrectas en Contacto (' + scenario.width + 'px): ' + JSON.stringify(contactGeometry))
+      assert.ok(contactGeometry.delta <= 2,
+        'Fila final de Contacto descentrada (' + scenario.width + 'px): ' + JSON.stringify(contactGeometry))
+      assert.ok(Math.max(...contactGeometry.widths) - Math.min(...contactGeometry.widths) <= 2,
+        'Las tarjetas de Contacto deben conservar anchos iguales (' + scenario.width + 'px)')
+    }
+    console.log('PASS Chrome: cinco tarjetas de Contacto centradas (900, 600 y 375px)')
+
 
   } finally {
     try { ws?.close() } catch {}
