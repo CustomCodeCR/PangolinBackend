@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Target, Eye, Handshake, Scale, UsersRound, Award, ShieldCheck, Truck, ClipboardCheck, Globe2, Boxes, Ship, ChevronDown } from '@lucide/vue'
 import IconSymbol from '../components/IconSymbol.vue'
@@ -13,6 +13,23 @@ const values = computed(() => [0, 1, 2, 3, 4].map(index => siteText(`about.value
 const valueIcons = [Handshake, Scale, UsersRound, Award, ShieldCheck]
 const capabilityIcons = [Truck, ClipboardCheck, Globe2, Boxes, Ship]
 const openedValue = ref<number | null>(null)
+const valuesAccordionRef = ref<HTMLElement | null>(null)
+const closeValueOnOutsidePointer = (event: PointerEvent) => {
+  if (openedValue.value === null || !(event.target instanceof Node)) return
+  const openCard = valuesAccordionRef.value?.querySelector<HTMLElement>(`[data-value-index="${openedValue.value}"]`)
+  if (openCard && !openCard.contains(event.target)) openedValue.value = null
+}
+const closeValueOnEscape = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') openedValue.value = null
+}
+onMounted(() => {
+  document.addEventListener('pointerdown', closeValueOnOutsidePointer)
+  document.addEventListener('keydown', closeValueOnEscape)
+})
+onUnmounted(() => {
+  document.removeEventListener('pointerdown', closeValueOnOutsidePointer)
+  document.removeEventListener('keydown', closeValueOnEscape)
+})
 // Pointer events distinguish desktop mouse hover from touch, including
 // headless Chrome, where media queries for hover-capability are unreliable.
 let lastPressedPointer: string | null = null
@@ -168,8 +185,8 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
             </div>
           </div>
 
-          <div class="about-refresh__accordion">
-            <article v-for="(value, index) in values" :key="index" class="about-refresh__value" :class="{ 'is-open': openedValue === index }" @pointerenter="onValuePointerEnter(index, $event)" @pointerleave="onValuePointerLeave(index, $event)" @pointerdown="onValuePointerDown($event)">
+          <div ref="valuesAccordionRef" class="about-refresh__accordion">
+            <article v-for="(value, index) in values" :key="index" :data-value-index="index" class="about-refresh__value" :class="{ 'is-open': openedValue === index }" @pointerenter="onValuePointerEnter(index, $event)" @pointerleave="onValuePointerLeave(index, $event)" @pointerdown="onValuePointerDown($event)">
               <h3>
                 <button type="button" class="about-refresh__value-trigger" :aria-expanded="openedValue === index" :aria-controls="`about-value-detail-${index}`" @click="toggleValue(index, $event)">
                   <span class="about-refresh__value-icon"><component :is="valueIcons[index]" :size="26" :stroke-width="1.8" aria-hidden="true" /></span>
