@@ -247,10 +247,10 @@ async function main() {
         const cards = html.match(/class="service-landing-feature(?:\s[^"]*)?"/g) || []
         assert.equal(cards.length, 4, 'Cada servicio debe mostrar exactamente cuatro tarjetas de beneficios: ' + scenario.url)
         const newCopy = {
-          '/servicios/almacenamiento-fiscal': 'Revisión de los registros y controles de mercancías',
-          '/servicios/bodegaje-general': 'Planificación de entradas, salidas y registros de inventario',
-          '/servicios/agenciamiento-aduanal': 'Revisión de clasificación conocida, permisos',
-          '/servicios/consolidadora-de-carga': 'Evaluación de compatibilidad, frecuencia de salida',
+          '/servicios/almacenamiento-fiscal': 'Control y trazabilidad del inventario durante el almacenamiento fiscal.',
+          '/servicios/bodegaje-general': 'Organización e identificación de mercancías para facilitar su localización y despacho.',
+          '/servicios/agenciamiento-aduanal': 'Coordinación de consultas y requerimientos adicionales durante la gestión aduanera.',
+          '/servicios/consolidadora-de-carga': 'Seguimiento de la consolidación y coordinación de la entrega según la ruta contratada.',
           '/servicios/transporte-maritimo': 'Condiciones del embarque',
           '/servicios/transporte-terrestre': 'Opciones regionales',
           '/servicios/transporte-aereo': 'Disponibilidad y condiciones',
