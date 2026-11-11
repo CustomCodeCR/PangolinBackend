@@ -174,6 +174,54 @@ async function assertServicesTheme(chrome, url) {
     assert.equal(arrowGeometry.icons, 10, 'Los 10 enlaces necesitan flechas SVG centradas')
     assert.ok(arrowGeometry.dx <= 1 && arrowGeometry.dy <= 1, 'Flecha descentrada dentro de círculo: ' + JSON.stringify(arrowGeometry))
     console.log('PASS Chrome: 10 tarjetas con contraste real claro/oscuro')
+    // About: five cards should keep 3/2, 2/2/1 and single-column
+    // layouts, with every incomplete final row centered in its container.
+    const aboutUrl = new URL('/nosotros', url).href
+    for (const scenario of [
+      { width: 1100, rows: [3, 2] },
+      { width: 800, rows: [2, 2, 1] },
+      { width: 480, rows: [1, 1, 1, 1, 1] }
+    ]) {
+      await send('Emulation.setDeviceMetricsOverride', {
+        width: scenario.width, height: 950, deviceScaleFactor: 1, mobile: false
+      })
+      const aboutNavigation = await send('Page.navigate', { url: aboutUrl })
+      assert.ok(!aboutNavigation.errorText, 'Chrome no pudo abrir Nosotros: ' + aboutNavigation.errorText)
+      let aboutLoaded = false
+      for (let attempt = 0; attempt < 100; attempt++) {
+        aboutLoaded = await evaluate("document.querySelectorAll('.about-refresh__value').length === 5 && document.querySelectorAll('.about-refresh__capability').length === 5")
+        if (aboutLoaded) break
+        await new Promise(resolve => setTimeout(resolve, 120))
+      }
+      assert.ok(aboutLoaded, 'No cargaron los valores y capacidades en ' + scenario.width + 'px')
+      for (const selector of ['.about-refresh__accordion', '.about-refresh__capabilities']) {
+        const geometry = await evaluate(`(() => {
+          const parent = document.querySelector(${JSON.stringify(selector)})
+          const bounds = parent.getBoundingClientRect()
+          const cards = [...parent.children].map(card => card.getBoundingClientRect())
+          const rows = []
+          for (const card of cards) {
+            const row = rows.find(items => Math.abs(items[0].top - card.top) < 2)
+            if (row) row.push(card)
+            else rows.push([card])
+          }
+          const last = rows[rows.length - 1]
+          const rowCenter = (last[0].left + last[last.length - 1].right) / 2
+          return {
+            count: cards.length, rows: rows.map(row => row.length),
+            delta: Math.abs(rowCenter - (bounds.left + bounds.right) / 2),
+            widths: cards.map(card => card.width)
+          }
+        })()`)
+        assert.equal(geometry.count, 5, 'Faltan tarjetas en ' + selector)
+        assert.deepEqual(geometry.rows, scenario.rows, 'Filas inesperadas en ' + selector + ' (' + scenario.width + 'px): ' + JSON.stringify(geometry))
+        assert.ok(geometry.delta <= 2, 'Última fila descentrada en ' + selector + ' (' + scenario.width + 'px): ' + JSON.stringify(geometry))
+        assert.ok(Math.max(...geometry.widths) - Math.min(...geometry.widths) <= 2,
+          'Las tarjetas dejaron de tener el mismo ancho: ' + selector + ' (' + scenario.width + 'px)')
+      }
+    }
+    console.log('PASS Chrome: últimas filas centradas en Valores y Capacidades (1100, 800 y 480px)')
+
   } finally {
     try { ws?.close() } catch {}
     browser.kill('SIGKILL')
