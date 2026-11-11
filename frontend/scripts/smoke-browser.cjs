@@ -338,8 +338,15 @@ async function assertServicesTheme(chrome, url) {
 
   } finally {
     try { ws?.close() } catch {}
-    browser.kill('SIGKILL')
-    fs.rmSync(profile, { recursive: true, force: true })
+    // Wait for Chromium to release its profile before removing it: killing
+    // and immediately deleting the directory can race Chrome's final writes
+    // and produce ENOTEMPTY even when every browser assertion passed.
+    await new Promise(resolve => {
+      if (browser.exitCode !== null) return resolve()
+      browser.once('close', resolve)
+      browser.kill('SIGKILL')
+    })
+    fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   }
 }
 
