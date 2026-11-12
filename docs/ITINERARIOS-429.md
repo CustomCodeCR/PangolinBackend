@@ -50,7 +50,7 @@ ni abrir el puerto del backend a Internet.
 1. Confirmar PR #201 fusionada, compilar Vue y .NET, ejecutar pruebas de frontend
    y verificar que las rutas públicas siguen siendo públicas y las escrituras
    continúan protegidas por `admin`.
-2. Con DevTools, comprobar que primera carga de /itinerario consulta catálogo,
+2. Con DevTools, comprobar que primera carga de /itinerario realiza solo dos consultas de catálogo,
    que una recarga dentro de 5 minutos reutiliza la caché y que cambiar
    transporte no genera solicitudes duplicadas.
 3. Inducir un 429 **solo en un entorno local controlado**: verificar
