@@ -500,6 +500,7 @@
       "sending": "Enviando…",
       "mailUnavailableTitle": "No pudimos enviar tu código",
       "mailUnavailableDescription": "El servicio de correo no está disponible temporalmente. Intentá nuevamente en unos minutos.",
+      "mailImmediateRetryDescription": "El servicio de correo no está disponible temporalmente. Podés intentar enviar el código una vez más.",
       "rateTitle": "Esperá un momento",
       "rateDescription": "Por seguridad, necesitás esperar antes de solicitar otro código.",
       "retryIn": "Podés intentar nuevamente en {seconds} segundos.",
