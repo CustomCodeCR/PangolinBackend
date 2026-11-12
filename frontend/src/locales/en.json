@@ -500,6 +500,7 @@
       "sending": "Sending…",
       "mailUnavailableTitle": "We couldn't send your code",
       "mailUnavailableDescription": "The email service is temporarily unavailable. Please try again in a few minutes.",
+      "mailImmediateRetryDescription": "The email service is temporarily unavailable. You can try sending the code once more.",
       "rateTitle": "Please wait a moment",
       "rateDescription": "For security, you need to wait before requesting another code.",
       "retryIn": "You can try again in {seconds} seconds.",
