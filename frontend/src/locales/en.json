@@ -509,7 +509,7 @@
       "otpMessage": "Check your email.",
       "accountUnavailable": "We couldn't start sign-in with that email address. Check that it's registered and enabled, or contact an administrator.",
       "otpLabel": "6-digit code",
-      "otpHelp": "Expires in 5 minutes; maximum 5 attempts. Each code can only be used once.",
+      "otpHelp": "Expires in 5 minutes; maximum 5 attempts. If you requested another code, use the one from your latest request.",
       "verify": "Verify and continue",
       "verifying": "Verifying…",
       "back": "Back",
