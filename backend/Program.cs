@@ -406,7 +406,10 @@ app.MapPost("/api/auth/request-otp", async (
     catch (EmailDeliveryException ex)
     {
         app.Logger.LogError(ex, "Error al preparar/enviar email OTP. TraceId={TraceId}", http.TraceIdentifier);
-        http.Response.Headers.RetryAfter = Math.Clamp(ex.RetryAfterSeconds, 1, 900).ToString(CultureInfo.InvariantCulture);
+        // A first failed attempt is allowed one immediate retry. Only
+        // advertise a cooldown after the second (or fourth) attempt.
+        if (ex.RetryAfterSeconds > 0)
+            http.Response.Headers.RetryAfter = Math.Clamp(ex.RetryAfterSeconds, 1, 900).ToString(CultureInfo.InvariantCulture);
         http.Response.Headers.CacheControl = "no-store";
         return Results.Json(new { error = "El servicio de correo no está disponible temporalmente.", code = "email_unavailable", traceId = http.TraceIdentifier }, statusCode: 503);
     }
