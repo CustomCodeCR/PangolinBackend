@@ -60,6 +60,10 @@ services:
       Auth__JwtSigningKey: ${AUTH_JWT_SIGNING_KEY:?Falta AUTH_JWT_SIGNING_KEY}
       Auth__SecureCookie: "true"
       Security__PublicOrigin: ${PUBLIC_ORIGIN:?Configurar URL publica HTTPS}
+      # Optional exact IPs of the *immediate* trusted reverse proxies.
+      # Never enter 0.0.0.0/0 or a public-client range; blank means do not trust XFF.
+      RateLimiting__TrustedProxyIps__0: ${RATE_LIMIT_TRUSTED_PROXY_IP_0:-}
+      RateLimiting__TrustedProxyIps__1: ${RATE_LIMIT_TRUSTED_PROXY_IP_1:-}
       Email__Mode: ${EMAIL_MODE:?Elegir Smtp o Graph; nunca LocalOutbox en produccion}
       Smtp__Host: ${SMTP_HOST:-}
       Smtp__Port: ${SMTP_PORT:-587}
