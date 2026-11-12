@@ -70,7 +70,11 @@ async function parseError(response: Response): Promise<FriendlyError> {
     return { message: t('custom.login.rateDescription'), kind: 'rate' }
   }
   if (response.status === 503 && body?.code === 'email_unavailable') {
-    return { message: t('custom.login.mailUnavailableDescription'), kind: 'mail' }
+    // Do not claim a 60s cooldown when the backend still allows a second try.
+    const messageKey = response.headers.has('Retry-After')
+      ? 'custom.login.mailUnavailableDescription'
+      : 'custom.login.mailImmediateRetryDescription'
+    return { message: t(messageKey), kind: 'mail' }
   }
   if (body?.code === 'account_unavailable') {
     return { message: t('custom.login.accountUnavailable'), kind: '' }
@@ -103,7 +107,9 @@ async function requestCode() {
     if (!response.ok) {
       const issue = await parseError(response)
       errorKind.value = issue.kind
-      if (issue.kind === 'mail' || issue.kind === 'rate') beginRetryCooldown(response)
+      if (issue.kind === 'rate' || (issue.kind === 'mail' && response.headers.has('Retry-After'))) {
+        beginRetryCooldown(response)
+      }
       throw new Error(issue.message)
     }
     const result = await response.json()
