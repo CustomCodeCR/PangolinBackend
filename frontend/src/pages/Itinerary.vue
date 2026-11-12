@@ -79,14 +79,19 @@ const publishedItineraries = ref<ManagedItinerary[]>([])
 const earliestDeparture = ref('')
 const rateLimited = ref(false)
 const retrySeconds = ref(0)
+const SEARCH_COOLDOWN_KEY = 'castrofallas:itinerary-search:429-until'
 let retryTicker: ReturnType<typeof setInterval> | null = null
 
-function beginRetryCooldown(response: Response) {
-  const raw = response.headers.get('Retry-After')
-  const numeric = raw ? Number(raw) : Number.NaN
-  const date = raw ? Date.parse(raw) : Number.NaN
-  const seconds = Number.isFinite(numeric) && numeric > 0 ? Math.ceil(numeric)
-    : Number.isFinite(date) ? Math.ceil((date - Date.now()) / 1000) : 60
+function savedRetrySeconds(): number {
+  try {
+    const expires = Number(sessionStorage.getItem(SEARCH_COOLDOWN_KEY))
+    return Number.isFinite(expires) ? Math.max(0, Math.ceil((expires - Date.now()) / 1000)) : 0
+  } catch { return 0 }
+}
+
+function showRetryCooldown(seconds: number) {
+  rateLimited.value = true
+  searchPerformed.value = true
   retrySeconds.value = Math.max(1, Math.min(300, seconds))
   if (retryTicker) clearInterval(retryTicker)
   retryTicker = setInterval(() => {
@@ -96,6 +101,18 @@ function beginRetryCooldown(response: Response) {
       retryTicker = null
     }
   }, 1000)
+}
+
+function beginRetryCooldown(response: Response) {
+  const raw = response.headers.get('Retry-After')
+  const numeric = raw ? Number(raw) : Number.NaN
+  const date = raw ? Date.parse(raw) : Number.NaN
+  const seconds = Number.isFinite(numeric) && numeric > 0 ? Math.ceil(numeric)
+    : Number.isFinite(date) ? Math.ceil((date - Date.now()) / 1000) : 60
+  const safeSeconds = Math.max(1, Math.min(300, seconds))
+  try { sessionStorage.setItem(SEARCH_COOLDOWN_KEY, String(Date.now() + safeSeconds * 1000)) }
+  catch { /* Storage is optional. */ }
+  showRetryCooldown(safeSeconds)
 }
 onMounted(async () => {
   // GIO carries the exact filters into this public results screen.
@@ -197,8 +214,13 @@ function syncItineraryRedSweeps() {
 }
 
 async function searchItineraries(pageNumber = 1, scrollToResults = true) {
-  // Never hammer the API during its advertised 429 cooldown.
+  // Never hammer the API during its advertised 429 cooldown, even after F5.
   if (retrySeconds.value > 0) return
+  const remaining = savedRetrySeconds()
+  if (remaining > 0) {
+    showRetryCooldown(remaining)
+    return
+  }
   if (pageNumber < 1 || (pageNumber > 1 && pageNumber > totalPages.value)) return
 
   if (pageNumber === 1) {
