@@ -75,6 +75,15 @@ def main():
             f'Correo sin registro debe recibir aviso antes del OTP: {status} {unavailable}')
     require('challengeId' not in unavailable,
             'No debe generarse un desafío OTP para correos no registrados.')
+    # Verificar el límite por correo contra PostgreSQL, sin enviar emails reales:
+    # la segunda solicitud inmediata pasa la cuota, la tercera activa HTTP 429.
+    status, second_unknown = call(browser, '/api/auth/request-otp', {'correo': fake_email})
+    require(status == 404 and second_unknown.get('code') == 'account_unavailable',
+            f'La segunda solicitud consecutiva debe ser permitida: {status} {second_unknown}')
+    status, third_unknown = call(browser, '/api/auth/request-otp', {'correo': fake_email})
+    require(status == 429 and third_unknown.get('code') == 'otp_rate_limited',
+            f'La tercera solicitud consecutiva debe esperar 60 segundos: {status} {third_unknown}')
+
 
     email = 'demo.usuario@castrofallas.test'
     moment = time.time()
