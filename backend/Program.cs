@@ -548,6 +548,39 @@ app.MapGet("/api/assistant/itinerary-locations", async (
     return Results.Ok(new { items = names.Select(name => new { id = name, displayName = name, code = (string?)null }) });
 }).RequireRateLimiting("public-read");
 
+// Single public catalogue for the itinerary filter: two reads (origin and
+// destination) instead of querying four shipment types separately on every
+// page load. Source remains the official quote catalogue; no duplicate data.
+app.MapGet("/api/itinerarios/locations", async (
+    string transport, string routeRole, AppDbContext db, HttpContext http, CancellationToken ct) =>
+{
+    http.Response.Headers.CacheControl = "no-store";
+    if (transport is not ("all" or "maritime" or "ground") ||
+        routeRole is not ("origin" or "destination"))
+        return Results.BadRequest(new { error = "Filtros de ubicaciones inválidos." });
+
+    var types = transport switch
+    {
+        "maritime" => new[] { "FCL", "LCL" },
+        "ground" => new[] { "FTL", "LTL" },
+        _ => new[] { "FCL", "LCL", "FTL", "LTL" }
+    };
+    var locations = await db.OfficialQuoteLocations.AsNoTracking()
+        .Where(x => x.Active &&
+            (x.Code == null || !x.Code.StartsWith("DEV-")) &&
+            ((transport != "ground" && x.Kind == "seaport") ||
+             (transport != "maritime" && x.Kind == "inland")) &&
+            db.OfficialQuoteLocationUsages.Any(u => u.LocationId == x.Id &&
+                types.Contains(u.ShipmentType) && u.RouteRole == routeRole))
+        .Select(x => x.DisplayName)
+        .Distinct()
+        .OrderBy(name => name)
+        .Take(1000)
+        .Select(name => new { displayName = name })
+        .ToListAsync(ct);
+    return Results.Ok(new { items = locations });
+}).RequireRateLimiting("public-read");
+
 app.MapGet("/api/itinerarios", async (
     AppDbContext db, HttpContext http,
     string? pol, string? pod, string? status, string? transporte,
