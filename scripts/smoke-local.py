@@ -22,7 +22,7 @@ OUTBOX = ROOT / 'backend' / 'local-outbox'
 BASE = 'http://127.0.0.1:5000'
 
 
-def call(opener, route, data=None, method=None):
+def call(opener, route, data=None, method=None, response_headers=None):
     headers = {'Accept': 'application/json'}
     if data is not None:
         data = json.dumps(data).encode('utf-8')
@@ -30,9 +30,13 @@ def call(opener, route, data=None, method=None):
     req = Request(BASE + route, data=data, headers=headers, method=method)
     try:
         with opener.open(req, timeout=15) as resp:
+            if response_headers is not None:
+                response_headers.update(dict(resp.headers.items()))
             raw = resp.read()
             return resp.status, json.loads(raw) if raw else {}
     except HTTPError as exc:
+        if response_headers is not None:
+            response_headers.update(dict(exc.headers.items()))
         raw = exc.read()
         try:
             payload = json.loads(raw)
@@ -99,9 +103,19 @@ def main():
     # Un OTP anterior queda inválido SOLO después de aceptar el correo nuevo.
     previously_written = {p.name for p in OUTBOX.glob('otp-*.eml')}
     resend_started_at = time.time()
-    status, second_started = call(browser, '/api/auth/request-otp', {'correo': email})
+    second_headers = {}
+    status, second_started = call(browser, '/api/auth/request-otp', {'correo': email},
+                                  response_headers=second_headers)
     require(status == 200 and second_started.get('challengeId'),
             f'Segundo envío OTP de prueba debe permitirse: HTTP {status}')
+    require(1 <= int(second_headers.get('Retry-After', '0')) <= 60,
+            'El segundo OTP exitoso debe anunciar la espera real en Retry-After')
+    third_headers = {}
+    status, denied_third = call(browser, '/api/auth/request-otp', {'correo': email},
+                                response_headers=third_headers)
+    require(status == 429 and denied_third.get('code') == 'otp_rate_limited'
+            and 1 <= int(third_headers.get('Retry-After', '0')) <= 60,
+            'La tercera solicitud inmediata debe recibir HTTP 429 con Retry-After')
     new_otp = latest_otp(email, resend_started_at, exclude_names=previously_written)
     require(new_otp is not None, 'Falta el segundo OTP local, no se entregó fuera del equipo')
     status, _ = call(browser, '/api/auth/verify-otp', {
