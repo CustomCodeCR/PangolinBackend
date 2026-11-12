@@ -5845,3 +5845,40 @@ html.theme-dark .app-site.services-page .services-directory .services-directory_
   color: #fff !important;
   -webkit-text-fill-color: #fff !important;
 }
+
+/* Login OTP: use the same dark navy surfaces as the form, even when the
+   lazy-loaded Vue scoped stylesheet is injected after global CSS. */
+html.theme-dark .login-screen .login-auth-card .login-auth-feedback {
+  background: #0b1428 !important;
+  background-color: #0b1428 !important;
+  background-image: none !important;
+  border: 1px solid #435069 !important;
+  color: #f4f6fa !important;
+  -webkit-text-fill-color: #f4f6fa !important;
+}
+html.theme-dark .login-screen .login-auth-card .login-auth-feedback__copy strong {
+  color: #f4f6fa !important;
+  -webkit-text-fill-color: #f4f6fa !important;
+}
+html.theme-dark .login-screen .login-auth-card .login-auth-feedback__copy > span {
+  color: #cbd2df !important;
+  -webkit-text-fill-color: #cbd2df !important;
+}
+html.theme-dark .login-screen .login-auth-card .login-auth-feedback__copy small {
+  color: #ffa6b6 !important;
+  -webkit-text-fill-color: #ffa6b6 !important;
+}
+html.theme-dark .login-screen .login-auth-card .login-auth-feedback__icon {
+  background: #301e34 !important;
+  background-color: #301e34 !important;
+  border: 1px solid #68435a !important;
+  color: #ffa6b6 !important;
+  -webkit-text-fill-color: #ffa6b6 !important;
+}
+html.theme-dark .login-screen .login-auth-card .login-auth-sending {
+  background: #101b32 !important;
+  background-color: #101b32 !important;
+  border: 1px solid #435069 !important;
+  color: #d4dceb !important;
+  -webkit-text-fill-color: #d4dceb !important;
+}
