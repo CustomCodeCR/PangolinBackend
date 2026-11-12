@@ -69,7 +69,7 @@ function beginRetryCooldown(response: Response) {
   if (key) sessionStorage.setItem(key, String(retryUntil))
   updateRetryCountdown()
 }
-watch(email, restoreRetryCooldown)
+watch(email, () => { error.value = ''; errorKind.value = ''; restoreRetryCooldown() })
 const nextPath = new URLSearchParams(window.location.search).get('next')
 const destination = nextPath?.startsWith('/') && !nextPath.startsWith('//') && !nextPath.startsWith('/\\')
   ? nextPath : '/home'
@@ -225,8 +225,8 @@ function enterAsGuest() {
             <input v-model="email" required type="email" maxlength="255" autocomplete="email" :placeholder="$t('custom.login.emailPlaceholder')" />
           </label>
           <p class="login-auth-help">{{ $t('custom.login.emailHelp') }}</p>
-          <p v-if="retrySeconds > 0" class="login-auth-cooldown">{{ $t('custom.login.retryIn', { seconds: retrySeconds }) }}</p>
-          <button class="login-auth-primary" type="submit" :disabled="loading || retrySeconds > 0">{{ loading ? $t('custom.login.sending') : retrySeconds > 0 ? $t('custom.login.retryButton', { seconds: retrySeconds }) : $t('custom.login.sendCode') }} <IconSymbol glyph="→" /></button>
+          <p v-if="retrySeconds > 0 && !error" class="login-auth-cooldown" role="status">{{ $t('custom.login.retryIn', { seconds: retrySeconds }) }}</p>
+          <button class="login-auth-primary" type="submit" :disabled="loading || retrySeconds > 0">{{ loading ? $t('custom.login.sending') : retrySeconds > 0 ? $t('custom.login.rateTitle') : $t('custom.login.sendCode') }} <IconSymbol glyph="→" /></button>
         </form>
 
         <form v-else class="login-auth-form" @submit.prevent="verifyCode">
