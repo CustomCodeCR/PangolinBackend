@@ -401,6 +401,9 @@ app.MapPost("/api/auth/request-otp", async (
             new { error = "No se pudo iniciar sesión con ese correo. Verificá que esté registrado y habilitado.", code = "account_unavailable" },
             statusCode: StatusCodes.Status404NotFound);
         if (result is null) return Results.BadRequest(new { error = "Revisá el correo, tipo de acceso y código Dynamics." });
+        // The response was successful, but further OTP requests might need to wait.
+        if (retryAfterSeconds > 0)
+            http.Response.Headers.RetryAfter = Math.Clamp(retryAfterSeconds, 1, 900).ToString(CultureInfo.InvariantCulture);
         return Results.Ok(result);
     }
     catch (EmailDeliveryException ex)
