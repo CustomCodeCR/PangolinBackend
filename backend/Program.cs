@@ -129,13 +129,33 @@ builder.Services.AddHttpClient("GroqTracking", client =>
 });
 builder.Services.AddProblemDetails();
 
-// Se utiliza la dirección real de la conexión local; NO se confía en headers
-// X-Forwarded-For o X-Real-IP enviados por un navegador.
+// Las consultas públicas no deben consumir el cupo de autenticación.
+// Las cabeceras de proxy solo se consideran cuando el salto inmediato figura
+// expresamente en RateLimiting:TrustedProxyIps; nunca confiar en XFF sin validar.
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = (rejection, _) =>
+    {
+        rejection.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        // Informar el tiempo de espera para impedir reintentos agresivos.
+        var seconds = rejection.Lease.TryGetMetadata(MetadataName.RetryAfter, out TimeSpan delay)
+            ? Math.Max(1, (int)Math.Ceiling(delay.TotalSeconds)) : 60;
+        rejection.HttpContext.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
+        rejection.HttpContext.Response.Headers.CacheControl = "no-store";
+        return ValueTask.CompletedTask;
+    };
+    options.AddPolicy("public-read", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        RateLimitClientKey.PublicRead(ctx, builder.Configuration),
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 120,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        }));
     options.AddPolicy("auth", ctx => RateLimitPartition.GetFixedWindowLimiter(
-        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        RateLimitClientKey.PerAddress(ctx, builder.Configuration),
         _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 20,
@@ -298,8 +318,9 @@ app.Use(async (ctx, next) =>
 });
 
 app.UseRouting();
-app.UseRateLimiter();
 app.UseAuthentication();
+// Las consultas públicas autenticadas pueden particionarse por su usuario validado.
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapTrackingDemo();
@@ -537,7 +558,40 @@ app.MapGet("/api/assistant/itinerary-locations", async (
     var names = await locations.Where(value => value != null && value != "")
         .Distinct().OrderBy(value => value).Take(300).ToListAsync(ct);
     return Results.Ok(new { items = names.Select(name => new { id = name, displayName = name, code = (string?)null }) });
-}).RequireRateLimiting("auth");
+}).RequireRateLimiting("public-read");
+
+// Single public catalogue for the itinerary filter: two reads (origin and
+// destination) instead of querying four shipment types separately on every
+// page load. Source remains the official quote catalogue; no duplicate data.
+app.MapGet("/api/itinerarios/locations", async (
+    string transport, string routeRole, AppDbContext db, HttpContext http, CancellationToken ct) =>
+{
+    http.Response.Headers.CacheControl = "no-store";
+    if (transport is not ("all" or "maritime" or "ground") ||
+        routeRole is not ("origin" or "destination"))
+        return Results.BadRequest(new { error = "Filtros de ubicaciones inválidos." });
+
+    var types = transport switch
+    {
+        "maritime" => new[] { "FCL", "LCL" },
+        "ground" => new[] { "FTL", "LTL" },
+        _ => new[] { "FCL", "LCL", "FTL", "LTL" }
+    };
+    var locations = await db.OfficialQuoteLocations.AsNoTracking()
+        .Where(x => x.Active &&
+            (x.Code == null || !x.Code.StartsWith("DEV-")) &&
+            ((transport != "ground" && x.Kind == "seaport") ||
+             (transport != "maritime" && x.Kind == "inland")) &&
+            db.OfficialQuoteLocationUsages.Any(u => u.LocationId == x.Id &&
+                types.Contains(u.ShipmentType) && u.RouteRole == routeRole))
+        .Select(x => x.DisplayName)
+        .Distinct()
+        .OrderBy(name => name)
+        .Take(1000)
+        .Select(name => new { displayName = name })
+        .ToListAsync(ct);
+    return Results.Ok(new { items = locations });
+}).RequireRateLimiting("public-read");
 
 app.MapGet("/api/itinerarios", async (
     AppDbContext db, HttpContext http,
@@ -601,7 +655,7 @@ app.MapGet("/api/itinerarios", async (
         pageSize = currentPageSize,
         totalPages = (int)Math.Ceiling((double)total / currentPageSize)
     });
-}).RequireRateLimiting("auth");
+}).RequireRateLimiting("public-read");
 
 // CRUD administrativo aislado del frontend: política admin en cada ruta de escritura.
 app.MapItinerariosCrud();
