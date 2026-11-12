@@ -958,6 +958,10 @@ assert.match(otpLogin, /const normalized = email\.value\.trim\(\)\.toLowerCase\(
 assert.match(otpLogin, /window\.crypto\.getRandomValues\(bytes\)/, 'Identificador opaco con sal aleatoria por pestaña')
 assert.match(otpLogin, /sessionStorage\.setItem\(key, String\(retryUntil\)\)/, 'La espera persiste solo en la cuenta seleccionada')
 assert.match(otpLogin, /role="alert"/, 'Mensajes accesibles')
+assert.match(otpLogin, /class="login-auth-cooldown"/, 'Mostrar el contador restaurado también fuera del botón de envío')
+const otpLoginStyles = source('src/style.css')
+assert.match(otpLoginStyles, /\.login-visual:has\(>\.cms-background-video\)>\.login-guest-back\{position:absolute;z-index:3\}/, 'Volver no debe entrar en el flujo sobre el logo cuando hay video de portada')
+assert.match(otpLoginStyles, /@media\(max-width:800px\)\{\.login-visual \.login-guest-back\{top:16px;left:auto;right:/, 'Volver se ubica lejos del logo en ancho móvil')
 assert.doesNotMatch(otpLogin, /body\.traceId|\` \[\$\{body\.code\}\]/, 'La IU no expone traceId ni etiquetas internas')
 for (const key of ['mailUnavailableTitle', 'mailUnavailableDescription', 'mailImmediateRetryDescription', 'rateTitle', 'rateDescription', 'retryIn', 'retryButton', 'serviceError']) {
   assert.equal(typeof otpEs[key], 'string', 'OTP ES: ' + key)
