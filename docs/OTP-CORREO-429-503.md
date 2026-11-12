@@ -30,8 +30,11 @@ El backend aplica simultáneamente:
   su propia solicitud.
 - Vue interpreta 429 y 503 de envío, muestra textos claros ES/EN,
   icono y cuenta regresiva, deshabilita el botón durante el periodo,
-  y conserva el enfriamiento dentro de `sessionStorage` (sin guardar
-  correo, OTP, sesión ni credenciales allí).
+  y conserva el enfriamiento dentro de `sessionStorage` por cuenta
+  (marcador opaco con sal aleatoria de la pestaña, sin guardar el correo,
+  OTP, sesión ni credenciales). Cambiar de correo no bloquea otro usuario;
+  volver al mismo conserva el tiempo restante. El backend siempre valida
+  los límites independientemente de la interfaz.
 - Otros errores 5xx muestran un texto genérico: nunca concatenar
   identificadores técnicos ni trazas en la interfaz.
 - El OTP previamente válido NO se invalida cuando fracasa un nuevo
