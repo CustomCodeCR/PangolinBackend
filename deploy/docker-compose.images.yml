@@ -25,6 +25,11 @@ services:
       # chain and stable proxy identities are confirmed. Never use a Docker subnet.
       RateLimiting__TrustedProxyIps__0: "${PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_IP_0:-}"
       RateLimiting__TrustedProxyIps__1: "${PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_IP_1:-}"
+      # Prefer verified Docker DNS service names over ephemeral container IPs.
+      # Leave blank until trusted-hop chain has been verified end-to-end.
+      RateLimiting__TrustedProxyHostnames__0: "${PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_HOST_0:-}"
+      RateLimiting__TrustedProxyHostnames__1: "${PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_HOST_1:-}"
+      RateLimiting__TrustedProxyHostnames__2: "${PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_HOST_2:-}"
       Email__Mode: "${PANGOLIN_EMAIL_MODE:-Graph}"
       Graph__TenantId: "${PANGOLIN_GRAPH_TENANT_ID:-}"
       Graph__ClientId: "${PANGOLIN_GRAPH_CLIENT_ID:-}"
