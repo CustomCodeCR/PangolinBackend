@@ -503,7 +503,7 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
   color:#fff !important;
   box-shadow:none !important;
 }
-/* Same dark burgundy wash as the search-filters surfac/* Reuse the search filter's exact dark surface (#211b20) and red sweep
+/* Reuse the search filter's exact dark surface (#211b20) and red sweep
    gradient. Animate only its background; pseudo-elements on the grid had
    displaced/hid the origin and other itinerary details. */
 :global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route){
@@ -522,7 +522,7 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
 @media(prefers-reduced-motion:reduce){
   :global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route){animation:none;background-position:50% 50%}
 }
-rary-summary-card__mode){
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__mode){
   color:#f2d5dd;background:rgba(237,23,55,.1);border-color:rgba(237,23,55,.24);
 }
 :global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__stop-label),
