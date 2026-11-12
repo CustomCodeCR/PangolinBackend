@@ -929,4 +929,29 @@ assert.match(tracking, /customerUpdateTranslations\.value\[language \+ ':' \+ so
 assert.doesNotMatch(tracking, /shipment\.value\.customerStatus\s*=/, 'Nunca escribir una traducción en Dynamics o mutar el registro')
 assert.doesNotMatch(trackingTranslationBackend, /logger\.Log(?:Warning|Error|Information)\([^\n]*(?:source|message)\b/, 'No registrar el mensaje privado en logs')
 
+// OTP UX regression: never leak internal transport errors into the customer UI.
+const otpLogin = source('src/pages/Login.vue')
+const otpBackend = source('../backend/Program.cs')
+const otpService = source('../backend/Services/Auth/AuthService.cs')
+const otpEs = JSON.parse(source('src/locales/es.json')).custom.login
+const otpEn = JSON.parse(source('src/locales/en.json')).custom.login
+assert.match(otpService, /request_count < 3/, 'OTP mantiene máximo tres solicitudes por 15 minutos')
+assert.match(otpService, /last_requested_at <= NOW\(\) - INTERVAL '60 seconds'/, 'OTP conserva espera mínima por correo')
+assert.match(otpService, /GetOtpRetrySecondsAsync\(emailKey, ct\)/, 'Devuelve espera calculada desde PostgreSQL')
+assert.match(otpService, /await SendMailAsync\(email, otp, ct\)/, 'OTP sigue enviándose por proveedor')
+assert.match(otpService, /x\.Uuid != id && x\.UsedAt == null/, 'No se invalidan códigos anteriores antes del envío exitoso')
+assert.match(otpBackend, /code = "otp_rate_limited"/, '429 por correo es distinguible')
+assert.match(otpBackend, /Headers\.RetryAfter/, '429 y 503 exponen Retry-After')
+assert.match(otpBackend, /code = "email_unavailable"/, '503 conserva código de diagnóstico')
+assert.match(otpLogin, /body\?\.code === 'email_unavailable'/, 'La IU reconoce indisponibilidad del correo')
+assert.match(otpLogin, /response\.status === 429/, 'La IU reconoce 429')
+assert.match(otpLogin, /beginRetryCooldown\(response\)/, 'La IU usa Retry-After')
+assert.match(otpLogin, /:disabled="loading \|\| retrySeconds > 0"/, 'El botón OTP respeta el contador')
+assert.match(otpLogin, /role="alert"/, 'Mensajes accesibles')
+assert.doesNotMatch(otpLogin, /body\.traceId|\` \[\$\{body\.code\}\]/, 'La IU no expone traceId ni etiquetas internas')
+for (const key of ['mailUnavailableTitle', 'mailUnavailableDescription', 'rateTitle', 'rateDescription', 'retryIn', 'retryButton', 'serviceError']) {
+  assert.equal(typeof otpEs[key], 'string', 'OTP ES: ' + key)
+  assert.equal(typeof otpEn[key], 'string', 'OTP EN: ' + key)
+}
+
 console.log('OK: SignalR, CMS, MinIO, news, itinerary and tracking contracts.')
