@@ -158,6 +158,23 @@ function statusLabel(status: ItineraryStatus) {
   return statuses.value.find(option => option.value === status)?.label ?? status
 }
 
+// Search results render after the search form. Align their identical red-sweep
+// CSS animations at the same frame so they move together.
+function syncItineraryRedSweeps() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  window.requestAnimationFrame(() => {
+    const elements = document.querySelectorAll(
+      '.itinerary-page .itinerary-form-card, .itinerary-page .itinerary-summary-card__route'
+    )
+    elements.forEach(element => {
+      element.getAnimations().forEach(animation => {
+        if ('animationName' in animation && animation.animationName === 'itinerary-red-sweep')
+          animation.currentTime = 0
+      })
+    })
+  })
+}
+
 async function searchItineraries(pageNumber = 1, scrollToResults = true) {
   if (pageNumber < 1 || (pageNumber > 1 && pageNumber > totalPages.value)) return
 
@@ -233,10 +250,10 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
   } finally {
     if (generation === searchGeneration) {
       cargando.value = false
-      if (scrollToResults) {
-        await nextTick()
+      await nextTick()
+      syncItineraryRedSweeps()
+      if (scrollToResults)
         resultsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }
     }
   }
 }
@@ -432,6 +449,7 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
 }
 .itinerary-summary-card__mode .lucide-symbol{flex:none;color:#b20c2a}
 .itinerary-summary-card__route{
+  position:relative;isolation:isolate;overflow:hidden;
   display:grid;grid-template-columns:minmax(0,1fr) minmax(50px,.24fr) minmax(0,1fr);
   align-items:center;gap:clamp(8px,1.7vw,22px);
   padding:clamp(12px,1.3vw,16px);border:1px solid rgba(178,12,42,.13);
@@ -503,24 +521,26 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
   color:#fff !important;
   box-shadow:none !important;
 }
-/* Reuse the search filter's exact dark surface (#211b20) and red sweep
-   gradient. Animate only its background; pseudo-elements on the grid had
-   displaced/hid the origin and other itinerary details. */
+/* Same burgundy surface, overlay, color, blur and animation as the
+   "Buscar itinerarios" form (.itinerary-form-card::before) in style.css.
+   Only the route panel changes; the parent summary remains navy. */
 :global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route){
   border-color:rgba(120,137,166,.28) !important;
-  background-color:var(--itinerary-card) !important;
-  background-image:radial-gradient(ellipse at center,rgba(214,14,52,.37) 0%,rgba(178,11,45,.23) 38%,rgba(126,10,34,.11) 58%,transparent 76%) !important;
-  background-size:65% 210% !important;
-  background-repeat:no-repeat !important;
-  animation:itinerary-route-red-sweep 9s ease-in-out infinite alternate;
+  background:var(--itinerary-card) !important;
   color:#fff !important;
 }
-@keyframes itinerary-route-red-sweep{
-  from{background-position:-45% 50%}
-  to{background-position:145% 50%}
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route::before){
+  content:"";position:absolute;z-index:0;
+  top:-55%;bottom:-55%;left:-25%;width:60%;border-radius:50%;
+  background:radial-gradient(ellipse at center,rgba(214,14,52,.37) 0%,rgba(178,11,45,.23) 38%,rgba(126,10,34,.11) 58%,transparent 76%);
+  filter:blur(42px);pointer-events:none;
+  animation:itinerary-red-sweep 9s ease-in-out infinite alternate;
+}
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route > *){
+  z-index:1;
 }
 @media(prefers-reduced-motion:reduce){
-  :global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route){animation:none;background-position:50% 50%}
+  :global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route::before){animation:none}
 }
 :global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__mode){
   color:#f2d5dd;background:rgba(237,23,55,.1);border-color:rgba(237,23,55,.24);
