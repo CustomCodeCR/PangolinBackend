@@ -953,6 +953,10 @@ assert.match(otpService, /return \(new OtpStarted\(id, GenericMessage, 300\), fa
 assert.match(otpLogin, /issue\.kind === 'rate' \|\| \(issue\.kind === 'mail' && response\.headers\.has\('Retry-After'\)\)/, '503 sin espera permite un segundo clic')
 assert.match(otpBackend, /if \(ex\.RetryAfterSeconds > 0\)/, 'El 503 no impone un minuto ficticio al primer error')
 assert.match(otpLogin, /:disabled="loading \|\| retrySeconds > 0"/, 'El botón OTP respeta el contador')
+assert.match(otpLogin, /watch\(email, restoreRetryCooldown\)/, 'Cuenta regresiva asociada al correo activo, no a otros usuarios de la pestaña')
+assert.match(otpLogin, /const normalized = email\.value\.trim\(\)\.toLowerCase\(\)/, 'Índice de espera normalizado por cuenta')
+assert.match(otpLogin, /window\.crypto\.getRandomValues\(bytes\)/, 'Identificador opaco con sal aleatoria por pestaña')
+assert.match(otpLogin, /sessionStorage\.setItem\(key, String\(retryUntil\)\)/, 'La espera persiste solo en la cuenta seleccionada')
 assert.match(otpLogin, /role="alert"/, 'Mensajes accesibles')
 assert.doesNotMatch(otpLogin, /body\.traceId|\` \[\$\{body\.code\}\]/, 'La IU no expone traceId ni etiquetas internas')
 for (const key of ['mailUnavailableTitle', 'mailUnavailableDescription', 'mailImmediateRetryDescription', 'rateTitle', 'rateDescription', 'retryIn', 'retryButton', 'serviceError']) {
