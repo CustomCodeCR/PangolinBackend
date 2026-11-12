@@ -55,6 +55,20 @@ qué hostname apunta a cada uno. **No se ha verificado de extremo a extremo**
 la procedencia fiable del IP del visitante: no asumir que leer XFF devuelve
 la IP pública correcta. Traefik podría ser otra capa de entrada.
 
+**Configuración opcional de nombres Docker:** la política admite
+`RateLimiting:TrustedProxyHostnames` con nombres de servicio exactos
+(p. ej. `frontend` o `seo-gateway`, solo después de confirmar que son
+saltos confiables). Solo acepta nombres internos de una etiqueta y direcciones
+privadas resueltas por DNS, con caché de 5 segundos. En el Compose de imágenes
+se exponen las variables
+`PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_HOST_0/1/2`,
+**vacías por defecto**, además de la lista de IPs exactas. Nunca utilizar
+`*.dhole`, una subred completa, la IP pública del visitante o nombres
+controlados por clientes. Si el DNS de Docker deja de resolver, no se debe
+confiar en un XFF no autenticado. Esta opción elimina el problema de fijar
+IPs cambiantes, **pero no demuestra ni soluciona sola** el salto previo
+Cloudflare Tunnel / Traefik.
+
 **Pendiente antes de habilitarlo en producción:** verificar el último salto
 TCP visto por backend, identificar la cadena completa hasta el borde confiable
 y probar intentos de cabeceras falsas desde una ruta no confiable. Las
