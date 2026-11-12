@@ -498,6 +498,7 @@
       "userHelp": "Tu cuenta debe estar activa y registrada con tipo de acceso «usuario».",
       "sendCode": "Enviar código al correo",
       "sending": "Enviando…",
+      "sendingDetail": "Estamos contactando al servicio de correo. La respuesta puede tardar unos segundos.",
       "mailUnavailableTitle": "No pudimos enviar tu código",
       "mailUnavailableDescription": "El servicio de correo no está disponible temporalmente. Intentá nuevamente en unos minutos.",
       "mailImmediateRetryDescription": "El servicio de correo no está disponible temporalmente. Podés intentar enviar el código una vez más.",
