@@ -941,7 +941,7 @@ assert.doesNotMatch(otpService, /AnyAsync\(x => x\.UsuarioId == user\.Uuid && x\
 assert.match(otpService, /last_requested_at <= NOW\(\) - INTERVAL '60 seconds'/, 'OTP conserva espera mínima por correo')
 assert.match(otpService, /GetOtpRetrySecondsAsync\(emailKey, ct\)/, 'Devuelve espera calculada desde PostgreSQL')
 assert.match(otpService, /await SendMailAsync\(email, otp, ct\)/, 'OTP sigue enviándose por proveedor')
-assert.match(otpService, /x\.Uuid != id && x\.UsedAt == null/, 'No se invalidan códigos anteriores antes del envío exitoso')
+assert.match(otpService, /x\.Uuid != id && x\.CreatedAt < row\.CreatedAt && x\.UsedAt == null/, 'Solo se invalidan OTP anteriores después del envío, sin afectar desafíos nuevos simultáneos')
 assert.match(otpBackend, /code = "otp_rate_limited"/, '429 por correo es distinguible')
 assert.match(otpBackend, /Headers\.RetryAfter/, '429 y 503 exponen Retry-After')
 assert.match(otpBackend, /code = "email_unavailable"/, '503 conserva código de diagnóstico')
