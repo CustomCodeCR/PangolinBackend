@@ -509,7 +509,7 @@
       "otpMessage": "Revisa tu correo.",
       "accountUnavailable": "No pudimos iniciar sesión con ese correo. Verificá que esté registrado y habilitado, o contactá al administrador.",
       "otpLabel": "Código de 6 dígitos",
-      "otpHelp": "Vence a los 5 minutos; máximo 5 intentos. Cada código puede utilizarse una sola vez.",
+      "otpHelp": "Vence a los 5 minutos; máximo 5 intentos. Si pediste otro código, usá el de tu última solicitud.",
       "verify": "Verificar y entrar",
       "verifying": "Verificando…",
       "back": "Volver",
