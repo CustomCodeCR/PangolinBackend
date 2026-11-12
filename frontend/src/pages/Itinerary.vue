@@ -118,7 +118,7 @@ const { origins, destinations, loadingLocations, locationError } = useItineraryL
 
 function createItinerary(id: number): Itinerary {
   return {
-    id, pol: '', pod: '', status: '', transport: 'maritime', modality: '',
+    id, pol: '', pod: '', status: '', transport: '', modality: '',
     closing: '', etd: '', eta: ''
   }
 }
@@ -489,23 +489,32 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
   font-size:12px;font-weight:750;color:inherit;
   line-height:1.55;overflow-wrap:anywhere;
 }
-:global(html.theme-dark) .itinerary-summary-card{
-  --itinerary-result-border:rgba(237,102,126,.26);
-  --itinerary-result-line:rgba(255,255,255,.14);
+/* Match the dark tracking shipment: solid #060f21 navy cards, with a
+   translucent burgundy/navy route panel. Keep all light-theme styles intact.
+   Use the same full global selector pattern as Tracking.vue so these rules
+   win against shared itinerary/global page styles. */
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card){
+  --itinerary-result-border:#4f5365;
+  --itinerary-result-line:#3b465f;
   --itinerary-result-muted:#b8bac4;
-  background:linear-gradient(125deg,#302028 0%,#241c23 43%,#211b23 100%);
-  color:#fff;box-shadow:0 12px 30px rgba(0,0,0,.15);
+  background:#060f21 !important;
+  background-image:none !important;
+  border-color:#4f5365 !important;
+  color:#fff !important;
+  box-shadow:none !important;
 }
-:global(html.theme-dark) .itinerary-summary-card__route{
-  border-color:rgba(255,255,255,.13);background:rgba(255,255,255,.035);
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route){
+  border-color:rgba(120,137,166,.28) !important;
+  background:linear-gradient(112deg,rgba(181,9,40,.12),rgba(16,24,43,.68)) !important;
+  color:#fff !important;
 }
-:global(html.theme-dark) .itinerary-summary-card__mode{
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__mode){
   color:#f2d5dd;background:rgba(237,23,55,.1);border-color:rgba(237,23,55,.24);
 }
-:global(html.theme-dark) .itinerary-summary-card__stop-label,
-:global(html.theme-dark) .itinerary-summary-card__eyebrow{color:#ff7791}
-:global(html.theme-dark) .itinerary-summary-card__pin{background:rgba(237,23,55,.14);color:#ff91a3}
-:global(html.theme-dark) .itinerary-summary-card__route-line::before{background:#a24b60}
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__stop-label),
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__eyebrow){color:#ff7791}
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__pin){background:rgba(181,9,40,.19);color:#ff8595}
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route-line::before){background:#a24b60}
 @media(max-width:860px){
   .itinerary-summary-card__information{grid-template-columns:1fr;gap:14px}
   .itinerary-summary-card__facts--logistics{
