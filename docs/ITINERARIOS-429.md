@@ -16,6 +16,9 @@ detrás de Nginx podían compartir la misma identidad de red.
   mantiene `auth` (20/minuto); cotizaciones, tracking e IA mantienen sus cuotas.
 - Las solicitudes rechazadas devuelven HTTP **429** con `Retry-After` en
   segundos. El frontend no debe reintentar automáticamente durante ese plazo.
+- `GET /api/itinerarios/locations` reúne las modalidades FCL/LCL/FTL/LTL
+  desde el catálogo oficial, con dos solicitudes (origen y destino) en lugar
+  de ocho al abrir el filtro.
 - `itineraryLocations.ts` conserva el catálogo público en caché de pestaña
   durante cinco minutos, deduplica consultas simultáneas y respeta un período
   de enfriamiento ante 429. La caché contiene solo nombres públicos, nunca
