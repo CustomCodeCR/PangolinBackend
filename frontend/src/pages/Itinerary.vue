@@ -432,6 +432,7 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
 }
 .itinerary-summary-card__mode .lucide-symbol{flex:none;color:#b20c2a}
 .itinerary-summary-card__route{
+  position:relative;isolation:isolate;overflow:hidden;
   display:grid;grid-template-columns:minmax(0,1fr) minmax(50px,.24fr) minmax(0,1fr);
   align-items:center;gap:clamp(8px,1.7vw,22px);
   padding:clamp(12px,1.3vw,16px);border:1px solid rgba(178,12,42,.13);
@@ -503,10 +504,27 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
   color:#fff !important;
   box-shadow:none !important;
 }
+/* Same dark burgundy wash as the search-filters surface, clipped to
+   the origin/destination panel; the parent result card stays solid navy. */
 :global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route){
   border-color:rgba(120,137,166,.28) !important;
-  background:radial-gradient(ellipse at 80% 0%,rgba(181,9,40,.34) 0%,rgba(181,9,40,.12) 45%,transparent 78%),linear-gradient(112deg,rgba(73,16,37,.42) 0%,rgba(16,24,43,.68) 100%) !important;
+  background:linear-gradient(105deg,#211c23 0%,#291b23 24%,#3b1824 55%,#411521 76%,#241c24 100%) !important;
   color:#fff !important;
+}
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route)::before{
+  content:"";position:absolute;inset:-50% -35%;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 45% 75% at 60% 50%,rgba(132,13,39,.45) 0%,rgba(111,13,37,.27) 45%,transparent 100%);
+  animation:itinerary-route-burgundy-wave 10s ease-in-out infinite alternate;
+}
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route > *){
+  position:relative;z-index:1;
+}
+@keyframes itinerary-route-burgundy-wave{
+  from{transform:translateX(-18%)}
+  to{transform:translateX(18%)}
+}
+@media(prefers-reduced-motion:reduce){
+  :global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route)::before{animation:none}
 }
 :global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__mode){
   color:#f2d5dd;background:rgba(237,23,55,.1);border-color:rgba(237,23,55,.24);
