@@ -46,9 +46,11 @@ def require(ok, message):
         raise RuntimeError(message)
 
 
-def latest_otp(email, since):
+def latest_otp(email, since, exclude_names=None):
     # Solo buscar archivos nuevos dirigidos a la cuenta de DEMO.
     for file in sorted(OUTBOX.glob('otp-*.eml'), key=lambda p: p.stat().st_mtime, reverse=True):
+        if exclude_names and file.name in exclude_names:
+            continue
         if file.stat().st_mtime < since - 2:
             continue
         message = BytesParser(policy=policy.default).parsebytes(file.read_bytes())
@@ -93,10 +95,23 @@ def main():
     require(status == 200, f'Solicitud OTP HTTP {status}: {started}')
     otp = latest_otp(email, moment)
     require(otp is not None, 'No se encontró OTP nuevo en backend/local-outbox')
-    status, result = call(browser, '/api/auth/verify-otp', {
+    # Con LocalOutbox, un segundo envío inmediato debe ser aceptado.
+    # Un OTP anterior queda inválido SOLO después de aceptar el correo nuevo.
+    previously_written = {p.name for p in OUTBOX.glob('otp-*.eml')}
+    resend_started_at = time.time()
+    status, second_started = call(browser, '/api/auth/request-otp', {'correo': email})
+    require(status == 200 and second_started.get('challengeId'),
+            f'Segundo envío OTP de prueba debe permitirse: HTTP {status}')
+    new_otp = latest_otp(email, resend_started_at, exclude_names=previously_written)
+    require(new_otp is not None, 'Falta el segundo OTP local, no se entregó fuera del equipo')
+    status, _ = call(browser, '/api/auth/verify-otp', {
         'challengeId': started['challengeId'], 'codigo': otp
     })
-    require(status == 200, f'Verificación HTTP {status}: {result}')
+    require(status == 401, f'Un OTP antiguo siguió válido tras el segundo envío: HTTP {status}')
+    status, result = call(browser, '/api/auth/verify-otp', {
+        'challengeId': second_started['challengeId'], 'codigo': new_otp
+    })
+    require(status == 200, f'Verificación del OTP nuevo HTTP {status}: {result}')
     require(result.get('user', {}).get('role') == 'admin', 'El OTP de usuario debe producir role=admin.')
     # La cookie contiene un JWT compacto (no se muestra el token en consola).
     cookies = [c for c in jar if c.name == 'cf_session']
