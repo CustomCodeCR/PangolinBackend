@@ -359,7 +359,7 @@ assert.match(itineraryResults, /statusLabel\(item\.status\)/, 'La tarjeta conser
 assert.match(itineraryResults, /en \? 'Carrier' : 'Transportista'/, 'Los detalles mantienen ES/EN')
 assert.match(itineraryResults, /itinerary-summary-card__route/, 'Origen y destino mantienen jerarquía visual')
 assert.match(itineraryResults, /itinerary-summary-card__information/, 'Fechas y detalles están separados del trayecto')
-assert.match(itinerary, /:global\(html\.theme-dark\) \.itinerary-summary-card/, 'El modo oscuro utiliza su propia superficie')
+assert.match(itinerary, /:global\(html\.theme-dark \.app-site\.itinerary-page \.itinerary-summary-card\)\s*\{[^}]*background:#060f21 !important;/, 'El modo oscuro utiliza su propia superficie azul marino')
 assert.match(itinerary, /@media\(max-width:550px\)/, 'La tarjeta se adapta a móviles')
 assert.match(itinerary, /itinerary-pagination/, 'La paginación permanece intacta')
 assert.doesNotMatch(itineraryResults, /class="itinerary-result-card"/, 'No debe permanecer la cuadrícula antigua')
