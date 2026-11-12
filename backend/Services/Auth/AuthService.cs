@@ -119,7 +119,10 @@ public sealed class AuthService(
         // Invalidate older challenges only after successful acceptance by mail transport.
         await db.OtpChallenges.Where(x => x.UsuarioId == user.Uuid && x.Uuid != id && x.CreatedAt < row.CreatedAt && x.UsedAt == null)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.UsedAt, DateTime.UtcNow), ct);
-        return (new OtpStarted(id, GenericMessage, 300), false, false, 0);
+        // Let the UI proactively disable resending after the second (or
+        // fourth) successful request, not only after a rejected attempt.
+        return (new OtpStarted(id, GenericMessage, 300), false, false,
+            await GetOtpRetrySecondsAsync(emailKey, ct));
     }
 
     // Two requests may be made back-to-back, followed by a 60-second pause.
