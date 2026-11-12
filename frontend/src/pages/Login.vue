@@ -2,7 +2,7 @@
 import IconSymbol from '../components/IconSymbol.vue'
 import SiteMedia from '../components/SiteMedia.vue'
 import { siteText, siteVisual, siteCssImage } from '../siteCms'
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LanguageSwitcher from '../components/LanguageSwitcher.vue'
 import { refreshSession } from '../services/auth'
@@ -17,20 +17,59 @@ const errorKind = ref<'' | 'mail' | 'rate'>('')
 const loading = ref(false)
 const retrySeconds = ref(0)
 const RETRY_STORAGE_KEY = 'castrofallas.login.otpRetryUntil'
+const RETRY_SALT_KEY = 'castrofallas.login.otpRetrySalt'
 let retryUntil = 0
 let retryTimer: number | undefined
 
+// Keep the countdown per email rather than per browser tab: switching from an
+// admin account to a client must not inherit the previous user's OTP cooldown.
+// Only a temporary salted fingerprint and timestamp are stored, never an email.
+function retryStorageKey(): string | null {
+  const normalized = email.value.trim().toLowerCase()
+  if (!normalized) return null
+
+  let salt = sessionStorage.getItem(RETRY_SALT_KEY)
+  if (!salt) {
+    const bytes = new Uint8Array(16)
+    window.crypto.getRandomValues(bytes)
+    salt = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
+    sessionStorage.setItem(RETRY_SALT_KEY, salt)
+  }
+
+  let hash = 2166136261
+  const input = salt + ':' + normalized
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  // This is a tab-local UI marker only, never an authentication identifier.
+  return RETRY_STORAGE_KEY + ':' + (hash >>> 0).toString(16)
+}
+
 function updateRetryCountdown() {
   retrySeconds.value = Math.max(0, Math.ceil((retryUntil - Date.now()) / 1000))
-  if (!retrySeconds.value) sessionStorage.removeItem(RETRY_STORAGE_KEY)
+  if (!retrySeconds.value) {
+    const key = retryStorageKey()
+    if (key) sessionStorage.removeItem(key)
+  }
+}
+function restoreRetryCooldown() {
+  const key = retryStorageKey()
+  const saved = key ? Number(sessionStorage.getItem(key)) : 0
+  retryUntil = Number.isFinite(saved) && saved > Date.now() && saved - Date.now() <= 900_000
+    ? saved
+    : 0
+  updateRetryCountdown()
 }
 function beginRetryCooldown(response: Response) {
   const raw = Number(response.headers.get('Retry-After'))
   const seconds = Number.isFinite(raw) && raw > 0 ? Math.min(900, Math.ceil(raw)) : 60
   retryUntil = Date.now() + seconds * 1000
-  sessionStorage.setItem(RETRY_STORAGE_KEY, String(retryUntil))
+  const key = retryStorageKey()
+  if (key) sessionStorage.setItem(key, String(retryUntil))
   updateRetryCountdown()
 }
+watch(email, restoreRetryCooldown)
 const nextPath = new URLSearchParams(window.location.search).get('next')
 const destination = nextPath?.startsWith('/') && !nextPath.startsWith('//') && !nextPath.startsWith('/\\')
   ? nextPath : '/home'
@@ -49,11 +88,9 @@ function syncSystemTheme(event: MediaQueryListEvent) {
 applyThemePreference()
 onMounted(async () => {
   systemThemeQuery?.addEventListener('change', syncSystemTheme)
-  const saved = Number(sessionStorage.getItem(RETRY_STORAGE_KEY))
-  if (Number.isFinite(saved) && saved > Date.now() && saved - Date.now() <= 900_000) {
-    retryUntil = saved
-  }
-  updateRetryCountdown()
+  // Drop the obsolete tab-wide key from earlier builds.
+  sessionStorage.removeItem(RETRY_STORAGE_KEY)
+  restoreRetryCooldown()
   retryTimer = window.setInterval(updateRetryCountdown, 1000)
   if (await refreshSession()) window.location.replace(destination)
 })
