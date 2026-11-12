@@ -521,6 +521,24 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
   color:#fff !important;
   box-shadow:none !important;
 }
+/* Light mode reuses the search form's identical soft red wash and
+   nine-second sweep, without changing the route's content or layout. */
+:global(html:not(.theme-dark) .app-site.itinerary-page .itinerary-summary-card__route){
+  background:var(--itinerary-card) !important;
+}
+:global(html:not(.theme-dark) .app-site.itinerary-page .itinerary-summary-card__route::before){
+  content:"";position:absolute;z-index:0;
+  top:-55%;bottom:-55%;left:-25%;width:60%;border-radius:50%;
+  background:radial-gradient(ellipse at center,rgba(214,14,52,.18) 0%,rgba(178,11,45,.10) 38%,rgba(126,10,34,.04) 58%,transparent 76%);
+  filter:blur(42px);pointer-events:none;
+  animation:itinerary-red-sweep 9s ease-in-out infinite alternate;
+}
+:global(html:not(.theme-dark) .app-site.itinerary-page .itinerary-summary-card__route > *){
+  position:relative;z-index:1;
+}
+@media(prefers-reduced-motion:reduce){
+  :global(html:not(.theme-dark) .app-site.itinerary-page .itinerary-summary-card__route::before){animation:none}
+}
 /* Same burgundy surface, overlay, color, blur and animation as the
    "Buscar itinerarios" form (.itinerary-form-card::before) in style.css.
    Only the route panel changes; the parent summary remains navy. */
