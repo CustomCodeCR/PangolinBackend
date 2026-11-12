@@ -66,8 +66,9 @@ public sealed class AuthService(
                     THEN 1 ELSE otp_rate_limits.request_count + 1 END,
                 last_requested_at = NOW()
             WHERE otp_rate_limits.window_start <= NOW() - INTERVAL '15 minutes'
-                OR (otp_rate_limits.request_count < 3
-                    AND otp_rate_limits.last_requested_at <= NOW() - INTERVAL '60 seconds');
+                OR (otp_rate_limits.request_count < 4
+                    AND (otp_rate_limits.request_count % 2 = 1
+                         OR otp_rate_limits.last_requested_at <= NOW() - INTERVAL '60 seconds'));
             """, ct);
         if (allowed == 0) return (null, true, false, await GetOtpRetrySecondsAsync(emailKey, ct));
 
@@ -87,9 +88,8 @@ public sealed class AuthService(
         var role = user.TipoAcceso;
 
         var now = DateTime.UtcNow;
-        var cooldown = await db.OtpChallenges.AsNoTracking()
-            .AnyAsync(x => x.UsuarioId == user.Uuid && x.CreatedAt > now.AddSeconds(-60), ct);
-        if (cooldown) return (null, true, false, await GetOtpRetrySecondsAsync(emailKey, ct));
+        // PostgreSQL's atomic per-email quota now grants a second immediate
+        // request; a separate 60-second challenge check would reject it.
 
         var id = Guid.NewGuid();
         var otp = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
@@ -122,19 +122,23 @@ public sealed class AuthService(
         return (new OtpStarted(id, GenericMessage, 300), false, false, 0);
     }
 
-    // PostgreSQL enforces one request per 60s and at most three per 15m.
-    // Return the earliest accurate retry time without exposing addresses or limits.
+    // Two requests may be made back-to-back, followed by a 60-second pause.
+    // Maximum 4 requests per 15-minute fixed window, enforced atomically.
+    // The first/third attempt can retry immediately (zero Retry-After);
+    // the second requires 60 seconds; the fourth waits for window reset.
     private async Task<int> GetOtpRetrySecondsAsync(string identifierHash, CancellationToken ct)
     {
         var seconds = await db.Database.SqlQuery<int>($"""
-            SELECT GREATEST(1, CEIL(EXTRACT(EPOCH FROM
-                (CASE WHEN request_count >= 3 AND window_start > NOW() - INTERVAL '15 minutes'
-                    THEN window_start + INTERVAL '15 minutes'
-                    ELSE last_requested_at + INTERVAL '60 seconds' END) - NOW()
-            )))::integer AS "Value"
+            SELECT CASE
+                WHEN request_count >= 4 AND window_start > NOW() - INTERVAL '15 minutes'
+                    THEN GREATEST(1, CEIL(EXTRACT(EPOCH FROM window_start + INTERVAL '15 minutes' - NOW())))::integer
+                WHEN request_count % 2 = 0
+                    THEN GREATEST(0, CEIL(EXTRACT(EPOCH FROM last_requested_at + INTERVAL '60 seconds' - NOW())))::integer
+                ELSE 0
+            END AS "Value"
             FROM otp_rate_limits WHERE identifier_hash = {identifierHash}
             """).SingleOrDefaultAsync(ct);
-        return Math.Clamp(seconds == 0 ? 60 : seconds, 1, 900);
+        return Math.Clamp(seconds, 0, 900);
     }
 
     public async Task<(string Token, AuthIdentity Identity)?> VerifyOtpAsync(VerifyOtpDto input, CancellationToken ct)
