@@ -505,7 +505,7 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
 }
 :global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route){
   border-color:rgba(120,137,166,.28) !important;
-  background:linear-gradient(112deg,rgba(181,9,40,.12),rgba(16,24,43,.68)) !important;
+  background:radial-gradient(ellipse at 80% 0%,rgba(181,9,40,.34) 0%,rgba(181,9,40,.12) 45%,transparent 78%),linear-gradient(112deg,rgba(73,16,37,.42) 0%,rgba(16,24,43,.68) 100%) !important;
   color:#fff !important;
 }
 :global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__mode){
