@@ -935,7 +935,9 @@ const otpBackend = source('../backend/Program.cs')
 const otpService = source('../backend/Services/Auth/AuthService.cs')
 const otpEs = JSON.parse(source('src/locales/es.json')).custom.login
 const otpEn = JSON.parse(source('src/locales/en.json')).custom.login
-assert.match(otpService, /request_count < 3/, 'OTP mantiene máximo tres solicitudes por 15 minutos')
+assert.match(otpService, /request_count < 4/, 'OTP mantiene máximo cuatro solicitudes por 15 minutos')
+assert.match(otpService, /request_count % 2 = 1/, 'OTP permite un segundo intento antes de esperar 60 segundos')
+assert.doesNotMatch(otpService, /AnyAsync\(x => x\.UsuarioId == user\.Uuid && x\.CreatedAt > now\.AddSeconds\(-60\)/, 'No bloquear el segundo intento con un límite de challenge obsoleto')
 assert.match(otpService, /last_requested_at <= NOW\(\) - INTERVAL '60 seconds'/, 'OTP conserva espera mínima por correo')
 assert.match(otpService, /GetOtpRetrySecondsAsync\(emailKey, ct\)/, 'Devuelve espera calculada desde PostgreSQL')
 assert.match(otpService, /await SendMailAsync\(email, otp, ct\)/, 'OTP sigue enviándose por proveedor')
@@ -946,10 +948,12 @@ assert.match(otpBackend, /code = "email_unavailable"/, '503 conserva código de 
 assert.match(otpLogin, /body\?\.code === 'email_unavailable'/, 'La IU reconoce indisponibilidad del correo')
 assert.match(otpLogin, /response\.status === 429/, 'La IU reconoce 429')
 assert.match(otpLogin, /beginRetryCooldown\(response\)/, 'La IU usa Retry-After')
+assert.match(otpLogin, /issue\.kind === 'rate' \|\| \(issue\.kind === 'mail' && response\.headers\.has\('Retry-After'\)\)/, '503 sin espera permite un segundo clic')
+assert.match(otpBackend, /if \(ex\.RetryAfterSeconds > 0\)/, 'El 503 no impone un minuto ficticio al primer error')
 assert.match(otpLogin, /:disabled="loading \|\| retrySeconds > 0"/, 'El botón OTP respeta el contador')
 assert.match(otpLogin, /role="alert"/, 'Mensajes accesibles')
 assert.doesNotMatch(otpLogin, /body\.traceId|\` \[\$\{body\.code\}\]/, 'La IU no expone traceId ni etiquetas internas')
-for (const key of ['mailUnavailableTitle', 'mailUnavailableDescription', 'rateTitle', 'rateDescription', 'retryIn', 'retryButton', 'serviceError']) {
+for (const key of ['mailUnavailableTitle', 'mailUnavailableDescription', 'mailImmediateRetryDescription', 'rateTitle', 'rateDescription', 'retryIn', 'retryButton', 'serviceError']) {
   assert.equal(typeof otpEs[key], 'string', 'OTP ES: ' + key)
   assert.equal(typeof otpEn[key], 'string', 'OTP EN: ' + key)
 }
