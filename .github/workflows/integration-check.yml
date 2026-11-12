@@ -83,6 +83,10 @@ jobs:
           /tmp/cf-ui-e2e-venv/bin/pip install --disable-pip-version-check selenium==4.38.0
           npm run build --prefix frontend
           /tmp/cf-ui-e2e-venv/bin/python scripts/smoke-browser-live.py
+      - name: Verify previous OTP survives failed LOCAL resend (no Microsoft)
+        env:
+          OTP_OUTBOX_FAILURE_TEST: '1'
+        run: python3 scripts/test-otp-failed-resend.py
       - name: Adjuntar revisión visual de la PR (HTML + capturas de Chrome)
         if: always()
         uses: actions/upload-artifact@v4
