@@ -137,6 +137,7 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.OnRejected = (rejection, _) =>
     {
+        rejection.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         // Informar el tiempo de espera para impedir reintentos agresivos.
         var seconds = rejection.Lease.TryGetMetadata(MetadataName.RetryAfter, out TimeSpan delay)
             ? Math.Max(1, (int)Math.Ceiling(delay.TotalSeconds)) : 60;
