@@ -1,0 +1,67 @@
+# Mitigación de HTTP 429 en itinerarios y ubicaciones (main-2)
+
+## Problema observado (12/11/2026)
+
+En `/itinerario` y `/administracion` se recibían 429 en
+`GET /api/itinerarios` y `GET /api/quotes/official/locations`.
+Ambos endpoints compartían la política `auth` (20 peticiones/minuto y por IP
+vista por ASP.NET). Un formulario sin transporte elegido podía lanzar ocho
+peticiones al catálogo más una a itinerarios en cada carga, y varios visitantes
+detrás de Nginx podían compartir la misma identidad de red.
+
+## Corrección propuesta
+
+- Las **lecturas públicas** de itinerarios y catálogos utilizan la política
+  separada `public-read` (120 peticiones/minuto por partición). Autenticación
+  mantiene `auth` (20/minuto); cotizaciones, tracking e IA mantienen sus cuotas.
+- Las solicitudes rechazadas devuelven HTTP **429** con `Retry-After` en
+  segundos. El frontend no debe reintentar automáticamente durante ese plazo.
+- `itineraryLocations.ts` conserva el catálogo público en caché de pestaña
+  durante cinco minutos, deduplica consultas simultáneas y respeta un período
+  de enfriamiento ante 429. La caché contiene solo nombres públicos, nunca
+  credenciales, precios ni datos de clientes.
+- Los usuarios autenticados con sesión validada tienen una partición propia
+  para las lecturas públicas. Los visitantes anónimos utilizan la dirección
+  de origen de la conexión o la dirección verificada en una cadena de proxies.
+- La interfaz de itinerarios muestra el error transitorio *dentro* del resumen,
+  preserva filtros y ofrece reintento manual. Otros errores siguen distinguiéndose.
+
+## Identificación segura de la dirección real
+
+Por seguridad no se confía en `X-Forwarded-For` enviado libremente por el
+navegador. `RateLimitClientKey` solo lo consulta si la dirección TCP del
+**salto inmediato** coincide con una IP exacta configurada en
+`RateLimiting:TrustedProxyIps` (por ejemplo,
+`RateLimiting__TrustedProxyIps__0`). Luego recorre la cadena de derecha a
+izquierda hasta el primer salto **no confiable**. Una cabecera falsa a la
+izquierda de ese salto no cambia la identidad de limitación.
+
+**Ajuste pendiente del operador de despliegue:** verificar las IP reales de los
+saltos Nginx/proxy/Cloudflare en la topología activa y añadir solo los proxies
+confiables necesarios. Las direcciones de contenedores pueden cambiar en cada
+recreación; no copiar IPs de desarrollo como valores de producción. Sin esta
+configuración, los visitantes anónimos seguirán agrupándose por la IP visible
+para el backend, pero ahora **no** comparten la cuota de autenticación, y se
+reducen las solicitudes repetidas. No habilitar una confianza global en XFF
+ni abrir el puerto del backend a Internet.
+
+## QA antes de fusionar o desplegar
+
+1. Confirmar PR #201 fusionada, compilar Vue y .NET, ejecutar pruebas de frontend
+   y verificar que las rutas públicas siguen siendo públicas y las escrituras
+   continúan protegidas por `admin`.
+2. Con DevTools, comprobar que primera carga de /itinerario consulta catálogo,
+   que una recarga dentro de 5 minutos reutiliza la caché y que cambiar
+   transporte no genera solicitudes duplicadas.
+3. Inducir un 429 **solo en un entorno local controlado**: verificar
+   `Retry-After`, mensaje accesible y reintento manual; no bombardear producción.
+4. Probar dos clientes con distintas IP detrás del proxy **correctamente
+   configurado**. Comprobar particiones independientes sin confiar en un XFF
+   falsificado enviado desde un cliente directo.
+5. Confirmar que /administracion, /cotizaciones, /tracking, OTP y uploads
+   conservan permisos. Confirmar no regresiones en modo oscuro/móvil/inglés.
+6. Observar métricas 429 en producción después de la aprobación y desplegar
+   primero en una ventana supervisada, con plan de rollback.
+
+No modifica PostgreSQL, MongoDB, Redis, MinIO, Cloudflare, Dhole ni la web
+pública durante el desarrollo de esta PR.
