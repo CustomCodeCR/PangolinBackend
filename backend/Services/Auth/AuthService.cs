@@ -108,7 +108,7 @@ public sealed class AuthService(
         {
             await SendMailAsync(email, otp, ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             // Nunca registrar el OTP; permitir diagnosticar sin exponer secretos.
             logger.LogError(ex, "No se pudo entregar un OTP a la cuenta {UserId}", user.Uuid);
