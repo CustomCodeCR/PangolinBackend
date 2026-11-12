@@ -48,8 +48,8 @@ function cooldown(key: string, response: Response) {
   return seconds
 }
 
-function loadRole(mode: ItineraryTransport, role: ItineraryLocationRole): Promise<ItineraryLocationChoice[]> {
-  const key = mode + ':' + role
+function loadRole(mode: ItineraryTransport | '', role: ItineraryLocationRole): Promise<ItineraryLocationChoice[]> {
+  const key = (mode || 'all') + ':' + role
   const cached = catalogueCache.get(key)
   if (cached) return cached
   const stored = readStored(key)
@@ -57,20 +57,12 @@ function loadRole(mode: ItineraryTransport, role: ItineraryLocationRole): Promis
   const remaining = cooldownRemaining(key)
   if (remaining) return Promise.reject(new Error(`Demasiadas consultas. Volvé a intentar en ${remaining} segundos.`))
 
-  const kind = mode === 'maritime' ? 'seaport' : 'inland'
-  const types = mode === 'maritime' ? ['FCL', 'LCL'] : ['FTL', 'LTL']
-  const request = Promise.all(types.map(async shipmentType => {
-    const qs = new URLSearchParams({ kind, shipmentType, routeRole: role })
-    let response = await fetch('/api/quotes/official/locations?' + qs.toString(), {
-      credentials: 'same-origin', cache: 'no-store'
-    })
-    // Development previews may not have a registered cookie. Reuse the guest
-    // quote catalogue in that case; both endpoints read the same location tables.
-    if (response.status === 401 || response.status === 403) {
-      response = await fetch('/api/assistant/quote-locations?' + qs.toString(), {
-        credentials: 'same-origin', cache: 'no-store'
-      })
-    }
+  // One aggregated public catalogue per role; the backend performs the FCL/LCL
+  // or FTL/LTL union safely against the existing official quote tables.
+  const qs = new URLSearchParams({ transport: mode || 'all', routeRole: role })
+  const request = fetch('/api/itinerarios/locations?' + qs.toString(), {
+    credentials: 'same-origin', cache: 'no-store'
+  }).then(async response => {
     if (response.status === 429) {
       const seconds = cooldown(key, response)
       throw new Error(`Demasiadas consultas. Volvé a intentar en ${seconds} segundos.`)
@@ -78,10 +70,8 @@ function loadRole(mode: ItineraryTransport, role: ItineraryLocationRole): Promis
     if (!response.ok) throw new Error('No se pudo cargar el catálogo de ubicaciones.')
     const data = await response.json() as CatalogueResponse
     if (!Array.isArray(data.items)) throw new Error('El catálogo devolvió datos inesperados.')
-    return data.items
-  })).then(groups => {
     const unique = new Map<string, ItineraryLocationChoice>()
-    for (const item of groups.flat()) {
+    for (const item of data.items) {
       const name = (item.displayName || '').trim()
       if (name) unique.set(name.toLocaleLowerCase(), { value: name, label: name })
     }
@@ -93,14 +83,11 @@ function loadRole(mode: ItineraryTransport, role: ItineraryLocationRole): Promis
     throw error
   })
   catalogueCache.set(key, request)
+  // Also expire the in-memory entry for long-lived tabs.
+  setTimeout(() => {
+    if (catalogueCache.get(key) === request) catalogueCache.delete(key)
+  }, CACHE_MS)
   return request
-}
-
-async function loadAllRoles(role: ItineraryLocationRole): Promise<ItineraryLocationChoice[]> {
-  const [sea, land] = await Promise.all([loadRole('maritime', role), loadRole('ground', role)])
-  const unique = new Map<string, ItineraryLocationChoice>()
-  for (const item of [...sea, ...land]) unique.set(item.value.toLocaleLowerCase(), item)
-  return [...unique.values()].sort((a, b) => a.label.localeCompare(b.label, 'es'))
 }
 
 export function useItineraryLocations(transport: Ref<ItineraryTransport | ''>) {
@@ -119,8 +106,8 @@ export function useItineraryLocations(transport: Ref<ItineraryTransport | ''>) {
 
     try {
       const [origin, destination] = await Promise.all([
-        mode ? loadRole(mode, 'origin') : loadAllRoles('origin'),
-        mode ? loadRole(mode, 'destination') : loadAllRoles('destination')
+        loadRole(mode, 'origin'),
+        loadRole(mode, 'destination')
       ])
       if (current !== generation) return
       origins.value = origin
