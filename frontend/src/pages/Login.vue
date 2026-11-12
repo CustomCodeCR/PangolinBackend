@@ -225,6 +225,7 @@ function enterAsGuest() {
             <input v-model="email" required type="email" maxlength="255" autocomplete="email" :placeholder="$t('custom.login.emailPlaceholder')" />
           </label>
           <p class="login-auth-help">{{ $t('custom.login.emailHelp') }}</p>
+          <p v-if="loading" class="login-auth-sending" role="status">{{ $t('custom.login.sendingDetail') }}</p>
           <p v-if="retrySeconds > 0 && !error" class="login-auth-cooldown" role="status">{{ $t('custom.login.retryIn', { seconds: retrySeconds }) }}</p>
           <button class="login-auth-primary" type="submit" :disabled="loading || retrySeconds > 0">{{ loading ? $t('custom.login.sending') : retrySeconds > 0 ? $t('custom.login.rateTitle') : $t('custom.login.sendCode') }} <IconSymbol glyph="→" /></button>
         </form>
@@ -255,6 +256,7 @@ function enterAsGuest() {
 </template>
 
 <style scoped>
+.login-auth-sending{margin:2px 0 10px;padding:11px 13px;border:1px solid #eed4da;border-radius:12px;background:#fff6f8;color:#6f283b;font-size:12px;font-weight:650;line-height:1.5}
 .login-auth-cooldown{margin:4px 0 12px;font-size:12px;font-weight:750;line-height:1.5;color:#a90b2d}
 :global(html.theme-dark) .login-auth-cooldown{color:#f2a0b2}
 .login-auth-feedback{display:flex;align-items:flex-start;gap:12px;margin:16px 0 0;padding:15px;border:1px solid #edc6ce;border-radius:14px;background:#fff5f6;color:#22242b}
