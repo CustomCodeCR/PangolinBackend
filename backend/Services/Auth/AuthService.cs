@@ -117,7 +117,7 @@ public sealed class AuthService(
             throw new EmailDeliveryException(await GetOtpRetrySecondsAsync(emailKey, ct));
         }
         // Invalidate older challenges only after successful acceptance by mail transport.
-        await db.OtpChallenges.Where(x => x.UsuarioId == user.Uuid && x.Uuid != id && x.UsedAt == null)
+        await db.OtpChallenges.Where(x => x.UsuarioId == user.Uuid && x.Uuid != id && x.CreatedAt < row.CreatedAt && x.UsedAt == null)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.UsedAt, DateTime.UtcNow), ct);
         return (new OtpStarted(id, GenericMessage, 300), false, false, 0);
     }
