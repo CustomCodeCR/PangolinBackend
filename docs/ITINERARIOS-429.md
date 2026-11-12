@@ -40,6 +40,29 @@ navegador. `RateLimitClientKey` solo lo consulta si la dirección TCP del
 izquierda hasta el primer salto **no confiable**. Una cabecera falsa a la
 izquierda de ese salto no cambia la identidad de limitación.
 
+**Despliegue real en Argos:** el workflow de imágenes usa
+`deploy/docker-compose.images.yml` (no `compose.production.yaml`). Ese
+Compose expone opcionalmente `PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_IP_0/1` hacia
+`RateLimiting__TrustedProxyIps__0/1`, **vacíos por defecto**. Añadir estas
+variables al repositorio no activa confianza de proxies en producción.
+
+**Inspección de solo lectura del 12/11/2026:** en la red `dhole`,
+`seo-gateway` se resuelve hacia `frontend` en `172.18.0.40`,
+y `frontend` hacia `backend` en `172.18.0.35`. El túnel
+`cloudflared` corre con `--token` (gestionado remotamente); los logs
+mencionan destinos `localhost:80` y `localhost:8180`, pero no determinan
+qué hostname apunta a cada uno. **No se ha verificado de extremo a extremo**
+la procedencia fiable del IP del visitante: no asumir que leer XFF devuelve
+la IP pública correcta. Traefik podría ser otra capa de entrada.
+
+**Pendiente antes de habilitarlo en producción:** verificar el último salto
+TCP visto por backend, identificar la cadena completa hasta el borde confiable
+y probar intentos de cabeceras falsas desde una ruta no confiable. Las
+direcciones Docker observadas son efímeras, no se deben fijar sin un mecanismo
+seguro de actualización ni confiar en una red Docker completa. Si no puede
+verificarse la cadena, mantener vacíos los ajustes y conservar el límite
+compartido para anónimos, con mitigación de tráfico y mensaje 429.
+
 **Ajuste pendiente del operador de despliegue:** verificar las IP reales de los
 saltos Nginx/proxy/Cloudflare en la topología activa y añadir solo los proxies
 confiables necesarios. Las direcciones de contenedores pueden cambiar en cada
