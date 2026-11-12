@@ -475,7 +475,7 @@ assert.ok(esLogin.accountUnavailable && enLogin.accountUnavailable, 'Aviso tradu
 assert.equal(esLogin.footer, undefined, 'Quitar aviso de pruebas en español')
 assert.equal(enLogin.footer, undefined, 'Quitar aviso de pruebas en inglés')
 assert.doesNotMatch(esLogin.emailPlaceholder, /gmail\.com/i, 'No restringir dominio de correo a Gmail')
-assert.match(authService, /if \(user is null\)\s*return \(null, false, true\);/, 'No generar OTP ficticio para cuenta desconocida')
+assert.match(authService, /if \(user is null\)\s*return \(null, false, true, 0\);/, 'No generar OTP ficticio para cuenta desconocida')
 assert.match(backendProgram, /code = "account_unavailable"/, 'API debe distinguir la cuenta no habilitada')
 assert.match(backendProgram, /StatusCodes\.Status404NotFound/, 'Devolver 404 antes del formulario OTP')
 
