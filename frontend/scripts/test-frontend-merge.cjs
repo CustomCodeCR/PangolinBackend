@@ -948,6 +948,8 @@ assert.match(otpBackend, /code = "email_unavailable"/, '503 conserva código de 
 assert.match(otpLogin, /body\?\.code === 'email_unavailable'/, 'La IU reconoce indisponibilidad del correo')
 assert.match(otpLogin, /response\.status === 429/, 'La IU reconoce 429')
 assert.match(otpLogin, /beginRetryCooldown\(response\)/, 'La IU usa Retry-After')
+assert.match(otpLogin, /if \(response\.headers\.has\('Retry-After'\)\) beginRetryCooldown\(response\)/, 'La segunda solicitud exitosa también activa la pausa visual')
+assert.match(otpService, /return \(new OtpStarted\(id, GenericMessage, 300\), false, false,[\s\S]*?await GetOtpRetrySecondsAsync\(emailKey, ct\)\)/, 'Respuesta OTP exitosa informa próxima oportunidad de reenvío')
 assert.match(otpLogin, /issue\.kind === 'rate' \|\| \(issue\.kind === 'mail' && response\.headers\.has\('Retry-After'\)\)/, '503 sin espera permite un segundo clic')
 assert.match(otpBackend, /if \(ex\.RetryAfterSeconds > 0\)/, 'El 503 no impone un minuto ficticio al primer error')
 assert.match(otpLogin, /:disabled="loading \|\| retrySeconds > 0"/, 'El botón OTP respeta el contador')
