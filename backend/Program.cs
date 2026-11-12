@@ -389,9 +389,13 @@ app.MapPost("/api/auth/request-otp", async (
 {
     try
     {
-        var (result, limited, accountUnavailable) = await auth.RequestOtpAsync(input, ct);
+        var (result, limited, accountUnavailable, retryAfterSeconds) = await auth.RequestOtpAsync(input, ct);
         http.Response.Headers.CacheControl = "no-store";
-        if (limited) return Results.Json(new { error = "Demasiados intentos. Esperá antes de solicitar otro código." }, statusCode: 429);
+        if (limited)
+        {
+            http.Response.Headers.RetryAfter = Math.Clamp(retryAfterSeconds, 1, 900).ToString(CultureInfo.InvariantCulture);
+            return Results.Json(new { code = "otp_rate_limited", error = "Debés esperar antes de solicitar otro código." }, statusCode: 429);
+        }
         if (accountUnavailable) return Results.Json(
             new { error = "No se pudo iniciar sesión con ese correo. Verificá que esté registrado y habilitado.", code = "account_unavailable" },
             statusCode: StatusCodes.Status404NotFound);
@@ -401,7 +405,9 @@ app.MapPost("/api/auth/request-otp", async (
     catch (EmailDeliveryException ex)
     {
         app.Logger.LogError(ex, "Error al preparar/enviar email OTP. TraceId={TraceId}", http.TraceIdentifier);
-        return Results.Json(new { error = "No se pudo entregar el código. Revisá la configuración de correo.", code = "email_unavailable", traceId = http.TraceIdentifier }, statusCode: 503);
+        http.Response.Headers.RetryAfter = Math.Clamp(ex.RetryAfterSeconds, 1, 900).ToString(CultureInfo.InvariantCulture);
+        http.Response.Headers.CacheControl = "no-store";
+        return Results.Json(new { error = "El servicio de correo no está disponible temporalmente.", code = "email_unavailable", traceId = http.TraceIdentifier }, statusCode: 503);
     }
     catch (Exception ex) when (ex is NpgsqlException or DbUpdateException or TimeoutException)
     {
