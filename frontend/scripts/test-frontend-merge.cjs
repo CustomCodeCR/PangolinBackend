@@ -958,14 +958,18 @@ assert.match(otpLogin, /const normalized = email\.value\.trim\(\)\.toLowerCase\(
 assert.match(otpLogin, /window\.crypto\.getRandomValues\(bytes\)/, 'Identificador opaco con sal aleatoria por pestaña')
 assert.match(otpLogin, /sessionStorage\.setItem\(key, String\(retryUntil\)\)/, 'La espera persiste solo en la cuenta seleccionada')
 assert.match(otpLogin, /role="alert"/, 'Mensajes accesibles')
+assert.match(otpLogin, /class="login-auth-sending" role="status"/, 'La espera al proveedor de correo es visible y accesible')
 assert.match(otpLogin, /class="login-auth-cooldown" role="status"/, 'Mostrar el contador restaurado cuando no haya tarjeta de error')
 assert.match(otpLogin, /retrySeconds > 0 && !error/, 'Evitar mostrar el contador duplicado junto al error de correo')
 assert.match(otpLogin, /retrySeconds > 0 \? \$t\('custom\.login\.rateTitle'\)/, 'Usar una etiqueta de espera sin contador duplicado en el botón')
 const otpLoginStyles = source('src/style.css')
+assert.match(otpLoginStyles, /html\.theme-dark \.login-screen \.login-auth-card \.login-auth-feedback \{[\s\S]*?background: #0b1428 !important;/, 'El aviso OTP en modo oscuro es azul marino en lugar de blanco')
+assert.match(otpLoginStyles, /html\.theme-dark \.login-screen \.login-auth-card \.login-auth-feedback__copy > span \{[\s\S]*?color: #cbd2df !important;/, 'Descripción OTP legible en modo oscuro')
+assert.match(otpLoginStyles, /html\.theme-dark \.login-screen \.login-auth-card \.login-auth-sending \{[\s\S]*?background: #101b32 !important;/, 'Estado de espera coherente en modo oscuro')
 assert.match(otpLoginStyles, /\.login-visual:has\(>\.cms-background-video\)>\.login-guest-back\{position:absolute;z-index:3\}/, 'Volver no debe entrar en el flujo sobre el logo cuando hay video de portada')
 assert.match(otpLoginStyles, /@media\(max-width:800px\)\{\.login-visual \.login-guest-back\{top:16px;left:auto;right:/, 'Volver se ubica lejos del logo en ancho móvil')
 assert.doesNotMatch(otpLogin, /body\.traceId|\` \[\$\{body\.code\}\]/, 'La IU no expone traceId ni etiquetas internas')
-for (const key of ['mailUnavailableTitle', 'mailUnavailableDescription', 'mailImmediateRetryDescription', 'rateTitle', 'rateDescription', 'retryIn', 'retryButton', 'serviceError']) {
+for (const key of ['sendingDetail', 'mailUnavailableTitle', 'mailUnavailableDescription', 'mailImmediateRetryDescription', 'rateTitle', 'rateDescription', 'retryIn', 'retryButton', 'serviceError']) {
   assert.equal(typeof otpEs[key], 'string', 'OTP ES: ' + key)
   assert.equal(typeof otpEn[key], 'string', 'OTP EN: ' + key)
 }
