@@ -113,6 +113,9 @@ async function requestCode() {
       throw new Error(issue.message)
     }
     const result = await response.json()
+    // After the second successful send the server already knows a pause
+    // is required. Keep the button disabled if the user goes back.
+    if (response.headers.has('Retry-After')) beginRetryCooldown(response)
     challengeId.value = result.challengeId
     message.value = result.message
     otp.value = ''
