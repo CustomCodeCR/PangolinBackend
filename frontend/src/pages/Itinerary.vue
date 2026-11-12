@@ -432,7 +432,6 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
 }
 .itinerary-summary-card__mode .lucide-symbol{flex:none;color:#b20c2a}
 .itinerary-summary-card__route{
-  position:relative;isolation:isolate;overflow:hidden;
   display:grid;grid-template-columns:minmax(0,1fr) minmax(50px,.24fr) minmax(0,1fr);
   align-items:center;gap:clamp(8px,1.7vw,22px);
   padding:clamp(12px,1.3vw,16px);border:1px solid rgba(178,12,42,.13);
@@ -504,29 +503,26 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
   color:#fff !important;
   box-shadow:none !important;
 }
-/* Same dark burgundy wash as the search-filters surface, clipped to
-   the origin/destination panel; the parent result card stays solid navy. */
+/* Same dark burgundy wash as the search-filters surfac/* Reuse the search filter's exact dark surface (#211b20) and red sweep
+   gradient. Animate only its background; pseudo-elements on the grid had
+   displaced/hid the origin and other itinerary details. */
 :global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route){
   border-color:rgba(120,137,166,.28) !important;
-  background:linear-gradient(105deg,#211c23 0%,#291b23 24%,#3b1824 55%,#411521 76%,#241c24 100%) !important;
+  background-color:var(--itinerary-card) !important;
+  background-image:radial-gradient(ellipse at center,rgba(214,14,52,.37) 0%,rgba(178,11,45,.23) 38%,rgba(126,10,34,.11) 58%,transparent 76%) !important;
+  background-size:65% 210% !important;
+  background-repeat:no-repeat !important;
+  animation:itinerary-route-red-sweep 9s ease-in-out infinite alternate;
   color:#fff !important;
 }
-:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route)::before{
-  content:"";position:absolute;inset:-50% -35%;z-index:0;pointer-events:none;
-  background:radial-gradient(ellipse 45% 75% at 60% 50%,rgba(132,13,39,.45) 0%,rgba(111,13,37,.27) 45%,transparent 100%);
-  animation:itinerary-route-burgundy-wave 10s ease-in-out infinite alternate;
-}
-:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route > *){
-  position:relative;z-index:1;
-}
-@keyframes itinerary-route-burgundy-wave{
-  from{transform:translateX(-18%)}
-  to{transform:translateX(18%)}
+@keyframes itinerary-route-red-sweep{
+  from{background-position:-45% 50%}
+  to{background-position:145% 50%}
 }
 @media(prefers-reduced-motion:reduce){
-  :global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route)::before{animation:none}
+  :global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route){animation:none;background-position:50% 50%}
 }
-:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__mode){
+rary-summary-card__mode){
   color:#f2d5dd;background:rgba(237,23,55,.1);border-color:rgba(237,23,55,.24);
 }
 :global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__stop-label),
