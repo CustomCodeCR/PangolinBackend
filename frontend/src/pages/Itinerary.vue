@@ -118,7 +118,7 @@ const { origins, destinations, loadingLocations, locationError } = useItineraryL
 
 function createItinerary(id: number): Itinerary {
   return {
-    id, pol: '', pod: '', status: '', transport: 'maritime', modality: '',
+    id, pol: '', pod: '', status: '', transport: '', modality: '',
     closing: '', etd: '', eta: ''
   }
 }
@@ -156,6 +156,23 @@ function removeItinerary(id: number) {
 
 function statusLabel(status: ItineraryStatus) {
   return statuses.value.find(option => option.value === status)?.label ?? status
+}
+
+// Search results render after the search form. Align their identical red-sweep
+// CSS animations at the same frame so they move together.
+function syncItineraryRedSweeps() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  window.requestAnimationFrame(() => {
+    const elements = document.querySelectorAll(
+      '.itinerary-page .itinerary-form-card, .itinerary-page .itinerary-summary-card__route'
+    )
+    elements.forEach(element => {
+      element.getAnimations().forEach(animation => {
+        if ('animationName' in animation && animation.animationName === 'itinerary-red-sweep')
+          animation.currentTime = 0
+      })
+    })
+  })
 }
 
 async function searchItineraries(pageNumber = 1, scrollToResults = true) {
@@ -233,10 +250,10 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
   } finally {
     if (generation === searchGeneration) {
       cargando.value = false
-      if (scrollToResults) {
-        await nextTick()
+      await nextTick()
+      syncItineraryRedSweeps()
+      if (scrollToResults)
         resultsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }
     }
   }
 }
@@ -306,26 +323,54 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
         <p v-if="cargando" role="status">{{ en ? "Loading itineraries…" : "Consultando itinerarios…" }}</p>
         <p v-else-if="errorBusqueda" role="alert">{{ errorBusqueda }}</p>
         <p v-else-if="resultados.length === 0">{{ en ? "No itineraries matched those filters." : "No se encontraron itinerarios con esos filtros." }}</p>
-        <article v-for="(item, index) in (!cargando && !errorBusqueda ? resultados : [])" :key="item.id" class="itinerary-result-card">
-          <div class="itinerary-result-card__status">
-            <small>{{ t('custom.itinerary.form.status') }}</small>
-            <strong>{{ t('custom.itinerary.form.itemTitle', { number: String((currentPage - 1) * pageSize + index + 1).padStart(2, '0') }) }}</strong>
-            <span class="itinerary-result-status" :class="`itinerary-result-status--${item.status}`">{{ statusLabel(item.status) }}</span>
-          </div>
-          <div class="itinerary-result-card__route">
-            <div class="itinerary-result-card__endpoints">
-              <div><small>{{ item.etd || t('custom.itinerary.form.notSpecified') }}</small><strong>{{ item.pol || t('custom.itinerary.form.notSpecified') }}</strong><span>POL · {{ t('custom.itinerary.form.loadingPort') }}</span></div>
-              <div class="itinerary-result-card__connector"><span>{{ modes[item.transport === 'maritime' ? 0 : 1] }}</span><i aria-hidden="true"></i><span>{{ item.modality }}</span></div>
-              <div><small>{{ item.eta || t('custom.itinerary.form.notSpecified') }}</small><strong>{{ item.pod || t('custom.itinerary.form.notSpecified') }}</strong><span>POD · {{ t('custom.itinerary.form.unloadingPort') }}</span></div>
+        <article v-for="(item, index) in (!cargando && !errorBusqueda ? resultados : [])"
+          :key="item.id" class="itinerary-summary-card" :class="`itinerary-summary-card--${item.status}`">
+          <header class="itinerary-summary-card__header">
+            <div class="itinerary-summary-card__heading">
+              <span class="itinerary-summary-card__eyebrow">{{ en ? 'LOGISTICS ITINERARY' : 'ITINERARIO LOGÍSTICO' }}</span>
+              <h3>{{ t('custom.itinerary.form.itemTitle', { number: String((currentPage - 1) * pageSize + index + 1).padStart(2, '0') }) }}</h3>
             </div>
-            <div class="itinerary-result-card__dates"><span><small>Closing</small><strong>{{ item.closing || t('custom.itinerary.form.notSpecified') }}</strong></span><span><small>ETD</small><strong>{{ item.etd || t('custom.itinerary.form.notSpecified') }}</strong></span><span><small>ETA</small><strong>{{ item.eta || t('custom.itinerary.form.notSpecified') }}</strong></span></div>
+            <div class="itinerary-summary-card__badges">
+              <span class="itinerary-summary-card__mode">
+                <IconSymbol :glyph="item.transport === 'ground' ? 'truck' : 'ship'" :size="15" aria-hidden="true" />
+                {{ modes[item.transport === 'maritime' ? 0 : 1] }}
+                <span aria-hidden="true">·</span> {{ item.modality || t('custom.itinerary.form.notSpecified') }}
+              </span>
+              <span class="itinerary-result-status" :class="`itinerary-result-status--${item.status}`">{{ statusLabel(item.status) }}</span>
+            </div>
+          </header>
+
+          <div class="itinerary-summary-card__route" :aria-label="en ? 'Itinerary origin and destination' : 'Origen y destino del itinerario'">
+            <div class="itinerary-summary-card__stop">
+              <span class="itinerary-summary-card__pin" aria-hidden="true"><IconSymbol glyph="⌖" :size="19" /></span>
+              <div class="itinerary-summary-card__stop-copy">
+                <span class="itinerary-summary-card__stop-label">{{ en ? 'Origin' : 'Origen' }} · POL</span>
+                <strong>{{ item.pol || t('custom.itinerary.form.notSpecified') }}</strong>
+                <small>{{ t('custom.itinerary.form.loadingPort') }}</small>
+              </div>
+            </div>
+            <div class="itinerary-summary-card__route-line" aria-hidden="true"><span class="itinerary-summary-card__route-arrow"><IconSymbol glyph="→" :size="18" /></span></div>
+            <div class="itinerary-summary-card__stop itinerary-summary-card__stop--destination">
+              <span class="itinerary-summary-card__pin" aria-hidden="true"><IconSymbol glyph="⌖" :size="19" /></span>
+              <div class="itinerary-summary-card__stop-copy">
+                <span class="itinerary-summary-card__stop-label">{{ en ? 'Destination' : 'Destino' }} · POD</span>
+                <strong>{{ item.pod || t('custom.itinerary.form.notSpecified') }}</strong>
+                <small>{{ t('custom.itinerary.form.unloadingPort') }}</small>
+              </div>
+            </div>
           </div>
-          <div class="itinerary-result-card__details">
-            <span><small>{{ labels.transport }}</small><strong>{{ modes[item.transport === 'maritime' ? 0 : 1] }}</strong></span>
-            <span><small>{{ labels.modality }}</small><strong>{{ item.modality }}</strong></span>
-            <span><small>{{ en ? 'Carrier' : 'Transportista' }}</small><strong>{{ item.carrier || t('custom.itinerary.form.notSpecified') }}</strong></span>
-            <span><small>{{ en ? 'Vessel' : 'Buque' }}</small><strong>{{ item.vessel || t('custom.itinerary.form.notSpecified') }}</strong></span>
-            <span><small>{{ en ? 'Voyage' : 'Viaje' }}</small><strong>{{ item.voyage || t('custom.itinerary.form.notSpecified') }}</strong></span>
+
+          <div class="itinerary-summary-card__information">
+            <div class="itinerary-summary-card__facts" :aria-label="en ? 'Key dates' : 'Fechas principales'">
+              <div class="itinerary-summary-card__fact"><span>Closing</span><strong>{{ item.closing || t('custom.itinerary.form.notSpecified') }}</strong></div>
+              <div class="itinerary-summary-card__fact"><span>ETD</span><strong>{{ item.etd || t('custom.itinerary.form.notSpecified') }}</strong></div>
+              <div class="itinerary-summary-card__fact"><span>ETA</span><strong>{{ item.eta || t('custom.itinerary.form.notSpecified') }}</strong></div>
+            </div>
+            <div class="itinerary-summary-card__facts itinerary-summary-card__facts--logistics" :aria-label="en ? 'Transport details' : 'Detalles de transporte'">
+              <div class="itinerary-summary-card__fact"><span>{{ en ? 'Carrier' : 'Transportista' }}</span><strong>{{ item.carrier || t('custom.itinerary.form.notSpecified') }}</strong></div>
+              <div class="itinerary-summary-card__fact"><span>{{ en ? 'Vessel' : 'Buque' }}</span><strong>{{ item.vessel || t('custom.itinerary.form.notSpecified') }}</strong></div>
+              <div class="itinerary-summary-card__fact"><span>{{ en ? 'Voyage' : 'Viaje' }}</span><strong>{{ item.voyage || t('custom.itinerary.form.notSpecified') }}</strong></div>
+            </div>
           </div>
         </article>
         <nav v-if="!cargando && !errorBusqueda && totalPages > 1" class="itinerary-pagination" :aria-label="t('custom.itinerary.form.paginationLabel')">
@@ -361,5 +406,191 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
 @media(max-width:760px){.itinerary-result-card{grid-template-columns:minmax(0,1fr)}.itinerary-result-card__details{grid-column:1/-1;grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:390px){.itinerary-result-card__details{grid-template-columns:minmax(0,1fr)}}
 .published-itineraries{margin:36px 0}.published-itineraries h2{margin:0 0 18px;font-size:clamp(24px,3vw,36px)}.published-itinerary-card{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:10px 0;padding:18px 22px;border:1px solid #ffffff3c;border-radius:16px;background:#ffffff0c;backdrop-filter:blur(12px);color:inherit}.published-itinerary-card>div:first-child{display:grid;gap:7px}.published-itinerary-card small,.published-itinerary-dates{opacity:.75}.published-itinerary-card strong{font-size:18px}.published-itinerary-card strong span{color:#ef3340;padding:0 5px}.published-itinerary-dates{display:flex;gap:16px;font-size:13px}@media(max-width:600px){.published-itinerary-card{align-items:flex-start;flex-direction:column}.published-itinerary-card strong{font-size:16px}.published-itinerary-dates{flex-wrap:wrap}}
+
+
+/* Logistics itinerary cards use the same calm white/glass hierarchy as the
+   Dynamics shipment summary, without changing search, pagination or API data. */
+.itinerary-search-results{
+  /* Match the content width of the rest of the site on wide monitors. */
+  width:100%;max-width:1180px;margin-inline:auto;
+}
+.itinerary-summary-card{
+  --itinerary-result-border:rgba(174,38,66,.18);
+  --itinerary-result-line:rgba(137,82,97,.17);
+  --itinerary-result-muted:#737780;
+  position:relative;isolation:isolate;overflow:hidden;
+  margin-top:12px;padding:clamp(14px,1.7vw,20px);
+  border:1px solid var(--itinerary-result-border);border-radius:22px;
+  background:linear-gradient(125deg,#fff8f9 0%,#fff 42%,#fff 100%);
+  box-shadow:0 12px 30px rgba(47,18,28,.06);color:#20242b;
+}
+.itinerary-summary-card::before{
+  content:"";position:absolute;left:0;top:22px;bottom:22px;width:3px;
+  border-radius:0 4px 4px 0;background:#b20c2a;
+}
+.itinerary-summary-card__header{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:12px 22px;flex-wrap:wrap;margin-bottom:13px;
+}
+.itinerary-summary-card__heading{display:grid;gap:5px;min-width:0}
+.itinerary-summary-card__eyebrow{
+  color:#b20c2a;font-size:10px;font-weight:900;letter-spacing:.11em;
+}
+.itinerary-summary-card__heading h3{
+  margin:0;color:inherit;font-size:clamp(18px,2vw,23px);
+  line-height:1.2;font-weight:850;letter-spacing:-.025em;
+}
+.itinerary-summary-card__badges{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.itinerary-summary-card__mode{
+  display:inline-flex;align-items:center;gap:7px;min-height:31px;
+  padding:6px 11px;border:1px solid rgba(178,12,42,.16);
+  border-radius:999px;background:rgba(178,12,42,.045);
+  color:#5b4048;font-size:11px;font-weight:750;white-space:normal;
+}
+.itinerary-summary-card__mode .lucide-symbol{flex:none;color:#b20c2a}
+.itinerary-summary-card__route{
+  position:relative;isolation:isolate;overflow:hidden;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(50px,.24fr) minmax(0,1fr);
+  align-items:center;gap:clamp(8px,1.7vw,22px);
+  padding:clamp(12px,1.3vw,16px);border:1px solid rgba(178,12,42,.13);
+  border-radius:18px;background:rgba(176,12,42,.035);
+}
+.itinerary-summary-card__stop{display:flex;align-items:center;gap:clamp(8px,1vw,14px);min-width:0}
+.itinerary-summary-card__stop--destination{justify-content:flex-end}
+.itinerary-summary-card__stop-copy{display:grid;gap:4px;min-width:0}
+.itinerary-summary-card__stop-label{
+  color:#ae0b2b;font-size:10px;font-weight:850;letter-spacing:.03em;
+}
+.itinerary-summary-card__stop-copy strong{
+  font-size:clamp(15px,1.65vw,21px);line-height:1.3;
+  font-weight:850;letter-spacing:-.02em;overflow-wrap:anywhere;
+}
+.itinerary-summary-card__stop-copy small{
+  color:var(--itinerary-result-muted);font-size:10px;line-height:1.45;
+}
+.itinerary-summary-card__pin{
+  display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;
+  color:#b20c2a;background:#f8e7eb;border-radius:12px;
+}
+.itinerary-summary-card__route-line{
+  position:relative;display:flex;align-items:center;justify-content:center;min-width:0;
+}
+.itinerary-summary-card__route-line::before{
+  content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:#d9a4af;
+}
+.itinerary-summary-card__route-line > .itinerary-summary-card__route-arrow{
+  position:relative;display:flex;align-items:center;justify-content:center;
+  width:34px;height:34px;padding:0;flex:0 0 34px;line-height:0;
+  border-radius:50%;background:#b20c2a;color:#fff;
+  box-shadow:0 3px 10px rgba(178,12,42,.18);
+}
+.itinerary-summary-card__route-arrow :deep(.lucide-symbol){
+  display:flex;align-items:center;justify-content:center;
+  width:18px;height:18px;line-height:0;
+}
+.itinerary-summary-card__information{
+  display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:12px;
+  padding:12px 0 0;border-top:1px solid var(--itinerary-result-line);
+}
+.itinerary-summary-card__facts{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 16px;min-width:0;
+}
+.itinerary-summary-card__facts--logistics{
+  padding-left:22px;border-left:1px solid var(--itinerary-result-line);
+}
+.itinerary-summary-card__fact{display:grid;align-content:start;gap:5px;min-width:0}
+.itinerary-summary-card__fact>span{
+  color:var(--itinerary-result-muted);font-size:10px;font-weight:850;
+  letter-spacing:.065em;text-transform:uppercase;
+}
+.itinerary-summary-card__fact>strong{
+  font-size:12px;font-weight:750;color:inherit;
+  line-height:1.55;overflow-wrap:anywhere;
+}
+/* Match the dark tracking shipment: solid #060f21 navy cards, with a
+   translucent burgundy/navy route panel. Keep all light-theme styles intact.
+   Use the same full global selector pattern as Tracking.vue so these rules
+   win against shared itinerary/global page styles. */
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card){
+  --itinerary-result-border:#4f5365;
+  --itinerary-result-line:#3b465f;
+  --itinerary-result-muted:#b8bac4;
+  background:#060f21 !important;
+  background-image:none !important;
+  border-color:#4f5365 !important;
+  color:#fff !important;
+  box-shadow:none !important;
+}
+/* Light mode reuses the search form's identical soft red wash and
+   nine-second sweep, without changing the route's content or layout. */
+:global(html:not(.theme-dark) .app-site.itinerary-page .itinerary-summary-card__route){
+  background:var(--itinerary-card) !important;
+}
+:global(html:not(.theme-dark) .app-site.itinerary-page .itinerary-summary-card__route::before){
+  content:"";position:absolute;z-index:0;
+  top:-55%;bottom:-55%;left:-25%;width:60%;border-radius:50%;
+  background:radial-gradient(ellipse at center,rgba(214,14,52,.18) 0%,rgba(178,11,45,.10) 38%,rgba(126,10,34,.04) 58%,transparent 76%);
+  filter:blur(42px);pointer-events:none;
+  animation:itinerary-red-sweep 9s ease-in-out infinite alternate;
+}
+:global(html:not(.theme-dark) .app-site.itinerary-page .itinerary-summary-card__route > *){
+  position:relative;z-index:1;
+}
+@media(prefers-reduced-motion:reduce){
+  :global(html:not(.theme-dark) .app-site.itinerary-page .itinerary-summary-card__route::before){animation:none}
+}
+/* Same burgundy surface, overlay, color, blur and animation as the
+   "Buscar itinerarios" form (.itinerary-form-card::before) in style.css.
+   Only the route panel changes; the parent summary remains navy. */
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route){
+  border-color:rgba(120,137,166,.28) !important;
+  background:var(--itinerary-card) !important;
+  color:#fff !important;
+}
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route::before){
+  content:"";position:absolute;z-index:0;
+  top:-55%;bottom:-55%;left:-25%;width:60%;border-radius:50%;
+  background:radial-gradient(ellipse at center,rgba(214,14,52,.37) 0%,rgba(178,11,45,.23) 38%,rgba(126,10,34,.11) 58%,transparent 76%);
+  filter:blur(42px);pointer-events:none;
+  animation:itinerary-red-sweep 9s ease-in-out infinite alternate;
+}
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route > *){
+  z-index:1;
+}
+@media(prefers-reduced-motion:reduce){
+  :global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route::before){animation:none}
+}
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__mode){
+  color:#f2d5dd;background:rgba(237,23,55,.1);border-color:rgba(237,23,55,.24);
+}
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__stop-label),
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__eyebrow){color:#ff7791}
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__pin){background:rgba(181,9,40,.19);color:#ff8595}
+:global(html.theme-dark .app-site.itinerary-page .itinerary-summary-card__route-line::before){background:#a24b60}
+@media(max-width:860px){
+  .itinerary-summary-card__information{grid-template-columns:1fr;gap:14px}
+  .itinerary-summary-card__facts--logistics{
+    padding:14px 0 0;border-left:0;border-top:1px solid var(--itinerary-result-line)
+  }
+}
+@media(max-width:550px){
+  .itinerary-summary-card{border-radius:17px}
+  .itinerary-summary-card__header{align-items:flex-start;gap:12px}
+  .itinerary-summary-card__badges{width:100%}
+  .itinerary-summary-card__route{
+    grid-template-columns:minmax(0,1fr) 32px minmax(0,1fr);gap:7px;padding:12px 10px;
+  }
+  .itinerary-summary-card__stop{gap:5px}
+  .itinerary-summary-card__pin{display:none}
+  .itinerary-summary-card__route-line > .itinerary-summary-card__route-arrow{width:28px;height:28px;flex-basis:28px}
+  .itinerary-summary-card__stop-copy strong{font-size:14px}
+  .itinerary-summary-card__stop-copy small{font-size:9px}
+  .itinerary-summary-card__facts{gap:10px}
+  .itinerary-summary-card__fact>span{font-size:9px}
+  .itinerary-summary-card__fact>strong{font-size:11px}
+}
+@media(max-width:355px){
+  .itinerary-summary-card__facts{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
 
 </style>

@@ -344,6 +344,28 @@ const home = source('src/Home.vue')
 assert.match(home, /encodeURIComponent\(item\.id\)/, 'Home debe enlazar la noticia específica')
 const itinerary = source('src/pages/Itinerary.vue')
 assert.match(itinerary, /closing/, 'Conservar Closing, ETD y ETA')
+// Regression contract for the result-card-only redesign: all itinerary fields,
+// statuses and navigation remain available in ES/EN without touching API logic.
+const itineraryResults = itinerary.slice(
+  itinerary.indexOf('<article v-for="(item, index) in (!cargando && !errorBusqueda ? resultados : [])"'),
+  itinerary.indexOf('<nav v-if="!cargando && !errorBusqueda && totalPages > 1"')
+)
+assert.match(itineraryResults, /class="itinerary-summary-card"/, 'Los resultados usan la nueva tarjeta de resumen')
+for (const field of ['item.pol', 'item.pod', 'item.closing', 'item.etd', 'item.eta',
+  'item.carrier', 'item.vessel', 'item.voyage', 'item.modality']) {
+  assert.ok(itineraryResults.includes(field), 'La tarjeta conserva el campo ' + field)
+}
+assert.match(itineraryResults, /statusLabel\(item\.status\)/, 'La tarjeta conserva el estado de la API')
+assert.match(itineraryResults, /en \? 'Carrier' : 'Transportista'/, 'Los detalles mantienen ES/EN')
+assert.match(itineraryResults, /itinerary-summary-card__route/, 'Origen y destino mantienen jerarquía visual')
+assert.match(itineraryResults, /itinerary-summary-card__information/, 'Fechas y detalles están separados del trayecto')
+assert.match(itinerary, /:global\(html\.theme-dark \.app-site\.itinerary-page \.itinerary-summary-card\)\s*\{[^}]*background:#060f21 !important;/, 'El modo oscuro utiliza su propia superficie azul marino')
+assert.match(itinerary, /@media\(max-width:550px\)/, 'La tarjeta se adapta a móviles')
+assert.match(itinerary, /itinerary-pagination/, 'La paginación permanece intacta')
+assert.doesNotMatch(itineraryResults, /class="itinerary-result-card"/, 'No debe permanecer la cuadrícula antigua')
+assert.match(itinerary, /\.itinerary-search-results\s*\{[^}]*max-width:1180px/, 'Los resultados no deben expandirse indefinidamente en monitores grandes')
+assert.match(itineraryResults, /class="itinerary-summary-card__route-arrow"><IconSymbol glyph="→" :size="18" \/>/, 'La flecha debe ser un SVG centrado, no un carácter tipográfico')
+assert.match(itinerary, /\.itinerary-summary-card__route-line > \.itinerary-summary-card__route-arrow\s*\{[^}]*align-items:center;justify-content:center/, 'El círculo centra el icono real en ambos ejes')
 const fieldDropdown = source('src/components/FieldDropdown.vue')
 assert.match(fieldDropdown, /<Teleport to="body">/, 'Menus sobre las tarjetas sin ser recortados')
 assert.match(fieldDropdown, /class="cf-dropdown__menu" role="listbox"/, 'Conservar semántica listbox del componente compartido')
