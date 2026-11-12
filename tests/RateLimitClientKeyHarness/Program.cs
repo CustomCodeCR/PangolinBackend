@@ -25,6 +25,9 @@ var gateway = ("RateLimiting:TrustedProxyIps:1", "172.18.0.41");
 Expect(Key("172.18.0.40", "198.51.100.1"), "ip:172.18.0.40", "No implicit trust");
 Expect(Key("172.18.0.39", "198.51.100.1", frontend), "ip:172.18.0.39", "Untrusted peer cannot spoof");
 Expect(Key("172.18.0.40", "198.51.100.1", frontend), "ip:198.51.100.1", "Exact immediate trusted hop");
+if (Key("172.18.0.40", "198.51.100.11", frontend) ==
+    Key("172.18.0.40", "198.51.100.12", frontend))
+    throw new Exception("Distinct verified visitors must not share the same public-read partition");
 Expect(Key("172.18.0.40", "192.0.2.200, 198.51.100.22", frontend),
        "ip:198.51.100.22", "Ignore client-spoofed left prefix");
 Expect(Key("172.18.0.40", "192.0.2.200, 198.51.100.22, 172.18.0.41", frontend, gateway),
