@@ -12,17 +12,20 @@ El backend aplica simultáneamente:
   para `auth` (también usado al verificar OTP). La mejora segura de
   identificación por proxy se trabaja aparte en PR #202.
 - Cuota por correo normalizado, cuyo identificador se guarda solo como
-  SHA-256 en PostgreSQL: **1 solicitud cada 60 s y 3 cada 15 min**.
+  SHA-256 en PostgreSQL: **2 solicitudes seguidas y máximo 4 cada 15 min**, con pausa de 60 s después de cada pareja.
 - Código OTP de 6 dígitos, válido 5 minutos, con máximo 5 intentos
   para verificar; token JWT y autorización sin cambios.
 
 ## Cambios
 - El 429 de la cuota por correo devuelve `code=otp_rate_limited` y un
-  `Retry-After` calculado según `otp_rate_limits`, incluyendo la ventana
-  de 15 minutos cuando se alcanzan tres solicitudes.
+  `Retry-After` calculado según `otp_rate_limits`: se permiten dos intentos
+  consecutivos, luego una espera de 60 segundos desde el segundo; tras el
+  cuarto en la ventana se espera hasta que se cumplan 15 minutos desde el primero.
 - El 503 de entrega devuelve `code=email_unavailable`, conserva
   `traceId` para diagnóstico del servidor, y establece `Retry-After`
-  según la misma protección. Los errores de espera del proveedor se
+  **solo si realmente hay una espera**: tras el primer fallo puede
+  intentarse otra vez inmediatamente, tras el segundo debe esperarse
+  el tiempo anunciado. No se permite evadir el límite antiabuso. Los errores de espera del proveedor se
   consideran errores de entrega salvo que el navegador haya cancelado
   su propia solicitud.
 - Vue interpreta 429 y 503 de envío, muestra textos claros ES/EN,
@@ -53,7 +56,8 @@ El backend aplica simultáneamente:
    Confirmar que al terminar se habilita el botón, sin enviar
    un OTP real durante el periodo de prueba.
 4. En entorno aislado, con `LocalOutbox` y cuenta ficticia, verificar
-   máximo 3 solicitudes en 15 min, 60 s entre envíos, expiración
+   máximo 4 solicitudes en 15 min, dos seguidas y pausa de 60 s tras
+   la segunda, expiración
    OTP y rechazo de códigos reutilizados. No cambiar límites reales.
 5. Verificar que `/api/auth/verify-otp` mantiene 5 intentos por
    challenge, que un OTP previo es válido si el nuevo envío
