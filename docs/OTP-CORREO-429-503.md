@@ -48,9 +48,11 @@ El backend aplica simultáneamente:
    `email_unavailable` en una respuesta de `/api/auth/request-otp`
    usando DevTools > Sources > Snippets; no enviar solicitudes a
    Microsoft. Responder HTTP 503 con JSON
-   `{"code":"email_unavailable"}` y encabezado `Retry-After: 30`.
-   Confirmar el mensaje sin códigos internos, el contador,
-   botón deshabilitado y estilo claro/oscuro/móvil/inglés.
+   `{"code":"email_unavailable"}` **sin** encabezado `Retry-After`
+   para el primer intento: el mensaje debe permitir reintentar de inmediato.
+   Después simular otro 503 **con** `Retry-After: 30`: el contador
+   debe bloquear la solicitud durante el tiempo indicado. Confirmar
+   textos sin códigos internos y estilos claro/oscuro/móvil/inglés.
 3. Simular un 429 local con `Retry-After: 70` y confirmar el texto
    «Esperá un momento», el contador y que F5 no lo reinicia.
    Confirmar que al terminar se habilita el botón, sin enviar
