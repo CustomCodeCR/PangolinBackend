@@ -342,10 +342,37 @@ assert.doesNotMatch(news, /news-article-modal|aria-modal="true"/, 'Noticias no a
 assert.match(news, /href="\/noticias"/, 'El usuario puede volver a la lista de noticias')
 const home = source('src/Home.vue')
 assert.match(home, /encodeURIComponent\(item\.id\)/, 'Home debe enlazar la noticia específica')
+// Regression: every FAQ card can close from its answer/blank area; question
+// buttons keep native keyboard behavior without double-triggering the card.
+const servicesPage = source('src/pages/Services.vue')
+assert.match(home, /class="faq-item"[\s\S]*?@click="expandedFaq = expandedFaq === index \? null : index"/,
+  'FAQ del inicio abre y cierra al pulsar cualquier parte de la tarjeta')
+assert.match(home, /@click\.stop="expandedFaq = expandedFaq === index \? null : index"/,
+  'El botón de inicio no cambia de estado dos veces por el evento del contenedor')
+assert.match(home, /document\.addEventListener\('pointerdown', closeFaqOnOutsidePointer\)/,
+  'Las FAQ del inicio siguen cerrándose al pulsar fuera')
+assert.match(servicesPage, /<details v-for="faq in serviceFaqs"[\s\S]*?@click="toggleServiceFaqCard"/,
+  'Las FAQ de la página de servicios cierran también al pulsar el contenido')
+assert.match(servicesPage, /event\.target\.closest\('summary'\)/,
+  'El resumen HTML nativo conserva un único cambio de estado')
+assert.match(servicesPage, /document\.addEventListener\('pointerdown', closeOtherServiceFaqs\)/,
+  'Los acordeones de servicios cierran al pulsar fuera o en otra tarjeta')
+assert.match(servicesPage, /document\.removeEventListener\('pointerdown', closeOtherServiceFaqs\)/,
+  'Los eventos globales de servicios se liberan al desmontar la página')
 // Keep the step 02 copy its full width, with a modest vertical offset so
 // the numeral is above the content and the image stays aligned with the video.
 const serviceLanding = source('src/pages/ServiceLanding.vue')
 const serviceStepsCss = source('src/styles/service-landing-experience.css')
+assert.match(serviceLanding, /class="service-landing-faq__item"[\s\S]*?@click="openServiceFaq = openServiceFaq === index \? null : index"/,
+  'Cada tarjeta FAQ individual se puede cerrar pulsando sobre su respuesta')
+assert.match(serviceLanding, /@click\.stop="openServiceFaq = openServiceFaq === index \? null : index"/,
+  'El botón FAQ de servicios no duplica el evento del contenedor')
+assert.match(serviceLanding, /document\.addEventListener\('pointerdown', closeServiceFaqOutside\)/,
+  'Las FAQ individuales cierran al pulsar fuera de su tarjeta')
+assert.match(serviceLanding, /document\.removeEventListener\('pointerdown', closeServiceFaqOutside\)/,
+  'No quedan eventos FAQ al salir de una página individual')
+assert.match(serviceLanding, /:aria-expanded="openServiceFaq === index"/,
+  'Los botones FAQ conservan su estado accesible para lectores de pantalla')
 assert.match(serviceLanding, /class="service-landing-step service-landing-step--details" data-step="02"/,
   'La etapa 02 sigue siendo compartida por todos los servicios')
 assert.match(serviceStepsCss, /\.service-landing-story \.service-landing-step--details \.service-landing-section-heading--text-only\s*\{\s*width:100%;\s*max-width:100%;/,
