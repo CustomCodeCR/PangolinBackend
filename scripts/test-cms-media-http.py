@@ -239,7 +239,15 @@ def test_http_cycle():
         json_call(admin, "/api/admin/content/news/" + news_id, 200,
                   dict(news, expiresAt=None), method="PUT")
         check_status(visitor, url, 304, headers={"If-None-Match": etag})
-        print("PASS CMS media E2E: draft 404, published 200, 304, 206, admin privacy, unpublished/expired 404")
+        json_call(admin, "/api/admin/content/news/" + news_id, 200, dict(news, published=False), method="PUT")
+        slot = "/api/admin/content/site/about.gallery.0.media"
+        json_call(admin, slot, 200, {"mediaId": media_id}, method="PUT")
+        check_status(visitor, url, 404, headers={"If-None-Match": etag})
+        json_call(admin, slot + "/publish", 200, method="POST")
+        check_status(visitor, url, 304, headers={"If-None-Match": etag})
+        json_call(admin, slot + "/restore", 200, method="POST")
+        check_status(visitor, url, 404, headers={"If-None-Match": etag})
+        print("PASS CMS media E2E: news and editor publication lifecycles")
     finally:
         if news_id:
             check_status(admin, "/api/admin/content/news/" + news_id, 204, method="DELETE")
