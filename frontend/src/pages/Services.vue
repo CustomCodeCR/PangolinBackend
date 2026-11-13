@@ -2,7 +2,7 @@
 import IconSymbol from '../components/IconSymbol.vue'
 import SiteMedia from '../components/SiteMedia.vue'
 import { siteText, siteVisual, siteCssImage } from '../siteCms'
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { services as baseServices, type ServiceKey } from '../content'
 import SiteHeader from '../components/SiteHeader.vue'
@@ -16,6 +16,39 @@ const serviceFaqs = computed(() => serviceFaqData.servicios.map(faq => ({
   question: siteText('services.faq.' + serviceFaqData.servicios.indexOf(faq) + '.q', locale.value.toLowerCase().startsWith('es') ? faq.question.es : faq.question.en, locale.value),
   answer: siteText('services.faq.' + serviceFaqData.servicios.indexOf(faq) + '.a', locale.value.toLowerCase().startsWith('es') ? faq.answer.es : faq.answer.en, locale.value)
 })))
+const servicesFaqRef = ref<HTMLElement | null>(null)
+const closeOtherServiceFaqs = (event: PointerEvent) => {
+  const root = servicesFaqRef.value
+  if (!root || !(event.target instanceof Node)) return
+  const clickedCard = event.target instanceof Element
+    ? event.target.closest<HTMLDetailsElement>('details.services-faq__item')
+    : null
+  root.querySelectorAll<HTMLDetailsElement>('details.services-faq__item[open]').forEach(item => {
+    if (item !== clickedCard) item.open = false
+  })
+}
+const toggleServiceFaqCard = (event: MouseEvent) => {
+  // A summary already toggles its native details element. Only the answer
+  // and blank area need explicit handling so a click cannot toggle twice.
+  if (event.target instanceof Element && event.target.closest('summary')) return
+  if (event.currentTarget instanceof HTMLDetailsElement) {
+    event.currentTarget.open = !event.currentTarget.open
+  }
+}
+const closeServiceFaqOnEscape = (event: KeyboardEvent) => {
+  if (event.key !== 'Escape') return
+  servicesFaqRef.value?.querySelectorAll<HTMLDetailsElement>('details.services-faq__item[open]').forEach(item => {
+    item.open = false
+  })
+}
+onMounted(() => {
+  document.addEventListener('pointerdown', closeOtherServiceFaqs)
+  document.addEventListener('keydown', closeServiceFaqOnEscape)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', closeOtherServiceFaqs)
+  document.removeEventListener('keydown', closeServiceFaqOnEscape)
+})
 // Enlaces HTML visibles para que usuarios y rastreadores descubran las páginas
 // comerciales. No dependen de abrir pestañas, modales ni ejecutar un clic.
 const serviceDirectory = computed(() => {
@@ -118,10 +151,10 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
       </section>
 
       <section class="services-faq section-spacing" aria-labelledby="services-faq-title">
-        <div class="container services-faq__inner">
+        <div ref="servicesFaqRef" class="container services-faq__inner">
           <p class="section-tag center">{{ locale.toLowerCase().startsWith('es') ? 'PREGUNTAS FRECUENTES' : 'FREQUENTLY ASKED QUESTIONS' }}</p>
           <h2 id="services-faq-title" class="section-title centered">{{ siteText('services.faq.heading', locale.toLowerCase().startsWith('es') ? 'Más sobre nuestros servicios' : 'More about our services', locale) }}</h2>
-          <details v-for="faq in serviceFaqs" :key="faq.question" class="services-faq__item">
+          <details v-for="faq in serviceFaqs" :key="faq.question" class="services-faq__item" @click="toggleServiceFaqCard">
             <summary>{{ faq.question }}</summary>
             <p>{{ faq.answer }}</p>
           </details>
@@ -185,6 +218,8 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
 </template>
 
 <style scoped>
+/* Make the entire FAQ tile clickable, including the answer and padding. */
+.services-faq__item { cursor: pointer; }
 /* Directorio SEO: mismo lenguaje visual de los FAQ y bloques de servicios.
    Las tarjetas son enlaces reales, compactos y visibles sin interacciones. */
 .services-directory {
