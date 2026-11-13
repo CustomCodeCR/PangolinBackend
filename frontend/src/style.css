@@ -5949,3 +5949,19 @@ html.theme-dark .login-screen .login-auth-card .login-auth-sending {
 }
 .site-footer .footer-legal nav { flex-wrap: wrap; }
 .site-footer .footer-legal nav > a { padding-inline: 8px; }
+
+
+/* Navigation hover-only underlines. The red current-page pill stays unchanged.
+   Keep a transparent border for stable layout; don't leave a gray rule visible
+   after switching between light and dark themes or opening a dropdown. */
+@media (min-width: 801px) {
+  .site-header .main-nav > a:not(.is-active):not(.nav-login),
+  .site-header .main-nav .nav-dropdown:not(.nav-dropdown--active) > .nav-dropdown__trigger {
+    border-bottom: 2px solid transparent !important;
+    text-decoration: none !important;
+  }
+  .site-header .main-nav > a:not(.is-active):not(.nav-login):is(:hover, :focus-visible),
+  .site-header .main-nav .nav-dropdown:not(.nav-dropdown--active) > .nav-dropdown__trigger:is(:hover, :focus-visible) {
+    border-bottom-color: rgba(255, 255, 255, .82) !important;
+  }
+}
