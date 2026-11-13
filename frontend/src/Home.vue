@@ -5,6 +5,7 @@ import SiteFooter from './components/SiteFooter.vue'
 import WorldGlobe from './components/WorldGlobe.vue'
 import IconSymbol from './components/IconSymbol.vue'
 import SiteMedia from './components/SiteMedia.vue'
+import StaticOptimizedImage from './components/StaticOptimizedImage.vue'
 import HomeInstagramReel from './components/HomeInstagramReel.vue'
 import { siteText, siteVisual, siteCssImage } from './siteCms'
 import { services as baseServices, faqs as baseFaqs, type ServiceKey } from './content'
@@ -269,7 +270,7 @@ onUnmounted(() => {
                     :tabindex="copy > 1 ? -1 : 0"
                     :aria-label="`${$t('custom.home.newsAria')}: ${item.title}`"
                   >
-                    <img :src="item.image" :alt="item.title" loading="lazy" />
+                    <StaticOptimizedImage :src="item.image" :alt="item.title" loading="lazy" />
                     <span class="home-hero-news__copy">
                       <small>{{ item.category }}</small>
                       <strong>{{ item.title }}</strong>
