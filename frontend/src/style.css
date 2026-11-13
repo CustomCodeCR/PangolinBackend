@@ -5882,3 +5882,70 @@ html.theme-dark .login-screen .login-auth-card .login-auth-sending {
   color: #d4dceb !important;
   -webkit-text-fill-color: #d4dceb !important;
 }
+
+
+/* PageSpeed home accessibility: preserve the tiny decorative dots while giving
+   each actual button a >=44px hit target and a visible keyboard focus. */
+.app-site main>section.stats-band .stats-carousel-dots {
+  gap: 2px;
+  margin-top: -16px;
+}
+.app-site main>section.stats-band .stats-carousel-dots button,
+.app-site main>section.stats-band .stats-carousel-dots button.active {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  background: transparent !important;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.app-site main>section.stats-band .stats-carousel-dots button::after {
+  content: '';
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 99px;
+  background: rgba(255,255,255,.75);
+}
+.app-site main>section.stats-band .stats-carousel-dots button.active::after {
+  width: 25px;
+  background: #fff;
+}
+.app-site main>section.stats-band .stats-carousel-dots button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -4px;
+}
+/* White text on the deep red strip must not become translucent during the
+   automatic slide transition, which would weaken contrast and readability. */
+.app-site main>section.stats-band .stats-slide strong,
+.app-site main>section.stats-band .stats-slide span {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+.app-site main>section.stats-band .stat-slide-enter-active,
+.app-site main>section.stats-band .stat-slide-leave-active {
+  transition: transform .22s ease;
+}
+.app-site main>section.stats-band .stat-slide-enter-from,
+.app-site main>section.stats-band .stat-slide-leave-to {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-site main>section.stats-band .stat-slide-enter-active,
+  .app-site main>section.stats-band .stat-slide-leave-active {
+    transition: none;
+  }
+}
+/* Footer links retain their appearance, but no longer have ~20px-tall targets. */
+.site-footer .footer-top > div:not(.footer-identity) > a,
+.site-footer .footer-legal nav > a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  width: fit-content;
+  padding-block: 8px;
+}
+.site-footer .footer-legal nav { flex-wrap: wrap; }
+.site-footer .footer-legal nav > a { padding-inline: 8px; }
