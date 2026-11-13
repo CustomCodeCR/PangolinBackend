@@ -116,9 +116,9 @@ public static class CmsMediaBackfillEndpoints
                             continue;
                         }
 
-                        // Never intentionally overwrite a derivative generated
-                        // earlier. This is a per-process mutex, not a cross-host
-                        // distributed lock; enable only for single-worker maintenance.
+                        // A metadata recheck is only an optimization: the
+                        // conditional S3 PUT below atomically prevents overwrite
+                        // even if another instance writes after this HEAD.
                         var key = CmsImageVariants.ObjectKey(media.ObjectKey, width);
                         if ((await storage.TryGetSizeAsync(key, ct)).HasValue)
                         {
@@ -128,8 +128,11 @@ public static class CmsMediaBackfillEndpoints
                         try
                         {
                             using var stream = new MemoryStream(encoded, writable: false);
-                            await storage.UploadAsync(key, stream, encoded.LongLength, "image/webp", ct);
-                            generated.Add(width);
+                            if (await storage.UploadIfAbsentAsync(
+                                    key, stream, encoded.LongLength, "image/webp", ct))
+                                generated.Add(width);
+                            else
+                                existing.Add(width);
                         }
                         catch (AmazonS3Exception ex)
                         {
