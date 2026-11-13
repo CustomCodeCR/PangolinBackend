@@ -30,6 +30,8 @@ PG_CONTAINER = "cms-media-pg"
 PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9YmFxTYAAAAASUVORK5CYII="
 )
+PHOTO = (ROOT / "frontend/public/images/cover-logistics.jpeg").read_bytes()
+PHOTO_WEBP = (ROOT / "frontend/public/images/cover-logistics.webp").read_bytes()
 
 
 def require(ok, message):
@@ -41,6 +43,7 @@ class FakeS3(BaseHTTPRequestHandler):
     """Minimal loopback object store that ignores SigV4; no real S3/MinIO calls."""
     objects = {}
     downloads = 0
+    heads = 0
     protocol_version = "HTTP/1.1"
 
     def log_message(self, fmt, *args):
@@ -74,9 +77,30 @@ class FakeS3(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         body = self._request_body()
-        # Serve a canonical fixture; storage transport encoding is outside this test.
-        self.objects[self._object_key()] = PNG
+        # Serve canonical fixture bytes; AWS S3 transfer checksums/chunking
+        # are outside this test. The PUT path identifies expected format.
+        key = self._object_key()
+        if key.endswith(".jpeg"):
+            self.objects[key] = PHOTO
+        elif re.search(r"\.w\d+\.webp$", key):
+            self.objects[key] = PHOTO_WEBP
+        else:
+            self.objects[key] = PNG
         self._send(200, headers={"ETag": '"test-object"', "x-amz-request-id": "ci-only"})
+
+    def do_HEAD(self):
+        FakeS3.heads += 1
+        key = self._object_key()
+        if key not in self.objects:
+            self.send_response(404)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        raw = self.objects[key]
+        self.send_response(200)
+        self.send_header("Content-Length", str(len(raw)))
+        self.send_header("ETag", '"test-object"')
+        self.end_headers()
 
     def do_GET(self):
         key = self._object_key()
@@ -182,6 +206,21 @@ def multipart_image():
     return b"".join(parts), f"multipart/form-data; boundary={boundary}"
 
 
+def multipart_photo():
+    boundary = "CMS-WEBP-" + uuid.uuid4().hex
+    parts = [
+        (f'--{boundary}\r\nContent-Disposition: form-data; name="name"\r\n\r\n'
+         'Responsive test photo\r\n').encode(),
+        (f'--{boundary}\r\nContent-Disposition: form-data; name="kind"\r\n\r\n'
+         'Imagen\r\n').encode(),
+        (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; '
+         'filename="ci-photo.jpeg"\r\nContent-Type: image/jpeg\r\n\r\n').encode(),
+        PHOTO,
+        (f'\r\n--{boundary}--\r\n').encode(),
+    ]
+    return b"".join(parts), f"multipart/form-data; boundary={boundary}"
+
+
 def test_http_cycle():
     admin = login_admin()
     visitor = build_opener()
@@ -195,7 +234,13 @@ def test_http_cycle():
         url = f"/api/content/media/{media_id}/file"
         admin_url = f"/api/admin/content/media/{media_id}/file"
         require(uploaded["src"] == url, "Uploaded media URL mismatch")
+        # A tiny PNG has no smaller variant; width requests fall back to original.
+        # Publication authorization still applies to that fallback.
+        heads_before_draft = FakeS3.heads
         hdrs, _ = check_status(visitor, url, 404)
+        check_status(visitor, url + "?width=360", 404)
+        require(FakeS3.heads == heads_before_draft,
+                "Draft access must fail before querying S3 for any variant")
         require("no-store" in hdrs.get("Cache-Control", ""), "Draft media must be no-store")
         news = {"title": "CI media cache " + uuid.uuid4().hex[:8],
                 "category": "PRUEBAS", "description": "Temporary test-only item",
@@ -206,6 +251,10 @@ def test_http_cycle():
         require(content == PNG, "Published image payload mismatch")
         etag = h200.get("ETag")
         require(etag and etag.startswith('"cms-'), "Published image missing CMS ETag")
+        fallback_h, fallback_bytes = check_status(visitor, url + "?width=360", 200)
+        require(fallback_bytes == PNG and fallback_h.get("ETag") == etag and
+                fallback_h.get("Content-Type", "").startswith("image/png"),
+                "Unoptimized old media must fall back to its original bytes, MIME and ETag")
         require("private" in h200.get("Cache-Control", "") and
                 "no-cache" in h200.get("Cache-Control", ""), "Public media must revalidate")
         fetches = FakeS3.downloads
@@ -255,6 +304,74 @@ def test_http_cycle():
             check_status(admin, "/api/admin/content/media/" + media_id, 204, method="DELETE")
 
 
+def test_webp_variants():
+    admin = login_admin()
+    visitor = build_opener()
+    media_id = news_id = None
+    try:
+        body, content_type = multipart_photo()
+        _, uploaded_bytes = check_status(admin, "/api/admin/content/media/upload", 201,
+                                         method="POST", raw=body,
+                                         headers={"Content-Type": content_type})
+        uploaded = json.loads(uploaded_bytes)
+        media_id = uploaded["id"]
+        url = f"/api/content/media/{media_id}/file"
+        variant = url + "?width=360"
+        require(uploaded["src"] == url, "Upload must retain canonical original URL")
+        require(any(f"/media/{media_id.replace('-', '')}.jpeg.w360.webp" in key
+                    for key in FakeS3.objects), "Upload did not generate WebP 360")
+        heads_before_draft = FakeS3.heads
+        h_draft, _ = check_status(visitor, variant, 404)
+        require(FakeS3.heads == heads_before_draft,
+                "Unpublished variant must be rejected before S3 HEAD")
+        require("no-store" in h_draft.get("Cache-Control", ""),
+                "Unpublished WebP must not be cacheable")
+        news = {"title": "CI WebP image " + uuid.uuid4().hex[:8],
+                "category": "PRUEBAS", "description": "Fake S3 WebP fixture",
+                "body": "Local test", "image": url, "published": True}
+        created = json_call(admin, "/api/admin/content/news", 201, news, method="POST")
+        news_id = created["id"]
+        original_h, original_bytes = check_status(visitor, url, 200)
+        require(original_bytes == PHOTO and original_h.get("Content-Type", "").startswith("image/jpeg"),
+                "Original JPEG bytes/MIME must remain intact")
+        response_h, variant_bytes = check_status(visitor, variant, 200)
+        require(variant_bytes == PHOTO_WEBP and response_h.get("Content-Type", "").startswith("image/webp"),
+                "WebP content type/payload not returned")
+        require("private" in response_h.get("Cache-Control", "") and
+                "no-cache" in response_h.get("Cache-Control", ""),
+                "WebP must be private and revalidated before every request")
+        tag = response_h.get("ETag")
+        require(tag and "-w360-webp-" in tag and tag != original_h.get("ETag"),
+                "Variant ETag must be distinct from original")
+        downloads_before = FakeS3.downloads
+        check_status(visitor, variant, 304, headers={"If-None-Match": tag})
+        require(FakeS3.downloads == downloads_before, "Conditional WebP should not download S3 bytes")
+        _, segment = check_status(visitor, variant, 206,
+                                  headers={"Range": "bytes=0-3", "If-None-Match": tag})
+        require(segment == PHOTO_WEBP[:4], "WebP range must bypass 304 and return four bytes")
+        check_status(visitor, url + "?width=123", 400)
+        check_status(admin, f"/api/admin/content/media/{media_id}/file", 200)
+        json_call(admin, "/api/admin/content/news/" + news_id, 200,
+                  dict(news, published=False), method="PUT")
+        heads_before_revocation = FakeS3.heads
+        h_revoked, _ = check_status(visitor, variant, 404, headers={"If-None-Match": tag})
+        require(FakeS3.heads == heads_before_revocation,
+                "Revoked variant must be rejected before S3 HEAD")
+        require("no-store" in h_revoked.get("Cache-Control", ""),
+                "Revoked variant must return 404 with no-store")
+        json_call(admin, "/api/admin/content/news/" + news_id, 200,
+                  dict(news, published=True), method="PUT")
+        check_status(visitor, variant, 304, headers={"If-None-Match": tag})
+        print("PASS CMS responsive WebP: upload -> 360 variant -> 200/304/206 -> 404 revocation")
+    finally:
+        if news_id:
+            check_status(admin, "/api/admin/content/news/" + news_id, 204, method="DELETE")
+        if media_id:
+            check_status(admin, "/api/admin/content/media/" + media_id, 204, method="DELETE")
+            require(not any(media_id.replace('-', '') in key for key in FakeS3.objects),
+                    "Deleting a media row must delete original and WebP derivatives")
+
+
 def main():
     require(os.getenv("CI") == "true" and os.getenv("CMS_MEDIA_TEST_ISOLATED") == "1",
             "Refusing to run outside explicitly isolated CI")
@@ -275,6 +392,7 @@ def main():
         "Storage__Bucket": "cms-test",
         "Storage__AccessKey": "ci-fake",
         "Storage__SecretKey": "ci-fake",
+        "CmsMedia__ResponsiveWebpEnabled": "true",
         "DholeTracking__Enabled": "false",
         "Redis__ConnectionString": "",
         "Mongo__ConnectionString": "",
@@ -288,6 +406,7 @@ def main():
              "-U", "postgres", "-d", "login"], input=seed, text=True, check=True,
             stdout=DEVNULL)
         test_http_cycle()
+        test_webp_variants()
     finally:
         proc.terminate()
         try:

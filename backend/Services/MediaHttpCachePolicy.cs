@@ -11,6 +11,11 @@ internal static class MediaHttpCachePolicy
     internal static string EntityTag(Guid mediaId, long? bytes) =>
         $"\"cms-{mediaId:N}-{bytes.GetValueOrDefault()}\"";
 
+    // A variant is a different immutable object. Its validator must never
+    // match the original image or another width.
+    internal static string VariantEntityTag(Guid mediaId, int width, long bytes) =>
+        $"\"cms-{mediaId:N}-w{width}-webp-{bytes}\"";
+
     internal static bool IsNotModified(string? ifNoneMatch, string? range, string entityTag)
     {
         // Conditional responses may not short-circuit byte-range downloads.
