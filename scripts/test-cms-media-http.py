@@ -44,6 +44,9 @@ class FakeS3(BaseHTTPRequestHandler):
     objects = {}
     downloads = 0
     heads = 0
+    puts = 0
+    conditional_puts = 0
+    simulate_concurrent_put = set()
     protocol_version = "HTTP/1.1"
 
     def log_message(self, fmt, *args):
@@ -77,6 +80,18 @@ class FakeS3(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         body = self._request_body()
+        FakeS3.puts += 1
+        key = self._object_key()
+        if self.headers.get("If-None-Match") == "*":
+            FakeS3.conditional_puts += 1
+        # Model another worker winning the race between our HEAD and PUT.
+        if key in FakeS3.simulate_concurrent_put:
+            FakeS3.objects[key] = PHOTO_WEBP
+            FakeS3.simulate_concurrent_put.remove(key)
+        if self.headers.get("If-None-Match") == "*" and key in FakeS3.objects:
+            self._send(412, b"<Error><Code>PreconditionFailed</Code></Error>",
+                       {"Content-Type": "application/xml"})
+            return
         # Serve canonical fixture bytes; AWS S3 transfer checksums/chunking
         # are outside this test. The PUT path identifies expected format.
         key = self._object_key()
@@ -221,8 +236,7 @@ def multipart_photo():
     return b"".join(parts), f"multipart/form-data; boundary={boundary}"
 
 
-def test_http_cycle():
-    admin = login_admin()
+def test_http_cycle(admin):
     visitor = build_opener()
     media_id = news_id = None
     try:
@@ -304,8 +318,7 @@ def test_http_cycle():
             check_status(admin, "/api/admin/content/media/" + media_id, 204, method="DELETE")
 
 
-def test_webp_variants():
-    admin = login_admin()
+def test_webp_variants(admin):
     visitor = build_opener()
     media_id = news_id = None
     try:
@@ -372,6 +385,93 @@ def test_webp_variants():
                     "Deleting a media row must delete original and WebP derivatives")
 
 
+def test_legacy_backfill(admin):
+    # This fixture models a historical media row by uploading a JPEG and
+    # removing the disposable FakeS3 derivatives before testing backfill.
+    # No real S3 keys, private user records or database servers are accessed.
+    visitor = build_opener()
+    media_id = news_id = None
+    try:
+        raw, mime = multipart_photo()
+        _, payload = check_status(admin, "/api/admin/content/media/upload", 201,
+                                  method="POST", raw=raw,
+                                  headers={"Content-Type": mime})
+        uploaded = json.loads(payload)
+        media_id = uploaded["id"]
+        uuid_hex = media_id.replace("-", "")
+        prefix = f"/cms-test/media/{uuid_hex}.jpeg"
+        original_bytes = FakeS3.objects[prefix]
+        require(original_bytes == PHOTO, "Original fixture was not stored intact")
+        derivatives = [k for k in FakeS3.objects
+                       if k.startswith(prefix + ".w") and k.endswith(".webp")]
+        require(derivatives, "Fixture must begin with generated WebP variants")
+        for key in derivatives:
+            del FakeS3.objects[key]
+
+        route = f"/api/admin/content/media/{media_id}/webp-backfill"
+        before = FakeS3.puts
+        h_forbidden, _ = check_status(visitor, route, 401,
+                                      payload={"apply": False}, method="POST")
+        require("no-store" not in h_forbidden.get("Cache-Control", "") or
+                FakeS3.puts == before, "Anonymous inventory unexpectedly wrote S3")
+        inventory = json_call(admin, route, 200, {"apply": False}, method="POST")
+        require(inventory["mode"] == "dry-run" and
+                360 in inventory["missingWidths"] and
+                inventory["originalPreserved"],
+                "Legacy dry-run failed to identify missing derivatives")
+        require(FakeS3.puts == before and FakeS3.objects[prefix] == PHOTO,
+                "Dry-run must never upload or modify original")
+        apply = json_call(admin, route, 200, {"apply": True}, method="POST")
+        require(apply["mode"] == "apply" and
+                360 in apply["generatedWidths"] and apply["originalPreserved"],
+                "Explicit backfill did not generate missing WebP")
+        require(FakeS3.objects[prefix] == PHOTO, "Backfill mutated original JPEG")
+        webp_key = prefix + ".w360.webp"
+        require(webp_key in FakeS3.objects and FakeS3.conditional_puts > 0,
+                "Backfill did not persist WebP using conditional S3 PUT")
+        # Exercise true inter-worker race protection: a competing upload
+        # materializes the same WebP after HEAD but before If-None-Match PUT.
+        del FakeS3.objects[webp_key]
+        FakeS3.simulate_concurrent_put.add(webp_key)
+        collision = json_call(admin, route, 200, {"apply": True}, method="POST")
+        require(360 in collision["existingWidths"] and
+                360 not in collision["generatedWidths"] and
+                FakeS3.objects[webp_key] == PHOTO_WEBP,
+                "Conditional write overwrote the competing worker's object")
+        puts_after = FakeS3.puts
+        again = json_call(admin, route, 200, {"apply": True}, method="POST")
+        require(again["generatedWidths"] == [] and
+                360 in again["existingWidths"] and FakeS3.puts == puts_after,
+                "Repeated backfill must not rewrite existing variants")
+
+        url = f"/api/content/media/{media_id}/file"
+        news = {"title": "Legacy WebP " + uuid.uuid4().hex[:8],
+                "category": "PRUEBAS", "description": "Old CMS image fixture",
+                "body": "Local fake-only test", "image": url, "published": True}
+        news_id = json_call(admin, "/api/admin/content/news", 201, news, method="POST")["id"]
+        _, original_body = check_status(visitor, url, 200)
+        webp_headers, webp_body = check_status(visitor, url + "?width=360", 200)
+        require(original_body == PHOTO and webp_body == PHOTO_WEBP and
+                webp_headers.get("Content-Type", "").startswith("image/webp"),
+                "Public backfilled WebP or preserved JPEG was incorrect")
+        token = webp_headers["ETag"]
+        json_call(admin, f"/api/admin/content/news/{news_id}", 200,
+                  dict(news, published=False), method="PUT")
+        heads_before_revoked = FakeS3.heads
+        check_status(visitor, url + "?width=360", 404,
+                     headers={"If-None-Match": token})
+        require(FakeS3.heads == heads_before_revoked,
+                "Revoked historical derivative accessed S3 before auth")
+        print("PASS legacy CMS backfill: admin-only dry-run, generate missing, idempotence, 404 revocation")
+    finally:
+        if news_id:
+            check_status(admin, f"/api/admin/content/news/{news_id}", 204, method="DELETE")
+        if media_id:
+            check_status(admin, f"/api/admin/content/media/{media_id}", 204, method="DELETE")
+            require(not any(media_id.replace("-", "") in k for k in FakeS3.objects),
+                    "Deleting old media must clean generated WebP objects")
+
+
 def main():
     require(os.getenv("CI") == "true" and os.getenv("CMS_MEDIA_TEST_ISOLATED") == "1",
             "Refusing to run outside explicitly isolated CI")
@@ -393,6 +493,7 @@ def main():
         "Storage__AccessKey": "ci-fake",
         "Storage__SecretKey": "ci-fake",
         "CmsMedia__ResponsiveWebpEnabled": "true",
+        "CmsMedia__ExistingImageBackfillEnabled": "true",
         "DholeTracking__Enabled": "false",
         "Redis__ConnectionString": "",
         "Mongo__ConnectionString": "",
@@ -405,8 +506,12 @@ def main():
         run(["docker", "exec", "-i", PG_CONTAINER, "psql", "-v", "ON_ERROR_STOP=1",
              "-U", "postgres", "-d", "login"], input=seed, text=True, check=True,
             stdout=DEVNULL)
-        test_http_cycle()
-        test_webp_variants()
+        # Reuse one authenticated session across all CMS test cases.
+        # Each OTP request is rate-limited; test isolation must not trip 429.
+        admin = login_admin()
+        test_http_cycle(admin)
+        test_webp_variants(admin)
+        test_legacy_backfill(admin)
     finally:
         proc.terminate()
         try:
