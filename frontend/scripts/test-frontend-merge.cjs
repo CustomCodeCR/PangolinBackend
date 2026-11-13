@@ -359,6 +359,19 @@ for (const padding of [
 ]) {
   assert.ok(serviceStepsCss.includes(padding), 'Separación superior responsive para el número 02: ' + padding)
 }
+// Only the four long-form guide services need a more compact vertical
+// arrangement; transport pages keep their already approved stage spacing.
+const longGuideSlugs = Object.keys(JSON.parse(source('seo/service-landings.json')))
+assert.deepEqual(longGuideSlugs.sort(), [
+  '/servicios/agenciamiento-aduanal',
+  '/servicios/almacenamiento-fiscal',
+  '/servicios/bodegaje-general',
+  '/servicios/consolidadora-de-carga'
+], 'Solo los cuatro servicios de texto extendido reciben el ajuste')
+assert.match(serviceLanding, /service-landing-page--long-guide': Boolean\(guides\[route\]\)/,
+  'La clase de texto extendido se activa únicamente en las cuatro guías')
+assert.match(serviceStepsCss, /@media\(min-width:901px\)\s*\{\s*\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-grid\s*\{\s*padding-top:clamp\(55px,5vw,75px\);\s*gap:clamp\(20px,2vw,28px\);/,
+  'Las cuatro guías adelantan texto y foto sin alterar el tamaño de la foto ni los transportes')
 const itinerary = source('src/pages/Itinerary.vue')
 assert.match(itinerary, /closing/, 'Conservar Closing, ETD y ETA')
 // Regression contract for the result-card-only redesign: all itinerary fields,
