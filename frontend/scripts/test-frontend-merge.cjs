@@ -372,38 +372,16 @@ assert.match(serviceLanding, /service-landing-page--long-guide': Boolean\(guides
   'La clase de texto extendido se activa únicamente en las cuatro guías')
 assert.match(serviceLanding, /service-landing-page--balanced-guide': Boolean\(guides\[route\]\) && route !== '\/servicios\/almacenamiento-fiscal'/,
   'Solo Bodegaje, Agenciamiento y Consolidadora reciben el ajuste; Fiscal permanece igual')
-// Desktop: larger but readable text and slightly taller imagery on the four
-// long guides, with independent positioning for the three non-fiscal pages.
-assert.match(serviceStepsCss, /padding-top:clamp\(38px,3\.7vw,56px\);\s*gap:clamp\(12px,1\.25vw,18px\)/,
-  'Las cuatro guías conservan espacio para el 02 sin hacer estrecho el texto')
-assert.match(serviceStepsCss, /font-size:clamp\(17px,1\.25vw,19px\);\s*line-height:1\.48;/,
-  'Los párrafos de las cuatro guías recuperan una letra un poco mayor')
-assert.match(serviceStepsCss, /font-size:clamp\(17px,1\.18vw,18\.5px\);\s*line-height:1\.48;/,
-  'El párrafo secundario sigue siendo legible en el modo claro y oscuro')
-assert.match(serviceStepsCss, /height:clamp\(202px,calc\(27svh \+ 12px\),272px\);/,
-  'La fotografía del servicio de almacenamiento fiscal es algo mayor')
-assert.match(serviceStepsCss, /padding-top:clamp\(68px,calc\(5\.2vw \+ 10px\),88px\);\s*gap:clamp\(14px,1\.6vw,21px\)/,
-  'Los otros tres servicios conservan su posición ligeramente más baja')
-assert.match(serviceStepsCss, /height:clamp\(173px,calc\(24svh - 2px\),230px\);/,
-  'Las fotografías de los otros tres servicios crecen sin perder el límite de altura')
-// Responsive: narrow desktop / low-height landscape preserves space for the
-// full copy, while tablets and phones stack the video with unrestricted text.
-for (const breakpoint of [
-  '@media(min-width:901px) and (max-width:1199px)',
-  '@media(min-width:1200px) and (max-height:800px)',
-  '@media(max-width:900px)',
-  '@media(max-width:600px)'
-]) {
-  assert.ok(serviceStepsCss.includes(breakpoint), 'Responsividad del paso 02: ' + breakpoint)
-}
-assert.match(serviceStepsCss, /height:clamp\(194px,calc\(26svh \+ 6px\),244px\);/,
-  'La fotografía se limita en escritorios estrechos')
-assert.match(serviceStepsCss, /height:clamp\(200px,calc\(26svh \+ 5px\),242px\);/,
-  'La fotografía fiscal se adapta a escritorios con poca altura')
-assert.match(serviceStepsCss, /font-size:clamp\(18px,2\.2vw,19px\);/,
-  'El texto de tablet conserva una tipografía legible')
-assert.match(serviceStepsCss, /height:clamp\(220px,58vw,250px\);/,
-  'La foto de móvil crece dentro de su columna sin afectar al video')
+assert.match(serviceStepsCss, /\.service-landing-page--balanced-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-grid\s*\{\s*padding-top:clamp\(72px,calc\(5\.2vw \+ 14px\),92px\);\s*gap:clamp\(18px,1\.9vw,26px\);/,
+  'Los tres servicios recuperan ligeramente la posición vertical anterior')
+assert.match(serviceStepsCss, /\.service-landing-page--balanced-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-visual\s*\{\s*height:clamp\(161px,calc\(24svh - 14px\),218px\);/,
+  'Las fotografías de los tres servicios no sobresalen por debajo del video')
+assert.match(serviceStepsCss, /@media\(min-width:901px\)\s*\{\s*\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-grid\s*\{\s*padding-top:clamp\(42px,4vw,60px\);\s*gap:clamp\(14px,1\.5vw,22px\);/,
+  'Las cuatro guías adelantan texto y foto sin afectar a transportes')
+assert.match(serviceStepsCss, /\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-section-heading>p:not\(\.section-tag\)\s*\{\s*font-size:clamp\(16px,1\.2vw,18px\);\s*line-height:1\.55;/,
+  'Los párrafos largos conservan todo el contenido y utilizan un ritmo vertical compacto')
+assert.match(serviceStepsCss, /\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-visual\s*\{\s*height:clamp\(190px,27svh,260px\);/,
+  'La foto del paso 02 de las guías no se extiende más allá del video')
 // The light hero's transition is shorter/lower on desktop, while the dark
 // transition and the rest of the service stages keep their original layout.
 assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-story\s*\{\s*--service-story-blend:clamp\(115px,15svh,170px\);/,
