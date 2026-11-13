@@ -372,6 +372,12 @@ assert.match(serviceLanding, /service-landing-page--long-guide': Boolean\(guides
   'La clase de texto extendido se activa únicamente en las cuatro guías')
 assert.match(serviceStepsCss, /@media\(min-width:901px\)\s*\{\s*\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-grid\s*\{\s*padding-top:clamp\(55px,5vw,75px\);\s*gap:clamp\(20px,2vw,28px\);/,
   'Las cuatro guías adelantan texto y foto sin alterar el tamaño de la foto ni los transportes')
+// The light hero's transition is shorter/lower on desktop, while the dark
+// transition and the rest of the service stages keep their original layout.
+assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-story\s*\{\s*--service-story-blend:clamp\(115px,15svh,170px\);/,
+  'El difuminado de portada claro inicia más abajo en escritorio')
+assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-hero::after\s*\{\s*height:clamp\(130px,16svh,190px\);/,
+  'La transición difuminada de portada ocupa menos altura')
 const itinerary = source('src/pages/Itinerary.vue')
 assert.match(itinerary, /closing/, 'Conservar Closing, ETD y ETA')
 // Regression contract for the result-card-only redesign: all itinerary fields,
