@@ -249,7 +249,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="app-site service-landing-page">
+  <div class="app-site service-landing-page" :class="{ 'service-landing-page--long-guide': Boolean(guides[route]) }">
     <SiteHeader active="soluciones" overlay />
     <main>
       <section class="service-landing-hero" aria-labelledby="service-landing-title">
