@@ -23,7 +23,7 @@ Payload de mantenimiento explícito: `{"apply":true}`.
 - Vuelve a verificar qué variantes existen y genera **solo las que faltan**, usando `CmsImageVariants.EncodeAsync` que ya limita dimensiones, animaciones, orientación y concurrencia.
 - Limita la descarga del original a 5 MiB tanto por HEAD como por lectura real del stream. Si el original cambia de tamaño entre HEAD y GET se detiene.
 - Conserva el original y la fila de PostgreSQL. No cambia la publicación, el nombre ni los enlaces.
-- Las variantes existentes no se reescriben deliberadamente. La exclusión mutua es local al proceso, no entre múltiples servidores: **habilitar solo en un entorno controlado de instancia única**, y no realizar trabajos concurrentes en distintos hosts.
+- Las variantes existentes no se reescriben. Además de HEAD y la exclusión local, cada PUT de mantenimiento exige `If-None-Match: *` al proveedor S3: ante un objeto que apareció concurrentemente, el servidor devuelve HTTP 412 y el código lo reporta como existente sin sobrescribirlo. **Verificar en staging que la versión real de MinIO acepta PUT condicional**; si no lo soporta, el mantenimiento debe permanecer deshabilitado.
 
 ## Pruebas y límites
 
