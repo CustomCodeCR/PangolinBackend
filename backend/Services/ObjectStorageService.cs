@@ -60,6 +60,26 @@ public sealed class ObjectStorageService : IDisposable
         return _client.GetObjectAsync(request, ct);
     }
 
+    // HEAD avoids streaming an entire image when deciding whether an opt-in
+    // WebP derivative exists; a missing derivative always falls back to the original.
+    public async Task<long?> TryGetSizeAsync(string key, CancellationToken ct)
+    {
+        if (_client is null) throw new InvalidOperationException("S3 no configurado.");
+        try
+        {
+            var response = await _client.GetObjectMetadataAsync(new GetObjectMetadataRequest
+            {
+                BucketName = Bucket,
+                Key = key
+            }, ct);
+            return response.ContentLength;
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
     public async Task DeleteAsync(string key, CancellationToken ct)
     {
         if (_client is null) throw new InvalidOperationException("S3 no configurado.");
