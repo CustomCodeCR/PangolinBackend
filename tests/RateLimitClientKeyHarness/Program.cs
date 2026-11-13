@@ -50,4 +50,24 @@ authenticated.User = new ClaimsPrincipal(new ClaimsIdentity(
 Expect(RateLimitClientKey.PublicRead(authenticated, new ConfigurationBuilder().Build()),
        "user:test-user-123", "Authenticated read has independent quota");
 
-Console.WriteLine("OK: trusted proxy identity, spoofed XFF, DNS restrictions, user partition.");
+
+// Verify that every anonymous IP-based policy uses the same validated
+// proxy identity as authentication. Otherwise a gateway can make all
+// visitors share one limiter bucket even when auth correctly separates them.
+var backendProgramPath = Path.GetFullPath(Path.Combine(
+    AppContext.BaseDirectory, "..", "..", "..", "..", "..", "backend", "Program.cs"));
+var backendProgram = File.ReadAllText(backendProgramPath);
+foreach (var policy in new[] { "auth", "tracking", "tracking-translation", "news-translation", "public-quote", "assistant" })
+{
+    var marker = "options.AddPolicy(\"" + policy + "\"";
+    var start = backendProgram.IndexOf(marker, StringComparison.Ordinal);
+    if (start < 0) throw new Exception("Missing rate-limit policy: " + policy);
+    var end = backendProgram.IndexOf("options.AddPolicy(", start + marker.Length, StringComparison.Ordinal);
+    var block = backendProgram.Substring(start, (end < 0 ? backendProgram.Length : end) - start);
+    if (!block.Contains("RateLimitClientKey.PerAddress(ctx, builder.Configuration)", StringComparison.Ordinal))
+        throw new Exception("Rate-limit policy does not honor verified proxy identity: " + policy);
+    if (block.Contains("ctx.Connection.RemoteIpAddress", StringComparison.Ordinal))
+        throw new Exception("Rate-limit policy directly partitions on proxy peer: " + policy);
+}
+
+Console.WriteLine("OK: trusted proxy identity, spoofed XFF, DNS restrictions, user partition and all IP policies.");

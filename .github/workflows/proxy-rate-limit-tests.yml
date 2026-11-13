@@ -4,6 +4,7 @@ on:
   pull_request:
     branches: [main-2, main]
     paths:
+      - "backend/Program.cs"
       - "backend/Services/RateLimitClientKey.cs"
       - "tests/RateLimitClientKeyHarness/**"
       - ".github/workflows/proxy-rate-limit-tests.yml"
