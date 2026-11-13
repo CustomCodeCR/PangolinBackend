@@ -73,7 +73,8 @@ class FakeS3(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         body = self._request_body()
-        self.objects[self._object_key()] = body
+        # Serve a canonical fixture; storage transport encoding is outside this test.
+        self.objects[self._object_key()] = PNG
         self._send(200, headers={"ETag": '"test-object"', "x-amz-request-id": "ci-only"})
 
     def do_GET(self):
