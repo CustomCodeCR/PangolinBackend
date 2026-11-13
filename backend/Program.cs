@@ -668,6 +668,8 @@ app.MapManagedContent();
 app.MapInstagramReel();
 app.MapFacebookFeaturedVideo();
 app.MapManagedMediaObjects();
+// Explicit, admin-only inspection/backfill of existing CMS originals (disabled by default).
+app.MapCmsMediaBackfill();
 app.MapSiteCms();
 // Endpoint público de conexión. Los grupos privados se validan con la cookie JWT
 // revocable al establecer conexión; el hub no permite que clientes emitan eventos.
