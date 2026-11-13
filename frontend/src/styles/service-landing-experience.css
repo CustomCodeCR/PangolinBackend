@@ -356,15 +356,15 @@ html:not(.theme-dark) .service-landing-story .service-landing-detail-visual{
   }
 }
 
-/* The other three guides should sit a little lower, like the prior layout.
-   Keep the fiscal storage guide untouched. Compensate with a shorter
-   photo so its bottom edge does not drop below the adjacent video. */
+/* The three guides (except fiscal storage) sit another 14px lower.
+   Shorten only their photo by the same amount to keep the bottom edge
+   aligned with the sticky video; fiscal storage and transport are untouched. */
 @media(min-width:901px){
   .service-landing-page--balanced-guide .service-landing-story .service-landing-step--details .service-landing-detail-grid{
-    padding-top:clamp(58px,5.2vw,78px);
+    padding-top:clamp(72px,calc(5.2vw + 14px),92px);
     gap:clamp(18px,1.9vw,26px);
   }
   .service-landing-page--balanced-guide .service-landing-story .service-landing-step--details .service-landing-detail-visual{
-    height:clamp(175px,24svh,232px);
+    height:clamp(161px,calc(24svh - 14px),218px);
   }
 }
