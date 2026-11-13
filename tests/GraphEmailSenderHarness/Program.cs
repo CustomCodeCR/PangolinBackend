@@ -1,8 +1,8 @@
+global using Microsoft.Extensions.Configuration;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using CastroFallas.MiniQuote.Api.Services.Auth;
-global using Microsoft.Extensions.Configuration;
 
 const string recipient = "recipient@example.test";
 const string sender = "sender@example.test";
