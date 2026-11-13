@@ -398,6 +398,22 @@ assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-page--
   'Las cuatro guías hacen coherente el difuminado entre ambas capas')
 assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-hero::after\s*\{\s*height:clamp\(130px,16svh,190px\);/,
   'El difuminado ya aprobado en transportes se conserva')
+// Regression: top navigation underlines are hover/focus-only in both themes,
+// while the existing active item stays a red pill.
+const hoverOnlyNavCss = source('src/style.css')
+assert.match(hoverOnlyNavCss, /\/\* Navigation hover-only underlines\./,
+  'La navegación tiene una regla explícita de línea solo al interactuar')
+assert.match(hoverOnlyNavCss, /\.site-header \.main-nav > a:not\(\.is-active\):not\(\.nav-login\)[\s\S]*?border-bottom: 2px solid transparent !important;/,
+  'Los enlaces inactivos no muestran línea en reposo')
+assert.match(hoverOnlyNavCss, /\.nav-dropdown:not\(\.nav-dropdown--active\) > \.nav-dropdown__trigger:is\(:hover, :focus-visible\)[\s\S]*?border-bottom-color: rgba\(255, 255, 255, \.82\) !important;/,
+  'El subrayado sigue disponible con mouse y teclado')
+// Step 02: the adaptive measurement must actually affect long-form image
+// layout, rather than becoming an unused custom property in JavaScript.
+assert.match(serviceStepsCss, /max-height: var\(--service-guide-photo-limit, 310px\);/,
+  'La foto de guías extensas respeta el límite calculado')
+assert.match(serviceLanding, /if \(availableHeight >= 100\)/,
+  'La fotografía no desaparece por mediciones transitorias inválidas')
+
 const itinerary = source('src/pages/Itinerary.vue')
 assert.match(itinerary, /closing/, 'Conservar Closing, ETD y ETA')
 // Regression contract for the result-card-only redesign: all itinerary fields,
