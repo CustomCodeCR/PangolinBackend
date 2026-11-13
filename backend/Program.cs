@@ -164,7 +164,7 @@ builder.Services.AddRateLimiter(options =>
             AutoReplenishment = true
         }));
     options.AddPolicy("tracking", ctx => RateLimitPartition.GetFixedWindowLimiter(
-        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        RateLimitClientKey.PerAddress(ctx, builder.Configuration),
         _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 20,
@@ -174,7 +174,7 @@ builder.Services.AddRateLimiter(options =>
         }));
     // Bound expensive translations independently of Dynamics lookups.
     options.AddPolicy("tracking-translation", ctx => RateLimitPartition.GetFixedWindowLimiter(
-        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        RateLimitClientKey.PerAddress(ctx, builder.Configuration),
         _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 8,
@@ -183,7 +183,7 @@ builder.Services.AddRateLimiter(options =>
             AutoReplenishment = true
         }));
     options.AddPolicy("news-translation", ctx => RateLimitPartition.GetFixedWindowLimiter(
-        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        RateLimitClientKey.PerAddress(ctx, builder.Configuration),
         _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 12,
@@ -192,8 +192,10 @@ builder.Services.AddRateLimiter(options =>
             AutoReplenishment = true
         }));
     // Guest quote submissions must be throttled independently of login and reads.
+    // All IP policies use the same trusted-proxy validation as auth, so
+    // verified visitors behind the gateway do not share a single quota.
     options.AddPolicy("public-quote", ctx => RateLimitPartition.GetFixedWindowLimiter(
-        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        RateLimitClientKey.PerAddress(ctx, builder.Configuration),
         _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 12,
@@ -202,7 +204,7 @@ builder.Services.AddRateLimiter(options =>
             AutoReplenishment = true
         }));
     options.AddPolicy("assistant", ctx => RateLimitPartition.GetFixedWindowLimiter(
-        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        RateLimitClientKey.PerAddress(ctx, builder.Configuration),
         _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 5,
