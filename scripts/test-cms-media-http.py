@@ -45,6 +45,8 @@ class FakeS3(BaseHTTPRequestHandler):
     downloads = 0
     heads = 0
     puts = 0
+    conditional_puts = 0
+    simulate_concurrent_put = set()
     protocol_version = "HTTP/1.1"
 
     def log_message(self, fmt, *args):
@@ -79,6 +81,17 @@ class FakeS3(BaseHTTPRequestHandler):
     def do_PUT(self):
         body = self._request_body()
         FakeS3.puts += 1
+        key = self._object_key()
+        if self.headers.get("If-None-Match") == "*":
+            FakeS3.conditional_puts += 1
+        # Model another worker winning the race between our HEAD and PUT.
+        if key in FakeS3.simulate_concurrent_put:
+            FakeS3.objects[key] = PHOTO_WEBP
+            FakeS3.simulate_concurrent_put.remove(key)
+        if self.headers.get("If-None-Match") == "*" and key in FakeS3.objects:
+            self._send(412, b"<Error><Code>PreconditionFailed</Code></Error>",
+                       {"Content-Type": "application/xml"})
+            return
         # Serve canonical fixture bytes; AWS S3 transfer checksums/chunking
         # are outside this test. The PUT path identifies expected format.
         key = self._object_key()
@@ -414,8 +427,17 @@ def test_legacy_backfill(admin):
                 "Explicit backfill did not generate missing WebP")
         require(FakeS3.objects[prefix] == PHOTO, "Backfill mutated original JPEG")
         webp_key = prefix + ".w360.webp"
-        require(webp_key in FakeS3.objects,
-                "Backfill did not persist WebP variant")
+        require(webp_key in FakeS3.objects and FakeS3.conditional_puts > 0,
+                "Backfill did not persist WebP using conditional S3 PUT")
+        # Exercise true inter-worker race protection: a competing upload
+        # materializes the same WebP after HEAD but before If-None-Match PUT.
+        del FakeS3.objects[webp_key]
+        FakeS3.simulate_concurrent_put.add(webp_key)
+        collision = json_call(admin, route, 200, {"apply": True}, method="POST")
+        require(360 in collision["existingWidths"] and
+                360 not in collision["generatedWidths"] and
+                FakeS3.objects[webp_key] == PHOTO_WEBP,
+                "Conditional write overwrote the competing worker's object")
         puts_after = FakeS3.puts
         again = json_call(admin, route, 200, {"apply": True}, method="POST")
         require(again["generatedWidths"] == [] and
