@@ -30,6 +30,8 @@ PG_CONTAINER = "cms-media-pg"
 PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9YmFxTYAAAAASUVORK5CYII="
 )
+PHOTO = (ROOT / "frontend/public/images/cover-logistics.jpeg").read_bytes()
+PHOTO_WEBP = (ROOT / "frontend/public/images/cover-logistics.webp").read_bytes()
 
 
 def require(ok, message):
@@ -74,9 +76,29 @@ class FakeS3(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         body = self._request_body()
-        # Serve a canonical fixture; storage transport encoding is outside this test.
-        self.objects[self._object_key()] = PNG
+        # Serve canonical fixture bytes; AWS S3 transfer checksums/chunking
+        # are outside this test. The PUT path identifies expected format.
+        key = self._object_key()
+        if key.endswith(".jpeg"):
+            self.objects[key] = PHOTO
+        elif re.search(r"\.w\d+\.webp$", key):
+            self.objects[key] = PHOTO_WEBP
+        else:
+            self.objects[key] = PNG
         self._send(200, headers={"ETag": '"test-object"', "x-amz-request-id": "ci-only"})
+
+    def do_HEAD(self):
+        key = self._object_key()
+        if key not in self.objects:
+            self.send_response(404)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        raw = self.objects[key]
+        self.send_response(200)
+        self.send_header("Content-Length", str(len(raw)))
+        self.send_header("ETag", '"test-object"')
+        self.end_headers()
 
     def do_GET(self):
         key = self._object_key()
@@ -182,6 +204,21 @@ def multipart_image():
     return b"".join(parts), f"multipart/form-data; boundary={boundary}"
 
 
+def multipart_photo():
+    boundary = "CMS-WEBP-" + uuid.uuid4().hex
+    parts = [
+        (f'--{boundary}\r\nContent-Disposition: form-data; name="name"\r\n\r\n'
+         'Responsive test photo\r\n').encode(),
+        (f'--{boundary}\r\nContent-Disposition: form-data; name="kind"\r\n\r\n'
+         'Imagen\r\n').encode(),
+        (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; '
+         'filename="ci-photo.jpeg"\r\nContent-Type: image/jpeg\r\n\r\n').encode(),
+        PHOTO,
+        (f'\r\n--{boundary}--\r\n').encode(),
+    ]
+    return b"".join(parts), f"multipart/form-data; boundary={boundary}"
+
+
 def test_http_cycle():
     admin = login_admin()
     visitor = build_opener()
@@ -275,6 +312,7 @@ def main():
         "Storage__Bucket": "cms-test",
         "Storage__AccessKey": "ci-fake",
         "Storage__SecretKey": "ci-fake",
+        "CmsMedia__ResponsiveWebpEnabled": "true",
         "DholeTracking__Enabled": "false",
         "Redis__ConnectionString": "",
         "Mongo__ConnectionString": "",
