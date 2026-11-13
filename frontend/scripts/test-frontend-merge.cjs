@@ -342,6 +342,18 @@ assert.doesNotMatch(news, /news-article-modal|aria-modal="true"/, 'Noticias no a
 assert.match(news, /href="\/noticias"/, 'El usuario puede volver a la lista de noticias')
 const home = source('src/Home.vue')
 assert.match(home, /encodeURIComponent\(item\.id\)/, 'Home debe enlazar la noticia específica')
+// All public service pages share stage 02: keep the large numeral clear
+// of headings/descriptions on desktop and tablets, and above the copy on phones.
+const serviceLanding = source('src/pages/ServiceLanding.vue')
+const serviceStepsCss = source('src/styles/service-landing-experience.css')
+assert.match(serviceLanding, /class="service-landing-step service-landing-step--details" data-step="02"/,
+  'La etapa 02 sigue siendo compartida por todos los servicios')
+assert.ok(serviceStepsCss.includes('width:calc(100% - clamp(220px,24vw,300px));'),
+  'El título y la descripción reservan espacio para el 02 en escritorio')
+assert.ok(serviceStepsCss.includes('width:calc(100% - clamp(135px,19vw,180px));'),
+  'El 02 no invade el texto en tablet')
+assert.ok(serviceStepsCss.includes('padding-top:clamp(74px,15vw,94px);'),
+  'En móvil el 02 tiene espacio propio antes del texto')
 const itinerary = source('src/pages/Itinerary.vue')
 assert.match(itinerary, /closing/, 'Conservar Closing, ETD y ETA')
 // Regression contract for the result-card-only redesign: all itinerary fields,
