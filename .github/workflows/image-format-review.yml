@@ -1,0 +1,38 @@
+name: Static WebP AVIF preview (review only)
+
+on:
+  pull_request:
+    branches: [main-2]
+    paths:
+      - scripts/preview-static-image-formats.py
+      - .github/workflows/image-format-review.yml
+      - frontend/public/images/gio-assistant-base.png
+      - frontend/public/images/gio-assistant-hand.png
+      - frontend/public/images/about-operations-enhanced.jpg
+      - frontend/public/images/cover-logistics.jpeg
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare-image-variants:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install image encoders for isolated review
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq webp libavif-bin imagemagick
+      - name: Compare and validate WebP/AVIF previews without changing originals
+        env:
+          IMAGE_REVIEW_ONLY: '1'
+        run: python3 scripts/preview-static-image-formats.py
+      - name: Upload review variants and byte-size report
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-webp-avif-preview
+          path: ${{ runner.temp }}/image-variant-review/
+          retention-days: 7
