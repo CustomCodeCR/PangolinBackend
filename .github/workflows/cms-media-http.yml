@@ -3,7 +3,7 @@ on:
   push:
     branches: [test/cms-media-http-e2e-20261113]
   pull_request:
-    branches: [perf/cms-conditional-media-cache-20261113]
+    branches: [main-2]
 permissions:
   contents: read
 jobs:
