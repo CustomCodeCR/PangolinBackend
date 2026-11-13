@@ -291,3 +291,116 @@ html:not(.theme-dark) .service-landing-story .service-landing-detail-visual{
     border-radius:16px;
   }
 }
+
+/* Desktop/light: make the hero-to-story blur shorter and lower, without
+   moving the story card or changing the dark-mode transition. The story
+   overlap and its padding use the same variable, preserving card alignment. */
+@media(min-width:901px){
+  html:not(.theme-dark) .service-landing-story{
+    --service-story-blend:clamp(115px,15svh,170px);
+  }
+  html:not(.theme-dark) .service-landing-hero::after{
+    height:clamp(130px,16svh,190px);
+    backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);
+  }
+  html:not(.theme-dark) .service-landing-story::before{
+    backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);
+  }
+}
+
+/* The four extended service pages have longer hero copy than transport.
+   Keep the transport fade untouched. Move only the visible start of the
+   light hero fade lower for those four, without moving the story frame. */
+@media(min-width:901px){
+  html:not(.theme-dark) .service-landing-page--long-guide .service-landing-hero::after{
+    height:clamp(105px,13svh,155px);
+    background:linear-gradient(180deg,rgba(246,233,236,0) 0%,rgba(246,233,236,.12) 35%,rgba(246,233,236,.72) 78%,#f6e9ec 100%);
+    backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
+    mask-image:linear-gradient(180deg,transparent 0%,#000 32%,#000 100%);
+  }
+  html:not(.theme-dark) .service-landing-page--long-guide .service-landing-story::before{
+    backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
+    mask-image:linear-gradient(180deg,transparent 0%,#000 32%,#000 100%);
+  }
+}
+
+/* Step 02: keep the original full-width heading and image. Drop the text
+   just below the decorative numeral instead of squeezing the entire column;
+   shorter, natural line wrapping also keeps the photo near the video height. */
+.service-landing-story .service-landing-step--details .service-landing-section-heading--text-only{
+  width:100%;
+  max-width:100%;
+}
+@media(min-width:901px){
+  .service-landing-story .service-landing-step--details .service-landing-detail-grid{
+    padding-top:clamp(100px,7.5vw,125px);
+  }
+}
+@media(min-width:601px) and (max-width:900px){
+  .service-landing-story .service-landing-step--details .service-landing-detail-grid{
+    padding-top:clamp(95px,13vw,120px);
+  }
+}
+@media(max-width:600px){
+  .service-landing-story .service-landing-step--details .service-landing-detail-grid{
+    padding-top:clamp(85px,18vw,110px);
+  }
+}
+
+/* The four extended service guides contain more copy than transport pages.
+   Preserve the full heading width and number clearance. Reduce excess
+   vertical rhythm and the photo crop slightly so step 02 fits alongside
+   the sticky video instead of extending below its bottom edge. */
+@media(min-width:901px){
+  .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-detail-grid{
+    padding-top:clamp(42px,4vw,60px);
+    gap:clamp(14px,1.5vw,22px);
+  }
+  .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-section-heading>p:not(.section-tag){
+    font-size:clamp(16px,1.2vw,18px);
+    line-height:1.55;
+  }
+  .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-section-heading .service-landing-answer{
+    font-size:clamp(16px,1.15vw,18px);
+    line-height:1.55;
+    margin-top:10px;
+  }
+  .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-detail-visual{
+    height:clamp(210px,30svh,310px);
+    max-height:100%;
+    min-height:0;
+  }
+}
+
+/* The three guides (except fiscal storage) sit another 14px lower.
+   Shorten only their photo by the same amount to keep the bottom edge
+   aligned with the sticky video; fiscal storage and transport are untouched. */
+@media(min-width:901px){
+  .service-landing-page--balanced-guide .service-landing-story .service-landing-step--details .service-landing-detail-grid{
+    padding-top:clamp(72px,calc(5.2vw + 14px),92px);
+    gap:clamp(18px,1.9vw,26px);
+  }
+  .service-landing-page--balanced-guide .service-landing-story .service-landing-step--details .service-landing-detail-visual{
+    height:clamp(210px,30svh,310px);
+    max-height:100%;
+    min-height:0;
+  }
+}
+
+/* The photo returns to its original preferred size. A flexible second grid
+   row shares only the remaining space under the unchanged copy, inside the
+   sticky video's available height. Thus it can shrink without being clipped
+   or extending beyond the video's bottom edge on shorter desktop screens. */
+@media(min-width:901px){
+  .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-detail-grid{
+    grid-template-rows:max-content minmax(0,1fr);
+    max-height:calc(min(100svh - 48px,820px) - clamp(30px,4vw,58px) - 14px);
+  }
+  .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-detail-visual{
+    align-self:start;
+  }
+}

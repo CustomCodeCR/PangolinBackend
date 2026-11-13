@@ -55,6 +55,8 @@ let serviceScrollListener: (() => void) | undefined
 let serviceResizeListener: (() => void) | undefined
 let serviceScrollDirection: 'up' | 'down' = 'down'
 let serviceStepFrame = 0
+let serviceGuidePhotoFrame = 0
+let serviceGuidePhotoObserver: ResizeObserver | undefined
 const route = (props.pathname || (typeof window === 'undefined' ? '/' : window.location.pathname)).replace(/\/+$/, '') || '/'
 const detailPage = computed(() => servicePages.find(item => route === `/servicios/${item.slug}`))
 const serviceVideo = (pathname: string) => {
@@ -167,6 +169,37 @@ onMounted(async () => {
   await nextTick()
   const page = document.querySelector('.service-landing-page')
   const steps = page ? Array.from(page.querySelectorAll<HTMLElement>('.service-landing-step')) : []
+  // Fit only the four long guide photos to the real height available beside
+  // the sticky video; never shrink or reflow the existing paragraphs.
+  const guidePhoto = page?.classList.contains('service-landing-page--long-guide')
+    ? page.querySelector<HTMLElement>('.service-landing-step--details .service-landing-detail-visual')
+    : null
+  const guideGrid = page?.querySelector<HTMLElement>('.service-landing-step--details .service-landing-detail-grid')
+  const guideCopy = page?.querySelector<HTMLElement>('.service-landing-step--details .service-landing-section-heading')
+  const storyMedia = page?.querySelector<HTMLElement>('.service-landing-story__media')
+  const syncGuidePhotoHeight = () => {
+    serviceGuidePhotoFrame = 0
+    if (!guidePhoto || !guideGrid || !storyMedia) return
+    if (window.matchMedia('(max-width: 900px)').matches) {
+      guidePhoto.style.removeProperty('--service-guide-photo-limit')
+      return
+    }
+    // Both sticky columns start at the same 24px viewport offset. offsetTop
+    // values are independent of the scroll-reveal transforms/animations.
+    const photoTop = guideGrid.offsetTop + guidePhoto.offsetTop
+    const availableHeight = Math.max(0, Math.floor(storyMedia.offsetHeight - photoTop - 12))
+    guidePhoto.style.setProperty('--service-guide-photo-limit', `${availableHeight}px`)
+  }
+  const scheduleGuidePhotoFit = () => {
+    if (serviceGuidePhotoFrame) window.cancelAnimationFrame(serviceGuidePhotoFrame)
+    serviceGuidePhotoFrame = window.requestAnimationFrame(syncGuidePhotoHeight)
+  }
+  if (guidePhoto && guideCopy && storyMedia && typeof ResizeObserver !== 'undefined') {
+    serviceGuidePhotoObserver = new ResizeObserver(scheduleGuidePhotoFit)
+    serviceGuidePhotoObserver.observe(guideCopy)
+    serviceGuidePhotoObserver.observe(storyMedia)
+  }
+  scheduleGuidePhotoFit()
   if (!page || !steps.length) return
   let previousScrollY = window.scrollY
 
@@ -233,7 +266,10 @@ onMounted(async () => {
     if (!serviceStepFrame) serviceStepFrame = window.requestAnimationFrame(updateActiveStep)
   }
   serviceScrollListener = scheduleStepUpdate
-  serviceResizeListener = scheduleStepUpdate
+  serviceResizeListener = () => {
+    scheduleStepUpdate()
+    scheduleGuidePhotoFit()
+  }
   window.addEventListener('scroll', serviceScrollListener, { passive: true })
   window.addEventListener('resize', serviceResizeListener, { passive: true })
   updateActiveStep()
@@ -245,11 +281,14 @@ onBeforeUnmount(() => {
   if (serviceScrollListener) window.removeEventListener('scroll', serviceScrollListener)
   if (serviceResizeListener) window.removeEventListener('resize', serviceResizeListener)
   if (serviceStepFrame) window.cancelAnimationFrame(serviceStepFrame)
+  if (serviceGuidePhotoFrame) window.cancelAnimationFrame(serviceGuidePhotoFrame)
+  serviceGuidePhotoObserver?.disconnect()
+  serviceGuidePhotoObserver = undefined
 })
 </script>
 
 <template>
-  <div class="app-site service-landing-page">
+  <div class="app-site service-landing-page" :class="{ 'service-landing-page--long-guide': Boolean(guides[route]), 'service-landing-page--balanced-guide': Boolean(guides[route]) && route !== '/servicios/almacenamiento-fiscal' }">
     <SiteHeader active="soluciones" overlay />
     <main>
       <section class="service-landing-hero" aria-labelledby="service-landing-title">

@@ -342,6 +342,62 @@ assert.doesNotMatch(news, /news-article-modal|aria-modal="true"/, 'Noticias no a
 assert.match(news, /href="\/noticias"/, 'El usuario puede volver a la lista de noticias')
 const home = source('src/Home.vue')
 assert.match(home, /encodeURIComponent\(item\.id\)/, 'Home debe enlazar la noticia específica')
+// Keep the step 02 copy its full width, with a modest vertical offset so
+// the numeral is above the content and the image stays aligned with the video.
+const serviceLanding = source('src/pages/ServiceLanding.vue')
+const serviceStepsCss = source('src/styles/service-landing-experience.css')
+assert.match(serviceLanding, /class="service-landing-step service-landing-step--details" data-step="02"/,
+  'La etapa 02 sigue siendo compartida por todos los servicios')
+assert.match(serviceStepsCss, /\.service-landing-story \.service-landing-step--details \.service-landing-section-heading--text-only\s*\{\s*width:100%;\s*max-width:100%;/,
+  'El texto del paso 02 conserva el ancho original completo')
+assert.doesNotMatch(serviceStepsCss, /width:calc\(100% - clamp\(/,
+  'El texto del paso 02 no debe quedar angosto por el número decorativo')
+for (const padding of [
+  'padding-top:clamp(100px,7.5vw,125px);',
+  'padding-top:clamp(95px,13vw,120px);',
+  'padding-top:clamp(85px,18vw,110px);'
+]) {
+  assert.ok(serviceStepsCss.includes(padding), 'Separación superior responsive para el número 02: ' + padding)
+}
+// Only the four long-form guide services need a more compact vertical
+// arrangement; transport pages keep their already approved stage spacing.
+const longGuideSlugs = Object.keys(JSON.parse(source('seo/service-landings.json')))
+assert.deepEqual(longGuideSlugs.sort(), [
+  '/servicios/agenciamiento-aduanal',
+  '/servicios/almacenamiento-fiscal',
+  '/servicios/bodegaje-general',
+  '/servicios/consolidadora-de-carga'
+], 'Solo los cuatro servicios de texto extendido reciben el ajuste')
+assert.match(serviceLanding, /service-landing-page--long-guide': Boolean\(guides\[route\]\)/,
+  'La clase de texto extendido se activa únicamente en las cuatro guías')
+assert.match(serviceLanding, /service-landing-page--balanced-guide': Boolean\(guides\[route\]\) && route !== '\/servicios\/almacenamiento-fiscal'/,
+  'Solo Bodegaje, Agenciamiento y Consolidadora reciben el ajuste; Fiscal permanece igual')
+assert.match(serviceStepsCss, /\.service-landing-page--balanced-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-grid\s*\{\s*padding-top:clamp\(72px,calc\(5\.2vw \+ 14px\),92px\);\s*gap:clamp\(18px,1\.9vw,26px\);/,
+  'Los tres servicios recuperan ligeramente la posición vertical anterior')
+assert.match(serviceStepsCss, /\.service-landing-page--balanced-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-visual\s*\{\s*height:clamp\(210px,30svh,310px\);\s*max-height:100%;/,
+  'Las fotografías de los tres servicios recuperan su tamaño, con altura adaptable')
+assert.match(serviceStepsCss, /@media\(min-width:901px\)\s*\{\s*\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-grid\s*\{\s*padding-top:clamp\(42px,4vw,60px\);\s*gap:clamp\(14px,1\.5vw,22px\);/,
+  'Las cuatro guías adelantan texto y foto sin afectar a transportes')
+assert.match(serviceStepsCss, /\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-section-heading>p:not\(\.section-tag\)\s*\{\s*font-size:clamp\(16px,1\.2vw,18px\);\s*line-height:1\.55;/,
+  'Los párrafos largos conservan todo el contenido y utilizan un ritmo vertical compacto')
+assert.match(serviceStepsCss, /\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-visual\s*\{\s*height:clamp\(210px,30svh,310px\);\s*max-height:100%;\s*min-height:0;/,
+  'Las fotos de las cuatro guías recuperan su tamaño máximo anterior')
+assert.match(serviceStepsCss, /grid-template-rows:max-content minmax\(0,1fr\);\s*max-height:calc\(min\(100svh - 48px,820px\) - clamp\(30px,4vw,58px\) - 14px\)/,
+  'La imagen se adapta al espacio que queda debajo del texto y dentro del video')
+// The light hero's transition is shorter/lower on desktop, while the dark
+// transition and the rest of the service stages keep their original layout.
+assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-story\s*\{\s*--service-story-blend:clamp\(115px,15svh,170px\);/,
+  'El difuminado de portada claro inicia más abajo en escritorio')
+assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-hero::after\s*\{\s*height:clamp\(130px,16svh,190px\);/,
+  'La transición difuminada de portada ocupa menos altura')
+// Long-form guides lower the visible fade without moving the following frame;
+// the transport pages retain the shared baseline transition.
+assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-page--long-guide \.service-landing-hero::after\s*\{\s*height:clamp\(105px,13svh,155px\);/,
+  'Las cuatro guías bajan el inicio visual del difuminado de portada')
+assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-page--long-guide \.service-landing-story::before\s*\{\s*backdrop-filter:blur\(10px\);/,
+  'Las cuatro guías hacen coherente el difuminado entre ambas capas')
+assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-hero::after\s*\{\s*height:clamp\(130px,16svh,190px\);/,
+  'El difuminado ya aprobado en transportes se conserva')
 const itinerary = source('src/pages/Itinerary.vue')
 assert.match(itinerary, /closing/, 'Conservar Closing, ETD y ETA')
 // Regression contract for the result-card-only redesign: all itinerary fields,
