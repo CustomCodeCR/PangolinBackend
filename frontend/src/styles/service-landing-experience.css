@@ -333,82 +333,38 @@ html:not(.theme-dark) .service-landing-story .service-landing-detail-visual{
   }
 }
 
-/* The four longer service guides can use slightly larger copy and a
-   taller photo, without the overly tall paragraph spacing used before.
-   Full-width headings and the independent 02 numeral remain untouched. */
+/* The four extended service guides contain more copy than transport pages.
+   Preserve the full heading width and number clearance. Reduce excess
+   vertical rhythm and the photo crop slightly so step 02 fits alongside
+   the sticky video instead of extending below its bottom edge. */
 @media(min-width:901px){
   .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-detail-grid{
-    padding-top:clamp(38px,3.7vw,56px);
-    gap:clamp(12px,1.25vw,18px);
+    padding-top:clamp(42px,4vw,60px);
+    gap:clamp(14px,1.5vw,22px);
   }
   .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-section-heading>p:not(.section-tag){
-    font-size:clamp(17px,1.25vw,19px);
-    line-height:1.48;
-  }
-  .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-section-heading .service-landing-answer{
-    font-size:clamp(17px,1.18vw,18.5px);
-    line-height:1.48;
-    margin-top:8px;
-  }
-  .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-detail-visual{
-    height:clamp(202px,calc(27svh + 12px),272px);
-  }
-
-  /* These three guides were deliberately placed a little lower than
-     almacenamiento fiscal. Preserve that separation. */
-  .service-landing-page--balanced-guide .service-landing-story .service-landing-step--details .service-landing-detail-grid{
-    padding-top:clamp(68px,calc(5.2vw + 10px),88px);
-    gap:clamp(14px,1.6vw,21px);
-  }
-  .service-landing-page--balanced-guide .service-landing-story .service-landing-step--details .service-landing-detail-visual{
-    height:clamp(173px,calc(24svh - 2px),230px);
-  }
-}
-
-/* Narrow desktop / short landscape: reserve space for full text first.
-   Prevent the larger photo from pushing past the video on short screens. */
-@media(min-width:901px) and (max-width:1199px){
-  .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-section-heading>p:not(.section-tag),
-  .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-section-heading .service-landing-answer{
-    font-size:16.5px;
-    line-height:1.48;
-  }
-  .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-detail-grid{
-    gap:10px;
-  }
-  .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-detail-visual{
-    height:clamp(194px,calc(26svh + 6px),244px);
-  }
-  .service-landing-page--balanced-guide .service-landing-story .service-landing-step--details .service-landing-detail-grid{
-    gap:14px;
-  }
-  .service-landing-page--balanced-guide .service-landing-story .service-landing-step--details .service-landing-detail-visual{
-    height:clamp(175px,calc(23svh - 2px),212px);
-  }
-}
-@media(min-width:1200px) and (max-height:800px){
-  .service-landing-page--long-guide:not(.service-landing-page--balanced-guide) .service-landing-story .service-landing-step--details .service-landing-detail-visual{
-    height:clamp(200px,calc(26svh + 5px),242px);
-  }
-}
-
-/* Below 900px the video and the step are stacked, so the photo can grow
-   without overlapping it. Do not impose a fixed step height or hide copy. */
-@media(max-width:900px){
-  .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-section-heading>p:not(.section-tag){
-    font-size:clamp(18px,2.2vw,19px);
+    font-size:clamp(16px,1.2vw,18px);
     line-height:1.55;
   }
   .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-section-heading .service-landing-answer{
-    font-size:clamp(17px,2vw,18px);
+    font-size:clamp(16px,1.15vw,18px);
     line-height:1.55;
+    margin-top:10px;
   }
   .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-detail-visual{
-    height:clamp(235px,33vw,320px);
+    height:clamp(190px,27svh,260px);
   }
 }
-@media(max-width:600px){
-  .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-detail-visual{
-    height:clamp(220px,58vw,250px);
+
+/* The three guides (except fiscal storage) sit another 14px lower.
+   Shorten only their photo by the same amount to keep the bottom edge
+   aligned with the sticky video; fiscal storage and transport are untouched. */
+@media(min-width:901px){
+  .service-landing-page--balanced-guide .service-landing-story .service-landing-step--details .service-landing-detail-grid{
+    padding-top:clamp(72px,calc(5.2vw + 14px),92px);
+    gap:clamp(18px,1.9vw,26px);
+  }
+  .service-landing-page--balanced-guide .service-landing-story .service-landing-step--details .service-landing-detail-visual{
+    height:clamp(161px,calc(24svh - 14px),218px);
   }
 }
