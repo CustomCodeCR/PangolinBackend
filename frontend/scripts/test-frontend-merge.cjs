@@ -374,14 +374,16 @@ assert.match(serviceLanding, /service-landing-page--balanced-guide': Boolean\(gu
   'Solo Bodegaje, Agenciamiento y Consolidadora reciben el ajuste; Fiscal permanece igual')
 assert.match(serviceStepsCss, /\.service-landing-page--balanced-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-grid\s*\{\s*padding-top:clamp\(72px,calc\(5\.2vw \+ 14px\),92px\);\s*gap:clamp\(18px,1\.9vw,26px\);/,
   'Los tres servicios recuperan ligeramente la posición vertical anterior')
-assert.match(serviceStepsCss, /\.service-landing-page--balanced-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-visual\s*\{\s*height:clamp\(161px,calc\(24svh - 14px\),218px\);/,
-  'Las fotografías de los tres servicios no sobresalen por debajo del video')
+assert.match(serviceStepsCss, /\.service-landing-page--balanced-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-visual\s*\{\s*height:clamp\(210px,30svh,310px\);\s*max-height:100%;/,
+  'Las fotografías de los tres servicios recuperan su tamaño, con altura adaptable')
 assert.match(serviceStepsCss, /@media\(min-width:901px\)\s*\{\s*\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-grid\s*\{\s*padding-top:clamp\(42px,4vw,60px\);\s*gap:clamp\(14px,1\.5vw,22px\);/,
   'Las cuatro guías adelantan texto y foto sin afectar a transportes')
 assert.match(serviceStepsCss, /\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-section-heading>p:not\(\.section-tag\)\s*\{\s*font-size:clamp\(16px,1\.2vw,18px\);\s*line-height:1\.55;/,
   'Los párrafos largos conservan todo el contenido y utilizan un ritmo vertical compacto')
-assert.match(serviceStepsCss, /\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-visual\s*\{\s*height:clamp\(190px,27svh,260px\);/,
-  'La foto del paso 02 de las guías no se extiende más allá del video')
+assert.match(serviceStepsCss, /\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-visual\s*\{\s*height:clamp\(210px,30svh,310px\);\s*max-height:100%;\s*min-height:0;/,
+  'Las fotos de las cuatro guías recuperan su tamaño máximo anterior')
+assert.match(serviceStepsCss, /grid-template-rows:max-content minmax\(0,1fr\);\s*max-height:calc\(min\(100svh - 48px,820px\) - clamp\(30px,4vw,58px\) - 14px\)/,
+  'La imagen se adapta al espacio que queda debajo del texto y dentro del video')
 // The light hero's transition is shorter/lower on desktop, while the dark
 // transition and the rest of the service stages keep their original layout.
 assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-story\s*\{\s*--service-story-blend:clamp\(115px,15svh,170px\);/,
