@@ -70,7 +70,7 @@ public static class CmsMediaBackfillEndpoints
                 foreach (var width in CmsImageVariants.Widths)
                 {
                     var size = await storage.TryGetSizeAsync(CmsImageVariants.ObjectKey(media.ObjectKey, width), ct);
-                    if (size is > 0) existing.Add(width);
+                    if (size.HasValue) existing.Add(width);
                     else missing.Add(width);
                 }
 
@@ -120,7 +120,7 @@ public static class CmsMediaBackfillEndpoints
                         // earlier. This is a per-process mutex, not a cross-host
                         // distributed lock; enable only for single-worker maintenance.
                         var key = CmsImageVariants.ObjectKey(media.ObjectKey, width);
-                        if (await storage.TryGetSizeAsync(key, ct) is > 0)
+                        if ((await storage.TryGetSizeAsync(key, ct)).HasValue)
                         {
                             existing.Add(width);
                             continue;
