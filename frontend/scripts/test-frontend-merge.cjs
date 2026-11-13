@@ -342,18 +342,23 @@ assert.doesNotMatch(news, /news-article-modal|aria-modal="true"/, 'Noticias no a
 assert.match(news, /href="\/noticias"/, 'El usuario puede volver a la lista de noticias')
 const home = source('src/Home.vue')
 assert.match(home, /encodeURIComponent\(item\.id\)/, 'Home debe enlazar la noticia específica')
-// All public service pages share stage 02: keep the large numeral clear
-// of headings/descriptions on desktop and tablets, and above the copy on phones.
+// Keep the step 02 copy its full width, with a modest vertical offset so
+// the numeral is above the content and the image stays aligned with the video.
 const serviceLanding = source('src/pages/ServiceLanding.vue')
 const serviceStepsCss = source('src/styles/service-landing-experience.css')
 assert.match(serviceLanding, /class="service-landing-step service-landing-step--details" data-step="02"/,
   'La etapa 02 sigue siendo compartida por todos los servicios')
-assert.ok(serviceStepsCss.includes('width:calc(100% - clamp(220px,24vw,300px));'),
-  'El título y la descripción reservan espacio para el 02 en escritorio')
-assert.ok(serviceStepsCss.includes('width:calc(100% - clamp(135px,19vw,180px));'),
-  'El 02 no invade el texto en tablet')
-assert.ok(serviceStepsCss.includes('padding-top:clamp(74px,15vw,94px);'),
-  'En móvil el 02 tiene espacio propio antes del texto')
+assert.match(serviceStepsCss, /\.service-landing-story \.service-landing-step--details \.service-landing-section-heading--text-only\s*\{\s*width:100%;\s*max-width:100%;/,
+  'El texto del paso 02 conserva el ancho original completo')
+assert.doesNotMatch(serviceStepsCss, /width:calc\(100% - clamp\(/,
+  'El texto del paso 02 no debe quedar angosto por el número decorativo')
+for (const padding of [
+  'padding-top:clamp(100px,7.5vw,125px);',
+  'padding-top:clamp(95px,13vw,120px);',
+  'padding-top:clamp(85px,18vw,110px);'
+]) {
+  assert.ok(serviceStepsCss.includes(padding), 'Separación superior responsive para el número 02: ' + padding)
+}
 const itinerary = source('src/pages/Itinerary.vue')
 assert.match(itinerary, /closing/, 'Conservar Closing, ETD y ETA')
 // Regression contract for the result-card-only redesign: all itinerary fields,
