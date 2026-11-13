@@ -4909,7 +4909,10 @@ html:not(.theme-dark) .login-visual__content h1 em { color: var(--login-accent) 
 .login-visual{background-image:linear-gradient(125deg,#9c092ad9 0%,#9b0c28bf 33%,#1c174347 75%),var(--cms-login-hero,url('/images/hero.webp'))}
 .login-visual:has(>.cms-background-video){isolation:isolate;background-image:none;background-color:#1c243c}
 .login-visual:has(>.cms-background-video)::before{content:"";position:absolute;z-index:1;inset:0;background:linear-gradient(125deg,#9c092ad9,#1c174347);pointer-events:none}
-.login-visual:has(>.cms-background-video)>.login-guest-back,.login-visual:has(>.cms-background-video)>.login-visual__content,.login-visual:has(>.cms-background-video)>.login-visual__bottom{position:relative;z-index:2}
+.login-visual:has(>.cms-background-video)>.login-guest-back{position:absolute;z-index:3}
+.login-visual:has(>.cms-background-video)>.login-visual__content,.login-visual:has(>.cms-background-video)>.login-visual__bottom{position:relative;z-index:2}
+/* En pantallas compactas, Volver queda en la esquina opuesta al logo. */
+@media(max-width:800px){.login-visual .login-guest-back{top:16px;left:auto;right:clamp(18px,4vw,32px);max-width:calc(100% - 36px);white-space:nowrap}}
 .faq-section{background-image:var(--cms-faq,url('/images/operation.webp'))}
 .faq-section>.cms-background-video{z-index:0}
 .access-card--tracking{background-image:var(--cms-access-tracking,url('/images/tracking-red.webp'))}
@@ -5841,4 +5844,41 @@ html.theme-dark .app-site.services-page .services-directory .services-directory_
   background: #b30c2d !important;
   color: #fff !important;
   -webkit-text-fill-color: #fff !important;
+}
+
+/* Login OTP: use the same dark navy surfaces as the form, even when the
+   lazy-loaded Vue scoped stylesheet is injected after global CSS. */
+html.theme-dark .login-screen .login-auth-card .login-auth-feedback {
+  background: #0b1428 !important;
+  background-color: #0b1428 !important;
+  background-image: none !important;
+  border: 1px solid #435069 !important;
+  color: #f4f6fa !important;
+  -webkit-text-fill-color: #f4f6fa !important;
+}
+html.theme-dark .login-screen .login-auth-card .login-auth-feedback__copy strong {
+  color: #f4f6fa !important;
+  -webkit-text-fill-color: #f4f6fa !important;
+}
+html.theme-dark .login-screen .login-auth-card .login-auth-feedback__copy > span {
+  color: #cbd2df !important;
+  -webkit-text-fill-color: #cbd2df !important;
+}
+html.theme-dark .login-screen .login-auth-card .login-auth-feedback__copy small {
+  color: #ffa6b6 !important;
+  -webkit-text-fill-color: #ffa6b6 !important;
+}
+html.theme-dark .login-screen .login-auth-card .login-auth-feedback__icon {
+  background: #301e34 !important;
+  background-color: #301e34 !important;
+  border: 1px solid #68435a !important;
+  color: #ffa6b6 !important;
+  -webkit-text-fill-color: #ffa6b6 !important;
+}
+html.theme-dark .login-screen .login-auth-card .login-auth-sending {
+  background: #101b32 !important;
+  background-color: #101b32 !important;
+  border: 1px solid #435069 !important;
+  color: #d4dceb !important;
+  -webkit-text-fill-color: #d4dceb !important;
 }

@@ -209,12 +209,12 @@ public static class OfficialQuoteEndpoints
     public static IEndpointRouteBuilder MapOfficialQuotes(this IEndpointRouteBuilder app)
     {
         app.MapGet("/api/assistant/quote-locations", GetPublicAssistantLocations)
-            .RequireRateLimiting("auth");
+            .RequireRateLimiting("public-read");
         var group = app.MapGroup("/api/quotes/official");
 
         // Use the same verified public catalogue for the standalone form and GIO.
         group.MapGet("/locations", GetPublicAssistantLocations)
-            .RequireRateLimiting("auth");
+            .RequireRateLimiting("public-read");
 
         group.MapPost("", async (OfficialQuoteSubmit input, AppDbContext db, AuthService auth,
             HttpContext http, CancellationToken ct) =>

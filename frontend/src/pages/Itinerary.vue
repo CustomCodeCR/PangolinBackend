@@ -77,6 +77,43 @@ const resultsRef = ref<HTMLElement | null>(null)
 const resultados = ref<ItineraryResultado[]>([])
 const publishedItineraries = ref<ManagedItinerary[]>([])
 const earliestDeparture = ref('')
+const rateLimited = ref(false)
+const retrySeconds = ref(0)
+const SEARCH_COOLDOWN_KEY = 'castrofallas:itinerary-search:429-until'
+let retryTicker: ReturnType<typeof setInterval> | null = null
+
+function savedRetrySeconds(): number {
+  try {
+    const expires = Number(sessionStorage.getItem(SEARCH_COOLDOWN_KEY))
+    return Number.isFinite(expires) ? Math.max(0, Math.ceil((expires - Date.now()) / 1000)) : 0
+  } catch { return 0 }
+}
+
+function showRetryCooldown(seconds: number) {
+  rateLimited.value = true
+  searchPerformed.value = true
+  retrySeconds.value = Math.max(1, Math.min(300, seconds))
+  if (retryTicker) clearInterval(retryTicker)
+  retryTicker = setInterval(() => {
+    retrySeconds.value = Math.max(0, retrySeconds.value - 1)
+    if (retrySeconds.value === 0 && retryTicker) {
+      clearInterval(retryTicker)
+      retryTicker = null
+    }
+  }, 1000)
+}
+
+function beginRetryCooldown(response: Response) {
+  const raw = response.headers.get('Retry-After')
+  const numeric = raw ? Number(raw) : Number.NaN
+  const date = raw ? Date.parse(raw) : Number.NaN
+  const seconds = Number.isFinite(numeric) && numeric > 0 ? Math.ceil(numeric)
+    : Number.isFinite(date) ? Math.ceil((date - Date.now()) / 1000) : 60
+  const safeSeconds = Math.max(1, Math.min(300, seconds))
+  try { sessionStorage.setItem(SEARCH_COOLDOWN_KEY, String(Date.now() + safeSeconds * 1000)) }
+  catch { /* Storage is optional. */ }
+  showRetryCooldown(safeSeconds)
+}
 onMounted(async () => {
   // GIO carries the exact filters into this public results screen.
   const params = new URLSearchParams(window.location.search)
@@ -102,6 +139,7 @@ const stopItineraryEvents = ['itineraries', 'sync'].map(resource =>
 onUnmounted(() => {
   stopItineraryEvents.forEach(stop => stop())
   searchController?.abort()
+  if (retryTicker) clearInterval(retryTicker)
 })
 const cargando = ref(false)
 const errorBusqueda = ref('')
@@ -176,6 +214,13 @@ function syncItineraryRedSweeps() {
 }
 
 async function searchItineraries(pageNumber = 1, scrollToResults = true) {
+  // Never hammer the API during its advertised 429 cooldown, even after F5.
+  if (retrySeconds.value > 0) return
+  const remaining = savedRetrySeconds()
+  if (remaining > 0) {
+    showRetryCooldown(remaining)
+    return
+  }
   if (pageNumber < 1 || (pageNumber > 1 && pageNumber > totalPages.value)) return
 
   if (pageNumber === 1) {
@@ -208,6 +253,7 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
   const generation = ++searchGeneration
   cargando.value = true
   errorBusqueda.value = ''
+  rateLimited.value = false
   searchPerformed.value = true
 
   try {
@@ -225,6 +271,11 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
       totalPages.value = 1
       currentPage.value = 1
       return
+    }
+    if (response.status === 429) {
+      rateLimited.value = true
+      beginRetryCooldown(response)
+      throw new Error('itinerary_rate_limited')
     }
     if (!response.ok) throw new Error(`No se pudieron consultar itinerarios (${response.status}).`)
 
@@ -321,6 +372,15 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
           <span v-if="!errorBusqueda">{{ totalResults }} {{ t('custom.itinerary.form.resultsCount') }}</span>
         </header>
         <p v-if="cargando" role="status">{{ en ? "Loading itineraries…" : "Consultando itinerarios…" }}</p>
+        <div v-else-if="rateLimited" class="itinerary-rate-limit" role="alert">
+          <span class="itinerary-rate-limit__symbol" aria-hidden="true"><IconSymbol glyph="◷" :size="27" /></span>
+          <div class="itinerary-rate-limit__copy">
+            <strong>{{ en ? 'Too many requests for now' : 'Demasiadas consultas por el momento' }}</strong>
+            <p>{{ en ? 'We reached a temporary query limit. Your filters are safe. Try again shortly.' : 'Se alcanzó temporalmente el límite de consultas. Tus filtros siguen guardados. Podés intentarlo nuevamente en unos momentos.' }}</p>
+            <small v-if="retrySeconds > 0">{{ en ? 'Available in' : 'Disponible en' }} {{ retrySeconds }} {{ en ? 'seconds' : 'segundos' }}</small>
+          </div>
+          <button type="button" class="itinerary-rate-limit__retry" :disabled="retrySeconds > 0 || cargando" @click="searchItineraries(1, false)">{{ en ? 'Try again' : 'Volver a intentar' }}</button>
+        </div>
         <p v-else-if="errorBusqueda" role="alert">{{ errorBusqueda }}</p>
         <p v-else-if="resultados.length === 0">{{ en ? "No itineraries matched those filters." : "No se encontraron itinerarios con esos filtros." }}</p>
         <article v-for="(item, index) in (!cargando && !errorBusqueda ? resultados : [])"
@@ -591,6 +651,41 @@ async function searchItineraries(pageNumber = 1, scrollToResults = true) {
 }
 @media(max-width:355px){
   .itinerary-summary-card__facts{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+
+/* Friendly, self-contained 429 state: keep the filter form and result container. */
+.itinerary-rate-limit{
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  margin-top:12px;padding:24px 20px;border:1px solid rgba(178,12,42,.15);
+  border-radius:18px;background:linear-gradient(120deg,rgba(178,12,42,.045),rgba(255,255,255,.06));
+  color:inherit;
+}
+.itinerary-rate-limit__symbol{
+  display:grid;place-items:center;flex:0 0 58px;width:58px;height:58px;
+  border-radius:18px;color:#b20c2a;background:rgba(178,12,42,.09);
+}
+.itinerary-rate-limit__copy{flex:1 1 280px;min-width:0;display:grid;gap:7px}
+.itinerary-rate-limit__copy strong{font-size:clamp(16px,2vw,20px);line-height:1.3}
+.itinerary-rate-limit__copy p{margin:0;line-height:1.6;font-size:13px;color:#58606e}
+.itinerary-rate-limit__copy small{font-size:12px;color:#a70b29;font-weight:750}
+.itinerary-rate-limit__retry{
+  flex:0 0 auto;padding:12px 18px;border:0;border-radius:999px;
+  color:#fff;background:#b20c2a;font:inherit;font-size:12px;font-weight:850;cursor:pointer;
+}
+.itinerary-rate-limit__retry:disabled{opacity:.46;cursor:not-allowed}
+.itinerary-rate-limit__retry:focus-visible{outline:3px solid #f05b70;outline-offset:3px}
+:global(html.theme-dark .app-site.itinerary-page .itinerary-rate-limit){
+  border-color:rgba(126,142,174,.42);background:#060f21;color:#fff;
+}
+:global(html.theme-dark .app-site.itinerary-page .itinerary-rate-limit__copy p){color:#c5cbd7}
+:global(html.theme-dark .app-site.itinerary-page .itinerary-rate-limit__copy small){color:#ffa8ba}
+:global(html.theme-dark .app-site.itinerary-page .itinerary-rate-limit__symbol){color:#ffa8ba}
+@media(max-width:600px){
+  .itinerary-rate-limit{align-items:flex-start;gap:12px;padding:18px}
+  .itinerary-rate-limit__symbol{flex-basis:42px;width:42px;height:42px;border-radius:13px}
+  .itinerary-rate-limit__copy{flex-basis:calc(100% - 56px)}
+  .itinerary-rate-limit__retry{width:100%}
 }
 
 </style>

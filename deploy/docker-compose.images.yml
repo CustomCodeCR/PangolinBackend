@@ -20,6 +20,16 @@ services:
       Auth__JwtSigningKey: "${PANGOLIN_AUTH_JWT_SIGNING_KEY:?Definir PANGOLIN_AUTH_JWT_SIGNING_KEY}"
       Auth__SecureCookie: "true"
       Security__PublicOrigin: "https://${FENNEC_WWW_HOST:?Definir FENNEC_WWW_HOST}"
+      # Optional verified proxy hops for public-read and auth quotas.
+      # Empty by default: do not trust X-Forwarded-For until the real production
+      # chain and stable proxy identities are confirmed. Never use a Docker subnet.
+      RateLimiting__TrustedProxyIps__0: "${PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_IP_0:-}"
+      RateLimiting__TrustedProxyIps__1: "${PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_IP_1:-}"
+      # Prefer verified Docker DNS service names over ephemeral container IPs.
+      # Leave blank until trusted-hop chain has been verified end-to-end.
+      RateLimiting__TrustedProxyHostnames__0: "${PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_HOST_0:-}"
+      RateLimiting__TrustedProxyHostnames__1: "${PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_HOST_1:-}"
+      RateLimiting__TrustedProxyHostnames__2: "${PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_HOST_2:-}"
       Email__Mode: "${PANGOLIN_EMAIL_MODE:-Graph}"
       Graph__TenantId: "${PANGOLIN_GRAPH_TENANT_ID:-}"
       Graph__ClientId: "${PANGOLIN_GRAPH_CLIENT_ID:-}"
