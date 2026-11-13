@@ -40,6 +40,8 @@ jobs:
           dotnet-version: 10.0.x
       - name: Compilar API
         run: dotnet build backend/CastroFallas.MiniQuote.Api.csproj --configuration Release
+      - name: Verificar privacidad y revalidación de imágenes del CMS
+        run: dotnet run --project tests/MediaHttpCachePolicyHarness/MediaHttpCachePolicyHarness.csproj --configuration Release
 
   nginx-http-seo:
     name: Nginx production routing and SEO HTTP
