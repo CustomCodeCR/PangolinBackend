@@ -370,8 +370,12 @@ assert.deepEqual(longGuideSlugs.sort(), [
 ], 'Solo los cuatro servicios de texto extendido reciben el ajuste')
 assert.match(serviceLanding, /service-landing-page--long-guide': Boolean\(guides\[route\]\)/,
   'La clase de texto extendido se activa únicamente en las cuatro guías')
-assert.match(serviceStepsCss, /@media\(min-width:901px\)\s*\{\s*\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-grid\s*\{\s*padding-top:clamp\(55px,5vw,75px\);\s*gap:clamp\(20px,2vw,28px\);/,
-  'Las cuatro guías adelantan texto y foto sin alterar el tamaño de la foto ni los transportes')
+assert.match(serviceStepsCss, /@media\(min-width:901px\)\s*\{\s*\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-grid\s*\{\s*padding-top:clamp\(42px,4vw,60px\);\s*gap:clamp\(14px,1\.5vw,22px\);/,
+  'Las cuatro guías adelantan texto y foto sin afectar a transportes')
+assert.match(serviceStepsCss, /\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-section-heading>p:not\(\.section-tag\)\s*\{\s*font-size:clamp\(16px,1\.2vw,18px\);\s*line-height:1\.55;/,
+  'Los párrafos largos conservan todo el contenido y utilizan un ritmo vertical compacto')
+assert.match(serviceStepsCss, /\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-visual\s*\{\s*height:clamp\(190px,27svh,260px\);/,
+  'La foto del paso 02 de las guías no se extiende más allá del video')
 // The light hero's transition is shorter/lower on desktop, while the dark
 // transition and the rest of the service stages keep their original layout.
 assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-story\s*\{\s*--service-story-blend:clamp\(115px,15svh,170px\);/,
