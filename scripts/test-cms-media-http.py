@@ -223,8 +223,7 @@ def multipart_photo():
     return b"".join(parts), f"multipart/form-data; boundary={boundary}"
 
 
-def test_http_cycle():
-    admin = login_admin()
+def test_http_cycle(admin):
     visitor = build_opener()
     media_id = news_id = None
     try:
@@ -306,8 +305,7 @@ def test_http_cycle():
             check_status(admin, "/api/admin/content/media/" + media_id, 204, method="DELETE")
 
 
-def test_webp_variants():
-    admin = login_admin()
+def test_webp_variants(admin):
     visitor = build_opener()
     media_id = news_id = None
     try:
@@ -374,11 +372,10 @@ def test_webp_variants():
                     "Deleting a media row must delete original and WebP derivatives")
 
 
-def test_legacy_backfill():
+def test_legacy_backfill(admin):
     # This fixture models a historical media row by uploading a JPEG and
     # removing the disposable FakeS3 derivatives before testing backfill.
     # No real S3 keys, private user records or database servers are accessed.
-    admin = login_admin()
     visitor = build_opener()
     media_id = news_id = None
     try:
@@ -487,9 +484,12 @@ def main():
         run(["docker", "exec", "-i", PG_CONTAINER, "psql", "-v", "ON_ERROR_STOP=1",
              "-U", "postgres", "-d", "login"], input=seed, text=True, check=True,
             stdout=DEVNULL)
-        test_http_cycle()
-        test_webp_variants()
-        test_legacy_backfill()
+        # Reuse one authenticated session across all CMS test cases.
+        # Each OTP request is rate-limited; test isolation must not trip 429.
+        admin = login_admin()
+        test_http_cycle(admin)
+        test_webp_variants(admin)
+        test_legacy_backfill(admin)
     finally:
         proc.terminate()
         try:
