@@ -292,6 +292,24 @@ html:not(.theme-dark) .service-landing-story .service-landing-detail-visual{
   }
 }
 
+/* Desktop/light: make the hero-to-story blur shorter and lower, without
+   moving the story card or changing the dark-mode transition. The story
+   overlap and its padding use the same variable, preserving card alignment. */
+@media(min-width:901px){
+  html:not(.theme-dark) .service-landing-story{
+    --service-story-blend:clamp(115px,15svh,170px);
+  }
+  html:not(.theme-dark) .service-landing-hero::after{
+    height:clamp(130px,16svh,190px);
+    backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);
+  }
+  html:not(.theme-dark) .service-landing-story::before{
+    backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);
+  }
+}
+
 /* Step 02: keep the original full-width heading and image. Drop the text
    just below the decorative numeral instead of squeezing the entire column;
    shorter, natural line wrapping also keeps the photo near the video height. */
