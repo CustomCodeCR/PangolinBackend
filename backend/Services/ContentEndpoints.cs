@@ -201,6 +201,15 @@ public static class ContentEndpoints
             {
                 try { await storage.DeleteAsync(media.ObjectKey, ct); }
                 catch (Exception ex) { logger.LogError(ex, "Objeto S3 huérfano: {ObjectKey}", media.ObjectKey); }
+                // Derivatives are separate objects; delete them only when the
+                // original media row can be removed (no published/draft refs).
+                if (media.Kind == "Imagen")
+                    foreach (var width in CmsImageVariants.Widths)
+                    {
+                        var key = CmsImageVariants.ObjectKey(media.ObjectKey, width);
+                        try { await storage.DeleteAsync(key, ct); }
+                        catch (Exception ex) { logger.LogError(ex, "Variante S3 huérfana: {ObjectKey}", key); }
+                    }
             }
             return Results.NoContent();
         });
