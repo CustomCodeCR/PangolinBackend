@@ -21,15 +21,18 @@ const staticVariant = computed(() => {
 </script>
 
 <template>
-  <picture class="static-image-sources">
-    <source v-if="staticVariant" :srcset="staticVariant + '.avif'" type="image/avif" />
-    <source v-if="staticVariant" :srcset="staticVariant + '.webp'" type="image/webp" />
+  <!-- Preserve the original img root for CMS URLs and other unoptimized images.
+       Their parent pages depend on scoped styles applied to that root. -->
+  <img v-if="!staticVariant" :src="src" :alt="alt" :loading="loading" :fetchpriority="fetchpriority" :decoding="decoding" />
+  <picture v-else class="static-image-sources">
+    <source :srcset="staticVariant + '.avif'" type="image/avif" />
+    <source :srcset="staticVariant + '.webp'" type="image/webp" />
     <img :src="src" :alt="alt" :loading="loading" :fetchpriority="fetchpriority" :decoding="decoding" />
   </picture>
 </template>
 
 <style scoped>
-/* Preserve existing selectors, aspect ratio, absolute positioning and object-fit
-   from the original img. The picture adds no visual box. */
+/* The picture only negotiates codecs. Existing pages target the nested img
+   via :deep(img) because parent scoped CSS does not enter child components. */
 .static-image-sources { display: contents; }
 </style>
