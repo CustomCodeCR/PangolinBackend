@@ -20,8 +20,10 @@ public static class CmsMediaBackfillEndpoints
     {
         app.MapPost("/api/admin/content/media/{id:guid}/webp-backfill", async Task<IResult> (
             Guid id, BackfillRequest input, AppDbContext db, ObjectStorageService storage,
-            IConfiguration configuration, ILoggerFactory loggerFactory, CancellationToken ct) =>
+            IConfiguration configuration, ILoggerFactory loggerFactory, HttpContext http, CancellationToken ct) =>
         {
+            // Do not cache administrative inventory, including 400/404/409 results.
+            http.Response.Headers.CacheControl = MediaHttpCachePolicy.NoStore;
             if (!storage.Enabled)
                 return Results.Json(new { error = "Almacenamiento S3 no disponible." }, statusCode: 503);
 
