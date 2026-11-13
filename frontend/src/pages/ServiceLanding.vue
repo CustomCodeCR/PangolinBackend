@@ -375,10 +375,11 @@ onBeforeUnmount(() => {
                     <h2 id="guide-faq">{{ lang === 'es' ? 'Respuestas sobre este servicio.' : 'Answers about this service.' }}</h2>
                     <div v-for="(item, index) in details.faq" :key="index"
                       class="service-landing-faq__item" :data-faq-index="index"
-                      :class="{ 'is-open': openServiceFaq === index }">
+                      :class="{ 'is-open': openServiceFaq === index }"
+                      @click="openServiceFaq = openServiceFaq === index ? null : index">
                       <button type="button" :aria-expanded="openServiceFaq === index"
                         :aria-controls="`service-faq-${serviceSlug}-${index}`"
-                        @click="openServiceFaq = openServiceFaq === index ? null : index">
+                        @click.stop="openServiceFaq = openServiceFaq === index ? null : index">
                         {{ item.q }}<span aria-hidden="true">+</span>
                       </button>
                       <div :id="`service-faq-${serviceSlug}-${index}`" class="service-landing-faq__panel"
@@ -448,7 +449,7 @@ onBeforeUnmount(() => {
 .service-landing-scope p{margin:0}
 .service-landing-faq{max-width:950px;margin:0 auto 58px}
 .service-landing-faq h2{margin-bottom:24px}
-.service-landing-faq__item{margin:12px 0;padding:20px 22px;border:1px solid rgba(128,128,140,.25);border-radius:16px;background:color-mix(in srgb,var(--surface,#fff) 86%,transparent)}
+.service-landing-faq__item{margin:12px 0;padding:20px 22px;border:1px solid rgba(128,128,140,.25);border-radius:16px;background:color-mix(in srgb,var(--surface,#fff) 86%,transparent);cursor:pointer}
 .service-landing-faq__item > button{display:flex;width:100%;justify-content:space-between;gap:20px;align-items:center;padding:0;border:0;background:transparent;text-align:left;font:inherit;color:var(--ink,#20242b);font-weight:750;cursor:pointer}
 .service-landing-faq__item > button span{color:#b20c2a;font-size:24px;transition:transform .28s ease}
 .service-landing-faq__item.is-open > button span{transform:rotate(45deg)}

@@ -5,6 +5,7 @@ import SiteFooter from './components/SiteFooter.vue'
 import WorldGlobe from './components/WorldGlobe.vue'
 import IconSymbol from './components/IconSymbol.vue'
 import SiteMedia from './components/SiteMedia.vue'
+import StaticOptimizedImage from './components/StaticOptimizedImage.vue'
 import HomeInstagramReel from './components/HomeInstagramReel.vue'
 import { siteText, siteVisual, siteCssImage } from './siteCms'
 import { services as baseServices, faqs as baseFaqs, type ServiceKey } from './content'
@@ -269,7 +270,7 @@ onUnmounted(() => {
                     :tabindex="copy > 1 ? -1 : 0"
                     :aria-label="`${$t('custom.home.newsAria')}: ${item.title}`"
                   >
-                    <img :src="item.image" :alt="item.title" loading="lazy" />
+                    <StaticOptimizedImage :src="item.image" :alt="item.title" loading="lazy" />
                     <span class="home-hero-news__copy">
                       <small>{{ item.category }}</small>
                       <strong>{{ item.title }}</strong>
@@ -427,12 +428,13 @@ onUnmounted(() => {
               class="faq-item"
               :data-faq-index="index"
               :class="{ 'faq-item--open': expandedFaq === index }"
+              @click="expandedFaq = expandedFaq === index ? null : index"
             >
               <button
                 :aria-expanded="expandedFaq === index"
                 :aria-controls="`home-faq-answer-${index}`"
                 type="button"
-                @click="expandedFaq = expandedFaq === index ? null : index"
+                @click.stop="expandedFaq = expandedFaq === index ? null : index"
               >
                 <span>{{ faq.q }}</span>
                 <IconSymbol :glyph="expandedFaq === index ? '−' : '+'" :size="18" />
@@ -513,6 +515,8 @@ onUnmounted(() => {
 
 <style scoped>
 .home-news-empty { padding: 24px 16px; margin: 0; color: #5d6270; font-size: 14px; line-height: 1.5; }
+/* The FAQ answer area is part of the same clickable card. */
+.faq-list .faq-item { cursor: pointer; }
 </style>
 
 <style scoped>

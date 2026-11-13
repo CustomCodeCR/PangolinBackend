@@ -342,10 +342,50 @@ assert.doesNotMatch(news, /news-article-modal|aria-modal="true"/, 'Noticias no a
 assert.match(news, /href="\/noticias"/, 'El usuario puede volver a la lista de noticias')
 const home = source('src/Home.vue')
 assert.match(home, /encodeURIComponent\(item\.id\)/, 'Home debe enlazar la noticia específica')
+// Regression: every FAQ card can close from its answer/blank area; question
+// buttons keep native keyboard behavior without double-triggering the card.
+const servicesPage = source('src/pages/Services.vue')
+assert.match(home, /class="faq-item"[\s\S]*?@click="expandedFaq = expandedFaq === index \? null : index"/,
+  'FAQ del inicio abre y cierra al pulsar cualquier parte de la tarjeta')
+assert.match(home, /@click\.stop="expandedFaq = expandedFaq === index \? null : index"/,
+  'El botón de inicio no cambia de estado dos veces por el evento del contenedor')
+assert.match(home, /document\.addEventListener\('pointerdown', closeFaqOnOutsidePointer\)/,
+  'Las FAQ del inicio siguen cerrándose al pulsar fuera')
+assert.ok(servicesPage.includes('class="services-faq__item" :data-faq-index="index"') &&
+  servicesPage.includes('@click="openServicesFaq = openServicesFaq === index ? null : index"'),
+  'La tarjeta FAQ de servicios abre y cierra al pulsar cualquier parte')
+assert.ok(servicesPage.includes('@click.stop="openServicesFaq = openServicesFaq === index ? null : index"'),
+  'El botón FAQ de servicios no duplica la interacción del contenedor')
+assert.ok(servicesPage.includes('class="services-faq__panel"') &&
+  servicesPage.includes(':aria-hidden="openServicesFaq !== index"') &&
+  servicesPage.includes(':inert="openServicesFaq !== index"'),
+  'La animación conserva el contenido y la accesibilidad de la respuesta en el DOM')
+assert.ok(servicesPage.includes('grid-template-rows:0fr;opacity:0;visibility:hidden;'),
+  'Las FAQ de servicios se contraen con una transición igual a la de Transporte')
+assert.ok(servicesPage.includes('grid-template-rows:1fr;opacity:1;visibility:visible;'),
+  'Las FAQ de servicios se expanden con una transición suave')
+assert.ok(servicesPage.includes('@media(prefers-reduced-motion:reduce)'),
+  'La animación FAQ respeta preferencias de movimiento reducido')
+assert.ok(servicesPage.includes(':aria-expanded="openServicesFaq === index"'),
+  'Las preguntas de servicios continúan siendo accesibles por teclado')
+assert.match(servicesPage, /document\.addEventListener\('pointerdown', closeOtherServiceFaqs\)/,
+  'Los acordeones de servicios cierran al pulsar fuera o en otra tarjeta')
+assert.match(servicesPage, /document\.removeEventListener\('pointerdown', closeOtherServiceFaqs\)/,
+  'Los eventos globales de servicios se liberan al desmontar la página')
 // Keep the step 02 copy its full width, with a modest vertical offset so
 // the numeral is above the content and the image stays aligned with the video.
 const serviceLanding = source('src/pages/ServiceLanding.vue')
 const serviceStepsCss = source('src/styles/service-landing-experience.css')
+assert.match(serviceLanding, /class="service-landing-faq__item"[\s\S]*?@click="openServiceFaq = openServiceFaq === index \? null : index"/,
+  'Cada tarjeta FAQ individual se puede cerrar pulsando sobre su respuesta')
+assert.match(serviceLanding, /@click\.stop="openServiceFaq = openServiceFaq === index \? null : index"/,
+  'El botón FAQ de servicios no duplica el evento del contenedor')
+assert.match(serviceLanding, /document\.addEventListener\('pointerdown', closeServiceFaqOutside\)/,
+  'Las FAQ individuales cierran al pulsar fuera de su tarjeta')
+assert.match(serviceLanding, /document\.removeEventListener\('pointerdown', closeServiceFaqOutside\)/,
+  'No quedan eventos FAQ al salir de una página individual')
+assert.match(serviceLanding, /:aria-expanded="openServiceFaq === index"/,
+  'Los botones FAQ conservan su estado accesible para lectores de pantalla')
 assert.match(serviceLanding, /class="service-landing-step service-landing-step--details" data-step="02"/,
   'La etapa 02 sigue siendo compartida por todos los servicios')
 assert.match(serviceStepsCss, /\.service-landing-story \.service-landing-step--details \.service-landing-section-heading--text-only\s*\{\s*width:100%;\s*max-width:100%;/,
