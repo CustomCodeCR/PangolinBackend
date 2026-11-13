@@ -7,6 +7,8 @@
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Using Include="Microsoft.AspNetCore.Http" />
+    <Using Include="Microsoft.Extensions.Logging" />
     <!-- Compile the production converter as-is, without starting the backend. -->
     <Compile Include="../../backend/Services/CmsImageVariants.cs" Link="CmsImageVariants.cs" />
     <PackageReference Include="SkiaSharp" Version="4.153.1" />
