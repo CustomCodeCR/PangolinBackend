@@ -314,3 +314,14 @@ html:not(.theme-dark) .service-landing-story .service-landing-detail-visual{
     padding-top:clamp(85px,18vw,110px);
   }
 }
+
+/* The four service guides have longer descriptions than transport pages.
+   Keep their full-width copy, but reclaim the unused space above the text
+   and between the copy and photograph so the photograph stays level with
+   the adjacent video. The number remains in its top-right corner. */
+@media(min-width:901px){
+  .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-detail-grid{
+    padding-top:clamp(55px,5vw,75px);
+    gap:clamp(20px,2vw,28px);
+  }
+}
