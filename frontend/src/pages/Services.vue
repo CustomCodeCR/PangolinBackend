@@ -17,29 +17,14 @@ const serviceFaqs = computed(() => serviceFaqData.servicios.map(faq => ({
   answer: siteText('services.faq.' + serviceFaqData.servicios.indexOf(faq) + '.a', locale.value.toLowerCase().startsWith('es') ? faq.answer.es : faq.answer.en, locale.value)
 })))
 const servicesFaqRef = ref<HTMLElement | null>(null)
+const openServicesFaq = ref<number | null>(null)
 const closeOtherServiceFaqs = (event: PointerEvent) => {
-  const root = servicesFaqRef.value
-  if (!root || !(event.target instanceof Node)) return
-  const clickedCard = event.target instanceof Element
-    ? event.target.closest<HTMLDetailsElement>('details.services-faq__item')
-    : null
-  root.querySelectorAll<HTMLDetailsElement>('details.services-faq__item[open]').forEach(item => {
-    if (item !== clickedCard) item.open = false
-  })
-}
-const toggleServiceFaqCard = (event: MouseEvent) => {
-  // A summary already toggles its native details element. Only the answer
-  // and blank area need explicit handling so a click cannot toggle twice.
-  if (event.target instanceof Element && event.target.closest('summary')) return
-  if (event.currentTarget instanceof HTMLDetailsElement) {
-    event.currentTarget.open = !event.currentTarget.open
-  }
+  if (openServicesFaq.value === null || !(event.target instanceof Node)) return
+  const activeCard = servicesFaqRef.value?.querySelector<HTMLElement>(`[data-faq-index="${openServicesFaq.value}"]`)
+  if (activeCard && !activeCard.contains(event.target)) openServicesFaq.value = null
 }
 const closeServiceFaqOnEscape = (event: KeyboardEvent) => {
-  if (event.key !== 'Escape') return
-  servicesFaqRef.value?.querySelectorAll<HTMLDetailsElement>('details.services-faq__item[open]').forEach(item => {
-    item.open = false
-  })
+  if (event.key === 'Escape') openServicesFaq.value = null
 }
 onMounted(() => {
   document.addEventListener('pointerdown', closeOtherServiceFaqs)
@@ -154,10 +139,23 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
         <div ref="servicesFaqRef" class="container services-faq__inner">
           <p class="section-tag center">{{ locale.toLowerCase().startsWith('es') ? 'PREGUNTAS FRECUENTES' : 'FREQUENTLY ASKED QUESTIONS' }}</p>
           <h2 id="services-faq-title" class="section-title centered">{{ siteText('services.faq.heading', locale.toLowerCase().startsWith('es') ? 'Más sobre nuestros servicios' : 'More about our services', locale) }}</h2>
-          <details v-for="faq in serviceFaqs" :key="faq.question" class="services-faq__item" @click="toggleServiceFaqCard">
-            <summary>{{ faq.question }}</summary>
-            <p>{{ faq.answer }}</p>
-          </details>
+          <div v-for="(faq, index) in serviceFaqs" :key="index"
+            class="services-faq__item" :data-faq-index="index"
+            :class="{ 'is-open': openServicesFaq === index }"
+            @click="openServicesFaq = openServicesFaq === index ? null : index">
+            <button type="button" class="services-faq__question"
+              :aria-expanded="openServicesFaq === index"
+              :aria-controls="`services-faq-answer-${index}`"
+              @click.stop="openServicesFaq = openServicesFaq === index ? null : index">
+              <span class="services-faq__arrow" aria-hidden="true">▸</span>
+              <span>{{ faq.question }}</span>
+            </button>
+            <div :id="`services-faq-answer-${index}`" class="services-faq__panel"
+              :class="{ 'is-open': openServicesFaq === index }"
+              :aria-hidden="openServicesFaq !== index" :inert="openServicesFaq !== index">
+              <div class="services-faq__panel-clip"><p>{{ faq.answer }}</p></div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -218,8 +216,27 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
 </template>
 
 <style scoped>
-/* Make the entire FAQ tile clickable, including the answer and padding. */
+/* Match the animated transport-service FAQs without changing the cards. */
 .services-faq__item { cursor: pointer; }
+.services-faq__question {
+  display:flex;align-items:center;gap:10px;width:100%;padding:0;border:0;
+  background:transparent;color:inherit;text-align:left;font:inherit;font-weight:800;cursor:pointer;
+}
+.services-faq__arrow { display:inline-block;flex:0 0 auto;transition:transform .28s ease; }
+.services-faq__item.is-open .services-faq__arrow { transform:rotate(90deg); }
+.services-faq__question:focus-visible { outline:2px solid #b20c2a;outline-offset:5px;border-radius:4px; }
+.services-faq__panel {
+  display:grid;grid-template-rows:0fr;opacity:0;visibility:hidden;
+  transition:grid-template-rows .3s ease,opacity .25s ease,visibility .3s;
+}
+.services-faq__panel.is-open {
+  grid-template-rows:1fr;opacity:1;visibility:visible;
+  transition:grid-template-rows .3s ease,opacity .25s ease,visibility 0s;
+}
+.services-faq__panel-clip { min-height:0;overflow:hidden; }
+@media(prefers-reduced-motion:reduce) {
+  .services-faq__panel,.services-faq__panel.is-open,.services-faq__arrow { transition:none!important; }
+}
 /* Directorio SEO: mismo lenguaje visual de los FAQ y bloques de servicios.
    Las tarjetas son enlaces reales, compactos y visibles sin interacciones. */
 .services-directory {
