@@ -333,13 +333,25 @@ html:not(.theme-dark) .service-landing-story .service-landing-detail-visual{
   }
 }
 
-/* The four service guides have longer descriptions than transport pages.
-   Keep their full-width copy, but reclaim the unused space above the text
-   and between the copy and photograph so the photograph stays level with
-   the adjacent video. The number remains in its top-right corner. */
+/* The four extended service guides contain more copy than transport pages.
+   Preserve the full heading width and number clearance. Reduce excess
+   vertical rhythm and the photo crop slightly so step 02 fits alongside
+   the sticky video instead of extending below its bottom edge. */
 @media(min-width:901px){
   .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-detail-grid{
-    padding-top:clamp(55px,5vw,75px);
-    gap:clamp(20px,2vw,28px);
+    padding-top:clamp(42px,4vw,60px);
+    gap:clamp(14px,1.5vw,22px);
+  }
+  .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-section-heading>p:not(.section-tag){
+    font-size:clamp(16px,1.2vw,18px);
+    line-height:1.55;
+  }
+  .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-section-heading .service-landing-answer{
+    font-size:clamp(16px,1.15vw,18px);
+    line-height:1.55;
+    margin-top:10px;
+  }
+  .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-detail-visual{
+    height:clamp(190px,27svh,260px);
   }
 }
