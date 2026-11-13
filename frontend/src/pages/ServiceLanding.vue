@@ -249,7 +249,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="app-site service-landing-page" :class="{ 'service-landing-page--long-guide': Boolean(guides[route]) }">
+  <div class="app-site service-landing-page" :class="{ 'service-landing-page--long-guide': Boolean(guides[route]), 'service-landing-page--balanced-guide': Boolean(guides[route]) && route !== '/servicios/almacenamiento-fiscal' }">
     <SiteHeader active="soluciones" overlay />
     <main>
       <section class="service-landing-hero" aria-labelledby="service-landing-title">
