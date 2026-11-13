@@ -259,8 +259,16 @@ function finishClose() { isClosing.value = false }
 
     <button class="site-assistant__mascot" type="button" :aria-label="isOpen ? copy.close : copy.open" :aria-expanded="isOpen" @click="togglePanel">
       <span class="site-assistant__figure" aria-hidden="true">
-        <img class="site-assistant__figure-base" src="/images/gio-assistant-base.png" alt="" />
-        <img class="site-assistant__wave-hand" src="/images/gio-assistant-hand.png" alt="" />
+        <picture class="site-assistant__image-sources">
+          <source srcset="/images/gio-assistant-base.avif" type="image/avif" />
+          <source srcset="/images/gio-assistant-base.webp" type="image/webp" />
+          <img class="site-assistant__figure-base" src="/images/gio-assistant-base.png" alt="" />
+        </picture>
+        <picture class="site-assistant__image-sources">
+          <source srcset="/images/gio-assistant-hand.avif" type="image/avif" />
+          <source srcset="/images/gio-assistant-hand.webp" type="image/webp" />
+          <img class="site-assistant__wave-hand" src="/images/gio-assistant-hand.png" alt="" />
+        </picture>
       </span>
         <span class="site-assistant__hint" :class="{ 'site-assistant__hint--visible': hasPageScrolled }" aria-hidden="true">{{ isEnglish ? 'Ask GIO' : 'Hablar con GIO' }}</span>
     </button>
@@ -268,6 +276,8 @@ function finishClose() { isClosing.value = false }
 </template>
 
 <style scoped>
+/* picture only selects codecs: no new box may move GIO or its waving hand. */
+.site-assistant__image-sources { display: contents; }
 /* El globo de texto, no la mascota, se desvanece al volver a scroll = 0.
    La especificidad evita que hover/focus lo muestre mientras estamos arriba. */
 .site-assistant__mascot .site-assistant__hint{
