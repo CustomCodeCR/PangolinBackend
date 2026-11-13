@@ -50,6 +50,34 @@ public sealed class ObjectStorageService : IDisposable
         }, ct);
     }
 
+    // S3 atomically rejects an existing object key with HTTP 412. A simple
+    // HEAD-before-PUT is not sufficient to prevent multi-host overwrite races.
+    // Backfill uses this method exclusively; ordinary uploads are unchanged.
+    public async Task<bool> UploadIfAbsentAsync(
+        string key, Stream content, long length, string mime, CancellationToken ct)
+    {
+        if (_client is null) throw new InvalidOperationException("S3 no configurado.");
+        try
+        {
+            await _client.PutObjectAsync(new PutObjectRequest
+            {
+                BucketName = Bucket,
+                Key = key,
+                InputStream = content,
+                ContentType = mime,
+                AutoCloseStream = false,
+                IfNoneMatch = "*",
+                Headers = { ContentLength = length }
+            }, ct);
+            return true;
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.PreconditionFailed)
+        {
+            // Another process already uploaded this variant; no changes made.
+            return false;
+        }
+    }
+
     public Task<GetObjectResponse> DownloadAsync(string key, CancellationToken ct,
         long? rangeStart = null, long? rangeEnd = null)
     {
