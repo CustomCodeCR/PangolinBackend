@@ -5,6 +5,7 @@ Must run only in an isolated CI environment. Never connect to a live database or
 The caller starts a temporary Docker container named cms-media-pg on port 15433.
 """
 import base64
+from datetime import datetime, timedelta, timezone
 from email import policy
 from email.parser import BytesParser
 from http.cookiejar import CookieJar
@@ -226,7 +227,19 @@ def test_http_cycle():
         json_call(admin, "/api/admin/content/news/" + news_id, 200,
                   dict(news, published=True), method="PUT")
         check_status(visitor, url, 304, headers={"If-None-Match": etag})
-        print("PASS CMS media E2E: draft 404, published 200, repeat 304, Range 206, admin no-store, revoked 404")
+        expired_at = (datetime.now(timezone.utc) - timedelta(minutes=2)).isoformat()
+        json_call(admin, "/api/admin/content/news/" + news_id, 200,
+                  dict(news, expiresAt=expired_at), method="PUT")
+        h_expired, _ = check_status(visitor, url, 404, headers={"If-None-Match": etag})
+        require("no-store" in h_expired.get("Cache-Control", ""),
+                "Expired public media must not be cacheable")
+        _, news_bytes = check_status(visitor, "/api/content/news", 200)
+        require(news_id not in [entry["id"] for entry in json.loads(news_bytes)],
+                "Expired news must disappear from public listing")
+        json_call(admin, "/api/admin/content/news/" + news_id, 200,
+                  dict(news, expiresAt=None), method="PUT")
+        check_status(visitor, url, 304, headers={"If-None-Match": etag})
+        print("PASS CMS media E2E: draft 404, published 200, 304, 206, admin privacy, unpublished/expired 404")
     finally:
         if news_id:
             check_status(admin, "/api/admin/content/news/" + news_id, 204, method="DELETE")
