@@ -11,6 +11,7 @@ export default defineNuxtConfig({
   srcDir: 'app/',
   app: {
     head: {
+      htmlAttrs: { lang: 'es' },
       link: [{ rel: 'icon', type: 'image/png', sizes: '192x192', href: '/favicon.png' }],
       meta: [{ name: 'msvalidate.01', content: '3B7ADBDA75E127B245F7E653F3021EE8' }]
     }
