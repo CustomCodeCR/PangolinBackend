@@ -43,6 +43,7 @@ class FakeS3(BaseHTTPRequestHandler):
     """Minimal loopback object store that ignores SigV4; no real S3/MinIO calls."""
     objects = {}
     downloads = 0
+    heads = 0
     protocol_version = "HTTP/1.1"
 
     def log_message(self, fmt, *args):
@@ -88,6 +89,7 @@ class FakeS3(BaseHTTPRequestHandler):
         self._send(200, headers={"ETag": '"test-object"', "x-amz-request-id": "ci-only"})
 
     def do_HEAD(self):
+        FakeS3.heads += 1
         key = self._object_key()
         if key not in self.objects:
             self.send_response(404)
@@ -234,7 +236,11 @@ def test_http_cycle():
         require(uploaded["src"] == url, "Uploaded media URL mismatch")
         # A tiny PNG has no smaller variant; width requests fall back to original.
         # Publication authorization still applies to that fallback.
+        heads_before_draft = FakeS3.heads
         hdrs, _ = check_status(visitor, url, 404)
+        check_status(visitor, url + "?width=360", 404)
+        require(FakeS3.heads == heads_before_draft,
+                "Draft access must fail before querying S3 for any variant")
         require("no-store" in hdrs.get("Cache-Control", ""), "Draft media must be no-store")
         news = {"title": "CI media cache " + uuid.uuid4().hex[:8],
                 "category": "PRUEBAS", "description": "Temporary test-only item",
@@ -245,6 +251,10 @@ def test_http_cycle():
         require(content == PNG, "Published image payload mismatch")
         etag = h200.get("ETag")
         require(etag and etag.startswith('"cms-'), "Published image missing CMS ETag")
+        fallback_h, fallback_bytes = check_status(visitor, url + "?width=360", 200)
+        require(fallback_bytes == PNG and fallback_h.get("ETag") == etag and
+                fallback_h.get("Content-Type", "").startswith("image/png"),
+                "Unoptimized old media must fall back to its original bytes, MIME and ETag")
         require("private" in h200.get("Cache-Control", "") and
                 "no-cache" in h200.get("Cache-Control", ""), "Public media must revalidate")
         fetches = FakeS3.downloads
@@ -310,7 +320,10 @@ def test_webp_variants():
         require(uploaded["src"] == url, "Upload must retain canonical original URL")
         require(any(f"/media/{media_id.replace('-', '')}.jpeg.w360.webp" in key
                     for key in FakeS3.objects), "Upload did not generate WebP 360")
+        heads_before_draft = FakeS3.heads
         h_draft, _ = check_status(visitor, variant, 404)
+        require(FakeS3.heads == heads_before_draft,
+                "Unpublished variant must be rejected before S3 HEAD")
         require("no-store" in h_draft.get("Cache-Control", ""),
                 "Unpublished WebP must not be cacheable")
         news = {"title": "CI WebP image " + uuid.uuid4().hex[:8],
@@ -340,7 +353,10 @@ def test_webp_variants():
         check_status(admin, f"/api/admin/content/media/{media_id}/file", 200)
         json_call(admin, "/api/admin/content/news/" + news_id, 200,
                   dict(news, published=False), method="PUT")
+        heads_before_revocation = FakeS3.heads
         h_revoked, _ = check_status(visitor, variant, 404, headers={"If-None-Match": tag})
+        require(FakeS3.heads == heads_before_revocation,
+                "Revoked variant must be rejected before S3 HEAD")
         require("no-store" in h_revoked.get("Cache-Control", ""),
                 "Revoked variant must return 404 with no-store")
         json_call(admin, "/api/admin/content/news/" + news_id, 200,
