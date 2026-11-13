@@ -404,3 +404,14 @@ html:not(.theme-dark) .service-landing-story .service-landing-detail-visual{
     align-self:start;
   }
 }
+
+
+/* Honor the Step 02 photo limit measured against the adjacent sticky video.
+   The preceding style rules set the preferred height; this adds a cap only for
+   long-form service guides. Without this rule, JS calculated a value unused. */
+@media (min-width: 901px) {
+  .service-landing-page--long-guide .service-landing-story
+  .service-landing-step--details .service-landing-detail-visual {
+    max-height: var(--service-guide-photo-limit, 310px);
+  }
+}
