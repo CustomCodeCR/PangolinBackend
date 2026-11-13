@@ -388,6 +388,14 @@ assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-story\
   'El difuminado de portada claro inicia más abajo en escritorio')
 assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-hero::after\s*\{\s*height:clamp\(130px,16svh,190px\);/,
   'La transición difuminada de portada ocupa menos altura')
+// Long-form guides lower the visible fade without moving the following frame;
+// the transport pages retain the shared baseline transition.
+assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-page--long-guide \.service-landing-hero::after\s*\{\s*height:clamp\(105px,13svh,155px\);/,
+  'Las cuatro guías bajan el inicio visual del difuminado de portada')
+assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-page--long-guide \.service-landing-story::before\s*\{\s*backdrop-filter:blur\(10px\);/,
+  'Las cuatro guías hacen coherente el difuminado entre ambas capas')
+assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-hero::after\s*\{\s*height:clamp\(130px,16svh,190px\);/,
+  'El difuminado ya aprobado en transportes se conserva')
 const itinerary = source('src/pages/Itinerary.vue')
 assert.match(itinerary, /closing/, 'Conservar Closing, ETD y ETA')
 // Regression contract for the result-card-only redesign: all itinerary fields,
