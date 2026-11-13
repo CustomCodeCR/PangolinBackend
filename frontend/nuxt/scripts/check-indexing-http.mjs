@@ -44,8 +44,8 @@ for (const path of paths) {
       continue
     }
     const html = await response.text()
-    const htmlTag = html.match(/<html\\b[^>]*>/i)?.[0] || ''
-    if (!/\\blang=["'](?:es|en)(?:-[A-Za-z]+)?["']/i.test(htmlTag)) {
+    const htmlTag = html.match(/<html\b[^>]*>/i)?.[0] || ''
+    if (!/\blang=["'](?:es|en)(?:-[A-Za-z]+)?["']/i.test(htmlTag)) {
       fail(path, 'falta atributo lang en <html> SSR')
     }
     const title = html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.trim()
