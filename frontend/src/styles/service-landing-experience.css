@@ -370,7 +370,9 @@ html:not(.theme-dark) .service-landing-story .service-landing-detail-visual{
     margin-top:10px;
   }
   .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-detail-visual{
-    height:clamp(190px,27svh,260px);
+    height:clamp(210px,30svh,310px);
+    max-height:100%;
+    min-height:0;
   }
 }
 
@@ -383,6 +385,22 @@ html:not(.theme-dark) .service-landing-story .service-landing-detail-visual{
     gap:clamp(18px,1.9vw,26px);
   }
   .service-landing-page--balanced-guide .service-landing-story .service-landing-step--details .service-landing-detail-visual{
-    height:clamp(161px,calc(24svh - 14px),218px);
+    height:clamp(210px,30svh,310px);
+    max-height:100%;
+    min-height:0;
+  }
+}
+
+/* The photo returns to its original preferred size. A flexible second grid
+   row shares only the remaining space under the unchanged copy, inside the
+   sticky video's available height. Thus it can shrink without being clipped
+   or extending beyond the video's bottom edge on shorter desktop screens. */
+@media(min-width:901px){
+  .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-detail-grid{
+    grid-template-rows:max-content minmax(0,1fr);
+    max-height:calc(min(100svh - 48px,820px) - clamp(30px,4vw,58px) - 14px);
+  }
+  .service-landing-page--long-guide .service-landing-story .service-landing-step--details .service-landing-detail-visual{
+    align-self:start;
   }
 }
