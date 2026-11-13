@@ -18,6 +18,27 @@ Ensure(!output.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.O
        "Refusing to write generated images into the repository.");
 Directory.CreateDirectory(output);
 
+// Prove the guard rejects malformed, extreme, and unsupported dimensions
+// before SkiaSharp tries to allocate decoded pixel buffers.
+Ensure(!CmsImageReviewLimits.CanDecode(0, 400), "Zero width must be rejected");
+Ensure(!CmsImageReviewLimits.CanDecode(-1, 400), "Negative dimensions must be rejected");
+Ensure(!CmsImageReviewLimits.CanDecode(8_000, 8_000), "Over-budget pixels must be rejected");
+Ensure(!CmsImageReviewLimits.CanDecode(11_000, 100), "Excessive axis must be rejected");
+Ensure(CmsImageReviewLimits.CanDecode(4_000, 4_000), "Budget boundary should be allowed");
+Ensure(CmsImageReviewLimits.GetTargetSize(200, 100, 640) == (200, 100),
+       "Thumbnails may never upscale an original");
+Ensure(CmsImageReviewLimits.GetTargetSize(1200, 600, 320) == (320, 160),
+       "Thumbnails must retain the original aspect ratio");
+try
+{
+    _ = CmsImageReviewLimits.GetTargetSize(1200, 600, 999);
+    throw new InvalidOperationException("Unapproved width was accepted");
+}
+catch (ArgumentOutOfRangeException)
+{
+    // Expected refusal.
+}
+
 string[] files =
 [
     "frontend/public/images/about-operations-enhanced.jpg",
@@ -41,15 +62,14 @@ foreach (var relative in files)
     using var codec = SKCodec.Create(input);
     Ensure(codec is not null, "Image decoder rejected " + relative);
     var info = codec!.Info;
-    Ensure(info.Width > 0 && info.Height > 0 && (long)info.Width * info.Height <= 16_000_000,
+    Ensure(CmsImageReviewLimits.CanDecode(info.Width, info.Height),
            "Image dimensions exceed the strict pixel budget: " + relative);
     using var original = SKBitmap.Decode(codec);
     Ensure(original is not null, "Could not decode " + relative);
     var bitmap = original!;
     foreach (var targetWidth in new[] { 320, 640 })
     {
-        var width = Math.Min(targetWidth, info.Width);
-        var height = Math.Max(1, (int)Math.Round(info.Height * (width / (double)info.Width)));
+        var (width, height) = CmsImageReviewLimits.GetTargetSize(info.Width, info.Height, targetWidth);
         var alpha = bitmap.AlphaType == SKAlphaType.Opaque ? SKAlphaType.Opaque : SKAlphaType.Premul;
         using var resized = new SKBitmap(new SKImageInfo(width, height, SKColorType.Rgba8888, alpha));
         Ensure(bitmap.ScalePixels(resized, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear)),
