@@ -209,12 +209,57 @@ def main():
     })
     require(status == 201 and disposable.get('id'),
             f'No se pudo crear cuenta desechable: {status} {disposable}')
+    # A second, isolated customer company lets us exercise true cross-tenant
+    # access, not just client vs. administrator. LocalOutbox never sends mail.
+    isolated_jar = http.cookiejar.CookieJar()
+    isolated_browser = build_opener(HTTPCookieProcessor(isolated_jar))
+    isolated_start = time.time()
+    status, isolated_started = call(isolated_browser, '/api/auth/request-otp',
+                                    {'correo': deleted_email})
+    require(status == 200 and isolated_started.get('challengeId'),
+            'No se pudo emitir el OTP de la segunda empresa de prueba.')
+    isolated_otp = latest_otp(deleted_email, isolated_start)
+    require(isolated_otp is not None, 'No se generó el OTP local de la segunda empresa.')
+    status, isolated_verified = call(isolated_browser, '/api/auth/verify-otp', {
+        'challengeId': isolated_started['challengeId'], 'codigo': isolated_otp
+    })
+    require(status == 200 and isolated_verified.get('user', {}).get('role') == 'client',
+            'La segunda empresa no pudo autenticarse como cliente.')
+    status, isolated_me = call(isolated_browser, '/api/auth/me')
+    require(status == 200 and isolated_me.get('clienteId') != me.get('clienteId'),
+            'Las dos cuentas de prueba deben pertenecer a empresas distintas.')
+
+    isolated_payload = {
+        'serviceType': 'Maritime', 'origin': 'Puerto Limón', 'destination': 'Miami',
+        'cargoType': 'Carga general', 'weightKg': 110, 'pieces': 1
+    }
+    status, isolated_quote = call(isolated_browser, '/api/quotes', isolated_payload)
+    require(status == 201 and isolated_quote.get('id'),
+            'La segunda empresa no pudo crear su cotización de prueba.')
+    isolated_quote_id = isolated_quote['id']
+    status, _ = call(isolated_browser, '/api/quotes/' + admin_quote_id)
+    require(status == 404, 'Una empresa distinta pudo consultar la cotización del administrador.')
+    status, _ = call(browser, '/api/quotes/' + isolated_quote_id)
+    require(status == 404, 'Un administrador pudo consultar una cotización ajena de otra empresa.')
+    status, admin_isolated_list = call(browser, '/api/quotes/mine?page=1&pageSize=100')
+    require(status == 200 and all(q.get('id') != isolated_quote_id
+                                  for q in admin_isolated_list.get('items', [])),
+            'La lista de cotizaciones de un administrador filtró una solicitud ajena.')
+    status, _ = call(isolated_browser, '/api/admin/users')
+    require(status == 403, 'Un cliente aislado pudo listar cuentas administrativas.')
     delete_route = '/api/admin/users/' + disposable['id']
     status, denied_live_delete = call(browser, delete_route, method='DELETE')
     require(status == 409, 'La API permitió eliminar una cuenta nueva que seguía activa.')
     status, disabled_delete = call(browser, delete_route, {'role': 'cliente', 'activo': False}, 'PATCH')
     require(status == 200 and disabled_delete.get('activo') is False,
             'No se pudo guardar el estado desactivado de la cuenta desechable.')
+    # Deactivation must revoke previously issued sessions on the NEXT request.
+    # This checks PostgreSQL-backed session validation, not only a cookie clear.
+    status, _ = call(isolated_browser, '/api/auth/me')
+    require(status == 401, 'La sesión de una cuenta desactivada siguió autenticada.')
+    status, _ = call(isolated_browser, '/api/quotes/' + isolated_quote_id)
+    require(status == 401, 'Una cuenta desactivada conservó acceso a sus cotizaciones.')
+
     status, removed = call(browser, delete_route, method='DELETE')
     require(status == 204, f'La eliminación controlada no funcionó: {status} {removed}')
     status, removed_again = call(browser, delete_route, method='DELETE')
@@ -466,12 +511,15 @@ def main():
             f'El cliente no recibió role=client ({status}).')
     status, client_me = call(client_browser, '/api/auth/me')
     require(status == 200 and client_me.get('role') == 'client', 'JWT cliente no válido.')
+    status, _ = call(client_browser, '/api/quotes/' + isolated_quote_id)
+    require(status == 404, 'Un cliente pudo ver la cotización de otra empresa.')
+
     status, _ = call(client_browser, '/api/quotes/' + admin_quote_id)
     require(status == 404, 'Un cliente pudo acceder a la cotización privada de un administrador.')
     status, client_mine_before = call(client_browser, '/api/quotes/mine')
-    require(status == 200 and all(q.get('id') != admin_quote_id
+    require(status == 200 and all(q.get('id') not in (admin_quote_id, isolated_quote_id)
                                   for q in client_mine_before.get('items', [])),
-            'La lista de clientes expone una cotización de administrador.')
+            'La lista de clientes expone cotizaciones ajenas a su empresa.')
     status, denied_users = call(client_browser, '/api/admin/users')
     require(status == 403, f'Cliente pudo listar cuentas: {status} {denied_users}')
     status, denied_delete = call(client_browser, '/api/admin/users/' + disposable['id'], method='DELETE')
