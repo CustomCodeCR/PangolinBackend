@@ -292,27 +292,25 @@ html:not(.theme-dark) .service-landing-story .service-landing-detail-visual{
   }
 }
 
-/* Stage 02: the decorative 02 occupies the top-right corner, so the copy
-   must never flow underneath it. Scope this to every service landing. */
+/* Step 02: keep the original full-width heading and image. Drop the text
+   just below the decorative numeral instead of squeezing the entire column;
+   shorter, natural line wrapping also keeps the photo near the video height. */
+.service-landing-story .service-landing-step--details .service-landing-section-heading--text-only{
+  width:100%;
+  max-width:100%;
+}
 @media(min-width:901px){
-  .service-landing-story .service-landing-step--details .service-landing-section-heading--text-only{
-    width:calc(100% - clamp(220px,24vw,300px));
-    max-width:1120px;
+  .service-landing-story .service-landing-step--details .service-landing-detail-grid{
+    padding-top:clamp(100px,7.5vw,125px);
   }
 }
 @media(min-width:601px) and (max-width:900px){
-  .service-landing-story .service-landing-step--details .service-landing-section-heading--text-only{
-    width:calc(100% - clamp(135px,19vw,180px));
+  .service-landing-story .service-landing-step--details .service-landing-detail-grid{
+    padding-top:clamp(95px,13vw,120px);
   }
 }
 @media(max-width:600px){
-  /* On phones give the number its own vertical space instead of
-     squeezing the heading into a narrow column. */
   .service-landing-story .service-landing-step--details .service-landing-detail-grid{
-    padding-top:clamp(74px,15vw,94px);
-  }
-  .service-landing-story .service-landing-step--details .service-landing-section-heading--text-only{
-    width:100%;
-    max-width:100%;
+    padding-top:clamp(85px,18vw,110px);
   }
 }
