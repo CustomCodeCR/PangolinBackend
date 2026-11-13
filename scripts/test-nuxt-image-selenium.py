@@ -43,6 +43,28 @@ try:
                     hero && getComputedStyle(hero).backgroundImage.includes('/api/content/media/');
                 """)
             )
+            # Static JPEG fallback selects modern formats. CMS media must never
+            # inherit static sources, since publication is permission-checked.
+            about = driver.execute_script("""
+              const img = document.querySelector('.home-about-preview__image img');
+              const picture = img?.closest('picture');
+              return {
+                original: img?.getAttribute('src') || '',
+                selected: img?.currentSrc || '',
+                sources: [...(picture?.querySelectorAll('source') || [])]
+                  .map(source => source.getAttribute('srcset'))
+              };
+            """)
+            assert about["original"], f"Missing About image: {about}"
+            if about["original"] == "/images/about-operations-enhanced.jpg":
+                assert about["selected"].endswith((".avif", ".webp")), (
+                    f"Static About fallback was not optimized: {about}"
+                )
+                assert len(about["sources"]) == 2, f"Missing static AVIF/WebP alternatives: {about}"
+            else:
+                assert not about["sources"], (
+                    f"CMS-managed About media received static image sources: {about}"
+                )
         if route == "/servicios":
             WebDriverWait(driver, 20).until(
                 lambda d: d.execute_script("""
