@@ -89,6 +89,8 @@ public static class ManagedMediaObjectEndpoints
     private static async Task<IResult> ReadObject(Guid id, AppDbContext db,
         ObjectStorageService storage, HttpContext http, bool onlyPublished, CancellationToken ct)
     {
+        // Prevent caching any missing, unpublished or administrative response.
+        http.Response.Headers.CacheControl = MediaHttpCachePolicy.NoStore;
         var media = await db.ManagedMedia.AsNoTracking().FirstOrDefaultAsync(m => m.Id == id, ct);
         if (media?.ObjectKey is null || !storage.Enabled)
             return Results.NotFound();
@@ -97,7 +99,8 @@ public static class ManagedMediaObjectEndpoints
         {
             var link = $"/api/content/media/{id}/file";
             var isPublishedInNews = media.Kind == "Imagen" &&
-                await db.ManagedNews.AsNoTracking().AnyAsync(n => n.Published && n.Image == link, ct);
+                await db.ManagedNews.AsNoTracking().AnyAsync(n => n.Published &&
+                    (n.ExpiresAt == null || n.ExpiresAt > DateTime.UtcNow) && n.Image == link, ct);
             var isPublishedOnSite = (media.Kind == "Imagen" || media.Kind == "Video") &&
                 await db.SiteCmsSlots.AsNoTracking().AnyAsync(x => x.PublishedMediaId == id, ct);
             if (!isPublishedInNews && !isPublishedOnSite) return Results.NotFound();
@@ -107,6 +110,16 @@ public static class ManagedMediaObjectEndpoints
         {
             long? start = null, end = null;
             var range = http.Request.Headers.Range.ToString();
+            // The publication check above is required even for conditional 304s.
+            // No shared/public TTL: an unpublish must be visible on the next request.
+            var entityTag = onlyPublished ? MediaHttpCachePolicy.EntityTag(id, media.SizeBytes) : null;
+            if (entityTag is not null &&
+                MediaHttpCachePolicy.IsNotModified(http.Request.Headers.IfNoneMatch.ToString(), range, entityTag))
+            {
+                http.Response.Headers.CacheControl = MediaHttpCachePolicy.PublishedMedia;
+                http.Response.Headers.ETag = entityTag;
+                return Results.StatusCode(StatusCodes.Status304NotModified);
+            }
             if (media.SizeBytes is long total && total > 0)
             {
                 http.Response.Headers.AcceptRanges = "bytes";
@@ -128,6 +141,11 @@ public static class ManagedMediaObjectEndpoints
             }
             var response = await storage.DownloadAsync(media.ObjectKey, ct, start, end);
             var contentType = media.MimeType ?? "application/octet-stream";
+            if (entityTag is not null)
+            {
+                http.Response.Headers.CacheControl = MediaHttpCachePolicy.PublishedMedia;
+                http.Response.Headers.ETag = entityTag;
+            }
             if (start is long a && end is long b && media.SizeBytes is long fileSize)
             {
                 http.Response.StatusCode = StatusCodes.Status206PartialContent;
