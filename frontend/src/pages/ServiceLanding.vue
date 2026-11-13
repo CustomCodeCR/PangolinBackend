@@ -188,7 +188,13 @@ onMounted(async () => {
     // values are independent of the scroll-reveal transforms/animations.
     const photoTop = guideGrid.offsetTop + guidePhoto.offsetTop
     const availableHeight = Math.max(0, Math.floor(storyMedia.offsetHeight - photoTop - 12))
-    guidePhoto.style.setProperty('--service-guide-photo-limit', `${availableHeight}px`)
+    // A zero/negative room estimate can happen before the sticky columns have
+    // measured. Never collapse the photo while the layout is settling.
+    if (availableHeight >= 100) {
+      guidePhoto.style.setProperty('--service-guide-photo-limit', `${availableHeight}px`)
+    } else {
+      guidePhoto.style.removeProperty('--service-guide-photo-limit')
+    }
   }
   const scheduleGuidePhotoFit = () => {
     if (serviceGuidePhotoFrame) window.cancelAnimationFrame(serviceGuidePhotoFrame)
