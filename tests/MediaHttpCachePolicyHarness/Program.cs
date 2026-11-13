@@ -23,4 +23,20 @@ Check(MediaHttpCachePolicy.PublishedMedia.Contains("private, no-cache", StringCo
 Check(MediaHttpCachePolicy.NoStore.Contains("no-store", StringComparison.Ordinal),
     "Unpublished and admin media must never be cached.");
 
+
+// Ensure a refactor cannot bypass the publication check by serving HTTP 304
+// before verifying permissions against the live database.
+var sourcePath = Path.GetFullPath(Path.Combine(
+    AppContext.BaseDirectory, "..", "..", "..", "..", "..",
+    "backend", "Services", "ManagedMediaObjectEndpoints.cs"));
+var endpoints = File.ReadAllText(sourcePath);
+var publishGate = endpoints.IndexOf("if (!isPublishedInNews && !isPublishedOnSite)", StringComparison.Ordinal);
+var conditional = endpoints.IndexOf("MediaHttpCachePolicy.IsNotModified(", StringComparison.Ordinal);
+Check(publishGate >= 0 && conditional > publishGate,
+    "A conditional 304 must never bypass the publication check.");
+Check(endpoints.Contains("n.ExpiresAt == null || n.ExpiresAt > DateTime.UtcNow", StringComparison.Ordinal),
+    "Expired news must not keep old media publicly available.");
+Check(endpoints.Contains("http.Response.Headers.CacheControl = MediaHttpCachePolicy.NoStore", StringComparison.Ordinal),
+    "Default access-denied responses must remain no-store.");
+
 Console.WriteLine("PASS CMS media cache contract: private revalidation, ETags, weak/list validators, ranges and no-store.");
