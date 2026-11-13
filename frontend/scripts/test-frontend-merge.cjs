@@ -351,19 +351,22 @@ assert.match(home, /@click\.stop="expandedFaq = expandedFaq === index \? null : 
   'El botón de inicio no cambia de estado dos veces por el evento del contenedor')
 assert.match(home, /document\.addEventListener\('pointerdown', closeFaqOnOutsidePointer\)/,
   'Las FAQ del inicio siguen cerrándose al pulsar fuera')
-assert.match(servicesPage, /class="services-faq__item"[\\s\\S]*?@click="openServicesFaq = openServicesFaq === index \\? null : index"/,
+assert.ok(servicesPage.includes('class="services-faq__item" :data-faq-index="index"') &&
+  servicesPage.includes('@click="openServicesFaq = openServicesFaq === index ? null : index"'),
   'La tarjeta FAQ de servicios abre y cierra al pulsar cualquier parte')
-assert.match(servicesPage, /@click\\.stop="openServicesFaq = openServicesFaq === index \\? null : index"/,
+assert.ok(servicesPage.includes('@click.stop="openServicesFaq = openServicesFaq === index ? null : index"'),
   'El botón FAQ de servicios no duplica la interacción del contenedor')
-assert.match(servicesPage, /services-faq__panel"[\\s\\S]*?:class="\\{ 'is-open': openServicesFaq === index \\}"/,
-  'La animación conserva el contenido de la respuesta en el DOM')
-assert.match(servicesPage, /grid-template-rows:0fr;opacity:0;visibility:hidden;/,
+assert.ok(servicesPage.includes('class="services-faq__panel"') &&
+  servicesPage.includes(':aria-hidden="openServicesFaq !== index"') &&
+  servicesPage.includes(':inert="openServicesFaq !== index"'),
+  'La animación conserva el contenido y la accesibilidad de la respuesta en el DOM')
+assert.ok(servicesPage.includes('grid-template-rows:0fr;opacity:0;visibility:hidden;'),
   'Las FAQ de servicios se contraen con una transición igual a la de Transporte')
-assert.match(servicesPage, /grid-template-rows:1fr;opacity:1;visibility:visible;/,
+assert.ok(servicesPage.includes('grid-template-rows:1fr;opacity:1;visibility:visible;'),
   'Las FAQ de servicios se expanden con una transición suave')
-assert.match(servicesPage, /@media\\(prefers-reduced-motion:reduce\\)/,
+assert.ok(servicesPage.includes('@media(prefers-reduced-motion:reduce)'),
   'La animación FAQ respeta preferencias de movimiento reducido')
-assert.match(servicesPage, /:aria-expanded="openServicesFaq === index"/,
+assert.ok(servicesPage.includes(':aria-expanded="openServicesFaq === index"'),
   'Las preguntas de servicios continúan siendo accesibles por teclado')
 assert.match(servicesPage, /document\.addEventListener\('pointerdown', closeOtherServiceFaqs\)/,
   'Los acordeones de servicios cierran al pulsar fuera o en otra tarjeta')
