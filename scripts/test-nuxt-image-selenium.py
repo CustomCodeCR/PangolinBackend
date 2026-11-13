@@ -72,6 +72,31 @@ try:
                     .some(img => img.src.includes('/api/content/media/'));
                 """)
             )
+        if route == "/nosotros":
+            # <picture> descendants must retain the scoped About layout: 3
+            # equal-height images, object-fit cover and rounded corners.
+            gallery = driver.execute_script("""
+              return [...document.querySelectorAll('.about-refresh__gallery img')]
+                .map(img => {
+                  const style = getComputedStyle(img);
+                  const rect = img.getBoundingClientRect();
+                  return {
+                    height: rect.height, width: rect.width,
+                    radius: parseFloat(style.borderTopLeftRadius),
+                    fit: style.objectFit,
+                    loaded: img.complete && img.naturalWidth > 0
+                  };
+                });
+            """)
+            assert len(gallery) == 3, f"About gallery must contain three images: {gallery}"
+            assert all(item["width"] > 100 and item["height"] >= 195
+                       and item["radius"] >= 15 and item["fit"] == "cover"
+                       for item in gallery), (
+                f"About gallery lost its crop, height or rounded corners: {gallery}"
+            )
+            assert max(item["height"] for item in gallery) - min(item["height"] for item in gallery) < 2, (
+                f"About gallery images must share a uniform height: {gallery}"
+            )
 
         report = driver.execute_async_script("""
           const done = arguments[arguments.length - 1];
