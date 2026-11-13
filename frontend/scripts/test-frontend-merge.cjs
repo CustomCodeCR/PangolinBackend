@@ -372,9 +372,9 @@ assert.match(serviceLanding, /service-landing-page--long-guide': Boolean\(guides
   'La clase de texto extendido se activa únicamente en las cuatro guías')
 assert.match(serviceLanding, /service-landing-page--balanced-guide': Boolean\(guides\[route\]\) && route !== '\/servicios\/almacenamiento-fiscal'/,
   'Solo Bodegaje, Agenciamiento y Consolidadora reciben el ajuste; Fiscal permanece igual')
-assert.match(serviceStepsCss, /\.service-landing-page--balanced-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-grid\s*\{\s*padding-top:clamp\(58px,5\.2vw,78px\);\s*gap:clamp\(18px,1\.9vw,26px\);/,
+assert.match(serviceStepsCss, /\.service-landing-page--balanced-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-grid\s*\{\s*padding-top:clamp\(72px,calc\(5\.2vw \+ 14px\),92px\);\s*gap:clamp\(18px,1\.9vw,26px\);/,
   'Los tres servicios recuperan ligeramente la posición vertical anterior')
-assert.match(serviceStepsCss, /\.service-landing-page--balanced-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-visual\s*\{\s*height:clamp\(175px,24svh,232px\);/,
+assert.match(serviceStepsCss, /\.service-landing-page--balanced-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-visual\s*\{\s*height:clamp\(161px,calc\(24svh - 14px\),218px\);/,
   'Las fotografías de los tres servicios no sobresalen por debajo del video')
 assert.match(serviceStepsCss, /@media\(min-width:901px\)\s*\{\s*\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-grid\s*\{\s*padding-top:clamp\(42px,4vw,60px\);\s*gap:clamp\(14px,1\.5vw,22px\);/,
   'Las cuatro guías adelantan texto y foto sin afectar a transportes')
