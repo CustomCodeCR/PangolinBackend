@@ -614,14 +614,13 @@ onUnmounted(() => {
 </style>
 
 <style scoped>
-/* Compact framed specialties, centered on desktop with no decorative background lines. */
+/* Homepage service highlights: compact, centered, with a softly fading divider. */
 .home-specialties {
   position: relative;
   isolation: isolate;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: visible;
   min-height: 0;
   padding: 28px 0 34px;
   color: #b5092b;
@@ -631,14 +630,10 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
   align-items: center;
-  gap: clamp(28px, 4vw, 72px);
-  width: min(1240px, calc(100% - 48px));
+  column-gap: clamp(16px, 2.4vw, 38px);
+  width: min(1080px, calc(100% - 48px));
   margin-inline: auto;
-  padding: clamp(34px, 4vw, 48px) clamp(28px, 4vw, 54px);
-  background: linear-gradient(180deg, rgba(255, 255, 255, .52), rgba(255, 255, 255, .26));
-  border: 1px solid rgba(181, 9, 43, .08);
-  border-radius: 18px;
-  box-shadow: 0 10px 28px rgba(20, 24, 33, .045), inset 0 1px 0 rgba(255, 255, 255, .65);
+  padding: 20px 0 24px;
 }
 .home-specialties__item {
   min-width: 0;
@@ -674,21 +669,13 @@ onUnmounted(() => {
   justify-self: center;
   align-self: center;
   width: 1px;
-  height: clamp(128px, 10vw, 158px);
+  height: clamp(140px, 11vw, 178px);
   background: linear-gradient(to bottom,
     rgba(181, 9, 43, 0) 0%,
-    rgba(181, 9, 43, .18) 10%,
-    rgba(181, 9, 43, .42) 30%,
-    rgba(181, 9, 43, .48) 50%,
-    rgba(181, 9, 43, .42) 70%,
-    rgba(181, 9, 43, .18) 90%,
+    rgba(181, 9, 43, .16) 18%,
+    rgba(181, 9, 43, .34) 46%,
+    rgba(181, 9, 43, .26) 72%,
     rgba(181, 9, 43, 0) 100%);
-}
-:global(.dark) .home-specialties__inner,
-:global([data-theme="dark"]) .home-specialties__inner {
-  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
-  border-color: rgba(255,98,122,.14);
-  box-shadow: 0 10px 28px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.06);
 }
 :global(.dark) .home-specialties__heading span,
 :global([data-theme="dark"]) .home-specialties__heading span { color: #fff; }
@@ -700,9 +687,9 @@ onUnmounted(() => {
   .home-specialties { padding: 24px 0 28px; }
   .home-specialties__inner {
     grid-template-columns: minmax(0, 1fr);
-    gap: 22px;
+    row-gap: 22px;
     width: min(100%, calc(100% - 24px));
-    padding: 26px 18px;
+    padding: 18px 0;
   }
   .home-specialties__divider {
     height: 1px;
