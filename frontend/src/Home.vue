@@ -286,16 +286,19 @@ onUnmounted(() => {
       <!-- Service-focused homepage headings: between Services and About -->
       <section class="home-specialties" :aria-label="locale === 'es' ? 'Especialidades logísticas' : 'Logistics specialties'">
         <svg class="home-specialties__waves" viewBox="0 0 1440 280" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-          <path v-for="i in 1 + 7" :key="i"
-            :d="`M -40 ${42 + i * 9} C 160 ${-42 + i * 9}, 300 ${170 + i * 9}, 525 ${64 + i * 9} S 915 ${22 + i * 9}, 1090 ${57 + i * 9} S 1325 ${-20 + i * 9}, 1480 ${58 + i * 9}`"
-            fill="none" stroke="currentColor" stroke-width="1" />
+          <g fill="none" stroke="currentColor" stroke-width="1">
+            <path v-for="i in 8" :key="`left-${i}`"
+              :d="`M -35 ${75 + i * 9} C 95 ${25 + i * 7}, 180 ${-6 + i * 8}, 295 ${25 + i * 9} S 400 ${96 + i * 9}, 465 ${108 + i * 8}`" />
+            <path v-for="i in 8" :key="`right-${i}`"
+              :d="`M 975 ${108 + i * 8} C 1050 ${95 + i * 9}, 1145 ${-3 + i * 8}, 1245 ${24 + i * 8} S 1370 ${55 + i * 8}, 1475 ${90 + i * 9}`" />
+          </g>
         </svg>
         <div class="container home-specialties__inner">
           <div class="home-specialties__item">
             <svg class="home-specialties__icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-              <path d="M6 27 32 9l26 18v30H6V27Z" />
-              <path d="M14 57V29h36v28M21 57V36h22v21M21 43h22M21 50h22" />
-              <path d="M28 20h8M32 16v8" />
+              <path d="M5 26 32 9l27 17M10 24v32h44V24" />
+              <path d="M17 56V29h30v27M23 56V35h18v21M23 41h18M23 47h18M23 53h18" />
+              <path d="M29 18h6v7h-6z" />
             </svg>
             <h2 class="home-specialties__heading">
               <span>{{ locale === 'es' ? 'Almacen Fiscal' : 'Bonded Warehouse' }}</span>
@@ -619,14 +622,20 @@ onUnmounted(() => {
 </style>
 
 <style scoped>
-/* Compact horizontal specialties strip, matching the homepage visual identity. */
+/* Homepage specialties — proportions and edge waves aligned with approved reference. */
 .home-specialties {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  padding: clamp(40px, 5vw, 76px) 0;
-  background: transparent;
+  min-height: 285px;
+  display: flex;
+  align-items: center;
+  padding: 44px 0 52px;
   color: #b5092b;
+  background:
+    radial-gradient(ellipse 32% 115% at 0% 35%, rgba(214, 63, 94, .12), transparent 83%),
+    radial-gradient(ellipse 35% 95% at 100% 7%, rgba(214, 63, 94, .065), transparent 78%),
+    transparent;
 }
 .home-specialties__waves {
   position: absolute;
@@ -634,15 +643,18 @@ onUnmounted(() => {
   inset: 0;
   width: 100%;
   height: 100%;
-  color: #cb3652;
-  opacity: .16;
+  color: #ca3150;
+  opacity: .15;
   pointer-events: none;
+  -webkit-mask-image: linear-gradient(to right, #000 0%, rgba(0,0,0,.8) 12%, transparent 37%, transparent 63%, rgba(0,0,0,.8) 88%, #000 100%);
+  mask-image: linear-gradient(to right, #000 0%, rgba(0,0,0,.8) 12%, transparent 37%, transparent 63%, rgba(0,0,0,.8) 88%, #000 100%);
 }
 .home-specialties__inner {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
   align-items: center;
-  gap: clamp(22px, 3.2vw, 58px);
+  gap: clamp(20px, 3vw, 50px);
+  width: 100%;
 }
 .home-specialties__item {
   min-width: 0;
@@ -651,29 +663,31 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   text-align: center;
-  gap: 7px;
+  gap: 3px;
 }
 .home-specialties__icon {
-  width: clamp(46px, 4vw, 62px);
-  height: clamp(46px, 4vw, 62px);
+  display: block;
+  width: clamp(54px, 5vw, 78px);
+  height: clamp(54px, 5vw, 78px);
   flex: none;
+  margin-bottom: 2px;
 }
 .home-specialties__heading {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 0;
   margin: 0;
-  font-size: clamp(24px, 2.8vw, 43px);
+  font-size: clamp(28px, 3vw, 52px);
   font-weight: 850;
-  line-height: 1.12;
+  line-height: 1.1;
   letter-spacing: -.035em;
 }
 .home-specialties__heading span { color: #202127; }
 .home-specialties__heading strong { color: #b5092b; font-weight: inherit; }
 .home-specialties__divider {
-  height: clamp(110px, 11vw, 160px);
+  height: clamp(145px, 11vw, 175px);
   width: 1px;
-  background: linear-gradient(to bottom, transparent, rgba(181,9,43,.55) 20%, rgba(181,9,43,.55) 80%, transparent);
+  background: linear-gradient(to bottom, transparent, rgba(181,9,43,.5) 16%, rgba(181,9,43,.5) 84%, transparent);
 }
 :global(.dark) .home-specialties__heading span,
 :global([data-theme="dark"]) .home-specialties__heading span { color: #fff; }
@@ -682,10 +696,15 @@ onUnmounted(() => {
 :global(.dark) .home-specialties__icon,
 :global([data-theme="dark"]) .home-specialties__icon { color: #ff627a; }
 @media (max-width: 680px) {
-  .home-specialties { padding: 36px 0; }
-  .home-specialties__inner { grid-template-columns: 1fr; gap: 23px; }
-  .home-specialties__divider { height: 1px; width: min(200px, 60%); justify-self: center; background: linear-gradient(to right, transparent, rgba(181,9,43,.5), transparent); }
-  .home-specialties__heading { font-size: clamp(25px, 6.5vw, 36px); }
-  .home-specialties__waves { opacity: .1; }
+  .home-specialties { min-height: 0; padding: 36px 0; }
+  .home-specialties__inner { grid-template-columns: 1fr; gap: 22px; }
+  .home-specialties__divider {
+    height: 1px;
+    width: min(200px, 60%);
+    justify-self: center;
+    background: linear-gradient(to right, transparent, rgba(181,9,43,.5), transparent);
+  }
+  .home-specialties__heading { font-size: clamp(26px, 6.3vw, 36px); }
+  .home-specialties__waves { opacity: .08; }
 }
 </style>
