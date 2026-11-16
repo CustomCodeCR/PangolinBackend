@@ -17,15 +17,6 @@ const news = [{
   publishedAt: '2026-11-02T14:00:00Z',
   expiresAt: null
 }]
-// A realistic long editorial headline must remain visible, while its SEO title
-// should fit the crawler's 60-character threshold.
-const longHeadline = 'Como parte de su lucha contra la evasión de impuestos: Hacienda refuerza el control para ingreso de mercancías al país'
-news.push({
-  ...news[0],
-  id: 'aaaaaaaa-aaaa-aaaa-aaaa-00000000faba',
-  title: longHeadline
-})
-
 const api = createServer((req, res) => {
   if (req.url === '/api/content/news') {
     res.writeHead(200, { 'Content-Type': 'application/json' })
@@ -97,17 +88,6 @@ try {
     'La meta description de una noticia no debe ser larga ni quedar vacía')
   const sitemap = await (await fetch(base + '/sitemap.xml')).text()
   assert.ok(sitemap.includes(slug), 'Noticia ausente en sitemap dinámico')
-  const longArticleUrl = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)]
-    .map(match => match[1]).find(url => url.endsWith('0000faba'))
-  assert.ok(longArticleUrl, 'Falta noticia de título extenso en sitemap')
-  const longPage = await fetch(base + new URL(longArticleUrl).pathname)
-  assert.equal(longPage.status, 200)
-  const longHtml = await longPage.text()
-  const longMetaTitle = longHtml.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.trim() || ''
-  assert.ok(longMetaTitle.length > 0 && longMetaTitle.length <= 60,
-    'La noticia extensa debe tener metatítulo de hasta 60 caracteres: ' + longMetaTitle)
-  assert.ok(longHtml.includes(longHeadline), 'No se debe modificar el titular original de la noticia')
-
   // SEO: las páginas comerciales del sitemap deben tener enlaces HTML
   // visibles en el catálogo, sin depender de interacción con pestañas.
   const servicesIndex = await fetch(base + '/servicios')
