@@ -5,6 +5,8 @@ services:
     build:
       context: ./frontend
       dockerfile: nuxt/Dockerfile
+      args:
+        VITE_CMS_RESPONSIVE_WEBP_ENABLED: ${CMS_RESPONSIVE_WEBP_FRONTEND:-false}
     restart: unless-stopped
     environment:
       NUXT_CMS_API_BASE: http://backend:5000
