@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 const previewOrigin = (process.argv[2] || 'http://127.0.0.1:3000').replace(/\/$/, '')
 const canonicalOrigin = 'https://www.logisticacastrofallas.com'
 const privatePrefixes = ['/api', '/admin', '/administracion', '/bienvenidos', '/cotizaciones', '/tracking', '/itinerario']
-const requiredPaths = ['/', '/nosotros', '/servicios', '/noticias', '/empresas']
+const requiredPaths = ['/', '/nosotros', '/servicios', '/noticias']
 const conciseServiceTitles = new Set([
   '/servicios/agenciamiento-aduanal',
   '/servicios/almacenamiento-fiscal',
@@ -41,6 +41,7 @@ const paths = sitemapUrls.map((loc) => {
   return url.pathname
 })
 for (const path of requiredPaths) assert.ok(paths.includes(path), 'Falta ruta principal en sitemap: ' + path)
+assert.ok(!paths.some(path => path === '/empresas' || path.startsWith('/empresas/')), 'El sitemap no debe anunciar páginas de empresas retiradas')
 
 for (const path of paths) {
   try {
