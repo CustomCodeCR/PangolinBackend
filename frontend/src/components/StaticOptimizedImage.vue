@@ -1,15 +1,37 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { cmsResponsiveSrcset } from '../cmsResponsiveImages'
 
-// Only immutable bundled fallbacks are eligible. Uploaded CMS URLs (including
-// /api/content/media/...) must keep their original permission-aware endpoint.
+// Static fallbacks use their existing AVIF/WebP picture; CMS derivatives are
+// enabled only together with the backend feature flag in a controlled release.
+// Default-off keeps all current images and previews unchanged.
 const props = withDefaults(defineProps<{
   src: string
   alt?: string
+  sizes?: string
   loading?: 'lazy' | 'eager'
   fetchpriority?: 'auto' | 'high' | 'low'
   decoding?: 'auto' | 'sync' | 'async'
-}>(), { alt: '', loading: 'lazy', fetchpriority: 'auto', decoding: 'async' })
+}>(), {
+  alt: '',
+  sizes: '(max-width: 768px) 100vw, 800px',
+  loading: 'lazy',
+  fetchpriority: 'auto',
+  decoding: 'async'
+})
+
+const cmsResponsiveEnabled = import.meta.env.VITE_CMS_RESPONSIVE_WEBP_ENABLED === 'true'
+const failedResponsiveSrc = ref<string | null>(null)
+const cmsSrcset = computed(() =>
+  failedResponsiveSrc.value === props.src
+    ? undefined
+    : cmsResponsiveSrcset(props.src, cmsResponsiveEnabled)
+)
+const onResponsiveError = () => {
+  // If a deployment serves an unsupported derivative, retry the proven
+  // original CMS URL. The guard prevents a permanent reload/error loop.
+  if (cmsSrcset.value) failedResponsiveSrc.value = props.src
+}
 
 const staticVariant = computed(() => {
   switch (props.src) {
@@ -21,9 +43,20 @@ const staticVariant = computed(() => {
 </script>
 
 <template>
-  <!-- Preserve the original img root for CMS URLs and other unoptimized images.
-       Their parent pages depend on scoped styles applied to that root. -->
-  <img v-if="!staticVariant" :src="src" :alt="alt" :loading="loading" :fetchpriority="fetchpriority" :decoding="decoding" />
+  <!-- Preserve the img root and scoped parent layout/animations for CMS URLs.
+       A legacy object with no derivative falls back in the backend without
+       replacing the original URL or changing its real Content-Type. -->
+  <img
+    v-if="!staticVariant"
+    :src="src"
+    :srcset="cmsSrcset"
+    :sizes="cmsSrcset ? sizes : undefined"
+    :alt="alt"
+    :loading="loading"
+    :fetchpriority="fetchpriority"
+    :decoding="decoding"
+    @error="onResponsiveError"
+  />
   <picture v-else class="static-image-sources">
     <source :srcset="staticVariant + '.avif'" type="image/avif" />
     <source :srcset="staticVariant + '.webp'" type="image/webp" />
