@@ -14,14 +14,23 @@ public static class ContentEndpoints
 
     public static void MapManagedContent(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/content/news", async (AppDbContext db, HttpContext http, CancellationToken ct) =>
+        app.MapGet("/api/content/news", async (AppDbContext db, IConfiguration config, HttpContext http, CancellationToken ct) =>
         {
             http.Response.Headers.CacheControl = "no-store";
-            return Results.Ok(await db.ManagedNews.AsNoTracking()
+            // Opt-in: the public feed references a separate binary image route
+            // instead of embedding legacy Base64 in JSON and Nuxt SSR. Admin
+            // responses and the stored originals remain unchanged.
+            var deliveryEnabled = config.GetValue<bool>("CmsNews:BinaryImageDeliveryEnabled");
+            var rows = await db.ManagedNews.AsNoTracking()
                 .Where(x => x.Published && (x.ExpiresAt == null || x.ExpiresAt > DateTime.UtcNow))
                 .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
                 .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published, x.Author, x.PublishedAt, x.ExpiresAt })
-                .ToListAsync(ct));
+                .ToListAsync(ct);
+            return Results.Ok(rows.Select(x => new {
+                x.Id, x.Title, x.Category, x.Description, x.Body,
+                Image = CmsInlineNewsImages.PublicImageSrc(x.Id, x.Image, deliveryEnabled),
+                x.Published, x.Author, x.PublishedAt, x.ExpiresAt
+            }).ToList());
         });
 
         // Traducción pública exclusivamente de artículos publicados. Almacena en caché

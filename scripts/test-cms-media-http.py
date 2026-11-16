@@ -535,6 +535,67 @@ def test_image_inventory(admin):
         require(media["backfillCandidate"] and media["sizeBytes"] == len(PHOTO),
                 "Stored media original bytes were not inventoried")
         print("PASS CMS inventory: admin-only, metadata only, no S3, no Base64/URLs, source classification")
+
+        # The binary delivery flag is ON only in this disposable CI test.
+        # Public news JSON and Nuxt will no longer contain embedded Base64.
+        public_body = check_status(visitor, "/api/content/news", 200)[1]
+        public_list = json.loads(public_body)
+        public_map = {item["id"]: item for item in public_list}
+        inline_id = created["Base64"]
+        image_url = f"/api/content/news/{inline_id}/image"
+        require(public_map[inline_id]["image"] == image_url,
+                "Published legacy Base64 must become a relative binary image URL")
+        require(inline not in public_body.decode("utf-8") and
+                "data:image/" not in public_body.decode("utf-8"),
+                "Base64 leaked into the public news feed")
+        for label in ("CMS", "External", "Static"):
+            require(public_map[created[label]]["image"] == dict(
+                (item_label, src) for item_label, src, _ in sources)[label],
+                "Normal CMS/HTTPS/static news URL must be unchanged")
+        admin_feed = json_call(admin, "/api/admin/content/news", 200)
+        require(next(item for item in admin_feed if item["id"] == inline_id)["image"] == inline,
+                "Admin editor must keep the full original Base64 string")
+        h200, binary = check_status(visitor, image_url, 200)
+        require(binary == PNG and h200.get("Content-Type", "").startswith("image/png"),
+                "Legacy image bytes/MIME changed")
+        require("private" in h200.get("Cache-Control", "") and
+                "no-cache" in h200.get("Cache-Control", ""),
+                "Public image must revalidate after unpublish")
+        require(h200.get("X-Content-Type-Options") == "nosniff",
+                "Binary image MIME sniffing must be disabled")
+        etag = h200.get("ETag")
+        require(etag and etag.startswith('"cms-news-'), "News image must have an ETag")
+        h304, body304 = check_status(visitor, image_url, 304,
+                                      headers={"If-None-Match": etag})
+        require(body304 == b"" and h304.get("ETag") == etag,
+                "News image conditional GET must return 304 with matching ETag")
+        h206, partial = check_status(visitor, image_url, 206,
+                                     headers={"Range": "bytes=0-3", "If-None-Match": etag})
+        require(partial == PNG[:4] and
+                h206.get("Content-Range") == f"bytes 0-3/{len(PNG)}",
+                "Range download must return exact partial binary image")
+        require((FakeS3.heads, FakeS3.downloads, FakeS3.puts) == state_before,
+                "Inline binary delivery unexpectedly accessed S3")
+        original = next(item for item in admin_feed if item["id"] == inline_id)
+        changed = {**original, "published": False}
+        json_call(admin, "/api/admin/content/news/" + inline_id, 200, changed, method="PUT")
+        h404, _ = check_status(visitor, image_url, 404,
+                                headers={"If-None-Match": etag})
+        require("no-store" in h404.get("Cache-Control", ""),
+                "Unpublished image must return uncached 404, even for ETag")
+        reactivated = {**original, "published": True}
+        json_call(admin, "/api/admin/content/news/" + inline_id, 200,
+                  reactivated, method="PUT")
+        check_status(visitor, image_url, 304, headers={"If-None-Match": etag})
+        expired = {**reactivated, "expiresAt":
+                   (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()}
+        json_call(admin, "/api/admin/content/news/" + inline_id, 200,
+                  expired, method="PUT")
+        h_expired, _ = check_status(visitor, image_url, 404,
+                                    headers={"If-None-Match": etag})
+        require("no-store" in h_expired.get("Cache-Control", ""),
+                "Expired news image must be inaccessible even for a matching ETag")
+        print("PASS inline CMS news delivery: compact feed, binary, MIME/ETag/Range, admin original, revocation")
     finally:
         for news_id in news_ids:
             check_status(admin, "/api/admin/content/news/" + news_id, 204, method="DELETE")
@@ -564,6 +625,7 @@ def main():
         "Storage__SecretKey": "ci-fake",
         "CmsMedia__ResponsiveWebpEnabled": "true",
         "CmsMedia__ExistingImageBackfillEnabled": "true",
+        "CmsNews__BinaryImageDeliveryEnabled": "true",
         "DholeTracking__Enabled": "false",
         "Redis__ConnectionString": "",
         "Mongo__ConnectionString": "",

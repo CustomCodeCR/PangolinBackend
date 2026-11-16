@@ -54,6 +54,8 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:5000
       Development__ApplySchema: "false"
+      # Do not change public news image URLs until staging verifies new delivery.
+      CmsNews__BinaryImageDeliveryEnabled: ${CMS_NEWS_BINARY_IMAGES:-false}
       Features__OfficialQuotesEnabled: "false"
       ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=login;Username=postgres;Password=${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD}"
       Auth__OtpPepper: ${AUTH_OTP_PEPPER:?Falta AUTH_OTP_PEPPER}

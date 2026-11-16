@@ -665,6 +665,8 @@ app.MapAdminUsers();
 
 // Noticias públicas publicadas y mantenimiento de contenido reservado a admins.
 app.MapManagedContent();
+// Safe binary delivery of legacy inline news images; public feed opt-in only.
+app.MapCmsInlineNewsImages();
 app.MapInstagramReel();
 app.MapFacebookFeaturedVideo();
 app.MapManagedMediaObjects();
