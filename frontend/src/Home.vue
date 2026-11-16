@@ -614,34 +614,40 @@ onUnmounted(() => {
 </style>
 
 <style scoped>
-/* Homepage specialties — subtle side glows and centered feature headings. */
+/* Compact framed specialties, centered on desktop with no decorative background lines. */
 .home-specialties {
   position: relative;
   isolation: isolate;
-  overflow: hidden;
-  min-height: 250px;
   display: flex;
   align-items: center;
-  padding: 40px 0 46px;
+  justify-content: center;
+  overflow: visible;
+  min-height: 0;
+  padding: 28px 0 34px;
   color: #b5092b;
-  background:
-    radial-gradient(ellipse 24% 75% at 8% 50%, rgba(181, 9, 43, 0.06), transparent 72%),
-    radial-gradient(ellipse 24% 75% at 92% 50%, rgba(181, 9, 43, 0.05), transparent 72%),
-    linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.35) 50%, rgba(255,255,255,0) 100%);
+  background: transparent;
 }
 .home-specialties__inner {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
   align-items: center;
-  gap: clamp(20px, 3vw, 50px);
-  width: 100%;
+  gap: clamp(28px, 4vw, 72px);
+  width: min(1240px, calc(100% - 48px));
+  margin-inline: auto;
+  padding: clamp(34px, 4vw, 48px) clamp(28px, 4vw, 54px);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .52), rgba(255, 255, 255, .26));
+  border: 1px solid rgba(181, 9, 43, .08);
+  border-radius: 18px;
+  box-shadow: 0 10px 28px rgba(20, 24, 33, .045), inset 0 1px 0 rgba(255, 255, 255, .65);
 }
 .home-specialties__item {
   min-width: 0;
+  max-width: 460px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  justify-self: center;
   text-align: center;
   gap: 3px;
 }
@@ -665,9 +671,24 @@ onUnmounted(() => {
 .home-specialties__heading span { color: #202127; }
 .home-specialties__heading strong { color: #b5092b; font-weight: inherit; }
 .home-specialties__divider {
-  height: clamp(145px, 11vw, 175px);
+  justify-self: center;
+  align-self: center;
   width: 1px;
-  background: linear-gradient(to bottom, transparent, rgba(181,9,43,.5) 16%, rgba(181,9,43,.5) 84%, transparent);
+  height: clamp(128px, 10vw, 158px);
+  background: linear-gradient(to bottom,
+    rgba(181, 9, 43, 0) 0%,
+    rgba(181, 9, 43, .18) 10%,
+    rgba(181, 9, 43, .42) 30%,
+    rgba(181, 9, 43, .48) 50%,
+    rgba(181, 9, 43, .42) 70%,
+    rgba(181, 9, 43, .18) 90%,
+    rgba(181, 9, 43, 0) 100%);
+}
+:global(.dark) .home-specialties__inner,
+:global([data-theme="dark"]) .home-specialties__inner {
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+  border-color: rgba(255,98,122,.14);
+  box-shadow: 0 10px 28px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.06);
 }
 :global(.dark) .home-specialties__heading span,
 :global([data-theme="dark"]) .home-specialties__heading span { color: #fff; }
@@ -676,13 +697,18 @@ onUnmounted(() => {
 :global(.dark) .home-specialties__icon,
 :global([data-theme="dark"]) .home-specialties__icon { color: #ff627a; }
 @media (max-width: 680px) {
-  .home-specialties { min-height: 0; padding: 36px 0; }
-  .home-specialties__inner { grid-template-columns: 1fr; gap: 22px; }
+  .home-specialties { padding: 24px 0 28px; }
+  .home-specialties__inner {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 22px;
+    width: min(100%, calc(100% - 24px));
+    padding: 26px 18px;
+  }
   .home-specialties__divider {
     height: 1px;
-    width: min(200px, 60%);
+    width: min(180px, 58%);
     justify-self: center;
-    background: linear-gradient(to right, transparent, rgba(181,9,43,.5), transparent);
+    background: linear-gradient(to right, rgba(181,9,43,0), rgba(181,9,43,.4), rgba(181,9,43,0));
   }
   .home-specialties__heading { font-size: clamp(24px, 6vw, 32px); }
 }
