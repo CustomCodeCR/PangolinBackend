@@ -305,9 +305,9 @@ onUnmounted(() => {
           <div class="home-specialties__divider" aria-hidden="true"></div>
           <div class="home-specialties__item">
             <svg class="home-specialties__icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-              <path d="M8 37V16h28v21M8 37H5v10h43V37H8Z" />
-              <path d="M36 25h10l11 12v10h-9M42 25v12h15M14 47a6 6 0 1 0 12 0 6 6 0 0 0-12 0ZM42 47a6 6 0 1 0 12 0 6 6 0 0 0-12 0Z" />
-              <path d="M14 22h15M14 28h10" />
+              <path d="m5 37 9 16h35l10-16-27-8L5 37Z" />
+              <path d="M17 34V18h29v15M22 18V9h8v9M35 18V9h8v9M24 24h5v5h-5zM35 24h5v5h-5z" />
+              <path d="M6 57c5 3 9 3 14 0 5 3 9 3 14 0 5 3 9 3 14 0 5 3 9 3 14 0" />
             </svg>
             <h2 class="home-specialties__heading">
               <span>{{ locale === 'es' ? 'Transportes' : 'Transport' }}</span>
