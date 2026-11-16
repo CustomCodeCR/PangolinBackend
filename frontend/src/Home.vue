@@ -270,7 +270,7 @@ onUnmounted(() => {
                     :tabindex="copy > 1 ? -1 : 0"
                     :aria-label="`${$t('custom.home.newsAria')}: ${item.title}`"
                   >
-                    <StaticOptimizedImage :src="item.image" :alt="item.title" loading="lazy" />
+                    <StaticOptimizedImage :src="item.image" :alt="item.title" sizes="(max-width: 720px) 46vw, 280px" loading="lazy" />
                     <span class="home-hero-news__copy">
                       <small>{{ item.category }}</small>
                       <strong>{{ item.title }}</strong>
