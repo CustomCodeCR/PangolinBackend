@@ -28,8 +28,10 @@ for (const [slug, company] of Object.entries(companies)) {
   assert.ok(company.name && company.description && company.faq?.length >= 2, 'Empresa incompleta: ' + slug)
   assert.ok(keywords['/empresas/' + slug]?.primary, 'Falta palabra clave: ' + slug)
 }
-assert.match(source('server/routes/sitemap.xml.ts'), /companies/, 'Falta directorio en sitemap')
-assert.match(source('app/pages/empresas/[slug].vue'), /usePublicSeo/, 'Falta SEO empresarial SSR')
+assert.doesNotMatch(source('server/routes/sitemap.xml.ts'), /companies|\\/empresas/, 'Las rutas empresariales retiradas no deben aparecer en el sitemap')
+assert.doesNotMatch(source('nuxt.config.ts'), /empresas/, 'Las rutas empresariales retiradas no deben generarse en prerender o routeRules')
+assert.equal(fs.existsSync(path.resolve(base, 'app/pages/empresas/index.vue')), false, 'El índice de empresas debe permanecer retirado temporalmente')
+assert.equal(fs.existsSync(path.resolve(base, 'app/pages/empresas/[slug].vue')), false, 'El detalle de empresas debe permanecer retirado temporalmente')
 assert.doesNotMatch(source('../src/components/SiteFooter.vue'), /href="\/empresas"/, 'El footer no debe mostrar Empresas del grupo en Accesos')
 assert.doesNotMatch(source('../src/components/SiteFooter.vue'), /<h3\b/, 'El pie de página no debe saltar de H1 a H3 en noticias')
 assert.match(source('../src/components/SiteFooter.vue'), /<h2\b/, 'El pie de página debe usar H2 para sus grupos')
