@@ -8,7 +8,7 @@ function escapeXml(value: string) {
 export default defineCachedEventHandler(async event => {
   const config = useRuntimeConfig(event)
   const base = String(config.public.siteUrl).replace(/\/$/, '')
-  const urls = ['/', '/nosotros', '/servicios', '/noticias' '/privacidad', '/terminos', '/cookies', '/licencias', ...Object.keys(serviceGuides), ...servicePages.map(page => '/servicios/' + page.slug)]
+  const urls = ['/', '/nosotros', '/servicios', '/noticias', '/privacidad', '/terminos', '/cookies', '/licencias', ...Object.keys(serviceGuides), ...servicePages.map(page => '/servicios/' + page.slug)]
   try {
     const articles = await $fetch<PublicNews[]>(String(config.cmsApiBase).replace(/\/$/, '') + '/api/content/news', { timeout: 5000 })
     if (Array.isArray(articles)) {
