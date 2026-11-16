@@ -30,7 +30,7 @@ for (const [slug, company] of Object.entries(companies)) {
 }
 assert.match(source('server/routes/sitemap.xml.ts'), /companies/, 'Falta directorio en sitemap')
 assert.match(source('app/pages/empresas/[slug].vue'), /usePublicSeo/, 'Falta SEO empresarial SSR')
-assert.match(source('../src/components/SiteFooter.vue'), /href="\/empresas"/, 'Falta enlazado interno')
+assert.doesNotMatch(source('../src/components/SiteFooter.vue'), /href="\/empresas"/, 'El footer no debe mostrar Empresas del grupo en Accesos')
 assert.doesNotMatch(source('../src/components/SiteFooter.vue'), /<h3\b/, 'El pie de página no debe saltar de H1 a H3 en noticias')
 assert.match(source('../src/components/SiteFooter.vue'), /<h2\b/, 'El pie de página debe usar H2 para sus grupos')
 assert.match(source('../src/style.css'), /\.site-footer h2\{font-size:13px;margin:1px 0 14px\}/, 'El diseño del pie debe conservarse después del cambio semántico')
