@@ -17,6 +17,27 @@ const news = [{
   publishedAt: '2026-11-02T14:00:00Z',
   expiresAt: null
 }]
+const approvedTitleFixtures = [
+  {
+    suffix: 'f4c941bb',
+    title: 'Como parte de su lucha contra la evasión de impuestos: HACIENDA REFUERZA EL CONTROL PARA INGRESO DE MERCANCÍAS AL PAÍS',
+    seoTitle: 'Hacienda refuerza control de ingreso de mercancías'
+  },
+  {
+    suffix: '38e374a5',
+    title: 'Congestión en puertos de China podría generar retrasos en embarques hacia Centroamérica',
+    seoTitle: 'Puertos de China: posibles retrasos a Centroamérica'
+  },
+  {
+    suffix: '294af1f0',
+    title: 'Centroamérica aprueba nuevas regulaciones aduaneras para modernizar el comercio regional',
+    seoTitle: 'Centroamérica aprueba nuevas regulaciones aduaneras'
+  }
+]
+for (const fixture of approvedTitleFixtures) {
+  news.push({ ...news[0], id: '123e4567-e89b-12d3-a456-' + fixture.suffix.padStart(12, '0'), title: fixture.title })
+}
+
 const api = createServer((req, res) => {
   if (req.url === '/api/content/news') {
     res.writeHead(200, { 'Content-Type': 'application/json' })
@@ -61,6 +82,13 @@ try {
   const html = await page.text()
   assert.match(html, /Logística Costa Rica/)
   assert.match(html, /news-article-page/)
+  // A news article has one H1; the shared footer must not jump straight to H3.
+  const headingLevels = [...html.matchAll(/<h([1-6])\b[^>]*>/gi)].map(match => Number(match[1]))
+  assert.ok(headingLevels.includes(1), 'La noticia debe tener un H1')
+  for (let i = 1; i < headingLevels.length; i++) {
+    assert.ok(headingLevels[i] <= headingLevels[i - 1] + 1,
+      'El HTML SSR no debe saltar niveles de encabezados: ' + headingLevels.join(' → '))
+  }
   if (cmsResponsiveSmoke) {
     // Check SSR output itself, not the client after hydration. Nuxt must
     // announce width candidates early enough for LCP discovery.
@@ -74,6 +102,16 @@ try {
   assert.match(html, /documentación aduanera/)
   assert.match(html, /application\/ld\+json/)
   assert.match(html, /schema.org/)
+  // The same published image should be announced to search/social crawlers.
+  const expectedImageUrl = 'https://www.logisticacastrofallas.com' +
+    (cmsResponsiveSmoke ? cmsImage : '/images/cover-logistics.jpeg')
+  const ogImageTag = (html.match(/<meta\b[^>]*>/gi) || [])
+    .find(tag => /(?:property|name)="og:image"/i.test(tag))
+  assert.ok(ogImageTag?.includes('content="' + expectedImageUrl + '"'),
+    'Open Graph debe apuntar a la imagen publicada de la noticia')
+  assert.ok(html.includes('"image":"' + expectedImageUrl + '"'),
+    'Article JSON-LD debe apuntar a la imagen publicada de la noticia')
+
   assert.match(html, /rel="canonical"/)
   const descriptionTag = (html.match(/<meta\b[^>]*>/g) || []).find(tag => /name="description"/.test(tag))
   const descriptionValue = descriptionTag?.match(/content="([^"]*)"/)?.[1] || ''
@@ -81,6 +119,18 @@ try {
     'La meta description de una noticia no debe ser larga ni quedar vacía')
   const sitemap = await (await fetch(base + '/sitemap.xml')).text()
   assert.ok(sitemap.includes(slug), 'Noticia ausente en sitemap dinámico')
+  for (const fixture of approvedTitleFixtures) {
+    const articleUrl = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)]
+      .map(match => match[1]).find(url => url.endsWith('-' + fixture.suffix))
+    assert.ok(articleUrl, 'Falta noticia ' + fixture.suffix + ' en sitemap')
+    const response = await fetch(base + new URL(articleUrl).pathname)
+    assert.equal(response.status, 200)
+    const articleHtml = await response.text()
+    const metaTitle = articleHtml.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.trim()
+    assert.equal(metaTitle, fixture.seoTitle, 'El título SEO aprobado debe respetarse')
+    assert.ok(articleHtml.includes(fixture.title), 'No cambiar el titular visible original')
+  }
+
   // SEO: las páginas comerciales del sitemap deben tener enlaces HTML
   // visibles en el catálogo, sin depender de interacción con pestañas.
   const servicesIndex = await fetch(base + '/servicios')

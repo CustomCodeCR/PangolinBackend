@@ -9,7 +9,20 @@ if (error.value) throw createError({ statusCode: 503, statusMessage: 'Noticias t
 const article = (data.value || []).find(item => articleSlug(item) === route.params.slug)
 if (!article) throw createError({ statusCode: 404, statusMessage: 'Noticia no encontrada' })
 const path = '/noticias/' + articleSlug(article)
-const image = article.image?.startsWith('/images/') ? article.image : '/images/cover-logistics.jpeg'
+const approvedNewsSeoTitles: Record<string, string> = {
+  // Titles explicitly approved for search results; do not modify visible headlines.
+  'f4c941bb': 'Hacienda refuerza control de ingreso de mercancías',
+  '38e374a5': 'Puertos de China: posibles retrasos a Centroamérica',
+  '294af1f0': 'Centroamérica aprueba nuevas regulaciones aduaneras'
+}
+const articleIdSuffix = article.id.replace(/-/g, '').slice(-8).toLowerCase()
+const seoTitle = approvedNewsSeoTitles[articleIdSuffix] ?? article.title + ' | Grupo Castro Fallas'
+// Reuse published CMS photos in Open Graph and Article JSON-LD.
+// Only known same-origin paths are accepted, never arbitrary external URLs.
+const imagePath = String(article.image || '')
+const isStaticImage = /^\/images\/[a-z0-9/_-]+\.(?:avif|jpe?g|png|webp|svg)$/i.test(imagePath)
+const isPublishedCmsImage = /^\/api\/content\/media\/[0-9a-f-]{36}\/file$/i.test(imagePath)
+const image = (isStaticImage || isPublishedCmsImage) ? imagePath : '/images/cover-logistics.jpeg'
 const rawDescription = plainArticleText(article.description || article.body)
 const metaDescription = rawDescription.length > 155
   ? rawDescription.slice(0, 154).replace(/\s+\S*$/, '') + '…'
@@ -26,7 +39,7 @@ const schema = {
   image: 'https://www.logisticacastrofallas.com' + image
 }
 usePublicSeo({
-  path, title: article.title + ' | Grupo Castro Fallas',
+  path, title: seoTitle,
   description: metaDescription,
   type: 'article', image, schema: [schema]
 })
