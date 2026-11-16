@@ -90,7 +90,7 @@ public static class CmsInlineNewsImages
             var range = http.Request.Headers.Range.ToString();
             http.Response.Headers.ETag = etag;
             http.Response.Headers.CacheControl = MediaHttpCachePolicy.PublishedMedia;
-            http.Response.Headers.XContentTypeOptions = "nosniff";
+            http.Response.Headers["X-Content-Type-Options"] = "nosniff";
 
             if (MediaHttpCachePolicy.IsNotModified(http.Request.Headers.IfNoneMatch.ToString(), range, etag))
                 return Results.StatusCode(StatusCodes.Status304NotModified);
