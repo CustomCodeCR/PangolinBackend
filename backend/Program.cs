@@ -670,6 +670,8 @@ app.MapFacebookFeaturedVideo();
 app.MapManagedMediaObjects();
 // Explicit, admin-only inspection/backfill of existing CMS originals (disabled by default).
 app.MapCmsMediaBackfill();
+// Metadata-only CMS inventory; never downloads image payloads or reads S3.
+app.MapCmsImageInventory();
 app.MapSiteCms();
 // Endpoint público de conexión. Los grupos privados se validan con la cookie JWT
 // revocable al establecer conexión; el hub no permite que clientes emitan eventos.

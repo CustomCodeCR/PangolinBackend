@@ -472,6 +472,76 @@ def test_legacy_backfill(admin):
                     "Deleting old media must clean generated WebP objects")
 
 
+def test_image_inventory(admin):
+    # Admin-only database metadata inventory; no image bytes or external
+    # URLs can be echoed and the endpoint must never talk to FakeS3.
+    visitor = build_opener()
+    media_id = None
+    news_ids = []
+    try:
+        body, kind = multipart_photo()
+        _, payload = check_status(admin, "/api/admin/content/media/upload", 201,
+                                  method="POST", raw=body, headers={"Content-Type": kind})
+        uploaded = json.loads(payload)
+        media_id = uploaded["id"]
+        cms_url = f"/api/content/media/{media_id}/file"
+        inline = "data:image/png;base64," + base64.b64encode(PNG).decode()
+        external = "https://assets.example.test/private-news-image.jpg?not-for-inventory=1"
+        sources = [
+            ("CMS", cms_url, "cms-media"),
+            ("Base64", inline, "inline-base64"),
+            ("External", external, "external-https"),
+            ("Static", "/images/cover-logistics.jpeg", "bundled-static")
+        ]
+        created = {}
+        for label, src, _ in sources:
+            news = {"title": "Inventory " + label + " " + uuid.uuid4().hex[:8],
+                    "category": "PRUEBAS", "description": "Fake CMS source",
+                    "body": "Local isolated image", "image": src, "published": True}
+            entity = json_call(admin, "/api/admin/content/news", 201, news, method="POST")
+            news_ids.append(entity["id"])
+            created[label] = entity["id"]
+
+        check_status(visitor, "/api/admin/content/media/inventory", 401)
+        state_before = (FakeS3.heads, FakeS3.downloads, FakeS3.puts)
+        headers, content = check_status(admin, "/api/admin/content/media/inventory", 200)
+        require("no-store" in headers.get("Cache-Control", ""),
+                "Inventory must never be browser-cacheable")
+        report = json.loads(content)
+        require(report["mode"] == "read-only" and
+                report["dataSource"] == "postgres-metadata" and
+                report["consultedS3"] is False and report["noObjectWrites"] is True,
+                "Inventory not explicitly read-only")
+        require((FakeS3.heads, FakeS3.downloads, FakeS3.puts) == state_before,
+                "Read-only metadata inventory accessed or modified object storage")
+        require(inline not in content.decode("utf-8") and external not in content.decode("utf-8"),
+                "Inventory leaked raw image Base64 or source URL")
+        news_index = {row["id"]: row for row in report["news"]}
+        for label, _, expected_source in sources:
+            row = news_index[created[label]]
+            require(row["sourceType"] == expected_source,
+                    f"Wrong source classification for {label}: {row['sourceType']}")
+        require(news_index[created["CMS"]]["mediaId"] == media_id and
+                news_index[created["CMS"]]["hasStoredObject"] and
+                news_index[created["CMS"]]["backfillCandidate"],
+                "CMS original cannot be matched to eligible S3 metadata")
+        require(news_index[created["Base64"]]["estimatedInlineBytes"] is not None and
+                not news_index[created["Base64"]]["backfillCandidate"],
+                "Inline Base64 must be estimated but cannot be backfilled")
+        require(news_index[created["External"]]["mediaId"] is None and
+                not news_index[created["External"]]["backfillCandidate"],
+                "External images must not be treated as CMS storage")
+        media = next(m for m in report["media"] if m["id"] == media_id)
+        require(media["backfillCandidate"] and media["sizeBytes"] == len(PHOTO),
+                "Stored media original bytes were not inventoried")
+        print("PASS CMS inventory: admin-only, metadata only, no S3, no Base64/URLs, source classification")
+    finally:
+        for news_id in news_ids:
+            check_status(admin, "/api/admin/content/news/" + news_id, 204, method="DELETE")
+        if media_id:
+            check_status(admin, "/api/admin/content/media/" + media_id, 204, method="DELETE")
+
+
 def main():
     require(os.getenv("CI") == "true" and os.getenv("CMS_MEDIA_TEST_ISOLATED") == "1",
             "Refusing to run outside explicitly isolated CI")
@@ -512,6 +582,7 @@ def main():
         test_http_cycle(admin)
         test_webp_variants(admin)
         test_legacy_backfill(admin)
+        test_image_inventory(admin)
     finally:
         proc.terminate()
         try:
