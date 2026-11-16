@@ -450,7 +450,7 @@ onUnmounted(() => {
       <div ref="emblaViewport" class="news-editorial-hero__viewport" aria-hidden="true">
         <div class="news-editorial-hero__slides">
           <div v-for="(story, index) in news" :key="story.id" class="news-editorial-hero__slide">
-            <StaticOptimizedImage :src="story.image" alt="" :loading="index === 0 ? 'eager' : 'lazy'" :fetchpriority="index === 0 ? 'high' : 'auto'" decoding="async" />
+            <StaticOptimizedImage :src="story.image" alt="" sizes="100vw" :loading="index === 0 ? 'eager' : 'lazy'" :fetchpriority="index === 0 ? 'high' : 'auto'" decoding="async" />
           </div>
         </div>
       </div>
@@ -501,7 +501,7 @@ onUnmounted(() => {
         </div>
         <div v-if="news.length" class="news-editorial-grid">
           <article v-for="(article, index) in news" :key="article.id" class="news-editorial-card" :class="{ 'news-editorial-card--lead': index === 0 }">
-            <div class="news-editorial-card__image"><StaticOptimizedImage :src="article.image" :alt="article.title" loading="lazy" /><span>{{ String(index + 1).padStart(2, '0') }}</span></div>
+            <div class="news-editorial-card__image"><StaticOptimizedImage :src="article.image" :alt="article.title" :sizes="index === 0 ? '(max-width: 720px) 100vw, 66vw' : '(max-width: 720px) 100vw, (max-width: 1200px) 50vw, 34vw'" loading="lazy" /><span>{{ String(index + 1).padStart(2, '0') }}</span></div>
             <div class="news-editorial-card__copy">
               <p class="section-tag">{{ article.category }} · {{ $t('phrases.p074') }}</p>
               <h3>{{ article.title }}</h3>
@@ -526,7 +526,7 @@ onUnmounted(() => {
             <div class="news-article-page__panel">
               <div class="news-article-page__hero">
                 <figure class="news-article-page__visual">
-                  <StaticOptimizedImage :src="activeArticle.image" :alt="activeArticle.title" loading="eager" fetchpriority="high" decoding="async" />
+                  <StaticOptimizedImage :src="activeArticle.image" :alt="activeArticle.title" sizes="100vw" loading="eager" fetchpriority="high" decoding="async" />
                   <figcaption class="news-article-page__visual-mark">
                     <span class="news-article-page__visual-dot" aria-hidden="true"></span>
                     {{ q('HISTORIAS QUE NOS CONECTAN', 'STORIES THAT CONNECT US') }}
@@ -559,7 +559,7 @@ onUnmounted(() => {
             </div>
             <div class="news-article-page__reading" :class="{ 'is-expanded': articleTextOpen, 'is-dragging': articleDragging }" :style="{ maxHeight: articleReadingDragMaxHeight }">
               <figure class="news-article-page__side-image" aria-hidden="true">
-                <StaticOptimizedImage :src="activeArticle.image" alt="" loading="lazy" />
+                <StaticOptimizedImage :src="activeArticle.image" alt="" sizes="(max-width: 720px) 100vw, 40vw" loading="lazy" />
               </figure>
               <section id="contenido-noticia" class="news-article-page__content" :aria-label="q('Contenido de la noticia', 'Article content')">
                 <p class="news-article-page__content-kicker">{{ activeArticle.category }} <span aria-hidden="true">/</span> {{ q('ARTÍCULO COMPLETO', 'FULL ARTICLE') }}</p>
