@@ -283,6 +283,40 @@ onUnmounted(() => {
         </div>
       </section>
 
+      <!-- Service-focused homepage headings: between Services and About -->
+      <section class="home-specialties" :aria-label="locale === 'es' ? 'Especialidades logísticas' : 'Logistics specialties'">
+        <svg class="home-specialties__waves" viewBox="0 0 1440 280" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+          <path v-for="i in 1 + 7" :key="i"
+            :d="`M -40 ${42 + i * 9} C 160 ${-42 + i * 9}, 300 ${170 + i * 9}, 525 ${64 + i * 9} S 915 ${22 + i * 9}, 1090 ${57 + i * 9} S 1325 ${-20 + i * 9}, 1480 ${58 + i * 9}`"
+            fill="none" stroke="currentColor" stroke-width="1" />
+        </svg>
+        <div class="container home-specialties__inner">
+          <div class="home-specialties__item">
+            <svg class="home-specialties__icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M6 27 32 9l26 18v30H6V27Z" />
+              <path d="M14 57V29h36v28M21 57V36h22v21M21 43h22M21 50h22" />
+              <path d="M28 20h8M32 16v8" />
+            </svg>
+            <h2 class="home-specialties__heading">
+              <span>{{ locale === 'es' ? 'Almacen Fiscal' : 'Bonded Warehouse' }}</span>
+              <strong>A257, A287</strong>
+            </h2>
+          </div>
+          <div class="home-specialties__divider" aria-hidden="true"></div>
+          <div class="home-specialties__item">
+            <svg class="home-specialties__icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M8 37V16h28v21M8 37H5v10h43V37H8Z" />
+              <path d="M36 25h10l11 12v10h-9M42 25v12h15M14 47a6 6 0 1 0 12 0 6 6 0 0 0-12 0ZM42 47a6 6 0 1 0 12 0 6 6 0 0 0-12 0Z" />
+              <path d="M14 22h15M14 28h10" />
+            </svg>
+            <h2 class="home-specialties__heading">
+              <span>{{ locale === 'es' ? 'Transportes' : 'Transport' }}</span>
+              <strong>{{ locale === 'es' ? 'Costa Rica Panama' : 'Costa Rica Panama' }}</strong>
+            </h2>
+          </div>
+        </div>
+      </section>
+
       <section class="home-about-preview" :aria-label="$t('custom.about.title')">
         <div class="home-about-preview__copy">
           <p class="section-tag">{{ $t('custom.about.title') }}</p>
@@ -581,5 +615,77 @@ onUnmounted(() => {
   .promise-carousel {
     overflow-x: auto;
   }
+}
+</style>
+
+<style scoped>
+/* Compact horizontal specialties strip, matching the homepage visual identity. */
+.home-specialties {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: clamp(40px, 5vw, 76px) 0;
+  background: transparent;
+  color: #b5092b;
+}
+.home-specialties__waves {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: #cb3652;
+  opacity: .16;
+  pointer-events: none;
+}
+.home-specialties__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(22px, 3.2vw, 58px);
+}
+.home-specialties__item {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 7px;
+}
+.home-specialties__icon {
+  width: clamp(46px, 4vw, 62px);
+  height: clamp(46px, 4vw, 62px);
+  flex: none;
+}
+.home-specialties__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  font-size: clamp(24px, 2.8vw, 43px);
+  font-weight: 850;
+  line-height: 1.12;
+  letter-spacing: -.035em;
+}
+.home-specialties__heading span { color: #202127; }
+.home-specialties__heading strong { color: #b5092b; font-weight: inherit; }
+.home-specialties__divider {
+  height: clamp(110px, 11vw, 160px);
+  width: 1px;
+  background: linear-gradient(to bottom, transparent, rgba(181,9,43,.55) 20%, rgba(181,9,43,.55) 80%, transparent);
+}
+:global(.dark) .home-specialties__heading span,
+:global([data-theme="dark"]) .home-specialties__heading span { color: #fff; }
+:global(.dark) .home-specialties__heading strong,
+:global([data-theme="dark"]) .home-specialties__heading strong,
+:global(.dark) .home-specialties__icon,
+:global([data-theme="dark"]) .home-specialties__icon { color: #ff627a; }
+@media (max-width: 680px) {
+  .home-specialties { padding: 36px 0; }
+  .home-specialties__inner { grid-template-columns: 1fr; gap: 23px; }
+  .home-specialties__divider { height: 1px; width: min(200px, 60%); justify-self: center; background: linear-gradient(to right, transparent, rgba(181,9,43,.5), transparent); }
+  .home-specialties__heading { font-size: clamp(25px, 6.5vw, 36px); }
+  .home-specialties__waves { opacity: .1; }
 }
 </style>
