@@ -28,7 +28,7 @@ for (const [slug, company] of Object.entries(companies)) {
   assert.ok(company.name && company.description && company.faq?.length >= 2, 'Empresa incompleta: ' + slug)
   assert.ok(keywords['/empresas/' + slug]?.primary, 'Falta palabra clave: ' + slug)
 }
-assert.doesNotMatch(source('server/routes/sitemap.xml.ts'), /companies|\\/empresas/, 'Las rutas empresariales retiradas no deben aparecer en el sitemap')
+assert.doesNotMatch(source('server/routes/sitemap.xml.ts'), /companies|empresas/, 'Las rutas empresariales retiradas no deben aparecer en el sitemap')
 assert.doesNotMatch(source('nuxt.config.ts'), /empresas/, 'Las rutas empresariales retiradas no deben generarse en prerender o routeRules')
 assert.equal(fs.existsSync(path.resolve(base, 'app/pages/empresas/index.vue')), false, 'El índice de empresas debe permanecer retirado temporalmente')
 assert.equal(fs.existsSync(path.resolve(base, 'app/pages/empresas/[slug].vue')), false, 'El detalle de empresas debe permanecer retirado temporalmente')
