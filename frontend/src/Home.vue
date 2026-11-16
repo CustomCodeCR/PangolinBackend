@@ -712,3 +712,22 @@ onUnmounted(() => {
   .home-specialties__heading { font-size: clamp(24px, 6vw, 32px); }
 }
 </style>
+
+<!-- Global override is intentional: the theme-wide white !important rule
+     otherwise wins against scoped component color styles. -->
+<style>
+/* Dark palette override for the specialties strip */
+html.theme-dark .app-site.home-page .home-specialties .home-specialties__heading span {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html.theme-dark .app-site.home-page .home-specialties .home-specialties__heading strong {
+  color: #e21d3b !important;
+  -webkit-text-fill-color: #e21d3b !important;
+}
+html.theme-dark .app-site.home-page .home-specialties .home-specialties__icon,
+html.theme-dark .app-site.home-page .home-specialties .home-specialties__icon path {
+  color: #e21d3b !important;
+  stroke: #e21d3b !important;
+}
+</style>
