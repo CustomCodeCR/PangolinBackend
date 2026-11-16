@@ -123,6 +123,12 @@ async function translateNewsToEnglish() {
   englishLoading.value = false
 }
 watch(locale, () => { if (locale.value === 'en') void translateNewsToEnglish() })
+// The editorial headline is already next to each image. Keep alt text short
+// and descriptive without repeating very long article headlines verbatim.
+const newsImageAlt = (title: string) => {
+  const cleaned = title.replace(/\s+/g, ' ').trim()
+  return cleaned.length <= 100 ? cleaned : cleaned.slice(0, 100).replace(/\s+\S*$/, '').trim()
+}
 const formatArticleDate = (iso: string | null | undefined) => iso
   ? new Intl.DateTimeFormat(locale.value === 'en' ? 'en-US' : 'es-CR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(iso)) : ''
 const leadStory = computed(() => news.value[activeStoryIndex.value] ?? news.value[0])
@@ -501,7 +507,7 @@ onUnmounted(() => {
         </div>
         <div v-if="news.length" class="news-editorial-grid">
           <article v-for="(article, index) in news" :key="article.id" class="news-editorial-card" :class="{ 'news-editorial-card--lead': index === 0 }">
-            <div class="news-editorial-card__image"><StaticOptimizedImage :src="article.image" :alt="article.title" :sizes="index === 0 ? '(max-width: 720px) 100vw, 66vw' : '(max-width: 720px) 100vw, (max-width: 1200px) 50vw, 34vw'" loading="lazy" /><span>{{ String(index + 1).padStart(2, '0') }}</span></div>
+            <div class="news-editorial-card__image"><StaticOptimizedImage :src="article.image" :alt="newsImageAlt(article.title)" :sizes="index === 0 ? '(max-width: 720px) 100vw, 66vw' : '(max-width: 720px) 100vw, (max-width: 1200px) 50vw, 34vw'" loading="lazy" /><span>{{ String(index + 1).padStart(2, '0') }}</span></div>
             <div class="news-editorial-card__copy">
               <p class="section-tag">{{ article.category }} · {{ $t('phrases.p074') }}</p>
               <h3>{{ article.title }}</h3>
@@ -526,7 +532,7 @@ onUnmounted(() => {
             <div class="news-article-page__panel">
               <div class="news-article-page__hero">
                 <figure class="news-article-page__visual">
-                  <StaticOptimizedImage :src="activeArticle.image" :alt="activeArticle.title" sizes="100vw" loading="eager" fetchpriority="high" decoding="async" />
+                  <StaticOptimizedImage :src="activeArticle.image" :alt="newsImageAlt(activeArticle.title)" sizes="100vw" loading="eager" fetchpriority="high" decoding="async" />
                   <figcaption class="news-article-page__visual-mark">
                     <span class="news-article-page__visual-dot" aria-hidden="true"></span>
                     {{ q('HISTORIAS QUE NOS CONECTAN', 'STORIES THAT CONNECT US') }}
