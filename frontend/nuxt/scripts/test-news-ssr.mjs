@@ -61,6 +61,13 @@ try {
   const html = await page.text()
   assert.match(html, /Logística Costa Rica/)
   assert.match(html, /news-article-page/)
+  // A news article has one H1; the shared footer must not jump straight to H3.
+  const headingLevels = [...html.matchAll(/<h([1-6])\b[^>]*>/gi)].map(match => Number(match[1]))
+  assert.ok(headingLevels.includes(1), 'La noticia debe tener un H1')
+  for (let i = 1; i < headingLevels.length; i++) {
+    assert.ok(headingLevels[i] <= headingLevels[i - 1] + 1,
+      'El HTML SSR no debe saltar niveles de encabezados: ' + headingLevels.join(' → '))
+  }
   if (cmsResponsiveSmoke) {
     // Check SSR output itself, not the client after hydration. Nuxt must
     // announce width candidates early enough for LCP discovery.
