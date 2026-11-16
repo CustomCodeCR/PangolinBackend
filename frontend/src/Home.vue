@@ -5,6 +5,7 @@ import SiteFooter from './components/SiteFooter.vue'
 import WorldGlobe from './components/WorldGlobe.vue'
 import IconSymbol from './components/IconSymbol.vue'
 import SiteMedia from './components/SiteMedia.vue'
+import StaticOptimizedImage from './components/StaticOptimizedImage.vue'
 import HomeInstagramReel from './components/HomeInstagramReel.vue'
 import { siteText, siteVisual, siteCssImage } from './siteCms'
 import { services as baseServices, faqs as baseFaqs, type ServiceKey } from './content'
@@ -39,16 +40,25 @@ const serviceInfo = computed(() => Object.fromEntries((['Maritime', 'Land', 'Air
   }]
 })) as Record<ServiceKey, { title: string; sections: { heading: string; items: string[] }[] }>)
 const expandedFaq = ref<number | null>(0)
+const faqListRef = ref<HTMLElement | null>(null)
+const closeFaqOnOutsidePointer = (event: PointerEvent) => {
+  if (expandedFaq.value === null || !(event.target instanceof Node)) return
+  const activeItem = faqListRef.value?.querySelector<HTMLElement>(`[data-faq-index="${expandedFaq.value}"]`)
+  if (activeItem && !activeItem.contains(event.target)) expandedFaq.value = null
+}
+const closeFaqOnEscape = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') expandedFaq.value = null
+}
 const faqs = computed(() => baseFaqs.map((faq, index) => ({
   ...faq,
   q: siteText(`home.faq.${index}.q`, t(`content.faqs.${index}.q`), locale.value),
   a: siteText(`home.faq.${index}.a`, t(`content.faqs.${index}.a`), locale.value)
 })))
 const stats = computed(() => [
-  { value: '+25', label: t('custom.home.stats.0') },
-  { value: '#1', label: t('custom.home.stats.1') },
-  { value: '+105', label: t('custom.home.stats.2') },
-  { value: '24/7', label: t('custom.home.stats.3') }
+  { value: '+25', label: siteText('home.stats.0.label', t('custom.home.stats.0'), locale.value) },
+  { value: '#1', label: siteText('home.stats.1.label', t('custom.home.stats.1'), locale.value) },
+  { value: '+105', label: siteText('home.stats.2.label', t('custom.home.stats.2'), locale.value) },
+  { value: '24/7', label: siteText('home.stats.3.label', t('custom.home.stats.3'), locale.value) }
 ])
 const publicComments = ref<ManagedComment[]>([])
 const commentsLoaded = ref(false)
@@ -120,6 +130,8 @@ function requestComments() {
 }
 
 onMounted(async () => {
+  document.addEventListener('pointerdown', closeFaqOnOutsidePointer)
+  document.addEventListener('keydown', closeFaqOnEscape)
   // Comments live below the first screen; do not compete with hero/news on load.
   if (typeof IntersectionObserver === 'undefined' || !commentsSection.value) {
     requestComments()
@@ -147,6 +159,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('pointerdown', closeFaqOnOutsidePointer)
+  document.removeEventListener('keydown', closeFaqOnEscape)
   commentsObserver?.disconnect()
   unsubscribeComments()
   if (statsTimer) window.clearInterval(statsTimer)
@@ -232,7 +246,7 @@ onUnmounted(() => {
 
           <aside class="home-news-sidebar" :class="{ 'home-news-sidebar--single': homeNews.length === 1 }" :aria-label="$t('custom.home.newsAria')">
             <div class="home-hero-news__header">
-              <span>{{ $t('custom.home.newsHeader') }}</span>
+              <span>{{ siteText('home.news.heading', $t('custom.home.newsHeader'), locale) }}</span>
               <a href="/noticias">{{ $t('custom.home.allNews') }}</a>
             </div>
             <p v-if="!homeNews.length" class="home-news-empty" role="status">{{ !homeNewsLoaded ? 'Cargando noticias…' : homeNewsError ? 'No se pudieron cargar las noticias.' : 'Próximamente compartiremos noticias y novedades.' }}</p>
@@ -256,7 +270,7 @@ onUnmounted(() => {
                     :tabindex="copy > 1 ? -1 : 0"
                     :aria-label="`${$t('custom.home.newsAria')}: ${item.title}`"
                   >
-                    <img :src="item.image" :alt="item.title" loading="lazy" />
+                    <StaticOptimizedImage :src="item.image" :alt="item.title" sizes="(max-width: 720px) 46vw, 280px" loading="lazy" />
                     <span class="home-hero-news__copy">
                       <small>{{ item.category }}</small>
                       <strong>{{ item.title }}</strong>
@@ -320,9 +334,9 @@ onUnmounted(() => {
         <div class="container tracking-home-grid">
           <div class="tracking-home-copy">
             <p class="section-tag">{{ $t('phrases.p020') }}</p>
-            <h2 class="section-title">{{ $t('phrases.p021') }}<br /><span>{{ $t('phrases.p022') }}</span></h2>
+            <h2 class="section-title">{{ siteText('home.tracking.heading1', $t('phrases.p021'), locale) }}<br /><span>{{ siteText('home.tracking.heading2', $t('phrases.p022'), locale) }}</span></h2>
             <p class="section-desc">
-              {{ $t('phrases.p023') }}
+              {{ siteText('home.tracking.intro', $t('phrases.p023'), locale) }}
             </p>
             <a class="btn btn-primary" href="/tracking">
               {{ $t('phrases.p024') }} <IconSymbol glyph="↗" />
@@ -378,7 +392,7 @@ onUnmounted(() => {
         <div class="container">
           <p class="section-tag center">{{ $t('phrases.p060') }}</p>
           <h2 class="section-title centered">
-            {{ $t('phrases.p061') }} <span>{{ $t('phrases.p062') }}</span>
+            {{ siteText('home.access.heading1', $t('phrases.p061'), locale) }} <span>{{ siteText('home.access.heading2', $t('phrases.p062'), locale) }}</span>
           </h2>
           <p class="section-desc centered">
             {{ siteText('home.digital.intro', $t('phrases.p063'), locale) }}
@@ -388,12 +402,12 @@ onUnmounted(() => {
             <a class="access-card access-card--tracking" href="/tracking" :style="{ '--cms-access-tracking': siteCssImage('home.tracking.media', '/images/tracking-red.webp') }">
                <SiteMedia v-if="siteVisual('home.tracking.media', '/images/tracking-red.webp').kind.startsWith('Video')" slot-key="home.tracking.media" fallback="/images/tracking-red.webp" background />
               <IconSymbol glyph="→" :size="22" />
-              <strong>{{ $t('custom.home.trackingTitle') }}</strong>
+              <strong>{{ siteText('home.access.tracking', $t('custom.home.trackingTitle'), locale) }}</strong>
             </a>
             <a class="access-card access-card--quote" href="/cotizaciones" :style="{ '--cms-access-quote': siteCssImage('home.quote.media', '/images/services-crane.webp') }">
                <SiteMedia v-if="siteVisual('home.quote.media', '/images/services-crane.webp').kind.startsWith('Video')" slot-key="home.quote.media" fallback="/images/services-crane.webp" background />
               <IconSymbol glyph="➜" :size="22" />
-              <strong>{{ $t('custom.home.quoteCardTitle') }}</strong>
+              <strong>{{ siteText('home.access.quote', $t('custom.home.quoteCardTitle'), locale) }}</strong>
             </a>
           </div>
         </div>
@@ -407,22 +421,29 @@ onUnmounted(() => {
             {{ siteText('home.faq.heading2', $t('phrases.p033'), locale) }}<br />{{ siteText('home.faq.heading3', $t('phrases.p034'), locale) }}
           </h2>
 
-          <div class="faq-list">
+          <div ref="faqListRef" class="faq-list">
             <div
               v-for="(faq, index) in faqs"
               :key="faq.q"
               class="faq-item"
+              :data-faq-index="index"
               :class="{ 'faq-item--open': expandedFaq === index }"
+              @click="expandedFaq = expandedFaq === index ? null : index"
             >
               <button
                 :aria-expanded="expandedFaq === index"
+                :aria-controls="`home-faq-answer-${index}`"
                 type="button"
-                @click="expandedFaq = expandedFaq === index ? null : index"
+                @click.stop="expandedFaq = expandedFaq === index ? null : index"
               >
                 <span>{{ faq.q }}</span>
                 <IconSymbol :glyph="expandedFaq === index ? '−' : '+'" :size="18" />
               </button>
-              <div v-if="expandedFaq === index" class="faq-answer">{{ faq.a }}</div>
+              <div :id="`home-faq-answer-${index}`" class="faq-answer-panel"
+                :class="{ 'is-open': expandedFaq === index }"
+                :aria-hidden="expandedFaq !== index" :inert="expandedFaq !== index">
+                <div class="faq-answer-clip"><div class="faq-answer">{{ faq.a }}</div></div>
+              </div>
             </div>
           </div>
         </div>
@@ -494,6 +515,8 @@ onUnmounted(() => {
 
 <style scoped>
 .home-news-empty { padding: 24px 16px; margin: 0; color: #5d6270; font-size: 14px; line-height: 1.5; }
+/* The FAQ answer area is part of the same clickable card. */
+.faq-list .faq-item { cursor: pointer; }
 </style>
 
 <style scoped>

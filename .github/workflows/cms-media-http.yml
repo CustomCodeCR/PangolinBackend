@@ -1,0 +1,41 @@
+name: CMS media ETag and revocation (isolated HTTP)
+on:
+  push:
+    branches: [test/cms-media-http-e2e-20261113]
+  pull_request:
+    branches: [main-2]
+permissions:
+  contents: read
+jobs:
+  media-http:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Build test backend
+        run: dotnet build backend/CastroFallas.MiniQuote.Api.csproj -c Release
+      - name: Start disposable PostgreSQL (no shared volumes)
+        run: |
+          docker run -d --rm --name cms-media-pg \
+            -e POSTGRES_DB=login -e POSTGRES_USER=postgres \
+            -e POSTGRES_PASSWORD=ci-media-test-only \
+            -p 127.0.0.1:15433:5432 postgres:16-alpine
+          for i in $(seq 1 45); do
+            if docker exec cms-media-pg pg_isready -U postgres -d login >/dev/null 2>&1; then exit 0; fi
+            sleep 1
+          done
+          echo 'PostgreSQL fixture did not start' >&2
+          exit 1
+      - name: Test HTTP 200/304/206/404, CMS publication and admin privacy
+        env:
+          CI: 'true'
+          CMS_MEDIA_TEST_ISOLATED: '1'
+        run: |
+          python3 -m py_compile scripts/test-cms-media-http.py
+          python3 scripts/test-cms-media-http.py
+      - name: Remove disposable database container
+        if: always()
+        run: docker rm -f cms-media-pg >/dev/null 2>&1 || true

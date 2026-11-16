@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Target, Eye, Handshake, Scale, UsersRound, Award, ShieldCheck, Truck, ClipboardCheck, Globe2, Boxes, Ship, ChevronDown } from '@lucide/vue'
 import IconSymbol from '../components/IconSymbol.vue'
@@ -13,6 +13,23 @@ const values = computed(() => [0, 1, 2, 3, 4].map(index => siteText(`about.value
 const valueIcons = [Handshake, Scale, UsersRound, Award, ShieldCheck]
 const capabilityIcons = [Truck, ClipboardCheck, Globe2, Boxes, Ship]
 const openedValue = ref<number | null>(null)
+const valuesAccordionRef = ref<HTMLElement | null>(null)
+const closeValueOnOutsidePointer = (event: PointerEvent) => {
+  if (openedValue.value === null || !(event.target instanceof Node)) return
+  const openCard = valuesAccordionRef.value?.querySelector<HTMLElement>(`[data-value-index="${openedValue.value}"]`)
+  if (openCard && !openCard.contains(event.target)) openedValue.value = null
+}
+const closeValueOnEscape = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') openedValue.value = null
+}
+onMounted(() => {
+  document.addEventListener('pointerdown', closeValueOnOutsidePointer)
+  document.addEventListener('keydown', closeValueOnEscape)
+})
+onUnmounted(() => {
+  document.removeEventListener('pointerdown', closeValueOnOutsidePointer)
+  document.removeEventListener('keydown', closeValueOnEscape)
+})
 // Pointer events distinguish desktop mouse hover from touch, including
 // headless Chrome, where media queries for hover-capability are unreliable.
 let lastPressedPointer: string | null = null
@@ -126,14 +143,14 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
       <section class="about-refresh__intro section-spacing" id="quienes-somos">
         <div class="container about-refresh__intro-grid">
           <div class="about-refresh__intro-copy">
-            <p class="about-refresh__eyebrow">{{ copy.who }}</p>
-            <h2>{{ copy.heading }}</h2>
+            <p class="about-refresh__eyebrow">{{ siteText('about.copy.who', copy.who, locale) }}</p>
+            <h2>{{ siteText('about.copy.heading', copy.heading, locale) }}</h2>
             <p class="about-refresh__body">{{ siteText('about.intro', t('custom.about.introduction'), locale) }}</p>
-            <a class="about-refresh__intro-link" href="#nuestra-historia">{{ copy.historyAction }} <IconSymbol glyph="↗" /></a>
+            <a class="about-refresh__intro-link" href="#nuestra-historia">{{ siteText('about.copy.historyAction', copy.historyAction, locale) }} <IconSymbol glyph="↗" /></a>
           </div>
           <div class="about-refresh__photo about-image-card">
             <SiteMedia slot-key="about.operations.media" fallback="/images/about-operations-enhanced.jpg" :alt="copy.imageLabel" />
-            <div class="image-stamp">{{ copy.imageLabel }} <IconSymbol glyph="↗" /></div>
+            <div class="image-stamp">{{ siteText('about.copy.imageLabel', copy.imageLabel, locale) }} <IconSymbol glyph="↗" /></div>
           </div>
         </div>
       </section>
@@ -143,17 +160,17 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
           <article class="about-refresh__purpose-card">
             <div class="about-refresh__purpose-symbol"><Target :size="30" :stroke-width="1.8" aria-hidden="true" /></div>
             <div class="about-refresh__purpose-content">
-              <p class="about-refresh__eyebrow">{{ copy.missionTag }}</p>
-              <h2>{{ copy.mission }}</h2>
-              <p>{{ copy.missionBody }}</p>
+              <p class="about-refresh__eyebrow">{{ siteText('about.copy.missionTag', copy.missionTag, locale) }}</p>
+              <h2>{{ siteText('about.copy.mission', copy.mission, locale) }}</h2>
+              <p>{{ siteText('about.copy.missionBody', copy.missionBody, locale) }}</p>
             </div>
           </article>
           <article class="about-refresh__purpose-card">
             <div class="about-refresh__purpose-symbol"><Eye :size="30" :stroke-width="1.8" aria-hidden="true" /></div>
             <div class="about-refresh__purpose-content">
-              <p class="about-refresh__eyebrow">{{ copy.visionTag }}</p>
-              <h2>{{ copy.vision }}</h2>
-              <p>{{ copy.visionBody }}</p>
+              <p class="about-refresh__eyebrow">{{ siteText('about.copy.visionTag', copy.visionTag, locale) }}</p>
+              <h2>{{ siteText('about.copy.vision', copy.vision, locale) }}</h2>
+              <p>{{ siteText('about.copy.visionBody', copy.visionBody, locale) }}</p>
             </div>
           </article>
         </div>
@@ -163,13 +180,13 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
         <div class="container">
           <div class="about-refresh__section-heading">
             <div>
-              <p class="about-refresh__eyebrow">{{ copy.culture }}</p>
+              <p class="about-refresh__eyebrow">{{ siteText('about.copy.culture', copy.culture, locale) }}</p>
               <h2>{{ siteText('about.values.heading', t('custom.about.valuesTitle'), locale) }}</h2>
             </div>
           </div>
 
-          <div class="about-refresh__accordion">
-            <article v-for="(value, index) in values" :key="index" class="about-refresh__value" :class="{ 'is-open': openedValue === index }" @pointerenter="onValuePointerEnter(index, $event)" @pointerleave="onValuePointerLeave(index, $event)" @pointerdown="onValuePointerDown($event)">
+          <div ref="valuesAccordionRef" class="about-refresh__accordion">
+            <article v-for="(value, index) in values" :key="index" :data-value-index="index" class="about-refresh__value" :class="{ 'is-open': openedValue === index }" @pointerenter="onValuePointerEnter(index, $event)" @pointerleave="onValuePointerLeave(index, $event)" @pointerdown="onValuePointerDown($event)">
               <h3>
                 <button type="button" class="about-refresh__value-trigger" :aria-expanded="openedValue === index" :aria-controls="`about-value-detail-${index}`" @click="toggleValue(index, $event)">
                   <span class="about-refresh__value-icon"><component :is="valueIcons[index]" :size="26" :stroke-width="1.8" aria-hidden="true" /></span>
@@ -179,15 +196,15 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
               </h3>
               <div :id="`about-value-detail-${index}`" class="about-refresh__value-panel" :class="{ 'is-open': openedValue === index }" :aria-hidden="openedValue !== index" :inert="openedValue !== index">
                 <div class="about-refresh__value-inner">
-                  <p>{{ copy.valueDetails[index] }}</p>
+                  <p>{{ siteText('about.valueDetails.' + index, copy.valueDetails[index], locale) }}</p>
                 </div>
               </div>
             </article>
           </div>
           <div class="about-refresh__gallery">
-            <img src="/images/services-warehouse.webp" :alt="copy.galleryAlts[0]" loading="lazy" />
-            <img src="/images/truck.webp" :alt="copy.galleryAlts[1]" loading="lazy" />
-            <img src="/images/warehouse-person.webp" :alt="copy.galleryAlts[2]" loading="lazy" />
+            <SiteMedia slot-key="about.gallery.0.media" fallback="/images/services-warehouse.webp" :alt="copy.galleryAlts[0]" />
+            <SiteMedia slot-key="about.gallery.1.media" fallback="/images/truck.webp" :alt="copy.galleryAlts[1]" />
+            <SiteMedia slot-key="about.gallery.2.media" fallback="/images/warehouse-person.webp" :alt="copy.galleryAlts[2]" />
           </div>
         </div>
       </section>
@@ -196,8 +213,8 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
         <div class="container">
           <div class="about-refresh__section-heading">
             <div>
-              <p class="about-refresh__eyebrow">{{ copy.servicesTag }}</p>
-              <h2>{{ copy.capabilitiesTitle }}</h2>
+              <p class="about-refresh__eyebrow">{{ siteText('about.copy.servicesTag', copy.servicesTag, locale) }}</p>
+              <h2>{{ siteText('about.copy.capabilitiesTitle', copy.capabilitiesTitle, locale) }}</h2>
             </div>
           </div>
           <div class="about-refresh__capabilities">
@@ -205,15 +222,15 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
               <div class="about-refresh__capability-icon">
                 <component :is="capabilityIcons[index]" :size="30" :stroke-width="1.7" aria-hidden="true" />
               </div>
-              <h3>{{ name }}</h3>
-              <p>{{ copy.capabilityDetails[index] }}</p>
+              <h3>{{ siteText('about.capability.' + index + '.title', name, locale) }}</h3>
+              <p>{{ siteText('about.capability.' + index + '.detail', copy.capabilityDetails[index], locale) }}</p>
             </article>
           </div>
 
           <div class="about-refresh__services-footer">
             <div class="about-refresh__actions">
-              <a href="/servicios" class="about-refresh__button about-refresh__button--primary">{{ copy.serviceAction }} <span aria-hidden="true">↗</span></a>
-              <a href="/cotizaciones" class="about-refresh__button about-refresh__button--secondary">{{ copy.quoteAction }} <span aria-hidden="true">↗</span></a>
+              <a href="/servicios" class="about-refresh__button about-refresh__button--primary">{{ siteText('about.copy.serviceAction', copy.serviceAction, locale) }} <span aria-hidden="true">↗</span></a>
+              <a href="/cotizaciones" class="about-refresh__button about-refresh__button--secondary">{{ siteText('about.copy.quoteAction', copy.quoteAction, locale) }} <span aria-hidden="true">↗</span></a>
             </div>
           </div>
         </div>
@@ -236,7 +253,7 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 .about-refresh__intro-link{display:inline-flex;align-items:center;justify-content:center;gap:17px;margin-top:32px;padding:14px 24px;background:var(--about-red);color:#fff;border-radius:999px;text-decoration:none;font-weight:750;font-size:14px;transition:transform .2s,background-color .2s}
 .about-refresh__intro-link:hover{background:#8d0923;transform:translateY(-2px)}
 .about-refresh .about-refresh__photo{height:clamp(300px,27vw,435px);border-radius:26px;box-shadow:0 24px 44px rgba(24,26,33,.08)}
-.about-refresh__photo img,.about-refresh__photo video{width:100%;height:100%;object-fit:cover}
+.about-refresh__photo :deep(img),.about-refresh__photo video{width:100%;height:100%;object-fit:cover}
 .about-refresh__purpose{padding-block:clamp(55px,6vw,95px) clamp(84px,9vw,140px)}
 .about-refresh__purpose-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(24px,3.8vw,62px)}
 .about-refresh__purpose-card{display:grid;grid-template-columns:76px minmax(0,1fr);gap:26px;align-items:start;min-height:220px;padding:clamp(30px,3.2vw,49px);background:linear-gradient(145deg,#fdf8f9,#f7eaed);border:1px solid rgba(160,36,64,.10);border-radius:26px}
@@ -269,7 +286,7 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 .about-refresh__capability h3{margin:0 0 10px;font-size:19px;line-height:1.25;letter-spacing:-.02em}
 .about-refresh__capability p{margin:0;max-width:310px;color:var(--about-muted);line-height:1.66;font-size:15px}
 .about-refresh__gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;margin-top:clamp(46px,5vw,76px)}
-.about-refresh__gallery img{display:block;width:100%;height:clamp(210px,18vw,315px);object-fit:cover;border-radius:21px}
+.about-refresh__gallery :deep(img),.about-refresh__gallery video{display:block;width:100%;height:clamp(210px,18vw,315px);object-fit:cover;border-radius:21px}
 .about-refresh__services-footer{display:flex;align-items:center;justify-content:space-between;gap:38px;margin-top:38px;padding-top:32px;border-top:1px solid rgba(36,40,49,.15)}
 .about-refresh__services-footer>p{margin:0;max-width:530px;color:var(--about-muted);line-height:1.68;font-size:16px}
 .about-refresh__actions{display:flex;flex-wrap:wrap;gap:14px}
@@ -300,7 +317,7 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
   .about-refresh__accordion,.about-refresh__capabilities{grid-template-columns:1fr}
   .about-refresh__value-trigger{min-height:85px;padding:17px 18px}
   .about-refresh__gallery{grid-template-columns:1fr;gap:17px}
-  .about-refresh__gallery img{height:225px}
+  .about-refresh__gallery :deep(img),.about-refresh__gallery video{height:225px}
   .about-refresh__services{padding-block:90px}
 }
 @media(prefers-reduced-motion:reduce){.about-refresh__value,.about-refresh__value-panel,.about-refresh__value-chevron,.about-refresh__capability,.about-refresh__button,.about-refresh__intro-link{transition:none}}
@@ -382,7 +399,7 @@ html.theme-dark .about-refresh__button--secondary{color:#fff}
 .about-refresh__capability h3{font-size:clamp(15px,1.25vw,19px);line-height:1.25}
 .about-refresh__capability p{margin:12px auto 0;font-size:clamp(12px,.95vw,15px);line-height:1.6}
 .about-refresh__gallery{gap:clamp(16px,2vw,31px);margin-top:clamp(39px,5vw,70px)}
-.about-refresh__gallery img{height:clamp(200px,19vw,300px);border-radius:19px}
+.about-refresh__gallery :deep(img),.about-refresh__gallery video{height:clamp(200px,19vw,300px);border-radius:19px}
 .about-refresh__services-footer{margin-top:clamp(34px,4vw,55px)}
 html.theme-dark .about-refresh__value-summary{color:#cdd2dc}
 html.theme-dark .about-refresh__purpose-symbol{background:#aa1736;color:#fff}
@@ -419,7 +436,7 @@ html.theme-dark .about-refresh__capability:hover{background:rgba(255,255,255,.05
   .about-refresh__accordion,.about-refresh__capabilities{grid-template-columns:1fr}
   .about-refresh__value-trigger{min-height:105px}
   .about-refresh__capability{border-right:0!important}
-  .about-refresh__gallery img{height:225px}
+  .about-refresh__gallery :deep(img),.about-refresh__gallery video{height:225px}
 }
 
 /* Compact spacing and value cards: hover for fine pointers, taps on touch. */
@@ -534,12 +551,41 @@ html.theme-dark .about-refresh__value.is-open .about-refresh__value-icon{
 /* Allow the gallery to sit a little lower below the cards without
    introducing extra empty space before the next section. */
 .about-refresh__values .about-refresh__gallery{margin-top:clamp(52px,5vw,74px)}
-.about-refresh__values .about-refresh__gallery img{object-fit:cover}
+.about-refresh__values .about-refresh__gallery :deep(img),.about-refresh__gallery video{object-fit:cover}
 .about-refresh__values{padding-bottom:clamp(8px,1.5vw,23px)}
 @media(max-width:580px){
   .about-refresh__values .about-refresh__gallery{margin-top:34px}
   .about-refresh__values{padding-bottom:28px}
 }
+/* Center incomplete card rows without changing the original card sizes.
+   Desktop retains its five-column grid; three/two-column breakpoints wrap
+   with equal-sized cards, and the mobile one-column layout is unchanged. */
+@media (min-width:581px) and (max-width:1320px) {
+  .about-refresh__accordion,
+  .about-refresh__capabilities {
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    align-items:flex-start;
+  }
+  .about-refresh__accordion > .about-refresh__value {
+    box-sizing:border-box;
+    flex:0 0 calc((100% - 40px) / 3);
+  }
+  .about-refresh__capabilities > .about-refresh__capability {
+    box-sizing:border-box;
+    flex:0 0 calc((100% - 2 * clamp(13px,1.7vw,26px)) / 3);
+  }
+}
+@media (min-width:581px) and (max-width:950px) {
+  .about-refresh__accordion > .about-refresh__value {
+    flex-basis:calc((100% - 20px) / 2);
+  }
+  .about-refresh__capabilities > .about-refresh__capability {
+    flex-basis:calc((100% - clamp(13px,1.7vw,26px)) / 2);
+  }
+}
+
 /* Keep the experience divider fully white in dark mode. */
 html.theme-dark .about-refresh .about-refresh__hero-copy .big-years span {
   border-left-color: #fff !important;

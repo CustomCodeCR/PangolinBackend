@@ -44,6 +44,10 @@ for (const path of paths) {
       continue
     }
     const html = await response.text()
+    const htmlTag = html.match(/<html\b[^>]*>/i)?.[0] || ''
+    if (!/\blang=["'](?:es|en)(?:-[A-Za-z]+)?["']/i.test(htmlTag)) {
+      fail(path, 'falta atributo lang en <html> SSR')
+    }
     const title = html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.trim()
     if (!title) fail(path, 'falta título SSR')
     if (!/<h1(?:\s|>)/i.test(html)) fail(path, 'falta H1 en HTML SSR')

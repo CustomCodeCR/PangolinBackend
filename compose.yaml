@@ -57,6 +57,7 @@ services:
       Auth__JwtSigningKey: ${AUTH_JWT_SIGNING_KEY:?Falta AUTH_JWT_SIGNING_KEY}
       Auth__SecureCookie: "false"
       Development__ApplySchema: "true"
+      CmsNews__BinaryImageDeliveryEnabled: ${CMS_NEWS_BINARY_IMAGES:-false}
       Redis__ConnectionString: redis:6379
       Mongo__ConnectionString: mongodb://mongo:27017
       Mongo__Database: castrofallas_logs

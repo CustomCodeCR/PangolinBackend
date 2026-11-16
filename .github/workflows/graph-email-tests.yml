@@ -1,0 +1,25 @@
+name: Microsoft Graph OTP offline contract checks
+
+on:
+  pull_request:
+    branches: [main-2, main]
+    paths:
+      - "backend/Services/Auth/GraphEmailSender.cs"
+      - "tests/GraphEmailSenderHarness/**"
+      - ".github/workflows/graph-email-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  graph-offline:
+    name: Microsoft Graph offline response and privacy tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Check token, sendMail and error sanitization with local fake HTTP
+        run: dotnet run --project tests/GraphEmailSenderHarness/GraphEmailSenderHarness.csproj -c Release

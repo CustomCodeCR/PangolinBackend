@@ -66,7 +66,11 @@ def snapshot(driver, base, route):
           const page = document.querySelector('.service-landing-page');
           if (!page) return null;
           const image = page.querySelector('.service-landing-hero__media img');
-          const video = page.querySelector('.service-landing-story__media video source');
+          // CMS service media may use a <video src> instead of a <source> child,
+// or a published image replacing the default MP4.
+const storyMedia = page.querySelector('.service-landing-story__media video, .service-landing-story__media img');
+const storySrc = storyMedia?.querySelector('source')?.getAttribute('src')
+  || storyMedia?.getAttribute('src');
           return {
             hasHero: !!page.querySelector('.service-landing-hero__inner .service-landing-hero__media img') &&
               !!page.querySelector('.service-landing-story__frame'),
@@ -74,7 +78,7 @@ def snapshot(driver, base, route):
             cardCount: page.querySelectorAll('.service-landing-feature').length,
             faqCount: page.querySelectorAll('.service-landing-faq__item').length,
             image: image ? new URL(image.getAttribute('src'), location.href).pathname : null,
-            video: video ? new URL(video.getAttribute('src'), location.href).pathname : null,
+            video: storySrc ? new URL(storySrc, location.href).pathname : null,
             quoteHref: page.querySelector('.service-landing-hero__copy a[href*="/cotizaciones"]')?.getAttribute('href') || ''
           };
         })(),

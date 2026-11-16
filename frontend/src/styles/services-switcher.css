@@ -229,6 +229,19 @@ html.theme-dark .site-header .services-megamenu__rail-link.is-current {
     font-weight: 800;
     cursor: pointer;
   }
+  /* Compact menus use a light glass panel in light mode: the back label and
+     arrow must follow the red ink, not the old white-on-white styling. */
+  html:not(.theme-dark) .site-header .services-megamenu__back {
+    color: #9f0921 !important;
+    -webkit-text-fill-color: #9f0921 !important;
+    border-color: rgba(159, 9, 33, .28);
+    background: rgba(159, 9, 33, .08);
+  }
+  /* Preserve white lettering over the dark nav panel. */
+  html.theme-dark .site-header .services-megamenu__back {
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+  }
   .site-header .services-megamenu__detail .services-megamenu__eyebrow { margin: 6px 0 5px; }
   .site-header .services-megamenu__links { gap: 2px; }
 }

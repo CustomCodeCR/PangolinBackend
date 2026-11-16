@@ -39,8 +39,10 @@ for width, height, viewport in ((1440, 900, "desktop"), (390, 844, "mobile")):
                 )
                 assert mascot.get_attribute("aria-expanded") == "false"
                 wait.until(lambda d: d.execute_script("""
-                  const image = document.querySelector('.site-assistant__figure-base');
-                  return !!image?.complete && image.naturalWidth > 0;
+                  const body = document.querySelector('.site-assistant__figure-base');
+                  const hand = document.querySelector('.site-assistant__wave-hand');
+                  return !!body?.complete && body.naturalWidth > 0 &&
+                         !!hand?.complete && hand.naturalWidth > 0;
                 """))
                 measures = driver.execute_script("""
                   const root = document.querySelector('.site-assistant__mascot');
@@ -50,10 +52,17 @@ for width, height, viewport in ((1440, 900, "desktop"), (390, 844, "mobile")):
                     x: bounds.left, right: bounds.right,
                     y: bounds.top, bottom: bounds.bottom,
                     viewport: innerWidth, viewportHeight: innerHeight,
-                    imageGood: img?.complete && img.naturalWidth > 0
+                    imageGood: img?.complete && img.naturalWidth > 0,
+                    bodySource: img?.currentSrc || '',
+                    handSource: root.querySelector('img.site-assistant__wave-hand')?.currentSrc || ''
                   };
                 """)
                 assert measures["imageGood"], f"GIO mascot image not decoded on {route}: {measures}"
+                for selected, suffix in (("bodySource", "gio-assistant-base"),
+                                         ("handSource", "gio-assistant-hand")):
+                    assert measures[selected].endswith((suffix + ".avif", suffix + ".webp")), (
+                        f"Optimized GIO image not selected on {route}/{theme}: {measures}"
+                    )
                 assert measures["x"] >= -1 and measures["right"] <= width + 1, (
                     f"GIO button outside viewport {route}: {measures}"
                 )
