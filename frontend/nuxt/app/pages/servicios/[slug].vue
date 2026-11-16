@@ -15,6 +15,14 @@ const detail = servicePages.find(item => item.slug === slug)
 if (!guide && !detail) throw createError({ statusCode: 404, statusMessage: 'Servicio no encontrado' })
 
 const title = guide?.es.title ?? detail!.title.es
+// Shorter search-result titles; leave the on-page service heading and content intact.
+const seoTitleBySlug: Record<string, string> = {
+  'agenciamiento-aduanal': 'Agenciamiento aduanal en Costa Rica | Castro Fallas',
+  'almacenamiento-fiscal': 'Almacenamiento fiscal en Costa Rica | Castro Fallas',
+  'bodegaje-general': 'Bodegaje general en Costa Rica | Castro Fallas',
+  'consolidadora-de-carga': 'Consolidadora de carga LCL y LTL | Castro Fallas'
+}
+const seoTitle = seoTitleBySlug[slug] ?? title + ' | Grupo Castro Fallas'
 const description = guide?.es.answer ?? detail!.lead.es
 const serviceType = guide?.es.label ?? detail!.serviceType.es
 const image = detail?.image ?? '/images/cover-logistics.jpeg'
@@ -26,7 +34,7 @@ const faqs: Faq[] = detail
 
 usePublicSeo({
   path,
-  title: title + ' | Grupo Castro Fallas',
+  title: seoTitle,
   description: description.slice(0, 160),
   image,
   schema: [
