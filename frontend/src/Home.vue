@@ -363,8 +363,8 @@ onUnmounted(() => {
               <div class="home-specialties__copy">
                 <span class="home-specialties__overline">{{ locale === 'es' ? 'ALMACENAMIENTO' : 'WAREHOUSING' }} <b>01</b></span>
                 <h2 class="home-specialties__heading">
-                  <span>{{ locale === 'es' ? 'Almacen Fiscal' : 'Bonded Warehouse' }}</span>
-                  <strong>A257, A287</strong>
+                  <span>{{ locale === 'es' ? 'Espacio para tu carga.' : 'Space for your cargo.' }}</span>
+                  <strong>{{ locale === 'es' ? 'Almacenamiento fiscal A257 · A287' : 'Bonded warehousing A257 · A287' }}</strong>
                 </h2>
               </div>
             </article>
@@ -379,8 +379,8 @@ onUnmounted(() => {
               <div class="home-specialties__copy">
                 <span class="home-specialties__overline">{{ locale === 'es' ? 'TRANSPORTE REGIONAL' : 'REGIONAL TRANSPORT' }} <b>02</b></span>
                 <h2 class="home-specialties__heading">
-                  <span>{{ locale === 'es' ? 'Transportes' : 'Transport' }}</span>
-                  <strong>Costa Rica Panama</strong>
+                  <span>{{ locale === 'es' ? 'Movemos tu negocio.' : 'We move your business.' }}</span>
+                  <strong>{{ locale === 'es' ? 'Transporte entre Costa Rica y Panamá' : 'Transport between Costa Rica and Panama' }}</strong>
                 </h2>
               </div>
             </article>
@@ -713,7 +713,7 @@ onUnmounted(() => {
   font-weight: 850;
 }
 .home-specialties__heading span { color: #202127; }
-.home-specialties__heading strong { color: #b5092b; font-weight: inherit; }
+.home-specialties__heading strong { color: #b5092b; font-size: clamp(17px, 1.52vw, 21px); font-weight: 800; line-height: 1.35; letter-spacing: -.012em; }
 @media (max-width: 760px) {
   .home-specialties { padding: 26px 0 38px; }
   .home-specialties__inner { width: min(100%, calc(100% - 28px)); }
@@ -751,12 +751,21 @@ html.theme-dark .app-site.home-page .home-specialties .home-specialties__heading
   color: #e21d3b !important;
   -webkit-text-fill-color: #e21d3b !important;
 }
+/* Match the dark-blue contact tiles and their restrained red edge glow. */
 html.theme-dark .app-site.home-page .home-specialties .home-specialties__item {
-  background: linear-gradient(130deg, rgba(255,255,255,.07), rgba(255,255,255,.025)) !important;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.13), 0 14px 35px rgba(0,0,0,.12);
+  background: linear-gradient(180deg, #020a24 0%, #01081d 100%) !important;
+  border: 1px solid rgba(181, 9, 43, .45) !important;
+  box-shadow:
+    0 0 18px rgba(181, 9, 43, .18),
+    0 0 34px rgba(181, 9, 43, .10),
+    inset 0 0 0 1px rgba(181, 9, 43, .10) !important;
+}
+html.theme-dark .app-site.home-page .home-specialties .home-specialties__item::before {
+  display: none;
 }
 html.theme-dark .app-site.home-page .home-specialties .home-specialties__icon-wrap {
-  background: rgba(255,255,255,.085) !important;
+  background: rgba(181, 9, 43, .22) !important;
+  border-radius: 50%;
   color: #fff !important;
 }
 html.theme-dark .app-site.home-page .home-specialties .home-specialties__icon,
