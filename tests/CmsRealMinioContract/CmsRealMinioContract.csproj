@@ -8,6 +8,7 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <Using Include="Microsoft.AspNetCore.Http" />
+    <Using Include="Microsoft.Extensions.Configuration" />
     <Using Include="Microsoft.Extensions.Logging" />
     <Compile Include="../../backend/Services/CmsImageVariants.cs" Link="CmsImageVariants.cs" />
     <Compile Include="../../backend/Services/ObjectStorageService.cs" Link="ObjectStorageService.cs" />
