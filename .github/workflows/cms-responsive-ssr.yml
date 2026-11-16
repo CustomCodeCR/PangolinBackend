@@ -1,0 +1,39 @@
+name: CMS responsive images in Nuxt SSR (opt-in, isolated)
+
+on:
+  pull_request:
+    branches: [main-2]
+    paths:
+      - frontend/src/cmsResponsiveImages.ts
+      - frontend/src/components/StaticOptimizedImage.vue
+      - frontend/src/components/SiteMedia.vue
+      - frontend/src/Home.vue
+      - frontend/src/pages/News.vue
+      - frontend/nuxt/**
+      - .github/workflows/cms-responsive-ssr.yml
+
+permissions:
+  contents: read
+
+jobs:
+  cms-responsive-ssr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated Nuxt dependencies
+        working-directory: frontend/nuxt
+        run: npm install --no-audit --no-fund
+      - name: Build opt-in Nuxt SSR (never deploy)
+        working-directory: frontend/nuxt
+        env:
+          VITE_CMS_RESPONSIVE_WEBP_ENABLED: 'true'
+        run: npm run build
+      - name: Verify SSR article includes real responsive srcset
+        working-directory: frontend/nuxt
+        env:
+          CMS_RESPONSIVE_SSR_SMOKE: '1'
+        run: node scripts/test-news-ssr.mjs
