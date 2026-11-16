@@ -1539,6 +1539,21 @@ html.theme-dark .quote-flow .quote-cargo-form button,html.theme-dark .quote-flow
 @keyframes quote-number-drift{from{background-position:0% 50%}to{background-position:100% 50%}}
 @media(prefers-reduced-motion:reduce){.quote-flow .cargo-form-section__heading>span,html.theme-dark .quote-flow .cargo-form-section__heading>span{animation:none;background-position:50% 50%!important}}
 
+/* Keep Home FAQ answers mounted: animate the panel height and opacity in
+   both directions, matching the interaction used by the About value cards. */
+.faq-answer-panel{
+  display:grid;grid-template-rows:0fr;opacity:0;visibility:hidden;
+  transition:grid-template-rows .3s ease,opacity .25s ease,visibility .3s;
+}
+.faq-answer-panel.is-open{
+  grid-template-rows:1fr;opacity:1;visibility:visible;
+  transition:grid-template-rows .3s ease,opacity .25s ease,visibility 0s;
+}
+.faq-answer-clip{min-height:0;overflow:hidden}
+@media(prefers-reduced-motion:reduce){
+  .faq-answer-panel,.faq-answer-panel.is-open{transition:none!important}
+}
+
 /* Home page FAQ glow and contact cards */
 .faq-section{overflow:hidden}
 .faq-background:after{content:"";position:absolute;top:8%;bottom:8%;left:-38%;width:66%;pointer-events:none;background:radial-gradient(ellipse at center,rgba(237,23,55,.42) 0%,rgba(190,11,41,.2) 38%,transparent 72%);filter:blur(54px);opacity:.8;animation:faq-red-diffuse 9s ease-in-out infinite alternate}
@@ -1554,10 +1569,23 @@ html.theme-dark .quote-flow .quote-cargo-form button,html.theme-dark .quote-flow
 .home-contact-card small{color:rgba(255,255,255,.88)!important;font-size:12px;line-height:1.55;overflow-wrap:anywhere}
 html.theme-dark .home-contact-details{background:#01081D!important}
 html.theme-dark .home-contact-card,html.theme-dark .home-contact-card *{color:#fff!important}
-@media(max-width:1050px){.home-contact-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:650px){.home-contact-details{padding:18px 0 55px}.home-contact-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.home-contact-card{min-height:180px;padding:20px 12px}.home-contact-card strong{font-size:12px}.home-contact-card small{font-size:11px}}
-@media(min-width:391px) and (max-width:650px){.home-contact-grid>.home-contact-card:last-child{grid-column:1/-1}}
-@media(max-width:390px){.home-contact-grid{grid-template-columns:1fr}}
+/* Center the incomplete last row: 3+2 on tablet, 2+2+1 on
+   smaller screens, while preserving five equal tiles on desktop. */
+@media(max-width:1050px){
+  .home-contact-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
+  .home-contact-grid>.home-contact-card{box-sizing:border-box;min-width:0;flex:0 0 calc((100% - 32px)/3)}
+}
+@media(max-width:650px){
+  .home-contact-details{padding:18px 0 55px}
+  .home-contact-grid{gap:11px}
+  .home-contact-grid>.home-contact-card{flex-basis:calc((100% - 11px)/2)}
+  .home-contact-card{min-height:180px;padding:20px 12px}
+  .home-contact-card strong{font-size:12px}
+  .home-contact-card small{font-size:11px}
+}
+@media(max-width:390px){
+  .home-contact-grid>.home-contact-card{flex-basis:100%}
+}
 @media(prefers-reduced-motion:reduce){.faq-background:after{animation:none;left:20%;opacity:.55}}
 
 /* Keep the FAQ photo visible in dark mode and blend the animated red glow over it. */
@@ -4881,7 +4909,10 @@ html:not(.theme-dark) .login-visual__content h1 em { color: var(--login-accent) 
 .login-visual{background-image:linear-gradient(125deg,#9c092ad9 0%,#9b0c28bf 33%,#1c174347 75%),var(--cms-login-hero,url('/images/hero.webp'))}
 .login-visual:has(>.cms-background-video){isolation:isolate;background-image:none;background-color:#1c243c}
 .login-visual:has(>.cms-background-video)::before{content:"";position:absolute;z-index:1;inset:0;background:linear-gradient(125deg,#9c092ad9,#1c174347);pointer-events:none}
-.login-visual:has(>.cms-background-video)>.login-guest-back,.login-visual:has(>.cms-background-video)>.login-visual__content,.login-visual:has(>.cms-background-video)>.login-visual__bottom{position:relative;z-index:2}
+.login-visual:has(>.cms-background-video)>.login-guest-back{position:absolute;z-index:3}
+.login-visual:has(>.cms-background-video)>.login-visual__content,.login-visual:has(>.cms-background-video)>.login-visual__bottom{position:relative;z-index:2}
+/* En pantallas compactas, Volver queda en la esquina opuesta al logo. */
+@media(max-width:800px){.login-visual .login-guest-back{top:16px;left:auto;right:clamp(18px,4vw,32px);max-width:calc(100% - 36px);white-space:nowrap}}
 .faq-section{background-image:var(--cms-faq,url('/images/operation.webp'))}
 .faq-section>.cms-background-video{z-index:0}
 .access-card--tracking{background-image:var(--cms-access-tracking,url('/images/tracking-red.webp'))}
@@ -5813,4 +5844,124 @@ html.theme-dark .app-site.services-page .services-directory .services-directory_
   background: #b30c2d !important;
   color: #fff !important;
   -webkit-text-fill-color: #fff !important;
+}
+
+/* Login OTP: use the same dark navy surfaces as the form, even when the
+   lazy-loaded Vue scoped stylesheet is injected after global CSS. */
+html.theme-dark .login-screen .login-auth-card .login-auth-feedback {
+  background: #0b1428 !important;
+  background-color: #0b1428 !important;
+  background-image: none !important;
+  border: 1px solid #435069 !important;
+  color: #f4f6fa !important;
+  -webkit-text-fill-color: #f4f6fa !important;
+}
+html.theme-dark .login-screen .login-auth-card .login-auth-feedback__copy strong {
+  color: #f4f6fa !important;
+  -webkit-text-fill-color: #f4f6fa !important;
+}
+html.theme-dark .login-screen .login-auth-card .login-auth-feedback__copy > span {
+  color: #cbd2df !important;
+  -webkit-text-fill-color: #cbd2df !important;
+}
+html.theme-dark .login-screen .login-auth-card .login-auth-feedback__copy small {
+  color: #ffa6b6 !important;
+  -webkit-text-fill-color: #ffa6b6 !important;
+}
+html.theme-dark .login-screen .login-auth-card .login-auth-feedback__icon {
+  background: #301e34 !important;
+  background-color: #301e34 !important;
+  border: 1px solid #68435a !important;
+  color: #ffa6b6 !important;
+  -webkit-text-fill-color: #ffa6b6 !important;
+}
+html.theme-dark .login-screen .login-auth-card .login-auth-sending {
+  background: #101b32 !important;
+  background-color: #101b32 !important;
+  border: 1px solid #435069 !important;
+  color: #d4dceb !important;
+  -webkit-text-fill-color: #d4dceb !important;
+}
+
+
+/* PageSpeed home accessibility: preserve the tiny decorative dots while giving
+   each actual button a >=44px hit target and a visible keyboard focus. */
+.app-site main>section.stats-band .stats-carousel-dots {
+  gap: 2px;
+  margin-top: -16px;
+}
+.app-site main>section.stats-band .stats-carousel-dots button,
+.app-site main>section.stats-band .stats-carousel-dots button.active {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  background: transparent !important;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.app-site main>section.stats-band .stats-carousel-dots button::after {
+  content: '';
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 99px;
+  background: rgba(255,255,255,.75);
+}
+.app-site main>section.stats-band .stats-carousel-dots button.active::after {
+  width: 25px;
+  background: #fff;
+}
+.app-site main>section.stats-band .stats-carousel-dots button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -4px;
+}
+/* White text on the deep red strip must not become translucent during the
+   automatic slide transition, which would weaken contrast and readability. */
+.app-site main>section.stats-band .stats-slide strong,
+.app-site main>section.stats-band .stats-slide span {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+.app-site main>section.stats-band .stat-slide-enter-active,
+.app-site main>section.stats-band .stat-slide-leave-active {
+  transition: transform .22s ease;
+}
+.app-site main>section.stats-band .stat-slide-enter-from,
+.app-site main>section.stats-band .stat-slide-leave-to {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-site main>section.stats-band .stat-slide-enter-active,
+  .app-site main>section.stats-band .stat-slide-leave-active {
+    transition: none;
+  }
+}
+/* Footer links retain their appearance, but no longer have ~20px-tall targets. */
+.site-footer .footer-top > div:not(.footer-identity) > a,
+.site-footer .footer-legal nav > a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  width: fit-content;
+  padding-block: 8px;
+}
+.site-footer .footer-legal nav { flex-wrap: wrap; }
+.site-footer .footer-legal nav > a { padding-inline: 8px; }
+
+
+/* Navigation hover-only underlines. The red current-page pill stays unchanged.
+   Keep a transparent border for stable layout; don't leave a gray rule visible
+   after switching between light and dark themes or opening a dropdown. */
+@media (min-width: 801px) {
+  .site-header .main-nav > a:not(.is-active):not(.nav-login),
+  .site-header .main-nav .nav-dropdown:not(.nav-dropdown--active) > .nav-dropdown__trigger {
+    border-bottom: 2px solid transparent !important;
+    text-decoration: none !important;
+  }
+  .site-header .main-nav > a:not(.is-active):not(.nav-login):is(:hover, :focus-visible),
+  .site-header .main-nav .nav-dropdown:not(.nav-dropdown--active) > .nav-dropdown__trigger:is(:hover, :focus-visible) {
+    border-bottom-color: rgba(255, 255, 255, .82) !important;
+  }
 }

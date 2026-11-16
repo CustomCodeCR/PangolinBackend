@@ -12,6 +12,13 @@ const { canonical, organizationId } = usePublicSeo({
     url: 'https://www.logisticacastrofallas.com/servicios'
   }]
 })
+// The opening hero is rendered as a CSS background. Discover its fallback
+// from the initial SSR head rather than waiting for hydration/CSS evaluation.
+// Preload only on Home to avoid fetching this asset on other routes.
+useHead({
+  link: [{ rel: 'preload', as: 'image', type: 'image/webp', href: '/images/hero.webp', fetchpriority: 'high' }]
+})
+
 const serviceCards = Object.entries(guides).map(([url, entry]) => ({ url, title: entry.es.label, text: entry.es.answer }))
 </script>
 <template>

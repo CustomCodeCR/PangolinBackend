@@ -47,7 +47,7 @@ public static class ItinerariosCrudEndpoints
             return item is null
                 ? Results.NotFound(new { error = "Itinerario no encontrado." })
                 : Results.Ok(ToResponse(item));
-        }).RequireRateLimiting("auth");
+        }).RequireRateLimiting("public-read");
 
         // Todos los cambios requieren JWT con role=admin, además de la sesión
         // revocable comprobada por JwtBearer/OnTokenValidated.

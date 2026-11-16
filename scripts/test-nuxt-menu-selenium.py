@@ -118,6 +118,17 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896
             # On mobile the only return action reveals all original top-level links.
             if width <= 1080:
                 back = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".services-megamenu__back")))
+                back_colors = driver.execute_script("""
+                  const button = arguments[0];
+                  const css = getComputedStyle(button);
+                  const icon = button.querySelector('svg');
+                  return {text: css.color, fill: css.webkitTextFillColor,
+                          arrow: icon ? getComputedStyle(icon).color : null};
+                """, back)
+                expected_back_color = "rgb(255, 255, 255)" if theme == "dark" else "rgb(159, 9, 33)"
+                assert all(back_colors[key] == expected_back_color for key in ("text", "fill", "arrow")), (
+                    f"Unreadable Categories back button in {label}/{theme}: {back_colors}"
+                )
                 back.click()
                 left = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".services-megamenu__rail")))
                 assert len(left.find_elements(By.CSS_SELECTOR, "a")) == GENERAL_LINKS + 1, "Missing top-level services"

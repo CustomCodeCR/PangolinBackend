@@ -1,7 +1,7 @@
 name: Instagram Reel en Home - main-2
 on:
   pull_request:
-    branches: [main-2]
+    branches: [main-2, main]
     paths:
       - "frontend/src/Home.vue"
       - "frontend/src/pages/SiteVisualEditor.vue"

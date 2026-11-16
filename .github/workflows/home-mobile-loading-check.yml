@@ -2,7 +2,7 @@ name: Home mobile progressive loading
 
 on:
   pull_request:
-    branches: [main-2]
+    branches: [main-2, main]
     paths:
       - "frontend/src/Root.vue"
       - "frontend/src/Home.vue"

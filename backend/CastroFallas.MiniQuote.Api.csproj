@@ -11,6 +11,9 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
     <PackageReference Include="MailKit" Version="4.17.0" />
     <PackageReference Include="AWSSDK.S3" Version="3.7.510.8" />
+    <!-- Native codecs isolated to opt-in CMS uploads. MIT licensed, pinned in PR #223. -->
+    <PackageReference Include="SkiaSharp" Version="4.153.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.153.1" />
     <!-- Pin the transitive MailKit dependency to the patched version. -->
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
     <PackageReference Include="MongoDB.Driver" Version="3.12.0" />

@@ -43,6 +43,14 @@ assert.match(component, /<blockquote class="instagram-media" :data-instgrm-perma
   'Use the official Instagram post/Reel blockquote based on the sanitized URL')
 assert.match(component, /playInstagramInsidePage/,
   'The visitor must be able to try playback inside the page from a link-only Reel')
+assert.match(component, /'home-instagram-section__ig-embed--video-crop': instagramEmbedState === 'ready'/,
+  'The crop must activate only after the official iframe is detected')
+assert.match(component, /\.home-instagram-section__ig-embed--video-crop \.home-instagram-section__ig-stage\s*\{[^}]*transform:\s*scale\(\.91\)/s,
+  'Only the official Instagram stage may be enlarged, without resizing the reel card')
+assert.match(component, /\.home-instagram-section__ig-embed\s*\{[^}]*overflow:\s*hidden/s,
+  'The original Instagram embed container must clip excess player chrome')
+assert.match(component, /\.home-instagram-section__ig-embed--video-crop:focus-within \.home-instagram-section__ig-open/,
+  'The external Instagram fallback link must remain keyboard accessible')
 assert.match(component, /<button class="home-instagram-section__play" type="button"[\s\S]*?@click="playInstagramInsidePage"/,
   'The play button must activate the official embed')
 assert.match(component, /instagramEmbedState\.value = 'unavailable'/,

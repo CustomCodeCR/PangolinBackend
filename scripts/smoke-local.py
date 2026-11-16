@@ -22,7 +22,7 @@ OUTBOX = ROOT / 'backend' / 'local-outbox'
 BASE = 'http://127.0.0.1:5000'
 
 
-def call(opener, route, data=None, method=None):
+def call(opener, route, data=None, method=None, response_headers=None):
     headers = {'Accept': 'application/json'}
     if data is not None:
         data = json.dumps(data).encode('utf-8')
@@ -30,9 +30,13 @@ def call(opener, route, data=None, method=None):
     req = Request(BASE + route, data=data, headers=headers, method=method)
     try:
         with opener.open(req, timeout=15) as resp:
+            if response_headers is not None:
+                response_headers.update(dict(resp.headers.items()))
             raw = resp.read()
             return resp.status, json.loads(raw) if raw else {}
     except HTTPError as exc:
+        if response_headers is not None:
+            response_headers.update(dict(exc.headers.items()))
         raw = exc.read()
         try:
             payload = json.loads(raw)
@@ -46,9 +50,11 @@ def require(ok, message):
         raise RuntimeError(message)
 
 
-def latest_otp(email, since):
+def latest_otp(email, since, exclude_names=None):
     # Solo buscar archivos nuevos dirigidos a la cuenta de DEMO.
     for file in sorted(OUTBOX.glob('otp-*.eml'), key=lambda p: p.stat().st_mtime, reverse=True):
+        if exclude_names and file.name in exclude_names:
+            continue
         if file.stat().st_mtime < since - 2:
             continue
         message = BytesParser(policy=policy.default).parsebytes(file.read_bytes())
@@ -75,6 +81,15 @@ def main():
             f'Correo sin registro debe recibir aviso antes del OTP: {status} {unavailable}')
     require('challengeId' not in unavailable,
             'No debe generarse un desafío OTP para correos no registrados.')
+    # Verificar el límite por correo contra PostgreSQL, sin enviar emails reales:
+    # la segunda solicitud inmediata pasa la cuota, la tercera activa HTTP 429.
+    status, second_unknown = call(browser, '/api/auth/request-otp', {'correo': fake_email})
+    require(status == 404 and second_unknown.get('code') == 'account_unavailable',
+            f'La segunda solicitud consecutiva debe ser permitida: {status} {second_unknown}')
+    status, third_unknown = call(browser, '/api/auth/request-otp', {'correo': fake_email})
+    require(status == 429 and third_unknown.get('code') == 'otp_rate_limited',
+            f'La tercera solicitud consecutiva debe esperar 60 segundos: {status} {third_unknown}')
+
 
     email = 'demo.usuario@castrofallas.test'
     moment = time.time()
@@ -84,10 +99,33 @@ def main():
     require(status == 200, f'Solicitud OTP HTTP {status}: {started}')
     otp = latest_otp(email, moment)
     require(otp is not None, 'No se encontró OTP nuevo en backend/local-outbox')
-    status, result = call(browser, '/api/auth/verify-otp', {
+    # Con LocalOutbox, un segundo envío inmediato debe ser aceptado.
+    # Un OTP anterior queda inválido SOLO después de aceptar el correo nuevo.
+    previously_written = {p.name for p in OUTBOX.glob('otp-*.eml')}
+    resend_started_at = time.time()
+    second_headers = {}
+    status, second_started = call(browser, '/api/auth/request-otp', {'correo': email},
+                                  response_headers=second_headers)
+    require(status == 200 and second_started.get('challengeId'),
+            f'Segundo envío OTP de prueba debe permitirse: HTTP {status}')
+    require(1 <= int(second_headers.get('Retry-After', '0')) <= 60,
+            'El segundo OTP exitoso debe anunciar la espera real en Retry-After')
+    third_headers = {}
+    status, denied_third = call(browser, '/api/auth/request-otp', {'correo': email},
+                                response_headers=third_headers)
+    require(status == 429 and denied_third.get('code') == 'otp_rate_limited'
+            and 1 <= int(third_headers.get('Retry-After', '0')) <= 60,
+            'La tercera solicitud inmediata debe recibir HTTP 429 con Retry-After')
+    new_otp = latest_otp(email, resend_started_at, exclude_names=previously_written)
+    require(new_otp is not None, 'Falta el segundo OTP local, no se entregó fuera del equipo')
+    status, _ = call(browser, '/api/auth/verify-otp', {
         'challengeId': started['challengeId'], 'codigo': otp
     })
-    require(status == 200, f'Verificación HTTP {status}: {result}')
+    require(status == 401, f'Un OTP antiguo siguió válido tras el segundo envío: HTTP {status}')
+    status, result = call(browser, '/api/auth/verify-otp', {
+        'challengeId': second_started['challengeId'], 'codigo': new_otp
+    })
+    require(status == 200, f'Verificación del OTP nuevo HTTP {status}: {result}')
     require(result.get('user', {}).get('role') == 'admin', 'El OTP de usuario debe producir role=admin.')
     # La cookie contiene un JWT compacto (no se muestra el token en consola).
     cookies = [c for c in jar if c.name == 'cf_session']
@@ -171,12 +209,57 @@ def main():
     })
     require(status == 201 and disposable.get('id'),
             f'No se pudo crear cuenta desechable: {status} {disposable}')
+    # A second, isolated customer company lets us exercise true cross-tenant
+    # access, not just client vs. administrator. LocalOutbox never sends mail.
+    isolated_jar = http.cookiejar.CookieJar()
+    isolated_browser = build_opener(HTTPCookieProcessor(isolated_jar))
+    isolated_start = time.time()
+    status, isolated_started = call(isolated_browser, '/api/auth/request-otp',
+                                    {'correo': deleted_email})
+    require(status == 200 and isolated_started.get('challengeId'),
+            'No se pudo emitir el OTP de la segunda empresa de prueba.')
+    isolated_otp = latest_otp(deleted_email, isolated_start)
+    require(isolated_otp is not None, 'No se generó el OTP local de la segunda empresa.')
+    status, isolated_verified = call(isolated_browser, '/api/auth/verify-otp', {
+        'challengeId': isolated_started['challengeId'], 'codigo': isolated_otp
+    })
+    require(status == 200 and isolated_verified.get('user', {}).get('role') == 'client',
+            'La segunda empresa no pudo autenticarse como cliente.')
+    status, isolated_me = call(isolated_browser, '/api/auth/me')
+    require(status == 200 and isolated_me.get('clienteId') != me.get('clienteId'),
+            'Las dos cuentas de prueba deben pertenecer a empresas distintas.')
+
+    isolated_payload = {
+        'serviceType': 'Maritime', 'origin': 'Puerto Limón', 'destination': 'Miami',
+        'cargoType': 'Carga general', 'weightKg': 110, 'pieces': 1
+    }
+    status, isolated_quote = call(isolated_browser, '/api/quotes', isolated_payload)
+    require(status == 201 and isolated_quote.get('id'),
+            'La segunda empresa no pudo crear su cotización de prueba.')
+    isolated_quote_id = isolated_quote['id']
+    status, _ = call(isolated_browser, '/api/quotes/' + admin_quote_id)
+    require(status == 404, 'Una empresa distinta pudo consultar la cotización del administrador.')
+    status, _ = call(browser, '/api/quotes/' + isolated_quote_id)
+    require(status == 404, 'Un administrador pudo consultar una cotización ajena de otra empresa.')
+    status, admin_isolated_list = call(browser, '/api/quotes/mine?page=1&pageSize=100')
+    require(status == 200 and all(q.get('id') != isolated_quote_id
+                                  for q in admin_isolated_list.get('items', [])),
+            'La lista de cotizaciones de un administrador filtró una solicitud ajena.')
+    status, _ = call(isolated_browser, '/api/admin/users')
+    require(status == 403, 'Un cliente aislado pudo listar cuentas administrativas.')
     delete_route = '/api/admin/users/' + disposable['id']
     status, denied_live_delete = call(browser, delete_route, method='DELETE')
     require(status == 409, 'La API permitió eliminar una cuenta nueva que seguía activa.')
     status, disabled_delete = call(browser, delete_route, {'role': 'cliente', 'activo': False}, 'PATCH')
     require(status == 200 and disabled_delete.get('activo') is False,
             'No se pudo guardar el estado desactivado de la cuenta desechable.')
+    # Deactivation must revoke previously issued sessions on the NEXT request.
+    # This checks PostgreSQL-backed session validation, not only a cookie clear.
+    status, _ = call(isolated_browser, '/api/auth/me')
+    require(status == 401, 'La sesión de una cuenta desactivada siguió autenticada.')
+    status, _ = call(isolated_browser, '/api/quotes/' + isolated_quote_id)
+    require(status == 401, 'Una cuenta desactivada conservó acceso a sus cotizaciones.')
+
     status, removed = call(browser, delete_route, method='DELETE')
     require(status == 204, f'La eliminación controlada no funcionó: {status} {removed}')
     status, removed_again = call(browser, delete_route, method='DELETE')
@@ -454,12 +537,15 @@ def main():
             f'El cliente no recibió role=client ({status}).')
     status, client_me = call(client_browser, '/api/auth/me')
     require(status == 200 and client_me.get('role') == 'client', 'JWT cliente no válido.')
+    status, _ = call(client_browser, '/api/quotes/' + isolated_quote_id)
+    require(status == 404, 'Un cliente pudo ver la cotización de otra empresa.')
+
     status, _ = call(client_browser, '/api/quotes/' + admin_quote_id)
     require(status == 404, 'Un cliente pudo acceder a la cotización privada de un administrador.')
     status, client_mine_before = call(client_browser, '/api/quotes/mine')
-    require(status == 200 and all(q.get('id') != admin_quote_id
+    require(status == 200 and all(q.get('id') not in (admin_quote_id, isolated_quote_id)
                                   for q in client_mine_before.get('items', [])),
-            'La lista de clientes expone una cotización de administrador.')
+            'La lista de clientes expone cotizaciones ajenas a su empresa.')
     status, denied_users = call(client_browser, '/api/admin/users')
     require(status == 403, f'Cliente pudo listar cuentas: {status} {denied_users}')
     status, denied_create = call(client_browser, '/api/admin/users',

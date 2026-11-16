@@ -342,8 +342,142 @@ assert.doesNotMatch(news, /news-article-modal|aria-modal="true"/, 'Noticias no a
 assert.match(news, /href="\/noticias"/, 'El usuario puede volver a la lista de noticias')
 const home = source('src/Home.vue')
 assert.match(home, /encodeURIComponent\(item\.id\)/, 'Home debe enlazar la noticia específica')
+// Regression: every FAQ card can close from its answer/blank area; question
+// buttons keep native keyboard behavior without double-triggering the card.
+const servicesPage = source('src/pages/Services.vue')
+assert.match(home, /class="faq-item"[\s\S]*?@click="expandedFaq = expandedFaq === index \? null : index"/,
+  'FAQ del inicio abre y cierra al pulsar cualquier parte de la tarjeta')
+assert.match(home, /@click\.stop="expandedFaq = expandedFaq === index \? null : index"/,
+  'El botón de inicio no cambia de estado dos veces por el evento del contenedor')
+assert.match(home, /document\.addEventListener\('pointerdown', closeFaqOnOutsidePointer\)/,
+  'Las FAQ del inicio siguen cerrándose al pulsar fuera')
+assert.ok(servicesPage.includes('class="services-faq__item" :data-faq-index="index"') &&
+  servicesPage.includes('@click="openServicesFaq = openServicesFaq === index ? null : index"'),
+  'La tarjeta FAQ de servicios abre y cierra al pulsar cualquier parte')
+assert.ok(servicesPage.includes('@click.stop="openServicesFaq = openServicesFaq === index ? null : index"'),
+  'El botón FAQ de servicios no duplica la interacción del contenedor')
+assert.ok(servicesPage.includes('class="services-faq__panel"') &&
+  servicesPage.includes(':aria-hidden="openServicesFaq !== index"') &&
+  servicesPage.includes(':inert="openServicesFaq !== index"'),
+  'La animación conserva el contenido y la accesibilidad de la respuesta en el DOM')
+assert.ok(servicesPage.includes('grid-template-rows:0fr;opacity:0;visibility:hidden;'),
+  'Las FAQ de servicios se contraen con una transición igual a la de Transporte')
+assert.ok(servicesPage.includes('grid-template-rows:1fr;opacity:1;visibility:visible;'),
+  'Las FAQ de servicios se expanden con una transición suave')
+assert.ok(servicesPage.includes('@media(prefers-reduced-motion:reduce)'),
+  'La animación FAQ respeta preferencias de movimiento reducido')
+assert.ok(servicesPage.includes(':aria-expanded="openServicesFaq === index"'),
+  'Las preguntas de servicios continúan siendo accesibles por teclado')
+assert.match(servicesPage, /document\.addEventListener\('pointerdown', closeOtherServiceFaqs\)/,
+  'Los acordeones de servicios cierran al pulsar fuera o en otra tarjeta')
+assert.match(servicesPage, /document\.removeEventListener\('pointerdown', closeOtherServiceFaqs\)/,
+  'Los eventos globales de servicios se liberan al desmontar la página')
+// Keep the step 02 copy its full width, with a modest vertical offset so
+// the numeral is above the content and the image stays aligned with the video.
+const serviceLanding = source('src/pages/ServiceLanding.vue')
+const serviceStepsCss = source('src/styles/service-landing-experience.css')
+assert.match(serviceLanding, /class="service-landing-faq__item"[\s\S]*?@click="openServiceFaq = openServiceFaq === index \? null : index"/,
+  'Cada tarjeta FAQ individual se puede cerrar pulsando sobre su respuesta')
+assert.match(serviceLanding, /@click\.stop="openServiceFaq = openServiceFaq === index \? null : index"/,
+  'El botón FAQ de servicios no duplica el evento del contenedor')
+assert.match(serviceLanding, /document\.addEventListener\('pointerdown', closeServiceFaqOutside\)/,
+  'Las FAQ individuales cierran al pulsar fuera de su tarjeta')
+assert.match(serviceLanding, /document\.removeEventListener\('pointerdown', closeServiceFaqOutside\)/,
+  'No quedan eventos FAQ al salir de una página individual')
+assert.match(serviceLanding, /:aria-expanded="openServiceFaq === index"/,
+  'Los botones FAQ conservan su estado accesible para lectores de pantalla')
+assert.match(serviceLanding, /class="service-landing-step service-landing-step--details" data-step="02"/,
+  'La etapa 02 sigue siendo compartida por todos los servicios')
+assert.match(serviceStepsCss, /\.service-landing-story \.service-landing-step--details \.service-landing-section-heading--text-only\s*\{\s*width:100%;\s*max-width:100%;/,
+  'El texto del paso 02 conserva el ancho original completo')
+assert.doesNotMatch(serviceStepsCss, /width:calc\(100% - clamp\(/,
+  'El texto del paso 02 no debe quedar angosto por el número decorativo')
+for (const padding of [
+  'padding-top:clamp(100px,7.5vw,125px);',
+  'padding-top:clamp(95px,13vw,120px);',
+  'padding-top:clamp(85px,18vw,110px);'
+]) {
+  assert.ok(serviceStepsCss.includes(padding), 'Separación superior responsive para el número 02: ' + padding)
+}
+// Only the four long-form guide services need a more compact vertical
+// arrangement; transport pages keep their already approved stage spacing.
+const longGuideSlugs = Object.keys(JSON.parse(source('seo/service-landings.json')))
+assert.deepEqual(longGuideSlugs.sort(), [
+  '/servicios/agenciamiento-aduanal',
+  '/servicios/almacenamiento-fiscal',
+  '/servicios/bodegaje-general',
+  '/servicios/consolidadora-de-carga'
+], 'Solo los cuatro servicios de texto extendido reciben el ajuste')
+assert.match(serviceLanding, /service-landing-page--long-guide': Boolean\(guides\[route\]\)/,
+  'La clase de texto extendido se activa únicamente en las cuatro guías')
+assert.match(serviceLanding, /service-landing-page--balanced-guide': Boolean\(guides\[route\]\) && route !== '\/servicios\/almacenamiento-fiscal'/,
+  'Solo Bodegaje, Agenciamiento y Consolidadora reciben el ajuste; Fiscal permanece igual')
+assert.match(serviceStepsCss, /\.service-landing-page--balanced-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-grid\s*\{\s*padding-top:clamp\(72px,calc\(5\.2vw \+ 14px\),92px\);\s*gap:clamp\(18px,1\.9vw,26px\);/,
+  'Los tres servicios recuperan ligeramente la posición vertical anterior')
+assert.match(serviceStepsCss, /\.service-landing-page--balanced-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-visual\s*\{\s*height:clamp\(210px,30svh,310px\);\s*max-height:100%;/,
+  'Las fotografías de los tres servicios recuperan su tamaño, con altura adaptable')
+assert.match(serviceStepsCss, /@media\(min-width:901px\)\s*\{\s*\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-grid\s*\{\s*padding-top:clamp\(42px,4vw,60px\);\s*gap:clamp\(14px,1\.5vw,22px\);/,
+  'Las cuatro guías adelantan texto y foto sin afectar a transportes')
+assert.match(serviceStepsCss, /\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-section-heading>p:not\(\.section-tag\)\s*\{\s*font-size:clamp\(16px,1\.2vw,18px\);\s*line-height:1\.55;/,
+  'Los párrafos largos conservan todo el contenido y utilizan un ritmo vertical compacto')
+assert.match(serviceStepsCss, /\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-visual\s*\{\s*height:clamp\(210px,30svh,310px\);\s*max-height:100%;\s*min-height:0;/,
+  'Las fotos de las cuatro guías recuperan su tamaño máximo anterior')
+assert.match(serviceStepsCss, /grid-template-rows:max-content minmax\(0,1fr\);\s*max-height:calc\(min\(100svh - 48px,820px\) - clamp\(30px,4vw,58px\) - 14px\)/,
+  'La imagen se adapta al espacio que queda debajo del texto y dentro del video')
+// The light hero's transition is shorter/lower on desktop, while the dark
+// transition and the rest of the service stages keep their original layout.
+assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-story\s*\{\s*--service-story-blend:clamp\(115px,15svh,170px\);/,
+  'El difuminado de portada claro inicia más abajo en escritorio')
+assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-hero::after\s*\{\s*height:clamp\(130px,16svh,190px\);/,
+  'La transición difuminada de portada ocupa menos altura')
+// Long-form guides lower the visible fade without moving the following frame;
+// the transport pages retain the shared baseline transition.
+assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-page--long-guide \.service-landing-hero::after\s*\{\s*height:clamp\(105px,13svh,155px\);/,
+  'Las cuatro guías bajan el inicio visual del difuminado de portada')
+assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-page--long-guide \.service-landing-story::before\s*\{\s*backdrop-filter:blur\(10px\);/,
+  'Las cuatro guías hacen coherente el difuminado entre ambas capas')
+assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-hero::after\s*\{\s*height:clamp\(130px,16svh,190px\);/,
+  'El difuminado ya aprobado en transportes se conserva')
+// Regression: top navigation underlines are hover/focus-only in both themes,
+// while the existing active item stays a red pill.
+const hoverOnlyNavCss = source('src/style.css')
+assert.match(hoverOnlyNavCss, /\/\* Navigation hover-only underlines\./,
+  'La navegación tiene una regla explícita de línea solo al interactuar')
+assert.match(hoverOnlyNavCss, /\.site-header \.main-nav > a:not\(\.is-active\):not\(\.nav-login\)[\s\S]*?border-bottom: 2px solid transparent !important;/,
+  'Los enlaces inactivos no muestran línea en reposo')
+assert.match(hoverOnlyNavCss, /\.nav-dropdown:not\(\.nav-dropdown--active\) > \.nav-dropdown__trigger:is\(:hover, :focus-visible\)[\s\S]*?border-bottom-color: rgba\(255, 255, 255, \.82\) !important;/,
+  'El subrayado sigue disponible con mouse y teclado')
+// Step 02: the adaptive measurement must actually affect long-form image
+// layout, rather than becoming an unused custom property in JavaScript.
+assert.match(serviceStepsCss, /max-height: var\(--service-guide-photo-limit, 310px\);/,
+  'La foto de guías extensas respeta el límite calculado')
+assert.match(serviceLanding, /if \(availableHeight >= 100\)/,
+  'La fotografía no desaparece por mediciones transitorias inválidas')
+
 const itinerary = source('src/pages/Itinerary.vue')
 assert.match(itinerary, /closing/, 'Conservar Closing, ETD y ETA')
+// Regression contract for the result-card-only redesign: all itinerary fields,
+// statuses and navigation remain available in ES/EN without touching API logic.
+const itineraryResults = itinerary.slice(
+  itinerary.indexOf('<article v-for="(item, index) in (!cargando && !errorBusqueda ? resultados : [])"'),
+  itinerary.indexOf('<nav v-if="!cargando && !errorBusqueda && totalPages > 1"')
+)
+assert.match(itineraryResults, /class="itinerary-summary-card"/, 'Los resultados usan la nueva tarjeta de resumen')
+for (const field of ['item.pol', 'item.pod', 'item.closing', 'item.etd', 'item.eta',
+  'item.carrier', 'item.vessel', 'item.voyage', 'item.modality']) {
+  assert.ok(itineraryResults.includes(field), 'La tarjeta conserva el campo ' + field)
+}
+assert.match(itineraryResults, /statusLabel\(item\.status\)/, 'La tarjeta conserva el estado de la API')
+assert.match(itineraryResults, /en \? 'Carrier' : 'Transportista'/, 'Los detalles mantienen ES/EN')
+assert.match(itineraryResults, /itinerary-summary-card__route/, 'Origen y destino mantienen jerarquía visual')
+assert.match(itineraryResults, /itinerary-summary-card__information/, 'Fechas y detalles están separados del trayecto')
+assert.match(itinerary, /:global\(html\.theme-dark \.app-site\.itinerary-page \.itinerary-summary-card\)\s*\{[^}]*background:#060f21 !important;/, 'El modo oscuro utiliza su propia superficie azul marino')
+assert.match(itinerary, /@media\(max-width:550px\)/, 'La tarjeta se adapta a móviles')
+assert.match(itinerary, /itinerary-pagination/, 'La paginación permanece intacta')
+assert.doesNotMatch(itineraryResults, /class="itinerary-result-card"/, 'No debe permanecer la cuadrícula antigua')
+assert.match(itinerary, /\.itinerary-search-results\s*\{[^}]*max-width:1180px/, 'Los resultados no deben expandirse indefinidamente en monitores grandes')
+assert.match(itineraryResults, /class="itinerary-summary-card__route-arrow"><IconSymbol glyph="→" :size="18" \/>/, 'La flecha debe ser un SVG centrado, no un carácter tipográfico')
+assert.match(itinerary, /\.itinerary-summary-card__route-line > \.itinerary-summary-card__route-arrow\s*\{[^}]*align-items:center;justify-content:center/, 'El círculo centra el icono real en ambos ejes')
 const fieldDropdown = source('src/components/FieldDropdown.vue')
 assert.match(fieldDropdown, /<Teleport to="body">/, 'Menus sobre las tarjetas sin ser recortados')
 assert.match(fieldDropdown, /class="cf-dropdown__menu" role="listbox"/, 'Conservar semántica listbox del componente compartido')
@@ -446,7 +580,7 @@ const backendProgram = source('../backend/Program.cs')
 assert.match(login, /body\?\.code === 'account_unavailable'/, 'Login debe identificar correo no habilitado')
 assert.match(login, /custom\.login\.accountUnavailable/, 'El aviso usa el idioma actual')
 assert.doesNotMatch(login, /custom\.login\.footer/, 'No mostrar texto de acceso de prueba')
-assert.match(login, /if \(!response\.ok\) throw new Error\(await parseError\(response\)\)/, 'Error de correo debe detener el paso OTP')
+assert.match(login, /if \(!response\.ok\) \{\s*const issue = await parseError\(response\)[\s\S]*?throw new Error\(issue\.message\)/, 'Error de correo debe detener el paso OTP')
 assert.match(login, /step\.value = 'otp'/, 'Conservar flujo OTP cuando el correo está habilitado')
 assert.equal(esLogin.intro, 'Ingresa tu dirección de correo electrónico para recibir un código de un solo uso.')
 assert.equal(enLogin.intro, 'Enter your email address to receive a one-time code.')
@@ -454,7 +588,7 @@ assert.ok(esLogin.accountUnavailable && enLogin.accountUnavailable, 'Aviso tradu
 assert.equal(esLogin.footer, undefined, 'Quitar aviso de pruebas en español')
 assert.equal(enLogin.footer, undefined, 'Quitar aviso de pruebas en inglés')
 assert.doesNotMatch(esLogin.emailPlaceholder, /gmail\.com/i, 'No restringir dominio de correo a Gmail')
-assert.match(authService, /if \(user is null\)\s*return \(null, false, true\);/, 'No generar OTP ficticio para cuenta desconocida')
+assert.match(authService, /if \(user is null\)\s*return \(null, false, true, 0\);/, 'No generar OTP ficticio para cuenta desconocida')
 assert.match(backendProgram, /code = "account_unavailable"/, 'API debe distinguir la cuenta no habilitada')
 assert.match(backendProgram, /StatusCodes\.Status404NotFound/, 'Devolver 404 antes del formulario OTP')
 
@@ -920,5 +1054,98 @@ assert.match(tracking, /const customerUpdateText = computed\(\(\) =>/, 'El texto
 assert.match(tracking, /customerUpdateTranslations\.value\[language \+ ':' \+ source\] \?\? source/, 'Si el servicio falla se conserva el mensaje original')
 assert.doesNotMatch(tracking, /shipment\.value\.customerStatus\s*=/, 'Nunca escribir una traducción en Dynamics o mutar el registro')
 assert.doesNotMatch(trackingTranslationBackend, /logger\.Log(?:Warning|Error|Information)\([^\n]*(?:source|message)\b/, 'No registrar el mensaje privado en logs')
+
+// OTP UX regression: never leak internal transport errors into the customer UI.
+const otpLogin = source('src/pages/Login.vue')
+const otpBackend = source('../backend/Program.cs')
+const otpService = source('../backend/Services/Auth/AuthService.cs')
+const otpEs = JSON.parse(source('src/locales/es.json')).custom.login
+const otpEn = JSON.parse(source('src/locales/en.json')).custom.login
+assert.match(otpService, /request_count < 4/, 'OTP mantiene máximo cuatro solicitudes por 15 minutos')
+assert.match(otpService, /request_count % 2 = 1/, 'OTP permite un segundo intento antes de esperar 60 segundos')
+assert.doesNotMatch(otpService, /AnyAsync\(x => x\.UsuarioId == user\.Uuid && x\.CreatedAt > now\.AddSeconds\(-60\)/, 'No bloquear el segundo intento con un límite de challenge obsoleto')
+assert.match(otpService, /last_requested_at <= NOW\(\) - INTERVAL '60 seconds'/, 'OTP conserva espera mínima por correo')
+assert.match(otpService, /GetOtpRetrySecondsAsync\(emailKey, ct\)/, 'Devuelve espera calculada desde PostgreSQL')
+assert.match(otpService, /await SendMailAsync\(email, otp, ct\)/, 'OTP sigue enviándose por proveedor')
+assert.match(otpService, /x\.Uuid != id && x\.CreatedAt < row\.CreatedAt && x\.UsedAt == null/, 'Solo se invalidan OTP anteriores después del envío, sin afectar desafíos nuevos simultáneos')
+assert.match(otpBackend, /code = "otp_rate_limited"/, '429 por correo es distinguible')
+assert.match(otpBackend, /Headers\.RetryAfter/, '429 y 503 exponen Retry-After')
+assert.match(otpBackend, /code = "email_unavailable"/, '503 conserva código de diagnóstico')
+assert.match(otpLogin, /body\?\.code === 'email_unavailable'/, 'La IU reconoce indisponibilidad del correo')
+assert.match(otpLogin, /response\.status === 429/, 'La IU reconoce 429')
+assert.match(otpLogin, /beginRetryCooldown\(response\)/, 'La IU usa Retry-After')
+assert.match(otpLogin, /if \(response\.headers\.has\('Retry-After'\)\) beginRetryCooldown\(response\)/, 'La segunda solicitud exitosa también activa la pausa visual')
+assert.match(otpService, /return \(new OtpStarted\(id, GenericMessage, 300\), false, false,[\s\S]*?await GetOtpRetrySecondsAsync\(emailKey, ct\)\)/, 'Respuesta OTP exitosa informa próxima oportunidad de reenvío')
+assert.match(otpLogin, /issue\.kind === 'rate' \|\| \(issue\.kind === 'mail' && response\.headers\.has\('Retry-After'\)\)/, '503 sin espera permite un segundo clic')
+assert.match(otpBackend, /if \(ex\.RetryAfterSeconds > 0\)/, 'El 503 no impone un minuto ficticio al primer error')
+assert.match(otpLogin, /:disabled="loading \|\| retrySeconds > 0"/, 'El botón OTP respeta el contador')
+assert.match(otpLogin, /watch\(email, \(\) => \{ error\.value = ''; errorKind\.value = ''; restoreRetryCooldown\(\) \}\)/, 'Cuenta regresiva asociada al correo activo, no a otros usuarios de la pestaña')
+assert.match(otpLogin, /const normalized = email\.value\.trim\(\)\.toLowerCase\(\)/, 'Índice de espera normalizado por cuenta')
+assert.match(otpLogin, /window\.crypto\.getRandomValues\(bytes\)/, 'Identificador opaco con sal aleatoria por pestaña')
+assert.match(otpLogin, /sessionStorage\.setItem\(key, String\(retryUntil\)\)/, 'La espera persiste solo en la cuenta seleccionada')
+assert.match(otpLogin, /role="alert"/, 'Mensajes accesibles')
+assert.match(otpLogin, /class="login-auth-sending" role="status"/, 'La espera al proveedor de correo es visible y accesible')
+assert.match(otpLogin, /class="login-auth-cooldown" role="status"/, 'Mostrar el contador restaurado cuando no haya tarjeta de error')
+assert.match(otpLogin, /retrySeconds > 0 && !error/, 'Evitar mostrar el contador duplicado junto al error de correo')
+assert.match(otpLogin, /retrySeconds > 0 \? \$t\('custom\.login\.rateTitle'\)/, 'Usar una etiqueta de espera sin contador duplicado en el botón')
+const otpLoginStyles = source('src/style.css')
+assert.match(otpLoginStyles, /html\.theme-dark \.login-screen \.login-auth-card \.login-auth-feedback \{[\s\S]*?background: #0b1428 !important;/, 'El aviso OTP en modo oscuro es azul marino en lugar de blanco')
+assert.match(otpLoginStyles, /html\.theme-dark \.login-screen \.login-auth-card \.login-auth-feedback__copy > span \{[\s\S]*?color: #cbd2df !important;/, 'Descripción OTP legible en modo oscuro')
+assert.match(otpLoginStyles, /html\.theme-dark \.login-screen \.login-auth-card \.login-auth-sending \{[\s\S]*?background: #101b32 !important;/, 'Estado de espera coherente en modo oscuro')
+assert.match(otpLoginStyles, /\.login-visual:has\(>\.cms-background-video\)>\.login-guest-back\{position:absolute;z-index:3\}/, 'Volver no debe entrar en el flujo sobre el logo cuando hay video de portada')
+assert.match(otpLoginStyles, /@media\(max-width:800px\)\{\.login-visual \.login-guest-back\{top:16px;left:auto;right:/, 'Volver se ubica lejos del logo en ancho móvil')
+assert.doesNotMatch(otpLogin, /body\.traceId|\` \[\$\{body\.code\}\]/, 'La IU no expone traceId ni etiquetas internas')
+for (const key of ['sendingDetail', 'mailUnavailableTitle', 'mailUnavailableDescription', 'mailImmediateRetryDescription', 'rateTitle', 'rateDescription', 'retryIn', 'retryButton', 'serviceError']) {
+  assert.equal(typeof otpEs[key], 'string', 'OTP ES: ' + key)
+  assert.equal(typeof otpEn[key], 'string', 'OTP EN: ' + key)
+}
+
+// Public itinerary 429 regression: isolate read quotas without weakening auth,
+// protect X-Forwarded-For, cache public catalogues, and show a useful message.
+const limitBackend = source('../backend/Program.cs')
+const clientPartition = source('../backend/Services/RateLimitClientKey.cs')
+const quoteEndpoints = source('../backend/Endpoints/OfficialQuoteEndpoints.cs')
+const itineraryCrud = source('../backend/Services/ItinerariosCrudEndpoints.cs')
+const itineraryCatalog = source('src/lib/itineraryLocations.ts')
+assert.match(limitBackend, /AddPolicy\("public-read"/, 'Consultas públicas utilizan una cuota separada')
+assert.match(limitBackend, /PermitLimit = 120/, 'Límite para lecturas públicas')
+assert.match(limitBackend, /AddPolicy\("auth"[\s\S]*?PermitLimit = 20/, 'OTP conserva su cuota independiente')
+assert.match(limitBackend, /HttpContext\.Response\.StatusCode = StatusCodes\.Status429TooManyRequests/, 'Rechazo conserva HTTP 429')
+assert.match(limitBackend, /Response\.Headers\.RetryAfter/, 'Los clientes reciben Retry-After')
+assert.match(limitBackend, /app\.UseAuthentication\(\);[\s\S]*?app\.UseRateLimiter\(\)/, 'La partición de usuarios se calcula con identidad validada')
+assert.match(clientPartition, /trusted\.Contains\(current\)/, 'XFF solo tras verificar proxy inmediato')
+assert.match(clientPartition, /GetSection\("RateLimiting:TrustedProxyIps"\)/, 'Lista explícita de proxies confiables')
+const deployedCompose = source('../deploy/docker-compose.images.yml')
+assert.ok(deployedCompose.includes('RateLimiting__TrustedProxyIps__0: "${PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_IP_0:-}"'), 'Compose real de Argos expone proxy 0 opcional')
+assert.ok(deployedCompose.includes('RateLimiting__TrustedProxyIps__1: "${PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_IP_1:-}"'), 'Compose real de Argos expone proxy 1 opcional')
+assert.ok(deployedCompose.includes('PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_IP_0:-') && deployedCompose.includes('PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_IP_1:-'), 'No fijar IPs de contenedores en Compose')
+assert.match(clientPartition, /GetSection\("RateLimiting:TrustedProxyHostnames"\)/, 'Confianza por nombre de servicio Docker explícito')
+assert.match(clientPartition, /IsSafeDockerHostname\(host\)/, 'No resolver dominios públicos ni patrones abiertos')
+assert.match(clientPartition, /IsDockerPrivateAddress/, 'No confiar en destinos DNS públicos')
+assert.match(clientPartition, /DateTimeOffset\.UtcNow\.AddSeconds\(5\)/, 'Revalidar IPs Docker tras recreación')
+assert.match(clientPartition, /catch \(SocketException\)/, 'DNS caído no habilita confianza implícita')
+assert.ok(deployedCompose.includes('RateLimiting__TrustedProxyHostnames__0: "${PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_HOST_0:-}"'), 'Proxy DNS 0 configurable y desactivado por defecto')
+assert.ok(deployedCompose.includes('RateLimiting__TrustedProxyHostnames__1: "${PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_HOST_1:-}"'), 'Proxy DNS 1 configurable y desactivado por defecto')
+assert.ok(deployedCompose.includes('RateLimiting__TrustedProxyHostnames__2: "${PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_HOST_2:-}"'), 'Proxy DNS 2 configurable y desactivado por defecto')
+assert.doesNotMatch(clientPartition, /Request\.Headers\["CF-Connecting-IP"\]/, 'No confiar en encabezados falsificables de Cloudflare')
+assert.match(quoteEndpoints, /MapGet\("\/locations", GetPublicAssistantLocations\)[\s\S]*?RequireRateLimiting\("public-read"\)/, 'Catálogo oficial separado de auth')
+assert.match(quoteEndpoints, /MapPost\(""/, 'Las escrituras de cotizaciones permanecen intactas')
+assert.match(itineraryCrud, /MapGet\("\/api\/itinerarios\/\{id:guid\}"[\s\S]*?RequireRateLimiting\("public-read"\)/, 'Detalle público separado de auth')
+assert.match(limitBackend, /MapGet\("\/api\/itinerarios"[\s\S]*?RequireRateLimiting\("public-read"\)/, 'Listado público separado de auth')
+assert.match(limitBackend, /MapGet\("\/api\/itinerarios\/locations"[\s\S]*?RequireRateLimiting\("public-read"\)/, 'Un solo endpoint de catálogos combinados')
+assert.match(itineraryCatalog, /fetch\('\/api\/itinerarios\/locations\?'/, 'La UI consulta el catálogo combinado')
+assert.doesNotMatch(itineraryCatalog, /Promise\.all\(types\.map/, 'Sin ráfaga de ocho consultas individuales')
+assert.match(itineraryCatalog, /const CACHE_MS = 5 \* 60 \* 1000/, 'Caché temporal del catálogo')
+assert.match(itineraryCatalog, /sessionStorage\.getItem\(STORAGE_PREFIX \+ key\)/, 'Caché persiste tras recarga')
+assert.match(itineraryCatalog, /if \(response\.status === 429\)/, 'Catálogo respeta 429')
+assert.match(itineraryCatalog, /cooldownRemaining\(key\)/, 'Se evita insistir durante el enfriamiento')
+assert.match(itinerary, /beginRetryCooldown\(response\)/, 'El 429 de resultados respeta Retry-After')
+assert.match(itinerary, /sessionStorage\.setItem\(SEARCH_COOLDOWN_KEY/, 'El cooldown se conserva tras refrescar la pestaña')
+assert.match(itinerary, /const remaining = savedRetrySeconds\(\)/, 'No se reintenta el listado al recargar durante 429')
+assert.match(itinerary, /if \(retrySeconds\.value > 0\) return/, 'No se bombardea el API durante cooldown')
+assert.match(itinerary, /class="itinerary-rate-limit" role="alert"/, 'Mensaje accesible dentro del resumen')
+assert.match(itinerary, /'Demasiadas consultas por el momento'/, 'Mensaje comprensible en español')
+assert.match(itinerary, /'Too many requests for now'/, 'Mensaje comprensible en inglés')
+assert.match(itinerary, /:disabled="retrySeconds > 0 \|\| cargando"/, 'Reintento bloqueado hasta que expire Retry-After')
 
 console.log('OK: SignalR, CMS, MinIO, news, itinerary and tracking contracts.')

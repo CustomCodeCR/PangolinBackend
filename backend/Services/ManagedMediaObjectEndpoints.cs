@@ -17,7 +17,8 @@ public static class ManagedMediaObjectEndpoints
     public static void MapManagedMediaObjects(this IEndpointRouteBuilder app)
     {
         app.MapPost("/api/admin/content/media/upload", async Task<IResult> (
-            HttpRequest request, AppDbContext db, ObjectStorageService storage, ContentUpdatesPublisher updates, CancellationToken ct) =>
+            HttpRequest request, AppDbContext db, ObjectStorageService storage, ContentUpdatesPublisher updates,
+            IConfiguration configuration, ILoggerFactory loggerFactory, CancellationToken ct) =>
         {
             if (!storage.Enabled)
                 return Results.Json(new { error = "El almacenamiento S3 no está habilitado." }, statusCode: 503);
@@ -69,6 +70,40 @@ public static class ManagedMediaObjectEndpoints
                 catch { /* La reconciliación de objetos huérfanos debe registrarse en operaciones. */ }
                 throw;
             }
+            // Feature-gated, upload-time generation only. The original file and
+            // DB record remain valid when native encoding or a derivative PUT fails.
+            if (kind == "Imagen" && configuration.GetValue<bool>("CmsMedia:ResponsiveWebpEnabled"))
+            {
+                var logger = loggerFactory.CreateLogger("CmsResponsiveWebp");
+                try
+                {
+                    var variants = await CmsImageVariants.EncodeAsync(file, mime, logger, ct);
+                    foreach (var (width, bytes) in variants)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        using var variantStream = new MemoryStream(bytes, writable: false);
+                        try
+                        {
+                            await storage.UploadAsync(
+                                CmsImageVariants.ObjectKey(key, width), variantStream,
+                                bytes.Length, "image/webp", ct);
+                        }
+                        catch (AmazonS3Exception ex)
+                        {
+                            logger.LogWarning(ex, "CMS WebP upload failed for width {Width}; original preserved", width);
+                        }
+                    }
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "CMS WebP generation unavailable; original preserved");
+                }
+            }
+
             await updates.AdminsAsync("media");
             return Results.Created($"/api/admin/content/media/{media.Id}", new {
                 media.Id, media.Name, media.Kind, media.Src,
@@ -82,13 +117,19 @@ public static class ManagedMediaObjectEndpoints
             .RequireAuthorization("admin");
 
         app.MapGet("/api/content/media/{id:guid}/file", async Task<IResult> (
-            Guid id, AppDbContext db, ObjectStorageService storage, HttpContext http, CancellationToken ct) =>
-            await ReadObject(id, db, storage, http, onlyPublished: true, ct));
+            Guid id, int? width, AppDbContext db, ObjectStorageService storage,
+            IConfiguration configuration, HttpContext http, CancellationToken ct) =>
+            await ReadObject(id, db, storage, http, onlyPublished: true, ct,
+                requestedWidth: width,
+                responsiveEnabled: configuration.GetValue<bool>("CmsMedia:ResponsiveWebpEnabled")));
     }
 
     private static async Task<IResult> ReadObject(Guid id, AppDbContext db,
-        ObjectStorageService storage, HttpContext http, bool onlyPublished, CancellationToken ct)
+        ObjectStorageService storage, HttpContext http, bool onlyPublished, CancellationToken ct,
+        int? requestedWidth = null, bool responsiveEnabled = false)
     {
+        // Prevent caching any missing, unpublished or administrative response.
+        http.Response.Headers.CacheControl = MediaHttpCachePolicy.NoStore;
         var media = await db.ManagedMedia.AsNoTracking().FirstOrDefaultAsync(m => m.Id == id, ct);
         if (media?.ObjectKey is null || !storage.Enabled)
             return Results.NotFound();
@@ -97,7 +138,8 @@ public static class ManagedMediaObjectEndpoints
         {
             var link = $"/api/content/media/{id}/file";
             var isPublishedInNews = media.Kind == "Imagen" &&
-                await db.ManagedNews.AsNoTracking().AnyAsync(n => n.Published && n.Image == link, ct);
+                await db.ManagedNews.AsNoTracking().AnyAsync(n => n.Published &&
+                    (n.ExpiresAt == null || n.ExpiresAt > DateTime.UtcNow) && n.Image == link, ct);
             var isPublishedOnSite = (media.Kind == "Imagen" || media.Kind == "Video") &&
                 await db.SiteCmsSlots.AsNoTracking().AnyAsync(x => x.PublishedMediaId == id, ct);
             if (!isPublishedInNews && !isPublishedOnSite) return Results.NotFound();
@@ -105,9 +147,46 @@ public static class ManagedMediaObjectEndpoints
 
         try
         {
+            var objectKey = media.ObjectKey;
+            var totalBytes = media.SizeBytes;
+            var contentType = media.MimeType ?? "application/octet-stream";
+            string? entityTag = onlyPublished ? MediaHttpCachePolicy.EntityTag(id, media.SizeBytes) : null;
+
+            if (onlyPublished && requestedWidth.HasValue)
+            {
+                // Preserve existing publication checks above even for bad widths,
+                // missing variants and conditional responses.
+                if (!responsiveEnabled || !CmsImageVariants.IsAllowedWidth(requestedWidth.Value) ||
+                    media.Kind != "Imagen" ||
+                    media.MimeType is not ("image/jpeg" or "image/png" or "image/webp"))
+                    return Results.BadRequest(new { error = "Variante de imagen no disponible." });
+
+                var candidateKey = CmsImageVariants.ObjectKey(objectKey, requestedWidth.Value);
+                var candidateBytes = await storage.TryGetSizeAsync(candidateKey, ct);
+                if (candidateBytes is > 0)
+                {
+                    objectKey = candidateKey;
+                    totalBytes = candidateBytes;
+                    contentType = "image/webp";
+                    entityTag = MediaHttpCachePolicy.VariantEntityTag(
+                        id, requestedWidth.Value, candidateBytes.Value);
+                }
+                // Missing variants (old uploads or conversion errors) return the
+                // original with its original MIME and ETag, never a broken image.
+            }
+
             long? start = null, end = null;
             var range = http.Request.Headers.Range.ToString();
-            if (media.SizeBytes is long total && total > 0)
+            // The publication check above is required even for conditional 304s.
+            // No shared/public TTL: an unpublish must be visible on the next request.
+            if (entityTag is not null &&
+                MediaHttpCachePolicy.IsNotModified(http.Request.Headers.IfNoneMatch.ToString(), range, entityTag))
+            {
+                http.Response.Headers.CacheControl = MediaHttpCachePolicy.PublishedMedia;
+                http.Response.Headers.ETag = entityTag;
+                return Results.StatusCode(StatusCodes.Status304NotModified);
+            }
+            if (totalBytes is long total && total > 0)
             {
                 http.Response.Headers.AcceptRanges = "bytes";
                 if (!string.IsNullOrWhiteSpace(range))
@@ -126,9 +205,13 @@ public static class ManagedMediaObjectEndpoints
                         ? Math.Min(long.Parse(match.Groups[2].Value), total - 1) : total - 1;
                 }
             }
-            var response = await storage.DownloadAsync(media.ObjectKey, ct, start, end);
-            var contentType = media.MimeType ?? "application/octet-stream";
-            if (start is long a && end is long b && media.SizeBytes is long fileSize)
+            var response = await storage.DownloadAsync(objectKey, ct, start, end);
+            if (entityTag is not null)
+            {
+                http.Response.Headers.CacheControl = MediaHttpCachePolicy.PublishedMedia;
+                http.Response.Headers.ETag = entityTag;
+            }
+            if (start is long a && end is long b && totalBytes is long fileSize)
             {
                 http.Response.StatusCode = StatusCodes.Status206PartialContent;
                 http.Response.Headers.ContentRange = $"bytes {a}-{b}/{fileSize}";
