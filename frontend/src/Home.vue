@@ -285,20 +285,12 @@ onUnmounted(() => {
 
       <!-- Service-focused homepage headings: between Services and About -->
       <section class="home-specialties" :aria-label="locale === 'es' ? 'Especialidades logísticas' : 'Logistics specialties'">
-        <svg class="home-specialties__waves" viewBox="0 0 1440 280" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-          <g fill="none" stroke="currentColor" stroke-width="1">
-            <path v-for="i in 8" :key="`left-${i}`"
-              :d="`M -35 ${75 + i * 9} C 95 ${25 + i * 7}, 180 ${-6 + i * 8}, 295 ${25 + i * 9} S 400 ${96 + i * 9}, 465 ${108 + i * 8}`" />
-            <path v-for="i in 8" :key="`right-${i}`"
-              :d="`M 975 ${108 + i * 8} C 1050 ${95 + i * 9}, 1145 ${-3 + i * 8}, 1245 ${24 + i * 8} S 1370 ${55 + i * 8}, 1475 ${90 + i * 9}`" />
-          </g>
-        </svg>
         <div class="container home-specialties__inner">
           <div class="home-specialties__item">
             <svg class="home-specialties__icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-              <path d="M5 26 32 9l27 17M10 24v32h44V24" />
-              <path d="M17 56V29h30v27M23 56V35h18v21M23 41h18M23 47h18M23 53h18" />
-              <path d="M29 18h6v7h-6z" />
+              <path d="M5 24 32 7l27 17v5h-5v29H10V29H5v-5Z" />
+              <path d="M17 57V28h30v29M22 57V35h20v22M22 41h20M22 46h20M22 51h20" />
+              <path d="M29 18h6v6h-6z" />
             </svg>
             <h2 class="home-specialties__heading">
               <span>{{ locale === 'es' ? 'Almacen Fiscal' : 'Bonded Warehouse' }}</span>
@@ -307,10 +299,11 @@ onUnmounted(() => {
           </div>
           <div class="home-specialties__divider" aria-hidden="true"></div>
           <div class="home-specialties__item">
-            <svg class="home-specialties__icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-              <path d="m5 37 9 16h35l10-16-27-8L5 37Z" />
-              <path d="M17 34V18h29v15M22 18V9h8v9M35 18V9h8v9M24 24h5v5h-5zM35 24h5v5h-5z" />
-              <path d="M6 57c5 3 9 3 14 0 5 3 9 3 14 0 5 3 9 3 14 0 5 3 9 3 14 0" />
+            <svg class="home-specialties__icon" viewBox="0 0 68 64" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M5 37 20 32q10-6 19 3 3 4 7 1l9-4h8L54 54H13Z" />
+              <path d="M18 33V17q0-4 4-4h12q4 0 4 4v17M28 13V3l5 2-5 2M24 22h2m7 0h2" />
+              <path d="M41 33V18h9v15M52 18h9v14M42 25h18M46 18v7M56 18v7M28 38v10m-6-9 6-4 6 4" />
+              <path d="M5 57h9q5-3 10 0t10 0q5-3 10 0h11" />
             </svg>
             <h2 class="home-specialties__heading">
               <span>{{ locale === 'es' ? 'Transportes' : 'Transport' }}</span>
@@ -632,22 +625,7 @@ onUnmounted(() => {
   align-items: center;
   padding: 44px 0 52px;
   color: #b5092b;
-  background:
-    radial-gradient(ellipse 32% 115% at 0% 35%, rgba(214, 63, 94, .12), transparent 83%),
-    radial-gradient(ellipse 35% 95% at 100% 7%, rgba(214, 63, 94, .065), transparent 78%),
-    transparent;
-}
-.home-specialties__waves {
-  position: absolute;
-  z-index: -1;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  color: #ca3150;
-  opacity: .15;
-  pointer-events: none;
-  -webkit-mask-image: linear-gradient(to right, #000 0%, rgba(0,0,0,.8) 12%, transparent 37%, transparent 63%, rgba(0,0,0,.8) 88%, #000 100%);
-  mask-image: linear-gradient(to right, #000 0%, rgba(0,0,0,.8) 12%, transparent 37%, transparent 63%, rgba(0,0,0,.8) 88%, #000 100%);
+  background: transparent;
 }
 .home-specialties__inner {
   display: grid;
@@ -705,6 +683,5 @@ onUnmounted(() => {
     background: linear-gradient(to right, transparent, rgba(181,9,43,.5), transparent);
   }
   .home-specialties__heading { font-size: clamp(26px, 6.3vw, 36px); }
-  .home-specialties__waves { opacity: .08; }
 }
 </style>
