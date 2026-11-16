@@ -299,11 +299,10 @@ onUnmounted(() => {
           </div>
           <div class="home-specialties__divider" aria-hidden="true"></div>
           <div class="home-specialties__item">
-            <svg class="home-specialties__icon" viewBox="0 0 68 64" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-              <path d="M5 37 20 32q10-6 19 3 3 4 7 1l9-4h8L54 54H13Z" />
-              <path d="M18 33V17q0-4 4-4h12q4 0 4 4v17M28 13V3l5 2-5 2M24 22h2m7 0h2" />
-              <path d="M41 33V18h9v15M52 18h9v14M42 25h18M46 18v7M56 18v7M28 38v10m-6-9 6-4 6 4" />
-              <path d="M5 57h9q5-3 10 0t10 0q5-3 10 0h11" />
+            <svg class="home-specialties__icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="m5 37 9 16h35l10-16-27-8L5 37Z" />
+              <path d="M17 34V18h29v15M22 18V9h8v9M35 18V9h8v9M24 24h5v5h-5zM35 24h5v5h-5z" />
+              <path d="M6 57c5 3 9 3 14 0 5 3 9 3 14 0 5 3 9 3 14 0" />
             </svg>
             <h2 class="home-specialties__heading">
               <span>{{ locale === 'es' ? 'Transportes' : 'Transport' }}</span>
@@ -615,17 +614,20 @@ onUnmounted(() => {
 </style>
 
 <style scoped>
-/* Homepage specialties — proportions and edge waves aligned with approved reference. */
+/* Homepage specialties — subtle side glows and centered feature headings. */
 .home-specialties {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  min-height: 285px;
+  min-height: 250px;
   display: flex;
   align-items: center;
-  padding: 44px 0 52px;
+  padding: 40px 0 46px;
   color: #b5092b;
-  background: transparent;
+  background:
+    radial-gradient(ellipse 24% 75% at 8% 50%, rgba(181, 9, 43, 0.06), transparent 72%),
+    radial-gradient(ellipse 24% 75% at 92% 50%, rgba(181, 9, 43, 0.05), transparent 72%),
+    linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.35) 50%, rgba(255,255,255,0) 100%);
 }
 .home-specialties__inner {
   display: grid;
@@ -655,9 +657,9 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 0;
   margin: 0;
-  font-size: clamp(28px, 3vw, 52px);
+  font-size: clamp(24px, 2.8vw, 43px);
   font-weight: 850;
-  line-height: 1.1;
+  line-height: 1.12;
   letter-spacing: -.035em;
 }
 .home-specialties__heading span { color: #202127; }
@@ -682,6 +684,6 @@ onUnmounted(() => {
     justify-self: center;
     background: linear-gradient(to right, transparent, rgba(181,9,43,.5), transparent);
   }
-  .home-specialties__heading { font-size: clamp(26px, 6.3vw, 36px); }
+  .home-specialties__heading { font-size: clamp(24px, 6vw, 32px); }
 }
 </style>
