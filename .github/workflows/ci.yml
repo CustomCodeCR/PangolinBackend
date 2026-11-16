@@ -19,6 +19,9 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
         working-directory: frontend
+      - name: Verificar srcset CMS, opt-in y fallback sin acceso a almacenamiento
+        run: node scripts/check-cms-responsive.cjs
+        working-directory: frontend
       - name: Compilar Vue
         run: npm run build
         working-directory: frontend
