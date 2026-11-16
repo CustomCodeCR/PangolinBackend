@@ -773,4 +773,40 @@ html.theme-dark .app-site.home-page .home-specialties .home-specialties__icon pa
   color: #fff !important;
   stroke: #fff !important;
 }
+
+/* Match contact-style navy cards in light mode as well as dark mode. */
+html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__item {
+  background: linear-gradient(180deg, #020a24 0%, #01081d 100%) !important;
+  border: 1px solid rgba(181, 9, 43, .45) !important;
+  box-shadow:
+    0 0 18px rgba(181, 9, 43, .18),
+    0 0 34px rgba(181, 9, 43, .10),
+    inset 0 0 0 1px rgba(181, 9, 43, .10) !important;
+}
+html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__item::before {
+  display: none;
+}
+html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__icon-wrap {
+  background: rgba(181, 9, 43, .22) !important;
+  border-radius: 50%;
+  color: #fff !important;
+}
+html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__icon,
+html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__icon path {
+  color: #fff !important;
+  stroke: #fff !important;
+}
+html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__heading span {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__heading strong,
+html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__overline b {
+  color: #e21d3b !important;
+  -webkit-text-fill-color: #e21d3b !important;
+}
+html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__overline {
+  color: #c4acb9 !important;
+  -webkit-text-fill-color: #c4acb9 !important;
+}
 </style>
