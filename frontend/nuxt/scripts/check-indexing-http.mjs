@@ -7,6 +7,12 @@ const previewOrigin = (process.argv[2] || 'http://127.0.0.1:3000').replace(/\/$/
 const canonicalOrigin = 'https://www.logisticacastrofallas.com'
 const privatePrefixes = ['/api', '/admin', '/administracion', '/bienvenidos', '/cotizaciones', '/tracking', '/itinerario']
 const requiredPaths = ['/', '/nosotros', '/servicios', '/noticias', '/empresas']
+const conciseServiceTitles = new Set([
+  '/servicios/agenciamiento-aduanal',
+  '/servicios/almacenamiento-fiscal',
+  '/servicios/bodegaje-general',
+  '/servicios/consolidadora-de-carga'
+])
 const failed = []
 const htmlAttribute = (tag, name) => tag.match(new RegExp('\\b' + name + '="([^"]*)"', 'i'))?.[1]
 
@@ -50,6 +56,9 @@ for (const path of paths) {
     }
     const title = html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.trim()
     if (!title) fail(path, 'falta título SSR')
+    if (conciseServiceTitles.has(path) && title?.length > 60) {
+      fail(path, 'metatítulo del servicio supera 60 caracteres: ' + title.length)
+    }
     if (!/<h1(?:\s|>)/i.test(html)) fail(path, 'falta H1 en HTML SSR')
     const canonicalTags = (html.match(/<link\b[^>]*>/gi) || []).filter(tag => /\brel=["']canonical["']/i.test(tag))
     if (canonicalTags.length !== 1) {
