@@ -2,7 +2,7 @@ name: CMS real MinIO contract (disposable, loopback only)
 
 on:
   pull_request:
-    branches: [main-2]
+    branches: [main-2, main]
     paths:
       - tests/CmsRealMinioContract/**
       - backend/Services/CmsImageVariants.cs

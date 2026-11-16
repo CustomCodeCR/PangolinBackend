@@ -2,7 +2,7 @@ name: Noticias ES/EN y artículos completos - main-2
 
 on:
   pull_request:
-    branches: [main-2]
+    branches: [main-2, main]
     paths:
       - "frontend/src/pages/News.vue"
       - "frontend/src/pages/ContentManager.vue"

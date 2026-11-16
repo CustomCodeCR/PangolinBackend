@@ -2,7 +2,7 @@ name: CMS WebP visual preview (isolated)
 
 on:
   pull_request:
-    branches: [main-2]
+    branches: [main-2, main]
     paths:
       - backend/Services/CmsImageVariants.cs
       - tests/CmsWebpVisualReview/**

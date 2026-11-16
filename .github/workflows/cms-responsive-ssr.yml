@@ -2,7 +2,7 @@ name: CMS responsive images in Nuxt SSR (opt-in, isolated)
 
 on:
   pull_request:
-    branches: [main-2]
+    branches: [main-2, main]
     paths:
       - frontend/src/cmsResponsiveImages.ts
       - frontend/src/components/StaticOptimizedImage.vue
