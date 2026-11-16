@@ -4,7 +4,7 @@
 La PR #224 cubre subida y lectura de derivados WebP en un FakeS3 aislado, #225 comprueba el mantenimiento de archivos antiguos con una carrera S3 412 simulada y #226 valida `srcset/sizes` en Vue y Nuxt SSR. Falta verificar contra un proveedor MinIO verdadero que el cliente AWS S3 utilice realmente `If-None-Match: *` para impedir reescritura de derivados.
 
 ## Alcance de esta PR
-El workflow `CMS real MinIO contract (disposable, loopback only)` crea **un MinIO nuevo y desechable** en GitHub Actions, con puerto **solo** `127.0.0.1:19119`, credenciales de prueba fijas y **sin volúmenes persistentes**. No lee secretos ni configuraciones de la empresa. Su contenedor se borra al terminar, incluso cuando falle el test.
+El workflow `CMS real MinIO contract (disposable, loopback only)` ejecuta **un MinIO nuevo y desechable** en GitHub Actions, con puertos **solo** `127.0.0.1:19119` y `127.0.0.1:19120`, credenciales de prueba fijas y archivos de datos en una carpeta temporal. No lee secretos ni configuraciones de la empresa. Descarga el binario de un **release oficial de GitHub**, fijado a `RELEASE.2025-09-07T16-13-09Z`, y valida su SHA256 contra el digest publicado en los metadatos oficiales antes de ejecutarlo. El proceso y sus datos se eliminan al terminar, incluso cuando falle el test. La distribución histórica se usa solo para una prueba local aislada, no para despliegues.
 
 La prueba .NET compila directamente el código fuente real de `ObjectStorageService` y `CmsImageVariants` y comprueba:
 1. MinIO responde a `HEAD` para objeto ausente y presente.
