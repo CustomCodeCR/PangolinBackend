@@ -111,11 +111,9 @@ if (!(await ReadObjectAsync(variantKey)).AsSpan().SequenceEqual(webp))
 if (!(await ReadObjectAsync(variantKey, 0, 3)).AsSpan().SequenceEqual("RIFF"u8))
     throw new InvalidOperationException("S3 byte-range response returned incorrect content.");
 
-using (var meta = await admin.GetObjectMetadataAsync(new GetObjectMetadataRequest { BucketName = bucket, Key = variantKey }))
-{
-    if (meta.Headers.ContentType != "image/webp")
-        throw new InvalidOperationException("S3 WebP MIME differs from image/webp.");
-}
+var meta = await admin.GetObjectMetadataAsync(new GetObjectMetadataRequest { BucketName = bucket, Key = variantKey });
+if (meta.Headers.ContentType != "image/webp")
+    throw new InvalidOperationException("S3 WebP MIME differs from image/webp.");
 await storage.DeleteAsync(variantKey, ct);
 if (await storage.TryGetSizeAsync(variantKey, ct) is not null)
     throw new InvalidOperationException("Derivative was not deleted.");
