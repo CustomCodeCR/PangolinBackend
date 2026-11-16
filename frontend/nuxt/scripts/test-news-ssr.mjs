@@ -102,6 +102,16 @@ try {
   assert.match(html, /documentación aduanera/)
   assert.match(html, /application\/ld\+json/)
   assert.match(html, /schema.org/)
+  // The same published image should be announced to search/social crawlers.
+  const expectedImageUrl = 'https://www.logisticacastrofallas.com' +
+    (cmsResponsiveSmoke ? cmsImage : '/images/cover-logistics.jpeg')
+  const ogImageTag = (html.match(/<meta\b[^>]*>/gi) || [])
+    .find(tag => /(?:property|name)="og:image"/i.test(tag))
+  assert.ok(ogImageTag?.includes('content="' + expectedImageUrl + '"'),
+    'Open Graph debe apuntar a la imagen publicada de la noticia')
+  assert.ok(html.includes('"image":"' + expectedImageUrl + '"'),
+    'Article JSON-LD debe apuntar a la imagen publicada de la noticia')
+
   assert.match(html, /rel="canonical"/)
   const descriptionTag = (html.match(/<meta\b[^>]*>/g) || []).find(tag => /name="description"/.test(tag))
   const descriptionValue = descriptionTag?.match(/content="([^"]*)"/)?.[1] || ''
