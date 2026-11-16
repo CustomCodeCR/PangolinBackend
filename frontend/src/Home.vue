@@ -630,8 +630,8 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
   align-items: center;
-  column-gap: clamp(16px, 2.4vw, 38px);
-  width: min(1080px, calc(100% - 48px));
+  column-gap: clamp(12px, 1.3vw, 22px);
+  width: min(940px, calc(100% - 40px));
   margin-inline: auto;
   padding: 20px 0 24px;
 }
@@ -668,21 +668,30 @@ onUnmounted(() => {
 .home-specialties__divider {
   justify-self: center;
   align-self: center;
-  width: 1px;
+  width: 2px;
   height: clamp(140px, 11vw, 178px);
   background: linear-gradient(to bottom,
     rgba(181, 9, 43, 0) 0%,
-    rgba(181, 9, 43, .16) 18%,
-    rgba(181, 9, 43, .34) 46%,
-    rgba(181, 9, 43, .26) 72%,
+    rgba(181, 9, 43, .32) 16%,
+    rgba(181, 9, 43, .76) 48%,
+    rgba(181, 9, 43, .5) 76%,
     rgba(181, 9, 43, 0) 100%);
+  box-shadow: 0 0 6px rgba(181, 9, 43, .1);
 }
-:global(.dark) .home-specialties__heading span,
-:global([data-theme="dark"]) .home-specialties__heading span { color: #fff; }
-:global(.dark) .home-specialties__heading strong,
-:global([data-theme="dark"]) .home-specialties__heading strong,
-:global(.dark) .home-specialties__icon,
-:global([data-theme="dark"]) .home-specialties__icon { color: #ff627a; }
+/* The site uses html.theme-dark with a global white !important rule.
+   Scope the exception to these red highlights so they stay legible. */
+:global(html.theme-dark) .home-specialties__heading span { color: #fff !important; }
+:global(html.theme-dark) .home-specialties__heading strong,
+:global(html.theme-dark) .home-specialties__icon { color: #ff7188 !important; }
+:global(html.theme-dark) .home-specialties__divider {
+  background: linear-gradient(to bottom,
+    rgba(255, 112, 143, 0) 0%,
+    rgba(255, 112, 143, .48) 16%,
+    rgba(255, 112, 143, .96) 48%,
+    rgba(255, 112, 143, .68) 76%,
+    rgba(255, 112, 143, 0) 100%);
+  box-shadow: 0 0 9px rgba(255, 112, 143, .2);
+}
 @media (max-width: 680px) {
   .home-specialties { padding: 24px 0 28px; }
   .home-specialties__inner {
@@ -692,10 +701,13 @@ onUnmounted(() => {
     padding: 18px 0;
   }
   .home-specialties__divider {
-    height: 1px;
+    height: 2px;
     width: min(180px, 58%);
     justify-self: center;
-    background: linear-gradient(to right, rgba(181,9,43,0), rgba(181,9,43,.4), rgba(181,9,43,0));
+    background: linear-gradient(to right, rgba(181,9,43,0), rgba(181,9,43,.68), rgba(181,9,43,0));
+  }
+  :global(html.theme-dark) .home-specialties__divider {
+    background: linear-gradient(to right, rgba(255,112,143,0), rgba(255,112,143,.92), rgba(255,112,143,0));
   }
   .home-specialties__heading { font-size: clamp(24px, 6vw, 32px); }
 }
