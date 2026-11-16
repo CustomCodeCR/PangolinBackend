@@ -10,14 +10,15 @@ const article = (data.value || []).find(item => articleSlug(item) === route.para
 if (!article) throw createError({ statusCode: 404, statusMessage: 'Noticia no encontrada' })
 const path = '/noticias/' + articleSlug(article)
 const image = article.image?.startsWith('/images/') ? article.image : '/images/cover-logistics.jpeg'
-// Keep long editorial headlines intact in the article and Article schema.
- // Only shorten the browser/search title at a word boundary.
+// Keep editorial headlines intact in the article and Article schema.
+// Limit only the metadata title to 60 characters at a word boundary.
 const rawHeadline = plainArticleText(article.title)
 const titleSuffix = ' | Castro Fallas'
-const seoHeadline = rawHeadline.length + titleSuffix.length <= 65
+const fitsWithBrand = rawHeadline.length + titleSuffix.length <= 60
+const seoHeadline = fitsWithBrand
   ? rawHeadline
-  : rawHeadline.slice(0, 64).replace(/\s+\S*$/, '').trim()
-const seoTitle = seoHeadline + (seoHeadline === rawHeadline ? titleSuffix : '')
+  : rawHeadline.slice(0, 60).replace(/\s+\S*$/, '').trim()
+const seoTitle = seoHeadline + (fitsWithBrand ? titleSuffix : '')
 const rawDescription = plainArticleText(article.description || article.body)
 const metaDescription = rawDescription.length > 155
   ? rawDescription.slice(0, 154).replace(/\s+\S*$/, '') + '…'
