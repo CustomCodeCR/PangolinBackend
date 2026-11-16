@@ -1,0 +1,45 @@
+name: CMS real MinIO contract (disposable, loopback only)
+
+on:
+  pull_request:
+    branches: [main-2]
+    paths:
+      - tests/CmsRealMinioContract/**
+      - backend/Services/CmsImageVariants.cs
+      - backend/Services/ObjectStorageService.cs
+      - .github/workflows/cms-real-minio-contract.yml
+
+permissions:
+  contents: read
+
+jobs:
+  real-minio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      CMS_REAL_MINIO_ISOLATED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Start disposable MinIO, bound only to 127.0.0.1
+        run: |
+          docker run --name cms-real-minio-ci -d --rm \
+            -e MINIO_ROOT_USER=ci-webp-only \
+            -e MINIO_ROOT_PASSWORD=ci-webp-disposable-password-only \
+            -p 127.0.0.1:19119:9000 \
+            quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z \
+            server /data --address :9000
+          for i in $(seq 1 35); do
+            if curl --silent --fail http://127.0.0.1:19119/minio/health/live > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          docker logs cms-real-minio-ci --tail 80
+          exit 1
+      - name: Run production codec and S3 client against disposable MinIO
+        run: dotnet run --project tests/CmsRealMinioContract/CmsRealMinioContract.csproj --configuration Release
+      - name: Remove disposable MinIO regardless of result
+        if: always()
+        run: docker rm -f cms-real-minio-ci || true
