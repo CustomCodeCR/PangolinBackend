@@ -10,6 +10,14 @@ const article = (data.value || []).find(item => articleSlug(item) === route.para
 if (!article) throw createError({ statusCode: 404, statusMessage: 'Noticia no encontrada' })
 const path = '/noticias/' + articleSlug(article)
 const image = article.image?.startsWith('/images/') ? article.image : '/images/cover-logistics.jpeg'
+// Keep long editorial headlines intact in the article and Article schema.
+ // Only shorten the browser/search title at a word boundary.
+const rawHeadline = plainArticleText(article.title)
+const titleSuffix = ' | Castro Fallas'
+const seoHeadline = rawHeadline.length + titleSuffix.length <= 65
+  ? rawHeadline
+  : rawHeadline.slice(0, 64).replace(/\s+\S*$/, '').trim()
+const seoTitle = seoHeadline + (seoHeadline === rawHeadline ? titleSuffix : '')
 const rawDescription = plainArticleText(article.description || article.body)
 const metaDescription = rawDescription.length > 155
   ? rawDescription.slice(0, 154).replace(/\s+\S*$/, '') + '…'
@@ -26,7 +34,7 @@ const schema = {
   image: 'https://www.logisticacastrofallas.com' + image
 }
 usePublicSeo({
-  path, title: article.title + ' | Grupo Castro Fallas',
+  path, title: seoTitle,
   description: metaDescription,
   type: 'article', image, schema: [schema]
 })
