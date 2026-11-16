@@ -97,6 +97,8 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_OFFICIAL_QUOTES_ENABLED: "false"
+        # Opt-in only after backend feature flag is enabled and variants exist.
+        VITE_CMS_RESPONSIVE_WEBP_ENABLED: ${CMS_RESPONSIVE_WEBP_FRONTEND:-false}
     restart: unless-stopped
     # Intended for a host-side TLS reverse proxy; never publish plain HTTP on 0.0.0.0.
     ports:

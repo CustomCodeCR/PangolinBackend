@@ -4,13 +4,15 @@ import { setTimeout as delay } from 'node:timers/promises'
 import assert from 'node:assert/strict'
 import path from 'node:path'
 
+const cmsResponsiveSmoke = process.env.CMS_RESPONSIVE_SSR_SMOKE === '1'
+const cmsImage = '/api/content/media/01234567-89ab-cdef-0123-456789abcdef/file'
 const news = [{
   id: '123e4567-e89b-12d3-a456-426614174000',
   title: 'Logística Costa Rica',
   description: 'Información verificada sobre rutas de importación. '.repeat(12),
   body: '<p>Las operaciones requieren documentación aduanera.</p>',
   author: 'Equipo Castro Fallas',
-  image: '/images/cover-logistics.jpeg',
+  image: cmsResponsiveSmoke ? cmsImage : '/images/cover-logistics.jpeg',
   published: true,
   publishedAt: '2026-11-02T14:00:00Z',
   expiresAt: null
@@ -59,6 +61,16 @@ try {
   const html = await page.text()
   assert.match(html, /Logística Costa Rica/)
   assert.match(html, /news-article-page/)
+  if (cmsResponsiveSmoke) {
+    // Check SSR output itself, not the client after hydration. Nuxt must
+    // announce width candidates early enough for LCP discovery.
+    assert.ok(html.includes('src="' + cmsImage + '"'), 'SSR missing canonical original CMS image')
+    for (const width of [360, 720, 1080, 1600])
+      assert.ok(html.includes(cmsImage + '?width=' + width + ' ' + width + 'w'),
+        'Nuxt SSR missing CMS variant ' + width)
+    assert.ok(/srcset="[^"]+"/.test(html), 'Nuxt SSR should render a real img srcset')
+    console.log('PASS CMS responsive srcset rendered in Nuxt SSR article')
+  }
   assert.match(html, /documentación aduanera/)
   assert.match(html, /application\/ld\+json/)
   assert.match(html, /schema.org/)

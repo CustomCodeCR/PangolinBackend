@@ -15,6 +15,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_OFFICIAL_QUOTES_ENABLED: "true"
+        VITE_CMS_RESPONSIVE_WEBP_ENABLED: ${CMS_RESPONSIVE_WEBP_FRONTEND:-false}
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/"]
