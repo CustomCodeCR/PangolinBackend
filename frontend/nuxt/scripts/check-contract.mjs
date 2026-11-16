@@ -34,7 +34,7 @@ assert.match(source('../src/components/SiteFooter.vue'), /href="\/empresas"/, 'F
 assert.doesNotMatch(source('../src/components/SiteFooter.vue'), /<h3\b/, 'El pie de página no debe saltar de H1 a H3 en noticias')
 assert.match(source('../src/components/SiteFooter.vue'), /<h2\b/, 'El pie de página debe usar H2 para sus grupos')
 assert.match(source('../src/style.css'), /\.site-footer h2\{font-size:13px;margin:1px 0 14px\}/, 'El diseño del pie debe conservarse después del cambio semántico')
-assert.match(source('../../deploy/nuxt-hybrid-gateway.conf'), /location = \/home\s*\{\s*return 301 \/;/, 'El alias /home debe redirigir a /')
+assert.match(source('../../deploy/nuxt-hybrid-gateway.conf'), /location = \/home\s*\{\s*return 301 https:\/\/www\.logisticacastrofallas\.com\/;/, 'El alias /home debe redirigir directamente al dominio HTTPS canónico')
 const serviceIndex = source('../src/pages/Services.vue')
 assert.match(serviceIndex, /serviceDirectory/, 'El catálogo necesita directorio de enlaces HTML visibles')
 assert.match(serviceIndex, /servicePages\.map/, 'Deben enlazarse los seis transportes desde Servicios')
