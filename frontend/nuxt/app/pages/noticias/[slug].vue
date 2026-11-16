@@ -17,7 +17,12 @@ const approvedNewsSeoTitles: Record<string, string> = {
 }
 const articleIdSuffix = article.id.replace(/-/g, '').slice(-8).toLowerCase()
 const seoTitle = approvedNewsSeoTitles[articleIdSuffix] ?? article.title + ' | Grupo Castro Fallas'
-const image = article.image?.startsWith('/images/') ? article.image : '/images/cover-logistics.jpeg'
+// Reuse published CMS photos in Open Graph and Article JSON-LD.
+// Only known same-origin paths are accepted, never arbitrary external URLs.
+const imagePath = String(article.image || '')
+const isStaticImage = /^\/images\/[a-z0-9/_-]+\.(?:avif|jpe?g|png|webp|svg)$/i.test(imagePath)
+const isPublishedCmsImage = /^\/api\/content\/media\/[0-9a-f-]{36}\/file$/i.test(imagePath)
+const image = (isStaticImage || isPublishedCmsImage) ? imagePath : '/images/cover-logistics.jpeg'
 const rawDescription = plainArticleText(article.description || article.body)
 const metaDescription = rawDescription.length > 155
   ? rawDescription.slice(0, 154).replace(/\s+\S*$/, '') + '…'
