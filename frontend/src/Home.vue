@@ -681,8 +681,8 @@ onUnmounted(() => {
 /* The site uses html.theme-dark with a global white !important rule.
    Scope the exception to these red highlights so they stay legible. */
 :global(html.theme-dark) .home-specialties__heading span { color: #fff !important; }
-:global(html.theme-dark) .home-specialties__heading strong,
-:global(html.theme-dark) .home-specialties__icon { color: #e21d3b !important; }
+:global(html.theme-dark) .home-specialties__heading strong { color: #e21d3b !important; }
+:global(html.theme-dark) .home-specialties__icon { color: #fff !important; }
 :global(html.theme-dark) .home-specialties__divider {
   background: linear-gradient(to bottom,
     rgba(255, 112, 143, 0) 0%,
@@ -727,7 +727,7 @@ html.theme-dark .app-site.home-page .home-specialties .home-specialties__heading
 }
 html.theme-dark .app-site.home-page .home-specialties .home-specialties__icon,
 html.theme-dark .app-site.home-page .home-specialties .home-specialties__icon path {
-  color: #e21d3b !important;
-  stroke: #e21d3b !important;
+  color: #fff !important;
+  stroke: #fff !important;
 }
 </style>
