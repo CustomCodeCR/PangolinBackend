@@ -682,7 +682,7 @@ onUnmounted(() => {
    Scope the exception to these red highlights so they stay legible. */
 :global(html.theme-dark) .home-specialties__heading span { color: #fff !important; }
 :global(html.theme-dark) .home-specialties__heading strong,
-:global(html.theme-dark) .home-specialties__icon { color: #ff7188 !important; }
+:global(html.theme-dark) .home-specialties__icon { color: #e21d3b !important; }
 :global(html.theme-dark) .home-specialties__divider {
   background: linear-gradient(to bottom,
     rgba(255, 112, 143, 0) 0%,
