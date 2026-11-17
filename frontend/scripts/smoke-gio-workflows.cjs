@@ -18,6 +18,8 @@ let failNextQuote = false
 let rejectedQuoteAttempts = 0
 let trackingReads = 0
 let itineraryReads = 0
+let dholeOptionsReads = 0
+const dynamicDholeMock = process.env.GIO_DHOLE_MOCK === '1'
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 function chromeBinary() {
@@ -38,9 +40,21 @@ const api = http.createServer(async (req, res) => {
     : send(401,{error:'Unauthorized'})
   if (url.pathname === '/api/content/site') return send(200,{})
   if (url.pathname === '/api/content/news') return send(200,[])
-  // Dhole is opt-in: the normal browser smoke keeps the legacy form on purpose.
-  if (url.pathname === '/api/quotes/official/dhole-options')
-    return send(404,{code:'dhole_form_disabled'})
+  // Run this browser test twice: first with the legacy form, then with
+  // a fake dynamic catalogue using identical labels but EXTERNAL UUIDs.
+  if (url.pathname === '/api/quotes/official/dhole-options') {
+    dholeOptionsReads++
+    if (!dynamicDholeMock) return send(404,{code:'dhole_form_disabled'})
+    return send(200,{
+      source:'dhole',mode:url.searchParams.get('mode'),shipmentType:url.searchParams.get('shipmentType'),
+      incoterms:['FOB'],
+      origins:[{id:'11111111-1111-4111-8111-111111111111',displayName:'Shanghái',code:'SHA'}],
+      destinations:[{id:'22222222-2222-4222-8222-222222222222',displayName:'Puerto Caldera',code:'CAL'}],
+      pods:[{id:'33333333-3333-4333-8333-333333333333',displayName:'POD terrestre',code:'TER'}],
+      equipmentSizes:[{value:'40 pies',label:'40 pies'}],
+      equipmentTypesBySize:{'40 pies':['Dry Van']}
+    })
+  }
   if (url.pathname === '/api/assistant/quote-locations' || url.pathname === '/api/quotes/official/locations') {
     const source = url.searchParams.get('routeRole')
     const item = source === 'origin'
@@ -279,8 +293,13 @@ async function main() {
     assert.equal(quoteWrites[0].equipment[0].type,'Dry Van')
     assert.equal(quoteWrites[0].contactName,'Edited Client')
     assert.deepEqual(quoteWrites[0].equipment[0].unitWeightsKg,[8000])
-    assert.equal(quoteWrites[0].originLocationId,'11111111-1111-1111-1111-111111111111')
-    assert.equal(quoteWrites[0].destinationLocationId,'22222222-2222-2222-2222-222222222222')
+    assert.equal(quoteWrites[0].catalogSource, dynamicDholeMock ? 'dhole' : null,
+      'Explicit source discriminates dynamic Dhole from legacy quotes')
+    assert.ok(dholeOptionsReads >= 1,'GIO must check whether Dhole quote options are enabled')
+    assert.equal(quoteWrites[0].originLocationId,
+      dynamicDholeMock ? '11111111-1111-4111-8111-111111111111' : '11111111-1111-1111-1111-111111111111')
+    assert.equal(quoteWrites[0].destinationLocationId,
+      dynamicDholeMock ? '22222222-2222-4222-8222-222222222222' : '22222222-2222-2222-2222-222222222222')
     assert.ok(await evaluate(`!!document.querySelector('.gio-ops__card a[href="/cotizaciones?gioReceipt=1"]')`),'Guest must see the direct quote receipt link')
     // Reuse confirmed fields to request a distinct quote as an admin.
     role = 'administrador'
