@@ -72,3 +72,13 @@ jobs:
           set -euo pipefail
           test -n "$(git diff -- frontend/package.json frontend/package-lock.json)"
           echo "CI-only local experiment; package.json and lockfile in PR remain unchanged."
+      - name: Save deterministic candidate manifests for separate review
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: minimatch-11-1-ci-candidate-manifests
+          path: |
+            frontend/package.json
+            frontend/package-lock.json
+          if-no-files-found: error
+          retention-days: 14
