@@ -53,3 +53,11 @@ jobs:
           CI: 'true'
           CMS_WEBP_BROWSER_FLAG: ${{ matrix.enabled }}
         run: node scripts/smoke-cms-webp-browser.cjs
+      - name: Publish fictitious News screenshots for visual review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cms-webp-news-chrome-${{ matrix.enabled }}
+          path: ${{ runner.temp }}/cms-webp-chrome-screenshots/${{ matrix.enabled }}/*.png
+          if-no-files-found: warn
+          retention-days: 14
