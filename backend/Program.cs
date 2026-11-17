@@ -121,6 +121,7 @@ builder.Services.AddSingleton<NewsTranslationService>();
 builder.Services.AddSingleton<TrackingStatusTranslationService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<DholeCatalogService>();
+builder.Services.AddSingleton<DholeQuoteFormCatalogLoader>();
 builder.Services.AddSingleton<AssistantFreeQuota>();
 builder.Services.AddSingleton<ObjectStorageService>();
 builder.Services.AddHttpClient("Groq", client =>
