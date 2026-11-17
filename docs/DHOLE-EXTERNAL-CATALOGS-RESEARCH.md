@@ -99,6 +99,17 @@ Se inspeccionaron `id`, `name`, `code`, `transportMode`, `routeRole`, `terminalT
 - En la muestra actual de 24 elementos, todos tienen `isActive: true` y se mostrarían los 24.
 - No se ha integrado aún ningún selector: la decisión se aplicará al desarrollar el adaptador backend y la UI.
 
+## POE: primera respuesta real (PowerShell del usuario, 17/11/2026)
+- Endpoint: `/api/external/v1/poe-puerto-de-entrada-wi14b3j`. GET autenticado exitoso; `$items.Count = 947`. Se usó lógica para aceptar respuesta como arreglo o un objeto con propiedad `value`; **la forma exacta de la raíz no quedó explícitamente impresa**, no confundir con certeza de formato.
+- Distribución `transportMode` en el nivel superior: `Air = 851`, `Maritime = 77`, `Land = 16`, sin valor visible = `3`. Total = 947.
+- `isActive: true` para los 947 registros agrupados; ninguno reportado como falso.
+- Los tres primeros registros: `Acajutla, El Salvador`, `Algeciras, España`, `Altamira, México`. Todos muestran `transportMode: Maritime`, `routeRole: POE`, `terminalType: CY`, `pricingWorkflow: true`, `isActive: true`, `countryCode` correspondiente, identificador UUID, `code`, `slug`, `description`, `value`, `sortOrder`, `metadata`, `metadataJson`.
+- Para los tres ejemplos `description` indica "Puerto marítimo de carga internacional · Container Yard (CY)." Es información observada, **no** un patrón demostrado de las 947 entradas.
+- Clave: aunque el endpoint se llame POE, incluye 851 registros Air. No asumir que el endpoint es un catálogo de puertos marítimos exclusivamente; tampoco trasladar automáticamente la regla funcional POD a POE.
+- `pricingWorkflow` aparece en la muestra, pero no se ha establecido un uso funcional para POE; **no filtrar ni implementar lógica sobre este campo hasta conocer la regla**.
+- Pendiente: analizar la metadata de los 3 sin `transportMode`, distribuciones de `routeRole`/`terminalType`, estructura real de entradas aéreas y terrestres, posibles duplicados y relación con origen/destino en UI.
+- La regla de elegibilidad para POE **no está decidida**. Esperar a estudiar estos datos y, si hace falta, consultar al negocio.
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
