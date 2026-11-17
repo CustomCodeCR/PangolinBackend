@@ -117,6 +117,38 @@ public static class DholeCatalogEndpoints
             }
         }).RequireAuthorization("admin").RequireRateLimiting("public-read");
 
+        // Public quote form: available only when BOTH the dynamic form and
+        // its matching server-side submit validation are explicitly enabled.
+        // With flags off the legacy wizard continues using its existing routes.
+        app.MapGet("/api/quotes/official/dhole-options", async (
+            string mode, string shipmentType, IConfiguration config,
+            DholeCatalogService service, DholeQuoteFormCatalogLoader loader,
+            HttpContext http, CancellationToken ct) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+            if (!config.GetValue<bool>("DholeCatalogs:FormEnabled") ||
+                !config.GetValue<bool>("DholeCatalogs:SubmissionEnabled"))
+                return Results.NotFound(new { code = "dhole_form_disabled" });
+
+            if (!service.IsConfigured)
+                return Results.Json(new { code = "catalog_not_configured" },
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            try
+            {
+                var choices = await loader.LoadFreshAsync(mode, shipmentType, ct);
+                return Results.Ok(choices);
+            }
+            catch (ArgumentException)
+            {
+                return Results.BadRequest(new { code = "invalid_catalog_selection" });
+            }
+            catch (DholeCatalogUnavailableException)
+            {
+                return Results.Json(new { code = "catalog_upstream_unavailable" },
+                    statusCode: StatusCodes.Status502BadGateway);
+            }
+        }).RequireRateLimiting("public-read");
+
         return app;
     }
 }
