@@ -9,6 +9,8 @@ on:
       - 'backend/Endpoints/DholeCatalogEndpoints.cs'
       - 'backend/Program.cs'
       - 'tests/DholeCatalogHarness/**'
+      - 'compose.dhole-catalog-smoke.yaml'
+      - 'scripts/test-dhole-catalog-docker.ps1'
       - '.github/workflows/dhole-catalogs.yml'
   workflow_dispatch:
 
@@ -27,3 +29,47 @@ jobs:
         run: dotnet build backend/CastroFallas.MiniQuote.Api.csproj -c Release
       - name: Verify Dhole normalization and invalid input contracts offline
         run: dotnet run --project tests/DholeCatalogHarness/DholeCatalogHarness.csproj -c Release
+
+  isolated-docker:
+    name: Start backend without databases and without real Dhole calls
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate fake CI-only secrets, never use production key
+        run: |
+          cat > .env.dhole-catalog-smoke <<'EOF'
+          Auth__OtpPepper=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          Auth__JwtSigningKey=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+          DholeCatalogs__Enabled=true
+          DholeCatalogs__ApiKey=fictional-ci-only-key
+          EOF
+          chmod 600 .env.dhole-catalog-smoke
+      - name: Validate isolated compose
+        run: docker compose -f compose.dhole-catalog-smoke.yaml config --quiet
+      - name: Build and start only the isolated backend
+        run: docker compose -f compose.dhole-catalog-smoke.yaml up -d --build backend
+      - name: Verify health, allowlist and authorization without upstream access
+        run: |
+          ready=0
+          for i in $(seq 1 45); do
+            if curl --silent --fail http://127.0.0.1:5517/api/health >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "Isolated backend did not become ready"
+            docker compose -f compose.dhole-catalog-smoke.yaml logs --tail=80 backend
+            exit 1
+          fi
+          code=$(curl --silent -o /dev/null -w '%{http_code}' http://127.0.0.1:5517/api/dhole/catalogs/not-allowed)
+          test "$code" = "404"
+          code=$(curl --silent -o /dev/null -w '%{http_code}' http://127.0.0.1:5517/api/dhole/quote-equipment-preview)
+          test "$code" = "401"
+          echo 'OK: isolated Docker backend; invalid catalogue denied, admin preview protected.'
+      - name: Tear down isolated test only
+        if: always()
+        run: |
+          docker compose -f compose.dhole-catalog-smoke.yaml down --remove-orphans
+          rm -f .env.dhole-catalog-smoke
