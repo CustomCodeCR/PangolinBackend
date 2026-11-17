@@ -110,6 +110,17 @@ Se inspeccionaron `id`, `name`, `code`, `transportMode`, `routeRole`, `terminalT
 - Pendiente: analizar la metadata de los 3 sin `transportMode`, distribuciones de `routeRole`/`terminalType`, estructura real de entradas aéreas y terrestres, posibles duplicados y relación con origen/destino en UI.
 - La regla de elegibilidad para POE **no está decidida**. Esperar a estudiar estos datos y, si hace falta, consultar al negocio.
 
+## POE: inspección por roles y terminales (PowerShell del usuario, 17/11/2026)
+- Sobre **947** elementos: `routeRole = POE` en **943** y sin valor superior visible en **4**.
+- `terminalType = APT`: **851**; `CY`: **77**; `SD`: **16**; sin valor visible: **3**. Esta distribución suma 947.
+- Junto a la prueba anterior, `transportMode = Air`: 851; `Maritime`: 77; `Land`: 16; sin valor visible: 3. **Las cantidades coinciden por grupo, pero eso por sí solo no demuestra correspondencia fila por fila entre tipo y modalidad; verificar con agrupamiento cruzado si hace falta.**
+- Ejemplo **Land**: Ciudad de Guatemala, Guatemala; código `SD_CIUDAD_DE_GUATEMALA_GUATEMALA`; `transportMode: Land`, `terminalType: SD`, `routeRole: POE`, `pricingWorkflow: true`, metadatos redundantes.
+- Ejemplo **Air**: Abidjan, Côte d’Ivoire; `code: APT_ABJ`, `name: Abidjan, Côte d’Ivoire (ABJ)` mientras `value: Abidjan, Côte d’Ivoire`; `transportMode: Air`, `terminalType: APT`, `routeRole: POE`; metadatos de aeropuerto `iataCode: ABJ`, `icaoCode: DIAP`, `airportName: Abidjan Port Bouet Airport`, latitud/longitud, city/country, `airportCategory: mid`, `source: FreeGeoDB`.
+- Tres registros **sin transportMode superior** muestran `id/code/slug/name/value/isActive/sortOrder` pero no muestran `metadata`, `routeRole` ni `terminalType`: Port Willemstad, Curacao (`POE-2026-007`); Rio Haina, Republica Dominicana (`POE-2026-009`); Hong Kong, China (`POE-2026-011`). **No asignar modalidad de forma inferida**.
+- Hay **un registro adicional** sin `routeRole` superior más allá de esos tres. No está identificado aún.
+- Aplicación: POE parece ser un catálogo compartido con aeropuertos, terminales marítimas y ubicaciones terrestres. **Regla de negocio específica de POE pendiente de decisión**; no aplicar automáticamente la excepción de POD.
+- Próximo análisis mínimo: obtener los cuatro registros sin `routeRole` y el recuento cruzado `transportMode` × `terminalType`, sin repetir toda la consulta (aprovechar `$items` de PowerShell).
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
