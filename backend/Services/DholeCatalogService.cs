@@ -57,8 +57,16 @@ public sealed class DholeCatalogService(
 
         var freshKey = "dhole-catalog:fresh:" + catalog;
         var staleKey = "dhole-catalog:stale:" + catalog;
+        var retryKey = "dhole-catalog:retry:" + catalog;
         if (cache.TryGetValue<DholeCatalogSnapshot>(freshKey, out var fresh) && fresh is not null)
             return fresh;
+        // Limit failed refreshes as well as successful ones; avoid bursts after outages.
+        if (cache.TryGetValue<bool>(retryKey, out var retryBlocked) && retryBlocked)
+        {
+            if (cache.TryGetValue<DholeCatalogSnapshot>(staleKey, out var previous) && previous is not null)
+                return previous with { Stale = true };
+            throw new DholeCatalogUnavailableException();
+        }
 
         var gate = _gates.GetOrAdd(catalog, static _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(ct);
@@ -66,6 +74,12 @@ public sealed class DholeCatalogService(
         {
             if (cache.TryGetValue<DholeCatalogSnapshot>(freshKey, out fresh) && fresh is not null)
                 return fresh;
+            if (cache.TryGetValue<bool>(retryKey, out retryBlocked) && retryBlocked)
+            {
+                if (cache.TryGetValue<DholeCatalogSnapshot>(staleKey, out var previous) && previous is not null)
+                    return previous with { Stale = true };
+                throw new DholeCatalogUnavailableException();
+            }
 
             try
             {
@@ -86,12 +100,15 @@ public sealed class DholeCatalogService(
                 var snapshot = new DholeCatalogSnapshot(catalog, DateTimeOffset.UtcNow, false, items);
                 cache.Set(freshKey, snapshot, FreshFor);
                 cache.Set(staleKey, snapshot, StaleFor);
+                cache.Remove(retryKey);
                 return snapshot;
             }
             catch (Exception ex) when (!ct.IsCancellationRequested && ex is
                        (DholeCatalogUnavailableException or HttpRequestException or
-                        JsonException or InvalidDataException or IOException or OperationCanceledException))
+                        JsonException or InvalidDataException or IOException or
+                        InvalidOperationException or ArgumentException or OperationCanceledException))
             {
+                cache.Set(retryKey, true, TimeSpan.FromSeconds(30));
                 // Do not log the exception: headers and remote request details can contain credentials.
                 logger.LogWarning("Dhole catalogue {Catalog} refresh failed.", catalog);
                 if (cache.TryGetValue<DholeCatalogSnapshot>(staleKey, out var previous) && previous is not null)
