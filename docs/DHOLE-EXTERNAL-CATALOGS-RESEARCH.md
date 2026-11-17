@@ -298,6 +298,25 @@ El usuario **resolvió expresamente** la cuestión anterior 40 vs 48 pies: **se 
 - **Esta decisión sustituye explícitamente el punto pendiente anterior** que pedía confirmar si 40 fue reemplazado por 48. No esperar confirmación del jefe sobre este tema.
 - Siguen pendientes otras definiciones separadas (p. ej., los equipos aéreos LCL) según conversación.
 
+## Siguiente fase propuesta tras cerrar 7 GET: integración técnica por capas (17/11/2026)
+**Estado:** investigación GET completa; no se ha implementado consumo dinámico en código funcional. Comparación GitHub contra `main-2` realizada: rama de investigación está **ahead 23, behind 0** y su único archivo distinto es este documento. Aún hay conversaciones paralelas, así que reevaluar la base y evitar mezclar ramas antes de implementar.
+
+**Inspección del código realizada:**
+- `frontend/src/pages/OfficialQuoteWizard.vue` solicita ubicaciones de `/api/quotes/official/locations?kind=&shipmentType=&routeRole=`, usa identificadores locales `Loc.id`; opciones incoterm/equipos provienen de `frontend/src/lib/officialQuoteOptions.ts`.
+- `backend/Endpoints/OfficialQuoteEndpoints.cs` valida IDs en `OfficialQuoteLocations` y `OfficialQuoteLocationUsages`; rechaza tamaños/tipos fuera de arreglos locales, incluido FTL de 40 y sin 48. No puede sustituirse el UUID local con UUID Dhole sin mapeo o refactor controlado.
+- `frontend/src/lib/itineraryLocations.ts` consulta `/api/itinerarios/locations`, obtiene nombres para filtros; ya hay caché de sesión a 5 minutos y manejo de 429. Un catálogo nuevo debe evitar ráfagas, mantener la semántica de filtros e itinerarios ya guardados.
+- `frontend/src/pages/Itinerary.vue` almacena POL/POD del buscador como textos de ubicación, no los UUID usados por el wizard.
+- Incoterms y equipos actuales son estáticos; FCL combina tamaño/tipo de forma independiente, pero Dhole expone combinaciones reales.
+
+**Plan de ejecución recomendado, manteniendo diseño existente:**
+1. Crear **rama de implementación separada** desde la versión actualizada de `main-2`, sin tocar PR paralelas. Conservar esta rama solo para documentación.
+2. Añadir en backend un cliente Dhole de solo lectura con `X-Api-Key` por variable de entorno o secreto del despliegue; claves y respuestas sensibles no aparecen en logs. Normalizar JSON, `metadata` camelCase/PascalCase, role y `isActive === false`; manejar formatos de respuesta, timeouts, 429, caché, última respuesta válida segura y telemetría sin exponer secretos.
+3. Exponer catálogos propios seguros para el frontend con campos `id externo, code, name, value, sortOrder` más clasificación normalizada. POE filtra por modalidad; POD incluye todas las entradas salvo inactivas explícitas; POL requiere validar semántica final de filtros y `Maritime/SD`. No inferir prioridad en metadatos contradictorios. **Dhole es fuente de verdad** para FTL (24,26,48,53 vigentes; 40 deja de ofrecerse en nuevas cotizaciones).
+4. Hacer mapeo/migración **sin perder IDs locales persistidos**, o crear capa de resolución Dhole↔ID local antes de intercambiar las ubicaciones en wizard y backend; auditar permisos, usos por shipmentType/routeRole y datos históricos.
+5. Conectar opciones de tamaños/tipos/incoterms a catálogos dinámicos y adaptar validación de backend, manteniendo etiquetas/traducciones y las combinaciones FCL permitidas. Garantizar que al cambiar tamaño no permanezca un tipo incompatible.
+6. Conectar Itinerarios mediante los mismos catálogos adaptados, conservando su esquema de nombres y controles anti-429. Probar marítimo, aéreo, terrestre, LCL, FCL, FTL, y casos de caída de Dhole antes de PR y merge.
+7. **Pendiente explícito:** decisión negocio sobre `LOOSE`, `PALLET`, `ULD` en cotización aérea. **No agregar campos ni integrarlos todavía**. No enviar POST a `solicitar-tarifa` sin autorización explícita y contrato.
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
