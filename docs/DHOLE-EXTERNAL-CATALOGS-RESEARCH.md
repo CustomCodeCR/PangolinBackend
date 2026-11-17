@@ -121,6 +121,22 @@ Se inspeccionaron `id`, `name`, `code`, `transportMode`, `routeRole`, `terminalT
 - Aplicación: POE parece ser un catálogo compartido con aeropuertos, terminales marítimas y ubicaciones terrestres. **Regla de negocio específica de POE pendiente de decisión**; no aplicar automáticamente la excepción de POD.
 - Próximo análisis mínimo: obtener los cuatro registros sin `routeRole` y el recuento cruzado `transportMode` × `terminalType`, sin repetir toda la consulta (aprovechar `$items` de PowerShell).
 
+## POE: comprobación cruzada de modalidad, terminal y rol (17/11/2026)
+La agrupación cruzada del conjunto completo confirma exactamente:
+- `Maritime, CY`: **77**
+- `Land, SD`: **16**
+- `Air, APT`: **851**
+- Sin ambos campos visibles: **3**
+Así se valida la correspondencia observada por modalidad y tipo de terminal en los 944 registros clasificados, sin asumir una modalidad para los tres restantes.
+
+Los **4 registros sin `routeRole` superior** fueron identificados:
+1. `POE-2026-007`: Port Willemstad, Curacao; `transportMode`, `terminalType` y `metadata` nulos en la salida.
+2. `POE-2026-009`: Rio Haina, Republica Dominicana; los mismos valores nulos.
+3. `POE-2026-010`: Puerto Cortes, Honduras; **Maritime / CY** tanto en campos superiores como en metadata, pero metadata **no trae `routeRole`**; `countryCode: HN`, `pricingWorkflow: true`.
+4. `POE-2026-011`: Hong Kong, China; los mismos valores nulos que los otros dos sin modalidad.
+
+**Implicación:** filtrar únicamente `routeRole === "POE"` excluiría Puerto Cortes y los tres registros históricos sin rol. No hacerlo sin definición del negocio. Mantener `pricingWorkflow` fuera de lógica de filtrado mientras no exista indicación para POE. Reglas POE siguen pendientes de discusión; no copiar sin confirmación las reglas decididas para POD.
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
