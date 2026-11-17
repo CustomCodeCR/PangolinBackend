@@ -171,10 +171,11 @@ var podItems = DholeCatalogNormalizer.Parse("""
 ]
 """);
 var pods = DholeQuoteLocationProjector.Project("pod", "Maritime", podItems);
-Check(pods.Options.Length == 2 && pods.Options.Any(x => x.Name == "Legacy POD") &&
+Check(pods.Options.Length == 3 && pods.Options.Any(x => x.Name == "Legacy POD") &&
       pods.Options.Any(x => x.Name == "Land POD") &&
+      pods.Options.Any(x => x.Name == "Invalid role") &&
       pods.Issues.Single().Reason == "conflicting_route_role",
-    "POD does not filter modality; explicit conflicting role still needs review");
+    "All active POD entries stay selectable regardless of modality or role anomalies");
 
 try
 {
@@ -391,7 +392,7 @@ Check(airCatalog.Origins.Length == 1 && airCatalog.Destinations.Length == 1 &&
 var lclCatalog = DholeQuoteFormCatalogBuilder.Build(
     "Maritime", "LCL", officialIncotermItems, polItems, poeItems, podItems,
     containerSizes, containerTypes, truckSizes);
-Check(lclCatalog.Pods.Length == 2 && lclCatalog.EquipmentSizes.Length == 0 &&
+Check(lclCatalog.Pods.Length == 3 && lclCatalog.EquipmentSizes.Length == 0 &&
       lclCatalog.Incoterms.Length == 2,
     "Maritime LCL has all POD choices and no FCL equipment fields");
 
