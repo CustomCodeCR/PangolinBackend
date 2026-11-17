@@ -204,6 +204,13 @@ Resultado de `$itemsPol | Where-Object` con condiciones: Maritime+SD, rol POD, f
 **Recomendación:** investigar estos 3 bloqueos reales (Atlanta, London Gateway, Moin) y el país de San José con el responsable, pero continuar la investigación de los tres catálogos de equipos de solo lectura. Mantener `pricingWorkflow` sin efecto en el filtrado. No cambiar selectores actuales hasta acordar la política POL.
 
 
+## Aclaración posterior sobre POL y San José (17/11/2026)
+- El usuario reporta que el equipo Dhole **ya habría corregido** los casos especiales de POL. La salida pegada en esta conversación es la **misma consulta anterior**, por lo que no verifica la actualización. Debe realizarse **un nuevo GET** a POL y revisar nuevamente por UUID.
+- El usuario aclara que **San José aparece en varias variantes/tipos** en el sistema. Por tanto, **el mismo nombre en varias modalidades o terminales no es, por sí solo, una incongruencia ni motivo para deduplicar registros diferentes**.
+- El registro antiguo `POL-2026-117` (`d3a43858-7ade-419c-a108-af5203bf0f2e`) mostraba `CountryCode=SV` dentro de metadata pese a su nombre 'San José, Costa Rica'. No declarar esto definitivamente erróneo ni cambiarlo hasta comparar su nueva respuesta y el significado de este campo; diferenciar registros por UUID, no por nombre.
+- Revisar los siete UUID anómalos con consulta nueva y clasificar el resultado como corregido, pendiente o cambio intencional; no reutilizar colecciones PowerShell de una llamada antigua.
+- Mantener la regla de no imponer automáticamente una prioridad cuando `transportMode` y `terminalType` realmente se contradigan dentro **del mismo registro**, pero no interpretar variantes legítimas de un mismo nombre como contradicción.
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
