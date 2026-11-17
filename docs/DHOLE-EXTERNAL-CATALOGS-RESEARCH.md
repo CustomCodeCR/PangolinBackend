@@ -289,6 +289,15 @@ Cada registro incluye además `description: Contenedor de XX pies`, `metadata: {
 - Requiere adaptador que distinga `name` del `value` numérico y del `id` externo, y que sincronice backend/validación con las opciones dinámicas, sin alterar historial de solicitudes.
 - **Estado global:** las **7 APIs GET** fueron investigadas con respuestas autenticadas; la investigación no implica que haya comenzado la integración. Pendientes de definición final: política FTL 40 vs 48; inclusión de equipos LCL aéreos (`LOOSE`, `PALLET`, `ULD`, usuario consultará luego sin crear campos); alcance de modalidades `Multimodal` dentro de marítimo; decisión final general `isActive`; reglas POL con metadatos heredados. Cualquier POST para solicitar tarifa queda fuera de alcance hasta contrato y permiso explícito.
 
+## Decisión confirmada: Dhole es la fuente de verdad para tamaños de furgón (17/11/2026)
+El usuario **resolvió expresamente** la cuestión anterior 40 vs 48 pies: **se debe respetar lo que devuelve Dhole hoy y en actualizaciones posteriores**. La diferencia con el frontend/backend actuales no requiere una nueva pregunta de negocio.
+- Para **nuevas solicitudes FTL**, mostrar los registros activos publicados en Dhole y no conservar como opción un tamaño que ya no esté en el catálogo externo. En la última respuesta autenticada: 24 pies / 5 TON, 26 pies / 7 TON, 48 pies, 53 pies; **40 pies ya no se ofrece**.
+- **NO codificar la sustitución `40→48`** como regla manual; implementar carga dinámica segura desde backend, filtrado provisional por `isActive !== false`, ordenación `sortOrder`, nombre visible desde `name` y mapeo controlado del `value` / UUID externo al contrato interno.
+- Actualizar también las validaciones actuales de `backend/Endpoints/OfficialQuoteEndpoints.cs` y las opciones de `frontend/src/lib/officialQuoteOptions.ts` para que sean coherentes, sin cambiar el diseño del formulario y sin aceptar nuevas opciones que Dhole no devuelve. **Preservar consultas/cotizaciones históricas** cuyo equipo era 40 pies; no reescribir datos persistidos.
+- Considerar caché y estrategia segura en caso de caída de Dhole: no inventar valores nuevos, evitar rechazar cotizaciones recientes debido a cachés desincronizadas, manejar indisponibilidad.
+- **Esta decisión sustituye explícitamente el punto pendiente anterior** que pedía confirmar si 40 fue reemplazado por 48. No esperar confirmación del jefe sobre este tema.
+- Siguen pendientes otras definiciones separadas (p. ej., los equipos aéreos LCL) según conversación.
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
