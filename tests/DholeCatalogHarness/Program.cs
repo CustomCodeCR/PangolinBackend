@@ -1,4 +1,8 @@
 using System.IO;
+using System.Net;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using CastroFallas.MiniQuote.Api.Services;
 
 static void Check(bool condition, string name)
@@ -231,3 +235,96 @@ Check(equipment.FtlSizes[0].CapacityTons == 5 &&
 Console.WriteLine("OK: Dynamic FCL type/size validation, multimodal 48HC, ignored air LCL, current FTL sizes.");
 
 
+
+
+// Offline security and availability simulation. The real Dhole API and actual
+// API key are NEVER used here.
+var fakeHandler = new FakeDholeHandler();
+using var mockHttp = new HttpClient(fakeHandler)
+{
+    BaseAddress = new Uri("https://api.logisticacastrofallas.com/")
+};
+using var memory = new MemoryCache(new MemoryCacheOptions());
+var mockConfig = new ConfigurationBuilder().AddInMemoryCollection(
+    new Dictionary<string, string?>
+    {
+        ["DholeCatalogs:Enabled"] = "true",
+        ["DholeCatalogs:ApiKey"] = "fictional-ci-only-key"
+    }).Build();
+var externalService = new DholeCatalogService(
+    mockConfig, new FakeDholeHttpClientFactory(mockHttp), memory,
+    NullLogger<DholeCatalogService>.Instance);
+
+Check(externalService.IsConfigured, "Configured fake Dhole catalogue client enabled");
+var original = await externalService.GetAsync("truck-sizes", CancellationToken.None);
+Check(!original.Stale && original.Items.Length == 1 &&
+      original.Items.Single().Name == "48 pies",
+    "Successful GET parses fake Dhole data");
+var cachedRead = await externalService.GetAsync("truck-sizes", CancellationToken.None);
+Check(!cachedRead.Stale && fakeHandler.Calls == 1,
+    "Fresh cache prevents duplicate external GET");
+
+memory.Remove("dhole-catalog:fresh:truck-sizes");
+fakeHandler.Fail = true;
+var fallback = await externalService.GetAsync("truck-sizes", CancellationToken.None);
+Check(fallback.Stale && fallback.Items.Single().Name == "48 pies" &&
+      fakeHandler.Calls == 2,
+    "Upstream 503 uses the last valid cached response and sets stale flag");
+var retryThrottled = await externalService.GetAsync("truck-sizes", CancellationToken.None);
+Check(retryThrottled.Stale && fakeHandler.Calls == 2,
+    "Backoff prevents bursts when the upstream keeps failing");
+
+var notConfigured = new DholeCatalogService(
+    new ConfigurationBuilder().Build(), new FakeDholeHttpClientFactory(mockHttp), memory,
+    NullLogger<DholeCatalogService>.Instance);
+Check(!notConfigured.IsConfigured, "Dhole GET disabled without explicit opt-in and key");
+
+Console.WriteLine("OK: Fake upstream GET-only client, header, cache, upstream failure, stale fallback and throttle.");
+
+sealed class FakeDholeHttpClientFactory(HttpClient client) : IHttpClientFactory
+{
+    public HttpClient CreateClient(string name)
+    {
+        if (name != "DholeCatalogs")
+            throw new Exception("Unexpected HttpClient name.");
+        return client;
+    }
+}
+
+sealed class FakeDholeHandler : HttpMessageHandler
+{
+    public int Calls { get; private set; }
+    public bool Fail { get; set; }
+
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        Calls++;
+        if (request.Method != HttpMethod.Get ||
+            request.RequestUri?.Scheme != "https" ||
+            request.RequestUri.Host != "api.logisticacastrofallas.com" ||
+            request.RequestUri.AbsolutePath != "/api/external/v1/tamano-de-furgon-wja6f0k" ||
+            !request.Headers.TryGetValues("X-Api-Key", out var values) ||
+            !values.SequenceEqual(["fictional-ci-only-key"]))
+            throw new Exception("Invalid safe Dhole GET request or missing fake authentication header.");
+
+        if (Fail)
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+
+        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("""
+                [
+                  {
+                    "id": "c2110000-0000-4000-8000-000000000048",
+                    "code": "48",
+                    "name": "48 pies",
+                    "value": "48",
+                    "isActive": true,
+                    "metadata": {"feet": 48, "modality": "Land"}
+                  }
+                ]
+                """)
+        });
+    }
+}
