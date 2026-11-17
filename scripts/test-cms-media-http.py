@@ -415,18 +415,27 @@ def test_legacy_backfill(admin):
             del FakeS3.objects[key]
 
         route = f"/api/admin/content/media/{media_id}/webp-backfill"
-        before = FakeS3.puts
-        h_forbidden, _ = check_status(visitor, route, 401,
-                                      payload={"apply": False}, method="POST")
-        require("no-store" not in h_forbidden.get("Cache-Control", "") or
-                FakeS3.puts == before, "Anonymous inventory unexpectedly wrote S3")
-        inventory = json_call(admin, route, 200, {"apply": False}, method="POST")
+        # Unauthorized requests must never reach S3, even for metadata.
+        before = (FakeS3.heads, FakeS3.downloads, FakeS3.puts)
+        check_status(visitor, route, 401,
+                     payload={"apply": False}, method="POST")
+        require((FakeS3.heads, FakeS3.downloads, FakeS3.puts) == before,
+                "Anonymous backfill inspection must not access S3")
+
+        # The authenticated dry-run may use HEAD, but must not download,
+        # mutate objects, or allow its administrative result to be cached.
+        headers, body = check_status(admin, route, 200,
+                                     payload={"apply": False}, method="POST")
+        require("no-store" in headers.get("Cache-Control", "").lower(),
+                "Backfill dry-run must be non-cacheable")
+        inventory = json.loads(body)
         require(inventory["mode"] == "dry-run" and
                 360 in inventory["missingWidths"] and
                 inventory["originalPreserved"],
                 "Legacy dry-run failed to identify missing derivatives")
-        require(FakeS3.puts == before and FakeS3.objects[prefix] == PHOTO,
-                "Dry-run must never upload or modify original")
+        require((FakeS3.downloads, FakeS3.puts) == before[1:] and
+                FakeS3.objects[prefix] == PHOTO,
+                "Dry-run must never download, upload or modify original")
         apply = json_call(admin, route, 200, {"apply": True}, method="POST")
         require(apply["mode"] == "apply" and
                 360 in apply["generatedWidths"] and apply["originalPreserved"],
