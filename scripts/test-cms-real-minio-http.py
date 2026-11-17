@@ -141,6 +141,15 @@ def main():
             input=seed, text=True, check=True, stdout=DEVNULL)
         admin = helper.login_admin()
         test_real_minio_publication(admin)
+        if os.getenv("CMS_REAL_MINIO_EDITOR_UI_TEST") == "1":
+            editor_spec = importlib.util.spec_from_file_location(
+                "test_cms_real_minio_editor",
+                Path(__file__).with_name("test-cms-real-minio-editor.py"))
+            if editor_spec is None or editor_spec.loader is None:
+                raise RuntimeError("Could not load isolated browser editor test")
+            editor_module = importlib.util.module_from_spec(editor_spec)
+            editor_spec.loader.exec_module(editor_module)
+            editor_module.editor_smoke(admin, helper)
     finally:
         proc.terminate()
         try:
