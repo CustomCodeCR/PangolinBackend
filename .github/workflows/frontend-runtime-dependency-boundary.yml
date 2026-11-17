@@ -1,0 +1,29 @@
+name: Frontend production-dependency boundary (security)
+
+on:
+  pull_request:
+    branches: [main-2, main]
+    paths:
+      - frontend/package.json
+      - frontend/package-lock.json
+      - frontend/Dockerfile
+      - frontend/nuxt/Dockerfile
+      - scripts/check-frontend-dev-runtime-boundary.py
+      - .github/workflows/frontend-runtime-dependency-boundary.yml
+
+permissions:
+  contents: read
+
+jobs:
+  production-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert frontend dev dependencies remain outside runtime Docker stages
+        run: python3 scripts/check-frontend-dev-runtime-boundary.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Audit production frontend dependencies (additional check, not replacement)
+        run: npm audit --prefix frontend --omit=dev --audit-level=high
