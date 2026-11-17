@@ -21,6 +21,7 @@ def editor_smoke(admin, helper):
     assert os.getenv("RUNNER_TEMP")
     from selenium import webdriver
     from selenium.webdriver.common.by import By
+    from selenium.webdriver.common.keys import Keys
     from selenium.webdriver.chrome.options import Options
     from selenium.webdriver.support.ui import WebDriverWait
 
@@ -68,6 +69,15 @@ def editor_smoke(admin, helper):
         driver = webdriver.Chrome(options=options)
         wait = WebDriverWait(driver, 25)
 
+        def submit_editor():
+            button = driver.find_element(By.CSS_SELECTOR, ".manager-form button.manager-submit")
+            driver.execute_script(
+                "arguments[0].scrollIntoView({behavior:'instant',block:'center'});", button)
+            sleep(.2)
+            # Keyboard activation exercises the real native submit button.
+            # Selenium mouse-click is unreliable in this long scrolling form.
+            button.send_keys(Keys.ENTER)
+
         driver.get(origin + "/")
         for cookie in cookies:
             driver.add_cookie({
@@ -90,7 +100,7 @@ def editor_smoke(admin, helper):
         wait.until(lambda d: "Se subirá a MinIO" in d.find_element(
             By.CSS_SELECTOR, ".manager-form").text)
         assert "Este borrador no aparecerá" in form.text, "Draft must be the default"
-        form.find_element(By.CSS_SELECTOR, "button.manager-submit").click()
+        submit_editor()
         wait.until(lambda d: "Noticia guardada como borrador" in d.find_element(
             By.CSS_SELECTOR, ".manager-feedback").text)
 
@@ -132,7 +142,7 @@ def editor_smoke(admin, helper):
         published.click()
         wait.until(lambda d: "Esta noticia aparecerá en la web" in
                    d.find_element(By.CSS_SELECTOR, ".manager-form form").text)
-        driver.find_element(By.CSS_SELECTOR, ".manager-form button.manager-submit").click()
+        submit_editor()
         wait.until(lambda d: "Noticia publicada" in
                    d.find_element(By.CSS_SELECTOR, ".manager-feedback").text)
 
@@ -157,7 +167,7 @@ def editor_smoke(admin, helper):
                                        '[role="listbox"][aria-label="Estado de publicación de noticia"] [role="option"]')
         draft = next(c for c in choices if "Borrador" in c.text)
         draft.click()
-        driver.find_element(By.CSS_SELECTOR, ".manager-form button.manager-submit").click()
+        submit_editor()
         wait.until(lambda d: "borrador" in d.find_element(
             By.CSS_SELECTOR, ".manager-feedback").text.lower())
         helper.check_status(helper.build_opener(), image_url + "?width=360", 404)
