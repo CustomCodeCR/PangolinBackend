@@ -68,4 +68,27 @@ for name in ("deploy/docker-compose.images.yml", "compose.production.yaml"):
     assert "CmsMedia__ResponsiveWebpEnabled:" not in deployment, (
         f"{name} must not automatically enable CMS WebP production generation"
     )
-print("PASS CMS WebP: local backend/Vite/Nuxt opt-in, default-off, production unaffected")
+
+# The WWW deployment uses already-built GHCR images, NOT compose.production.yaml.
+# An opt-in in Docker build args cannot be rolled back by changing a runtime
+# environment variable alone. Fail closed if any release stage changes.
+for name in ("frontend/Dockerfile", "frontend/nuxt/Dockerfile"):
+    dockerfile = (ROOT / name).read_text(encoding="utf-8")
+    assert "ARG VITE_CMS_RESPONSIVE_WEBP_ENABLED=false" in dockerfile, (
+        f"{name} must keep default-off in production image builds"
+    )
+workflow = (ROOT / ".github/workflows/pangolin-images.yml").read_text(
+    encoding="utf-8")
+assert "VITE_CMS_RESPONSIVE_WEBP_ENABLED=true" not in workflow, (
+    "GHCR release workflow must not activate WebP public srcset implicitly"
+)
+# Check the actual WWW runtime Compose as well as the non-GHCR candidate.
+release = (ROOT / "deploy/docker-compose.images.yml").read_text(encoding="utf-8")
+assert "CmsMedia__ResponsiveWebpEnabled:" not in release, (
+    "WWW release must not enable new upload conversion without staging"
+)
+assert "VITE_CMS_RESPONSIVE_WEBP_ENABLED" not in release, (
+    "Runtime Compose cannot change a compile-time Vue/Nuxt flag"
+)
+print("PASS CMS WebP: local backend/Vite/Nuxt opt-in, default-off, "
+      "actual GHCR WWW release unchanged")
