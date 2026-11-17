@@ -26,8 +26,9 @@ for (const route of targetedServiceRoutes) {
   assert.ok(keywords[route]?.primary && keywords[route]?.secondary?.length >= 3,
     'Falta estrategia SEO de búsqueda por servicio: ' + route)
   const seo = routeSeo[route]
-  assert.ok(seo?.title?.endsWith('Castro Fallas') && seo?.description?.length >= 95 && seo.description.length <= 165,
-    'Título y descripción SEO específicos o legibles faltantes: ' + route)
+  assert.ok(seo?.title?.endsWith('Castro Fallas') && seo.title.length <= 60 &&
+    seo?.description?.length >= 95 && seo.description.length <= 165,
+    'Título y descripción SEO específicos, cortos y legibles faltantes: ' + route)
   assert.ok(!/3PL|4PL|HAZMAT|flotilla propia/i.test(seo.description),
     'No publicar promesas de servicios no confirmados: ' + route)
 }
