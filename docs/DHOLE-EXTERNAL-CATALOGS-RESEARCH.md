@@ -137,6 +137,26 @@ Los **4 registros sin `routeRole` superior** fueron identificados:
 
 **Implicación:** filtrar únicamente `routeRole === "POE"` excluiría Puerto Cortes y los tres registros históricos sin rol. No hacerlo sin definición del negocio. Mantener `pricingWorkflow` fuera de lógica de filtrado mientras no exista indicación para POE. Reglas POE siguen pendientes de discusión; no copiar sin confirmación las reglas decididas para POD.
 
+## Decisión de negocio POE confirmada (17/11/2026)
+**Fuente:** el usuario transmitió las instrucciones del jefe después de revisar el resultado real del endpoint POE.
+
+1. **POE se filtra según la modalidad del formulario**, a diferencia de POD, que muestra todas las ubicaciones válidas. Matriz observada en 944 registros de POE:
+   - Marítimo: `transportMode=Maritime` y `terminalType=CY` → 77.
+   - Aéreo: `transportMode=Air` y `terminalType=APT` → 851.
+   - Terrestre: `transportMode=Land` y `terminalType=SD` → 16.
+   Estos pares están **observados como concordantes** en las 944 ubicaciones clasificadas, no son una garantía futura. Si contradicen uno al otro en datos futuros, señalar inconsistencia y no adivinar una modalidad.
+2. **Excepciones históricas marítimas confirmadas por el jefe:** los tres registros sin metadata ni modalidad son válidos para **POE marítimo**:
+   - Port Willemstad, Curacao — `d43f9a0e-3fed-449d-bea0-067c9a2c30c4` (`POE-2026-007`).
+   - Rio Haina, Republica Dominicana — `9141e228-7ecc-42cb-a00b-bb609077db28` (`POE-2026-009`).
+   - Hong Kong, China — `150b6051-b099-4211-a2c8-b7ad85b51898` (`POE-2026-011`).
+   Hoy, 77+3 = **80 destinos POE marítimos**, 851 aéreos y 16 terrestres.
+3. **Falta de `routeRole` NO invalida POE:** si el registro viene del endpoint POE y no declara un rol distinto, puede usarse como POE aunque `routeRole` sea nulo o falte (por ejemplo Puerto Cortes, Honduras). Si en el futuro aparece un `routeRole` explícitamente contradictorio, detener para revisión: no se acordó aún esa regla.
+4. **Clasificación automática:** para cambios posteriores de Dhole, dar prioridad a `transportMode` y `terminalType` actuales (campos superiores o metadata normalizada, si aplicable). Las tres excepciones deberían emplearse **solo mientras falten los metadatos**, y ser retiradas al confirmarse corrección; identificar por UUID estable en vez de nombres mostrados.
+5. **No reintroducir `pricingWorkflow` en el filtrado.** El negocio confirmó que no importa para este trabajo.
+6. **Pendiente técnico, no bloqueo de investigación:** confirmar con equipo si POE comparte con POD la regla provisional de `isActive !== false`; no darla por aceptada tácitamente para todos los catálogos. Mantener la API key en backend, gestionar caché, no sustituir UUID locales a ciegas, preservar cotizaciones existentes.
+
+Esta decisión aplica a **POE**, no a POL (aún sin investigar) ni a la regla distinta ya decidida para POD.
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
