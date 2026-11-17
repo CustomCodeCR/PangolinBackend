@@ -211,6 +211,22 @@ Resultado de `$itemsPol | Where-Object` con condiciones: Maritime+SD, rol POD, f
 - Revisar los siete UUID anómalos con consulta nueva y clasificar el resultado como corregido, pendiente o cambio intencional; no reutilizar colecciones PowerShell de una llamada antigua.
 - Mantener la regla de no imponer automáticamente una prioridad cuando `transportMode` y `terminalType` realmente se contradigan dentro **del mismo registro**, pero no interpretar variantes legítimas de un mismo nombre como contradicción.
 
+## POL: reconsulta posterior a correcciones de Dhole (17/11/2026)
+El usuario ejecutó **un nuevo GET** a `pol-puerto-de-origen-wi11hg7`, no la colección antigua `$itemsPol`.
+
+- Distribución actual **en campos superiores** (total 1062): `Air/APT=854`, `Maritime/CY=191`, `Land/SD=15`, `Maritime/SD=1`, `sin transportMode/terminalType superiores=1`.
+- Registros históricos inspeccionados por UUID:
+  - Atlanta `24a938cf-7fe9-4e34-a774-d26475760270`: ahora `Maritime/CY/POL`.
+  - London Gateway `c6519b0a-5bc6-4cd2-87d6-32e9822a5c20`: ahora `Maritime/CY/POL`.
+  - Anhui `88dd96bb-44b2-4714-9f89-e721206413ac`: ahora `Maritime/CY/POL`.
+  - Jiangxi `10d89a35-8898-4cf1-8166-931c279f3bff`: ahora `Maritime/CY/POL`.
+  - Minnesota `27eb3622-4725-4705-a76f-8f4a8fa934ad`: ahora `Maritime/CY/POL`.
+  - Moin `8ebb78e5-6a9c-47c0-9a31-ddbb057540c6`: ahora `Maritime/SD/POL`. **Se corrigió la contradicción de rol POD**, pero conserva la combinación `Maritime/SD`. No marcar esta combinación como error sin conocer su semántica; el usuario indicó que múltiples tipos pueden ser legítimos.
+  - San José `d3a43858-7ade-419c-a108-af5203bf0f2e`: campos superiores `transportMode=null`, `terminalType=null`, `routeRole="pol"`; `metadata.TransportMode="Maritime"`, `metadata.TerminalType="CY"`, `metadata.routeRole="pol"`, `metadata.CountryCode="SV"`. **Clasificación recuperable por metadata con capitalización diferente**. El usuario aclara que San José puede representar múltiples registros/tipos válidos; no deduplicar por nombre. País `SV` vs nombre Costa Rica se mantiene como inconsistencia aparente por confirmar, no se corrige de forma automática.
+- No hacen falta excepciones codificadas para Atlanta, London Gateway, Anhui, Jiangxi ni Minnesota. Validar futuras actualizaciones dinámicamente usando los campos vigentes de la API.
+- Se mantiene política acordada ante contradicción real de modalidad/terminal: registrar para revisión, no dar prioridad arbitraria a uno. **Pero `Maritime/SD` no se declara automáticamente contradictorio**, pues se observó en un registro de origen que ahora declara `POL` y no está confirmada la regla de exclusividad de tipos de terminal.
+- La definición final del filtro POL por modalidad aún deberá confirmarse con el negocio; se puede continuar investigando tamaños/tipos sin bloquear por esta confirmación.
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
