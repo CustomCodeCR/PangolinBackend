@@ -2,6 +2,7 @@ import { articlePath } from '../../app/utils/news'
 import type { PublicNews } from '../../app/utils/news'
 import serviceGuides from '../../../seo/service-landings.json'
 import servicePages from '../../../seo/service-pages.json'
+import routeSeo from '../../../seo/routes.json'
 function escapeXml(value: string) {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
@@ -20,6 +21,13 @@ export default defineCachedEventHandler(async event => {
   setHeader(event, 'Content-Type', 'application/xml; charset=utf-8')
   const unique = [...new Set(urls)]
   return '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-    unique.map(path => '  <url><loc>' + escapeXml(base + path) + '</loc></url>').join('\n') +
+    unique.map(path => {
+      // Emit lastmod only when the editorial route inventory already records a real date.
+      // Article publishedAt is not necessarily the date of the latest content update.
+      const date = (routeSeo as Record<string, { lastModified?: string }>)[path]?.lastModified
+      const lastmod = date && /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+        !Number.isNaN(Date.parse(date)) ? '<lastmod>' + date + '</lastmod>' : ''
+      return '  <url><loc>' + escapeXml(base + path) + '</loc>' + lastmod + '</url>'
+    }).join('\n') +
     '\n</urlset>\n'
 }, { maxAge: 600, swr: true, name: 'pangolin-sitemap' })
