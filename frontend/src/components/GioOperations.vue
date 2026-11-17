@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2, ChevronRight, FileText, LoaderCircle, MapPin, 
 import { refreshSession } from '../services/auth'
 import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
 import { isCalendarDate, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
+import { loadDholeQuoteFormOptions, type DholeQuoteFormOptions } from '../lib/dholeQuoteForm'
 
 type Kind = 'quote' | 'tracking' | 'itinerary'
 type Phase = 'collect' | 'confirm' | 'review' | 'auth' | 'location' | 'result'
@@ -63,11 +64,63 @@ const proposedLocations = reactive<Record<string, string>>({})
 const locationLoading = ref(false)
 const locationLoadError = ref('')
 const locationCache = new Map<string, Location[]>()
+const quoteCatalog = ref<DholeQuoteFormOptions | null>(null)
+const quoteCatalogSource = ref<'local' | 'dhole'>('local')
+let quoteCatalogKey = ''
+let quoteCatalogPromise: Promise<DholeQuoteFormOptions | null> | null = null
+function clearQuoteCatalog() {
+  quoteCatalog.value = null
+  quoteCatalogSource.value = 'local'
+  quoteCatalogKey = ''
+  quoteCatalogPromise = null
+  locationCache.clear()
+}
+async function ensureQuoteCatalog() {
+  if (props.kind !== 'quote' || !values.mode || !values.shipmentType) return null
+  const mode = values.mode as DholeQuoteFormOptions['mode']
+  const shipmentType = values.shipmentType as DholeQuoteFormOptions['shipmentType']
+  const key = mode + ':' + shipmentType
+  if (quoteCatalogKey === key) {
+    if (quoteCatalogPromise) return quoteCatalogPromise
+    return quoteCatalog.value
+  }
+  quoteCatalogKey = key
+  const request = loadDholeQuoteFormOptions(mode, shipmentType)
+  quoteCatalogPromise = request
+  try {
+    const data = await request
+    if (quoteCatalogKey !== key) return null
+    quoteCatalog.value = data
+    quoteCatalogSource.value = data ? 'dhole' : 'local'
+    if (data) {
+      if (values.incoterm && !data.incoterms.includes(values.incoterm)) delete values.incoterm
+      if (values.equipmentSize &&
+          !data.equipmentSizes.some(choice => choice.value === values.equipmentSize)) {
+        delete values.equipmentSize
+        delete values.equipmentType
+      } else if (values.equipmentType &&
+          !(data.equipmentTypesBySize[values.equipmentSize] || []).includes(values.equipmentType)) {
+        delete values.equipmentType
+      }
+    }
+    return data
+  } catch (error) {
+    if (quoteCatalogKey === key) {
+      quoteCatalogKey = ''
+      quoteCatalogPromise = null
+      quoteCatalog.value = null
+    }
+    throw error
+  } finally {
+    if (quoteCatalogKey === key) quoteCatalogPromise = null
+  }
+}
 const isQuoteLocation = (key: string) => props.kind === 'quote' && ['origin','destination','pod'].includes(key)
 const isCatalogueLocation = (key: string) => isQuoteLocation(key) || (props.kind === 'itinerary' && ['origin','destination'].includes(key))
 const i = (es: string, en: string) => tr(es, en)
 const modes = computed<Choice[]>(() => [{value:'Maritime',label:i('Marítimo','Ocean')},{value:'Air',label:i('Aéreo','Air')},{value:'Land',label:i('Terrestre','Ground')}])
-const terms = officialIncoterms.map(value => ({value,label:value}))
+const terms = computed<Choice[]>(() => (quoteCatalogSource.value === 'dhole' && quoteCatalog.value
+  ? quoteCatalog.value.incoterms : [...officialIncoterms]).map(value => ({value,label:value})))
 const serviceChoices = computed<Choice[]>(() => officialServiceOptions.map(value => ({
   value, label:officialServiceName(value,tr)
 })))
@@ -78,8 +131,14 @@ function toggleService(value: string) {
     ? selectedServices.value.filter(item => item !== value)
     : [...selectedServices.value, value]
 }
-const equipmentSizes = computed<Choice[]>(() => officialEquipmentSizeOptions(values.shipmentType || '', tr))
-const equipmentTypes = computed<Choice[]>(() => officialEquipmentTypeOptions(values.shipmentType || '', tr))
+const equipmentSizes = computed<Choice[]>(() => quoteCatalogSource.value === 'dhole' && quoteCatalog.value
+  ? quoteCatalog.value.equipmentSizes.map(x => ({value:x.value,label:x.label}))
+  : officialEquipmentSizeOptions(values.shipmentType || '', tr))
+const equipmentTypes = computed<Choice[]>(() => quoteCatalogSource.value === 'dhole' && quoteCatalog.value
+  ? (quoteCatalog.value.equipmentTypesBySize[values.equipmentSize] || []).map(value => ({
+      value,label:value === 'Furgón' ? tr('Furgón','Truck') : value
+    }))
+  : officialEquipmentTypeOptions(values.shipmentType || '', tr))
 const isEquipment = computed(() => ['FCL', 'FTL'].includes(values.shipmentType))
 const shipmentOptions = computed<Choice[]>(() => values.mode === 'Maritime'
   ? [{value:'FCL',label:i('Contenedor completo (FCL)','Full container (FCL)')},{value:'LCL',label:i('Carga consolidada (LCL)','Consolidated cargo (LCL)')}]
@@ -104,7 +163,7 @@ const steps = computed<Step[]>(() => {
   ]
   if (values.shipmentType === 'LCL') result.push({key:'pod',prompt:i('Para LCL, indica también el puerto de descarga (POD).','For LCL, provide the port of discharge (POD).')})
   result.push(
-    {key:'incoterm',prompt:i('¿Qué Incoterm se utilizará?','Which Incoterm applies?'),choices:terms},
+    {key:'incoterm',prompt:i('¿Qué Incoterm se utilizará?','Which Incoterm applies?'),choices:terms.value},
     {key:'cargoReadyDate',prompt:i('¿En qué fecha estará lista la carga? Escribe AAAA-MM-DD.','When will the cargo be ready? Enter YYYY-MM-DD.'),hint:'AAAA-MM-DD'}
   )
   if (values.incoterm === 'EXW') result.push(
