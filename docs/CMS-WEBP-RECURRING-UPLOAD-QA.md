@@ -237,3 +237,25 @@ el modo claro/oscuro con contenidos reales ni pruebas del Docker local.
   durante esta PR. Los archivos de producción GHCR siguen sin el opt-in.
 
 **Estado:** preparación para QA; no se activa la optimización en producción.
+
+### QA visual: detección y captura estable del fondo de Noticias (17/11/2026)
+
+Al comparar las 8 capturas antiguas de Chrome (móvil/escritorio,
+claro/oscuro, WebP ON/OFF), una captura de **escritorio oscuro ON** mostró
+el degradado sin la fotografía de fondo. Los demás pares se veían similares.
+No se ha atribuido el síntoma al algoritmo WebP ni al sitio publicado:
+el generador antiguo abría Chrome de nuevo para cada captura con
+`--screenshot`, sin esperar la decodificación de la imagen.
+
+El flujo nuevo usa Selenium/Chrome en un entorno CI desechable: espera
+`img.complete`, `naturalWidth`, `currentSrc` coherente con el flag,
+`img.decode()` y dos `requestAnimationFrame` antes de fotografiar.
+Verifica además una señal de contenido fotográfico en una región estable
+de la imagen **ficticia** del fixture; si el fondo sigue vacío tras varias
+capturas, el job **falla** en vez de publicar un PNG engañoso. Esta
+comprobación de píxeles es deliberadamente específica del fixture, no
+un requisito global de diseño para imágenes reales.
+
+Si la anomalía vuelve a aparecer después de ese control, investigar el
+componente Vue y su carrusel antes de considerar la PR lista.
+No se cambia el diseño del sitio ni se captura el CMS administrativo real.

@@ -9,6 +9,7 @@ on:
       - frontend/src/pages/News.vue
       - frontend/src/Home.vue
       - frontend/scripts/smoke-cms-webp-browser.cjs
+      - frontend/scripts/smoke-cms-webp-screenshots.py
       - .github/workflows/cms-webp-chrome.yml
 
 permissions:
@@ -47,11 +48,18 @@ jobs:
         env:
           VITE_CMS_RESPONSIVE_WEBP_ENABLED: ${{ matrix.enabled }}
         run: npm run build
+      - name: Install isolated screenshot browser driver and pixel validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/cms-screenshot-venv"
+          "$RUNNER_TEMP/cms-screenshot-venv/bin/pip" install --disable-pip-version-check selenium==4.38.0 pillow==11.3.0
       - name: Inspect real Chrome currentSrc on mobile, desktop and missing derivative
         working-directory: frontend
         env:
           CI: 'true'
           CMS_WEBP_BROWSER_FLAG: ${{ matrix.enabled }}
+          CMS_WEBP_SCREENSHOT_PYTHON: ${{ runner.temp }}/cms-screenshot-venv/bin/python
         run: node scripts/smoke-cms-webp-browser.cjs
       - name: Publish fictitious News screenshots for visual review
         if: always()

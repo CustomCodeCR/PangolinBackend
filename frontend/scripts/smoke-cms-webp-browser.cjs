@@ -139,33 +139,29 @@ async function inspect(url, width) {
     fs.rmSync(profile, { recursive: true, force: true })
   }
 }
-async function takeScreenshot(url, width, filename) {
-  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-webp-shot-'))
-  const args = [
-    '--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
-    '--disable-background-networking', '--disable-extensions', '--no-first-run',
-    '--hide-scrollbars', '--virtual-time-budget=11000',
-    '--window-size=' + width + ',900', '--user-data-dir=' + profile,
-    '--screenshot=' + filename, url
-  ]
-  try {
-    await new Promise((resolve, reject) => {
-      const child = spawn(chromePath(), args, { stdio: ['ignore', 'ignore', 'pipe'] })
-      let stderr = ''
-      const timer = setTimeout(() => child.kill('SIGKILL'), 40000)
-      child.stderr.on('data', data => { if (stderr.length < 2400) stderr += data.toString() })
-      child.on('error', error => { clearTimeout(timer); reject(error) })
-      child.on('close', code => {
-        clearTimeout(timer)
-        code === 0 ? resolve() : reject(Error('Chrome screenshot failed: ' + stderr.slice(-800)))
-      })
+async function takeReadyScreenshots(origin, screenshots) {
+  const python = process.env.CMS_WEBP_SCREENSHOT_PYTHON
+  assert.ok(python && path.isAbsolute(python) && fs.existsSync(python),
+    'CI must provide isolated Selenium screenshot interpreter')
+  const script = path.resolve(__dirname, 'smoke-cms-webp-screenshots.py')
+  await new Promise((resolve, reject) => {
+    const child = spawn(python, [script, origin, screenshots, mode], {
+      stdio: ['ignore', 'pipe', 'pipe'], env: process.env
     })
-    assert.ok(fs.existsSync(filename) && fs.statSync(filename).size > 1500,
-      'Chrome did not create a valid PNG screenshot')
-  } finally {
-    fs.rmSync(profile, { recursive: true, force: true })
-  }
+    let stdout = '', stderr = ''
+    const timer = setTimeout(() => child.kill('SIGKILL'), 120000)
+    child.stdout.on('data', chunk => { stdout += chunk.toString() })
+    child.stderr.on('data', chunk => { stderr += chunk.toString().slice(0, 5000) })
+    child.on('error', error => { clearTimeout(timer); reject(error) })
+    child.on('close', code => {
+      clearTimeout(timer)
+      process.stdout.write(stdout)
+      if (code === 0) resolve()
+      else reject(Error('Image-ready screenshots failed: ' + stderr.slice(-2800)))
+    })
+  })
 }
+
 async function main() {
   await new Promise((resolve, reject) => {
     server.once('error', reject)
@@ -225,13 +221,7 @@ async function main() {
     const screenshots = path.join(process.env.RUNNER_TEMP, 'cms-webp-chrome-screenshots', mode)
     fs.mkdirSync(screenshots, { recursive: true })
     const origin = 'http://127.0.0.1:' + server.address().port
-    for (const viewport of [{ label: 'mobile', width: 390 }, { label: 'desktop', width: 1280 }]) {
-      for (const theme of ['light', 'dark']) {
-        const filename = path.join(screenshots, mode + '-' + viewport.label + '-' + theme + '.png')
-        await takeScreenshot(origin + '/noticias?cmsTheme=' + theme, viewport.width, filename)
-        console.log('PASS screenshot ' + path.basename(filename))
-      }
-    }
+    await takeReadyScreenshots(origin, screenshots)
   } finally {
     await new Promise(resolve => server.close(resolve))
   }
