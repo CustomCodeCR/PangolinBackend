@@ -10,6 +10,8 @@ on:
       - frontend/src/Home.vue
       - frontend/src/pages/News.vue
       - frontend/nuxt/**
+      - compose.yaml
+      - scripts/test-cms-webp-compose.py
       - .github/workflows/cms-responsive-ssr.yml
 
 permissions:
