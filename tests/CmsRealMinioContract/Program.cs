@@ -9,6 +9,15 @@ using SkiaSharp;
 
 // This harness may ONLY contact the disposable, loopback-only MinIO container
 // started by this PR's isolated CI. No user credentials, database or live MinIO.
+// The optional setup mode prepares a fixed, isolated bucket for a full
+// CMS HTTP test running on this same ephemeral Actions runner.
+// It does not run the production backend or use live credentials.
+var prepareHttpFixture = args.Length == 1 && args[0] == "--prepare-http-fixture";
+if (args.Length > 0 && !prepareHttpFixture)
+    throw new InvalidOperationException("Unknown CI fixture argument.");
+if (prepareHttpFixture && Environment.GetEnvironmentVariable("CMS_REAL_MINIO_HTTP_FIXTURE") != "1")
+    throw new InvalidOperationException("HTTP fixture provisioning requires explicit CI opt-in.");
+
 const string endpoint = "http://127.0.0.1:19119";
 const string username = "ci-webp-only";
 const string password = "ci-webp-disposable-password-only";
@@ -20,7 +29,8 @@ if (Environment.GetEnvironmentVariable("CI") != "true" ||
     Environment.GetEnvironmentVariable("Storage__SecretKey") is not null)
     throw new InvalidOperationException("Refusing to run without isolated CI safeguards.");
 
-var bucket = "cms-webp-ci-" + Guid.NewGuid().ToString("N")[..12];
+var bucket = prepareHttpFixture ? "cms-webp-http-ci"
+    : "cms-webp-ci-" + Guid.NewGuid().ToString("N")[..12];
 var fixture = Path.Combine(Directory.GetCurrentDirectory(), "frontend/public/images/cover-logistics.jpeg");
 if (!File.Exists(fixture))
     throw new FileNotFoundException("Repository fixture missing.", fixture);
@@ -44,6 +54,11 @@ var s3Config = new AmazonS3Config
 };
 using var admin = new AmazonS3Client(new BasicAWSCredentials(username, password), s3Config);
 await admin.PutBucketAsync(new PutBucketRequest { BucketName = bucket });
+if (prepareHttpFixture)
+{
+    Console.WriteLine("PASS isolated MinIO HTTP bucket provisioned for disposable CI test");
+    return; // MinIO data is erased by the CI workflow's cleanup step.
+}
 
 using var storage = new ObjectStorageService(config);
 if (!storage.Enabled || storage.Bucket != bucket)
