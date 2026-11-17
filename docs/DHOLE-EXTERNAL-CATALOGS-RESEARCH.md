@@ -186,6 +186,24 @@ El usuario volvió a consultar el endpoint POE usando PowerShell y verificó por
 - Reglas POL de filtrado y fallback **aún no confirmadas**; estudiar primero las excepciones antes de homologarlas con POE. Política provisional `isActive !== false` se confirmó para POD y POE; debe acordarse para POL si se quiere generalizar.
 
 
+## POL: siete casos especiales identificados en GET (17/11/2026)
+Resultado de `$itemsPol | Where-Object` con condiciones: Maritime+SD, rol POD, falta de rol o modalidad superior. Son **7 registros únicos**, todos con `isActive: true`.
+
+| Registro | id | Datos observados | Estado / decisión técnica provisional |
+|---|---|---|---|
+| Atlanta, Estados Unidos (POL-2026-109) | `24a938cf-7fe9-4e34-a774-d26475760270` | transportMode, terminalType, routeRole y metadata: null | Pedir clasificación a Dhole; no inferir modalidad |
+| London Gateway, United Kingdom (POL-2026-110) | `c6519b0a-5bc6-4cd2-87d6-32e9822a5c20` | transportMode, terminalType, routeRole y metadata: null | Pedir clasificación |
+| Anhui, China (POL-2026-111) | `88dd96bb-44b2-4714-9f89-e721206413ac` | Maritime/CY, rol superior null y metadata sin rol; `pricingWorkflow: false` | Bajo hipótesis de catálogo POL autoritativo, candidato POL marítimo, sin exigir rol no contradictorio |
+| Jiangxi, China (POL-2026-112) | `10d89a35-8898-4cf1-8166-931c279f3bff` | Maritime/CY, rol superior null y metadata sin rol; `pricingWorkflow: true` | Candidato POL marítimo sin exigir rol |
+| Minnesota, Estados Unidos (POL-2026-113) | `27eb3622-4725-4705-a76f-8f4a8fa934ad` | Maritime/CY, rol superior null y metadata sin rol; `pricingWorkflow: false` | Candidato POL marítimo sin exigir rol |
+| Moin, Costa Rica (POL-2026-116) | `8ebb78e5-6a9c-47c0-9a31-ddbb057540c6` | Maritime/SD; `routeRole: POD` arriba y en metadata | **Conflicto explícito de rol y par de modalidad/terminal**. Confirmar con Dhole/jefe antes de decidir su inclusión; no imponer la modalidad ni el rol por prioridad arbitraria |
+| San José, Costa Rica (POL-2026-117) | `d3a43858-7ade-419c-a108-af5203bf0f2e` | rol superior `pol`; transportMode y terminalType superiores null; metadata con `TransportMode: Maritime`, `TerminalType: CY`, `CountryCode: SV`, `routeRole: pol`, `PricingWorkflow: true` | Normalizar nombre de claves (PascalCase/camelCase) y rol en minúscula; **revisar CountryCode=SV frente al nombre Costa Rica**, sin corregirlo unilateralmente |
+
+**Recuento tras inspección:** 1058 registros POL con modalidad/terminal coherentes a la matriz Air/APT, Maritime/CY, Land/SD (854+189+15); San José es un registro adicional que puede recuperarse como Maritime/CY vía metadata, aunque tiene anomalía en país. Hay 2 registros aún sin clasificación confirmada (Atlanta, London Gateway), y 1 explícitamente contradictorio (Moin Maritime/SD y rol POD). Los conteos de agrupación originales siguen siendo útiles; no sustituirlos por cifras recalculadas sin nuevo GET completo.
+
+**Recomendación:** investigar estos 3 bloqueos reales (Atlanta, London Gateway, Moin) y el país de San José con el responsable, pero continuar la investigación de los tres catálogos de equipos de solo lectura. Mantener `pricingWorkflow` sin efecto en el filtrado. No cambiar selectores actuales hasta acordar la política POL.
+
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
