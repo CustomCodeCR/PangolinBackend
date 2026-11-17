@@ -193,6 +193,33 @@ es elegible, planificar conversión única en un mantenimiento posterior,
 con flags autorizados y mediciones antes/después. No activar el
 `srcset` público de imágenes históricas sin estudiar el fallback de originales.
 
+## Prueba de navegador real en Chrome (sin datos del CMS)
+
+El workflow `.github/workflows/cms-webp-chrome.yml` compila Vue **dos
+veces**, con `VITE_CMS_RESPONSIVE_WEBP_ENABLED=false` y `true`.
+El script `frontend/scripts/smoke-cms-webp-browser.cjs` sirve una
+noticia ficticia y fotos versionadas en el repositorio desde un servidor
+HTTP temporal de loopback. Consulta en Chrome `src`, `srcset`,
+`sizes`, `currentSrc` y `naturalWidth` (no solo texto generado).
+
+Verifica que:
+
+1. **Flag desactivado:** escritorio/móvil muestran el JPEG original,
+   no emiten `srcset` ni hacen peticiones `?width=`.
+2. **Flag activado:** el navegador solicita variantes WebP válidas
+   y mantiene la URL `src` original.
+3. **Variante rota (HTTP 404):** el componente Vue retira `srcset`,
+   recarga el JPEG original y evita un ciclo infinito de errores.
+
+**Resultado verificado el 17-11-2026:** [workflow Chrome
+#44167696525](https://github.com/CustomCodeCR/PangolinBackend/actions/runs/44167696525)
+con ambos jobs aprobados. En el fixture, Chrome eligió 720 px en móvil
+y 1600 px en escritorio; el resultado depende de la pantalla y del navegador.
+
+Este smoke se limita a la página pública `/noticias`. **No** sustituye
+la revisión visual humana, el flujo administrativo de la diseñadora,
+el modo claro/oscuro con contenidos reales ni pruebas del Docker local.
+
 ## Barreras antes de cualquier despliegue
 
 - PR revisada, CI completo en verde, pruebas visuales en claro/oscuro y
