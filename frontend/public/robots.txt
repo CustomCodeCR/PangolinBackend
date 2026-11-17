@@ -5,6 +5,7 @@ Allow: /api/content/news$
 Allow: /api/content/site$
 Allow: /api/public-news$
 Disallow: /api/
+Disallow: /cdn-cgi/
 Disallow: /administracion
 Disallow: /admin/
 Disallow: /cotizaciones
@@ -19,6 +20,7 @@ Allow: /api/content/news$
 Allow: /api/content/site$
 Allow: /api/public-news$
 Disallow: /api/
+Disallow: /cdn-cgi/
 Disallow: /administracion
 Disallow: /admin/
 Disallow: /cotizaciones
@@ -36,6 +38,7 @@ Allow: /api/content/news$
 Allow: /api/content/site$
 Allow: /api/public-news$
 Disallow: /api/
+Disallow: /cdn-cgi/
 Disallow: /administracion
 Disallow: /admin/
 Disallow: /cotizaciones
