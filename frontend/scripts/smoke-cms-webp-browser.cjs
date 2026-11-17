@@ -92,8 +92,14 @@ const server = http.createServer((req, res) => {
     target = path.join(dist, 'index.html')
   const ext = path.extname(target)
   let bytes = fs.readFileSync(target)
-  if (ext === '.html')
-    bytes = Buffer.from(bytes.toString('utf8').replace('</body>', probe + '</body>'))
+  if (ext === '.html') {
+    const theme = u.searchParams.get('cmsTheme') === 'dark' ? 'dark' : 'light'
+    const themeSetup = '<script>localStorage.setItem("castrofallas-theme",' +
+      JSON.stringify(theme) + ');</script>'
+    bytes = Buffer.from(bytes.toString('utf8')
+      .replace('</head>', themeSetup + '</head>')
+      .replace('</body>', probe + '</body>'))
+  }
   send(200, bytes, types[ext] || 'text/html; charset=utf-8')
 })
 function chromePath() {
@@ -129,6 +135,33 @@ async function inspect(url, width) {
     const match = html.match(/<output id="cms-webp-browser-probe">([^<]+)<\/output>/)
     assert.ok(match, 'A real Chrome image did not finish rendering')
     return JSON.parse(match[1].replace(/&amp;/g, '&'))
+  } finally {
+    fs.rmSync(profile, { recursive: true, force: true })
+  }
+}
+async function takeScreenshot(url, width, filename) {
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-webp-shot-'))
+  const args = [
+    '--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
+    '--disable-background-networking', '--disable-extensions', '--no-first-run',
+    '--hide-scrollbars', '--virtual-time-budget=11000',
+    '--window-size=' + width + ',900', '--user-data-dir=' + profile,
+    '--screenshot=' + filename, url
+  ]
+  try {
+    await new Promise((resolve, reject) => {
+      const child = spawn(chromePath(), args, { stdio: ['ignore', 'ignore', 'pipe'] })
+      let stderr = ''
+      const timer = setTimeout(() => child.kill('SIGKILL'), 40000)
+      child.stderr.on('data', data => { if (stderr.length < 2400) stderr += data.toString() })
+      child.on('error', error => { clearTimeout(timer); reject(error) })
+      child.on('close', code => {
+        clearTimeout(timer)
+        code === 0 ? resolve() : reject(Error('Chrome screenshot failed: ' + stderr.slice(-800)))
+      })
+    })
+    assert.ok(fs.existsSync(filename) && fs.statSync(filename).size > 1500,
+      'Chrome did not create a valid PNG screenshot')
   } finally {
     fs.rmSync(profile, { recursive: true, force: true })
   }
@@ -180,6 +213,20 @@ async function main() {
       }
       console.log('PASS CMS Chrome ' + mode + ': ' + scenario.label +
         ', currentSrc=' + new URL(result.currentSrc).search)
+    }
+    // Screenshot artifacts are for human visual review only, not a
+    // claim of complete CMS QA. No real content or credentials are used.
+    assert.ok(process.env.RUNNER_TEMP, 'Screenshots must use ephemeral CI storage')
+    breakDerivatives = false
+    const screenshots = path.join(process.env.RUNNER_TEMP, 'cms-webp-chrome-screenshots', mode)
+    fs.mkdirSync(screenshots, { recursive: true })
+    const origin = 'http://127.0.0.1:' + server.address().port
+    for (const viewport of [{ label: 'mobile', width: 390 }, { label: 'desktop', width: 1280 }]) {
+      for (const theme of ['light', 'dark']) {
+        const filename = path.join(screenshots, mode + '-' + viewport.label + '-' + theme + '.png')
+        await takeScreenshot(origin + '/noticias?cmsTheme=' + theme, viewport.width, filename)
+        console.log('PASS screenshot ' + path.basename(filename))
+      }
     }
   } finally {
     await new Promise(resolve => server.close(resolve))
