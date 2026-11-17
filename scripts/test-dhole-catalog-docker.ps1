@@ -105,7 +105,7 @@ try {
         $result = Invoke-RestMethod -Uri "$base/api/dhole/catalogs/$catalog" -Method Get -TimeoutSec 40
         $count = @($result.items).Count
         if ($result.catalog -ne $catalog -or $count -lt 1 -or $result.stale -eq $true) {
-            throw "Catálogo $catalog: respuesta inesperada o datos no actualizados."
+            throw "Catálogo ${catalog}: respuesta inesperada o datos no actualizados."
         }
         $summary += [PSCustomObject]@{
             Catalogo = $catalog
