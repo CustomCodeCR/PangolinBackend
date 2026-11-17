@@ -7,7 +7,7 @@ Los endpoints de Dhole devuelven UUID **externos**, pero las cotizaciones del ba
 Ejemplo real de distintas identidades para un mismo nombre:
 
 | Rol | Origen API | Nombre | UUID |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | origen | POL | Acajutla, El Salvador | `19a5ce22-340d-579f-ad27-f6517a2dde27` |
 | destino | POE | Acajutla, El Salvador | `25882b97-8df9-407f-8300-8994184dfad1` |
 
@@ -29,11 +29,13 @@ Esta estrategia evita una migración masiva de `official_quote_locations`; exige
 ## Proyector en fase 2 (solo previsualización administrativa)
 
 `DholeQuoteLocationProjector` consume los registros normalizados del endpoint correcto:
+
 - `origin` → `pol`
 - `destination` → `poe`
 - `pod` → `pod` (solamente se solicita en modo Maritime)
 
 Reglas:
+
 - Por ahora, se excluye exclusivamente `isActive === false`.
 - POE se filtra por modalidad y terminal. POL se clasifica provisionalmente de igual forma a la espera de revisión funcional de negocio. `Maritime + SD` se conserva como variante POL observada (Moin).
 - POD no se filtra por modalidad ni terminal.
@@ -53,7 +55,6 @@ Harness de pruebas offline:
 `dotnet run --project tests/DholeCatalogHarness/DholeCatalogHarness.csproj -c Release`
 
 Revisar GitHub Actions de la PR en borrador antes de avanzar. CI no almacena la API key y no accede a Dhole real.
-
 
 ## Equipos FCL/FTL: proyección paralela sin cambiar formularios
 
