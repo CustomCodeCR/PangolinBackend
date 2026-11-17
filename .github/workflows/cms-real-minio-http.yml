@@ -10,6 +10,7 @@ on:
       - backend/Services/ManagedNewsEndpoints.cs
       - tests/CmsRealMinioContract/**
       - scripts/test-cms-real-minio-http.py
+      - scripts/test-cms-real-minio-editor.py
       - scripts/test-cms-media-http.py
       - .github/workflows/cms-real-minio-http.yml
 
@@ -25,6 +26,7 @@ jobs:
       CMS_REAL_MINIO_ISOLATED: '1'
       CMS_REAL_MINIO_HTTP_FIXTURE: '1'
       CMS_REAL_MINIO_HTTP_TEST: '1'
+      CMS_REAL_MINIO_EDITOR_UI_TEST: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -70,12 +72,24 @@ jobs:
             sleep 1
           done
           exit 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies for browser editor test
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Install isolated browser test tooling
+        run: |
+          python3 -m venv "$RUNNER_TEMP/cms-editor-venv"
+          "$RUNNER_TEMP/cms-editor-venv/bin/pip" install --disable-pip-version-check selenium==4.38.0
       - name: Build actual CMS HTTP backend
         run: dotnet build backend/CastroFallas.MiniQuote.Api.csproj -c Release
-      - name: Test authenticated upload, publication, WebP serving and revocation
+      - name: Test full editor flow with Chrome, real backend and disposable storage
         run: |
-          python3 -m py_compile scripts/test-cms-real-minio-http.py scripts/test-cms-media-http.py
-          python3 scripts/test-cms-real-minio-http.py
+          python3 -m py_compile scripts/test-cms-real-minio-http.py scripts/test-cms-real-minio-editor.py scripts/test-cms-media-http.py
+          "$RUNNER_TEMP/cms-editor-venv/bin/python" scripts/test-cms-real-minio-http.py
       - name: Remove all isolated PostgreSQL and MinIO test data
         if: always()
         shell: bash
@@ -85,4 +99,5 @@ jobs:
             kill "$(cat "$RUNNER_TEMP/minio-ci.pid")" || true
           fi
           rm -rf "$RUNNER_TEMP/minio-ci" "$RUNNER_TEMP/minio-ci-data" \
-            "$RUNNER_TEMP/minio-ci.pid" "$RUNNER_TEMP/minio-ci.log"
+            "$RUNNER_TEMP/minio-ci.pid" "$RUNNER_TEMP/minio-ci.log" \
+            "$RUNNER_TEMP/cms-editor-venv"
