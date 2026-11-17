@@ -7,5 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../backend/Services/DholeCatalogNormalizer.cs" Link="DholeCatalogNormalizer.cs" />
+    <Compile Include="../../backend/Services/DholeQuoteLocationProjector.cs" Link="DholeQuoteLocationProjector.cs" />
   </ItemGroup>
 </Project>
