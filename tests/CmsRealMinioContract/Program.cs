@@ -13,10 +13,15 @@ using SkiaSharp;
 // CMS HTTP test running on this same ephemeral Actions runner.
 // It does not run the production backend or use live credentials.
 var prepareHttpFixture = args.Length == 1 && args[0] == "--prepare-http-fixture";
-if (args.Length > 0 && !prepareHttpFixture)
+var backupRestoreFixture = args.Length == 1 && args[0] == "--backup-restore-fixture";
+if (args.Length > 0 && !prepareHttpFixture && !backupRestoreFixture)
     throw new InvalidOperationException("Unknown CI fixture argument.");
-if (prepareHttpFixture && Environment.GetEnvironmentVariable("CMS_REAL_MINIO_HTTP_FIXTURE") != "1")
-    throw new InvalidOperationException("HTTP fixture provisioning requires explicit CI opt-in.");
+if ((prepareHttpFixture || backupRestoreFixture) &&
+    Environment.GetEnvironmentVariable("CMS_REAL_MINIO_HTTP_FIXTURE") != "1")
+    throw new InvalidOperationException("Isolated HTTP fixture requires explicit CI opt-in.");
+if (backupRestoreFixture &&
+    Environment.GetEnvironmentVariable("CMS_REAL_MINIO_BACKUP_RESTORE_TEST") != "1")
+    throw new InvalidOperationException("Backup/restore fixture requires explicit opt-in.");
 
 const string endpoint = "http://127.0.0.1:19119";
 const string username = "ci-webp-only";
@@ -29,7 +34,7 @@ if (Environment.GetEnvironmentVariable("CI") != "true" ||
     Environment.GetEnvironmentVariable("Storage__SecretKey") is not null)
     throw new InvalidOperationException("Refusing to run without isolated CI safeguards.");
 
-var bucket = prepareHttpFixture ? "cms-webp-http-ci"
+var bucket = prepareHttpFixture || backupRestoreFixture ? "cms-webp-http-ci"
     : "cms-webp-ci-" + Guid.NewGuid().ToString("N")[..12];
 var fixture = Path.Combine(Directory.GetCurrentDirectory(), "frontend/public/images/cover-logistics.jpeg");
 if (!File.Exists(fixture))
@@ -53,7 +58,8 @@ var s3Config = new AmazonS3Config
     AuthenticationRegion = "us-east-1"
 };
 using var admin = new AmazonS3Client(new BasicAWSCredentials(username, password), s3Config);
-await admin.PutBucketAsync(new PutBucketRequest { BucketName = bucket });
+if (!backupRestoreFixture)
+    await admin.PutBucketAsync(new PutBucketRequest { BucketName = bucket });
 if (prepareHttpFixture)
 {
     Console.WriteLine("PASS isolated MinIO HTTP bucket provisioned for disposable CI test");
@@ -63,6 +69,85 @@ if (prepareHttpFixture)
 using var storage = new ObjectStorageService(config);
 if (!storage.Enabled || storage.Bucket != bucket)
     throw new InvalidOperationException("Test unexpectedly selected another storage provider.");
+
+// Restore drill for TWO disposable S3 objects: source JPEG and a WebP derivative.
+// Export to runner disk, delete just these test keys, restore, compare full bytes
+// and Content-Type. This is NOT a full bucket-level backup or production drill.
+if (backupRestoreFixture)
+{
+    var fixtureKey = "ci-restore/" + Guid.NewGuid().ToString("N") + ".jpeg";
+    var derivativeKey = fixtureKey + ".w360.webp";
+    var webpFile = Path.Combine(Directory.GetCurrentDirectory(),
+        "frontend/public/images/cover-logistics.webp");
+    var webpFixture = await File.ReadAllBytesAsync(webpFile);
+    if (webpFixture.Length < 12 || webpFixture[0] != 'R' ||
+        webpFixture[1] != 'I' || webpFixture[2] != 'F' || webpFixture[3] != 'F')
+        throw new InvalidOperationException("Invalid WebP restore fixture.");
+    var entries = new[]
+    {
+        (Key: fixtureKey, Bytes: original, Mime: "image/jpeg"),
+        (Key: derivativeKey, Bytes: webpFixture, Mime: "image/webp")
+    };
+    var snapshotDirectory = Path.Combine(
+        Environment.GetEnvironmentVariable("RUNNER_TEMP")!,
+        "cms-s3-restore-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(snapshotDirectory);
+    var ctFixture = CancellationToken.None;
+    try
+    {
+        for (var i = 0; i < entries.Length; i++)
+        {
+            var entry = entries[i];
+            using (var source = new MemoryStream(entry.Bytes, writable: false))
+                await storage.UploadAsync(entry.Key, source, entry.Bytes.Length, entry.Mime, ctFixture);
+            using var fetched = await storage.DownloadAsync(entry.Key, ctFixture);
+            using var snapshot = File.Create(Path.Combine(snapshotDirectory, i + ".bin"));
+            await fetched.ResponseStream.CopyToAsync(snapshot);
+        }
+
+        // The snapshot on disk must be complete BEFORE deleting test keys.
+        for (var i = 0; i < entries.Length; i++)
+        {
+            var saved = await File.ReadAllBytesAsync(Path.Combine(snapshotDirectory, i + ".bin"));
+            if (!saved.AsSpan().SequenceEqual(entries[i].Bytes))
+                throw new InvalidOperationException("Incomplete S3 fixture export.");
+        }
+        foreach (var entry in entries)
+        {
+            await storage.DeleteAsync(entry.Key, ctFixture);
+            if (await storage.TryGetSizeAsync(entry.Key, ctFixture) is not null)
+                throw new InvalidOperationException("Fixture S3 key was not removed.");
+        }
+
+        for (var i = 0; i < entries.Length; i++)
+        {
+            var entry = entries[i];
+            using (var savedStream = File.OpenRead(Path.Combine(snapshotDirectory, i + ".bin")))
+                await storage.UploadAsync(
+                    entry.Key, savedStream, savedStream.Length, entry.Mime, ctFixture);
+            using var recovered = await storage.DownloadAsync(entry.Key, ctFixture);
+            using var copy = new MemoryStream();
+            await recovered.ResponseStream.CopyToAsync(copy);
+            if (!copy.ToArray().AsSpan().SequenceEqual(entry.Bytes))
+                throw new InvalidOperationException("Recovered MinIO object differs from snapshot.");
+            var metadata = await admin.GetObjectMetadataAsync(
+                new GetObjectMetadataRequest { BucketName = bucket, Key = entry.Key });
+            if (metadata.Headers.ContentType != entry.Mime)
+                throw new InvalidOperationException("Recovered MinIO MIME changed.");
+        }
+        Console.WriteLine(
+            "PASS isolated MinIO recovery: exported, deleted and restored JPEG and WebP fixtures; bytes and MIME verified");
+    }
+    finally
+    {
+        // Never leave even CI fixtures in the disposable bucket after the drill.
+        foreach (var entry in entries)
+            await storage.DeleteAsync(entry.Key, ctFixture);
+        Directory.Delete(snapshotDirectory, recursive: true);
+    }
+    return;
+}
+
 var id = Guid.NewGuid();
 var key = $"media/{id:N}.jpeg";
 var variantKey = CmsImageVariants.ObjectKey(key, 360);

@@ -87,6 +87,29 @@ no se ha convertido.
   frontend ON + backend OFF como estado aceptable de despliegue (solo se
   comprueba su fallback de HTTP 400 en el smoke Chrome separado).
 
+## Ensayo aislado de respaldo y restauración (sin datos de producción)
+
+Se añade una verificación en el job `backend-on-frontend-on` del workflow
+`cms-real-minio-http.yml`, posterior al ensayo editorial y ejecutada
+exclusivamente con PostgreSQL/MinIO de laboratorio en loopback:
+
+- **PostgreSQL:** `pg_dump -Fc` de la base desechable, validación de la
+  cabecera y huella del archivo, restauración con `pg_restore` en una
+  **segunda base temporal**, comparación del recuento de tablas del
+  esquema público y de una fila testigo sintética.
+- **MinIO:** exportación de dos objetos de laboratorio (JPEG original y
+  WebP) a archivos temporales; borrado de **solo esas claves de prueba**,
+  restauración con el SDK S3 y comprobación de bytes y MIME.
+- Los datos temporales se eliminan al terminar; no hay conexiones a
+  PostgreSQL, MinIO ni credenciales de producción.
+
+**Límites:** esto prueba procedimientos de restauración de una base
+temporal y dos objetos, **no** un backup completo de un bucket, consistencia
+transaccional entre PostgreSQL/S3, recuperación ante desastres, retención,
+ni restauración real de los respaldos productivos. Antes de activar WebP
+en WWW seguirá siendo obligatorio aprobar y probar esos respaldos por
+separado en un staging autorizado.
+
 ## Reversión y límites
 
 - **Orden obligatorio para una reversión coordinada:** volver primero a los

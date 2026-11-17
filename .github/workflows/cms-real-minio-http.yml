@@ -13,6 +13,7 @@ on:
       - scripts/test-cms-real-minio-editor.py
       - scripts/test-cms-media-http.py
       - .github/workflows/cms-real-minio-http.yml
+      - scripts/test-cms-isolated-backup-restore.py
 
 permissions:
   contents: read
@@ -106,6 +107,14 @@ jobs:
         run: |
           python3 -m py_compile scripts/test-cms-real-minio-http.py scripts/test-cms-real-minio-editor.py scripts/test-cms-media-http.py
           "$RUNNER_TEMP/cms-editor-venv/bin/python" scripts/test-cms-real-minio-http.py
+      - name: Verify isolated PostgreSQL snapshot restoration and MinIO object recovery
+        if: matrix.profile == 'backend-on-frontend-on'
+        env:
+          CMS_REAL_MINIO_BACKUP_RESTORE_TEST: '1'
+        run: |
+          set -euo pipefail
+          python3 scripts/test-cms-isolated-backup-restore.py
+          dotnet run --project tests/CmsRealMinioContract/CmsRealMinioContract.csproj -c Release -- --backup-restore-fixture
       - name: Remove all isolated PostgreSQL and MinIO test data
         if: always()
         shell: bash
