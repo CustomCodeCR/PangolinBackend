@@ -104,6 +104,93 @@ def test_real_minio_publication(admin, webp_enabled):
             helper.check_status(visitor, f"/api/content/media/{media_id}/file", 404)
 
 
+def stop_backend(proc):
+    if proc is None:
+        return
+    if proc.poll() is not None:
+        return
+    proc.terminate()
+    try:
+        proc.wait(timeout=10)
+    except TimeoutExpired:
+        proc.kill()
+        proc.wait()
+
+
+def restart_backend(runner, env, mode):
+    # Restart only the ephemeral backend. PostgreSQL and MinIO persist.
+    stop_backend(runner["proc"])
+    runner["proc"] = None
+    env["CmsMedia__ResponsiveWebpEnabled"] = mode
+    runner["proc"] = Popen(
+        ["dotnet", "run", "--no-build", "-c", "Release", "--no-launch-profile"],
+        cwd=helper.ROOT / "backend", env=env,
+        stdout=DEVNULL, stderr=DEVNULL)
+    helper.wait_for_backend(runner["proc"])
+
+
+def test_persisted_media_rollback(admin, runner, env):
+    """ON -> OFF -> ON with the same published news and existing MinIO objects."""
+    require(env.get("CmsMedia__ResponsiveWebpEnabled") == "true",
+            "Rollback fixture must begin with WebP ON")
+    visitor = helper.build_opener()
+    raw, content_type = helper.multipart_photo()
+    _, body = helper.check_status(
+        admin, "/api/admin/content/media/upload", 201, method="POST",
+        raw=raw, headers={"Content-Type": content_type})
+    media_id = json.loads(body)["id"]
+    url = f"/api/content/media/{media_id}/file"
+    news = {
+        "title": "CI persistent rollback " + helper.uuid.uuid4().hex[:8],
+        "category": "PRUEBAS", "description": "Isolated switch test",
+        "body": "Keep database and MinIO unchanged across backend restarts",
+        "image": url, "published": True,
+    }
+    news_id = helper.json_call(
+        admin, "/api/admin/content/news", 201, news, method="POST")["id"]
+
+    # Capture bytes and validators before changing either feature flag.
+    original_headers, original_bytes = helper.check_status(visitor, url, 200)
+    variant_headers, variant_bytes = helper.check_status(
+        visitor, url + "?width=360", 200)
+    require(original_bytes == helper.PHOTO and
+            original_headers.get("Content-Type", "").startswith("image/jpeg"),
+            "Original bytes must match before rollback")
+    require(variant_headers.get("Content-Type", "").startswith("image/webp") and
+            variant_bytes[:4] == b"RIFF" and variant_bytes[8:12] == b"WEBP",
+            "Pre-rollback WebP variant must exist")
+
+    restart_backend(runner, env, "false")
+    off_headers, off_bytes = helper.check_status(visitor, url, 200)
+    require(off_bytes == original_bytes and
+            off_headers.get("ETag") == original_headers.get("ETag"),
+            "Rollback to OFF must preserve the original and ETag")
+    helper.check_status(visitor, url + "?width=360", 400)
+    visible = helper.json_call(visitor, "/api/content/news", 200)
+    require(any(item["id"] == news_id for item in visible),
+            "Rollback OFF must preserve the published news")
+
+    # Re-enable without re-uploading or regenerating assets.
+    restart_backend(runner, env, "true")
+    resumed_headers, resumed_bytes = helper.check_status(
+        visitor, url + "?width=360", 200)
+    require(resumed_bytes == variant_bytes and
+            resumed_headers.get("ETag") == variant_headers.get("ETag"),
+            "Re-enabling must serve the byte-identical existing WebP variant")
+    _, resumed_original = helper.check_status(visitor, url, 200)
+    require(resumed_original == original_bytes,
+            "Re-enabling must not modify the original")
+
+    helper.check_status(
+        admin, f"/api/admin/content/news/{news_id}", 204, method="DELETE")
+    helper.check_status(
+        admin, f"/api/admin/content/media/{media_id}", 204, method="DELETE")
+    helper.check_status(visitor, url, 404)
+    print("PASS real MinIO persistent rollback: ON -> OFF -> ON, original and "
+          "published news preserved, existing WebP restored byte-for-byte",
+          flush=True)
+
+
 def main():
     require(os.getenv("CI") == "true" and
             os.getenv("CMS_REAL_MINIO_ISOLATED") == "1" and
@@ -142,11 +229,11 @@ def main():
         "Redis__ConnectionString": "",
         "Mongo__ConnectionString": "",
     })
-    proc = Popen(
+    runner = {"proc": Popen(
         ["dotnet", "run", "--no-build", "-c", "Release", "--no-launch-profile"],
-        cwd=helper.ROOT / "backend", env=env, stdout=DEVNULL, stderr=DEVNULL)
+        cwd=helper.ROOT / "backend", env=env, stdout=DEVNULL, stderr=DEVNULL)}
     try:
-        helper.wait_for_backend(proc)
+        helper.wait_for_backend(runner["proc"])
         seed = (helper.ROOT / "backend" / "Database" / "SeedLocal.sql").read_text()
         run(["docker", "exec", "-i", helper.PG_CONTAINER, "psql",
              "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "login"],
@@ -162,13 +249,10 @@ def main():
             editor_module = importlib.util.module_from_spec(editor_spec)
             editor_spec.loader.exec_module(editor_module)
             editor_module.editor_smoke(admin, helper, webp_enabled)
+        if webp_enabled:
+            test_persisted_media_rollback(admin, runner, env)
     finally:
-        proc.terminate()
-        try:
-            proc.wait(timeout=10)
-        except TimeoutExpired:
-            proc.kill()
-            proc.wait()
+        stop_backend(runner["proc"])
 
 
 if __name__ == "__main__":
