@@ -78,6 +78,24 @@ def editor_smoke(admin, helper):
             # Selenium mouse-click is unreliable in this long scrolling form.
             button.send_keys(Keys.ENTER)
 
+        def choose_publication(label):
+            # Prefer the live form's visible field over the prop-generated
+            # aria-label: the FieldDropdown implementation can vary by build.
+            field = wait.until(lambda d: next(
+                (el for el in d.find_elements(
+                    By.CSS_SELECTOR, ".manager-form .manager-select-field")
+                 if "Estado de publicación" in el.text), None))
+            trigger = field.find_element(By.CSS_SELECTOR, 'button[role="combobox"]')
+            driver.execute_script(
+                "arguments[0].scrollIntoView({behavior:'instant',block:'center'});", trigger)
+            sleep(.15)
+            trigger.click()
+            options = wait.until(lambda d: d.find_elements(
+                By.CSS_SELECTOR, '[role="listbox"] [role="option"]'))
+            choice = next((item for item in options if label in item.text), None)
+            assert choice, "Publication option missing: " + label
+            choice.click()
+
         driver.get(origin + "/")
         for cookie in cookies:
             driver.add_cookie({
@@ -130,16 +148,7 @@ def editor_smoke(admin, helper):
         field = driver.find_element(By.CSS_SELECTOR, '.manager-form form input[placeholder="Título de la noticia"]')
         field.clear()
         field.send_keys(updated_title)
-        trigger = driver.find_element(By.CSS_SELECTOR,
-                                      'button[aria-label="Estado de publicación de noticia"]')
-        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", trigger)
-        trigger.click()
-        wait.until(lambda d: d.find_elements(
-            By.CSS_SELECTOR, '[role="listbox"][aria-label="Estado de publicación de noticia"] [role="option"]'))
-        choices = driver.find_elements(By.CSS_SELECTOR,
-                                       '[role="listbox"][aria-label="Estado de publicación de noticia"] [role="option"]')
-        published = next(c for c in choices if "Publicada" in c.text)
-        published.click()
+        choose_publication("Publicada")
         wait.until(lambda d: "Esta noticia aparecerá en la web" in
                    d.find_element(By.CSS_SELECTOR, ".manager-form form").text)
         submit_editor()
@@ -157,16 +166,7 @@ def editor_smoke(admin, helper):
         wait.until(lambda d: editor_row(updated_title) is not None)
         editor_row(updated_title).find_element(By.CSS_SELECTOR,
                                                'button[aria-label="Editar"]').click()
-        trigger = driver.find_element(By.CSS_SELECTOR,
-                                      'button[aria-label="Estado de publicación de noticia"]')
-        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", trigger)
-        trigger.click()
-        wait.until(lambda d: d.find_elements(
-            By.CSS_SELECTOR, '[role="listbox"][aria-label="Estado de publicación de noticia"] [role="option"]'))
-        choices = driver.find_elements(By.CSS_SELECTOR,
-                                       '[role="listbox"][aria-label="Estado de publicación de noticia"] [role="option"]')
-        draft = next(c for c in choices if "Borrador" in c.text)
-        draft.click()
+        choose_publication("Borrador")
         submit_editor()
         wait.until(lambda d: "borrador" in d.find_element(
             By.CSS_SELECTOR, ".manager-feedback").text.lower())
