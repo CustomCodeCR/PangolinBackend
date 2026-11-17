@@ -41,6 +41,16 @@ builder.Services.AddHttpClient("DholeTracking", client =>
     client.BaseAddress = new Uri("https://api.logisticacastrofallas.com/");
     client.Timeout = TimeSpan.FromSeconds(12);
 }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+// Independent GET-only external catalogues; no user-controlled URLs or redirects.
+builder.Services.AddHttpClient("DholeCatalogs", client =>
+{
+    client.BaseAddress = new Uri("https://api.logisticacastrofallas.com/");
+    client.Timeout = TimeSpan.FromSeconds(12);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AllowAutoRedirect = false,
+    UseCookies = false
+});
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(postgres));
 // Redis y MongoDB se utilizan SOLO para cache/auditoría de cotizaciones.
 // Si no se configuran, el login y las cotizaciones siguen usando PostgreSQL.
@@ -110,6 +120,7 @@ builder.Services.AddScoped<AssistantService>();
 builder.Services.AddSingleton<NewsTranslationService>();
 builder.Services.AddSingleton<TrackingStatusTranslationService>();
 builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<DholeCatalogService>();
 builder.Services.AddSingleton<AssistantFreeQuota>();
 builder.Services.AddSingleton<ObjectStorageService>();
 builder.Services.AddHttpClient("Groq", client =>
@@ -334,6 +345,7 @@ app.UseAuthorization();
 
 app.MapTrackingDemo();
 app.MapDholeTracking();
+app.MapDholeCatalogs();
 app.MapGet("/api/health", () => Results.Ok(new
 {
     service = "CastroFallas.MiniQuote.Api", status = "ok", version = "rediseno-auth-otp-v1", utc = DateTime.UtcNow
