@@ -49,15 +49,114 @@
     ]
   },
   "/servicios/agenciamiento-aduanal": {
-    "primary": "agenciamiento aduanal Costa Rica",
+    "primary": "Agencia de Aduanas",
     "secondary": [
-      "despacho aduanero"
+      "Agencia aduanal",
+      "Agenciamiento aduanero",
+      "Despacho aduanero",
+      "Trámites aduaneros",
+      "Gestión aduanera",
+      "Asesoría aduanera",
+      "Clasificación arancelaria",
+      "Comercio exterior Costa Rica"
+    ],
+    "clusters": {
+      "main": [
+        "Agencia de Aduanas",
+        "Agencia aduanal",
+        "Agenciamiento aduanero",
+        "Despacho aduanero",
+        "Trámites aduaneros",
+        "Gestión aduanera",
+        "Asesoría aduanera",
+        "Asesoría en comercio exterior",
+        "Comercio exterior Costa Rica",
+        "Nacionalización de mercancías",
+        "Nacionalización",
+        "Desalmacenaje",
+        "Clasificación arancelaria",
+        "Cálculo de impuestos de importación",
+        "DAI",
+        "IVA de importación",
+        "Notas técnicas de importación",
+        "Permisos de importación",
+        "Regímenes aduaneros"
+      ],
+      "complementary": [
+        "Servicios aduaneros Costa Rica",
+        "Agente de aduanas Costa Rica",
+        "Agencia aduanera Costa Rica",
+        "Gestión de importaciones",
+        "Gestión de exportaciones",
+        "Documentación aduanera",
+        "Asesoría para importadores",
+        "Asesoría para exportadores",
+        "Impuestos de importación",
+        "Regulaciones aduaneras",
+        "Legislación aduanera",
+        "Control aduanero",
+        "Procesos de importación",
+        "Procesos de exportación",
+        "Operaciones de comercio internacional"
+      ]
+    },
+    "validationRequired": [
+      "Cálculo de impuestos de importación",
+      "Permisos de importación",
+      "Nacionalización de mercancías"
     ]
   },
   "/servicios/almacenamiento-fiscal": {
-    "primary": "almacenamiento fiscal Costa Rica",
+    "primary": "Almacén fiscal Costa Rica",
     "secondary": [
-      "depósito fiscal"
+      "Almacenamiento fiscal",
+      "Depósito fiscal",
+      "Depósito aduanero",
+      "Almacenamiento de mercancías",
+      "Almacenamiento temporal",
+      "Bodega fiscal",
+      "Mercancía en tránsito",
+      "Custodia de mercancías"
+    ],
+    "clusters": {
+      "main": [
+        "Almacén fiscal Costa Rica",
+        "Almacenamiento fiscal",
+        "Almacén fiscal",
+        "Depósito fiscal",
+        "Depósito aduanero",
+        "Almacenamiento de mercancías",
+        "Almacenamiento temporal",
+        "Bodega fiscal",
+        "Bodega para importaciones",
+        "Bodega para mercancías",
+        "Almacén Bonded",
+        "Bodega Bonded",
+        "Cargas Bonded",
+        "Mercancía en tránsito",
+        "Carga en tránsito aduanero"
+      ],
+      "complementary": [
+        "Custodia de mercancías",
+        "Control de inventarios",
+        "Recepción de mercancías",
+        "Descarga de contenedores",
+        "Carga y descarga de mercancías",
+        "Desalmacenaje",
+        "Almacenamiento de contenedores",
+        "Gestión de inventarios",
+        "Almacenamiento de carga internacional",
+        "Almacenamiento de mercancías importadas",
+        "Bodega logística Costa Rica",
+        "Servicios de almacenamiento logístico"
+      ]
+    },
+    "validationRequired": [
+      "Almacén Bonded",
+      "Bodega Bonded",
+      "Cargas Bonded",
+      "Descarga de contenedores",
+      "Almacenamiento de contenedores"
     ]
   },
   "/servicios/bodegaje-general": {
@@ -67,10 +166,58 @@
     ]
   },
   "/servicios/consolidadora-de-carga": {
-    "primary": "consolidadora de carga Costa Rica",
+    "primary": "Consolidadora de carga",
     "secondary": [
-      "LCL",
-      "LTL"
+      "Carga consolidada",
+      "Transporte LTL",
+      "Transporte LCL",
+      "Carga suelta",
+      "Transporte de carga consolidada",
+      "Consolidación de mercancías",
+      "Desconsolidación de carga",
+      "Freight Forwarding Costa Rica"
+    ],
+    "clusters": {
+      "main": [
+        "Consolidadora de carga",
+        "Carga consolidada",
+        "Transporte LTL",
+        "LTL",
+        "Transporte LCL",
+        "LCL",
+        "Carga suelta",
+        "Transporte de carga consolidada",
+        "Consolidación de mercancías",
+        "Desconsolidación de carga",
+        "Importaciones",
+        "Exportaciones",
+        "Embarques",
+        "Transporte internacional",
+        "Logística internacional"
+      ],
+      "complementary": [
+        "Servicio de carga consolidada",
+        "Consolidación de contenedores",
+        "Carga parcial",
+        "Envíos internacionales",
+        "Transporte de mercancía internacional",
+        "Logística de importaciones",
+        "Logística de exportaciones",
+        "Carga general",
+        "Carga en tránsito",
+        "Transporte de mercancías",
+        "Distribución internacional",
+        "Freight Forwarding Costa Rica",
+        "Freight Forwarder Costa Rica",
+        "Operador logístico Costa Rica",
+        "Logística para empresas",
+        "Transporte de carga para empresas"
+      ]
+    },
+    "validationRequired": [
+      "Distribución internacional",
+      "Consolidación de contenedores",
+      "Desconsolidación de carga"
     ]
   },
   "/noticias": {
@@ -78,6 +225,374 @@
     "secondary": [
       "aduanas",
       "comercio exterior"
+    ]
+  },
+  "/servicios/transporte-maritimo": {
+    "primary": "Transporte marítimo",
+    "secondary": [
+      "Transporte marítimo internacional",
+      "Carga marítima internacional",
+      "FCL",
+      "Transporte FCL",
+      "LCL",
+      "Transporte LCL",
+      "Flete marítimo",
+      "Transporte de contenedores"
+    ],
+    "clusters": {
+      "main": [
+        "Transporte marítimo",
+        "Transporte marítimo internacional",
+        "Carga marítima internacional",
+        "FCL",
+        "Transporte FCL",
+        "LCL",
+        "Transporte LCL",
+        "Carga completa",
+        "Carga consolidada",
+        "Transporte de contenedores",
+        "Importaciones marítimas",
+        "Exportaciones marítimas",
+        "Embarques marítimos",
+        "Transporte internacional",
+        "Logística marítima"
+      ],
+      "routes": [
+        "Transporte marítimo China Costa Rica",
+        "Importaciones de China a Costa Rica",
+        "Transporte marítimo Miami Costa Rica",
+        "Importaciones de Miami a Costa Rica",
+        "Importaciones de Estados Unidos a Costa Rica",
+        "Importaciones de Europa a Costa Rica",
+        "Importaciones de Asia a Costa Rica",
+        "Transporte Panamá Costa Rica",
+        "Importaciones de Panamá a Costa Rica",
+        "Logística China Costa Rica",
+        "Logística Miami Costa Rica"
+      ],
+      "complementary": [
+        "Flete marítimo",
+        "Tarifas de transporte marítimo",
+        "Contenedores marítimos",
+        "Transporte de carga en contenedores",
+        "Carga general",
+        "Carga refrigerada",
+        "Carga IMO",
+        "HAZMAT",
+        "Carga sobredimensionada",
+        "Carga proyecto",
+        "Project Cargo",
+        "Seguros de carga",
+        "Tarifas Spot",
+        "Transporte multimodal"
+      ]
+    },
+    "validationRequired": [
+      "Carga refrigerada",
+      "Carga IMO",
+      "HAZMAT",
+      "Carga sobredimensionada",
+      "Carga proyecto",
+      "Project Cargo",
+      "Seguros de carga",
+      "Tarifas Spot"
+    ]
+  },
+  "/servicios/transporte-aereo": {
+    "primary": "Transporte aéreo",
+    "secondary": [
+      "Transporte aéreo internacional",
+      "Carga aérea",
+      "Carga aérea internacional",
+      "Envíos aéreos internacionales",
+      "Importaciones aéreas",
+      "Exportaciones aéreas",
+      "Flete aéreo",
+      "Logística aérea"
+    ],
+    "clusters": {
+      "main": [
+        "Transporte aéreo",
+        "Transporte aéreo internacional",
+        "Carga aérea",
+        "Carga aérea internacional",
+        "Envíos aéreos internacionales",
+        "Transporte de mercancías por avión",
+        "Importaciones aéreas",
+        "Exportaciones aéreas",
+        "Logística aérea",
+        "Transporte internacional"
+      ],
+      "routes": [
+        "Transporte aéreo China Costa Rica",
+        "Importaciones de China a Costa Rica",
+        "Importaciones de Miami a Costa Rica",
+        "Importaciones de Estados Unidos a Costa Rica",
+        "Importaciones de Europa a Costa Rica",
+        "Importaciones de Asia a Costa Rica",
+        "Logística internacional Costa Rica"
+      ],
+      "complementary": [
+        "Flete aéreo",
+        "Envíos internacionales urgentes",
+        "Transporte de carga urgente",
+        "Carga general",
+        "Carga especial",
+        "Carga de alto valor",
+        "Mercancías peligrosas",
+        "Carga IMO",
+        "HAZMAT",
+        "Seguros de carga",
+        "Tarifas Spot",
+        "Logística para importadores",
+        "Transporte de mercancía internacional"
+      ]
+    },
+    "validationRequired": [
+      "Envíos internacionales urgentes",
+      "Carga de alto valor",
+      "Mercancías peligrosas",
+      "Carga IMO",
+      "HAZMAT",
+      "Seguros de carga",
+      "Tarifas Spot"
+    ]
+  },
+  "/servicios/transporte-internacional": {
+    "primary": "Transporte internacional",
+    "secondary": [
+      "Transporte internacional de carga",
+      "Logística internacional",
+      "Transporte multimodal",
+      "Logística multimodal",
+      "Transporte marítimo y terrestre",
+      "Transporte aéreo y terrestre",
+      "Operador logístico Costa Rica",
+      "Coordinación logística"
+    ],
+    "clusters": {
+      "main": [
+        "Transporte internacional",
+        "Transporte internacional de mercancías",
+        "Transporte internacional de carga",
+        "Logística internacional",
+        "Importaciones",
+        "Exportaciones",
+        "Transporte de mercancías",
+        "Transporte de carga",
+        "Transporte terrestre internacional",
+        "Transporte marítimo internacional",
+        "Transporte aéreo internacional",
+        "Logística empresarial",
+        "Logística para empresas",
+        "Soluciones logísticas empresariales",
+        "Logística integral",
+        "Operador logístico",
+        "Operador logístico Costa Rica",
+        "3PL Costa Rica",
+        "4PL Costa Rica",
+        "Supply Chain Costa Rica",
+        "Gestión de cadena de suministro",
+        "Freight Forwarding Costa Rica",
+        "Freight Forwarder Costa Rica"
+      ],
+      "routes": [
+        "Importaciones de Panamá a Costa Rica",
+        "Importaciones de China a Costa Rica",
+        "Importaciones de Miami a Costa Rica",
+        "Importaciones de Estados Unidos a Costa Rica",
+        "Importaciones de Europa a Costa Rica",
+        "Importaciones de Asia a Costa Rica",
+        "Exportaciones desde Costa Rica",
+        "Transporte Panamá Costa Rica",
+        "Transporte China Costa Rica",
+        "Transporte Miami Costa Rica",
+        "Transporte Centroamérica",
+        "Logística Panamá Costa Rica",
+        "Logística China Costa Rica",
+        "Logística Miami Costa Rica",
+        "Logística Centroamérica",
+        "Centroamérica",
+        "Panamá",
+        "China",
+        "Miami",
+        "Estados Unidos",
+        "Honduras",
+        "Multimodal Asia"
+      ],
+      "cargo": [
+        "Carga general",
+        "Carga consolidada",
+        "Carga suelta",
+        "Carga completa",
+        "Carga refrigerada",
+        "Carga peligrosa",
+        "Mercancías peligrosas",
+        "Carga IMO",
+        "HAZMAT",
+        "Carga sobredimensionada",
+        "Carga proyecto",
+        "Project Cargo",
+        "Carga de alto valor",
+        "Carga especial",
+        "Cargas Bonded",
+        "Mercancía en tránsito"
+      ],
+      "complementary": [
+        "Transporte puerta a puerta",
+        "Logística puerta a puerta",
+        "Transporte de contenedores",
+        "Coordinación logística",
+        "Gestión de importaciones",
+        "Gestión de exportaciones",
+        "Transporte de carga empresarial",
+        "Seguros de carga",
+        "Tarifas Spot",
+        "Transporte internacional para empresas"
+      ],
+      "multimodal": [
+        "Transporte multimodal",
+        "Transporte multimodal de carga",
+        "Transporte multimodal internacional",
+        "Logística multimodal",
+        "Transporte internacional",
+        "Logística internacional",
+        "Transporte marítimo y terrestre",
+        "Transporte aéreo y terrestre",
+        "Transporte combinado",
+        "Transporte de mercancías",
+        "Transporte de carga internacional",
+        "Importaciones",
+        "Exportaciones",
+        "Embarques",
+        "Multimodal Asia",
+        "Transporte multimodal China Costa Rica",
+        "Transporte multimodal Asia Costa Rica",
+        "Importaciones de China a Costa Rica",
+        "Importaciones de Asia a Costa Rica",
+        "Transporte Panamá Costa Rica",
+        "Importaciones de Panamá a Costa Rica",
+        "Logística China Costa Rica",
+        "Logística Panamá Costa Rica",
+        "Transporte Centroamérica",
+        "Logística Centroamérica",
+        "Carga consolidada",
+        "LTL",
+        "LCL",
+        "FCL",
+        "Carga completa",
+        "Carga suelta",
+        "Transporte marítimo internacional",
+        "Transporte terrestre internacional",
+        "Distribución regional",
+        "Transporte puerta a puerta",
+        "Logística de importaciones",
+        "Coordinación de embarques",
+        "Optimización de costos logísticos",
+        "Gestión de cadena de suministro",
+        "Soluciones logísticas internacionales",
+        "Tarifas Spot"
+      ]
+    },
+    "validationRequired": [
+      "3PL Costa Rica",
+      "4PL Costa Rica",
+      "Supply Chain Costa Rica",
+      "Carga refrigerada",
+      "Carga peligrosa",
+      "Mercancías peligrosas",
+      "Carga IMO",
+      "HAZMAT",
+      "Project Cargo",
+      "Carga sobredimensionada",
+      "Cargas Bonded",
+      "Seguros de carga",
+      "Tarifas Spot",
+      "Transporte puerta a puerta",
+      "Multimodal Asia"
+    ]
+  },
+  "/servicios/transporte-local": {
+    "primary": "Transporte local en Costa Rica",
+    "secondary": [
+      "Transporte terrestre Costa Rica",
+      "Transporte de mercancías Costa Rica",
+      "Transporte de carga Costa Rica",
+      "Distribución local",
+      "Distribución nacional",
+      "Transporte de carga terrestre",
+      "Transporte FTL",
+      "Carga completa"
+    ],
+    "clusters": {
+      "main": [
+        "Transporte local en Costa Rica",
+        "Transporte terrestre Costa Rica",
+        "Transporte de mercancías Costa Rica",
+        "Transporte de carga Costa Rica",
+        "Distribución local",
+        "Distribución nacional",
+        "Transporte de carga terrestre",
+        "Transporte de contenedores",
+        "Transporte FTL",
+        "FTL",
+        "Carga completa",
+        "Transporte de carga completa",
+        "Transporte de mercancías para empresas"
+      ],
+      "complementary": [
+        "Transporte de carga pesada",
+        "Transporte de carga especial",
+        "Carga sobredimensionada",
+        "Carga proyecto",
+        "Project Cargo",
+        "Carga general",
+        "Carga de alto valor",
+        "Carga peligrosa",
+        "Carga IMO",
+        "HAZMAT",
+        "Flotilla propia",
+        "Transporte con GPS",
+        "Transporte con custodia",
+        "Rastreo de mercancías",
+        "Monitoreo de carga",
+        "Entrega puerta a puerta",
+        "Distribución de mercancías",
+        "Logística de distribución",
+        "Transporte empresarial",
+        "Transporte de contenedores en Costa Rica",
+        "Transporte de mercancías importadas",
+        "Transporte desde almacén fiscal"
+      ]
+    },
+    "validationRequired": [
+      "Flotilla propia",
+      "Transporte con GPS",
+      "Transporte con custodia",
+      "Carga peligrosa",
+      "Carga IMO",
+      "HAZMAT",
+      "Carga sobredimensionada",
+      "Project Cargo",
+      "Carga de alto valor",
+      "Entrega puerta a puerta"
+    ]
+  },
+  "/servicios/transporte-terrestre": {
+    "primary": "Transporte terrestre internacional",
+    "secondary": [
+      "Transporte LTL",
+      "Transporte FTL",
+      "Transporte Centroamérica",
+      "Transporte de carga empresarial"
+    ]
+  },
+  "/servicios/transporte-panama-costa-rica": {
+    "primary": "Transporte Panamá Costa Rica",
+    "secondary": [
+      "Importaciones de Panamá a Costa Rica",
+      "Transporte terrestre internacional",
+      "Logística Panamá Costa Rica"
     ]
   }
 }
