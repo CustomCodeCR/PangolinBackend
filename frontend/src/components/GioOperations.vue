@@ -314,14 +314,15 @@ function commitValue(item: Step, value: string, locationId?: string) {
     for (const key of ['shipmentType','origin','destination','pod','equipmentSize','equipmentType','equipmentQuantity',
       'equipmentWeights','packageQuantity','packageWeight','packageLength','packageWidth','packageHeight','stackable']) delete values[key]
     for (const role of ['origin','destination','pod']) delete selectedLocations[role]
-    locationCache.clear()
+    clearQuoteCatalog()
   }
   if (item.key === 'shipmentType' && values.shipmentType !== value) {
     for (const role of ['origin','destination','pod']) { delete values[role]; delete selectedLocations[role] }
     for (const key of ['equipmentSize','equipmentType','equipmentQuantity','equipmentWeights','packageQuantity',
       'packageWeight','packageLength','packageWidth','packageHeight','stackable']) delete values[key]
-    locationCache.clear()
+    clearQuoteCatalog()
   }
+  if (item.key === 'equipmentSize' && values.equipmentSize !== value) delete values.equipmentType
   if (item.key === 'incoterm' && value !== 'EXW') {
     delete values.exwCargoStatus
     delete values.exwPickupAddress
@@ -523,6 +524,19 @@ async function jsonResponse(response: Response) {
   return data
 }
 async function getLocations(role: string): Promise<Location[]> {
+  if (props.kind === 'quote') {
+    const requestedMode = values.mode
+    const requestedType = values.shipmentType
+    const dynamic = await ensureQuoteCatalog()
+    if (values.mode !== requestedMode || values.shipmentType !== requestedType)
+      throw new Error(tr('La modalidad cambió. Volvé a elegir la ruta.','Mode changed. Select the route again.'))
+    if (dynamic) {
+      if (role === 'origin') return dynamic.origins
+      if (role === 'destination') return dynamic.destinations
+      if (role === 'pod') return dynamic.pods
+      throw new Error('Unknown location role.')
+    }
+  }
   let requestUrl = ''
   if (props.kind === 'itinerary') {
     const params = new URLSearchParams({routeRole:role})
@@ -568,6 +582,8 @@ watch(
   { immediate: true }
 )
 async function submitQuote() {
+  // After restored drafts, re-check which catalog source is authorized.
+  await ensureQuoteCatalog()
   for (const [index, step] of steps.value.entries()) {
     const issue = validation(step.key, values[step.key] || '')
     if (issue) {
@@ -594,6 +610,7 @@ async function submitQuote() {
   const weights = equipment ? values.equipmentWeights.split(',').map(x => Number(x.trim())) : []
   const payload = {
     mode:values.mode, shipmentType:values.shipmentType,
+    catalogSource:quoteCatalogSource.value === 'dhole' ? 'dhole' : null,
     originLocationId:selectedLocations.origin, destinationLocationId:selectedLocations.destination,
     podLocationId:values.shipmentType === 'LCL' ? selectedLocations.pod : null,
     contactName:values.contactName, contactEmail:values.contactEmail,contactPhone:values.contactPhone,
