@@ -102,6 +102,8 @@ try {
   assert.match(html, /documentación aduanera/)
   assert.match(html, /application\/ld\+json/)
   assert.match(html, /schema.org/)
+  assert.ok(html.includes('"sameAs":["https://www.linkedin.com/company/grupo-castro-fallas/"]'),
+    'El nodo Organization debe vincular el perfil externo verificado de Grupo Castro Fallas')
   // The same published image should be announced to search/social crawlers.
   const expectedImageUrl = 'https://www.logisticacastrofallas.com' +
     (cmsResponsiveSmoke ? cmsImage : '/images/cover-logistics.jpeg')
@@ -119,6 +121,12 @@ try {
     'La meta description de una noticia no debe ser larga ni quedar vacía')
   const sitemap = await (await fetch(base + '/sitemap.xml')).text()
   assert.ok(sitemap.includes(slug), 'Noticia ausente en sitemap dinámico')
+  assert.match(sitemap,
+    /<url><loc>https:\/\/www\.logisticacastrofallas\.com\/servicios\/transporte-maritimo<\/loc><lastmod>\d{4}-\d{2}-\d{2}<\/lastmod><\/url>/,
+    'El sitemap debe usar fechas editoriales conocidas en páginas de servicios')
+  assert.match(sitemap,
+    /<url><loc>https:\/\/www\.logisticacastrofallas\.com\/<\/loc><\/url>/,
+    'No inventar lastmod para la portada sin fecha editorial confirmada')
   for (const fixture of approvedTitleFixtures) {
     const articleUrl = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)]
       .map(match => match[1]).find(url => url.endsWith('-' + fixture.suffix))
