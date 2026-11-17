@@ -375,6 +375,10 @@ ExpectSelectionReject(ftlQuote with {
 Console.WriteLine("OK: Quote submit contract validates external roles, FCL pairs, FTL live sizes and Incoterms.");
 
 ExpectSelectionReject(goodQuote with { Incoterm = null }, formCatalog, "omitted Dhole Incoterm");
+var overlongName = formCatalog with {
+    Origins = formCatalog.Origins.Select(x => x with { DisplayName = new string('X', 181) }).ToArray()
+};
+ExpectSelectionReject(goodQuote, overlongName, "origin longer than persisted column capacity");
 
 var airPolItems = DholeCatalogNormalizer.Parse("""
 [
