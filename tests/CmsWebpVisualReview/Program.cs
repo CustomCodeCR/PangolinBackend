@@ -133,6 +133,72 @@ foreach (var (relative, mime) in fixtures)
     }
     html.AppendLine("</div>");
 }
+// Verify the actual production encoder preserves transparent PNG regions.
+// The synthetic image is generated here and never uses any designer/CMS data.
+// Its textured opaque center makes PNG->WebP savings realistic, while the
+// fully transparent corners catch accidental conversion to an opaque canvas.
+const int alphaWidth = 920, alphaHeight = 640;
+using (var alphaBitmap = new SKBitmap(new SKImageInfo(
+           alphaWidth, alphaHeight, SKColorType.Rgba8888, SKAlphaType.Premul)))
+{
+    alphaBitmap.Erase(SKColors.Transparent);
+    for (var y = 90; y < alphaHeight - 90; y++)
+    {
+        for (var x = 100; x < alphaWidth - 100; x++)
+        {
+            var red = (byte)((x * 17 + y * 43) % 256);
+            var green = (byte)((x * 31 + y * 7) % 256);
+            var blue = (byte)((x * 11 + y * 29) % 256);
+            alphaBitmap.SetPixel(x, y, new SKColor(red, green, blue, 255));
+        }
+    }
+
+    using var alphaImage = SKImage.FromBitmap(alphaBitmap);
+    using var alphaEncodedPng = alphaImage.Encode(SKEncodedImageFormat.Png, 100);
+    if (alphaEncodedPng is null)
+        throw new InvalidOperationException("Could not create isolated transparent PNG fixture.");
+    var alphaOriginal = alphaEncodedPng.ToArray();
+    using var alphaInput = new MemoryStream(alphaOriginal, writable: false);
+    var alphaUpload = new FormFile(alphaInput, 0, alphaOriginal.Length, "file", "synthetic-transparent.png")
+    {
+        Headers = new HeaderDictionary(),
+        ContentType = "image/png"
+    };
+    var alphaVariants = await CmsImageVariants.EncodeAsync(
+        alphaUpload, "image/png", NullLogger.Instance, CancellationToken.None);
+    if (!alphaVariants.TryGetValue(360, out var alphaWebp) ||
+        alphaWebp.Length >= alphaOriginal.Length)
+        throw new InvalidOperationException("Transparent PNG did not produce a smaller 360px WebP.");
+
+    using var alphaDecoded = SKBitmap.Decode(alphaWebp)
+        ?? throw new InvalidOperationException("Generated transparent WebP cannot be decoded.");
+    if (alphaDecoded.Width != 360 ||
+        alphaDecoded.GetPixel(0, 0).Alpha > 8 ||
+        alphaDecoded.GetPixel(alphaDecoded.Width / 2, alphaDecoded.Height / 2).Alpha < 245)
+        throw new InvalidOperationException("WebP lost transparent corners or the opaque center.");
+
+    const string alphaOriginalName = "synthetic-transparent-original.png";
+    const string alphaVariantName = "synthetic-transparent-w360.webp";
+    await File.WriteAllBytesAsync(Path.Combine(output, alphaOriginalName), alphaOriginal);
+    await File.WriteAllBytesAsync(Path.Combine(output, alphaVariantName), alphaWebp);
+    var alphaSaving = 100 * (1.0 - alphaWebp.Length / (double)alphaOriginal.Length);
+    report.Append("| synthetic-transparent.png | ")
+        .Append(alphaWidth).Append('×').Append(alphaHeight).Append(" | ")
+        .Append(alphaDecoded.Width).Append('×').Append(alphaDecoded.Height).Append(" | ")
+        .Append(Math.Round(alphaOriginal.Length / 1024.0, 1)).Append(" | ")
+        .Append(Math.Round(alphaWebp.Length / 1024.0, 1)).Append(" | ")
+        .Append(Math.Round(alphaSaving, 1)).AppendLine("% |");
+    html.AppendLine("""
+<h2>Prueba sintética de transparencia (sin datos del CMS)</h2>
+<div class="pairs">
+<figure><div class="imagebox"><img src="synthetic-transparent-original.png" alt="PNG sintético transparente"></div>
+<figcaption><strong>PNG original</strong><br><small>Esquinas transparentes y centro opaco</small></figcaption></figure>
+<figure><div class="imagebox"><img src="synthetic-transparent-w360.webp" alt="WebP sintético transparente"></div>
+<figcaption><strong>WebP 360 px</strong><br><small>Verificación automática de transparencia aprobada</small></figcaption></figure>
+</div>
+""");
+    generated++;
+}
 if (generated < 3)
     throw new InvalidOperationException("Visual review produced too few derivatives.");
 html.AppendLine("""
