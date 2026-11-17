@@ -84,10 +84,20 @@ Se inspeccionaron `id`, `name`, `code`, `transportMode`, `routeRole`, `terminalT
 **Fuente:** el usuario transmite la decisión del jefe del negocio tras revisar los resultados de la API.
 
 - **Usar los 24 destinos que devuelve el endpoint POD como opciones válidas de POD**, independientemente de `transportMode` y de que tengan `metadata` nula. Hay registros históricos anteriores a la regularización de metadatos.
-- **No filtrar** el selector POD por `transportMode = Maritime`, ni descartar destinos `Land`, con `transportMode: null` o sin metadata. Los 24 elementos observados están activos; si en el futuro existen `isActive: false`, confirmar la política de inactivos en vez de asumir que esta decisión obliga a mostrarlos.
+- **No filtrar** el selector POD por `transportMode = Maritime`, ni descartar destinos `Land`, con `transportMode: null` o sin metadata. Los 24 elementos observados están activos.
 - POD en el formulario se refiere a la posición de puerto de descarga/destino en la ruta marítima, pero **la elegibilidad de las opciones la determina el catálogo POD entregado por Dhole**; un nombre o `transportMode` de un registro no invalida su aparición como opción de POD.
-- `PricingWorkflow`: **aplazado expresamente**. Conservarlo como dato observado y como asunto para revisión futura; **no usarlo para filtrar, validar, priorizar o bloquear los destinos durante esta etapa**.
+- `PricingWorkflow`: **el negocio confirmó que no importa para esta integración**. Se ignora completamente para el selector POD: no filtrar, validar, priorizar ni bloquear por este campo.
 - Esta decisión resuelve el filtrado funcional de POD; faltan comprender el contrato de identificadores externo↔local, controles de error/cache y la integración dinámica antes de cambiar la UI.
+
+## Regla de elegibilidad POD acordada (17/11/2026, provisional)
+- **Usar todos los registros devueltos por el endpoint POD excepto los que tengan `isActive` como booleano `false` explícito.**
+- `isActive === true`, `isActive === null` o ausencia de la propiedad **no excluyen** el registro.
+- `transportMode` y `metadata` no filtran elegibilidad POD, aunque presenten valores inesperados o estén ausentes.
+- `PricingWorkflow` no es relevante para esta integración, según la aclaración más reciente del negocio. No hace falta preguntar su significado para implementar POD.
+- Esta decisión es provisional y **solo para POD**; no extrapolarla a POE, POL ni otros catálogos hasta revisar sus contratos.
+- Conservar IDs de origen Dhole, asegurar nombre legible antes de presentar una opción y validar datos de manera defensiva.
+- En la muestra actual de 24 elementos, todos tienen `isActive: true` y se mostrarían los 24.
+- No se ha integrado aún ningún selector: la decisión se aplicará al desarrollar el adaptador backend y la UI.
 
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
