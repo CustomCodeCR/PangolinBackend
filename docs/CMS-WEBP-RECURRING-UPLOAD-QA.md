@@ -94,8 +94,20 @@ La consulta pública realizada desde PowerShell confirmó que la noticia
 que coincide con `/api/content/media/{uuid}/file` (CMS / MinIO).
 Por tanto es candidata a **inspección**, no a conversión automática.
 La medición anterior observó 3.574.691 bytes y MIME `image/png`.
-Todavía faltan los datos privados de inventario, tamaño real en S3 y
-presencia de variantes antes de declarar que el backfill es elegible.
+El 17-11-2026 se confirmó en el **WWW**, con sesión administrativa,
+`POST /api/admin/content/media/{id}/webp-backfill` y `{"apply":false}`:
+HTTP **200**, `mode=dry-run`, `originalBytes=3574691`,
+`existingWidths=[]`, `missingWidths=[360,720,1080,1600]` y
+`originalPreserved=true`. El original está dentro del límite de 5 MiB
+del backfill; los cuatro anchos faltantes son **candidatos**, no garantiza
+que el codificador pueda producirlos todos (por dimensiones, orientación,
+animación o ahorro insuficiente). No se expone el UUID del medio aquí.
+
+**Ninguna conversión fue ejecutada:** `apply:true` permanece prohibido
+hasta revisar visualmente una copia en MinIO aislado, verificar el PUT
+condicional en el proveedor correspondiente, autorizar una ventana de
+mantenimiento con respaldo y coordinar las opciones del frontend. Tampoco
+se modifica el rendimiento actual de Noticias por esta inspección.
 
 **Administrador autenticado en el dominio WWW**, DevTools → Console:
 ejecutar este código. Solicita solo el registro público de Noticias
