@@ -59,22 +59,21 @@ def test_real_minio_publication(admin, webp_enabled):
                 "Real MinIO did not serve the unchanged JPEG original")
 
         for width in (360, 720):
+            if not webp_enabled:
+                # The backend deliberately rejects width parameters when OFF.
+                # The public frontend must use the unchanged URL without ?width.
+                helper.check_status(visitor, url + f"?width={width}", 400)
+                continue
             headers, response_bytes = helper.check_status(
                 visitor, url + f"?width={width}", 200)
+            require(headers.get("Content-Type", "").startswith("image/webp") and
+                    response_bytes[:4] == b"RIFF" and
+                    response_bytes[8:12] == b"WEBP" and
+                    12 < len(response_bytes) < len(original),
+                    f"Real MinIO {width}px WebP missing, invalid or not smaller")
             etag = headers.get("ETag")
-            if webp_enabled:
-                require(headers.get("Content-Type", "").startswith("image/webp") and
-                        response_bytes[:4] == b"RIFF" and
-                        response_bytes[8:12] == b"WEBP" and
-                        12 < len(response_bytes) < len(original),
-                        f"Real MinIO {width}px WebP missing, invalid or not smaller")
-                require(etag and etag != original_h.get("ETag"),
-                        "WebP derivative must have a distinct ETag")
-            else:
-                require(headers.get("Content-Type", "").startswith("image/jpeg") and
-                        response_bytes == original and etag == original_h.get("ETag"),
-                        f"WebP OFF must serve the original JPEG for width={width}")
-
+            require(etag and etag != original_h.get("ETag"),
+                    "WebP derivative must have a distinct ETag")
             helper.check_status(visitor, url + f"?width={width}", 304,
                                 headers={"If-None-Match": etag})
             _, first4 = helper.check_status(

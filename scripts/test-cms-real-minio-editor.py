@@ -166,16 +166,21 @@ def editor_smoke(admin, helper, webp_enabled):
         public = helper.json_call(helper.build_opener(), "/api/content/news", 200)
         assert any(n["id"] == created_news_id and n["title"] == updated_title
                    for n in public), "Published UI news not visible publicly"
-        h, image = helper.check_status(
-            helper.build_opener(), image_url + "?width=360", 200)
         if webp_enabled:
+            h, image = helper.check_status(
+                helper.build_opener(), image_url + "?width=360", 200)
             assert h.get("Content-Type", "").startswith("image/webp") and (
                 image[:4] == b"RIFF" and image[8:12] == b"WEBP"), (
                     "Published editorial upload lacks WebP derivative")
         else:
+            # OFF rejects ?width and serves the unmodified original via /file.
+            helper.check_status(
+                helper.build_opener(), image_url + "?width=360", 400)
+            h, image = helper.check_status(
+                helper.build_opener(), image_url, 200)
             assert h.get("Content-Type", "").startswith("image/jpeg") and (
                 image == helper.PHOTO), (
-                    "WebP OFF must preserve JPEG bytes even for width=360")
+                    "WebP OFF must preserve JPEG bytes at the canonical URL")
 
         # Real public Vue UI with the same backend/MinIO and compiled Vite flag.
         # Inspect only the fictitious published image; no admin screenshots.
@@ -248,11 +253,11 @@ def editor_smoke(admin, helper, webp_enabled):
         if created_news_id:
             status, _, _ = helper.call(
                 admin, f"/api/admin/content/news/{created_news_id}", method="DELETE")
-            require(status in (204, 404), "Unexpected status cleaning isolated news")
+            helper.require(status in (204, 404), "Unexpected status cleaning isolated news")
         if created_media_id:
             status, _, _ = helper.call(
                 admin, f"/api/admin/content/media/{created_media_id}", method="DELETE")
-            require(status in (204, 404), "Unexpected status cleaning isolated media")
+            helper.require(status in (204, 404), "Unexpected status cleaning isolated media")
         vite.terminate()
         try:
             vite.wait(timeout=8)
