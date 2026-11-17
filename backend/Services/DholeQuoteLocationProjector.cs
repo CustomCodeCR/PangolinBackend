@@ -41,19 +41,24 @@ public static class DholeQuoteLocationProjector
             // Defensive check even though the normalizer already drops explicit false.
             if (item.IsActive == false) continue;
 
-            // The endpoint establishes the role when the field is missing.
-            // An explicitly conflicting role is NOT silently overwritten.
+            // Business rule: ALL active POD entries remain eligible regardless of
+            // transportMode or terminalType. A conflicting role is reported for
+            // diagnostics but must NOT remove a valid POD from its own endpoint.
+            if (role == "pod")
+            {
+                if (!string.IsNullOrWhiteSpace(item.RouteRole) &&
+                    !string.Equals(item.RouteRole, expectedRole, StringComparison.OrdinalIgnoreCase))
+                    issues.Add(new(catalog, item.Id, "conflicting_route_role"));
+                options.Add(new(catalog, item.Id, item.Name, item.Code, mode, role, item.TerminalType));
+                continue;
+            }
+
+            // Other endpoints: an explicit contradicting POL/POE role is held
+            // for review rather than silently overwriting its classification.
             if (!string.IsNullOrWhiteSpace(item.RouteRole) &&
                 !string.Equals(item.RouteRole, expectedRole, StringComparison.OrdinalIgnoreCase))
             {
                 issues.Add(new(catalog, item.Id, "conflicting_route_role"));
-                continue;
-            }
-
-            // The business explicitly said POD does not filter on transportMode or terminalType.
-            if (role == "pod")
-            {
-                options.Add(new(catalog, item.Id, item.Name, item.Code, mode, role, item.TerminalType));
                 continue;
             }
 
