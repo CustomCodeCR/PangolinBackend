@@ -13,6 +13,7 @@
     <Compile Include="../../backend/Services/DholeCatalogService.cs" Link="DholeCatalogService.cs" />
     <Compile Include="../../backend/Services/DholeQuoteFormCatalogBuilder.cs" Link="DholeQuoteFormCatalogBuilder.cs" />
     <Compile Include="../../backend/Services/DholeQuoteFormCatalogLoader.cs" Link="DholeQuoteFormCatalogLoader.cs" />
+    <Compile Include="../../backend/Services/DholeItineraryLocationProjector.cs" Link="DholeItineraryLocationProjector.cs" />
     <Compile Include="../../backend/Models/OfficialQuoteModels.cs" Link="OfficialQuoteModels.cs" />
   </ItemGroup>
 </Project>
