@@ -97,14 +97,14 @@ jobs:
           curl -fsS http://127.0.0.1:3000/servicios/almacenamiento-fiscal >/tmp/pangolin-service.html
           grep -q 'Almacenamiento fiscal' /tmp/pangolin-service.html
           grep -q 'service-landing-faq__item' /tmp/pangolin-service.html
-          curl -fsS http://127.0.0.1:3000/empresas/aduanera-castro-fallas >/tmp/pangolin-company.html
-          grep -q 'Aduanera Castro Fallas' /tmp/pangolin-company.html
-          grep -q 'application/ld+json' /tmp/pangolin-company.html
-          curl -fsS http://127.0.0.1:3000/empresas/neriteka | grep -q 'Neriteka'
+          # Las cuatro páginas empresariales permanecen retiradas hasta aprobar diseño y textos.
+          for path in empresas empresas/aduanera-castro-fallas empresas/transporte-castro-fallas empresas/neriteka; do
+            test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3000/$path")" = "404"
+          done
           curl -fsS http://127.0.0.1:3000/robots.txt | grep -q 'OAI-SearchBot'
           curl -fsS http://127.0.0.1:3000/sitemap.xml >/tmp/pangolin-sitemap.xml
           grep -q 'almacenamiento-fiscal' /tmp/pangolin-sitemap.xml
-          grep -q '/empresas/aduanera-castro-fallas' /tmp/pangolin-sitemap.xml
+          ! grep -q '/empresas' /tmp/pangolin-sitemap.xml
           # PR #139: todas las páginas nuevas deben entregar HTML SSR real,
           # metadatos y estar en el sitemap servido por Nuxt.
           for slug in transporte-maritimo transporte-terrestre transporte-aereo transporte-internacional transporte-local transporte-panama-costa-rica; do
@@ -154,6 +154,14 @@ jobs:
             --add-host frontend-nuxt:127.0.0.1 \
             -v "$PWD/deploy/nuxt-hybrid-gateway.conf:/etc/nginx/conf.d/default.conf:ro" \
             nginx:1.27-alpine nginx -t
+      - name: Guard Fennec apex from Pangolin host redirects
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The apex host belongs to Fennec; this gateway must not redirect it to WWW.
+          ! grep -Eq 'if \(\$host = logisticacastrofallas\.com\)|return 301 https://www\.logisticacastrofallas\.com\$request_uri' deploy/nuxt-hybrid-gateway.conf
+          # The existing /home canonical redirect for Pangolin WWW is retained.
+          grep -Fq 'location = /home' deploy/nuxt-hybrid-gateway.conf
       - name: Check local hybrid preview Nginx syntax
         run: |
           docker run --rm \

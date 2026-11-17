@@ -3,6 +3,7 @@ import LegacyServiceLanding from '@legacy/pages/ServiceLanding.vue'
 import serviceGuides from '../../../../seo/service-landings.json'
 import servicePages from '../../../../seo/service-pages.json'
 import serviceFaqs from '../../../../seo/service-faqs.json'
+import routeSeo from '../../../../seo/routes.json'
 
 type Guide = (typeof serviceGuides)[keyof typeof serviceGuides]
 type Faq = { question: { es: string }; answer: { es: string } }
@@ -15,15 +16,12 @@ const detail = servicePages.find(item => item.slug === slug)
 if (!guide && !detail) throw createError({ statusCode: 404, statusMessage: 'Servicio no encontrado' })
 
 const title = guide?.es.title ?? detail!.title.es
-// Shorter search-result titles; leave the on-page service heading and content intact.
-const seoTitleBySlug: Record<string, string> = {
-  'agenciamiento-aduanal': 'Agenciamiento aduanal en Costa Rica | Castro Fallas',
-  'almacenamiento-fiscal': 'Almacenamiento fiscal en Costa Rica | Castro Fallas',
-  'bodegaje-general': 'Bodegaje general en Costa Rica | Castro Fallas',
-  'consolidadora-de-carga': 'Consolidadora de carga LCL y LTL | Castro Fallas'
-}
-const seoTitle = seoTitleBySlug[slug] ?? title + ' | Grupo Castro Fallas'
+// Use the same route-specific SEO metadata as the Vue/static HTML build.
+// The visible H1 and the Service schema retain the original editorial text.
+const seoMeta = (routeSeo as Record<string, { title?: string; description?: string }>)[path]
+const seoTitle = seoMeta?.title ?? title + ' | Grupo Castro Fallas'
 const description = guide?.es.answer ?? detail!.lead.es
+const metaDescription = seoMeta?.description ?? description.slice(0, 160)
 const serviceType = guide?.es.label ?? detail!.serviceType.es
 const image = detail?.image ?? '/images/cover-logistics.jpeg'
 const base = String(useRuntimeConfig().public.siteUrl).replace(/\/$/, '')
@@ -35,7 +33,7 @@ const faqs: Faq[] = detail
 usePublicSeo({
   path,
   title: seoTitle,
-  description: description.slice(0, 160),
+  description: metaDescription,
   image,
   schema: [
     {

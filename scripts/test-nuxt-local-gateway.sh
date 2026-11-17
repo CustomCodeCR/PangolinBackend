@@ -63,8 +63,7 @@ cmp frontend/public/favicon.png /tmp/cf-hybrid-favicon.png || {
 echo "PASS favicon Nuxt idéntico al PNG de marca"
 # No basta con comprobar HTML: las vistas públicas y privadas, sus imágenes,
 # el CMS publicado y los bundles Nuxt/Vue deben cargar bajo el MISMO origen.
-for route in / /nosotros /servicios /noticias /empresas \
-  /empresas/aduanera-castro-fallas /empresas/neriteka /empresas/transporte-castro-fallas \
+for route in / /nosotros /servicios /noticias \
   /privacidad /terminos /cookies /licencias \
   /servicios/transporte-maritimo /servicios/transporte-terrestre \
   /servicios/transporte-aereo /servicios/transporte-internacional \
@@ -75,6 +74,11 @@ for route in / /nosotros /servicios /noticias /empresas \
   /administracion /administracion/cotizaciones-oficiales /admin/contenido /admin/usuarios; do
   curl -fsS --max-time 12 "$base$route" >/dev/null ||
     { echo "FAIL ruta híbrida: $route" >&2; exit 1; }
+done
+# Las URLs corporativas no deben volver a aparecer por una ruta fallback del gateway.
+for route in /empresas /empresas/aduanera-castro-fallas /empresas/neriteka /empresas/transporte-castro-fallas; do
+  status="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 12 "$base$route")"
+  [[ "$status" == "404" ]] || { echo "FAIL empresa retirada $route: HTTP $status" >&2; exit 1; }
 done
 for picture in frontend/public/images/*; do
   [[ -f "$picture" ]] || continue

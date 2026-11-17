@@ -8,6 +8,50 @@ const keywords = JSON.parse(fs.readFileSync(path.resolve(base, '../seo/keyword-m
 const guides = JSON.parse(fs.readFileSync(path.resolve(base, '../seo/service-landings.json'), 'utf8'))
 const newServices = JSON.parse(fs.readFileSync(path.resolve(base, '../seo/service-pages.json'), 'utf8'))
 const serviceFaqs = JSON.parse(fs.readFileSync(path.resolve(base, '../seo/service-faqs.json'), 'utf8'))
+// Each service has one canonical, human-readable search intent. The large
+// keyword inventory is editorial planning data, not a meta-keywords tag.
+const routeSeo = JSON.parse(fs.readFileSync(path.resolve(base, '../seo/routes.json'), 'utf8'))
+const targetedServiceRoutes = [
+  '/servicios/almacenamiento-fiscal',
+  '/servicios/agenciamiento-aduanal',
+  '/servicios/consolidadora-de-carga',
+  '/servicios/transporte-maritimo',
+  '/servicios/transporte-aereo',
+  '/servicios/transporte-internacional',
+  '/servicios/transporte-local',
+  '/servicios/transporte-terrestre',
+  '/servicios/transporte-panama-costa-rica'
+]
+for (const route of targetedServiceRoutes) {
+  assert.ok(keywords[route]?.primary && keywords[route]?.secondary?.length >= 3,
+    'Falta estrategia SEO de búsqueda por servicio: ' + route)
+  const seo = routeSeo[route]
+  assert.ok(seo?.title?.endsWith('Castro Fallas') && seo.title.length <= 60 &&
+    seo?.description?.length >= 95 && seo.description.length <= 165,
+    'Título y descripción SEO específicos, cortos y legibles faltantes: ' + route)
+  assert.ok(!/3PL|4PL|HAZMAT|flotilla propia/i.test(seo.description),
+    'No publicar promesas de servicios no confirmados: ' + route)
+}
+for (const route of [
+  '/servicios/almacenamiento-fiscal','/servicios/agenciamiento-aduanal',
+  '/servicios/consolidadora-de-carga','/servicios/transporte-maritimo',
+  '/servicios/transporte-aereo','/servicios/transporte-internacional',
+  '/servicios/transporte-local'
+]) {
+  assert.ok(keywords[route].clusters && keywords[route].validationRequired?.length,
+    'Conservar las familias de búsqueda y términos pendientes de validar: ' + route)
+}
+assert.ok(keywords['/servicios/transporte-internacional'].clusters.multimodal.includes('Transporte multimodal'),
+  'Multimodal utiliza la página existente de transporte internacional sin crear rutas duplicadas')
+assert.equal(routeSeo['/servicios/transporte-multimodal'], undefined,
+  'No agregar una nueva ruta de multimodal fuera del catálogo aprobado')
+const publicServiceSeo = source('app/pages/servicios/[slug].vue')
+assert.match(publicServiceSeo, /import routeSeo from '\.\.\/\.\.\/\.\.\/\.\.\/seo\/routes\.json'/,
+  'El SSR de servicios debe leer el mapa canónico de títulos y descripciones')
+assert.match(publicServiceSeo, /const metaDescription = seoMeta\?\.description \?\? description\.slice\(0, 160\)/,
+  'La metadescripción SSR debe coincidir con el HTML estático')
+assert.match(publicServiceSeo, /description: metaDescription/,
+  'Nuxt no debe sobrescribir los metadatos optimizados con párrafos de guía')
 assert.equal(Object.keys(guides).length, 4, 'Se esperaban cuatro guías especializadas')
 for (const [route, guide] of Object.entries(guides)) {
   assert.ok(route.startsWith('/servicios/'), 'Ruta de servicio inválida: ' + route)
@@ -28,9 +72,13 @@ for (const [slug, company] of Object.entries(companies)) {
   assert.ok(company.name && company.description && company.faq?.length >= 2, 'Empresa incompleta: ' + slug)
   assert.ok(keywords['/empresas/' + slug]?.primary, 'Falta palabra clave: ' + slug)
 }
-assert.match(source('server/routes/sitemap.xml.ts'), /companies/, 'Falta directorio en sitemap')
-assert.match(source('app/pages/empresas/[slug].vue'), /usePublicSeo/, 'Falta SEO empresarial SSR')
-assert.match(source('../src/components/SiteFooter.vue'), /href="\/empresas"/, 'Falta enlazado interno')
+// Corporate pages are unpublished until their design and copy are approved.
+assert.doesNotMatch(source('server/routes/sitemap.xml.ts'), /import companies|['"]\/empresas/, 'El sitemap no debe publicar empresas')
+assert.doesNotMatch(source('nuxt.config.ts'), /import companies|['"]\/empresas/, 'No generar rutas de empresas')
+for (const page of ['app/pages/empresas/index.vue', 'app/pages/empresas/[slug].vue']) {
+  assert.equal(fs.existsSync(path.resolve(base, page)), false, 'La ruta corporativa debe estar retirada: ' + page)
+}
+assert.doesNotMatch(source('../src/components/SiteFooter.vue'), /href="\/empresas"/, 'El footer no debe mostrar Empresas del grupo en Accesos')
 assert.doesNotMatch(source('../src/components/SiteFooter.vue'), /<h3\b/, 'El pie de página no debe saltar de H1 a H3 en noticias')
 assert.match(source('../src/components/SiteFooter.vue'), /<h2\b/, 'El pie de página debe usar H2 para sus grupos')
 assert.match(source('../src/style.css'), /\.site-footer h2\{font-size:13px;margin:1px 0 14px\}/, 'El diseño del pie debe conservarse después del cambio semántico')

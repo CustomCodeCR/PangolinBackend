@@ -347,6 +347,47 @@ onUnmounted(() => {
         </div>
       </section>
 
+      <!-- Regional specialties: between the tracking globe and digital services. -->
+      <section class="home-specialties" :aria-label="locale === 'es' ? 'Infraestructura y cobertura regional' : 'Regional infrastructure and coverage'">
+        <div class="container home-specialties__inner">
+          <p class="home-specialties__eyebrow">{{ locale === 'es' ? 'INFRAESTRUCTURA Y COBERTURA' : 'INFRASTRUCTURE & COVERAGE' }}</p>
+          <div class="home-specialties__grid">
+            <article class="home-specialties__item">
+              <div class="home-specialties__icon-wrap" aria-hidden="true">
+                <svg class="home-specialties__icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M5 24 32 7l27 17v5h-5v29H10V29H5v-5Z" />
+              <path d="M17 57V28h30v29M22 57V35h20v22M22 41h20M22 46h20M22 51h20" />
+              <path d="M29 18h6v6h-6z" />
+            </svg>
+              </div>
+              <div class="home-specialties__copy">
+                <span class="home-specialties__overline">{{ locale === 'es' ? 'ALMACENAMIENTO' : 'WAREHOUSING' }} <b>01</b></span>
+                <h2 class="home-specialties__heading">
+                  <span>{{ locale === 'es' ? 'Espacio para tu carga.' : 'Space for your cargo.' }}</span>
+                  <strong>{{ locale === 'es' ? 'Almacenamiento fiscal A257 · A287' : 'Bonded warehousing A257 · A287' }}</strong>
+                </h2>
+              </div>
+            </article>
+            <article class="home-specialties__item">
+              <div class="home-specialties__icon-wrap" aria-hidden="true">
+                <svg class="home-specialties__icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="m5 37 9 16h35l10-16-27-8L5 37Z" />
+              <path d="M17 34V18h29v15M22 18V9h8v9M35 18V9h8v9M24 24h5v5h-5zM35 24h5v5h-5z" />
+              <path d="M6 57c5 3 9 3 14 0 5 3 9 3 14 0 5 3 9 3 14 0" />
+            </svg>
+              </div>
+              <div class="home-specialties__copy">
+                <span class="home-specialties__overline">{{ locale === 'es' ? 'TRANSPORTE REGIONAL' : 'REGIONAL TRANSPORT' }} <b>02</b></span>
+                <h2 class="home-specialties__heading">
+                  <span>{{ locale === 'es' ? 'Movemos tu negocio.' : 'We move your business.' }}</span>
+                  <strong>{{ locale === 'es' ? 'Transporte entre Costa Rica y Panamá' : 'Transport between Costa Rica and Panama' }}</strong>
+                </h2>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
       <section id="soluciones" ref="commentsSection" class="experience-section section-spacing">
         <div class="container">
           <div class="experience-intro">
@@ -581,5 +622,190 @@ onUnmounted(() => {
   .promise-carousel {
     overflow-x: auto;
   }
+}
+</style>
+
+<style scoped>
+/* Regional home capabilities. Scoped to the two modules between globe and digital services. */
+.home-specialties {
+  position: relative;
+  padding: clamp(28px, 4vw, 56px) 0 clamp(42px, 5vw, 64px);
+}
+.home-specialties__inner {
+  width: min(1180px, calc(100% - 48px));
+  margin-inline: auto;
+}
+.home-specialties__eyebrow {
+  margin: 0 0 17px 4px;
+  color: #b5092b;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .17em;
+  line-height: 1.5;
+}
+.home-specialties__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(14px, 1.8vw, 24px);
+}
+.home-specialties__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: clamp(18px, 2vw, 26px);
+  min-width: 0;
+  min-height: 166px;
+  padding: clamp(22px, 2.5vw, 30px);
+  overflow: hidden;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, .68);
+  box-shadow: inset 0 0 0 1px rgba(175, 16, 47, .12), 0 14px 35px rgba(48, 10, 26, .055);
+}
+.home-specialties__item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 28px;
+  width: 72px;
+  height: 3px;
+  border-radius: 0 0 5px 5px;
+  background: linear-gradient(90deg, #b5092b, #f35b74);
+}
+.home-specialties__icon-wrap {
+  display: grid;
+  place-items: center;
+  flex: 0 0 74px;
+  width: 74px;
+  height: 74px;
+  border-radius: 18px;
+  background: rgba(181, 9, 43, .055);
+  color: #b5092b;
+}
+.home-specialties__icon {
+  display: block;
+  width: 49px;
+  height: 49px;
+}
+.home-specialties__copy { min-width: 0; }
+.home-specialties__overline {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 10px;
+  color: #8a4b59;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .12em;
+}
+.home-specialties__overline b {
+  font-size: 10px;
+  color: #b5092b;
+  font-weight: 900;
+}
+.home-specialties__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  line-height: 1.13;
+  letter-spacing: -.035em;
+  font-size: clamp(23px, 2.25vw, 31px);
+  font-weight: 850;
+}
+.home-specialties__heading span { color: #202127; }
+.home-specialties__heading strong { color: #b5092b; font-size: clamp(17px, 1.52vw, 21px); font-weight: 800; line-height: 1.35; letter-spacing: -.012em; }
+@media (max-width: 760px) {
+  .home-specialties { padding: 26px 0 38px; }
+  .home-specialties__inner { width: min(100%, calc(100% - 28px)); }
+  .home-specialties__grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .home-specialties__item { min-height: 130px; padding: 20px; gap: 16px; }
+  .home-specialties__icon-wrap { width: 60px; height: 60px; flex-basis: 60px; border-radius: 15px; }
+  .home-specialties__icon { width: 42px; height: 42px; }
+  .home-specialties__heading { font-size: clamp(21px, 5.2vw, 28px); }
+  .home-specialties__overline { margin-bottom: 8px; }
+}
+@media (max-width: 360px) {
+  .home-specialties__item { gap: 12px; padding: 16px; }
+  .home-specialties__icon-wrap { width: 52px; height: 52px; flex-basis: 52px; }
+  .home-specialties__icon { width: 37px; height: 37px; }
+  .home-specialties__heading { font-size: 20px; }
+}
+</style>
+
+<!-- Theme-specific colors are isolated from the site's global white-text override. -->
+<style>
+html.theme-dark .app-site.home-page .home-specialties .home-specialties__eyebrow,
+html.theme-dark .app-site.home-page .home-specialties .home-specialties__overline b {
+  color: #e21d3b !important;
+  -webkit-text-fill-color: #e21d3b !important;
+}
+html.theme-dark .app-site.home-page .home-specialties .home-specialties__overline {
+  color: #c4acb9 !important;
+  -webkit-text-fill-color: #c4acb9 !important;
+}
+html.theme-dark .app-site.home-page .home-specialties .home-specialties__heading span {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html.theme-dark .app-site.home-page .home-specialties .home-specialties__heading strong {
+  color: #e21d3b !important;
+  -webkit-text-fill-color: #e21d3b !important;
+}
+/* Match the dark-blue contact tiles and their restrained red edge glow. */
+html.theme-dark .app-site.home-page .home-specialties .home-specialties__item {
+  background: linear-gradient(180deg, #020a24 0%, #01081d 100%) !important;
+  border: 1px solid rgba(181, 9, 43, .45) !important;
+  box-shadow:
+    0 0 18px rgba(181, 9, 43, .18),
+    0 0 34px rgba(181, 9, 43, .10),
+    inset 0 0 0 1px rgba(181, 9, 43, .10) !important;
+}
+html.theme-dark .app-site.home-page .home-specialties .home-specialties__item::before {
+  display: none;
+}
+html.theme-dark .app-site.home-page .home-specialties .home-specialties__icon-wrap {
+  background: rgba(181, 9, 43, .22) !important;
+  border-radius: 50%;
+  color: #fff !important;
+}
+html.theme-dark .app-site.home-page .home-specialties .home-specialties__icon,
+html.theme-dark .app-site.home-page .home-specialties .home-specialties__icon path {
+  color: #fff !important;
+  stroke: #fff !important;
+}
+
+/* Match the white contact cards in light mode (navy remains dark-only). */
+html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__item {
+  background: #fff !important;
+  border: 1px solid rgba(237, 23, 55, .38) !important;
+  box-shadow:
+    0 0 24px rgba(237, 23, 55, .12),
+    0 0 5px rgba(237, 23, 55, .12) !important;
+}
+html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__item::before {
+  display: none;
+}
+html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__icon-wrap {
+  background: #fde9ed !important;
+  border-radius: 50%;
+  color: #b5092b !important;
+}
+html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__icon,
+html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__icon path {
+  color: #b5092b !important;
+  stroke: #b5092b !important;
+}
+html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__heading span {
+  color: #202127 !important;
+  -webkit-text-fill-color: #202127 !important;
+}
+html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__heading strong,
+html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__overline b {
+  color: #b5092b !important;
+  -webkit-text-fill-color: #b5092b !important;
+}
+html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__overline {
+  color: #8a4b59 !important;
+  -webkit-text-fill-color: #8a4b59 !important;
 }
 </style>

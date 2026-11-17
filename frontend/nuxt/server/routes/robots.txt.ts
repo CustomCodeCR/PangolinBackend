@@ -1,7 +1,7 @@
 // Un grupo User-agent específico no hereda las restricciones del grupo general.
 export default defineEventHandler(event => {
   const base = String(useRuntimeConfig(event).public.siteUrl).replace(/\/$/, '')
-  const privatePaths = ['/api/', '/administracion', '/admin/', '/cotizaciones', '/tracking', '/itinerario', '/bienvenidos']
+  const privatePaths = ['/cdn-cgi/', '/api/', '/administracion', '/admin/', '/cotizaciones', '/tracking', '/itinerario', '/bienvenidos']
   // Los recursos CMS publicados sí pueden ser leídos por Googlebot.
   // El backend sigue validando si cada archivo fue publicado antes de servirlo.
   const publicResources = [
