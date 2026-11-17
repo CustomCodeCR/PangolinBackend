@@ -586,12 +586,44 @@ app.MapGet("/api/assistant/itinerary-locations", async (
 // destination) instead of querying four shipment types separately on every
 // page load. Source remains the official quote catalogue; no duplicate data.
 app.MapGet("/api/itinerarios/locations", async (
-    string transport, string routeRole, AppDbContext db, HttpContext http, CancellationToken ct) =>
+    string transport, string routeRole, AppDbContext db, IConfiguration config,
+    DholeCatalogService dhole, HttpContext http, CancellationToken ct) =>
 {
     http.Response.Headers.CacheControl = "no-store";
     if (transport is not ("all" or "maritime" or "ground") ||
         routeRole is not ("origin" or "destination"))
         return Results.BadRequest(new { error = "Filtros de ubicaciones inválidos." });
+
+    // Separate opt-in for Itinerarios: its destination field is POD (not POE).
+    // Existing database-backed filters remain identical until this is enabled.
+    if (config.GetValue<bool>("DholeCatalogs:ItinerariesEnabled"))
+    {
+        if (!dhole.IsConfigured)
+            return Results.Json(new { code = "catalog_not_configured" },
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        try
+        {
+            var catalog = routeRole == "origin" ? "pol" : "pod";
+            var snapshot = await dhole.GetAsync(catalog, ct);
+            if (snapshot.Stale)
+                return Results.Json(new { code = "catalog_stale" },
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+
+            var names = DholeItineraryLocationProjector.Project(
+                transport, routeRole,
+                catalog == "pol" ? snapshot.Items : [],
+                catalog == "pod" ? snapshot.Items : []);
+            if (names.Length == 0)
+                return Results.Json(new { code = "catalog_empty" },
+                    statusCode: StatusCodes.Status502BadGateway);
+            return Results.Ok(new { source = "dhole", items = names.Select(name => new { displayName = name }) });
+        }
+        catch (DholeCatalogUnavailableException)
+        {
+            return Results.Json(new { code = "catalog_upstream_unavailable" },
+                statusCode: StatusCodes.Status502BadGateway);
+        }
+    }
 
     var types = transport switch
     {
