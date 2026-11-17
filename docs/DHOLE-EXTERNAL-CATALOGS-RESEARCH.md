@@ -264,6 +264,14 @@ Cada registro incluye además `description: Contenedor de XX pies`, `metadata: {
 - Todos los 18 están activos; mantener el criterio provisional `isActive !== false` sujeto a revisión final conjunta.
 
 
+## API 6: revisión con captura y video del usuario (17/11/2026)
+- El usuario compartió una **captura de Dhole** que muestra campos de ruta, no equipo: `ORIGEN (POL)`, `DESTINOS (POE) - SELECCIÓN MÚLTIPLE`, `POD REQUERIDO *` con icono de camión. **El ícono por sí solo no determina el significado de POD ni prueba multimodalidad**, y el hecho de tener POD tampoco garantiza que existan dos modos.
+- También compartió **video de 18 segundos de selector Contenedor 1** con campos `TAMAÑO`, `TIPO`, `CANTIDAD`, `PESO (KG)`. En el video, el menú de tipo cambia al elegir tamaños 20/40/45/48. Para 45 y 48 pies se ve `High Cube`; **se observa posible inconsistencia de estado**, pues después de cambiar el tamaño a 45/48 sigue apareciendo `Dry Van` como valor seleccionado a pesar de que `High Cube` es el que aparece en el menú. Revisar validación/reselección al cambiar el tamaño, sin rediseño visual.
+- **Decisión / contexto de negocio reafirmado por el usuario:** nunca se planteó una cotización "Multimodal" independiente porque el flujo de **cotización marítima contempla operaciones marítimas con un posible tramo terrestre**, y el usuario quiere que los equipos con modalidad `Multimodal` sigan siendo utilizables en el flujo marítimo cuando corresponda. No excluir `48HC` meramente porque `metadata.modalities=["Multimodal"]` y no incluya `Maritime`. **Aún debe determinarse la regla exacta de elegibilidad por características reales del trayecto**, no equiparar ciegamente `Multimodal` a `Maritime` para todas las solicitudes.
+- **Intención confirmada:** conservar el diseño y los selectores actuales, reutilizar la restricción de combinaciones de tamaño/tipo ya presente, y sustituir sus fuentes por datos vivos de Dhole. No añadir un selector de modalidad multimodal.
+- **Decisión APLAZADA explícitamente:** si `LOOSE`, `PALLET`, `ULD` deben integrarse en cotización aérea; el usuario consultará luego. **No crear campo nuevo ni introducir equipos aéreos por ahora.**
+- Seguir investigando API 7 sin bloqueo. Si se implementa el filtro conjunto tamaño-tipo, adaptar tanto interfaz como validación backend para que no se acepten combinaciones obsoletas, y no alterar históricos.
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
