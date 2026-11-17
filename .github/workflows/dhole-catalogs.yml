@@ -35,6 +35,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check PowerShell smoke script syntax before asking for private keys
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            "scripts/test-dhole-catalog-docker.ps1",
+            [ref]$tokens,
+            [ref]$parseErrors
+          ) | Out-Null
+          if ($parseErrors.Count -gt 0) {
+            $parseErrors | ForEach-Object { Write-Error $_ }
+            exit 1
+          }
+          Write-Host "PowerShell smoke test script syntax OK"
       - name: Generate fake CI-only secrets, never use production key
         run: |
           cat > .env.dhole-catalog-smoke <<'EOF'
