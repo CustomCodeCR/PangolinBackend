@@ -69,6 +69,17 @@ Acción potencialmente mutadora: `solicitar-tarifa-wjicua4` (POST). **No ejecuta
 - **Bloqueo de integración:** no se puede filtrar POD únicamente por `transportMode` y descartar silenciosamente los nueve registros sin modalidad. No inferir `Maritime` desde nombre, ni del endpoint, ni del puerto.
 - Próxima inspección de solo lectura: seleccionar los nueve registros sin modalidad, mostrar sus campos `id/code/name/metadata/transportMode/routeRole/terminalType`, comparar con casos `Land`. Pregunta para Dhole: ¿ausencia de metadata y clasificación terrestre es intencional? ¿Qué significa `SD`? ¿Cómo se aplica el rol POD para marítimo/terrestre? ¿Hay otra fuente de verdad para filtrar?
 
+## POD: inspección de los nueve registros sin modalidad superior (PowerShell, 17/11/2026)
+Se inspeccionaron `id`, `name`, `code`, `transportMode`, `routeRole`, `terminalType` y `metadata` de los nueve registros que tenían `transportMode` superior vacío.
+
+- **Ocho** objetos tienen `transportMode: null`, `routeRole: null`, `terminalType: null` y `metadata: null`: Caldera (POD-2026-010), Cartago (011), San Jose (012), Alajuela (013), Heredia (014), Coyol (015), Port Willemstad (016), Tocumen (017).
+- **Georgetown, Guyana** (`id: 4cc5036e-6d4c-4e6a-af7f-9e5d4b12a59e`, `code: POD-2026-022`) tiene los tres campos superiores nulos, pero `metadata` incluye `RouteRole: "pod"`, `CountryCode: "GY"`, `TerminalType: "SD"`, `TransportMode: "Maritime"` y `PricingWorkflow: false`.
+- La convención de claves en `metadata` difiere: en el primer registro están en camelCase (`transportMode`, `routeRole`); en Georgetown PascalCase (`TransportMode`, `RouteRole`), y el valor de rol también difiere en mayúsculas. Normalizar explícitamente sin presumir que `metadataJson` tiene siempre el mismo formato.
+- **Resumen tras esta inspección:** 12 registros son `Maritime` en campo superior, 3 son `Land` en campo superior, 1 (`Georgetown`) es `Maritime` en metadata y 8 carecen de clasificación consultada. Hay 24 registros activos según la consulta anterior.
+- No usar `PricingWorkflow: false` para eliminar Georgetown de los selectores hasta verificar qué significa con Dhole.
+- No inventar modalidad de los ocho registros sin metadata; solicitar definición del catálogo y política de clasificación.
+- En cualquier implementación, distinguir entre filtros informativos para UI y validación de IDs externos; mantener intactos los registros históricos.
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
