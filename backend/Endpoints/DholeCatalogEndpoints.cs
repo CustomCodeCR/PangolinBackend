@@ -78,6 +78,45 @@ public static class DholeCatalogEndpoints
             }
         }).RequireAuthorization("admin").RequireRateLimiting("public-read");
 
+        // Admin-only isolated equipment preview; does NOT alter any quote form.
+        app.MapGet("/api/dhole/quote-equipment-preview", async (
+            DholeCatalogService service, HttpContext http, CancellationToken ct) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+            if (!service.IsConfigured)
+                return Results.Json(new { code = "catalog_not_configured" },
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+
+            try
+            {
+                var sizesTask = service.GetAsync("container-sizes", ct);
+                var typesTask = service.GetAsync("container-types", ct);
+                var trucksTask = service.GetAsync("truck-sizes", ct);
+                await Task.WhenAll(sizesTask, typesTask, trucksTask);
+
+                var sizes = await sizesTask;
+                var types = await typesTask;
+                var trucks = await trucksTask;
+                var projection = DholeEquipmentProjector.Project(
+                    sizes.Items, types.Items, trucks.Items);
+                return Results.Ok(new
+                {
+                    source = "dhole",
+                    stale = sizes.Stale || types.Stale || trucks.Stale,
+                    fclCombinations = projection.FclCombinations,
+                    ftlSizes = projection.FtlSizes,
+                    rejectedTypeCodes = projection.RejectedTypeCodes,
+                    airEquipmentDecisionPending = true,
+                    submissionEnabled = false
+                });
+            }
+            catch (DholeCatalogUnavailableException)
+            {
+                return Results.Json(new { code = "catalog_upstream_unavailable" },
+                    statusCode: StatusCodes.Status502BadGateway);
+            }
+        }).RequireAuthorization("admin").RequireRateLimiting("public-read");
+
         return app;
     }
 }
