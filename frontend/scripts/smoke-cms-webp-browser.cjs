@@ -158,20 +158,22 @@ async function main() {
           'Disabled build must load the original only')
         assert.ok(requestedMedia.includes('original') && requestedMedia.every(x => x === 'original'))
       } else {
-        assert.ok(result.srcset && [360, 720, 1080, 1600].every(
-          width => result.srcset.includes('?width=' + width + ' ' + width + 'w')),
-          'Enabled build must render all four responsive variants')
-        assert.equal(result.sizes, '100vw')
         assert.ok(requestedMedia.some(x => x !== 'original'),
-          'Enabled Chrome must actually request a responsive image')
+          'Enabled Chrome must initially request a responsive image')
         if (scenario.broken) {
           assert.ok(!new URL(result.currentSrc).search,
             'Broken variant must fall back to the original currentSrc')
-          assert.ok(!result.srcset,
-            'An error must remove srcset to prevent an image reload loop')
+          assert.ok(!result.srcset && !result.sizes,
+            'The fallback must remove srcset and sizes after an image error')
           assert.ok(requestedMedia.includes('original'),
             'Chrome must request the unchanged original after error')
+          assert.ok(requestedMedia.filter(x => x !== 'original').length <= 4,
+            'Broken derivatives must not trigger an infinite reload loop')
         } else {
+          assert.ok(result.srcset && [360, 720, 1080, 1600].every(
+            width => result.srcset.includes('?width=' + width + ' ' + width + 'w')),
+            'Enabled build must render all four responsive variants')
+          assert.equal(result.sizes, '100vw')
           assert.match(new URL(result.currentSrc).search, /^\?width=(360|720|1080|1600)$/,
             'Chrome should select a supported WebP derivative')
         }
