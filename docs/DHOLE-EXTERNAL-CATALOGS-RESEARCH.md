@@ -33,6 +33,13 @@ Acción potencialmente mutadora: `solicitar-tarifa-wjicua4` (POST). **No ejecuta
 - Hipótesis de integración: presentar `name` y `value`, respetar `isActive`/`sortOrder`, y conservar `id` externo solo para un eventual contrato Dhole, sin confundirlo con los UUID de ubicaciones locales. Validar compatibilidad backend antes de sustituir reglas.
 - Esta única respuesta no demuestra cadencia de cambios, filtros, paginación, disponibilidad ni uso específico de `rateSections` en `solicitar-tarifa`.
 
+## Resultado real parcial: POD (GET, PowerShell del usuario, 17/11/2026)
+- Endpoint: `/api/external/v1/pod-puerto-de-destino-wi14v6w`. `GET` con `X-Api-Key` tuvo respuesta exitosa.
+- El valor deserializado de `$r` aparece como arreglo de **24 elementos** (`$r.Count = 24`). Las propiedades mostradas por `$r.PSObject.Properties.Name` corresponden al objeto arreglo .NET: `Count`, `Length`, `LongLength`, `Rank`, `SyncRoot`, `IsReadOnly`, `IsFixedSize`, `IsSynchronized`. **No deben confundirse con campos JSON de registros POD.**
+- La expresión `$r.value | Select-Object -First 3` produjo los textos: `Colon Free Zone, Panamá`, `Long Beach, Estados Unidos`, `Managua, Nicaragua`.
+- Falta consultar `$r[0]`, sus propiedades y tipos: no se sabe si hay `id`, `name`, `value`, modalidad, códigos, activo, paginación ni otros metadatos. Tampoco se debe inferir modalidad por el nombre del destino.
+- Próxima prueba de solo lectura, sin imprimir credenciales: `$r[0] | ConvertTo-Json -Depth 10` y `$r[0].PSObject.Properties.Name`. Adicionalmente `$r.GetType().FullName`.
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
