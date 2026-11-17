@@ -111,3 +111,71 @@ MustFail("""
 """, "Reject contradictory direct and nested metadata");
 
 Console.WriteLine("OK: Dhole catalogue normalization, metadata casing, inactive filtering, compatibility, IDs and conflicts.");
+
+// Phase 2: projection is read-only, and Dhole external IDs are deliberately
+// kept distinct from the existing OfficialQuoteLocation.Id in PostgreSQL.
+var poeItems = DholeCatalogNormalizer.Parse("""
+[
+ { "id": "25882b97-8df9-407f-8300-8994184dfad1", "name": "Acajutla", "value": "Acajutla", "transportMode": "Maritime", "terminalType": "CY", "routeRole": "POE" },
+ { "id": "ba756355-c729-4414-9ddc-c9b7bf1e34b8", "name": "Abidjan", "value": "Abidjan", "transportMode": "Air", "terminalType": "APT", "routeRole": "POE" },
+ { "id": "c2610000-0000-4000-8000-000000000003", "name": "Guatemala", "value": "Guatemala", "transportMode": "Land", "terminalType": "SD", "routeRole": "POE" },
+ { "id": "13d76d33-1d5d-4bba-a95f-0845aa7cab70", "name": "Puerto Cortes", "value": "Puerto Cortes", "transportMode": "Maritime", "terminalType": "CY" },
+ { "id": "27eb3622-4725-4705-a76f-8f4a8fa934ad", "name": "Contradictory", "value": "Contradictory", "transportMode": "Maritime", "terminalType": "CY", "routeRole": "POL" },
+ { "id": "d43f9a0e-3fed-449d-bea0-067c9a2c30c4", "name": "Missing classification", "value": "Missing classification" },
+ { "id": "150b6051-b099-4211-a2c8-b7ad85b51898", "name": "Unsupported maritime airport", "value": "Unsupported maritime airport", "transportMode": "Maritime", "terminalType": "APT" }
+]
+""");
+var maritimeDest = DholeQuoteLocationProjector.Project("destination", "Maritime", poeItems);
+Check(maritimeDest.Options.Length == 2 &&
+      maritimeDest.Options.Any(x => x.Name == "Puerto Cortes") &&
+      maritimeDest.Options.All(x => x.Catalog == "poe" && x.Role == "destination"),
+    "POE maritime includes correctly typed entries even when routeRole is absent");
+Check(maritimeDest.Issues.Select(x => x.Reason).OrderBy(x => x).SequenceEqual(
+    new[] { "conflicting_route_role", "missing_mode_or_terminal", "unreviewed_mode_terminal_combination" }),
+    "POE leaves unknown and contradictory records for review without guessing");
+Check(DholeQuoteLocationProjector.Project("destination", "Air", poeItems).Options.Single().Name == "Abidjan",
+    "POE aerial accepts only Air/APT");
+Check(DholeQuoteLocationProjector.Project("destination", "Land", poeItems).Options.Single().Name == "Guatemala",
+    "POE ground accepts only Land/SD");
+
+var polItems = DholeCatalogNormalizer.Parse("""
+[
+ { "id": "19a5ce22-340d-579f-ad27-f6517a2dde27", "name": "Acajutla", "value": "Acajutla", "transportMode": "Maritime", "terminalType": "CY", "routeRole": "POL" },
+ { "id": "8ebb78e5-6a9c-47c0-9a31-ddbb057540c6", "name": "Moin", "value": "Moin", "transportMode": "Maritime", "terminalType": "SD", "routeRole": "POL" },
+ { "id": "d3a43858-7ade-419c-a108-af5203bf0f2e", "name": "San José", "value": "San José", "routeRole": "pol", "metadata": { "TransportMode": "Maritime", "TerminalType": "CY", "CountryCode": "SV" } },
+ { "id": "24a938cf-7fe9-4e34-a774-d26475760270", "name": "San José", "value": "San José", "transportMode": "Maritime", "terminalType": "CY", "routeRole": "POL" }
+]
+""");
+var origins = DholeQuoteLocationProjector.Project("origin", "Maritime", polItems);
+Check(origins.Options.Length == 4 && origins.Options.Select(x => x.ExternalId).Distinct().Count() == 4,
+    "Identical display names do not merge external UUID identities");
+Check(origins.Options.Any(x => x.Name == "Moin" && x.TerminalType == "SD"),
+    "Previously verified Maritime/SD POL remains eligible");
+Check(origins.Options.Any(x => x.ExternalId == "d3a43858-7ade-419c-a108-af5203bf0f2e"),
+    "PascalCase metadata and lower-case POL role can be projected");
+Check(origins.Options.Any(x => x.ExternalId == "19a5ce22-340d-579f-ad27-f6517a2dde27") &&
+      maritimeDest.Options.Any(x => x.ExternalId == "25882b97-8df9-407f-8300-8994184dfad1"),
+    "Same city can have different Dhole POL vs POE IDs, never map by name");
+
+var podItems = DholeCatalogNormalizer.Parse("""
+[
+ { "id": "d43f9a0e-3fed-449d-bea0-067c9a2c30c4", "name": "Legacy POD", "value": "Legacy POD" },
+ { "id": "c2610000-0000-4000-8000-000000000003", "name": "Land POD", "value": "Land POD", "transportMode": "Land", "terminalType": "SD", "routeRole": "POD" },
+ { "id": "24a938cf-7fe9-4e34-a774-d26475760270", "name": "Invalid role", "value": "Invalid role", "routeRole": "POL" }
+]
+""");
+var pods = DholeQuoteLocationProjector.Project("pod", "Maritime", podItems);
+Check(pods.Options.Length == 2 && pods.Options.Any(x => x.Name == "Legacy POD") &&
+      pods.Options.Any(x => x.Name == "Land POD") &&
+      pods.Issues.Single().Reason == "conflicting_route_role",
+    "POD does not filter modality; explicit conflicting role still needs review");
+
+try
+{
+    DholeQuoteLocationProjector.Project("pod", "Air", podItems);
+    throw new Exception("FAILED: Non-maritime POD must be invalid");
+}
+catch (ArgumentException) { /* expected */ }
+
+Console.WriteLine("OK: Dhole role projection, 3 modes, real POL exceptions, POD rule and identity isolation.");
+
