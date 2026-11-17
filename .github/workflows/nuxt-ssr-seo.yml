@@ -148,27 +148,14 @@ jobs:
             --add-host frontend-nuxt:127.0.0.1 \
             -v "$PWD/deploy/nuxt-hybrid-gateway.conf:/etc/nginx/conf.d/default.conf:ro" \
             nginx:1.27-alpine nginx -t
-      - name: Verify apex host preserves path and query in canonical redirect
+      - name: Guard Fennec apex from Pangolin host redirects
         shell: bash
         run: |
           set -euo pipefail
-          docker run -d --rm --name cf-seo-apex-redirect \
-            --add-host frontend:127.0.0.1 \
-            --add-host frontend-nuxt:127.0.0.1 \
-            -p 127.0.0.1:18091:80 \
-            -v "$PWD/deploy/nuxt-hybrid-gateway.conf:/etc/nginx/conf.d/default.conf:ro" \
-            nginx:1.27-alpine >/dev/null
-          trap 'docker rm -f cf-seo-apex-redirect >/dev/null 2>&1 || true' EXIT
-          for _ in $(seq 1 20); do
-            if curl -sS -o /dev/null -H 'Host: logisticacastrofallas.com' http://127.0.0.1:18091/ 2>/dev/null; then break; fi
-            sleep 1
-          done
-          for route in '/' '/servicios?canary=1' '/cotizaciones?servicio=Maritime'; do
-            response="$(curl -sS -D - -o /dev/null -H 'Host: logisticacastrofallas.com' "http://127.0.0.1:18091$route" | tr -d '\r')"
-            grep -q '^HTTP/1.1 301' <<< "$response"
-            location="$(awk 'tolower($1)=="location:" {print $2}' <<< "$response")"
-            test "$location" = "https://www.logisticacastrofallas.com$route"
-          done
+          # The apex host belongs to Fennec; this gateway must not redirect it to WWW.
+          ! grep -Eq 'if \(\$host = logisticacastrofallas\.com\)|return 301 https://www\.logisticacastrofallas\.com\$request_uri' deploy/nuxt-hybrid-gateway.conf
+          # The existing /home canonical redirect for Pangolin WWW is retained.
+          grep -Fq 'location = /home' deploy/nuxt-hybrid-gateway.conf
       - name: Check local hybrid preview Nginx syntax
         run: |
           docker run --rm \
