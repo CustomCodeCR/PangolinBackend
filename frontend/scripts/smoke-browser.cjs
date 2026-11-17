@@ -390,6 +390,13 @@ async function main() {
         assert.ok(html.includes(marker), 'No se encontró "' + marker + '" en ' + scenario.url + ' (' + (activeRole || 'invitado') + '); DOM: ' + html.slice(-800))
       }
       if (scenario.url === '/nosotros') {
+        // The hero default must be the existing lighter WebP asset. Inspect
+        // Chrome-rendered DOM, not just the Vue component source code.
+        const heroMarkup = html.match(/<section[^>]*class="inner-hero inner-hero--about[^"]*"[^>]*>/)?.[0]
+        assert.ok(heroMarkup && heroMarkup.includes('/images/about-operations-enhanced.webp'),
+          'Nosotros debe renderizar el WebP de fallback en el hero')
+        assert.ok(!heroMarkup.includes('/images/about-operations-enhanced.jpg'),
+          'El hero CSS no debe seguir apuntando al JPG pesado cuando no existe override CMS')
         assert.equal((html.match(/class="about-refresh__value-trigger"/g) || []).length, 5, 'Debe haber cinco valores accesibles y desplegables')
         assert.ok(!html.includes('about-refresh__value-summary'), 'Los valores cerrados deben mostrar únicamente su título, sin resumen')
         assert.ok(!html.includes('class="about-refresh__value-panel is-open"'), 'Las tarjetas deben iniciar cerradas sin panel abierto')
@@ -446,6 +453,21 @@ async function main() {
       assert.ok(sessionCalls > before, 'No se comprobó la sesión para ' + scenario.url)
       console.log('PASS navegador: ' + scenario.url + ' [' + (activeRole || 'invitado') + ']')
     }
+    // The designer's published CMS image must keep priority over the WebP
+    // fallback; an arbitrary valid published image remains unchanged.
+    publishedSiteSlots = [
+      { key: 'about.hero.media', mediaSrc: '/images/services-warehouse.webp', mediaKind: 'Imagen' }
+    ]
+    const customAbout = await dumpDom(chrome,
+      'http://' + host + ':' + previewPort + '/nosotros', 'Nosotros con imagen CMS')
+    const customHero = customAbout.match(/<section[^>]*class="inner-hero inner-hero--about[^"]*"[^>]*>/)?.[0]
+    assert.ok(customHero && customHero.includes('/images/services-warehouse.webp'),
+      'Nosotros debe priorizar la imagen publicada desde el CMS')
+    assert.ok(!customHero.includes('/images/about-operations-enhanced.webp'),
+      'El WebP fallback no debe sobrescribir la imagen escogida por la diseñadora')
+    console.log('PASS Chrome: el hero WebP no cambia la imagen publicada desde CMS')
+    publishedSiteSlots = []
+
     // Publicaciones del CMS deben reemplazar textos de tarjetas adicionales
     // sin romper las cuatro tarjetas ni afectar al resto del contenido.
     publishedSiteSlots = [
