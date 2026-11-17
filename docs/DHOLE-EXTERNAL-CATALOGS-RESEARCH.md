@@ -165,6 +165,14 @@ Esta decisión aplica a **POE**, no a POL (aún sin investigar) ni a la regla di
 - Para `routeRole` nulo o ausente, se mantiene que no invalida un registro POE entregado por ese endpoint. `pricingWorkflow` no interviene.
 - Próximo paso: refrescar POE para verificar correcciones y consultar POL, sin realizar cambios funcionales.
 
+## POE: corrección de tres registros confirmada en nueva consulta GET (17/11/2026)
+El usuario volvió a consultar el endpoint POE usando PowerShell y verificó por UUID los tres registros que antes carecían de clasificación:
+- `d43f9a0e-3fed-449d-bea0-067c9a2c30c4` Port Willemstad, Curacao: `transportMode=Maritime`, `terminalType=CY`, `routeRole=POE`, `isActive=true`.
+- `9141e228-7ecc-42cb-a00b-bb609077db28` Rio Haina, Republica Dominicana: `Maritime` / `CY` / `POE` / `true`.
+- `150b6051-b099-4211-a2c8-b7ad85b51898` Hong Kong, China: `Maritime` / `CY` / `POE` / `true`.
+
+**Las excepciones temporales ya no son necesarias para esos tres registros.** Si todos los demás registros siguen inalterados desde la consulta anterior, el conteo POE marítimo pasa a **80** (77+3), aéreo 851, terrestre 16; para presentar estos números como distribución completa actual, confirmar mediante un agrupamiento sobre toda la nueva respuesta. Se aplicará clasificación dinámica por metadatos, sin listas de UUID excepcionales salvo que aparezca otro caso avalado por negocio.
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
