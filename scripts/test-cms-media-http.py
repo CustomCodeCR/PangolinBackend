@@ -344,6 +344,10 @@ def test_webp_variants(admin):
                 "body": "Local test", "image": url, "published": True}
         created = json_call(admin, "/api/admin/content/news", 201, news, method="POST")
         news_id = created["id"]
+        # A published news image must never be removed from MinIO while in use.
+        check_status(admin, f"/api/admin/content/media/{media_id}", 409, method="DELETE")
+        require(any(media_id.replace('-', '') in key for key in FakeS3.objects),
+                "Denied media delete must preserve the original and WebP derivatives")
         original_h, original_bytes = check_status(visitor, url, 200)
         require(original_bytes == PHOTO and original_h.get("Content-Type", "").startswith("image/jpeg"),
                 "Original JPEG bytes/MIME must remain intact")
@@ -366,6 +370,8 @@ def test_webp_variants(admin):
         check_status(admin, f"/api/admin/content/media/{media_id}/file", 200)
         json_call(admin, "/api/admin/content/news/" + news_id, 200,
                   dict(news, published=False), method="PUT")
+        # Even an unpublished draft still references the media: preserve it.
+        check_status(admin, f"/api/admin/content/media/{media_id}", 409, method="DELETE")
         heads_before_revocation = FakeS3.heads
         h_revoked, _ = check_status(visitor, variant, 404, headers={"If-None-Match": tag})
         require(FakeS3.heads == heads_before_revocation,
