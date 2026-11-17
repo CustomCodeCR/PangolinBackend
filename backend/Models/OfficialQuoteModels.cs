@@ -71,5 +71,6 @@ public sealed record OfficialQuoteSubmit(
     decimal? CargoValue, decimal? DeclaredWeight, int? DeclaredPackages,
     string? Observations, List<string>? CargoFlags,
     string? DestinationHandling,
-    string? DeliveryAddress = null, string? PickupAddress = null, int? FiscalStorageDays = null);
+    string? DeliveryAddress = null, string? PickupAddress = null, int? FiscalStorageDays = null,
+    string? CatalogSource = null);
 public sealed record OfficialReviewUpdate(string? Status, string? Comment);
