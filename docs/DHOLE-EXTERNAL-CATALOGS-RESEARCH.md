@@ -173,6 +173,19 @@ El usuario volvió a consultar el endpoint POE usando PowerShell y verificó por
 
 **Las excepciones temporales ya no son necesarias para esos tres registros.** Si todos los demás registros siguen inalterados desde la consulta anterior, el conteo POE marítimo pasa a **80** (77+3), aéreo 851, terrestre 16; para presentar estos números como distribución completa actual, confirmar mediante un agrupamiento sobre toda la nueva respuesta. Se aplicará clasificación dinámica por metadatos, sin listas de UUID excepcionales salvo que aparezca otro caso avalado por negocio.
 
+## POL: primera respuesta real (GET autenticado por PowerShell del usuario, 17/11/2026)
+- Endpoint: `/api/external/v1/pol-puerto-de-origen-wi11hg7`; `$itemsPol.Count = 1062`. Los 1062 registros tienen `isActive: true` según `Group-Object isActive`.
+- Conteos cruzados **fila por fila** de `transportMode, terminalType`: `Air, APT = 854`, `Maritime, CY = 189`, `Land, SD = 15`, ambos sin valor visible = 3, y **`Maritime, SD = 1`**. Suman 1062. No asumir que Maritime+SD es inválido sin validar con el negocio.
+- Conteo `routeRole`: `POL = 1056`, rol ausente/vacío = 5, **`POD = 1`**, total 1062. No imponer `routeRole=POL` como criterio obligatorio hasta entender el registro contradictorio.
+- Ejemplo aéreo: Oregon, Estados Unidos, `iataCode = PDX`, `airportName = Portland International Airport`, `Air/APT/POL`.
+- Ejemplo marítimo: Acajutla, El Salvador, `Maritime/CY/POL`.
+- Ejemplo terrestre: Ciudad de Guatemala, Guatemala, `Land/SD/POL`.
+- Ejemplo sin modalidad visible: Atlanta, Estados Unidos, código `POL-2026-109`, sin metadatos mostrados en ese ejemplo.
+- El catálogo POL no coincide en cantidades con POE; por diseño funcional, son roles distintos y no se debe asumir que comparten todos los destinos.
+- **Pendiente inmediato:** identificar por `id`, `code`, `name` y `metadata` el registro `Maritime/SD`, el registro `routeRole=POD`, los 5 sin rol y los 3 sin modalidad. Verificar si son el mismo registro o casos separados. Consultar al negocio solo en las anomalías que persistan; no inventar clasificación ni excluir opciones válidas unilateralmente.
+- Reglas POL de filtrado y fallback **aún no confirmadas**; estudiar primero las excepciones antes de homologarlas con POE. Política provisional `isActive !== false` se confirmó para POD y POE; debe acordarse para POL si se quiere generalizar.
+
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
