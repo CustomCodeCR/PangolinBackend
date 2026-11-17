@@ -108,9 +108,9 @@ public static class DholeQuoteSelectionValidator
             input.Mode != catalog.Mode || input.ShipmentType != catalog.ShipmentType)
             throw new ArgumentException("La fuente o modalidad de cotización no coincide.");
 
-        if (!string.IsNullOrWhiteSpace(input.Incoterm) &&
+        if (string.IsNullOrWhiteSpace(input.Incoterm) ||
             !catalog.Incoterms.Contains(input.Incoterm, StringComparer.Ordinal))
-            throw new ArgumentException("El Incoterm ya no está habilitado en Dhole.");
+            throw new ArgumentException("Seleccioná un Incoterm vigente de Dhole.");
 
         var origin = catalog.Origins.SingleOrDefault(x => x.Id == input.OriginLocationId);
         var destination = catalog.Destinations.SingleOrDefault(x => x.Id == input.DestinationLocationId);
