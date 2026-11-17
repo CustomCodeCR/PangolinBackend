@@ -3,9 +3,9 @@
     "es": {
       "label": "Almacenamiento fiscal",
       "title": "Almacenamiento fiscal de mercancías en Costa Rica",
-      "intro": "Grupo Castro Fallas ofrece coordinación logística y documental para operaciones de almacenamiento fiscal vinculadas a importaciones en Costa Rica. Cada operación está sujeta al régimen aduanero aplicable y a la disponibilidad de instalaciones autorizadas.",
+      "intro": "Para mercancías importadas o en tránsito aduanero, Grupo Castro Fallas evalúa opciones de almacenamiento fiscal en Costa Rica. El almacén o depósito fiscal autorizado, la custodia y sus condiciones se confirman antes de contratar.",
       "heading": "¿Cómo funciona el almacenamiento fiscal?",
-      "body": "La mercancía puede permanecer bajo control aduanero de acuerdo con las reglas de su régimen. Conviene coordinar previamente documentos, llegada de la carga y condiciones de almacenamiento. También se revisan el régimen aplicable, la documentación disponible y las autorizaciones necesarias antes de coordinar la operación.",
+      "body": "El almacenamiento temporal bajo control aduanero depende del régimen aplicable. Antes de coordinar la recepción de mercancías, se revisan documentos, plazos y autorizaciones para su salida o desalmacenaje.",
       "points": [
         "Coordinación de la llegada y documentación de la carga.",
         "Evaluación de instalaciones, condiciones y plazos según la operación.",
@@ -183,9 +183,9 @@
     "es": {
       "label": "Agenciamiento aduanal",
       "title": "Agenciamiento aduanal para importaciones y exportaciones en Costa Rica",
-      "intro": "Grupo Castro Fallas brinda acompañamiento y coordinación documental para trámites aduaneros de importación y exportación en Costa Rica. Los requisitos dependen del tipo de mercancía, la clasificación y el régimen aplicable.",
+      "intro": "Grupo Castro Fallas coordina servicios de agencia aduanal y despacho aduanero para importaciones y exportaciones en Costa Rica. La clasificación arancelaria, los permisos y los requisitos dependen de la mercancía y el régimen aplicable.",
       "heading": "¿Qué abarca la coordinación aduanera?",
-      "body": "La gestión requiere información consistente entre los documentos comerciales, los transportistas y las autoridades competentes. Una descripción precisa de los productos y los documentos disponibles ayuda a revisar los requisitos antes de iniciar el trámite.",
+      "body": "La gestión aduanera requiere documentos comerciales y de transporte consistentes. Según la operación se revisan consultas sobre clasificación arancelaria, notas técnicas, DAI e IVA de importación con el equipo correspondiente.",
       "points": [
         "Revisión inicial de factura comercial y documento de transporte.",
         "Coordinación de información y soportes necesarios para el trámite.",
@@ -273,9 +273,9 @@
     "es": {
       "label": "Consolidadora de carga",
       "title": "Consolidadora de carga y transporte consolidado LCL y LTL",
-      "intro": "Grupo Castro Fallas evalúa alternativas de consolidación para mercancías que no requieren un contenedor o camión completo. LCL corresponde al transporte marítimo compartido y LTL al transporte terrestre parcial, según ruta y disponibilidad.",
+      "intro": "Grupo Castro Fallas evalúa transporte de carga consolidada para importaciones y exportaciones cuando el embarque no requiere un contenedor o camión completo. Se revisan alternativas LCL marítimas y LTL terrestres según ruta y disponibilidad.",
       "heading": "¿Qué es la consolidación de carga?",
-      "body": "Consiste en organizar embarques en una operación de transporte compartida. Para decidir, se comparan ruta, tiempos, dimensiones y costo total. La compatibilidad de la carga, la frecuencia de salida y el espacio disponible se confirman al evaluar cada embarque.",
+      "body": "La consolidación de mercancías permite planificar carga parcial o suelta en un transporte compartido. Se evalúan rutas, tiempos, dimensiones y los requisitos de consolidación o desconsolidación de cada envío.",
       "points": [
         "LCL marítimo para cargas que no necesitan un contenedor completo.",
         "LTL terrestre para cargas parciales en rutas disponibles.",
