@@ -45,3 +45,7 @@ jobs:
         run: node frontend/scripts/smoke-browser.cjs
       - name: Exercise real GIO actions with a fake backend in Chrome
         run: node frontend/scripts/smoke-gio-workflows.cjs
+      - name: Exercise GIO with fake Dhole UUIDs and dynamic equipment options
+        env:
+          GIO_DHOLE_MOCK: "1"
+        run: node frontend/scripts/smoke-gio-workflows.cjs
