@@ -245,6 +245,25 @@ Cada registro incluye además `description: Contenedor de XX pies`, `metadata: {
 - Implementación deseada: catálogo obtenido dinámicamente desde backend seguro con cache, preservar diseño/labels, mantener UUID Dhole diferenciado del identificador de equipo o ubicación local. Seguir regla provisional `isActive !== false` si se decide aplicarla globalmente.
 - No modifica ni justifica ajustes en las listas FTL (furgón), que pertenecen a otra API.
 
+## Tipos de contenedor: resultado real API 6/7 (GET autenticado, 17/11/2026)
+- Endpoint: `/api/external/v1/tipo-de-contenedor-wja62r8`.
+- El usuario adjuntó la respuesta completa de PowerShell: **18** registros, **todos `isActive:true`**. Cada uno tiene `id` UUID externo, `code`, `slug`, `name`, `description`, `value` (igual que `code`), `sortOrder`, `metadata` y `metadataJson`.
+- **15 equipos de contenedor FCL** (size+kind en `metadata`, todos con `shipmentModes:["FCL"]`):
+  - `dry-van`: `20DV`, `40DV`.
+  - `high-cube`: `40HC`, `45HC`, `48HC`.
+  - `open-top`: `20OT`, `40OT`.
+  - `open-side`: `20OS`, `40OS`.
+  - `tank`: `20TK`, `40TK`.
+  - `flat-rack`: `20FR`, `40FR`.
+  - `nor`: `20NOR`, `40NOR`.
+  - **14 de 15** listan `metadata.modalities=["Maritime","Multimodal"]`; `48HC` lista solamente `["Multimodal"]`, pese a tener `shipmentModes:["FCL"]`.
+- **3 equipos lógicos para carga aérea LCL**: `LOOSE` / Carga suelta, `PALLET` / Pallet aéreo, `ULD` / ULD. Cada uno con `metadata.modalities=["Air"]` y `metadata.shipmentModes=["LCL"]`. No contienen necesariamente `metadata.size` o `metadata.kind`. La interfaz local usa denominación `AIR_LCL`; mapear `LCL + Air` explícitamente sin confundir con LCL marítimo.
+- Metadatos opcionales de equipos: `kind`, `size`, `aliases` y `kindCode` presentes solo en algunos; no obligarlos globalmente. No todos los tamaños y tipos combinan: `45HC` existe, **no se recibió `45DV`**.
+- Comparación con la web: la validación FCL actual enumera tipos generales `Dry Van, High Cube, Open Top, Open Side, Tank, Flat Rack, NOR` y tamaños `20 pies, 40 pies, 45 pies, 48 pies` como campos independientes. **No reemplazar un tipo general por `code` combinado** (p. ej. `40HC`) en el payload local sin adaptador, y no modificar el comportamiento del selector antes de aprobar regla de compatibilidad con negocio. La integración ideal obtiene y valida combinaciones Dhole de forma dinámica preservando textos, diseño e históricos.
+- **Detalle a confirmar:** la `description` de `20DV/40DV/40HC/45HC` dice "marítimo, terrestre y multimodal" mientras `metadata.modalities` **no contiene Land**. Por ahora preferir modalidad estructurada como dato de clasificación y elevar discrepancia; no asumir automáticamente que "terrestre" significa `Land` permitido. `48HC` es solo `Multimodal` en metadata; confirmar uso en marítimo antes de permitirlo/prohibirlo.
+- Todos los 18 están activos; mantener el criterio provisional `isActive !== false` sujeto a revisión final conjunta.
+
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
@@ -255,7 +274,7 @@ Cada registro incluye además `description: Contenedor de XX pies`, `metadata: {
 7. Solicitar especificación de `solicitar-tarifa` antes de cualquier prueba POST; ejemplo recibido no demuestra cuáles campos son obligatorios.
 
 ## Acceso a la API externa
-La prueba DNS desde el entorno del asistente falló: `Could not resolve host: api.logisticacastrofallas.com`. Sin embargo, el usuario **sí obtuvo un JSON autenticado de Incoterms usando PowerShell** (GET). Ya se observaron respuestas autenticadas para cinco de los siete catálogos (incoterms, POD, POE, POL y tamaños de contenedor); faltan tipos de contenedor, tamaños de furgón y la confirmación del contrato POST de tarifas. No se almacena ninguna clave API en este repositorio.
+La prueba DNS desde el entorno del asistente falló: `Could not resolve host: api.logisticacastrofallas.com`. Sin embargo, el usuario **sí obtuvo un JSON autenticado de Incoterms usando PowerShell** (GET). Ya se observaron respuestas autenticadas para seis de los siete catálogos (incoterms, POD, POE, POL, tamaños y tipos de contenedor); falta tamaños de furgón y la confirmación del contrato POST de tarifas. No se almacena ninguna clave API en este repositorio.
 
 ## Paralelismo
 PR #246: `frontend/src/pages/About.vue`.
