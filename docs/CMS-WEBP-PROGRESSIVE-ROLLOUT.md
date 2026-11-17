@@ -78,6 +78,15 @@ sin una autorización distinta.** La imagen antigua de Hacienda tiene
 3.574.691 bytes, cero WebP y cuatro tamaños faltantes según `dry-run`;
 no se ha convertido.
 
+
+- **QA de estado intermedio seguro:** la matriz editorial en GitHub Actions
+  cubre tres configuraciones con MinIO/PostgreSQL aislados: backend ON +
+  frontend ON, backend ON + frontend OFF y backend OFF + frontend OFF.
+  En la combinación intermedia, el backend genera los WebP y responde a
+  `?width=`, pero el navegador solo solicita el JPEG original. No se valida
+  frontend ON + backend OFF como estado aceptable de despliegue (solo se
+  comprueba su fallback de HTTP 400 en el smoke Chrome separado).
+
 ## Reversión y límites
 
 - **Orden obligatorio para una reversión coordinada:** volver primero a los

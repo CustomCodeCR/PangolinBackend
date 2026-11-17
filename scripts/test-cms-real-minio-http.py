@@ -204,8 +204,14 @@ def main():
                 f"Refusing inherited storage credential/configuration: {env_name}")
 
     mode = os.getenv("CMS_REAL_MINIO_TEST_WEBP_ENABLED")
-    require(mode in ("true", "false"), "Explicit isolated WebP test mode required")
+    frontend_mode = os.getenv("CMS_REAL_MINIO_TEST_FRONTEND_WEBP_ENABLED")
+    require(mode in ("true", "false"), "Explicit isolated backend WebP mode required")
+    require(frontend_mode in ("true", "false"),
+            "Explicit isolated frontend WebP mode required")
+    require(mode == "true" or frontend_mode == "false",
+            "Frontend WebP ON with backend OFF is prohibited for rollout")
     webp_enabled = mode == "true"
+    frontend_webp_enabled = frontend_mode == "true"
 
     env = os.environ.copy()
     env.update({
@@ -248,8 +254,9 @@ def main():
                 raise RuntimeError("Could not load isolated browser editor test")
             editor_module = importlib.util.module_from_spec(editor_spec)
             editor_spec.loader.exec_module(editor_module)
-            editor_module.editor_smoke(admin, helper, webp_enabled)
-        if webp_enabled:
+            editor_module.editor_smoke(
+                admin, helper, webp_enabled, frontend_webp_enabled)
+        if webp_enabled and frontend_webp_enabled:
             test_persisted_media_rollback(admin, runner, env)
     finally:
         stop_backend(runner["proc"])

@@ -19,11 +19,20 @@ permissions:
 
 jobs:
   cms-real-minio-http:
-    name: CMS real MinIO + editor (WebP ${{ matrix.webp_mode }})
+    name: CMS real MinIO + editor (${{ matrix.profile }})
     strategy:
       fail-fast: false
       matrix:
-        webp_mode: ['true', 'false']
+        include:
+          - profile: backend-on-frontend-on
+            backend_webp: 'true'
+            frontend_webp: 'true'
+          - profile: backend-on-frontend-off
+            backend_webp: 'true'
+            frontend_webp: 'false'
+          - profile: backend-off-frontend-off
+            backend_webp: 'false'
+            frontend_webp: 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -32,7 +41,8 @@ jobs:
       CMS_REAL_MINIO_HTTP_FIXTURE: '1'
       CMS_REAL_MINIO_HTTP_TEST: '1'
       CMS_REAL_MINIO_EDITOR_UI_TEST: '1'
-      CMS_REAL_MINIO_TEST_WEBP_ENABLED: ${{ matrix.webp_mode }}
+      CMS_REAL_MINIO_TEST_WEBP_ENABLED: ${{ matrix.backend_webp }}
+      CMS_REAL_MINIO_TEST_FRONTEND_WEBP_ENABLED: ${{ matrix.frontend_webp }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4

@@ -14,8 +14,10 @@ from http.cookiejar import CookieJar
 from urllib.request import HTTPCookieProcessor
 
 
-def editor_smoke(admin, helper, webp_enabled):
-    assert isinstance(webp_enabled, bool), "WebP mode must be explicit"
+def editor_smoke(admin, helper, webp_enabled, frontend_webp_enabled):
+    assert isinstance(webp_enabled, bool), "Backend WebP mode must be explicit"
+    assert isinstance(frontend_webp_enabled, bool), "Frontend WebP mode must be explicit"
+    assert webp_enabled or not frontend_webp_enabled, "Disallowed rollout order"
     assert os.getenv("CI") == "true"
     assert os.getenv("CMS_REAL_MINIO_ISOLATED") == "1"
     assert os.getenv("CMS_REAL_MINIO_EDITOR_UI_TEST") == "1"
@@ -38,7 +40,7 @@ def editor_smoke(admin, helper, webp_enabled):
     env = os.environ.copy()
     env.update({
         "VITE_API_PROXY_TARGET": "http://127.0.0.1:15000",
-        "VITE_CMS_RESPONSIVE_WEBP_ENABLED": "true" if webp_enabled else "false",
+        "VITE_CMS_RESPONSIVE_WEBP_ENABLED": "true" if frontend_webp_enabled else "false",
     })
     vite = Popen(["npm", "run", "dev", "--", "--host", "127.0.0.1",
                   "--port", "5173", "--strictPort"],
@@ -205,15 +207,16 @@ def editor_smoke(admin, helper, webp_enabled):
                 return False
 
             state = wait.until(image_state)
-            if webp_enabled:
+            if frontend_webp_enabled:
                 assert state["srcset"] and "?width=" in state["currentSrc"], (
-                    "WebP ON must render responsive public CMS image")
+                    "Frontend WebP ON must render responsive public CMS image")
             else:
                 assert not state["srcset"] and "?width=" not in state["currentSrc"], (
-                    "WebP OFF must render only original public CMS image")
+                    "Frontend WebP OFF must render only original public CMS image")
             assert image_url in state["src"], "CMS canonical src changed"
-            print(f"PASS isolated public Chrome + editorial MinIO WebP="
-                  f"{'ON' if webp_enabled else 'OFF'}: correct image selection",
+            print(f"PASS isolated public Chrome + editorial MinIO backend="
+                  f"{'ON' if webp_enabled else 'OFF'} frontend="
+                  f"{'ON' if frontend_webp_enabled else 'OFF'}: correct image",
                   flush=True)
         finally:
             driver.close()
