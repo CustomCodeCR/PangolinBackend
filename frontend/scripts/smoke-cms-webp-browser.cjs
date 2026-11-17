@@ -26,7 +26,7 @@ const news = [{
   image: cmsUrl, published: true, expiresAt: null,
   publishedAt: '2026-11-17T12:00:00Z'
 }]
-let breakDerivatives = false
+let derivativeErrorStatus = 0
 let requestedMedia = []
 const probe = String.raw`<script>
 (() => {
@@ -75,8 +75,8 @@ const server = http.createServer((req, res) => {
   if (u.pathname === cmsUrl) {
     const width = u.searchParams.get('width')
     requestedMedia.push(width || 'original')
-    if (width && breakDerivatives)
-      return send(404, 'Missing variant', 'text/plain')
+    if (width && derivativeErrorStatus)
+      return send(derivativeErrorStatus, 'Unavailable derivative', 'text/plain')
     return send(200, width ? webp : jpeg, width ? 'image/webp' : 'image/jpeg')
   }
   if (u.pathname.startsWith('/api/'))
@@ -173,11 +173,15 @@ async function main() {
   })
   try {
     for (const scenario of [
-      { label: 'mobile', width: 390, broken: false },
-      { label: 'desktop', width: 1280, broken: false },
-      ...(enabled ? [{ label: 'fallback', width: 390, broken: true }] : [])
+      { label: 'mobile', width: 390, errorStatus: 0 },
+      { label: 'desktop', width: 1280, errorStatus: 0 },
+      ...(enabled ? [
+        { label: 'fallback-404', width: 390, errorStatus: 404 },
+        // Matches a backend with CmsMedia:ResponsiveWebpEnabled=false.
+        { label: 'backend-off-fallback-400', width: 390, errorStatus: 400 }
+      ] : [])
     ]) {
-      breakDerivatives = scenario.broken
+      derivativeErrorStatus = scenario.errorStatus
       requestedMedia = []
       const origin = 'http://127.0.0.1:' + server.address().port
       const result = await inspect(origin + '/noticias', scenario.width)
@@ -193,7 +197,7 @@ async function main() {
       } else {
         assert.ok(requestedMedia.some(x => x !== 'original'),
           'Enabled Chrome must initially request a responsive image')
-        if (scenario.broken) {
+        if (scenario.errorStatus) {
           assert.ok(!new URL(result.currentSrc).search,
             'Broken variant must fall back to the original currentSrc')
           assert.ok(!result.srcset && !result.sizes,
@@ -217,7 +221,7 @@ async function main() {
     // Screenshot artifacts are for human visual review only, not a
     // claim of complete CMS QA. No real content or credentials are used.
     assert.ok(process.env.RUNNER_TEMP, 'Screenshots must use ephemeral CI storage')
-    breakDerivatives = false
+    derivativeErrorStatus = 0
     const screenshots = path.join(process.env.RUNNER_TEMP, 'cms-webp-chrome-screenshots', mode)
     fs.mkdirSync(screenshots, { recursive: true })
     const origin = 'http://127.0.0.1:' + server.address().port

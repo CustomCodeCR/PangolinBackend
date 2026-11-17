@@ -80,12 +80,24 @@ no se ha convertido.
 
 ## Reversión y límites
 
-- Si la conversión consume demasiados recursos o falla, desactivar **primero
-  la generación del backend** mediante una revisión explícita del despliegue.
-  Esto no destruye variantes ya generadas ni modifica originales.
-- Si el frontend falla, volver al **tag GHCR anterior** tanto en Vue como en
-  Nuxt; no basta cambiar una variable de entorno en caliente. Mantener la
-  compatibilidad `?width=` en backend durante la reversión del frontend.
+- **Orden obligatorio para una reversión coordinada:** volver primero a los
+  **tags GHCR anteriores de Vue y Nuxt** (ambos con `srcset` WebP desactivado),
+  y comprobar con Network en móvil/escritorio que las imágenes CMS vuelven
+  a su URL original sin `?width=`. No basta cambiar una variable de entorno
+  en caliente: los flags del frontend son de compilación.
+- **Solo después** desactivar `CmsMedia:ResponsiveWebpEnabled` en el backend
+  mediante una revisión explícita del despliegue. Esta opción controla
+  **tanto generación en nuevas subidas como lectura de `?width=`**; apagarla
+  con un frontend WebP todavía activo produce respuestas HTTP 400 para las
+  variantes. El navegador tiene fallback al original ante errores HTTP, pero
+  no debe usarse ese fallback como procedimiento normal de rollback.
+- Si la conversión consume recursos y no se puede reemplazar el frontend con
+  seguridad, detener el rollout y evaluar la incidencia; **no apagar el flag
+  backend a ciegas** mientras Vue o Nuxt puedan pedir variantes.
+- Mantener originales y variantes intactos durante la reversión; nunca borrar
+  filas CMS ni objetos MinIO para revertir la opción. La prueba aislada
+  ON → OFF → ON valida bytes/ETag de objetos persistidos, **no** valida el
+  cambio real de tags GHCR ni una restauración efectiva de backups.
 - No revertir la base eliminando filas ni hacer limpieza masiva S3; se deben
   conservar las referencias originales y, de ser necesario, restaurar backups
   ya probados. Las variantes se tratan como derivados, no como fuente de verdad.
@@ -104,6 +116,10 @@ no se ha convertido.
   despublicar y eliminar.
 - [Chrome News ON/OFF — run 44168172761](https://github.com/CustomCodeCR/PangolinBackend/actions/runs/44168172761)
   comprueba navegador real, móvil, escritorio y fallback.
+- [Prueba editorial ON/OFF y reversión backend ON→OFF→ON — run 44181084174](https://github.com/CustomCodeCR/PangolinBackend/actions/runs/44181084174)
+  verifica continuidad de la publicación y objetos MinIO persistidos; la
+  validación específica de fallback Chrome HTTP 400 se agrega a la regresión
+  del navegador para cubrir el estado transitorio, no para recomendarlo.
 - `scripts/test-cms-webp-compose.py` se ejecuta en CI de Nuxt y
   verifica que los builds oficiales GHCR continúan **default-off**.
 - La auditoría npm completa mantiene un fallo conocido documentado en #248;

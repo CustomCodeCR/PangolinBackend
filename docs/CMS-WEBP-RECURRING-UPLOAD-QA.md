@@ -66,8 +66,12 @@ Son mediciones de transferencia de esos recursos, no promesas de Core Web Vitals
    debe poder borrarse original y derivados.
 6. Repetir con archivo pequeño (sin variantes), GIF animado y archivo con
    orientación no compatible: debe mostrarse el original sin roturas.
-7. Apagar ambos flags al terminar y reconstruir los frontends locales.
-   Confirmar que la experiencia actual regresa sin migrar datos.
+7. **Reversión por orden:** reconstruir primero Vue/Nuxt/legacy locales
+   con `CMS_RESPONSIVE_WEBP_FRONTEND=false`, verificar que Chrome use solo
+   la URL original (sin `?width=`) y **después** poner
+   `CMS_RESPONSIVE_WEBP_BACKEND=false`. Un backend con WebP apagado devuelve
+   HTTP 400 para `?width=`; dejar el frontend ON produce errores transitorios.
+   Nunca borrar originales ni variantes para completar la reversión.
 
 La prueba automatizada utiliza PostgreSQL desechable y FakeS3; **no sustituye**
 la revisión visual real ni garantiza soporte del MinIO de producción.
