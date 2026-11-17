@@ -130,7 +130,7 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 
 <template>
   <div class="app-site about-reference-page about-refresh">
-    <section class="inner-hero inner-hero--about about-refresh__hero" :style="{ '--cms-about-hero': siteCssImage('about.hero.media', '/images/about-operations-enhanced.jpg') }">
+    <section class="inner-hero inner-hero--about about-refresh__hero" :style="{ '--cms-about-hero': siteCssImage('about.hero.media', '/images/about-operations-enhanced.webp') }">
       <SiteMedia v-if="siteVisual('about.hero.media', '/images/about-operations-enhanced.jpg').kind.startsWith('Video')" slot-key="about.hero.media" fallback="/images/about-operations-enhanced.jpg" background />
       <SiteHeader active="nosotros" overlay />
       <div class="container inner-hero__copy about-hero__copy about-refresh__hero-copy">
