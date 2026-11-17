@@ -116,6 +116,10 @@ public static class DholeQuoteSelectionValidator
         var destination = catalog.Destinations.SingleOrDefault(x => x.Id == input.DestinationLocationId);
         if (origin is null || destination is null)
             throw new ArgumentException("Seleccioná ubicaciones vigentes de Dhole para esta ruta.");
+        // Existing official_quote_requests columns are VARCHAR(180). Validate
+        // upstream labels rather than silently truncating official place names.
+        if (origin.DisplayName.Length > 180 || destination.DisplayName.Length > 180)
+            throw new ArgumentException("Una ubicación de Dhole excede la longitud admitida para solicitudes.");
 
         var pod = input.PodLocationId.HasValue
             ? catalog.Pods.SingleOrDefault(x => x.Id == input.PodLocationId.Value)
