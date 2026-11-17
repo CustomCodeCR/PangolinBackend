@@ -3,14 +3,13 @@ import type { PublicNews } from '../../app/utils/news'
 import serviceGuides from '../../../seo/service-landings.json'
 import servicePages from '../../../seo/service-pages.json'
 import routeSeo from '../../../seo/routes.json'
-import companies from '../../../seo/companies.json'
 function escapeXml(value: string) {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 export default defineCachedEventHandler(async event => {
   const config = useRuntimeConfig(event)
   const base = String(config.public.siteUrl).replace(/\/$/, '')
-  const urls = ['/', '/nosotros', '/servicios', '/noticias', '/empresas', '/privacidad', '/terminos', '/cookies', '/licencias', ...Object.keys(serviceGuides), ...servicePages.map(page => '/servicios/' + page.slug), ...Object.keys(companies).map(slug => '/empresas/' + slug)]
+  const urls = ['/', '/nosotros', '/servicios', '/noticias', '/privacidad', '/terminos', '/cookies', '/licencias', ...Object.keys(serviceGuides), ...servicePages.map(page => '/servicios/' + page.slug)]
   try {
     const articles = await $fetch<PublicNews[]>(String(config.cmsApiBase).replace(/\/$/, '') + '/api/content/news', { timeout: 5000 })
     if (Array.isArray(articles)) {
