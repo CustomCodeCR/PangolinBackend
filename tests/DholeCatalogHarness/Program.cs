@@ -1,5 +1,7 @@
 using System.IO;
 using System.Net;
+using CastroFallas.MiniQuote.Api.Models;
+using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -280,6 +282,96 @@ var notConfigured = new DholeCatalogService(
 Check(!notConfigured.IsConfigured, "Dhole GET disabled without explicit opt-in and key");
 
 Console.WriteLine("OK: Fake upstream GET-only client, header, cache, upstream failure, stale fallback and throttle.");
+
+
+// A new official quote may use only UUIDs from the expected Dhole role/mode,
+// and its equipment must be one actually published combination.
+var officialIncotermItems = DholeCatalogNormalizer.Parse("""
+[
+ { "id": "11111111-1111-4111-8111-111111111111", "name": "FOB", "value": "FOB" },
+ { "id": "22222222-2222-4222-8222-222222222222", "name": "CIF", "value": "CIF" },
+ { "id": "33333333-3333-4333-8333-333333333333", "name": "EXW", "value": "EXW", "isActive": false }
+]
+""");
+var formCatalog = DholeQuoteFormCatalogBuilder.Build(
+    "Maritime", "FCL", officialIncotermItems, polItems, poeItems, podItems,
+    containerSizes, containerTypes, truckSizes);
+Check(formCatalog.Incoterms.SequenceEqual(["FOB", "CIF"]), "Dynamic Incoterms exclude inactive entries");
+Check(formCatalog.EquipmentTypesBySize["45 pies"].SequenceEqual(["High Cube"]) &&
+      formCatalog.EquipmentTypesBySize["48 pies"].SequenceEqual(["High Cube"]),
+      "FCL 45/48 sizes offer only real high cube combinations");
+Check(formCatalog.Pods.Any(x => x.DisplayName == "Land POD"), "POD allows Land metadata by business policy");
+
+static OfficialQuoteSubmit ReadSubmission(string body) =>
+    JsonSerializer.Deserialize<OfficialQuoteSubmit>(body, new JsonSerializerOptions(JsonSerializerDefaults.Web))
+    ?? throw new Exception("Invalid fixture");
+
+var goodQuote = ReadSubmission("""
+{
+    "mode": "Maritime", "shipmentType": "FCL", "catalogSource": "dhole",
+    "originLocationId": "19a5ce22-340d-579f-ad27-f6517a2dde27",
+    "destinationLocationId": "25882b97-8df9-407f-8300-8994184dfad1",
+    "podLocationId": "c2610000-0000-4000-8000-000000000003",
+    "incoterm": "CIF",
+    "equipment": [{"size":"45 pies","type":"High Cube","quantity":1,"unitWeightsKg":[1000]}]
+}
+""");
+var validRoute = DholeQuoteSelectionValidator.Validate(goodQuote, formCatalog);
+Check(validRoute.OriginName == "Acajutla" && validRoute.DestinationName == "Acajutla" &&
+      validRoute.PodName == "Land POD",
+    "Server resolves role-specific external UUIDs even when names are identical");
+
+static void ExpectSelectionReject(OfficialQuoteSubmit input, DholeQuoteFormCatalog catalog, string why)
+{
+    try
+    {
+        DholeQuoteSelectionValidator.Validate(input, catalog);
+    }
+    catch (ArgumentException)
+    {
+        return;
+    }
+    throw new Exception("FAILED: submission must reject " + why);
+}
+ExpectSelectionReject(goodQuote with { Incoterm = "EXW" }, formCatalog, "retired Incoterm");
+ExpectSelectionReject(goodQuote with {
+    Equipment = [new OfficialContainerInput("45 pies", "Dry Van", 1, [1000])]
+}, formCatalog, "FCL 45-foot Dry Van absent in Dhole");
+ExpectSelectionReject(goodQuote with { OriginLocationId = goodQuote.DestinationLocationId },
+    formCatalog, "POE UUID used as POL despite matching name");
+ExpectSelectionReject(goodQuote with { PodLocationId = Guid.NewGuid() },
+    formCatalog, "unknown POD UUID");
+ExpectSelectionReject(goodQuote with { CatalogSource = null },
+    formCatalog, "missing source discriminator");
+ExpectSelectionReject(goodQuote with { Mode = "Air" },
+    formCatalog, "wrong transport modality");
+
+var landPolItems = DholeCatalogNormalizer.Parse("""
+[
+  { "id": "99999999-9999-4999-8999-999999999999", "name": "Land Origin", "value": "Land Origin",
+    "transportMode":"Land", "terminalType":"SD", "routeRole":"POL" }
+]
+""");
+var ftlCatalog = DholeQuoteFormCatalogBuilder.Build(
+    "Land", "FTL", officialIncotermItems, landPolItems, poeItems, [],
+    [], [], truckSizes);
+Check(ftlCatalog.EquipmentSizes.Select(x => x.Value).SequenceEqual(
+    ["24 pies / 5 TON", "26 pies / 7 TON", "48 pies", "53 pies"]),
+    "Dhole FTL 48 replaces old static 40 without hardcoding a replacement");
+var ftlQuote = ReadSubmission("""
+{
+    "mode":"Land", "shipmentType":"FTL", "catalogSource":"dhole",
+    "originLocationId":"99999999-9999-4999-8999-999999999999",
+    "destinationLocationId":"c2610000-0000-4000-8000-000000000003",
+    "incoterm":"FOB", "equipment":[{"size":"48 pies","type":"Furgón"}]
+}
+""");
+Check(DholeQuoteSelectionValidator.Validate(ftlQuote, ftlCatalog).OriginName == "Land Origin",
+    "Active Dhole 48 FTL accepted");
+ExpectSelectionReject(ftlQuote with {
+    Equipment = [new OfficialContainerInput("40 pies", "Furgón", 1, [1000])]
+}, ftlCatalog, "retired 40-foot FTL");
+Console.WriteLine("OK: Quote submit contract validates external roles, FCL pairs, FTL live sizes and Incoterms.");
 
 sealed class FakeDholeHttpClientFactory(HttpClient client) : IHttpClientFactory
 {
