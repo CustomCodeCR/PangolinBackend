@@ -373,6 +373,38 @@ ExpectSelectionReject(ftlQuote with {
 }, ftlCatalog, "retired 40-foot FTL");
 Console.WriteLine("OK: Quote submit contract validates external roles, FCL pairs, FTL live sizes and Incoterms.");
 
+ExpectSelectionReject(goodQuote with { Incoterm = null }, formCatalog, "omitted Dhole Incoterm");
+
+var airPolItems = DholeCatalogNormalizer.Parse("""
+[
+  { "id":"aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa1", "name":"Air Origin", "value":"Air Origin",
+    "transportMode":"Air", "terminalType":"APT", "routeRole":"POL" }
+]
+""");
+var airCatalog = DholeQuoteFormCatalogBuilder.Build(
+    "Air", "AIR_LCL", officialIncotermItems, airPolItems, poeItems, [],
+    containerSizes, containerTypes, truckSizes);
+Check(airCatalog.Origins.Length == 1 && airCatalog.Destinations.Length == 1 &&
+      airCatalog.Pods.Length == 0 && airCatalog.EquipmentSizes.Length == 0,
+    "Air LCL offers only Air/APT locations and no unapproved equipment fields");
+
+var lclCatalog = DholeQuoteFormCatalogBuilder.Build(
+    "Maritime", "LCL", officialIncotermItems, polItems, poeItems, podItems,
+    containerSizes, containerTypes, truckSizes);
+Check(lclCatalog.Pods.Length == 2 && lclCatalog.EquipmentSizes.Length == 0 &&
+      lclCatalog.Incoterms.Length == 2,
+    "Maritime LCL has all POD choices and no FCL equipment fields");
+
+var ltlCatalog = DholeQuoteFormCatalogBuilder.Build(
+    "Land", "LTL", officialIncotermItems, landPolItems, poeItems, [],
+    containerSizes, containerTypes, truckSizes);
+Check(ltlCatalog.Origins.Length == 1 && ltlCatalog.Destinations.Length == 1 &&
+      ltlCatalog.EquipmentSizes.Length == 0 && ltlCatalog.Pods.Length == 0,
+    "Land LTL remains package-based without full-truck equipment choices");
+
+Console.WriteLine("OK: All five shipment mode/type combinations use the right Dhole fields.");
+
+
 sealed class FakeDholeHttpClientFactory(HttpClient client) : IHttpClientFactory
 {
     public HttpClient CreateClient(string name)
