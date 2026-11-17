@@ -33,6 +33,7 @@ export function usePublicSeo(input: SeoInput) {
       '@type': 'Organization', '@id': organizationId, name: 'Grupo Castro Fallas',
       alternateName: 'Castro Fallas Logística Internacional',
       url: urlBase + '/', logo: urlBase + '/images/logo.png',
+      sameAs: ['https://www.linkedin.com/company/grupo-castro-fallas/'],
       email: 'comercial@castrofallas.com', telephone: '+506 2272-6772',
       address: {
         '@type': 'PostalAddress', streetAddress: 'WX83+2PJ, María Auxiliadora',
