@@ -67,7 +67,7 @@ try {
         ('DholeCatalogs__ApiKey=' + $apiKey)
     )
     $createdEnvFile = $true
-    [System.IO.File]::WriteAllLines($envFile, $lines, (New-Object System.Text.UTF8Encoding($false)))
+    [System.IO.File]::WriteAllLines($envFile, $lines, ([System.Text.UTF8Encoding]::new($false)))
     $apiKey = $null
     $lines = $null
 
