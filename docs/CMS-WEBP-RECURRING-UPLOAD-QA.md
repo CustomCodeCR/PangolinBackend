@@ -81,6 +81,29 @@ y ambas URLs dejar de estar disponibles al despublicar la noticia. El borrado
 administrativo posterior elimina el original y los derivados de prueba.
 Todo ocurre en FakeS3 y PostgreSQL desechables; no se usan credenciales reales.
 
+**Validación HTTP completa con MinIO real aislado (solo CI):** un nuevo
+workflow `.github/workflows/cms-real-minio-http.yml` levanta PostgreSQL
+desechable y un MinIO de versión/digest fijados, ambos en
+`127.0.0.1`. El test `scripts/test-cms-real-minio-http.py` reutiliza
+el backend de la aplicación, la sesión administrativa local y una fotografía
+ficticia del repositorio para comprobar el flujo completo de subida,
+publicación, JPEG original, WebP 360/720, ETag, HTTP 206/304, despublicación,
+protección del borrado mientras está referenciada y limpieza.
+
+El bucket `cms-webp-http-ci` se crea **solamente** al ejecutar
+`tests/CmsRealMinioContract` con `--prepare-http-fixture` y las guardias
+`CI=true`, `CMS_REAL_MINIO_ISOLATED=1` y
+`CMS_REAL_MINIO_HTTP_FIXTURE=1`. El script HTTP requiere además
+`CMS_REAL_MINIO_HTTP_TEST=1` y rechaza credenciales de almacenamiento
+heredadas. Toda la prueba usa puertos de loopback y credenciales ficticias
+fijas; el workflow destruye los datos temporales al finalizar.
+
+**Resultado verificado (17-11-2026):** [ejecución aislada #44159195678](https://github.com/CustomCodeCR/PangolinBackend/actions/runs/44159195678)
+`success`; el log informa `PASS real MinIO + PostgreSQL CMS HTTP`.
+Esta prueba **no** valida el MinIO, las fotografías históricas, las
+credenciales ni el editor administrativo real de producción.
+
+
 ## Archivos anteriores / fotografía grande
 
 La imagen PNG de 3.574.691 bytes medida en la web **no se optimiza por
