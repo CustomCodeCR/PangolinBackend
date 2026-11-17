@@ -86,6 +86,69 @@ de mantenimiento y validación de PUT condicional en el proveedor real.
 Las imágenes Base64 embebidas, URL HTTPS externas o `/images/` empaquetadas
 son **otros casos**; no forzar su conversión ni atribuirlas a S3 sin inventario.
 
+
+### Diagnóstico de solo lectura de la foto de Hacienda (17/11/2026)
+
+La consulta pública realizada desde PowerShell confirmó que la noticia
+**«HACIENDA REFUERZA EL CONTROL»** sirve su imagen con una URL de 60 caracteres
+que coincide con `/api/content/media/{uuid}/file` (CMS / MinIO).
+Por tanto es candidata a **inspección**, no a conversión automática.
+La medición anterior observó 3.574.691 bytes y MIME `image/png`.
+Todavía faltan los datos privados de inventario, tamaño real en S3 y
+presencia de variantes antes de declarar que el backfill es elegible.
+
+**Administrador autenticado en el dominio WWW**, DevTools → Console:
+ejecutar este código. Solicita solo el registro público de Noticias
+y luego `apply:false` para **una sola imagen**. No registra IDs,
+enlaces completos ni datos sensibles; no ejecuta migraciones ni PUT/DELETE.
+
+```javascript
+(async () => {
+  const response = await fetch('/api/content/news', {
+    credentials: 'same-origin', cache: 'no-store'
+  });
+  if (!response.ok) return console.log('Noticias HTTP:', response.status);
+  const news = await response.json();
+  if (!Array.isArray(news)) return console.log('Lista pública inválida');
+  const article = news.find(item =>
+    typeof item.title === 'string' &&
+    item.title.toUpperCase().includes('HACIENDA REFUERZA EL CONTROL'));
+  if (!article) return console.log('Noticia no encontrada');
+  const match = /^\/api\/content\/media\/([0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})\/file$/i.exec(article.image);
+  if (!match) return console.log('La imagen dejó de ser un recurso CMS canónico');
+
+  // Este endpoint administrativo valida S3 con HEAD; jamás aplica cambios.
+  const check = await fetch(
+    `/api/admin/content/media/${match[1]}/webp-backfill`, {
+      method: 'POST', credentials: 'same-origin', cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({apply: false})
+    }
+  );
+  if (!check.ok) return console.log('Inspección HTTP:', check.status);
+  const result = await check.json();
+  console.table([{
+    modo: result.mode,
+    originalBytes: result.originalBytes,
+    variantesExistentes: (result.existingWidths || []).join(', ') || 'ninguna',
+    variantesFaltantes: (result.missingWidths || []).join(', ') || 'ninguna',
+    originalConservado: result.originalPreserved
+  }]);
+})();
+```
+
+- HTTP **200** con `mode: dry-run`: documentar tamaño original y anchos
+  faltantes; ninguna escritura S3.
+- HTTP **400**: metadatos/MIME/clave no elegibles para backfill automático.
+- HTTP **401/403**: sesión sin permisos administrativos; no intentar burlar permisos.
+- HTTP **404**: no se encontró registro u objeto; analizar sin alterar datos.
+- HTTP **413**: el original excede el límite de 5 MiB.
+
+Nunca ejecutar `{"apply":true}` durante el diagnóstico. Si el resultado
+es elegible, planificar conversión única en un mantenimiento posterior,
+con flags autorizados y mediciones antes/después. No activar el
+`srcset` público de imágenes históricas sin estudiar el fallback de originales.
+
 ## Barreras antes de cualquier despliegue
 
 - PR revisada, CI completo en verde, pruebas visuales en claro/oscuro y
