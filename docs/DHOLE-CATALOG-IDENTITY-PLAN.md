@@ -38,7 +38,7 @@ Reglas:
 
 - Por ahora, se excluye exclusivamente `isActive === false`.
 - POE se filtra por modalidad y terminal. POL se clasifica provisionalmente de igual forma a la espera de revisión funcional de negocio. `Maritime + SD` se conserva como variante POL observada (Moin).
-- POD no se filtra por modalidad ni terminal.
+- POD incluye **todos los registros activos** que entregue su endpoint, sin filtrar por modalidad, terminal ni por anomalías de `routeRole`. Las inconsistencias se contabilizan para revisión, pero no ocultan una opción de POD.
 - `routeRole` ausente no elimina por sí solo la opción; valor explícitamente diferente del catálogo causa marca de revisión.
 - Pares modalidad/terminal no observados o ausencia de datos quedan apartados para revisión, sin escoger arbitrariamente una de las propiedades.
 - Nunca deduplicar los candidatos por su nombre; identificar por `(catalog, externalId)`.
