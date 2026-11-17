@@ -1,6 +1,6 @@
 # Investigación: catálogos externos de Dhole (17/11/2026)
 
-Estado: **investigación inicial; sin integración ni validación de respuestas externas**.
+Estado: **primer catálogo verificado a través de PowerShell del usuario; sin integración funcional**.
 
 ## Alcance de endpoints recibidos
 Lectura prevista (verificar método y formato real antes de integrar):
@@ -23,6 +23,16 @@ Acción potencialmente mutadora: `solicitar-tarifa-wjicua4` (POST). **No ejecuta
 - `docs/ITINERARIOS-429.md`: endpoint agregado por rol para evitar múltiples consultas; mantener límites y comportamiento durante integración.
 - `docs/cotizaciones-oficiales-despliegue.md`: cotizador V2 independiente; wizard oficial controlado por flags; no activar producción sin catálogo real y QA.
 
+## Resultado real verificado: Incoterms (GET, PowerShell del usuario, 17/11/2026)
+- Endpoint: `/api/external/v1/incoterms-wi15gr9`. `GET` con `X-Api-Key` devuelve objeto JSON con `value` (arreglo) y `Count: 11`. El arreglo contiene exactamente 11 registros y todos presentan `isActive: true`.
+- Nombres, ordenados por `sortOrder`: EXW, FCA, FAS, FOB, CFR, CIF, CPT, CIP, DAP, DPU, DDP. **Coinciden con los 11 valores existentes en `officialIncoterms`**; todavía no es necesario modificar el selector visible.
+- Campos por registro: `id` (UUID, por ejemplo EXW `2d873827-71c1-41da-bb9f-932e931277b0`), `code` (ej. `INC-2026-001`), `slug`, `name`, `value`, `isActive`, `sortOrder`, `metadata.rateSections` (lista de cadenas) y `metadataJson` (el mismo objeto de metadata serializado como texto; coincide en los 11 registros observados).
+- La metadata contiene secciones de tarifa: `pickup_origin`, `origin_charges`, `international_freight`, `destination_charges`, `delivery_destination`; no provee un atributo explícito `air`/`maritime`/`land`. **No deducir modalidades**.
+- Anomalía verificada: CIF tiene `name: "CIF"`, `value: "CIF"`, pero `slug: "cfi"`. Evitar `slug` como identidad de negocio o corregirlo unilateralmente.
+- Los códigos internos de DAP y DPU son `INC-2026-010` e `INC-2026-009`, respectivamente, aunque sus `sortOrder` son 90 y 100; no ordenar por `code` ni usarlo como semántica de orden.
+- Hipótesis de integración: presentar `name` y `value`, respetar `isActive`/`sortOrder`, y conservar `id` externo solo para un eventual contrato Dhole, sin confundirlo con los UUID de ubicaciones locales. Validar compatibilidad backend antes de sustituir reglas.
+- Esta única respuesta no demuestra cadencia de cambios, filtros, paginación, disponibilidad ni uso específico de `rateSections` en `solicitar-tarifa`.
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
@@ -33,7 +43,7 @@ Acción potencialmente mutadora: `solicitar-tarifa-wjicua4` (POST). **No ejecuta
 7. Solicitar especificación de `solicitar-tarifa` antes de cualquier prueba POST; ejemplo recibido no demuestra cuáles campos son obligatorios.
 
 ## Acceso a la API externa
-La prueba de conectividad DNS desde el entorno de ejecución de esta investigación falló: `Could not resolve host: api.logisticacastrofallas.com`. **No se obtuvo JSON ni se utilizó la clave**; no se puede declarar contenido, categorías, transportes ni compatibilidad de las respuestas hasta una consulta autenticada de solo lectura desde un entorno con acceso.
+La prueba DNS desde el entorno del asistente falló: `Could not resolve host: api.logisticacastrofallas.com`. Sin embargo, el usuario **sí obtuvo un JSON autenticado de Incoterms usando PowerShell** (GET). Quedan pendientes los JSON reales de los otros seis catálogos y la confirmación del contrato POST de tarifas. No se almacena ninguna clave API en este repositorio.
 
 ## Paralelismo
 PR #246: `frontend/src/pages/About.vue`.
