@@ -24,6 +24,7 @@ def editor_smoke(admin, helper):
     from selenium.webdriver.common.keys import Keys
     from selenium.webdriver.chrome.options import Options
     from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.common.exceptions import StaleElementReferenceException
 
     origin = "http://127.0.0.1:5173"
     root = Path(__file__).resolve().parent.parent
@@ -139,8 +140,14 @@ def editor_smoke(admin, helper):
         print("PASS isolated editor Chrome: create news draft + new image via MinIO", flush=True)
 
         def editor_row(expected_title):
-            return next((item for item in driver.find_elements(By.CSS_SELECTOR, ".manager-list .manager-item")
-                         if expected_title in item.text), None)
+            # Vue replaces list nodes on API refresh; a transient stale
+            # reference during polling is not a failed publication/deletion.
+            try:
+                return next((item for item in driver.find_elements(
+                    By.CSS_SELECTOR, ".manager-list .manager-item")
+                    if expected_title in item.text), None)
+            except StaleElementReferenceException:
+                return None
 
         wait.until(lambda d: editor_row(title) is not None)
         row = editor_row(title)
@@ -191,11 +198,13 @@ def editor_smoke(admin, helper):
         if driver:
             driver.quit()
         if created_news_id:
-            helper.check_status(admin, f"/api/admin/content/news/{created_news_id}",
-                                204, method="DELETE")
+            status, _, _ = helper.call(
+                admin, f"/api/admin/content/news/{created_news_id}", method="DELETE")
+            require(status in (204, 404), "Unexpected status cleaning isolated news")
         if created_media_id:
-            helper.check_status(admin, f"/api/admin/content/media/{created_media_id}",
-                                204, method="DELETE")
+            status, _, _ = helper.call(
+                admin, f"/api/admin/content/media/{created_media_id}", method="DELETE")
+            require(status in (204, 404), "Unexpected status cleaning isolated media")
         vite.terminate()
         try:
             vite.wait(timeout=8)
