@@ -9,6 +9,7 @@ import IconSymbol from '../components/IconSymbol.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import { refreshSession } from '../services/auth'
 import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
+import { loadDholeQuoteFormOptions, type DholeQuoteFormOptions } from '../lib/dholeQuoteForm'
 import { costaRicaToday, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
 
 const { locale } = useI18n({ useScope: 'global' })
@@ -31,6 +32,8 @@ const previewLocations: Loc[] = [
 const step = ref(1)
 const mode = ref<Mode | null>(null)
 const shipmentType = ref<Type | null>(null)
+const catalogSource = ref<'local' | 'dhole'>('local')
+const dholeFormOptions = ref<DholeQuoteFormOptions | null>(null)
 const busy = ref(false)
 type GioReceiptDetail = { key: string; value: string }
 type GioReceipt = { at: number; id: string; status: string; mode: string; origin: string; destination: string; details?: GioReceiptDetail[] }
@@ -70,8 +73,29 @@ const typeOptions = computed(() => mode.value === 'Maritime'
 const equipmentMode = computed(() => shipmentType.value === 'FCL' || shipmentType.value === 'FTL')
 type LocationField = 'origin' | 'destination' | 'pod'
 const openLocation = ref<LocationField | null>(null)
-const equipmentSizeOptions = computed(() => officialEquipmentSizeOptions(shipmentType.value || '', q))
+const equipmentSizeOptions = computed(() => catalogSource.value === 'dhole' && dholeFormOptions.value
+  ? dholeFormOptions.value.equipmentSizes.map(choice => ({
+      value: choice.value,
+      label: choice.label.replace(' pies', q(' pies', ' ft'))
+    }))
+  : officialEquipmentSizeOptions(shipmentType.value || '', q))
 const equipmentTypeOptions = computed(() => officialEquipmentTypeOptions(shipmentType.value || '', q))
+function equipmentTypeOptionsFor(line: ContainerLine) {
+  if (catalogSource.value === 'dhole' && dholeFormOptions.value) {
+    return (dholeFormOptions.value.equipmentTypesBySize[line.size] || []).map(value => ({
+      value,
+      label: value === 'Furgón' ? q('Furgón', 'Truck') : value
+    }))
+  }
+  return equipmentTypeOptions.value
+}
+watch(() => form.equipment.map(line => line.size), () => {
+  if (catalogSource.value !== 'dhole' || !dholeFormOptions.value) return
+  for (const line of form.equipment) {
+    const allowed = dholeFormOptions.value.equipmentTypesBySize[line.size] || []
+    if (line.type && !allowed.includes(line.type)) line.type = ''
+  }
+})
 function closeOtherDropdowns(event: Event) {
   const target = event.target instanceof Element ? event.target : null
   if (!target || target.closest('.official-location-combobox')) return
@@ -148,7 +172,9 @@ function handleLocationKeydown(field: LocationField, event: KeyboardEvent) {
     openLocation.value = null
   }
 }
-const incoterms = officialIncoterms
+const incoterms = computed(() => catalogSource.value === 'dhole' && dholeFormOptions.value
+  ? dholeFormOptions.value.incoterms
+  : [...officialIncoterms])
 const serviceOptions = officialServiceOptions
 const serviceIcons: Record<string, Component> = {
   'Transporte internacional': Globe,
@@ -272,6 +298,8 @@ function selectMode(value: Mode) {
   if (mode.value !== value) {
     mode.value = value
     shipmentType.value = null
+    catalogSource.value = 'local'
+    dholeFormOptions.value = null
     form.originLocationId = ''; form.destinationLocationId = ''; form.podLocationId = ''
     locations.value = []; destinations.value = []; podOptions.value = []
   }
@@ -290,44 +318,77 @@ function syncWeights(line: ContainerLine) {
   while(line.unitWeightsKg.length < n) line.unitWeightsKg.push(0)
   line.unitWeightsKg.splice(n)
 }
-async function loadLocations() {
-  if (!mode.value || !shipmentType.value) return
-  const kind = mode.value === 'Maritime' ? 'seaport' : mode.value === 'Air' ? 'airport' : 'inland'
+async function loadLocations(): Promise<boolean> {
+  if (!mode.value || !shipmentType.value) return false
+  const chosenMode = mode.value
+  const chosenType = shipmentType.value
+  const kind = chosenMode === 'Maritime' ? 'seaport' : chosenMode === 'Air' ? 'airport' : 'inland'
   locationLoading.value = true
   if (localQuotePreview) {
+    catalogSource.value = 'local'
+    dholeFormOptions.value = null
     locations.value = previewLocations
     destinations.value = previewLocations
     podOptions.value = previewLocations
     error.value = ''
     locationLoading.value = false
-    return
+    return true
   }
   try {
+    // When Dhole form+submission flags are disabled, the backend explicitly
+    // returns dhole_form_disabled and we retain the exact legacy behavior.
+    // Any other upstream/network error fails closed: no silent local fallback.
+    const dynamic = await loadDholeQuoteFormOptions(chosenMode, chosenType)
+    if (chosenMode !== mode.value || chosenType !== shipmentType.value) return false
+    if (dynamic) {
+      catalogSource.value = 'dhole'
+      dholeFormOptions.value = dynamic
+      locations.value = dynamic.origins
+      destinations.value = dynamic.destinations
+      podOptions.value = dynamic.pods
+      const eligibleIds = (options: Loc[], id: string) => options.some(x => x.id === id)
+      if (!eligibleIds(locations.value, form.originLocationId)) clearLocation('origin')
+      if (!eligibleIds(destinations.value, form.destinationLocationId)) clearLocation('destination')
+      if (!eligibleIds(podOptions.value, form.podLocationId)) clearLocation('pod')
+      if (form.incoterm && !dynamic.incoterms.includes(form.incoterm)) form.incoterm = ''
+      for (const line of form.equipment) {
+        if (!dynamic.equipmentSizes.some(option => option.value === line.size)) line.size = ''
+        if (!(dynamic.equipmentTypesBySize[line.size] || []).includes(line.type)) line.type = ''
+      }
+      error.value = ''
+      return true
+    }
+
+    catalogSource.value = 'local'
+    dholeFormOptions.value = null
     const fetchRole = async (routeRole: 'origin' | 'destination' | 'pod') => {
-      const params = new URLSearchParams({kind,shipmentType:shipmentType.value!,routeRole})
-      const response = await fetch('/api/quotes/official/locations?' + params, {credentials:'same-origin',cache:'no-store'})
+      const params = new URLSearchParams({ kind, shipmentType: chosenType, routeRole })
+      const response = await fetch('/api/quotes/official/locations?' + params, { credentials: 'same-origin', cache: 'no-store' })
       if (!response.ok) throw new Error(q('No se pudo consultar el catálogo de ', 'Could not load the ') + routeRole + q('.', ' catalog.'))
-      const result = await response.json() as {items: Loc[]}
+      const result = await response.json() as { items: Loc[] }
       return result.items
     }
-    const [orig, dest, pod] = await Promise.all([fetchRole('origin'),fetchRole('destination'),mode.value === 'Maritime' ? fetchRole('pod') : Promise.resolve([] as Loc[])])
-    const usePreviewData = localQuotePreview && (!orig.length || !dest.length)
-    locations.value = usePreviewData ? previewLocations : orig
-    destinations.value = usePreviewData ? previewLocations : dest
-    podOptions.value = usePreviewData ? previewLocations : pod
-    if (usePreviewData) error.value = ''
+    const [orig, dest, pod] = await Promise.all([
+      fetchRole('origin'), fetchRole('destination'),
+      chosenMode === 'Maritime' ? fetchRole('pod') : Promise.resolve([] as Loc[])
+    ])
+    if (chosenMode !== mode.value || chosenType !== shipmentType.value) return false
+    locations.value = orig
+    destinations.value = dest
+    podOptions.value = pod
+    error.value = ''
+    return true
   } catch (e) {
-    if (localQuotePreview) {
-      locations.value = previewLocations
-      destinations.value = previewLocations
-      podOptions.value = previewLocations
-      error.value = ''
-    } else {
-      error.value = (e as Error).message
-    }
+    locations.value = []
+    destinations.value = []
+    podOptions.value = []
+    error.value = e instanceof Error ? e.message : q('No se pudo consultar el catálogo.', 'Could not load the catalogue.')
+    return false
+  } finally {
+    locationLoading.value = false
   }
-  finally { locationLoading.value = false }
 }
+
 onMounted(async () => {
   syncEarliestReadyDate()
   earliestReadyTimer = window.setInterval(syncEarliestReadyDate, 60_000)
@@ -381,6 +442,9 @@ function validate(): string {
     if (form.services.includes('Almacenamiento') && (!Number.isInteger(Number(form.fiscalStorageDays)) || Number(form.fiscalStorageDays) < 1 || Number(form.fiscalStorageDays) > 36500)) return q('Indicá los días de almacenaje fiscal.', 'Enter the number of fiscal storage days.')
     if (form.incoterm === 'EXW' && (!form.exwCargoStatus || !form.exwPickupAddress.trim())) return q('Completá el tipo de carga y la dirección de recolección EXW.', 'Complete the cargo type and EXW pickup address.')
     if (equipmentMode.value && form.equipment.some(x => !x.size || !x.type || !Number.isInteger(Number(x.quantity)) || x.quantity < 1 || x.unitWeightsKg.length !== Number(x.quantity) || x.unitWeightsKg.some(v => Number(v) <= 0))) return q('Completá todos los equipos y el peso de cada unidad.', 'Complete every equipment item and the weight of each unit.')
+    if (equipmentMode.value && catalogSource.value === 'dhole' &&
+        form.equipment.some(line => !(dholeFormOptions.value?.equipmentTypesBySize[line.size] || []).includes(line.type)))
+      return q('La combinación de contenedor o furgón no está disponible.', 'This container or truck combination is unavailable.')
     return ''
   }
   if (!form.contactName.trim() || !form.contactEmail.trim() || !form.contactPhone.trim()) return q('Completá los datos de contacto.', 'Complete your contact details.')
@@ -391,13 +455,14 @@ function validate(): string {
 async function next() {
   error.value = validate()
   if (error.value) return
-  if (step.value === 2) await loadLocations()
+  if (step.value === 2 && !(await loadLocations())) return
   if (step.value < 4) { step.value++; window.scrollTo({top:0,behavior:'smooth'}) }
 }
 function back() { if (step.value > 1) {step.value--;error.value='';window.scrollTo({top:0,behavior:'smooth'})} }
 function payload() {
   return {
     mode: mode.value, shipmentType: shipmentType.value,
+    catalogSource: catalogSource.value === 'dhole' ? 'dhole' : null,
     originLocationId: form.originLocationId, destinationLocationId: form.destinationLocationId,
     podLocationId: mode.value === 'Maritime' && form.podLocationId ? form.podLocationId : null,
     contactName: form.contactName, contactEmail: form.contactEmail, contactPhone: form.contactPhone,
@@ -588,7 +653,7 @@ async function submit() {
                     <div class="official-custom-field official-incoterm-field official-equipment-field">
                       <label :for="'quote-equipment-type-' + i">{{ q('Tipo', 'Type') }} <span>*</span></label>
                       <FieldDropdown :id="'quote-equipment-type-' + i" v-model="line.type" :aria-label="q('Tipo', 'Type')"
-                        :options="[{value:'',label:q('Seleccionar','Select')}, ...equipmentTypeOptions]" />
+                        :options="[{value:'',label:q('Seleccionar','Select')}, ...equipmentTypeOptionsFor(line)]" />
                     </div>
                     <label>{{ q('Cantidad', 'Quantity') }} <span>*</span><input v-model.number="line.quantity" type="number" min="1" max="25" step="1" @input="syncWeights(line)" /></label>
                     <label v-for="(weight,wi) in line.unitWeightsKg" :key="wi">{{ q('Peso', 'Weight') }} {{ wi+1 }} (kg) <span>*</span><input v-model.number="line.unitWeightsKg[wi]" type="number" min="0.001" step="any" /></label>
