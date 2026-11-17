@@ -80,6 +80,15 @@ Se inspeccionaron `id`, `name`, `code`, `transportMode`, `routeRole`, `terminalT
 - No inventar modalidad de los ocho registros sin metadata; solicitar definición del catálogo y política de clasificación.
 - En cualquier implementación, distinguir entre filtros informativos para UI y validación de IDs externos; mantener intactos los registros históricos.
 
+## Decisión funcional confirmada con el jefe — POD (17/11/2026)
+**Fuente:** el usuario transmite la decisión del jefe del negocio tras revisar los resultados de la API.
+
+- **Usar los 24 destinos que devuelve el endpoint POD como opciones válidas de POD**, independientemente de `transportMode` y de que tengan `metadata` nula. Hay registros históricos anteriores a la regularización de metadatos.
+- **No filtrar** el selector POD por `transportMode = Maritime`, ni descartar destinos `Land`, con `transportMode: null` o sin metadata. Los 24 elementos observados están activos; si en el futuro existen `isActive: false`, confirmar la política de inactivos en vez de asumir que esta decisión obliga a mostrarlos.
+- POD en el formulario se refiere a la posición de puerto de descarga/destino en la ruta marítima, pero **la elegibilidad de las opciones la determina el catálogo POD entregado por Dhole**; un nombre o `transportMode` de un registro no invalida su aparición como opción de POD.
+- `PricingWorkflow`: **aplazado expresamente**. Conservarlo como dato observado y como asunto para revisión futura; **no usarlo para filtrar, validar, priorizar o bloquear los destinos durante esta etapa**.
+- Esta decisión resuelve el filtrado funcional de POD; faltan comprender el contrato de identificadores externo↔local, controles de error/cache y la integración dinámica antes de cambiar la UI.
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
