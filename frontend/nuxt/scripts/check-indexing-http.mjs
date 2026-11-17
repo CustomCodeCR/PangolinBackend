@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 const previewOrigin = (process.argv[2] || 'http://127.0.0.1:3000').replace(/\/$/, '')
 const canonicalOrigin = 'https://www.logisticacastrofallas.com'
 const privatePrefixes = ['/api', '/admin', '/administracion', '/bienvenidos', '/cotizaciones', '/tracking', '/itinerario']
-const requiredPaths = ['/', '/nosotros', '/servicios', '/noticias', '/empresas']
+const requiredPaths = ['/', '/nosotros', '/servicios', '/noticias']
 const conciseServiceTitles = new Set([
   '/servicios/agenciamiento-aduanal',
   '/servicios/almacenamiento-fiscal',
@@ -41,6 +41,7 @@ const paths = sitemapUrls.map((loc) => {
   return url.pathname
 })
 for (const path of requiredPaths) assert.ok(paths.includes(path), 'Falta ruta principal en sitemap: ' + path)
+assert.ok(!paths.some(path => path === '/empresas' || path.startsWith('/empresas/')), 'Empresas no debe publicarse en el sitemap')
 
 for (const path of paths) {
   try {
@@ -78,7 +79,7 @@ for (const path of paths) {
   }
 }
 
-for (const unknown of ['/ruta-seo-inexistente-qa-94329', '/servicios/ruta-inexistente', '/empresas/ruta-inexistente', '/noticias/ruta-inexistente']) {
+for (const unknown of ['/ruta-seo-inexistente-qa-94329', '/servicios/ruta-inexistente', '/empresas', '/empresas/aduanera-castro-fallas', '/empresas/transporte-castro-fallas', '/empresas/neriteka', '/empresas/ruta-inexistente', '/noticias/ruta-inexistente']) {
   const response = await get(unknown)
   if (response.status !== 404) fail(unknown, 'posible soft 404: HTTP ' + response.status + ' en una ruta inexistente')
 }
