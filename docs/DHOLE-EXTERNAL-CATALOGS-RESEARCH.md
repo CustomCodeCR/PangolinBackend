@@ -227,6 +227,24 @@ El usuario ejecutó **un nuevo GET** a `pol-puerto-de-origen-wi11hg7`, no la col
 - Se mantiene política acordada ante contradicción real de modalidad/terminal: registrar para revisión, no dar prioridad arbitraria a uno. **Pero `Maritime/SD` no se declara automáticamente contradictorio**, pues se observó en un registro de origen que ahora declara `POL` y no está confirmada la regla de exclusividad de tipos de terminal.
 - La definición final del filtro POL por modalidad aún deberá confirmarse con el negocio; se puede continuar investigando tamaños/tipos sin bloquear por esta confirmación.
 
+## Tamaños de contenedor: resultado real API 5/7 (GET autenticado, 17/11/2026)
+- Endpoint: `/api/external/v1/tamano-de-contenedor-wja5k6l`.
+- Respuesta deserializada como arreglo de **4** elementos, todos con `isActive=true`.
+- Registros completos (valores verificados):
+
+| id | code/slug/value | name | sortOrder | metadata.feet |
+|---|---|---|---:|---:|
+| `c1100000-0000-4000-8000-000000000020` | `20` | `20 pies` | 20 | 20 |
+| `c1100000-0000-4000-8000-000000000040` | `40` | `40 pies` | 40 | 40 |
+| `c1100000-0000-4000-8000-000000000045` | `45` | `45 pies` | 45 | 45 |
+| `c1100000-0000-4000-8000-000000000048` | `48` | `48 pies` | 48 | 48 |
+
+Cada registro incluye además `description: Contenedor de XX pies`, `metadata: {feet: N}` y `metadataJson` equivalente. Sin inconsistencias observadas.
+- Los **cuatro nombres visibles** coinciden con los tamaños FCL existentes y validados por `backend/Endpoints/OfficialQuoteEndpoints.cs`; el frontend tiene datos estáticos en `frontend/src/lib/officialQuoteOptions.ts`.
+- **Diferencia de contrato:** `name="40 pies"` pero `value/code="40"` y un UUID externo específico. No sustituir `name` por `value` en el payload local sin adaptar la validación del backend y preservar cotizaciones existentes.
+- Implementación deseada: catálogo obtenido dinámicamente desde backend seguro con cache, preservar diseño/labels, mantener UUID Dhole diferenciado del identificador de equipo o ubicación local. Seguir regla provisional `isActive !== false` si se decide aplicarla globalmente.
+- No modifica ni justifica ajustes en las listas FTL (furgón), que pertenecen a otra API.
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
@@ -237,7 +255,7 @@ El usuario ejecutó **un nuevo GET** a `pol-puerto-de-origen-wi11hg7`, no la col
 7. Solicitar especificación de `solicitar-tarifa` antes de cualquier prueba POST; ejemplo recibido no demuestra cuáles campos son obligatorios.
 
 ## Acceso a la API externa
-La prueba DNS desde el entorno del asistente falló: `Could not resolve host: api.logisticacastrofallas.com`. Sin embargo, el usuario **sí obtuvo un JSON autenticado de Incoterms usando PowerShell** (GET). Quedan pendientes los JSON reales de los otros seis catálogos y la confirmación del contrato POST de tarifas. No se almacena ninguna clave API en este repositorio.
+La prueba DNS desde el entorno del asistente falló: `Could not resolve host: api.logisticacastrofallas.com`. Sin embargo, el usuario **sí obtuvo un JSON autenticado de Incoterms usando PowerShell** (GET). Ya se observaron respuestas autenticadas para cinco de los siete catálogos (incoterms, POD, POE, POL y tamaños de contenedor); faltan tipos de contenedor, tamaños de furgón y la confirmación del contrato POST de tarifas. No se almacena ninguna clave API en este repositorio.
 
 ## Paralelismo
 PR #246: `frontend/src/pages/About.vue`.
