@@ -72,6 +72,15 @@ Son mediciones de transferencia de esos recursos, no promesas de Core Web Vitals
 La prueba automatizada utiliza PostgreSQL desechable y FakeS3; **no sustituye**
 la revisión visual real ni garantiza soporte del MinIO de producción.
 
+**Regresión adicional ante fallos parciales de subida de derivados:** el test
+`test_partial_webp_storage_failure` simula HTTP 403 únicamente al guardar
+el WebP de 360 px. La subida de la noticia debe seguir devolviendo HTTP 201,
+el original JPEG conservarse y servirse correctamente (también como fallback
+para `?width=360`), el WebP de 720 px generarse y servir `image/webp`,
+y ambas URLs dejar de estar disponibles al despublicar la noticia. El borrado
+administrativo posterior elimina el original y los derivados de prueba.
+Todo ocurre en FakeS3 y PostgreSQL desechables; no se usan credenciales reales.
+
 ## Archivos anteriores / fotografía grande
 
 La imagen PNG de 3.574.691 bytes medida en la web **no se optimiza por
