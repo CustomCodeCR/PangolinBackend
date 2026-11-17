@@ -1,0 +1,88 @@
+name: CMS full HTTP + real MinIO (isolated)
+
+on:
+  pull_request:
+    branches: [main-2, main]
+    paths:
+      - backend/Services/ManagedMediaObjectEndpoints.cs
+      - backend/Services/CmsImageVariants.cs
+      - backend/Services/ObjectStorageService.cs
+      - backend/Services/ManagedNewsEndpoints.cs
+      - tests/CmsRealMinioContract/**
+      - scripts/test-cms-real-minio-http.py
+      - scripts/test-cms-media-http.py
+      - .github/workflows/cms-real-minio-http.yml
+
+permissions:
+  contents: read
+
+jobs:
+  cms-real-minio-http:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      CMS_REAL_MINIO_ISOLATED: '1'
+      CMS_REAL_MINIO_HTTP_FIXTURE: '1'
+      CMS_REAL_MINIO_HTTP_TEST: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Start pinned disposable MinIO on loopback
+        shell: bash
+        run: |
+          set -euo pipefail
+          minio="$RUNNER_TEMP/minio-ci"
+          curl --fail --location --show-error --silent --retry 3 \
+            -o "$minio" \
+            https://github.com/minio/minio/releases/download/RELEASE.2025-09-07T16-13-09Z/minio.linux-amd64.RELEASE.2025-09-07T16-13-09Z
+          echo "7c5bd8512c6e966455b1d198209358b2d191c77a83ab377c4073281065fb855f  $minio" | sha256sum --check
+          chmod 700 "$minio"
+          mkdir -p "$RUNNER_TEMP/minio-ci-data"
+          MINIO_ROOT_USER=ci-webp-only \
+            MINIO_ROOT_PASSWORD=ci-webp-disposable-password-only \
+            MINIO_BROWSER=off \
+            "$minio" server "$RUNNER_TEMP/minio-ci-data" \
+              --address 127.0.0.1:19119 \
+              --console-address 127.0.0.1:19120 \
+              > "$RUNNER_TEMP/minio-ci.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/minio-ci.pid"
+          for i in $(seq 1 35); do
+            if curl --silent --fail http://127.0.0.1:19119/minio/health/live >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -n 60 "$RUNNER_TEMP/minio-ci.log"
+          exit 1
+      - name: Prepare isolated S3 bucket with guarded production SDK client
+        run: dotnet run --project tests/CmsRealMinioContract/CmsRealMinioContract.csproj -c Release -- --prepare-http-fixture
+      - name: Start disposable PostgreSQL on loopback
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name cms-media-pg \
+            -e POSTGRES_DB=login -e POSTGRES_USER=postgres \
+            -e POSTGRES_PASSWORD=ci-media-test-only \
+            -p 127.0.0.1:15433:5432 postgres:16-alpine
+          for i in $(seq 1 45); do
+            if docker exec cms-media-pg pg_isready -U postgres -d login >/dev/null 2>&1; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Build actual CMS HTTP backend
+        run: dotnet build backend/CastroFallas.MiniQuote.Api.csproj -c Release
+      - name: Test authenticated upload, publication, WebP serving and revocation
+        run: |
+          python3 -m py_compile scripts/test-cms-real-minio-http.py scripts/test-cms-media-http.py
+          python3 scripts/test-cms-real-minio-http.py
+      - name: Remove all isolated PostgreSQL and MinIO test data
+        if: always()
+        shell: bash
+        run: |
+          docker rm -f cms-media-pg >/dev/null 2>&1 || true
+          if [ -f "$RUNNER_TEMP/minio-ci.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/minio-ci.pid")" || true
+          fi
+          rm -rf "$RUNNER_TEMP/minio-ci" "$RUNNER_TEMP/minio-ci-data" \
+            "$RUNNER_TEMP/minio-ci.pid" "$RUNNER_TEMP/minio-ci.log"
