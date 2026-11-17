@@ -25,7 +25,7 @@ def require(condition, message):
         raise AssertionError(message)
 
 
-def test_real_minio_publication(admin):
+def test_real_minio_publication(admin, webp_enabled):
     visitor = helper.build_opener()
     media_id = news_id = None
     try:
@@ -59,20 +59,29 @@ def test_real_minio_publication(admin):
                 "Real MinIO did not serve the unchanged JPEG original")
 
         for width in (360, 720):
-            headers, webp = helper.check_status(visitor, url + f"?width={width}", 200)
-            require(headers.get("Content-Type", "").startswith("image/webp") and
-                    webp[:4] == b"RIFF" and webp[8:12] == b"WEBP" and
-                    12 < len(webp) < len(original),
-                    f"Real MinIO {width}px variant missing, malformed or not smaller")
+            headers, response_bytes = helper.check_status(
+                visitor, url + f"?width={width}", 200)
             etag = headers.get("ETag")
-            require(etag and etag != original_h.get("ETag"),
-                    "WebP variant must have a distinct ETag")
+            if webp_enabled:
+                require(headers.get("Content-Type", "").startswith("image/webp") and
+                        response_bytes[:4] == b"RIFF" and
+                        response_bytes[8:12] == b"WEBP" and
+                        12 < len(response_bytes) < len(original),
+                        f"Real MinIO {width}px WebP missing, invalid or not smaller")
+                require(etag and etag != original_h.get("ETag"),
+                        "WebP derivative must have a distinct ETag")
+            else:
+                require(headers.get("Content-Type", "").startswith("image/jpeg") and
+                        response_bytes == original and etag == original_h.get("ETag"),
+                        f"WebP OFF must serve the original JPEG for width={width}")
+
             helper.check_status(visitor, url + f"?width={width}", 304,
                                 headers={"If-None-Match": etag})
-            _, first4 = helper.check_status(visitor, url + f"?width={width}", 206,
-                                            headers={"Range": "bytes=0-3",
-                                                     "If-None-Match": etag})
-            require(first4 == b"RIFF", "MinIO WebP range must return exact bytes")
+            _, first4 = helper.check_status(
+                visitor, url + f"?width={width}", 206,
+                headers={"Range": "bytes=0-3", "If-None-Match": etag})
+            require(first4 == response_bytes[:4],
+                    "MinIO range request must match the selected representation")
 
         # Media referenced by a news item cannot be deleted, even in draft.
         helper.check_status(admin, f"/api/admin/content/media/{media_id}", 409,
@@ -84,8 +93,8 @@ def test_real_minio_publication(admin):
         helper.check_status(visitor, url + "?width=720", 404)
         helper.check_status(admin, f"/api/admin/content/media/{media_id}", 409,
                             method="DELETE")
-        print("PASS real MinIO + PostgreSQL CMS HTTP: upload, publish, JPEG/WebP, "
-              "ETag/Range, unpublish, and referenced-media delete protection")
+        print(f"PASS real MinIO + PostgreSQL CMS HTTP WebP={'ON' if webp_enabled else 'OFF'}: "
+              "upload, publish, original/variant, ETag/Range, unpublish, references")
     finally:
         if news_id:
             helper.check_status(admin, f"/api/admin/content/news/{news_id}", 204,
@@ -108,6 +117,10 @@ def main():
         require(not os.environ.get(env_name),
                 f"Refusing inherited storage credential/configuration: {env_name}")
 
+    mode = os.getenv("CMS_REAL_MINIO_TEST_WEBP_ENABLED")
+    require(mode in ("true", "false"), "Explicit isolated WebP test mode required")
+    webp_enabled = mode == "true"
+
     env = os.environ.copy()
     env.update({
         "ASPNETCORE_ENVIRONMENT": "Development",
@@ -124,7 +137,7 @@ def main():
         "Storage__Bucket": "cms-webp-http-ci",
         "Storage__AccessKey": "ci-webp-only",
         "Storage__SecretKey": "ci-webp-disposable-password-only",
-        "CmsMedia__ResponsiveWebpEnabled": "true",
+        "CmsMedia__ResponsiveWebpEnabled": mode,
         "CmsMedia__ExistingImageBackfillEnabled": "false",
         "DholeTracking__Enabled": "false",
         "Redis__ConnectionString": "",
@@ -140,7 +153,7 @@ def main():
              "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "login"],
             input=seed, text=True, check=True, stdout=DEVNULL)
         admin = helper.login_admin()
-        test_real_minio_publication(admin)
+        test_real_minio_publication(admin, webp_enabled)
         if os.getenv("CMS_REAL_MINIO_EDITOR_UI_TEST") == "1":
             editor_spec = importlib.util.spec_from_file_location(
                 "test_cms_real_minio_editor",
@@ -149,7 +162,7 @@ def main():
                 raise RuntimeError("Could not load isolated browser editor test")
             editor_module = importlib.util.module_from_spec(editor_spec)
             editor_spec.loader.exec_module(editor_module)
-            editor_module.editor_smoke(admin, helper)
+            editor_module.editor_smoke(admin, helper, webp_enabled)
     finally:
         proc.terminate()
         try:

@@ -14,7 +14,8 @@ from http.cookiejar import CookieJar
 from urllib.request import HTTPCookieProcessor
 
 
-def editor_smoke(admin, helper):
+def editor_smoke(admin, helper, webp_enabled):
+    assert isinstance(webp_enabled, bool), "WebP mode must be explicit"
     assert os.getenv("CI") == "true"
     assert os.getenv("CMS_REAL_MINIO_ISOLATED") == "1"
     assert os.getenv("CMS_REAL_MINIO_EDITOR_UI_TEST") == "1"
@@ -37,7 +38,7 @@ def editor_smoke(admin, helper):
     env = os.environ.copy()
     env.update({
         "VITE_API_PROXY_TARGET": "http://127.0.0.1:15000",
-        "VITE_CMS_RESPONSIVE_WEBP_ENABLED": "true",
+        "VITE_CMS_RESPONSIVE_WEBP_ENABLED": "true" if webp_enabled else "false",
     })
     vite = Popen(["npm", "run", "dev", "--", "--host", "127.0.0.1",
                   "--port", "5173", "--strictPort"],
@@ -165,10 +166,57 @@ def editor_smoke(admin, helper):
         public = helper.json_call(helper.build_opener(), "/api/content/news", 200)
         assert any(n["id"] == created_news_id and n["title"] == updated_title
                    for n in public), "Published UI news not visible publicly"
-        h, image = helper.check_status(helper.build_opener(), image_url + "?width=360", 200)
-        assert h.get("Content-Type", "").startswith("image/webp") and image[0:4] == b"RIFF", (
-            "Published editorial upload lacks WebP derivative")
-        print("PASS isolated editor Chrome: edit news title + publish + public WebP", flush=True)
+        h, image = helper.check_status(
+            helper.build_opener(), image_url + "?width=360", 200)
+        if webp_enabled:
+            assert h.get("Content-Type", "").startswith("image/webp") and (
+                image[:4] == b"RIFF" and image[8:12] == b"WEBP"), (
+                    "Published editorial upload lacks WebP derivative")
+        else:
+            assert h.get("Content-Type", "").startswith("image/jpeg") and (
+                image == helper.PHOTO), (
+                    "WebP OFF must preserve JPEG bytes even for width=360")
+
+        # Real public Vue UI with the same backend/MinIO and compiled Vite flag.
+        # Inspect only the fictitious published image; no admin screenshots.
+        editor_window = driver.current_window_handle
+        driver.switch_to.new_window("tab")
+        try:
+            driver.set_window_size(390, 900)
+            driver.get(origin + "/noticias")
+
+            def image_state(d):
+                for elem in d.find_elements(
+                        By.CSS_SELECTOR, ".news-editorial-hero__slide img"):
+                    result = d.execute_script("""
+                        const img = arguments[0];
+                        return {src: img.getAttribute('src'),
+                                srcset: img.getAttribute('srcset'),
+                                currentSrc: img.currentSrc,
+                                ready: img.complete && img.naturalWidth > 0};
+                    """, elem)
+                    if image_url in (result["src"] or "") and result["ready"]:
+                        return result
+                return False
+
+            state = wait.until(image_state)
+            if webp_enabled:
+                assert state["srcset"] and "?width=" in state["currentSrc"], (
+                    "WebP ON must render responsive public CMS image")
+            else:
+                assert not state["srcset"] and "?width=" not in state["currentSrc"], (
+                    "WebP OFF must render only original public CMS image")
+            assert image_url in state["src"], "CMS canonical src changed"
+            print(f"PASS isolated public Chrome + editorial MinIO WebP="
+                  f"{'ON' if webp_enabled else 'OFF'}: correct image selection",
+                  flush=True)
+        finally:
+            driver.close()
+            driver.switch_to.window(editor_window)
+            driver.set_window_size(1440, 1100)
+
+        print(f"PASS isolated editor Chrome WebP={'ON' if webp_enabled else 'OFF'}: "
+              "edit title, publish, verify original/variant", flush=True)
 
         wait.until(lambda d: editor_row(updated_title) is not None)
         editor_row(updated_title).find_element(By.CSS_SELECTOR,

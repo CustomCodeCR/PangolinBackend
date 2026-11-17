@@ -19,6 +19,11 @@ permissions:
 
 jobs:
   cms-real-minio-http:
+    name: CMS real MinIO + editor (WebP ${{ matrix.webp_mode }})
+    strategy:
+      fail-fast: false
+      matrix:
+        webp_mode: ['true', 'false']
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -27,6 +32,7 @@ jobs:
       CMS_REAL_MINIO_HTTP_FIXTURE: '1'
       CMS_REAL_MINIO_HTTP_TEST: '1'
       CMS_REAL_MINIO_EDITOR_UI_TEST: '1'
+      CMS_REAL_MINIO_TEST_WEBP_ENABLED: ${{ matrix.webp_mode }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
