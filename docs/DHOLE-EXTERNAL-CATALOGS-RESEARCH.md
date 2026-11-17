@@ -157,6 +157,14 @@ Los **4 registros sin `routeRole` superior** fueron identificados:
 
 Esta decisión aplica a **POE**, no a POL (aún sin investigar) ni a la regla distinta ya decidida para POD.
 
+## POE: refinamiento de reglas tras validación con el negocio (17/11/2026)
+- En la última respuesta examinada, 944/947 POE tienen ambos campos `transportMode` y `terminalType` concordantes (77 Maritime/CY, 851 Air/APT, 16 Land/SD). Los otros tres tienen `id`, `code`, `name`, pero carecían de ambos campos; la clasificación marítima fue confirmada por el jefe.
+- El jefe indica que los tres **ya podrían haber sido corregidos en Dhole**. **Primero reconsultar GET POE** y comprobar esos tres UUID. **No introducir excepciones permanentes** si los metadatos ya están correctos. Si todavía no están corregidos, analizar fallback temporal sin sobrescribir los valores explícitos.
+- Si `transportMode` y `terminalType` contradicen la matriz verificada, **no dar prioridad arbitraria a uno**: registrar conflicto y dejar ese registro para revisión sin clasificación automática; no ocultar ni alterar otros registros válidos. Una contradicción futura se considera incidencia de calidad de datos y requiere definición del negocio.
+- El usuario confirma que, **provisionalmente también para POE**, se excluya únicamente `isActive === false` (booleano explícito). `true`, `null` y propiedad ausente no quedan excluidos por este criterio. **Confirmar esta política con el jefe al final de la investigación**.
+- Para `routeRole` nulo o ausente, se mantiene que no invalida un registro POE entregado por ese endpoint. `pricingWorkflow` no interviene.
+- Próximo paso: refrescar POE para verificar correcciones y consultar POL, sin realizar cambios funcionales.
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
