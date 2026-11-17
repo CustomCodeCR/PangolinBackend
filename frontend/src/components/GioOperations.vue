@@ -93,6 +93,16 @@ async function ensureQuoteCatalog() {
     quoteCatalog.value = data
     quoteCatalogSource.value = data ? 'dhole' : 'local'
     if (data) {
+      // Stored drafts or an in-progress form may contain local UUIDs. When the
+      // source becomes Dhole, never submit those UUIDs as external locations.
+      for (const role of ['origin','destination','pod'] as const) {
+        const options = role === 'origin' ? data.origins
+          : role === 'destination' ? data.destinations : data.pods
+        if (selectedLocations[role] && !options.some(x => x.id === selectedLocations[role])) {
+          delete selectedLocations[role]
+          delete values[role]
+        }
+      }
       if (values.incoterm && !data.incoterms.includes(values.incoterm)) delete values.incoterm
       if (values.equipmentSize &&
           !data.equipmentSizes.some(choice => choice.value === values.equipmentSize)) {
