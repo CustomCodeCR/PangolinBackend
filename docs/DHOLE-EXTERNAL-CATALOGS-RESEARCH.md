@@ -40,6 +40,14 @@ Acción potencialmente mutadora: `solicitar-tarifa-wjicua4` (POST). **No ejecuta
 - Falta consultar `$r[0]`, sus propiedades y tipos: no se sabe si hay `id`, `name`, `value`, modalidad, códigos, activo, paginación ni otros metadatos. Tampoco se debe inferir modalidad por el nombre del destino.
 - Próxima prueba de solo lectura, sin imprimir credenciales: `$r[0] | ConvertTo-Json -Depth 10` y `$r[0].PSObject.Properties.Name`. Adicionalmente `$r.GetType().FullName`.
 
+## POD: inspección del primer registro completo (GET, PowerShell del usuario, 17/11/2026)
+- `$r.GetType().FullName` = `System.Object[]`: la respuesta deserializada es un arreglo; `Count = 24` es longitud del arreglo, no necesariamente un campo raíz enviado por la API.
+- Primer registro (`$r[0]`): `id = cb4741d9-1932-422e-b354-ad01ac1634bd`, `code = POD-2026-002`, `slug = colon-free-zone-panama`, `name = value = Colon Free Zone, Panamá`, `isActive = true`, `sortOrder = 1`.
+- `metadata` es objeto con `routeRole = POD`, `countryCode = PA`, `terminalType = SD`, `transportMode = Maritime`. Estos campos también aparecen al nivel superior del objeto; `metadataJson` contiene la versión serializada.
+- **Hallazgo crítico:** el registro ofrece un `transportMode` **explícito**. No hay que inferir modalidad por el nombre del lugar. **Solo se ha inspeccionado el primer registro**; no afirmar que los 24 son Maritime ni que todos tengan metadatos completos.
+- No asumir qué significa el código `SD` hasta confirmación del equipo Dhole. Tampoco igualar `id` externo con UUID de `official_quote_locations` sin mapeo verificado.
+- Inspección pendiente: agrupar los 24 registros por `transportMode`, `routeRole`, `terminalType`, `isActive`; contar ausencia de `id`/`value` y duplicados de ID. Esto permitirá decidir filtros seguros y compatibilidad de cotizaciones/itinerarios.
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
