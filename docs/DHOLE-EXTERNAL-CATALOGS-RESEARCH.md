@@ -272,6 +272,23 @@ Cada registro incluye además `description: Contenedor de XX pies`, `metadata: {
 - **Decisión APLAZADA explícitamente:** si `LOOSE`, `PALLET`, `ULD` deben integrarse en cotización aérea; el usuario consultará luego. **No crear campo nuevo ni introducir equipos aéreos por ahora.**
 - Seguir investigando API 7 sin bloqueo. Si se implementa el filtro conjunto tamaño-tipo, adaptar tanto interfaz como validación backend para que no se acepten combinaciones obsoletas, y no alterar históricos.
 
+## Tamaños de furgón: resultado real API 7/7 (GET autenticado, 17/11/2026)
+- Endpoint: `/api/external/v1/tamano-de-furgon-wja6f0k`.
+- Respuesta PowerShell: **4** registros, todos `isActive:true`, modalidad `metadata.modality="Land"`. `code`, `slug` y `value` son el número de pies como string; `name` proporciona la etiqueta visible.
+- Registros observados:
+
+| id | code/value | name | sortOrder | metadata.feet | metadata.capacityTons |
+|---|---|---|---:|---:|---|
+| `c2150000-0000-4000-8000-000000000001` | `24` | `24 pies / 5 TON` | 24 | 24 | 5 |
+| `c2150000-0000-4000-8000-000000000002` | `26` | `26 pies / 7 TON` | 26 | 26 | 7 |
+| `c2110000-0000-4000-8000-000000000048` | `48` | `48 pies` | 48 | 48 | No declarado |
+| `c2110000-0000-4000-8000-000000000053` | `53` | `53 pies` | 53 | 53 | No declarado |
+
+- **Diferencia funcional confirmada con el código de la rama de investigación:** `frontend/src/lib/officialQuoteOptions.ts` y `backend/Endpoints/OfficialQuoteEndpoints.cs` permiten en FTL **24 pies / 5 TON, 26 pies / 7 TON, 40 pies, 53 pies**; el catálogo Dhole devuelve **48 pies en lugar de 40 pies**. **NO reemplazar ni retirar silenciosamente 40** hasta confirmar con negocio si se sustituyó o ambas longitudes deben soportarse. La API no aportó un registro 40 FTL.
+- No inferir capacidades de peso para `48` ni `53`, porque `capacityTons` no aparece en esos registros.
+- Requiere adaptador que distinga `name` del `value` numérico y del `id` externo, y que sincronice backend/validación con las opciones dinámicas, sin alterar historial de solicitudes.
+- **Estado global:** las **7 APIs GET** fueron investigadas con respuestas autenticadas; la investigación no implica que haya comenzado la integración. Pendientes de definición final: política FTL 40 vs 48; inclusión de equipos LCL aéreos (`LOOSE`, `PALLET`, `ULD`, usuario consultará luego sin crear campos); alcance de modalidades `Multimodal` dentro de marítimo; decisión final general `isActive`; reglas POL con metadatos heredados. Cualquier POST para solicitar tarifa queda fuera de alcance hasta contrato y permiso explícito.
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
@@ -282,7 +299,7 @@ Cada registro incluye además `description: Contenedor de XX pies`, `metadata: {
 7. Solicitar especificación de `solicitar-tarifa` antes de cualquier prueba POST; ejemplo recibido no demuestra cuáles campos son obligatorios.
 
 ## Acceso a la API externa
-La prueba DNS desde el entorno del asistente falló: `Could not resolve host: api.logisticacastrofallas.com`. Sin embargo, el usuario **sí obtuvo un JSON autenticado de Incoterms usando PowerShell** (GET). Ya se observaron respuestas autenticadas para seis de los siete catálogos (incoterms, POD, POE, POL, tamaños y tipos de contenedor); falta tamaños de furgón y la confirmación del contrato POST de tarifas. No se almacena ninguna clave API en este repositorio.
+La prueba DNS desde el entorno del asistente falló: `Could not resolve host: api.logisticacastrofallas.com`. Sin embargo, el usuario **sí obtuvo un JSON autenticado de Incoterms usando PowerShell** (GET). Ya se observaron respuestas autenticadas para los siete catálogos GET (incoterms, POD, POE, POL, tamaños y tipos de contenedor, tamaños de furgón). Sigue pendiente confirmar el contrato POST de tarifas. No se almacena ninguna clave API en este repositorio.
 
 ## Paralelismo
 PR #246: `frontend/src/pages/About.vue`.
