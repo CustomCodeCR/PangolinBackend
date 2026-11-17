@@ -38,6 +38,46 @@ public static class DholeCatalogEndpoints
             }
         }).RequireRateLimiting("public-read");
 
+        // Admin-only, read-only preview: Dhole IDs are NOT local quote IDs.
+        // Never reuse this endpoint directly in the existing quote submission flow.
+        app.MapGet("/api/dhole/quote-location-preview", async (
+            string mode, string role, DholeCatalogService service, HttpContext http, CancellationToken ct) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+            if (mode is not ("Maritime" or "Air" or "Land") ||
+                role is not ("origin" or "destination" or "pod") ||
+                (role == "pod" && mode != "Maritime"))
+                return Results.BadRequest(new { code = "invalid_catalog_selection" });
+
+            if (!service.IsConfigured)
+                return Results.Json(new { code = "catalog_not_configured" },
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            try
+            {
+                var catalog = DholeQuoteLocationProjector.CatalogForRole(role);
+                var snapshot = await service.GetAsync(catalog, ct);
+                var projection = DholeQuoteLocationProjector.Project(role, mode, snapshot.Items);
+                return Results.Ok(new
+                {
+                    source = "dhole",
+                    catalog,
+                    mode,
+                    role,
+                    fetchedAtUtc = snapshot.FetchedAtUtc,
+                    stale = snapshot.Stale,
+                    options = projection.Options,
+                    reviewCount = projection.Issues.Length,
+                    // No external UUID is accepted as OfficialQuoteLocation.Id yet.
+                    submissionEnabled = false
+                });
+            }
+            catch (DholeCatalogUnavailableException)
+            {
+                return Results.Json(new { code = "catalog_upstream_unavailable" },
+                    statusCode: StatusCodes.Status502BadGateway);
+            }
+        }).RequireAuthorization("admin").RequireRateLimiting("public-read");
+
         return app;
     }
 }
