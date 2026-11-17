@@ -230,11 +230,17 @@ public static class OfficialQuoteEndpoints
                 if (input.CatalogSource is not null && input.CatalogSource is not ("local" or "dhole"))
                     return Results.BadRequest(new { error = "Fuente de catálogo inválida." });
                 bool useDhole = input.CatalogSource == "dhole";
-                if (useDhole && (!config.GetValue<bool>("DholeCatalogs:FormEnabled") ||
-                    !config.GetValue<bool>("DholeCatalogs:SubmissionEnabled") ||
-                    !dholeService.IsConfigured))
+                bool dynamicRollout = config.GetValue<bool>("DholeCatalogs:FormEnabled") &&
+                    config.GetValue<bool>("DholeCatalogs:SubmissionEnabled");
+                if (useDhole && (!dynamicRollout || !dholeService.IsConfigured))
                     return Results.Json(new { code = "dhole_quote_disabled", error = "El catálogo Dhole no está habilitado." },
                         statusCode: StatusCodes.Status503ServiceUnavailable);
+                // Once the dynamic wizard AND its submit validator are enabled,
+                // no new request may bypass Dhole by omitting catalogSource.
+                // Historical records and deployments with flags off are unaffected.
+                if (!useDhole && dynamicRollout)
+                    return Results.Json(new { code = "catalog_source_required", error = "Actualizá la página de cotizaciones para utilizar el catálogo vigente." },
+                        statusCode: StatusCodes.Status409Conflict);
 
                 Validate(input, useDholeCatalogs: useDhole);
                 string originName;
