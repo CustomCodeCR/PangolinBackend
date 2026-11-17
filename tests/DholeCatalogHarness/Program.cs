@@ -179,3 +179,55 @@ catch (ArgumentException) { /* expected */ }
 
 Console.WriteLine("OK: Dhole role projection, 3 modes, real POL exceptions, POD rule and identity isolation.");
 
+var containerSizes = DholeCatalogNormalizer.Parse("""
+[
+ { "id": "c1100000-0000-4000-8000-000000000020", "name": "20 pies", "value": "20" },
+ { "id": "c1100000-0000-4000-8000-000000000040", "name": "40 pies", "value": "40" },
+ { "id": "c1100000-0000-4000-8000-000000000045", "name": "45 pies", "value": "45" },
+ { "id": "c1100000-0000-4000-8000-000000000048", "name": "48 pies", "value": "48" }
+]
+""");
+var containerTypes = DholeCatalogNormalizer.Parse("""
+[
+ { "id": "c1300000-0000-4000-8000-000000000003", "code": "40HC", "name": "40 High Cube", "value": "40HC",
+   "metadata": { "size": "40", "kind": "high-cube", "modalities": ["Maritime", "Multimodal"], "shipmentModes": ["FCL"] } },
+ { "id": "c1300000-0000-4000-8000-000000000004", "code": "45HC", "name": "45 High Cube", "value": "45HC",
+   "metadata": { "size": "45", "kind": "high-cube", "modalities": ["Maritime", "Multimodal"], "shipmentModes": ["FCL"] } },
+ { "id": "c1300000-0000-4000-8000-000000000005", "code": "48HC", "name": "48 High Cube", "value": "48HC",
+   "metadata": { "size": "48", "kind": "high-cube", "modalities": ["Multimodal"], "shipmentModes": ["FCL"] } },
+ { "id": "c1300000-0000-4000-8000-000000000006", "code": "45DV", "name": "45 Dry Van", "value": "45DV",
+   "isActive": false, "metadata": { "size": "45", "kind": "dry-van", "modalities": ["Maritime"], "shipmentModes": ["FCL"] } },
+ { "id": "c1300000-0000-4000-8000-000000000007", "code": "50HC", "name": "50 High Cube", "value": "50HC",
+   "metadata": { "size": "50", "kind": "high-cube", "modalities": ["Maritime"], "shipmentModes": ["FCL"] } },
+ { "id": "c2700000-0000-4000-8000-000000000006", "code": "LOOSE", "name": "Carga suelta", "value": "LOOSE",
+   "metadata": { "modalities": ["Air"], "shipmentModes": ["LCL"] } }
+]
+""");
+var truckSizes = DholeCatalogNormalizer.Parse("""
+[
+ { "id": "c2150000-0000-4000-8000-000000000001", "code": "24", "name": "24 pies / 5 TON", "value": "24", "metadata": { "feet": 24, "modality": "Land", "capacityTons": 5 } },
+ { "id": "c2150000-0000-4000-8000-000000000002", "code": "26", "name": "26 pies / 7 TON", "value": "26", "metadata": { "feet": 26, "modality": "Land", "capacityTons": 7 } },
+ { "id": "c2110000-0000-4000-8000-000000000048", "code": "48", "name": "48 pies", "value": "48", "metadata": { "feet": 48, "modality": "Land" } },
+ { "id": "c2110000-0000-4000-8000-000000000053", "code": "53", "name": "53 pies", "value": "53", "metadata": { "feet": 53, "modality": "Land" } }
+]
+""");
+var equipment = DholeEquipmentProjector.Project(containerSizes, containerTypes, truckSizes);
+Check(equipment.FclCombinations.Length == 3 &&
+      equipment.FclCombinations.Any(x => x.TypeCode == "45HC" && x.SizeName == "45 pies") &&
+      !equipment.FclCombinations.Any(x => x.TypeCode == "45DV"),
+      "Only valid, active FCL size/type combinations appear");
+Check(equipment.FclCombinations.Any(x => x.TypeCode == "48HC" &&
+      x.MultimodalOnly && x.TypeName == "High Cube"),
+      "Multimodal-only 48HC remains selectable within Maritime FCL");
+Check(equipment.RejectedTypeCodes.SequenceEqual(["50HC"]),
+      "Orphan equipment sizes flagged instead of silently offered");
+Check(equipment.FtlSizes.Select(x => x.Code).SequenceEqual(["24", "26", "48", "53"]) &&
+      !equipment.FtlSizes.Any(x => x.Code == "40"),
+      "Dhole dynamically replaces retired FTL 40 with active 48");
+Check(equipment.FtlSizes[0].CapacityTons == 5 &&
+      equipment.FtlSizes[2].CapacityTons is null,
+      "Unknown truck tonnage must not be invented");
+
+Console.WriteLine("OK: Dynamic FCL type/size validation, multimodal 48HC, ignored air LCL, current FTL sizes.");
+
+
