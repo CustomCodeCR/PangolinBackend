@@ -58,6 +58,8 @@ services:
       Auth__SecureCookie: "false"
       Development__ApplySchema: "true"
       CmsNews__BinaryImageDeliveryEnabled: ${CMS_NEWS_BINARY_IMAGES:-false}
+      # Opt-in local QA only: preserve original uploads; generate responsive WebP derivatives.
+      CmsMedia__ResponsiveWebpEnabled: ${CMS_RESPONSIVE_WEBP_BACKEND:-false}
       Redis__ConnectionString: redis:6379
       Mongo__ConnectionString: mongodb://mongo:27017
       Mongo__Database: castrofallas_logs
@@ -99,6 +101,8 @@ services:
     environment:
       VITE_API_PROXY_TARGET: http://backend:5000
       VITE_OFFICIAL_QUOTES_ENABLED: ${VITE_OFFICIAL_QUOTES_ENABLED:-true}
+      # Dev Vite parity with the optional Nuxt/legacy preview image feature flag.
+      VITE_CMS_RESPONSIVE_WEBP_ENABLED: ${CMS_RESPONSIVE_WEBP_FRONTEND:-false}
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - "${FRONTEND_BIND_IP:-127.0.0.1}:${FRONTEND_HOST_PORT:-5173}:5173"

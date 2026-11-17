@@ -5,6 +5,8 @@ on:
     branches: [main-2, main]
     paths:
       - backend/Services/CmsImageVariants.cs
+      - compose.yaml
+      - scripts/test-cms-webp-compose.py
       - tests/CmsWebpVisualReview/**
       - .github/workflows/cms-webp-visual-review.yml
 
