@@ -4,12 +4,20 @@
 CI-only: both servers use explicit loopback ports; no network storage, production
 secrets or user content. The helper reuses the existing isolated auth/HTTP code.
 """
+import importlib.util
 import json
 import os
 from pathlib import Path
 from subprocess import DEVNULL, Popen, TimeoutExpired, run
 
-import test_cms_media_http as helper
+# The existing harness filename contains hyphens; load it by its fixed
+# repository path, not via Python's conventional module-name import.
+spec = importlib.util.spec_from_file_location(
+    "test_cms_media_http", Path(__file__).with_name("test-cms-media-http.py"))
+if spec is None or spec.loader is None:
+    raise RuntimeError("Cannot load the isolated CMS HTTP helper")
+helper = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(helper)
 
 
 def require(condition, message):
