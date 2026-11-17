@@ -4,6 +4,8 @@ on:
     branches: [main-2]
     paths:
       - 'backend/Services/DholeCatalog*.cs'
+      - 'backend/Services/DholeQuoteLocationProjector.cs'
+      - 'backend/Services/DholeEquipmentProjector.cs'
       - 'backend/Endpoints/DholeCatalogEndpoints.cs'
       - 'backend/Program.cs'
       - 'tests/DholeCatalogHarness/**'
