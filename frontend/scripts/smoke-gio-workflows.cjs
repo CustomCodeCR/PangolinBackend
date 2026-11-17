@@ -38,6 +38,9 @@ const api = http.createServer(async (req, res) => {
     : send(401,{error:'Unauthorized'})
   if (url.pathname === '/api/content/site') return send(200,{})
   if (url.pathname === '/api/content/news') return send(200,[])
+  // Dhole is opt-in: the normal browser smoke keeps the legacy form on purpose.
+  if (url.pathname === '/api/quotes/official/dhole-options')
+    return send(404,{code:'dhole_form_disabled'})
   if (url.pathname === '/api/assistant/quote-locations' || url.pathname === '/api/quotes/official/locations') {
     const source = url.searchParams.get('routeRole')
     const item = source === 'origin'
