@@ -8,6 +8,49 @@ const keywords = JSON.parse(fs.readFileSync(path.resolve(base, '../seo/keyword-m
 const guides = JSON.parse(fs.readFileSync(path.resolve(base, '../seo/service-landings.json'), 'utf8'))
 const newServices = JSON.parse(fs.readFileSync(path.resolve(base, '../seo/service-pages.json'), 'utf8'))
 const serviceFaqs = JSON.parse(fs.readFileSync(path.resolve(base, '../seo/service-faqs.json'), 'utf8'))
+// Each service has one canonical, human-readable search intent. The large
+// keyword inventory is editorial planning data, not a meta-keywords tag.
+const routeSeo = JSON.parse(fs.readFileSync(path.resolve(base, '../seo/routes.json'), 'utf8'))
+const targetedServiceRoutes = [
+  '/servicios/almacenamiento-fiscal',
+  '/servicios/agenciamiento-aduanal',
+  '/servicios/consolidadora-de-carga',
+  '/servicios/transporte-maritimo',
+  '/servicios/transporte-aereo',
+  '/servicios/transporte-internacional',
+  '/servicios/transporte-local',
+  '/servicios/transporte-terrestre',
+  '/servicios/transporte-panama-costa-rica'
+]
+for (const route of targetedServiceRoutes) {
+  assert.ok(keywords[route]?.primary && keywords[route]?.secondary?.length >= 3,
+    'Falta estrategia SEO de búsqueda por servicio: ' + route)
+  const seo = routeSeo[route]
+  assert.ok(seo?.title?.endsWith('Castro Fallas') && seo?.description?.length >= 95 && seo.description.length <= 165,
+    'Título y descripción SEO específicos o legibles faltantes: ' + route)
+  assert.ok(!/3PL|4PL|HAZMAT|flotilla propia/i.test(seo.description),
+    'No publicar promesas de servicios no confirmados: ' + route)
+}
+for (const route of [
+  '/servicios/almacenamiento-fiscal','/servicios/agenciamiento-aduanal',
+  '/servicios/consolidadora-de-carga','/servicios/transporte-maritimo',
+  '/servicios/transporte-aereo','/servicios/transporte-internacional',
+  '/servicios/transporte-local'
+]) {
+  assert.ok(keywords[route].clusters && keywords[route].validationRequired?.length,
+    'Conservar las familias de búsqueda y términos pendientes de validar: ' + route)
+}
+assert.ok(keywords['/servicios/transporte-internacional'].clusters.multimodal.includes('Transporte multimodal'),
+  'Multimodal utiliza la página existente de transporte internacional sin crear rutas duplicadas')
+assert.equal(routeSeo['/servicios/transporte-multimodal'], undefined,
+  'No agregar una nueva ruta de multimodal fuera del catálogo aprobado')
+const publicServiceSeo = source('app/pages/servicios/[slug].vue')
+assert.match(publicServiceSeo, /import routeSeo from '\.\.\/\.\.\/\.\.\/\.\.\/seo\/routes\.json'/,
+  'El SSR de servicios debe leer el mapa canónico de títulos y descripciones')
+assert.match(publicServiceSeo, /const metaDescription = seoMeta\?\.description \?\? description\.slice\(0, 160\)/,
+  'La metadescripción SSR debe coincidir con el HTML estático')
+assert.match(publicServiceSeo, /description: metaDescription/,
+  'Nuxt no debe sobrescribir los metadatos optimizados con párrafos de guía')
 assert.equal(Object.keys(guides).length, 4, 'Se esperaban cuatro guías especializadas')
 for (const [route, guide] of Object.entries(guides)) {
   assert.ok(route.startsWith('/servicios/'), 'Ruta de servicio inválida: ' + route)
