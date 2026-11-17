@@ -48,6 +48,27 @@ Acción potencialmente mutadora: `solicitar-tarifa-wjicua4` (POST). **No ejecuta
 - No asumir qué significa el código `SD` hasta confirmación del equipo Dhole. Tampoco igualar `id` externo con UUID de `official_quote_locations` sin mapeo verificado.
 - Inspección pendiente: agrupar los 24 registros por `transportMode`, `routeRole`, `terminalType`, `isActive`; contar ausencia de `id`/`value` y duplicados de ID. Esto permitirá decidir filtros seguros y compatibilidad de cotizaciones/itinerarios.
 
+## POD: análisis de los 24 registros según PowerShell (17/11/2026)
+- `transportMode`: `Maritime = 12`, `Land = 3`, valor no mostrado = 9.
+- `routeRole`: `POD = 15`, valor no mostrado = 9.
+- `terminalType`: `SD = 15`, valor no mostrado = 9.
+- `isActive`: `True = 24`.
+- Los nueve nombres sin modalidad/rol/tipo visibles en el listado:
+  - Caldera, Costa Rica
+  - Cartago, Costa Rica
+  - San Jose, Costa Rica
+  - Alajuela, Costa Rica
+  - Heredia, Costa Rica
+  - Coyol, Costa Rica
+  - Port Willemstad, Curaçao
+  - Tocumen, Panama
+  - Georgetown, Guyana
+- Los tres con `transportMode = Land`, `routeRole = POD`, `terminalType = SD`: Long Beach, Estados Unidos; Veracruz, México; Pital, San Carlos, Costa Rica. **No corregir sus etiquetas ni asumir un error**; confirmar semántica con Dhole.
+- Los otros 12 con `transportMode = Maritime`: Colon Free Zone (Panamá), Managua (Nicaragua), San Pedro Sula (Honduras), Puerto Cortes (Honduras), Tegucigalpa (Honduras), San Salvador (El Salvador), Santo Tomas del Castillo (Guatemala), Ciudad de Guatemala (Guatemala), Manzanillo (Panamá), New Jersey (Estados Unidos), Moin (Costa Rica), Rotterdam (Paises Bajos).
+- Precaución: PowerShell muestra espacios en blanco tanto para propiedades inexistentes como valores `null` o cadena vacía; se requiere inspección explícita de objetos, `metadata` y presencia de propiedades antes de concluir causa.
+- **Bloqueo de integración:** no se puede filtrar POD únicamente por `transportMode` y descartar silenciosamente los nueve registros sin modalidad. No inferir `Maritime` desde nombre, ni del endpoint, ni del puerto.
+- Próxima inspección de solo lectura: seleccionar los nueve registros sin modalidad, mostrar sus campos `id/code/name/metadata/transportMode/routeRole/terminalType`, comparar con casos `Land`. Pregunta para Dhole: ¿ausencia de metadata y clasificación terrestre es intencional? ¿Qué significa `SD`? ¿Cómo se aplica el rol POD para marítimo/terrestre? ¿Hay otra fuente de verdad para filtrar?
+
 ## Riesgos y preguntas pendientes
 1. Verificar formato real de respuesta, paginación, métodos, filtros, ids, tipos, nulos y códigos de estado; no inferir modalidad por nombre.
 2. Comprobar si POL/POE/POD contienen metadatos explícitos de transporte y si los endpoints distinguen roles de los catálogos locales.
