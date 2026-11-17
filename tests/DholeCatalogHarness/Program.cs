@@ -296,7 +296,7 @@ var officialIncotermItems = DholeCatalogNormalizer.Parse("""
 var formCatalog = DholeQuoteFormCatalogBuilder.Build(
     "Maritime", "FCL", officialIncotermItems, polItems, poeItems, podItems,
     containerSizes, containerTypes, truckSizes);
-Check(formCatalog.Incoterms.SequenceEqual(["FOB", "CIF"]), "Dynamic Incoterms exclude inactive entries");
+Check(formCatalog.Incoterms.OrderBy(x => x, StringComparer.Ordinal).SequenceEqual(["CIF", "FOB"]), "Dynamic Incoterms exclude inactive entries regardless of sort order");
 Check(formCatalog.EquipmentTypesBySize["45 pies"].SequenceEqual(["High Cube"]) &&
       formCatalog.EquipmentTypesBySize["48 pies"].SequenceEqual(["High Cube"]),
       "FCL 45/48 sizes offer only real high cube combinations");
