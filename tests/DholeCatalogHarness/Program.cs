@@ -405,6 +405,37 @@ Check(ltlCatalog.Origins.Length == 1 && ltlCatalog.Destinations.Length == 1 &&
 
 Console.WriteLine("OK: All five shipment mode/type combinations use the right Dhole fields.");
 
+var itinerariesMaritimeOrigins = DholeItineraryLocationProjector.Project(
+    "maritime", "origin", polItems, podItems);
+Check(itinerariesMaritimeOrigins.Contains("San José") &&
+      itinerariesMaritimeOrigins.Count(x => x == "San José") == 1 &&
+      itinerariesMaritimeOrigins.Contains("Moin"),
+    "Maritime itinerary POL preserves different Dhole entries but uses unique filter strings");
+
+var itinerariesGroundOrigins = DholeItineraryLocationProjector.Project(
+    "ground", "origin", landPolItems, podItems);
+Check(itinerariesGroundOrigins.SequenceEqual(["Land Origin"]),
+    "Ground itineraries receive only Land POL names");
+
+var mixedPol = polItems.Concat(landPolItems).ToArray();
+var allOrigins = DholeItineraryLocationProjector.Project(
+    "all", "origin", mixedPol, podItems);
+Check(allOrigins.Contains("Land Origin") && allOrigins.Contains("Moin"),
+    "All itinerary modes include maritime and ground origin names");
+
+var maritimePods = DholeItineraryLocationProjector.Project(
+    "maritime", "destination", polItems, podItems);
+var groundPods = DholeItineraryLocationProjector.Project(
+    "ground", "destination", landPolItems, podItems);
+Check(maritimePods.SequenceEqual(groundPods) &&
+      maritimePods.Contains("Legacy POD") &&
+      maritimePods.Contains("Land POD") &&
+      maritimePods.Contains("Invalid role"),
+    "Itinerary destination means POD, includes all active entries in every transport mode");
+
+Console.WriteLine("OK: Itinerarios uses Dhole POL/POD, unique name filters and no UUID migration.");
+
+
 
 sealed class FakeDholeHttpClientFactory(HttpClient client) : IHttpClientFactory
 {
