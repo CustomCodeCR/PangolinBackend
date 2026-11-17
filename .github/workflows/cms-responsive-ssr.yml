@@ -26,6 +26,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify local Compose flags and production GHCR default-off
+        run: python3 scripts/test-cms-webp-compose.py
       - name: Install isolated Nuxt dependencies
         working-directory: frontend/nuxt
         run: npm install --no-audit --no-fund
