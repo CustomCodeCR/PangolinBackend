@@ -6,6 +6,7 @@ on:
       - 'backend/Services/DholeCatalog*.cs'
       - 'backend/Services/DholeQuoteLocationProjector.cs'
       - 'backend/Services/DholeEquipmentProjector.cs'
+      - 'backend/Services/DholeItineraryLocationProjector.cs'
       - 'backend/Services/DholeQuoteForm*.cs'
       - 'backend/Endpoints/OfficialQuoteEndpoints.cs'
       - 'backend/Models/OfficialQuoteModels.cs'
