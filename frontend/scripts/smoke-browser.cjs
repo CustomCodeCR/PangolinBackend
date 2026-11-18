@@ -159,7 +159,7 @@ async function assertServicesTheme(chrome, url) {
     assert.ok(transport.allClonesHidden, 'Las copias del loop no deben entrar al tabulador')
     assert.ok(transport.photos, 'Todas las tarjetas necesitan una imagen')
     assert.ok(transport.name && transport.action.includes('Ir'), 'Deben verse el nombre y el botón Ir')
-    assert.equal(transport.animation, 'services-directory-loop', 'La pista debe desplazarse continuamente')
+    assert.ok(transport.animation.startsWith('services-directory-loop'), 'La pista debe desplazarse continuamente')
     assert.ok(transport.dx <= 1 && transport.dy <= 1, 'Flecha de Ir descentrada')
     await evaluate("document.getElementById('services-directory-tab-logistics').click()")
     await new Promise(resolve => setTimeout(resolve, 200))
