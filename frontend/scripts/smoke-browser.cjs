@@ -376,8 +376,13 @@ async function assertServicesTheme(chrome, url) {
           }
           assert.ok(!state.imageFilter.includes('blur('),
             'La propia imagen no debe tener filter:blur(): ' + servicePath)
-          assert.equal(state.safariBlur, 'none',
-            'Safari tampoco debe desenfocar el hero: ' + servicePath)
+          // Chromium does not expose the WebKit alias on every CI build.
+          // Check its computed value only when the browser implements it;
+          // the CSS also declares -webkit-backdrop-filter:none for Safari.
+          if (typeof state.safariBlur === 'string') {
+            assert.equal(state.safariBlur, 'none',
+              'El alias WebKit no debe desenfocar el hero: ' + servicePath)
+          }
           assert.equal(state.sourceReady, true, 'Imagen original no cargada: ' + servicePath)
           assert.equal(state.titleColor, 'rgb(255, 255, 255)',
             'Contraste de titular alterado: ' + servicePath)
