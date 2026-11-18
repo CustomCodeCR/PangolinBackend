@@ -143,12 +143,12 @@ async function assertServicesTheme(chrome, url) {
     await send('Runtime.enable')
     await send('Page.enable')
 
-    // Regression: adding Fiscal and Panama must not squeeze six home cards
-    // into a single thin horizontal row on phones or tablets.
+    // Six mobile tabs start closed, preserve vertical labels, and hide
+    // only as many neighbors as needed to keep the selected card readable.
     const homeUrl = new URL('/', url).href
-    for (const width of [320, 390, 768, 1024, 1280]) {
+    for (const width of [320, 390, 430, 768, 800, 1024, 1280]) {
       await send('Emulation.setDeviceMetricsOverride', {
-        width, height: 900, deviceScaleFactor: 1, mobile: false
+        width, height: 950, deviceScaleFactor: 1, mobile: false
       })
       const homeNavigation = await send('Page.navigate', { url: homeUrl })
       assert.ok(!homeNavigation.errorText, 'Chrome no pudo abrir Home: ' + homeNavigation.errorText)
@@ -158,28 +158,40 @@ async function assertServicesTheme(chrome, url) {
         if (loaded) break
         await new Promise(resolve => setTimeout(resolve, 120))
       }
-      assert.ok(loaded, 'Faltan servicios del acordeón en Home a ' + width + 'px')
-      const layout = await evaluate("(() => { const root=document.querySelector('#servicios .service-accordion'); const items=[...root.querySelectorAll('.service-accordion__item')]; const r=root.getBoundingClientRect(); const title=items[0].querySelector('.service-accordion__name'); return { direction:getComputedStyle(root).flexDirection, count:items.length, rootWidth:r.width, viewport:window.innerWidth, cardWidths:items.map(x=>Math.round(x.getBoundingClientRect().width)), cardTops:items.map(x=>Math.round(x.getBoundingClientRect().top)), writingMode:getComputedStyle(title).writingMode }; })()")
-      assert.equal(layout.count, 6, 'Home debe contener seis servicios')
-      if (width <= 1024) {
-        assert.equal(layout.direction, 'column', 'Las tarjetas deben apilarse en móvil/tableta: ' + JSON.stringify(layout))
-        assert.ok(layout.cardWidths.every(w => w >= layout.rootWidth - 4),
-          'Los títulos deben tener tarjetas de ancho completo: ' + JSON.stringify(layout))
-        assert.ok(layout.cardTops.every((top, i) => i === 0 || top > layout.cardTops[i - 1]),
-          'Las tarjetas deben formar filas independientes: ' + JSON.stringify(layout))
-        assert.equal(layout.writingMode, 'horizontal-tb', 'Las etiquetas móviles deben leerse horizontalmente')
+      assert.ok(loaded, 'Faltan los seis servicios del Home a ' + width + 'px')
+      await new Promise(resolve => setTimeout(resolve, 150))
+      const initial = await evaluate("(() => { const root=document.querySelector('#servicios .service-accordion'); const items=[...root.querySelectorAll('.service-accordion__item')]; const visible=items.filter(x=>getComputedStyle(x).display!=='none'); return { direction:getComputedStyle(root).flexDirection, total:items.length, visible:visible.length, opened:items.filter(x=>x.classList.contains('is-open')).length, writingMode:getComputedStyle(items[0].querySelector('.service-accordion__name')).writingMode, widths:visible.map(x=>Math.round(x.getBoundingClientRect().width)), documentWidth:document.documentElement.scrollWidth, viewport:window.innerWidth, containerWidth:root.clientWidth }; })()")
+      assert.equal(initial.total, 6, 'Se deben conservar los seis servicios')
+      assert.equal(initial.visible, 6, 'Al inicio deben verse todas las pestañas')
+      if (width <= 800) {
+        assert.equal(initial.direction, 'row', 'El móvil conserva las pestañas verticales en fila: ' + JSON.stringify(initial))
+        assert.equal(initial.writingMode, 'vertical-rl', 'Los nombres deben quedar verticales')
+        assert.equal(initial.opened, 0, 'Los servicios móviles deben iniciar todos cerrados')
+        assert.ok(initial.widths.every(w => w >= 35 && w <= 44), 'Pestañas cerradas demasiado grandes: ' + JSON.stringify(initial))
+        assert.ok(initial.documentWidth <= initial.viewport + 2, 'El acordeón no debe desbordar la pantalla: ' + JSON.stringify(initial))
+        // Select the last tab, to catch accidental hiding of a selected service.
         await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[5].click(); true")
-        await new Promise(resolve => setTimeout(resolve, 160))
-        const expanded = await evaluate("(() => { const item=document.querySelector('#servicios .service-accordion__item:last-child'); const panel=item.querySelector('.service-accordion__panel'); const copy=panel?.querySelector('.service-accordion__copy'); const c=item.getBoundingClientRect(); const p=panel?.getBoundingClientRect(); return { active:item.classList.contains('is-open'), panelPosition:panel&&getComputedStyle(panel).position, panelWidth:p?.width, cardWidth:c.width, copyWidth:copy?.clientWidth, copyScrollWidth:copy?.scrollWidth, hasAction:!!copy?.querySelector('button.btn') }; })()")
-        assert.ok(expanded.active && expanded.hasAction && expanded.panelPosition === 'relative',
-          'La última tarjeta debe abrir contenido y Ver más: ' + JSON.stringify(expanded))
-        assert.ok(expanded.panelWidth >= expanded.cardWidth - 5 && expanded.copyScrollWidth <= expanded.copyWidth + 2,
-          'El panel abierto no puede comprimir ni desbordar el contenido: ' + JSON.stringify(expanded))
+        await new Promise(resolve => setTimeout(resolve, 100))
+        const expanded = await evaluate("(() => { const root=document.querySelector('#servicios .service-accordion'); const items=[...root.querySelectorAll('.service-accordion__item')]; const visible=items.filter(x=>getComputedStyle(x).display!=='none'); const selected=items.find(x=>x.classList.contains('is-open')); const panel=selected?.querySelector('.service-accordion__panel'); const copy=panel?.querySelector('.service-accordion__copy'); return { visible:visible.length, hidden:items.length-visible.length, opened:items.filter(x=>x.classList.contains('is-open')).length, lastSelected:selected===items[5], selectedWidth:selected?.clientWidth, panelWidth:panel?.clientWidth, copyWidth:copy?.clientWidth, copyScrollWidth:copy?.scrollWidth, panelVisible:!!panel, hasAction:!!copy?.querySelector('button.btn'), hasClose:!!panel?.querySelector('button.service-accordion__close'), containerWidth:root.clientWidth, visibleOther:visible.some(x=>x!==selected) }; })()")
+        assert.ok(expanded.lastSelected && expanded.opened===1 && expanded.panelVisible && expanded.hasAction && expanded.hasClose, 'Debe abrirse el servicio seleccionado: ' + JSON.stringify(expanded))
+        assert.ok(expanded.visible>=2 && expanded.visible<=6 && expanded.visibleOther, 'Deben seguir visibles las pestañas que quepan: ' + JSON.stringify(expanded))
+        assert.ok(expanded.selectedWidth >= (width <= 320 ? 200 : 270), 'El servicio activo no debe quedar estrecho: ' + JSON.stringify(expanded))
+        assert.ok(expanded.copyScrollWidth <= expanded.copyWidth + 2, 'El texto no debe desbordar: ' + JSON.stringify(expanded))
+        if (width <= 430) assert.ok(expanded.hidden >= 1, 'En celular pequeño deben ocultarse algunas pestañas: ' + JSON.stringify(expanded))
+        // Close and restore all six tabs. Also confirm another service can open.
+        await evaluate("document.querySelector('#servicios .service-accordion__close').click(); true")
+        const reset = await evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')];return { visible:items.filter(x=>getComputedStyle(x).display!=='none').length,opened:items.filter(x=>x.classList.contains('is-open')).length }; })()")
+        assert.equal(reset.visible, 6, 'Cerrar debe devolver todas las pestañas: ' + JSON.stringify(reset))
+        assert.equal(reset.opened, 0, 'Cerrar no debe dejar un servicio abierto')
+        await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
+        assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item')[2].classList.contains('is-open')"), true,
+          'Se debe poder abrir otro servicio después de cerrar')
       } else {
-        assert.equal(layout.direction, 'row', 'Escritorio conserva el acordeón horizontal: ' + JSON.stringify(layout))
+        assert.equal(initial.direction, 'row', 'Escritorio conserva el acordeón horizontal')
+        assert.equal(initial.opened, 1, 'Escritorio conserva su servicio inicial expandido')
       }
     }
-    console.log('PASS Chrome: seis servicios del Home adaptados a móvil/tableta')
+    console.log('PASS Chrome: seis pestañas verticales, expansión adaptable y restauración al cerrar')
 
     const nav = await send('Page.navigate', { url })
     assert.ok(!nav.errorText, 'Chrome no pudo abrir Servicios: ' + nav.errorText)
