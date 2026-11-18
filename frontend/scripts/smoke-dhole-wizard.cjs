@@ -274,8 +274,13 @@ async function main() {
     console.log('PASS Chrome: explicit feature-disabled 404 preserves original legacy wizard behavior')
     console.log('PASS Chrome: mock-only traffic; no real Dhole API, production database or email')
   } catch(error) {
+    // Print the primary failure BEFORE cleanup. Chrome may still be writing to
+    // its profile when it is killed; an ENOTEMPTY error must not mask a failed
+    // assertion or an actual defect in the quote UI.
+    console.error('Primary wizard failure:',error)
     if(evaluate) {
       try { console.error('Browser diagnostic:',(await evaluate('document.body.innerText.slice(-1400)')).slice(0,1400)) } catch {}
+      try { console.error('Controls:',await evaluate('({origin:document.querySelector("#quote-origin")?.value,originOpen:document.querySelector("#quote-origin")?.getAttribute("aria-expanded"),originOptions:document.querySelectorAll("#quote-origin-options [role=option]").length,destination:document.querySelector("#quote-destination")?.value,step:document.querySelector(".official-progress-item.current")?.innerText})')) } catch {}
     }
     throw error
   } finally {
@@ -283,7 +288,8 @@ async function main() {
     chrome?.kill()
     vite?.kill()
     await close(api).catch(()=>{})
-    fs.rmSync(profile,{recursive:true,force:true})
+    try { fs.rmSync(profile,{recursive:true,force:true,maxRetries:5,retryDelay:200}) }
+    catch(e) { console.warn('Could not remove ephemeral Chrome profile:',e.code) }
   }
 }
 main().catch(error=>{console.error(error);process.exitCode=1})
