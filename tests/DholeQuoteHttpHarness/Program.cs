@@ -37,6 +37,9 @@ internal static class DholeQuoteHttpTest
         Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", "Production");
         Environment.SetEnvironmentVariable("ConnectionStrings__Postgres", connectionString);
         Environment.SetEnvironmentVariable("Development__ApplySchema", "false");
+        // Official quote routes have a separate opt-in, OFF in production.
+        // Enable them only inside the disposable PostgreSQL HTTP test.
+        Environment.SetEnvironmentVariable("Features__OfficialQuotesEnabled", "true");
         Environment.SetEnvironmentVariable("Auth__OtpPepper", new string('p', 64));
         Environment.SetEnvironmentVariable("Auth__JwtSigningKey", new string('a', 64));
         Environment.SetEnvironmentVariable("DholeCatalogs__Enabled", "true");
