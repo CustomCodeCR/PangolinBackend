@@ -211,41 +211,46 @@ async function assertServicesTheme(chrome, url) {
             'Un toque no debe abrir el servicio antes del click')
         }
         await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
-        const original = await evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')]; return { selected:items[2].classList.contains('is-open'), shown:items.map((item,i)=>getComputedStyle(item).display!=='none'?i:-1).filter(i=>i>=0) }; })()")
+        const original = await evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')]; return { selected:items[2].classList.contains('is-open'), shown:items.flatMap((item,i)=>getComputedStyle(item).display!=='none'?[i]:[]) }; })()")
         assert.equal(original.selected, true, 'Se debe poder abrir otro servicio después de cerrar')
-        // The four-tab window must move in BOTH directions, preserving original
-        // card width and hiding tabs from the side opposite the selection.
         if (expectedVisible === 4) {
-          assert.deepEqual(original.shown, [1,2,3,4],
-            'Al elegir Terrestre deben ocultarse extremos de ambos lados: ' + JSON.stringify(original))
-          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[3].click(); true")
-          const right = await evaluate("(() => [...document.querySelectorAll('#servicios .service-accordion__item')].map((item,i)=>getComputedStyle(item).display!=='none'?i:-1).filter(i=>i>=0))()")
-          assert.deepEqual(right, [2,3,4,5],
-            'Al avanzar a Multimodal deben ocultarse las pestañas de la izquierda')
+          assert.deepEqual(original.shown, [2,3,4,5],
+            'Al abrir Terrestre deben verse también Fiscal y Panamá sin desplazamiento manual')
+          // Start with all six, and open neighboring services in order.
+          // Newly added right-hand services must emerge BEFORE we close any card.
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
           await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[0].click(); true")
-          const left = await evaluate("(() => [...document.querySelectorAll('#servicios .service-accordion__item')].map((item,i)=>getComputedStyle(item).display!=='none'?i:-1).filter(i=>i>=0))()")
-          assert.deepEqual(left, [0,1,2,3],
-            'Al volver a Aéreo deben ocultarse las pestañas de la derecha')
-          if (width === 390) {
-            // Opening Air must not trap the two additional services behind a
-            // close-and-reopen action. Navigate right to reveal Fiscal/Panama.
-            const nextAvailable = await evaluate("!!document.querySelector('.service-accordion__navigation button[aria-label=\\\"Mostrar más servicios\\\"]')")
-            assert.ok(nextAvailable, 'Debe haber navegación hacia los servicios ocultos de la derecha')
-            await evaluate("document.querySelector('.service-accordion__navigation button[aria-label=\\\"Mostrar más servicios\\\"]').click(); true")
-            const afterNext = await evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')]; return { open:items.findIndex(item=>item.classList.contains('is-open')), visible:items.flatMap((item,i)=>getComputedStyle(item).display==='none'?[]:[i]) }; })()")
-            assert.equal(afterNext.open, 4, 'Siguiente debe abrir Almacén Fiscal sin cerrar Aéreo primero')
-            assert.deepEqual(afterNext.visible, [2,3,4,5], 'Deben estar accesibles Fiscal y Panamá sin cerrar el acordeón')
-            await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[5].click(); true")
-            const panama = await evaluate("document.querySelectorAll('#servicios .service-accordion__item')[5].classList.contains('is-open')")
-            assert.ok(panama, 'Panamá debe abrirse directamente mientras otro servicio estaba activo')
-            await evaluate("document.querySelector('.service-accordion__navigation button[aria-label=\\\"Mostrar servicios anteriores\\\"]').click(); true")
-            const afterPrev = await evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')];return { open:items.findIndex(item=>item.classList.contains('is-open')), visible:items.flatMap((item,i)=>getComputedStyle(item).display==='none'?[]:[i]) }; })()")
-            assert.equal(afterPrev.open, 1, 'Anterior permite regresar al lado izquierdo sin cerrar')
-            assert.deepEqual(afterPrev.visible, [0,1,2,3], 'La ventana debe desplazarse nuevamente a la izquierda')
-            await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[1].click(); true")
-            assert.ok(await evaluate("!document.querySelector('.service-accordion__navigation')"),
-              'Al cerrar deben desaparecer los controles y regresar las seis pestañas')
-          }
+          const shownIndices = () => evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')]; return { opened:items.findIndex(item=>item.classList.contains('is-open')), visible:items.flatMap((item,i)=>getComputedStyle(item).display!=='none'?[i]:[]) }; })()")
+          const air = await shownIndices()
+          assert.deepEqual(air, {opened:0,visible:[0,1,2,3]}, 'Aéreo debe iniciar con los cuatro servicios originales')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[1].click(); true")
+          const maritime = await shownIndices()
+          assert.deepEqual(maritime, {opened:1,visible:[1,2,3,4]},
+            'Al abrir Marítimo, Fiscal debe aparecer y Aéreo ocultarse')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
+          const land = await shownIndices()
+          assert.deepEqual(land, {opened:2,visible:[2,3,4,5]},
+            'Al abrir Terrestre debe aparecer Panamá y ocultarse Marítimo')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[3].click(); true")
+          assert.deepEqual(await shownIndices(), {opened:3,visible:[2,3,4,5]},
+            'Multimodal debe poder abrirse sin cerrar ni ocultar Fiscal/Panamá')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[4].click(); true")
+          assert.deepEqual(await shownIndices(), {opened:4,visible:[2,3,4,5]},
+            'Fiscal debe poder abrirse directamente al avanzar')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[5].click(); true")
+          assert.deepEqual(await shownIndices(), {opened:5,visible:[2,3,4,5]},
+            'Panamá debe poder abrirse directamente al avanzar')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
+          assert.deepEqual(await shownIndices(), {opened:2,visible:[1,2,3,4]},
+            'Al volver hacia Terrestre debe reaparecer Marítimo a la izquierda')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[1].click(); true")
+          assert.deepEqual(await shownIndices(), {opened:1,visible:[0,1,2,3]},
+            'Al volver hacia Marítimo debe reaparecer Aéreo a la izquierda')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[1].click(); true")
+          assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item:not([hidden])').length"), 6,
+            'Al cerrar deben regresar las seis pestañas sin controles de navegación')
+          assert.ok(await evaluate("!document.querySelector('.service-accordion__navigation')"),
+            'No debe agregarse navegación artificial al acordeón')
         }
       } else {
         assert.equal(initial.direction, 'row', 'Escritorio conserva el acordeón horizontal')
