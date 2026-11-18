@@ -603,7 +603,7 @@ async function submit() {
                 </div>
               </div>
               <div v-if="mode === 'Maritime'" class="official-location-field">
-                <label for="quote-pod">POD <span>*</span> {{ q('(requerido)', '(required)') }}</label>
+                <label for="quote-pod">POD <span>*</span></label>
                 <div class="official-location-combobox">
                   <input id="quote-pod" :value="locationSearch.pod" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'pod'" aria-controls="quote-pod-options" autocomplete="off" :placeholder="q('Buscar puerto de descarga', 'Search port of discharge')" required @focus="focusLocation('pod')" @input="updateLocationSearch('pod', $event)" @keydown="handleLocationKeydown('pod', $event)" @blur="closeLocation('pod')" />
                   <button type="button" class="official-location-toggle" :class="{ 'official-location-toggle--clear': !!form.podLocationId }" :aria-label="form.podLocationId ? q('Limpiar POD', 'Clear POD') : q('Mostrar opciones de POD', 'Show POD options')" @mousedown.prevent @click="form.podLocationId ? clearLocation('pod') : toggleLocation('pod')">⌄</button>
