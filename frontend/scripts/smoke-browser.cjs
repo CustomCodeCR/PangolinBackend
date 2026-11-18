@@ -179,6 +179,31 @@ async function assertServicesTheme(chrome, url) {
       assert.equal(view.titleFill, 'rgb(255, 255, 255)', 'El título debe conservarse blanco en ambos modos')
     }
     console.log('PASS Chrome: carrusel infinito con dos categorías, fotos, enlaces y modo oscuro')
+
+    // Comprobar geometría real: carrusel de borde a borde en PC
+    // y tarjetas más compactas en móvil, sin desbordamiento horizontal.
+    for (const width of [1440, 390]) {
+      await send('Emulation.setDeviceMetricsOverride', {
+        width, height: 900, deviceScaleFactor: 1, mobile: false
+      })
+      await new Promise(resolve => setTimeout(resolve, 180))
+      const geometry = await evaluate("(() => { const c = document.querySelector('.services-directory__carousel').getBoundingClientRect(); const a = document.querySelector('.services-directory__panel:not([style*=none]) .services-directory__card').getBoundingClientRect(); return { viewport:window.innerWidth, carouselWidth:c.width, center:(c.left+c.right)/2, cardWidth:a.width, cardHeight:a.height, documentWidth:document.documentElement.scrollWidth }; })()")
+      assert.ok(Math.abs(geometry.carouselWidth - geometry.viewport) <= 2,
+        'El carrusel debe ocupar todo el ancho de pantalla: ' + JSON.stringify(geometry))
+      assert.ok(Math.abs(geometry.center - geometry.viewport / 2) <= 3,
+        'El carrusel debe estar centrado respecto a la pantalla: ' + JSON.stringify(geometry))
+      assert.ok(geometry.documentWidth <= geometry.viewport + 2,
+        'El carrusel no debe generar scroll horizontal: ' + JSON.stringify(geometry))
+      if (width === 390) {
+        assert.ok(geometry.cardWidth <= 235 && geometry.cardHeight <= 310,
+          'Tarjetas demasiado grandes en móvil: ' + JSON.stringify(geometry))
+      } else {
+        assert.ok(geometry.cardWidth >= 280 && geometry.cardHeight >= 345,
+          'Las tarjetas de PC deben conservar una imagen protagonista: ' + JSON.stringify(geometry))
+      }
+    }
+    console.log('PASS Chrome: carrusel de ancho completo en PC y tarjetas compactas en móvil')
+
     // About: five cards should keep 3/2, 2/2/1 and single-column
     // layouts, with every incomplete final row centered in its container.
     const aboutUrl = new URL('/nosotros', url).href
