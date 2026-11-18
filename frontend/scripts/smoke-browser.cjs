@@ -146,11 +146,11 @@ async function assertServicesTheme(chrome, url) {
     assert.ok(!nav.errorText, 'Chrome no pudo abrir Servicios: ' + nav.errorText)
     let ready = false
     for (let i = 0; i < 100; i++) {
-      ready = await evaluate("document.querySelectorAll('.services-directory__card').length === 10")
+      ready = await evaluate("document.querySelectorAll('.services-directory__card').length === 8")
       if (ready) break
       await new Promise(resolve => setTimeout(resolve, 120))
     }
-    assert.ok(ready, 'No aparecieron las 10 tarjetas del directorio')
+    assert.ok(ready, 'No aparecieron las 8 tarjetas del directorio')
     const probe = async dark => {
       const action = dark ? 'add' : 'remove'
       await evaluate("document.documentElement.classList." + action + "('theme-dark')")
@@ -171,9 +171,9 @@ async function assertServicesTheme(chrome, url) {
     assert.equal(dark.text, 'rgb(244, 246, 250)', 'Tema oscuro: título invisible')
     assert.equal(dark.fill, 'rgb(244, 246, 250)', 'Tema oscuro: text-fill-color invisible')
     const arrowGeometry = await evaluate("(() => { const circle = document.querySelector('.services-directory__card-arrow').getBoundingClientRect(); const icon = document.querySelector('.services-directory__card-arrow svg').getBoundingClientRect(); return { dx: Math.abs(circle.left + circle.width / 2 - icon.left - icon.width / 2), dy: Math.abs(circle.top + circle.height / 2 - icon.top - icon.height / 2), icons: document.querySelectorAll('.services-directory__card-arrow svg').length }; })()")
-    assert.equal(arrowGeometry.icons, 10, 'Los 10 enlaces necesitan flechas SVG centradas')
+    assert.equal(arrowGeometry.icons, 8, 'Los 8 enlaces necesitan flechas SVG centradas')
     assert.ok(arrowGeometry.dx <= 1 && arrowGeometry.dy <= 1, 'Flecha descentrada dentro de círculo: ' + JSON.stringify(arrowGeometry))
-    console.log('PASS Chrome: 10 tarjetas con contraste real claro/oscuro')
+    console.log('PASS Chrome: 8 tarjetas con contraste real claro/oscuro')
     // About: five cards should keep 3/2, 2/2/1 and single-column
     // layouts, with every incomplete final row centered in its container.
     const aboutUrl = new URL('/nosotros', url).href
@@ -364,14 +364,12 @@ async function main() {
     const scenarios = [
       { url: '/', role: null, must: ['class="app-site home-page"', 'home-hero__content'] },
       { url: '/servicios', role: null, must: ['services-page', 'services-page__transport'] },
-      { url: '/servicios/almacenamiento-fiscal', role: null, must: ['service-landing-page', 'Almacenamiento fiscal de mercancías en Costa Rica'] },
+      { url: '/servicios/almacenamiento-fiscal', role: null, must: ['service-landing-page', 'Almacén fiscal de mercancías en Costa Rica'] },
       { url: '/servicios/transporte-maritimo', role: null, must: ['service-landing-page', 'service-landing-hero__inner', 'service-landing-story__frame', 'service-landing-feature-grid', 'service-landing-faq__item'] },
       { url: '/servicios/transporte-terrestre', role: null, must: ['service-landing-page', 'service-landing-feature-grid'] },
       { url: '/servicios/transporte-aereo', role: null, must: ['service-landing-page', 'service-landing-feature-grid'] },
-      { url: '/servicios/transporte-internacional', role: null, must: ['service-landing-page', 'service-landing-feature-grid'] },
       { url: '/servicios/transporte-local', role: null, must: ['service-landing-page', 'service-landing-feature-grid'] },
       { url: '/servicios/transporte-panama-costa-rica', role: null, must: ['service-landing-page', 'service-landing-hero__inner', 'service-landing-story__frame', 'service-landing-feature-grid', 'service-landing-faq__item'] },
-      { url: '/servicios/bodegaje-general', role: null, must: ['service-landing-page', 'Bodegaje general y almacenamiento'] },
       { url: '/servicios/agenciamiento-aduanal', role: null, must: ['service-landing-page', 'Agenciamiento aduanal para importaciones'] },
       { url: '/servicios/consolidadora-de-carga', role: null, must: ['service-landing-page', 'Consolidadora de carga y transporte'] },
       { url: '/nosotros', role: null, must: ['about-reference-page', 'about-refresh__intro-grid', 'about-refresh__purpose-card', 'about-refresh__value-trigger', 'about-refresh__capabilities', 'about-refresh__gallery'] },
@@ -431,7 +429,6 @@ async function main() {
           '/servicios/transporte-maritimo': 'Condiciones del embarque',
           '/servicios/transporte-terrestre': 'Opciones regionales',
           '/servicios/transporte-aereo': 'Disponibilidad y condiciones',
-          '/servicios/transporte-internacional': 'Próximos pasos',
           '/servicios/transporte-local': 'Coordinación con Neriteka',
           '/servicios/transporte-panama-costa-rica': 'Cruce fronterizo'
         }[scenario.url]
@@ -439,11 +436,14 @@ async function main() {
       }
       if (scenario.url === '/servicios' || scenario.url.startsWith('/servicios/')) {
         assert.ok(html.includes('class="nav-dropdown nav-dropdown--services"') || html.includes('nav-dropdown--services'), 'No está el desplegable de Servicios en el encabezado: ' + scenario.url)
-        for (const slug of ['almacenamiento-fiscal', 'bodegaje-general', 'agenciamiento-aduanal', 'consolidadora-de-carga']) {
+        for (const slug of ['almacenamiento-fiscal', 'agenciamiento-aduanal', 'consolidadora-de-carga']) {
           assert.ok(html.includes('href="/servicios/' + slug + '"'), 'No aparece el enlace de ' + slug + ' en el menú de Servicios')
         }
-        for (const slug of ['transporte-maritimo', 'transporte-terrestre', 'transporte-aereo', 'transporte-internacional', 'transporte-local', 'transporte-panama-costa-rica']) {
+        for (const slug of ['transporte-maritimo', 'transporte-terrestre', 'transporte-aereo', 'transporte-local', 'transporte-panama-costa-rica']) {
           assert.ok(html.includes('href="/servicios/' + slug + '"'), 'Falta el transporte en el submenú: ' + slug)
+        }
+        for (const retired of ['bodegaje-general', 'transporte-internacional']) {
+          assert.ok(!html.includes('href="/servicios/' + retired + '"'), 'No debe conservar enlace al servicio eliminado: ' + retired)
         }
         assert.ok(html.includes('services-megamenu__rail') && html.includes('services-megamenu__detail') && html.includes('services-megamenu__group-trigger'), 'Falta el megamenú de dos columnas debajo del nav')
         assert.ok(html.includes('aria-current="page"'), 'La ruta actual debe quedar resaltada en Servicios: ' + scenario.url)

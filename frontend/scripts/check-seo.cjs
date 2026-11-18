@@ -20,7 +20,7 @@ const serviceRoutes = Object.keys(serviceGuides)
 const servicePages = require('../seo/service-pages.json')
 const serviceFaqs = require('../seo/service-faqs.json')
 const servicePageRoutes = servicePages.map(page => '/servicios/' + page.slug)
-const forbiddenRoutes = ['/servicios/consolidado-lcl']
+const forbiddenRoutes = ['/servicios/consolidado-lcl', '/servicios/bodegaje-general', '/servicios/transporte-internacional']
 for (const publicRoute of ['/', '/noticias', '/nosotros', '/servicios']) {
   assert.ok(sitemap.includes('<loc>https://www.logisticacastrofallas.com' + publicRoute + '</loc>'), 'Falta ' + publicRoute + ' en sitemap')
 }
@@ -46,7 +46,7 @@ for (const route of [...serviceRoutes, ...servicePageRoutes]) {
 }
 const header = read('src/components/SiteHeader.vue')
 assert.ok(header.includes('servicesLinks') && header.includes('servicesMenuOpen'), 'Falta menú desplegable de Servicios')
-assert.ok(header.includes('v-for="link in generalServicesLinks"') && header.includes('v-for="link in transportLinks"') && header.includes(':href="link.url"') && header.includes('v-show="servicesMenuOpen"'), 'El megamenú conserva los diez enlaces de servicios para SEO')
+assert.ok(header.includes('v-for="link in generalServicesLinks"') && header.includes('v-for="link in transportLinks"') && header.includes(':href="link.url"') && header.includes('v-show="servicesMenuOpen"'), 'El megamenú conserva los ocho enlaces de servicios para SEO')
 assert.ok(header.includes('services-megamenu__rail') && header.includes('services-megamenu__detail') && header.includes('services-megamenu__group-trigger'), 'Las categorías principales están a la izquierda y las opciones finales a la derecha')
 assert.ok(header.includes(':aria-current="isCurrentService(link.url)') && header.includes('isCurrentService(link.url)') && header.includes('toggleTransportCategory') && header.includes('aria-controls="services-transport-panel"'), 'El megamenú mantiene selección, accesibilidad y navegación de dos niveles')
 assert.ok(!header.includes('services-switcher__tabs') && !header.includes('services-transport-group__submenu'), 'No deben reaparecer pestañas ni menús de tercer nivel')
@@ -199,7 +199,7 @@ if (fs.existsSync(path.join(base, 'dist'))) {
       assert.ok(!html.includes('services-page__guides'), 'No deben volver las tarjetas adicionales')
     }
     const serviceCount = graph.filter(x => x['@type'] === 'Service').length
-    assert.equal(serviceCount, route === '/servicios' ? 10 : route === '/' || route === '/home' || serviceRoutes.includes(route) || servicePageRoutes.includes(route) ? 1 : 0, 'Servicios Schema fuera de pagina: ' + route)
+    assert.equal(serviceCount, route === '/servicios' ? 5 + serviceRoutes.length : route === '/' || route === '/home' || serviceRoutes.includes(route) || servicePageRoutes.includes(route) ? 1 : 0, 'Servicios Schema fuera de pagina: ' + route)
     if (serviceRoutes.includes(route)) {
       const guide = serviceGuides[route].es
       assert.ok(html.includes('data-seo-service="' + route + '"'), 'Contenido SEO inicial ausente: ' + route)
@@ -228,13 +228,13 @@ if (fs.existsSync(path.join(base, 'dist'))) {
       assert.equal(find('BreadcrumbList').itemListElement.length, 3, 'Breadcrumb jerárquico incompleto: ' + route)
     }
     if (route === '/servicios') {
-      for (const term of ['Agenciamiento aduanal', 'Almacenamiento fiscal', 'Bodegaje general', 'Consolidadora de carga']) {
+      for (const term of ['Agenciamiento aduanal', 'Almacén fiscal', 'Consolidadora de carga']) {
         assert.ok(html.includes(term), 'Falta contenido inicial del servicio existente: ' + term)
       }
       const faqPage = find('FAQPage')
       assert.ok(faqPage && faqPage.mainEntity.length === serviceFaqs.servicios.length, 'Faltan preguntas frecuentes de los servicios existentes')
       assert.ok(services.includes('serviceFaqData.servicios') && services.includes('class="services-faq__item"'), 'Las preguntas deben ser visibles en /servicios')
-      assert.ok(routes['/servicios'].description.includes('agenciamiento aduanal') && routes['/servicios'].description.includes('almacenamiento fiscal') && routes['/servicios'].description.includes('bodegaje general') && routes['/servicios'].description.includes('carga consolidada'), 'Metadatos de /servicios deben incluir las cuatro categorías existentes')
+      assert.ok(routes['/servicios'].description.includes('agenciamiento aduanal') && routes['/servicios'].description.includes('almacén fiscal') && !routes['/servicios'].description.includes('bodegaje general') && routes['/servicios'].description.includes('carga consolidada'), 'Metadatos de /servicios deben describir únicamente las tres categorías vigentes')
     }
     if (servicePageRoutes.includes(route)) {
       const slug = route.split('/').pop()
