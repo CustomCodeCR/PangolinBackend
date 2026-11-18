@@ -50,9 +50,22 @@ jobs:
         env:
           GIO_DHOLE_MOCK: "1"
         run: node frontend/scripts/smoke-gio-workflows.cjs
-      - name: Exercise official quote wizard in Chrome with fake Dhole and real DOM
+
+  quote-wizard-browser:
+    name: Chrome quote wizard (Dhole opt-in and responsive visual)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install pinned frontend dependencies
+        run: npm ci --prefix frontend
+      - name: Exercise official quote wizard with fake Dhole and real Chrome DOM
         run: node frontend/scripts/smoke-dhole-wizard.cjs
-      - name: Upload isolated visual review screenshots
+      - name: Upload isolated desktop/mobile/dark review screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
