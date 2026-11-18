@@ -31,6 +31,18 @@ La API .NET se ejecuta en `ASPNETCORE_ENVIRONMENT=Production` (solo para evitar 
 
 **Precaución:** durante la ejecución, Docker almacena la clave como variable de entorno del contenedor y usuarios con acceso administrativo a Docker podrían verla. Ejecutar únicamente en una máquina local confiable. No ejecutar `docker inspect` ni `docker compose config` y publicar el resultado, ya que revelarían variables de entorno. No compartir `.env.dhole-catalog-smoke`.
 
+## Comprobación final: proyecciones reales de Cotizaciones e Itinerarios
+
+Después de la conexión correcta de los siete GET, ampliamos el mismo script **sin agregar ninguna escritura**. La siguiente ejecución verificará que el backend convierta los metadatos reales de Dhole a opciones válidas para:
+
+- Cotizaciones: Maritime/FCL, Maritime/LCL, Air/AIR_LCL, Land/FTL, Land/LTL.
+- Itinerarios: POL para `maritime`, `ground` y `all`, y POD para esos mismos filtros.
+- Equipos en FCL y FTL: los tamaños deben existir; LCL, AIR_LCL y LTL no necesitan esos tamaños.
+
+El script muestra **solo cantidades agregadas por modalidad y rol**, nunca listas completas, identificadores, contraseñas ni encabezados secretos. El localhost de pruebas establece temporalmente `DholeCatalogs__FormEnabled`, `SubmissionEnabled` e `ItinerariesEnabled` para permitir consultar estas proyecciones **solo en ese contenedor efímero**. Nunca se deben copiar esos flags a un Docker de producción. El script no invoca rutas POST ni conecta a una base de datos.
+
+No confundir la primera ejecución exitosa de los siete feeds con la validación de todas las proyecciones: la última es una prueba adicional, aún pendiente de ejecutar en el equipo local tras actualizar la rama.
+
 ## Si algo falla
 
 Enviar solamente el mensaje y las líneas finales del log **después de revisar que no incluyan datos sensibles**. Como el script muestra solo nombres de catálogos, conteos y estados, no hace falta pegar datos individuales ni la clave.
