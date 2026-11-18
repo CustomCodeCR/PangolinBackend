@@ -94,6 +94,7 @@ const changeDirectoryCategory = (category: DirectoryCategory, focus = false) => 
   directoryRunWidth=0
   directoryOffset=0
   directoryPreviousFrame=0
+  directoryResumeAfterDrag=false
   directoryVideoKey.value=null
   directoryVideoReady.value=null
   void nextTick(()=>{
@@ -155,6 +156,9 @@ let directoryPreviousFrame=0
 let directoryHovering=false
 let directoryKeyboardFocus=false
 let directoryResumeAt=0
+// After releasing a drag, resume even while the pointer/focus stays over a card.
+// A fresh hover/focus session restores the ordinary interactive pause.
+let directoryResumeAfterDrag=false
 let directorySuppressClickUntil=0
 let directoryResizeObserver:ResizeObserver|null=null
 let directoryMotionMedia:MediaQueryList|null=null
@@ -180,11 +184,12 @@ const renderDirectoryTrack = ():void => {
 const animateDirectory = (now:number):void => {
   const delta=directoryPreviousFrame ? Math.min(now-directoryPreviousFrame,64) : 0
   directoryPreviousFrame=now
-  if(!directoryReducedMotion.value && !directoryHovering && !directoryKeyboardFocus &&
+  const holdForInteraction=(directoryHovering || directoryKeyboardFocus) && !directoryResumeAfterDrag
+  if(!directoryReducedMotion.value && !holdForInteraction &&
      !directoryPointer && now>=directoryResumeAt && !document.hidden) {
     directoryOffset+=delta*.035
   }
-  if(now>directoryResumeAt && !directoryHovering && !directoryKeyboardFocus && directoryVideoKey.value) {
+  if(now>directoryResumeAt && !holdForInteraction && directoryVideoKey.value) {
     directoryVideoKey.value=null
     directoryVideoReady.value=null
   }
@@ -194,13 +199,17 @@ const animateDirectory = (now:number):void => {
 const directoryHover = (event:PointerEvent,hovered:boolean):void => {
   if(event.pointerType==='mouse'||event.pointerType==='pen') {
     directoryHovering=hovered
+    if(hovered && !directoryPointer) directoryResumeAfterDrag=false
     if(!hovered && !directoryKeyboardFocus) {
       directoryVideoKey.value=null
       directoryVideoReady.value=null
     }
   }
 }
-const directoryFocusIn = ():void => { directoryKeyboardFocus=true }
+const directoryFocusIn = ():void => {
+  directoryKeyboardFocus=true
+  if(!directoryPointer) directoryResumeAfterDrag=false
+}
 const directoryFocusOut = (event:FocusEvent):void => {
   if(!(event.relatedTarget instanceof Node) || !directoryCarouselRef.value?.contains(event.relatedTarget)) {
     directoryKeyboardFocus=false
@@ -210,6 +219,7 @@ const directoryFocusOut = (event:FocusEvent):void => {
 }
 const directoryPointerDown = (event:PointerEvent):void => {
   if(!event.isPrimary || (event.pointerType==='mouse' && event.button!==0)) return
+  directoryResumeAfterDrag=false
   directoryPointer={id:event.pointerId,startX:event.clientX,startY:event.clientY,lastX:event.clientX,dragging:false,vertical:false}
 }
 const directoryPointerMove = (event:PointerEvent):void => {
@@ -262,6 +272,7 @@ const directoryPointerEnd = (event:PointerEvent):void => {
   if(pointer.dragging) {
     directorySuppressClickUntil=performance.now()+400
     directoryResumeAt=performance.now()+1800
+    directoryResumeAfterDrag=true
     previewCenteredDirectoryCard()
   }
   directoryDragging.value=false
