@@ -734,3 +734,6 @@ app.MapSiteCms();
 app.MapHub<ContentUpdatesHub>(ContentUpdatesHub.Path);
 
 app.Run();
+
+// Allows isolated, in-memory HTTP integration tests to use the real API routes.
+public partial class Program { }
