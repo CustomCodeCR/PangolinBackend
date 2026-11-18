@@ -906,16 +906,17 @@ html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__o
 /* Home mobile keeps its original vertical layout, dimensions and colors.
    Only hide tabs when an open service needs extra room. */
 @media (max-width: 800px) {
-  .app-site.home-page #servicios .service-accordion__item[hidden] {
+  html .app-site.home-page #servicios .service-accordion__item[hidden] {
     display: none !important;
   }
-  /* Reuse the original accordion's smooth flex expansion. */
-  .app-site.home-page #servicios .service-accordion__item {
+  /* More specific than the older global mobile transition:none rule.
+     Reuse the original .45s flex animation without altering layout sizing. */
+  html .app-site.home-page #servicios .service-accordion__item {
     transition: flex .45s cubic-bezier(.2,.8,.2,1), border-color .25s !important;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .app-site.home-page #servicios .service-accordion__item {
+  html .app-site.home-page #servicios .service-accordion__item {
     transition: none !important;
   }
 }
