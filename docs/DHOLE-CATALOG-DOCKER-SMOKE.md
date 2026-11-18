@@ -42,3 +42,22 @@ Un error 502 indica que el backend aislado **no pudo obtener o procesar** una re
 El workflow de la PR `dhole-catalogs.yml` también levanta el backend con clave **totalmente ficticia**. No llama un catálogo permitido en Dhole: comprueba solo que `/api/health` responda, que un catálogo desconocido devuelva 404 y que la previsualización administrativa exija autenticación (401). Esta prueba CI **no sustituye** el smoke local autenticado.
 
 La conexión real permanece desactivada por defecto en todo despliegue, salvo que se configuren expresamente `DholeCatalogs:Enabled=true` y la clave privada del backend.
+
+
+## Resultado verificado — Docker local, 18 de noviembre de 2026
+
+El desarrollador ejecutó `powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\test-dhole-catalog-docker.ps1` en su Docker Desktop local, después de recuperar el espacio del disco. El registro de consola confirma:
+
+| Catálogo | Registros normalizados | `stale` |
+| --- | ---: | --- |
+| `incoterms` | 11 | `false` |
+| `pod` | 24 | `false` |
+| `poe` | 947 | `false` |
+| `pol` | 1063 | `false` |
+| `container-sizes` | 4 | `false` |
+| `container-types` | 18 | `false` |
+| `truck-sizes` | 4 | `false` |
+
+El `dotnet publish` de la imagen terminó sin errores y Docker inició el backend. Las siete consultas **GET** devolvieron `stale=false`, sin POST al proveedor. El script informó que eliminó el contenedor y la red de prueba, así como el archivo temporal de credenciales. No se ha expuesto ni almacenado una API Key en el repositorio.
+
+**Conclusión:** ya está superado el bloqueo de conexión real GET. El resultado anterior de POL (1062) queda actualizado a **1063** para esta ejecución; un cambio de conteo no prueba por sí solo que haya un error. Esto prueba conectividad y parsing de los siete feeds, **no todavía** las reglas de filtrado por modalidad/rol ni el formulario de envío completo bajo catálogos reales. Antes del merge falta revisar las opciones proyectadas, probar los recorridos de cotización y GIO, y actualizar la rama con `main-2` sin perder cambios concurrentes.
