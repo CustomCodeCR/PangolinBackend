@@ -2,7 +2,7 @@
 import IconSymbol from '../components/IconSymbol.vue'
 import SiteMedia from '../components/SiteMedia.vue'
 import { siteText, siteVisual, siteCssImage } from '../siteCms'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { services as baseServices, type ServiceKey } from '../content'
 import SiteHeader from '../components/SiteHeader.vue'
@@ -42,14 +42,24 @@ onBeforeUnmount(() => {
 })
 // Enlaces HTML visibles para que usuarios y rastreadores descubran las páginas
 // comerciales. No dependen de abrir pestañas, modales ni ejecutar un clic.
+const directoryGuideImages: Record<string, string> = {
+  'almacenamiento-fiscal': '/images/services-warehouse.webp',
+  'agenciamiento-aduanal': '/images/operation.webp',
+  'consolidadora-de-carga': '/images/ship.webp'
+}
 const serviceDirectory = computed(() => {
   const lang: 'es' | 'en' = locale.value.toLowerCase().startsWith('es') ? 'es' : 'en'
   return [
-    ...servicePages.map(item => ({ href: '/servicios/' + item.slug, label: siteText('service.' + item.slug + '.title', item.title[lang], locale.value) })),
+    ...servicePages.map(item => ({
+      href: '/servicios/' + item.slug, slug: item.slug, image: item.image,
+      label: siteText('service.' + item.slug + '.title', item.title[lang], locale.value)
+    })),
     ...Object.entries(serviceGuides).map(([href, guide]) => {
-      const label = siteText('service.' + href.split('/').pop() + '.label', guide[lang].label, locale.value)
-      return { href, label: href === '/servicios/almacenamiento-fiscal' && lang === 'es'
-        ? label.replace(/almacenamiento fiscal/gi, 'Almacén fiscal') : label }
+      const slug = href.split('/').pop() || ''
+      const label = siteText('service.' + slug + '.label', guide[lang].label, locale.value)
+      return { href, slug, image: directoryGuideImages[slug] || '/images/hero.webp',
+        label: href === '/servicios/almacenamiento-fiscal' && lang === 'es'
+          ? label.replace(/almacenamiento fiscal/gi, 'Almacén fiscal') : label }
     })
   ]
 })
@@ -57,17 +67,24 @@ const serviceDirectoryGroups = computed(() => {
   const es = locale.value.toLowerCase().startsWith('es')
   return [
     {
-      id: 'transport',
+      id: 'transport' as const,
       title: siteText('services.directory.transport.title', es ? 'Transporte de carga' : 'Freight transportation', locale.value),
       links: serviceDirectory.value.slice(0, servicePages.length)
     },
     {
-      id: 'logistics',
+      id: 'logistics' as const,
       title: siteText('services.directory.logistics.title', es ? 'Logística y aduanas' : 'Logistics and customs', locale.value),
       links: serviceDirectory.value.slice(servicePages.length)
     }
   ]
 })
+type DirectoryCategory = 'transport' | 'logistics'
+const activeDirectoryCategory = ref<DirectoryCategory>('transport')
+const directoryPaused = ref(false)
+const changeDirectoryCategory = (category: DirectoryCategory, focus = false) => {
+  activeDirectoryCategory.value = category
+  if (focus) void nextTick(() => document.getElementById('services-directory-tab-' + category)?.focus())
+}
 const activeService = ref<ServiceKey>('Air')
 const modalService = ref<ServiceKey | null>(null)
 const modalPhoto = computed(() => siteCssImage(`services.${modalService.value?.toLowerCase()}.media`, baseServices.find(service => service.key === modalService.value)?.photo ?? '/images/hero.webp'))
@@ -187,19 +204,57 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
             <h2 id="services-directory-heading" class="section-title centered">{{ siteText('services.directory.heading', locale.toLowerCase().startsWith('es') ? 'Conocé cada solución en detalle' : 'Explore each service in detail', locale) }}</h2>
             <p class="services-directory__intro">{{ siteText('services.directory.intro', locale.toLowerCase().startsWith('es') ? 'Todo lo que tu carga necesita, desde el primer movimiento hasta su destino.' : 'Everything your cargo needs, from its first move to its destination.', locale) }}</p>
           </div>
-          <div class="services-directory__groups">
-            <section v-for="group in serviceDirectoryGroups" :key="group.id" class="services-directory__group">
-              <div class="services-directory__group-heading">
-                <h3>{{ group.title }}</h3>
-                <span class="services-directory__count">{{ String(group.links.length).padStart(2, '0') }} {{ locale.toLowerCase().startsWith('es') ? 'SERVICIOS' : 'SERVICES' }}</span>
+          <div class="services-directory__controls">
+            <div class="services-directory__categories" role="tablist"
+              :aria-label="locale.toLowerCase().startsWith('es') ? 'Categorías de servicios' : 'Service categories'">
+              <button v-for="group in serviceDirectoryGroups" :id="'services-directory-tab-' + group.id"
+                :key="group.id" type="button" role="tab"
+                class="services-directory__category" :class="{ 'is-active': activeDirectoryCategory === group.id }"
+                :aria-selected="activeDirectoryCategory === group.id"
+                :aria-controls="'services-directory-panel-' + group.id"
+                :tabindex="activeDirectoryCategory === group.id ? 0 : -1"
+                @click="changeDirectoryCategory(group.id)"
+                @keydown.left.prevent="changeDirectoryCategory(group.id === 'transport' ? 'logistics' : 'transport', true)"
+                @keydown.right.prevent="changeDirectoryCategory(group.id === 'transport' ? 'logistics' : 'transport', true)"
+                @keydown.home.prevent="changeDirectoryCategory('transport', true)"
+                @keydown.end.prevent="changeDirectoryCategory('logistics', true)">
+                <strong>{{ group.title }}</strong>
+                <span>{{ String(group.links.length).padStart(2, '0') }} {{ locale.toLowerCase().startsWith('es') ? 'SERVICIOS' : 'SERVICES' }}</span>
+              </button>
+            </div>
+            <button type="button" class="services-directory__motion"
+              :aria-pressed="directoryPaused"
+              @click="directoryPaused = !directoryPaused">
+              {{ directoryPaused ? (locale.toLowerCase().startsWith('es') ? 'Reanudar' : 'Resume') : (locale.toLowerCase().startsWith('es') ? 'Pausar' : 'Pause') }}
+              <span aria-hidden="true">{{ directoryPaused ? '▶' : 'Ⅱ' }}</span>
+            </button>
+          </div>
+          <!-- A single visible carousel; keep both categories' real links in the DOM for crawlers.
+               The second run closes the seamless loop and is skipped by keyboard/screen readers. -->
+          <div class="services-directory__carousel" :class="{ 'is-paused': directoryPaused }">
+            <section v-for="group in serviceDirectoryGroups" v-show="activeDirectoryCategory === group.id"
+              :id="'services-directory-panel-' + group.id" :key="group.id"
+              class="services-directory__panel" role="tabpanel"
+              :aria-labelledby="'services-directory-tab-' + group.id">
+              <div class="services-directory__track" :style="{ '--loop-duration': group.id === 'transport' ? '48s' : '34s' }">
+                <div v-for="repeat in 2" :key="repeat" class="services-directory__run"
+                  :class="{ 'is-clone': repeat === 2 }" :aria-hidden="repeat === 2 ? 'true' : undefined">
+                  <a v-for="link in group.links" :key="link.href" :href="link.href"
+                    class="services-directory__card" :tabindex="repeat === 2 ? -1 : undefined"
+                    :aria-label="repeat === 2 ? undefined : link.label">
+                    <span class="services-directory__card-media" aria-hidden="true">
+                      <SiteMedia :slot-key="'services.directory.' + link.slug + '.media'"
+                        :fallback="link.image" alt=""
+                        sizes="(max-width: 620px) 80vw, (max-width: 1100px) 38vw, 395px" />
+                    </span>
+                    <strong class="services-directory__card-title">{{ link.label }}</strong>
+                    <span class="services-directory__card-cta">
+                      {{ locale.toLowerCase().startsWith('es') ? 'Ir' : 'View' }}
+                      <span class="services-directory__card-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M7 17 17 7M8 7h9v9" /></svg></span>
+                    </span>
+                  </a>
+                </div>
               </div>
-              <nav class="services-directory__links" :class="`services-directory__links--${group.id}`" :aria-label="group.title">
-                <a v-for="(link, index) in group.links" :key="link.href" :href="link.href" class="services-directory__card">
-                  <span class="services-directory__card-index" aria-hidden="true">{{ String(index + 1).padStart(2, '0') }}</span>
-                  <strong class="services-directory__card-title">{{ link.label }}</strong>
-                  <span class="services-directory__card-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M7 17 17 7M8 7h9v9" /></svg></span>
-                </a>
-              </nav>
             </section>
           </div>
         </div>
@@ -247,155 +302,68 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
 @media(prefers-reduced-motion:reduce) {
   .services-faq__panel,.services-faq__panel.is-open,.services-faq__arrow { transition:none!important; }
 }
-/* Directorio SEO: mismo lenguaje visual de los FAQ y bloques de servicios.
-   Las tarjetas son enlaces reales, compactos y visibles sin interacciones. */
-.services-directory {
-  position: relative;
-  padding: 48px 0 64px;
-  background: #fcf7f8;
+/* Carrusel de servicios. Dos categorías comparten una sola superficie visual.
+   Cada pista repite sus enlaces para un loop continuo sin parpadeos. */
+.services-directory{position:relative;padding:clamp(54px,6vw,86px) 0 clamp(68px,7vw,100px);background:#fcf5f7}
+.services-directory__container{max-width:1260px}
+.services-directory__heading{max-width:820px;margin:0 auto 38px;text-align:center}
+.services-directory__heading .section-title{font-size:clamp(29px,3.3vw,44px);line-height:1.15;margin:9px 0 12px}
+.services-directory__intro{max-width:600px;margin:0 auto;color:#68616a;font-size:14px;line-height:1.65}
+.services-directory__controls{display:flex;align-items:center;justify-content:center;position:relative;gap:18px;margin:0 auto 25px}
+.services-directory__categories{display:inline-flex;align-items:stretch;gap:6px;padding:6px;background:#fff;border:1px solid #e5ced4;border-radius:20px;box-shadow:0 5px 26px rgba(61,20,33,.06)}
+.services-directory__category{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:220px;padding:15px 24px;border:1px solid transparent;border-radius:15px;background:transparent;color:#31303a;font:inherit;text-align:center;cursor:pointer;transition:background-color .2s,color .2s}
+.services-directory__category strong{font-size:14px;line-height:1.25;font-weight:850}
+.services-directory__category span{font-size:10px;letter-spacing:.1em;font-weight:800;opacity:.8}
+.services-directory__category.is-active{background:#b20b2d;color:#fff}
+.services-directory__category:not(.is-active):hover{background:#f9e7ec}
+.services-directory__category:focus-visible,.services-directory__motion:focus-visible{outline:3px solid #b20b2d;outline-offset:3px}
+.services-directory__motion{position:absolute;right:0;display:inline-flex;align-items:center;gap:8px;padding:11px 15px;border:1px solid rgba(178,11,45,.25);border-radius:999px;background:#fff;color:#9b1430;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.services-directory__motion span{font-size:15px}
+.services-directory__carousel{position:relative;width:100%;overflow:hidden;padding:7px 0 17px;isolation:isolate}
+.services-directory__panel{width:100%;overflow:hidden}
+.services-directory__track{display:flex;align-items:stretch;width:max-content;animation:services-directory-loop var(--loop-duration,45s) linear infinite;will-change:transform}
+.services-directory__run{display:flex;align-items:stretch;gap:20px;flex:0 0 auto;padding-right:20px}
+.services-directory__carousel:is(:hover,:focus-within) .services-directory__track,
+.services-directory__carousel.is-paused .services-directory__track{animation-play-state:paused}
+@keyframes services-directory-loop{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
+.services-directory__card{position:relative;isolation:isolate;display:block;flex:0 0 clamp(270px,32vw,395px);width:clamp(270px,32vw,395px);height:clamp(355px,38vw,440px);min-height:355px;overflow:hidden;border:1px solid rgba(255,255,255,.2);border-radius:25px;background:#142239;color:#fff;text-decoration:none;outline-offset:4px;box-shadow:0 16px 36px rgba(32,20,31,.12);transition:box-shadow .25s,border-color .25s}
+.services-directory__card::after{content:'';position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(5,13,27,.78),rgba(5,13,27,.15) 38%,rgba(5,13,27,.08) 62%,rgba(4,9,20,.64));pointer-events:none}
+.services-directory__card-media{position:absolute;inset:0;z-index:0;display:block;overflow:hidden}
+.services-directory__card-media :deep(img),.services-directory__card-media :deep(video){width:100%;height:100%;display:block;object-fit:cover;object-position:center;transition:transform .5s ease}
+.services-directory__card:hover .services-directory__card-media :deep(img){transform:scale(1.045)}
+.services-directory__card-title{position:absolute;z-index:2;top:26px;left:16px;right:16px;margin:0;color:#fff!important;-webkit-text-fill-color:#fff!important;text-align:center;text-wrap:balance;font-size:clamp(18px,1.65vw,23px);font-weight:900;line-height:1.26;text-shadow:0 2px 10px rgba(0,0,0,.65)}
+.services-directory__card-cta{position:absolute;z-index:2;right:18px;bottom:20px;display:inline-flex;align-items:center;gap:16px;padding:7px 7px 7px 20px;border-radius:999px;background:#fff;color:#9a0825;font-size:14px;font-weight:850;line-height:1;box-shadow:0 6px 18px rgba(0,0,0,.18);transition:background-color .2s,color .2s}
+.services-directory__card-arrow{display:grid;place-items:center;width:33px;height:33px;border-radius:50%;background:#b20b2d;color:#fff;transition:background-color .2s,color .2s}
+.services-directory__card-arrow svg{display:block;margin:0;pointer-events:none}
+.services-directory__card:is(:hover,:focus-visible){border-color:#f2a3b4;box-shadow:0 18px 42px rgba(20,12,26,.23)}
+.services-directory__card:is(:hover,:focus-visible) .services-directory__card-cta{background:#b20b2d;color:#fff}
+.services-directory__card:is(:hover,:focus-visible) .services-directory__card-arrow{background:#fff;color:#b20b2d}
+.services-directory__card:focus-visible{outline:3px solid #b20b2d}
+@media(max-width:980px){
+ .services-directory__controls{justify-content:space-between}
+ .services-directory__category{min-width:180px;padding:14px 15px}
+ .services-directory__motion{position:static}
 }
-.services-directory__container { max-width: 1180px; }
-.services-directory__heading { max-width: 780px; margin: 0 auto 32px; text-align: center; }
-.services-directory__heading .section-title {
-  font-size: clamp(29px, 3vw, 43px);
-  line-height: 1.13;
-  margin: 9px 0 10px;
+@media(max-width:620px){
+ .services-directory{padding:48px 0 66px}
+ .services-directory__heading{margin-bottom:25px}
+ .services-directory__controls{flex-wrap:wrap;justify-content:center;gap:12px;margin-bottom:16px}
+ .services-directory__categories{width:100%;gap:4px;padding:4px}
+ .services-directory__category{min-width:0;flex:1;padding:13px 9px}
+ .services-directory__category strong{font-size:12px}
+ .services-directory__category span{font-size:9px}
+ .services-directory__motion{font-size:11px;padding:8px 12px}
+ .services-directory__run{gap:13px;padding-right:13px}
+ .services-directory__card{flex-basis:min(78vw,330px);width:min(78vw,330px);height:395px;min-height:395px;border-radius:20px}
+ .services-directory__card-title{font-size:19px;top:23px}
+ .services-directory__card-cta{right:14px;bottom:16px}
 }
-.services-directory__intro {
-  max-width: 570px;
-  margin: 0 auto;
-  color: #68616a;
-  font-size: 14px;
-  line-height: 1.6;
-}
-.services-directory__group + .services-directory__group { margin-top: 26px; }
-.services-directory__group-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(90, 61, 72, .18);
-}
-.services-directory__group-heading h3 {
-  margin: 0;
-  color: #272831;
-  font-size: 12px;
-  font-weight: 850;
-  letter-spacing: .075em;
-  text-transform: uppercase;
-}
-.services-directory__count {
-  color: #a45164;
-  flex: none;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .1em;
-}
-.services-directory__links {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-.services-directory__links--logistics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.services-directory__card {
-  position: relative;
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) 30px;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  min-height: 76px;
-  padding: 13px 16px;
-  border: 1px solid rgba(110, 71, 83, .22);
-  border-radius: 13px;
-  background: #fff;
-  color: #24252e;
-  text-decoration: none;
-  box-shadow: 0 3px 12px rgba(50, 24, 36, .035);
-  outline-offset: 3px;
-  overflow: hidden;
-  transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
-}
-.services-directory__card::before {
-  content: "";
-  position: absolute;
-  inset: 13px auto 13px 0;
-  width: 3px;
-  background: #b30c2d;
-  border-radius: 0 3px 3px 0;
-}
-.services-directory__card-index {
-  grid-column: 1;
-  color: #b30c2d;
-  font-size: 10px;
-  font-weight: 850;
-  letter-spacing: .06em;
-}
-.services-directory__card-title {
-  grid-column: 2;
-  min-width: 0;
-  color: #24252e;
-  font-size: 14px;
-  font-weight: 800;
-  line-height: 1.35;
-  overflow-wrap: break-word;
-}
-.services-directory__card-arrow {
-  grid-column: 3;
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border: 1px solid rgba(179, 12, 45, .25);
-  border-radius: 50%;
-  color: #af0d2d;
-  background: #faeaf0;
-  font-size: 17px;
-  line-height: 1;
-  transition: background-color .2s ease, color .2s ease;
-}
-.services-directory__card-arrow svg {
-  display: block;
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  flex: none;
-  pointer-events: none;
-}
-.services-directory__card:is(:hover, :focus-visible) {
-  border-color: #b30c2d;
-  background: #fffafa;
-  box-shadow: 0 6px 18px rgba(108, 15, 39, .11);
-}
-.services-directory__card:is(:hover, :focus-visible) .services-directory__card-arrow {
-  background: #b30c2d;
-  color: #fff;
-}
-.services-directory__card:focus-visible { outline: 2px solid #b30c2d; }
-
-/* Los colores en tema oscuro se definen en style.css, después de las
-   reglas globales del tema, para garantizar contraste sin importar el orden
-   de inyección de los estilos scoped en Nuxt/Vite. */
-@media (max-width: 980px) {
-  .services-directory__links,
-  .services-directory__links--logistics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 620px) {
-  .services-directory { padding: 40px 0 52px; }
-  .services-directory__heading { margin-bottom: 26px; }
-  .services-directory__group-heading { align-items: center; }
-  .services-directory__count { font-size: 9px; }
-  .services-directory__links,
-  .services-directory__links--logistics { grid-template-columns: 1fr; gap: 9px; }
-  .services-directory__card { min-height: 66px; padding: 11px 13px; gap: 9px; }
-  .services-directory__card::before { inset-block: 10px; }
-  .services-directory__card-title { font-size: 13px; }
-  .services-directory__card-arrow { width: 28px; height: 28px; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .services-directory__card,
-  .services-directory__card-arrow { transition: none; }
+@media(prefers-reduced-motion:reduce){
+ .services-directory__track{animation:none;transform:none;will-change:auto}
+ .services-directory__panel{overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:thin}
+ .services-directory__run.is-clone{display:none}
+ .services-directory__card{scroll-snap-align:start;transition:none}
+ .services-directory__card-media :deep(img){transition:none}
+ .services-directory__motion{display:none}
 }
 </style>
