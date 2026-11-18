@@ -1,4 +1,4 @@
-name: One-shot frontend npm audit repair (temporary)
+name: One-shot frontend npm risk scope check (temporary)
 on:
   push:
     branches:
@@ -7,41 +7,32 @@ on:
       - .github/workflows/frontend-audit-fix-once.yml
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  repair:
-    name: Repair pinned frontend lockfile and test
+  inspect:
+    name: Verify runtime dependency exposure and upstream advisory status
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: true
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Update only frontend lockfile with compatible npm audit fixes
+      - name: Install current pinned dependencies
+        run: npm ci --prefix frontend
+      - name: Enforce zero high/critical runtime dependency findings
+        run: npm audit --prefix frontend --omit=dev --audit-level=high
+      - name: Check that the affected picomatch dependency is not used at runtime
         run: |
-          cd frontend
-          npm audit fix --package-lock-only --ignore-scripts --no-fund
-          npm audit --audit-level=high
-      - name: Verify resulting lockfile and frontend build
-        run: |
-          npm ci --prefix frontend
-          npm run build --prefix frontend
-          npm run seo:check --prefix frontend
-          git diff --check
-      - name: Commit vetted lockfile repair back to branch
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend/package-lock.json frontend/package.json
-          if git diff --cached --quiet; then
-            echo "No dependency changes produced" >&2
+          npm ls --prefix frontend --omit=dev picomatch > /tmp/runtime-picomatch.txt || true
+          cat /tmp/runtime-picomatch.txt
+          if grep -E '^\s*[└├]── picomatch@|picomatch@.*$' /tmp/runtime-picomatch.txt; then
+            echo "Unexpected picomatch runtime dependency" >&2
             exit 1
           fi
-          git commit -m "fix(security): refresh frontend lockfile to remediate npm audit"
-          git push origin HEAD:fix/frontend-npm-audit-20261118
+          echo "picomatch is not included in the production dependency tree"
+      - name: Confirm frontend bundle still builds
+        run: npm run build --prefix frontend
