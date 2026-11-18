@@ -213,9 +213,19 @@ async function assertServicesTheme(chrome, url) {
         await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
         const original = await evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')]; return { selected:items[2].classList.contains('is-open'), shown:items.map((item,i)=>getComputedStyle(item).display!=='none'?i:-1).filter(i=>i>=0) }; })()")
         assert.equal(original.selected, true, 'Se debe poder abrir otro servicio después de cerrar')
+        // The four-tab window must move in BOTH directions, preserving original
+        // card width and hiding tabs from the side opposite the selection.
         if (expectedVisible === 4) {
-          assert.deepEqual(original.shown, [0,1,2,3],
-            'Los cuatro servicios originales deben conservar la misma composición: ' + JSON.stringify(original))
+          assert.deepEqual(original.shown, [1,2,3,4],
+            'Al elegir Terrestre deben ocultarse extremos de ambos lados: ' + JSON.stringify(original))
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[3].click(); true")
+          const right = await evaluate("(() => [...document.querySelectorAll('#servicios .service-accordion__item')].map((item,i)=>getComputedStyle(item).display!=='none'?i:-1).filter(i=>i>=0))()")
+          assert.deepEqual(right, [2,3,4,5],
+            'Al avanzar a Multimodal deben ocultarse las pestañas de la izquierda')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[0].click(); true")
+          const left = await evaluate("(() => [...document.querySelectorAll('#servicios .service-accordion__item')].map((item,i)=>getComputedStyle(item).display!=='none'?i:-1).filter(i=>i>=0))()")
+          assert.deepEqual(left, [0,1,2,3],
+            'Al volver a Aéreo deben ocultarse las pestañas de la derecha')
         }
       } else {
         assert.equal(initial.direction, 'row', 'Escritorio conserva el acordeón horizontal')
