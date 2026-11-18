@@ -226,6 +226,26 @@ async function assertServicesTheme(chrome, url) {
           const left = await evaluate("(() => [...document.querySelectorAll('#servicios .service-accordion__item')].map((item,i)=>getComputedStyle(item).display!=='none'?i:-1).filter(i=>i>=0))()")
           assert.deepEqual(left, [0,1,2,3],
             'Al volver a Aéreo deben ocultarse las pestañas de la derecha')
+          if (width === 390) {
+            // Opening Air must not trap the two additional services behind a
+            // close-and-reopen action. Navigate right to reveal Fiscal/Panama.
+            const nextAvailable = await evaluate("!!document.querySelector('.service-accordion__navigation button[aria-label=\\\"Mostrar más servicios\\\"]')")
+            assert.ok(nextAvailable, 'Debe haber navegación hacia los servicios ocultos de la derecha')
+            await evaluate("document.querySelector('.service-accordion__navigation button[aria-label=\\\"Mostrar más servicios\\\"]').click(); true")
+            const afterNext = await evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')]; return { open:items.findIndex(item=>item.classList.contains('is-open')), visible:items.flatMap((item,i)=>getComputedStyle(item).display==='none'?[]:[i]) }; })()")
+            assert.equal(afterNext.open, 4, 'Siguiente debe abrir Almacén Fiscal sin cerrar Aéreo primero')
+            assert.deepEqual(afterNext.visible, [2,3,4,5], 'Deben estar accesibles Fiscal y Panamá sin cerrar el acordeón')
+            await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[5].click(); true")
+            const panama = await evaluate("document.querySelectorAll('#servicios .service-accordion__item')[5].classList.contains('is-open')")
+            assert.ok(panama, 'Panamá debe abrirse directamente mientras otro servicio estaba activo')
+            await evaluate("document.querySelector('.service-accordion__navigation button[aria-label=\\\"Mostrar servicios anteriores\\\"]').click(); true")
+            const afterPrev = await evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')];return { open:items.findIndex(item=>item.classList.contains('is-open')), visible:items.flatMap((item,i)=>getComputedStyle(item).display==='none'?[]:[i]) }; })()")
+            assert.equal(afterPrev.open, 1, 'Anterior permite regresar al lado izquierdo sin cerrar')
+            assert.deepEqual(afterPrev.visible, [0,1,2,3], 'La ventana debe desplazarse nuevamente a la izquierda')
+            await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[1].click(); true")
+            assert.ok(await evaluate("!document.querySelector('.service-accordion__navigation')"),
+              'Al cerrar deben desaparecer los controles y regresar las seis pestañas')
+          }
         }
       } else {
         assert.equal(initial.direction, 'row', 'Escritorio conserva el acordeón horizontal')
