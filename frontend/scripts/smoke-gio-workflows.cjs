@@ -402,6 +402,29 @@ async function main() {
     assert.equal(contrastDark.value,'rgb(255, 255, 255)','Dark mode receipt values must stay white')
     assert.equal(contrastDark.button,'rgb(255, 255, 255)','Dark mode new request button stays white')
     assert.notEqual(contrastDark.groupBg,'rgb(249, 247, 249)','Dark mode receipt cards must not keep their light background')
+    if (dynamicDholeMock) {
+      // Exercise the exact AIR_LCL route reported by users: a whole feed of
+      // 854 POL and 851 POE options remains searchable beyond early "A" items.
+      await cdp('Page.navigate',{url:'http://'+host+':5189/?gioAir=1'})
+      await waitFor(()=>evaluate('!!document.querySelector(".site-assistant__mascot")'))
+      assert.ok(await click('.site-assistant__mascot'))
+      await waitFor(()=>evaluate('document.querySelectorAll(".site-assistant__quick button").length===4'))
+      assert.ok(await evaluate('document.querySelectorAll(".site-assistant__quick button")[0].click()||true'))
+      await choose('Aéreo')
+      await choose('Carga aérea')
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__location-count")?.textContent.trim()==="30 / 854"'))
+      assert.ok(await evaluate('(()=>{const el=document.querySelector(".gio-ops__form input");const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(el,"Zúrich");el.dispatchEvent(new Event("input",{bubbles:true}));return true})()'))
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__location-count")?.textContent.trim()==="1 / 1"'))
+      await choose('Zúrich terminal 1')
+      await confirm()
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__location-count")?.textContent.trim()==="30 / 851"'))
+      assert.ok(await evaluate('(()=>{const el=document.querySelector(".gio-ops__form input");const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(el,"Zúrich");el.dispatchEvent(new Event("input",{bubbles:true}));return true})()'))
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__location-count")?.textContent.trim()==="1 / 1"'))
+      await choose('Zúrich terminal 2')
+      await confirm()
+      await waitFor(()=>has('Incoterm'))
+      console.log('PASS: Air AIR_LCL searches all 854 POL / 851 POE, including final Zúrich options')
+    }
     console.log('PASS: guest/admin quotes, services, storage/delivery requirements, invalid inputs, contrast, complete receipts, itineraries, and tracking guards')
   } finally {
     try { socket?.close() } catch {}
