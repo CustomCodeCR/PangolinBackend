@@ -202,7 +202,7 @@ async function main() {
     const labels=await evaluate('[...document.querySelectorAll("#quote-equipment-type-0-options [role=option]")].map(b=>b.textContent.trim())')
     assert.ok(labels.includes('High Cube') && !labels.includes('Dry Van'),
       'A 45-foot container must NOT offer the incompatible Dry Van type')
-    await selectDropdown('quote-equipment-type-0','High Cube') // the menu is currently open; close/reopen before choosing
+    await click('#quote-equipment-type-0-options [role=option]:last-child')
     await value('.official-line input[type=number][min="0.001"]','1300')
 
     const overflow=await evaluate('({viewport:window.innerWidth,scroll:document.documentElement.scrollWidth})')
