@@ -41,7 +41,7 @@ Después de la conexión correcta de los siete GET, ampliamos el mismo script **
 
 El script muestra **solo cantidades agregadas por modalidad y rol**, nunca listas completas, identificadores, contraseñas ni encabezados secretos. El localhost de pruebas establece temporalmente `DholeCatalogs__FormEnabled`, `SubmissionEnabled` e `ItinerariesEnabled` para permitir consultar estas proyecciones **solo en ese contenedor efímero**. Nunca se deben copiar esos flags a un Docker de producción. El script no invoca rutas POST ni conecta a una base de datos.
 
-No confundir la primera ejecución exitosa de los siete feeds con la validación de todas las proyecciones: la última es una prueba adicional, aún pendiente de ejecutar en el equipo local tras actualizar la rama.
+**Estado confirmado el 18/11/2026:** la segunda ejecución real de las proyecciones también se completó correctamente. Revisar los conteos verificados más abajo. Todavía resta la prueba de envío de cotización end-to-end, los controles de despliegue y la revisión de las comprobaciones CI independientes.
 
 ## Si algo falla
 
@@ -73,3 +73,26 @@ El desarrollador ejecutó `powershell -NoProfile -ExecutionPolicy Bypass -File .
 El `dotnet publish` de la imagen terminó sin errores y Docker inició el backend. Las siete consultas **GET** devolvieron `stale=false`, sin POST al proveedor. El script informó que eliminó el contenedor y la red de prueba, así como el archivo temporal de credenciales. No se ha expuesto ni almacenado una API Key en el repositorio.
 
 **Conclusión:** ya está superado el bloqueo de conexión real GET. El resultado anterior de POL (1062) queda actualizado a **1063** para esta ejecución; un cambio de conteo no prueba por sí solo que haya un error. Esto prueba conectividad y parsing de los siete feeds, **no todavía** las reglas de filtrado por modalidad/rol ni el formulario de envío completo bajo catálogos reales. Antes del merge falta revisar las opciones proyectadas, probar los recorridos de cotización y GIO, y actualizar la rama con `main-2` sin perder cambios concurrentes.
+
+
+## Segunda ejecución real: proyecciones de Cotizaciones e Itinerarios, 18/11/2026
+
+El usuario ejecutó nuevamente el script de Docker aislado, construido correctamente con Docker cache. Las **7/7 APIs** regresaron los mismos conteos descritos arriba y `stale=false`.
+
+| Modalidad cotización | Orígenes POL | Destinos POE | POD adicionales | Tamaños equipo |
+| --- | ---: | ---: | ---: | ---: |
+| Maritime / FCL | 193 | 80 | 24 | 4 |
+| Maritime / LCL | 193 | 80 | 24 | 0 |
+| Air / AIR_LCL | 854 | 851 | 0 | 0 |
+| Land / FTL | 16 | 16 | 0 | 4 |
+| Land / LTL | 16 | 16 | 0 | 0 |
+
+| Transporte itinerario | Orígenes POL | Destinos POD |
+| --- | ---: | ---: |
+| maritime | 193 | 24 |
+| ground | 16 | 24 |
+| all | 209 | 24 |
+
+El script terminó con `RESULTADO: siete catálogos GET, cinco variantes de cotización y seis filtros de itinerario comprobados. Sin POST.` y confirmó eliminación del contenedor, red y archivo temporal de claves.
+
+**Alcance exacto de la evidencia:** backend autenticado con Dhole y proyecciones con datos reales, pero todavía no se realizó una cotización persistida real ni una regresión completa sobre un despliegue con base de datos. La PR permanece en borrador y los flags de Dhole siguen deshabilitados por defecto para producción.
