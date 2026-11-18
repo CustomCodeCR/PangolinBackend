@@ -80,7 +80,6 @@ const serviceDirectoryGroups = computed(() => {
 })
 type DirectoryCategory = 'transport' | 'logistics'
 const activeDirectoryCategory = ref<DirectoryCategory>('transport')
-const directoryPaused = ref(false)
 const changeDirectoryCategory = (category: DirectoryCategory, focus = false) => {
   activeDirectoryCategory.value = category
   if (focus) void nextTick(() => document.getElementById('services-directory-tab-' + category)?.focus())
@@ -222,16 +221,10 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
                 <span>{{ String(group.links.length).padStart(2, '0') }} {{ locale.toLowerCase().startsWith('es') ? 'SERVICIOS' : 'SERVICES' }}</span>
               </button>
             </div>
-            <button type="button" class="services-directory__motion"
-              :aria-pressed="directoryPaused"
-              @click="directoryPaused = !directoryPaused">
-              {{ directoryPaused ? (locale.toLowerCase().startsWith('es') ? 'Reanudar' : 'Resume') : (locale.toLowerCase().startsWith('es') ? 'Pausar' : 'Pause') }}
-              <span aria-hidden="true">{{ directoryPaused ? '▶' : 'Ⅱ' }}</span>
-            </button>
           </div>
           <!-- A single visible carousel; keep both categories' real links in the DOM for crawlers.
                The second run closes the seamless loop and is skipped by keyboard/screen readers. -->
-          <div class="services-directory__carousel" :class="{ 'is-paused': directoryPaused }">
+          <div class="services-directory__carousel">
             <section v-for="group in serviceDirectoryGroups" v-show="activeDirectoryCategory === group.id"
               :id="'services-directory-panel-' + group.id" :key="group.id"
               class="services-directory__panel" role="tabpanel"
@@ -249,7 +242,7 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
                     </span>
                     <strong class="services-directory__card-title">{{ link.label }}</strong>
                     <span class="services-directory__card-cta">
-                      {{ locale.toLowerCase().startsWith('es') ? 'Ir' : 'View' }}
+                      {{ locale.toLowerCase().startsWith('es') ? 'Ver más' : 'See more' }}
                       <span class="services-directory__card-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M7 17 17 7M8 7h9v9" /></svg></span>
                     </span>
                   </a>
@@ -316,9 +309,7 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
 .services-directory__category span{font-size:10px;letter-spacing:.1em;font-weight:800;opacity:.8}
 .services-directory__category.is-active{background:#b20b2d;color:#fff}
 .services-directory__category:not(.is-active):hover{background:#f9e7ec}
-.services-directory__category:focus-visible,.services-directory__motion:focus-visible{outline:3px solid #b20b2d;outline-offset:3px}
-.services-directory__motion{position:absolute;right:0;display:inline-flex;align-items:center;gap:8px;padding:11px 15px;border:1px solid rgba(178,11,45,.25);border-radius:999px;background:#fff;color:#9b1430;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
-.services-directory__motion span{font-size:15px}
+.services-directory__category:focus-visible{outline:3px solid #b20b2d;outline-offset:3px}
 .services-directory__carousel{
  position:relative;left:50%;transform:translateX(-50%);
  width:100vw;max-width:100vw;overflow:hidden;
@@ -329,26 +320,24 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
 .services-directory__panel{width:100%;overflow:hidden}
 .services-directory__track{display:flex;align-items:stretch;width:max-content;animation:services-directory-loop var(--loop-duration,45s) linear infinite;will-change:transform}
 .services-directory__run{display:flex;align-items:stretch;gap:20px;flex:0 0 auto;padding-right:20px}
-.services-directory__carousel:is(:hover,:focus-within) .services-directory__track,
-.services-directory__carousel.is-paused .services-directory__track{animation-play-state:paused}
+.services-directory__carousel:is(:hover,:focus-within) .services-directory__track{animation-play-state:paused}
 @keyframes services-directory-loop{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
-.services-directory__card{position:relative;isolation:isolate;display:block;flex:0 0 clamp(280px,26vw,365px);width:clamp(280px,26vw,365px);height:clamp(345px,33vw,415px);min-height:345px;overflow:hidden;border:1px solid rgba(255,255,255,.2);border-radius:25px;background:#142239;color:#fff;text-decoration:none;outline-offset:4px;box-shadow:0 16px 36px rgba(32,20,31,.12);transition:box-shadow .25s,border-color .25s}
+.services-directory__card{position:relative;isolation:isolate;display:block;flex:0 0 clamp(280px,26vw,365px);width:clamp(280px,26vw,365px);height:clamp(345px,33vw,415px);min-height:345px;overflow:hidden;border:1px solid rgba(255,255,255,.2);border-radius:25px;background:#142239;color:#fff;text-decoration:none;outline-offset:4px;box-shadow:none;transition:border-color .25s}
 .services-directory__card::after{content:'';position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(5,13,27,.78),rgba(5,13,27,.15) 38%,rgba(5,13,27,.08) 62%,rgba(4,9,20,.64));pointer-events:none}
 .services-directory__card-media{position:absolute;inset:0;z-index:0;display:block;overflow:hidden}
 .services-directory__card-media :deep(img),.services-directory__card-media :deep(video){width:100%;height:100%;display:block;object-fit:cover;object-position:center;transition:transform .5s ease}
 .services-directory__card:hover .services-directory__card-media :deep(img){transform:scale(1.045)}
 .services-directory__card-title{position:absolute;z-index:2;top:26px;left:16px;right:16px;margin:0;color:#fff!important;-webkit-text-fill-color:#fff!important;text-align:center;text-wrap:balance;font-size:clamp(18px,1.65vw,23px);font-weight:900;line-height:1.26;text-shadow:0 2px 10px rgba(0,0,0,.65)}
-.services-directory__card-cta{position:absolute;z-index:2;right:18px;bottom:20px;display:inline-flex;align-items:center;gap:16px;padding:7px 7px 7px 20px;border-radius:999px;background:#fff;color:#9a0825;font-size:14px;font-weight:850;line-height:1;box-shadow:0 6px 18px rgba(0,0,0,.18);transition:background-color .2s,color .2s}
+.services-directory__card-cta{position:absolute;z-index:2;right:18px;bottom:20px;display:inline-flex;align-items:center;gap:16px;padding:7px 7px 7px 20px;border-radius:999px;background:#fff;color:#9a0825;font-size:13px;font-weight:850;line-height:1;box-shadow:0 3px 9px rgba(0,0,0,.12);transition:background-color .2s,color .2s}
 .services-directory__card-arrow{display:grid;place-items:center;width:33px;height:33px;border-radius:50%;background:#b20b2d;color:#fff;transition:background-color .2s,color .2s}
 .services-directory__card-arrow svg{display:block;margin:0;pointer-events:none}
-.services-directory__card:is(:hover,:focus-visible){border-color:#f2a3b4;box-shadow:0 18px 42px rgba(20,12,26,.23)}
+.services-directory__card:is(:hover,:focus-visible){border-color:#f2a3b4;box-shadow:inset 0 0 0 2px rgba(242,163,180,.35)}
 .services-directory__card:is(:hover,:focus-visible) .services-directory__card-cta{background:#b20b2d;color:#fff}
 .services-directory__card:is(:hover,:focus-visible) .services-directory__card-arrow{background:#fff;color:#b20b2d}
 .services-directory__card:focus-visible{outline:3px solid #b20b2d}
 @media(max-width:980px){
  .services-directory__controls{justify-content:space-between}
  .services-directory__category{min-width:180px;padding:14px 15px}
- .services-directory__motion{position:static}
 }
 @media(max-width:620px){
  .services-directory{padding:48px 0 66px}
@@ -358,11 +347,10 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
  .services-directory__category{min-width:0;flex:1;padding:13px 9px}
  .services-directory__category strong{font-size:12px}
  .services-directory__category span{font-size:9px}
- .services-directory__motion{font-size:11px;padding:8px 12px}
  .services-directory__run{gap:13px;padding-right:13px}
  .services-directory__card{flex-basis:min(59vw,230px);width:min(59vw,230px);height:clamp(270px,76vw,305px);min-height:270px;border-radius:19px}
  .services-directory__card-title{font-size:clamp(14px,3.9vw,17px);line-height:1.2;top:17px;left:11px;right:11px}
- .services-directory__card-cta{right:12px;bottom:12px;gap:10px;padding:5px 5px 5px 15px;font-size:12px}
+ .services-directory__card-cta{right:12px;bottom:12px;gap:8px;padding:5px 5px 5px 12px;font-size:11px}
  .services-directory__card-arrow{width:29px;height:29px}
  .services-directory__carousel{padding:7px 0 13px;-webkit-mask-image:linear-gradient(to right,transparent 0,#000 14px,#000 calc(100% - 14px),transparent 100%);mask-image:linear-gradient(to right,transparent 0,#000 14px,#000 calc(100% - 14px),transparent 100%)}
 }
@@ -372,6 +360,5 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
  .services-directory__run.is-clone{display:none}
  .services-directory__card{scroll-snap-align:start;transition:none}
  .services-directory__card-media :deep(img){transition:none}
- .services-directory__motion{display:none}
 }
 </style>
