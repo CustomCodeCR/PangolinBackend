@@ -67,10 +67,14 @@ for (const [name, details] of severe) {
         fail('Unexpected vulnerable dependency ' + via + ' via ' + name);
       continue;
     }
+    // Keep the original CI policy: block new HIGH/CRITICAL advisories,
+    // not independent low/moderate notices (which npm audit --audit-level=high
+    // also reports but does not fail on).
+    if (via && !HIGH.has(via.severity)) continue;
     if (!via || via.name !== 'picomatch' ||
         !String(via.url || '').includes(ADVISORY) ||
         via.severity !== 'high')
-      fail('Unexpected advisory for ' + name + ': ' + JSON.stringify(via));
+      fail('Unexpected HIGH/CRITICAL advisory for ' + name + ': ' + JSON.stringify(via));
     foundRootAdvisory = true;
   }
 }
