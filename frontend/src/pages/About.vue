@@ -228,7 +228,7 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
             </div>
           </div>
           <div class="about-refresh__accordion about-refresh__structure-grid">
-            <article v-for="(title, index) in structureTitles" :key="index" class="about-refresh__value"
+            <article v-for="(title, index) in structureTitles" :key="index" class="about-refresh__structure-card"
               :class="{ 'is-open': openedStructure === index }">
               <h3>
                 <button class="about-refresh__value-trigger" type="button"
@@ -287,6 +287,11 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 
 <style scoped>
 .about-refresh__structure{padding-block:clamp(64px,7vw,108px)}
+.about-refresh__structure-card{min-width:0;border:1px solid rgba(37,41,49,.15);border-bottom:3px solid #b40e2d;border-radius:16px;background:#fff;overflow:hidden;transition:box-shadow .25s,border-color .25s}
+.about-refresh__structure-card.is-open{border-color:rgba(176,9,41,.45);box-shadow:0 17px 32px rgba(38,30,33,.08)}
+.about-refresh__structure-card h3{margin:0}
+.about-refresh__structure-card.is-open .about-refresh__value-chevron{transform:rotate(180deg)}
+
 .about-refresh__structure-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 .about-refresh__structure-grid .about-refresh__value-trigger{min-height:112px}
 .about-refresh__structure-departments{margin:0;padding:0 22px 24px 40px;color:var(--about-muted);line-height:1.8;font-size:14px}
