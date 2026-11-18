@@ -433,10 +433,10 @@ assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-hero::
 // the transport pages retain the shared baseline transition.
 assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-page--long-guide \.service-landing-hero::after\s*\{\s*height:clamp\(105px,13svh,155px\);/,
   'Las tres guías bajan el inicio visual del difuminado de portada')
-assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-page--long-guide \.service-landing-story::before\s*\{\s*backdrop-filter:blur\(10px\);/,
-  'Las tres guías hacen coherente el difuminado entre ambas capas')
+assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-page--long-guide \.service-landing-story::before\s*\{\s*backdrop-filter:none;/,
+  'Las tres guías conservan el empalme sin desenfocar la fotografía')
 assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-hero::after\s*\{\s*height:clamp\(130px,16svh,190px\);/,
-  'El difuminado ya aprobado en transportes se conserva')
+  'La altura de la transición en transportes se conserva sin alterar el layout')
 // Regression: top navigation underlines are hover/focus-only in both themes,
 // while the existing active item stays a red pill.
 const hoverOnlyNavCss = source('src/style.css')

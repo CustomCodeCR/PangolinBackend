@@ -334,6 +334,65 @@ async function assertServicesTheme(chrome, url) {
     }
     console.log('PASS Chrome: FAQ Inicio/Servicios y Valores con animación, click afuera, Escape y ARIA')
 
+    // All large service heroes share the same image, overlay and fade selectors.
+    // Check computed CSS in actual Chrome for all transport/storage routes,
+    // both breakpoints and themes (not just a matching source-code literal).
+    const serviceHeroRoutes = [
+      '/servicios/almacenamiento-fiscal',
+      '/servicios/agenciamiento-aduanal',
+      '/servicios/consolidadora-de-carga',
+      '/servicios/transporte-maritimo',
+      '/servicios/transporte-terrestre',
+      '/servicios/transporte-aereo',
+      '/servicios/transporte-local',
+      '/servicios/transporte-panama-costa-rica'
+    ]
+    for (const servicePath of serviceHeroRoutes) {
+      const heroNavigation = await send('Page.navigate', { url: new URL(servicePath, url).href })
+      assert.ok(!heroNavigation.errorText, 'Navegación fallida: ' + servicePath)
+      let imageReady = false
+      for (let attempt = 0; attempt < 100; attempt++) {
+        imageReady = await evaluate("(() => { const img = document.querySelector('.service-landing-hero__media img'); return Boolean(img && img.complete && img.naturalWidth > 0 && document.querySelector('.service-landing-hero__blur')); })()")
+        if (imageReady) break
+        await new Promise(resolve => setTimeout(resolve, 120))
+      }
+      assert.ok(imageReady, 'Imagen del hero ausente o sin cargar: ' + servicePath)
+      for (const viewport of [1280, 390]) {
+        await send('Emulation.setDeviceMetricsOverride', {
+          width: viewport, height: 950, deviceScaleFactor: 1, mobile: false
+        })
+        for (const dark of [false, true]) {
+          await evaluate("document.documentElement.classList." + (dark ? 'add' : 'remove') + "('theme-dark'); true")
+          const state = await evaluate("(() => { const hero = document.querySelector('.service-landing-hero'); const img = hero.querySelector('img'); const blur = hero.querySelector('.service-landing-hero__blur'); const media = hero.querySelector('.service-landing-hero__media'); const story = document.querySelector('.service-landing-story'); return { sourceReady: img.complete && img.naturalWidth > 0, imageFilter: getComputedStyle(img).filter, blur: getComputedStyle(blur).backdropFilter, safariBlur: getComputedStyle(blur).webkitBackdropFilter, contrastShade: getComputedStyle(blur).backgroundImage, photoShade: getComputedStyle(media, '::after').backgroundImage, titleColor: getComputedStyle(hero.querySelector('h1')).color, bottomBlur: getComputedStyle(hero, '::after').backdropFilter, storyBlur: getComputedStyle(story, '::before').backdropFilter }; })()")
+          assert.equal(state.blur, 'none',
+            'La fotografía grande no debe llevar desenfoque artificial: ' + servicePath + ' (' + viewport + 'px)')
+          assert.equal(state.storyBlur, 'none',
+            'La transición inferior no debe desenfocar la fotografía: ' + servicePath)
+          if (!dark) {
+            assert.equal(state.bottomBlur, 'none',
+              'El fundido claro no debe desenfocar la fotografía: ' + servicePath)
+          }
+          assert.ok(!state.imageFilter.includes('blur('),
+            'La propia imagen no debe tener filter:blur(): ' + servicePath)
+          // Chromium does not expose the WebKit alias on every CI build.
+          // Check its computed value only when the browser implements it;
+          // the CSS also declares -webkit-backdrop-filter:none for Safari.
+          if (typeof state.safariBlur === 'string') {
+            assert.equal(state.safariBlur, 'none',
+              'El alias WebKit no debe desenfocar el hero: ' + servicePath)
+          }
+          assert.equal(state.sourceReady, true, 'Imagen original no cargada: ' + servicePath)
+          assert.equal(state.titleColor, 'rgb(255, 255, 255)',
+            'Contraste de titular alterado: ' + servicePath)
+          assert.ok(state.contrastShade.startsWith('linear-gradient(') &&
+                    state.photoShade.startsWith('linear-gradient('),
+            'Se deben conservar los degradados protectores del texto: ' + servicePath)
+        }
+      }
+      console.log('PASS Chrome: fotografía más nítida y contraste intacto: ' + servicePath)
+    }
+    console.log('PASS Chrome: 8 heroes de Servicios, 390/1280px, ambos temas')
+
 
 
   } finally {
