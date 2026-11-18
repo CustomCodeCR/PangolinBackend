@@ -76,15 +76,15 @@ const transportServices = computed(() => [
   ...(['Air', 'Maritime', 'Land', 'Multimodal'] as ServiceKey[]).map(key => localizedServices.value.find(service => service.key === key)!),
   ...newHomeServices.value
 ])
-// Reserve ~285px for the active photographic card whenever space permits.
-// Keep at least one other tab visible; preserve document order and the selected
-// card's neighbors. Recalculate from the container width, not device presets.
+// Match the original four-service accordion on phones: one expanded card
+// and three narrow red tabs. The two added services take their turn in the
+// same four positions instead of making the open card disproportionately wide.
+// Only extremely narrow containers fall back to three visible services.
 const visibleHomeServiceKeys = computed(() => {
   const all = transportServices.value.map(service => service.key)
   if (!compactServiceMode.value || !activeService.value) return new Set<HomeServiceKey>(all)
   const available = serviceAccordionWidth.value || 320
-  const others = Math.min(all.length - 1, Math.max(1, Math.floor((available - 285) / 45)))
-  const count = others + 1
+  const count = Math.min(all.length, available < 260 ? 3 : 4)
   const selectedIndex = all.indexOf(activeService.value)
   if (selectedIndex < 0) return new Set<HomeServiceKey>(all)
   const start = Math.max(0, Math.min(selectedIndex - Math.floor((count - 1) / 2), all.length - count))
