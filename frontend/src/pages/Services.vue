@@ -437,23 +437,46 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
               </button>
             </div>
           </div>
-          <!-- A single visible carousel; keep both categories' real links in the DOM for crawlers.
-               The second run closes the seamless loop and is skipped by keyboard/screen readers. -->
-          <div class="services-directory__carousel">
+          <!-- Five identical runs provide symmetric padding for a continuous, draggable loop.
+               Only the middle run is keyboard-accessible. All service URLs remain real anchors. -->
+          <div ref="directoryCarouselRef" class="services-directory__carousel"
+            :class="{ 'is-dragging': directoryDragging }"
+            @pointerenter="directoryHover($event,true)"
+            @pointerleave="directoryHover($event,false)"
+            @pointerdown="directoryPointerDown"
+            @pointermove="directoryPointerMove"
+            @pointerup="directoryPointerEnd"
+            @pointercancel="directoryPointerEnd"
+            @focusin="directoryFocusIn"
+            @focusout="directoryFocusOut"
+            @click.capture="directoryCaptureClick"
+            @dragstart.prevent>
             <section v-for="group in serviceDirectoryGroups" v-show="activeDirectoryCategory === group.id"
               :id="'services-directory-panel-' + group.id" :key="group.id"
               class="services-directory__panel" role="tabpanel"
               :aria-labelledby="'services-directory-tab-' + group.id">
-              <div class="services-directory__track" :style="{ '--loop-duration': group.id === 'transport' ? '48s' : '34s' }">
-                <div v-for="repeat in 2" :key="repeat" class="services-directory__run"
-                  :class="{ 'is-clone': repeat === 2 }" :aria-hidden="repeat === 2 ? 'true' : undefined">
+              <div class="services-directory__track" :data-category="group.id">
+                <div v-for="repeat in 5" :key="repeat" class="services-directory__run"
+                  :class="{ 'is-clone': repeat !== 3 }" :aria-hidden="repeat !== 3 ? 'true' : undefined">
                   <a v-for="link in group.links" :key="link.href" :href="link.href"
-                    class="services-directory__card" :tabindex="repeat === 2 ? -1 : undefined"
-                    :aria-label="repeat === 2 ? undefined : link.label">
+                    class="services-directory__card" :tabindex="repeat !== 3 ? -1 : undefined"
+                    :data-directory-slug="link.slug" :data-directory-repeat="repeat"
+                    :aria-label="repeat !== 3 ? undefined : link.label"
+                    draggable="false"
+                    @pointerenter="directoryActivateVideo(group.id,repeat,link.slug,$event)"
+                    @pointerleave="directoryDeactivateVideo(group.id,repeat,link.slug)"
+                    @focusin="directoryActivateVideo(group.id,repeat,link.slug)">
                     <span class="services-directory__card-media" aria-hidden="true">
-                      <SiteMedia :slot-key="'services.directory.' + link.slug + '.media'"
-                        :fallback="link.image" alt=""
+                      <StaticOptimizedImage :src="directoryPhoto(link)" alt=""
                         sizes="(max-width: 620px) 60vw, (max-width: 1100px) 34vw, 360px" />
+                      <video v-if="directoryVideoVisible(group.id,repeat,link.slug)"
+                        class="services-directory__preview"
+                        :class="{ 'is-ready': directoryVideoReady === videoKey(group.id,repeat,link.slug) }"
+                        :src="directoryVideoSrc(link.slug)"
+                        autoplay muted loop playsinline preload="metadata"
+                        :poster="directoryPhoto(link)" aria-hidden="true"
+                        @canplay="directoryVideoCanPlay(group.id,repeat,link.slug)"
+                        @error="directoryVideoError(link.slug)" />
                     </span>
                     <strong class="services-directory__card-title">{{ link.label }}</strong>
                     <span class="services-directory__card-cta">
@@ -533,15 +556,20 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
  mask-image:linear-gradient(to right,transparent 0,#000 52px,#000 calc(100% - 52px),transparent 100%);
 }
 .services-directory__panel{width:100%;overflow:hidden}
-.services-directory__track{display:flex;align-items:stretch;width:max-content;animation:services-directory-loop var(--loop-duration,45s) linear infinite;will-change:transform}
+.services-directory__track{display:flex;align-items:stretch;width:max-content;will-change:transform;backface-visibility:hidden}
 .services-directory__run{display:flex;align-items:stretch;gap:20px;flex:0 0 auto;padding-right:20px}
-.services-directory__carousel:is(:hover,:focus-within) .services-directory__track{animation-play-state:paused}
-@keyframes services-directory-loop{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
+.services-directory__carousel{touch-action:pan-y;cursor:grab}
+.services-directory__carousel.is-dragging{cursor:grabbing}
+.services-directory__carousel.is-dragging .services-directory__card{cursor:grabbing}
+.services-directory__carousel,.services-directory__card{-webkit-user-select:none;user-select:none}
+.services-directory__card-media :deep(img){-webkit-user-drag:none}
 .services-directory__card{position:relative;isolation:isolate;display:block;flex:0 0 clamp(280px,26vw,365px);width:clamp(280px,26vw,365px);height:clamp(345px,33vw,415px);min-height:345px;overflow:hidden;border:1px solid rgba(255,255,255,.2);border-radius:25px;background:#142239;color:#fff;text-decoration:none;outline-offset:4px;box-shadow:none;transition:border-color .25s}
 .services-directory__card::after{content:'';position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(5,13,27,.78),rgba(5,13,27,.15) 38%,rgba(5,13,27,.08) 62%,rgba(4,9,20,.64));pointer-events:none}
 .services-directory__card-media{position:absolute;inset:0;z-index:0;display:block;overflow:hidden}
 .services-directory__card-media :deep(img),.services-directory__card-media :deep(video){width:100%;height:100%;display:block;object-fit:cover;object-position:center;transition:transform .5s ease}
 .services-directory__card:hover .services-directory__card-media :deep(img){transform:scale(1.045)}
+.services-directory__card-media .services-directory__preview{position:absolute;inset:0;z-index:1;width:100%;height:100%;display:block;object-fit:cover;opacity:0;transition:opacity .35s ease;pointer-events:none}
+.services-directory__card-media .services-directory__preview.is-ready{opacity:1}
 .services-directory__card-title{position:absolute;z-index:2;top:26px;left:16px;right:16px;margin:0;color:#fff!important;-webkit-text-fill-color:#fff!important;text-align:center;text-wrap:balance;font-size:clamp(18px,1.65vw,23px);font-weight:900;line-height:1.26;text-shadow:0 2px 10px rgba(0,0,0,.65)}
 .services-directory__card-cta{position:absolute;z-index:2;right:18px;bottom:20px;display:inline-flex;align-items:center;gap:16px;padding:7px 7px 7px 20px;border-radius:999px;background:#fff;color:#9a0825;font-size:13px;font-weight:850;line-height:1;box-shadow:0 3px 9px rgba(0,0,0,.12);transition:background-color .2s,color .2s}
 .services-directory__card-arrow{display:grid;place-items:center;width:33px;height:33px;border-radius:50%;background:#b20b2d;color:#fff;transition:background-color .2s,color .2s}
@@ -572,6 +600,8 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
 @media(prefers-reduced-motion:reduce){
  .services-directory__track{animation:none;transform:none;will-change:auto}
  .services-directory__panel{overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:thin}
+ .services-directory__carousel{touch-action:auto}
+ .services-directory__card-media .services-directory__preview{display:none}
  .services-directory__run.is-clone{display:none}
  .services-directory__card{scroll-snap-align:start;transition:none}
  .services-directory__card-media :deep(img){transition:none}
