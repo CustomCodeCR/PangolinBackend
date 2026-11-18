@@ -342,6 +342,21 @@ ExpectSelectionReject(goodQuote with { OriginLocationId = goodQuote.DestinationL
     formCatalog, "POE UUID used as POL despite matching name");
 ExpectSelectionReject(goodQuote with { PodLocationId = Guid.NewGuid() },
     formCatalog, "unknown POD UUID");
+ExpectSelectionReject(goodQuote with { PodLocationId = null },
+    formCatalog, "missing POD for maritime FCL");
+ExpectSelectionReject(goodQuote with { PodLocationId = Guid.Empty },
+    formCatalog, "empty POD UUID for maritime FCL");
+var lclNoPod = goodQuote with {
+    ShipmentType = "LCL", PodLocationId = null,
+    Equipment = [], Packages = []
+};
+var lclForPod = DholeQuoteFormCatalogBuilder.Build(
+    "Maritime", "LCL", officialIncotermItems, polItems, poeItems, podItems,
+    containerSizes, containerTypes, truckSizes);
+ExpectSelectionReject(lclNoPod, lclForPod, "missing POD for maritime LCL");
+Check(DholeQuoteSelectionValidator.Validate(lclNoPod with {
+    PodLocationId = goodQuote.PodLocationId
+}, lclForPod).PodName == "Land POD", "Maritime LCL requires and resolves a valid POD");
 ExpectSelectionReject(goodQuote with { CatalogSource = null },
     formCatalog, "missing source discriminator");
 ExpectSelectionReject(goodQuote with { Mode = "Air" },
