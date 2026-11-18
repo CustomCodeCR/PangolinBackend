@@ -95,7 +95,7 @@ jobs:
           curl -fsS http://127.0.0.1:3000/nosotros | grep -q 'about-reference-page'
           curl -fsS http://127.0.0.1:3000/servicios | grep -q 'services-page'
           curl -fsS http://127.0.0.1:3000/servicios/almacenamiento-fiscal >/tmp/pangolin-service.html
-          grep -q 'Almacenamiento fiscal' /tmp/pangolin-service.html
+          grep -q 'Almacén fiscal' /tmp/pangolin-service.html
           grep -q 'service-landing-faq__item' /tmp/pangolin-service.html
           # Las cuatro páginas empresariales permanecen retiradas hasta aprobar diseño y textos.
           for path in empresas empresas/aduanera-castro-fallas empresas/transporte-castro-fallas empresas/neriteka; do
@@ -107,7 +107,7 @@ jobs:
           ! grep -q '/empresas' /tmp/pangolin-sitemap.xml
           # PR #139: todas las páginas nuevas deben entregar HTML SSR real,
           # metadatos y estar en el sitemap servido por Nuxt.
-          for slug in transporte-maritimo transporte-terrestre transporte-aereo transporte-internacional transporte-local transporte-panama-costa-rica; do
+          for slug in transporte-maritimo transporte-terrestre transporte-aereo transporte-local transporte-panama-costa-rica; do
             curl -fsS "http://127.0.0.1:3000/servicios/$slug" > /tmp/pangolin-new-service.html
             grep -q '<h1' /tmp/pangolin-new-service.html
             grep -q 'service-landing-page' /tmp/pangolin-new-service.html
@@ -116,6 +116,9 @@ jobs:
             grep -q 'application/ld+json' /tmp/pangolin-new-service.html
             grep -q "rel=\"canonical\"" /tmp/pangolin-new-service.html
             grep -q "/servicios/$slug" /tmp/pangolin-sitemap.xml
+          done
+          for retired in bodegaje-general transporte-internacional; do
+            test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3000/servicios/$retired")" = "404"
           done
           for legal in privacidad terminos cookies licencias; do
             curl -fsS "http://127.0.0.1:3000/$legal" > /tmp/pangolin-legal.html

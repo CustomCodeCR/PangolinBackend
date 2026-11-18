@@ -62,7 +62,7 @@ const detailPage = computed(() => servicePages.find(item => route === `/servicio
 const serviceVideo = (pathname: string) => {
   if (pathname.endsWith('/transporte-aereo')) return '/videos/service-air.mp4'
   if (pathname.endsWith('/transporte-terrestre') || pathname.endsWith('/transporte-local') || pathname.endsWith('/transporte-panama-costa-rica')) return '/videos/service-road.mp4'
-  if (pathname.endsWith('/almacenamiento-fiscal') || pathname.endsWith('/bodegaje-general')) return '/videos/service-warehouse.mp4'
+  if (pathname.endsWith('/almacenamiento-fiscal')) return '/videos/service-warehouse.mp4'
   return '/videos/service-maritime.mp4'
 }
 const pointIcon = (index: number) => ['✦', '⇄', '⌖', 'boxes'][index % 4]
@@ -80,19 +80,26 @@ const closeServiceFaqOnEscape = (event: KeyboardEvent) => {
 const serviceHeroKey='service.'+serviceSlug+'.hero.media'
 const serviceStoryKey='service.'+serviceSlug+'.story.media'
 const details = computed<LandingText>(() => {
-  const cms=(field:string, original:string) => siteText('service.'+serviceSlug+'.'+field,original,lang.value)
+  const cms=(field:string, original:string) => {
+    const value=siteText('service.'+serviceSlug+'.'+field,original,lang.value)
+    // Previously published CMS fields must not resurrect names of removed services.
+    if (/bodegaje general|general warehousing/i.test(value) && field.startsWith('faq.')) return original
+    if (route==='/servicios/almacenamiento-fiscal' && lang.value==='es' &&
+        ['label','title','location','heading','quoteHeading'].includes(field)) {
+      return value.replace(/almacenamiento fiscal/gi,'Almacén fiscal')
+    }
+    return value
+  }
   const guide=guides[route]?.[lang.value]
   if(guide) {
     const visuals:Record<string,{image:string;alt:{es:string;en:string}}>={
       '/servicios/almacenamiento-fiscal':{image:'/images/services-warehouse.webp',alt:{es:'Almacenamiento y manejo logístico de mercancías',en:'Cargo warehousing and logistics handling'}},
-      '/servicios/bodegaje-general':{image:'/images/warehouse-person.webp',alt:{es:'Equipo organizando mercancías en una bodega',en:'Team handling goods in a warehouse'}},
       '/servicios/agenciamiento-aduanal':{image:'/images/operation.webp',alt:{es:'Coordinación de documentación para operaciones aduaneras',en:'Documentation coordination for customs operations'}},
       '/servicios/consolidadora-de-carga':{image:'/images/ship.webp',alt:{es:'Buque de carga para operaciones de transporte consolidado',en:'Cargo vessel for consolidated freight operations'}}
     }
     const visual=visuals[route] || {image:'/images/hero.webp',alt:{es:'Operación logística de Grupo Castro Fallas',en:'Grupo Castro Fallas logistics operation'}}
     const locations:Record<string,{es:string;en:string}>={
-      '/servicios/almacenamiento-fiscal':{es:'Almacenamiento fiscal en Costa Rica',en:'Fiscal warehousing in Costa Rica'},
-      '/servicios/bodegaje-general':{es:'Bodegaje general en Costa Rica',en:'General warehousing in Costa Rica'},
+      '/servicios/almacenamiento-fiscal':{es:'Almacén fiscal en Costa Rica',en:'Fiscal warehousing in Costa Rica'},
       '/servicios/agenciamiento-aduanal':{es:'Gestiones aduanales en Costa Rica',en:'Customs coordination in Costa Rica'},
       '/servicios/consolidadora-de-carga':{es:'Coordinación de carga consolidada',en:'Consolidated cargo coordination'}
     }

@@ -149,10 +149,14 @@ try {
     '/servicios/transporte-aereo',
     '/servicios/transporte-terrestre',
     '/servicios/almacenamiento-fiscal',
-    '/servicios/bodegaje-general',
     '/servicios/agenciamiento-aduanal'
   ]) {
     assert.ok(servicesHtml.includes('href="' + route + '"'), 'Falta enlace HTML SSR a ' + route)
+  }
+  for (const retired of ['/servicios/bodegaje-general', '/servicios/transporte-internacional']) {
+    assert.ok(!servicesHtml.includes('href="' + retired + '"'), 'Servicios no debe enlazar a ' + retired)
+    const removedPage = await fetch(base + retired)
+    assert.equal(removedPage.status, 404, 'La página retirada debe devolver HTTP 404: ' + retired)
   }
   const missing = await fetch(base + '/noticias/no-existe')
   assert.equal(missing.status, 404)

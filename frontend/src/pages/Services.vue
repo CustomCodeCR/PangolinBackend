@@ -12,9 +12,15 @@ import serviceGuides from '../../seo/service-landings.json'
 import servicePages from '../../seo/service-pages.json'
 
 const { t, locale } = useI18n({ useScope: 'global' })
-const serviceFaqs = computed(() => serviceFaqData.servicios.map(faq => ({
-  question: siteText('services.faq.' + serviceFaqData.servicios.indexOf(faq) + '.q', locale.value.toLowerCase().startsWith('es') ? faq.question.es : faq.question.en, locale.value),
-  answer: siteText('services.faq.' + serviceFaqData.servicios.indexOf(faq) + '.a', locale.value.toLowerCase().startsWith('es') ? faq.answer.es : faq.answer.en, locale.value)
+// A formerly published FAQ can still be present in the CMS database.
+ // Keep non-retired editorial customizations while suppressing the withdrawn offering.
+const visibleFaqText=(key:string,fallback:string):string=>{
+  const value=siteText(key,fallback,locale.value)
+  return /bodegaje general|general warehousing/i.test(value) ? fallback : value
+}
+const serviceFaqs = computed(() => serviceFaqData.servicios.map((faq,i) => ({
+  question: visibleFaqText('services.faq.' + i + '.q', locale.value.toLowerCase().startsWith('es') ? faq.question.es : faq.question.en),
+  answer: visibleFaqText('services.faq.' + i + '.a', locale.value.toLowerCase().startsWith('es') ? faq.answer.es : faq.answer.en)
 })))
 const servicesFaqRef = ref<HTMLElement | null>(null)
 const openServicesFaq = ref<number | null>(null)
@@ -40,7 +46,11 @@ const serviceDirectory = computed(() => {
   const lang: 'es' | 'en' = locale.value.toLowerCase().startsWith('es') ? 'es' : 'en'
   return [
     ...servicePages.map(item => ({ href: '/servicios/' + item.slug, label: siteText('service.' + item.slug + '.title', item.title[lang], locale.value) })),
-    ...Object.entries(serviceGuides).map(([href, guide]) => ({ href, label: siteText('service.' + href.split('/').pop() + '.label', guide[lang].label, locale.value) }))
+    ...Object.entries(serviceGuides).map(([href, guide]) => {
+      const label = siteText('service.' + href.split('/').pop() + '.label', guide[lang].label, locale.value)
+      return { href, label: href === '/servicios/almacenamiento-fiscal' && lang === 'es'
+        ? label.replace(/almacenamiento fiscal/gi, 'Almacén fiscal') : label }
+    })
   ]
 })
 const serviceDirectoryGroups = computed(() => {
