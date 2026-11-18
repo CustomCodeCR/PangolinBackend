@@ -15,8 +15,8 @@ import { useI18n } from 'vue-i18n'
 
 const { t, locale } = useI18n({ useScope: 'global' })
 type HomeServiceKey = ServiceKey | 'Fiscal' | 'Panama'
-// In compact view all six red vertical tabs start closed. On opening one,
-// keep only as many neighboring tabs as fit beside a readable content panel.
+// On mobile keep the original vertical tab design and dimensions.
+// Tapping an already-open tab collapses it and restores all six choices.
 const activeService = ref<HomeServiceKey | null>(null)
 const compactServiceMode = ref(false)
 const serviceAccordionRef = ref<HTMLElement | null>(null)
@@ -304,7 +304,7 @@ onUnmounted(() => {
               {{ siteText('home.services.intro', $t('phrases.p011'), locale) }}
             </p>
 
-            <div ref="serviceAccordionRef" class="service-accordion" :class="{ 'has-open': activeService !== null }" :aria-label="$t('phrases.p134')">
+            <div ref="serviceAccordionRef" class="service-accordion" :aria-label="$t('phrases.p134')">
               <article
                 v-for="service in transportServices"
                 :key="service.key"
@@ -324,9 +324,6 @@ onUnmounted(() => {
                   @click="toggleHomeService(service.key)"
                 ><span class="service-accordion__name">{{ service.label }}</span></button>
                 <div v-if="activeService === service.key" :id="`home-service-panel-${service.key}`" class="service-accordion__panel">
-                  <button v-if="compactServiceMode" class="service-accordion__close" type="button"
-                    :aria-label="locale.startsWith('es') ? 'Cerrar servicio' : 'Close service'"
-                    @click.stop="activeService = null">{{ locale.startsWith('es') ? 'Cerrar' : 'Close' }} ×</button>
                   <div class="service-accordion__copy">
                     <h3>{{ service.title }}</h3>
                     <p>{{ service.detail }}</p>
@@ -906,169 +903,20 @@ html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__o
 </style>
 
 <style>
-/* Compact Home: original horizontal red tabs, adaptive disclosure on touch.
-   With an open service, hide only tabs needed to protect the content width. */
+/* Home mobile keeps its original vertical layout, dimensions and colors.
+   Only hide tabs when an open service needs extra room. */
 @media (max-width: 800px) {
-  html .app-site.home-page #servicios .service-accordion {
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: stretch !important;
-    justify-content: stretch !important;
-    width: 100% !important;
-    height: clamp(410px, 115vw, 480px) !important;
-    min-height: 410px !important;
-    gap: 5px !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    scroll-snap-type: none !important;
-  }
-
-  html .app-site.home-page #servicios .service-accordion__item,
-  html .app-site.home-page #servicios .service-accordion__item.is-open {
-    position: relative !important;
-    display: block !important;
-    flex: 0 0 40px !important;
-    width: auto !important;
-    min-width: 0 !important;
-    height: 100% !important;
-    min-height: 0 !important;
-    border-radius: 15px;
-    transition: border-color .2s ease !important;
-  }
-
-  html .app-site.home-page #servicios .service-accordion__item.is-open {
-    flex: 1 1 0% !important;
-    min-width: 0 !important;
-  }
-
-  /* All six closed tabs divide the available row evenly instead of leaving
-     a blank gap on narrow phones or wide tablets. */
-  html .app-site.home-page #servicios .service-accordion:not(.has-open) .service-accordion__item {
-    flex: 1 1 0% !important;
-  }
-
-  html .app-site.home-page #servicios .service-accordion__item[hidden] {
+  .app-site.home-page #servicios .service-accordion__item[hidden] {
     display: none !important;
   }
-
-  html .app-site.home-page #servicios .service-accordion__trigger,
-  html .app-site.home-page #servicios .service-accordion .service-accordion__item.is-open > .service-accordion__trigger {
-    position: absolute !important;
-    inset: 0 auto 0 0 !important;
-    z-index: 5;
-    display: flex !important;
-    flex: none !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 40px !important;
-    height: 100% !important;
-    min-height: 0 !important;
-    padding: 5px !important;
-    border: 0 !important;
-    border-right: 1px solid rgba(255,255,255,.2) !important;
-    background: #b20b2d !important;
-    touch-action: manipulation;
-  }
-  html .app-site.home-page #servicios .service-accordion__trigger .service-accordion__name {
-    position: relative !important;
-    display: block !important;
-    width: max-content !important;
-    max-width: none !important;
-    transform: rotate(180deg) !important;
-    writing-mode: vertical-rl !important;
-    text-orientation: mixed !important;
-    white-space: nowrap !important;
-    font: 900 clamp(12px, 3vw, 16px)/1.1 system-ui, sans-serif !important;
-    letter-spacing: .07em !important;
-    color: #fff !important;
-    -webkit-text-fill-color: #fff !important;
-    -webkit-text-stroke: 0 transparent !important;
-    pointer-events: none;
-  }
-
-  html .app-site.home-page #servicios .service-accordion__panel {
-    position: absolute !important;
-    z-index: 3;
-    inset: 0 0 0 40px !important;
-    display: flex !important;
-    flex: none !important;
-    align-items: flex-end !important;
-    width: auto !important;
-    height: 100% !important;
-    min-height: 0 !important;
-    padding: 56px 14px 22px !important;
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-    overscroll-behavior: contain;
-    background: transparent !important;
-  }
-  html .app-site.home-page #servicios .service-accordion__copy {
-    position: relative !important;
-    flex: 0 1 auto !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-  }
-  html .app-site.home-page #servicios .service-accordion__copy h3 {
-    font-size: clamp(17px, 4vw, 24px) !important;
-    line-height: 1.2 !important;
-    overflow-wrap: break-word !important;
-  }
-  html .app-site.home-page #servicios .service-accordion__copy p {
-    font-size: clamp(12px, 3vw, 15px) !important;
-    line-height: 1.52 !important;
-    overflow-wrap: break-word !important;
-  }
-  html .app-site.home-page #servicios .service-accordion__copy .btn {
-    min-width: 0 !important;
-    min-height: 42px !important;
-    max-width: 100% !important;
-    padding: 9px 12px !important;
-    font-size: 13px !important;
-    white-space: normal !important;
-  }
-  html .app-site.home-page #servicios .service-accordion__close {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    z-index: 6;
-    padding: 7px 10px;
-    border: 1px solid rgba(255,255,255,.7);
-    border-radius: 999px;
-    background: rgba(4,12,28,.76);
-    color: #fff;
-    font: 700 12px/1.2 system-ui, sans-serif;
-    cursor: pointer;
-  }
-  html .app-site.home-page #servicios .service-accordion__close:focus-visible {
-    outline: 3px solid #fff;
-    outline-offset: 2px;
-  }
-}
-@media (max-width: 360px) {
-  html .app-site.home-page #servicios .service-accordion {
-    height: 490px !important;
-    min-height: 490px !important;
-    gap: 4px !important;
-  }
-  html .app-site.home-page #servicios .service-accordion__item,
-  html .app-site.home-page #servicios .service-accordion__item.is-open {
-    flex-basis: 38px !important;
-  }
-  html .app-site.home-page #servicios .service-accordion__item.is-open {
-    flex: 1 1 0% !important;
-  }
-  html .app-site.home-page #servicios .service-accordion__trigger,
-  html .app-site.home-page #servicios .service-accordion .service-accordion__item.is-open > .service-accordion__trigger {
-    width: 38px !important;
-  }
-  html .app-site.home-page #servicios .service-accordion__panel {
-    inset-inline-start: 38px !important;
-    padding-inline: 11px !important;
+  /* Reuse the original accordion's smooth flex expansion. */
+  .app-site.home-page #servicios .service-accordion__item {
+    transition: flex .45s cubic-bezier(.2,.8,.2,1), border-color .25s !important;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  html .app-site.home-page #servicios .service-accordion__item { transition: none !important; }
+  .app-site.home-page #servicios .service-accordion__item {
+    transition: none !important;
+  }
 }
 </style>
