@@ -29,6 +29,8 @@ const scroller = ref<HTMLElement | null>(null)
 const pendingRole = ref('')
 const locationTerm = ref('')
 const locationChoices = ref<Location[]>([])
+const locationVisibleLimit = ref(30)
+const locationPageSize = 30
 const quoteId = ref('')
 const quoteStatus = ref('')
 const quoteResultUrl = ref('/cotizaciones')
@@ -171,7 +173,7 @@ const steps = computed<Step[]>(() => {
     {key:'origin',prompt:i('¿Desde qué ciudad o puerto sale la carga?','Where will the cargo depart from?')},
     {key:'destination',prompt:i('¿Cuál es el destino?','What is the destination?')}
   ]
-  if (values.shipmentType === 'LCL') result.push({key:'pod',prompt:i('Para LCL, indica también el puerto de descarga (POD).','For LCL, provide the port of discharge (POD).')})
+  if (values.mode === 'Maritime') result.push({key:'pod',prompt:i('Indica el puerto de descarga (POD) obligatorio para transporte marítimo.','Select the required port of discharge (POD) for ocean freight.')})
   result.push(
     {key:'incoterm',prompt:i('¿Qué Incoterm se utilizará?','Which Incoterm applies?'),choices:terms.value},
     {key:'cargoReadyDate',prompt:i('¿En qué fecha estará lista la carga? Escribe AAAA-MM-DD.','When will the cargo be ready? Enter YYYY-MM-DD.'),hint:'AAAA-MM-DD'}
@@ -232,8 +234,17 @@ const summary = computed(() => steps.value.map(step => ({
   key:step.key, label: tr((fieldLabels[step.key] ?? [step.key,step.key])[0], (fieldLabels[step.key] ?? [step.key,step.key])[1]),
   value: step.key === 'services' ? serviceNames(values.services || '') : step.choices?.find(option => option.value === values[step.key])?.label ?? values[step.key]
 })).filter(item => item.value))
-const filteredLocations = computed(() => locationChoices.value.filter(loc =>
-  norm(loc.displayName).includes(norm(locationTerm.value))).slice(0, 30))
+// The entire returned catalogue stays searchable. Pagination limits only the
+// rendered DOM per batch, never which airport/port the user can select.
+const matchingLocations = computed(() => {
+  const search = norm(locationTerm.value)
+  return locationChoices.value.filter(loc =>
+    norm(loc.displayName).includes(search) || norm(loc.code || '').includes(search))
+})
+const filteredLocations = computed(() => matchingLocations.value.slice(0, locationVisibleLimit.value))
+const remainingLocations = computed(() => matchingLocations.value.length - filteredLocations.value.length)
+const showMoreLocations = () => { locationVisibleLimit.value += locationPageSize }
+watch(locationTerm, () => { locationVisibleLimit.value = locationPageSize })
 const validDate = isCalendarDate
 const norm = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
 const positive = (s: string) => Number.isFinite(Number(s)) && Number(s) > 0
@@ -567,6 +578,7 @@ async function getLocations(role: string): Promise<Location[]> {
   return items
 }
 async function loadLocationStep(role: string) {
+  locationVisibleLimit.value = locationPageSize
   locationChoices.value = []
   locationTerm.value = values[role] || proposedLocations[role] || ''
   locationLoadError.value = ''
@@ -603,7 +615,7 @@ async function submitQuote() {
       return
     }
   }
-  const roles = ['origin','destination',...(values.shipmentType === 'LCL' ? ['pod'] : [])]
+  const roles = ['origin','destination',...(values.mode === 'Maritime' ? ['pod'] : [])]
   for (const role of roles) {
     if (selectedLocations[role]) continue
     const catalog = await getLocations(role)
@@ -622,7 +634,7 @@ async function submitQuote() {
     mode:values.mode, shipmentType:values.shipmentType,
     catalogSource:quoteCatalogSource.value === 'dhole' ? 'dhole' : null,
     originLocationId:selectedLocations.origin, destinationLocationId:selectedLocations.destination,
-    podLocationId:values.shipmentType === 'LCL' ? selectedLocations.pod : null,
+    podLocationId:values.mode === 'Maritime' ? selectedLocations.pod : null,
     contactName:values.contactName, contactEmail:values.contactEmail,contactPhone:values.contactPhone,
     incoterm:values.incoterm,cargoReadyDate:values.cargoReadyDate,services:requestedServices,
     equipment:equipment ? [{size:values.equipmentSize,type:values.equipmentType,quantity:Number(values.equipmentQuantity),unitWeightsKg:weights}] : [],
@@ -778,9 +790,11 @@ async function perform() {
       <template v-else-if="phase === 'location'">
         <div class="gio-ops__bubble">{{ tr('Necesito que selecciones una ubicación válida del catálogo oficial para ', 'Please select an official catalog location for ') }}{{ pendingRole === 'origin' ? tr('origen','origin') : pendingRole === 'destination' ? tr('destino','destination') : 'POD' }}.</div>
         <label class="gio-ops__label">{{ tr('Buscar ubicación','Search locations') }}<input v-model="locationTerm" maxlength="100" /></label>
+        <p v-if="locationChoices.length" class="gio-ops__note">{{ tr('Mostrando', 'Showing') }} {{ filteredLocations.length }} {{ tr('de', 'of') }} {{ matchingLocations.length }} {{ tr('ubicaciones coincidentes', 'matching locations') }}</p>
         <div class="gio-ops__choices gio-ops__location-list">
           <button v-for="loc in filteredLocations" :key="loc.id" type="button" :disabled="busy" @click="chooseLocation(loc)"><MapPin :size="14" />{{ loc.displayName }}</button>
         </div>
+        <button v-if="remainingLocations > 0" class="gio-ops__secondary gio-ops__more" type="button" @click="showMoreLocations">{{ tr('Mostrar 30 más', 'Show 30 more') }} ({{ remainingLocations }})</button>
         <p v-if="filteredLocations.length === 0" class="gio-ops__note">{{ tr('No hay ubicaciones coincidentes. Prueba otra búsqueda o completa la cotización en el formulario.','No matching locations. Try another search or use the full quote form.') }}</p>
         <a class="gio-ops__secondary gio-ops__link" href="/cotizaciones">{{ tr('Abrir formulario completo','Open full quote form') }}</a>
       </template>
@@ -817,7 +831,7 @@ async function perform() {
       <p v-if="error && !(phase === 'collect' && current && isCatalogueLocation(current.key))" class="gio-ops__error" role="alert">{{ error }}</p>
     </div>
     <section v-if="phase === 'collect' && current && isCatalogueLocation(current.key)" class="gio-ops__location-dock" aria-label="Sugerencias de ubicación">
-      <div class="gio-ops__location-heading"><MapPin :size="14" /><strong>{{ tr('Ubicaciones disponibles','Available locations') }}</strong></div>
+      <div class="gio-ops__location-heading"><MapPin :size="14" /><strong>{{ tr('Ubicaciones disponibles','Available locations') }}</strong><span v-if="locationChoices.length" class="gio-ops__location-count">{{ filteredLocations.length }} / {{ matchingLocations.length }}</span></div>
       <p v-if="locationLoading" class="gio-ops__note" role="status">{{ tr('Buscando ubicaciones…','Loading locations…') }}</p>
       <p v-else-if="locationLoadError" class="gio-ops__error" role="alert">{{ locationLoadError }}</p>
       <p v-else-if="!locationChoices.length" class="gio-ops__note">{{ tr('No hay ubicaciones habilitadas para esta modalidad.','No enabled locations for this shipment type.') }}</p>
@@ -825,6 +839,7 @@ async function perform() {
         <button v-for="loc in filteredLocations" :key="loc.id" type="button" role="option" :aria-selected="false" @click="accept(loc.displayName, loc.id)"><MapPin :size="14" /><span>{{ loc.displayName }}</span><ChevronRight :size="14" /></button>
       </div>
       <p v-else class="gio-ops__note">{{ tr('Sin coincidencias. Escribe otra ciudad o puerto.','No matches. Try a different city or port.') }}</p>
+      <button v-if="!locationLoading && !locationLoadError && remainingLocations > 0" class="gio-ops__secondary gio-ops__more" type="button" @click="showMoreLocations">{{ tr('Mostrar 30 más', 'Show 30 more') }} ({{ remainingLocations }})</button>
       <p v-if="error" class="gio-ops__error" role="alert">{{ error }}</p>
     </section>
     <form v-if="phase === 'collect' && current && !current.choices && current.key !== 'services'" class="gio-ops__form" @submit.prevent="isCatalogueLocation(current.key) ? accept(locationTerm) : accept()">
@@ -878,4 +893,6 @@ async function perform() {
 .gio-ops__card dd{overflow-wrap:anywhere;white-space:pre-wrap}
 .gio-ops__card dl{gap:13px 12px}
 @media(min-width:600px){.site-assistant__panel--expanded .gio-ops__card dl{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.gio-ops__location-count{margin-left:auto;white-space:nowrap;font-variant-numeric:tabular-nums;font-size:11px;color:var(--gio-muted,#aaa)}
+.gio-ops__more{flex:0 0 auto;min-height:30px;font-size:11px;padding:5px 10px}
 </style>
