@@ -35,7 +35,14 @@ function updateServiceLayout() {
   serviceAccordionWidth.value = serviceAccordionRef.value?.clientWidth ?? 0
 }
 
-function openHomeServiceFromPointer(key: HomeServiceKey) {
+// Mouse hover opens the original accordion on any screen size.
+// Touch pointerenter is intentionally ignored: touch continues to toggle on tap.
+function openHomeServiceFromPointer(key: HomeServiceKey, event: PointerEvent) {
+  if (event.pointerType === 'mouse' || event.pointerType === 'pen') {
+    activeService.value = key
+  }
+}
+function openHomeServiceFromFocus(key: HomeServiceKey) {
   if (!compactServiceMode.value) activeService.value = key
 }
 function toggleHomeService(key: HomeServiceKey) {
@@ -309,7 +316,7 @@ onUnmounted(() => {
               {{ siteText('home.services.intro', $t('phrases.p011'), locale) }}
             </p>
 
-            <div ref="serviceAccordionRef" class="service-accordion" :aria-label="$t('phrases.p134')">
+            <div ref="serviceAccordionRef" class="service-accordion" :class="{ 'is-collapsed': compactServiceMode && activeService === null }" :aria-label="$t('phrases.p134')">
               <article
                 v-for="service in transportServices"
                 :key="service.key"
@@ -324,8 +331,8 @@ onUnmounted(() => {
                   type="button"
                   :aria-expanded="activeService === service.key"
                   :aria-controls="`home-service-panel-${service.key}`"
-                  @mouseenter="openHomeServiceFromPointer(service.key)"
-                  @focus="openHomeServiceFromPointer(service.key)"
+                  @pointerenter="openHomeServiceFromPointer(service.key, $event)"
+                  @focus="openHomeServiceFromFocus(service.key)"
                   @click="toggleHomeService(service.key)"
                 ><span class="service-accordion__name">{{ service.label }}</span></button>
                 <div v-if="activeService === service.key" :id="`home-service-panel-${service.key}`" class="service-accordion__panel">
@@ -911,6 +918,11 @@ html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__o
 /* Home mobile keeps its original vertical layout, dimensions and colors.
    Only hide tabs when an open service needs extra room. */
 @media (max-width: 800px) {
+  /* Keep the original closed-tab width; only center the six-tab row.
+     Do not stretch the cards to fill the row, so opening retains the old proportions. */
+  html .app-site.home-page #servicios .service-accordion.is-collapsed {
+    justify-content: center !important;
+  }
   html .app-site.home-page #servicios .service-accordion__item[hidden] {
     display: none !important;
   }
