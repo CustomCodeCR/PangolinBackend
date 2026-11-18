@@ -13,6 +13,16 @@ const values = computed(() => [0, 1, 2, 3, 4].map(index => siteText(`about.value
 const valueIcons = [Handshake, Scale, UsersRound, Award, ShieldCheck]
 const capabilityIcons = [Truck, ClipboardCheck, Globe2, Boxes, Ship]
 const openedValue = ref<number | null>(null)
+const openedStructure = ref<number | null>(null)
+const structureTitles = computed(() => (locale.value.startsWith('es')
+  ? ['Nuestros servicios', '48 años', 'Mesa de ayuda', 'Agente propio en sitio', 'Departamentos', 'Universidad corporativa', 'Enfoque ambiental']
+  : ['Our services', '48 years', 'Help desk', 'On-site agent', 'Departments', 'Corporate university', 'Environmental approach']))
+const structureDepartments = computed(() => (locale.value.startsWith('es')
+  ? ['Consolidadora', 'Pedimentación', 'Contabilidad', 'Servicio al cliente', 'Transporte interno de carga']
+  : ['Freight consolidation', 'Customs declaration processing', 'Accounting', 'Customer service', 'Domestic cargo transport']))
+const structureEnvironment = computed(() => locale.value.startsWith('es')
+  ? 'Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.'
+  : 'We seek opportunities to incorporate more responsible practices into our operations.')
 const valuesAccordionRef = ref<HTMLElement | null>(null)
 const closeValueOnOutsidePointer = (event: PointerEvent) => {
   if (openedValue.value === null || !(event.target instanceof Node)) return
@@ -209,6 +219,41 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
         </div>
       </section>
 
+      <section id="nuestra-estructura" class="about-refresh__structure section-spacing" aria-labelledby="about-structure-title">
+        <div class="container">
+          <div class="about-refresh__section-heading">
+            <div>
+              <p class="about-refresh__eyebrow">{{ locale.startsWith('es') ? 'ORGANIZACIÓN' : 'ORGANIZATION' }}</p>
+              <h2 id="about-structure-title">{{ siteText('about.structure.heading', locale.startsWith('es') ? 'Sobre nuestra estructura' : 'About our structure', locale) }}</h2>
+            </div>
+          </div>
+          <div class="about-refresh__accordion about-refresh__structure-grid">
+            <article v-for="(title, index) in structureTitles" :key="index" class="about-refresh__value"
+              :class="{ 'is-open': openedStructure === index }">
+              <h3>
+                <button class="about-refresh__value-trigger" type="button"
+                  :aria-expanded="openedStructure === index" :aria-controls="`about-structure-${index}`"
+                  @click="openedStructure = openedStructure === index ? null : index">
+                  <span class="about-refresh__value-text"><strong class="about-refresh__value-name">{{ siteText('about.structure.' + index + '.title', title, locale) }}</strong></span>
+                  <ChevronDown class="about-refresh__value-chevron" :size="22" aria-hidden="true" />
+                </button>
+              </h3>
+              <div :id="`about-structure-${index}`" class="about-refresh__value-panel"
+                :class="{ 'is-open': openedStructure === index }" :aria-hidden="openedStructure !== index"
+                :inert="openedStructure !== index">
+                <div class="about-refresh__value-inner">
+                  <ul v-if="index === 4" class="about-refresh__structure-departments">
+                    <li v-for="(department, d) in structureDepartments" :key="d">{{ siteText('about.structure.departments.' + d, department, locale) }}</li>
+                  </ul>
+                  <p v-else-if="index === 6">{{ siteText('about.structure.environment', structureEnvironment, locale) }}</p>
+                  <div v-else class="about-refresh__structure-empty" aria-hidden="true"></div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
       <section class="about-refresh__services section-spacing">
         <div class="container">
           <div class="about-refresh__section-heading">
@@ -241,6 +286,15 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 </template>
 
 <style scoped>
+.about-refresh__structure{padding-block:clamp(64px,7vw,108px)}
+.about-refresh__structure-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.about-refresh__structure-grid .about-refresh__value-trigger{min-height:112px}
+.about-refresh__structure-departments{margin:0;padding:0 22px 24px 40px;color:var(--about-muted);line-height:1.8;font-size:14px}
+.about-refresh__structure-empty{height:12px}
+@media(max-width:1100px){.about-refresh__structure-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.about-refresh__structure-grid{grid-template-columns:1fr}}
+html.theme-dark .about-refresh__structure{background:#171b23}
+
 .about-refresh{--about-red:#b00929;--about-ink:#20242d;--about-muted:#545b67;--about-soft:#faf4f5;color:var(--about-ink)}
 .about-refresh .about-refresh__hero{min-height:clamp(330px,34vw,490px)}
 .about-refresh .about-refresh__hero-copy{padding-bottom:48px}
