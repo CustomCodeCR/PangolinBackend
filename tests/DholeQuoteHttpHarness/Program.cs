@@ -66,6 +66,9 @@ internal static class DholeQuoteHttpTest
         var handler = new FakeDholeHttpHandler(fakeKey);
         using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
+            // The assembly is named CastroFallas.MiniQuote.Api but the source
+            // directory is "backend", not "CastroFallas.MiniQuote.Api".
+            builder.UseContentRoot(Path.Combine(Directory.GetCurrentDirectory(), "backend"));
             builder.ConfigureTestServices(services =>
             {
                 // The real backend routes and persistence run unchanged. Only the
