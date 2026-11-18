@@ -45,11 +45,23 @@ const api = http.createServer(async (req, res) => {
   if (url.pathname === '/api/quotes/official/dhole-options') {
     dholeOptionsReads++
     if (!dynamicDholeMock) return send(404,{code:'dhole_form_disabled'})
+    // Simulate the full-sized real Air POL/POE feeds: hundreds of "A" records
+    // followed by an airport at the END. Search must never drop late entries.
+    const mockLocations = (size, known, suffix) => [
+      known,
+      ...Array.from({length:size-2}, (_,i)=>({
+        id:'a0000000-0000-4000-8000-'+String(i+1).padStart(12,'0'),
+        displayName:'Aeropuerto A '+String(i+1).padStart(4,'0')+suffix,
+        code:'A-'+String(i+1)
+      })),
+      {id:'f0000000-0000-4000-8000-'+suffix.padStart(12,'0'),
+       displayName:'Zúrich terminal '+suffix,code:'ZRH'}
+    ]
     return send(200,{
       source:'dhole',mode:url.searchParams.get('mode'),shipmentType:url.searchParams.get('shipmentType'),
       incoterms:['FOB'],
-      origins:[{id:'11111111-1111-4111-8111-111111111111',displayName:'Shanghái',code:'SHA'}],
-      destinations:[{id:'22222222-2222-4222-8222-222222222222',displayName:'Puerto Caldera',code:'CAL'}],
+      origins:mockLocations(854,{id:'11111111-1111-4111-8111-111111111111',displayName:'Shanghái',code:'SHA'},'1'),
+      destinations:mockLocations(851,{id:'22222222-2222-4222-8222-222222222222',displayName:'Puerto Caldera',code:'CAL'},'2'),
       pods:[{id:'33333333-3333-4333-8333-333333333333',displayName:'POD terrestre',code:'TER'}],
       equipmentSizes:[{value:'40 pies',label:'40 pies'}],
       equipmentTypesBySize:{'40 pies':['Dry Van']}
@@ -59,7 +71,9 @@ const api = http.createServer(async (req, res) => {
     const source = url.searchParams.get('routeRole')
     const item = source === 'origin'
       ? {id:'11111111-1111-1111-1111-111111111111',displayName:'Shanghái',code:'SHA'}
-      : {id:'22222222-2222-2222-2222-222222222222',displayName:'Puerto Caldera',code:'CAL'}
+      : source === 'pod'
+        ? {id:'33333333-3333-3333-8333-333333333333',displayName:'POD terrestre',code:'TER'}
+        : {id:'22222222-2222-2222-2222-222222222222',displayName:'Puerto Caldera',code:'CAL'}
     return send(200,{items:[item]})
   }
   if (url.pathname === '/api/quotes/official' && req.method === 'POST') {
@@ -206,6 +220,20 @@ async function main() {
     await choose('Marítimo')
     await choose('FCL')
     await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__location-list button")'))
+    if (dynamicDholeMock) {
+      const results = await evaluate('({full:document.querySelector(".gio-ops__location-count")?.textContent.trim(),visible:document.querySelectorAll(".gio-ops__location-dock .gio-ops__location-list button").length,more:!!document.querySelector(".gio-ops__location-dock .gio-ops__more")})')
+      assert.equal(results.full,'30 / 854','All 854 Dhole origins must be counted without being truncated')
+      assert.equal(results.visible,30,'Initial render must remain lightweight')
+      assert.ok(results.more,'Large catalog must offer pagination controls')
+      assert.ok(await click('.gio-ops__location-dock .gio-ops__more'),'GIO must display more origin rows')
+      assert.equal(await evaluate('document.querySelectorAll(".gio-ops__location-dock .gio-ops__location-list button").length'),60)
+      assert.ok(await evaluate('(()=>{const el=document.querySelector(".gio-ops__form input");const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(el,"Zúrich");el.dispatchEvent(new Event("input",{bubbles:true}));return true})()'))
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__location-list button")?.textContent.includes("Zúrich terminal 1")'))
+      assert.equal(await evaluate('document.querySelector(".gio-ops__location-count")?.textContent.trim()'),'1 / 1',
+        'Searching must find an airport at the END of the whole feed')
+      assert.ok(await evaluate('(()=>{const el=document.querySelector(".gio-ops__form input");const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(el,"");el.dispatchEvent(new Event("input",{bubbles:true}));return true})()'))
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__location-count")?.textContent.trim()==="30 / 854"'))
+    }
     const placement = await evaluate('(()=>{const dock=document.querySelector(".gio-ops__location-dock").getBoundingClientRect();const input=document.querySelector(".gio-ops__form").getBoundingClientRect();const btn=document.querySelector(".gio-ops__location-list button").getBoundingClientRect();return {aboveInput:dock.bottom<=input.top+2,visible:btn.top>=dock.top && btn.bottom<=dock.bottom+2,codeVisible:!!document.querySelector(".gio-ops__location-list button small")}})()')
     assert.ok(placement.aboveInput && placement.visible,'Suggestions must remain visible above composer in the compact panel')
     assert.equal(placement.codeVisible,false,'Never display import codes such as VIDEO-SEA')
@@ -224,6 +252,9 @@ async function main() {
     await confirm()
     await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__location-list button")'))
     await choose('Puerto Caldera')
+    await confirm()
+    await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__location-list button")'))
+    await choose('POD terrestre')
     await confirm()
     await choose('FOB')
     await rejectValue('2020-01-01', 'La fecha de carga lista debe ser hoy o posterior')
@@ -300,6 +331,9 @@ async function main() {
       dynamicDholeMock ? '11111111-1111-4111-8111-111111111111' : '11111111-1111-1111-1111-111111111111')
     assert.equal(quoteWrites[0].destinationLocationId,
       dynamicDholeMock ? '22222222-2222-4222-8222-222222222222' : '22222222-2222-2222-2222-222222222222')
+    assert.equal(quoteWrites[0].podLocationId,
+      dynamicDholeMock ? '33333333-3333-4333-8333-333333333333' : '33333333-3333-3333-8333-333333333333',
+      'Maritime FCL must include confirmed POD in submissions from GIO')
     assert.ok(await evaluate(`!!document.querySelector('.gio-ops__card a[href="/cotizaciones?gioReceipt=1"]')`),'Guest must see the direct quote receipt link')
     // Reuse confirmed fields to request a distinct quote as an admin.
     role = 'administrador'
