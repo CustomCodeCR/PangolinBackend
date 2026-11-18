@@ -26,70 +26,12 @@ try {
     & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'start-main2-hybrid.ps1') -Action up -BindIp $BindIp
     if ($LASTEXITCODE -ne 0) { throw 'No se pudo iniciar el gateway hibrido local.' }
 
-    # The user's existing .env is gitignored. Prefer a key saved there so
-    # local previews do not repeatedly prompt. A pre-existing process env var
-    # takes precedence. Never echo the value or write it into a committed file.
+    # Prefer a key stored in this gitignored local .env, so users do not
+    # repeatedly paste it. An environment variable takes precedence.
     $savedKey = $oldValue
     if ([string]::IsNullOrWhiteSpace($savedKey)) {
         foreach ($entry in [System.IO.File]::ReadLines((Resolve-Path '.env').Path)) {
-            if ($entry -match '^\s*DHOLE_LOCAL_PREVIEW_KEY\s*=\s*(.*?)\s*
-    Write-Host 'Activando opciones Dhole solo en el backend Docker de desarrollo...'
-    # A failed Compose command may partially recreate the container; always
-    # attempt to restore the normal backend if this call was started.
-    $backendPreviewStarted = $true
-    & docker compose @files -f compose.dhole-main2-preview.yaml up -d --no-deps --force-recreate backend
-    if ($LASTEXITCODE -ne 0) { throw 'No se pudo activar Dhole en el backend local.' }
-
-    $ready = $false
-    for ($attempt = 0; $attempt -lt 25; $attempt++) {
-        try {
-            $uri = "http://$($BindIp):5173/api/quotes/official/dhole-options?mode=Maritime&shipmentType=FCL"
-            $options = Invoke-RestMethod -Uri $uri -TimeoutSec 15 -Method Get
-            if ($options.source -eq 'dhole' -and
-                @($options.origins).Count -gt 0 -and
-                @($options.destinations).Count -gt 0) {
-                $ready = $true
-                break
-            }
-        } catch {
-            # The backend may be starting, or the real API may be temporarily down.
-            # Do not echo a response that could contain provider details.
-        }
-        Start-Sleep -Seconds 2
-    }
-    if (-not $ready) {
-        throw 'El backend no obtuvo opciones Dhole. Verifica la clave y la conectividad; no se activara una vista previa incompleta.'
-    }
-    Write-Host ''
-    Write-Host 'VISTA PREVIA DHOLE HABILITADA SOLO EN DOCKER LOCAL.'
-    Write-Host "Cotizaciones: http://$($BindIp):5173/cotizaciones"
-    Write-Host "Itinerarios:  http://$($BindIp):5173/itinerario"
-    Write-Host "Gateway alterno: http://$($BindIp):8083/cotizaciones"
-    Write-Host 'No se ha desplegado nada en GitHub main-2 ni en produccion.'
-    Write-Host 'No pulses Enviar solicitud para pruebas visuales: enviaria datos a tu base LOCAL.'
-    Write-Host 'Para desactivar Dhole, ejecuta de nuevo start-main2-hybrid.ps1 -Action up con la misma IP.'
-} catch {
-    if ($backendPreviewStarted) {
-        Write-Warning 'Fallaron las verificaciones. Restaurando el backend sin Dhole.'
-        try {
-            & docker compose @files up -d --no-deps --force-recreate backend
-            if ($LASTEXITCODE -ne 0) {
-                Write-Warning 'El backend no se restauro automaticamente. Ejecuta start-main2-hybrid.ps1 -Action up.'
-            }
-        } catch {
-            Write-Warning 'El backend no se restauro automaticamente. Ejecuta start-main2-hybrid.ps1 -Action up.'
-        }
-    }
-    throw
-} finally {
-    if ($null -eq $oldValue) {
-        Remove-Item 'Env:DHOLE_LOCAL_PREVIEW_KEY' -ErrorAction SilentlyContinue
-    } else {
-        Set-Item 'Env:DHOLE_LOCAL_PREVIEW_KEY' -Value $oldValue
-    }
-    Pop-Location
-}
-) {
+            if ($entry -match '^\s*DHOLE_LOCAL_PREVIEW_KEY\s*=\s*(.*?)\s*$') {
                 $savedKey = $Matches[1].Trim()
                 if ($savedKey.Length -ge 2 -and
                     (($savedKey.StartsWith("'") -and $savedKey.EndsWith("'")) -or
@@ -101,9 +43,9 @@ try {
     }
     if (-not [string]::IsNullOrWhiteSpace($savedKey)) {
         $env:DHOLE_LOCAL_PREVIEW_KEY = $savedKey
-        Write-Host 'Clave Dhole cargada desde la configuracion local; no hace falta volver a pegarla.'
+        Write-Host 'Clave Dhole cargada desde configuracion local (valor oculto).'
     } else {
-        Write-Host 'No hay DHOLE_LOCAL_PREVIEW_KEY en .env; solicitandola solo para esta ejecucion.'
+        Write-Host 'DHOLE_LOCAL_PREVIEW_KEY no esta en .env. Se solicitara solo para esta ejecucion.'
         $secure = Read-Host 'API Key Dhole para vista previa LOCAL (oculta al escribir)' -AsSecureString
         $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
         try {
