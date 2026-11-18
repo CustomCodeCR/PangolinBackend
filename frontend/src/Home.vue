@@ -304,7 +304,7 @@ onUnmounted(() => {
               {{ siteText('home.services.intro', $t('phrases.p011'), locale) }}
             </p>
 
-            <div ref="serviceAccordionRef" class="service-accordion" :aria-label="$t('phrases.p134')">
+            <div ref="serviceAccordionRef" class="service-accordion" :class="{ 'has-open': activeService !== null }" :aria-label="$t('phrases.p134')">
               <article
                 v-for="service in transportServices"
                 :key="service.key"
@@ -939,6 +939,12 @@ html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__o
   html .app-site.home-page #servicios .service-accordion__item.is-open {
     flex: 1 1 0% !important;
     min-width: 0 !important;
+  }
+
+  /* All six closed tabs divide the available row evenly instead of leaving
+     a blank gap on narrow phones or wide tablets. */
+  html .app-site.home-page #servicios .service-accordion:not(.has-open) .service-accordion__item {
+    flex: 1 1 0% !important;
   }
 
   html .app-site.home-page #servicios .service-accordion__item[hidden] {
