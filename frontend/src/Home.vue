@@ -21,6 +21,7 @@ const activeService = ref<HomeServiceKey | null>(null)
 const compactServiceMode = ref(false)
 const serviceAccordionRef = ref<HTMLElement | null>(null)
 const serviceAccordionWidth = ref(0)
+const serviceWindowStart = ref(0)
 let serviceAccordionObserver: ResizeObserver | undefined
 let serviceCompactQuery: MediaQueryList | undefined
 
@@ -29,27 +30,46 @@ function updateServiceLayout() {
   if (compact !== compactServiceMode.value) {
     compactServiceMode.value = compact
     activeService.value = compact ? null : 'Air'
+    serviceWindowStart.value = 0
   } else if (!compact && activeService.value === null) {
     activeService.value = 'Air'
   }
   serviceAccordionWidth.value = serviceAccordionRef.value?.clientWidth ?? 0
 }
 
+function activateHomeService(key: HomeServiceKey) {
+  if (compactServiceMode.value) {
+    const keys = transportServices.value.map(service => service.key)
+    const index = keys.indexOf(key)
+    const priorIndex = activeService.value === null ? -1 : keys.indexOf(activeService.value)
+    const count = Math.min(keys.length, serviceAccordionWidth.value < 260 ? 3 : 4)
+    const lastStart = Math.max(0, keys.length - count)
+    if (index >= 0) {
+      // Moving right reveals the next service as soon as another tab opens.
+      // Moving left reveals earlier services without requiring the card to close.
+      const proposedStart = priorIndex >= 0 && index < priorIndex ? index - 1 : index
+      serviceWindowStart.value = Math.max(0, Math.min(proposedStart, lastStart))
+    }
+  }
+  activeService.value = key
+}
+
 // Mouse hover opens the original accordion on any screen size.
 // Touch pointerenter is intentionally ignored: touch continues to toggle on tap.
 function openHomeServiceFromPointer(key: HomeServiceKey, event: PointerEvent) {
   if (event.pointerType === 'mouse' || event.pointerType === 'pen') {
-    activeService.value = key
+    activateHomeService(key)
   }
 }
 function openHomeServiceFromFocus(key: HomeServiceKey) {
-  if (!compactServiceMode.value) activeService.value = key
+  if (!compactServiceMode.value) activateHomeService(key)
 }
 function toggleHomeService(key: HomeServiceKey) {
-  if (compactServiceMode.value) {
-    activeService.value = activeService.value === key ? null : key
+  if (compactServiceMode.value && activeService.value === key) {
+    activeService.value = null
+    serviceWindowStart.value = 0
   } else {
-    activeService.value = key
+    activateHomeService(key)
   }
 }
 
@@ -94,32 +114,12 @@ const visibleHomeServiceKeys = computed(() => {
   const count = Math.min(all.length, available < 260 ? 3 : 4)
   const selectedIndex = all.indexOf(activeService.value)
   if (selectedIndex < 0) return new Set<HomeServiceKey>(all)
-  // Shift the visible window with the selected tab: opening a service on
-  // the right hides tabs on the left, and vice versa. Keep the same four-tab
-  // width and original animation; clamp near both ends of the service list.
-  const start = Math.max(0, Math.min(
-    selectedIndex - Math.floor((count - 1) / 2),
-    all.length - count
-  ))
+  // The visible window progresses automatically as the user opens neighboring
+  // tabs: Air [0..3], Maritime [1..4], Land [2..5]. Reverse when moving left.
+  const start = Math.max(0, Math.min(serviceWindowStart.value, all.length - count))
   return new Set<HomeServiceKey>(all.slice(start, start + count))
 })
 
-// Hidden services must remain reachable without collapsing the current card.
-// The compact pager reveals the first hidden neighbor on either side while
-// keeping four tabs visible and preserving their original order and size.
-const serviceWindowEdges = computed(() => {
-  const keys = transportServices.value.map(service => service.key)
-  const indices = keys.flatMap((key, index) => visibleHomeServiceKeys.value.has(key) ? [index] : [])
-  return { first: indices[0] ?? 0, last: indices[indices.length - 1] ?? keys.length - 1 }
-})
-const hasEarlierService = computed(() => compactServiceMode.value && activeService.value !== null && serviceWindowEdges.value.first > 0)
-const hasLaterService = computed(() => compactServiceMode.value && activeService.value !== null && serviceWindowEdges.value.last < transportServices.value.length - 1)
-function revealAdjacentHomeService(direction: -1 | 1) {
-  if (!compactServiceMode.value || activeService.value === null) return
-  const index = direction === 1 ? serviceWindowEdges.value.last + 1 : serviceWindowEdges.value.first - 1
-  const next = transportServices.value[index]
-  if (next) activeService.value = next.key
-}
 const selectedService = computed(() => localizedServices.value.find(service => service.key === activeService.value) ?? localizedServices.value[0])
 const modalService = ref<HomeServiceKey | null>(null)
 const modalPhoto = computed(() => siteCssImage(`home.services.${modalService.value?.toLowerCase()}.media`, transportServices.value.find(service => service.key === modalService.value)?.photo ?? '/images/hero.webp'))
@@ -364,19 +364,6 @@ onUnmounted(() => {
                 </div>
               </article>
             </div>
-            <nav v-if="compactServiceMode && activeService !== null && (hasEarlierService || hasLaterService)"
-              class="service-accordion__navigation" :aria-label="locale.startsWith('es') ? 'Explorar otros servicios' : 'Explore other services'">
-              <button v-if="hasEarlierService" type="button" class="service-accordion__nav-button"
-                :aria-label="locale.startsWith('es') ? 'Mostrar servicios anteriores' : 'Show previous services'"
-                @click="revealAdjacentHomeService(-1)">
-                <span aria-hidden="true">‹</span> {{ locale.startsWith('es') ? 'Anteriores' : 'Previous' }}
-              </button>
-              <button v-if="hasLaterService" type="button" class="service-accordion__nav-button"
-                :aria-label="locale.startsWith('es') ? 'Mostrar más servicios' : 'Show more services'"
-                @click="revealAdjacentHomeService(1)">
-                {{ locale.startsWith('es') ? 'Siguientes' : 'Next' }} <span aria-hidden="true">›</span>
-              </button>
-            </nav>
           </div>
 
           <aside class="home-news-sidebar" :class="{ 'home-news-sidebar--single': homeNews.length === 1 }" :aria-label="$t('custom.home.newsAria')">
@@ -956,43 +943,6 @@ html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__o
   }
   html .app-site.home-page #servicios .service-accordion__item[hidden] {
     display: none !important;
-  }
-  /* Small, touch-friendly paging controls sit outside the original accordion;
-     the card dimensions, photos, and opening animation remain unchanged. */
-  html .app-site.home-page #servicios .service-accordion__navigation {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    min-height: 42px;
-    margin-top: 8px;
-    padding: 0;
-  }
-  html .app-site.home-page #servicios .service-accordion__nav-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    min-width: 94px;
-    min-height: 42px;
-    padding: 6px 10px;
-    border: 1px solid rgba(193, 20, 53, .55);
-    border-radius: 999px;
-    background: transparent;
-    color: inherit;
-    font: 700 12px/1.3 system-ui, sans-serif;
-    cursor: pointer;
-    touch-action: manipulation;
-  }
-  html .app-site.home-page #servicios .service-accordion__nav-button:last-child {
-    margin-left: auto;
-  }
-  html .app-site.home-page #servicios .service-accordion__nav-button span {
-    font-size: 23px;
-    line-height: 1;
-  }
-  html .app-site.home-page #servicios .service-accordion__nav-button:focus-visible {
-    outline: 3px solid #df284b;
-    outline-offset: 2px;
   }
   /* More specific than the older global mobile transition:none rule.
      Reuse the original .45s flex animation without altering layout sizing. */
