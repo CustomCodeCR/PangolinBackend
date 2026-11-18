@@ -171,7 +171,8 @@ async function assertServicesTheme(chrome, url) {
         assert.ok(initial.documentWidth <= initial.viewport + 2, 'El acordeón no debe desbordar la pantalla: ' + JSON.stringify(initial))
         // Select the last tab, to catch accidental hiding of a selected service.
         await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[5].click(); true")
-        await new Promise(resolve => setTimeout(resolve, 100))
+        // Wait for the original .45s expansion before checking final geometry.
+        await new Promise(resolve => setTimeout(resolve, 550))
         const expanded = await evaluate("(() => { const root=document.querySelector('#servicios .service-accordion'); const items=[...root.querySelectorAll('.service-accordion__item')]; const visible=items.filter(x=>getComputedStyle(x).display!=='none'); const selected=items.find(x=>x.classList.contains('is-open')); const panel=selected?.querySelector('.service-accordion__panel'); const copy=panel?.querySelector('.service-accordion__copy'); return { visible:visible.length, hidden:items.length-visible.length, opened:items.filter(x=>x.classList.contains('is-open')).length, lastSelected:selected===items[5], selectedWidth:selected?.clientWidth, panelWidth:panel?.clientWidth, copyWidth:copy?.clientWidth, copyScrollWidth:copy?.scrollWidth, panelVisible:!!panel, hasAction:!!copy?.querySelector('button.btn'), transition:getComputedStyle(selected).transitionDuration, containerWidth:root.clientWidth, visibleOther:visible.some(x=>x!==selected) }; })()")
         assert.ok(expanded.lastSelected && expanded.opened===1 && expanded.panelVisible && expanded.hasAction, 'Debe abrirse el servicio seleccionado: ' + JSON.stringify(expanded))
         assert.ok(expanded.visible>=2 && expanded.visible<=6 && expanded.visibleOther, 'Deben seguir visibles las pestañas que quepan: ' + JSON.stringify(expanded))
