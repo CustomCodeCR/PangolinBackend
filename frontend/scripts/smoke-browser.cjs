@@ -255,16 +255,13 @@ async function assertServicesTheme(chrome, url) {
           await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
           assert.deepEqual(await shownIndices(), {opened:2,visible:[0,1,2,3]},
             'Continuar retrocediendo conserva la ventana izquierda')
-          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[4].click(); true")
-          assert.deepEqual(await shownIndices(), {opened:4,visible:[2,3,4,5]},
-            'La selección directa por teclado puede recuperar un servicio lejano')
-          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
-          assert.deepEqual(await shownIndices(), {opened:2,visible:[1,2,3,4]},
-            'Al volver hacia Terrestre debe reaparecer Marítimo a la izquierda')
           await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[1].click(); true")
           assert.deepEqual(await shownIndices(), {opened:1,visible:[0,1,2,3]},
-            'Al volver hacia Marítimo debe reaparecer Aéreo a la izquierda')
-          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[1].click(); true")
+            'Al volver hacia Marítimo debe permanecer visible Aéreo a la izquierda')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[0].click(); true")
+          assert.deepEqual(await shownIndices(), {opened:0,visible:[0,1,2,3]},
+            'Regresar hasta Aéreo nunca debe saltar a otra tarjeta')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[0].click(); true")
           assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item:not([hidden])').length"), 6,
             'Al cerrar deben regresar las seis pestañas sin controles de navegación')
           assert.ok(await evaluate("!document.querySelector('.service-accordion__navigation')"),
