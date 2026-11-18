@@ -187,10 +187,10 @@ async function assertServicesTheme(chrome, url) {
         width, height: 900, deviceScaleFactor: 1, mobile: false
       })
       await new Promise(resolve => setTimeout(resolve, 180))
-      const geometry = await evaluate("(() => { const c = document.querySelector('.services-directory__carousel').getBoundingClientRect(); const a = document.querySelector('.services-directory__panel:not([style*=none]) .services-directory__card').getBoundingClientRect(); return { viewport:window.innerWidth, carouselWidth:c.width, center:(c.left+c.right)/2, cardWidth:a.width, cardHeight:a.height, documentWidth:document.documentElement.scrollWidth }; })()")
+      const geometry = await evaluate("(() => { const c = document.querySelector('.services-directory__carousel').getBoundingClientRect(); const a = document.querySelector('.services-directory__panel:not([style*=none]) .services-directory__card').getBoundingClientRect(); return { viewport:window.innerWidth, layoutWidth:document.documentElement.clientWidth, carouselWidth:c.width, center:(c.left+c.right)/2, cardWidth:a.width, cardHeight:a.height, documentWidth:document.documentElement.scrollWidth }; })()")
       assert.ok(Math.abs(geometry.carouselWidth - geometry.viewport) <= 2,
         'El carrusel debe ocupar todo el ancho de pantalla: ' + JSON.stringify(geometry))
-      assert.ok(Math.abs(geometry.center - geometry.viewport / 2) <= 3,
+      assert.ok(Math.abs(geometry.center - geometry.layoutWidth / 2) <= 3,
         'El carrusel debe estar centrado respecto a la pantalla: ' + JSON.stringify(geometry))
       assert.ok(geometry.documentWidth <= geometry.viewport + 2,
         'El carrusel no debe generar scroll horizontal: ' + JSON.stringify(geometry))
