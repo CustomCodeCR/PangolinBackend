@@ -1,7 +1,10 @@
 [
   {
     "slug": "transporte-maritimo",
-    "serviceType": { "es": "Coordinación de transporte marítimo internacional de carga", "en": "International ocean freight coordination" },
+    "serviceType": {
+      "es": "Coordinación de transporte marítimo internacional de carga",
+      "en": "International ocean freight coordination"
+    },
     "title": {
       "es": "Transporte marítimo de carga",
       "en": "Ocean freight transportation"
@@ -52,7 +55,10 @@
   },
   {
     "slug": "transporte-terrestre",
-    "serviceType": { "es": "Coordinación de transporte terrestre internacional de carga", "en": "International land freight coordination" },
+    "serviceType": {
+      "es": "Coordinación de transporte terrestre internacional de carga",
+      "en": "International land freight coordination"
+    },
     "title": {
       "es": "Transporte terrestre internacional",
       "en": "International land freight"
@@ -103,7 +109,10 @@
   },
   {
     "slug": "transporte-aereo",
-    "serviceType": { "es": "Coordinación de transporte aéreo internacional de carga", "en": "International air freight coordination" },
+    "serviceType": {
+      "es": "Coordinación de transporte aéreo internacional de carga",
+      "en": "International air freight coordination"
+    },
     "title": {
       "es": "Transporte aéreo de carga",
       "en": "Air freight transportation"
@@ -154,7 +163,10 @@
   },
   {
     "slug": "transporte-local",
-    "serviceType": { "es": "Coordinación de transporte local de carga con Neriteka", "en": "Local freight transportation coordination with Neriteka" },
+    "serviceType": {
+      "es": "Coordinación de transporte local de carga con Neriteka",
+      "en": "Local freight transportation coordination with Neriteka"
+    },
     "title": {
       "es": "Transporte local en Costa Rica",
       "en": "Local transportation in Costa Rica"
@@ -205,7 +217,10 @@
   },
   {
     "slug": "transporte-panama-costa-rica",
-    "serviceType": { "es": "Coordinación de transporte terrestre de carga entre Panamá y Costa Rica", "en": "Land freight coordination between Panama and Costa Rica" },
+    "serviceType": {
+      "es": "Coordinación de transporte terrestre de carga entre Panamá y Costa Rica",
+      "en": "Land freight coordination between Panama and Costa Rica"
+    },
     "title": {
       "es": "Transporte de carga Panamá–Costa Rica",
       "en": "Panama–Costa Rica freight transportation"
@@ -246,6 +261,16 @@
         "body": {
           "es": "La disponibilidad, los requisitos de cruce y las condiciones de transporte deben confirmarse antes de coordinar. La solicitud no constituye una tarifa ni una reserva.",
           "en": "Availability, border requirements and transportation terms must be confirmed before coordination. An enquiry is not a rate or a booking."
+        }
+      },
+      {
+        "title": {
+          "es": "Flota y seguimiento",
+          "en": "Fleet and tracking"
+        },
+        "body": {
+          "es": "Más de 80 unidades caucionadas con sistema de rastreo, articuladas y no articuladas. Disponemos de unidades de 28, 40, 45, 48 y 53 pies. La disponibilidad y las condiciones se confirman para cada operación.",
+          "en": "More than 80 bonded transport units equipped with tracking, articulated and non-articulated. Unit sizes include 28, 40, 45, 48 and 53 feet. Availability and conditions are confirmed for each operation."
         }
       }
     ],
