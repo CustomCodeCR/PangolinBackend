@@ -1,0 +1,12 @@
+# LOCAL DEVELOPMENT ONLY — explicitly opt-in Dhole preview.
+# Combine with the four Compose files used by scripts/start-main2-hybrid.ps1.
+# Never include this overlay in production. The real secret is supplied only
+# through the current PowerShell process and is not written into this file.
+services:
+  backend:
+    environment:
+      DholeCatalogs__Enabled: "true"
+      DholeCatalogs__FormEnabled: "true"
+      DholeCatalogs__SubmissionEnabled: "true"
+      DholeCatalogs__ItinerariesEnabled: "true"
+      DholeCatalogs__ApiKey: ${DHOLE_LOCAL_PREVIEW_KEY:?Se requiere la API Key privada solo para la vista previa local}
