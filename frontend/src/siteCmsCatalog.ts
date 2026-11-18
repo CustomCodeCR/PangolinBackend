@@ -991,6 +991,39 @@ capabilityTitles.forEach(([es,en],i)=>{
 ;['/images/services-warehouse.webp','/images/truck.webp','/images/warehouse-person.webp'].forEach((src,i)=>
   addMedia('about','Sobre nosotros','about.gallery.'+i+'.media','Galería','Foto '+(i+1),src))
 
+// Nuevos módulos de Home y estructura: todos los textos editables por idioma.
+const newHomeFields: Array<[string,string,string,string,string]> = [
+  ['home.services.fiscal.title','Almacén fiscal','Título','Almacén fiscal','Bonded warehouse'],
+  ['home.services.fiscal.detail','Almacén fiscal','Descripción','Almacenes fiscales A257 y A287. Manejo de carga peligrosa sujeto a condiciones y autorizaciones; control de inventario de rotación.','Bonded warehouses A257 and A287. Dangerous goods handling subject to conditions and authorizations; rotating inventory management.'],
+  ['home.services.fiscal.locationA257','Almacén fiscal','Almacén A257','A257','A257'],
+  ['home.services.fiscal.locationA287','Almacén fiscal','Almacén A287','A287','A287'],
+  ['home.services.fiscal.hazardous','Almacén fiscal','Carga peligrosa','Manejo de carga peligrosa, sujeto a requisitos y autorizaciones.','Dangerous goods handling subject to applicable requirements and permits.'],
+  ['home.services.fiscal.rotation','Almacén fiscal','Inventario de rotación','Manejo de inventario de rotación.','Rotating inventory management.'],
+  ['home.services.panama.title','Transporte Panamá–Costa Rica','Título','Transporte Panamá–Costa Rica','Panama–Costa Rica transport'],
+  ['home.services.panama.detail','Transporte Panamá–Costa Rica','Descripción','Más de 80 unidades caucionadas con rastreo, articuladas y no articuladas, de 28, 40, 45, 48 y 53 pies.','More than 80 bonded transport units with tracking, articulated and non-articulated, in 28, 40, 45, 48 and 53-foot sizes.']
+]
+newHomeFields.forEach(([key,section,label,es,en])=>addText('home','Inicio',key,section,label,es,en))
+addMedia('home','Inicio','home.services.fiscal.media','Almacén fiscal','Imagen de tarjeta y modal','/images/services-warehouse.webp')
+addMedia('home','Inicio','home.services.panama.media','Transporte Panamá–Costa Rica','Imagen de tarjeta y modal','/images/truck.webp')
+
+const structureTitles: Array<[string,string]> = [
+  ['Mesa de ayuda','Help desk'],['Agente propio en sitio','On-site agent'],
+  ['Departamentos','Departments'],['Universidad corporativa','Corporate university'],
+  ['Enfoque ambiental','Environmental approach']
+]
+addText('about','Sobre nosotros','about.structure.heading','Sobre nuestra estructura','Título','Sobre nuestra estructura','About our structure')
+// Keep the original CMS indices 2–6; the two retired cards are not editable or rendered.
+structureTitles.forEach(([es,en],i)=>addText('about','Sobre nosotros','about.structure.'+(i+2)+'.title','Sobre nuestra estructura','Elemento '+(i+1)+': título',es,en))
+const departments: Array<[string,string]> = [
+  ['Consolidadora','Freight consolidation'],['Pedimentación','Customs declaration processing'],
+  ['Contabilidad','Accounting'],['Servicio al cliente','Customer service'],
+  ['Transporte interno de carga','Domestic cargo transport']
+]
+departments.forEach(([es,en],i)=>addText('about','Sobre nosotros','about.structure.departments.'+i,'Sobre nuestra estructura','Departamento '+(i+1),es,en))
+addText('about','Sobre nosotros','about.structure.environment','Sobre nuestra estructura','Texto de enfoque ambiental',
+  'Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.',
+  'We seek opportunities to incorporate more responsible practices into our operations.')
+
 // Inicio: nuevos títulos de rastreo, indicadores, noticias y accesos.
 const homeExtra: Array<[string,string,string,string]> = [
   ['home.tracking.heading1','Rastreo','Título 1','phrases.p021'],
@@ -1014,6 +1047,29 @@ const servicesExtra: Array<[string,string,string,string,string]> = [
  ['services.directory.logistics.title','Directorio','Grupo logística','Logística y aduanas','Logistics and customs']
 ]
 servicesExtra.forEach(([key,section,label,es,en])=>addText('services','Servicios',key,section,label,es,en))
+// Fotografías del carrusel compartido de Servicios: edición independiente
+// de la imagen de portada de cada página de detalle.
+const directoryCardPhoto:Record<string,string>={
+  'transporte-maritimo':'/images/ship.webp',
+  'transporte-terrestre':'/images/truck.webp',
+  'transporte-aereo':'/images/air-freight.webp',
+  'transporte-local':'/images/about-operations.webp',
+  'transporte-panama-costa-rica':'/images/truck.webp',
+  'almacenamiento-fiscal':'/images/services-warehouse.webp',
+  'agenciamiento-aduanal':'/images/services-crane.webp',
+  'consolidadora-de-carga':'/images/cover-logistics.webp'
+}
+for (const service of servicePages) {
+  addMedia('services','Servicios','services.directory.' + service.slug + '.media','Carrusel de servicios',
+    'Tarjeta: ' + service.title.es, directoryCardPhoto[service.slug] || service.image)
+}
+;([
+  ['almacenamiento-fiscal', 'Almacén fiscal'],
+  ['agenciamiento-aduanal', 'Agenciamiento aduanal'],
+  ['consolidadora-de-carga', 'Consolidadora de carga']
+] as Array<[string,string]>).forEach(([slug,label]) =>
+  addMedia('services','Servicios','services.directory.' + slug + '.media','Carrusel de servicios','Tarjeta: ' + label,directoryCardPhoto[slug]))
+
 ;([
  ['services.access.heading1','Título digital 1','phrases.p061'],
  ['services.access.heading2','Título digital 2','phrases.p062'],

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import IconSymbol from '../components/IconSymbol.vue'
 import SiteMedia from '../components/SiteMedia.vue'
+import StaticOptimizedImage from '../components/StaticOptimizedImage.vue'
 import { siteText, siteVisual, siteCssImage } from '../siteCms'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { services as baseServices, type ServiceKey } from '../content'
 import SiteHeader from '../components/SiteHeader.vue'
@@ -42,14 +43,32 @@ onBeforeUnmount(() => {
 })
 // Enlaces HTML visibles para que usuarios y rastreadores descubran las páginas
 // comerciales. No dependen de abrir pestañas, modales ni ejecutar un clic.
+// Prefer relevant company-site photographs over unrelated airport graphics.
+const directoryGuideImages: Record<string, string> = {
+  'almacenamiento-fiscal': '/images/services-warehouse.webp',
+  'agenciamiento-aduanal': '/images/services-crane.webp',
+  'consolidadora-de-carga': '/images/cover-logistics.webp'
+}
+const directoryTransportImages: Record<string,string> = {
+  'transporte-maritimo':'/images/ship.webp',
+  'transporte-terrestre':'/images/truck.webp',
+  'transporte-aereo':'/images/air-freight.webp',
+  'transporte-local':'/images/about-operations.webp',
+  'transporte-panama-costa-rica':'/images/truck.webp'
+}
 const serviceDirectory = computed(() => {
   const lang: 'es' | 'en' = locale.value.toLowerCase().startsWith('es') ? 'es' : 'en'
   return [
-    ...servicePages.map(item => ({ href: '/servicios/' + item.slug, label: siteText('service.' + item.slug + '.title', item.title[lang], locale.value) })),
+    ...servicePages.map(item => ({
+      href: '/servicios/' + item.slug, slug: item.slug, image: directoryTransportImages[item.slug] || item.image,
+      label: siteText('service.' + item.slug + '.title', item.title[lang], locale.value)
+    })),
     ...Object.entries(serviceGuides).map(([href, guide]) => {
-      const label = siteText('service.' + href.split('/').pop() + '.label', guide[lang].label, locale.value)
-      return { href, label: href === '/servicios/almacenamiento-fiscal' && lang === 'es'
-        ? label.replace(/almacenamiento fiscal/gi, 'Almacén fiscal') : label }
+      const slug = href.split('/').pop() || ''
+      const label = siteText('service.' + slug + '.label', guide[lang].label, locale.value)
+      return { href, slug, image: directoryGuideImages[slug] || '/images/hero.webp',
+        label: href === '/servicios/almacenamiento-fiscal' && lang === 'es'
+          ? label.replace(/almacenamiento fiscal/gi, 'Almacén fiscal') : label }
     })
   ]
 })
@@ -57,17 +76,239 @@ const serviceDirectoryGroups = computed(() => {
   const es = locale.value.toLowerCase().startsWith('es')
   return [
     {
-      id: 'transport',
+      id: 'transport' as const,
       title: siteText('services.directory.transport.title', es ? 'Transporte de carga' : 'Freight transportation', locale.value),
       links: serviceDirectory.value.slice(0, servicePages.length)
     },
     {
-      id: 'logistics',
+      id: 'logistics' as const,
       title: siteText('services.directory.logistics.title', es ? 'Logística y aduanas' : 'Logistics and customs', locale.value),
       links: serviceDirectory.value.slice(servicePages.length)
     }
   ]
 })
+type DirectoryCategory = 'transport' | 'logistics'
+const activeDirectoryCategory = ref<DirectoryCategory>('transport')
+const changeDirectoryCategory = (category: DirectoryCategory, focus = false) => {
+  activeDirectoryCategory.value = category
+  directoryRunWidth=0
+  directoryOffset=0
+  directoryPreviousFrame=0
+  directoryResumeAfterDrag=false
+  directoryVideoKey.value=null
+  directoryVideoReady.value=null
+  void nextTick(()=>{
+    renderDirectoryTrack()
+    if(focus) document.getElementById('services-directory-tab-' + category)?.focus()
+  })
+}
+// Seamless offset-based loop: animation and manual dragging use the same position.
+// All five runs are identical. Offset stays inside the center run, so wrapping is invisible.
+const directoryCarouselRef = ref<HTMLElement | null>(null)
+const directoryDragging = ref(false)
+const directoryReducedMotion = ref(false)
+const directoryVideoKey = ref<string | null>(null)
+const directoryVideoReady = ref<string | null>(null)
+const directoryVideoFailures = ref<Set<string>>(new Set())
+const directoryVideoFallback = (slug:string):string =>
+  slug === 'transporte-aereo' ? '/videos/service-air.mp4'
+  : ['transporte-terrestre','transporte-local','transporte-panama-costa-rica'].includes(slug) ? '/videos/service-road.mp4'
+  : ['almacenamiento-fiscal','agenciamiento-aduanal'].includes(slug) ? '/videos/service-warehouse.mp4'
+  : '/videos/service-maritime.mp4'
+const directoryPhoto = (link:{slug:string,image:string}):string => {
+  const visual=siteVisual('services.directory.' + link.slug + '.media',link.image)
+  return visual.kind.startsWith('Video') ? link.image : visual.src
+}
+const directoryVideoSrc = (slug:string):string => {
+  const fallback=directoryVideoFallback(slug)
+  const visual=siteVisual('service.' + slug + '.story.media',fallback,'Video')
+  return visual.kind.startsWith('Video') ? visual.src : fallback
+}
+const videoKey = (group:string,repeat:number,slug:string) => group + ':' + repeat + ':' + slug
+const directoryVideoVisible = (group:string,repeat:number,slug:string):boolean =>
+  !directoryReducedMotion.value && directoryVideoKey.value===videoKey(group,repeat,slug)
+  && !directoryVideoFailures.value.has(slug)
+const directoryActivateVideo = (group:string,repeat:number,slug:string,event?:PointerEvent):void => {
+  if(directoryDragging.value || directoryReducedMotion.value || directoryVideoFailures.value.has(slug)) return
+  if(event && event.pointerType !== 'mouse' && event.pointerType !== 'pen') return
+  directoryVideoKey.value=videoKey(group,repeat,slug)
+  directoryVideoReady.value=null
+}
+const directoryDeactivateVideo = (group:string,repeat:number,slug:string):void => {
+  if(directoryVideoKey.value===videoKey(group,repeat,slug)) {
+    directoryVideoKey.value=null
+    directoryVideoReady.value=null
+  }
+}
+const directoryVideoError = (slug:string):void => {
+  directoryVideoFailures.value = new Set([...directoryVideoFailures.value,slug])
+  directoryVideoKey.value=null
+  directoryVideoReady.value=null
+}
+const directoryVideoCanPlay = (group:string,repeat:number,slug:string):void => {
+  const key=videoKey(group,repeat,slug)
+  if(directoryVideoKey.value===key) directoryVideoReady.value=key
+}
+let directoryRunWidth=0
+let directoryOffset=0
+let directoryFrame=0
+let directoryPreviousFrame=0
+let directoryHovering=false
+let directoryKeyboardFocus=false
+let directoryResumeAt=0
+// After releasing a drag, resume even while the pointer/focus stays over a card.
+// A fresh hover/focus session restores the ordinary interactive pause.
+let directoryResumeAfterDrag=false
+let directorySuppressClickUntil=0
+let directoryResizeObserver:ResizeObserver|null=null
+let directoryMotionMedia:MediaQueryList|null=null
+type DirectoryPointer = { id:number;startX:number;startY:number;lastX:number; dragging:boolean; vertical:boolean }
+let directoryPointer:DirectoryPointer|null=null
+const currentDirectoryPanel = ():HTMLElement|null =>
+  directoryCarouselRef.value?.querySelector<HTMLElement>('.services-directory__panel:not([style*="display: none"])') ?? null
+const renderDirectoryTrack = ():void => {
+  const track=currentDirectoryPanel()?.querySelector<HTMLElement>('.services-directory__track')
+  if(!track) return
+  if(directoryReducedMotion.value) { track.style.transform='none';return }
+  const source=track.querySelector<HTMLElement>('.services-directory__run:not(.is-clone)')
+  const width=source?.offsetWidth ?? 0
+  if(width<=0) return
+  if(directoryRunWidth!==width) {
+    directoryRunWidth=width
+    directoryOffset=width*2
+  }
+  directoryOffset=directoryRunWidth*2 +
+    (((directoryOffset-directoryRunWidth*2)%directoryRunWidth)+directoryRunWidth)%directoryRunWidth
+  track.style.transform=`translate3d(-${directoryOffset}px,0,0)`
+}
+const animateDirectory = (now:number):void => {
+  const delta=directoryPreviousFrame ? Math.min(now-directoryPreviousFrame,64) : 0
+  directoryPreviousFrame=now
+  const holdForInteraction=(directoryHovering || directoryKeyboardFocus) && !directoryResumeAfterDrag
+  if(!directoryReducedMotion.value && !holdForInteraction &&
+     !directoryPointer && now>=directoryResumeAt && !document.hidden) {
+    directoryOffset+=delta*.035
+  }
+  if(now>directoryResumeAt && !holdForInteraction && directoryVideoKey.value) {
+    directoryVideoKey.value=null
+    directoryVideoReady.value=null
+  }
+  renderDirectoryTrack()
+  directoryFrame=requestAnimationFrame(animateDirectory)
+}
+const directoryHover = (event:PointerEvent,hovered:boolean):void => {
+  if(event.pointerType==='mouse'||event.pointerType==='pen') {
+    directoryHovering=hovered
+    if(hovered && !directoryPointer) directoryResumeAfterDrag=false
+    if(!hovered && !directoryKeyboardFocus) {
+      directoryVideoKey.value=null
+      directoryVideoReady.value=null
+    }
+  }
+}
+const directoryFocusIn = ():void => {
+  directoryKeyboardFocus=true
+  if(!directoryPointer) directoryResumeAfterDrag=false
+}
+const directoryFocusOut = (event:FocusEvent):void => {
+  if(!(event.relatedTarget instanceof Node) || !directoryCarouselRef.value?.contains(event.relatedTarget)) {
+    directoryKeyboardFocus=false
+    directoryVideoKey.value=null
+    directoryVideoReady.value=null
+  }
+}
+const directoryPointerDown = (event:PointerEvent):void => {
+  if(!event.isPrimary || (event.pointerType==='mouse' && event.button!==0)) return
+  directoryResumeAfterDrag=false
+  directoryPointer={id:event.pointerId,startX:event.clientX,startY:event.clientY,lastX:event.clientX,dragging:false,vertical:false}
+}
+const directoryPointerMove = (event:PointerEvent):void => {
+  const pointer=directoryPointer
+  if(!pointer || event.pointerId!==pointer.id || pointer.vertical) return
+  const movedX=event.clientX-pointer.startX
+  const movedY=event.clientY-pointer.startY
+  if(!pointer.dragging) {
+    if(Math.abs(movedY)>9 && Math.abs(movedY)>Math.abs(movedX)) { pointer.vertical=true;return }
+    if(Math.abs(movedX)<7 || Math.abs(movedX)<Math.abs(movedY)) return
+    pointer.dragging=true
+    directoryDragging.value=true
+    directoryVideoKey.value=null
+    directoryVideoReady.value=null
+    try { directoryCarouselRef.value?.setPointerCapture(event.pointerId) } catch { /* Pointer may have been cancelled */ }
+  }
+  const deltaX=pointer.lastX===pointer.startX ? movedX : event.clientX-pointer.lastX
+  pointer.lastX=event.clientX
+  if(directoryReducedMotion.value) {
+    const panel=currentDirectoryPanel()
+    if(panel) panel.scrollLeft-=deltaX
+  } else {
+    directoryOffset-=deltaX
+    renderDirectoryTrack()
+  }
+  if(event.cancelable) event.preventDefault()
+}
+const previewCenteredDirectoryCard = ():void => {
+  if(directoryReducedMotion.value) return
+  const carousel=directoryCarouselRef.value
+  const panel=currentDirectoryPanel()
+  if(!carousel||!panel) return
+  const midpoint=carousel.getBoundingClientRect().left+carousel.clientWidth/2
+  let closest:HTMLElement|null=null
+  let distance=Infinity
+  for(const card of panel.querySelectorAll<HTMLElement>('.services-directory__card')) {
+    const rect=card.getBoundingClientRect()
+    if(rect.right<0 || rect.left>window.innerWidth) continue
+    const d=Math.abs((rect.left+rect.right)/2-midpoint)
+    if(d<distance){distance=d;closest=card}
+  }
+  if(closest?.dataset.directorySlug && closest.dataset.directoryRepeat) {
+    directoryVideoKey.value=videoKey(activeDirectoryCategory.value,Number(closest.dataset.directoryRepeat),closest.dataset.directorySlug)
+    directoryVideoReady.value=null
+  }
+}
+const directoryPointerEnd = (event:PointerEvent):void => {
+  const pointer=directoryPointer
+  if(!pointer||event.pointerId!==pointer.id)return
+  if(pointer.dragging) {
+    directorySuppressClickUntil=performance.now()+400
+    directoryResumeAt=performance.now()+1800
+    directoryResumeAfterDrag=true
+    previewCenteredDirectoryCard()
+  }
+  directoryDragging.value=false
+  directoryPointer=null
+  if(directoryCarouselRef.value?.hasPointerCapture?.(event.pointerId))
+    directoryCarouselRef.value.releasePointerCapture(event.pointerId)
+}
+const directoryCaptureClick = (event:MouseEvent):void => {
+  if(performance.now()<directorySuppressClickUntil) {
+    event.preventDefault()
+    event.stopPropagation()
+  }
+}
+const directoryMotionChanged=():void => {
+  directoryReducedMotion.value=directoryMotionMedia?.matches??false
+  directoryRunWidth=0
+  directoryVideoKey.value=null
+  directoryVideoReady.value=null
+  void nextTick(renderDirectoryTrack)
+}
+onMounted(()=>{
+  directoryMotionMedia=window.matchMedia('(prefers-reduced-motion: reduce)')
+  directoryMotionMedia.addEventListener('change',directoryMotionChanged)
+  directoryMotionChanged()
+  if(typeof ResizeObserver!=='undefined'){
+    directoryResizeObserver=new ResizeObserver(()=>renderDirectoryTrack())
+    if(directoryCarouselRef.value) directoryResizeObserver.observe(directoryCarouselRef.value)
+  }
+  directoryFrame=requestAnimationFrame(animateDirectory)
+})
+onBeforeUnmount(()=>{
+  cancelAnimationFrame(directoryFrame)
+  directoryResizeObserver?.disconnect()
+  directoryMotionMedia?.removeEventListener('change',directoryMotionChanged)
+})
+
 const activeService = ref<ServiceKey>('Air')
 const modalService = ref<ServiceKey | null>(null)
 const modalPhoto = computed(() => siteCssImage(`services.${modalService.value?.toLowerCase()}.media`, baseServices.find(service => service.key === modalService.value)?.photo ?? '/images/hero.webp'))
@@ -187,19 +428,74 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
             <h2 id="services-directory-heading" class="section-title centered">{{ siteText('services.directory.heading', locale.toLowerCase().startsWith('es') ? 'Conocé cada solución en detalle' : 'Explore each service in detail', locale) }}</h2>
             <p class="services-directory__intro">{{ siteText('services.directory.intro', locale.toLowerCase().startsWith('es') ? 'Todo lo que tu carga necesita, desde el primer movimiento hasta su destino.' : 'Everything your cargo needs, from its first move to its destination.', locale) }}</p>
           </div>
-          <div class="services-directory__groups">
-            <section v-for="group in serviceDirectoryGroups" :key="group.id" class="services-directory__group">
-              <div class="services-directory__group-heading">
-                <h3>{{ group.title }}</h3>
-                <span class="services-directory__count">{{ String(group.links.length).padStart(2, '0') }} {{ locale.toLowerCase().startsWith('es') ? 'SERVICIOS' : 'SERVICES' }}</span>
+          <div class="services-directory__controls">
+            <div class="services-directory__categories" role="tablist"
+              :aria-label="locale.toLowerCase().startsWith('es') ? 'Categorías de servicios' : 'Service categories'">
+              <button v-for="group in serviceDirectoryGroups" :id="'services-directory-tab-' + group.id"
+                :key="group.id" type="button" role="tab"
+                class="services-directory__category" :class="{ 'is-active': activeDirectoryCategory === group.id }"
+                :aria-selected="activeDirectoryCategory === group.id"
+                :aria-controls="'services-directory-panel-' + group.id"
+                :tabindex="activeDirectoryCategory === group.id ? 0 : -1"
+                @click="changeDirectoryCategory(group.id)"
+                @keydown.left.prevent="changeDirectoryCategory(group.id === 'transport' ? 'logistics' : 'transport', true)"
+                @keydown.right.prevent="changeDirectoryCategory(group.id === 'transport' ? 'logistics' : 'transport', true)"
+                @keydown.home.prevent="changeDirectoryCategory('transport', true)"
+                @keydown.end.prevent="changeDirectoryCategory('logistics', true)">
+                <strong>{{ group.title }}</strong>
+                <span>{{ String(group.links.length).padStart(2, '0') }} {{ locale.toLowerCase().startsWith('es') ? 'SERVICIOS' : 'SERVICES' }}</span>
+              </button>
+            </div>
+          </div>
+          <!-- Five identical runs provide symmetric padding for a continuous, draggable loop.
+               Only the middle run is keyboard-accessible. All service URLs remain real anchors. -->
+          <div ref="directoryCarouselRef" class="services-directory__carousel"
+            :class="{ 'is-dragging': directoryDragging }"
+            @pointerenter="directoryHover($event,true)"
+            @pointerleave="directoryHover($event,false)"
+            @pointerdown="directoryPointerDown"
+            @pointermove="directoryPointerMove"
+            @pointerup="directoryPointerEnd"
+            @pointercancel="directoryPointerEnd"
+            @focusin="directoryFocusIn"
+            @focusout="directoryFocusOut"
+            @click.capture="directoryCaptureClick"
+            @dragstart.prevent>
+            <section v-for="group in serviceDirectoryGroups" v-show="activeDirectoryCategory === group.id"
+              :id="'services-directory-panel-' + group.id" :key="group.id"
+              class="services-directory__panel" role="tabpanel"
+              :aria-labelledby="'services-directory-tab-' + group.id">
+              <div class="services-directory__track" :data-category="group.id">
+                <div v-for="repeat in 5" :key="repeat" class="services-directory__run"
+                  :class="{ 'is-clone': repeat !== 3 }" :aria-hidden="repeat !== 3 ? 'true' : undefined">
+                  <a v-for="link in group.links" :key="link.href" :href="link.href"
+                    class="services-directory__card" :tabindex="repeat !== 3 ? -1 : undefined"
+                    :data-directory-slug="link.slug" :data-directory-repeat="repeat"
+                    :aria-label="repeat !== 3 ? undefined : link.label"
+                    draggable="false"
+                    @pointerenter="directoryActivateVideo(group.id,repeat,link.slug,$event)"
+                    @pointerleave="directoryDeactivateVideo(group.id,repeat,link.slug)"
+                    @focusin="directoryActivateVideo(group.id,repeat,link.slug)">
+                    <span class="services-directory__card-media" aria-hidden="true">
+                      <StaticOptimizedImage :src="directoryPhoto(link)" alt=""
+                        sizes="(max-width: 620px) 60vw, (max-width: 1100px) 34vw, 360px" />
+                      <video v-if="directoryVideoVisible(group.id,repeat,link.slug)"
+                        class="services-directory__preview"
+                        :class="{ 'is-ready': directoryVideoReady === videoKey(group.id,repeat,link.slug) }"
+                        :src="directoryVideoSrc(link.slug)"
+                        autoplay muted loop playsinline preload="metadata"
+                        :poster="directoryPhoto(link)" aria-hidden="true"
+                        @canplay="directoryVideoCanPlay(group.id,repeat,link.slug)"
+                        @error="directoryVideoError(link.slug)" />
+                    </span>
+                    <strong class="services-directory__card-title">{{ link.label }}</strong>
+                    <span class="services-directory__card-cta">
+                      {{ locale.toLowerCase().startsWith('es') ? 'Ver más' : 'See more' }}
+                      <span class="services-directory__card-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M7 17 17 7M8 7h9v9" /></svg></span>
+                    </span>
+                  </a>
+                </div>
               </div>
-              <nav class="services-directory__links" :class="`services-directory__links--${group.id}`" :aria-label="group.title">
-                <a v-for="(link, index) in group.links" :key="link.href" :href="link.href" class="services-directory__card">
-                  <span class="services-directory__card-index" aria-hidden="true">{{ String(index + 1).padStart(2, '0') }}</span>
-                  <strong class="services-directory__card-title">{{ link.label }}</strong>
-                  <span class="services-directory__card-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M7 17 17 7M8 7h9v9" /></svg></span>
-                </a>
-              </nav>
             </section>
           </div>
         </div>
@@ -247,155 +543,77 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
 @media(prefers-reduced-motion:reduce) {
   .services-faq__panel,.services-faq__panel.is-open,.services-faq__arrow { transition:none!important; }
 }
-/* Directorio SEO: mismo lenguaje visual de los FAQ y bloques de servicios.
-   Las tarjetas son enlaces reales, compactos y visibles sin interacciones. */
-.services-directory {
-  position: relative;
-  padding: 48px 0 64px;
-  background: #fcf7f8;
+/* Carrusel de servicios. Dos categorías comparten una sola superficie visual.
+   Cada pista repite sus enlaces para un loop continuo sin parpadeos. */
+.services-directory{position:relative;padding:clamp(54px,6vw,86px) 0 clamp(68px,7vw,100px);background:#fcf5f7;overflow-x:clip}
+.services-directory__container{max-width:1260px}
+.services-directory__heading{max-width:820px;margin:0 auto 38px;text-align:center}
+.services-directory__heading .section-title{font-size:clamp(29px,3.3vw,44px);line-height:1.15;margin:9px 0 12px}
+.services-directory__intro{max-width:600px;margin:0 auto;color:#68616a;font-size:14px;line-height:1.65}
+.services-directory__controls{display:flex;align-items:center;justify-content:center;position:relative;gap:18px;margin:0 auto 25px}
+.services-directory__categories{display:inline-flex;align-items:stretch;gap:6px;padding:6px;background:#fff;border:1px solid #e5ced4;border-radius:20px;box-shadow:0 5px 26px rgba(61,20,33,.06)}
+.services-directory__category{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:220px;padding:15px 24px;border:1px solid transparent;border-radius:15px;background:transparent;color:#31303a;font:inherit;text-align:center;cursor:pointer;transition:background-color .2s,color .2s}
+.services-directory__category strong{font-size:14px;line-height:1.25;font-weight:850}
+.services-directory__category span{font-size:10px;letter-spacing:.1em;font-weight:800;opacity:.8}
+.services-directory__category.is-active{background:#b20b2d;color:#fff}
+.services-directory__category:not(.is-active):hover{background:#f9e7ec}
+.services-directory__category:focus-visible{outline:3px solid #b20b2d;outline-offset:3px}
+.services-directory__carousel{
+ position:relative;left:50%;transform:translateX(-50%);
+ width:100vw;max-width:100vw;overflow:hidden;
+ padding:12px 0 22px;isolation:isolate;
+ -webkit-mask-image:linear-gradient(to right,transparent 0,#000 52px,#000 calc(100% - 52px),transparent 100%);
+ mask-image:linear-gradient(to right,transparent 0,#000 52px,#000 calc(100% - 52px),transparent 100%);
 }
-.services-directory__container { max-width: 1180px; }
-.services-directory__heading { max-width: 780px; margin: 0 auto 32px; text-align: center; }
-.services-directory__heading .section-title {
-  font-size: clamp(29px, 3vw, 43px);
-  line-height: 1.13;
-  margin: 9px 0 10px;
+.services-directory__panel{width:100%;overflow:hidden}
+.services-directory__track{display:flex;align-items:stretch;width:max-content;will-change:transform;backface-visibility:hidden}
+.services-directory__run{display:flex;align-items:stretch;gap:20px;flex:0 0 auto;padding-right:20px}
+.services-directory__carousel{touch-action:pan-y;cursor:grab}
+.services-directory__carousel.is-dragging{cursor:grabbing}
+.services-directory__carousel.is-dragging .services-directory__card{cursor:grabbing}
+.services-directory__carousel,.services-directory__card{-webkit-user-select:none;user-select:none}
+.services-directory__card-media :deep(img){-webkit-user-drag:none}
+.services-directory__card{position:relative;isolation:isolate;display:block;flex:0 0 clamp(280px,26vw,365px);width:clamp(280px,26vw,365px);height:clamp(345px,33vw,415px);min-height:345px;overflow:hidden;border:1px solid rgba(255,255,255,.2);border-radius:25px;background:#142239;color:#fff;text-decoration:none;outline-offset:4px;box-shadow:none;transition:border-color .25s}
+.services-directory__card::after{content:'';position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(5,13,27,.78),rgba(5,13,27,.15) 38%,rgba(5,13,27,.08) 62%,rgba(4,9,20,.64));pointer-events:none}
+.services-directory__card-media{position:absolute;inset:0;z-index:0;display:block;overflow:hidden}
+.services-directory__card-media :deep(img),.services-directory__card-media :deep(video){width:100%;height:100%;display:block;object-fit:cover;object-position:center;transition:transform .5s ease}
+.services-directory__card:hover .services-directory__card-media :deep(img){transform:scale(1.045)}
+.services-directory__card-media .services-directory__preview{position:absolute;inset:0;z-index:1;width:100%;height:100%;display:block;object-fit:cover;opacity:0;transition:opacity .35s ease;pointer-events:none}
+.services-directory__card-media .services-directory__preview.is-ready{opacity:1}
+.services-directory__card-title{position:absolute;z-index:2;top:26px;left:16px;right:16px;margin:0;color:#fff!important;-webkit-text-fill-color:#fff!important;text-align:center;text-wrap:balance;font-size:clamp(18px,1.65vw,23px);font-weight:900;line-height:1.26;text-shadow:0 2px 10px rgba(0,0,0,.65)}
+.services-directory__card-cta{position:absolute;z-index:2;right:18px;bottom:20px;display:inline-flex;align-items:center;gap:16px;padding:7px 7px 7px 20px;border-radius:999px;background:#fff;color:#9a0825;font-size:13px;font-weight:850;line-height:1;box-shadow:0 3px 9px rgba(0,0,0,.12);transition:background-color .2s,color .2s}
+.services-directory__card-arrow{display:grid;place-items:center;width:33px;height:33px;border-radius:50%;background:#b20b2d;color:#fff;transition:background-color .2s,color .2s}
+.services-directory__card-arrow svg{display:block;margin:0;pointer-events:none}
+.services-directory__card:is(:hover,:focus-visible){border-color:#f2a3b4;box-shadow:inset 0 0 0 2px rgba(242,163,180,.35)}
+.services-directory__card:is(:hover,:focus-visible) .services-directory__card-cta{background:#b20b2d;color:#fff}
+.services-directory__card:is(:hover,:focus-visible) .services-directory__card-arrow{background:#fff;color:#b20b2d}
+.services-directory__card:focus-visible{outline:3px solid #b20b2d}
+@media(max-width:980px){
+ .services-directory__controls{justify-content:center}
+ .services-directory__category{min-width:180px;padding:14px 15px}
 }
-.services-directory__intro {
-  max-width: 570px;
-  margin: 0 auto;
-  color: #68616a;
-  font-size: 14px;
-  line-height: 1.6;
+@media(max-width:620px){
+ .services-directory{padding:48px 0 66px}
+ .services-directory__heading{margin-bottom:25px}
+ .services-directory__controls{flex-wrap:wrap;justify-content:center;gap:12px;margin-bottom:16px}
+ .services-directory__categories{width:100%;gap:4px;padding:4px}
+ .services-directory__category{min-width:0;flex:1;padding:13px 9px}
+ .services-directory__category strong{font-size:12px}
+ .services-directory__category span{font-size:9px}
+ .services-directory__run{gap:13px;padding-right:13px}
+ .services-directory__card{flex-basis:min(59vw,230px);width:min(59vw,230px);height:clamp(270px,76vw,305px);min-height:270px;border-radius:19px}
+ .services-directory__card-title{font-size:clamp(14px,3.9vw,17px);line-height:1.2;top:17px;left:11px;right:11px}
+ .services-directory__card-cta{right:12px;bottom:12px;gap:8px;padding:5px 5px 5px 12px;font-size:11px}
+ .services-directory__card-arrow{width:29px;height:29px}
+ .services-directory__carousel{padding:7px 0 13px;-webkit-mask-image:linear-gradient(to right,transparent 0,#000 14px,#000 calc(100% - 14px),transparent 100%);mask-image:linear-gradient(to right,transparent 0,#000 14px,#000 calc(100% - 14px),transparent 100%)}
 }
-.services-directory__group + .services-directory__group { margin-top: 26px; }
-.services-directory__group-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(90, 61, 72, .18);
-}
-.services-directory__group-heading h3 {
-  margin: 0;
-  color: #272831;
-  font-size: 12px;
-  font-weight: 850;
-  letter-spacing: .075em;
-  text-transform: uppercase;
-}
-.services-directory__count {
-  color: #a45164;
-  flex: none;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .1em;
-}
-.services-directory__links {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-.services-directory__links--logistics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.services-directory__card {
-  position: relative;
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) 30px;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  min-height: 76px;
-  padding: 13px 16px;
-  border: 1px solid rgba(110, 71, 83, .22);
-  border-radius: 13px;
-  background: #fff;
-  color: #24252e;
-  text-decoration: none;
-  box-shadow: 0 3px 12px rgba(50, 24, 36, .035);
-  outline-offset: 3px;
-  overflow: hidden;
-  transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
-}
-.services-directory__card::before {
-  content: "";
-  position: absolute;
-  inset: 13px auto 13px 0;
-  width: 3px;
-  background: #b30c2d;
-  border-radius: 0 3px 3px 0;
-}
-.services-directory__card-index {
-  grid-column: 1;
-  color: #b30c2d;
-  font-size: 10px;
-  font-weight: 850;
-  letter-spacing: .06em;
-}
-.services-directory__card-title {
-  grid-column: 2;
-  min-width: 0;
-  color: #24252e;
-  font-size: 14px;
-  font-weight: 800;
-  line-height: 1.35;
-  overflow-wrap: break-word;
-}
-.services-directory__card-arrow {
-  grid-column: 3;
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border: 1px solid rgba(179, 12, 45, .25);
-  border-radius: 50%;
-  color: #af0d2d;
-  background: #faeaf0;
-  font-size: 17px;
-  line-height: 1;
-  transition: background-color .2s ease, color .2s ease;
-}
-.services-directory__card-arrow svg {
-  display: block;
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  flex: none;
-  pointer-events: none;
-}
-.services-directory__card:is(:hover, :focus-visible) {
-  border-color: #b30c2d;
-  background: #fffafa;
-  box-shadow: 0 6px 18px rgba(108, 15, 39, .11);
-}
-.services-directory__card:is(:hover, :focus-visible) .services-directory__card-arrow {
-  background: #b30c2d;
-  color: #fff;
-}
-.services-directory__card:focus-visible { outline: 2px solid #b30c2d; }
-
-/* Los colores en tema oscuro se definen en style.css, después de las
-   reglas globales del tema, para garantizar contraste sin importar el orden
-   de inyección de los estilos scoped en Nuxt/Vite. */
-@media (max-width: 980px) {
-  .services-directory__links,
-  .services-directory__links--logistics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 620px) {
-  .services-directory { padding: 40px 0 52px; }
-  .services-directory__heading { margin-bottom: 26px; }
-  .services-directory__group-heading { align-items: center; }
-  .services-directory__count { font-size: 9px; }
-  .services-directory__links,
-  .services-directory__links--logistics { grid-template-columns: 1fr; gap: 9px; }
-  .services-directory__card { min-height: 66px; padding: 11px 13px; gap: 9px; }
-  .services-directory__card::before { inset-block: 10px; }
-  .services-directory__card-title { font-size: 13px; }
-  .services-directory__card-arrow { width: 28px; height: 28px; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .services-directory__card,
-  .services-directory__card-arrow { transition: none; }
+@media(prefers-reduced-motion:reduce){
+ .services-directory__track{animation:none;transform:none;will-change:auto}
+ .services-directory__panel{overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:thin}
+ .services-directory__carousel{touch-action:auto}
+ .services-directory__card-media .services-directory__preview{display:none}
+ .services-directory__run.is-clone{display:none}
+ .services-directory__card{scroll-snap-align:start;transition:none}
+ .services-directory__card-media :deep(img){transition:none}
 }
 </style>

@@ -142,38 +142,245 @@ async function assertServicesTheme(chrome, url) {
     }
     await send('Runtime.enable')
     await send('Page.enable')
+
+    // Six mobile tabs start closed, preserve vertical labels, and hide
+    // only as many neighbors as needed to keep the selected card readable.
+    const homeUrl = new URL('/', url).href
+    for (const width of [320, 390, 430, 768, 800, 1024, 1280]) {
+      await send('Emulation.setDeviceMetricsOverride', {
+        width, height: 950, deviceScaleFactor: 1, mobile: false
+      })
+      const homeNavigation = await send('Page.navigate', { url: homeUrl })
+      assert.ok(!homeNavigation.errorText, 'Chrome no pudo abrir Home: ' + homeNavigation.errorText)
+      let loaded = false
+      for (let attempt = 0; attempt < 100; attempt++) {
+        loaded = await evaluate("document.querySelectorAll('#servicios .service-accordion__item').length === 6")
+        if (loaded) break
+        await new Promise(resolve => setTimeout(resolve, 120))
+      }
+      assert.ok(loaded, 'Faltan los seis servicios del Home a ' + width + 'px')
+      await new Promise(resolve => setTimeout(resolve, 150))
+      const initial = await evaluate("(() => { const root=document.querySelector('#servicios .service-accordion'); const items=[...root.querySelectorAll('.service-accordion__item')]; const visible=items.filter(x=>getComputedStyle(x).display!=='none'); const r=root.getBoundingClientRect(); return { direction:getComputedStyle(root).flexDirection, total:items.length, visible:visible.length, opened:items.filter(x=>x.classList.contains('is-open')).length, writingMode:getComputedStyle(items[0].querySelector('.service-accordion__name')).writingMode, widths:visible.map(x=>Math.round(x.getBoundingClientRect().width)), documentWidth:document.documentElement.scrollWidth, viewport:window.innerWidth, containerWidth:root.clientWidth, centeredDelta:Math.abs((visible[0].getBoundingClientRect().left+visible[visible.length-1].getBoundingClientRect().right)/2-(r.left+r.right)/2), collapsedClass:root.classList.contains('is-collapsed') }; })()")
+      assert.equal(initial.total, 6, 'Se deben conservar los seis servicios')
+      assert.equal(initial.visible, 6, 'Al inicio deben verse todas las pestañas')
+      if (width <= 800) {
+        assert.equal(initial.direction, 'row', 'El móvil conserva las pestañas verticales en fila: ' + JSON.stringify(initial))
+        assert.equal(initial.writingMode, 'vertical-rl', 'Los nombres deben quedar verticales')
+        assert.equal(initial.opened, 0, 'Los servicios móviles deben iniciar todos cerrados')
+        assert.ok(initial.collapsedClass && initial.centeredDelta <= 2,
+          'Las seis pestañas cerradas deben estar centradas, no pegadas a la izquierda: ' + JSON.stringify(initial))
+        assert.ok(initial.widths.every(w => w >= 35 && w <= 44),
+          'Conservar el ancho original de 40px de las pestañas: ' + JSON.stringify(initial))
+        assert.ok(initial.widths.every(w => w >= 35 && w <= Math.ceil(initial.containerWidth / 6) + 3), 'Las pestañas cerradas deben distribuirse uniformemente: ' + JSON.stringify(initial))
+        assert.ok(initial.documentWidth <= initial.viewport + 2, 'El acordeón no debe desbordar la pantalla: ' + JSON.stringify(initial))
+        // Select the last tab, to catch accidental hiding of a selected service.
+        await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[5].click(); true")
+        // Wait for the original .45s expansion before checking final geometry.
+        await new Promise(resolve => setTimeout(resolve, 550))
+        const expanded = await evaluate("(() => { const root=document.querySelector('#servicios .service-accordion'); const items=[...root.querySelectorAll('.service-accordion__item')]; const visible=items.filter(x=>getComputedStyle(x).display!=='none'); const selected=items.find(x=>x.classList.contains('is-open')); const panel=selected?.querySelector('.service-accordion__panel'); const copy=panel?.querySelector('.service-accordion__copy'); return { visible:visible.length, hidden:items.length-visible.length, opened:items.filter(x=>x.classList.contains('is-open')).length, lastSelected:selected===items[5], selectedWidth:selected?.clientWidth, panelWidth:panel?.clientWidth, copyWidth:copy?.clientWidth, copyScrollWidth:copy?.scrollWidth, panelVisible:!!panel, hasAction:!!copy?.querySelector('button.btn'), transition:getComputedStyle(selected).transitionDuration, reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches, containerWidth:root.clientWidth, visibleOther:visible.some(x=>x!==selected), visibleKeys:visible.map(x=>x.querySelector('.service-accordion__trigger')?.textContent?.trim()), originalKeys:items.slice(0,4).map(x=>x.querySelector('.service-accordion__trigger')?.textContent?.trim()) }; })()")
+        assert.ok(expanded.lastSelected && expanded.opened===1 && expanded.panelVisible && expanded.hasAction, 'Debe abrirse el servicio seleccionado: ' + JSON.stringify(expanded))
+        const expectedVisible = initial.containerWidth < 260 ? 3 : 4
+        assert.equal(expanded.visible, expectedVisible,
+          'Abrir no debe ocultar más pestañas de las necesarias: ' + JSON.stringify(expanded))
+        assert.equal(expanded.hidden, 6 - expectedVisible, 'Solo deben desaparecer las dos pestañas adicionales cuando caben cuatro')
+        assert.ok(expanded.visibleOther, 'Deben quedar pestañas vecinas visibles')
+        assert.ok(expanded.selectedWidth >= initial.containerWidth - (expectedVisible - 1) * 54 - 5,
+          'Conservar la proporción original del acordeón: ' + JSON.stringify(expanded))
+        if (!expanded.reducedMotion) {
+          assert.ok(expanded.transition !== '0s', 'Debe conservar la animación de apertura: ' + JSON.stringify(expanded))
+        }
+        assert.ok(expanded.copyScrollWidth <= expanded.copyWidth + 2, 'El texto no debe desbordar: ' + JSON.stringify(expanded))
+        if (width <= 430) assert.ok(expanded.hidden >= 1, 'En celular pequeño deben ocultarse algunas pestañas: ' + JSON.stringify(expanded))
+        // Tapping the same red tab closes it, just like a standard accordion.
+        await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[5].click(); true")
+        const reset = await evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')];return { visible:items.filter(x=>getComputedStyle(x).display!=='none').length,opened:items.filter(x=>x.classList.contains('is-open')).length }; })()")
+        assert.equal(reset.visible, 6, 'Cerrar debe devolver todas las pestañas: ' + JSON.stringify(reset))
+        assert.equal(reset.opened, 0, 'Cerrar no debe dejar un servicio abierto')
+        if (width === 390) {
+          // Mouse and trackpad must open on hover at compact widths, without a click.
+          // Touch does not use pointerenter; its click behavior remains unchanged.
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[1].dispatchEvent(new PointerEvent('pointerenter', {pointerType:'mouse',clientX:100,clientY:200})); true")
+          const hovered = await evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')];return { opened:items[1].classList.contains('is-open'), visible:items.filter(x=>getComputedStyle(x).display!=='none').length }; })()")
+          assert.ok(hovered.opened && hovered.visible === 4, 'El mouse debe abrir Marítimo al pasar por encima: ' + JSON.stringify(hovered))
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].dispatchEvent(new PointerEvent('pointerenter', {pointerType:'mouse',clientX:100,clientY:200})); true")
+          assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item')[1].classList.contains('is-open')"), true,
+            'No debe saltar al siguiente servicio por un cambio de columnas bajo el mouse')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].dispatchEvent(new PointerEvent('pointerenter', {pointerType:'mouse',clientX:145,clientY:200})); true")
+          assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item')[2].classList.contains('is-open')"), true,
+            'Mover realmente el mouse hacia Terrestre debe abrirlo')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
+          assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item.is-open').length"), 0,
+            'Tras hover debe poderse cerrar tocando la misma pestaña')
+          // Simulated touch pointerenter must not open a tab until actual tap.
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[0].dispatchEvent(new PointerEvent('pointerenter', {pointerType:'touch'})); true")
+          assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item.is-open').length"), 0,
+            'Un toque no debe abrir el servicio antes del click')
+        }
+        await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
+        const original = await evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')]; return { selected:items[2].classList.contains('is-open'), shown:items.flatMap((item,i)=>getComputedStyle(item).display!=='none'?[i]:[]) }; })()")
+        assert.equal(original.selected, true, 'Se debe poder abrir otro servicio después de cerrar')
+        if (expectedVisible === 4) {
+          assert.deepEqual(original.shown, [1,2,3,4],
+            'Al iniciar desde Terrestre debe mostrarse Fiscal, sin saltar a Panamá')
+          // Start with all six, and open neighboring services in order.
+          // Newly added right-hand services must emerge BEFORE we close any card.
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[0].click(); true")
+          const shownIndices = () => evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')]; return { opened:items.findIndex(item=>item.classList.contains('is-open')), visible:items.flatMap((item,i)=>getComputedStyle(item).display!=='none'?[i]:[]) }; })()")
+          const air = await shownIndices()
+          assert.deepEqual(air, {opened:0,visible:[0,1,2,3]}, 'Aéreo debe iniciar con los cuatro servicios originales')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[1].click(); true")
+          const maritime = await shownIndices()
+          assert.deepEqual(maritime, {opened:1,visible:[1,2,3,4]},
+            'Al abrir Marítimo, Fiscal debe aparecer y Aéreo ocultarse')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
+          const land = await shownIndices()
+          assert.deepEqual(land, {opened:2,visible:[2,3,4,5]},
+            'Al abrir Terrestre debe aparecer Panamá y ocultarse Marítimo')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[3].click(); true")
+          assert.deepEqual(await shownIndices(), {opened:3,visible:[2,3,4,5]},
+            'Multimodal debe poder abrirse sin cerrar ni ocultar Fiscal/Panamá')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[4].click(); true")
+          assert.deepEqual(await shownIndices(), {opened:4,visible:[2,3,4,5]},
+            'Fiscal debe poder abrirse directamente al avanzar')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[5].click(); true")
+          assert.deepEqual(await shownIndices(), {opened:5,visible:[2,3,4,5]},
+            'Panamá debe poder abrirse directamente al avanzar')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[4].click(); true")
+          assert.deepEqual(await shownIndices(), {opened:4,visible:[1,2,3,4]},
+            'Al regresar de Panamá a Fiscal debe reaparecer una pestaña por la izquierda')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[3].click(); true")
+          assert.deepEqual(await shownIndices(), {opened:3,visible:[0,1,2,3]},
+            'Al regresar de Fiscal a Multimodal debe reaparecer Aéreo, sin saltos')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
+          assert.deepEqual(await shownIndices(), {opened:2,visible:[0,1,2,3]},
+            'Continuar retrocediendo conserva la ventana izquierda')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[1].click(); true")
+          assert.deepEqual(await shownIndices(), {opened:1,visible:[0,1,2,3]},
+            'Al volver hacia Marítimo debe permanecer visible Aéreo a la izquierda')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[0].click(); true")
+          assert.deepEqual(await shownIndices(), {opened:0,visible:[0,1,2,3]},
+            'Regresar hasta Aéreo nunca debe saltar a otra tarjeta')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[0].click(); true")
+          assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item:not([hidden])').length"), 6,
+            'Al cerrar deben regresar las seis pestañas sin controles de navegación')
+          assert.ok(await evaluate("!document.querySelector('.service-accordion__navigation')"),
+            'No debe agregarse navegación artificial al acordeón')
+        }
+      } else {
+        assert.equal(initial.direction, 'row', 'Escritorio conserva el acordeón horizontal')
+        assert.equal(initial.opened, 1, 'Escritorio conserva su servicio inicial expandido')
+      }
+    }
+    console.log('PASS Chrome: seis pestañas verticales, expansión adaptable y restauración al cerrar')
+
     const nav = await send('Page.navigate', { url })
     assert.ok(!nav.errorText, 'Chrome no pudo abrir Servicios: ' + nav.errorText)
     let ready = false
     for (let i = 0; i < 100; i++) {
-      ready = await evaluate("document.querySelectorAll('.services-directory__card').length === 8")
+      ready = await evaluate("document.querySelectorAll('.services-directory__run:not(.is-clone) .services-directory__card').length === 8")
       if (ready) break
       await new Promise(resolve => setTimeout(resolve, 120))
     }
-    assert.ok(ready, 'No aparecieron las 8 tarjetas del directorio')
-    const probe = async dark => {
-      const action = dark ? 'add' : 'remove'
-      await evaluate("document.documentElement.classList." + action + "('theme-dark')")
-      // El componente tiene transición CSS de background-color de .2s.
-      // Medir el estado final, no el primer frame blanco de la transición.
-      await new Promise(resolve => setTimeout(resolve, 400))
-      return evaluate("(() => { const a = document.querySelector('.services-directory__card'); const card = getComputedStyle(a); const title = getComputedStyle(a.querySelector('.services-directory__card-title')); return { background: card.backgroundColor, image: card.backgroundImage, text: title.color, fill: title.webkitTextFillColor }; })()")
+    assert.ok(ready, 'Faltan enlaces reales a las ocho páginas de servicio')
+    const checkCarousel = () => evaluate("(() => { const p = [...document.querySelectorAll('.services-directory__panel')]; const visible = p.filter(x => getComputedStyle(x).display !== 'none'); const cards = visible[0]?.querySelectorAll('.services-directory__run:not(.is-clone) .services-directory__card') || []; const clones = visible[0]?.querySelectorAll('.services-directory__run.is-clone .services-directory__card') || []; const a = cards[0]; const title = a?.querySelector('.services-directory__card-title'); const arrow = a?.querySelector('.services-directory__card-arrow'); const svg = arrow?.querySelector('svg'); const circle = arrow?.getBoundingClientRect(); const icon = svg?.getBoundingClientRect(); const titleCss = title ? getComputedStyle(title) : null; return { visible:visible.length, panel:visible[0]?.id, cards:cards.length, clones:clones.length, allClonesHidden:[...clones].every(x=>x.tabIndex===-1 && x.closest('[aria-hidden=true]')), photos:[...cards].every(x=>x.querySelector('.services-directory__card-media img, .services-directory__card-media video')), action:a?.querySelector('.services-directory__card-cta')?.textContent?.trim(), name:title?.textContent?.trim(), animation:getComputedStyle(visible[0]?.querySelector('.services-directory__track')).animationName, titleColor:titleCss?.color, titleFill:titleCss?.webkitTextFillColor, dx:circle&&icon?Math.abs(circle.left+circle.width/2-icon.left-icon.width/2):null, dy:circle&&icon?Math.abs(circle.top+circle.height/2-icon.top-icon.height/2):null }; })()")
+    let transport = await checkCarousel()
+    assert.equal(transport.visible, 1, 'Solo debe verse el carrusel de la categoría seleccionada')
+    assert.equal(transport.cards, 5, 'Deben aparecer los cinco transportes')
+    assert.equal(transport.clones, 20, 'El loop de transporte debe tener cuatro secuencias auxiliares')
+    assert.ok(transport.allClonesHidden, 'Las copias del loop no deben entrar al tabulador')
+    assert.ok(transport.photos, 'Todas las tarjetas necesitan una imagen')
+    assert.ok(transport.name && transport.action.includes('Ver más'), 'Deben verse el nombre y el botón Ver más')
+    assert.equal(transport.animation, 'none', 'El loop usa desplazamiento calculado, no animación CSS')
+    assert.ok(transport.dx <= 1 && transport.dy <= 1, 'Flecha de Ver más descentrada')
+    await evaluate("document.getElementById('services-directory-tab-logistics').click()")
+    await new Promise(resolve => setTimeout(resolve, 200))
+    const logistics = await checkCarousel()
+    assert.equal(logistics.visible, 1, 'El cambio de categoría no debe mostrar dos carruseles')
+    assert.equal(logistics.cards, 3, 'Logística y aduanas debe mostrar tres servicios')
+    assert.equal(logistics.clones, 12, 'El loop de logística necesita copias suficientes para la pantalla')
+    assert.ok(logistics.photos && logistics.action.includes('Ver más'))
+    await evaluate("document.getElementById('services-directory-tab-transport').click()")
+    await new Promise(resolve => setTimeout(resolve, 120))
+    for (const dark of [false, true]) {
+      await evaluate("document.documentElement.classList." + (dark ? 'add' : 'remove') + "('theme-dark')")
+      await new Promise(resolve => setTimeout(resolve, 150))
+      const view = await checkCarousel()
+      assert.equal(view.cards, 5, 'Debe seguir visible transporte al cambiar tema')
+      assert.equal(view.titleColor, 'rgb(255, 255, 255)', 'El título debe contrastar con la imagen')
+      assert.equal(view.titleFill, 'rgb(255, 255, 255)', 'El título debe conservarse blanco en ambos modos')
     }
-    const light = await probe(false)
-    assert.equal(light.background, 'rgb(255, 255, 255)', 'Tema claro: tarjeta no blanca')
-    const dark = await probe(true)
-    if (dark.background !== 'rgb(11, 20, 40)') {
-      const details = await evaluate("(() => { const a = document.querySelector('.services-directory__card'); const css = []; for (const sheet of document.styleSheets) { try { for (const rule of sheet.cssRules) { if (rule.selectorText?.includes('services-directory__card')) css.push({ selector: rule.selectorText.slice(0, 140), background: rule.style.background, important: rule.style.getPropertyPriority('background') }); } } catch {} } return { root: document.documentElement.className, app: a?.closest('.app-site')?.className, matching: a?.matches('html.theme-dark .app-site.services-page .services-directory a.services-directory__card'), sheets: document.styleSheets.length, rules: css.slice(-18) }; })()")
-      console.log('Diagnóstico contraste Servicios:', JSON.stringify({ dark, details }))
+    assert.equal(await evaluate("document.querySelectorAll('.services-directory__motion').length"), 0,
+      'El carrusel no debe mostrar botón de pausa')
+    const defaultCardShadow = await evaluate("getComputedStyle(document.querySelector('.services-directory__panel:not([style*=none]) .services-directory__card')).boxShadow")
+    assert.equal(defaultCardShadow, 'none', 'Las sombras de tarjetas estaban creando una franja gris entre fotos')
+    const transform = await evaluate("document.querySelector('.services-directory__panel:not([style*=none]) .services-directory__track').style.transform")
+    assert.ok(transform.startsWith('translate3d(-'), 'La pista debe aplicar un desplazamiento real')
+    await new Promise(resolve => setTimeout(resolve, 330))
+    const darkButton = await evaluate("(() => {const b=document.querySelector('.services-directory__panel:not([style*=none]) .services-directory__card-cta'); const c=getComputedStyle(b); return {background:c.backgroundColor,text:c.color}})()")
+    assert.equal(darkButton.background, 'rgb(11, 20, 40)', 'El botón oscuro debe usar el azul marino corporativo')
+    assert.equal(darkButton.text, 'rgb(244, 246, 250)', 'Ver más debe ser legible en modo oscuro')
+    console.log('PASS Chrome: carrusel continuo, cinco copias, Ver más oscuro y sin sombras')
+    // Verify pointer dragging with Chrome input events, without accidentally opening the card.
+    await evaluate("document.querySelector('.services-directory__carousel').scrollIntoView({block:'center',behavior:'instant'}); true")
+    await new Promise(resolve => setTimeout(resolve, 170))
+    const dragPoint = await evaluate("(() => {const r=document.querySelector('.services-directory__carousel').getBoundingClientRect();return {x:Math.floor(innerWidth/2),y:Math.floor(Math.max(30,Math.min(innerHeight-30,(r.top+r.bottom)/2)))};})()")
+    const readOffset = () => evaluate("(() => {const t=document.querySelector('.services-directory__panel:not([style*=none]) .services-directory__track').style.transform;const m=t.match(/translate3d\\(-([\\d.]+)px/);return m?Number(m[1]):null;})()")
+    await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:dragPoint.x,y:dragPoint.y,button:'none'})
+    await new Promise(resolve => setTimeout(resolve, 80))
+    const beforeDrag = await readOffset()
+    await send('Input.dispatchMouseEvent',{type:'mousePressed',x:dragPoint.x,y:dragPoint.y,button:'left',clickCount:1})
+    await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:dragPoint.x-120,y:dragPoint.y,button:'left',buttons:1})
+    await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:dragPoint.x-120,y:dragPoint.y,button:'left',clickCount:1})
+    await new Promise(resolve => setTimeout(resolve, 90))
+    const afterDrag = await readOffset()
+    assert.ok(beforeDrag !== null && afterDrag !== null && Math.abs(afterDrag-beforeDrag)>60,
+      'Arrastrar debe mover el carrusel con el mouse: ' + JSON.stringify({beforeDrag,afterDrag}))
+    assert.ok(await evaluate("location.pathname === '/servicios'"),'Arrastrar no debe abrir el enlace')
+    // No pointerleave: cursor remains over the carousel after dropping.
+    await new Promise(resolve => setTimeout(resolve, 270))
+    const stillPaused = await readOffset()
+    assert.ok(stillPaused !== null && Math.abs(stillPaused-afterDrag) < 2,
+      'El carrusel debe ofrecer una pausa breve al soltar la tarjeta')
+    await new Promise(resolve => setTimeout(resolve, 1680))
+    const resumeBefore = await readOffset()
+    await new Promise(resolve => setTimeout(resolve, 300))
+    const resumeAfter = await readOffset()
+    assert.ok(resumeBefore !== null && resumeAfter !== null && Math.abs(resumeAfter-resumeBefore) > 4,
+      'Debe reanudar automáticamente aun si el mouse sigue sobre el carrusel y no se toca afuera')
+    const focused = await evaluate("(() => {const a=document.querySelector('.services-directory__panel:not([style*=none]) .services-directory__run:not(.is-clone) .services-directory__card');a?.focus();return Boolean(a);})()")
+    assert.ok(focused,'Debe existir una tarjeta accesible')
+    await new Promise(resolve => setTimeout(resolve, 130))
+    const clip = await evaluate("document.querySelector('.services-directory__panel:not([style*=none]) .services-directory__run:not(.is-clone) .services-directory__card video.services-directory__preview')?.getAttribute('src')")
+    assert.ok(clip && clip.startsWith('/videos/service-'),
+      'Al enfocar la tarjeta debe montarse el video del servicio')
+    console.log('PASS Chrome: arrastre sin navegación y video de vista previa al enfocar')
+
+
+    // Comprobar geometría real: carrusel de borde a borde en PC
+    // y tarjetas más compactas en móvil, sin desbordamiento horizontal.
+    for (const width of [1440, 390]) {
+      await send('Emulation.setDeviceMetricsOverride', {
+        width, height: 900, deviceScaleFactor: 1, mobile: false
+      })
+      await new Promise(resolve => setTimeout(resolve, 180))
+      const geometry = await evaluate("(() => { const c = document.querySelector('.services-directory__carousel').getBoundingClientRect(); const a = document.querySelector('.services-directory__panel:not([style*=none]) .services-directory__card').getBoundingClientRect(); return { viewport:window.innerWidth, layoutWidth:document.documentElement.clientWidth, carouselWidth:c.width, center:(c.left+c.right)/2, cardWidth:a.width, cardHeight:a.height, documentWidth:document.documentElement.scrollWidth }; })()")
+      assert.ok(Math.abs(geometry.carouselWidth - geometry.viewport) <= 2,
+        'El carrusel debe ocupar todo el ancho de pantalla: ' + JSON.stringify(geometry))
+      assert.ok(Math.abs(geometry.center - geometry.layoutWidth / 2) <= 3,
+        'El carrusel debe estar centrado respecto a la pantalla: ' + JSON.stringify(geometry))
+      assert.ok(geometry.documentWidth <= geometry.viewport + 2,
+        'El carrusel no debe generar scroll horizontal: ' + JSON.stringify(geometry))
+      if (width === 390) {
+        assert.ok(geometry.cardWidth <= 235 && geometry.cardHeight <= 310,
+          'Tarjetas demasiado grandes en móvil: ' + JSON.stringify(geometry))
+      } else {
+        assert.ok(geometry.cardWidth >= 280 && geometry.cardHeight >= 345,
+          'Las tarjetas de PC deben conservar una imagen protagonista: ' + JSON.stringify(geometry))
+      }
     }
-    assert.equal(dark.background, 'rgb(11, 20, 40)', 'Tema oscuro: tarjeta blanquecina')
-    assert.equal(dark.image, 'none', 'Tema oscuro: gradiente claro superpuesto')
-    assert.equal(dark.text, 'rgb(244, 246, 250)', 'Tema oscuro: título invisible')
-    assert.equal(dark.fill, 'rgb(244, 246, 250)', 'Tema oscuro: text-fill-color invisible')
-    const arrowGeometry = await evaluate("(() => { const circle = document.querySelector('.services-directory__card-arrow').getBoundingClientRect(); const icon = document.querySelector('.services-directory__card-arrow svg').getBoundingClientRect(); return { dx: Math.abs(circle.left + circle.width / 2 - icon.left - icon.width / 2), dy: Math.abs(circle.top + circle.height / 2 - icon.top - icon.height / 2), icons: document.querySelectorAll('.services-directory__card-arrow svg').length }; })()")
-    assert.equal(arrowGeometry.icons, 8, 'Los 8 enlaces necesitan flechas SVG centradas')
-    assert.ok(arrowGeometry.dx <= 1 && arrowGeometry.dy <= 1, 'Flecha descentrada dentro de círculo: ' + JSON.stringify(arrowGeometry))
-    console.log('PASS Chrome: 8 tarjetas con contraste real claro/oscuro')
+    console.log('PASS Chrome: carrusel de ancho completo en PC y tarjetas compactas en móvil')
+
     // About: five cards should keep 3/2, 2/2/1 and single-column
     // layouts, with every incomplete final row centered in its container.
     const aboutUrl = new URL('/nosotros', url).href
@@ -221,6 +428,35 @@ async function assertServicesTheme(chrome, url) {
       }
     }
     console.log('PASS Chrome: últimas filas centradas en Valores y Capacidades (1100, 800 y 480px)')
+    // Five remaining "Sobre nuestra estructura" cards should wrap evenly
+    // and keep their original CMS IDs and accessible accordion controls.
+    const structureUrl = new URL('/nosotros',url).href
+    for (const scenario of [
+      { width: 1440, rows: [5] },
+      { width: 1100, rows: [3, 2] },
+      { width: 800, rows: [2, 2, 1] },
+      { width: 480, rows: [1, 1, 1, 1, 1] }
+    ]) {
+      await send('Emulation.setDeviceMetricsOverride', {
+        width:scenario.width,height:950,deviceScaleFactor:1,mobile:false
+      })
+      const nav = await send('Page.navigate',{url:structureUrl})
+      assert.ok(!nav.errorText,'No se pudo abrir Nosotros para comprobar estructura')
+      let structureReady = false
+      for(let attempt=0;attempt<100;attempt++){
+        structureReady=await evaluate("document.querySelectorAll('#nuestra-estructura .about-refresh__structure-card').length === 5")
+        if(structureReady) break
+        await new Promise(resolve=>setTimeout(resolve,120))
+      }
+      assert.ok(structureReady,'Deben mostrarse cinco módulos de estructura')
+      const layout=await evaluate("(() => {const root=document.querySelector('#nuestra-estructura .about-refresh__structure-grid');const bounds=root.getBoundingClientRect();const cards=[...root.querySelectorAll('.about-refresh__structure-card')];const rows=[];for(const node of cards){const r=node.getBoundingClientRect();const row=rows.find(x=>Math.abs(x[0].top-r.top)<2);if(row)row.push(r);else rows.push([r]);}const last=rows.at(-1);const center=(last[0].left+last.at(-1).right)/2;return {count:cards.length,rows:rows.map(x=>x.length),delta:Math.abs(center-(bounds.left+bounds.right)/2),widths:cards.map(x=>x.getBoundingClientRect().width),indices:cards.map(x=>x.querySelector('button')?.getAttribute('aria-controls')),labels:cards.map(x=>x.innerText)};})()")
+      assert.deepEqual(layout.rows,scenario.rows,'Estructura debe ocupar filas equilibradas a '+scenario.width+': '+JSON.stringify(layout))
+      assert.ok(layout.delta<=3,'La fila incompleta debe estar centrada: '+JSON.stringify(layout))
+      assert.ok(Math.max(...layout.widths)-Math.min(...layout.widths)<=2,'Tarjetas desiguales: '+JSON.stringify(layout))
+      assert.deepEqual(layout.indices,['about-structure-2','about-structure-3','about-structure-4','about-structure-5','about-structure-6'],'Las tarjetas deben conservar sus claves del CMS')
+    }
+    console.log('PASS Chrome: cinco módulos de estructura y filas centradas en cuatro anchos')
+
     // Contacto en Home: mantener cinco tarjetas iguales y centrar las
     // filas incompletas sin ensanchar la última tarjeta en móvil.
     const contactUrl = new URL('/', url).href

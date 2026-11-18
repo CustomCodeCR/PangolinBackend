@@ -13,6 +13,20 @@ const values = computed(() => [0, 1, 2, 3, 4].map(index => siteText(`about.value
 const valueIcons = [Handshake, Scale, UsersRound, Award, ShieldCheck]
 const capabilityIcons = [Truck, ClipboardCheck, Globe2, Boxes, Ship]
 const openedValue = ref<number | null>(null)
+const openedStructure = ref<number | null>(null)
+// Preserve the original CMS keys (2–6), so previously published edits remain valid.
+const structureTitles = computed(() => {
+  const titles = locale.value.startsWith('es')
+    ? ['Mesa de ayuda', 'Agente propio en sitio', 'Departamentos', 'Universidad corporativa', 'Enfoque ambiental']
+    : ['Help desk', 'On-site agent', 'Departments', 'Corporate university', 'Environmental approach']
+  return titles.map((title, offset) => ({ index: offset + 2, title }))
+})
+const structureDepartments = computed(() => (locale.value.startsWith('es')
+  ? ['Consolidadora', 'Pedimentación', 'Contabilidad', 'Servicio al cliente', 'Transporte interno de carga']
+  : ['Freight consolidation', 'Customs declaration processing', 'Accounting', 'Customer service', 'Domestic cargo transport']))
+const structureEnvironment = computed(() => locale.value.startsWith('es')
+  ? 'Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.'
+  : 'We seek opportunities to incorporate more responsible practices into our operations.')
 const valuesAccordionRef = ref<HTMLElement | null>(null)
 const closeValueOnOutsidePointer = (event: PointerEvent) => {
   if (openedValue.value === null || !(event.target instanceof Node)) return
@@ -209,6 +223,41 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
         </div>
       </section>
 
+      <section id="nuestra-estructura" class="about-refresh__structure section-spacing" aria-labelledby="about-structure-title">
+        <div class="container">
+          <div class="about-refresh__section-heading">
+            <div>
+              <p class="about-refresh__eyebrow">{{ locale.startsWith('es') ? 'ORGANIZACIÓN' : 'ORGANIZATION' }}</p>
+              <h2 id="about-structure-title">{{ siteText('about.structure.heading', locale.startsWith('es') ? 'Sobre nuestra estructura' : 'About our structure', locale) }}</h2>
+            </div>
+          </div>
+          <div class="about-refresh__accordion about-refresh__structure-grid">
+            <article v-for="item in structureTitles" :key="item.index" class="about-refresh__structure-card"
+               :class="{ 'is-open': openedStructure === item.index }">
+              <h3>
+                <button class="about-refresh__value-trigger about-refresh__structure-trigger" type="button"
+                  :aria-expanded="openedStructure === item.index" :aria-controls="`about-structure-${item.index}`"
+                  @click="openedStructure = openedStructure === item.index ? null : item.index">
+                  <span class="about-refresh__value-text"><strong class="about-refresh__value-name">{{ siteText('about.structure.' + item.index + '.title', item.title, locale) }}</strong></span>
+                  <ChevronDown class="about-refresh__value-chevron" :size="22" aria-hidden="true" />
+                </button>
+              </h3>
+              <div :id="`about-structure-${item.index}`" class="about-refresh__value-panel"
+                :class="{ 'is-open': openedStructure === item.index }" :aria-hidden="openedStructure !== item.index"
+                :inert="openedStructure !== item.index">
+                <div class="about-refresh__value-inner">
+                  <ul v-if="item.index === 4" class="about-refresh__structure-departments">
+                    <li v-for="(department, d) in structureDepartments" :key="d">{{ siteText('about.structure.departments.' + d, department, locale) }}</li>
+                  </ul>
+                  <p v-else-if="item.index === 6">{{ siteText('about.structure.environment', structureEnvironment, locale) }}</p>
+                  <div v-else class="about-refresh__structure-empty" aria-hidden="true"></div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
       <section class="about-refresh__services section-spacing">
         <div class="container">
           <div class="about-refresh__section-heading">
@@ -241,6 +290,24 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 </template>
 
 <style scoped>
+.about-refresh__structure{padding-block:clamp(64px,7vw,108px)}
+.about-refresh__structure-card{min-width:0;border:1px solid rgba(37,41,49,.15);border-bottom:3px solid #b40e2d;border-radius:16px;background:#fff;overflow:hidden;transition:box-shadow .25s,border-color .25s}
+.about-refresh__structure-card.is-open{border-color:rgba(176,9,41,.45);box-shadow:0 17px 32px rgba(38,30,33,.08)}
+.about-refresh__structure-card h3{margin:0}
+.about-refresh__structure-card.is-open .about-refresh__value-chevron{transform:rotate(180deg)}
+
+.about-refresh__structure-grid{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;gap:clamp(13px,1.2vw,22px)}
+.about-refresh__structure-grid>.about-refresh__structure-card{box-sizing:border-box;flex:0 0 calc((100% - 4 * clamp(13px,1.2vw,22px))/5)}
+.about-refresh__structure-grid .about-refresh__value-trigger{min-height:112px}
+.about-refresh__structure-departments{margin:0;padding:0 22px 24px 40px;color:var(--about-muted);line-height:1.8;font-size:14px}
+.about-refresh__structure-empty{height:12px}
+@media(max-width:1320px){.about-refresh__structure-grid>.about-refresh__structure-card{flex-basis:calc((100% - 40px)/3)}}
+@media(max-width:950px){.about-refresh__structure-grid>.about-refresh__structure-card{flex-basis:calc((100% - 20px)/2)}}
+@media(max-width:650px){.about-refresh__structure-grid>.about-refresh__structure-card{flex-basis:100%}}
+html.theme-dark .about-refresh__structure{background:#171b23}
+html.theme-dark .about-refresh__structure-card{background:#111b31;border-color:rgba(255,255,255,.23)}
+html.theme-dark .about-refresh__structure-card.is-open{border-color:#f07189}
+
 .about-refresh{--about-red:#b00929;--about-ink:#20242d;--about-muted:#545b67;--about-soft:#faf4f5;color:var(--about-ink)}
 .about-refresh .about-refresh__hero{min-height:clamp(330px,34vw,490px)}
 .about-refresh .about-refresh__hero-copy{padding-bottom:48px}
