@@ -15,7 +15,37 @@ import { useI18n } from 'vue-i18n'
 
 const { t, locale } = useI18n({ useScope: 'global' })
 type HomeServiceKey = ServiceKey | 'Fiscal' | 'Panama'
-const activeService = ref<HomeServiceKey>('Air')
+// In compact view all six red vertical tabs start closed. On opening one,
+// keep only as many neighboring tabs as fit beside a readable content panel.
+const activeService = ref<HomeServiceKey | null>(null)
+const compactServiceMode = ref(false)
+const serviceAccordionRef = ref<HTMLElement | null>(null)
+const serviceAccordionWidth = ref(0)
+let serviceAccordionObserver: ResizeObserver | undefined
+let serviceCompactQuery: MediaQueryList | undefined
+
+function updateServiceLayout() {
+  const compact = serviceCompactQuery?.matches ?? false
+  if (compact !== compactServiceMode.value) {
+    compactServiceMode.value = compact
+    activeService.value = compact ? null : 'Air'
+  } else if (!compact && activeService.value === null) {
+    activeService.value = 'Air'
+  }
+  serviceAccordionWidth.value = serviceAccordionRef.value?.clientWidth ?? 0
+}
+
+function openHomeServiceFromPointer(key: HomeServiceKey) {
+  if (!compactServiceMode.value) activeService.value = key
+}
+function toggleHomeService(key: HomeServiceKey) {
+  if (compactServiceMode.value) {
+    activeService.value = activeService.value === key ? null : key
+  } else {
+    activeService.value = key
+  }
+}
+
 const localizedServices = computed(() => baseServices.map(service => ({
   ...service,
   photo: siteVisual(`home.services.${service.key.toLowerCase()}.media`, service.photo).src,
@@ -46,6 +76,20 @@ const transportServices = computed(() => [
   ...(['Air', 'Maritime', 'Land', 'Multimodal'] as ServiceKey[]).map(key => localizedServices.value.find(service => service.key === key)!),
   ...newHomeServices.value
 ])
+// Reserve ~285px for the active photographic card whenever space permits.
+// Keep at least one other tab visible; preserve document order and the selected
+// card's neighbors. Recalculate from the container width, not device presets.
+const visibleHomeServiceKeys = computed(() => {
+  const all = transportServices.value.map(service => service.key)
+  if (!compactServiceMode.value || !activeService.value) return new Set<HomeServiceKey>(all)
+  const available = serviceAccordionWidth.value || 320
+  const others = Math.min(all.length - 1, Math.max(1, Math.floor((available - 285) / 45)))
+  const count = others + 1
+  const selectedIndex = all.indexOf(activeService.value)
+  if (selectedIndex < 0) return new Set<HomeServiceKey>(all)
+  const start = Math.max(0, Math.min(selectedIndex - Math.floor((count - 1) / 2), all.length - count))
+  return new Set<HomeServiceKey>(all.slice(start, start + count))
+})
 const selectedService = computed(() => localizedServices.value.find(service => service.key === activeService.value) ?? localizedServices.value[0])
 const modalService = ref<HomeServiceKey | null>(null)
 const modalPhoto = computed(() => siteCssImage(`home.services.${modalService.value?.toLowerCase()}.media`, transportServices.value.find(service => service.key === modalService.value)?.photo ?? '/images/hero.webp'))
@@ -165,6 +209,15 @@ function requestComments() {
 }
 
 onMounted(async () => {
+  serviceCompactQuery = window.matchMedia('(max-width: 800px)')
+  serviceCompactQuery.addEventListener('change', updateServiceLayout)
+  updateServiceLayout()
+  if (serviceAccordionRef.value && typeof ResizeObserver !== 'undefined') {
+    serviceAccordionObserver = new ResizeObserver(() => {
+      serviceAccordionWidth.value = serviceAccordionRef.value?.clientWidth ?? 0
+    })
+    serviceAccordionObserver.observe(serviceAccordionRef.value)
+  }
   document.addEventListener('pointerdown', closeFaqOnOutsidePointer)
   document.addEventListener('keydown', closeFaqOnEscape)
   // Comments live below the first screen; do not compete with hero/news on load.
@@ -194,6 +247,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  serviceAccordionObserver?.disconnect()
+  serviceCompactQuery?.removeEventListener('change', updateServiceLayout)
   document.removeEventListener('pointerdown', closeFaqOnOutsidePointer)
   document.removeEventListener('keydown', closeFaqOnEscape)
   commentsObserver?.disconnect()
@@ -249,12 +304,13 @@ onUnmounted(() => {
               {{ siteText('home.services.intro', $t('phrases.p011'), locale) }}
             </p>
 
-            <div class="service-accordion" :aria-label="$t('phrases.p134')">
+            <div ref="serviceAccordionRef" class="service-accordion" :aria-label="$t('phrases.p134')">
               <article
                 v-for="service in transportServices"
                 :key="service.key"
                 class="service-accordion__item"
                 :class="{ 'is-open': activeService === service.key }"
+                :hidden="compactServiceMode && !visibleHomeServiceKeys.has(service.key)"
                  :style="{ '--service-image': siteCssImage(`home.services.${service.key.toLowerCase()}.media`, transportServices.find(item => item.key === service.key)?.photo ?? '/images/hero.webp') }"
               >
                 <SiteMedia v-if="service.kind.startsWith('Video')" :slot-key="`home.services.${service.key.toLowerCase()}.media`" :fallback="service.photo" background />
@@ -262,11 +318,15 @@ onUnmounted(() => {
                   class="service-accordion__trigger"
                   type="button"
                   :aria-expanded="activeService === service.key"
-                  @mouseenter="activeService = service.key"
-                  @focus="activeService = service.key"
-                  @click="activeService = service.key"
+                  :aria-controls="`home-service-panel-${service.key}`"
+                  @mouseenter="openHomeServiceFromPointer(service.key)"
+                  @focus="openHomeServiceFromPointer(service.key)"
+                  @click="toggleHomeService(service.key)"
                 ><span class="service-accordion__name">{{ service.label }}</span></button>
-                <div v-if="activeService === service.key" class="service-accordion__panel">
+                <div v-if="activeService === service.key" :id="`home-service-panel-${service.key}`" class="service-accordion__panel">
+                  <button v-if="compactServiceMode" class="service-accordion__close" type="button"
+                    :aria-label="locale.startsWith('es') ? 'Cerrar servicio' : 'Close service'"
+                    @click.stop="activeService = null">{{ locale.startsWith('es') ? 'Cerrar' : 'Close' }} ×</button>
                   <div class="service-accordion__copy">
                     <h3>{{ service.title }}</h3>
                     <p>{{ service.detail }}</p>
@@ -845,124 +905,164 @@ html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__o
 }
 </style>
 
-
 <style>
-/* Home: six-service accordion stays readable on phones and tablets.
-   Use full-width stacked cards rather than dividing a phone into six strips.
-   Desktop keeps the original horizontal photographic accordion. */
-@media (max-width: 1024px) {
+/* Compact Home: original horizontal red tabs, adaptive disclosure on touch.
+   With an open service, hide only tabs needed to protect the content width. */
+@media (max-width: 800px) {
   html .app-site.home-page #servicios .service-accordion {
     display: flex !important;
-    flex-direction: column !important;
+    flex-direction: row !important;
     align-items: stretch !important;
-    justify-content: flex-start !important;
+    justify-content: stretch !important;
     width: 100% !important;
-    height: auto !important;
-    min-height: 0 !important;
-    gap: 10px !important;
-    overflow: visible !important;
+    height: clamp(410px, 115vw, 480px) !important;
+    min-height: 410px !important;
+    gap: 5px !important;
     padding: 0 !important;
+    overflow: hidden !important;
     scroll-snap-type: none !important;
   }
 
   html .app-site.home-page #servicios .service-accordion__item,
   html .app-site.home-page #servicios .service-accordion__item.is-open {
+    position: relative !important;
     display: block !important;
-    flex: 0 0 auto !important;
-    width: 100% !important;
+    flex: 0 0 40px !important;
+    width: auto !important;
     min-width: 0 !important;
-    height: auto !important;
-    min-height: 60px !important;
-    border-radius: 16px;
-    transition: border-color .2s ease, box-shadow .2s ease !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    border-radius: 15px;
+    transition: border-color .2s ease !important;
+  }
+
+  html .app-site.home-page #servicios .service-accordion__item.is-open {
+    flex: 1 1 0% !important;
+    min-width: 0 !important;
+  }
+
+  html .app-site.home-page #servicios .service-accordion__item[hidden] {
+    display: none !important;
   }
 
   html .app-site.home-page #servicios .service-accordion__trigger,
   html .app-site.home-page #servicios .service-accordion .service-accordion__item.is-open > .service-accordion__trigger {
-    position: relative !important;
-    inset: auto !important;
+    position: absolute !important;
+    inset: 0 auto 0 0 !important;
     z-index: 5;
     display: flex !important;
-    flex: 0 0 auto !important;
+    flex: none !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 100% !important;
-    height: auto !important;
-    min-height: 60px !important;
-    padding: 14px 18px !important;
-    border-right: 0 !important;
-    border-bottom: 1px solid rgba(255,255,255,.22) !important;
+    width: 40px !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    padding: 5px !important;
+    border: 0 !important;
+    border-right: 1px solid rgba(255,255,255,.2) !important;
     background: #b20b2d !important;
-    text-align: center !important;
     touch-action: manipulation;
   }
-
   html .app-site.home-page #servicios .service-accordion__trigger .service-accordion__name {
-    position: static !important;
+    position: relative !important;
     display: block !important;
-    width: auto !important;
-    max-width: 100% !important;
-    transform: none !important;
-    writing-mode: horizontal-tb !important;
+    width: max-content !important;
+    max-width: none !important;
+    transform: rotate(180deg) !important;
+    writing-mode: vertical-rl !important;
     text-orientation: mixed !important;
-    white-space: normal !important;
-    font: 850 clamp(14px, 2.8vw, 17px)/1.3 system-ui, sans-serif !important;
-    letter-spacing: .045em !important;
+    white-space: nowrap !important;
+    font: 900 clamp(12px, 3vw, 16px)/1.1 system-ui, sans-serif !important;
+    letter-spacing: .07em !important;
     color: #fff !important;
     -webkit-text-fill-color: #fff !important;
     -webkit-text-stroke: 0 transparent !important;
-    overflow-wrap: break-word;
+    pointer-events: none;
   }
 
   html .app-site.home-page #servicios .service-accordion__panel {
-    position: relative !important;
-    inset: auto !important;
+    position: absolute !important;
+    z-index: 3;
+    inset: 0 0 0 40px !important;
     display: flex !important;
-    flex: 0 0 auto !important;
+    flex: none !important;
     align-items: flex-end !important;
-    width: 100% !important;
-    height: auto !important;
-    min-height: clamp(240px, 38vw, 320px) !important;
-    padding: 24px 22px !important;
-    overflow: visible !important;
+    width: auto !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    padding: 56px 14px 22px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
     background: transparent !important;
   }
-
   html .app-site.home-page #servicios .service-accordion__copy {
     position: relative !important;
+    flex: 0 1 auto !important;
     width: 100% !important;
-    max-width: 100% !important;
     min-width: 0 !important;
+    max-width: 100% !important;
     margin: 0 !important;
   }
-
   html .app-site.home-page #servicios .service-accordion__copy h3 {
-    font-size: clamp(20px, 3vw, 27px) !important;
+    font-size: clamp(17px, 4vw, 24px) !important;
     line-height: 1.2 !important;
+    overflow-wrap: break-word !important;
   }
   html .app-site.home-page #servicios .service-accordion__copy p {
-    font-size: clamp(13px, 2vw, 15px) !important;
-    line-height: 1.55 !important;
-    margin-bottom: 16px !important;
+    font-size: clamp(12px, 3vw, 15px) !important;
+    line-height: 1.52 !important;
+    overflow-wrap: break-word !important;
   }
   html .app-site.home-page #servicios .service-accordion__copy .btn {
     min-width: 0 !important;
-    min-height: 44px !important;
+    min-height: 42px !important;
     max-width: 100% !important;
-    padding: 10px 16px !important;
-    font-size: 14px !important;
+    padding: 9px 12px !important;
+    font-size: 13px !important;
     white-space: normal !important;
   }
+  html .app-site.home-page #servicios .service-accordion__close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 6;
+    padding: 7px 10px;
+    border: 1px solid rgba(255,255,255,.7);
+    border-radius: 999px;
+    background: rgba(4,12,28,.76);
+    color: #fff;
+    font: 700 12px/1.2 system-ui, sans-serif;
+    cursor: pointer;
+  }
+  html .app-site.home-page #servicios .service-accordion__close:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 2px;
+  }
 }
-@media (max-width: 400px) {
+@media (max-width: 360px) {
+  html .app-site.home-page #servicios .service-accordion {
+    height: 490px !important;
+    min-height: 490px !important;
+    gap: 4px !important;
+  }
+  html .app-site.home-page #servicios .service-accordion__item,
+  html .app-site.home-page #servicios .service-accordion__item.is-open {
+    flex-basis: 38px !important;
+  }
+  html .app-site.home-page #servicios .service-accordion__item.is-open {
+    flex: 1 1 0% !important;
+  }
+  html .app-site.home-page #servicios .service-accordion__trigger,
+  html .app-site.home-page #servicios .service-accordion .service-accordion__item.is-open > .service-accordion__trigger {
+    width: 38px !important;
+  }
   html .app-site.home-page #servicios .service-accordion__panel {
-    min-height: 255px !important;
-    padding: 22px 16px !important;
+    inset-inline-start: 38px !important;
+    padding-inline: 11px !important;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  html .app-site.home-page #servicios .service-accordion__item {
-    transition: none !important;
-  }
+  html .app-site.home-page #servicios .service-accordion__item { transition: none !important; }
 }
 </style>
