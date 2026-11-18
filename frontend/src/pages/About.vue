@@ -231,7 +231,7 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
             <article v-for="(title, index) in structureTitles" :key="index" class="about-refresh__structure-card"
               :class="{ 'is-open': openedStructure === index }">
               <h3>
-                <button class="about-refresh__value-trigger" type="button"
+                <button class="about-refresh__value-trigger about-refresh__structure-trigger" type="button"
                   :aria-expanded="openedStructure === index" :aria-controls="`about-structure-${index}`"
                   @click="openedStructure = openedStructure === index ? null : index">
                   <span class="about-refresh__value-text"><strong class="about-refresh__value-name">{{ siteText('about.structure.' + index + '.title', title, locale) }}</strong></span>
