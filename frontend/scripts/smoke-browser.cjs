@@ -146,11 +146,11 @@ async function assertServicesTheme(chrome, url) {
     assert.ok(!nav.errorText, 'Chrome no pudo abrir Servicios: ' + nav.errorText)
     let ready = false
     for (let i = 0; i < 100; i++) {
-      ready = await evaluate("document.querySelectorAll('.services-directory__card').length === 10")
+      ready = await evaluate("document.querySelectorAll('.services-directory__card').length === 8")
       if (ready) break
       await new Promise(resolve => setTimeout(resolve, 120))
     }
-    assert.ok(ready, 'No aparecieron las 10 tarjetas del directorio')
+    assert.ok(ready, 'No aparecieron las 8 tarjetas del directorio')
     const probe = async dark => {
       const action = dark ? 'add' : 'remove'
       await evaluate("document.documentElement.classList." + action + "('theme-dark')")
@@ -171,9 +171,9 @@ async function assertServicesTheme(chrome, url) {
     assert.equal(dark.text, 'rgb(244, 246, 250)', 'Tema oscuro: título invisible')
     assert.equal(dark.fill, 'rgb(244, 246, 250)', 'Tema oscuro: text-fill-color invisible')
     const arrowGeometry = await evaluate("(() => { const circle = document.querySelector('.services-directory__card-arrow').getBoundingClientRect(); const icon = document.querySelector('.services-directory__card-arrow svg').getBoundingClientRect(); return { dx: Math.abs(circle.left + circle.width / 2 - icon.left - icon.width / 2), dy: Math.abs(circle.top + circle.height / 2 - icon.top - icon.height / 2), icons: document.querySelectorAll('.services-directory__card-arrow svg').length }; })()")
-    assert.equal(arrowGeometry.icons, 10, 'Los 10 enlaces necesitan flechas SVG centradas')
+    assert.equal(arrowGeometry.icons, 8, 'Los 8 enlaces necesitan flechas SVG centradas')
     assert.ok(arrowGeometry.dx <= 1 && arrowGeometry.dy <= 1, 'Flecha descentrada dentro de círculo: ' + JSON.stringify(arrowGeometry))
-    console.log('PASS Chrome: 10 tarjetas con contraste real claro/oscuro')
+    console.log('PASS Chrome: 8 tarjetas con contraste real claro/oscuro')
     // About: five cards should keep 3/2, 2/2/1 and single-column
     // layouts, with every incomplete final row centered in its container.
     const aboutUrl = new URL('/nosotros', url).href
@@ -334,6 +334,65 @@ async function assertServicesTheme(chrome, url) {
     }
     console.log('PASS Chrome: FAQ Inicio/Servicios y Valores con animación, click afuera, Escape y ARIA')
 
+    // All large service heroes share the same image, overlay and fade selectors.
+    // Check computed CSS in actual Chrome for all transport/storage routes,
+    // both breakpoints and themes (not just a matching source-code literal).
+    const serviceHeroRoutes = [
+      '/servicios/almacenamiento-fiscal',
+      '/servicios/agenciamiento-aduanal',
+      '/servicios/consolidadora-de-carga',
+      '/servicios/transporte-maritimo',
+      '/servicios/transporte-terrestre',
+      '/servicios/transporte-aereo',
+      '/servicios/transporte-local',
+      '/servicios/transporte-panama-costa-rica'
+    ]
+    for (const servicePath of serviceHeroRoutes) {
+      const heroNavigation = await send('Page.navigate', { url: new URL(servicePath, url).href })
+      assert.ok(!heroNavigation.errorText, 'Navegación fallida: ' + servicePath)
+      let imageReady = false
+      for (let attempt = 0; attempt < 100; attempt++) {
+        imageReady = await evaluate("(() => { const img = document.querySelector('.service-landing-hero__media img'); return Boolean(img && img.complete && img.naturalWidth > 0 && document.querySelector('.service-landing-hero__blur')); })()")
+        if (imageReady) break
+        await new Promise(resolve => setTimeout(resolve, 120))
+      }
+      assert.ok(imageReady, 'Imagen del hero ausente o sin cargar: ' + servicePath)
+      for (const viewport of [1280, 390]) {
+        await send('Emulation.setDeviceMetricsOverride', {
+          width: viewport, height: 950, deviceScaleFactor: 1, mobile: false
+        })
+        for (const dark of [false, true]) {
+          await evaluate("document.documentElement.classList." + (dark ? 'add' : 'remove') + "('theme-dark'); true")
+          const state = await evaluate("(() => { const hero = document.querySelector('.service-landing-hero'); const img = hero.querySelector('img'); const blur = hero.querySelector('.service-landing-hero__blur'); const media = hero.querySelector('.service-landing-hero__media'); const story = document.querySelector('.service-landing-story'); return { sourceReady: img.complete && img.naturalWidth > 0, imageFilter: getComputedStyle(img).filter, blur: getComputedStyle(blur).backdropFilter, safariBlur: getComputedStyle(blur).webkitBackdropFilter, contrastShade: getComputedStyle(blur).backgroundImage, photoShade: getComputedStyle(media, '::after').backgroundImage, titleColor: getComputedStyle(hero.querySelector('h1')).color, bottomBlur: getComputedStyle(hero, '::after').backdropFilter, storyBlur: getComputedStyle(story, '::before').backdropFilter }; })()")
+          assert.equal(state.blur, 'none',
+            'La fotografía grande no debe llevar desenfoque artificial: ' + servicePath + ' (' + viewport + 'px)')
+          assert.equal(state.storyBlur, 'none',
+            'La transición inferior no debe desenfocar la fotografía: ' + servicePath)
+          if (!dark) {
+            assert.equal(state.bottomBlur, 'none',
+              'El fundido claro no debe desenfocar la fotografía: ' + servicePath)
+          }
+          assert.ok(!state.imageFilter.includes('blur('),
+            'La propia imagen no debe tener filter:blur(): ' + servicePath)
+          // Chromium does not expose the WebKit alias on every CI build.
+          // Check its computed value only when the browser implements it;
+          // the CSS also declares -webkit-backdrop-filter:none for Safari.
+          if (typeof state.safariBlur === 'string') {
+            assert.equal(state.safariBlur, 'none',
+              'El alias WebKit no debe desenfocar el hero: ' + servicePath)
+          }
+          assert.equal(state.sourceReady, true, 'Imagen original no cargada: ' + servicePath)
+          assert.equal(state.titleColor, 'rgb(255, 255, 255)',
+            'Contraste de titular alterado: ' + servicePath)
+          assert.ok(state.contrastShade.startsWith('linear-gradient(') &&
+                    state.photoShade.startsWith('linear-gradient('),
+            'Se deben conservar los degradados protectores del texto: ' + servicePath)
+        }
+      }
+      console.log('PASS Chrome: fotografía más nítida y contraste intacto: ' + servicePath)
+    }
+    console.log('PASS Chrome: 8 heroes de Servicios, 390/1280px, ambos temas')
+
 
 
   } finally {
@@ -364,14 +423,12 @@ async function main() {
     const scenarios = [
       { url: '/', role: null, must: ['class="app-site home-page"', 'home-hero__content'] },
       { url: '/servicios', role: null, must: ['services-page', 'services-page__transport'] },
-      { url: '/servicios/almacenamiento-fiscal', role: null, must: ['service-landing-page', 'Almacenamiento fiscal de mercancías en Costa Rica'] },
+      { url: '/servicios/almacenamiento-fiscal', role: null, must: ['service-landing-page', 'Almacén fiscal de mercancías en Costa Rica'] },
       { url: '/servicios/transporte-maritimo', role: null, must: ['service-landing-page', 'service-landing-hero__inner', 'service-landing-story__frame', 'service-landing-feature-grid', 'service-landing-faq__item'] },
       { url: '/servicios/transporte-terrestre', role: null, must: ['service-landing-page', 'service-landing-feature-grid'] },
       { url: '/servicios/transporte-aereo', role: null, must: ['service-landing-page', 'service-landing-feature-grid'] },
-      { url: '/servicios/transporte-internacional', role: null, must: ['service-landing-page', 'service-landing-feature-grid'] },
       { url: '/servicios/transporte-local', role: null, must: ['service-landing-page', 'service-landing-feature-grid'] },
       { url: '/servicios/transporte-panama-costa-rica', role: null, must: ['service-landing-page', 'service-landing-hero__inner', 'service-landing-story__frame', 'service-landing-feature-grid', 'service-landing-faq__item'] },
-      { url: '/servicios/bodegaje-general', role: null, must: ['service-landing-page', 'Bodegaje general y almacenamiento'] },
       { url: '/servicios/agenciamiento-aduanal', role: null, must: ['service-landing-page', 'Agenciamiento aduanal para importaciones'] },
       { url: '/servicios/consolidadora-de-carga', role: null, must: ['service-landing-page', 'Consolidadora de carga y transporte'] },
       { url: '/nosotros', role: null, must: ['about-reference-page', 'about-refresh__intro-grid', 'about-refresh__purpose-card', 'about-refresh__value-trigger', 'about-refresh__capabilities', 'about-refresh__gallery'] },
@@ -431,7 +488,6 @@ async function main() {
           '/servicios/transporte-maritimo': 'Condiciones del embarque',
           '/servicios/transporte-terrestre': 'Opciones regionales',
           '/servicios/transporte-aereo': 'Disponibilidad y condiciones',
-          '/servicios/transporte-internacional': 'Próximos pasos',
           '/servicios/transporte-local': 'Coordinación con Neriteka',
           '/servicios/transporte-panama-costa-rica': 'Cruce fronterizo'
         }[scenario.url]
@@ -439,11 +495,14 @@ async function main() {
       }
       if (scenario.url === '/servicios' || scenario.url.startsWith('/servicios/')) {
         assert.ok(html.includes('class="nav-dropdown nav-dropdown--services"') || html.includes('nav-dropdown--services'), 'No está el desplegable de Servicios en el encabezado: ' + scenario.url)
-        for (const slug of ['almacenamiento-fiscal', 'bodegaje-general', 'agenciamiento-aduanal', 'consolidadora-de-carga']) {
+        for (const slug of ['almacenamiento-fiscal', 'agenciamiento-aduanal', 'consolidadora-de-carga']) {
           assert.ok(html.includes('href="/servicios/' + slug + '"'), 'No aparece el enlace de ' + slug + ' en el menú de Servicios')
         }
-        for (const slug of ['transporte-maritimo', 'transporte-terrestre', 'transporte-aereo', 'transporte-internacional', 'transporte-local', 'transporte-panama-costa-rica']) {
+        for (const slug of ['transporte-maritimo', 'transporte-terrestre', 'transporte-aereo', 'transporte-local', 'transporte-panama-costa-rica']) {
           assert.ok(html.includes('href="/servicios/' + slug + '"'), 'Falta el transporte en el submenú: ' + slug)
+        }
+        for (const retired of ['bodegaje-general', 'transporte-internacional']) {
+          assert.ok(!html.includes('href="/servicios/' + retired + '"'), 'No debe conservar enlace al servicio eliminado: ' + retired)
         }
         assert.ok(html.includes('services-megamenu__rail') && html.includes('services-megamenu__detail') && html.includes('services-megamenu__group-trigger'), 'Falta el megamenú de dos columnas debajo del nav')
         assert.ok(html.includes('aria-current="page"'), 'La ruta actual debe quedar resaltada en Servicios: ' + scenario.url)

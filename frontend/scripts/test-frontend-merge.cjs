@@ -399,29 +399,28 @@ for (const padding of [
 ]) {
   assert.ok(serviceStepsCss.includes(padding), 'Separación superior responsive para el número 02: ' + padding)
 }
-// Only the four long-form guide services need a more compact vertical
+// Only the three remaining long-form guide services need a more compact vertical
 // arrangement; transport pages keep their already approved stage spacing.
 const longGuideSlugs = Object.keys(JSON.parse(source('seo/service-landings.json')))
 assert.deepEqual(longGuideSlugs.sort(), [
   '/servicios/agenciamiento-aduanal',
   '/servicios/almacenamiento-fiscal',
-  '/servicios/bodegaje-general',
   '/servicios/consolidadora-de-carga'
-], 'Solo los cuatro servicios de texto extendido reciben el ajuste')
+], 'Solo los tres servicios de texto extendido reciben el ajuste')
 assert.match(serviceLanding, /service-landing-page--long-guide': Boolean\(guides\[route\]\)/,
-  'La clase de texto extendido se activa únicamente en las cuatro guías')
+  'La clase de texto extendido se activa únicamente en las tres guías')
 assert.match(serviceLanding, /service-landing-page--balanced-guide': Boolean\(guides\[route\]\) && route !== '\/servicios\/almacenamiento-fiscal'/,
-  'Solo Bodegaje, Agenciamiento y Consolidadora reciben el ajuste; Fiscal permanece igual')
+  'Solo Agenciamiento y Consolidadora reciben el ajuste; Fiscal permanece igual')
 assert.match(serviceStepsCss, /\.service-landing-page--balanced-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-grid\s*\{\s*padding-top:clamp\(72px,calc\(5\.2vw \+ 14px\),92px\);\s*gap:clamp\(18px,1\.9vw,26px\);/,
   'Los tres servicios recuperan ligeramente la posición vertical anterior')
 assert.match(serviceStepsCss, /\.service-landing-page--balanced-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-visual\s*\{\s*height:clamp\(210px,30svh,310px\);\s*max-height:100%;/,
   'Las fotografías de los tres servicios recuperan su tamaño, con altura adaptable')
 assert.match(serviceStepsCss, /@media\(min-width:901px\)\s*\{\s*\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-grid\s*\{\s*padding-top:clamp\(42px,4vw,60px\);\s*gap:clamp\(14px,1\.5vw,22px\);/,
-  'Las cuatro guías adelantan texto y foto sin afectar a transportes')
+  'Las tres guías adelantan texto y foto sin afectar a transportes')
 assert.match(serviceStepsCss, /\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-section-heading>p:not\(\.section-tag\)\s*\{\s*font-size:clamp\(16px,1\.2vw,18px\);\s*line-height:1\.55;/,
   'Los párrafos largos conservan todo el contenido y utilizan un ritmo vertical compacto')
 assert.match(serviceStepsCss, /\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-visual\s*\{\s*height:clamp\(210px,30svh,310px\);\s*max-height:100%;\s*min-height:0;/,
-  'Las fotos de las cuatro guías recuperan su tamaño máximo anterior')
+  'Las fotos de las tres guías recuperan su tamaño máximo anterior')
 assert.match(serviceStepsCss, /grid-template-rows:max-content minmax\(0,1fr\);\s*max-height:calc\(min\(100svh - 48px,820px\) - clamp\(30px,4vw,58px\) - 14px\)/,
   'La imagen se adapta al espacio que queda debajo del texto y dentro del video')
 // The light hero's transition is shorter/lower on desktop, while the dark
@@ -433,11 +432,11 @@ assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-hero::
 // Long-form guides lower the visible fade without moving the following frame;
 // the transport pages retain the shared baseline transition.
 assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-page--long-guide \.service-landing-hero::after\s*\{\s*height:clamp\(105px,13svh,155px\);/,
-  'Las cuatro guías bajan el inicio visual del difuminado de portada')
-assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-page--long-guide \.service-landing-story::before\s*\{\s*backdrop-filter:blur\(10px\);/,
-  'Las cuatro guías hacen coherente el difuminado entre ambas capas')
+  'Las tres guías bajan el inicio visual del difuminado de portada')
+assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-page--long-guide \.service-landing-story::before\s*\{\s*backdrop-filter:none;/,
+  'Las tres guías conservan el empalme sin desenfocar la fotografía')
 assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-hero::after\s*\{\s*height:clamp\(130px,16svh,190px\);/,
-  'El difuminado ya aprobado en transportes se conserva')
+  'La altura de la transición en transportes se conserva sin alterar el layout')
 // Regression: top navigation underlines are hover/focus-only in both themes,
 // while the existing active item stays a red pill.
 const hoverOnlyNavCss = source('src/style.css')

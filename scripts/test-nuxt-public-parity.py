@@ -15,10 +15,10 @@ ARTIFACTS = Path("artifacts/nuxt-hybrid-visual")
 ARTIFACTS.mkdir(parents=True, exist_ok=True)
 ROUTES = (
     "/", "/nosotros", "/servicios", "/noticias",
-    "/servicios/almacenamiento-fiscal", "/servicios/bodegaje-general",
+    "/servicios/almacenamiento-fiscal",
     "/servicios/agenciamiento-aduanal", "/servicios/consolidadora-de-carga",
     "/servicios/transporte-maritimo", "/servicios/transporte-terrestre",
-    "/servicios/transporte-aereo", "/servicios/transporte-internacional",
+    "/servicios/transporte-aereo",
     "/servicios/transporte-local", "/servicios/transporte-panama-costa-rica"
 )
 

@@ -1036,10 +1036,9 @@ const detailMedia=(slug:string,name:string,field:string,section:string,label:str
 const defaultVideo=(slug:string):string=>
   slug==='transporte-aereo'?'/videos/service-air.mp4':
   ['transporte-terrestre','transporte-local','transporte-panama-costa-rica'].includes(slug)?'/videos/service-road.mp4':
-  ['almacenamiento-fiscal','bodegaje-general'].includes(slug)?'/videos/service-warehouse.mp4':'/videos/service-maritime.mp4'
+  slug==='almacenamiento-fiscal'?'/videos/service-warehouse.mp4':'/videos/service-maritime.mp4'
 const guideImages:Record<string,string>={
   'almacenamiento-fiscal':'/images/services-warehouse.webp',
-  'bodegaje-general':'/images/warehouse-person.webp',
   'agenciamiento-aduanal':'/images/operation.webp',
   'consolidadora-de-carga':'/images/ship.webp'
 }
@@ -1047,8 +1046,7 @@ for(const [route,guide] of Object.entries(serviceGuides)){
   const slug=route.split('/').pop() || ''
   const name=guide.es.label
   const guideLocations:Record<string,[string,string]>={
-    'almacenamiento-fiscal':['Almacenamiento fiscal en Costa Rica','Fiscal warehousing in Costa Rica'],
-    'bodegaje-general':['Bodegaje general en Costa Rica','General warehousing in Costa Rica'],
+    'almacenamiento-fiscal':['Almacén fiscal en Costa Rica','Fiscal warehousing in Costa Rica'],
     'agenciamiento-aduanal':['Gestiones aduanales en Costa Rica','Customs coordination in Costa Rica'],
     'consolidadora-de-carga':['Coordinación de carga consolidada','Consolidated cargo coordination']
   }
