@@ -13,6 +13,7 @@ on:
       - 'backend/Endpoints/DholeCatalogEndpoints.cs'
       - 'backend/Program.cs'
       - 'tests/DholeCatalogHarness/**'
+      - 'tests/DholeQuoteHttpHarness/**'
       - 'compose.dhole-catalog-smoke.yaml'
       - 'scripts/test-dhole-catalog-docker.ps1'
       - '.github/workflows/dhole-catalogs.yml'
@@ -92,3 +93,31 @@ jobs:
         run: |
           docker compose -f compose.dhole-catalog-smoke.yaml down --remove-orphans
           rm -f .env.dhole-catalog-smoke
+
+  postgres-quote-http:
+    name: Real HTTP POST into disposable PostgreSQL, simulated Dhole
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: dhole_quote_e2e
+          POSTGRES_USER: ci_dhole
+          POSTGRES_PASSWORD: fictional-ci-postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_dhole -d dhole_quote_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      CI: "true"
+      QUOTE_E2E_POSTGRES: "Host=127.0.0.1;Port=5432;Username=ci_dhole;Password=fictional-ci-postgres;Database=dhole_quote_e2e"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Execute actual official quote API in TestServer with isolated PostgreSQL
+        run: dotnet run --project tests/DholeQuoteHttpHarness/DholeQuoteHttpHarness.csproj -c Release
