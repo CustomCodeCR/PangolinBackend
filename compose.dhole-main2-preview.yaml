@@ -1,7 +1,8 @@
 # LOCAL DEVELOPMENT ONLY — explicitly opt-in Dhole preview.
 # Combine with the four Compose files used by scripts/start-main2-hybrid.ps1.
-# Never include this overlay in production. The real secret is supplied only
-# through the current PowerShell process and is not written into this file.
+# Never include this overlay in production. The key can live in a gitignored
+# local .env as DHOLE_LOCAL_PREVIEW_KEY. The PowerShell launcher passes it in
+# process environment, and this committed overlay never stores its value.
 services:
   backend:
     environment:
