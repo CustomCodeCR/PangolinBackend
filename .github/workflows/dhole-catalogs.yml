@@ -16,6 +16,7 @@ on:
       - 'tests/DholeQuoteHttpHarness/**'
       - 'compose.dhole-catalog-smoke.yaml'
       - 'scripts/test-dhole-catalog-docker.ps1'
+      - 'scripts/start-main2-hybrid.ps1'
       - 'scripts/start-dhole-main2-preview.ps1'
       - 'compose.dhole-main2-preview.yaml'
       - '.github/workflows/dhole-catalogs.yml'
@@ -47,6 +48,7 @@ jobs:
         run: |
           foreach ($file in @(
             'scripts/test-dhole-catalog-docker.ps1',
+            'scripts/start-main2-hybrid.ps1',
             'scripts/start-dhole-main2-preview.ps1'
           )) {
             $tokens = $null
@@ -75,6 +77,39 @@ jobs:
           -f compose.main2-hybrid.yaml
           -f compose.dhole-main2-preview.yaml
           config --quiet
+      - name: Check optional Dhole flags appear only in the local preview overlay
+        env:
+          POSTGRES_PASSWORD: fictional-postgres
+          AUTH_OTP_PEPPER: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          AUTH_JWT_SIGNING_KEY: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+          DHOLE_LOCAL_PREVIEW_KEY: fictional-allowlisted-preview
+        run: |
+          docker compose -f compose.yaml \
+            -f compose.nuxt-preview.yaml \
+            -f compose.nuxt-local-hybrid.yaml \
+            -f compose.main2-hybrid.yaml \
+            config --format json > /tmp/dhole-standard.json
+          docker compose -f compose.yaml \
+            -f compose.nuxt-preview.yaml \
+            -f compose.nuxt-local-hybrid.yaml \
+            -f compose.main2-hybrid.yaml \
+            -f compose.dhole-main2-preview.yaml \
+            config --format json > /tmp/dhole-enabled.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          standard=json.loads(Path('/tmp/dhole-standard.json').read_text())
+          enabled=json.loads(Path('/tmp/dhole-enabled.json').read_text())
+          normal=standard['services']['backend']['environment']
+          active=enabled['services']['backend']['environment']
+          assert normal.get('DholeCatalogs__Enabled') not in ('true', True)
+          for flag in ('Enabled','FormEnabled','SubmissionEnabled','ItinerariesEnabled'):
+              assert active.get('DholeCatalogs__'+flag) in ('true',True)
+          assert active['DholeCatalogs__ApiKey']=='fictional-allowlisted-preview'
+          print('OK: standard development Compose remains disabled; local opt-in overlay enables all Dhole flags.')
+          PY
+          rm -f /tmp/dhole-standard.json /tmp/dhole-enabled.json
+
       - name: Generate fake CI-only secrets, never use production key
         run: |
           cat > .env.dhole-catalog-smoke <<'EOF'

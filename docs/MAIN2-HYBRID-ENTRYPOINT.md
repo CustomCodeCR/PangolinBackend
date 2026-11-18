@@ -24,6 +24,22 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-main2-hybrid
 
 Para una vista únicamente local omite `-BindIp` (usa `127.0.0.1`).
 
+### Dhole activado automáticamente en el Docker híbrido local
+
+El mismo comando `start-main2-hybrid.ps1 -Action up` **habilita por defecto los catálogos Dhole** en Cotizaciones, GIO e Itinerarios si encuentra `DHOLE_LOCAL_PREVIEW_KEY` con valor en tu archivo `.env` privado (o en la variable de entorno del proceso). **No necesitás ejecutar `start-dhole-main2-preview.ps1` por separado.**
+
+Configuración de una sola vez en `.env` (archivo excluido de Git):
+
+```dotenv
+DHOLE_LOCAL_PREVIEW_KEY='TU_CLAVE_REAL'
+```
+
+El lanzador aplica automáticamente el overlay **solo de desarrollo** `compose.dhole-main2-preview.yaml`, habilitando `DholeCatalogs__Enabled`, `FormEnabled`, `SubmissionEnabled` e `ItinerariesEnabled` en el backend local. El frontend mantiene sus pantallas y el backend verifica los UUID y datos del proveedor. La clave **nunca** se añade al repositorio ni se imprime, pero, como secreto de entorno de Docker local, será accesible a quienes puedan inspeccionar el contenedor. No compartás `.env`, capturas de `docker inspect` ni la salida completa de `docker compose config`.
+
+Si no hay clave válida en la configuración, el sistema **no activa Dhole** y conserva el comportamiento local previo. Para deshabilitarlo en el entorno local, quitá/comentá `DHOLE_LOCAL_PREVIEW_KEY` de `.env`, asegurate de que tampoco exista en la sesión PowerShell y ejecutá de nuevo el mismo lanzador `-Action up`.
+
+**Producción y `main` permanecen sin cambios.** El overlay no se incluye en Docker de producción ni en `docker compose up` sin el lanzador. No ejecutar `down -v`: se conservan las bases de datos y volúmenes.
+
 Consultar estado de los servicios:
 
 ```powershell
