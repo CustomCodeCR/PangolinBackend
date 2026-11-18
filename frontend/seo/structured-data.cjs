@@ -113,7 +113,7 @@ function makeStructuredData(route, seo, sourceGraph) {
       ['maritimo', 'Transporte marítimo de carga', 'Transporte marítimo internacional'],
       ['multimodal', 'Logística multimodal', 'Transporte multimodal de carga'],
       ['aduanas', 'Agenciamiento aduanero', 'Servicios de gestión aduanera'],
-      ['almacenamiento', 'Almacenamiento de mercancías', 'Servicios de almacenamiento']
+      ['almacenamiento', 'Almacén fiscal', 'Servicios de almacén fiscal']
     ]
     for (const [id, name, serviceType] of services) graph.push({
       '@type': 'Service',
@@ -125,8 +125,7 @@ function makeStructuredData(route, seo, sourceGraph) {
     })
     const existingServiceDetails = [
       ['agenciamiento-aduanal', 'Agenciamiento aduanal', 'Coordinación de gestiones y documentación aduanera según cada operación', 'Gestiones y documentación aduanera sujetas a revisión según la mercancía y el trámite.'],
-      ['almacenamiento-fiscal', 'Almacenamiento fiscal', 'Servicios de almacenamiento fiscal', 'Disponibilidad y condiciones de almacenamiento fiscal se confirman según la carga y la operación.'],
-      ['bodegaje-general', 'Bodegaje general', 'Servicios de bodegaje general', 'Disponibilidad y condiciones de bodegaje general se confirman según la carga y la operación.'],
+      ['almacenamiento-fiscal', 'Almacén fiscal', 'Servicios de almacén fiscal', 'Disponibilidad y condiciones de almacenamiento fiscal se confirman según la carga y la operación.'],
       ['consolidadora-de-carga', 'Consolidadora de carga', 'Coordinación de carga consolidada LCL', 'Alternativas de consolidación sujetas a revisión de ruta, volumen y detalles del embarque.']
     ]
     for (const [id, name, serviceType, description] of existingServiceDetails) graph.push({
