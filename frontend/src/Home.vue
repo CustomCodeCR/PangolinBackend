@@ -844,3 +844,125 @@ html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__o
   -webkit-text-fill-color: #8a4b59 !important;
 }
 </style>
+
+
+<style>
+/* Home: six-service accordion stays readable on phones and tablets.
+   Use full-width stacked cards rather than dividing a phone into six strips.
+   Desktop keeps the original horizontal photographic accordion. */
+@media (max-width: 1024px) {
+  html .app-site.home-page #servicios .service-accordion {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    gap: 10px !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    scroll-snap-type: none !important;
+  }
+
+  html .app-site.home-page #servicios .service-accordion__item,
+  html .app-site.home-page #servicios .service-accordion__item.is-open {
+    display: block !important;
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 60px !important;
+    border-radius: 16px;
+    transition: border-color .2s ease, box-shadow .2s ease !important;
+  }
+
+  html .app-site.home-page #servicios .service-accordion__trigger,
+  html .app-site.home-page #servicios .service-accordion .service-accordion__item.is-open > .service-accordion__trigger {
+    position: relative !important;
+    inset: auto !important;
+    z-index: 5;
+    display: flex !important;
+    flex: 0 0 auto !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 60px !important;
+    padding: 14px 18px !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid rgba(255,255,255,.22) !important;
+    background: #b20b2d !important;
+    text-align: center !important;
+    touch-action: manipulation;
+  }
+
+  html .app-site.home-page #servicios .service-accordion__trigger .service-accordion__name {
+    position: static !important;
+    display: block !important;
+    width: auto !important;
+    max-width: 100% !important;
+    transform: none !important;
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+    white-space: normal !important;
+    font: 850 clamp(14px, 2.8vw, 17px)/1.3 system-ui, sans-serif !important;
+    letter-spacing: .045em !important;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    -webkit-text-stroke: 0 transparent !important;
+    overflow-wrap: break-word;
+  }
+
+  html .app-site.home-page #servicios .service-accordion__panel {
+    position: relative !important;
+    inset: auto !important;
+    display: flex !important;
+    flex: 0 0 auto !important;
+    align-items: flex-end !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: clamp(240px, 38vw, 320px) !important;
+    padding: 24px 22px !important;
+    overflow: visible !important;
+    background: transparent !important;
+  }
+
+  html .app-site.home-page #servicios .service-accordion__copy {
+    position: relative !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+  }
+
+  html .app-site.home-page #servicios .service-accordion__copy h3 {
+    font-size: clamp(20px, 3vw, 27px) !important;
+    line-height: 1.2 !important;
+  }
+  html .app-site.home-page #servicios .service-accordion__copy p {
+    font-size: clamp(13px, 2vw, 15px) !important;
+    line-height: 1.55 !important;
+    margin-bottom: 16px !important;
+  }
+  html .app-site.home-page #servicios .service-accordion__copy .btn {
+    min-width: 0 !important;
+    min-height: 44px !important;
+    max-width: 100% !important;
+    padding: 10px 16px !important;
+    font-size: 14px !important;
+    white-space: normal !important;
+  }
+}
+@media (max-width: 400px) {
+  html .app-site.home-page #servicios .service-accordion__panel {
+    min-height: 255px !important;
+    padding: 22px 16px !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html .app-site.home-page #servicios .service-accordion__item {
+    transition: none !important;
+  }
+}
+</style>
