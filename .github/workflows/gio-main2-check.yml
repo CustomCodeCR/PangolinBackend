@@ -13,6 +13,7 @@ on:
       - "backend/Endpoints/OfficialQuoteEndpoints.cs"
       - "backend/Program.cs"
       - "frontend/scripts/smoke-gio-workflows.cjs"
+      - "frontend/scripts/smoke-dhole-wizard.cjs"
       - ".github/workflows/gio-main2-check.yml"
   workflow_dispatch:
 
@@ -49,3 +50,12 @@ jobs:
         env:
           GIO_DHOLE_MOCK: "1"
         run: node frontend/scripts/smoke-gio-workflows.cjs
+      - name: Exercise official quote wizard in Chrome with fake Dhole and real DOM
+        run: node frontend/scripts/smoke-dhole-wizard.cjs
+      - name: Upload isolated visual review screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dhole-quote-wizard-visual
+          path: artifacts/dhole-quote-visual/
+          if-no-files-found: ignore
