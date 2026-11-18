@@ -38,9 +38,11 @@ try {
         $secure.Dispose()
     }
     Write-Host 'Activando opciones Dhole solo en el backend Docker de desarrollo...'
+    # A failed Compose command may partially recreate the container; always
+    # attempt to restore the normal backend if this call was started.
+    $backendPreviewStarted = $true
     & docker compose @files -f compose.dhole-main2-preview.yaml up -d --no-deps --force-recreate backend
     if ($LASTEXITCODE -ne 0) { throw 'No se pudo activar Dhole en el backend local.' }
-    $backendPreviewStarted = $true
 
     $ready = $false
     for ($attempt = 0; $attempt -lt 25; $attempt++) {
