@@ -14,9 +14,13 @@ const valueIcons = [Handshake, Scale, UsersRound, Award, ShieldCheck]
 const capabilityIcons = [Truck, ClipboardCheck, Globe2, Boxes, Ship]
 const openedValue = ref<number | null>(null)
 const openedStructure = ref<number | null>(null)
-const structureTitles = computed(() => (locale.value.startsWith('es')
-  ? ['Nuestros servicios', '48 años', 'Mesa de ayuda', 'Agente propio en sitio', 'Departamentos', 'Universidad corporativa', 'Enfoque ambiental']
-  : ['Our services', '48 years', 'Help desk', 'On-site agent', 'Departments', 'Corporate university', 'Environmental approach']))
+// Preserve the original CMS keys (2–6), so previously published edits remain valid.
+const structureTitles = computed(() => {
+  const titles = locale.value.startsWith('es')
+    ? ['Mesa de ayuda', 'Agente propio en sitio', 'Departamentos', 'Universidad corporativa', 'Enfoque ambiental']
+    : ['Help desk', 'On-site agent', 'Departments', 'Corporate university', 'Environmental approach']
+  return titles.map((title, offset) => ({ index: offset + 2, title }))
+})
 const structureDepartments = computed(() => (locale.value.startsWith('es')
   ? ['Consolidadora', 'Pedimentación', 'Contabilidad', 'Servicio al cliente', 'Transporte interno de carga']
   : ['Freight consolidation', 'Customs declaration processing', 'Accounting', 'Customer service', 'Domestic cargo transport']))
@@ -228,24 +232,24 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
             </div>
           </div>
           <div class="about-refresh__accordion about-refresh__structure-grid">
-            <article v-for="(title, index) in structureTitles" :key="index" class="about-refresh__structure-card"
-              :class="{ 'is-open': openedStructure === index }">
+            <article v-for="item in structureTitles" :key="item.index" class="about-refresh__structure-card"
+               :class="{ 'is-open': openedStructure === item.index }">
               <h3>
                 <button class="about-refresh__value-trigger about-refresh__structure-trigger" type="button"
-                  :aria-expanded="openedStructure === index" :aria-controls="`about-structure-${index}`"
-                  @click="openedStructure = openedStructure === index ? null : index">
-                  <span class="about-refresh__value-text"><strong class="about-refresh__value-name">{{ siteText('about.structure.' + index + '.title', title, locale) }}</strong></span>
+                  :aria-expanded="openedStructure === item.index" :aria-controls="`about-structure-${item.index}`"
+                  @click="openedStructure = openedStructure === item.index ? null : item.index">
+                  <span class="about-refresh__value-text"><strong class="about-refresh__value-name">{{ siteText('about.structure.' + item.index + '.title', item.title, locale) }}</strong></span>
                   <ChevronDown class="about-refresh__value-chevron" :size="22" aria-hidden="true" />
                 </button>
               </h3>
-              <div :id="`about-structure-${index}`" class="about-refresh__value-panel"
-                :class="{ 'is-open': openedStructure === index }" :aria-hidden="openedStructure !== index"
-                :inert="openedStructure !== index">
+              <div :id="`about-structure-${item.index}`" class="about-refresh__value-panel"
+                :class="{ 'is-open': openedStructure === item.index }" :aria-hidden="openedStructure !== item.index"
+                :inert="openedStructure !== item.index">
                 <div class="about-refresh__value-inner">
-                  <ul v-if="index === 4" class="about-refresh__structure-departments">
+                  <ul v-if="item.index === 4" class="about-refresh__structure-departments">
                     <li v-for="(department, d) in structureDepartments" :key="d">{{ siteText('about.structure.departments.' + d, department, locale) }}</li>
                   </ul>
-                  <p v-else-if="index === 6">{{ siteText('about.structure.environment', structureEnvironment, locale) }}</p>
+                  <p v-else-if="item.index === 6">{{ siteText('about.structure.environment', structureEnvironment, locale) }}</p>
                   <div v-else class="about-refresh__structure-empty" aria-hidden="true"></div>
                 </div>
               </div>
@@ -292,12 +296,14 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 .about-refresh__structure-card h3{margin:0}
 .about-refresh__structure-card.is-open .about-refresh__value-chevron{transform:rotate(180deg)}
 
-.about-refresh__structure-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.about-refresh__structure-grid{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;gap:clamp(13px,1.2vw,22px)}
+.about-refresh__structure-grid>.about-refresh__structure-card{box-sizing:border-box;flex:0 0 calc((100% - 4 * clamp(13px,1.2vw,22px))/5)}
 .about-refresh__structure-grid .about-refresh__value-trigger{min-height:112px}
 .about-refresh__structure-departments{margin:0;padding:0 22px 24px 40px;color:var(--about-muted);line-height:1.8;font-size:14px}
 .about-refresh__structure-empty{height:12px}
-@media(max-width:1100px){.about-refresh__structure-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:650px){.about-refresh__structure-grid{grid-template-columns:1fr}}
+@media(max-width:1320px){.about-refresh__structure-grid>.about-refresh__structure-card{flex-basis:calc((100% - 40px)/3)}}
+@media(max-width:950px){.about-refresh__structure-grid>.about-refresh__structure-card{flex-basis:calc((100% - 20px)/2)}}
+@media(max-width:650px){.about-refresh__structure-grid>.about-refresh__structure-card{flex-basis:100%}}
 html.theme-dark .about-refresh__structure{background:#171b23}
 html.theme-dark .about-refresh__structure-card{background:#111b31;border-color:rgba(255,255,255,.23)}
 html.theme-dark .about-refresh__structure-card.is-open{border-color:#f07189}
