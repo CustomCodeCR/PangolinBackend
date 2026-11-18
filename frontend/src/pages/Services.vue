@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import IconSymbol from '../components/IconSymbol.vue'
 import SiteMedia from '../components/SiteMedia.vue'
+import StaticOptimizedImage from '../components/StaticOptimizedImage.vue'
 import { siteText, siteVisual, siteCssImage } from '../siteCms'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -42,16 +43,24 @@ onBeforeUnmount(() => {
 })
 // Enlaces HTML visibles para que usuarios y rastreadores descubran las páginas
 // comerciales. No dependen de abrir pestañas, modales ni ejecutar un clic.
+// Prefer relevant company-site photographs over unrelated airport graphics.
 const directoryGuideImages: Record<string, string> = {
   'almacenamiento-fiscal': '/images/services-warehouse.webp',
-  'agenciamiento-aduanal': '/images/operation.webp',
-  'consolidadora-de-carga': '/images/ship.webp'
+  'agenciamiento-aduanal': '/images/services-crane.webp',
+  'consolidadora-de-carga': '/images/cover-logistics.webp'
+}
+const directoryTransportImages: Record<string,string> = {
+  'transporte-maritimo':'/images/ship.webp',
+  'transporte-terrestre':'/images/truck.webp',
+  'transporte-aereo':'/images/air-freight.webp',
+  'transporte-local':'/images/about-operations.webp',
+  'transporte-panama-costa-rica':'/images/truck.webp'
 }
 const serviceDirectory = computed(() => {
   const lang: 'es' | 'en' = locale.value.toLowerCase().startsWith('es') ? 'es' : 'en'
   return [
     ...servicePages.map(item => ({
-      href: '/servicios/' + item.slug, slug: item.slug, image: item.image,
+      href: '/servicios/' + item.slug, slug: item.slug, image: directoryTransportImages[item.slug] || item.image,
       label: siteText('service.' + item.slug + '.title', item.title[lang], locale.value)
     })),
     ...Object.entries(serviceGuides).map(([href, guide]) => {
@@ -82,8 +91,214 @@ type DirectoryCategory = 'transport' | 'logistics'
 const activeDirectoryCategory = ref<DirectoryCategory>('transport')
 const changeDirectoryCategory = (category: DirectoryCategory, focus = false) => {
   activeDirectoryCategory.value = category
-  if (focus) void nextTick(() => document.getElementById('services-directory-tab-' + category)?.focus())
+  directoryRunWidth=0
+  directoryOffset=0
+  directoryPreviousFrame=0
+  directoryVideoKey.value=null
+  directoryVideoReady.value=null
+  void nextTick(()=>{
+    renderDirectoryTrack()
+    if(focus) document.getElementById('services-directory-tab-' + category)?.focus()
+  })
 }
+// Seamless offset-based loop: animation and manual dragging use the same position.
+// All five runs are identical. Offset stays inside the center run, so wrapping is invisible.
+const directoryCarouselRef = ref<HTMLElement | null>(null)
+const directoryDragging = ref(false)
+const directoryReducedMotion = ref(false)
+const directoryVideoKey = ref<string | null>(null)
+const directoryVideoReady = ref<string | null>(null)
+const directoryVideoFailures = ref<Set<string>>(new Set())
+const directoryVideoFallback = (slug:string):string =>
+  slug === 'transporte-aereo' ? '/videos/service-air.mp4'
+  : ['transporte-terrestre','transporte-local','transporte-panama-costa-rica'].includes(slug) ? '/videos/service-road.mp4'
+  : ['almacenamiento-fiscal','agenciamiento-aduanal'].includes(slug) ? '/videos/service-warehouse.mp4'
+  : '/videos/service-maritime.mp4'
+const directoryPhoto = (link:{slug:string,image:string}):string => {
+  const visual=siteVisual('services.directory.' + link.slug + '.media',link.image)
+  return visual.kind.startsWith('Video') ? link.image : visual.src
+}
+const directoryVideoSrc = (slug:string):string => {
+  const fallback=directoryVideoFallback(slug)
+  const visual=siteVisual('service.' + slug + '.story.media',fallback,'Video')
+  return visual.kind.startsWith('Video') ? visual.src : fallback
+}
+const videoKey = (group:string,repeat:number,slug:string) => group + ':' + repeat + ':' + slug
+const directoryVideoVisible = (group:string,repeat:number,slug:string):boolean =>
+  !directoryReducedMotion.value && directoryVideoKey.value===videoKey(group,repeat,slug)
+  && !directoryVideoFailures.value.has(slug)
+const directoryActivateVideo = (group:string,repeat:number,slug:string,event?:PointerEvent):void => {
+  if(directoryDragging.value || directoryReducedMotion.value || directoryVideoFailures.value.has(slug)) return
+  if(event && event.pointerType !== 'mouse' && event.pointerType !== 'pen') return
+  directoryVideoKey.value=videoKey(group,repeat,slug)
+  directoryVideoReady.value=null
+}
+const directoryDeactivateVideo = (group:string,repeat:number,slug:string):void => {
+  if(directoryVideoKey.value===videoKey(group,repeat,slug)) {
+    directoryVideoKey.value=null
+    directoryVideoReady.value=null
+  }
+}
+const directoryVideoError = (slug:string):void => {
+  directoryVideoFailures.value = new Set([...directoryVideoFailures.value,slug])
+  directoryVideoKey.value=null
+  directoryVideoReady.value=null
+}
+const directoryVideoCanPlay = (group:string,repeat:number,slug:string):void => {
+  const key=videoKey(group,repeat,slug)
+  if(directoryVideoKey.value===key) directoryVideoReady.value=key
+}
+let directoryRunWidth=0
+let directoryOffset=0
+let directoryFrame=0
+let directoryPreviousFrame=0
+let directoryHovering=false
+let directoryKeyboardFocus=false
+let directoryResumeAt=0
+let directorySuppressClickUntil=0
+let directoryResizeObserver:ResizeObserver|null=null
+let directoryMotionMedia:MediaQueryList|null=null
+type DirectoryPointer = { id:number;startX:number;startY:number;lastX:number; dragging:boolean; vertical:boolean }
+let directoryPointer:DirectoryPointer|null=null
+const currentDirectoryPanel = ():HTMLElement|null =>
+  directoryCarouselRef.value?.querySelector<HTMLElement>('.services-directory__panel:not([style*="display: none"])') ?? null
+const renderDirectoryTrack = ():void => {
+  const track=currentDirectoryPanel()?.querySelector<HTMLElement>('.services-directory__track')
+  if(!track) return
+  if(directoryReducedMotion.value) { track.style.transform='none';return }
+  const source=track.querySelector<HTMLElement>('.services-directory__run:not(.is-clone)')
+  const width=source?.offsetWidth ?? 0
+  if(width<=0) return
+  if(directoryRunWidth!==width) {
+    directoryRunWidth=width
+    directoryOffset=width*2
+  }
+  directoryOffset=directoryRunWidth*2 +
+    (((directoryOffset-directoryRunWidth*2)%directoryRunWidth)+directoryRunWidth)%directoryRunWidth
+  track.style.transform=`translate3d(-${directoryOffset}px,0,0)`
+}
+const animateDirectory = (now:number):void => {
+  const delta=directoryPreviousFrame ? Math.min(now-directoryPreviousFrame,64) : 0
+  directoryPreviousFrame=now
+  if(!directoryReducedMotion.value && !directoryHovering && !directoryKeyboardFocus &&
+     !directoryPointer && now>=directoryResumeAt && !document.hidden) {
+    directoryOffset+=delta*.035
+  }
+  if(now>directoryResumeAt && !directoryHovering && !directoryKeyboardFocus && directoryVideoKey.value) {
+    directoryVideoKey.value=null
+    directoryVideoReady.value=null
+  }
+  renderDirectoryTrack()
+  directoryFrame=requestAnimationFrame(animateDirectory)
+}
+const directoryHover = (event:PointerEvent,hovered:boolean):void => {
+  if(event.pointerType==='mouse'||event.pointerType==='pen') {
+    directoryHovering=hovered
+    if(!hovered && !directoryKeyboardFocus) {
+      directoryVideoKey.value=null
+      directoryVideoReady.value=null
+    }
+  }
+}
+const directoryFocusIn = ():void => { directoryKeyboardFocus=true }
+const directoryFocusOut = (event:FocusEvent):void => {
+  if(!(event.relatedTarget instanceof Node) || !directoryCarouselRef.value?.contains(event.relatedTarget)) {
+    directoryKeyboardFocus=false
+    directoryVideoKey.value=null
+    directoryVideoReady.value=null
+  }
+}
+const directoryPointerDown = (event:PointerEvent):void => {
+  if(!event.isPrimary || (event.pointerType==='mouse' && event.button!==0)) return
+  directoryPointer={id:event.pointerId,startX:event.clientX,startY:event.clientY,lastX:event.clientX,dragging:false,vertical:false}
+}
+const directoryPointerMove = (event:PointerEvent):void => {
+  const pointer=directoryPointer
+  if(!pointer || event.pointerId!==pointer.id || pointer.vertical) return
+  const movedX=event.clientX-pointer.startX
+  const movedY=event.clientY-pointer.startY
+  if(!pointer.dragging) {
+    if(Math.abs(movedY)>9 && Math.abs(movedY)>Math.abs(movedX)) { pointer.vertical=true;return }
+    if(Math.abs(movedX)<7 || Math.abs(movedX)<Math.abs(movedY)) return
+    pointer.dragging=true
+    directoryDragging.value=true
+    directoryVideoKey.value=null
+    directoryVideoReady.value=null
+    directoryCarouselRef.value?.setPointerCapture?.(event.pointerId)
+    directoryOffset-=movedX
+  } else {
+    directoryOffset-=event.clientX-pointer.lastX
+  }
+  pointer.lastX=event.clientX
+  if(directoryReducedMotion.value) {
+    const panel=currentDirectoryPanel()
+    if(panel) panel.scrollLeft-=event.clientX-pointer.lastX
+  } else {
+    renderDirectoryTrack()
+  }
+  if(event.cancelable) event.preventDefault()
+}
+const previewCenteredDirectoryCard = ():void => {
+  if(directoryReducedMotion.value) return
+  const carousel=directoryCarouselRef.value
+  const panel=currentDirectoryPanel()
+  if(!carousel||!panel) return
+  const midpoint=carousel.getBoundingClientRect().left+carousel.clientWidth/2
+  let closest:HTMLElement|null=null
+  let distance=Infinity
+  for(const card of panel.querySelectorAll<HTMLElement>('.services-directory__card')) {
+    const rect=card.getBoundingClientRect()
+    if(rect.right<0 || rect.left>window.innerWidth) continue
+    const d=Math.abs((rect.left+rect.right)/2-midpoint)
+    if(d<distance){distance=d;closest=card}
+  }
+  if(closest?.dataset.directorySlug && closest.dataset.directoryRepeat) {
+    directoryVideoKey.value=videoKey(activeDirectoryCategory.value,Number(closest.dataset.directoryRepeat),closest.dataset.directorySlug)
+    directoryVideoReady.value=null
+  }
+}
+const directoryPointerEnd = (event:PointerEvent):void => {
+  const pointer=directoryPointer
+  if(!pointer||event.pointerId!==pointer.id)return
+  if(pointer.dragging) {
+    directorySuppressClickUntil=performance.now()+400
+    directoryResumeAt=performance.now()+1800
+    previewCenteredDirectoryCard()
+  }
+  directoryDragging.value=false
+  directoryPointer=null
+  if(directoryCarouselRef.value?.hasPointerCapture?.(event.pointerId))
+    directoryCarouselRef.value.releasePointerCapture(event.pointerId)
+}
+const directoryCaptureClick = (event:MouseEvent):void => {
+  if(performance.now()<directorySuppressClickUntil) {
+    event.preventDefault()
+    event.stopPropagation()
+  }
+}
+const directoryMotionChanged=():void => {
+  directoryReducedMotion.value=directoryMotionMedia?.matches??false
+  directoryRunWidth=0
+  directoryVideoKey.value=null
+  directoryVideoReady.value=null
+  void nextTick(renderDirectoryTrack)
+}
+onMounted(()=>{
+  directoryMotionMedia=window.matchMedia('(prefers-reduced-motion: reduce)')
+  directoryMotionMedia.addEventListener('change',directoryMotionChanged)
+  directoryMotionChanged()
+  if(typeof ResizeObserver!=='undefined'){
+    directoryResizeObserver=new ResizeObserver(()=>renderDirectoryTrack())
+    if(directoryCarouselRef.value) directoryResizeObserver.observe(directoryCarouselRef.value)
+  }
+  directoryFrame=requestAnimationFrame(animateDirectory)
+})
+onBeforeUnmount(()=>{
+  cancelAnimationFrame(directoryFrame)
+  directoryResizeObserver?.disconnect()
+  directoryMotionMedia?.removeEventListener('change',directoryMotionChanged)
+})
+
 const activeService = ref<ServiceKey>('Air')
 const modalService = ref<ServiceKey | null>(null)
 const modalPhoto = computed(() => siteCssImage(`services.${modalService.value?.toLowerCase()}.media`, baseServices.find(service => service.key === modalService.value)?.photo ?? '/images/hero.webp'))
