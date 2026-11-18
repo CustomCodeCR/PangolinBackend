@@ -34,7 +34,7 @@ Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", "Production");
 Environment.SetEnvironmentVariable("ConnectionStrings__Postgres", connectionString);
 Environment.SetEnvironmentVariable("Development__ApplySchema", "false");
 Environment.SetEnvironmentVariable("Auth__OtpPepper", new string('p', 64));
-Environment.SetEnvironmentVariable("Auth__JwtSigningKey", new string('j', 64));
+Environment.SetEnvironmentVariable("Auth__JwtSigningKey", new string('a', 64));
 Environment.SetEnvironmentVariable("DholeCatalogs__Enabled", "true");
 Environment.SetEnvironmentVariable("DholeCatalogs__FormEnabled", "true");
 Environment.SetEnvironmentVariable("DholeCatalogs__SubmissionEnabled", "true");
