@@ -101,6 +101,7 @@ internal static class DholeQuoteHttpTest
         var nextDay = DateTime.UtcNow.AddDays(14).ToString("yyyy-MM-dd");
         const string polId = "11111111-1111-4111-8111-111111111111";
         const string poeId = "22222222-2222-4222-8222-222222222222";
+        const string podId = "33333333-3333-4333-8333-333333333333";
         var quote = new Dictionary<string, object?>
         {
             ["catalogSource"] = "dhole",
@@ -108,6 +109,7 @@ internal static class DholeQuoteHttpTest
             ["shipmentType"] = "FCL",
             ["originLocationId"] = polId,
             ["destinationLocationId"] = poeId,
+            ["podLocationId"] = podId,
             ["incoterm"] = "CIF",
             ["cargoReadyDate"] = nextDay,
             ["contactName"] = "CI Dhole Test",
@@ -128,6 +130,19 @@ internal static class DholeQuoteHttpTest
             Assert(rejectedLegacy.StatusCode == HttpStatusCode.Conflict,
                 "Missing catalog source rejects after Dhole rollout");
 
+        using (var noFclPod = await Submit(new(quote) { ["podLocationId"] = null }))
+            Assert(noFclPod.StatusCode == HttpStatusCode.BadRequest,
+                "Maritime FCL without POD is rejected before saving");
+        using (var noLclPod = await Submit(new(quote) {
+            ["shipmentType"] = "LCL", ["podLocationId"] = null
+        }))
+            Assert(noLclPod.StatusCode == HttpStatusCode.BadRequest,
+                "Maritime LCL without POD is rejected before saving");
+        using (var invalidPod = await Submit(new(quote) {
+            ["podLocationId"] = "00000000-0000-4000-8000-000000000777"
+        }))
+            Assert(invalidPod.StatusCode == HttpStatusCode.BadRequest,
+                "Server rejects a POD UUID not in the Dhole POD catalog");
         using (var wrongRole = await Submit(new(quote) { ["originLocationId"] = poeId }))
             Assert(wrongRole.StatusCode == HttpStatusCode.BadRequest,
                 "Server rejects a destination UUID submitted as POL");
@@ -170,7 +185,8 @@ internal static class DholeQuoteHttpTest
             Assert(savedForm.GetProperty("catalogSource").GetString() == "dhole",
                 "Stored JSON retains catalog source discriminator");
             Assert(savedForm.GetProperty("originLocationId").GetString() == polId &&
-                   savedForm.GetProperty("destinationLocationId").GetString() == poeId,
+                   savedForm.GetProperty("destinationLocationId").GetString() == poeId &&
+                   savedForm.GetProperty("podLocationId").GetString() == podId,
                 "Stored JSON retains original external UUIDs without local-name migration");
             Assert(savedForm.GetProperty("equipment")[0].GetProperty("size").GetString() == "20 pies" &&
                    savedForm.GetProperty("equipment")[0].GetProperty("type").GetString() == "Dry Van",
