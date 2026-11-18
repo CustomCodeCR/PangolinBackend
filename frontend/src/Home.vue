@@ -14,7 +14,8 @@ import { subscribeToChanges } from './services/realtime'
 import { useI18n } from 'vue-i18n'
 
 const { t, locale } = useI18n({ useScope: 'global' })
-const activeService = ref<ServiceKey>('Air')
+type HomeServiceKey = ServiceKey | 'Fiscal' | 'Panama'
+const activeService = ref<HomeServiceKey>('Air')
 const localizedServices = computed(() => baseServices.map(service => ({
   ...service,
   photo: siteVisual(`home.services.${service.key.toLowerCase()}.media`, service.photo).src,
@@ -22,12 +23,32 @@ const localizedServices = computed(() => baseServices.map(service => ({
   title: siteText(`home.services.${service.key.toLowerCase()}.title`, t(`content.services.${service.key}.title`), locale.value),
   label: t(`content.services.${service.key}.label`),
   description: t(`content.services.${service.key}.description`),
-  detail: siteText(`home.services.${service.key.toLowerCase()}.detail`, t(`content.services.${service.key}.detail`), locale.value)
+  detail: siteText(`home.services.${service.key.toLowerCase()}.detail`, service.key === 'Multimodal' ? (locale.value.startsWith('es') ? 'Especialistas en transporte desde Asia y Europa hacia Costa Rica, coordinando soluciones multimodales.' : 'Specialists in transport from Asia and Europe to Costa Rica, coordinating multimodal solutions.') : t(`content.services.${service.key}.detail`), locale.value)
 })))
-const transportServices = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as ServiceKey[]).map(key => localizedServices.value.find(service => service.key === key)!))
+const newHomeServices = computed(() => {
+  const es = locale.value.startsWith('es')
+  return [
+    { key: 'Fiscal' as const, photo: '/images/services-warehouse.webp', icon: 'warehouse',
+      title: siteText('home.services.fiscal.title', es ? 'Almacén fiscal' : 'Bonded warehouse', locale.value),
+      label: es ? 'ALMACÉN FISCAL' : 'BONDED WAREHOUSE',
+      description: '', detail: siteText('home.services.fiscal.detail',
+        es ? 'Almacenes fiscales A257 y A287. Manejo de carga peligrosa sujeto a condiciones y autorizaciones; control de inventario de rotación.'
+           : 'Bonded warehouses A257 and A287. Dangerous goods handling subject to conditions and authorizations; rotating inventory management.', locale.value) },
+    { key: 'Panama' as const, photo: '/images/truck.webp', icon: 'truck',
+      title: siteText('home.services.panama.title', es ? 'Transporte Panamá–Costa Rica' : 'Panama–Costa Rica transport', locale.value),
+      label: es ? 'PANAMÁ–COSTA RICA' : 'PANAMA–COSTA RICA',
+      description: '', detail: siteText('home.services.panama.detail',
+        es ? 'Más de 80 unidades caucionadas con rastreo, articuladas y no articuladas, de 28, 40, 45, 48 y 53 pies.'
+           : 'More than 80 bonded transport units with tracking, articulated and non-articulated, in 28, 40, 45, 48 and 53-foot sizes.', locale.value) }
+  ].map(service => ({ ...service, ...siteVisual(`home.services.${service.key.toLowerCase()}.media`, service.photo) }))
+})
+const transportServices = computed(() => [
+  ...(['Air', 'Maritime', 'Land', 'Multimodal'] as ServiceKey[]).map(key => localizedServices.value.find(service => service.key === key)!),
+  ...newHomeServices.value
+])
 const selectedService = computed(() => localizedServices.value.find(service => service.key === activeService.value) ?? localizedServices.value[0])
-const modalService = ref<ServiceKey | null>(null)
-const modalPhoto = computed(() => siteCssImage(`home.services.${modalService.value?.toLowerCase()}.media`, baseServices.find(service => service.key === modalService.value)?.photo ?? '/images/hero.webp'))
+const modalService = ref<HomeServiceKey | null>(null)
+const modalPhoto = computed(() => siteCssImage(`home.services.${modalService.value?.toLowerCase()}.media`, transportServices.value.find(service => service.key === modalService.value)?.photo ?? '/images/hero.webp'))
 const modalItemCounts: Record<ServiceKey, number[]> = { Maritime: [5, 4, 3], Land: [4, 4, 3], Air: [4, 3], Multimodal: [3, 3] }
 const serviceInfo = computed(() => Object.fromEntries((['Maritime', 'Land', 'Air', 'Multimodal'] as ServiceKey[]).map(key => {
   const base = `custom.home.modal.${key}`
@@ -38,7 +59,21 @@ const serviceInfo = computed(() => Object.fromEntries((['Maritime', 'Land', 'Air
       items: Array.from({ length: itemCount }, (_, itemIndex) => t(`${base}.sections.${sectionIndex}.items.${itemIndex}`))
     }))
   }]
-})) as Record<ServiceKey, { title: string; sections: { heading: string; items: string[] }[] }>)
+)).concat([
+  ['Fiscal', { title: siteText('home.services.fiscal.title', locale.value.startsWith('es') ? 'Almacén fiscal' : 'Bonded warehouse', locale.value),
+    sections: [{ heading: locale.value.startsWith('es') ? 'Instalaciones y operaciones' : 'Facilities and operations',
+      items: [
+        siteText('home.services.fiscal.locationA257', 'A257', locale.value),
+        siteText('home.services.fiscal.locationA287', 'A287', locale.value),
+        siteText('home.services.fiscal.hazardous', locale.value.startsWith('es') ? 'Manejo de carga peligrosa, sujeto a requisitos y autorizaciones.' : 'Dangerous goods handling, subject to applicable requirements and permits.', locale.value),
+        siteText('home.services.fiscal.rotation', locale.value.startsWith('es') ? 'Manejo de inventario de rotación.' : 'Rotating inventory management.', locale.value)
+      ] }] }],
+  ['Panama', { title: siteText('home.services.panama.title', locale.value.startsWith('es') ? 'Transporte Panamá–Costa Rica' : 'Panama–Costa Rica transport', locale.value),
+    sections: [{ heading: locale.value.startsWith('es') ? 'Nuestra flota' : 'Our fleet',
+      items: [locale.value.startsWith('es') ? 'Más de 80 unidades caucionadas con sistema de rastreo.' : 'More than 80 bonded transport units with tracking.',
+        locale.value.startsWith('es') ? 'Unidades articuladas y no articuladas.' : 'Articulated and non-articulated units.',
+        locale.value.startsWith('es') ? 'Unidades de 28, 40, 45, 48 y 53 pies.' : '28, 40, 45, 48 and 53-foot units.'] }] }]
+]) as Record<HomeServiceKey, { title: string; sections: { heading: string; items: string[] }[] }>)
 const expandedFaq = ref<number | null>(0)
 const faqListRef = ref<HTMLElement | null>(null)
 const closeFaqOnOutsidePointer = (event: PointerEvent) => {
@@ -220,7 +255,7 @@ onUnmounted(() => {
                 :key="service.key"
                 class="service-accordion__item"
                 :class="{ 'is-open': activeService === service.key }"
-                 :style="{ '--service-image': siteCssImage(`home.services.${service.key.toLowerCase()}.media`, baseServices.find(item => item.key === service.key)?.photo ?? '/images/hero.webp') }"
+                 :style="{ '--service-image': siteCssImage(`home.services.${service.key.toLowerCase()}.media`, transportServices.find(item => item.key === service.key)?.photo ?? '/images/hero.webp') }"
               >
                 <SiteMedia v-if="service.kind.startsWith('Video')" :slot-key="`home.services.${service.key.toLowerCase()}.media`" :fallback="service.photo" background />
                 <button
@@ -530,7 +565,7 @@ onUnmounted(() => {
           :aria-label="serviceInfo[modalService].title"
           :style="{ '--modal-service-photo': modalPhoto }"
         >
-          <SiteMedia v-if="siteVisual(`home.services.${modalService.toLowerCase()}.media`, baseServices.find(item => item.key === modalService)?.photo ?? '/images/hero.webp').kind === 'Video'"
+          <SiteMedia v-if="siteVisual(`home.services.${modalService.toLowerCase()}.media`, transportServices.find(item => item.key === modalService)?.photo ?? '/images/hero.webp').kind === 'Video'"
             :slot-key="`home.services.${modalService.toLowerCase()}.media`" :fallback="baseServices.find(item => item.key === modalService)?.photo ?? '/images/hero.webp'" background />
           <button class="service-modal__close" type="button" :aria-label="$t('custom.home.close')" @click="modalService = null"><IconSymbol glyph="×" :size="20" /></button>
           <p class="section-tag">{{ $t('custom.home.modalEyebrow') }}</p>
@@ -543,8 +578,8 @@ onUnmounted(() => {
               </ul>
             </section>
           </div>
-          <a class="btn btn-primary" :href="`/cotizaciones?servicio=${modalService}`">
-            {{ $t('custom.home.requestRate') }} <IconSymbol glyph="↗" />
+          <a class="btn btn-primary" :href="modalService === 'Fiscal' ? '/servicios/almacenamiento-fiscal' : modalService === 'Panama' ? '/servicios/transporte-panama-costa-rica' : `/cotizaciones?servicio=${modalService}`">
+            {{ modalService === 'Fiscal' || modalService === 'Panama' ? (locale.startsWith('es') ? 'Conocer el servicio' : 'Explore service') : $t('custom.home.requestRate') }} <IconSymbol glyph="↗" />
           </a>
         </section>
       </div>
