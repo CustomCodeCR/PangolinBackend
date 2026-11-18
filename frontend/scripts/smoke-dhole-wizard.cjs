@@ -217,14 +217,13 @@ async function main() {
     await screenshot('wizard-mobile-light.png')
     await evaluate('document.documentElement.classList.add("theme-dark")')
     await sleep(450)
-    const dark=await evaluate('(()=>{const el=document.querySelector(".official-panel");const style=getComputedStyle(el);return {text:style.color,background:style.backgroundImage,bgColor:style.backgroundColor,root:document.documentElement.className}})()')
-    const rgb=dark.bgColor.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/)
-    const solidDark=!!rgb && [rgb[1],rgb[2],rgb[3]].every(c=>Number(c)<110) &&
-      !dark.bgColor.endsWith(', 0)')
-    assert.ok(dark.root.includes('theme-dark') && dark.text==='rgb(255, 255, 255)' &&
-      (dark.background!=='none' || solidDark),
-      'Dark mode lacks required visual contrast: '+JSON.stringify(dark))
+    const dark=await evaluate('(()=>{const el=document.querySelector(".official-panel");const panel=getComputedStyle(el);const html=getComputedStyle(document.documentElement);return {text:panel.color,canvas:html.backgroundImage,root:document.documentElement.className}})()')
+    // The approved quote design intentionally makes the panel transparent:
+    // a viewport-fixed dark gradient is painted on the HTML canvas instead.
     await screenshot('wizard-mobile-dark.png')
+    assert.ok(dark.root.includes('theme-dark') && dark.text==='rgb(255, 255, 255)' &&
+      dark.canvas.includes('linear-gradient'),
+      'Dark mode needs white text on the document-wide dark gradient: '+JSON.stringify(dark))
     await cdp('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false})
     await evaluate('document.documentElement.classList.remove("theme-dark")')
     await click('.official-primary')
