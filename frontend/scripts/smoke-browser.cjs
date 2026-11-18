@@ -160,13 +160,17 @@ async function assertServicesTheme(chrome, url) {
       }
       assert.ok(loaded, 'Faltan los seis servicios del Home a ' + width + 'px')
       await new Promise(resolve => setTimeout(resolve, 150))
-      const initial = await evaluate("(() => { const root=document.querySelector('#servicios .service-accordion'); const items=[...root.querySelectorAll('.service-accordion__item')]; const visible=items.filter(x=>getComputedStyle(x).display!=='none'); return { direction:getComputedStyle(root).flexDirection, total:items.length, visible:visible.length, opened:items.filter(x=>x.classList.contains('is-open')).length, writingMode:getComputedStyle(items[0].querySelector('.service-accordion__name')).writingMode, widths:visible.map(x=>Math.round(x.getBoundingClientRect().width)), documentWidth:document.documentElement.scrollWidth, viewport:window.innerWidth, containerWidth:root.clientWidth }; })()")
+      const initial = await evaluate("(() => { const root=document.querySelector('#servicios .service-accordion'); const items=[...root.querySelectorAll('.service-accordion__item')]; const visible=items.filter(x=>getComputedStyle(x).display!=='none'); return { direction:getComputedStyle(root).flexDirection, total:items.length, visible:visible.length, opened:items.filter(x=>x.classList.contains('is-open')).length, writingMode:getComputedStyle(items[0].querySelector('.service-accordion__name')).writingMode, widths:visible.map(x=>Math.round(x.getBoundingClientRect().width)), documentWidth:document.documentElement.scrollWidth, viewport:window.innerWidth, containerWidth:root.clientWidth, centeredDelta:Math.abs((visible[0].getBoundingClientRect().left+visible[visible.length-1].getBoundingClientRect().right)/2-(r.left+r.right)/2), collapsedClass:root.classList.contains('is-collapsed') }; })()")
       assert.equal(initial.total, 6, 'Se deben conservar los seis servicios')
       assert.equal(initial.visible, 6, 'Al inicio deben verse todas las pestañas')
       if (width <= 800) {
         assert.equal(initial.direction, 'row', 'El móvil conserva las pestañas verticales en fila: ' + JSON.stringify(initial))
         assert.equal(initial.writingMode, 'vertical-rl', 'Los nombres deben quedar verticales')
         assert.equal(initial.opened, 0, 'Los servicios móviles deben iniciar todos cerrados')
+        assert.ok(initial.collapsedClass && initial.centeredDelta <= 2,
+          'Las seis pestañas cerradas deben estar centradas, no pegadas a la izquierda: ' + JSON.stringify(initial))
+        assert.ok(initial.widths.every(w => w >= 35 && w <= 44),
+          'Conservar el ancho original de 40px de las pestañas: ' + JSON.stringify(initial))
         assert.ok(initial.widths.every(w => w >= 35 && w <= Math.ceil(initial.containerWidth / 6) + 3), 'Las pestañas cerradas deben distribuirse uniformemente: ' + JSON.stringify(initial))
         assert.ok(initial.documentWidth <= initial.viewport + 2, 'El acordeón no debe desbordar la pantalla: ' + JSON.stringify(initial))
         // Select the last tab, to catch accidental hiding of a selected service.
@@ -192,6 +196,20 @@ async function assertServicesTheme(chrome, url) {
         const reset = await evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')];return { visible:items.filter(x=>getComputedStyle(x).display!=='none').length,opened:items.filter(x=>x.classList.contains('is-open')).length }; })()")
         assert.equal(reset.visible, 6, 'Cerrar debe devolver todas las pestañas: ' + JSON.stringify(reset))
         assert.equal(reset.opened, 0, 'Cerrar no debe dejar un servicio abierto')
+        if (width === 390) {
+          // Mouse and trackpad must open on hover at compact widths, without a click.
+          // Touch does not use pointerenter; its click behavior remains unchanged.
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[1].dispatchEvent(new PointerEvent('pointerenter', {pointerType:'mouse'})); true")
+          const hovered = await evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')];return { opened:items[1].classList.contains('is-open'), visible:items.filter(x=>getComputedStyle(x).display!=='none').length }; })()")
+          assert.ok(hovered.opened && hovered.visible === 4, 'El mouse debe abrir Marítimo al pasar por encima: ' + JSON.stringify(hovered))
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[1].click(); true")
+          assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item.is-open').length"), 0,
+            'Tras hover debe poderse cerrar tocando la misma pestaña')
+          // Simulated touch pointerenter must not open a tab until actual tap.
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[0].dispatchEvent(new PointerEvent('pointerenter', {pointerType:'touch'})); true")
+          assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item.is-open').length"), 0,
+            'Un toque no debe abrir el servicio antes del click')
+        }
         await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
         const original = await evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')]; return { selected:items[2].classList.contains('is-open'), shown:items.map((item,i)=>getComputedStyle(item).display!=='none'?i:-1).filter(i=>i>=0) }; })()")
         assert.equal(original.selected, true, 'Se debe poder abrir otro servicio después de cerrar')
