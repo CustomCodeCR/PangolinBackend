@@ -59,7 +59,7 @@ const serviceInfo = computed(() => Object.fromEntries((['Maritime', 'Land', 'Air
       items: Array.from({ length: itemCount }, (_, itemIndex) => t(`${base}.sections.${sectionIndex}.items.${itemIndex}`))
     }))
   }]
-)).concat([
+})).concat([
   ['Fiscal', { title: siteText('home.services.fiscal.title', locale.value.startsWith('es') ? 'Almacén fiscal' : 'Bonded warehouse', locale.value),
     sections: [{ heading: locale.value.startsWith('es') ? 'Instalaciones y operaciones' : 'Facilities and operations',
       items: [
