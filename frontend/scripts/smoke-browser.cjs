@@ -208,6 +208,44 @@ async function assertServicesTheme(chrome, url) {
     }
     console.log('PASS Chrome: carrusel de ancho completo en PC y tarjetas compactas en móvil')
 
+    // Regression: adding Fiscal and Panama must not squeeze six home cards
+    // into a single thin horizontal row on phones or tablets.
+    const homeUrl = new URL('/', url).href
+    for (const width of [320, 390, 768, 1024, 1280]) {
+      await send('Emulation.setDeviceMetricsOverride', {
+        width, height: 900, deviceScaleFactor: 1, mobile: false
+      })
+      const homeNavigation = await send('Page.navigate', { url: homeUrl })
+      assert.ok(!homeNavigation.errorText, 'Chrome no pudo abrir Home: ' + homeNavigation.errorText)
+      let loaded = false
+      for (let attempt = 0; attempt < 100; attempt++) {
+        loaded = await evaluate("document.querySelectorAll('#servicios .service-accordion__item').length === 6")
+        if (loaded) break
+        await new Promise(resolve => setTimeout(resolve, 120))
+      }
+      assert.ok(loaded, 'Faltan servicios del acordeón en Home a ' + width + 'px')
+      const layout = await evaluate("(() => { const root=document.querySelector('#servicios .service-accordion'); const items=[...root.querySelectorAll('.service-accordion__item')]; const r=root.getBoundingClientRect(); const title=items[0].querySelector('.service-accordion__name'); return { direction:getComputedStyle(root).flexDirection, count:items.length, rootWidth:r.width, viewport:window.innerWidth, cardWidths:items.map(x=>Math.round(x.getBoundingClientRect().width)), cardTops:items.map(x=>Math.round(x.getBoundingClientRect().top)), writingMode:getComputedStyle(title).writingMode }; })()")
+      assert.equal(layout.count, 6, 'Home debe contener seis servicios')
+      if (width <= 1024) {
+        assert.equal(layout.direction, 'column', 'Las tarjetas deben apilarse en móvil/tableta: ' + JSON.stringify(layout))
+        assert.ok(layout.cardWidths.every(w => w >= layout.rootWidth - 4),
+          'Los títulos deben tener tarjetas de ancho completo: ' + JSON.stringify(layout))
+        assert.ok(layout.cardTops.every((top, i) => i === 0 || top > layout.cardTops[i - 1]),
+          'Las tarjetas deben formar filas independientes: ' + JSON.stringify(layout))
+        assert.equal(layout.writingMode, 'horizontal-tb', 'Las etiquetas móviles deben leerse horizontalmente')
+        await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[5].click(); true")
+        await new Promise(resolve => setTimeout(resolve, 160))
+        const expanded = await evaluate("(() => { const item=document.querySelector('#servicios .service-accordion__item:last-child'); const panel=item.querySelector('.service-accordion__panel'); const copy=panel?.querySelector('.service-accordion__copy'); const c=item.getBoundingClientRect(); const p=panel?.getBoundingClientRect(); return { active:item.classList.contains('is-open'), panelPosition:panel&&getComputedStyle(panel).position, panelWidth:p?.width, cardWidth:c.width, copyWidth:copy?.clientWidth, copyScrollWidth:copy?.scrollWidth, hasAction:!!copy?.querySelector('button.btn') }; })()")
+        assert.ok(expanded.active && expanded.hasAction && expanded.panelPosition === 'relative',
+          'La última tarjeta debe abrir contenido y Ver más: ' + JSON.stringify(expanded))
+        assert.ok(expanded.panelWidth >= expanded.cardWidth - 5 && expanded.copyScrollWidth <= expanded.copyWidth + 2,
+          'El panel abierto no puede comprimir ni desbordar el contenido: ' + JSON.stringify(expanded))
+      } else {
+        assert.equal(layout.direction, 'row', 'Escritorio conserva el acordeón horizontal: ' + JSON.stringify(layout))
+      }
+    }
+    console.log('PASS Chrome: seis servicios del Home adaptados a móvil/tableta')
+
     // About: five cards should keep 3/2, 2/2/1 and single-column
     // layouts, with every incomplete final row centered in its container.
     const aboutUrl = new URL('/nosotros', url).href
