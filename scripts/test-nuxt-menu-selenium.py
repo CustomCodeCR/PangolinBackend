@@ -12,8 +12,8 @@ from selenium.webdriver.support import expected_conditions as EC
 BASE = sys.argv[1].rstrip("/")
 ARTIFACTS = Path("artifacts/nuxt-hybrid-visual")
 ARTIFACTS.mkdir(parents=True, exist_ok=True)
-TRANSPORT_LINKS = 6
-GENERAL_LINKS = 4
+TRANSPORT_LINKS = 5
+GENERAL_LINKS = 3
 
 for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896, 800, "compact"), (390, 844, "mobile")]:
     for theme in ("light", "dark"):
