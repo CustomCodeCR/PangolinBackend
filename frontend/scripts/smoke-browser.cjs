@@ -388,6 +388,35 @@ async function assertServicesTheme(chrome, url) {
       }
     }
     console.log('PASS Chrome: últimas filas centradas en Valores y Capacidades (1100, 800 y 480px)')
+    // Five remaining "Sobre nuestra estructura" cards should wrap evenly
+    // and keep their original CMS IDs and accessible accordion controls.
+    const structureUrl = new URL('/nosotros',url).href
+    for (const scenario of [
+      { width: 1440, rows: [5] },
+      { width: 1100, rows: [3, 2] },
+      { width: 800, rows: [2, 2, 1] },
+      { width: 480, rows: [1, 1, 1, 1, 1] }
+    ]) {
+      await send('Emulation.setDeviceMetricsOverride', {
+        width:scenario.width,height:950,deviceScaleFactor:1,mobile:false
+      })
+      const nav = await send('Page.navigate',{url:structureUrl})
+      assert.ok(!nav.errorText,'No se pudo abrir Nosotros para comprobar estructura')
+      let structureReady = false
+      for(let attempt=0;attempt<100;attempt++){
+        structureReady=await evaluate("document.querySelectorAll('#nuestra-estructura .about-refresh__structure-card').length === 5")
+        if(structureReady) break
+        await new Promise(resolve=>setTimeout(resolve,120))
+      }
+      assert.ok(structureReady,'Deben mostrarse cinco módulos de estructura')
+      const layout=await evaluate("(() => {const root=document.querySelector('#nuestra-estructura .about-refresh__structure-grid');const bounds=root.getBoundingClientRect();const cards=[...root.querySelectorAll('.about-refresh__structure-card')];const rows=[];for(const node of cards){const r=node.getBoundingClientRect();const row=rows.find(x=>Math.abs(x[0].top-r.top)<2);if(row)row.push(r);else rows.push([r]);}const last=rows.at(-1);const center=(last[0].left+last.at(-1).right)/2;return {count:cards.length,rows:rows.map(x=>x.length),delta:Math.abs(center-(bounds.left+bounds.right)/2),widths:cards.map(x=>x.getBoundingClientRect().width),indices:cards.map(x=>x.querySelector('button')?.getAttribute('aria-controls')),labels:cards.map(x=>x.innerText)};})()")
+      assert.deepEqual(layout.rows,scenario.rows,'Estructura debe ocupar filas equilibradas a '+scenario.width+': '+JSON.stringify(layout))
+      assert.ok(layout.delta<=3,'La fila incompleta debe estar centrada: '+JSON.stringify(layout))
+      assert.ok(Math.max(...layout.widths)-Math.min(...layout.widths)<=2,'Tarjetas desiguales: '+JSON.stringify(layout))
+      assert.deepEqual(layout.indices,['about-structure-2','about-structure-3','about-structure-4','about-structure-5','about-structure-6'],'Las tarjetas deben conservar sus claves del CMS')
+    }
+    console.log('PASS Chrome: cinco módulos de estructura y filas centradas en cuatro anchos')
+
     // Contacto en Home: mantener cinco tarjetas iguales y centrar las
     // filas incompletas sin ensanchar la última tarjeta en móvil.
     const contactUrl = new URL('/', url).href
