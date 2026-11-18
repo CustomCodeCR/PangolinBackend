@@ -1048,16 +1048,26 @@ const servicesExtra: Array<[string,string,string,string,string]> = [
 servicesExtra.forEach(([key,section,label,es,en])=>addText('services','Servicios',key,section,label,es,en))
 // Fotografías del carrusel compartido de Servicios: edición independiente
 // de la imagen de portada de cada página de detalle.
+const directoryCardPhoto:Record<string,string>={
+  'transporte-maritimo':'/images/ship.webp',
+  'transporte-terrestre':'/images/truck.webp',
+  'transporte-aereo':'/images/air-freight.webp',
+  'transporte-local':'/images/about-operations.webp',
+  'transporte-panama-costa-rica':'/images/truck.webp',
+  'almacenamiento-fiscal':'/images/services-warehouse.webp',
+  'agenciamiento-aduanal':'/images/services-crane.webp',
+  'consolidadora-de-carga':'/images/cover-logistics.webp'
+}
 for (const service of servicePages) {
   addMedia('services','Servicios','services.directory.' + service.slug + '.media','Carrusel de servicios',
-    'Tarjeta: ' + service.title.es, service.image)
+    'Tarjeta: ' + service.title.es, directoryCardPhoto[service.slug] || service.image)
 }
 ;([
-  ['almacenamiento-fiscal', 'Almacén fiscal', '/images/services-warehouse.webp'],
-  ['agenciamiento-aduanal', 'Agenciamiento aduanal', '/images/operation.webp'],
-  ['consolidadora-de-carga', 'Consolidadora de carga', '/images/ship.webp']
-] as Array<[string,string,string]>).forEach(([slug,label,image]) =>
-  addMedia('services','Servicios','services.directory.' + slug + '.media','Carrusel de servicios','Tarjeta: ' + label,image))
+  ['almacenamiento-fiscal', 'Almacén fiscal'],
+  ['agenciamiento-aduanal', 'Agenciamiento aduanal'],
+  ['consolidadora-de-carga', 'Consolidadora de carga']
+] as Array<[string,string]>).forEach(([slug,label]) =>
+  addMedia('services','Servicios','services.directory.' + slug + '.media','Carrusel de servicios','Tarjeta: ' + label,directoryCardPhoto[slug]))
 
 ;([
  ['services.access.heading1','Título digital 1','phrases.p061'],
