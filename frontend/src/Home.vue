@@ -94,12 +94,13 @@ const visibleHomeServiceKeys = computed(() => {
   const count = Math.min(all.length, available < 260 ? 3 : 4)
   const selectedIndex = all.indexOf(activeService.value)
   if (selectedIndex < 0) return new Set<HomeServiceKey>(all)
-  // For the original four services preserve exactly the original four-tab
-  // composition (Air / Maritime / Land / Multimodal) regardless of selection.
-  // Fiscal or Panama move the four-tab window to include the newer services.
-  const start = count === 4 && selectedIndex < 4
-    ? 0
-    : Math.max(0, Math.min(selectedIndex - (count - 1), all.length - count))
+  // Shift the visible window with the selected tab: opening a service on
+  // the right hides tabs on the left, and vice versa. Keep the same four-tab
+  // width and original animation; clamp near both ends of the service list.
+  const start = Math.max(0, Math.min(
+    selectedIndex - Math.floor((count - 1) / 2),
+    all.length - count
+  ))
   return new Set<HomeServiceKey>(all.slice(start, start + count))
 })
 const selectedService = computed(() => localizedServices.value.find(service => service.key === activeService.value) ?? localizedServices.value[0])
