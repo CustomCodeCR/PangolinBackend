@@ -228,6 +228,30 @@ async function assertServicesTheme(chrome, url) {
     assert.equal(darkButton.background, 'rgb(11, 20, 40)', 'El botón oscuro debe usar el azul marino corporativo')
     assert.equal(darkButton.text, 'rgb(244, 246, 250)', 'Ver más debe ser legible en modo oscuro')
     console.log('PASS Chrome: carrusel continuo, cinco copias, Ver más oscuro y sin sombras')
+    // Verify pointer dragging with Chrome input events, without accidentally opening the card.
+    await evaluate("document.querySelector('.services-directory__carousel').scrollIntoView({block:'center',behavior:'instant'}); true")
+    await new Promise(resolve => setTimeout(resolve, 170))
+    const dragPoint = await evaluate("(() => {const r=document.querySelector('.services-directory__carousel').getBoundingClientRect();return {x:Math.floor(innerWidth/2),y:Math.floor(Math.max(30,Math.min(innerHeight-30,(r.top+r.bottom)/2)))};})()")
+    const readOffset = () => evaluate("(() => {const t=document.querySelector('.services-directory__panel:not([style*=none]) .services-directory__track').style.transform;const m=t.match(/translate3d\\(-([\\d.]+)px/);return m?Number(m[1]):null;})()")
+    await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:dragPoint.x,y:dragPoint.y,button:'none'})
+    await new Promise(resolve => setTimeout(resolve, 80))
+    const beforeDrag = await readOffset()
+    await send('Input.dispatchMouseEvent',{type:'mousePressed',x:dragPoint.x,y:dragPoint.y,button:'left',clickCount:1})
+    await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:dragPoint.x-120,y:dragPoint.y,button:'left',buttons:1})
+    await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:dragPoint.x-120,y:dragPoint.y,button:'left',clickCount:1})
+    await new Promise(resolve => setTimeout(resolve, 90))
+    const afterDrag = await readOffset()
+    assert.ok(beforeDrag !== null && afterDrag !== null && Math.abs(afterDrag-beforeDrag)>60,
+      'Arrastrar debe mover el carrusel con el mouse: ' + JSON.stringify({beforeDrag,afterDrag}))
+    assert.ok(await evaluate("location.pathname === '/servicios'"),'Arrastrar no debe abrir el enlace')
+    const focused = await evaluate("(() => {const a=document.querySelector('.services-directory__panel:not([style*=none]) .services-directory__run:not(.is-clone) .services-directory__card');a?.focus();return Boolean(a);})()")
+    assert.ok(focused,'Debe existir una tarjeta accesible')
+    await new Promise(resolve => setTimeout(resolve, 130))
+    const clip = await evaluate("document.querySelector('.services-directory__panel:not([style*=none]) .services-directory__run:not(.is-clone) .services-directory__card video.services-directory__preview')?.getAttribute('src')")
+    assert.ok(clip && clip.startsWith('/videos/service-'),
+      'Al enfocar la tarjeta debe montarse el video del servicio')
+    console.log('PASS Chrome: arrastre sin navegación y video de vista previa al enfocar')
+
 
     // Comprobar geometría real: carrusel de borde a borde en PC
     // y tarjetas más compactas en móvil, sin desbordamiento horizontal.
