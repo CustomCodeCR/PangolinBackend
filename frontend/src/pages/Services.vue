@@ -245,7 +245,7 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
                     <span class="services-directory__card-media" aria-hidden="true">
                       <SiteMedia :slot-key="'services.directory.' + link.slug + '.media'"
                         :fallback="link.image" alt=""
-                        sizes="(max-width: 620px) 80vw, (max-width: 1100px) 38vw, 395px" />
+                        sizes="(max-width: 620px) 60vw, (max-width: 1100px) 34vw, 360px" />
                     </span>
                     <strong class="services-directory__card-title">{{ link.label }}</strong>
                     <span class="services-directory__card-cta">
@@ -304,7 +304,7 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
 }
 /* Carrusel de servicios. Dos categorías comparten una sola superficie visual.
    Cada pista repite sus enlaces para un loop continuo sin parpadeos. */
-.services-directory{position:relative;padding:clamp(54px,6vw,86px) 0 clamp(68px,7vw,100px);background:#fcf5f7}
+.services-directory{position:relative;padding:clamp(54px,6vw,86px) 0 clamp(68px,7vw,100px);background:#fcf5f7;overflow-x:clip}
 .services-directory__container{max-width:1260px}
 .services-directory__heading{max-width:820px;margin:0 auto 38px;text-align:center}
 .services-directory__heading .section-title{font-size:clamp(29px,3.3vw,44px);line-height:1.15;margin:9px 0 12px}
@@ -319,14 +319,20 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
 .services-directory__category:focus-visible,.services-directory__motion:focus-visible{outline:3px solid #b20b2d;outline-offset:3px}
 .services-directory__motion{position:absolute;right:0;display:inline-flex;align-items:center;gap:8px;padding:11px 15px;border:1px solid rgba(178,11,45,.25);border-radius:999px;background:#fff;color:#9b1430;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
 .services-directory__motion span{font-size:15px}
-.services-directory__carousel{position:relative;width:100%;overflow:hidden;padding:7px 0 17px;isolation:isolate}
+.services-directory__carousel{
+ position:relative;left:50%;transform:translateX(-50%);
+ width:100vw;max-width:100vw;overflow:hidden;
+ padding:12px 0 22px;isolation:isolate;
+ -webkit-mask-image:linear-gradient(to right,transparent 0,#000 52px,#000 calc(100% - 52px),transparent 100%);
+ mask-image:linear-gradient(to right,transparent 0,#000 52px,#000 calc(100% - 52px),transparent 100%);
+}
 .services-directory__panel{width:100%;overflow:hidden}
 .services-directory__track{display:flex;align-items:stretch;width:max-content;animation:services-directory-loop var(--loop-duration,45s) linear infinite;will-change:transform}
 .services-directory__run{display:flex;align-items:stretch;gap:20px;flex:0 0 auto;padding-right:20px}
 .services-directory__carousel:is(:hover,:focus-within) .services-directory__track,
 .services-directory__carousel.is-paused .services-directory__track{animation-play-state:paused}
 @keyframes services-directory-loop{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
-.services-directory__card{position:relative;isolation:isolate;display:block;flex:0 0 clamp(270px,32vw,395px);width:clamp(270px,32vw,395px);height:clamp(355px,38vw,440px);min-height:355px;overflow:hidden;border:1px solid rgba(255,255,255,.2);border-radius:25px;background:#142239;color:#fff;text-decoration:none;outline-offset:4px;box-shadow:0 16px 36px rgba(32,20,31,.12);transition:box-shadow .25s,border-color .25s}
+.services-directory__card{position:relative;isolation:isolate;display:block;flex:0 0 clamp(280px,26vw,365px);width:clamp(280px,26vw,365px);height:clamp(345px,33vw,415px);min-height:345px;overflow:hidden;border:1px solid rgba(255,255,255,.2);border-radius:25px;background:#142239;color:#fff;text-decoration:none;outline-offset:4px;box-shadow:0 16px 36px rgba(32,20,31,.12);transition:box-shadow .25s,border-color .25s}
 .services-directory__card::after{content:'';position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(5,13,27,.78),rgba(5,13,27,.15) 38%,rgba(5,13,27,.08) 62%,rgba(4,9,20,.64));pointer-events:none}
 .services-directory__card-media{position:absolute;inset:0;z-index:0;display:block;overflow:hidden}
 .services-directory__card-media :deep(img),.services-directory__card-media :deep(video){width:100%;height:100%;display:block;object-fit:cover;object-position:center;transition:transform .5s ease}
@@ -354,9 +360,11 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
  .services-directory__category span{font-size:9px}
  .services-directory__motion{font-size:11px;padding:8px 12px}
  .services-directory__run{gap:13px;padding-right:13px}
- .services-directory__card{flex-basis:min(78vw,330px);width:min(78vw,330px);height:395px;min-height:395px;border-radius:20px}
- .services-directory__card-title{font-size:19px;top:23px}
- .services-directory__card-cta{right:14px;bottom:16px}
+ .services-directory__card{flex-basis:min(59vw,230px);width:min(59vw,230px);height:clamp(270px,76vw,305px);min-height:270px;border-radius:19px}
+ .services-directory__card-title{font-size:clamp(14px,3.9vw,17px);line-height:1.2;top:17px;left:11px;right:11px}
+ .services-directory__card-cta{right:12px;bottom:12px;gap:10px;padding:5px 5px 5px 15px;font-size:12px}
+ .services-directory__card-arrow{width:29px;height:29px}
+ .services-directory__carousel{padding:7px 0 13px;-webkit-mask-image:linear-gradient(to right,transparent 0,#000 14px,#000 calc(100% - 14px),transparent 100%);mask-image:linear-gradient(to right,transparent 0,#000 14px,#000 calc(100% - 14px),transparent 100%)}
 }
 @media(prefers-reduced-motion:reduce){
  .services-directory__track{animation:none;transform:none;will-change:auto}
