@@ -158,16 +158,16 @@ async function assertServicesTheme(chrome, url) {
     assert.equal(transport.clones, 5, 'El loop de transporte debe tener una segunda secuencia')
     assert.ok(transport.allClonesHidden, 'Las copias del loop no deben entrar al tabulador')
     assert.ok(transport.photos, 'Todas las tarjetas necesitan una imagen')
-    assert.ok(transport.name && transport.action.includes('Ir'), 'Deben verse el nombre y el botón Ir')
+    assert.ok(transport.name && transport.action.includes('Ver más'), 'Deben verse el nombre y el botón Ver más')
     assert.ok(transport.animation.startsWith('services-directory-loop'), 'La pista debe desplazarse continuamente')
-    assert.ok(transport.dx <= 1 && transport.dy <= 1, 'Flecha de Ir descentrada')
+    assert.ok(transport.dx <= 1 && transport.dy <= 1, 'Flecha de Ver más descentrada')
     await evaluate("document.getElementById('services-directory-tab-logistics').click()")
     await new Promise(resolve => setTimeout(resolve, 200))
     const logistics = await checkCarousel()
     assert.equal(logistics.visible, 1, 'El cambio de categoría no debe mostrar dos carruseles')
     assert.equal(logistics.cards, 3, 'Logística y aduanas debe mostrar tres servicios')
     assert.equal(logistics.clones, 3, 'El loop de logística debe ser continuo')
-    assert.ok(logistics.photos && logistics.action.includes('Ir'))
+    assert.ok(logistics.photos && logistics.action.includes('Ver más'))
     await evaluate("document.getElementById('services-directory-tab-transport').click()")
     await new Promise(resolve => setTimeout(resolve, 120))
     for (const dark of [false, true]) {
@@ -178,7 +178,11 @@ async function assertServicesTheme(chrome, url) {
       assert.equal(view.titleColor, 'rgb(255, 255, 255)', 'El título debe contrastar con la imagen')
       assert.equal(view.titleFill, 'rgb(255, 255, 255)', 'El título debe conservarse blanco en ambos modos')
     }
-    console.log('PASS Chrome: carrusel infinito con dos categorías, fotos, enlaces y modo oscuro')
+    assert.equal(await evaluate("document.querySelectorAll('.services-directory__motion').length"), 0,
+      'El carrusel no debe mostrar botón de pausa')
+    const defaultCardShadow = await evaluate("getComputedStyle(document.querySelector('.services-directory__panel:not([style*=none]) .services-directory__card')).boxShadow")
+    assert.equal(defaultCardShadow, 'none', 'Las sombras de tarjetas estaban creando una franja gris entre fotos')
+    console.log('PASS Chrome: carrusel infinito con dos categorías, Ver más y huecos sin sombra')
 
     // Comprobar geometría real: carrusel de borde a borde en PC
     // y tarjetas más compactas en móvil, sin desbordamiento horizontal.
