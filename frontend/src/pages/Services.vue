@@ -336,7 +336,7 @@ const services = computed(() => (['Air', 'Maritime', 'Land', 'Multimodal'] as Se
 .services-directory__card:is(:hover,:focus-visible) .services-directory__card-arrow{background:#fff;color:#b20b2d}
 .services-directory__card:focus-visible{outline:3px solid #b20b2d}
 @media(max-width:980px){
- .services-directory__controls{justify-content:space-between}
+ .services-directory__controls{justify-content:center}
  .services-directory__category{min-width:180px;padding:14px 15px}
 }
 @media(max-width:620px){
