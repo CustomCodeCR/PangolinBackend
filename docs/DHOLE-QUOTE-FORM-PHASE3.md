@@ -21,7 +21,7 @@ Si cualquiera de los dos últimos flags está desactivado, `GET /api/quotes/offi
 El wizard conserva la apariencia visual, cuatro pasos, combobox de ubicaciones, selectores de equipo, campos de paquetes y traducciones. Al pasar al paso de ruta:
 
 1. Solicita al backend las opciones proyectadas para `mode` y `shipmentType` concretos.
-2. Recibe UUID Dhole con roles estrictos: `origin` de POL, `destination` de POE; POD es opcional en FCL, requerido en LCL y permite todas las modalidades del catálogo POD. Los tipos `AIR_LCL` y `FTL/LTL` no muestran POD.
+2. Recibe UUID Dhole con roles estrictos: `origin` de POL, `destination` de POE; POD es **obligatorio tanto en marítimo FCL como en LCL** y ofrece los registros activos del catálogo POD sin filtrar por modalidad. Los tipos `AIR_LCL` y `FTL/LTL` no muestran POD.
 3. Recibe Incoterms por `value`, no por `slug`, y tamaños FCL con tipos filtrados por la combinación que Dhole publica. Por ejemplo, 45 pies muestra High Cube y nunca conserva Dry Van como selección incompatible. El equipo 48HC marcado exclusivamente `Multimodal` sigue siendo válido en el flujo marítimo según lo acordado.
 4. Para FTL muestra los tamaños Dhole, sin mantener una opción 40 pies retirada del origen. Usa nombres visibles (`24 pies / 5 TON`, `26 pies / 7 TON`, `48 pies`, `53 pies`) y `Furgón` como tipo porque no existe otra API de tipo FTL entre las siete.
 5. El formulario envía `catalogSource:"dhole"` con UUID externos cuando usa Dhole. Las solicitudes que no incluyen la marca siguen siendo legadas **solo mientras el rollout dinámico esté desactivado**. Con `FormEnabled` y `SubmissionEnabled` activos simultáneamente, el POST rechaza con HTTP 409 una solicitud nueva sin `catalogSource: dhole`: así nadie puede eludir la fuente vigente enviando un equipo antiguo o un UUID local manualmente. Esto no modifica solicitudes históricas.
@@ -39,3 +39,9 @@ No requiere migraciones de tablas. No se eliminan ni modifican solicitudes exist
 - La decisión sobre `LOOSE`, `PALLET`, `ULD` continúa pendiente; no hay nuevos campos aéreos.
 
 La PR #250 permanece **en borrador** y no debe fusionarse ni desplegarse en producción.
+
+## Ajuste de negocio aprobado — POD obligatorio para marítimo (18/11/2026)
+
+A petición del equipo, la selección de POD ya no es opcional en FCL: **Maritime/FCL y Maritime/LCL requieren un POD** en el asistente de cuatro pasos y en GIO. El servidor lo exige en cualquier POST nuevo — sea fuente local o Dhole — y vuelve a comprobar la pertenencia del UUID Dhole al catálogo POD vigente. Air/AIR_LCL y Land/FTL/LTL no ofrecen POD. El frontend bloquea el avance cuando falta; no existe un botón de «Sin POD adicional».
+
+El cambio no modifica cotizaciones históricas guardadas. Las pruebas de Chrome y PostgreSQL deben pasar antes de merge.
