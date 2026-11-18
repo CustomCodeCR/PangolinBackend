@@ -299,6 +299,8 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 @media(max-width:1100px){.about-refresh__structure-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.about-refresh__structure-grid{grid-template-columns:1fr}}
 html.theme-dark .about-refresh__structure{background:#171b23}
+html.theme-dark .about-refresh__structure-card{background:#111b31;border-color:rgba(255,255,255,.23)}
+html.theme-dark .about-refresh__structure-card.is-open{border-color:#f07189}
 
 .about-refresh{--about-red:#b00929;--about-ink:#20242d;--about-muted:#545b67;--about-soft:#faf4f5;color:var(--about-ink)}
 .about-refresh .about-refresh__hero{min-height:clamp(330px,34vw,490px)}
