@@ -167,7 +167,7 @@ async function assertServicesTheme(chrome, url) {
         assert.equal(initial.direction, 'row', 'El móvil conserva las pestañas verticales en fila: ' + JSON.stringify(initial))
         assert.equal(initial.writingMode, 'vertical-rl', 'Los nombres deben quedar verticales')
         assert.equal(initial.opened, 0, 'Los servicios móviles deben iniciar todos cerrados')
-        assert.ok(initial.widths.every(w => w >= 35 && w <= 44), 'Pestañas cerradas demasiado grandes: ' + JSON.stringify(initial))
+        assert.ok(initial.widths.every(w => w >= 35 && w <= Math.ceil(initial.containerWidth / 6) + 3), 'Las pestañas cerradas deben distribuirse uniformemente: ' + JSON.stringify(initial))
         assert.ok(initial.documentWidth <= initial.viewport + 2, 'El acordeón no debe desbordar la pantalla: ' + JSON.stringify(initial))
         // Select the last tab, to catch accidental hiding of a selected service.
         await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[5].click(); true")
