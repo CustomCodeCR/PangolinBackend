@@ -432,7 +432,7 @@ function validate(): string {
   if (step.value === 2) return shipmentType.value ? '' : q('Seleccioná el tipo de embarque.', 'Select a shipment type.')
   if (step.value === 3) {
     if (!form.originLocationId || !form.destinationLocationId || form.originLocationId === form.destinationLocationId) return q('Elegí origen y destino distintos.', 'Choose different origin and destination locations.')
-    if (shipmentType.value === 'LCL' && !form.podLocationId) return q('Seleccioná el POD requerido en marítimo LCL.', 'Select the required POD for ocean LCL.')
+    if (mode.value === 'Maritime' && !form.podLocationId) return q('Seleccioná el POD obligatorio para transporte marítimo.', 'Select the required POD for ocean freight.')
     if (!form.incoterm) return q('Seleccioná un Incoterm.', 'Select an Incoterm.')
     if (!form.cargoReadyDate) return q('Indicá la fecha de carga lista.', 'Enter the cargo ready date.')
     if (!isCargoReadyDateOnOrAfterToday(form.cargoReadyDate)) return cargoReadyDateError()
@@ -603,14 +603,13 @@ async function submit() {
                 </div>
               </div>
               <div v-if="mode === 'Maritime'" class="official-location-field">
-                <label for="quote-pod">POD {{ shipmentType === 'LCL' ? q('(requerido)', '(required)') : q('(opcional)', '(optional)') }}</label>
+                <label for="quote-pod">POD <span>*</span> {{ q('(requerido)', '(required)') }}</label>
                 <div class="official-location-combobox">
-                  <input id="quote-pod" :value="locationSearch.pod" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'pod'" aria-controls="quote-pod-options" autocomplete="off" :placeholder="shipmentType === 'LCL' ? q('Buscar ciudad o país', 'Search city or country') : q('Sin POD adicional', 'No additional POD')" @focus="focusLocation('pod')" @input="updateLocationSearch('pod', $event)" @keydown="handleLocationKeydown('pod', $event)" @blur="closeLocation('pod')" />
+                  <input id="quote-pod" :value="locationSearch.pod" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'pod'" aria-controls="quote-pod-options" autocomplete="off" :placeholder="q('Buscar puerto de descarga', 'Search port of discharge')" required @focus="focusLocation('pod')" @input="updateLocationSearch('pod', $event)" @keydown="handleLocationKeydown('pod', $event)" @blur="closeLocation('pod')" />
                   <button type="button" class="official-location-toggle" :class="{ 'official-location-toggle--clear': !!form.podLocationId }" :aria-label="form.podLocationId ? q('Limpiar POD', 'Clear POD') : q('Mostrar opciones de POD', 'Show POD options')" @mousedown.prevent @click="form.podLocationId ? clearLocation('pod') : toggleLocation('pod')">⌄</button>
                   <ul v-if="openLocation === 'pod'" id="quote-pod-options" class="official-location-options" role="listbox">
-                    <li v-if="shipmentType !== 'LCL'"><button type="button" role="option" :aria-selected="!form.podLocationId" @mousedown.prevent @click="form.podLocationId = ''; locationSearch.pod = ''; openLocation = null">{{ q('Sin POD adicional', 'No additional POD') }}</button></li>
                     <li v-for="(loc,index) in optionsFor('pod')" :key="loc.id"><button type="button" role="option" :aria-selected="form.podLocationId === loc.id" :id="`quote-pod-option-${index}`" @mousedown.prevent @click="chooseLocation('pod', loc)"><span>{{ loc.displayName }}</span></button></li>
-                    <li v-if="!optionsFor('pod').length && shipmentType === 'LCL'" class="official-location-empty">{{ q('No hay ubicaciones que coincidan.', 'No matching locations.') }}</li>
+                    <li v-if="!optionsFor('pod').length" class="official-location-empty">{{ q('No hay ubicaciones que coincidan.', 'No matching locations.') }}</li>
                   </ul>
                 </div>
               </div>
