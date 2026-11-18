@@ -254,6 +254,9 @@ async function main() {
     await choose('Puerto Caldera')
     await confirm()
     await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__location-list button")'))
+    assert.ok(await has('POD'),'GIO must ask maritime FCL customers for POD')
+    assert.equal(await evaluate('[...document.querySelectorAll(".gio-ops__choices button")].some(b=>b.textContent.includes("Omitir"))'),false,
+      'Mandatory maritime FCL POD cannot be skipped in GIO')
     await choose('POD terrestre')
     await confirm()
     await choose('FOB')
