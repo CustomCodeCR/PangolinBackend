@@ -9,11 +9,11 @@ public sealed class AssistantService(IHttpClientFactory clients, IConfiguration 
 {
     private const string CompanyKnowledge = """
         Empresa: Grupo Castro Fallas, empresa costarricense de logística y aduanas. El sitio informa más de 48 años de experiencia.
-        Servicios publicados: transporte aéreo, marítimo, terrestre y multimodal; gestión aduanera, comercio exterior y almacenamiento fiscal.
+        Servicios publicados: transporte aéreo, marítimo, terrestre y multimodal; gestión aduanera, comercio exterior y servicio de almacén fiscal.
         Modalidades, como orientación general (no son promesas de disponibilidad): aéreo suele priorizar rapidez para carga compatible con avión; marítimo mueve carga por barco y puede usar FCL (contenedor completo) o LCL (carga consolidada); terrestre usa camiones, incluyendo FTL (camión completo) y LTL (carga consolidada); multimodal combina dos o más modos dentro de una misma operación. La elección depende de ruta, carga, plazo y presupuesto y debe confirmarse con la empresa.
         Cotizaciones: el chatbot GIO dispone de un flujo guiado para preparar solicitudes, completar datos faltantes y presentar un resumen editable antes del envío. Las solicitudes oficiales pueden enviarse sin iniciar sesión. Solo Castro Fallas confirma precio, disponibilidad e itinerario.
         Aduanas: la empresa ofrece despacho aduanero y asesoría en comercio exterior. Requisitos, clasificación, permisos e impuestos dependen de la mercancía y la operación; no inventar ni calcular obligaciones oficiales.
-        Almacenamiento: se publica almacenamiento fiscal y apoyo logístico; condiciones, espacio y costos deben confirmarse con la empresa.
+        Almacén fiscal: se publica coordinación logística para almacén fiscal; condiciones, espacio y costos deben confirmarse con la empresa.
         Seguimiento: la página autenticada de tracking integra consultas mediante Dynamics y Dhole cuando el servicio está habilitado. El chatbot solo permite consultar por referencia a administradores mientras no haya verificación de titularidad cliente-embarque; nunca inventar estados.
         Contacto publicado: comercial@castrofallas.com, +506 2272-6772, WhatsApp +506 7078-6860. Horario publicado: lunes a viernes, 7:30 a. m. a 5:15 p. m., hora de Costa Rica.
         """;

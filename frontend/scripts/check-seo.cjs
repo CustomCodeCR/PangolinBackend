@@ -198,8 +198,9 @@ if (fs.existsSync(path.join(base, 'dist'))) {
       }
       assert.ok(!html.includes('services-page__guides'), 'No deben volver las tarjetas adicionales')
     }
+    // Existing top-level transport service + five general categories + active guide services.
     const serviceCount = graph.filter(x => x['@type'] === 'Service').length
-    assert.equal(serviceCount, route === '/servicios' ? 5 + serviceRoutes.length : route === '/' || route === '/home' || serviceRoutes.includes(route) || servicePageRoutes.includes(route) ? 1 : 0, 'Servicios Schema fuera de pagina: ' + route)
+    assert.equal(serviceCount, route === '/servicios' ? 6 + serviceRoutes.length : route === '/' || route === '/home' || serviceRoutes.includes(route) || servicePageRoutes.includes(route) ? 1 : 0, 'Servicios Schema fuera de pagina: ' + route)
     if (serviceRoutes.includes(route)) {
       const guide = serviceGuides[route].es
       assert.ok(html.includes('data-seo-service="' + route + '"'), 'Contenido SEO inicial ausente: ' + route)

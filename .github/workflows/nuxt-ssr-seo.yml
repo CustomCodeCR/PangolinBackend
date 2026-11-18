@@ -95,7 +95,7 @@ jobs:
           curl -fsS http://127.0.0.1:3000/nosotros | grep -q 'about-reference-page'
           curl -fsS http://127.0.0.1:3000/servicios | grep -q 'services-page'
           curl -fsS http://127.0.0.1:3000/servicios/almacenamiento-fiscal >/tmp/pangolin-service.html
-          grep -q 'Almacenamiento fiscal' /tmp/pangolin-service.html
+          grep -q 'Almacén fiscal' /tmp/pangolin-service.html
           grep -q 'service-landing-faq__item' /tmp/pangolin-service.html
           # Las cuatro páginas empresariales permanecen retiradas hasta aprobar diseño y textos.
           for path in empresas empresas/aduanera-castro-fallas empresas/transporte-castro-fallas empresas/neriteka; do
