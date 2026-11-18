@@ -24,6 +24,10 @@ const serviceAccordionWidth = ref(0)
 const serviceWindowStart = ref(0)
 let serviceAccordionObserver: ResizeObserver | undefined
 let serviceCompactQuery: MediaQueryList | undefined
+// A layout shift can fire pointerenter on a different tab while the pointer is
+// stationary. Require an actual cursor movement before accepting another hover.
+let lastServiceHoverPoint: { x: number; y: number } | null = null
+function resetHomeServiceHover() { lastServiceHoverPoint = null }
 
 function updateServiceLayout() {
   const compact = serviceCompactQuery?.matches ?? false
@@ -44,11 +48,19 @@ function activateHomeService(key: HomeServiceKey) {
     const priorIndex = activeService.value === null ? -1 : keys.indexOf(activeService.value)
     const count = Math.min(keys.length, serviceAccordionWidth.value < 260 ? 3 : 4)
     const lastStart = Math.max(0, keys.length - count)
-    if (index >= 0) {
-      // Moving right reveals the next service as soon as another tab opens.
-      // Moving left reveals earlier services without requiring the card to close.
-      const proposedStart = priorIndex >= 0 && index < priorIndex ? index - 1 : index
-      serviceWindowStart.value = Math.max(0, Math.min(proposedStart, lastStart))
+    if (index >= 0 && index !== priorIndex) {
+      let start = serviceWindowStart.value
+      if (priorIndex === -1) {
+        // First opening: ensure its tab is visible in a balanced four-card row.
+        start = index - Math.floor((count - 1) / 2)
+      } else {
+        // Each deliberate selection moves the window by AT MOST one tab in
+        // the direction of travel, in either direction (unless a direct
+        // keyboard activation needs to bring an offscreen tab into view).
+        start += index > priorIndex ? 1 : -1
+      }
+      start = Math.max(0, Math.min(start, lastStart))
+      serviceWindowStart.value = Math.max(index - count + 1, Math.min(start, index))
     }
   }
   activeService.value = key
@@ -57,9 +69,14 @@ function activateHomeService(key: HomeServiceKey) {
 // Mouse hover opens the original accordion on any screen size.
 // Touch pointerenter is intentionally ignored: touch continues to toggle on tap.
 function openHomeServiceFromPointer(key: HomeServiceKey, event: PointerEvent) {
-  if (event.pointerType === 'mouse' || event.pointerType === 'pen') {
-    activateHomeService(key)
+  if (event.pointerType !== 'mouse' && event.pointerType !== 'pen') return
+  if (compactServiceMode.value && lastServiceHoverPoint && activeService.value !== key) {
+    const dx = event.clientX - lastServiceHoverPoint.x
+    const dy = event.clientY - lastServiceHoverPoint.y
+    if (dx * dx + dy * dy < 12 * 12) return
   }
+  lastServiceHoverPoint = { x: event.clientX, y: event.clientY }
+  activateHomeService(key)
 }
 function openHomeServiceFromFocus(key: HomeServiceKey) {
   if (!compactServiceMode.value) activateHomeService(key)
@@ -68,6 +85,7 @@ function toggleHomeService(key: HomeServiceKey) {
   if (compactServiceMode.value && activeService.value === key) {
     activeService.value = null
     serviceWindowStart.value = 0
+    resetHomeServiceHover()
   } else {
     activateHomeService(key)
   }
@@ -334,7 +352,7 @@ onUnmounted(() => {
               {{ siteText('home.services.intro', $t('phrases.p011'), locale) }}
             </p>
 
-            <div ref="serviceAccordionRef" class="service-accordion" :class="{ 'is-collapsed': compactServiceMode && activeService === null }" :aria-label="$t('phrases.p134')">
+            <div ref="serviceAccordionRef" class="service-accordion" :class="{ 'is-collapsed': compactServiceMode && activeService === null }" :aria-label="$t('phrases.p134')" @pointerleave="resetHomeServiceHover">
               <article
                 v-for="service in transportServices"
                 :key="service.key"
