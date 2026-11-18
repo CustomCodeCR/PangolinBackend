@@ -103,6 +103,23 @@ const visibleHomeServiceKeys = computed(() => {
   ))
   return new Set<HomeServiceKey>(all.slice(start, start + count))
 })
+
+// Hidden services must remain reachable without collapsing the current card.
+// The compact pager reveals the first hidden neighbor on either side while
+// keeping four tabs visible and preserving their original order and size.
+const serviceWindowEdges = computed(() => {
+  const keys = transportServices.value.map(service => service.key)
+  const indices = keys.flatMap((key, index) => visibleHomeServiceKeys.value.has(key) ? [index] : [])
+  return { first: indices[0] ?? 0, last: indices[indices.length - 1] ?? keys.length - 1 }
+})
+const hasEarlierService = computed(() => compactServiceMode.value && activeService.value !== null && serviceWindowEdges.value.first > 0)
+const hasLaterService = computed(() => compactServiceMode.value && activeService.value !== null && serviceWindowEdges.value.last < transportServices.value.length - 1)
+function revealAdjacentHomeService(direction: -1 | 1) {
+  if (!compactServiceMode.value || activeService.value === null) return
+  const index = direction === 1 ? serviceWindowEdges.value.last + 1 : serviceWindowEdges.value.first - 1
+  const next = transportServices.value[index]
+  if (next) activeService.value = next.key
+}
 const selectedService = computed(() => localizedServices.value.find(service => service.key === activeService.value) ?? localizedServices.value[0])
 const modalService = ref<HomeServiceKey | null>(null)
 const modalPhoto = computed(() => siteCssImage(`home.services.${modalService.value?.toLowerCase()}.media`, transportServices.value.find(service => service.key === modalService.value)?.photo ?? '/images/hero.webp'))
@@ -347,6 +364,19 @@ onUnmounted(() => {
                 </div>
               </article>
             </div>
+            <nav v-if="compactServiceMode && activeService !== null && (hasEarlierService || hasLaterService)"
+              class="service-accordion__navigation" :aria-label="locale.startsWith('es') ? 'Explorar otros servicios' : 'Explore other services'">
+              <button v-if="hasEarlierService" type="button" class="service-accordion__nav-button"
+                :aria-label="locale.startsWith('es') ? 'Mostrar servicios anteriores' : 'Show previous services'"
+                @click="revealAdjacentHomeService(-1)">
+                <span aria-hidden="true">‹</span> {{ locale.startsWith('es') ? 'Anteriores' : 'Previous' }}
+              </button>
+              <button v-if="hasLaterService" type="button" class="service-accordion__nav-button"
+                :aria-label="locale.startsWith('es') ? 'Mostrar más servicios' : 'Show more services'"
+                @click="revealAdjacentHomeService(1)">
+                {{ locale.startsWith('es') ? 'Siguientes' : 'Next' }} <span aria-hidden="true">›</span>
+              </button>
+            </nav>
           </div>
 
           <aside class="home-news-sidebar" :class="{ 'home-news-sidebar--single': homeNews.length === 1 }" :aria-label="$t('custom.home.newsAria')">
@@ -926,6 +956,43 @@ html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__o
   }
   html .app-site.home-page #servicios .service-accordion__item[hidden] {
     display: none !important;
+  }
+  /* Small, touch-friendly paging controls sit outside the original accordion;
+     the card dimensions, photos, and opening animation remain unchanged. */
+  html .app-site.home-page #servicios .service-accordion__navigation {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 42px;
+    margin-top: 8px;
+    padding: 0;
+  }
+  html .app-site.home-page #servicios .service-accordion__nav-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 94px;
+    min-height: 42px;
+    padding: 6px 10px;
+    border: 1px solid rgba(193, 20, 53, .55);
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    font: 700 12px/1.3 system-ui, sans-serif;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  html .app-site.home-page #servicios .service-accordion__nav-button:last-child {
+    margin-left: auto;
+  }
+  html .app-site.home-page #servicios .service-accordion__nav-button span {
+    font-size: 23px;
+    line-height: 1;
+  }
+  html .app-site.home-page #servicios .service-accordion__nav-button:focus-visible {
+    outline: 3px solid #df284b;
+    outline-offset: 2px;
   }
   /* More specific than the older global mobile transition:none rule.
      Reuse the original .45s flex animation without altering layout sizing. */
