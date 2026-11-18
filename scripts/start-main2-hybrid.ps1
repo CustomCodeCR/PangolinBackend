@@ -115,6 +115,94 @@ try {
     $env:NUXT_LOCAL_GATEWAY_PORT = '8083'
     $env:NUXT_MAIN2_PORT = '5173'
 
+    # LOCAL HYBRID ONLY: when a valid Dhole key is configured for this
+    # workstation, enable quote/GIO/itinerary Dhole catalogues automatically.
+    # Production deployments do not use this launcher or overlay.
+    # No key => retain the original legacy behavior, with no prompts.
+    $activeFiles = $files
+    if ($Action -eq 'up') {
+        $dholeKeyPresent = -not [string]::IsNullOrWhiteSpace($env:DHOLE_LOCAL_PREVIEW_KEY)
+        if (-not $dholeKeyPresent) {
+            foreach ($line in [System.IO.File]::ReadLines((Resolve-Path '.env').Path)) {
+                if ($line -match '^\s*DHOLE_LOCAL_PREVIEW_KEY\s*=\s*(.*?)\s*
+        'status' {
+            Invoke-Compose -Arguments ($files + @('ps'))
+        }
+        'verify' {
+            # READ-ONLY: no Docker builds, restarts, stops or volume changes.
+            Assert-GatewayBindings -BindIp $BindIp
+            Assert-GatewayHttp -BindIp $BindIp -Attempts 1
+            Write-Host 'Verificación completada sin reconstruir ni reiniciar Docker.'
+        }
+        'rollback' {
+            # Stopping only the gateway frees port 5173; databases and backend stay intact.
+            Invoke-Compose -Arguments ($files + @('stop', 'nuxt-main2-gateway', 'nuxt-local-gateway'))
+            Restore-HybridEnvironment
+            Invoke-Compose -Arguments @('-f', 'compose.yaml', 'up', '-d', '--no-deps', '--force-recreate', 'frontend')
+            Write-Host 'Vue/Vite original restaurado. Se conservaron los volúmenes y el backend.'
+        }
+        'up' {
+            Invoke-Compose -Arguments ($activeFiles + @('config', '--quiet'))
+            # Compare the planned port bindings before touching running services.
+            # The Compose JSON stays in memory: it may contain private environment values.
+            $composeJson = & docker compose @activeFiles config --format json
+            if ($LASTEXITCODE -ne 0) { throw 'No se pudo inspeccionar la configuración Compose.' }
+            $composeConfig = $composeJson | ConvertFrom-Json
+            $gatewayMap = @(
+                @{ Name = 'nuxt-main2-gateway'; Port = '5173' },
+                @{ Name = 'nuxt-local-gateway'; Port = '8083' }
+            )
+            foreach ($gateway in $gatewayMap) {
+                $expectedPorts = @($composeConfig.services.PSObject.Properties[$gateway.Name].Value.ports)
+                $matches = @($expectedPorts | Where-Object {
+                    [string]$_.published -eq $gateway.Port -and
+                    [string]$_.host_ip -eq $BindIp -and [int]$_.target -eq 80
+                })
+                if ($matches.Count -ne 1 -or $expectedPorts.Count -ne 1) {
+                    throw "El servicio $($gateway.Name) no tiene exactamente una publicación $($BindIp):$($gateway.Port)."
+                }
+            }
+            # Release the old Vite host port FIRST, before starting gateway on 5173.
+            Invoke-Compose -Arguments ($activeFiles + @('up', '-d', '--build', 'frontend'))
+            Invoke-Compose -Arguments ($activeFiles + @('up', '-d', '--build', 'backend', 'frontend-nuxt', 'frontend-legacy-preview'))
+            # Existing gateway may be stopped but still retain old no-port bindings.
+            # Recreate JUST nginx, without dependencies or volumes, to apply port mappings.
+            Invoke-Compose -Arguments ($activeFiles + @('up', '-d', '--no-deps', '--force-recreate', 'nuxt-local-gateway', 'nuxt-main2-gateway'))
+            Invoke-Compose -Arguments ($files + @('ps'))
+            Assert-GatewayBindings -BindIp $BindIp
+            Assert-GatewayHttp -BindIp $BindIp -Attempts 30
+            # BindIp is already validated; use it when reporting successfully running URLs.
+            $probeIp = $BindIp
+            Write-Host "Híbrido principal: http://$($probeIp):5173/"
+            Write-Host "Híbrido alternativo: http://$($probeIp):8083/"
+            Write-Host 'Vue/Vite para desarrollo: http://127.0.0.1:5174/'
+            Write-Host 'Solo está disponible en las interfaces que seleccionaste; mantené el firewall restringido a la LAN.'
+        }
+    }
+} finally {
+    Restore-HybridEnvironment
+    Pop-Location
+}
+) {
+                    $rawValue = $Matches[1].Trim()
+                    if ($rawValue.Length -ge 2 -and
+                        (($rawValue.StartsWith("'") -and $rawValue.EndsWith("'")) -or
+                         ($rawValue.StartsWith('"') -and $rawValue.EndsWith('"')))) {
+                        $rawValue = $rawValue.Substring(1, $rawValue.Length - 2)
+                    }
+                    $dholeKeyPresent = -not [string]::IsNullOrWhiteSpace($rawValue)
+                    $rawValue = $null
+                }
+            }
+        }
+        if ($dholeKeyPresent) {
+            $activeFiles = $files + @('-f', 'compose.dhole-main2-preview.yaml')
+            Write-Host 'Dhole activado automaticamente en Docker local (credencial oculta).'
+        } else {
+            Write-Host 'Dhole no configurado en .env: se conserva el catalogo local anterior.'
+        }
+    }
+
     switch ($Action) {
         'status' {
             Invoke-Compose -Arguments ($files + @('ps'))
@@ -159,7 +247,7 @@ try {
             # Existing gateway may be stopped but still retain old no-port bindings.
             # Recreate JUST nginx, without dependencies or volumes, to apply port mappings.
             Invoke-Compose -Arguments ($files + @('up', '-d', '--no-deps', '--force-recreate', 'nuxt-local-gateway', 'nuxt-main2-gateway'))
-            Invoke-Compose -Arguments ($files + @('ps'))
+            Invoke-Compose -Arguments ($activeFiles + @('ps'))
             Assert-GatewayBindings -BindIp $BindIp
             Assert-GatewayHttp -BindIp $BindIp -Attempts 30
             # BindIp is already validated; use it when reporting successfully running URLs.
