@@ -121,6 +121,8 @@ public static class DholeQuoteSelectionValidator
         if (origin.DisplayName.Length > 180 || destination.DisplayName.Length > 180)
             throw new ArgumentException("Una ubicación de Dhole excede la longitud admitida para solicitudes.");
 
+        if (input.Mode == "Maritime" && (!input.PodLocationId.HasValue || input.PodLocationId == Guid.Empty))
+            throw new ArgumentException("Seleccioná un POD vigente de Dhole para todo transporte marítimo.");
         var pod = input.PodLocationId.HasValue
             ? catalog.Pods.SingleOrDefault(x => x.Id == input.PodLocationId.Value)
             : null;
