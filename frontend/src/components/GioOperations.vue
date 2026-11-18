@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2, ChevronRight, FileText, LoaderCircle, MapPin, 
 import { refreshSession } from '../services/auth'
 import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
 import { isCalendarDate, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
+import { loadDholeQuoteFormOptions, type DholeQuoteFormOptions } from '../lib/dholeQuoteForm'
 
 type Kind = 'quote' | 'tracking' | 'itinerary'
 type Phase = 'collect' | 'confirm' | 'review' | 'auth' | 'location' | 'result'
@@ -63,11 +64,73 @@ const proposedLocations = reactive<Record<string, string>>({})
 const locationLoading = ref(false)
 const locationLoadError = ref('')
 const locationCache = new Map<string, Location[]>()
+const quoteCatalog = ref<DholeQuoteFormOptions | null>(null)
+const quoteCatalogSource = ref<'local' | 'dhole'>('local')
+let quoteCatalogKey = ''
+let quoteCatalogPromise: Promise<DholeQuoteFormOptions | null> | null = null
+function clearQuoteCatalog() {
+  quoteCatalog.value = null
+  quoteCatalogSource.value = 'local'
+  quoteCatalogKey = ''
+  quoteCatalogPromise = null
+  locationCache.clear()
+}
+async function ensureQuoteCatalog() {
+  if (props.kind !== 'quote' || !values.mode || !values.shipmentType) return null
+  const mode = values.mode as DholeQuoteFormOptions['mode']
+  const shipmentType = values.shipmentType as DholeQuoteFormOptions['shipmentType']
+  const key = mode + ':' + shipmentType
+  if (quoteCatalogKey === key) {
+    if (quoteCatalogPromise) return quoteCatalogPromise
+    return quoteCatalog.value
+  }
+  quoteCatalogKey = key
+  const request = loadDholeQuoteFormOptions(mode, shipmentType)
+  quoteCatalogPromise = request
+  try {
+    const data = await request
+    if (quoteCatalogKey !== key) return null
+    quoteCatalog.value = data
+    quoteCatalogSource.value = data ? 'dhole' : 'local'
+    if (data) {
+      // Stored drafts or an in-progress form may contain local UUIDs. When the
+      // source becomes Dhole, never submit those UUIDs as external locations.
+      for (const role of ['origin','destination','pod'] as const) {
+        const options = role === 'origin' ? data.origins
+          : role === 'destination' ? data.destinations : data.pods
+        if (selectedLocations[role] && !options.some(x => x.id === selectedLocations[role])) {
+          delete selectedLocations[role]
+          delete values[role]
+        }
+      }
+      if (values.incoterm && !data.incoterms.includes(values.incoterm)) delete values.incoterm
+      if (values.equipmentSize &&
+          !data.equipmentSizes.some(choice => choice.value === values.equipmentSize)) {
+        delete values.equipmentSize
+        delete values.equipmentType
+      } else if (values.equipmentType &&
+          !(data.equipmentTypesBySize[values.equipmentSize] || []).includes(values.equipmentType)) {
+        delete values.equipmentType
+      }
+    }
+    return data
+  } catch (error) {
+    if (quoteCatalogKey === key) {
+      quoteCatalogKey = ''
+      quoteCatalogPromise = null
+      quoteCatalog.value = null
+    }
+    throw error
+  } finally {
+    if (quoteCatalogKey === key) quoteCatalogPromise = null
+  }
+}
 const isQuoteLocation = (key: string) => props.kind === 'quote' && ['origin','destination','pod'].includes(key)
 const isCatalogueLocation = (key: string) => isQuoteLocation(key) || (props.kind === 'itinerary' && ['origin','destination'].includes(key))
 const i = (es: string, en: string) => tr(es, en)
 const modes = computed<Choice[]>(() => [{value:'Maritime',label:i('Marítimo','Ocean')},{value:'Air',label:i('Aéreo','Air')},{value:'Land',label:i('Terrestre','Ground')}])
-const terms = officialIncoterms.map(value => ({value,label:value}))
+const terms = computed<Choice[]>(() => (quoteCatalogSource.value === 'dhole' && quoteCatalog.value
+  ? quoteCatalog.value.incoterms : [...officialIncoterms]).map(value => ({value,label:value})))
 const serviceChoices = computed<Choice[]>(() => officialServiceOptions.map(value => ({
   value, label:officialServiceName(value,tr)
 })))
@@ -78,8 +141,14 @@ function toggleService(value: string) {
     ? selectedServices.value.filter(item => item !== value)
     : [...selectedServices.value, value]
 }
-const equipmentSizes = computed<Choice[]>(() => officialEquipmentSizeOptions(values.shipmentType || '', tr))
-const equipmentTypes = computed<Choice[]>(() => officialEquipmentTypeOptions(values.shipmentType || '', tr))
+const equipmentSizes = computed<Choice[]>(() => quoteCatalogSource.value === 'dhole' && quoteCatalog.value
+  ? quoteCatalog.value.equipmentSizes.map(x => ({value:x.value,label:x.label}))
+  : officialEquipmentSizeOptions(values.shipmentType || '', tr))
+const equipmentTypes = computed<Choice[]>(() => quoteCatalogSource.value === 'dhole' && quoteCatalog.value
+  ? (quoteCatalog.value.equipmentTypesBySize[values.equipmentSize] || []).map(value => ({
+      value,label:value === 'Furgón' ? tr('Furgón','Truck') : value
+    }))
+  : officialEquipmentTypeOptions(values.shipmentType || '', tr))
 const isEquipment = computed(() => ['FCL', 'FTL'].includes(values.shipmentType))
 const shipmentOptions = computed<Choice[]>(() => values.mode === 'Maritime'
   ? [{value:'FCL',label:i('Contenedor completo (FCL)','Full container (FCL)')},{value:'LCL',label:i('Carga consolidada (LCL)','Consolidated cargo (LCL)')}]
@@ -102,9 +171,9 @@ const steps = computed<Step[]>(() => {
     {key:'origin',prompt:i('¿Desde qué ciudad o puerto sale la carga?','Where will the cargo depart from?')},
     {key:'destination',prompt:i('¿Cuál es el destino?','What is the destination?')}
   ]
-  if (values.shipmentType === 'LCL') result.push({key:'pod',prompt:i('Para LCL, indica también el puerto de descarga (POD).','For LCL, provide the port of discharge (POD).')})
+  if (values.mode === 'Maritime') result.push({key:'pod',prompt:i('Indica el puerto de descarga (POD) obligatorio para transporte marítimo.','Select the required port of discharge (POD) for ocean freight.')})
   result.push(
-    {key:'incoterm',prompt:i('¿Qué Incoterm se utilizará?','Which Incoterm applies?'),choices:terms},
+    {key:'incoterm',prompt:i('¿Qué Incoterm se utilizará?','Which Incoterm applies?'),choices:terms.value},
     {key:'cargoReadyDate',prompt:i('¿En qué fecha estará lista la carga? Escribe AAAA-MM-DD.','When will the cargo be ready? Enter YYYY-MM-DD.'),hint:'AAAA-MM-DD'}
   )
   if (values.incoterm === 'EXW') result.push(
@@ -163,8 +232,13 @@ const summary = computed(() => steps.value.map(step => ({
   key:step.key, label: tr((fieldLabels[step.key] ?? [step.key,step.key])[0], (fieldLabels[step.key] ?? [step.key,step.key])[1]),
   value: step.key === 'services' ? serviceNames(values.services || '') : step.choices?.find(option => option.value === values[step.key])?.label ?? values[step.key]
 })).filter(item => item.value))
-const filteredLocations = computed(() => locationChoices.value.filter(loc =>
-  norm(loc.displayName).includes(norm(locationTerm.value))).slice(0, 30))
+// Keep every matching location selectable at once in the scrollable list;
+// filter the complete Dhole feed, not just its first page.
+const matchingLocations = computed(() => {
+  const search = norm(locationTerm.value)
+  return locationChoices.value.filter(loc =>
+    norm(loc.displayName).includes(search) || norm(loc.code || '').includes(search))
+})
 const validDate = isCalendarDate
 const norm = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
 const positive = (s: string) => Number.isFinite(Number(s)) && Number(s) > 0
@@ -255,14 +329,15 @@ function commitValue(item: Step, value: string, locationId?: string) {
     for (const key of ['shipmentType','origin','destination','pod','equipmentSize','equipmentType','equipmentQuantity',
       'equipmentWeights','packageQuantity','packageWeight','packageLength','packageWidth','packageHeight','stackable']) delete values[key]
     for (const role of ['origin','destination','pod']) delete selectedLocations[role]
-    locationCache.clear()
+    clearQuoteCatalog()
   }
   if (item.key === 'shipmentType' && values.shipmentType !== value) {
     for (const role of ['origin','destination','pod']) { delete values[role]; delete selectedLocations[role] }
     for (const key of ['equipmentSize','equipmentType','equipmentQuantity','equipmentWeights','packageQuantity',
       'packageWeight','packageLength','packageWidth','packageHeight','stackable']) delete values[key]
-    locationCache.clear()
+    clearQuoteCatalog()
   }
+  if (item.key === 'equipmentSize' && values.equipmentSize !== value) delete values.equipmentType
   if (item.key === 'incoterm' && value !== 'EXW') {
     delete values.exwCargoStatus
     delete values.exwPickupAddress
@@ -464,6 +539,19 @@ async function jsonResponse(response: Response) {
   return data
 }
 async function getLocations(role: string): Promise<Location[]> {
+  if (props.kind === 'quote') {
+    const requestedMode = values.mode
+    const requestedType = values.shipmentType
+    const dynamic = await ensureQuoteCatalog()
+    if (values.mode !== requestedMode || values.shipmentType !== requestedType)
+      throw new Error(tr('La modalidad cambió. Volvé a elegir la ruta.','Mode changed. Select the route again.'))
+    if (dynamic) {
+      if (role === 'origin') return dynamic.origins
+      if (role === 'destination') return dynamic.destinations
+      if (role === 'pod') return dynamic.pods
+      throw new Error('Unknown location role.')
+    }
+  }
   let requestUrl = ''
   if (props.kind === 'itinerary') {
     const params = new URLSearchParams({routeRole:role})
@@ -509,6 +597,8 @@ watch(
   { immediate: true }
 )
 async function submitQuote() {
+  // After restored drafts, re-check which catalog source is authorized.
+  await ensureQuoteCatalog()
   for (const [index, step] of steps.value.entries()) {
     const issue = validation(step.key, values[step.key] || '')
     if (issue) {
@@ -518,7 +608,7 @@ async function submitQuote() {
       return
     }
   }
-  const roles = ['origin','destination',...(values.shipmentType === 'LCL' ? ['pod'] : [])]
+  const roles = ['origin','destination',...(values.mode === 'Maritime' ? ['pod'] : [])]
   for (const role of roles) {
     if (selectedLocations[role]) continue
     const catalog = await getLocations(role)
@@ -535,8 +625,9 @@ async function submitQuote() {
   const weights = equipment ? values.equipmentWeights.split(',').map(x => Number(x.trim())) : []
   const payload = {
     mode:values.mode, shipmentType:values.shipmentType,
+    catalogSource:quoteCatalogSource.value === 'dhole' ? 'dhole' : null,
     originLocationId:selectedLocations.origin, destinationLocationId:selectedLocations.destination,
-    podLocationId:values.shipmentType === 'LCL' ? selectedLocations.pod : null,
+    podLocationId:values.mode === 'Maritime' ? selectedLocations.pod : null,
     contactName:values.contactName, contactEmail:values.contactEmail,contactPhone:values.contactPhone,
     incoterm:values.incoterm,cargoReadyDate:values.cargoReadyDate,services:requestedServices,
     equipment:equipment ? [{size:values.equipmentSize,type:values.equipmentType,quantity:Number(values.equipmentQuantity),unitWeightsKg:weights}] : [],
@@ -692,10 +783,11 @@ async function perform() {
       <template v-else-if="phase === 'location'">
         <div class="gio-ops__bubble">{{ tr('Necesito que selecciones una ubicación válida del catálogo oficial para ', 'Please select an official catalog location for ') }}{{ pendingRole === 'origin' ? tr('origen','origin') : pendingRole === 'destination' ? tr('destino','destination') : 'POD' }}.</div>
         <label class="gio-ops__label">{{ tr('Buscar ubicación','Search locations') }}<input v-model="locationTerm" maxlength="100" /></label>
+        <p v-if="locationChoices.length" class="gio-ops__note">{{ matchingLocations.length }} {{ tr('ubicaciones coincidentes', 'matching locations') }}</p>
         <div class="gio-ops__choices gio-ops__location-list">
-          <button v-for="loc in filteredLocations" :key="loc.id" type="button" :disabled="busy" @click="chooseLocation(loc)"><MapPin :size="14" />{{ loc.displayName }}</button>
+          <button v-for="loc in matchingLocations" :key="loc.id" type="button" :disabled="busy" @click="chooseLocation(loc)"><MapPin :size="14" />{{ loc.displayName }}</button>
         </div>
-        <p v-if="filteredLocations.length === 0" class="gio-ops__note">{{ tr('No hay ubicaciones coincidentes. Prueba otra búsqueda o completa la cotización en el formulario.','No matching locations. Try another search or use the full quote form.') }}</p>
+        <p v-if="matchingLocations.length === 0" class="gio-ops__note">{{ tr('No hay ubicaciones coincidentes. Prueba otra búsqueda o completa la cotización en el formulario.','No matching locations. Try another search or use the full quote form.') }}</p>
         <a class="gio-ops__secondary gio-ops__link" href="/cotizaciones">{{ tr('Abrir formulario completo','Open full quote form') }}</a>
       </template>
       <template v-else-if="phase === 'result'">
@@ -731,12 +823,12 @@ async function perform() {
       <p v-if="error && !(phase === 'collect' && current && isCatalogueLocation(current.key))" class="gio-ops__error" role="alert">{{ error }}</p>
     </div>
     <section v-if="phase === 'collect' && current && isCatalogueLocation(current.key)" class="gio-ops__location-dock" aria-label="Sugerencias de ubicación">
-      <div class="gio-ops__location-heading"><MapPin :size="14" /><strong>{{ tr('Ubicaciones disponibles','Available locations') }}</strong></div>
+      <div class="gio-ops__location-heading"><MapPin :size="14" /><strong>{{ tr('Ubicaciones disponibles','Available locations') }}</strong><span v-if="locationChoices.length" class="gio-ops__location-count">{{ matchingLocations.length }}</span></div>
       <p v-if="locationLoading" class="gio-ops__note" role="status">{{ tr('Buscando ubicaciones…','Loading locations…') }}</p>
       <p v-else-if="locationLoadError" class="gio-ops__error" role="alert">{{ locationLoadError }}</p>
       <p v-else-if="!locationChoices.length" class="gio-ops__note">{{ tr('No hay ubicaciones habilitadas para esta modalidad.','No enabled locations for this shipment type.') }}</p>
-      <div v-else-if="filteredLocations.length" class="gio-ops__choices gio-ops__location-list" role="listbox" :aria-label="tr('Ubicaciones disponibles','Available locations')">
-        <button v-for="loc in filteredLocations" :key="loc.id" type="button" role="option" :aria-selected="false" @click="accept(loc.displayName, loc.id)"><MapPin :size="14" /><span>{{ loc.displayName }}</span><ChevronRight :size="14" /></button>
+      <div v-else-if="matchingLocations.length" class="gio-ops__choices gio-ops__location-list" role="listbox" :aria-label="tr('Ubicaciones disponibles','Available locations')">
+        <button v-for="loc in matchingLocations" :key="loc.id" type="button" role="option" :aria-selected="false" @click="accept(loc.displayName, loc.id)"><MapPin :size="14" /><span>{{ loc.displayName }}</span><ChevronRight :size="14" /></button>
       </div>
       <p v-else class="gio-ops__note">{{ tr('Sin coincidencias. Escribe otra ciudad o puerto.','No matches. Try a different city or port.') }}</p>
       <p v-if="error" class="gio-ops__error" role="alert">{{ error }}</p>
@@ -792,4 +884,5 @@ async function perform() {
 .gio-ops__card dd{overflow-wrap:anywhere;white-space:pre-wrap}
 .gio-ops__card dl{gap:13px 12px}
 @media(min-width:600px){.site-assistant__panel--expanded .gio-ops__card dl{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.gio-ops__location-count{margin-left:auto;white-space:nowrap;font-variant-numeric:tabular-nums;font-size:11px;color:var(--gio-muted,#aaa)}
 </style>

@@ -1,0 +1,143 @@
+name: Dhole catalogues - offline contract checks
+on:
+  pull_request:
+    branches: [main-2]
+    paths:
+      - 'backend/Services/DholeCatalog*.cs'
+      - 'backend/Services/DholeQuoteLocationProjector.cs'
+      - 'backend/Services/DholeEquipmentProjector.cs'
+      - 'backend/Services/DholeItineraryLocationProjector.cs'
+      - 'backend/Services/DholeQuoteForm*.cs'
+      - 'backend/Endpoints/OfficialQuoteEndpoints.cs'
+      - 'backend/Models/OfficialQuoteModels.cs'
+      - 'backend/Endpoints/DholeCatalogEndpoints.cs'
+      - 'backend/Program.cs'
+      - 'tests/DholeCatalogHarness/**'
+      - 'tests/DholeQuoteHttpHarness/**'
+      - 'compose.dhole-catalog-smoke.yaml'
+      - 'scripts/test-dhole-catalog-docker.ps1'
+      - 'scripts/start-dhole-main2-preview.ps1'
+      - 'compose.dhole-main2-preview.yaml'
+      - '.github/workflows/dhole-catalogs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Compile backend without Dhole credentials
+        run: dotnet build backend/CastroFallas.MiniQuote.Api.csproj -c Release
+      - name: Verify Dhole normalization and invalid input contracts offline
+        run: dotnet run --project tests/DholeCatalogHarness/DholeCatalogHarness.csproj -c Release
+
+  isolated-docker:
+    name: Start backend without databases and without real Dhole calls
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check PowerShell smoke and local preview syntax before asking for private keys
+        shell: pwsh
+        run: |
+          foreach ($file in @(
+            'scripts/test-dhole-catalog-docker.ps1',
+            'scripts/start-dhole-main2-preview.ps1'
+          )) {
+            $tokens = $null
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $file,
+              [ref]$tokens,
+              [ref]$parseErrors
+            ) | Out-Null
+            if ($parseErrors.Count -gt 0) {
+              $parseErrors | ForEach-Object { Write-Error $_ }
+              exit 1
+            }
+            Write-Host "$file syntax OK"
+          }
+      - name: Validate main-2 local Dhole overlay using fictional env only
+        env:
+          POSTGRES_PASSWORD: fictional-postgres
+          AUTH_OTP_PEPPER: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          AUTH_JWT_SIGNING_KEY: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+          DHOLE_LOCAL_PREVIEW_KEY: fictional-allowlisted-preview
+        run: >-
+          docker compose -f compose.yaml
+          -f compose.nuxt-preview.yaml
+          -f compose.nuxt-local-hybrid.yaml
+          -f compose.main2-hybrid.yaml
+          -f compose.dhole-main2-preview.yaml
+          config --quiet
+      - name: Generate fake CI-only secrets, never use production key
+        run: |
+          cat > .env.dhole-catalog-smoke <<'EOF'
+          Auth__OtpPepper=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          Auth__JwtSigningKey=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+          DholeCatalogs__Enabled=true
+          DholeCatalogs__ApiKey=fictional-ci-only-key
+          EOF
+          chmod 600 .env.dhole-catalog-smoke
+      - name: Validate isolated compose
+        run: docker compose -f compose.dhole-catalog-smoke.yaml config --quiet
+      - name: Build and start only the isolated backend
+        run: docker compose -f compose.dhole-catalog-smoke.yaml up -d --build backend
+      - name: Verify health, allowlist and authorization without upstream access
+        run: |
+          ready=0
+          for i in $(seq 1 45); do
+            if curl --silent --fail http://127.0.0.1:5517/api/health >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "Isolated backend did not become ready"
+            docker compose -f compose.dhole-catalog-smoke.yaml logs --tail=80 backend
+            exit 1
+          fi
+          code=$(curl --silent -o /dev/null -w '%{http_code}' http://127.0.0.1:5517/api/dhole/catalogs/not-allowed)
+          test "$code" = "404"
+          code=$(curl --silent -o /dev/null -w '%{http_code}' http://127.0.0.1:5517/api/dhole/quote-equipment-preview)
+          test "$code" = "401"
+          echo 'OK: isolated Docker backend; invalid catalogue denied, admin preview protected.'
+      - name: Tear down isolated test only
+        if: always()
+        run: |
+          docker compose -f compose.dhole-catalog-smoke.yaml down --remove-orphans
+          rm -f .env.dhole-catalog-smoke
+
+  postgres-quote-http:
+    name: Real HTTP POST into disposable PostgreSQL, simulated Dhole
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: dhole_quote_e2e
+          POSTGRES_USER: ci_dhole
+          POSTGRES_PASSWORD: fictional-ci-postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_dhole -d dhole_quote_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      CI: "true"
+      QUOTE_E2E_POSTGRES: "Host=127.0.0.1;Port=5432;Username=ci_dhole;Password=fictional-ci-postgres;Database=dhole_quote_e2e"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Execute actual official quote API in TestServer with isolated PostgreSQL
+        run: dotnet run --project tests/DholeQuoteHttpHarness/DholeQuoteHttpHarness.csproj -c Release

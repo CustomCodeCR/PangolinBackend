@@ -41,6 +41,16 @@ builder.Services.AddHttpClient("DholeTracking", client =>
     client.BaseAddress = new Uri("https://api.logisticacastrofallas.com/");
     client.Timeout = TimeSpan.FromSeconds(12);
 }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+// Independent GET-only external catalogues; no user-controlled URLs or redirects.
+builder.Services.AddHttpClient("DholeCatalogs", client =>
+{
+    client.BaseAddress = new Uri("https://api.logisticacastrofallas.com/");
+    client.Timeout = TimeSpan.FromSeconds(12);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AllowAutoRedirect = false,
+    UseCookies = false
+});
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(postgres));
 // Redis y MongoDB se utilizan SOLO para cache/auditoría de cotizaciones.
 // Si no se configuran, el login y las cotizaciones siguen usando PostgreSQL.
@@ -110,6 +120,8 @@ builder.Services.AddScoped<AssistantService>();
 builder.Services.AddSingleton<NewsTranslationService>();
 builder.Services.AddSingleton<TrackingStatusTranslationService>();
 builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<DholeCatalogService>();
+builder.Services.AddSingleton<DholeQuoteFormCatalogLoader>();
 builder.Services.AddSingleton<AssistantFreeQuota>();
 builder.Services.AddSingleton<ObjectStorageService>();
 builder.Services.AddHttpClient("Groq", client =>
@@ -334,6 +346,7 @@ app.UseAuthorization();
 
 app.MapTrackingDemo();
 app.MapDholeTracking();
+app.MapDholeCatalogs();
 app.MapGet("/api/health", () => Results.Ok(new
 {
     service = "CastroFallas.MiniQuote.Api", status = "ok", version = "rediseno-auth-otp-v1", utc = DateTime.UtcNow
@@ -573,12 +586,44 @@ app.MapGet("/api/assistant/itinerary-locations", async (
 // destination) instead of querying four shipment types separately on every
 // page load. Source remains the official quote catalogue; no duplicate data.
 app.MapGet("/api/itinerarios/locations", async (
-    string transport, string routeRole, AppDbContext db, HttpContext http, CancellationToken ct) =>
+    string transport, string routeRole, AppDbContext db, IConfiguration config,
+    DholeCatalogService dhole, HttpContext http, CancellationToken ct) =>
 {
     http.Response.Headers.CacheControl = "no-store";
     if (transport is not ("all" or "maritime" or "ground") ||
         routeRole is not ("origin" or "destination"))
         return Results.BadRequest(new { error = "Filtros de ubicaciones inválidos." });
+
+    // Separate opt-in for Itinerarios: its destination field is POD (not POE).
+    // Existing database-backed filters remain identical until this is enabled.
+    if (config.GetValue<bool>("DholeCatalogs:ItinerariesEnabled"))
+    {
+        if (!dhole.IsConfigured)
+            return Results.Json(new { code = "catalog_not_configured" },
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        try
+        {
+            var catalog = routeRole == "origin" ? "pol" : "pod";
+            var snapshot = await dhole.GetAsync(catalog, ct);
+            if (snapshot.Stale)
+                return Results.Json(new { code = "catalog_stale" },
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+
+            var names = DholeItineraryLocationProjector.Project(
+                transport, routeRole,
+                catalog == "pol" ? snapshot.Items : [],
+                catalog == "pod" ? snapshot.Items : []);
+            if (names.Length == 0)
+                return Results.Json(new { code = "catalog_empty" },
+                    statusCode: StatusCodes.Status502BadGateway);
+            return Results.Ok(new { source = "dhole", items = names.Select(name => new { displayName = name }) });
+        }
+        catch (DholeCatalogUnavailableException)
+        {
+            return Results.Json(new { code = "catalog_upstream_unavailable" },
+                statusCode: StatusCodes.Status502BadGateway);
+        }
+    }
 
     var types = transport switch
     {
@@ -689,3 +734,6 @@ app.MapSiteCms();
 app.MapHub<ContentUpdatesHub>(ContentUpdatesHub.Path);
 
 app.Run();
+
+// Allows isolated, in-memory HTTP integration tests to use the real API routes.
+public partial class Program { }

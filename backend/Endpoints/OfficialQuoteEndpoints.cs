@@ -3,6 +3,7 @@ using System.Text.Json;
 using CastroFallas.MiniQuote.Api.Data;
 using CastroFallas.MiniQuote.Api.Models;
 using CastroFallas.MiniQuote.Api.Services.Auth;
+using CastroFallas.MiniQuote.Api.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace CastroFallas.MiniQuote.Api.Endpoints;
@@ -61,7 +62,7 @@ public static class OfficialQuoteEndpoints
         return string.IsNullOrWhiteSpace(x) ? null : x;
     }
 
-    private static void Validate(OfficialQuoteSubmit s)
+    private static void Validate(OfficialQuoteSubmit s, bool useDholeCatalogs = false)
     {
         var validPair = (s.Mode, s.ShipmentType) switch
         {
@@ -77,9 +78,9 @@ public static class OfficialQuoteEndpoints
             throw new ArgumentException("Seleccioná origen y destino diferentes.");
         if (s.Mode != "Maritime" && s.PodLocationId is not null)
             throw new ArgumentException("POD solo corresponde a marítimo.");
-        if (s.ShipmentType == "LCL" && s.PodLocationId is null)
-            throw new ArgumentException("Seleccioná el POD requerido para marítimo LCL.");
-        if (s.Incoterm is not null && !Incoterms.Contains(s.Incoterm))
+        if (s.Mode == "Maritime" && (!s.PodLocationId.HasValue || s.PodLocationId == Guid.Empty))
+            throw new ArgumentException("Seleccioná el POD requerido para todo transporte marítimo.");
+        if (!useDholeCatalogs && s.Incoterm is not null && !Incoterms.Contains(s.Incoterm))
             throw new ArgumentException("Incoterm inválido.");
         if (s.CargoReadyDate is null) throw new ArgumentException("Indicá la fecha de carga lista.");
         if (s.CargoReadyDate.Value < TodayInCostaRica())
@@ -116,8 +117,8 @@ public static class OfficialQuoteEndpoints
                 var allowedTypes = s.ShipmentType == "FCL"
                     ? new[] { "Dry Van", "High Cube", "Open Top", "Open Side", "Tank", "Flat Rack", "NOR" }
                     : new[] { "Furgón" };
-                if (!allowedSizes.Contains(selectedSize, StringComparer.Ordinal) ||
-                    !allowedTypes.Contains(selectedType, StringComparer.Ordinal))
+                if (!useDholeCatalogs && (!allowedSizes.Contains(selectedSize, StringComparer.Ordinal) ||
+                    !allowedTypes.Contains(selectedType, StringComparer.Ordinal)))
                     throw new ArgumentException("Seleccioná tamaño y tipo de equipo de las opciones oficiales.");
                 if (line.Quantity is null or < 1 or > 100 ||
                     line.UnitWeightsKg is null || line.UnitWeightsKg.Count != line.Quantity ||
@@ -217,33 +218,69 @@ public static class OfficialQuoteEndpoints
             .RequireRateLimiting("public-read");
 
         group.MapPost("", async (OfficialQuoteSubmit input, AppDbContext db, AuthService auth,
-            HttpContext http, CancellationToken ct) =>
+            IConfiguration config, DholeCatalogService dholeService,
+            DholeQuoteFormCatalogLoader dholeLoader, HttpContext http, CancellationToken ct) =>
         {
             // Guest submissions are independent from registered customer accounts.
             var user = await auth.GetIdentityAsync(http, ct);
             try
             {
-                Validate(input);
-                var kind = input.Mode switch { "Maritime" => "seaport", "Air" => "airport", _ => "inland" };
-                var ids = new[] { input.OriginLocationId!.Value, input.DestinationLocationId!.Value };
-                if (input.PodLocationId.HasValue) ids = [..ids, input.PodLocationId.Value];
-                var locations = await db.OfficialQuoteLocations.AsNoTracking()
-                    .Where(x => ids.Contains(x.Id) && x.Active && (x.Kind == kind || input.PodLocationId == x.Id && x.Kind == "inland" && kind == "seaport"))
-                    .ToDictionaryAsync(x => x.Id, ct);
-                if (locations.Count != ids.Distinct().Count())
-                    return Results.BadRequest(new { error = "Seleccioná ubicaciones activas del catálogo." });
-                // Validar el campo específico, no solo que la ubicación exista.
-                var requiredUses = new List<(Guid LocationId, string Role)>
+                // No ID from Dhole is ever looked up as a legacy local ID.
+                // A missing catalogSource remains the original, fully validated path.
+                if (input.CatalogSource is not null && input.CatalogSource is not ("local" or "dhole"))
+                    return Results.BadRequest(new { error = "Fuente de catálogo inválida." });
+                bool useDhole = input.CatalogSource == "dhole";
+                bool dynamicRollout = config.GetValue<bool>("DholeCatalogs:FormEnabled") &&
+                    config.GetValue<bool>("DholeCatalogs:SubmissionEnabled");
+                if (useDhole && (!dynamicRollout || !dholeService.IsConfigured))
+                    return Results.Json(new { code = "dhole_quote_disabled", error = "El catálogo Dhole no está habilitado." },
+                        statusCode: StatusCodes.Status503ServiceUnavailable);
+                // Once the dynamic wizard AND its submit validator are enabled,
+                // no new request may bypass Dhole by omitting catalogSource.
+                // Historical records and deployments with flags off are unaffected.
+                if (!useDhole && dynamicRollout)
+                    return Results.Json(new { code = "catalog_source_required", error = "Actualizá la página de cotizaciones para utilizar el catálogo vigente." },
+                        statusCode: StatusCodes.Status409Conflict);
+
+                Validate(input, useDholeCatalogs: useDhole);
+                string originName;
+                string destinationName;
+                if (useDhole)
                 {
-                    (input.OriginLocationId.Value, "origin"),
-                    (input.DestinationLocationId.Value, "destination")
-                };
-                if (input.PodLocationId.HasValue) requiredUses.Add((input.PodLocationId.Value, "pod"));
-                var assigned = await db.OfficialQuoteLocationUsages.AsNoTracking()
-                    .Where(x => ids.Contains(x.LocationId) && x.ShipmentType == input.ShipmentType)
-                    .Select(x => new { x.LocationId, x.RouteRole }).ToListAsync(ct);
-                if (requiredUses.Any(u => !assigned.Any(a => a.LocationId == u.LocationId && a.RouteRole == u.Role)))
-                    return Results.BadRequest(new { error = "La ubicación no está habilitada para este campo y modalidad." });
+                    // A fresh server-side snapshot, never a browser-provided list
+                    // or stale cache, is authoritative for every submitted field.
+                    var catalog = await dholeLoader.LoadFreshAsync(
+                        input.Mode!, input.ShipmentType!, ct);
+                    var selected = DholeQuoteSelectionValidator.Validate(input, catalog);
+                    originName = selected.OriginName;
+                    destinationName = selected.DestinationName;
+                }
+                else
+                {
+                    var kind = input.Mode switch { "Maritime" => "seaport", "Air" => "airport", _ => "inland" };
+                    var ids = new[] { input.OriginLocationId!.Value, input.DestinationLocationId!.Value };
+                    if (input.PodLocationId.HasValue) ids = [..ids, input.PodLocationId.Value];
+                    var locations = await db.OfficialQuoteLocations.AsNoTracking()
+                        .Where(x => ids.Contains(x.Id) && x.Active && (x.Kind == kind ||
+                            input.PodLocationId == x.Id && x.Kind == "inland" && kind == "seaport"))
+                        .ToDictionaryAsync(x => x.Id, ct);
+                    if (locations.Count != ids.Distinct().Count())
+                        return Results.BadRequest(new { error = "Seleccioná ubicaciones activas del catálogo." });
+                    // Validar el campo específico, no solo que la ubicación exista.
+                    var requiredUses = new List<(Guid LocationId, string Role)>
+                    {
+                        (input.OriginLocationId.Value, "origin"),
+                        (input.DestinationLocationId.Value, "destination")
+                    };
+                    if (input.PodLocationId.HasValue) requiredUses.Add((input.PodLocationId.Value, "pod"));
+                    var assigned = await db.OfficialQuoteLocationUsages.AsNoTracking()
+                        .Where(x => ids.Contains(x.LocationId) && x.ShipmentType == input.ShipmentType)
+                        .Select(x => new { x.LocationId, x.RouteRole }).ToListAsync(ct);
+                    if (requiredUses.Any(u => !assigned.Any(a => a.LocationId == u.LocationId && a.RouteRole == u.Role)))
+                        return Results.BadRequest(new { error = "La ubicación no está habilitada para este campo y modalidad." });
+                    originName = locations[input.OriginLocationId!.Value].DisplayName;
+                    destinationName = locations[input.DestinationLocationId!.Value].DisplayName;
+                }
                 var quote = new OfficialQuoteRequest
                 {
                     Id = Guid.NewGuid(), ClienteId = user?.ClienteId, UsuarioId = user?.UsuarioId,
@@ -252,8 +289,8 @@ public static class OfficialQuoteEndpoints
                     ContactName = input.ContactName!.Trim(), ContactEmail = input.ContactEmail!.Trim(),
                     ContactPhone = input.ContactPhone!.Trim(),
                     Mode = input.Mode!, ShipmentType = input.ShipmentType!,
-                    OriginName = locations[input.OriginLocationId!.Value].DisplayName,
-                    DestinationName = locations[input.DestinationLocationId!.Value].DisplayName,
+                    OriginName = originName,
+                    DestinationName = destinationName,
                     FormJson = JsonSerializer.Serialize(input, Json)
                 };
                 db.OfficialQuotes.Add(quote);
@@ -267,6 +304,11 @@ public static class OfficialQuoteEndpoints
             catch (ArgumentException ex)
             {
                 return Results.BadRequest(new { error = ex.Message });
+            }
+            catch (DholeCatalogUnavailableException)
+            {
+                return Results.Json(new { code = "dhole_catalog_unavailable", error = "No se pudo verificar el catálogo de Dhole." },
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
             }
         }).RequireRateLimiting("public-quote");
 
