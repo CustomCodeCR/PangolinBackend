@@ -43,7 +43,7 @@ public sealed class DholeQuoteFormCatalogLoader(DholeCatalogService catalogs)
         // options (which Dhole may have removed).
         if (result.Incoterms.Length == 0 ||
             result.Origins.Length == 0 || result.Destinations.Length == 0 ||
-            (mode == "Maritime" && shipmentType == "LCL" && result.Pods.Length == 0) ||
+            (mode == "Maritime" && result.Pods.Length == 0) ||
             (shipmentType is "FCL" or "FTL" && result.EquipmentSizes.Length == 0))
             throw new DholeCatalogUnavailableException();
 
