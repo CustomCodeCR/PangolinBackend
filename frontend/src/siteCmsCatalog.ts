@@ -991,6 +991,38 @@ capabilityTitles.forEach(([es,en],i)=>{
 ;['/images/services-warehouse.webp','/images/truck.webp','/images/warehouse-person.webp'].forEach((src,i)=>
   addMedia('about','Sobre nosotros','about.gallery.'+i+'.media','Galería','Foto '+(i+1),src))
 
+// Nuevos módulos de Home y estructura: todos los textos editables por idioma.
+const newHomeFields: Array<[string,string,string,string,string]> = [
+  ['home.services.fiscal.title','Almacén fiscal','Título','Almacén fiscal','Bonded warehouse'],
+  ['home.services.fiscal.detail','Almacén fiscal','Descripción','Almacenes fiscales A257 y A287. Manejo de carga peligrosa sujeto a condiciones y autorizaciones; control de inventario de rotación.','Bonded warehouses A257 and A287. Dangerous goods handling subject to conditions and authorizations; rotating inventory management.'],
+  ['home.services.fiscal.locationA257','Almacén fiscal','Almacén A257','A257','A257'],
+  ['home.services.fiscal.locationA287','Almacén fiscal','Almacén A287','A287','A287'],
+  ['home.services.fiscal.hazardous','Almacén fiscal','Carga peligrosa','Manejo de carga peligrosa, sujeto a requisitos y autorizaciones.','Dangerous goods handling subject to applicable requirements and permits.'],
+  ['home.services.fiscal.rotation','Almacén fiscal','Inventario de rotación','Manejo de inventario de rotación.','Rotating inventory management.'],
+  ['home.services.panama.title','Transporte Panamá–Costa Rica','Título','Transporte Panamá–Costa Rica','Panama–Costa Rica transport'],
+  ['home.services.panama.detail','Transporte Panamá–Costa Rica','Descripción','Más de 80 unidades caucionadas con rastreo, articuladas y no articuladas, de 28, 40, 45, 48 y 53 pies.','More than 80 bonded transport units with tracking, articulated and non-articulated, in 28, 40, 45, 48 and 53-foot sizes.']
+]
+newHomeFields.forEach(([key,section,label,es,en])=>addText('home','Inicio',key,section,label,es,en))
+addMedia('home','Inicio','home.services.fiscal.media','Almacén fiscal','Imagen de tarjeta y modal','/images/services-warehouse.webp')
+addMedia('home','Inicio','home.services.panama.media','Transporte Panamá–Costa Rica','Imagen de tarjeta y modal','/images/truck.webp')
+
+const structureTitles: Array<[string,string]> = [
+  ['Nuestros servicios','Our services'],['48 años','48 years'],['Mesa de ayuda','Help desk'],
+  ['Agente propio en sitio','On-site agent'],['Departamentos','Departments'],
+  ['Universidad corporativa','Corporate university'],['Enfoque ambiental','Environmental approach']
+]
+addText('about','Sobre nosotros','about.structure.heading','Sobre nuestra estructura','Título','Sobre nuestra estructura','About our structure')
+structureTitles.forEach(([es,en],i)=>addText('about','Sobre nosotros','about.structure.'+i+'.title','Sobre nuestra estructura','Elemento '+(i+1)+': título',es,en))
+const departments: Array<[string,string]> = [
+  ['Consolidadora','Freight consolidation'],['Pedimentación','Customs declaration processing'],
+  ['Contabilidad','Accounting'],['Servicio al cliente','Customer service'],
+  ['Transporte interno de carga','Domestic cargo transport']
+]
+departments.forEach(([es,en],i)=>addText('about','Sobre nosotros','about.structure.departments.'+i,'Sobre nuestra estructura','Departamento '+(i+1),es,en))
+addText('about','Sobre nosotros','about.structure.environment','Sobre nuestra estructura','Texto de enfoque ambiental',
+  'Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.',
+  'We seek opportunities to incorporate more responsible practices into our operations.')
+
 // Inicio: nuevos títulos de rastreo, indicadores, noticias y accesos.
 const homeExtra: Array<[string,string,string,string]> = [
   ['home.tracking.heading1','Rastreo','Título 1','phrases.p021'],
