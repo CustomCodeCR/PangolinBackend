@@ -78,8 +78,8 @@ public static class OfficialQuoteEndpoints
             throw new ArgumentException("Seleccioná origen y destino diferentes.");
         if (s.Mode != "Maritime" && s.PodLocationId is not null)
             throw new ArgumentException("POD solo corresponde a marítimo.");
-        if (s.ShipmentType == "LCL" && s.PodLocationId is null)
-            throw new ArgumentException("Seleccioná el POD requerido para marítimo LCL.");
+        if (s.Mode == "Maritime" && (!s.PodLocationId.HasValue || s.PodLocationId == Guid.Empty))
+            throw new ArgumentException("Seleccioná el POD requerido para todo transporte marítimo.");
         if (!useDholeCatalogs && s.Incoterm is not null && !Incoterms.Contains(s.Incoterm))
             throw new ArgumentException("Incoterm inválido.");
         if (s.CargoReadyDate is null) throw new ArgumentException("Indicá la fecha de carga lista.");
