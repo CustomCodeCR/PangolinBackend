@@ -1007,12 +1007,13 @@ addMedia('home','Inicio','home.services.fiscal.media','Almacén fiscal','Imagen 
 addMedia('home','Inicio','home.services.panama.media','Transporte Panamá–Costa Rica','Imagen de tarjeta y modal','/images/truck.webp')
 
 const structureTitles: Array<[string,string]> = [
-  ['Nuestros servicios','Our services'],['48 años','48 years'],['Mesa de ayuda','Help desk'],
-  ['Agente propio en sitio','On-site agent'],['Departamentos','Departments'],
-  ['Universidad corporativa','Corporate university'],['Enfoque ambiental','Environmental approach']
+  ['Mesa de ayuda','Help desk'],['Agente propio en sitio','On-site agent'],
+  ['Departamentos','Departments'],['Universidad corporativa','Corporate university'],
+  ['Enfoque ambiental','Environmental approach']
 ]
 addText('about','Sobre nosotros','about.structure.heading','Sobre nuestra estructura','Título','Sobre nuestra estructura','About our structure')
-structureTitles.forEach(([es,en],i)=>addText('about','Sobre nosotros','about.structure.'+i+'.title','Sobre nuestra estructura','Elemento '+(i+1)+': título',es,en))
+// Keep the original CMS indices 2–6; the two retired cards are not editable or rendered.
+structureTitles.forEach(([es,en],i)=>addText('about','Sobre nosotros','about.structure.'+(i+2)+'.title','Sobre nuestra estructura','Elemento '+(i+1)+': título',es,en))
 const departments: Array<[string,string]> = [
   ['Consolidadora','Freight consolidation'],['Pedimentación','Customs declaration processing'],
   ['Contabilidad','Accounting'],['Servicio al cliente','Customer service'],
