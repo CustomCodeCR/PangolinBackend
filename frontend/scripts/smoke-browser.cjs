@@ -199,10 +199,16 @@ async function assertServicesTheme(chrome, url) {
         if (width === 390) {
           // Mouse and trackpad must open on hover at compact widths, without a click.
           // Touch does not use pointerenter; its click behavior remains unchanged.
-          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[1].dispatchEvent(new PointerEvent('pointerenter', {pointerType:'mouse'})); true")
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[1].dispatchEvent(new PointerEvent('pointerenter', {pointerType:'mouse',clientX:100,clientY:200})); true")
           const hovered = await evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')];return { opened:items[1].classList.contains('is-open'), visible:items.filter(x=>getComputedStyle(x).display!=='none').length }; })()")
           assert.ok(hovered.opened && hovered.visible === 4, 'El mouse debe abrir Marítimo al pasar por encima: ' + JSON.stringify(hovered))
-          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[1].click(); true")
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].dispatchEvent(new PointerEvent('pointerenter', {pointerType:'mouse',clientX:100,clientY:200})); true")
+          assert.equal(await evaluate("document.querySelector('#servicios .service-accordion__item.is-open')?.querySelector('.service-accordion__name')?.textContent?.trim()"), 'MARÍTIMO',
+            'No debe saltar al siguiente servicio por un cambio de columnas bajo el mouse')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].dispatchEvent(new PointerEvent('pointerenter', {pointerType:'mouse',clientX:145,clientY:200})); true")
+          assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item')[2].classList.contains('is-open')"), true,
+            'Mover realmente el mouse hacia Terrestre debe abrirlo')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
           assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item.is-open').length"), 0,
             'Tras hover debe poderse cerrar tocando la misma pestaña')
           // Simulated touch pointerenter must not open a tab until actual tap.
@@ -214,8 +220,8 @@ async function assertServicesTheme(chrome, url) {
         const original = await evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')]; return { selected:items[2].classList.contains('is-open'), shown:items.flatMap((item,i)=>getComputedStyle(item).display!=='none'?[i]:[]) }; })()")
         assert.equal(original.selected, true, 'Se debe poder abrir otro servicio después de cerrar')
         if (expectedVisible === 4) {
-          assert.deepEqual(original.shown, [2,3,4,5],
-            'Al abrir Terrestre deben verse también Fiscal y Panamá sin desplazamiento manual')
+          assert.deepEqual(original.shown, [1,2,3,4],
+            'Al iniciar desde Terrestre debe mostrarse Fiscal, sin saltar a Panamá')
           // Start with all six, and open neighboring services in order.
           // Newly added right-hand services must emerge BEFORE we close any card.
           await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
@@ -240,6 +246,18 @@ async function assertServicesTheme(chrome, url) {
           await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[5].click(); true")
           assert.deepEqual(await shownIndices(), {opened:5,visible:[2,3,4,5]},
             'Panamá debe poder abrirse directamente al avanzar')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[4].click(); true")
+          assert.deepEqual(await shownIndices(), {opened:4,visible:[1,2,3,4]},
+            'Al regresar de Panamá a Fiscal debe reaparecer una pestaña por la izquierda')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[3].click(); true")
+          assert.deepEqual(await shownIndices(), {opened:3,visible:[0,1,2,3]},
+            'Al regresar de Fiscal a Multimodal debe reaparecer Aéreo, sin saltos')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
+          assert.deepEqual(await shownIndices(), {opened:2,visible:[0,1,2,3]},
+            'Continuar retrocediendo conserva la ventana izquierda')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[4].click(); true")
+          assert.deepEqual(await shownIndices(), {opened:4,visible:[2,3,4,5]},
+            'La selección directa por teclado puede recuperar un servicio lejano')
           await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
           assert.deepEqual(await shownIndices(), {opened:2,visible:[1,2,3,4]},
             'Al volver hacia Terrestre debe reaparecer Marítimo a la izquierda')
