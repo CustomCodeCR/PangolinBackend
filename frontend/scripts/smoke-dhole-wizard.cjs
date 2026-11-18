@@ -218,7 +218,7 @@ async function main() {
     await evaluate('document.documentElement.classList.add("theme-dark")')
     await sleep(450)
     const dark=await evaluate('(()=>{const el=document.querySelector(".official-panel");const style=getComputedStyle(el);return {text:style.color,background:style.backgroundImage,bgColor:style.backgroundColor,root:document.documentElement.className}})()')
-    const rgb=dark.bgColor.match(/^rgb\\a?\((\d+),\s*(\d+),\s*(\d+)/)
+    const rgb=dark.bgColor.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/)
     const solidDark=!!rgb && [rgb[1],rgb[2],rgb[3]].every(c=>Number(c)<110) &&
       !dark.bgColor.endsWith(', 0)')
     assert.ok(dark.root.includes('theme-dark') && dark.text==='rgb(255, 255, 255)' &&
