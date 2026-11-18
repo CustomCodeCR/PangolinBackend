@@ -48,7 +48,7 @@ function checkOptions(value: unknown,
       Array.isArray(v.equipmentTypesBySize)) return false
   const types = Object.values(v.equipmentTypesBySize as Record<string, unknown>)
   return v.incoterms.length > 0 && v.origins.length > 0 && v.destinations.length > 0 &&
-    (mode !== 'Maritime' || shipmentType !== 'LCL' || v.pods.length > 0) &&
+    (mode !== 'Maritime' || v.pods.length > 0) &&
     (shipmentType !== 'FCL' && shipmentType !== 'FTL' || v.equipmentSizes.length > 0) &&
     types.every(list => Array.isArray(list) && list.every(x => typeof x === 'string' && !!x))
 }
