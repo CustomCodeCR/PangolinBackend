@@ -224,16 +224,15 @@ const directoryPointerMove = (event:PointerEvent):void => {
     directoryDragging.value=true
     directoryVideoKey.value=null
     directoryVideoReady.value=null
-    directoryCarouselRef.value?.setPointerCapture?.(event.pointerId)
-    directoryOffset-=movedX
-  } else {
-    directoryOffset-=event.clientX-pointer.lastX
+    try { directoryCarouselRef.value?.setPointerCapture(event.pointerId) } catch { /* Pointer may have been cancelled */ }
   }
+  const deltaX=pointer.lastX===pointer.startX ? movedX : event.clientX-pointer.lastX
   pointer.lastX=event.clientX
   if(directoryReducedMotion.value) {
     const panel=currentDirectoryPanel()
-    if(panel) panel.scrollLeft-=event.clientX-pointer.lastX
+    if(panel) panel.scrollLeft-=deltaX
   } else {
+    directoryOffset-=deltaX
     renderDirectoryTrack()
   }
   if(event.cancelable) event.preventDefault()
