@@ -33,3 +33,10 @@ Pruebas del backend comprueban los cinco tipos de envío, Incoterms activos y eq
 4. No activar ninguno de los flags en producción ni fusionar la PR en borrador antes de completar la revisión.
 
 La prueba no ejecuta el POST `solicitar-tarifa` de Dhole. El POST de cotizaciones es solo a nuestra propia base de datos y sigue limitado por la validación interna.
+
+## Correcciones de catálogo y POD (18/11/2026)
+
+- En toda cotización marítima FCL o LCL, **GIO pregunta obligatoriamente por POD** después del destino POE. El valor elegido es un UUID distinto del de origen/destino y se conserva en `podLocationId` del POST. No se ofrece omitirlo; el backend rechaza los envíos que carezcan de POD.
+- Los catálogos extensos no pierden entradas: anteriormente el componente aplicaba `.slice(0, 30)` a toda sugerencia renderizada, dejando solo los primeros 30 «A» a la vista. Ahora el componente mantiene **todos** los registros recibidos en memoria, filtra por nombre y código sobre toda la lista (sin distinguir acentos ni mayúsculas) y muestra lotes de 30 con el control **«Mostrar 30 más»** y contador de coincidentes. El lote se reinicia al modificar la búsqueda o el campo. Esto preserva rendimiento sin ocultar datos.
+- La nueva prueba de Chrome prepara 854 POL y 851 POE (tamaños equivalentes a los conteos reales del origen aéreo). Busca opciones de Zúrich al final del catálogo y comprueba que no se pierdan; también recorre FCL y verifica el POD enviado en GIO, tanto con fuente Dhole como en compatibilidad local.
+- No se han modificado los filtros históricos de rastreo, los itinerarios guardados ni la clave API en navegador. Los cambios siguen únicamente en la PR #250 hasta que CI y revisión local estén aprobados.
