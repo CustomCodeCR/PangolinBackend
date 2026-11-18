@@ -146,34 +146,39 @@ async function assertServicesTheme(chrome, url) {
     assert.ok(!nav.errorText, 'Chrome no pudo abrir Servicios: ' + nav.errorText)
     let ready = false
     for (let i = 0; i < 100; i++) {
-      ready = await evaluate("document.querySelectorAll('.services-directory__card').length === 8")
+      ready = await evaluate("document.querySelectorAll('.services-directory__run:not(.is-clone) .services-directory__card').length === 8")
       if (ready) break
       await new Promise(resolve => setTimeout(resolve, 120))
     }
-    assert.ok(ready, 'No aparecieron las 8 tarjetas del directorio')
-    const probe = async dark => {
-      const action = dark ? 'add' : 'remove'
-      await evaluate("document.documentElement.classList." + action + "('theme-dark')")
-      // El componente tiene transición CSS de background-color de .2s.
-      // Medir el estado final, no el primer frame blanco de la transición.
-      await new Promise(resolve => setTimeout(resolve, 400))
-      return evaluate("(() => { const a = document.querySelector('.services-directory__card'); const card = getComputedStyle(a); const title = getComputedStyle(a.querySelector('.services-directory__card-title')); return { background: card.backgroundColor, image: card.backgroundImage, text: title.color, fill: title.webkitTextFillColor }; })()")
+    assert.ok(ready, 'Faltan enlaces reales a las ocho páginas de servicio')
+    const checkCarousel = () => evaluate("(() => { const p = [...document.querySelectorAll('.services-directory__panel')]; const visible = p.filter(x => getComputedStyle(x).display !== 'none'); const cards = visible[0]?.querySelectorAll('.services-directory__run:not(.is-clone) .services-directory__card') || []; const clones = visible[0]?.querySelectorAll('.services-directory__run.is-clone .services-directory__card') || []; const a = cards[0]; const title = a?.querySelector('.services-directory__card-title'); const arrow = a?.querySelector('.services-directory__card-arrow'); const svg = arrow?.querySelector('svg'); const circle = arrow?.getBoundingClientRect(); const icon = svg?.getBoundingClientRect(); const titleCss = title ? getComputedStyle(title) : null; return { visible:visible.length, panel:visible[0]?.id, cards:cards.length, clones:clones.length, allClonesHidden:[...clones].every(x=>x.tabIndex===-1 && x.closest('[aria-hidden=true]')), photos:[...cards].every(x=>x.querySelector('.services-directory__card-media img, .services-directory__card-media video')), action:a?.querySelector('.services-directory__card-cta')?.textContent?.trim(), name:title?.textContent?.trim(), animation:getComputedStyle(visible[0]?.querySelector('.services-directory__track')).animationName, titleColor:titleCss?.color, titleFill:titleCss?.webkitTextFillColor, dx:circle&&icon?Math.abs(circle.left+circle.width/2-icon.left-icon.width/2):null, dy:circle&&icon?Math.abs(circle.top+circle.height/2-icon.top-icon.height/2):null }; })()")
+    let transport = await checkCarousel()
+    assert.equal(transport.visible, 1, 'Solo debe verse el carrusel de la categoría seleccionada')
+    assert.equal(transport.cards, 5, 'Deben aparecer los cinco transportes')
+    assert.equal(transport.clones, 5, 'El loop de transporte debe tener una segunda secuencia')
+    assert.ok(transport.allClonesHidden, 'Las copias del loop no deben entrar al tabulador')
+    assert.ok(transport.photos, 'Todas las tarjetas necesitan una imagen')
+    assert.ok(transport.name && transport.action.includes('Ir'), 'Deben verse el nombre y el botón Ir')
+    assert.equal(transport.animation, 'services-directory-loop', 'La pista debe desplazarse continuamente')
+    assert.ok(transport.dx <= 1 && transport.dy <= 1, 'Flecha de Ir descentrada')
+    await evaluate("document.getElementById('services-directory-tab-logistics').click()")
+    await new Promise(resolve => setTimeout(resolve, 200))
+    const logistics = await checkCarousel()
+    assert.equal(logistics.visible, 1, 'El cambio de categoría no debe mostrar dos carruseles')
+    assert.equal(logistics.cards, 3, 'Logística y aduanas debe mostrar tres servicios')
+    assert.equal(logistics.clones, 3, 'El loop de logística debe ser continuo')
+    assert.ok(logistics.photos && logistics.action.includes('Ir'))
+    await evaluate("document.getElementById('services-directory-tab-transport').click()")
+    await new Promise(resolve => setTimeout(resolve, 120))
+    for (const dark of [false, true]) {
+      await evaluate("document.documentElement.classList." + (dark ? 'add' : 'remove') + "('theme-dark')")
+      await new Promise(resolve => setTimeout(resolve, 150))
+      const view = await checkCarousel()
+      assert.equal(view.cards, 5, 'Debe seguir visible transporte al cambiar tema')
+      assert.equal(view.titleColor, 'rgb(255, 255, 255)', 'El título debe contrastar con la imagen')
+      assert.equal(view.titleFill, 'rgb(255, 255, 255)', 'El título debe conservarse blanco en ambos modos')
     }
-    const light = await probe(false)
-    assert.equal(light.background, 'rgb(255, 255, 255)', 'Tema claro: tarjeta no blanca')
-    const dark = await probe(true)
-    if (dark.background !== 'rgb(11, 20, 40)') {
-      const details = await evaluate("(() => { const a = document.querySelector('.services-directory__card'); const css = []; for (const sheet of document.styleSheets) { try { for (const rule of sheet.cssRules) { if (rule.selectorText?.includes('services-directory__card')) css.push({ selector: rule.selectorText.slice(0, 140), background: rule.style.background, important: rule.style.getPropertyPriority('background') }); } } catch {} } return { root: document.documentElement.className, app: a?.closest('.app-site')?.className, matching: a?.matches('html.theme-dark .app-site.services-page .services-directory a.services-directory__card'), sheets: document.styleSheets.length, rules: css.slice(-18) }; })()")
-      console.log('Diagnóstico contraste Servicios:', JSON.stringify({ dark, details }))
-    }
-    assert.equal(dark.background, 'rgb(11, 20, 40)', 'Tema oscuro: tarjeta blanquecina')
-    assert.equal(dark.image, 'none', 'Tema oscuro: gradiente claro superpuesto')
-    assert.equal(dark.text, 'rgb(244, 246, 250)', 'Tema oscuro: título invisible')
-    assert.equal(dark.fill, 'rgb(244, 246, 250)', 'Tema oscuro: text-fill-color invisible')
-    const arrowGeometry = await evaluate("(() => { const circle = document.querySelector('.services-directory__card-arrow').getBoundingClientRect(); const icon = document.querySelector('.services-directory__card-arrow svg').getBoundingClientRect(); return { dx: Math.abs(circle.left + circle.width / 2 - icon.left - icon.width / 2), dy: Math.abs(circle.top + circle.height / 2 - icon.top - icon.height / 2), icons: document.querySelectorAll('.services-directory__card-arrow svg').length }; })()")
-    assert.equal(arrowGeometry.icons, 8, 'Los 8 enlaces necesitan flechas SVG centradas')
-    assert.ok(arrowGeometry.dx <= 1 && arrowGeometry.dy <= 1, 'Flecha descentrada dentro de círculo: ' + JSON.stringify(arrowGeometry))
-    console.log('PASS Chrome: 8 tarjetas con contraste real claro/oscuro')
+    console.log('PASS Chrome: carrusel infinito con dos categorías, fotos, enlaces y modo oscuro')
     // About: five cards should keep 3/2, 2/2/1 and single-column
     // layouts, with every incomplete final row centered in its container.
     const aboutUrl = new URL('/nosotros', url).href
