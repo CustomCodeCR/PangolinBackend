@@ -64,6 +64,10 @@ try {
         ('Auth__OtpPepper=' + (New-SafeHex 32)),
         ('Auth__JwtSigningKey=' + (New-SafeHex 32)),
         'DholeCatalogs__Enabled=true',
+        # Activated ONLY inside the short-lived localhost-only smoke container.
+        'DholeCatalogs__FormEnabled=true',
+        'DholeCatalogs__SubmissionEnabled=true',
+        'DholeCatalogs__ItinerariesEnabled=true',
         ('DholeCatalogs__ApiKey=' + $apiKey)
     )
     $createdEnvFile = $true
@@ -117,7 +121,67 @@ try {
     Write-Host ''
     Write-Host '=== 7 CATÁLOGOS CONSULTADOS POR EL BACKEND DOCKER ==='
     $summary | Format-Table -AutoSize
-    Write-Host 'RESULTADO: los 7 endpoints GET respondieron. No se envió ningún POST.'
+
+    # Next level: check the ACTUAL server-side role/modality and equipment
+    # projection, not just the raw seven API counts.
+    $forms = @(
+        @{ Mode='Maritime'; Shipment='FCL' },
+        @{ Mode='Maritime'; Shipment='LCL' },
+        @{ Mode='Air'; Shipment='AIR_LCL' },
+        @{ Mode='Land'; Shipment='FTL' },
+        @{ Mode='Land'; Shipment='LTL' }
+    )
+    $formSummary = @()
+    foreach ($spec in $forms) {
+        $url = "$base/api/quotes/official/dhole-options?mode=$($spec.Mode)&shipmentType=$($spec.Shipment)"
+        $options = Invoke-RestMethod -Uri $url -Method Get -TimeoutSec 40
+        $origins = @($options.origins | Where-Object { $null -ne $_ }).Count
+        $destinations = @($options.destinations | Where-Object { $null -ne $_ }).Count
+        $pods = @($options.pods | Where-Object { $null -ne $_ }).Count
+        $sizes = @($options.equipmentSizes | Where-Object { $null -ne $_ }).Count
+        if ($options.source -ne 'dhole' -or
+            $options.mode -ne $spec.Mode -or
+            $options.shipmentType -ne $spec.Shipment -or
+            $origins -lt 1 -or $destinations -lt 1 -or
+            ($spec.Shipment -eq 'LCL' -and $pods -lt 1) -or
+            (($spec.Shipment -eq 'FCL' -or $spec.Shipment -eq 'FTL') -and $sizes -lt 1)) {
+            throw "Proyección incompleta: $($spec.Mode) / $($spec.Shipment)."
+        }
+        $formSummary += [PSCustomObject]@{
+            Modalidad = $spec.Mode
+            Embarque = $spec.Shipment
+            Origenes = $origins
+            Destinos = $destinations
+            POD = $pods
+            Tamanos = $sizes
+        }
+    }
+    Write-Host ''
+    Write-Host '=== 5 MODALIDADES DE COTIZACIÓN, PROYECCIÓN REAL ==='
+    $formSummary | Format-Table -AutoSize
+
+    # Itinerarios uses POL/POD, never substitute POE for POD.
+    $routeSummary = @()
+    foreach ($transport in @('maritime','ground','all')) {
+        foreach ($role in @('origin','destination')) {
+            $url = "$base/api/itinerarios/locations?transport=$transport&routeRole=$role"
+            $result = Invoke-RestMethod -Uri $url -Method Get -TimeoutSec 40
+            $count = @($result.items | Where-Object { $null -ne $_ }).Count
+            if ($result.source -ne 'dhole' -or $count -lt 1) {
+                throw "Itinerarios: proyección vacía para ${transport}/${role}."
+            }
+            $routeSummary += [PSCustomObject]@{
+                Transporte = $transport
+                Campo = $role
+                Registros = $count
+            }
+        }
+    }
+    Write-Host ''
+    Write-Host '=== FILTROS DE ITINERARIOS CON POL / POD REALES ==='
+    $routeSummary | Format-Table -AutoSize
+    Write-Host 'RESULTADO: siete catálogos GET, cinco variantes de cotización y seis filtros de itinerario comprobados. Sin POST.'
+
 } catch {
     Write-Warning $_.Exception.Message
     if ($composeStarted) {
