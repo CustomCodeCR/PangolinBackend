@@ -107,13 +107,13 @@ html.theme-dark .service-landing-step--faq .service-landing-faq__item{border-col
   .service-landing-page.has-scroll-reveal .service-landing-step--benefits .service-landing-feature{opacity:1;transform:none;transition:none}
 }
 
-/* Full-screen service cover, followed by the framed image-and-story layout. */
+/* Full-screen service cover: preserve the contrast gradients with substantially less image blur. */
 .service-landing-hero{position:relative;isolation:revert!important;width:100%;min-height:100svh;margin:0;padding:0;overflow:hidden;background:#101728;color:#fff}
 .service-landing-hero__inner.container{position:relative;display:flex;width:100%;max-width:none;min-height:100svh;margin:0;padding:clamp(116px,16vh,176px) clamp(24px,7vw,112px) clamp(48px,8vh,88px);align-items:center}
 .service-landing-hero__media{position:absolute!important;z-index:0;inset:0!important;width:100%;height:100%;min-height:0;overflow:hidden;margin:0;border:0;border-radius:0;background:#141a2b;box-shadow:none}
 .service-landing-hero__media img{position:absolute;inset:0;display:block;width:100%;height:100%;min-height:0;object-fit:cover;object-position:center 52%;filter:saturate(.88)}
 .service-landing-hero__media::after{position:absolute;z-index:1;inset:0;content:"";background:linear-gradient(90deg,rgba(35,10,25,.82) 0%,rgba(22,14,29,.72) 38%,rgba(12,18,34,.34) 74%,rgba(9,16,31,.22) 100%),linear-gradient(0deg,rgba(8,14,28,.55),transparent 48%);pointer-events:none}
-.service-landing-hero__blur{position:absolute;z-index:2;inset:0 30% 0 0;background:linear-gradient(90deg,rgba(38,11,27,.42),rgba(21,16,31,.28) 70%,transparent);backdrop-filter:blur(13px);-webkit-backdrop-filter:blur(13px);mask-image:linear-gradient(90deg,#000 0%,#000 58%,transparent 100%);pointer-events:none}
+.service-landing-hero__blur{position:absolute;z-index:2;inset:0 30% 0 0;background:linear-gradient(90deg,rgba(38,11,27,.42),rgba(21,16,31,.28) 70%,transparent);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);mask-image:linear-gradient(90deg,#000 0%,#000 58%,transparent 100%);pointer-events:none}
 .service-landing-hero__copy{position:relative;z-index:3;display:flex;width:min(100%,860px);max-width:860px;flex-direction:column;align-items:flex-start;justify-content:center;padding:0;border-radius:0;background:transparent;color:#fff}
 html.theme-dark .service-landing-hero__copy{background:transparent}
 .service-landing-hero__copy .section-tag{margin:0 0 clamp(14px,2vh,24px);color:#ff7186;font-size:clamp(12px,.95vw,15px);font-weight:850;letter-spacing:.2em}
@@ -126,7 +126,7 @@ html.theme-dark .service-landing-hero__copy{background:transparent}
 body:has(.service-landing-page) .site-header.site-header--overlay{background:transparent!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;border-bottom:0!important;box-shadow:none!important}
 .service-landing-story{--service-story-blend:clamp(160px,22vh,240px);position:relative;isolation:isolate;margin-top:calc(var(--service-story-blend) * -1);padding:calc(clamp(30px,5vw,76px) + var(--service-story-blend)) clamp(16px,3.2vw,52px) clamp(60px,8vw,120px);background:transparent;color:#fff}
 .service-landing-story::before,.service-landing-story::after{position:absolute;right:0;left:0;z-index:0;content:"";pointer-events:none}
-.service-landing-story::before{top:0;height:var(--service-story-blend);background:linear-gradient(180deg,rgba(9,15,32,0) 0%,rgba(9,15,32,.38) 48%,rgba(9,15,32,.82) 78%,#090f20 100%);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);mask-image:linear-gradient(180deg,transparent 0%,#000 18%,#000 100%)}
+.service-landing-story::before{top:0;height:var(--service-story-blend);background:linear-gradient(180deg,rgba(9,15,32,0) 0%,rgba(9,15,32,.38) 48%,rgba(9,15,32,.82) 78%,#090f20 100%);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);mask-image:linear-gradient(180deg,transparent 0%,#000 18%,#000 100%)}
 .service-landing-story::after{top:var(--service-story-blend);bottom:0;background:linear-gradient(180deg,#090f20 0%,rgba(9,15,32,0) 240px),linear-gradient(135deg,#21111c 0%,#111729 70%,#0b1429 100%)}
 .service-landing-story__frame{position:relative;z-index:1;display:grid;grid-template-columns:minmax(280px,.82fr) minmax(0,1.18fr);gap:clamp(18px,2vw,30px);width:min(100%,1680px);margin:0 auto;padding:clamp(14px,1.5vw,22px);align-items:start;border:1px solid rgba(255,255,255,.16);border-radius:30px;background:linear-gradient(140deg,rgba(255,255,255,.055),rgba(255,255,255,.025));box-shadow:0 30px 80px rgba(0,0,0,.22)}
 .service-landing-story__media{position:sticky;top:24px;align-self:start;height:min(calc(100svh - 48px),820px);min-height:500px;margin:0;overflow:hidden;border:1px solid rgba(255,255,255,.14);border-radius:24px;background:#151a2b}
@@ -153,7 +153,7 @@ html:not(.theme-dark) .service-landing-hero__copy .section-tag,html:not(.theme-d
   .service-landing-hero__inner.container{min-height:100svh;padding:112px 28px 56px}
   .service-landing-hero__copy{width:min(100%,760px)}
   .service-landing-hero__media{position:absolute!important;inset:0!important;height:100%;min-height:0}
-  .service-landing-hero__blur{inset:0 8% 0 0;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  .service-landing-hero__blur{inset:0 8% 0 0;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
   .service-landing-story__frame{grid-template-columns:minmax(0,1fr);gap:16px}
   .service-landing-story__media{position:relative;top:auto;height:clamp(300px,42svh,480px);min-height:0}
   .service-landing-story__copy{padding:0}
@@ -213,7 +213,7 @@ html:not(.theme-dark) .service-landing-story .service-landing-step--benefits .se
 html:not(.theme-dark) .service-landing-story .service-landing-step--benefits .service-landing-feature p{color:#526078}
 
 /* Fade the image into the light story background so their edge never reads as a hard cut. */
-html:not(.theme-dark) .service-landing-hero::after{position:absolute;z-index:2;right:0;bottom:0;left:0;height:clamp(190px,24vh,300px);content:"";background:linear-gradient(180deg,rgba(246,233,236,0) 0%,rgba(246,233,236,.2) 28%,rgba(246,233,236,.72) 76%,#f6e9ec 100%);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);mask-image:linear-gradient(180deg,transparent 0%,#000 16%,#000 100%);pointer-events:none}
+html:not(.theme-dark) .service-landing-hero::after{position:absolute;z-index:2;right:0;bottom:0;left:0;height:clamp(190px,24vh,300px);content:"";background:linear-gradient(180deg,rgba(246,233,236,0) 0%,rgba(246,233,236,.2) 28%,rgba(246,233,236,.72) 76%,#f6e9ec 100%);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);mask-image:linear-gradient(180deg,transparent 0%,#000 16%,#000 100%);pointer-events:none}
 
 /* The dark theme has a more specific step surface; keep the large section itself open. */
 html.theme-dark .service-landing-story .service-landing-step,
@@ -301,12 +301,12 @@ html:not(.theme-dark) .service-landing-story .service-landing-detail-visual{
   }
   html:not(.theme-dark) .service-landing-hero::after{
     height:clamp(130px,16svh,190px);
-    backdrop-filter:blur(12px);
-    -webkit-backdrop-filter:blur(12px);
+    backdrop-filter:blur(4px);
+    -webkit-backdrop-filter:blur(4px);
   }
   html:not(.theme-dark) .service-landing-story::before{
-    backdrop-filter:blur(12px);
-    -webkit-backdrop-filter:blur(12px);
+    backdrop-filter:blur(4px);
+    -webkit-backdrop-filter:blur(4px);
   }
 }
 
@@ -317,13 +317,13 @@ html:not(.theme-dark) .service-landing-story .service-landing-detail-visual{
   html:not(.theme-dark) .service-landing-page--long-guide .service-landing-hero::after{
     height:clamp(105px,13svh,155px);
     background:linear-gradient(180deg,rgba(246,233,236,0) 0%,rgba(246,233,236,.12) 35%,rgba(246,233,236,.72) 78%,#f6e9ec 100%);
-    backdrop-filter:blur(10px);
-    -webkit-backdrop-filter:blur(10px);
+    backdrop-filter:blur(4px);
+    -webkit-backdrop-filter:blur(4px);
     mask-image:linear-gradient(180deg,transparent 0%,#000 32%,#000 100%);
   }
   html:not(.theme-dark) .service-landing-page--long-guide .service-landing-story::before{
-    backdrop-filter:blur(10px);
-    -webkit-backdrop-filter:blur(10px);
+    backdrop-filter:blur(4px);
+    -webkit-backdrop-filter:blur(4px);
     mask-image:linear-gradient(180deg,transparent 0%,#000 32%,#000 100%);
   }
 }
