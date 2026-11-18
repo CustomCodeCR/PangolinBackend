@@ -365,17 +365,19 @@ async function assertServicesTheme(chrome, url) {
         })
         for (const dark of [false, true]) {
           await evaluate("document.documentElement.classList." + (dark ? 'add' : 'remove') + "('theme-dark'); true")
-          const state = await evaluate("(() => { const hero = document.querySelector('.service-landing-hero'); const img = hero.querySelector('img'); const blur = hero.querySelector('.service-landing-hero__blur'); const media = hero.querySelector('.service-landing-hero__media'); const story = document.querySelector('.service-landing-story'); return { sourceReady: img.complete && img.naturalWidth > 0, blur: getComputedStyle(blur).backdropFilter, contrastShade: getComputedStyle(blur).backgroundImage, photoShade: getComputedStyle(media, '::after').backgroundImage, titleColor: getComputedStyle(hero.querySelector('h1')).color, bottomBlur: getComputedStyle(hero, '::after').backdropFilter, storyBlur: getComputedStyle(story, '::before').backdropFilter }; })()")
-          const expectedHeroBlur = viewport <= 900 ? 3 : 4
-          const expectedFadeBlur = !dark && viewport > 900 ? 4 : 6
-          assert.equal(state.blur, 'blur(' + expectedHeroBlur + 'px)',
-            'El hero sigue desenfocado en ' + servicePath + ' (' + viewport + 'px)')
-          assert.equal(state.storyBlur, 'blur(' + expectedFadeBlur + 'px)',
-            'El empalme inferior sigue borroso: ' + servicePath)
+          const state = await evaluate("(() => { const hero = document.querySelector('.service-landing-hero'); const img = hero.querySelector('img'); const blur = hero.querySelector('.service-landing-hero__blur'); const media = hero.querySelector('.service-landing-hero__media'); const story = document.querySelector('.service-landing-story'); return { sourceReady: img.complete && img.naturalWidth > 0, imageFilter: getComputedStyle(img).filter, blur: getComputedStyle(blur).backdropFilter, safariBlur: getComputedStyle(blur).webkitBackdropFilter, contrastShade: getComputedStyle(blur).backgroundImage, photoShade: getComputedStyle(media, '::after').backgroundImage, titleColor: getComputedStyle(hero.querySelector('h1')).color, bottomBlur: getComputedStyle(hero, '::after').backdropFilter, storyBlur: getComputedStyle(story, '::before').backdropFilter }; })()")
+          assert.equal(state.blur, 'none',
+            'La fotografía grande no debe llevar desenfoque artificial: ' + servicePath + ' (' + viewport + 'px)')
+          assert.equal(state.storyBlur, 'none',
+            'La transición inferior no debe desenfocar la fotografía: ' + servicePath)
           if (!dark) {
-            assert.equal(state.bottomBlur, 'blur(' + expectedFadeBlur + 'px)',
-              'El fundido claro sigue borroso: ' + servicePath)
+            assert.equal(state.bottomBlur, 'none',
+              'El fundido claro no debe desenfocar la fotografía: ' + servicePath)
           }
+          assert.ok(!state.imageFilter.includes('blur('),
+            'La propia imagen no debe tener filter:blur(): ' + servicePath)
+          assert.equal(state.safariBlur, 'none',
+            'Safari tampoco debe desenfocar el hero: ' + servicePath)
           assert.equal(state.sourceReady, true, 'Imagen original no cargada: ' + servicePath)
           assert.equal(state.titleColor, 'rgb(255, 255, 255)',
             'Contraste de titular alterado: ' + servicePath)

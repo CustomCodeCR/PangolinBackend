@@ -434,8 +434,8 @@ assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-hero::
 // the transport pages retain the shared baseline transition.
 assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-page--long-guide \.service-landing-hero::after\s*\{\s*height:clamp\(105px,13svh,155px\);/,
   'Las cuatro guías bajan el inicio visual del difuminado de portada')
-assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-page--long-guide \.service-landing-story::before\s*\{\s*backdrop-filter:blur\(4px\);/,
-  'Las cuatro guías conservan el empalme con un desenfoque inferior más suave')
+assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-page--long-guide \.service-landing-story::before\s*\{\s*backdrop-filter:none;/,
+  'Las cuatro guías conservan el empalme sin desenfocar la fotografía')
 assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-hero::after\s*\{\s*height:clamp\(130px,16svh,190px\);/,
   'La altura de la transición en transportes se conserva sin alterar el layout')
 // Regression: top navigation underlines are hover/focus-only in both themes,
