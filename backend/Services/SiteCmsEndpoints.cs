@@ -110,11 +110,11 @@ public static class SiteCmsEndpoints
         }
 
         var guideSlugs = new[] {
-            "almacenamiento-fiscal", "bodegaje-general", "agenciamiento-aduanal", "consolidadora-de-carga"
+            "almacenamiento-fiscal", "agenciamiento-aduanal", "consolidadora-de-carga"
         };
         var transportSlugs = new[] {
             "transporte-maritimo", "transporte-terrestre", "transporte-aereo",
-            "transporte-internacional", "transporte-local", "transporte-panama-costa-rica"
+            "transporte-local", "transporte-panama-costa-rica"
         };
         foreach (var slug in guideSlugs.Concat(transportSlugs))
         {

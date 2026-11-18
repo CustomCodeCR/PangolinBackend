@@ -364,7 +364,7 @@ onUnmounted(() => {
                 <span class="home-specialties__overline">{{ locale === 'es' ? 'ALMACENAMIENTO' : 'WAREHOUSING' }} <b>01</b></span>
                 <h2 class="home-specialties__heading">
                   <span>{{ locale === 'es' ? 'Espacio para tu carga.' : 'Space for your cargo.' }}</span>
-                  <strong>{{ locale === 'es' ? 'Almacenamiento fiscal A257 · A287' : 'Bonded warehousing A257 · A287' }}</strong>
+                  <strong>{{ locale === 'es' ? 'Almacén fiscal A257 · A287' : 'Bonded warehousing A257 · A287' }}</strong>
                 </h2>
               </div>
             </article>

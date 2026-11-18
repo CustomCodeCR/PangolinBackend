@@ -13,14 +13,6 @@ export const extraBenefitsByRoute: Record<string, Record<'es' | 'en', ServiceExt
       { body: 'Review of cargo records and controls according to the authorized warehouse and agreed service.', icon: '▰' }
     ]
   },
-  '/servicios/bodegaje-general': {
-    es: [
-      { body: 'Planificación de entradas, salidas y registros de inventario según el servicio contratado.', icon: '▤' }
-    ],
-    en: [
-      { body: 'Planning of inbound, outbound and inventory records according to the contracted service.', icon: '▤' }
-    ]
-  },
   '/servicios/agenciamiento-aduanal': {
     es: [
       { body: 'Revisión de clasificación conocida, permisos y certificaciones aplicables a la mercancía.', icon: '▤' }
@@ -65,16 +57,6 @@ export const extraBenefitsByRoute: Record<string, Record<'es' | 'en', ServiceExt
     en: [
       { title: 'Required dates', body: 'Review of the requested date when evaluating air freight alternatives.', icon: '◷' },
       { title: 'Availability and terms', body: 'Confirmation of suitable air freight options before arranging shipment.', icon: '✈' }
-    ]
-  },
-  '/servicios/transporte-internacional': {
-    es: [
-      { title: 'Revisión de rutas', body: 'Se analizan trayectos y disponibilidad según la modalidad solicitada.', icon: '⌖' },
-      { title: 'Próximos pasos', body: 'Orientación para continuar con la evaluación y coordinación del envío.', icon: 'container-open' }
-    ],
-    en: [
-      { title: 'Route review', body: 'Routes and availability are considered for the requested transport mode.', icon: '⌖' },
-      { title: 'Next steps', body: 'Guidance to continue shipment assessment and coordination.', icon: 'container-open' }
     ]
   },
   '/servicios/transporte-local': {
