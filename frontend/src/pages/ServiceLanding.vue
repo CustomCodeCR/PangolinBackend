@@ -80,7 +80,16 @@ const closeServiceFaqOnEscape = (event: KeyboardEvent) => {
 const serviceHeroKey='service.'+serviceSlug+'.hero.media'
 const serviceStoryKey='service.'+serviceSlug+'.story.media'
 const details = computed<LandingText>(() => {
-  const cms=(field:string, original:string) => siteText('service.'+serviceSlug+'.'+field,original,lang.value)
+  const cms=(field:string, original:string) => {
+    const value=siteText('service.'+serviceSlug+'.'+field,original,lang.value)
+    // Previously published CMS fields must not resurrect names of removed services.
+    if (/bodegaje general|general warehousing/i.test(value) && field.startsWith('faq.')) return original
+    if (route==='/servicios/almacenamiento-fiscal' && lang.value==='es' &&
+        ['label','title','location','heading','quoteHeading'].includes(field)) {
+      return value.replace(/almacenamiento fiscal/gi,'Almacén fiscal')
+    }
+    return value
+  }
   const guide=guides[route]?.[lang.value]
   if(guide) {
     const visuals:Record<string,{image:string;alt:{es:string;en:string}}>={
