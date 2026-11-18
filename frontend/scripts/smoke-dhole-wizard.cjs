@@ -266,7 +266,7 @@ async function main() {
     upstreamIsDown=false
     explicitlyLegacy=true
     await cdp('Page.navigate',{url:'http://'+host+':5194/cotizaciones?check=flag-disabled'})
-    await waitFor(()=>exists('.official-choice'),'Flag-disabled scenario initial render')
+    await waitFor(()=>evaluate('location.search==="?check=flag-disabled" && document.querySelector(".official-progress-item.current")?.textContent.includes("1") && [...document.querySelectorAll(".official-choice")].some(b=>b.textContent.includes("Marítimo"))'),'Flag-disabled scenario initial render')
     await chooseMode('Marítimo')
     await click('.official-primary')
     await waitFor(()=>exists('.official-choice'),'Flag-disabled FCL select')
