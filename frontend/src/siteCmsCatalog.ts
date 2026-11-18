@@ -1046,6 +1046,19 @@ const servicesExtra: Array<[string,string,string,string,string]> = [
  ['services.directory.logistics.title','Directorio','Grupo logística','Logística y aduanas','Logistics and customs']
 ]
 servicesExtra.forEach(([key,section,label,es,en])=>addText('services','Servicios',key,section,label,es,en))
+// Fotografías del carrusel compartido de Servicios: edición independiente
+// de la imagen de portada de cada página de detalle.
+for (const service of servicePages) {
+  addMedia('services','Servicios','services.directory.' + service.slug + '.media','Carrusel de servicios',
+    'Tarjeta: ' + service.title.es, service.image)
+}
+;([
+  ['almacenamiento-fiscal', 'Almacén fiscal', '/images/services-warehouse.webp'],
+  ['agenciamiento-aduanal', 'Agenciamiento aduanal', '/images/operation.webp'],
+  ['consolidadora-de-carga', 'Consolidadora de carga', '/images/ship.webp']
+] as Array<[string,string,string]>).forEach(([slug,label,image]) =>
+  addMedia('services','Servicios','services.directory.' + slug + '.media','Carrusel de servicios','Tarjeta: ' + label,image))
+
 ;([
  ['services.access.heading1','Título digital 1','phrases.p061'],
  ['services.access.heading2','Título digital 2','phrases.p062'],
