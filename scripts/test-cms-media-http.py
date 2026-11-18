@@ -47,6 +47,8 @@ class FakeS3(BaseHTTPRequestHandler):
     puts = 0
     conditional_puts = 0
     simulate_concurrent_put = set()
+    # Simulate a per-width derivative storage failure without rejecting originals.
+    reject_variant_widths = set()
     protocol_version = "HTTP/1.1"
 
     def log_message(self, fmt, *args):
@@ -82,6 +84,10 @@ class FakeS3(BaseHTTPRequestHandler):
         body = self._request_body()
         FakeS3.puts += 1
         key = self._object_key()
+        if any(key.endswith(f".w{width}.webp") for width in FakeS3.reject_variant_widths):
+            self._send(403, b"<Error><Code>AccessDenied</Code></Error>",
+                       {"Content-Type": "application/xml"})
+            return
         if self.headers.get("If-None-Match") == "*":
             FakeS3.conditional_puts += 1
         # Model another worker winning the race between our HEAD and PUT.
@@ -344,6 +350,10 @@ def test_webp_variants(admin):
                 "body": "Local test", "image": url, "published": True}
         created = json_call(admin, "/api/admin/content/news", 201, news, method="POST")
         news_id = created["id"]
+        # A published news image must never be removed from MinIO while in use.
+        check_status(admin, f"/api/admin/content/media/{media_id}", 409, method="DELETE")
+        require(any(media_id.replace('-', '') in key for key in FakeS3.objects),
+                "Denied media delete must preserve the original and WebP derivatives")
         original_h, original_bytes = check_status(visitor, url, 200)
         require(original_bytes == PHOTO and original_h.get("Content-Type", "").startswith("image/jpeg"),
                 "Original JPEG bytes/MIME must remain intact")
@@ -366,6 +376,8 @@ def test_webp_variants(admin):
         check_status(admin, f"/api/admin/content/media/{media_id}/file", 200)
         json_call(admin, "/api/admin/content/news/" + news_id, 200,
                   dict(news, published=False), method="PUT")
+        # Even an unpublished draft still references the media: preserve it.
+        check_status(admin, f"/api/admin/content/media/{media_id}", 409, method="DELETE")
         heads_before_revocation = FakeS3.heads
         h_revoked, _ = check_status(visitor, variant, 404, headers={"If-None-Match": tag})
         require(FakeS3.heads == heads_before_revocation,
@@ -383,6 +395,70 @@ def test_webp_variants(admin):
             check_status(admin, "/api/admin/content/media/" + media_id, 204, method="DELETE")
             require(not any(media_id.replace('-', '') in key for key in FakeS3.objects),
                     "Deleting a media row must delete original and WebP derivatives")
+
+
+def test_partial_webp_storage_failure(admin):
+    """A failed derivative upload must never break publication or the original."""
+    visitor = build_opener()
+    media_id = news_id = None
+    try:
+        FakeS3.reject_variant_widths.add(360)
+        try:
+            body, kind = multipart_photo()
+            _, payload = check_status(admin, "/api/admin/content/media/upload", 201,
+                                      method="POST", raw=body,
+                                      headers={"Content-Type": kind})
+            media_id = json.loads(payload)["id"]
+        finally:
+            FakeS3.reject_variant_widths.discard(360)
+
+        prefix = f"/media/{media_id.replace('-', '')}.jpeg"
+        require(any(key.endswith(prefix) for key in FakeS3.objects),
+                "Derivative failure must preserve the uploaded original")
+        require(not any(key.endswith(prefix + ".w360.webp") for key in FakeS3.objects),
+                "Failed 360px derivative unexpectedly appeared")
+        require(any(key.endswith(prefix + ".w720.webp") for key in FakeS3.objects),
+                "Failure at 360px must not prevent generation of 720px derivative")
+
+        url = f"/api/content/media/{media_id}/file"
+        check_status(visitor, url + "?width=360", 404)  # unpublished
+        news = {"title": "CI partial derivative " + uuid.uuid4().hex[:8],
+                "category": "PRUEBAS", "description": "Synthetic failure test",
+                "body": "Only isolated FakeS3 objects", "image": url,
+                "published": True}
+        news_id = json_call(admin, "/api/admin/content/news", 201,
+                            news, method="POST")["id"]
+
+        original_h, original = check_status(visitor, url, 200)
+        require(original == PHOTO and
+                original_h.get("Content-Type", "").startswith("image/jpeg"),
+                "Original must remain valid after derivative PUT failure")
+        fallback_h, fallback = check_status(visitor, url + "?width=360", 200)
+        require(fallback == PHOTO and
+                fallback_h.get("Content-Type", "").startswith("image/jpeg") and
+                fallback_h.get("ETag") == original_h.get("ETag"),
+                "Missing WebP derivative must fall back to unmodified original")
+        working_h, working = check_status(visitor, url + "?width=720", 200)
+        require(working == PHOTO_WEBP and
+                working_h.get("Content-Type", "").startswith("image/webp") and
+                working_h.get("ETag") != original_h.get("ETag"),
+                "An independently successful derivative must still be served")
+
+        json_call(admin, f"/api/admin/content/news/{news_id}", 200,
+                  dict(news, published=False), method="PUT")
+        check_status(visitor, url + "?width=360", 404)
+        check_status(visitor, url + "?width=720", 404)
+        print("PASS partial WebP failure: original preserved, independent widths, fallback, revocation")
+    finally:
+        FakeS3.reject_variant_widths.discard(360)
+        if news_id:
+            check_status(admin, f"/api/admin/content/news/{news_id}", 204,
+                         method="DELETE")
+        if media_id:
+            check_status(admin, f"/api/admin/content/media/{media_id}", 204,
+                         method="DELETE")
+            require(not any(media_id.replace('-', '') in key for key in FakeS3.objects),
+                    "Cleanup after partial WebP failure must delete all objects")
 
 
 def test_legacy_backfill(admin):
@@ -409,18 +485,27 @@ def test_legacy_backfill(admin):
             del FakeS3.objects[key]
 
         route = f"/api/admin/content/media/{media_id}/webp-backfill"
-        before = FakeS3.puts
-        h_forbidden, _ = check_status(visitor, route, 401,
-                                      payload={"apply": False}, method="POST")
-        require("no-store" not in h_forbidden.get("Cache-Control", "") or
-                FakeS3.puts == before, "Anonymous inventory unexpectedly wrote S3")
-        inventory = json_call(admin, route, 200, {"apply": False}, method="POST")
+        # Unauthorized requests must never reach S3, even for metadata.
+        before = (FakeS3.heads, FakeS3.downloads, FakeS3.puts)
+        check_status(visitor, route, 401,
+                     payload={"apply": False}, method="POST")
+        require((FakeS3.heads, FakeS3.downloads, FakeS3.puts) == before,
+                "Anonymous backfill inspection must not access S3")
+
+        # The authenticated dry-run may use HEAD, but must not download,
+        # mutate objects, or allow its administrative result to be cached.
+        headers, body = check_status(admin, route, 200,
+                                     payload={"apply": False}, method="POST")
+        require("no-store" in headers.get("Cache-Control", "").lower(),
+                "Backfill dry-run must be non-cacheable")
+        inventory = json.loads(body)
         require(inventory["mode"] == "dry-run" and
                 360 in inventory["missingWidths"] and
                 inventory["originalPreserved"],
                 "Legacy dry-run failed to identify missing derivatives")
-        require(FakeS3.puts == before and FakeS3.objects[prefix] == PHOTO,
-                "Dry-run must never upload or modify original")
+        require((FakeS3.downloads, FakeS3.puts) == before[1:] and
+                FakeS3.objects[prefix] == PHOTO,
+                "Dry-run must never download, upload or modify original")
         apply = json_call(admin, route, 200, {"apply": True}, method="POST")
         require(apply["mode"] == "apply" and
                 360 in apply["generatedWidths"] and apply["originalPreserved"],
@@ -643,6 +728,7 @@ def main():
         admin = login_admin()
         test_http_cycle(admin)
         test_webp_variants(admin)
+        test_partial_webp_storage_failure(admin)
         test_legacy_backfill(admin)
         test_image_inventory(admin)
     finally:

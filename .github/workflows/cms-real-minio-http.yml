@@ -1,0 +1,128 @@
+name: CMS full HTTP + real MinIO (isolated)
+
+on:
+  pull_request:
+    branches: [main-2, main]
+    paths:
+      - backend/Services/ManagedMediaObjectEndpoints.cs
+      - backend/Services/CmsImageVariants.cs
+      - backend/Services/ObjectStorageService.cs
+      - backend/Services/ManagedNewsEndpoints.cs
+      - tests/CmsRealMinioContract/**
+      - scripts/test-cms-real-minio-http.py
+      - scripts/test-cms-real-minio-editor.py
+      - scripts/test-cms-media-http.py
+      - .github/workflows/cms-real-minio-http.yml
+      - scripts/test-cms-isolated-backup-restore.py
+
+permissions:
+  contents: read
+
+jobs:
+  cms-real-minio-http:
+    name: CMS real MinIO + editor (${{ matrix.profile }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - profile: backend-on-frontend-on
+            backend_webp: 'true'
+            frontend_webp: 'true'
+          - profile: backend-on-frontend-off
+            backend_webp: 'true'
+            frontend_webp: 'false'
+          - profile: backend-off-frontend-off
+            backend_webp: 'false'
+            frontend_webp: 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      CMS_REAL_MINIO_ISOLATED: '1'
+      CMS_REAL_MINIO_HTTP_FIXTURE: '1'
+      CMS_REAL_MINIO_HTTP_TEST: '1'
+      CMS_REAL_MINIO_EDITOR_UI_TEST: '1'
+      CMS_REAL_MINIO_TEST_WEBP_ENABLED: ${{ matrix.backend_webp }}
+      CMS_REAL_MINIO_TEST_FRONTEND_WEBP_ENABLED: ${{ matrix.frontend_webp }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Start pinned disposable MinIO on loopback
+        shell: bash
+        run: |
+          set -euo pipefail
+          minio="$RUNNER_TEMP/minio-ci"
+          curl --fail --location --show-error --silent --retry 3 \
+            -o "$minio" \
+            https://github.com/minio/minio/releases/download/RELEASE.2025-09-07T16-13-09Z/minio.linux-amd64.RELEASE.2025-09-07T16-13-09Z
+          echo "7c5bd8512c6e966455b1d198209358b2d191c77a83ab377c4073281065fb855f  $minio" | sha256sum --check
+          chmod 700 "$minio"
+          mkdir -p "$RUNNER_TEMP/minio-ci-data"
+          MINIO_ROOT_USER=ci-webp-only \
+            MINIO_ROOT_PASSWORD=ci-webp-disposable-password-only \
+            MINIO_BROWSER=off \
+            "$minio" server "$RUNNER_TEMP/minio-ci-data" \
+              --address 127.0.0.1:19119 \
+              --console-address 127.0.0.1:19120 \
+              > "$RUNNER_TEMP/minio-ci.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/minio-ci.pid"
+          for i in $(seq 1 35); do
+            if curl --silent --fail http://127.0.0.1:19119/minio/health/live >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -n 60 "$RUNNER_TEMP/minio-ci.log"
+          exit 1
+      - name: Prepare isolated S3 bucket with guarded production SDK client
+        run: dotnet run --project tests/CmsRealMinioContract/CmsRealMinioContract.csproj -c Release -- --prepare-http-fixture
+      - name: Start disposable PostgreSQL on loopback
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name cms-media-pg \
+            -e POSTGRES_DB=login -e POSTGRES_USER=postgres \
+            -e POSTGRES_PASSWORD=ci-media-test-only \
+            -p 127.0.0.1:15433:5432 postgres:16-alpine
+          for i in $(seq 1 45); do
+            if docker exec cms-media-pg pg_isready -U postgres -d login >/dev/null 2>&1; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies for browser editor test
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Install isolated browser test tooling
+        run: |
+          python3 -m venv "$RUNNER_TEMP/cms-editor-venv"
+          "$RUNNER_TEMP/cms-editor-venv/bin/pip" install --disable-pip-version-check selenium==4.38.0
+      - name: Build actual CMS HTTP backend
+        run: dotnet build backend/CastroFallas.MiniQuote.Api.csproj -c Release
+      - name: Test full editor flow with Chrome, real backend and disposable storage
+        run: |
+          python3 -m py_compile scripts/test-cms-real-minio-http.py scripts/test-cms-real-minio-editor.py scripts/test-cms-media-http.py
+          "$RUNNER_TEMP/cms-editor-venv/bin/python" scripts/test-cms-real-minio-http.py
+      - name: Verify isolated PostgreSQL snapshot restoration and MinIO object recovery
+        if: matrix.profile == 'backend-on-frontend-on'
+        env:
+          CMS_REAL_MINIO_BACKUP_RESTORE_TEST: '1'
+        run: |
+          set -euo pipefail
+          python3 scripts/test-cms-isolated-backup-restore.py
+          dotnet run --project tests/CmsRealMinioContract/CmsRealMinioContract.csproj -c Release -- --backup-restore-fixture
+      - name: Remove all isolated PostgreSQL and MinIO test data
+        if: always()
+        shell: bash
+        run: |
+          docker rm -f cms-media-pg >/dev/null 2>&1 || true
+          if [ -f "$RUNNER_TEMP/minio-ci.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/minio-ci.pid")" || true
+          fi
+          rm -rf "$RUNNER_TEMP/minio-ci" "$RUNNER_TEMP/minio-ci-data" \
+            "$RUNNER_TEMP/minio-ci.pid" "$RUNNER_TEMP/minio-ci.log" \
+            "$RUNNER_TEMP/cms-editor-venv"
