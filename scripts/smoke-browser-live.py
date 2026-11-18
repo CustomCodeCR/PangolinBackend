@@ -190,7 +190,8 @@ def main():
         ]:
             assert_public(driver, route, marker)
             if route == "/nosotros":
-                buttons = driver.find_elements(By.CSS_SELECTOR, ".about-refresh__value-trigger")
+                buttons = driver.find_elements(By.CSS_SELECTOR, "#nuestros-valores .about-refresh__value-trigger")
+                assert len(driver.find_elements(By.CSS_SELECTOR, "#nuestra-estructura .about-refresh__structure-trigger")) == 7, "Se esperan siete tarjetas en Sobre nuestra estructura"
                 assert len(buttons) == 5, "Se esperan cinco valores corporativos"
                 assert not driver.find_elements(By.CSS_SELECTOR, ".about-refresh__value-summary"), "No debe haber resúmenes visibles al inicio"
                 assert all(button.get_attribute("aria-expanded") == "false" for button in buttons), "Los valores deben empezar cerrados"
@@ -202,7 +203,7 @@ def main():
                     try {
                         const mission=getComputedStyle(document.querySelector('.about-refresh__purpose-card')).backgroundColor;
                         const value=getComputedStyle(document.querySelector('.about-refresh__value')).backgroundColor;
-                        const centered=[...document.querySelectorAll('.about-refresh__value-trigger')].every(button => {
+                        const centered=[...document.querySelectorAll('#nuestros-valores .about-refresh__value-trigger')].every(button => {
                             const arrow=button.querySelector('.about-refresh__value-chevron');
                             const b=button.getBoundingClientRect(), a=arrow.getBoundingClientRect();
                             return Math.abs((a.top+a.bottom)/2-(b.top+b.bottom)/2)<5;
