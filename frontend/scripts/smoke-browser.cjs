@@ -256,6 +256,17 @@ async function assertServicesTheme(chrome, url) {
     assert.ok(beforeDrag !== null && afterDrag !== null && Math.abs(afterDrag-beforeDrag)>60,
       'Arrastrar debe mover el carrusel con el mouse: ' + JSON.stringify({beforeDrag,afterDrag}))
     assert.ok(await evaluate("location.pathname === '/servicios'"),'Arrastrar no debe abrir el enlace')
+    // No pointerleave: cursor remains over the carousel after dropping.
+    await new Promise(resolve => setTimeout(resolve, 270))
+    const stillPaused = await readOffset()
+    assert.ok(stillPaused !== null && Math.abs(stillPaused-afterDrag) < 2,
+      'El carrusel debe ofrecer una pausa breve al soltar la tarjeta')
+    await new Promise(resolve => setTimeout(resolve, 1680))
+    const resumeBefore = await readOffset()
+    await new Promise(resolve => setTimeout(resolve, 300))
+    const resumeAfter = await readOffset()
+    assert.ok(resumeBefore !== null && resumeAfter !== null && Math.abs(resumeAfter-resumeBefore) > 4,
+      'Debe reanudar automáticamente aun si el mouse sigue sobre el carrusel y no se toca afuera')
     const focused = await evaluate("(() => {const a=document.querySelector('.services-directory__panel:not([style*=none]) .services-directory__run:not(.is-clone) .services-directory__card');a?.focus();return Boolean(a);})()")
     assert.ok(focused,'Debe existir una tarjeta accesible')
     await new Promise(resolve => setTimeout(resolve, 130))
