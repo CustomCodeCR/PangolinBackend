@@ -223,6 +223,7 @@ async function assertServicesTheme(chrome, url) {
     assert.equal(defaultCardShadow, 'none', 'Las sombras de tarjetas estaban creando una franja gris entre fotos')
     const transform = await evaluate("document.querySelector('.services-directory__panel:not([style*=none]) .services-directory__track').style.transform")
     assert.ok(transform.startsWith('translate3d(-'), 'La pista debe aplicar un desplazamiento real')
+    await new Promise(resolve => setTimeout(resolve, 330))
     const darkButton = await evaluate("(() => {const b=document.querySelector('.services-directory__panel:not([style*=none]) .services-directory__card-cta'); const c=getComputedStyle(b); return {background:c.backgroundColor,text:c.color}})()")
     assert.equal(darkButton.background, 'rgb(11, 20, 40)', 'El botón oscuro debe usar el azul marino corporativo')
     assert.equal(darkButton.text, 'rgb(244, 246, 250)', 'Ver más debe ser legible en modo oscuro')
