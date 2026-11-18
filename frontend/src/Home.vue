@@ -59,7 +59,7 @@ const serviceInfo = computed(() => Object.fromEntries((['Maritime', 'Land', 'Air
       items: Array.from({ length: itemCount }, (_, itemIndex) => t(`${base}.sections.${sectionIndex}.items.${itemIndex}`))
     }))
   }]
-})).concat([
+}).concat([
   ['Fiscal', { title: siteText('home.services.fiscal.title', locale.value.startsWith('es') ? 'Almacén fiscal' : 'Bonded warehouse', locale.value),
     sections: [{ heading: locale.value.startsWith('es') ? 'Instalaciones y operaciones' : 'Facilities and operations',
       items: [
@@ -73,7 +73,7 @@ const serviceInfo = computed(() => Object.fromEntries((['Maritime', 'Land', 'Air
       items: [locale.value.startsWith('es') ? 'Más de 80 unidades caucionadas con sistema de rastreo.' : 'More than 80 bonded transport units with tracking.',
         locale.value.startsWith('es') ? 'Unidades articuladas y no articuladas.' : 'Articulated and non-articulated units.',
         locale.value.startsWith('es') ? 'Unidades de 28, 40, 45, 48 y 53 pies.' : '28, 40, 45, 48 and 53-foot units.'] }] }]
-]) as Record<HomeServiceKey, { title: string; sections: { heading: string; items: string[] }[] }>)
+])) as Record<HomeServiceKey, { title: string; sections: { heading: string; items: string[] }[] }>)
 const expandedFaq = ref<number | null>(0)
 const faqListRef = ref<HTMLElement | null>(null)
 const closeFaqOnOutsidePointer = (event: PointerEvent) => {
