@@ -173,10 +173,15 @@ async function assertServicesTheme(chrome, url) {
         await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[5].click(); true")
         // Wait for the original .45s expansion before checking final geometry.
         await new Promise(resolve => setTimeout(resolve, 550))
-        const expanded = await evaluate("(() => { const root=document.querySelector('#servicios .service-accordion'); const items=[...root.querySelectorAll('.service-accordion__item')]; const visible=items.filter(x=>getComputedStyle(x).display!=='none'); const selected=items.find(x=>x.classList.contains('is-open')); const panel=selected?.querySelector('.service-accordion__panel'); const copy=panel?.querySelector('.service-accordion__copy'); return { visible:visible.length, hidden:items.length-visible.length, opened:items.filter(x=>x.classList.contains('is-open')).length, lastSelected:selected===items[5], selectedWidth:selected?.clientWidth, panelWidth:panel?.clientWidth, copyWidth:copy?.clientWidth, copyScrollWidth:copy?.scrollWidth, panelVisible:!!panel, hasAction:!!copy?.querySelector('button.btn'), transition:getComputedStyle(selected).transitionDuration, reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches, containerWidth:root.clientWidth, visibleOther:visible.some(x=>x!==selected) }; })()")
+        const expanded = await evaluate("(() => { const root=document.querySelector('#servicios .service-accordion'); const items=[...root.querySelectorAll('.service-accordion__item')]; const visible=items.filter(x=>getComputedStyle(x).display!=='none'); const selected=items.find(x=>x.classList.contains('is-open')); const panel=selected?.querySelector('.service-accordion__panel'); const copy=panel?.querySelector('.service-accordion__copy'); return { visible:visible.length, hidden:items.length-visible.length, opened:items.filter(x=>x.classList.contains('is-open')).length, lastSelected:selected===items[5], selectedWidth:selected?.clientWidth, panelWidth:panel?.clientWidth, copyWidth:copy?.clientWidth, copyScrollWidth:copy?.scrollWidth, panelVisible:!!panel, hasAction:!!copy?.querySelector('button.btn'), transition:getComputedStyle(selected).transitionDuration, reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches, containerWidth:root.clientWidth, visibleOther:visible.some(x=>x!==selected), visibleKeys:visible.map(x=>x.querySelector('.service-accordion__trigger')?.textContent?.trim()), originalKeys:items.slice(0,4).map(x=>x.querySelector('.service-accordion__trigger')?.textContent?.trim()) }; })()")
         assert.ok(expanded.lastSelected && expanded.opened===1 && expanded.panelVisible && expanded.hasAction, 'Debe abrirse el servicio seleccionado: ' + JSON.stringify(expanded))
-        assert.ok(expanded.visible>=2 && expanded.visible<=6 && expanded.visibleOther, 'Deben seguir visibles las pestañas que quepan: ' + JSON.stringify(expanded))
-        assert.ok(expanded.selectedWidth >= (width <= 320 ? 200 : 270), 'El servicio activo no debe quedar estrecho: ' + JSON.stringify(expanded))
+        const expectedVisible = initial.containerWidth < 260 ? 3 : 4
+        assert.equal(expanded.visible, expectedVisible,
+          'Abrir no debe ocultar más pestañas de las necesarias: ' + JSON.stringify(expanded))
+        assert.equal(expanded.hidden, 6 - expectedVisible, 'Solo deben desaparecer las dos pestañas adicionales cuando caben cuatro')
+        assert.ok(expanded.visibleOther, 'Deben quedar pestañas vecinas visibles')
+        assert.ok(expanded.selectedWidth >= initial.containerWidth - (expectedVisible - 1) * 54 - 5,
+          'Conservar la proporción original del acordeón: ' + JSON.stringify(expanded))
         if (!expanded.reducedMotion) {
           assert.ok(expanded.transition !== '0s', 'Debe conservar la animación de apertura: ' + JSON.stringify(expanded))
         }
@@ -188,8 +193,12 @@ async function assertServicesTheme(chrome, url) {
         assert.equal(reset.visible, 6, 'Cerrar debe devolver todas las pestañas: ' + JSON.stringify(reset))
         assert.equal(reset.opened, 0, 'Cerrar no debe dejar un servicio abierto')
         await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
-        assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item')[2].classList.contains('is-open')"), true,
-          'Se debe poder abrir otro servicio después de cerrar')
+        const original = await evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')]; return { selected:items[2].classList.contains('is-open'), shown:items.map((item,i)=>getComputedStyle(item).display!=='none'?i:-1).filter(i=>i>=0) }; })()")
+        assert.equal(original.selected, true, 'Se debe poder abrir otro servicio después de cerrar')
+        if (expectedVisible === 4) {
+          assert.deepEqual(original.shown, [0,1,2,3],
+            'Los cuatro servicios originales deben conservar la misma composición: ' + JSON.stringify(original))
+        }
       } else {
         assert.equal(initial.direction, 'row', 'Escritorio conserva el acordeón horizontal')
         assert.equal(initial.opened, 1, 'Escritorio conserva su servicio inicial expandido')
