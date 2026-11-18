@@ -203,7 +203,7 @@ async function assertServicesTheme(chrome, url) {
           const hovered = await evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')];return { opened:items[1].classList.contains('is-open'), visible:items.filter(x=>getComputedStyle(x).display!=='none').length }; })()")
           assert.ok(hovered.opened && hovered.visible === 4, 'El mouse debe abrir Marítimo al pasar por encima: ' + JSON.stringify(hovered))
           await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].dispatchEvent(new PointerEvent('pointerenter', {pointerType:'mouse',clientX:100,clientY:200})); true")
-          assert.equal(await evaluate("document.querySelector('#servicios .service-accordion__item.is-open')?.querySelector('.service-accordion__name')?.textContent?.trim()"), 'MARÍTIMO',
+          assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item')[1].classList.contains('is-open')"), true,
             'No debe saltar al siguiente servicio por un cambio de columnas bajo el mouse')
           await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].dispatchEvent(new PointerEvent('pointerenter', {pointerType:'mouse',clientX:145,clientY:200})); true")
           assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item')[2].classList.contains('is-open')"), true,
