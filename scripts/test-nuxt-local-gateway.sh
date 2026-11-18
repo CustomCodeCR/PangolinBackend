@@ -66,14 +66,19 @@ echo "PASS favicon Nuxt idéntico al PNG de marca"
 for route in / /nosotros /servicios /noticias \
   /privacidad /terminos /cookies /licencias \
   /servicios/transporte-maritimo /servicios/transporte-terrestre \
-  /servicios/transporte-aereo /servicios/transporte-internacional \
+  /servicios/transporte-aereo \
   /servicios/transporte-local /servicios/transporte-panama-costa-rica \
-  /servicios/almacenamiento-fiscal /servicios/bodegaje-general \
+  /servicios/almacenamiento-fiscal \
   /servicios/agenciamiento-aduanal /servicios/consolidadora-de-carga \
   /bienvenidos /cotizaciones /cotizaciones/nuevo /tracking /itinerario \
   /administracion /administracion/cotizaciones-oficiales /admin/contenido /admin/usuarios; do
   curl -fsS --max-time 12 "$base$route" >/dev/null ||
     { echo "FAIL ruta híbrida: $route" >&2; exit 1; }
+done
+# Retired individual services must return real HTTP 404, not a fallback landing.
+for route in /servicios/bodegaje-general /servicios/transporte-internacional; do
+  status="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 12 "$base$route")"
+  [[ "$status" == "404" ]] || { echo "FAIL servicio retirado $route: HTTP $status" >&2; exit 1; }
 done
 # Las URLs corporativas no deben volver a aparecer por una ruta fallback del gateway.
 for route in /empresas /empresas/aduanera-castro-fallas /empresas/neriteka /empresas/transporte-castro-fallas; do

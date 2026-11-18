@@ -168,7 +168,7 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896
 
             # A non-transport service opens only the first column; the right
             # side must not be permanently visible until the user asks for it.
-            driver.get(BASE + "/servicios/bodegaje-general")
+            driver.get(BASE + "/servicios/almacenamiento-fiscal")
             wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".nav-dropdown--services")))
             if width <= 1080:
                 wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".menu-toggle"))).click()
@@ -180,7 +180,7 @@ for width, height, label in [(1440, 900, "desktop"), (1180, 820, "laptop"), (896
             detail = driver.find_element(By.CSS_SELECTOR, "#services-transport-panel")
             assert not detail.is_displayed(), "Transport links always visible on general service"
             assert driver.find_element(By.CSS_SELECTOR,
-                '.services-megamenu__rail a[href*="bodegaje-general"][aria-current="page"]').is_displayed()
+                '.services-megamenu__rail a[href*="almacenamiento-fiscal"][aria-current="page"]').is_displayed()
             group.click()
             wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "#services-transport-panel")))
             assert group.get_attribute("aria-expanded") == "true", "Manual expand must reveal transport links"
