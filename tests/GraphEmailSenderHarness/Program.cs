@@ -71,6 +71,8 @@ var success = new FakeHandler(async (request, ct) =>
         var message = json.RootElement.GetProperty("message");
         Assert(message.GetProperty("toRecipients")[0].GetProperty("emailAddress")
             .GetProperty("address").GetString() == recipient, "Wrong mail recipient.");
+        Assert(message.GetProperty("body").GetProperty("contentType").GetString() == "Text",
+            "Existing text-only Graph calls must retain their content type.");
         Assert(message.GetProperty("body").GetProperty("content").GetString() == body,
             "Mail fixture body changed.");
     }
@@ -79,6 +81,23 @@ var success = new FakeHandler(async (request, ct) =>
 });
 await Mailer(success).SendAsync(recipient, subject, body, CancellationToken.None);
 Assert(tokenCalls == 1 && sendCalls == 1, "202 case must make exactly two requests.");
+
+// The OTP email can opt into HTML without changing other callers of SendAsync.
+const string htmlFixture = "<!doctype html><html><body><strong>LOCAL_HTML_FIXTURE</strong></body></html>";
+var htmlCalls = 0;
+var htmlHandler = new FakeHandler(async (request, ct) =>
+{
+    htmlCalls++;
+    if (request.RequestUri!.Host == "login.microsoftonline.com") return AccessToken();
+    Assert(request.RequestUri.Host == "graph.microsoft.com", "Unexpected HTML mail host.");
+    using var json = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
+    var htmlBody = json.RootElement.GetProperty("message").GetProperty("body");
+    Assert(htmlBody.GetProperty("contentType").GetString() == "HTML", "Graph must send OTP HTML.");
+    Assert(htmlBody.GetProperty("content").GetString() == htmlFixture, "Graph HTML body mismatch.");
+    return new HttpResponseMessage(HttpStatusCode.Accepted);
+});
+await Mailer(htmlHandler).SendAsync(recipient, subject, body, CancellationToken.None, htmlFixture);
+Assert(htmlCalls == 2, "HTML case must send OAuth + Graph request.");
 
 // Token rejection: no sendMail call must follow a failed OAuth request.
 var oauthCalls = 0;
