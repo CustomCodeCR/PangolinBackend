@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Target, Eye, Handshake, Scale, UsersRound, Award, ShieldCheck, Truck, ClipboardCheck, Globe2, Boxes, Ship, ChevronDown, Headset, HardHat, Layers3, GraduationCap, Leaf, ArrowRight } from '@lucide/vue'
+import { Target, Eye, Handshake, Scale, UsersRound, Award, ShieldCheck, Truck, ClipboardCheck, Globe2, Boxes, Ship, ChevronDown, Headset, HardHat, Layers3, GraduationCap, ArrowRight } from '@lucide/vue'
 import IconSymbol from '../components/IconSymbol.vue'
 import SiteMedia from '../components/SiteMedia.vue'
 import SiteHeader from '../components/SiteHeader.vue'
@@ -13,17 +13,18 @@ const values = computed(() => [0, 1, 2, 3, 4].map(index => siteText(`about.value
 const valueIcons = [Handshake, Scale, UsersRound, Award, ShieldCheck]
 const capabilityIcons = [Truck, ClipboardCheck, Globe2, Boxes, Ship]
 const openedValue = ref<number | null>(null)
-// Keep a single active structure panel; unlike the old accordion, no cards
-// open without content. Indices 2–6 stay stable for published CMS entries.
+// Keep a single active panel for the four organizational areas.
+// Environmental commitments are intentionally outside this section; keep
+// their old CMS keys in the catalog for a separate future section.
 const selectedStructureIndex = ref(2)
-// Preserve the original CMS keys (2–6), so previously published edits remain valid.
-const structureIcons = [Headset, HardHat, Layers3, GraduationCap, Leaf]
+// Preserve the original CMS keys for the four remaining areas (2–5).
+const structureIcons = [Headset, HardHat, Layers3, GraduationCap]
+const departmentIcons = [Boxes, ClipboardCheck, Scale, UsersRound, Truck]
 const structurePhotos = [
   '/images/about-operations-enhanced.webp',
   '/images/warehouse-person.webp',
   '/images/cover-logistics.webp',
-  '/images/about-operations.webp',
-  '/images/services-warehouse.webp'
+  '/images/about-operations.webp'
 ]
 const structureCopy = computed(() => locale.value.startsWith('es') ? [
   {
@@ -41,10 +42,6 @@ const structureCopy = computed(() => locale.value.startsWith('es') ? [
   {
     title: 'Universidad corporativa',
     description: 'Un espacio orientado al intercambio de conocimientos y al desarrollo de nuestro equipo.'
-  },
-  {
-    title: 'Enfoque ambiental',
-    description: 'Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.'
   }
 ] : [
   {
@@ -62,20 +59,12 @@ const structureCopy = computed(() => locale.value.startsWith('es') ? [
   {
     title: 'Corporate university',
     description: 'An initiative focused on knowledge sharing and the development of our team.'
-  },
-  {
-    title: 'Environmental approach',
-    description: 'We seek opportunities to incorporate more responsible practices into our operations.'
   }
 ])
 const structureTitles = computed(() => structureCopy.value.map((entry, offset) => ({
   index: offset + 2,
   title: siteText(`about.structure.${offset + 2}.title`, entry.title, locale.value),
-  description: siteText(
-    `about.structure.${offset + 2}.description`,
-    offset === 4 ? siteText('about.structure.environment', entry.description, locale.value) : entry.description,
-    locale.value
-  ),
+  description: siteText(`about.structure.${offset + 2}.description`, entry.description, locale.value),
   photo: structurePhotos[offset],
   icon: structureIcons[offset]
 })))
@@ -308,10 +297,12 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
                   <span class="about-refresh__structure-underline" aria-hidden="true"></span>
                   <p class="about-refresh__structure-description">{{ selectedStructure.description }}</p>
                   <div v-if="selectedStructure.index === 4" class="about-refresh__structure-departments"
-                    :aria-label="locale.startsWith('es') ? 'Áreas y departamentos' : 'Areas and departments'">
-                    <span v-for="(department, d) in structureDepartments" :key="d">
-                      {{ siteText('about.structure.departments.' + d, department, locale) }}
-                    </span>
+                    role="list" :aria-label="locale.startsWith('es') ? 'Áreas y departamentos' : 'Areas and departments'">
+                    <div v-for="(department, d) in structureDepartments" :key="d"
+                      class="about-refresh__structure-department" role="listitem">
+                      <component :is="departmentIcons[d]" :size="25" :stroke-width="1.8" aria-hidden="true" />
+                      <span>{{ siteText('about.structure.departments.' + d, department, locale) }}</span>
+                    </div>
                   </div>
                 </div>
               </article>
@@ -393,13 +384,13 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
   display:grid;grid-template-columns:minmax(0,1.8fr) minmax(300px,1fr);
   gap:clamp(14px,1.7vw,28px);padding:clamp(12px,1.55vw,24px);
   min-height:clamp(430px,38vw,580px);
-  border:1px solid rgba(130,144,167,.26);border-radius:26px;
-  background:linear-gradient(135deg,#0c152a,#101a33 65%,#2b1025);
-  box-shadow:0 26px 62px rgba(23,21,38,.16);
+  border:1px solid #e5d9df;border-radius:26px;
+  background:linear-gradient(135deg,#fff,#fff8fa 67%,#f8edf1);
+  box-shadow:0 18px 43px rgba(46,32,41,.10);
   overflow:hidden;
 }
 .about-refresh__structure-feature {
-  position:relative;isolation:isolate;display:flex;align-items:flex-end;
+  position:relative;isolation:isolate;display:flex;align-items:flex-start;
   min-width:0;min-height:430px;border-radius:18px;overflow:hidden;background:#15263d;color:#fff;
 }
 .about-refresh__structure-photo {position:absolute;inset:0;z-index:-2;background:#182438}
@@ -409,11 +400,11 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 }
 .about-refresh__structure-feature::after {
   position:absolute;inset:0;z-index:-1;content:"";pointer-events:none;
-  background:linear-gradient(90deg,rgba(4,12,28,.91) 0%,rgba(6,15,30,.65) 49%,rgba(5,11,25,.16) 100%),
-             linear-gradient(0deg,rgba(3,9,23,.79),transparent 64%);
+  background:linear-gradient(90deg,rgba(4,12,28,.89) 0%,rgba(6,15,30,.59) 53%,rgba(5,11,25,.10) 100%),
+             linear-gradient(180deg,rgba(3,9,23,.45),transparent 74%);
 }
 .about-refresh__structure-feature-content {
-  position:relative;width:min(100%,630px);padding:clamp(25px,4vw,52px);
+  position:relative;width:min(100%,710px);padding:clamp(25px,3.2vw,46px);
   text-shadow:0 1px 12px rgba(0,0,0,.35);
 }
 .about-refresh__structure-feature-icon {
@@ -428,26 +419,43 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 .about-refresh__structure-description {
   max-width:480px;margin:0;color:#f5f7fa;font-size:clamp(14px,1.22vw,17px);line-height:1.68;
 }
-.about-refresh__structure-departments {display:flex;flex-wrap:wrap;gap:8px;margin-top:23px}
-.about-refresh__structure-departments>span {
-  display:inline-flex;align-items:center;padding:7px 10px;
-  border:1px solid rgba(255,255,255,.42);border-radius:999px;
-  background:rgba(7,15,29,.52);color:#fff;font-size:12px;font-weight:650;line-height:1.3;
+/* Departments: icon-led modules, 3 above + 2 below, with subtle separators
+   inspired by the approved concept instead of tiny pills over the photo. */
+.about-refresh__structure-departments {
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:0;margin-top:clamp(24px,3vw,35px);padding-top:20px;
+  border-top:1px solid rgba(255,255,255,.38);
+  max-width:600px;
 }
+.about-refresh__structure-department {
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  gap:9px;min-width:0;padding:14px 9px 17px;text-align:center;
+  color:#fff;font-size:clamp(11px,1vw,13px);font-weight:650;line-height:1.38;
+}
+.about-refresh__structure-department:nth-child(3n+1),
+.about-refresh__structure-department:nth-child(3n+2) {
+  border-right:1px solid rgba(255,255,255,.37);
+}
+.about-refresh__structure-department:nth-child(n+4) {
+  border-top:1px solid rgba(255,255,255,.21);
+}
+.about-refresh__structure-department :deep(svg) {color:#fc345c;flex:none}
+.about-refresh__structure-department span {overflow-wrap:anywhere}
 .about-refresh__structure-menu {display:flex;flex-direction:column;justify-content:center;gap:12px;min-width:0}
 .about-refresh__structure-choice {
   display:flex;align-items:center;gap:clamp(12px,1.35vw,20px);
   width:100%;min-height:75px;padding:16px clamp(14px,1.6vw,25px);
-  border:1px solid rgba(222,230,242,.36);border-radius:17px;
-  background:rgba(13,23,43,.84);color:#fff;text-align:left;
+  border:1px solid #e3d5dc;border-radius:17px;
+  background:#fff;color:#222a37;text-align:left;
   font-family:inherit;cursor:pointer;transition:background .22s,border-color .22s,transform .22s,box-shadow .22s;
 }
-.about-refresh__structure-choice:hover {background:#233450;border-color:rgba(255,255,255,.65);transform:translateX(-2px)}
+.about-refresh__structure-choice:hover {background:#fff0f3;border-color:rgba(176,9,41,.45);transform:translateX(-2px)}
 .about-refresh__structure-choice.is-selected {
   background:linear-gradient(110deg,#c90b34,#880c2c);
   border-color:#f04466;box-shadow:0 8px 23px rgba(171,2,42,.26);
 }
-.about-refresh__structure-choice-icon {display:flex;align-items:center;justify-content:center;flex:0 0 30px;color:#fff}
+.about-refresh__structure-choice-icon {display:flex;align-items:center;justify-content:center;flex:0 0 30px;color:#ad1030}
+.about-refresh__structure-choice.is-selected .about-refresh__structure-choice-icon {color:#fff}
 .about-refresh__structure-choice-name {min-width:0;flex:1;font-size:clamp(14px,1.15vw,18px);font-weight:750;line-height:1.25}
 .about-refresh__structure-choice-arrow {flex:0 0 auto;transition:transform .22s}
 .about-refresh__structure-choice:hover .about-refresh__structure-choice-arrow,
@@ -462,10 +470,25 @@ html.theme-dark .about-refresh__structure {
 }
 html.theme-dark .about-refresh__structure-heading>p:last-child {color:#e2e4ef}
 html.theme-dark .about-refresh__structure-eyebrow {color:#ff8fa5}
+html.theme-dark .about-refresh__structure-showcase {
+  background:linear-gradient(135deg,#0c152a,#101a33 65%,#2b1025);
+  border-color:rgba(130,144,167,.26);
+  box-shadow:0 26px 62px rgba(0,0,0,.22);
+}
+html.theme-dark .about-refresh__structure-choice {
+  background:rgba(13,23,43,.84);color:#fff;
+  border-color:rgba(222,230,242,.36);
+}
+html.theme-dark .about-refresh__structure-choice:hover {background:#233450;border-color:rgba(255,255,255,.65)}
+html.theme-dark .about-refresh__structure-choice.is-selected {
+  background:linear-gradient(110deg,#c90b34,#880c2c);border-color:#f04466;
+}
+html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
 @media(max-width:1000px){
   .about-refresh__structure-showcase {grid-template-columns:minmax(0,1.4fr) minmax(240px,1fr);min-height:0}
   .about-refresh__structure-choice {min-height:70px}
   .about-refresh__structure-feature {min-height:465px}
+  .about-refresh__structure-department {font-size:12px}
 }
 @media(max-width:760px){
   .about-refresh__structure-showcase {display:flex;flex-direction:column;padding:13px;border-radius:21px}
@@ -475,6 +498,10 @@ html.theme-dark .about-refresh__structure-eyebrow {color:#ff8fa5}
   .about-refresh__structure-choice-icon {flex-basis:25px}
   .about-refresh__structure-choice-name {font-size:15px}
   .about-refresh__structure-feature-content {padding:29px 23px}
+  .about-refresh__structure-departments {grid-template-columns:repeat(2,minmax(0,1fr));margin-top:20px}
+  .about-refresh__structure-department {border-right:0!important;border-top:0!important;padding:12px 8px}
+  .about-refresh__structure-department:nth-child(odd) {border-right:1px solid rgba(255,255,255,.35)!important}
+  .about-refresh__structure-department:nth-child(n+3) {border-top:1px solid rgba(255,255,255,.21)!important}
 }
 @media(max-width:480px){
   .about-refresh__structure {padding-block:55px 66px}
@@ -486,10 +513,10 @@ html.theme-dark .about-refresh__structure-eyebrow {color:#ff8fa5}
   .about-refresh__structure-feature {min-height:380px}
   .about-refresh__structure-feature-content {padding:24px 19px}
   .about-refresh__structure-feature h3 {font-size:29px}
-  .about-refresh__structure-feature::after {background:linear-gradient(90deg,rgba(4,12,28,.9),rgba(5,12,29,.5)),linear-gradient(0deg,rgba(3,9,23,.9),transparent 78%)}
+  .about-refresh__structure-feature::after {background:linear-gradient(90deg,rgba(4,12,28,.90),rgba(5,12,29,.48)),linear-gradient(180deg,rgba(3,9,23,.49),transparent 85%)}
   .about-refresh__structure-choice-name {font-size:14px}
   .about-refresh__structure-choice {min-height:51px}
-  .about-refresh__structure-departments>span {font-size:11px}
+  .about-refresh__structure-department {font-size:11px;gap:7px}
 }
 @media(prefers-reduced-motion:reduce) {
   .about-refresh__structure-choice,.about-refresh__structure-choice-arrow,
