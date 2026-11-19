@@ -79,7 +79,7 @@ public static class OtpEmailTemplate
                       </td>
                       <!-- Extend the existing globe fade 50px into the center while keeping the right edge fixed. -->
                       <td class="cf-globe" width="214" valign="top" align="right" style="width:214px;box-sizing:border-box;padding:0;background:#ffffff;vertical-align:top;">
-                        <img src="cid:cf-otp-globe" width="214" height="285" alt="" style="display:block;width:214px;height:285px;border:0;">
+                        <img src="cid:cf-otp-globe" width="214" height="302" alt="" style="display:block;width:214px;height:302px;border:0;">
                       </td>
                     </tr>
                     <tr><td colspan="3" bgcolor="#af0922" style="background:#af0922;height:7px;font-size:0;line-height:7px;">&nbsp;</td></tr>
