@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Target, Eye, Handshake, Scale, UsersRound, Award, ShieldCheck, Truck, ClipboardCheck, Globe2, Boxes, Ship, ChevronDown, Headset, HardHat, Layers3, GraduationCap, ArrowRight } from '@lucide/vue'
+import { Target, Eye, Handshake, Scale, UsersRound, Award, ShieldCheck, Truck, ClipboardCheck, Globe2, Boxes, Ship, ChevronDown, Headset, HardHat, Layers3, GraduationCap, ArrowRight, Leaf, Recycle, Sprout } from '@lucide/vue'
 import IconSymbol from '../components/IconSymbol.vue'
 import SiteMedia from '../components/SiteMedia.vue'
 import SiteHeader from '../components/SiteHeader.vue'
@@ -79,6 +79,28 @@ const structureDepartmentDetails = computed(() =>
     siteText(`about.structure.departments.${i}.description`, '', locale.value)
   )
 )
+const environmentPillars = computed(() => locale.value.startsWith('es')
+  ? [
+      { icon: Leaf, title: 'Operaciones más responsables' },
+      { icon: Recycle, title: 'Gestión eficiente de recursos' },
+      { icon: Sprout, title: 'Cuidado del entorno' }
+    ]
+  : [
+      { icon: Leaf, title: 'More responsible operations' },
+      { icon: Recycle, title: 'Efficient resource management' },
+      { icon: Sprout, title: 'Care for our environment' }
+    ])
+const environmentBody = computed(() => siteText(
+  'about.structure.6.description',
+  siteText(
+    'about.structure.environment',
+    locale.value.startsWith('es')
+      ? 'Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.'
+      : 'We seek opportunities to incorporate more responsible practices into our operations.',
+    locale.value
+  ),
+  locale.value
+))
 const valuesAccordionRef = ref<HTMLElement | null>(null)
 const closeValueOnOutsidePointer = (event: PointerEvent) => {
   if (openedValue.value === null || !(event.target instanceof Node)) return
@@ -329,6 +351,37 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
         </div>
       </section>
 
+      <!-- Independent environmental approach: existing company content, new presentation. -->
+      <section id="enfoque-ambiental" class="about-refresh__environment section-spacing"
+        aria-labelledby="about-environment-title">
+        <div class="container">
+          <div class="about-refresh__environment-card">
+            <div class="about-refresh__environment-media">
+              <SiteMedia slot-key="about.structure.6.media"
+                fallback="/images/about-operations-enhanced.webp"
+                :alt="locale.startsWith('es') ? 'Instalaciones y operaciones logísticas de Castro Fallas' : 'Castro Fallas facilities and logistics operations'"
+                sizes="(max-width: 820px) 100vw, 48vw" />
+            </div>
+            <div class="about-refresh__environment-content">
+              <p class="about-refresh__eyebrow">{{ siteText('about.environment.kicker',
+                locale.startsWith('es') ? 'COMPROMISO AMBIENTAL' : 'ENVIRONMENTAL COMMITMENT', locale) }}</p>
+              <h2 id="about-environment-title">{{ siteText('about.environment.heading',
+                locale.startsWith('es') ? 'Enfoque ambiental' : 'Environmental approach', locale) }}</h2>
+              <span class="about-refresh__environment-accent" aria-hidden="true"></span>
+              <p class="about-refresh__environment-description">{{ environmentBody }}</p>
+              <div class="about-refresh__environment-pillars" role="list"
+                :aria-label="locale.startsWith('es') ? 'Áreas de nuestro enfoque ambiental' : 'Areas of our environmental approach'">
+                <div v-for="(pillar, index) in environmentPillars" :key="index"
+                  class="about-refresh__environment-pillar" role="listitem">
+                  <component :is="pillar.icon" :size="37" :stroke-width="1.7" aria-hidden="true" />
+                  <span>{{ siteText('about.environment.pillar.' + index + '.title', pillar.title, locale) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="about-refresh__services section-spacing">
         <div class="container">
           <div class="about-refresh__section-heading">
@@ -364,7 +417,8 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 /* Corporate structure redesign: editorial photo panel + five accessible options.
    Existing CMS IDs 2–6 are preserved, and each photo is independently editable. */
 .about-refresh__structure {
-  padding-block: clamp(68px, 7.5vw, 116px);
+  padding-top:clamp(60px,6vw,88px);
+  padding-bottom:clamp(18px,2.1vw,32px);
   background: radial-gradient(ellipse at 0% 30%, rgba(167,16,53,.09), transparent 44%),
               linear-gradient(115deg, #f9f6f7, #f4f6fb);
 }
@@ -555,7 +609,7 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
   }
 }
 @media(max-width:480px){
-  .about-refresh__structure {padding-block:55px 66px}
+  .about-refresh__structure {padding-top:55px;padding-bottom:18px}
   .about-refresh__structure-heading h2 {font-size:clamp(32px,9vw,43px)}
   .about-refresh__structure-showcase {padding:9px;gap:10px}
   .about-refresh__structure-feature {min-height:380px}
@@ -608,6 +662,164 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
 .about-refresh__value-panel.is-open{grid-template-rows:1fr;opacity:1;visibility:visible}
 .about-refresh__value-inner{min-height:0;overflow:hidden}
 .about-refresh__value-inner p{margin:0;padding:0 24px 25px;color:var(--about-muted);font-size:15px;line-height:1.7}
+/* Independent environmental section — light, editorial two-column layout.
+   The content grows naturally when additional CMS text is published. */
+.about-refresh__environment {
+  padding-top:clamp(20px,2.5vw,38px);
+  padding-bottom:clamp(23px,2.7vw,45px);
+  scroll-margin-top:85px;
+  background:linear-gradient(140deg,#f9f5f6,#fff 55%,#fcf2f5);
+}
+.about-refresh__environment-card {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  align-items:stretch;
+  gap:clamp(20px,2.4vw,44px);
+  padding:clamp(14px,1.4vw,26px);
+  border:1px solid #e7dce2;
+  border-radius:clamp(22px,2.2vw,32px);
+  background:linear-gradient(120deg,#fff,#fffafc);
+  box-shadow:0 20px 52px rgba(42,25,39,.08);
+}
+.about-refresh__environment-media {
+  position:relative;
+  min-width:0;
+  min-height:0;
+  aspect-ratio:855/494;
+  overflow:hidden;
+  border-radius:clamp(16px,1.3vw,22px);
+  background:#e8eceb;
+}
+.about-refresh__environment-media :deep(img),
+.about-refresh__environment-media :deep(video) {
+  position:absolute;
+  inset:0;
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.about-refresh__environment-content {
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:flex-start;
+  min-width:0;
+  padding:clamp(15px,1.85vw,34px) clamp(4px,.9vw,14px);
+}
+.about-refresh__environment-content .about-refresh__eyebrow {
+  margin-bottom:14px;
+  color:#b00929;
+  font-size:clamp(11px,1vw,13px);
+  letter-spacing:.13em;
+}
+.about-refresh__environment-content h2 {
+  margin:0;
+  max-width:680px;
+  color:var(--about-ink);
+  font-size:clamp(29px,2.8vw,49px);
+  line-height:1.09;
+  letter-spacing:-.045em;
+  overflow-wrap:break-word;
+}
+.about-refresh__environment-accent {
+  display:block;
+  width:68px;
+  height:4px;
+  margin:17px 0 23px;
+  border-radius:4px;
+  background:#b00929;
+}
+.about-refresh__environment-description {
+  margin:0;
+  max-width:640px;
+  color:var(--about-muted);
+  font-size:clamp(15px,1.25vw,18px);
+  line-height:1.7;
+  white-space:pre-line;
+  overflow-wrap:anywhere;
+}
+.about-refresh__environment-pillars {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  align-items:start;
+  width:100%;
+  margin-top:auto;
+  padding-top:clamp(24px,2.8vw,46px);
+}
+.about-refresh__environment-pillar {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  gap:15px;
+  min-width:0;
+  padding:0 clamp(8px,1vw,20px);
+  text-align:center;
+  color:var(--about-ink);
+}
+.about-refresh__environment-pillar:not(:first-child) {
+  border-left:1px solid rgba(98,101,113,.27);
+}
+.about-refresh__environment-pillar svg {color:#b00929;flex:none}
+.about-refresh__environment-pillar span {
+  max-width:175px;
+  font-size:clamp(12px,1.05vw,16px);
+  font-weight:750;
+  line-height:1.35;
+  overflow-wrap:anywhere;
+}
+html.theme-dark .about-refresh__environment {
+  background:linear-gradient(120deg,#0b1428,#101827 60%,#241528);
+}
+/* Match the dark background of "Nuestra estructura" exactly. */
+html.theme-dark .about-refresh__environment-card {
+  background:linear-gradient(135deg,#0c152a,#101a33 65%,#2b1025);
+  border-color:rgba(130,144,167,.26);
+  box-shadow:0 26px 62px rgba(0,0,0,.22);
+}
+html.theme-dark .about-refresh__environment-media {background:#182638}
+html.theme-dark .about-refresh__environment-pillar:not(:first-child) {
+  border-left-color:rgba(255,255,255,.25);
+}
+html.theme-dark .about-refresh .about-refresh__environment-content .about-refresh__eyebrow,
+html.theme-dark .about-refresh .about-refresh__environment-pillar svg {color:#ff8298}
+@media (max-width:1100px) {
+  .about-refresh__environment-card {gap:17px;grid-template-columns:minmax(0,.94fr) minmax(0,1.06fr)}
+  .about-refresh__environment-pillars {padding-top:28px}
+  .about-refresh__environment-pillar {gap:10px;padding-inline:7px}
+  .about-refresh__environment-pillar span {font-size:12px}
+}
+@media (max-width:820px) {
+  .about-refresh__environment-card {grid-template-columns:1fr;gap:20px}
+  .about-refresh__environment-media {aspect-ratio:855/494;min-height:0;height:auto}
+  .about-refresh__environment-content {padding:16px 12px 22px}
+  .about-refresh__environment-content h2 {font-size:clamp(32px,5.5vw,46px)}
+  .about-refresh__environment-pillars {padding-top:34px}
+  .about-refresh__environment-pillar span {font-size:clamp(12px,2vw,15px)}
+}
+@media (max-width:540px) {
+  .about-refresh__environment {padding-block:22px 32px}
+  .about-refresh__environment-card {padding:11px;border-radius:22px;gap:11px}
+  .about-refresh__environment-media {aspect-ratio:855/494;height:auto;min-height:0;border-radius:15px}
+  .about-refresh__environment-content {padding:14px 12px 15px}
+  .about-refresh__environment-content h2 {font-size:clamp(30px,8vw,39px)}
+  .about-refresh__environment-description {font-size:15px}
+  .about-refresh__environment-pillars {grid-template-columns:1fr;gap:0;padding-top:20px}
+  .about-refresh__environment-pillar {
+    flex-direction:row;justify-content:flex-start;gap:16px;
+    padding:13px 5px;text-align:left;
+  }
+  .about-refresh__environment-pillar:not(:first-child) {
+    border-left:0;border-top:1px solid rgba(255,255,255,.25);
+  }
+  .about-refresh__environment-pillar svg {width:28px;height:28px}
+  .about-refresh__environment-pillar span {max-width:none;font-size:14px}
+  html.theme-dark .about-refresh__environment-pillar:not(:first-child) {border-top-color:rgba(255,255,255,.25)}
+}
+.about-refresh__environment + .about-refresh__services {
+  padding-top:clamp(28px,3vw,48px);
+}
 .about-refresh__services{padding-block:clamp(92px,10vw,160px)}
 .about-refresh__capabilities{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(18px,2.3vw,36px)}
 .about-refresh__capability{padding:29px 27px 34px;border:1px solid rgba(37,41,49,.13);border-radius:22px;background:#fff;min-height:220px;transition:transform .2s,box-shadow .2s}
@@ -914,6 +1126,56 @@ html.theme-dark .about-refresh__value.is-open .about-refresh__value-icon{
   .about-refresh__capabilities > .about-refresh__capability {
     flex-basis:calc((100% - clamp(13px,1.7vw,26px)) / 2);
   }
+}
+
+/* Dark-mode accents. Keep Valores interactive: closed badges retain
+   their original muted burgundy; only the opened badge turns corporate red. */
+html.theme-dark .about-refresh .about-refresh__purpose-card,
+html.theme-dark .about-refresh .about-refresh__value {
+  background:#111b31;
+}
+html.theme-dark .about-refresh .about-refresh__purpose-symbol {
+  background:#b00929;
+  color:#fff;
+}
+html.theme-dark .about-refresh .about-refresh__value-icon {
+  background:#41223c;
+  color:#ff849a !important;
+}
+html.theme-dark .about-refresh .about-refresh__value-icon :deep(svg) {
+  color:#ff849a !important;
+}
+html.theme-dark .about-refresh .about-refresh__value.is-open .about-refresh__value-icon {
+  background:#b00929;
+  color:#fff !important;
+}
+html.theme-dark .about-refresh .about-refresh__value.is-open .about-refresh__value-icon :deep(svg) {
+  color:#fff !important;
+}
+/* Target both component roots and the Lucide SVGs directly so the page's
+   general dark-mode icon rules cannot turn these outlined icons white. */
+/* The theme class lives on <html> outside this scoped Vue component.
+   Keep each complete selector within :global() so scoped compilation cannot
+   attach a component attribute to <html> or miss the actual Lucide SVGs. */
+:global(html.theme-dark .about-refresh .about-refresh__capability-icon),
+:global(html.theme-dark .about-refresh .about-refresh__capability-icon svg),
+:global(html.theme-dark .about-refresh .about-refresh__environment-pillar svg) {
+  color:#B00929 !important;
+}
+:global(html.theme-dark .about-refresh .about-refresh__capability-icon svg),
+:global(html.theme-dark .about-refresh .about-refresh__environment-pillar svg) {
+  stroke:#B00929 !important;
+}
+/* Full global selector: the theme class is on <html> outside Vue's
+   scoped component. Explicit SVG stroke prevents the global dark-theme
+   rules from leaving department icons white. */
+:global(html.theme-dark .about-refresh .about-refresh__structure-department svg) {
+  color:#FC345C !important;
+  stroke:#FC345C !important;
+}
+/* Headings are inherited from CMS; change their accent color, not their text. */
+html.theme-dark .about-refresh .about-refresh__eyebrow {
+  color:#ff3c61 !important;
 }
 
 /* Keep the experience divider fully white in dark mode. */

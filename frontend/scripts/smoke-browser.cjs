@@ -497,6 +497,12 @@ async function assertServicesTheme(chrome, url) {
       const departments = await evaluate("(() => { const root=document.querySelector('#nuestra-estructura'); const grid=root.querySelector('.about-refresh__structure-departments');const feature=root.querySelector('.about-refresh__structure-feature');const fr=feature.getBoundingClientRect(), cr=feature.querySelector('.about-refresh__structure-feature-content').getBoundingClientRect(); return { selected:root.querySelectorAll('.about-refresh__structure-choice[aria-pressed=true]').length===1&&root.querySelectorAll('.about-refresh__structure-choice')[2].getAttribute('aria-pressed')==='true',items:root.querySelectorAll('.about-refresh__structure-department').length,icons:root.querySelectorAll('.about-refresh__structure-department svg').length,gridDisplay:grid&&getComputedStyle(grid).display,columns:grid&&getComputedStyle(grid).gridTemplateColumns.split(' ').length,panel:root.querySelectorAll('.about-refresh__structure-feature').length,heading:feature.querySelector('h3')?.textContent?.trim(),hasMedia:!!feature.querySelector('.about-refresh__structure-photo img,.about-refresh__structure-photo video'),contentTop:Math.round(cr.top-fr.top) }; })()")
       assert.ok(departments.selected && departments.panel === 1 && departments.items === 5 && departments.icons === 5 && departments.heading && departments.hasMedia,
         'Deben mostrarse los cinco departamentos con sus iconos: ' + JSON.stringify(departments))
+      const departmentsIconPalette = await evaluate("(() => {const html=document.documentElement;const wasDark=html.classList.contains('theme-dark');const icons=[...document.querySelectorAll('#nuestra-estructura .about-refresh__structure-department svg')];const inspect=()=>icons.map(svg=>({color:getComputedStyle(svg).color,stroke:getComputedStyle(svg).stroke}));html.classList.remove('theme-dark');const light=inspect();html.classList.add('theme-dark');const dark=inspect();html.classList.toggle('theme-dark',wasDark);return {light,dark}})()")
+      assert.equal(departmentsIconPalette.light.length,5,'Deben mostrarse cinco SVG de Departamentos')
+      assert.ok(departmentsIconPalette.light.every(svg=>svg.color==='rgb(252, 52, 92)'),
+        'Los íconos deben ser rojos en modo claro: '+JSON.stringify(departmentsIconPalette))
+      assert.ok(departmentsIconPalette.dark.every(svg=>svg.color==='rgb(252, 52, 92)' && svg.stroke==='rgb(252, 52, 92)'),
+        'Los cinco SVG deben pintar sus trazos en #FC345C en modo oscuro: '+JSON.stringify(departmentsIconPalette))
       assert.equal(departments.gridDisplay,'grid','Los departamentos deben usar su nueva distribución por columnas')
       assert.equal(departments.columns,width<=1100?2:6,'Tres columnas en escritorio amplio y dos en pantallas estrechas: '+JSON.stringify(departments))
       assert.ok(departments.contentTop<=75,'El panel de Departamentos debe mantener el contenido arriba')
@@ -538,6 +544,123 @@ async function assertServicesTheme(chrome, url) {
         'Universidad corporativa debe ser la cuarta opción, con texto independiente: ' + JSON.stringify(university))
     }
     console.log('PASS Chrome: Nuestra estructura 4 opciones, texto arriba, departamentos 3+2 centrados, claro/oscuro y responsive')
+
+    // Environmental approach lives in its own section, not in the old
+    // structure menu. Verify the approved photo/text/three-focus composition
+    // in both themes across desktop, tablet and mobile widths.
+    for (const width of [1440, 1024, 820, 768, 480, 375]) {
+      await send('Emulation.setDeviceMetricsOverride', {
+        width, height: 1000, deviceScaleFactor: 1, mobile: false
+      })
+      const environmentNav = await send('Page.navigate', { url: structureUrl })
+      assert.ok(!environmentNav.errorText, 'Chrome no pudo cargar Nosotros para enfoque ambiental')
+      let environmentReady = false
+      for (let attempt = 0; attempt < 100; attempt++) {
+        environmentReady = await evaluate("!!document.querySelector('#enfoque-ambiental .about-refresh__environment-card') && !!document.querySelector('#nuestra-estructura')")
+        if (environmentReady) break
+        await new Promise(resolve => setTimeout(resolve, 120))
+      }
+      assert.ok(environmentReady, 'Debe mostrarse Enfoque ambiental en su propia sección a '+width+'px')
+      // Trigger lazy image loading before checking its natural dimensions.
+      await evaluate("(() => {document.querySelector('#enfoque-ambiental').scrollIntoView({block:'center'}); const img=document.querySelector('#enfoque-ambiental .about-refresh__environment-media img');if(img)img.loading='eager';return true})()")
+      let loadedEnvironmentImage=false
+      for(let attempt=0; attempt<40; attempt++) {
+        loadedEnvironmentImage=await evaluate("(() => { const img=document.querySelector('#enfoque-ambiental .about-refresh__environment-media img');return !!img && img.complete && img.naturalWidth>0 })()")
+        if(loadedEnvironmentImage) break
+        await new Promise(resolve=>setTimeout(resolve,120))
+      }
+      assert.ok(loadedEnvironmentImage, 'La fotografía original de las instalaciones debe cargar correctamente a '+width+'px')
+      const environment = await evaluate("(() => { const root=document.querySelector('#enfoque-ambiental');const structure=document.querySelector('#nuestra-estructura');const capabilities=document.querySelector('.about-refresh__services');const card=root.querySelector('.about-refresh__environment-card');const media=root.querySelector('.about-refresh__environment-media');const body=root.querySelector('.about-refresh__environment-content');const pillars=[...root.querySelectorAll('.about-refresh__environment-pillar')];const image=media.querySelector('img,video');const title=root.querySelector('h2');const kicker=root.querySelector('.about-refresh__eyebrow');const copy=root.querySelector('.about-refresh__environment-description');return { sectionOrder:structure.compareDocumentPosition(root)&Node.DOCUMENT_POSITION_FOLLOWING?true:false, beforeCapabilities:root.compareDocumentPosition(capabilities)&Node.DOCUMENT_POSITION_FOLLOWING?true:false, title:title?.textContent?.trim(), kicker:kicker?.textContent?.trim(), description:copy?.textContent?.trim(), media:!!image,mediaIsCMS:!!image?.getAttribute('src'), pillars:pillars.length,pillarIcons:pillars.filter(p=>p.querySelector('svg')).length,pillarText:pillars.every(p=>p.textContent?.trim().length>6), gridColumns:getComputedStyle(card).gridTemplateColumns.split(' ').length, pillarsColumns:getComputedStyle(root.querySelector('.about-refresh__environment-pillars')).gridTemplateColumns.split(' ').length, mediaHeight:media.getBoundingClientRect().height, mediaWidth:media.getBoundingClientRect().width, imageNote:media.querySelector('.about-refresh__environment-media-note')?.textContent?.trim(), previousSectionGap:Math.round(root.getBoundingClientRect().top-structure.getBoundingClientRect().bottom), nextSectionGap:Math.round(capabilities.getBoundingClientRect().top-root.getBoundingClientRect().bottom), overflow:card.scrollWidth-card.clientWidth, bodyOverflow:body.scrollWidth-body.clientWidth, documentOverflow:document.documentElement.scrollWidth-window.innerWidth };})()")
+      assert.ok(environment.sectionOrder && environment.beforeCapabilities,
+        'Enfoque ambiental debe quedar entre estructura y capacidades: '+JSON.stringify(environment))
+      assert.ok(environment.title?.length>10 && environment.kicker?.length>8 && environment.description?.length>35,
+        'Debe tener antetítulo, título y descripción, con contenido del CMS: '+JSON.stringify(environment))
+      assert.ok(environment.media && environment.mediaIsCMS && environment.mediaHeight>=165 && environment.mediaWidth>0,
+        'Debe mostrarse la imagen aprobada con tamaño adaptativo: '+JSON.stringify(environment))
+      assert.ok(!environment.imageNote, 'Ya no debe mostrarse la etiqueta de imagen ilustrativa')
+      const environmentPhoto=await evaluate("(() => {const img=document.querySelector('#enfoque-ambiental .about-refresh__environment-media img');return {url:img?.currentSrc||img?.src||'',width:img?.naturalWidth,height:img?.naturalHeight}})()")
+      assert.ok(environmentPhoto.width >= 900 && environmentPhoto.height >= 500,
+        'Debe utilizarse la fotografía original de mayor resolución: '+JSON.stringify(environmentPhoto))
+      assert.ok(!/environmental-concept/.test(environmentPhoto.url),
+        'No debe mostrarse la ilustración de baja resolución')
+      assert.ok(environment.previousSectionGap<=1 && environment.nextSectionGap<=1,
+        'Las secciones deben ser consecutivas sin márgenes vacíos adicionales: '+JSON.stringify(environment))
+      assert.equal(environment.pillars,3,'Deben aparecer los tres ejes ambientales')
+      assert.equal(environment.pillarIcons,3,'Los tres ejes deben conservar sus íconos')
+      assert.ok(environment.pillarText,'Los ejes deben tener textos descriptivos visibles')
+      assert.equal(environment.gridColumns,width<=820?1:2,
+        'La sección debe usar dos columnas en escritorio y una en móvil: '+JSON.stringify(environment))
+      assert.equal(environment.pillarsColumns,width<=540?1:3,
+        'Los ejes deben apilarse verticalmente en celulares pequeños: '+JSON.stringify(environment))
+      assert.ok(environment.overflow<=3 && environment.bodyOverflow<=3 && environment.documentOverflow<=3,
+        'La sección no debe producir desbordamiento horizontal: '+JSON.stringify(environment))
+      const environmentPalette=await evaluate("(() => {const doc=document.documentElement;const wasDark=doc.classList.contains('theme-dark');const card=document.querySelector('#enfoque-ambiental .about-refresh__environment-card');const structure=document.querySelector('#nuestra-estructura .about-refresh__structure-showcase');const heading=document.querySelector('#enfoque-ambiental h2');const kicker=document.querySelector('#enfoque-ambiental .about-refresh__eyebrow');const pillars=document.querySelector('#enfoque-ambiental .about-refresh__environment-pillar');doc.classList.remove('theme-dark');const light={bg:getComputedStyle(card).backgroundImage,title:getComputedStyle(heading).color,kicker:getComputedStyle(kicker).color,pillar:getComputedStyle(pillars).color};doc.classList.add('theme-dark');const dark={bg:getComputedStyle(card).backgroundImage,structureBg:getComputedStyle(structure).backgroundImage,title:getComputedStyle(heading).color,kicker:getComputedStyle(kicker).color,pillar:getComputedStyle(pillars).color};doc.classList.toggle('theme-dark',wasDark);return {light,dark};})()")
+      assert.notEqual(environmentPalette.light.bg,environmentPalette.dark.bg,
+        'La sección debe adaptar el fondo al modo claro y oscuro: '+JSON.stringify(environmentPalette))
+      assert.equal(environmentPalette.dark.bg,environmentPalette.dark.structureBg,
+        'En modo oscuro el recuadro ambiental debe usar el mismo degradado de Nuestra estructura')
+      assert.equal(environmentPalette.dark.title,'rgb(255, 255, 255)',
+        'El título oscuro debe conservar texto blanco legible: '+JSON.stringify(environmentPalette))
+      assert.equal(environmentPalette.dark.kicker,'rgb(255, 60, 97)',
+        'El antetítulo ambiental debe usar el acento rojo compartido del modo oscuro: '+JSON.stringify(environmentPalette))
+      assert.equal(environmentPalette.light.title,'rgb(32, 36, 45)',
+        'El título claro debe usar la paleta de texto oscuro: '+JSON.stringify(environmentPalette))
+      assert.notEqual(environmentPalette.light.pillar,environmentPalette.dark.pillar,
+        'Las etiquetas de los ejes deben conservar el contraste según el modo')
+      assert.ok(['Enfoque ambiental','Environmental approach'].includes(environment.title),
+        'El título no debe comenzar por Nuestro / Our: '+JSON.stringify(environment.title))
+      if (width === 1440 || width === 375) {
+        // Verify SVG strokes directly (not only their parent div colors).
+        // Parent-only checks previously passed while the icons remained white.
+        const iconPaint = await evaluate("(() => {const html=document.documentElement;const wasDark=html.classList.contains('theme-dark');html.classList.add('theme-dark');const inspect=selector=>[...document.querySelectorAll(selector)].map(svg=>({color:getComputedStyle(svg).color,stroke:getComputedStyle(svg).stroke}));const result={environmental:inspect('#enfoque-ambiental .about-refresh__environment-pillar svg'),capabilities:inspect('.about-refresh__capability-icon svg')};html.classList.toggle('theme-dark',wasDark);return result})()")
+        assert.equal(iconPaint.environmental.length,3,'Deben existir tres íconos ambientales visibles')
+        assert.equal(iconPaint.capabilities.length,5,'Deben existir cinco íconos de capacidades')
+        for (const [group,icons] of Object.entries(iconPaint)) {
+          assert.ok(icons.every(svg=>svg.color==='rgb(176, 9, 41)' && svg.stroke==='rgb(176, 9, 41)'),
+            'Los SVG de '+group+' deben verse rojos, no blancos, a '+width+'px: '+JSON.stringify(icons))
+        }
+      }
+      if (width === 1440) {
+        const redPalette = await evaluate("(() => {const doc=document.documentElement;const old=doc.classList.contains('theme-dark');doc.classList.add('theme-dark');const css=s=>getComputedStyle(document.querySelector(s));const mission=css('.about-refresh__purpose-card');const values=css('.about-refresh__value');const badge=css('.about-refresh__purpose-symbol');const valueIcon=css('.about-refresh__value-icon');const capability=css('.about-refresh__capability-icon');const environmental=css('.about-refresh__environment-pillar svg');const eyebrows=[...document.querySelectorAll('.about-refresh__eyebrow')].map(e=>getComputedStyle(e).color);const result={mission:mission.backgroundColor,values:values.backgroundColor,badge:badge.backgroundColor,valueIcon:valueIcon.backgroundColor,badgeGlyph:badge.color,valueGlyph:valueIcon.color,valueGlyphSvg:getComputedStyle(document.querySelector('.about-refresh__value-icon svg')).color,capability:capability.color,environmental:environmental.color,eyebrows};doc.classList.toggle('theme-dark',old);return result;})()")
+        assert.equal(redPalette.mission,redPalette.values,
+          'Misión y Visión deben tener el mismo fondo oscuro que Valores: '+JSON.stringify(redPalette))
+        assert.equal(redPalette.mission,'rgb(17, 27, 49)',
+          'Los cuadros de Misión y Visión deben mantener el azul corporativo')
+        assert.equal(redPalette.badge,'rgb(176, 9, 41)',
+          'Misión y Visión mantienen los recuadros rojos corporativos')
+        assert.equal(redPalette.badgeGlyph,'rgb(255, 255, 255)',
+          'Los íconos de Misión y Visión deben seguir blancos sobre rojo')
+        assert.equal(redPalette.valueIcon,'rgb(65, 34, 60)',
+          'Los valores cerrados deben mantener sus recuadros morados originales')
+        assert.equal(redPalette.valueGlyph,'rgb(255, 132, 154)',
+          'Los valores cerrados conservan sus íconos rosados')
+        assert.equal(redPalette.valueGlyphSvg,'rgb(255, 132, 154)',
+          'Los SVG de valores cerrados deben verse rosados, no blancos')
+        // Opening and closing should toggle ONLY the selected value to red.
+        await evaluate("document.querySelector('#nuestros-valores .about-refresh__value-trigger').click(); true")
+        await new Promise(resolve=>setTimeout(resolve,100))
+        const openValuePalette = await evaluate("(() => {const doc=document.documentElement;const old=doc.classList.contains('theme-dark');doc.classList.add('theme-dark');const cards=[...document.querySelectorAll('#nuestros-valores .about-refresh__value')];const first=cards[0];const result={isOpen:first.classList.contains('is-open'),bg:getComputedStyle(first.querySelector('.about-refresh__value-icon')).backgroundColor,glyph:getComputedStyle(first.querySelector('.about-refresh__value-icon svg')).color,otherBg:getComputedStyle(cards[1].querySelector('.about-refresh__value-icon')).backgroundColor};doc.classList.toggle('theme-dark',old);return result})()")
+        assert.ok(openValuePalette.isOpen,'La tarjeta seleccionada debe abrirse')
+        assert.equal(openValuePalette.bg,'rgb(176, 9, 41)',
+          'Solo el valor abierto debe mostrar el recuadro rojo: '+JSON.stringify(openValuePalette))
+        assert.equal(openValuePalette.glyph,'rgb(255, 255, 255)',
+          'El valor abierto debe mostrar el ícono blanco')
+        assert.equal(openValuePalette.otherBg,'rgb(65, 34, 60)',
+          'Las otras tarjetas cerradas deben seguir moradas')
+        await evaluate("document.querySelector('#nuestros-valores .about-refresh__value-trigger').click(); true")
+        await new Promise(resolve=>setTimeout(resolve,100))
+        const closedAgain = await evaluate("(() => {const doc=document.documentElement;const old=doc.classList.contains('theme-dark');doc.classList.add('theme-dark');const first=document.querySelector('#nuestros-valores .about-refresh__value');const result={open:first.classList.contains('is-open'),bg:getComputedStyle(first.querySelector('.about-refresh__value-icon')).backgroundColor};doc.classList.toggle('theme-dark',old);return result})()")
+        assert.equal(closedAgain.open,false,'La tarjeta debe volver a cerrarse')
+        assert.equal(closedAgain.bg,'rgb(65, 34, 60)','El rojo desaparece al cerrar la tarjeta')
+        assert.equal(redPalette.capability,'rgb(176, 9, 41)',
+          'Los íconos de Capacidades deben tener el acento rojo')
+        assert.equal(redPalette.environmental,'rgb(176, 9, 41)',
+          'Los íconos de Enfoque ambiental deben tener el acento rojo')
+        assert.ok(redPalette.eyebrows.every(color=>color==='rgb(255, 60, 97)'),
+          'Los antetítulos de Sobre nosotros deben ser rojos: '+JSON.stringify(redPalette))
+      }
+    }
+    console.log('PASS Chrome: Enfoque ambiental independiente, CMS, tres ejes, 2 temas y responsive')
 
     // Contacto en Home: mantener cinco tarjetas iguales y centrar las
     // filas incompletas sin ensanchar la última tarjeta en móvil.
