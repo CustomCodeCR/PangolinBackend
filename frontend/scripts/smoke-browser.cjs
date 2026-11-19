@@ -489,12 +489,12 @@ async function assertServicesTheme(chrome, url) {
       assert.ok(departments.selected && departments.panel === 1 && departments.items === 5 && departments.icons === 5 && departments.heading && departments.hasMedia,
         'Deben mostrarse los cinco departamentos con sus iconos: ' + JSON.stringify(departments))
       assert.equal(departments.gridDisplay,'grid','Los departamentos deben usar su nueva distribución por columnas')
-      assert.equal(departments.columns,width<=760?2:6,'Seis tracks para 3+2 en escritorio y dos columnas en celular: '+JSON.stringify(departments))
+      assert.equal(departments.columns,width<=1100?2:6,'Tres columnas en escritorio amplio y dos en pantallas estrechas: '+JSON.stringify(departments))
       assert.ok(departments.contentTop<=75,'El panel de Departamentos debe mantener el contenido arriba')
       const geometry=await evaluate("(() => {const grid=document.querySelector('#nuestra-estructura .about-refresh__structure-departments');const cards=[...grid.querySelectorAll('.about-refresh__structure-department')];const bounds=cards.map(x=>x.getBoundingClientRect());const container=grid.getBoundingClientRect();return { widths:bounds.map(b=>b.width),tops:bounds.map(b=>b.top),centerDelta:Math.abs((bounds[4].left+bounds[4].right)/2-(container.left+container.right)/2),lastSpan:getComputedStyle(cards[4]).gridColumnStart,pairCenterDelta:Math.abs((bounds[3].left+bounds[4].right)/2-(container.left+container.right)/2),verticalSeparators:cards.some(c=>getComputedStyle(c).borderRightWidth==='1px'&&getComputedStyle(c).borderRightStyle==='solid'&&getComputedStyle(c).borderRightColor==='rgba(255, 255, 255, 0.35)') };})()")
       assert.ok(Math.max(...geometry.widths)-Math.min(...geometry.widths)<=2,
         'Los cinco departamentos deben mantener el mismo ancho: '+JSON.stringify(geometry))
-      if (width > 760) {
+      if (width > 1100) {
         assert.ok(Math.abs(geometry.tops[0]-geometry.tops[1])<=2 && Math.abs(geometry.tops[1]-geometry.tops[2])<=2,
           'Los primeros tres departamentos deben compartir una fila: '+JSON.stringify(geometry))
         assert.ok(Math.abs(geometry.tops[3]-geometry.tops[4])<=2 && geometry.tops[3]>geometry.tops[0],
@@ -510,6 +510,18 @@ async function assertServicesTheme(chrome, url) {
         assert.equal(geometry.lastSpan,'1','La quinta tarjeta móvil debe centrarse en la última fila')
       }
       assert.equal(geometry.verticalSeparators,false,'No deben quedar divisores verticales anteriores')
+
+      // Future CMS descriptions can be significantly longer than today's names.
+      // Simulate an extended section in-memory without publishing invented copy.
+      const overflowTest=await evaluate("(() => { const feature=document.querySelector('#nuestra-estructura .about-refresh__structure-feature');const cards=[...feature.querySelectorAll('.about-refresh__structure-department')];const summary=feature.querySelector('.about-refresh__structure-description');const longText='Detalle adicional para verificar que el contenido largo se adapte correctamente dentro de cada tarjeta, sin cortar palabras ni reducir su legibilidad. ';summary.textContent += ' '+longText.repeat(5);cards.forEach((card,i)=>{const para=document.createElement('p');para.className='about-refresh__structure-department-detail';para.textContent=longText.repeat(i===0?4:2);card.appendChild(para)});const bounds=cards.map(x=>x.getBoundingClientRect());const grid=feature.querySelector('.about-refresh__structure-departments');const fb=feature.getBoundingClientRect();return {panelHeight:feature.clientHeight,panelScrollHeight:feature.scrollHeight,addedDescriptions:cards.filter(c=>c.querySelector('.about-refresh__structure-department-detail')).length,overflowingCards:cards.filter(c=>c.scrollWidth>c.clientWidth+2||c.scrollHeight>c.clientHeight+2).length,widthDifference:Math.max(...bounds.map(b=>b.width))-Math.min(...bounds.map(b=>b.width)),rowHeightDifference:Math.abs(bounds[0].height-bounds[1].height),gridOverflow:grid.scrollWidth-grid.clientWidth,documentOverflow:document.documentElement.scrollWidth-window.innerWidth,featureOverflow:feature.scrollWidth-feature.clientWidth,featureWidth:fb.width};})()")
+      assert.equal(overflowTest.addedDescriptions,5,'Las cinco tarjetas deben aceptar descripciones adicionales')
+      assert.ok(overflowTest.panelScrollHeight<=overflowTest.panelHeight+2,
+        'Al agregar información, el panel debe aumentar su altura sin cortar el contenido: '+JSON.stringify(overflowTest))
+      assert.ok(overflowTest.overflowingCards===0&&overflowTest.gridOverflow<=2&&overflowTest.featureOverflow<=2&&overflowTest.documentOverflow<=3,
+        'Los textos largos no deben generar recortes ni desbordamiento horizontal: '+JSON.stringify(overflowTest))
+      assert.ok(overflowTest.widthDifference<=2&&overflowTest.rowHeightDifference<=2,
+        'Las tarjetas deben conservar anchos iguales y filas alineadas al crecer: '+JSON.stringify(overflowTest))
+
       await evaluate("document.querySelectorAll('#nuestra-estructura .about-refresh__structure-choice')[3].click(); true")
       await new Promise(resolve => setTimeout(resolve, 550))
       const university = await evaluate("(() => { const root=document.querySelector('#nuestra-estructura');return { selected:root.querySelectorAll('.about-refresh__structure-choice')[3].getAttribute('aria-pressed')==='true',body:root.querySelector('.about-refresh__structure-description')?.textContent?.trim(),deptCount:root.querySelectorAll('.about-refresh__structure-department').length }; })()")
