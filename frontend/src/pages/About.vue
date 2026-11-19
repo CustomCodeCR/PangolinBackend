@@ -82,9 +82,6 @@ const structureIntro = computed(() => locale.value.startsWith('es')
 const structureDepartments = computed(() => (locale.value.startsWith('es')
   ? ['Consolidadora', 'Pedimentación', 'Contabilidad', 'Servicio al cliente', 'Transporte interno de carga']
   : ['Freight consolidation', 'Customs declaration processing', 'Accounting', 'Customer service', 'Domestic cargo transport']))
-const structureEnvironment = computed(() => locale.value.startsWith('es')
-  ? 'Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.'
-  : 'We seek opportunities to incorporate more responsible practices into our operations.')
 const valuesAccordionRef = ref<HTMLElement | null>(null)
 const closeValueOnOutsidePointer = (event: PointerEvent) => {
   if (openedValue.value === null || !(event.target instanceof Node)) return
@@ -294,7 +291,7 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
           <div class="about-refresh__structure-showcase">
             <Transition name="about-structure-switch" mode="out-in">
               <article :key="selectedStructure.index" class="about-refresh__structure-feature"
-                :aria-labelledby="`about-structure-selected-${selectedStructure.index}`" role="region">
+                :aria-labelledby="`about-structure-selected-${selectedStructure.index}`" id="about-structure-feature" role="region">
                 <div class="about-refresh__structure-photo" aria-hidden="true">
                   <SiteMedia :slot-key="`about.structure.${selectedStructure.index}.media`"
                     :fallback="selectedStructure.photo" alt="" />
@@ -320,7 +317,7 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
                 type="button" class="about-refresh__structure-choice"
                 :class="{ 'is-selected': selectedStructureIndex === item.index }"
                 :aria-pressed="selectedStructureIndex === item.index"
-                :aria-controls="`about-structure-selected-${item.index}`"
+                aria-controls="about-structure-feature"
                 @click="selectedStructureIndex = item.index">
                 <span class="about-refresh__structure-choice-icon">
                   <component :is="item.icon" :size="25" :stroke-width="1.8" aria-hidden="true" />
