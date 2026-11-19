@@ -312,7 +312,7 @@ public sealed class AuthService(
         {
             var resource = body.LinkedResources.Add(image.FileName, image.Content);
             resource.ContentId = image.ContentId;
-            resource.ContentType = ContentType.Parse(image.MimeType);
+            // MimeKit detects image/png or image/jpeg from the .png/.jpg filename.
         }
         message.Body = body.ToMessageBody();
 
