@@ -539,6 +539,46 @@ async function assertServicesTheme(chrome, url) {
     }
     console.log('PASS Chrome: Nuestra estructura 4 opciones, texto arriba, departamentos 3+2 centrados, claro/oscuro y responsive')
 
+    // Environmental approach lives in its own section, not in the old
+    // structure menu. Verify the approved photo/text/three-focus composition
+    // in both themes across desktop, tablet and mobile widths.
+    for (const width of [1440, 1024, 820, 768, 480, 375]) {
+      await send('Emulation.setDeviceMetricsOverride', {
+        width, height: 1000, deviceScaleFactor: 1, mobile: false
+      })
+      const environmentNav = await send('Page.navigate', { url: structureUrl })
+      assert.ok(!environmentNav.errorText, 'Chrome no pudo cargar Nosotros para enfoque ambiental')
+      let environmentReady = false
+      for (let attempt = 0; attempt < 100; attempt++) {
+        environmentReady = await evaluate("!!document.querySelector('#enfoque-ambiental .about-refresh__environment-card') && !!document.querySelector('#nuestra-estructura')")
+        if (environmentReady) break
+        await new Promise(resolve => setTimeout(resolve, 120))
+      }
+      assert.ok(environmentReady, 'Debe mostrarse Enfoque ambiental en su propia sección a '+width+'px')
+      const environment = await evaluate("(() => { const root=document.querySelector('#enfoque-ambiental');const structure=document.querySelector('#nuestra-estructura');const capabilities=document.querySelector('.about-refresh__services');const card=root.querySelector('.about-refresh__environment-card');const media=root.querySelector('.about-refresh__environment-media');const body=root.querySelector('.about-refresh__environment-content');const pillars=[...root.querySelectorAll('.about-refresh__environment-pillar')];const image=media.querySelector('img,video');const title=root.querySelector('h2');const kicker=root.querySelector('.about-refresh__eyebrow');const copy=root.querySelector('.about-refresh__environment-description');return { sectionOrder:structure.compareDocumentPosition(root)&Node.DOCUMENT_POSITION_FOLLOWING?true:false, beforeCapabilities:root.compareDocumentPosition(capabilities)&Node.DOCUMENT_POSITION_FOLLOWING?true:false, title:title?.textContent?.trim(), kicker:kicker?.textContent?.trim(), description:copy?.textContent?.trim(), media:!!image,mediaIsCMS:!!image?.getAttribute('src'), pillars:pillars.length,pillarIcons:pillars.filter(p=>p.querySelector('svg')).length,pillarText:pillars.every(p=>p.textContent?.trim().length>6), gridColumns:getComputedStyle(card).gridTemplateColumns.split(' ').length, pillarsColumns:getComputedStyle(root.querySelector('.about-refresh__environment-pillars')).gridTemplateColumns.split(' ').length, mediaHeight:media.getBoundingClientRect().height, overflow:card.scrollWidth-card.clientWidth, bodyOverflow:body.scrollWidth-body.clientWidth, documentOverflow:document.documentElement.scrollWidth-window.innerWidth };})()")
+      assert.ok(environment.sectionOrder && environment.beforeCapabilities,
+        'Enfoque ambiental debe quedar entre estructura y capacidades: '+JSON.stringify(environment))
+      assert.ok(environment.title?.length>10 && environment.kicker?.length>8 && environment.description?.length>35,
+        'Debe tener antetítulo, título y descripción, con contenido del CMS: '+JSON.stringify(environment))
+      assert.ok(environment.media && environment.mediaIsCMS && environment.mediaHeight>=230,
+        'Debe mostrar una fotografía real del proyecto o un recurso del CMS: '+JSON.stringify(environment))
+      assert.equal(environment.pillars,3,'Deben aparecer los tres ejes ambientales')
+      assert.equal(environment.pillarIcons,3,'Los tres ejes deben conservar sus íconos')
+      assert.ok(environment.pillarText,'Los ejes deben tener textos descriptivos visibles')
+      assert.equal(environment.gridColumns,width<=820?1:2,
+        'La sección debe usar dos columnas en escritorio y una en móvil: '+JSON.stringify(environment))
+      assert.equal(environment.pillarsColumns,width<=540?1:3,
+        'Los ejes deben apilarse verticalmente en celulares pequeños: '+JSON.stringify(environment))
+      assert.ok(environment.overflow<=3 && environment.bodyOverflow<=3 && environment.documentOverflow<=3,
+        'La sección no debe producir desbordamiento horizontal: '+JSON.stringify(environment))
+      const environmentPalette=await evaluate("(() => {const doc=document.documentElement;const wasDark=doc.classList.contains('theme-dark');const card=document.querySelector('#enfoque-ambiental .about-refresh__environment-card');const heading=document.querySelector('#enfoque-ambiental h2');const kicker=document.querySelector('#enfoque-ambiental .about-refresh__eyebrow');doc.classList.remove('theme-dark');const light={bg:getComputedStyle(card).backgroundImage,title:getComputedStyle(heading).color,kicker:getComputedStyle(kicker).color};doc.classList.add('theme-dark');const dark={bg:getComputedStyle(card).backgroundImage,title:getComputedStyle(heading).color,kicker:getComputedStyle(kicker).color};doc.classList.toggle('theme-dark',wasDark);return {light,dark};})()")
+      assert.notEqual(environmentPalette.light.bg,environmentPalette.dark.bg,
+        'La sección debe adaptar el fondo al modo claro y oscuro: '+JSON.stringify(environmentPalette))
+      assert.notEqual(environmentPalette.light.title,environmentPalette.dark.title,
+        'El encabezado debe conservar contraste en ambos temas: '+JSON.stringify(environmentPalette))
+    }
+    console.log('PASS Chrome: Enfoque ambiental independiente, CMS, tres ejes, 2 temas y responsive')
+
     // Contacto en Home: mantener cinco tarjetas iguales y centrar las
     // filas incompletas sin ensanchar la última tarjeta en móvil.
     const contactUrl = new URL('/', url).href
