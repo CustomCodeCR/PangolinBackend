@@ -103,6 +103,9 @@ Assert(htmlCalls == 2, "HTML case must send OAuth + Graph request.");
 Assert(OtpEmailAssets.Images.Count == 2, "Missing corporate graphics.");
 Assert(OtpEmailAssets.Images[0].Content.AsSpan(0, 8)
     .SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }), "G graphic is not PNG.");
+Assert(System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(OtpEmailAssets.Images[0].Content.AsSpan(16, 4)) >= 250 &&
+       System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(OtpEmailAssets.Images[0].Content.AsSpan(20, 4)) >= 375,
+       "Red G source image is below high-density email resolution.");
 Assert(OtpEmailAssets.Images[1].Content[0] == 0xff &&
        OtpEmailAssets.Images[1].Content[1] == 0xd8, "Globe graphic is not JPEG.");
 Assert(OtpEmailAssets.Images[1].Content.Length >= 4000 &&
