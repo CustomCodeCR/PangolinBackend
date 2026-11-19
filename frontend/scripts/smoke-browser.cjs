@@ -603,6 +603,26 @@ async function assertServicesTheme(chrome, url) {
         'Las etiquetas de los ejes deben conservar el contraste según el modo')
       assert.ok(['Enfoque ambiental','Environmental approach'].includes(environment.title),
         'El título no debe comenzar por Nuestro / Our: '+JSON.stringify(environment.title))
+      if (width === 1440) {
+        const redPalette = await evaluate("(() => {const doc=document.documentElement;const old=doc.classList.contains('theme-dark');doc.classList.add('theme-dark');const css=s=>getComputedStyle(document.querySelector(s));const mission=css('.about-refresh__purpose-card');const values=css('.about-refresh__value');const badge=css('.about-refresh__purpose-symbol');const valueIcon=css('.about-refresh__value-icon');const capability=css('.about-refresh__capability-icon');const environmental=css('.about-refresh__environment-pillar svg');const eyebrows=[...document.querySelectorAll('.about-refresh__eyebrow')].map(e=>getComputedStyle(e).color);const result={mission:mission.backgroundColor,values:values.backgroundColor,badge:badge.backgroundColor,valueIcon:valueIcon.backgroundColor,badgeGlyph:badge.color,valueGlyph:valueIcon.color,capability:capability.color,environmental:environmental.color,eyebrows};doc.classList.toggle('theme-dark',old);return result;})()")
+        assert.equal(redPalette.mission,redPalette.values,
+          'Misión y Visión deben tener el mismo fondo oscuro que Valores: '+JSON.stringify(redPalette))
+        assert.equal(redPalette.mission,'rgb(17, 27, 49)',
+          'Los cuadros de Misión y Visión deben mantener el azul corporativo')
+        assert.equal(redPalette.badge,redPalette.valueIcon,
+          'Los íconos de Misión, Visión y Valores deben usar el mismo recuadro rojo')
+        assert.equal(redPalette.badge,'rgb(176, 9, 41)',
+          'Los recuadros de los íconos deben usar el rojo del valor seleccionado')
+        assert.equal(redPalette.badgeGlyph,'rgb(255, 255, 255)',
+          'Los íconos dentro de los recuadros rojos deben seguir blancos')
+        assert.equal(redPalette.valueGlyph,'rgb(255, 255, 255)')
+        assert.equal(redPalette.capability,'rgb(255, 60, 97)',
+          'Los íconos de Capacidades deben tener el acento rojo')
+        assert.equal(redPalette.environmental,'rgb(255, 60, 97)',
+          'Los íconos de Enfoque ambiental deben tener el acento rojo')
+        assert.ok(redPalette.eyebrows.every(color=>color==='rgb(255, 60, 97)'),
+          'Los antetítulos de Sobre nosotros deben ser rojos: '+JSON.stringify(redPalette))
+      }
     }
     console.log('PASS Chrome: Enfoque ambiental independiente, CMS, tres ejes, 2 temas y responsive')
 
