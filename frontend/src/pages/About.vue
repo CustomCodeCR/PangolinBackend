@@ -215,6 +215,32 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
         </div>
       </section>
 
+      <section class="about-refresh__services section-spacing">
+        <div class="container">
+          <div class="about-refresh__section-heading">
+            <div>
+              <p class="about-refresh__eyebrow">{{ siteText('about.copy.servicesTag', copy.servicesTag, locale) }}</p>
+              <h2>{{ siteText('about.copy.capabilitiesTitle', copy.capabilitiesTitle, locale) }}</h2>
+            </div>
+          </div>
+          <div class="about-refresh__capabilities">
+            <article v-for="(name, index) in copy.capabilityNames" :key="index" class="about-refresh__capability">
+              <div class="about-refresh__capability-icon">
+                <component :is="capabilityIcons[index]" :size="30" :stroke-width="1.7" aria-hidden="true" />
+              </div>
+              <h3>{{ siteText('about.capability.' + index + '.title', name, locale) }}</h3>
+              <p>{{ siteText('about.capability.' + index + '.detail', copy.capabilityDetails[index], locale) }}</p>
+            </article>
+          </div>
+
+          <div class="about-refresh__services-footer">
+            <div class="about-refresh__actions">
+              <a href="/servicios" class="about-refresh__button about-refresh__button--primary">{{ siteText('about.copy.serviceAction', copy.serviceAction, locale) }} <span aria-hidden="true">↗</span></a>
+              <a href="/cotizaciones" class="about-refresh__button about-refresh__button--secondary">{{ siteText('about.copy.quoteAction', copy.quoteAction, locale) }} <span aria-hidden="true">↗</span></a>
+            </div>
+          </div>
+        </div>
+      </section>
       <section id="nuestra-estructura" class="about-refresh__structure section-spacing" aria-labelledby="about-structure-title">
         <div class="container">
           <div class="about-refresh__structure-layout">
@@ -243,21 +269,6 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
             </div>
           </div>
 
-          <div class="about-refresh__structure-department-section">
-            <div class="about-refresh__structure-department-heading">
-              <div>
-                <p class="about-refresh__eyebrow">{{ locale.startsWith('es') ? 'EQUIPOS ESPECIALIZADOS' : 'SPECIALIZED TEAMS' }}</p>
-                <h3>{{ siteText('about.structure.4.title', locale.startsWith('es') ? 'Departamentos' : 'Departments', locale) }}</h3>
-              </div>
-              <p>{{ locale.startsWith('es') ? 'Áreas que trabajan de forma coordinada para atender cada etapa.' : 'Teams working together throughout every stage.' }}</p>
-            </div>
-            <ul class="about-refresh__structure-department-list">
-              <li v-for="(department, d) in structureDepartments" :key="d">
-                <span class="about-refresh__structure-department-number">{{ String(d + 1).padStart(2, '0') }}</span>
-                <strong>{{ siteText('about.structure.departments.' + d, department, locale) }}</strong>
-              </li>
-            </ul>
-          </div>
           <div class="about-refresh__structure-extras">
             <article>
               <Award :size="24" :stroke-width="1.8" aria-hidden="true" />
@@ -270,35 +281,24 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
               <p>{{ siteText('about.structure.environment', structureEnvironment, locale) }}</p>
             </article>
           </div>
-        </div>
-      </section>
-
-      <section class="about-refresh__services section-spacing">
-        <div class="container">
-          <div class="about-refresh__section-heading">
-            <div>
-              <p class="about-refresh__eyebrow">{{ siteText('about.copy.servicesTag', copy.servicesTag, locale) }}</p>
-              <h2>{{ siteText('about.copy.capabilitiesTitle', copy.capabilitiesTitle, locale) }}</h2>
+          <div class="about-refresh__structure-department-section">
+            <div class="about-refresh__structure-department-heading">
+              <p class="about-refresh__eyebrow">{{ locale.startsWith('es') ? 'EQUIPOS ESPECIALIZADOS' : 'SPECIALIZED TEAMS' }}</p>
+              <h3>{{ siteText('about.structure.4.title', locale.startsWith('es') ? 'Departamentos' : 'Departments', locale) }}</h3>
             </div>
-          </div>
-          <div class="about-refresh__capabilities">
-            <article v-for="(name, index) in copy.capabilityNames" :key="index" class="about-refresh__capability">
-              <div class="about-refresh__capability-icon">
-                <component :is="capabilityIcons[index]" :size="30" :stroke-width="1.7" aria-hidden="true" />
-              </div>
-              <h3>{{ siteText('about.capability.' + index + '.title', name, locale) }}</h3>
-              <p>{{ siteText('about.capability.' + index + '.detail', copy.capabilityDetails[index], locale) }}</p>
-            </article>
-          </div>
-
-          <div class="about-refresh__services-footer">
-            <div class="about-refresh__actions">
-              <a href="/servicios" class="about-refresh__button about-refresh__button--primary">{{ siteText('about.copy.serviceAction', copy.serviceAction, locale) }} <span aria-hidden="true">↗</span></a>
-              <a href="/cotizaciones" class="about-refresh__button about-refresh__button--secondary">{{ siteText('about.copy.quoteAction', copy.quoteAction, locale) }} <span aria-hidden="true">↗</span></a>
+            <div class="about-refresh__structure-department-body">
+              <p class="about-refresh__structure-department-intro">{{ locale.startsWith('es') ? 'Áreas que trabajan de forma coordinada para atender cada etapa.' : 'Teams working together throughout every stage.' }}</p>
+              <ul class="about-refresh__structure-department-list">
+              <li v-for="(department, d) in structureDepartments" :key="d">
+                <span class="about-refresh__structure-department-number">{{ String(d + 1).padStart(2, '0') }}</span>
+                <strong>{{ siteText('about.structure.departments.' + d, department, locale) }}</strong>
+              </li>
+              </ul>
             </div>
           </div>
         </div>
       </section>
+
     </main>
     <SiteFooter />
   </div>
@@ -675,14 +675,15 @@ html.theme-dark .about-refresh .about-refresh__hero-copy .big-years span {
 
 /* Editorial structure layout — independent of the values accordion. */
 .about-refresh__structure{padding-block:clamp(56px,6.5vw,94px);background:#fbf8f9}
-.about-refresh__structure-layout{display:grid;grid-template-columns:minmax(0,.96fr) minmax(0,1.04fr);align-items:center;gap:clamp(35px,5vw,78px)}
-.about-refresh__structure-mosaic{min-width:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(2,minmax(130px,1fr));gap:12px;aspect-ratio:1.18}
-.about-refresh__structure-photo{min-width:0;min-height:0;overflow:hidden;border-radius:17px;background:#e6e8ed}
+.about-refresh__structure-layout{display:grid;grid-template-columns:minmax(0,.96fr) minmax(0,1.04fr);align-items:start;gap:clamp(35px,4.5vw,72px)}
+.about-refresh__structure-mosaic{min-width:0;position:relative;aspect-ratio:1.04}
+.about-refresh__structure-photo{position:absolute;overflow:hidden;border-radius:16px;background:#e6e8ed}
 .about-refresh__structure-photo :deep(img),.about-refresh__structure-photo :deep(video){width:100%;height:100%;object-fit:cover;display:block}
-.about-refresh__structure-photo--top{grid-column:1;grid-row:1}
-.about-refresh__structure-photo--side{grid-column:2;grid-row:1}
-.about-refresh__structure-photo--small{grid-column:1;grid-row:2}
-.about-refresh__structure-photo--wide{grid-column:2;grid-row:2}
+/* Match the staggered four-image composition of the supplied reference. */
+.about-refresh__structure-photo--top{left:0;top:8%;width:49%;height:41%}
+.about-refresh__structure-photo--side{right:0;top:0;width:47%;height:49%}
+.about-refresh__structure-photo--small{left:0;top:53%;width:30%;height:38%}
+.about-refresh__structure-photo--wide{right:0;top:53%;width:67%;height:47%}
 .about-refresh__structure-content h2{max-width:580px}
 .about-refresh__structure-lead{max-width:590px;margin:20px 0 27px;color:var(--about-muted);font-size:clamp(15px,1.15vw,17px);line-height:1.75}
 .about-refresh__structure-feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
@@ -690,26 +691,29 @@ html.theme-dark .about-refresh .about-refresh__hero-copy .big-years span {
 .about-refresh__structure-feature-icon{display:grid;place-items:center;width:47px;height:47px;border-radius:13px;background:#fae9ed;color:#b00929;margin-bottom:16px}
 .about-refresh__structure-feature h3{margin:0 0 9px;font-size:clamp(16px,1.2vw,19px);line-height:1.35}
 .about-refresh__structure-feature p{margin:0;color:var(--about-muted);font-size:14px;line-height:1.65}
-.about-refresh__structure-department-section{margin-top:clamp(35px,4.2vw,64px);padding:clamp(25px,3vw,43px);border-radius:22px;background:#fff;border:1px solid rgba(35,39,47,.13)}
-.about-refresh__structure-department-heading{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:24px}
-.about-refresh__structure-department-heading h3{font-size:clamp(24px,2.5vw,34px);line-height:1.15;margin:0}
-.about-refresh__structure-department-heading>p{max-width:310px;margin:0;color:var(--about-muted);line-height:1.6;font-size:14px}
+.about-refresh__structure-department-section{margin-top:clamp(28px,3.5vw,50px)}
+/* Title in its own centered bar, above and separate from the department content. */
+.about-refresh__structure-department-heading{text-align:center;padding:22px 25px 24px;border-radius:19px;background:#fff;border:1px solid rgba(35,39,47,.13);border-bottom:3px solid #b00929}
+.about-refresh__structure-department-heading .about-refresh__eyebrow{margin:0 0 9px}
+.about-refresh__structure-department-heading h3{font-size:clamp(25px,2.5vw,36px);line-height:1.15;margin:0}
+.about-refresh__structure-department-body{margin-top:15px;padding:clamp(24px,3vw,38px);border-radius:19px;background:#fff;border:1px solid rgba(35,39,47,.13)}
+.about-refresh__structure-department-intro{text-align:center;margin:0 auto 24px;max-width:560px;color:var(--about-muted);line-height:1.65;font-size:14px}
 .about-refresh__structure-department-list{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:0;padding:0;list-style:none}
 .about-refresh__structure-department-list li{display:flex;flex-direction:column;gap:17px;padding:20px 16px 23px;min-height:126px;border-radius:14px;background:#f7f5f6;border:1px solid rgba(35,39,47,.07)}
 .about-refresh__structure-department-number{font-size:12px;color:#b00929;font-weight:800;letter-spacing:.12em}
 .about-refresh__structure-department-list strong{font-size:clamp(13px,1vw,16px);line-height:1.4;overflow-wrap:anywhere}
-.about-refresh__structure-extras{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:16px}
+.about-refresh__structure-extras{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:clamp(28px,3vw,44px)}
 .about-refresh__structure-extras article{display:grid;grid-template-columns:30px minmax(0,1fr);align-items:start;column-gap:15px;padding:23px 25px;border:1px solid rgba(35,39,47,.12);border-radius:17px}
 .about-refresh__structure-extras svg{grid-row:span 2;color:#b00929}
 .about-refresh__structure-extras h3{font-size:17px;margin:0 0 7px}
 .about-refresh__structure-extras p{font-size:14px;color:var(--about-muted);line-height:1.65;margin:0}
 html.theme-dark .about-refresh__structure{background:#171b23}
-html.theme-dark .about-refresh__structure-feature,html.theme-dark .about-refresh__structure-department-section,html.theme-dark .about-refresh__structure-extras article{background:#111b31;border-color:rgba(255,255,255,.2)}
+html.theme-dark .about-refresh__structure-feature,html.theme-dark .about-refresh__structure-department-heading,html.theme-dark .about-refresh__structure-department-body,html.theme-dark .about-refresh__structure-extras article{background:#111b31;border-color:rgba(255,255,255,.2)}
 html.theme-dark .about-refresh__structure-department-list li{background:#1d2940;border-color:rgba(255,255,255,.08)}
 html.theme-dark .about-refresh__structure-department-number,html.theme-dark .about-refresh__structure-extras svg{color:#ff8199}
 html.theme-dark .about-refresh__structure-feature-icon{background:#41223c;color:#ff8199}
-@media(max-width:1050px){.about-refresh__structure-layout{grid-template-columns:1fr;gap:28px}.about-refresh__structure-mosaic{max-height:390px;aspect-ratio:2;grid-template-rows:repeat(2,minmax(0,1fr))}.about-refresh__structure-department-list{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:650px){.about-refresh__structure-mosaic{aspect-ratio:1.3;max-height:none}.about-refresh__structure-feature-grid,.about-refresh__structure-extras{grid-template-columns:1fr}.about-refresh__structure-department-list{grid-template-columns:repeat(2,minmax(0,1fr))}.about-refresh__structure-department-heading{align-items:start;flex-direction:column}.about-refresh__structure-department-section{padding:22px 17px}.about-refresh__structure-department-list li{min-height:103px;padding:16px 13px}.about-refresh__structure-extras article{padding:20px}}
+@media(max-width:1050px){.about-refresh__structure-layout{grid-template-columns:1fr;gap:30px}.about-refresh__structure-mosaic{width:min(100%,540px);margin-inline:auto;aspect-ratio:1.04}.about-refresh__structure-department-list{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:650px){.about-refresh__structure-mosaic{aspect-ratio:1.04}.about-refresh__structure-photo{border-radius:12px}.about-refresh__structure-feature-grid,.about-refresh__structure-extras{grid-template-columns:1fr}.about-refresh__structure-department-list{grid-template-columns:repeat(2,minmax(0,1fr))}.about-refresh__structure-department-heading{padding:21px 16px}.about-refresh__structure-department-body{padding:22px 17px}.about-refresh__structure-department-list li{min-height:103px;padding:16px 13px}.about-refresh__structure-extras article{padding:20px}}
 @media(max-width:370px){.about-refresh__structure-department-list{grid-template-columns:1fr}}
 
 </style>
