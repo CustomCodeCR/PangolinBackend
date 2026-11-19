@@ -1128,21 +1128,30 @@ html.theme-dark .about-refresh__value.is-open .about-refresh__value-icon{
   }
 }
 
-/* Unified dark-mode accents for Sobre nosotros.
-   The mission/vision panels match the Values cards; all icon squares use
-   the corporate red of the selected value while line icons remain legible. */
+/* Dark-mode accents. Keep Valores interactive: closed badges retain
+   their original muted burgundy; only the opened badge turns corporate red. */
 html.theme-dark .about-refresh .about-refresh__purpose-card,
 html.theme-dark .about-refresh .about-refresh__value {
   background:#111b31;
 }
-html.theme-dark .about-refresh .about-refresh__purpose-symbol,
-html.theme-dark .about-refresh .about-refresh__value-icon {
+html.theme-dark .about-refresh .about-refresh__purpose-symbol {
   background:#b00929;
   color:#fff;
 }
+html.theme-dark .about-refresh .about-refresh__value-icon {
+  background:#41223c;
+  color:#ff849a;
+}
+html.theme-dark .about-refresh .about-refresh__value.is-open .about-refresh__value-icon {
+  background:#b00929;
+  color:#fff;
+}
+/* Target both component roots and the Lucide SVGs directly so the page's
+   general dark-mode icon rules cannot turn these outlined icons white. */
 html.theme-dark .about-refresh .about-refresh__capability-icon,
 html.theme-dark .about-refresh .about-refresh__capability-icon :deep(svg),
-html.theme-dark .about-refresh .about-refresh__environment-pillar svg {
+html.theme-dark .about-refresh .about-refresh__environment-pillar,
+html.theme-dark .about-refresh .about-refresh__environment-pillar :deep(svg) {
   color:#ff3c61 !important;
 }
 /* Headings are inherited from CMS; change their accent color, not their text. */
