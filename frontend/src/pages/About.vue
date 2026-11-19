@@ -404,7 +404,7 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
              linear-gradient(180deg,rgba(3,9,23,.45),transparent 74%);
 }
 .about-refresh__structure-feature-content {
-  position:relative;width:min(100%,710px);padding:clamp(25px,3.2vw,46px);
+  position:relative;width:100%;max-width:100%;padding:clamp(25px,3.2vw,46px);
   text-shadow:0 1px 12px rgba(0,0,0,.35);
 }
 .about-refresh__structure-feature-icon {
@@ -419,14 +419,15 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 .about-refresh__structure-description {
   max-width:480px;margin:0;color:#f5f7fa;font-size:clamp(14px,1.22vw,17px);line-height:1.68;
 }
-/* Balanced two-column departments: two rows of two plus a last card
-   centered at the exact same width. No divider lines or stray arrows. */
+/* Compact 3 + 2 organization: equal-size cards across the photo,
+   with the second row centered. Six tracks let each card span exactly two
+   tracks while placing the last pair symmetrically (2–4 and 4–6). */
 .about-refresh__structure-departments {
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-columns:repeat(6,minmax(0,1fr));
   gap:12px;
+  width:100%;
   margin-top:clamp(22px,2.5vw,32px);
-  max-width:610px;
 }
 .about-refresh__structure-department {
   display:flex;
@@ -435,8 +436,8 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
   justify-content:center;
   gap:9px;
   min-width:0;
-  min-height:91px;
-  padding:13px 10px;
+  min-height:90px;
+  padding:12px 10px;
   border:1px solid rgba(255,255,255,.27);
   border-radius:13px;
   background:rgba(6,17,37,.52);
@@ -446,12 +447,10 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
   font-weight:650;
   line-height:1.38;
   overflow-wrap:break-word;
+  grid-column:span 2;
 }
-.about-refresh__structure-department:last-child {
-  grid-column:1 / -1;
-  width:calc((100% - 12px) / 2);
-  justify-self:center;
-}
+.about-refresh__structure-department:nth-child(4) {grid-column:2 / span 2}
+.about-refresh__structure-department:nth-child(5) {grid-column:4 / span 2}
 .about-refresh__structure-department :deep(svg) {color:#fc345c;flex:none}
 .about-refresh__structure-department span {overflow-wrap:anywhere}
 .about-refresh__structure-menu {display:flex;flex-direction:column;justify-content:center;gap:12px;min-width:0}
@@ -520,9 +519,15 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
   .about-refresh__structure-choice-icon {flex-basis:25px}
   .about-refresh__structure-choice-name {font-size:15px}
   .about-refresh__structure-feature-content {padding:29px 23px}
-  .about-refresh__structure-departments {gap:10px;margin-top:20px}
-  .about-refresh__structure-department {padding:12px 8px;min-height:86px}
-  .about-refresh__structure-department:last-child {width:calc((100% - 10px) / 2)}
+  /* On phones retain two readable columns; center the fifth card. */
+  .about-refresh__structure-departments {grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:20px}
+  .about-refresh__structure-department {grid-column:auto;min-height:86px;padding:12px 8px}
+  .about-refresh__structure-department:nth-child(4) {grid-column:auto}
+  .about-refresh__structure-department:nth-child(5) {
+    grid-column:1 / -1;
+    width:calc((100% - 10px) / 2);
+    justify-self:center;
+  }
 }
 @media(max-width:480px){
   .about-refresh__structure {padding-block:55px 66px}
