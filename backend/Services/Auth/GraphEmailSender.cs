@@ -10,7 +10,7 @@ namespace CastroFallas.MiniQuote.Api.Services.Auth;
 /// </summary>
 public sealed class GraphEmailSender(HttpClient client, IConfiguration config)
 {
-    public async Task SendAsync(string to, string subject, string body, CancellationToken ct)
+    public async Task SendAsync(string to, string subject, string body, CancellationToken ct, string? htmlBody = null)
     {
         var tenant = Require("Graph:TenantId");
         var app = Require("Graph:ClientId");
@@ -57,7 +57,7 @@ public sealed class GraphEmailSender(HttpClient client, IConfiguration config)
             message = new
             {
                 subject,
-                body = new { contentType = "Text", content = body },
+                body = new { contentType = htmlBody is null ? "Text" : "HTML", content = htmlBody ?? body },
                 toRecipients = new[] { new { emailAddress = new { address = to } } }
             },
             saveToSentItems = false
