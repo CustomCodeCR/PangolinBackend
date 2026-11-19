@@ -1160,6 +1160,11 @@ html.theme-dark .about-refresh .about-refresh__environment-pillar,
 html.theme-dark .about-refresh .about-refresh__environment-pillar :deep(svg) {
   color:#ff3c61 !important;
 }
+/* Keep all five department SVGs corporate red in dark mode, matching the
+   light theme, without recoloring labels or the surrounding photo panel. */
+html.theme-dark .about-refresh .about-refresh__structure-department :deep(svg) {
+  color:#fc345c !important;
+}
 /* Headings are inherited from CMS; change their accent color, not their text. */
 html.theme-dark .about-refresh .about-refresh__eyebrow {
   color:#ff3c61 !important;
