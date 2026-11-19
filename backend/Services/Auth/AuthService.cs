@@ -307,7 +307,14 @@ public sealed class AuthService(
         // La alternativa de texto sigue disponible cuando el cliente bloquea HTML.
         var plainText = OtpEmailTemplate.PlainText(otp);
         var htmlText = OtpEmailTemplate.Html(otp);
-        message.Body = new BodyBuilder { TextBody = plainText, HtmlBody = htmlText }.ToMessageBody();
+        var body = new BodyBuilder { TextBody = plainText, HtmlBody = htmlText };
+        foreach (var image in OtpEmailAssets.Images)
+        {
+            var resource = body.LinkedResources.Add(image.FileName, image.Content);
+            resource.ContentId = image.ContentId;
+            resource.ContentType = ContentType.Parse(image.MimeType);
+        }
+        message.Body = body.ToMessageBody();
 
         // Demostración LOCAL: se genera un archivo .eml en el backend.
         // No se entrega a Gmail; no existe ningún endpoint que exponga el OTP.
@@ -326,7 +333,7 @@ public sealed class AuthService(
         }
         if (mode.Equals("Graph", StringComparison.OrdinalIgnoreCase))
         {
-            await graphEmailSender.SendAsync(email, message.Subject, plainText, ct, htmlText);
+            await graphEmailSender.SendAsync(email, message.Subject, plainText, ct, htmlText, OtpEmailAssets.Images);
             return;
         }
         if (!mode.Equals("Smtp", StringComparison.OrdinalIgnoreCase))
