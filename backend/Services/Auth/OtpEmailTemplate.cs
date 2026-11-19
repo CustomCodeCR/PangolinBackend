@@ -9,7 +9,6 @@ namespace CastroFallas.MiniQuote.Api.Services.Auth;
 public static class OtpEmailTemplate
 {
     public const string LoginUrl = "https://www.logisticacastrofallas.com/bienvenidos";
-    private const string BrandImageUrl = "https://www.logisticacastrofallas.com/favicon.png";
 
     public static string PlainText(string otp)
     {
@@ -48,7 +47,8 @@ public static class OtpEmailTemplate
                   .cf-outer { padding:16px 10px !important; }
                   .cf-panel { width:100% !important; }
                   .cf-brand { display:block !important; width:100% !important; padding:16px 18px 3px !important; text-align:center !important; }
-                  .cf-brand img { width:84px !important; height:84px !important; }
+                  .cf-brand img { width:78px !important; height:117px !important; }
+                  .cf-globe { display:none !important; }
                   .cf-content { display:block !important; width:auto !important; padding:13px 19px 22px !important; text-align:center !important; }
                   .cf-actions { margin-left:auto !important; margin-right:auto !important; }
                   .cf-code { white-space:nowrap !important; }
@@ -61,24 +61,27 @@ public static class OtpEmailTemplate
                 <tr><td align="center" class="cf-outer" style="padding:30px 14px;">
                   <table role="presentation" class="cf-panel" cellspacing="0" cellpadding="0" border="0" width="640" style="border-collapse:separate;width:100%;max-width:640px;background:#ffffff;border:1px solid #ebebeb;border-radius:14px;overflow:hidden;">
                     <tr>
-                      <td class="cf-brand" width="195" valign="middle" align="center" style="width:195px;padding:25px 12px;background:#fffafd;">
-                        <img src="{{BrandImageUrl}}" width="150" height="150" alt="Castro Fallas" style="display:block;width:150px;height:150px;object-fit:contain;margin:0 auto;border:0;">
+                      <td class="cf-brand" width="145" valign="middle" align="center" style="width:145px;padding:19px 8px;background:#ffffff;">
+                        <img src="cid:cf-otp-logo" width="103" height="154" alt="Castro Fallas" style="display:block;width:103px;height:154px;margin:0 auto;border:0;">
                       </td>
-                      <td class="cf-content" valign="middle" style="padding:31px 27px 27px 7px;text-align:left;background-color:#ffffff;background-image:radial-gradient(circle at 100% 0%,#fbe9ec 0%,#ffffff 54%);">
-                        <h1 style="margin:0 0 8px;color:#151923;font-size:24px;line-height:1.2;font-weight:700;">Tu código de acceso</h1>
-                        <div style="height:2px;width:100%;max-width:260px;background:#af0922;margin:0 0 12px;"></div>
-                        <p style="margin:0 0 16px;font-size:12px;line-height:1.5;color:#5f6268;">Usá este código para iniciar sesión de forma segura.</p>
-                        <div class="cf-code" role="group" aria-label="Código de acceso de seis dígitos" style="white-space:nowrap;margin:0 0 10px;letter-spacing:0;font-size:0;">{{digits}}</div>
-                        <table role="presentation" class="cf-actions" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;margin:0 0 15px;">
+                      <td class="cf-content" width="348" valign="middle" style="width:348px;padding:27px 4px 24px 4px;text-align:left;background:#ffffff;">
+                        <h1 style="margin:0 0 8px;color:#151923;font-size:22px;line-height:1.2;font-weight:700;">Tu código de acceso</h1>
+                        <div style="height:2px;width:100%;max-width:245px;background:#af0922;margin:0 0 12px;"></div>
+                        <p style="margin:0 0 14px;font-size:12px;line-height:1.5;color:#5f6268;">Usá este código para iniciar sesión de forma segura.</p>
+                        <div class="cf-code" role="group" aria-label="Código de acceso de seis dígitos" style="white-space:nowrap;margin:0 0 9px;letter-spacing:0;font-size:0;">{{digits}}</div>
+                        <table role="presentation" class="cf-actions" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;margin:0 0 13px;">
                           <tr><td align="center" bgcolor="#af0922" style="border-radius:6px;">
                             <a href="{{LoginUrl}}" style="display:inline-block;padding:11px 28px;color:#ffffff;background:#af0922;border-radius:6px;text-decoration:none;font-size:12px;font-weight:700;line-height:1;">Iniciar sesión</a>
                           </td></tr>
                         </table>
-                        <p style="margin:0 0 13px;font-size:11px;line-height:1.5;color:#52555d;">&#9201; Este código vence en <strong style="color:#a50921;">5 minutos.</strong></p>
+                        <p style="margin:0 0 12px;font-size:11px;line-height:1.5;color:#52555d;">&#9201; Este código vence en <strong style="color:#a50921;">5 minutos.</strong></p>
                         <p style="margin:0;color:#73757c;font-size:10px;line-height:1.5;">Si no solicitaste este código, podés ignorar este mensaje. Tu cuenta se mantiene segura.</p>
                       </td>
+                      <td class="cf-globe" width="140" valign="top" align="right" style="width:140px;padding:0;background:#ffffff;vertical-align:top;">
+                        <img src="cid:cf-otp-globe" width="140" height="120" alt="" style="display:block;width:140px;height:120px;border:0;">
+                      </td>
                     </tr>
-                    <tr><td colspan="2" bgcolor="#af0922" style="background:#af0922;height:7px;font-size:0;line-height:7px;">&nbsp;</td></tr>
+                    <tr><td colspan="3" bgcolor="#af0922" style="background:#af0922;height:7px;font-size:0;line-height:7px;">&nbsp;</td></tr>
                   </table>
                 </td></tr>
               </table>
