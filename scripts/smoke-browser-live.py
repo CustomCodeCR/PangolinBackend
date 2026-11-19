@@ -191,7 +191,7 @@ def main():
             assert_public(driver, route, marker)
             if route == "/nosotros":
                 buttons = driver.find_elements(By.CSS_SELECTOR, "#nuestros-valores .about-refresh__value-trigger")
-                assert len(driver.find_elements(By.CSS_SELECTOR, "#nuestra-estructura .about-refresh__structure-choice")) == 5, "Se esperan cinco opciones en Nuestra estructura"
+                assert len(driver.find_elements(By.CSS_SELECTOR, "#nuestra-estructura .about-refresh__structure-choice")) == 4, "Se esperan cuatro áreas en Nuestra estructura; Enfoque ambiental irá aparte"
                 assert len(driver.find_elements(By.CSS_SELECTOR, "#nuestra-estructura .about-refresh__structure-feature")) == 1, "Debe mostrarse un panel fotográfico a la vez"
                 assert len(buttons) == 5, "Se esperan cinco valores corporativos"
                 assert not driver.find_elements(By.CSS_SELECTOR, ".about-refresh__value-summary"), "No debe haber resúmenes visibles al inicio"
