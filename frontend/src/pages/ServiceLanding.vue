@@ -307,7 +307,7 @@ onBeforeUnmount(() => {
       <section class="service-landing-hero" aria-labelledby="service-landing-title">
         <div class="container service-landing-hero__inner">
           <figure class="service-landing-hero__media" aria-hidden="true">
-            <SiteMedia :slot-key="serviceHeroKey" :fallback="details.image" :alt="details.imageAlt" priority />
+            <SiteMedia :slot-key="serviceHeroKey" :fallback="details.image" :alt="details.imageAlt" priority sizes="100vw" />
             <div class="service-landing-hero__blur"></div>
           </figure>
           <div class="service-landing-hero__copy">
@@ -354,7 +354,7 @@ onBeforeUnmount(() => {
                       <p v-if="details.answer" class="service-landing-answer">{{ details.answer }}</p>
                     </div>
                     <figure class="service-landing-detail-visual">
-                      <SiteMedia :slot-key="serviceHeroKey" :fallback="details.image" :alt="details.imageAlt" />
+                      <SiteMedia :slot-key="serviceHeroKey" :fallback="details.image" :alt="details.imageAlt" sizes="(max-width: 900px) 100vw, 60vw" />
                     </figure>
                   </div>
                 </section>
