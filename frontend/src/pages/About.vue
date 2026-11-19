@@ -69,9 +69,6 @@ const structureTitles = computed(() => structureCopy.value.map((entry, offset) =
   icon: structureIcons[offset]
 })))
 const selectedStructure = computed(() => structureTitles.value.find(item => item.index === selectedStructureIndex.value) ?? structureTitles.value[0])
-const structureIntro = computed(() => locale.value.startsWith('es')
-  ? 'Conocé las áreas y pilares de nuestra organización, presentes en la coordinación de nuestras operaciones.'
-  : 'Discover the areas and pillars of our organization that support the coordination of our operations.')
 const structureDepartments = computed(() => (locale.value.startsWith('es')
   ? ['Consolidadora', 'Pedimentación', 'Contabilidad', 'Servicio al cliente', 'Transporte interno de carga']
   : ['Freight consolidation', 'Customs declaration processing', 'Accounting', 'Customer service', 'Domestic cargo transport']))
@@ -281,8 +278,8 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
       <section id="nuestra-estructura" class="about-refresh__structure section-spacing" aria-labelledby="about-structure-title">
         <div class="container">
           <div class="about-refresh__structure-heading">
+            <p class="about-refresh__eyebrow">{{ siteText('about.structure.kicker', locale.startsWith('es') ? 'NUESTRA ORGANIZACIÓN' : 'OUR ORGANIZATION', locale) }}</p>
             <h2 id="about-structure-title">{{ siteText('about.structure.heading', locale.startsWith('es') ? 'Nuestra estructura' : 'Our structure', locale) }}</h2>
-            <p>{{ siteText('about.structure.intro', structureIntro, locale) }}</p>
           </div>
 
           <div class="about-refresh__structure-showcase">
@@ -383,12 +380,8 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
   line-height:1.05;
   letter-spacing:-.05em;
 }
-.about-refresh__structure-heading>p:last-child {
-  margin:18px 0 0;
-  max-width:730px;
-  color:#4c5360;
-  font-size:clamp(15px,1.4vw,19px);
-  line-height:1.65;
+.about-refresh__structure-heading .about-refresh__eyebrow {
+  margin:0 0 16px;
   text-align:left;
 }
 .about-refresh__structure-showcase {
@@ -511,8 +504,6 @@ html.theme-dark .about-refresh__structure {
   background:radial-gradient(ellipse at 0% 20%,rgba(133,22,50,.22),transparent 46%),
              linear-gradient(115deg,#15131e,#080f23);
 }
-html.theme-dark .about-refresh__structure-heading>p:last-child {color:#e2e4ef}
-html.theme-dark .about-refresh__structure-eyebrow {color:#ff8fa5}
 html.theme-dark .about-refresh__structure-showcase {
   background:linear-gradient(135deg,#0c152a,#101a33 65%,#2b1025);
   border-color:rgba(130,144,167,.26);
@@ -566,7 +557,6 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
 @media(max-width:480px){
   .about-refresh__structure {padding-block:55px 66px}
   .about-refresh__structure-heading h2 {font-size:clamp(32px,9vw,43px)}
-  .about-refresh__structure-heading>p:last-child {margin-top:14px;font-size:14px}
   .about-refresh__structure-showcase {padding:9px;gap:10px}
   .about-refresh__structure-feature {min-height:380px}
   .about-refresh__structure-feature-content {padding:24px 19px}
