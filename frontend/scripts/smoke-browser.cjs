@@ -834,6 +834,67 @@ async function assertServicesTheme(chrome, url) {
     }
     console.log('PASS Chrome: 8 heroes de Servicios, 390/1280px, ambos temas')
 
+    // Regression guard: the environmental photo must never intrude into
+    // the content column at the intermediate widths reported by the team.
+    // Use actual Chrome layout rectangles (not assumptions from CSS source).
+    const environmentGeometry = [
+      '(() => {',
+      "const card=document.querySelector('#enfoque-ambiental .about-refresh__environment-card');",
+      "const media=card?.querySelector('.about-refresh__environment-media');",
+      "const copy=card?.querySelector('.about-refresh__environment-content');",
+      "const heading=copy?.querySelector('h2');",
+      "const pillars=copy?.querySelector('.about-refresh__environment-pillars');",
+      "if(!card||!media||!copy||!heading||!pillars) return null;",
+      "const rect=(el)=>{const r=el.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};};",
+      "return {card:rect(card),media:rect(media),copy:rect(copy),heading:rect(heading),pillars:rect(pillars),cols:getComputedStyle(card).gridTemplateColumns};",
+      '})()'
+    ].join('\n')
+    for (const viewport of [360, 390, 540, 768, 820, 821, 900, 1024, 1100, 1280, 1440, 1680]) {
+      await send('Emulation.setDeviceMetricsOverride', {
+        width: viewport, height: 950, deviceScaleFactor: 1, mobile: false
+      })
+      const navigation = await send('Page.navigate', { url: new URL('/nosotros', url).href })
+      assert.ok(!navigation.errorText, 'No se pudo abrir Nosotros: ' + navigation.errorText)
+      let present = false
+      for (let attempt = 0; attempt < 100; attempt++) {
+        present = await evaluate("!!document.querySelector('#enfoque-ambiental .about-refresh__environment-content h2')")
+        if (present) break
+        await new Promise(resolve => setTimeout(resolve, 120))
+      }
+      assert.ok(present, 'No cargó Enfoque ambiental a ' + viewport + 'px')
+      for (const dark of [false, true]) {
+        await evaluate("document.documentElement.classList." + (dark ? 'add' : 'remove') + "('theme-dark'); true")
+        // Additional CMS copy can make the text column taller than the image.
+        // Test it without writing to the CMS or changing published content.
+        for (const extended of (viewport >= 821 && viewport <= 1280 ? [false, true] : [false])) {
+          await evaluate("(() => { const p=document.querySelector('#enfoque-ambiental .about-refresh__environment-description'); if (!p.dataset.originalText) p.dataset.originalText=p.textContent; p.textContent=p.dataset.originalText" + (extended ? " + ' Más información ambiental publicada desde el CMS.'.repeat(12)" : "") + "; return true })()")
+          const layout = await evaluate(environmentGeometry)
+          const label = viewport + 'px, ' + (dark ? 'oscuro' : 'claro') + (extended ? ', texto extendido' : '')
+          assert.ok(layout, 'No se pudo medir Enfoque ambiental: ' + label)
+          assert.ok(layout.media.width > 80 && layout.copy.width > 80,
+            'Imagen o columna de texto sin tamaño útil: ' + label + ' ' + JSON.stringify(layout))
+          assert.ok(layout.media.left >= layout.card.left - 2 &&
+                    layout.media.right <= layout.card.right + 2 &&
+                    layout.copy.left >= layout.card.left - 2 &&
+                    layout.copy.right <= layout.card.right + 2,
+            'Imagen o contenido fuera de su tarjeta: ' + label + ' ' + JSON.stringify(layout))
+          if (viewport > 820) {
+            assert.ok(layout.media.right + 6 <= layout.copy.left,
+              'La imagen invade el texto en dos columnas: ' + label + ' ' + JSON.stringify(layout))
+          } else {
+            assert.ok(layout.media.bottom + 2 <= layout.copy.top,
+              'La imagen invade el texto apilado: ' + label + ' ' + JSON.stringify(layout))
+          }
+          assert.ok(layout.heading.left >= layout.copy.left - 2 &&
+                    layout.heading.right <= layout.copy.right + 2 &&
+                    layout.pillars.left >= layout.copy.left - 2 &&
+                    layout.pillars.right <= layout.copy.right + 2,
+            'Título o íconos fuera de la columna de texto: ' + label + ' ' + JSON.stringify(layout))
+        }
+      }
+    }
+    console.log('PASS Chrome: Enfoque ambiental sin imagen sobre el texto a 360-1680px, ambos temas y CMS extendido')
+
 
 
   } finally {
