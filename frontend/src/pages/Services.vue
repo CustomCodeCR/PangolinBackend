@@ -68,7 +68,10 @@ const serviceDirectory = computed(() => {
       const label = siteText('service.' + slug + '.label', guide[lang].label, locale.value)
       return { href, slug, image: directoryGuideImages[slug] || '/images/hero.webp',
         label: href === '/servicios/almacenamiento-fiscal' && lang === 'es'
-          ? label.replace(/almacenamiento fiscal/gi, 'Almacén fiscal') : label }
+          ? label.replace(/almacenamiento fiscal/gi, 'Almacén fiscal')
+          : href === '/servicios/agenciamiento-aduanal' && lang === 'es'
+            ? label.replace(/agenciamiento aduanal/gi, 'Agencia aduanal')
+            : label }
     })
   ]
 })

@@ -124,7 +124,7 @@ function makeStructuredData(route, seo, sourceGraph) {
       url: origin + '/servicios'
     })
     const existingServiceDetails = [
-      ['agenciamiento-aduanal', 'Agenciamiento aduanal', 'Coordinación de gestiones y documentación aduanera según cada operación', 'Gestiones y documentación aduanera sujetas a revisión según la mercancía y el trámite.'],
+      ['agenciamiento-aduanal', 'Agencia aduanal', 'Coordinación de gestiones y documentación aduanera según cada operación', 'Gestiones y documentación aduanera sujetas a revisión según la mercancía y el trámite.'],
       ['almacenamiento-fiscal', 'Almacén fiscal', 'Servicios de almacén fiscal', 'Disponibilidad y condiciones de almacenamiento fiscal se confirman según la carga y la operación.'],
       ['consolidadora-de-carga', 'Consolidadora de carga', 'Coordinación de carga consolidada LCL', 'Alternativas de consolidación sujetas a revisión de ruta, volumen y detalles del embarque.']
     ]

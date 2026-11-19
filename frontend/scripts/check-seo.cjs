@@ -31,6 +31,13 @@ for (const route of forbiddenRoutes) {
 }
 assert.equal(fs.existsSync(path.join(base, 'src/pages/ServiceLanding.vue')), true, 'Falta página pública de servicios especializados')
 assert.equal(root.includes('ServiceLanding'), true, 'La aplicación debe enrutar a páginas de servicios especializados')
+// Change only the visible service name; preserve the existing canonical URL.
+const customsPath = '/servicios/agenciamiento-aduanal'
+assert.equal(serviceGuides[customsPath].es.label, 'Agencia aduanal', 'El nombre visible de aduanas debe ser Agencia aduanal')
+assert.equal(serviceGuides[customsPath].es.title, 'Agencia aduanal para importaciones y exportaciones en Costa Rica',
+  'El H1 debe reflejar el nombre aprobado sin perder el resto del título')
+assert.ok(sitemap.includes('https://www.logisticacastrofallas.com' + customsPath), 'La URL anterior debe mantenerse')
+
 for (const route of serviceRoutes) {
   assert.ok(sitemap.includes('<loc>https://www.logisticacastrofallas.com' + route + '</loc>'), 'Nueva ruta sin sitemap: ' + route)
   assert.ok(routes[route] && routes[route].indexable !== false, 'Nueva ruta sin indexación: ' + route)
@@ -229,7 +236,7 @@ if (fs.existsSync(path.join(base, 'dist'))) {
       assert.equal(find('BreadcrumbList').itemListElement.length, 3, 'Breadcrumb jerárquico incompleto: ' + route)
     }
     if (route === '/servicios') {
-      for (const term of ['Agenciamiento aduanal', 'Almacén fiscal', 'Consolidadora de carga']) {
+      for (const term of ['Agencia aduanal', 'Almacén fiscal', 'Consolidadora de carga']) {
         assert.ok(html.includes(term), 'Falta contenido inicial del servicio existente: ' + term)
       }
       const faqPage = find('FAQPage')
