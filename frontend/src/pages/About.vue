@@ -1128,6 +1128,27 @@ html.theme-dark .about-refresh__value.is-open .about-refresh__value-icon{
   }
 }
 
+/* Unified dark-mode accents for Sobre nosotros.
+   The mission/vision panels match the Values cards; all icon squares use
+   the corporate red of the selected value while line icons remain legible. */
+html.theme-dark .about-refresh .about-refresh__purpose-card,
+html.theme-dark .about-refresh .about-refresh__value {
+  background:#111b31;
+}
+html.theme-dark .about-refresh .about-refresh__purpose-symbol,
+html.theme-dark .about-refresh .about-refresh__value-icon {
+  background:#b00929;
+  color:#fff;
+}
+html.theme-dark .about-refresh .about-refresh__capability-icon,
+html.theme-dark .about-refresh .about-refresh__environment-pillar svg {
+  color:#ff3c61;
+}
+/* Headings are inherited from CMS; change their accent color, not their text. */
+html.theme-dark .about-refresh .about-refresh__eyebrow {
+  color:#ff3c61 !important;
+}
+
 /* Keep the experience divider fully white in dark mode. */
 html.theme-dark .about-refresh .about-refresh__hero-copy .big-years span {
   border-left-color: #fff !important;
