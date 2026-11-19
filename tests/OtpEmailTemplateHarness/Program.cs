@@ -9,6 +9,19 @@ const string sample = "004219";
 var html = OtpEmailTemplate.Html(sample);
 var plain = OtpEmailTemplate.PlainText(sample);
 
+var generatedSubjects = Enumerable.Range(0, 20)
+    .Select(_ => OtpEmailTemplate.Subject()).ToArray();
+Assert(generatedSubjects.Distinct(StringComparer.Ordinal).Count() == generatedSubjects.Length,
+    "Each new OTP email must have a unique subject reference.");
+foreach (var subject in generatedSubjects)
+{
+    Assert(System.Text.RegularExpressions.Regex.IsMatch(
+        subject, @"^Código de acceso \| Castro Fallas · [A-F0-9]{8}$"),
+        "OTP email subject must include only a random, non-sensitive reference.");
+    Assert(!subject.Contains(sample, StringComparison.Ordinal),
+        "Do not expose the OTP value in the subject.");
+}
+
 Assert(html.StartsWith("<!doctype html>", StringComparison.OrdinalIgnoreCase), "Email must be HTML5.");
 Assert(html.Contains("lang=\"es\"", StringComparison.Ordinal), "Spanish locale missing.");
 Assert(html.Contains("Tu código de acceso", StringComparison.Ordinal), "Header missing.");
