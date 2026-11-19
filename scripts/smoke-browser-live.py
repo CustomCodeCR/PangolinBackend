@@ -193,6 +193,10 @@ def main():
                 buttons = driver.find_elements(By.CSS_SELECTOR, "#nuestros-valores .about-refresh__value-trigger")
                 assert len(driver.find_elements(By.CSS_SELECTOR, "#nuestra-estructura .about-refresh__structure-choice")) == 4, "Se esperan cuatro áreas en Nuestra estructura; Enfoque ambiental irá aparte"
                 assert len(driver.find_elements(By.CSS_SELECTOR, "#nuestra-estructura .about-refresh__structure-feature")) == 1, "Debe mostrarse un panel fotográfico a la vez"
+                environment = driver.find_elements(By.CSS_SELECTOR, "#enfoque-ambiental .about-refresh__environment-card")
+                assert len(environment) == 1, "Enfoque ambiental debe tener un bloque independiente"
+                assert len(driver.find_elements(By.CSS_SELECTOR, "#enfoque-ambiental .about-refresh__environment-pillar")) == 3, "Se esperan tres ejes ambientales"
+                assert len(driver.find_elements(By.CSS_SELECTOR, "#enfoque-ambiental .about-refresh__environment-media img, #enfoque-ambiental .about-refresh__environment-media video")) == 1, "Debe existir imagen CMS en enfoque ambiental"
                 assert len(buttons) == 5, "Se esperan cinco valores corporativos"
                 assert not driver.find_elements(By.CSS_SELECTOR, ".about-refresh__value-summary"), "No debe haber resúmenes visibles al inicio"
                 assert all(button.get_attribute("aria-expanded") == "false" for button in buttons), "Los valores deben empezar cerrados"
