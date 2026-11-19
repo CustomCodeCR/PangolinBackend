@@ -1166,10 +1166,12 @@ html.theme-dark .about-refresh .about-refresh__value.is-open .about-refresh__val
 :global(html.theme-dark .about-refresh .about-refresh__environment-pillar svg) {
   stroke:#B00929 !important;
 }
-/* Keep all five department SVGs corporate red in dark mode, matching the
-   light theme, without recoloring labels or the surrounding photo panel. */
-html.theme-dark .about-refresh .about-refresh__structure-department :deep(svg) {
-  color:#fc345c !important;
+/* Full global selector: the theme class is on <html> outside Vue's
+   scoped component. Explicit SVG stroke prevents the global dark-theme
+   rules from leaving department icons white. */
+:global(html.theme-dark .about-refresh .about-refresh__structure-department svg) {
+  color:#FC345C !important;
+  stroke:#FC345C !important;
 }
 /* Headings are inherited from CMS; change their accent color, not their text. */
 html.theme-dark .about-refresh .about-refresh__eyebrow {
