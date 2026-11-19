@@ -357,13 +357,10 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
         <div class="container">
           <div class="about-refresh__environment-card">
             <div class="about-refresh__environment-media">
-              <SiteMedia slot-key="about.environment.media"
-                fallback="/images/environmental-concept.webp"
-                :alt="locale.startsWith('es') ? 'Ilustración conceptual de un centro logístico con árboles y camiones' : 'Conceptual illustration of a logistics center with trees and trucks'"
+              <SiteMedia slot-key="about.structure.6.media"
+                fallback="/images/about-operations-enhanced.webp"
+                :alt="locale.startsWith('es') ? 'Instalaciones y operaciones logísticas de Castro Fallas' : 'Castro Fallas facilities and logistics operations'"
                 sizes="(max-width: 820px) 100vw, 48vw" />
-              <span class="about-refresh__environment-media-note">
-                {{ locale.startsWith('es') ? 'Imagen ilustrativa' : 'Illustrative image' }}
-              </span>
             </div>
             <div class="about-refresh__environment-content">
               <p class="about-refresh__eyebrow">{{ siteText('about.environment.kicker',
@@ -668,8 +665,8 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
 /* Independent environmental section — light, editorial two-column layout.
    The content grows naturally when additional CMS text is published. */
 .about-refresh__environment {
-  padding-top:clamp(8px,1.2vw,18px);
-  padding-bottom:clamp(12px,1.7vw,26px);
+  padding-top:clamp(20px,2.5vw,38px);
+  padding-bottom:clamp(23px,2.7vw,45px);
   scroll-margin-top:85px;
   background:linear-gradient(140deg,#f9f5f6,#fff 55%,#fcf2f5);
 }
@@ -701,19 +698,6 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
   width:100%;
   height:100%;
   object-fit:cover;
-}
-.about-refresh__environment-media-note {
-  position:absolute;
-  left:14px;
-  bottom:12px;
-  z-index:1;
-  padding:5px 9px;
-  border-radius:8px;
-  color:#fff;
-  background:rgba(4,16,30,.62);
-  font-size:11px;
-  font-weight:650;
-  letter-spacing:.01em;
 }
 .about-refresh__environment-content {
   display:flex;
@@ -814,7 +798,7 @@ html.theme-dark .about-refresh__environment-pillar svg {color:#ff8298}
   .about-refresh__environment-pillar span {font-size:clamp(12px,2vw,15px)}
 }
 @media (max-width:540px) {
-  .about-refresh__environment {padding-block:12px 24px}
+  .about-refresh__environment {padding-block:22px 32px}
   .about-refresh__environment-card {padding:11px;border-radius:22px;gap:11px}
   .about-refresh__environment-media {aspect-ratio:855/494;height:auto;min-height:0;border-radius:15px}
   .about-refresh__environment-content {padding:14px 12px 15px}
@@ -833,7 +817,7 @@ html.theme-dark .about-refresh__environment-pillar svg {color:#ff8298}
   html.theme-dark .about-refresh__environment-pillar:not(:first-child) {border-top-color:rgba(255,255,255,.25)}
 }
 .about-refresh__environment + .about-refresh__services {
-  padding-top:clamp(20px,2.4vw,38px);
+  padding-top:clamp(28px,3vw,48px);
 }
 .about-refresh__services{padding-block:clamp(92px,10vw,160px)}
 .about-refresh__capabilities{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(18px,2.3vw,36px)}
