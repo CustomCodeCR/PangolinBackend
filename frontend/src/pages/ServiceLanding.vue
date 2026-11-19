@@ -88,6 +88,12 @@ const details = computed<LandingText>(() => {
         ['label','title','location','heading','quoteHeading'].includes(field)) {
       return value.replace(/almacenamiento fiscal/gi,'Almacén fiscal')
     }
+    // A previously published CMS label/title may still use the old service name.
+    // Keep the CMS copy editable while displaying the approved public heading.
+    if (route==='/servicios/agenciamiento-aduanal' && lang.value==='es' &&
+        ['label','title'].includes(field)) {
+      return value.replace(/agenciamiento aduanal/gi,'Agencia aduanal')
+    }
     return value
   }
   const guide=guides[route]?.[lang.value]
