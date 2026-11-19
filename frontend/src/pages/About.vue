@@ -274,9 +274,6 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
       <section id="nuestra-estructura" class="about-refresh__structure section-spacing" aria-labelledby="about-structure-title">
         <div class="container">
           <div class="about-refresh__structure-heading">
-            <p class="about-refresh__structure-eyebrow">
-              <span aria-hidden="true"></span>{{ locale.startsWith('es') ? 'SOBRE NOSOTROS' : 'ABOUT US' }}<span aria-hidden="true"></span>
-            </p>
             <h2 id="about-structure-title">{{ siteText('about.structure.heading', locale.startsWith('es') ? 'Nuestra estructura' : 'Our structure', locale) }}</h2>
             <p>{{ siteText('about.structure.intro', structureIntro, locale) }}</p>
           </div>
@@ -365,20 +362,24 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
               linear-gradient(115deg, #f9f6f7, #f4f6fb);
 }
 .about-refresh__structure-heading {
-  max-width: 880px;
-  margin: 0 auto clamp(30px, 4vw, 58px);
-  text-align: center;
+  width:100%;
+  margin:0 0 clamp(30px,3.8vw,56px);
+  text-align:left;
 }
-.about-refresh__structure-eyebrow {
-  display:flex;justify-content:center;align-items:center;gap:20px;
-  margin:0 0 17px;color:#a40929;font-size:12px;font-weight:850;
-  letter-spacing:.2em;line-height:1.4;
+.about-refresh__structure-heading h2 {
+  margin:0;
+  text-align:left;
+  font-size:clamp(36px,5vw,62px);
+  line-height:1.05;
+  letter-spacing:-.05em;
 }
-.about-refresh__structure-eyebrow span {display:block;width:46px;height:2px;background:#b00929}
-.about-refresh__structure-heading h2 {font-size:clamp(36px,5vw,62px);line-height:1.05;letter-spacing:-.05em}
 .about-refresh__structure-heading>p:last-child {
-  margin:20px auto 0;max-width:730px;color:#4c5360;font-size:clamp(15px,1.4vw,19px);
+  margin:18px 0 0;
+  max-width:730px;
+  color:#4c5360;
+  font-size:clamp(15px,1.4vw,19px);
   line-height:1.65;
+  text-align:left;
 }
 .about-refresh__structure-showcase {
   display:grid;grid-template-columns:minmax(0,1.8fr) minmax(300px,1fr);
@@ -531,8 +532,6 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
 }
 @media(max-width:480px){
   .about-refresh__structure {padding-block:55px 66px}
-  .about-refresh__structure-eyebrow {gap:10px;font-size:10px}
-  .about-refresh__structure-eyebrow span {width:30px}
   .about-refresh__structure-heading h2 {font-size:clamp(32px,9vw,43px)}
   .about-refresh__structure-heading>p:last-child {margin-top:14px;font-size:14px}
   .about-refresh__structure-showcase {padding:9px;gap:10px}
