@@ -1053,7 +1053,22 @@ const departments: Array<[string,string]> = [
   ['Contabilidad','Accounting'],['Servicio al cliente','Customer service'],
   ['Transporte interno de carga','Domestic cargo transport']
 ]
-departments.forEach(([es,en],i)=>addText('about','Sobre nosotros','about.structure.departments.'+i,'Nuestra estructura','Departamento '+(i+1),es,en))
+departments.forEach(([es,en],i)=>{
+  addText('about','Sobre nosotros','about.structure.departments.'+i,'Nuestra estructura','Departamento '+(i+1)+': nombre',es,en)
+  // Optional, initially empty. No placeholder facts are published.
+  additional.push({
+    page:'about',
+    pageLabel:'Sobre nosotros',
+    key:'about.structure.departments.'+i+'.description',
+    section:'Nuestra estructura',
+    type:'text',
+    label:'Departamento '+(i+1)+': descripción opcional',
+    help:'Se muestra debajo del nombre solo si se publica texto. La tarjeta aumenta su altura automáticamente.',
+    fallback:'',
+    originalEs:'',
+    originalEn:''
+  })
+})
 addText('about','Sobre nosotros','about.structure.environment','Enfoque ambiental (pendiente)','Texto ambiental publicado',
   'Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.',
   'We seek opportunities to incorporate more responsible practices into our operations.')
