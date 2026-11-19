@@ -105,6 +105,10 @@ Assert(OtpEmailAssets.Images[0].Content.AsSpan(0, 8)
     .SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }), "G graphic is not PNG.");
 Assert(OtpEmailAssets.Images[1].Content[0] == 0xff &&
        OtpEmailAssets.Images[1].Content[1] == 0xd8, "Globe graphic is not JPEG.");
+Assert(OtpEmailAssets.Images[1].Content.Length >= 4000 &&
+       OtpEmailAssets.Images[1].Content[^2] == 0xff &&
+       OtpEmailAssets.Images[1].Content[^1] == 0xd9,
+       "Globe JPEG is incomplete or damaged.");
 var inlineCalls = 0;
 var inlineHandler = new FakeHandler(async (request, ct) =>
 {
