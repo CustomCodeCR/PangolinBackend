@@ -1011,9 +1011,38 @@ const structureTitles: Array<[string,string]> = [
   ['Departamentos','Departments'],['Universidad corporativa','Corporate university'],
   ['Enfoque ambiental','Environmental approach']
 ]
-addText('about','Sobre nosotros','about.structure.heading','Sobre nuestra estructura','Título','Sobre nuestra estructura','About our structure')
-// Keep the original CMS indices 2–6; the two retired cards are not editable or rendered.
-structureTitles.forEach(([es,en],i)=>addText('about','Sobre nosotros','about.structure.'+(i+2)+'.title','Sobre nuestra estructura','Elemento '+(i+1)+': título',es,en))
+addText('about','Sobre nosotros','about.structure.heading','Nuestra estructura','Título','Nuestra estructura','Our structure')
+addText('about','Sobre nosotros','about.structure.intro','Nuestra estructura','Descripción general',
+  'Conocé las áreas y pilares de nuestra organización, presentes en la coordinación de nuestras operaciones.',
+  'Discover the areas and pillars of our organization that support the coordination of our operations.')
+// Preserve original keys 2–6 (and published CMS edits), while providing five
+// independent photographs and descriptions for the new interactive panel.
+structureTitles.forEach(([es,en],i)=>addText('about','Sobre nosotros','about.structure.'+(i+2)+'.title','Nuestra estructura','Elemento '+(i+1)+': título',es,en))
+const structureDescriptions: Array<[string,string]> = [
+  ['Un espacio de atención para orientar consultas y acompañar las necesidades de cada operación logística.',
+   'A point of contact for guidance, inquiries, and support with the needs of each logistics operation.'],
+  ['Coordinación cercana en sitio para facilitar la comunicación y el seguimiento de las operaciones.',
+   'On-site coordination to help communication and follow-up throughout operations.'],
+  ['Conocé las áreas que forman parte de nuestra estructura y contribuyen a la coordinación de cada servicio.',
+   'Explore the areas within our structure that help coordinate our services.'],
+  ['Un espacio orientado al intercambio de conocimientos y al desarrollo de nuestro equipo.',
+   'An initiative focused on knowledge sharing and the development of our team.'],
+  ['Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.',
+   'We seek opportunities to incorporate more responsible practices into our operations.']
+]
+const structurePhotos = [
+  '/images/about-operations-enhanced.webp',
+  '/images/warehouse-person.webp',
+  '/images/cover-logistics.webp',
+  '/images/about-operations.webp',
+  '/images/services-warehouse.webp'
+]
+structureDescriptions.forEach(([es,en],i)=>{
+  addText('about','Sobre nosotros','about.structure.'+(i+2)+'.description',
+    'Nuestra estructura','Elemento '+(i+1)+': descripción',es,en)
+  addMedia('about','Sobre nosotros','about.structure.'+(i+2)+'.media',
+    'Nuestra estructura','Elemento '+(i+1)+': fotografía',structurePhotos[i])
+})
 const departments: Array<[string,string]> = [
   ['Consolidadora','Freight consolidation'],['Pedimentación','Customs declaration processing'],
   ['Contabilidad','Accounting'],['Servicio al cliente','Customer service'],
