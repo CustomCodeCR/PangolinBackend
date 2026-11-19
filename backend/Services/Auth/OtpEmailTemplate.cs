@@ -1,5 +1,6 @@
 using System.Text;
 using System.Security.Cryptography;
+using System.Net;
 
 namespace CastroFallas.MiniQuote.Api.Services.Auth;
 
@@ -17,18 +18,36 @@ public static class OtpEmailTemplate
         "Código de acceso | Castro Fallas · " +
         Convert.ToHexString(RandomNumberGenerator.GetBytes(4));
 
-    public static string PlainText(string otp)
+    // The fragment carries only an opaque challenge ID, never the OTP.
+    // Fragments stay in the browser and are not transmitted to the web server.
+    public static string VerificationUrl(Guid challengeId, string? loginBaseUrl = null)
+    {
+        if (challengeId == Guid.Empty)
+            throw new ArgumentException("Challenge ID inválido.", nameof(challengeId));
+        var configured = loginBaseUrl ?? LoginUrl;
+        if (!Uri.TryCreate(configured, UriKind.Absolute, out var address) ||
+            address.Scheme is not ("https" or "http") ||
+            !address.AbsolutePath.Equals("/bienvenidos", StringComparison.OrdinalIgnoreCase) ||
+            !string.IsNullOrEmpty(address.UserInfo) ||
+            !string.IsNullOrEmpty(address.Query) ||
+            !string.IsNullOrEmpty(address.Fragment))
+            throw new ArgumentException("Email:LoginUrl debe ser una URL absoluta de /bienvenidos sin parámetros.", nameof(loginBaseUrl));
+        return new UriBuilder(address) { Fragment = $"otpRequest={challengeId:D}" }.Uri.AbsoluteUri;
+    }
+
+    public static string PlainText(string otp, string? verificationUrl = null)
     {
         ValidateOtp(otp);
         return $"Tu código de acceso a Castro Fallas es: {otp}\n\n" +
                "Este código vence en 5 minutos y puede utilizarse una sola vez.\n\n" +
-               $"Ingresá a {LoginUrl} para iniciar sesión.\n\n" +
+               $"Ingresá a {verificationUrl ?? LoginUrl} para escribir el código.\n\n" +
                "Si no solicitaste este código, podés ignorar este mensaje. Tu cuenta se mantiene segura.";
     }
 
-    public static string Html(string otp)
+    public static string Html(string otp, string? verificationUrl = null)
     {
         ValidateOtp(otp);
+        var verificationHref = WebUtility.HtmlEncode(verificationUrl ?? LoginUrl);
 
         // Elementos consecutivos, sin espacios entre los dígitos en el HTML,
         // para que también puedan seleccionarse y copiarse manualmente.
@@ -78,7 +97,7 @@ public static class OtpEmailTemplate
                         <div class="cf-code" role="group" aria-label="Código de acceso de seis dígitos" style="white-space:nowrap;margin:0 0 9px;letter-spacing:0;font-size:0;">{{digits}}</div>
                         <table role="presentation" class="cf-actions" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;margin:0 0 13px;">
                           <tr><td align="center" bgcolor="#af0922" style="border-radius:6px;">
-                            <a href="{{LoginUrl}}" style="display:inline-block;padding:11px 28px;color:#ffffff;background:#af0922;border-radius:6px;text-decoration:none;font-size:12px;font-weight:700;line-height:1;">Iniciar sesión</a>
+                            <a href="{{verificationHref}}" style="display:inline-block;padding:11px 28px;color:#ffffff;background:#af0922;border-radius:6px;text-decoration:none;font-size:12px;font-weight:700;line-height:1;">Ingresar código</a>
                           </td></tr>
                         </table>
                         <p style="margin:0 0 12px;font-size:11px;line-height:1.5;color:#52555d;">&#9201; Este código vence en <strong style="color:#a50921;">5 minutos.</strong></p>
