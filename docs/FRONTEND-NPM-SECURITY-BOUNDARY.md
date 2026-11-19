@@ -1,5 +1,7 @@
 # Revisión del alcance de vulnerabilidades npm en frontend (17-11-2026)
 
+> **Actualización 19-11-2026:** el aviso GHSA-fc5q-39xc-vjpf fue retirado por GitHub el 18-11-2026 como **no relacionado con un problema de seguridad**. La evaluación de riesgo de `picomatch` y la excepción temporal descritas abajo reflejan el estado **histórico del 17-11**; ya no son el estado vigente. Ver [el registro de retirada](FRONTEND-DEV-PICOMATCH-SECURITY-EXCEPTION.md). La nueva PR restablece `npm audit --audit-level=high` completo; su fusión depende de CI en verde. La auditoría de otras dependencias y los controles build/runtime siguen vigentes.
+
 Relacionado con [#248](https://github.com/CustomCodeCR/PangolinBackend/issues/248).
 
 ## Hallazgo verificable
