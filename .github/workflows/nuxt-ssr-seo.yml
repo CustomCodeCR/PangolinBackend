@@ -58,7 +58,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install Nuxt dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
         working-directory: frontend/nuxt
       - name: Record exact Nuxt dependencies installed on Ubuntu
         run: node scripts/report-build-deps.mjs
