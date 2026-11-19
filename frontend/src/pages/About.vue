@@ -71,7 +71,11 @@ const structureCopy = computed(() => locale.value.startsWith('es') ? [
 const structureTitles = computed(() => structureCopy.value.map((entry, offset) => ({
   index: offset + 2,
   title: siteText(`about.structure.${offset + 2}.title`, entry.title, locale.value),
-  description: siteText(`about.structure.${offset + 2}.description`, entry.description, locale.value),
+  description: siteText(
+    `about.structure.${offset + 2}.description`,
+    offset === 4 ? siteText('about.structure.environment', entry.description, locale.value) : entry.description,
+    locale.value
+  ),
   photo: structurePhotos[offset],
   icon: structureIcons[offset]
 })))
