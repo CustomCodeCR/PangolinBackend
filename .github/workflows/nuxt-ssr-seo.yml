@@ -135,6 +135,9 @@ jobs:
           # Contrato anti-regresiones de indexabilidad: cada loc del sitemap
           # debe responder 200, HTML SSR indexable y canonical consistente.
           node frontend/nuxt/scripts/check-indexing-http.mjs http://127.0.0.1:3000
+          # Validar que el grafo JSON-LD, og:url y los enlaces internos
+          # coinciden con las rutas indexables sin modificar el contenido.
+          node frontend/nuxt/scripts/check-schema-links.mjs http://127.0.0.1:3000
       - name: SSR news and dynamic sitemap integration test
         run: npm run test:ssr-news
         working-directory: frontend/nuxt
