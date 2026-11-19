@@ -1127,7 +1127,7 @@ for (const service of servicePages) {
 }
 ;([
   ['almacenamiento-fiscal', 'Almacén fiscal'],
-  ['agenciamiento-aduanal', 'Agenciamiento aduanal'],
+  ['agenciamiento-aduanal', 'Agencia aduanal'],
   ['consolidadora-de-carga', 'Consolidadora de carga']
 ] as Array<[string,string]>).forEach(([slug,label]) =>
   addMedia('services','Servicios','services.directory.' + slug + '.media','Carrusel de servicios','Tarjeta: ' + label,directoryCardPhoto[slug]))
