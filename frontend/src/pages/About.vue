@@ -419,25 +419,38 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 .about-refresh__structure-description {
   max-width:480px;margin:0;color:#f5f7fa;font-size:clamp(14px,1.22vw,17px);line-height:1.68;
 }
-/* Departments: icon-led modules, 3 above + 2 below, with subtle separators
-   inspired by the approved concept instead of tiny pills over the photo. */
+/* Balanced two-column departments: two rows of two plus a last card
+   centered at the exact same width. No divider lines or stray arrows. */
 .about-refresh__structure-departments {
-  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:0;margin-top:clamp(24px,3vw,35px);padding-top:20px;
-  border-top:1px solid rgba(255,255,255,.38);
-  max-width:600px;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+  margin-top:clamp(22px,2.5vw,32px);
+  max-width:610px;
 }
 .about-refresh__structure-department {
-  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
-  gap:9px;min-width:0;padding:14px 9px 17px;text-align:center;
-  color:#fff;font-size:clamp(11px,1vw,13px);font-weight:650;line-height:1.38;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  min-width:0;
+  min-height:91px;
+  padding:13px 10px;
+  border:1px solid rgba(255,255,255,.27);
+  border-radius:13px;
+  background:rgba(6,17,37,.52);
+  color:#fff;
+  text-align:center;
+  font-size:clamp(11px,1vw,13px);
+  font-weight:650;
+  line-height:1.38;
+  overflow-wrap:break-word;
 }
-.about-refresh__structure-department:nth-child(3n+1),
-.about-refresh__structure-department:nth-child(3n+2) {
-  border-right:1px solid rgba(255,255,255,.37);
-}
-.about-refresh__structure-department:nth-child(n+4) {
-  border-top:1px solid rgba(255,255,255,.21);
+.about-refresh__structure-department:last-child {
+  grid-column:1 / -1;
+  width:calc((100% - 12px) / 2);
+  justify-self:center;
 }
 .about-refresh__structure-department :deep(svg) {color:#fc345c;flex:none}
 .about-refresh__structure-department span {overflow-wrap:anywhere}
@@ -452,7 +465,16 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 .about-refresh__structure-choice:hover {background:#fff0f3;border-color:rgba(176,9,41,.45);transform:translateX(-2px)}
 .about-refresh__structure-choice.is-selected {
   background:linear-gradient(110deg,#c90b34,#880c2c);
-  border-color:#f04466;box-shadow:0 8px 23px rgba(171,2,42,.26);
+  border-color:#f04466;
+  color:#fff !important;
+  box-shadow:0 8px 23px rgba(171,2,42,.26);
+}
+/* Global button/link styles must not turn the active text or arrow dark
+   when the page uses its light theme. */
+.about-refresh__structure-choice.is-selected .about-refresh__structure-choice-name,
+.about-refresh__structure-choice.is-selected .about-refresh__structure-choice-arrow,
+.about-refresh__structure-choice.is-selected .about-refresh__structure-choice-icon {
+  color:#fff !important;
 }
 .about-refresh__structure-choice-icon {display:flex;align-items:center;justify-content:center;flex:0 0 30px;color:#ad1030}
 .about-refresh__structure-choice.is-selected .about-refresh__structure-choice-icon {color:#fff}
@@ -498,10 +520,9 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
   .about-refresh__structure-choice-icon {flex-basis:25px}
   .about-refresh__structure-choice-name {font-size:15px}
   .about-refresh__structure-feature-content {padding:29px 23px}
-  .about-refresh__structure-departments {grid-template-columns:repeat(2,minmax(0,1fr));margin-top:20px}
-  .about-refresh__structure-department {border-right:0!important;border-top:0!important;padding:12px 8px}
-  .about-refresh__structure-department:nth-child(odd) {border-right:1px solid rgba(255,255,255,.35)!important}
-  .about-refresh__structure-department:nth-child(n+3) {border-top:1px solid rgba(255,255,255,.21)!important}
+  .about-refresh__structure-departments {gap:10px;margin-top:20px}
+  .about-refresh__structure-department {padding:12px 8px;min-height:86px}
+  .about-refresh__structure-department:last-child {width:calc((100% - 10px) / 2)}
 }
 @media(max-width:480px){
   .about-refresh__structure {padding-block:55px 66px}
