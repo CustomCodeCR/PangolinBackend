@@ -303,7 +303,7 @@ public sealed class AuthService(
         var message = new MimeMessage();
         message.From.Add(MailboxAddress.Parse(from));
         message.To.Add(MailboxAddress.Parse(email));
-        message.Subject = "Código de acceso | Castro Fallas";
+        message.Subject = OtpEmailTemplate.Subject();
         // La alternativa de texto sigue disponible cuando el cliente bloquea HTML.
         var plainText = OtpEmailTemplate.PlainText(otp);
         var htmlText = OtpEmailTemplate.Html(otp);
