@@ -428,34 +428,116 @@ async function assertServicesTheme(chrome, url) {
       }
     }
     console.log('PASS Chrome: últimas filas centradas en Valores y Capacidades (1100, 800 y 480px)')
-    // Five remaining "Sobre nuestra estructura" cards should wrap evenly
-    // and keep their original CMS IDs and accessible accordion controls.
-    const structureUrl = new URL('/nosotros',url).href
-    for (const scenario of [
-      { width: 1440, rows: [5] },
-      { width: 1100, rows: [3, 2] },
-      { width: 800, rows: [2, 2, 1] },
-      { width: 480, rows: [1, 1, 1, 1, 1] }
-    ]) {
+    // Our Structure: four organizational areas, environment kept OUT of the
+    // menu for a future independent section; content anchored top-left.
+    const structureUrl = new URL('/nosotros', url).href
+    for (const width of [1440, 1000, 760, 480, 375]) {
       await send('Emulation.setDeviceMetricsOverride', {
-        width:scenario.width,height:950,deviceScaleFactor:1,mobile:false
+        width, height: 1000, deviceScaleFactor: 1, mobile: false
       })
-      const nav = await send('Page.navigate',{url:structureUrl})
-      assert.ok(!nav.errorText,'No se pudo abrir Nosotros para comprobar estructura')
+      const nav = await send('Page.navigate', { url: structureUrl })
+      assert.ok(!nav.errorText, 'Chrome no pudo abrir Nosotros: ' + nav.errorText)
       let structureReady = false
-      for(let attempt=0;attempt<100;attempt++){
-        structureReady=await evaluate("document.querySelectorAll('#nuestra-estructura .about-refresh__structure-card').length === 5")
-        if(structureReady) break
-        await new Promise(resolve=>setTimeout(resolve,120))
+      for (let attempt = 0; attempt < 100; attempt++) {
+        structureReady = await evaluate("document.querySelectorAll('#nuestra-estructura .about-refresh__structure-choice').length === 4")
+        if (structureReady) break
+        await new Promise(resolve => setTimeout(resolve, 120))
       }
-      assert.ok(structureReady,'Deben mostrarse cinco módulos de estructura')
-      const layout=await evaluate("(() => {const root=document.querySelector('#nuestra-estructura .about-refresh__structure-grid');const bounds=root.getBoundingClientRect();const cards=[...root.querySelectorAll('.about-refresh__structure-card')];const rows=[];for(const node of cards){const r=node.getBoundingClientRect();const row=rows.find(x=>Math.abs(x[0].top-r.top)<2);if(row)row.push(r);else rows.push([r]);}const last=rows.at(-1);const center=(last[0].left+last.at(-1).right)/2;return {count:cards.length,rows:rows.map(x=>x.length),delta:Math.abs(center-(bounds.left+bounds.right)/2),widths:cards.map(x=>x.getBoundingClientRect().width),indices:cards.map(x=>x.querySelector('button')?.getAttribute('aria-controls')),labels:cards.map(x=>x.innerText)};})()")
-      assert.deepEqual(layout.rows,scenario.rows,'Estructura debe ocupar filas equilibradas a '+scenario.width+': '+JSON.stringify(layout))
-      assert.ok(layout.delta<=3,'La fila incompleta debe estar centrada: '+JSON.stringify(layout))
-      assert.ok(Math.max(...layout.widths)-Math.min(...layout.widths)<=2,'Tarjetas desiguales: '+JSON.stringify(layout))
-      assert.deepEqual(layout.indices,['about-structure-2','about-structure-3','about-structure-4','about-structure-5','about-structure-6'],'Las tarjetas deben conservar sus claves del CMS')
+      assert.ok(structureReady, 'Deben existir cuatro opciones de Nuestra estructura a ' + width)
+      const headingLayout = await evaluate("(() => { const root=document.querySelector('#nuestra-estructura');const heading=root.querySelector('.about-refresh__structure-heading');const title=heading.querySelector('h2');const kicker=heading.querySelector('.about-refresh__eyebrow');const valuesKicker=document.querySelector('#nuestros-valores .about-refresh__eyebrow');const showcase=root.querySelector('.about-refresh__structure-showcase');const ks=getComputedStyle(kicker),vs=getComputedStyle(valuesKicker);return { childCount:heading.children.length, kickerCount:heading.querySelectorAll('.about-refresh__eyebrow').length, kickerText:kicker.textContent?.trim(), headingAlign:getComputedStyle(heading).textAlign, titleAlign:getComputedStyle(title).textAlign, titleLeft:title.getBoundingClientRect().left, kickerLeft:kicker.getBoundingClientRect().left, showcaseLeft:showcase.getBoundingClientRect().left, kickerTop:kicker.getBoundingClientRect().top, titleTop:title.getBoundingClientRect().top, showcaseTop:showcase.getBoundingClientRect().top, kickerColor:ks.color, valuesColor:vs.color, kickerFontSize:ks.fontSize, valuesFontSize:vs.fontSize, kickerLetterSpacing:ks.letterSpacing, valuesLetterSpacing:vs.letterSpacing }; })()")
+      assert.equal(headingLayout.childCount, 2, 'El bloque debe tener solo antetítulo y título, sin descripción')
+      assert.equal(headingLayout.kickerCount, 1, 'Debe mostrarse un antetítulo rojo arriba de Nuestra estructura')
+      assert.ok(headingLayout.kickerText && !/SOBRE NOSOTROS|ABOUT US/i.test(headingLayout.kickerText),
+        'No debe volver a mostrarse el rótulo anterior: '+JSON.stringify(headingLayout))
+      assert.equal(headingLayout.headingAlign, 'left', 'Nuestra estructura debe alinearse a la izquierda')
+      assert.equal(headingLayout.titleAlign, 'left', 'El título debe mantener el estilo de las otras secciones')
+      assert.equal(headingLayout.kickerColor, headingLayout.valuesColor,
+        'El antetítulo debe usar exactamente el rojo de Nuestros valores')
+      assert.equal(headingLayout.kickerFontSize, headingLayout.valuesFontSize,
+        'El antetítulo debe usar el tamaño pequeño de Nuestros valores')
+      assert.equal(headingLayout.kickerLetterSpacing, headingLayout.valuesLetterSpacing,
+        'El antetítulo debe tener el mismo espaciado de letras que los otros títulos')
+      assert.ok(Math.abs(headingLayout.titleLeft-headingLayout.showcaseLeft)<=3 &&
+        Math.abs(headingLayout.kickerLeft-headingLayout.showcaseLeft)<=3 &&
+        headingLayout.kickerTop < headingLayout.titleTop && headingLayout.titleTop < headingLayout.showcaseTop,
+        'Antetítulo y título deben empezar a la izquierda y sobre el panel: '+JSON.stringify(headingLayout))
+      const initial = await evaluate("(() => { const root=document.querySelector('#nuestra-estructura'); const showcase=root.querySelector('.about-refresh__structure-showcase'); const menu=root.querySelector('.about-refresh__structure-menu'); const feature=root.querySelector('.about-refresh__structure-feature'); const choices=[...menu.querySelectorAll('button')];const pressed=choices.flatMap((b,i)=>b.getAttribute('aria-pressed')==='true'?[i]:[]); const fr=feature.getBoundingClientRect(),cr=feature.querySelector('.about-refresh__structure-feature-content').getBoundingClientRect();return { choiceCount:choices.length, panelCount:root.querySelectorAll('.about-refresh__structure-feature').length, pressed, controls:choices.map(b=>b.getAttribute('aria-controls')), panelId:feature.id, hasMedia:!!feature.querySelector('img,video'), hasText:!!feature.querySelector('h3')&&!!feature.querySelector('p'), hasVisibleCopy:feature.querySelector('.about-refresh__structure-description')?.textContent?.trim().length>20, display:getComputedStyle(showcase).display, menuOrder:getComputedStyle(menu).order, featureOrder:getComputedStyle(feature).order, contentTop:Math.round(cr.top-fr.top),contentLeft:Math.round(cr.left-fr.left), overflow:showcase.scrollWidth-showcase.clientWidth, documentOverflow:document.documentElement.scrollWidth-window.innerWidth, navText:menu.textContent }; })()")
+      assert.equal(initial.choiceCount, 4, 'Enfoque ambiental debe estar fuera de la estructura')
+      assert.ok(!/Enfoque ambiental|Environmental approach/i.test(initial.navText),
+        'El enfoque ambiental no debe aparecer en el menú de Nuestra estructura')
+      assert.equal(initial.panelCount, 1, 'Solo debe verse un panel fotográfico')
+      assert.deepEqual(initial.pressed, [0], 'Mesa de ayuda debe estar seleccionada al cargar')
+      assert.ok(initial.controls.every(id => id === 'about-structure-feature') && initial.panelId === 'about-structure-feature',
+        'Los botones deben controlar un panel accesible: ' + JSON.stringify(initial))
+      assert.ok(initial.hasMedia && initial.hasText && initial.hasVisibleCopy,
+        'El panel debe contener fotografía, título y descripción: ' + JSON.stringify(initial))
+      assert.ok(initial.contentTop >= 0 && initial.contentTop <= 75 && initial.contentLeft >= 0 && initial.contentLeft <= 75,
+        'La información debe comenzar arriba a la izquierda: ' + JSON.stringify(initial))
+      assert.ok(initial.overflow <= 3 && initial.documentOverflow <= 3,
+        'Nuestra estructura no debe provocar scroll horizontal: ' + JSON.stringify(initial))
+      if (width <= 760) {
+        assert.equal(initial.display, 'flex', 'En celular el panel debe apilarse')
+        assert.equal(initial.menuOrder, '0', 'El menú debe estar sobre la fotografía en móvil')
+        assert.equal(initial.featureOrder, '1', 'La fotografía debe quedar bajo las opciones en móvil')
+      } else {
+        assert.equal(initial.display, 'grid', 'En escritorio debe mantenerse el panel de dos columnas')
+      }
+      const palette = await evaluate("(() => {const root=document.documentElement;const wasDark=root.classList.contains('theme-dark');const menu=document.querySelector('#nuestra-estructura .about-refresh__structure-menu');const unselected=menu.querySelectorAll('button')[1];const showcase=document.querySelector('#nuestra-estructura .about-refresh__structure-showcase');root.classList.remove('theme-dark');const light={background:getComputedStyle(unselected).backgroundColor,color:getComputedStyle(unselected).color,surface:getComputedStyle(showcase).backgroundImage};root.classList.add('theme-dark');const dark={background:getComputedStyle(unselected).backgroundColor,color:getComputedStyle(unselected).color,surface:getComputedStyle(showcase).backgroundImage};root.classList.toggle('theme-dark',wasDark);return {light,dark};})()")
+      assert.equal(palette.light.background, 'rgb(255, 255, 255)', 'El modo claro debe usar tarjetas blancas')
+      assert.equal(palette.light.color, 'rgb(34, 42, 55)', 'El modo claro debe usar texto oscuro')
+      assert.equal(palette.dark.color, 'rgb(255, 255, 255)', 'El modo oscuro debe conservar texto blanco')
+      assert.notEqual(palette.dark.surface, palette.light.surface, 'Cada tema debe tener su propio fondo')
+      // Active red option must have WHITE label, icon and arrow even in light mode.
+      const activePalette = await evaluate("(() => {const root=document.documentElement;const previous=root.classList.contains('theme-dark');root.classList.remove('theme-dark');const button=document.querySelector('#nuestra-estructura .about-refresh__structure-choice.is-selected');const result={label:getComputedStyle(button.querySelector('.about-refresh__structure-choice-name')).color,arrow:getComputedStyle(button.querySelector('.about-refresh__structure-choice-arrow')).color,icon:getComputedStyle(button.querySelector('.about-refresh__structure-choice-icon')).color,button:getComputedStyle(button).color};root.classList.toggle('theme-dark',previous);return result;})()")
+      for (const [part,color] of Object.entries(activePalette)) {
+        assert.equal(color,'rgb(255, 255, 255)','El elemento '+part+' de la opción activa debe ser blanco: '+JSON.stringify(activePalette))
+      }
+      await evaluate("document.querySelectorAll('#nuestra-estructura .about-refresh__structure-choice')[2].click(); true")
+      await new Promise(resolve => setTimeout(resolve, 550))
+      const departments = await evaluate("(() => { const root=document.querySelector('#nuestra-estructura'); const grid=root.querySelector('.about-refresh__structure-departments');const feature=root.querySelector('.about-refresh__structure-feature');const fr=feature.getBoundingClientRect(), cr=feature.querySelector('.about-refresh__structure-feature-content').getBoundingClientRect(); return { selected:root.querySelectorAll('.about-refresh__structure-choice[aria-pressed=true]').length===1&&root.querySelectorAll('.about-refresh__structure-choice')[2].getAttribute('aria-pressed')==='true',items:root.querySelectorAll('.about-refresh__structure-department').length,icons:root.querySelectorAll('.about-refresh__structure-department svg').length,gridDisplay:grid&&getComputedStyle(grid).display,columns:grid&&getComputedStyle(grid).gridTemplateColumns.split(' ').length,panel:root.querySelectorAll('.about-refresh__structure-feature').length,heading:feature.querySelector('h3')?.textContent?.trim(),hasMedia:!!feature.querySelector('.about-refresh__structure-photo img,.about-refresh__structure-photo video'),contentTop:Math.round(cr.top-fr.top) }; })()")
+      assert.ok(departments.selected && departments.panel === 1 && departments.items === 5 && departments.icons === 5 && departments.heading && departments.hasMedia,
+        'Deben mostrarse los cinco departamentos con sus iconos: ' + JSON.stringify(departments))
+      assert.equal(departments.gridDisplay,'grid','Los departamentos deben usar su nueva distribución por columnas')
+      assert.equal(departments.columns,width<=1100?2:6,'Tres columnas en escritorio amplio y dos en pantallas estrechas: '+JSON.stringify(departments))
+      assert.ok(departments.contentTop<=75,'El panel de Departamentos debe mantener el contenido arriba')
+      const geometry=await evaluate("(() => {const grid=document.querySelector('#nuestra-estructura .about-refresh__structure-departments');const cards=[...grid.querySelectorAll('.about-refresh__structure-department')];const bounds=cards.map(x=>x.getBoundingClientRect());const container=grid.getBoundingClientRect();return { widths:bounds.map(b=>b.width),tops:bounds.map(b=>b.top),centerDelta:Math.abs((bounds[4].left+bounds[4].right)/2-(container.left+container.right)/2),lastSpan:getComputedStyle(cards[4]).gridColumnStart,pairCenterDelta:Math.abs((bounds[3].left+bounds[4].right)/2-(container.left+container.right)/2),verticalSeparators:cards.some(c=>getComputedStyle(c).borderRightWidth==='1px'&&getComputedStyle(c).borderRightStyle==='solid'&&getComputedStyle(c).borderRightColor==='rgba(255, 255, 255, 0.35)') };})()")
+      assert.ok(Math.max(...geometry.widths)-Math.min(...geometry.widths)<=2,
+        'Los cinco departamentos deben mantener el mismo ancho: '+JSON.stringify(geometry))
+      if (width > 1100) {
+        assert.ok(Math.abs(geometry.tops[0]-geometry.tops[1])<=2 && Math.abs(geometry.tops[1]-geometry.tops[2])<=2,
+          'Los primeros tres departamentos deben compartir una fila: '+JSON.stringify(geometry))
+        assert.ok(Math.abs(geometry.tops[3]-geometry.tops[4])<=2 && geometry.tops[3]>geometry.tops[0],
+          'Los últimos dos departamentos deben compartir la fila inferior: '+JSON.stringify(geometry))
+        assert.ok(geometry.pairCenterDelta<=2,
+          'Los dos departamentos de abajo deben quedar centrados como grupo: '+JSON.stringify(geometry))
+        assert.equal(geometry.lastSpan,'4','La quinta tarjeta debe comenzar en la cuarta columna: '+JSON.stringify(geometry))
+      } else {
+        assert.ok(Math.abs(geometry.tops[0]-geometry.tops[1])<=2 && Math.abs(geometry.tops[2]-geometry.tops[3])<=2,
+          'Los departamentos deben adaptarse a dos columnas en celular: '+JSON.stringify(geometry))
+        assert.ok(geometry.tops[2]>geometry.tops[0] && geometry.tops[4]>geometry.tops[2] && geometry.centerDelta<=2,
+          'El quinto departamento debe quedar centrado debajo de los otros: '+JSON.stringify(geometry))
+        assert.equal(geometry.lastSpan,'1','La quinta tarjeta móvil debe centrarse en la última fila')
+      }
+      assert.equal(geometry.verticalSeparators,false,'No deben quedar divisores verticales anteriores')
+
+      // Future CMS descriptions can be significantly longer than today's names.
+      // Simulate an extended section in-memory without publishing invented copy.
+      const overflowTest=await evaluate("(() => { const feature=document.querySelector('#nuestra-estructura .about-refresh__structure-feature');const cards=[...feature.querySelectorAll('.about-refresh__structure-department')];const summary=feature.querySelector('.about-refresh__structure-description');const longText='Detalle adicional para verificar que el contenido largo se adapte correctamente dentro de cada tarjeta, sin cortar palabras ni reducir su legibilidad. ';summary.textContent += ' '+longText.repeat(5);cards.forEach((card,i)=>{const para=document.createElement('p');para.className='about-refresh__structure-department-detail';para.textContent=longText.repeat(i===0?4:2);card.appendChild(para)});const bounds=cards.map(x=>x.getBoundingClientRect());const grid=feature.querySelector('.about-refresh__structure-departments');const fb=feature.getBoundingClientRect();return {panelHeight:feature.clientHeight,panelScrollHeight:feature.scrollHeight,addedDescriptions:cards.filter(c=>c.querySelector('.about-refresh__structure-department-detail')).length,overflowingCards:cards.filter(c=>c.scrollWidth>c.clientWidth+2||c.scrollHeight>c.clientHeight+2).length,widthDifference:Math.max(...bounds.map(b=>b.width))-Math.min(...bounds.map(b=>b.width)),rowHeightDifference:Math.abs(bounds[0].height-bounds[1].height),gridOverflow:grid.scrollWidth-grid.clientWidth,documentOverflow:document.documentElement.scrollWidth-window.innerWidth,featureOverflow:feature.scrollWidth-feature.clientWidth,featureWidth:fb.width};})()")
+      assert.equal(overflowTest.addedDescriptions,5,'Las cinco tarjetas deben aceptar descripciones adicionales')
+      assert.ok(overflowTest.panelScrollHeight<=overflowTest.panelHeight+2,
+        'Al agregar información, el panel debe aumentar su altura sin cortar el contenido: '+JSON.stringify(overflowTest))
+      assert.ok(overflowTest.overflowingCards===0&&overflowTest.gridOverflow<=2&&overflowTest.featureOverflow<=2&&overflowTest.documentOverflow<=3,
+        'Los textos largos no deben generar recortes ni desbordamiento horizontal: '+JSON.stringify(overflowTest))
+      assert.ok(overflowTest.widthDifference<=2&&overflowTest.rowHeightDifference<=2,
+        'Las tarjetas deben conservar anchos iguales y filas alineadas al crecer: '+JSON.stringify(overflowTest))
+
+      await evaluate("document.querySelectorAll('#nuestra-estructura .about-refresh__structure-choice')[3].click(); true")
+      await new Promise(resolve => setTimeout(resolve, 550))
+      const university = await evaluate("(() => { const root=document.querySelector('#nuestra-estructura');return { selected:root.querySelectorAll('.about-refresh__structure-choice')[3].getAttribute('aria-pressed')==='true',body:root.querySelector('.about-refresh__structure-description')?.textContent?.trim(),deptCount:root.querySelectorAll('.about-refresh__structure-department').length }; })()")
+      assert.ok(university.selected && university.body?.length>35 && university.deptCount===0,
+        'Universidad corporativa debe ser la cuarta opción, con texto independiente: ' + JSON.stringify(university))
     }
-    console.log('PASS Chrome: cinco módulos de estructura y filas centradas en cuatro anchos')
+    console.log('PASS Chrome: Nuestra estructura 4 opciones, texto arriba, departamentos 3+2 centrados, claro/oscuro y responsive')
 
     // Contacto en Home: mantener cinco tarjetas iguales y centrar las
     // filas incompletas sin ensanchar la última tarjeta en móvil.

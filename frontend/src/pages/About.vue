@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Target, Eye, Handshake, Scale, UsersRound, Award, ShieldCheck, Truck, ClipboardCheck, Globe2, Boxes, Ship, ChevronDown } from '@lucide/vue'
+import { Target, Eye, Handshake, Scale, UsersRound, Award, ShieldCheck, Truck, ClipboardCheck, Globe2, Boxes, Ship, ChevronDown, Headset, HardHat, Layers3, GraduationCap, ArrowRight } from '@lucide/vue'
 import IconSymbol from '../components/IconSymbol.vue'
 import SiteMedia from '../components/SiteMedia.vue'
 import SiteHeader from '../components/SiteHeader.vue'
@@ -13,20 +13,72 @@ const values = computed(() => [0, 1, 2, 3, 4].map(index => siteText(`about.value
 const valueIcons = [Handshake, Scale, UsersRound, Award, ShieldCheck]
 const capabilityIcons = [Truck, ClipboardCheck, Globe2, Boxes, Ship]
 const openedValue = ref<number | null>(null)
-const openedStructure = ref<number | null>(null)
-// Preserve the original CMS keys (2–6), so previously published edits remain valid.
-const structureTitles = computed(() => {
-  const titles = locale.value.startsWith('es')
-    ? ['Mesa de ayuda', 'Agente propio en sitio', 'Departamentos', 'Universidad corporativa', 'Enfoque ambiental']
-    : ['Help desk', 'On-site agent', 'Departments', 'Corporate university', 'Environmental approach']
-  return titles.map((title, offset) => ({ index: offset + 2, title }))
-})
+// Keep a single active panel for the four organizational areas.
+// Environmental commitments are intentionally outside this section; keep
+// their old CMS keys in the catalog for a separate future section.
+const selectedStructureIndex = ref(2)
+// Preserve the original CMS keys for the four remaining areas (2–5).
+const structureIcons = [Headset, HardHat, Layers3, GraduationCap]
+const departmentIcons = [Boxes, ClipboardCheck, Scale, UsersRound, Truck]
+const structurePhotos = [
+  '/images/about-operations-enhanced.webp',
+  '/images/warehouse-person.webp',
+  '/images/cover-logistics.webp',
+  '/images/about-operations.webp'
+]
+const structureCopy = computed(() => locale.value.startsWith('es') ? [
+  {
+    title: 'Mesa de ayuda',
+    description: 'Un espacio de atención para orientar consultas y acompañar las necesidades de cada operación logística.'
+  },
+  {
+    title: 'Agente propio en sitio',
+    description: 'Coordinación cercana en sitio para facilitar la comunicación y el seguimiento de las operaciones.'
+  },
+  {
+    title: 'Departamentos',
+    description: 'Conocé las áreas que forman parte de nuestra estructura y contribuyen a la coordinación de cada servicio.'
+  },
+  {
+    title: 'Universidad corporativa',
+    description: 'Un espacio orientado al intercambio de conocimientos y al desarrollo de nuestro equipo.'
+  }
+] : [
+  {
+    title: 'Help desk',
+    description: 'A point of contact for guidance, inquiries, and support with the needs of each logistics operation.'
+  },
+  {
+    title: 'On-site agent',
+    description: 'On-site coordination to help communication and follow-up throughout operations.'
+  },
+  {
+    title: 'Departments',
+    description: 'Explore the areas within our structure that help coordinate our services.'
+  },
+  {
+    title: 'Corporate university',
+    description: 'An initiative focused on knowledge sharing and the development of our team.'
+  }
+])
+const structureTitles = computed(() => structureCopy.value.map((entry, offset) => ({
+  index: offset + 2,
+  title: siteText(`about.structure.${offset + 2}.title`, entry.title, locale.value),
+  description: siteText(`about.structure.${offset + 2}.description`, entry.description, locale.value),
+  photo: structurePhotos[offset],
+  icon: structureIcons[offset]
+})))
+const selectedStructure = computed(() => structureTitles.value.find(item => item.index === selectedStructureIndex.value) ?? structureTitles.value[0])
 const structureDepartments = computed(() => (locale.value.startsWith('es')
   ? ['Consolidadora', 'Pedimentación', 'Contabilidad', 'Servicio al cliente', 'Transporte interno de carga']
   : ['Freight consolidation', 'Customs declaration processing', 'Accounting', 'Customer service', 'Domestic cargo transport']))
-const structureEnvironment = computed(() => locale.value.startsWith('es')
-  ? 'Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.'
-  : 'We seek opportunities to incorporate more responsible practices into our operations.')
+// Optional CMS descriptions: absent until the team publishes approved content.
+// Keep the current compact card layout when they are empty.
+const structureDepartmentDetails = computed(() =>
+  structureDepartments.value.map((_, i) =>
+    siteText(`about.structure.departments.${i}.description`, '', locale.value)
+  )
+)
 const valuesAccordionRef = ref<HTMLElement | null>(null)
 const closeValueOnOutsidePointer = (event: PointerEvent) => {
   if (openedValue.value === null || !(event.target instanceof Node)) return
@@ -225,35 +277,54 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 
       <section id="nuestra-estructura" class="about-refresh__structure section-spacing" aria-labelledby="about-structure-title">
         <div class="container">
-          <div class="about-refresh__section-heading">
-            <div>
-              <p class="about-refresh__eyebrow">{{ locale.startsWith('es') ? 'ORGANIZACIÓN' : 'ORGANIZATION' }}</p>
-              <h2 id="about-structure-title">{{ siteText('about.structure.heading', locale.startsWith('es') ? 'Sobre nuestra estructura' : 'About our structure', locale) }}</h2>
-            </div>
+          <div class="about-refresh__structure-heading">
+            <p class="about-refresh__eyebrow">{{ siteText('about.structure.kicker', locale.startsWith('es') ? 'NUESTRA ORGANIZACIÓN' : 'OUR ORGANIZATION', locale) }}</p>
+            <h2 id="about-structure-title">{{ siteText('about.structure.heading', locale.startsWith('es') ? 'Nuestra estructura' : 'Our structure', locale) }}</h2>
           </div>
-          <div class="about-refresh__accordion about-refresh__structure-grid">
-            <article v-for="item in structureTitles" :key="item.index" class="about-refresh__structure-card"
-               :class="{ 'is-open': openedStructure === item.index }">
-              <h3>
-                <button class="about-refresh__value-trigger about-refresh__structure-trigger" type="button"
-                  :aria-expanded="openedStructure === item.index" :aria-controls="`about-structure-${item.index}`"
-                  @click="openedStructure = openedStructure === item.index ? null : item.index">
-                  <span class="about-refresh__value-text"><strong class="about-refresh__value-name">{{ siteText('about.structure.' + item.index + '.title', item.title, locale) }}</strong></span>
-                  <ChevronDown class="about-refresh__value-chevron" :size="22" aria-hidden="true" />
-                </button>
-              </h3>
-              <div :id="`about-structure-${item.index}`" class="about-refresh__value-panel"
-                :class="{ 'is-open': openedStructure === item.index }" :aria-hidden="openedStructure !== item.index"
-                :inert="openedStructure !== item.index">
-                <div class="about-refresh__value-inner">
-                  <ul v-if="item.index === 4" class="about-refresh__structure-departments">
-                    <li v-for="(department, d) in structureDepartments" :key="d">{{ siteText('about.structure.departments.' + d, department, locale) }}</li>
-                  </ul>
-                  <p v-else-if="item.index === 6">{{ siteText('about.structure.environment', structureEnvironment, locale) }}</p>
-                  <div v-else class="about-refresh__structure-empty" aria-hidden="true"></div>
+
+          <div class="about-refresh__structure-showcase">
+            <Transition name="about-structure-switch" mode="out-in">
+              <article :key="selectedStructure.index" class="about-refresh__structure-feature"
+                :aria-labelledby="`about-structure-selected-${selectedStructure.index}`" id="about-structure-feature" role="region">
+                <div class="about-refresh__structure-photo" aria-hidden="true">
+                  <SiteMedia :slot-key="`about.structure.${selectedStructure.index}.media`"
+                    :fallback="selectedStructure.photo" alt="" />
                 </div>
-              </div>
-            </article>
+                <div class="about-refresh__structure-feature-content">
+                  <div class="about-refresh__structure-feature-icon">
+                    <component :is="selectedStructure.icon" :size="28" :stroke-width="1.8" aria-hidden="true" />
+                  </div>
+                  <h3 :id="`about-structure-selected-${selectedStructure.index}`">{{ selectedStructure.title }}</h3>
+                  <span class="about-refresh__structure-underline" aria-hidden="true"></span>
+                  <p class="about-refresh__structure-description">{{ selectedStructure.description }}</p>
+                  <div v-if="selectedStructure.index === 4" class="about-refresh__structure-departments"
+                    role="list" :aria-label="locale.startsWith('es') ? 'Áreas y departamentos' : 'Areas and departments'">
+                    <div v-for="(department, d) in structureDepartments" :key="d"
+                      class="about-refresh__structure-department" role="listitem">
+                      <component :is="departmentIcons[d]" :size="25" :stroke-width="1.8" aria-hidden="true" />
+                      <span>{{ siteText('about.structure.departments.' + d, department, locale) }}</span>
+                      <p v-if="structureDepartmentDetails[d]" class="about-refresh__structure-department-detail">
+                        {{ structureDepartmentDetails[d] }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            </Transition>
+            <nav class="about-refresh__structure-menu" :aria-label="locale.startsWith('es') ? 'Áreas de nuestra estructura' : 'Our organization areas'">
+              <button v-for="item in structureTitles" :key="item.index"
+                type="button" class="about-refresh__structure-choice"
+                :class="{ 'is-selected': selectedStructureIndex === item.index }"
+                :aria-pressed="selectedStructureIndex === item.index"
+                aria-controls="about-structure-feature"
+                @click="selectedStructureIndex = item.index">
+                <span class="about-refresh__structure-choice-icon">
+                  <component :is="item.icon" :size="25" :stroke-width="1.8" aria-hidden="true" />
+                </span>
+                <span class="about-refresh__structure-choice-name">{{ item.title }}</span>
+                <ArrowRight class="about-refresh__structure-choice-arrow" :size="22" :stroke-width="1.8" aria-hidden="true" />
+              </button>
+            </nav>
           </div>
         </div>
       </section>
@@ -290,23 +361,215 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 </template>
 
 <style scoped>
-.about-refresh__structure{padding-block:clamp(64px,7vw,108px)}
-.about-refresh__structure-card{min-width:0;border:1px solid rgba(37,41,49,.15);border-bottom:3px solid #b40e2d;border-radius:16px;background:#fff;overflow:hidden;transition:box-shadow .25s,border-color .25s}
-.about-refresh__structure-card.is-open{border-color:rgba(176,9,41,.45);box-shadow:0 17px 32px rgba(38,30,33,.08)}
-.about-refresh__structure-card h3{margin:0}
-.about-refresh__structure-card.is-open .about-refresh__value-chevron{transform:rotate(180deg)}
-
-.about-refresh__structure-grid{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;gap:clamp(13px,1.2vw,22px)}
-.about-refresh__structure-grid>.about-refresh__structure-card{box-sizing:border-box;flex:0 0 calc((100% - 4 * clamp(13px,1.2vw,22px))/5)}
-.about-refresh__structure-grid .about-refresh__value-trigger{min-height:112px}
-.about-refresh__structure-departments{margin:0;padding:0 22px 24px 40px;color:var(--about-muted);line-height:1.8;font-size:14px}
-.about-refresh__structure-empty{height:12px}
-@media(max-width:1320px){.about-refresh__structure-grid>.about-refresh__structure-card{flex-basis:calc((100% - 40px)/3)}}
-@media(max-width:950px){.about-refresh__structure-grid>.about-refresh__structure-card{flex-basis:calc((100% - 20px)/2)}}
-@media(max-width:650px){.about-refresh__structure-grid>.about-refresh__structure-card{flex-basis:100%}}
-html.theme-dark .about-refresh__structure{background:#171b23}
-html.theme-dark .about-refresh__structure-card{background:#111b31;border-color:rgba(255,255,255,.23)}
-html.theme-dark .about-refresh__structure-card.is-open{border-color:#f07189}
+/* Corporate structure redesign: editorial photo panel + five accessible options.
+   Existing CMS IDs 2–6 are preserved, and each photo is independently editable. */
+.about-refresh__structure {
+  padding-block: clamp(68px, 7.5vw, 116px);
+  background: radial-gradient(ellipse at 0% 30%, rgba(167,16,53,.09), transparent 44%),
+              linear-gradient(115deg, #f9f6f7, #f4f6fb);
+}
+.about-refresh__structure-heading {
+  width:100%;
+  margin:0 0 clamp(30px,3.8vw,56px);
+  text-align:left;
+}
+.about-refresh__structure-heading h2 {
+  margin:0;
+  text-align:left;
+  font-size:clamp(36px,5vw,62px);
+  line-height:1.05;
+  letter-spacing:-.05em;
+}
+.about-refresh__structure-heading .about-refresh__eyebrow {
+  margin:0 0 16px;
+  text-align:left;
+}
+.about-refresh__structure-showcase {
+  display:grid;grid-template-columns:minmax(0,1.8fr) minmax(300px,1fr);
+  gap:clamp(14px,1.7vw,28px);padding:clamp(12px,1.55vw,24px);
+  min-height:clamp(430px,38vw,580px);
+  border:1px solid #e5d9df;border-radius:26px;
+  background:linear-gradient(135deg,#fff,#fff8fa 67%,#f8edf1);
+  box-shadow:0 18px 43px rgba(46,32,41,.10);
+  overflow:hidden;
+}
+.about-refresh__structure-feature {
+  position:relative;isolation:isolate;display:flex;align-items:flex-start;
+  min-width:0;min-height:430px;border-radius:18px;overflow:hidden;background:#15263d;color:#fff;
+}
+.about-refresh__structure-photo {position:absolute;inset:0;z-index:-2;background:#182438}
+.about-refresh__structure-photo :deep(img),
+.about-refresh__structure-photo :deep(video) {
+  display:block;width:100%;height:100%;object-fit:cover;
+}
+.about-refresh__structure-feature::after {
+  position:absolute;inset:0;z-index:-1;content:"";pointer-events:none;
+  background:linear-gradient(90deg,rgba(4,12,28,.89) 0%,rgba(6,15,30,.59) 53%,rgba(5,11,25,.10) 100%),
+             linear-gradient(180deg,rgba(3,9,23,.45),transparent 74%);
+}
+.about-refresh__structure-feature-content {
+  position:relative;width:100%;max-width:100%;padding:clamp(25px,3.2vw,46px);
+  text-shadow:0 1px 12px rgba(0,0,0,.35);
+}
+.about-refresh__structure-feature-icon {
+  display:grid;place-items:center;width:61px;height:61px;
+  margin-bottom:19px;border-radius:15px;background:linear-gradient(135deg,#c90735,#860e2c);
+  color:#fff;box-shadow:0 9px 26px rgba(56,0,15,.2);
+}
+.about-refresh__structure-feature h3 {
+  margin:0;color:#fff;font-size:clamp(29px,3.3vw,48px);line-height:1.08;letter-spacing:-.04em;
+}
+.about-refresh__structure-underline {display:block;width:66px;height:3px;margin:18px 0;background:#e51b47;border-radius:3px}
+.about-refresh__structure-description {
+  max-width:480px;margin:0;color:#f5f7fa;font-size:clamp(14px,1.22vw,17px);line-height:1.68;
+}
+/* Compact 3 + 2 organization: equal-size cards across the photo,
+   with the second row centered. Six tracks let each card span exactly two
+   tracks while placing the last pair symmetrically (2–4 and 4–6). */
+.about-refresh__structure-departments {
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:12px;
+  width:100%;
+  margin-top:clamp(22px,2.5vw,32px);
+}
+.about-refresh__structure-department {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  min-width:0;
+  min-height:90px;
+  padding:12px 10px;
+  border:1px solid rgba(255,255,255,.27);
+  border-radius:13px;
+  background:rgba(6,17,37,.52);
+  color:#fff;
+  text-align:center;
+  font-size:clamp(11px,1vw,13px);
+  font-weight:650;
+  line-height:1.38;
+  overflow-wrap:break-word;
+  grid-column:span 2;
+  height:auto;
+}
+.about-refresh__structure-department-detail {
+  margin:0;
+  max-width:100%;
+  color:#f0f3f8;
+  font-size:clamp(11px,.85vw,13px);
+  font-weight:450;
+  line-height:1.48;
+  white-space:pre-line;
+  overflow-wrap:anywhere;
+}
+.about-refresh__structure-department:nth-child(4) {grid-column:2 / span 2}
+.about-refresh__structure-department:nth-child(5) {grid-column:4 / span 2}
+.about-refresh__structure-department :deep(svg) {color:#fc345c;flex:none}
+.about-refresh__structure-department span {overflow-wrap:anywhere}
+.about-refresh__structure-menu {display:flex;flex-direction:column;justify-content:center;gap:12px;min-width:0}
+.about-refresh__structure-choice {
+  display:flex;align-items:center;gap:clamp(12px,1.35vw,20px);
+  width:100%;min-height:75px;padding:16px clamp(14px,1.6vw,25px);
+  border:1px solid #e3d5dc;border-radius:17px;
+  background:#fff;color:#222a37;text-align:left;
+  font-family:inherit;cursor:pointer;transition:background .22s,border-color .22s,transform .22s,box-shadow .22s;
+}
+.about-refresh__structure-choice:hover {background:#fff0f3;border-color:rgba(176,9,41,.45);transform:translateX(-2px)}
+.about-refresh__structure-choice.is-selected {
+  background:linear-gradient(110deg,#c90b34,#880c2c);
+  border-color:#f04466;
+  color:#fff !important;
+  box-shadow:0 8px 23px rgba(171,2,42,.26);
+}
+/* Global button/link styles must not turn the active text or arrow dark
+   when the page uses its light theme. */
+.about-refresh__structure-choice.is-selected .about-refresh__structure-choice-name,
+.about-refresh__structure-choice.is-selected .about-refresh__structure-choice-arrow,
+.about-refresh__structure-choice.is-selected .about-refresh__structure-choice-icon {
+  color:#fff !important;
+}
+.about-refresh__structure-choice-icon {display:flex;align-items:center;justify-content:center;flex:0 0 30px;color:#ad1030}
+.about-refresh__structure-choice.is-selected .about-refresh__structure-choice-icon {color:#fff}
+.about-refresh__structure-choice-name {min-width:0;flex:1;font-size:clamp(14px,1.15vw,18px);font-weight:750;line-height:1.25}
+.about-refresh__structure-choice-arrow {flex:0 0 auto;transition:transform .22s}
+.about-refresh__structure-choice:hover .about-refresh__structure-choice-arrow,
+.about-refresh__structure-choice.is-selected .about-refresh__structure-choice-arrow {transform:translateX(4px)}
+.about-refresh__structure-choice:focus-visible {outline:3px solid #ff7897;outline-offset:3px}
+.about-structure-switch-enter-active,.about-structure-switch-leave-active {transition:opacity .2s ease,transform .2s ease}
+.about-structure-switch-enter-from {opacity:0;transform:translateY(8px)}
+.about-structure-switch-leave-to {opacity:0;transform:translateY(-8px)}
+html.theme-dark .about-refresh__structure {
+  background:radial-gradient(ellipse at 0% 20%,rgba(133,22,50,.22),transparent 46%),
+             linear-gradient(115deg,#15131e,#080f23);
+}
+html.theme-dark .about-refresh__structure-showcase {
+  background:linear-gradient(135deg,#0c152a,#101a33 65%,#2b1025);
+  border-color:rgba(130,144,167,.26);
+  box-shadow:0 26px 62px rgba(0,0,0,.22);
+}
+html.theme-dark .about-refresh__structure-choice {
+  background:rgba(13,23,43,.84);color:#fff;
+  border-color:rgba(222,230,242,.36);
+}
+html.theme-dark .about-refresh__structure-choice:hover {background:#233450;border-color:rgba(255,255,255,.65)}
+html.theme-dark .about-refresh__structure-choice.is-selected {
+  background:linear-gradient(110deg,#c90b34,#880c2c);border-color:#f04466;
+}
+html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
+/* As the photo panel narrows, prefer readable two-column cards; the names
+   and future descriptions always determine their natural height. */
+@media(max-width:1100px){
+  .about-refresh__structure-departments {grid-template-columns:repeat(2,minmax(0,1fr))}
+  .about-refresh__structure-department {grid-column:auto}
+  .about-refresh__structure-department:nth-child(4) {grid-column:auto}
+  .about-refresh__structure-department:nth-child(5) {
+    grid-column:1 / -1;
+    width:calc((100% - 12px) / 2);
+    justify-self:center;
+  }
+}
+@media(max-width:1000px){
+  .about-refresh__structure-showcase {grid-template-columns:minmax(0,1.4fr) minmax(240px,1fr);min-height:0}
+  .about-refresh__structure-choice {min-height:70px}
+  .about-refresh__structure-feature {min-height:465px}
+  .about-refresh__structure-department {font-size:12px}
+}
+@media(max-width:760px){
+  .about-refresh__structure-showcase {display:flex;flex-direction:column;padding:13px;border-radius:21px}
+  .about-refresh__structure-menu {order:0;gap:9px}
+  .about-refresh__structure-feature {order:1;min-height:360px}
+  .about-refresh__structure-choice {min-height:55px;padding:12px 16px;border-radius:13px}
+  .about-refresh__structure-choice-icon {flex-basis:25px}
+  .about-refresh__structure-choice-name {font-size:15px}
+  .about-refresh__structure-feature-content {padding:29px 23px}
+  /* On phones retain two readable columns; center the fifth card. */
+  .about-refresh__structure-departments {grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:20px}
+  .about-refresh__structure-department {grid-column:auto;min-height:86px;padding:12px 8px}
+  .about-refresh__structure-department:nth-child(4) {grid-column:auto}
+  .about-refresh__structure-department:nth-child(5) {
+    grid-column:1 / -1;
+    width:calc((100% - 10px) / 2);
+    justify-self:center;
+  }
+}
+@media(max-width:480px){
+  .about-refresh__structure {padding-block:55px 66px}
+  .about-refresh__structure-heading h2 {font-size:clamp(32px,9vw,43px)}
+  .about-refresh__structure-showcase {padding:9px;gap:10px}
+  .about-refresh__structure-feature {min-height:380px}
+  .about-refresh__structure-feature-content {padding:24px 19px}
+  .about-refresh__structure-feature h3 {font-size:29px}
+  .about-refresh__structure-feature::after {background:linear-gradient(90deg,rgba(4,12,28,.90),rgba(5,12,29,.48)),linear-gradient(180deg,rgba(3,9,23,.49),transparent 85%)}
+  .about-refresh__structure-choice-name {font-size:14px}
+  .about-refresh__structure-choice {min-height:51px}
+  .about-refresh__structure-department {font-size:11px;gap:7px}
+}
+@media(prefers-reduced-motion:reduce) {
+  .about-refresh__structure-choice,.about-refresh__structure-choice-arrow,
+  .about-structure-switch-enter-active,.about-structure-switch-leave-active {transition:none!important}
+}
 
 .about-refresh{--about-red:#b00929;--about-ink:#20242d;--about-muted:#545b67;--about-soft:#faf4f5;color:var(--about-ink)}
 .about-refresh .about-refresh__hero{min-height:clamp(330px,34vw,490px)}

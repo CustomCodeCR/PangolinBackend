@@ -1008,19 +1008,66 @@ addMedia('home','Inicio','home.services.panama.media','Transporte Panamá–Cost
 
 const structureTitles: Array<[string,string]> = [
   ['Mesa de ayuda','Help desk'],['Agente propio en sitio','On-site agent'],
-  ['Departamentos','Departments'],['Universidad corporativa','Corporate university'],
-  ['Enfoque ambiental','Environmental approach']
+  ['Departamentos','Departments'],['Universidad corporativa','Corporate university']
 ]
-addText('about','Sobre nosotros','about.structure.heading','Sobre nuestra estructura','Título','Sobre nuestra estructura','About our structure')
-// Keep the original CMS indices 2–6; the two retired cards are not editable or rendered.
-structureTitles.forEach(([es,en],i)=>addText('about','Sobre nosotros','about.structure.'+(i+2)+'.title','Sobre nuestra estructura','Elemento '+(i+1)+': título',es,en))
+addText('about','Sobre nosotros','about.structure.kicker','Nuestra estructura','Antetítulo rojo','NUESTRA ORGANIZACIÓN','OUR ORGANIZATION')
+addText('about','Sobre nosotros','about.structure.heading','Nuestra estructura','Título','Nuestra estructura','Our structure')
+// Structure now has four visible organizational areas (2–5). Retain the
+// historical environmental CMS keys (6) separately for its future section.
+structureTitles.forEach(([es,en],i)=>addText('about','Sobre nosotros','about.structure.'+(i+2)+'.title','Nuestra estructura','Elemento '+(i+1)+': título',es,en))
+const structureDescriptions: Array<[string,string]> = [
+  ['Un espacio de atención para orientar consultas y acompañar las necesidades de cada operación logística.',
+   'A point of contact for guidance, inquiries, and support with the needs of each logistics operation.'],
+  ['Coordinación cercana en sitio para facilitar la comunicación y el seguimiento de las operaciones.',
+   'On-site coordination to help communication and follow-up throughout operations.'],
+  ['Conocé las áreas que forman parte de nuestra estructura y contribuyen a la coordinación de cada servicio.',
+   'Explore the areas within our structure that help coordinate our services.'],
+  ['Un espacio orientado al intercambio de conocimientos y al desarrollo de nuestro equipo.',
+   'An initiative focused on knowledge sharing and the development of our team.']
+]
+const structurePhotos = [
+  '/images/about-operations-enhanced.webp',
+  '/images/warehouse-person.webp',
+  '/images/cover-logistics.webp',
+  '/images/about-operations.webp'
+]
+structureDescriptions.forEach(([es,en],i)=>{
+  addText('about','Sobre nosotros','about.structure.'+(i+2)+'.description',
+    'Nuestra estructura','Elemento '+(i+1)+': descripción',es,en)
+  addMedia('about','Sobre nosotros','about.structure.'+(i+2)+'.media',
+    'Nuestra estructura','Elemento '+(i+1)+': fotografía',structurePhotos[i])
+})
+// Preserve the retired environmental menu item's CMS records without losing
+// previously published titles, text or media. They can be reused when an
+// independent Environmental Approach section is designed and approved.
+addText('about','Sobre nosotros','about.structure.6.title','Enfoque ambiental (pendiente)','Título',
+  'Enfoque ambiental','Environmental approach')
+addText('about','Sobre nosotros','about.structure.6.description','Enfoque ambiental (pendiente)','Descripción',
+  'Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.',
+  'We seek opportunities to incorporate more responsible practices into our operations.')
+addMedia('about','Sobre nosotros','about.structure.6.media','Enfoque ambiental (pendiente)','Fotografía','/images/services-warehouse.webp')
 const departments: Array<[string,string]> = [
   ['Consolidadora','Freight consolidation'],['Pedimentación','Customs declaration processing'],
   ['Contabilidad','Accounting'],['Servicio al cliente','Customer service'],
   ['Transporte interno de carga','Domestic cargo transport']
 ]
-departments.forEach(([es,en],i)=>addText('about','Sobre nosotros','about.structure.departments.'+i,'Sobre nuestra estructura','Departamento '+(i+1),es,en))
-addText('about','Sobre nosotros','about.structure.environment','Sobre nuestra estructura','Texto de enfoque ambiental',
+departments.forEach(([es,en],i)=>{
+  addText('about','Sobre nosotros','about.structure.departments.'+i,'Nuestra estructura','Departamento '+(i+1)+': nombre',es,en)
+  // Optional, initially empty. No placeholder facts are published.
+  additional.push({
+    page:'about',
+    pageLabel:'Sobre nosotros',
+    key:'about.structure.departments.'+i+'.description',
+    section:'Nuestra estructura',
+    type:'text',
+    label:'Departamento '+(i+1)+': descripción opcional',
+    help:'Se muestra debajo del nombre solo si se publica texto. La tarjeta aumenta su altura automáticamente.',
+    fallback:'',
+    originalEs:'',
+    originalEn:''
+  })
+})
+addText('about','Sobre nosotros','about.structure.environment','Enfoque ambiental (pendiente)','Texto ambiental publicado',
   'Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.',
   'We seek opportunities to incorporate more responsible practices into our operations.')
 
