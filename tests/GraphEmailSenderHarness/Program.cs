@@ -99,6 +99,40 @@ var htmlHandler = new FakeHandler(async (request, ct) =>
 await Mailer(htmlHandler).SendAsync(recipient, subject, body, CancellationToken.None, htmlFixture);
 Assert(htmlCalls == 2, "HTML case must send OAuth + Graph request.");
 
+// Inline images: Graph must receive both MIME Content-IDs as file attachments.
+Assert(OtpEmailAssets.Images.Count == 2, "Missing corporate graphics.");
+Assert(OtpEmailAssets.Images[0].Content.AsSpan(0, 8)
+    .SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }), "G graphic is not PNG.");
+Assert(OtpEmailAssets.Images[1].Content[0] == 0xff &&
+       OtpEmailAssets.Images[1].Content[1] == 0xd8, "Globe graphic is not JPEG.");
+var inlineCalls = 0;
+var inlineHandler = new FakeHandler(async (request, ct) =>
+{
+    inlineCalls++;
+    if (request.RequestUri!.Host == "login.microsoftonline.com") return AccessToken();
+    using var payload = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
+    var message = payload.RootElement.GetProperty("message");
+    Assert(message.GetProperty("body").GetProperty("contentType").GetString() == "HTML",
+        "Inline email must be HTML.");
+    var resources = message.GetProperty("attachments");
+    Assert(resources.GetArrayLength() == 2, "Two inline image attachments expected.");
+    foreach (var attachment in resources.EnumerateArray())
+    {
+        Assert(attachment.GetProperty("@odata.type").GetString() == "#microsoft.graph.fileAttachment",
+            "Invalid Graph inline image attachment type.");
+        Assert(attachment.GetProperty("isInline").GetBoolean(), "Graphic must be inline.");
+        var contentId = attachment.GetProperty("contentId").GetString();
+        Assert(contentId is OtpEmailAssets.LogoCid or OtpEmailAssets.GlobeCid,
+            "Unknown inline image CID.");
+        Assert(Convert.FromBase64String(attachment.GetProperty("contentBytes").GetString()!).Length > 100,
+            "Missing embedded graphic data.");
+    }
+    return new HttpResponseMessage(HttpStatusCode.Accepted);
+});
+await Mailer(inlineHandler).SendAsync(recipient, subject, body, CancellationToken.None,
+    htmlFixture, OtpEmailAssets.Images);
+Assert(inlineCalls == 2, "Graph inline image test did not reach sendMail.");
+
 // Token rejection: no sendMail call must follow a failed OAuth request.
 var oauthCalls = 0;
 var tokenDenied = new FakeHandler((req, ct) =>
