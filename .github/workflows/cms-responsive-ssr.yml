@@ -30,7 +30,7 @@ jobs:
         run: python3 scripts/test-cms-webp-compose.py
       - name: Install isolated Nuxt dependencies
         working-directory: frontend/nuxt
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Build opt-in Nuxt SSR (never deploy)
         working-directory: frontend/nuxt
         env:
