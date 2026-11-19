@@ -19,6 +19,9 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
         working-directory: frontend
+      - name: Diagnosticar handshake SignalR con gateway simulado y sin secretos
+        run: node scripts/test-signalr-gateway-fixture.cjs
+        working-directory: frontend
       - name: Verificar srcset CMS, opt-in y fallback sin acceso a almacenamiento
         run: npm run test:cms-responsive
         working-directory: frontend
