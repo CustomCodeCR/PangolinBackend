@@ -17,7 +17,7 @@ $files = @(
     '-f', 'compose.nuxt-local-hybrid.yaml',
     '-f', 'compose.main2-hybrid.yaml'
 )
-$keys = @('FRONTEND_HOST_PORT', 'FRONTEND_BIND_IP', 'NUXT_LOCAL_GATEWAY_BIND_IP', 'NUXT_LOCAL_GATEWAY_PORT', 'NUXT_MAIN2_PORT')
+$keys = @('FRONTEND_HOST_PORT', 'FRONTEND_BIND_IP', 'NUXT_LOCAL_GATEWAY_BIND_IP', 'NUXT_LOCAL_GATEWAY_PORT', 'NUXT_MAIN2_PORT', 'EMAIL_LOGIN_URL')
 $original = @{}
 foreach ($key in $keys) {
     $item = Get-Item -Path "Env:$key" -ErrorAction SilentlyContinue
@@ -114,6 +114,8 @@ try {
     $env:NUXT_LOCAL_GATEWAY_BIND_IP = $BindIp
     $env:NUXT_LOCAL_GATEWAY_PORT = '8083'
     $env:NUXT_MAIN2_PORT = '5173'
+    # Keep the OTP email button on this exact local Docker origin.
+    $env:EMAIL_LOGIN_URL = "http://$($BindIp):5173/bienvenidos"
 
     # LOCAL HYBRID ONLY: when the developer has configured a Dhole API key,
     # use the local Compose overlay for quotes, GIO and itineraries.
