@@ -14,6 +14,11 @@ Assert(html.Contains("lang=\"es\"", StringComparison.Ordinal), "Spanish locale m
 Assert(html.Contains("Tu código de acceso", StringComparison.Ordinal), "Header missing.");
 Assert(html.Contains("5 minutos", StringComparison.Ordinal), "Expiry notice missing.");
 Assert(html.Contains("Iniciar sesión", StringComparison.Ordinal), "Login action missing.");
+Assert(html.Contains("src=\"cid:cf-otp-logo\"", StringComparison.Ordinal), "Red G logo CID missing.");
+Assert(html.Contains("src=\"cid:cf-otp-globe\"", StringComparison.Ordinal), "Decorative globe CID missing.");
+Assert(!html.Contains("favicon.png", StringComparison.Ordinal), "Old square logo must not be loaded.");
+Assert(!html.Contains("https://www.logisticacastrofallas.com/images/", StringComparison.Ordinal),
+    "Email must not depend on remote image hosting.");
 Assert(html.Contains("https://www.logisticacastrofallas.com/bienvenidos", StringComparison.Ordinal),
     "Login URL mismatch.");
 Assert(!html.Contains("https://www.logisticacastrofallas.com/bienvenidos?", StringComparison.Ordinal),
