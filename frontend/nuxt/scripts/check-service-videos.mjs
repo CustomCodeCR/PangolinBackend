@@ -49,4 +49,12 @@ for (const [route, video] of [
   assert.ok(landing.includes("'/videos/" + video + "'"), 'Falta el video ' + video)
 }
 assert.ok(landing.includes("return '/videos/service-maritime.mp4'"), 'Falta video marítimo predeterminado')
+// El hero ocupa todo el viewport: el sizes genérico de 800px provocaba
+// que el navegador escogiera una variante CMS demasiado pequeña al activar
+// VITE_CMS_RESPONSIVE_WEBP_ENABLED. No altera imágenes estáticas ni CSS.
+assert.ok(landing.includes('<SiteMedia :slot-key="serviceHeroKey" :fallback="details.image" :alt="details.imageAlt" priority sizes="100vw" />'),
+  'La portada de Servicios debe declarar su ancho real para escoger la variante CMS más nítida')
+assert.ok(landing.includes('<SiteMedia :slot-key="serviceHeroKey" :fallback="details.image" :alt="details.imageAlt" sizes="(max-width: 900px) 100vw, 60vw" />'),
+  'La imagen secundaria de Servicios debe declarar ancho responsive congruente con su distribución')
+
 console.log('Videos de servicios: 4 MP4 publicados en Nuxt y panel izquierdo configurado correctamente.')
