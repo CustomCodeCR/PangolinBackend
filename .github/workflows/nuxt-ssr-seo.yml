@@ -60,6 +60,9 @@ jobs:
       - name: Install Nuxt dependencies
         run: npm install --no-audit --no-fund
         working-directory: frontend/nuxt
+      - name: Record exact Nuxt dependencies installed on Ubuntu
+        run: node scripts/report-build-deps.mjs
+        working-directory: frontend/nuxt
       - name: Validate SEO contracts
         run: npm run check
         working-directory: frontend/nuxt
@@ -219,3 +222,13 @@ jobs:
           docker compose -f deploy/docker-compose.images.yml config --services | grep -qx seo-gateway
           python3 scripts/test-main2-hybrid-compose.py --runtime
           bash -n scripts/start-main2-hybrid.sh
+      - name: Retain Nuxt dependency graph for intermittent Alpine regressions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuxt-dependency-graph
+          path: |
+            frontend/nuxt/package-lock.json
+            frontend/nuxt/.build-diagnostics/nuxt-deps.json
+          if-no-files-found: warn
+          retention-days: 14
