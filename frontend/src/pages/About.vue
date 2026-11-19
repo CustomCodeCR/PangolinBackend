@@ -357,10 +357,13 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
         <div class="container">
           <div class="about-refresh__environment-card">
             <div class="about-refresh__environment-media">
-              <SiteMedia slot-key="about.structure.6.media"
-                fallback="/images/about-operations-enhanced.webp"
-                :alt="locale.startsWith('es') ? 'Operaciones logísticas de Castro Fallas' : 'Castro Fallas logistics operations'"
+              <SiteMedia slot-key="about.environment.media"
+                fallback="/images/environmental-concept.webp"
+                :alt="locale.startsWith('es') ? 'Ilustración conceptual de un centro logístico con árboles y camiones' : 'Conceptual illustration of a logistics center with trees and trucks'"
                 sizes="(max-width: 820px) 100vw, 48vw" />
+              <span class="about-refresh__environment-media-note">
+                {{ locale.startsWith('es') ? 'Imagen ilustrativa' : 'Illustrative image' }}
+              </span>
             </div>
             <div class="about-refresh__environment-content">
               <p class="about-refresh__eyebrow">{{ siteText('about.environment.kicker',
@@ -665,8 +668,8 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
 /* Independent environmental section — light, editorial two-column layout.
    The content grows naturally when additional CMS text is published. */
 .about-refresh__environment {
-  padding-top:clamp(12px,1.6vw,22px);
-  padding-bottom:clamp(18px,2.3vw,34px);
+  padding-top:clamp(8px,1.2vw,18px);
+  padding-bottom:clamp(12px,1.7vw,26px);
   scroll-margin-top:85px;
   background:linear-gradient(140deg,#f9f5f6,#fff 55%,#fcf2f5);
 }
@@ -674,35 +677,51 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
   display:grid;
   grid-template-columns:minmax(0,1fr) minmax(0,1fr);
   align-items:stretch;
-  gap:clamp(18px,2vw,36px);
-  padding:clamp(14px,1.35vw,24px);
+  gap:clamp(20px,2.4vw,44px);
+  padding:clamp(14px,1.4vw,26px);
   border:1px solid #e7dce2;
   border-radius:clamp(22px,2.2vw,32px);
   background:linear-gradient(120deg,#fff,#fffafc);
   box-shadow:0 20px 52px rgba(42,25,39,.08);
 }
 .about-refresh__environment-media {
+  position:relative;
   min-width:0;
-  min-height:clamp(360px,30vw,500px);
+  min-height:0;
+  aspect-ratio:855/494;
   overflow:hidden;
   border-radius:clamp(16px,1.3vw,22px);
   background:#e8eceb;
 }
 .about-refresh__environment-media :deep(img),
 .about-refresh__environment-media :deep(video) {
+  position:absolute;
+  inset:0;
   display:block;
   width:100%;
   height:100%;
-  min-height:inherit;
   object-fit:cover;
+}
+.about-refresh__environment-media-note {
+  position:absolute;
+  left:14px;
+  bottom:12px;
+  z-index:1;
+  padding:5px 9px;
+  border-radius:8px;
+  color:#fff;
+  background:rgba(4,16,30,.62);
+  font-size:11px;
+  font-weight:650;
+  letter-spacing:.01em;
 }
 .about-refresh__environment-content {
   display:flex;
   flex-direction:column;
   align-items:flex-start;
-  justify-content:center;
+  justify-content:flex-start;
   min-width:0;
-  padding:clamp(12px,1.35vw,24px) clamp(4px,.9vw,14px);
+  padding:clamp(15px,1.85vw,34px) clamp(4px,.9vw,14px);
 }
 .about-refresh__environment-content .about-refresh__eyebrow {
   margin-bottom:14px;
@@ -714,7 +733,7 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
   margin:0;
   max-width:680px;
   color:var(--about-ink);
-  font-size:clamp(31px,3.05vw,50px);
+  font-size:clamp(29px,2.8vw,49px);
   line-height:1.09;
   letter-spacing:-.045em;
   overflow-wrap:break-word;
@@ -723,7 +742,7 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
   display:block;
   width:68px;
   height:4px;
-  margin:18px 0 23px;
+  margin:17px 0 23px;
   border-radius:4px;
   background:#b00929;
 }
@@ -742,7 +761,7 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
   align-items:start;
   width:100%;
   margin-top:auto;
-  padding-top:clamp(22px,2.6vw,42px);
+  padding-top:clamp(24px,2.8vw,46px);
 }
 .about-refresh__environment-pillar {
   display:flex;
@@ -788,7 +807,7 @@ html.theme-dark .about-refresh__environment-pillar svg {color:#ff8298}
 }
 @media (max-width:820px) {
   .about-refresh__environment-card {grid-template-columns:1fr;gap:20px}
-  .about-refresh__environment-media {min-height:320px;height:clamp(320px,47vw,420px)}
+  .about-refresh__environment-media {aspect-ratio:855/494;min-height:0;height:auto}
   .about-refresh__environment-content {padding:16px 12px 22px}
   .about-refresh__environment-content h2 {font-size:clamp(32px,5.5vw,46px)}
   .about-refresh__environment-pillars {padding-top:34px}
@@ -797,7 +816,7 @@ html.theme-dark .about-refresh__environment-pillar svg {color:#ff8298}
 @media (max-width:540px) {
   .about-refresh__environment {padding-block:12px 24px}
   .about-refresh__environment-card {padding:11px;border-radius:22px;gap:11px}
-  .about-refresh__environment-media {height:240px;min-height:240px;border-radius:15px}
+  .about-refresh__environment-media {aspect-ratio:855/494;height:auto;min-height:0;border-radius:15px}
   .about-refresh__environment-content {padding:14px 12px 15px}
   .about-refresh__environment-content h2 {font-size:clamp(30px,8vw,39px)}
   .about-refresh__environment-description {font-size:15px}
@@ -814,7 +833,7 @@ html.theme-dark .about-refresh__environment-pillar svg {color:#ff8298}
   html.theme-dark .about-refresh__environment-pillar:not(:first-child) {border-top-color:rgba(255,255,255,.25)}
 }
 .about-refresh__environment + .about-refresh__services {
-  padding-top:clamp(28px,3.3vw,52px);
+  padding-top:clamp(20px,2.4vw,38px);
 }
 .about-refresh__services{padding-block:clamp(92px,10vw,160px)}
 .about-refresh__capabilities{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(18px,2.3vw,36px)}
