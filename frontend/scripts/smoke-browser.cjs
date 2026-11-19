@@ -481,7 +481,7 @@ async function assertServicesTheme(chrome, url) {
       assert.ok(departments.selected && departments.panel === 1 && departments.items === 5 && departments.icons === 5 && departments.heading && departments.hasMedia,
         'Deben mostrarse los cinco departamentos con sus iconos: ' + JSON.stringify(departments))
       assert.equal(departments.gridDisplay,'grid','Los departamentos deben usar su nueva distribución por columnas')
-      assert.equal(departments.columns,width<=760?2:3,'La distribución debe ser responsive: '+JSON.stringify(departments))
+      assert.equal(departments.columns,2,'Departamentos siempre debe tener dos columnas para lograr 2+2+1: '+JSON.stringify(departments))
       assert.ok(departments.contentTop<=75,'El panel de Departamentos debe mantener el contenido arriba')
       const geometry=await evaluate("(() => {const grid=document.querySelector('#nuestra-estructura .about-refresh__structure-departments');const cards=[...grid.querySelectorAll('.about-refresh__structure-department')];const bounds=cards.map(x=>x.getBoundingClientRect());const container=grid.getBoundingClientRect();return { widths:bounds.map(b=>b.width),tops:bounds.map(b=>b.top),centerDelta:Math.abs((bounds[4].left+bounds[4].right)/2-(container.left+container.right)/2),lastSpan:getComputedStyle(cards[4]).gridColumnStart,verticalSeparators:cards.some(c=>getComputedStyle(c).borderRightWidth==='1px'&&getComputedStyle(c).borderRightStyle==='solid'&&getComputedStyle(c).borderRightColor==='rgba(255, 255, 255, 0.35)') };})()")
       assert.ok(Math.max(...geometry.widths)-Math.min(...geometry.widths)<=2,
