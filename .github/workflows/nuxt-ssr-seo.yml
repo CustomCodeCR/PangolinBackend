@@ -157,6 +157,28 @@ jobs:
             --add-host frontend-nuxt:127.0.0.1 \
             -v "$PWD/deploy/nuxt-hybrid-gateway.conf:/etc/nginx/conf.d/default.conf:ro" \
             nginx:1.27-alpine nginx -t
+      - name: Verify /home and /home/ point to the HTTPS canonical URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name cf-seo-canonical-redirect \
+            --add-host frontend:127.0.0.1 \
+            --add-host frontend-nuxt:127.0.0.1 \
+            -p 127.0.0.1:18092:80 \
+            -v "$PWD/deploy/nuxt-hybrid-gateway.conf:/etc/nginx/conf.d/default.conf:ro" \
+            nginx:1.27-alpine
+          trap 'docker rm -f cf-seo-canonical-redirect >/dev/null 2>&1 || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --silent --output /dev/null --max-time 2 http://127.0.0.1:18092/home; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" = 1
+          for route in /home /home/; do
+            headers="$(curl --silent --show-error --max-time 5 --dump-header - --output /dev/null "http://127.0.0.1:18092$route" | tr -d '\r')"
+            grep -Eq '^HTTP/[0-9.]+ 301 ' <<< "$headers"
+            grep -Fqi 'Location: https://www.logisticacastrofallas.com/' <<< "$headers"
+          done
       - name: Guard Fennec apex from Pangolin host redirects
         shell: bash
         run: |
