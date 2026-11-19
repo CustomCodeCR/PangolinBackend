@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Target, Eye, Handshake, Scale, UsersRound, Award, ShieldCheck, Truck, ClipboardCheck, Globe2, Boxes, Ship, ChevronDown, Headset, HardHat, Layers3, GraduationCap, ArrowRight } from '@lucide/vue'
+import { Target, Eye, Handshake, Scale, UsersRound, Award, ShieldCheck, Truck, ClipboardCheck, Globe2, Boxes, Ship, ChevronDown, Headset, HardHat, Layers3, GraduationCap, ArrowRight, Leaf, Recycle, Sprout } from '@lucide/vue'
 import IconSymbol from '../components/IconSymbol.vue'
 import SiteMedia from '../components/SiteMedia.vue'
 import SiteHeader from '../components/SiteHeader.vue'
@@ -79,6 +79,28 @@ const structureDepartmentDetails = computed(() =>
     siteText(`about.structure.departments.${i}.description`, '', locale.value)
   )
 )
+const environmentPillars = computed(() => locale.value.startsWith('es')
+  ? [
+      { icon: Leaf, title: 'Operaciones más responsables' },
+      { icon: Recycle, title: 'Gestión eficiente de recursos' },
+      { icon: Sprout, title: 'Cuidado del entorno' }
+    ]
+  : [
+      { icon: Leaf, title: 'More responsible operations' },
+      { icon: Recycle, title: 'Efficient resource management' },
+      { icon: Sprout, title: 'Care for our environment' }
+    ])
+const environmentBody = computed(() => siteText(
+  'about.structure.6.description',
+  siteText(
+    'about.structure.environment',
+    locale.value.startsWith('es')
+      ? 'Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.'
+      : 'We seek opportunities to incorporate more responsible practices into our operations.',
+    locale.value
+  ),
+  locale.value
+))
 const valuesAccordionRef = ref<HTMLElement | null>(null)
 const closeValueOnOutsidePointer = (event: PointerEvent) => {
   if (openedValue.value === null || !(event.target instanceof Node)) return
@@ -325,6 +347,37 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
                 <ArrowRight class="about-refresh__structure-choice-arrow" :size="22" :stroke-width="1.8" aria-hidden="true" />
               </button>
             </nav>
+          </div>
+        </div>
+      </section>
+
+      <!-- Independent environmental approach: existing company content, new presentation. -->
+      <section id="enfoque-ambiental" class="about-refresh__environment section-spacing"
+        aria-labelledby="about-environment-title">
+        <div class="container">
+          <div class="about-refresh__environment-card">
+            <div class="about-refresh__environment-media">
+              <SiteMedia slot-key="about.structure.6.media"
+                fallback="/images/about-operations-enhanced.webp"
+                :alt="locale.startsWith('es') ? 'Operaciones logísticas de Castro Fallas' : 'Castro Fallas logistics operations'"
+                sizes="(max-width: 820px) 100vw, 48vw" />
+            </div>
+            <div class="about-refresh__environment-content">
+              <p class="about-refresh__eyebrow">{{ siteText('about.environment.kicker',
+                locale.startsWith('es') ? 'COMPROMISO AMBIENTAL' : 'ENVIRONMENTAL COMMITMENT', locale) }}</p>
+              <h2 id="about-environment-title">{{ siteText('about.environment.heading',
+                locale.startsWith('es') ? 'Nuestro enfoque ambiental' : 'Our environmental approach', locale) }}</h2>
+              <span class="about-refresh__environment-accent" aria-hidden="true"></span>
+              <p class="about-refresh__environment-description">{{ environmentBody }}</p>
+              <div class="about-refresh__environment-pillars" role="list"
+                :aria-label="locale.startsWith('es') ? 'Áreas de nuestro enfoque ambiental' : 'Areas of our environmental approach'">
+                <div v-for="(pillar, index) in environmentPillars" :key="index"
+                  class="about-refresh__environment-pillar" role="listitem">
+                  <component :is="pillar.icon" :size="37" :stroke-width="1.7" aria-hidden="true" />
+                  <span>{{ siteText('about.environment.pillar.' + index + '.title', pillar.title, locale) }}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -608,6 +661,156 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
 .about-refresh__value-panel.is-open{grid-template-rows:1fr;opacity:1;visibility:visible}
 .about-refresh__value-inner{min-height:0;overflow:hidden}
 .about-refresh__value-inner p{margin:0;padding:0 24px 25px;color:var(--about-muted);font-size:15px;line-height:1.7}
+/* Independent environmental section — light, editorial two-column layout.
+   The content grows naturally when additional CMS text is published. */
+.about-refresh__environment {
+  padding-block:clamp(55px,7vw,98px);
+  scroll-margin-top:100px;
+  background:linear-gradient(140deg,#f9f5f6,#fff 55%,#fcf2f5);
+}
+.about-refresh__environment-card {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  align-items:stretch;
+  gap:clamp(25px,3vw,52px);
+  padding:clamp(16px,1.8vw,26px);
+  border:1px solid #e7dce2;
+  border-radius:clamp(22px,2.2vw,32px);
+  background:linear-gradient(120deg,#fff,#fffafc);
+  box-shadow:0 20px 52px rgba(42,25,39,.08);
+}
+.about-refresh__environment-media {
+  min-width:0;
+  min-height:clamp(370px,31vw,520px);
+  overflow:hidden;
+  border-radius:clamp(16px,1.3vw,22px);
+  background:#e8eceb;
+}
+.about-refresh__environment-media :deep(img),
+.about-refresh__environment-media :deep(video) {
+  display:block;
+  width:100%;
+  height:100%;
+  min-height:inherit;
+  object-fit:cover;
+}
+.about-refresh__environment-content {
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:center;
+  min-width:0;
+  padding:clamp(15px,2.1vw,36px) clamp(8px,1.1vw,18px);
+}
+.about-refresh__environment-content .about-refresh__eyebrow {
+  margin-bottom:14px;
+  color:#b00929;
+  font-size:clamp(11px,1vw,13px);
+  letter-spacing:.13em;
+}
+.about-refresh__environment-content h2 {
+  margin:0;
+  max-width:680px;
+  color:var(--about-ink);
+  font-size:clamp(31px,3.5vw,56px);
+  line-height:1.09;
+  letter-spacing:-.045em;
+  overflow-wrap:break-word;
+}
+.about-refresh__environment-accent {
+  display:block;
+  width:68px;
+  height:4px;
+  margin:20px 0 25px;
+  border-radius:4px;
+  background:#b00929;
+}
+.about-refresh__environment-description {
+  margin:0;
+  max-width:640px;
+  color:var(--about-muted);
+  font-size:clamp(15px,1.25vw,18px);
+  line-height:1.7;
+  white-space:pre-line;
+  overflow-wrap:anywhere;
+}
+.about-refresh__environment-pillars {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  align-items:start;
+  width:100%;
+  margin-top:auto;
+  padding-top:clamp(30px,4vw,58px);
+}
+.about-refresh__environment-pillar {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  gap:15px;
+  min-width:0;
+  padding:0 clamp(8px,1vw,20px);
+  text-align:center;
+  color:var(--about-ink);
+}
+.about-refresh__environment-pillar:not(:first-child) {
+  border-left:1px solid rgba(98,101,113,.27);
+}
+.about-refresh__environment-pillar svg {color:#b00929;flex:none}
+.about-refresh__environment-pillar span {
+  max-width:175px;
+  font-size:clamp(12px,1.05vw,16px);
+  font-weight:750;
+  line-height:1.35;
+  overflow-wrap:anywhere;
+}
+html.theme-dark .about-refresh__environment {
+  background:linear-gradient(120deg,#0b1428,#101827 60%,#241528);
+}
+html.theme-dark .about-refresh__environment-card {
+  background:linear-gradient(125deg,#111b31,#1b2239);
+  border-color:rgba(255,255,255,.19);
+  box-shadow:0 23px 55px rgba(0,0,0,.24);
+}
+html.theme-dark .about-refresh__environment-media {background:#182638}
+html.theme-dark .about-refresh__environment-pillar:not(:first-child) {
+  border-left-color:rgba(255,255,255,.25);
+}
+html.theme-dark .about-refresh__environment-content .about-refresh__eyebrow,
+html.theme-dark .about-refresh__environment-pillar svg {color:#ff8298}
+@media (max-width:1100px) {
+  .about-refresh__environment-card {gap:23px;grid-template-columns:minmax(0,.94fr) minmax(0,1.06fr)}
+  .about-refresh__environment-pillars {padding-top:28px}
+  .about-refresh__environment-pillar {gap:10px;padding-inline:7px}
+  .about-refresh__environment-pillar span {font-size:12px}
+}
+@media (max-width:820px) {
+  .about-refresh__environment-card {grid-template-columns:1fr;gap:20px}
+  .about-refresh__environment-media {min-height:320px;height:clamp(320px,47vw,420px)}
+  .about-refresh__environment-content {padding:16px 12px 22px}
+  .about-refresh__environment-content h2 {font-size:clamp(32px,5.5vw,46px)}
+  .about-refresh__environment-pillars {padding-top:34px}
+  .about-refresh__environment-pillar span {font-size:clamp(12px,2vw,15px)}
+}
+@media (max-width:540px) {
+  .about-refresh__environment {padding-block:52px 69px}
+  .about-refresh__environment-card {padding:11px;border-radius:22px;gap:11px}
+  .about-refresh__environment-media {height:240px;min-height:240px;border-radius:15px}
+  .about-refresh__environment-content {padding:19px 12px 18px}
+  .about-refresh__environment-content h2 {font-size:clamp(30px,8vw,39px)}
+  .about-refresh__environment-description {font-size:15px}
+  .about-refresh__environment-pillars {grid-template-columns:1fr;gap:0;padding-top:26px}
+  .about-refresh__environment-pillar {
+    flex-direction:row;justify-content:flex-start;gap:16px;
+    padding:13px 5px;text-align:left;
+  }
+  .about-refresh__environment-pillar:not(:first-child) {
+    border-left:0;border-top:1px solid rgba(98,101,113,.24);
+  }
+  .about-refresh__environment-pillar svg {width:28px;height:28px}
+  .about-refresh__environment-pillar span {max-width:none;font-size:14px}
+  html.theme-dark .about-refresh__environment-pillar:not(:first-child) {border-top-color:rgba(255,255,255,.25)}
+}
 .about-refresh__services{padding-block:clamp(92px,10vw,160px)}
 .about-refresh__capabilities{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(18px,2.3vw,36px)}
 .about-refresh__capability{padding:29px 27px 34px;border:1px solid rgba(37,41,49,.13);border-radius:22px;background:#fff;min-height:220px;transition:transform .2s,box-shadow .2s}
