@@ -366,7 +366,7 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
               <p class="about-refresh__eyebrow">{{ siteText('about.environment.kicker',
                 locale.startsWith('es') ? 'COMPROMISO AMBIENTAL' : 'ENVIRONMENTAL COMMITMENT', locale) }}</p>
               <h2 id="about-environment-title">{{ siteText('about.environment.heading',
-                locale.startsWith('es') ? 'Nuestro enfoque ambiental' : 'Our environmental approach', locale) }}</h2>
+                locale.startsWith('es') ? 'Enfoque ambiental' : 'Environmental approach', locale) }}</h2>
               <span class="about-refresh__environment-accent" aria-hidden="true"></span>
               <p class="about-refresh__environment-description">{{ environmentBody }}</p>
               <div class="about-refresh__environment-pillars" role="list"
@@ -676,10 +676,11 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
   align-items:stretch;
   gap:clamp(20px,2.4vw,44px);
   padding:clamp(14px,1.4vw,26px);
-  border:1px solid #e7dce2;
+  border:1px solid rgba(130,144,167,.26);
   border-radius:clamp(22px,2.2vw,32px);
-  background:linear-gradient(120deg,#fff,#fffafc);
-  box-shadow:0 20px 52px rgba(42,25,39,.08);
+  /* Same corporate navy used by the structure card. */
+  background:#111b31;
+  box-shadow:0 20px 52px rgba(20,24,45,.16);
 }
 .about-refresh__environment-media {
   position:relative;
@@ -709,14 +710,14 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
 }
 .about-refresh__environment-content .about-refresh__eyebrow {
   margin-bottom:14px;
-  color:#b00929;
+  color:#ff8298;
   font-size:clamp(11px,1vw,13px);
   letter-spacing:.13em;
 }
 .about-refresh__environment-content h2 {
   margin:0;
   max-width:680px;
-  color:var(--about-ink);
+  color:#fff;
   font-size:clamp(29px,2.8vw,49px);
   line-height:1.09;
   letter-spacing:-.045em;
@@ -733,7 +734,7 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
 .about-refresh__environment-description {
   margin:0;
   max-width:640px;
-  color:var(--about-muted);
+  color:#e6eaf2;
   font-size:clamp(15px,1.25vw,18px);
   line-height:1.7;
   white-space:pre-line;
@@ -756,12 +757,12 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
   min-width:0;
   padding:0 clamp(8px,1vw,20px);
   text-align:center;
-  color:var(--about-ink);
+  color:#fff;
 }
 .about-refresh__environment-pillar:not(:first-child) {
-  border-left:1px solid rgba(98,101,113,.27);
+  border-left:1px solid rgba(255,255,255,.25);
 }
-.about-refresh__environment-pillar svg {color:#b00929;flex:none}
+.about-refresh__environment-pillar svg {color:#ff8298;flex:none}
 .about-refresh__environment-pillar span {
   max-width:175px;
   font-size:clamp(12px,1.05vw,16px);
@@ -773,7 +774,7 @@ html.theme-dark .about-refresh__environment {
   background:linear-gradient(120deg,#0b1428,#101827 60%,#241528);
 }
 html.theme-dark .about-refresh__environment-card {
-  background:linear-gradient(125deg,#111b31,#1b2239);
+  background:#111b31;
   border-color:rgba(255,255,255,.19);
   box-shadow:0 23px 55px rgba(0,0,0,.24);
 }
@@ -810,7 +811,7 @@ html.theme-dark .about-refresh__environment-pillar svg {color:#ff8298}
     padding:13px 5px;text-align:left;
   }
   .about-refresh__environment-pillar:not(:first-child) {
-    border-left:0;border-top:1px solid rgba(98,101,113,.24);
+    border-left:0;border-top:1px solid rgba(255,255,255,.25);
   }
   .about-refresh__environment-pillar svg {width:28px;height:28px}
   .about-refresh__environment-pillar span {max-width:none;font-size:14px}
