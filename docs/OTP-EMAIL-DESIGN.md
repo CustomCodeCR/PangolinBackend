@@ -8,8 +8,9 @@
 - Se conserva una alternativa `text/plain` para SMTP y `LocalOutbox`, y un cuerpo HTML en Microsoft Graph.
 - El botón **Iniciar sesión** enlaza a `https://www.logisticacastrofallas.com/bienvenidos`. No agrega OTP, identificadores del reto, tokens ni correo del usuario a la URL.
 - No se agrega botón falso de copiar: los dígitos son texto seleccionable. Gmail/Outlook no admiten JavaScript para escribir en el portapapeles.
-- Se utiliza el ícono corporativo público existente `/favicon.png`. Algunos clientes bloquean imágenes remotas, por lo que el contenido y el código deben seguir siendo legibles sin imágenes.
-- El sombreado decorativo del lado derecho es progresivo: los lectores sin soporte de degradados muestran fondo blanco.
+- Se utiliza una G roja transparente recortada a partir de la referencia del diseñador y un globo rojo difuminado. Ambas imágenes viajan dentro del correo como recursos con Content-ID (CID).
+- SMTP y LocalOutbox generan MIME multipart/related con PNG y JPEG. Microsoft Graph adjunta los mismos recursos mediante fileAttachment con isInline=true.
+- Ya no se depende del favicon público ni de URLs externas para cargar las imágenes.
 
 ## Prueba sin enviar correos
 
@@ -26,14 +27,15 @@ Generar una vista previa HTML local con el OTP ficticio `482913`:
 dotnet run --project tests/OtpEmailTemplateHarness/OtpEmailTemplateHarness.csproj -c Release -- --preview
 ```
 
-El programa imprime la ruta del archivo HTML, generado en la carpeta temporal del equipo. Abrir ese archivo en un navegador permite una **aproximación del diseño**, pero no reproduce las limitaciones de Gmail u Outlook.
+El HTML generado directamente utiliza referencias CID que no resuelven en el navegador. Para comprobar correctamente las imágenes debe abrirse un archivo .eml con el siguiente script de vista previa.
 
 ## Prueba real del formato MIME (Development)
 
 1. Usar `Email:Mode=LocalOutbox` (en Docker: `EMAIL_MODE=LocalOutbox`) y una cuenta de prueba habilitada.
 2. Solicitar un OTP desde `/bienvenidos`.
-3. Abrir el `.eml` generado en `backend/local-outbox`. Verificar las partes MIME `text/plain` y `text/html`, que el código coincida entre ambas y que no tenga enlaces con datos del OTP.
-4. Revisar el correo en lectores de escritorio y celular; si la imagen no carga, el código y el acceso deben seguir visibles.
+3. Abrir el `.eml` generado en `backend/local-outbox`. Verificar sus partes de texto y HTML y los recursos CID asociados.
+4. Ejecutar `python scripts/preview-otp-email.py` desde la raíz. El script abre el correo más reciente y resuelve las imágenes CID dentro del HTML de vista previa, sin enviar correos.
+5. Borrar `backend/local-outbox/vista-previa-otp.html` después de revisar, ya que contiene un código OTP de prueba. Comprobar también clientes reales de correo, donde las imágenes pueden bloquearse.
 
 **No usar una cuenta ni un código real de producción en capturas o reportes.**
 `LocalOutbox` está permitido solo en Development. Probar SMTP y Graph con proveedores reales exige credenciales configuradas y un entorno autorizado; la CI únicamente simula las peticiones Graph con respuestas locales.
