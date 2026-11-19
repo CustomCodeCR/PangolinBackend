@@ -1160,11 +1160,11 @@ html.theme-dark .about-refresh .about-refresh__value.is-open .about-refresh__val
 :global(html.theme-dark .about-refresh .about-refresh__capability-icon),
 :global(html.theme-dark .about-refresh .about-refresh__capability-icon svg),
 :global(html.theme-dark .about-refresh .about-refresh__environment-pillar svg) {
-  color:#ff3c61 !important;
+  color:#B00929 !important;
 }
 :global(html.theme-dark .about-refresh .about-refresh__capability-icon svg),
 :global(html.theme-dark .about-refresh .about-refresh__environment-pillar svg) {
-  stroke:#ff3c61 !important;
+  stroke:#B00929 !important;
 }
 /* Keep all five department SVGs corporate red in dark mode, matching the
    light theme, without recoloring labels or the surrounding photo panel. */
