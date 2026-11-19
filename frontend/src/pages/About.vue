@@ -782,8 +782,8 @@ html.theme-dark .about-refresh__environment-media {background:#182638}
 html.theme-dark .about-refresh__environment-pillar:not(:first-child) {
   border-left-color:rgba(255,255,255,.25);
 }
-html.theme-dark .about-refresh__environment-content .about-refresh__eyebrow,
-html.theme-dark .about-refresh__environment-pillar svg {color:#ff8298}
+html.theme-dark .about-refresh .about-refresh__environment-content .about-refresh__eyebrow,
+html.theme-dark .about-refresh .about-refresh__environment-pillar svg {color:#ff8298}
 @media (max-width:1100px) {
   .about-refresh__environment-card {gap:17px;grid-template-columns:minmax(0,.94fr) minmax(0,1.06fr)}
   .about-refresh__environment-pillars {padding-top:28px}
