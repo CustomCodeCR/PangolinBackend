@@ -639,6 +639,21 @@ assert.match(tracking, /\.tracking-fields\{grid-template-columns:minmax\(0,1fr\)
 assert.match(tracking, /\.tracking-fields :is\(input,select\)\{min-height:54px;padding:13px 15px;font-size:16px;/, 'Controles táctiles con fuente legible en móvil')
 const homeStyles = source('src/style.css')
 
+// Laptop-width service accordion must have enough horizontal and vertical room
+// for the expanded title, description and CTA; mobile retains its own styles.
+const homeLaptopFix = homeStyles.split('/* Home transport cards on intermediate laptop widths.')[1] ?? ''
+assert.ok(homeLaptopFix, 'Falta ajuste responsive de tarjetas de transporte en laptops')
+assert.match(homeLaptopFix, /@media \(min-width:801px\) and \(max-width:1550px\)/,
+  'El nuevo layout aplica antes de pasar al diseño móvil')
+assert.match(homeLaptopFix, /grid-template-columns:minmax\(0,1fr\)/,
+  'En laptops las noticias deben dejar ancho completo a los servicios')
+assert.match(homeLaptopFix, /height:clamp\(455px,38vw,500px\)/,
+  'Las tarjetas deben ganar altura para el texto completo')
+assert.match(homeLaptopFix, /container-type:inline-size/,
+  'El texto debe ajustarse al ancho real de la columna de servicios')
+assert.match(homeLaptopFix, /overflow-y:auto/,
+  'Las descripciones largas deben seguir siendo accesibles si no caben')
+
 const serviceOverlayCss = homeStyles.split('.service-modal-backdrop{')[1]?.split('}')[0] ?? ''
 const serviceCardCss = homeStyles.split('.service-modal__sections section{')[1]?.split('}')[0] ?? ''
 const serviceGlowCss = homeStyles.split('.service-modal::before{')[1]?.split('}')[0] ?? ''
