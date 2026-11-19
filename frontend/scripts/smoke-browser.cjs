@@ -563,7 +563,7 @@ async function assertServicesTheme(chrome, url) {
         if(loadedEnvironmentImage) break
         await new Promise(resolve=>setTimeout(resolve,120))
       }
-      assert.ok(loadedEnvironmentImage, 'La imagen ilustrativa integrada al proyecto debe cargar correctamente a '+width+'px')
+      assert.ok(loadedEnvironmentImage, 'La fotografía original de las instalaciones debe cargar correctamente a '+width+'px')
       const environment = await evaluate("(() => { const root=document.querySelector('#enfoque-ambiental');const structure=document.querySelector('#nuestra-estructura');const capabilities=document.querySelector('.about-refresh__services');const card=root.querySelector('.about-refresh__environment-card');const media=root.querySelector('.about-refresh__environment-media');const body=root.querySelector('.about-refresh__environment-content');const pillars=[...root.querySelectorAll('.about-refresh__environment-pillar')];const image=media.querySelector('img,video');const title=root.querySelector('h2');const kicker=root.querySelector('.about-refresh__eyebrow');const copy=root.querySelector('.about-refresh__environment-description');return { sectionOrder:structure.compareDocumentPosition(root)&Node.DOCUMENT_POSITION_FOLLOWING?true:false, beforeCapabilities:root.compareDocumentPosition(capabilities)&Node.DOCUMENT_POSITION_FOLLOWING?true:false, title:title?.textContent?.trim(), kicker:kicker?.textContent?.trim(), description:copy?.textContent?.trim(), media:!!image,mediaIsCMS:!!image?.getAttribute('src'), pillars:pillars.length,pillarIcons:pillars.filter(p=>p.querySelector('svg')).length,pillarText:pillars.every(p=>p.textContent?.trim().length>6), gridColumns:getComputedStyle(card).gridTemplateColumns.split(' ').length, pillarsColumns:getComputedStyle(root.querySelector('.about-refresh__environment-pillars')).gridTemplateColumns.split(' ').length, mediaHeight:media.getBoundingClientRect().height, mediaWidth:media.getBoundingClientRect().width, imageNote:media.querySelector('.about-refresh__environment-media-note')?.textContent?.trim(), previousSectionGap:Math.round(root.getBoundingClientRect().top-structure.getBoundingClientRect().bottom), nextSectionGap:Math.round(capabilities.getBoundingClientRect().top-root.getBoundingClientRect().bottom), overflow:card.scrollWidth-card.clientWidth, bodyOverflow:body.scrollWidth-body.clientWidth, documentOverflow:document.documentElement.scrollWidth-window.innerWidth };})()")
       assert.ok(environment.sectionOrder && environment.beforeCapabilities,
         'Enfoque ambiental debe quedar entre estructura y capacidades: '+JSON.stringify(environment))
@@ -571,8 +571,12 @@ async function assertServicesTheme(chrome, url) {
         'Debe tener antetítulo, título y descripción, con contenido del CMS: '+JSON.stringify(environment))
       assert.ok(environment.media && environment.mediaIsCMS && environment.mediaHeight>=165 && environment.mediaWidth>0,
         'Debe mostrarse la imagen aprobada con tamaño adaptativo: '+JSON.stringify(environment))
-      assert.ok(/ilustrativa|illustrative/i.test(environment.imageNote),
-        'La imagen conceptual no debe presentarse como fotografía real de la empresa: '+JSON.stringify(environment))
+      assert.ok(!environment.imageNote, 'Ya no debe mostrarse la etiqueta de imagen ilustrativa')
+      const environmentPhoto=await evaluate("(() => {const img=document.querySelector('#enfoque-ambiental .about-refresh__environment-media img');return {url:img?.currentSrc||img?.src||'',width:img?.naturalWidth,height:img?.naturalHeight}})()")
+      assert.ok(environmentPhoto.width >= 900 && environmentPhoto.height >= 500,
+        'Debe utilizarse la fotografía original de mayor resolución: '+JSON.stringify(environmentPhoto))
+      assert.ok(!/environmental-concept/.test(environmentPhoto.url),
+        'No debe mostrarse la ilustración de baja resolución')
       assert.ok(environment.previousSectionGap<=1 && environment.nextSectionGap<=1,
         'Las secciones deben ser consecutivas sin márgenes vacíos adicionales: '+JSON.stringify(environment))
       assert.equal(environment.pillars,3,'Deben aparecer los tres ejes ambientales')
