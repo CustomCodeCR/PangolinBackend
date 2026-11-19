@@ -931,7 +931,7 @@ async function main() {
       { url: '/servicios/transporte-aereo', role: null, must: ['service-landing-page', 'service-landing-feature-grid'] },
       { url: '/servicios/transporte-local', role: null, must: ['service-landing-page', 'service-landing-feature-grid'] },
       { url: '/servicios/transporte-panama-costa-rica', role: null, must: ['service-landing-page', 'service-landing-hero__inner', 'service-landing-story__frame', 'service-landing-feature-grid', 'service-landing-faq__item'] },
-      { url: '/servicios/agenciamiento-aduanal', role: null, must: ['service-landing-page', 'Agenciamiento aduanal para importaciones'] },
+      { url: '/servicios/agenciamiento-aduanal', role: null, must: ['service-landing-page', 'Agencia aduanal para importaciones'] },
       { url: '/servicios/consolidadora-de-carga', role: null, must: ['service-landing-page', 'Consolidadora de carga y transporte'] },
       { url: '/nosotros', role: null, must: ['about-reference-page', 'about-refresh__intro-grid', 'about-refresh__purpose-card', 'about-refresh__value-trigger', 'about-refresh__capabilities', 'about-refresh__gallery'] },
       { url: '/noticias', role: null, must: ['news-page', 'news-editorial-hero'] },
