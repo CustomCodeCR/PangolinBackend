@@ -444,14 +444,23 @@ async function assertServicesTheme(chrome, url) {
         await new Promise(resolve => setTimeout(resolve, 120))
       }
       assert.ok(structureReady, 'Deben existir cuatro opciones de Nuestra estructura a ' + width)
-      const headingLayout = await evaluate("(() => { const root=document.querySelector('#nuestra-estructura');const heading=root.querySelector('.about-refresh__structure-heading');const title=heading.querySelector('h2');const description=heading.querySelector('p');const showcase=root.querySelector('.about-refresh__structure-showcase');return { eyebrowCount:root.querySelectorAll('.about-refresh__structure-eyebrow').length, headingAlign:getComputedStyle(heading).textAlign, titleAlign:getComputedStyle(title).textAlign, titleLeft:title.getBoundingClientRect().left, descriptionLeft:description.getBoundingClientRect().left, showcaseLeft:showcase.getBoundingClientRect().left, titleTop:title.getBoundingClientRect().top, showcaseTop:showcase.getBoundingClientRect().top }; })()")
-      assert.equal(headingLayout.eyebrowCount, 0, 'No debe aparecer el rótulo duplicado SOBRE NOSOTROS')
+      const headingLayout = await evaluate("(() => { const root=document.querySelector('#nuestra-estructura');const heading=root.querySelector('.about-refresh__structure-heading');const title=heading.querySelector('h2');const kicker=heading.querySelector('.about-refresh__eyebrow');const valuesKicker=document.querySelector('#nuestros-valores .about-refresh__eyebrow');const showcase=root.querySelector('.about-refresh__structure-showcase');const ks=getComputedStyle(kicker),vs=getComputedStyle(valuesKicker);return { childCount:heading.children.length, kickerCount:heading.querySelectorAll('.about-refresh__eyebrow').length, kickerText:kicker.textContent?.trim(), headingAlign:getComputedStyle(heading).textAlign, titleAlign:getComputedStyle(title).textAlign, titleLeft:title.getBoundingClientRect().left, kickerLeft:kicker.getBoundingClientRect().left, showcaseLeft:showcase.getBoundingClientRect().left, kickerTop:kicker.getBoundingClientRect().top, titleTop:title.getBoundingClientRect().top, showcaseTop:showcase.getBoundingClientRect().top, kickerColor:ks.color, valuesColor:vs.color, kickerFontSize:ks.fontSize, valuesFontSize:vs.fontSize, kickerLetterSpacing:ks.letterSpacing, valuesLetterSpacing:vs.letterSpacing }; })()")
+      assert.equal(headingLayout.childCount, 2, 'El bloque debe tener solo antetítulo y título, sin descripción')
+      assert.equal(headingLayout.kickerCount, 1, 'Debe mostrarse un antetítulo rojo arriba de Nuestra estructura')
+      assert.ok(headingLayout.kickerText && !/SOBRE NOSOTROS|ABOUT US/i.test(headingLayout.kickerText),
+        'No debe volver a mostrarse el rótulo anterior: '+JSON.stringify(headingLayout))
       assert.equal(headingLayout.headingAlign, 'left', 'Nuestra estructura debe alinearse a la izquierda')
       assert.equal(headingLayout.titleAlign, 'left', 'El título debe mantener el estilo de las otras secciones')
+      assert.equal(headingLayout.kickerColor, headingLayout.valuesColor,
+        'El antetítulo debe usar exactamente el rojo de Nuestros valores')
+      assert.equal(headingLayout.kickerFontSize, headingLayout.valuesFontSize,
+        'El antetítulo debe usar el tamaño pequeño de Nuestros valores')
+      assert.equal(headingLayout.kickerLetterSpacing, headingLayout.valuesLetterSpacing,
+        'El antetítulo debe tener el mismo espaciado de letras que los otros títulos')
       assert.ok(Math.abs(headingLayout.titleLeft-headingLayout.showcaseLeft)<=3 &&
-        Math.abs(headingLayout.descriptionLeft-headingLayout.showcaseLeft)<=3 &&
-        headingLayout.titleTop < headingLayout.showcaseTop,
-        'El título y descripción deben empezar alineados con el panel: '+JSON.stringify(headingLayout))
+        Math.abs(headingLayout.kickerLeft-headingLayout.showcaseLeft)<=3 &&
+        headingLayout.kickerTop < headingLayout.titleTop && headingLayout.titleTop < headingLayout.showcaseTop,
+        'Antetítulo y título deben empezar a la izquierda y sobre el panel: '+JSON.stringify(headingLayout))
       const initial = await evaluate("(() => { const root=document.querySelector('#nuestra-estructura'); const showcase=root.querySelector('.about-refresh__structure-showcase'); const menu=root.querySelector('.about-refresh__structure-menu'); const feature=root.querySelector('.about-refresh__structure-feature'); const choices=[...menu.querySelectorAll('button')];const pressed=choices.flatMap((b,i)=>b.getAttribute('aria-pressed')==='true'?[i]:[]); const fr=feature.getBoundingClientRect(),cr=feature.querySelector('.about-refresh__structure-feature-content').getBoundingClientRect();return { choiceCount:choices.length, panelCount:root.querySelectorAll('.about-refresh__structure-feature').length, pressed, controls:choices.map(b=>b.getAttribute('aria-controls')), panelId:feature.id, hasMedia:!!feature.querySelector('img,video'), hasText:!!feature.querySelector('h3')&&!!feature.querySelector('p'), hasVisibleCopy:feature.querySelector('.about-refresh__structure-description')?.textContent?.trim().length>20, display:getComputedStyle(showcase).display, menuOrder:getComputedStyle(menu).order, featureOrder:getComputedStyle(feature).order, contentTop:Math.round(cr.top-fr.top),contentLeft:Math.round(cr.left-fr.left), overflow:showcase.scrollWidth-showcase.clientWidth, documentOverflow:document.documentElement.scrollWidth-window.innerWidth, navText:menu.textContent }; })()")
       assert.equal(initial.choiceCount, 4, 'Enfoque ambiental debe estar fuera de la estructura')
       assert.ok(!/Enfoque ambiental|Environmental approach/i.test(initial.navText),
