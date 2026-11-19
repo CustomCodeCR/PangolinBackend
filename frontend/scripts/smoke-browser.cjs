@@ -608,6 +608,17 @@ async function assertServicesTheme(chrome, url) {
         'Las etiquetas de los ejes deben conservar el contraste según el modo')
       assert.ok(['Enfoque ambiental','Environmental approach'].includes(environment.title),
         'El título no debe comenzar por Nuestro / Our: '+JSON.stringify(environment.title))
+      if (width === 1440 || width === 375) {
+        // Verify SVG strokes directly (not only their parent div colors).
+        // Parent-only checks previously passed while the icons remained white.
+        const iconPaint = await evaluate("(() => {const html=document.documentElement;const wasDark=html.classList.contains('theme-dark');html.classList.add('theme-dark');const inspect=selector=>[...document.querySelectorAll(selector)].map(svg=>({color:getComputedStyle(svg).color,stroke:getComputedStyle(svg).stroke}));const result={environmental:inspect('#enfoque-ambiental .about-refresh__environment-pillar svg'),capabilities:inspect('.about-refresh__capability-icon svg')};html.classList.toggle('theme-dark',wasDark);return result})()")
+        assert.equal(iconPaint.environmental.length,3,'Deben existir tres íconos ambientales visibles')
+        assert.equal(iconPaint.capabilities.length,5,'Deben existir cinco íconos de capacidades')
+        for (const [group,icons] of Object.entries(iconPaint)) {
+          assert.ok(icons.every(svg=>svg.color==='rgb(255, 60, 97)' && svg.stroke==='rgb(255, 60, 97)'),
+            'Los SVG de '+group+' deben verse rojos, no blancos, a '+width+'px: '+JSON.stringify(icons))
+        }
+      }
       if (width === 1440) {
         const redPalette = await evaluate("(() => {const doc=document.documentElement;const old=doc.classList.contains('theme-dark');doc.classList.add('theme-dark');const css=s=>getComputedStyle(document.querySelector(s));const mission=css('.about-refresh__purpose-card');const values=css('.about-refresh__value');const badge=css('.about-refresh__purpose-symbol');const valueIcon=css('.about-refresh__value-icon');const capability=css('.about-refresh__capability-icon');const environmental=css('.about-refresh__environment-pillar svg');const eyebrows=[...document.querySelectorAll('.about-refresh__eyebrow')].map(e=>getComputedStyle(e).color);const result={mission:mission.backgroundColor,values:values.backgroundColor,badge:badge.backgroundColor,valueIcon:valueIcon.backgroundColor,badgeGlyph:badge.color,valueGlyph:valueIcon.color,valueGlyphSvg:getComputedStyle(document.querySelector('.about-refresh__value-icon svg')).color,capability:capability.color,environmental:environmental.color,eyebrows};doc.classList.toggle('theme-dark',old);return result;})()")
         assert.equal(redPalette.mission,redPalette.values,
