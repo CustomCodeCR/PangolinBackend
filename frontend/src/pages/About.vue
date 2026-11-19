@@ -13,14 +13,6 @@ const values = computed(() => [0, 1, 2, 3, 4].map(index => siteText(`about.value
 const valueIcons = [Handshake, Scale, UsersRound, Award, ShieldCheck]
 const capabilityIcons = [Truck, ClipboardCheck, Globe2, Boxes, Ship]
 const openedValue = ref<number | null>(null)
-const openedStructure = ref<number | null>(null)
-// Preserve the original CMS keys (2–6), so previously published edits remain valid.
-const structureTitles = computed(() => {
-  const titles = locale.value.startsWith('es')
-    ? ['Mesa de ayuda', 'Agente propio en sitio', 'Departamentos', 'Universidad corporativa', 'Enfoque ambiental']
-    : ['Help desk', 'On-site agent', 'Departments', 'Corporate university', 'Environmental approach']
-  return titles.map((title, offset) => ({ index: offset + 2, title }))
-})
 const structureDepartments = computed(() => (locale.value.startsWith('es')
   ? ['Consolidadora', 'Pedimentación', 'Contabilidad', 'Servicio al cliente', 'Transporte interno de carga']
   : ['Freight consolidation', 'Customs declaration processing', 'Accounting', 'Customer service', 'Domestic cargo transport']))
@@ -225,34 +217,57 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 
       <section id="nuestra-estructura" class="about-refresh__structure section-spacing" aria-labelledby="about-structure-title">
         <div class="container">
-          <div class="about-refresh__section-heading">
-            <div>
+          <div class="about-refresh__structure-layout">
+            <div class="about-refresh__structure-mosaic" :aria-label="locale.startsWith('es') ? 'Operaciones y equipo de Castro Fallas' : 'Castro Fallas operations and team'">
+              <div class="about-refresh__structure-photo about-refresh__structure-photo--top"><SiteMedia slot-key="about.operations.media" fallback="/images/about-operations-enhanced.jpg" :alt="copy.imageLabel" /></div>
+              <div class="about-refresh__structure-photo about-refresh__structure-photo--side"><SiteMedia slot-key="about.gallery.2.media" fallback="/images/warehouse-person.webp" :alt="copy.galleryAlts[2]" /></div>
+              <div class="about-refresh__structure-photo about-refresh__structure-photo--small"><SiteMedia slot-key="about.gallery.1.media" fallback="/images/truck.webp" :alt="copy.galleryAlts[1]" /></div>
+              <div class="about-refresh__structure-photo about-refresh__structure-photo--wide"><SiteMedia slot-key="about.gallery.0.media" fallback="/images/services-warehouse.webp" :alt="copy.galleryAlts[0]" /></div>
+            </div>
+            <div class="about-refresh__structure-content">
               <p class="about-refresh__eyebrow">{{ locale.startsWith('es') ? 'ORGANIZACIÓN' : 'ORGANIZATION' }}</p>
               <h2 id="about-structure-title">{{ siteText('about.structure.heading', locale.startsWith('es') ? 'Sobre nuestra estructura' : 'About our structure', locale) }}</h2>
+              <p class="about-refresh__structure-lead">{{ siteText('about.structure.intro', locale.startsWith('es') ? 'Conectamos personas, áreas especializadas y procesos para acompañar cada operación logística con atención cercana y coordinación.' : 'We connect people, specialized teams and processes to support every logistics operation with personal service and coordination.', locale) }}</p>
+              <div class="about-refresh__structure-feature-grid">
+                <article class="about-refresh__structure-feature">
+                  <div class="about-refresh__structure-feature-icon"><UsersRound :size="25" :stroke-width="1.8" aria-hidden="true" /></div>
+                  <h3>{{ siteText('about.structure.2.title', locale.startsWith('es') ? 'Mesa de ayuda' : 'Help desk', locale) }}</h3>
+                  <p>{{ siteText('about.structure.2.description', locale.startsWith('es') ? 'Un punto de contacto para orientar y dar seguimiento a las consultas de nuestros clientes.' : 'A point of contact for guidance and follow-up on customer inquiries.', locale) }}</p>
+                </article>
+                <article class="about-refresh__structure-feature">
+                  <div class="about-refresh__structure-feature-icon"><ClipboardCheck :size="25" :stroke-width="1.8" aria-hidden="true" /></div>
+                  <h3>{{ siteText('about.structure.3.title', locale.startsWith('es') ? 'Agente propio en sitio' : 'On-site agent', locale) }}</h3>
+                  <p>{{ siteText('about.structure.3.description', locale.startsWith('es') ? 'Acompañamiento y coordinación directamente donde se desarrolla la operación.' : 'Support and coordination directly where the operation takes place.', locale) }}</p>
+                </article>
+              </div>
             </div>
           </div>
-          <div class="about-refresh__accordion about-refresh__structure-grid">
-            <article v-for="item in structureTitles" :key="item.index" class="about-refresh__structure-card"
-               :class="{ 'is-open': openedStructure === item.index }">
-              <h3>
-                <button class="about-refresh__value-trigger about-refresh__structure-trigger" type="button"
-                  :aria-expanded="openedStructure === item.index" :aria-controls="`about-structure-${item.index}`"
-                  @click="openedStructure = openedStructure === item.index ? null : item.index">
-                  <span class="about-refresh__value-text"><strong class="about-refresh__value-name">{{ siteText('about.structure.' + item.index + '.title', item.title, locale) }}</strong></span>
-                  <ChevronDown class="about-refresh__value-chevron" :size="22" aria-hidden="true" />
-                </button>
-              </h3>
-              <div :id="`about-structure-${item.index}`" class="about-refresh__value-panel"
-                :class="{ 'is-open': openedStructure === item.index }" :aria-hidden="openedStructure !== item.index"
-                :inert="openedStructure !== item.index">
-                <div class="about-refresh__value-inner">
-                  <ul v-if="item.index === 4" class="about-refresh__structure-departments">
-                    <li v-for="(department, d) in structureDepartments" :key="d">{{ siteText('about.structure.departments.' + d, department, locale) }}</li>
-                  </ul>
-                  <p v-else-if="item.index === 6">{{ siteText('about.structure.environment', structureEnvironment, locale) }}</p>
-                  <div v-else class="about-refresh__structure-empty" aria-hidden="true"></div>
-                </div>
+
+          <div class="about-refresh__structure-department-section">
+            <div class="about-refresh__structure-department-heading">
+              <div>
+                <p class="about-refresh__eyebrow">{{ locale.startsWith('es') ? 'EQUIPOS ESPECIALIZADOS' : 'SPECIALIZED TEAMS' }}</p>
+                <h3>{{ siteText('about.structure.4.title', locale.startsWith('es') ? 'Departamentos' : 'Departments', locale) }}</h3>
               </div>
+              <p>{{ locale.startsWith('es') ? 'Áreas que trabajan de forma coordinada para atender cada etapa.' : 'Teams working together throughout every stage.' }}</p>
+            </div>
+            <ul class="about-refresh__structure-department-list">
+              <li v-for="(department, d) in structureDepartments" :key="d">
+                <span class="about-refresh__structure-department-number">{{ String(d + 1).padStart(2, '0') }}</span>
+                <strong>{{ siteText('about.structure.departments.' + d, department, locale) }}</strong>
+              </li>
+            </ul>
+          </div>
+          <div class="about-refresh__structure-extras">
+            <article>
+              <Award :size="24" :stroke-width="1.8" aria-hidden="true" />
+              <h3>{{ siteText('about.structure.5.title', locale.startsWith('es') ? 'Universidad corporativa' : 'Corporate university', locale) }}</h3>
+              <p>{{ siteText('about.structure.5.description', locale.startsWith('es') ? 'Un espacio para fortalecer conocimientos y promover el desarrollo continuo de nuestro equipo.' : 'A space to strengthen knowledge and encourage the continuous development of our team.', locale) }}</p>
+            </article>
+            <article>
+              <Globe2 :size="24" :stroke-width="1.8" aria-hidden="true" />
+              <h3>{{ siteText('about.structure.6.title', locale.startsWith('es') ? 'Enfoque ambiental' : 'Environmental approach', locale) }}</h3>
+              <p>{{ siteText('about.structure.environment', structureEnvironment, locale) }}</p>
             </article>
           </div>
         </div>
@@ -657,4 +672,44 @@ html.theme-dark .about-refresh__value.is-open .about-refresh__value-icon{
 html.theme-dark .about-refresh .about-refresh__hero-copy .big-years span {
   border-left-color: #fff !important;
 }
+
+/* Editorial structure layout — independent of the values accordion. */
+.about-refresh__structure{padding-block:clamp(56px,6.5vw,94px);background:#fbf8f9}
+.about-refresh__structure-layout{display:grid;grid-template-columns:minmax(0,.96fr) minmax(0,1.04fr);align-items:center;gap:clamp(35px,5vw,78px)}
+.about-refresh__structure-mosaic{min-width:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(2,minmax(130px,1fr));gap:12px;aspect-ratio:1.18}
+.about-refresh__structure-photo{min-width:0;min-height:0;overflow:hidden;border-radius:17px;background:#e6e8ed}
+.about-refresh__structure-photo :deep(img),.about-refresh__structure-photo :deep(video){width:100%;height:100%;object-fit:cover;display:block}
+.about-refresh__structure-photo--top{grid-column:1;grid-row:1}
+.about-refresh__structure-photo--side{grid-column:2;grid-row:1}
+.about-refresh__structure-photo--small{grid-column:1;grid-row:2}
+.about-refresh__structure-photo--wide{grid-column:2;grid-row:2}
+.about-refresh__structure-content h2{max-width:580px}
+.about-refresh__structure-lead{max-width:590px;margin:20px 0 27px;color:var(--about-muted);font-size:clamp(15px,1.15vw,17px);line-height:1.75}
+.about-refresh__structure-feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.about-refresh__structure-feature{min-width:0;padding:24px 22px 25px;background:#fff;border:1px solid rgba(35,39,47,.13);border-bottom:3px solid #b00929;border-radius:18px;box-shadow:0 8px 22px rgba(30,28,38,.04)}
+.about-refresh__structure-feature-icon{display:grid;place-items:center;width:47px;height:47px;border-radius:13px;background:#fae9ed;color:#b00929;margin-bottom:16px}
+.about-refresh__structure-feature h3{margin:0 0 9px;font-size:clamp(16px,1.2vw,19px);line-height:1.35}
+.about-refresh__structure-feature p{margin:0;color:var(--about-muted);font-size:14px;line-height:1.65}
+.about-refresh__structure-department-section{margin-top:clamp(35px,4.2vw,64px);padding:clamp(25px,3vw,43px);border-radius:22px;background:#fff;border:1px solid rgba(35,39,47,.13)}
+.about-refresh__structure-department-heading{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:24px}
+.about-refresh__structure-department-heading h3{font-size:clamp(24px,2.5vw,34px);line-height:1.15;margin:0}
+.about-refresh__structure-department-heading>p{max-width:310px;margin:0;color:var(--about-muted);line-height:1.6;font-size:14px}
+.about-refresh__structure-department-list{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:0;padding:0;list-style:none}
+.about-refresh__structure-department-list li{display:flex;flex-direction:column;gap:17px;padding:20px 16px 23px;min-height:126px;border-radius:14px;background:#f7f5f6;border:1px solid rgba(35,39,47,.07)}
+.about-refresh__structure-department-number{font-size:12px;color:#b00929;font-weight:800;letter-spacing:.12em}
+.about-refresh__structure-department-list strong{font-size:clamp(13px,1vw,16px);line-height:1.4;overflow-wrap:anywhere}
+.about-refresh__structure-extras{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:16px}
+.about-refresh__structure-extras article{display:grid;grid-template-columns:30px minmax(0,1fr);align-items:start;column-gap:15px;padding:23px 25px;border:1px solid rgba(35,39,47,.12);border-radius:17px}
+.about-refresh__structure-extras svg{grid-row:span 2;color:#b00929}
+.about-refresh__structure-extras h3{font-size:17px;margin:0 0 7px}
+.about-refresh__structure-extras p{font-size:14px;color:var(--about-muted);line-height:1.65;margin:0}
+html.theme-dark .about-refresh__structure{background:#171b23}
+html.theme-dark .about-refresh__structure-feature,html.theme-dark .about-refresh__structure-department-section,html.theme-dark .about-refresh__structure-extras article{background:#111b31;border-color:rgba(255,255,255,.2)}
+html.theme-dark .about-refresh__structure-department-list li{background:#1d2940;border-color:rgba(255,255,255,.08)}
+html.theme-dark .about-refresh__structure-department-number,html.theme-dark .about-refresh__structure-extras svg{color:#ff8199}
+html.theme-dark .about-refresh__structure-feature-icon{background:#41223c;color:#ff8199}
+@media(max-width:1050px){.about-refresh__structure-layout{grid-template-columns:1fr;gap:28px}.about-refresh__structure-mosaic{max-height:390px;aspect-ratio:2;grid-template-rows:repeat(2,minmax(0,1fr))}.about-refresh__structure-department-list{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:650px){.about-refresh__structure-mosaic{aspect-ratio:1.3;max-height:none}.about-refresh__structure-feature-grid,.about-refresh__structure-extras{grid-template-columns:1fr}.about-refresh__structure-department-list{grid-template-columns:repeat(2,minmax(0,1fr))}.about-refresh__structure-department-heading{align-items:start;flex-direction:column}.about-refresh__structure-department-section{padding:22px 17px}.about-refresh__structure-department-list li{min-height:103px;padding:16px 13px}.about-refresh__structure-extras article{padding:20px}}
+@media(max-width:370px){.about-refresh__structure-department-list{grid-template-columns:1fr}}
+
 </style>
