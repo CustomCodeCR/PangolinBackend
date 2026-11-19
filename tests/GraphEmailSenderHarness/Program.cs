@@ -15,7 +15,7 @@ static void Assert(bool ok, string reason)
 {
     if (!ok) throw new Exception(reason);
 }
-static GraphEmailSender Mailer(HttpMessageHandler handler, bool includeConfig = true)
+static GraphEmailSender Mailer(HttpMessageHandler handler, bool includeConfig = true, int? totalTimeoutSeconds = null)
 {
     var values = includeConfig
         ? new Dictionary<string, string?>
@@ -26,6 +26,8 @@ static GraphEmailSender Mailer(HttpMessageHandler handler, bool includeConfig = 
             ["Graph:From"] = sender
         }
         : new Dictionary<string, string?>();
+    if (totalTimeoutSeconds is int limit)
+        values["Graph:TotalTimeoutSeconds"] = limit.ToString(System.Globalization.CultureInfo.InvariantCulture);
     var config = new ConfigurationBuilder().AddInMemoryCollection(values).Build();
     return new GraphEmailSender(new HttpClient(handler), config);
 }
@@ -144,7 +146,57 @@ catch (InvalidOperationException ex) when (ex.Message.Contains("Graph:TenantId",
     Assert(missingCalls == 0, "Invalid config must stop before external requests.");
 }
 
-Console.WriteLine("PASS offline Graph: 202 accepted, OAuth 401, sendMail 403, HTTP 429 and missing config. No secrets or OTP sent.");
+// A shared deadline must span OAuth and sendMail: without it each HTTP request
+// can consume its own 20-second timeout. Use a one-second isolated fixture,
+// never contact Microsoft or log the OTP.
+var deadlineCalls = 0;
+var deadlineHandler = new FakeHandler(async (request, cancellation) =>
+{
+    deadlineCalls++;
+    if (deadlineCalls == 1)
+    {
+        await Task.Delay(500, cancellation);
+        return AccessToken();
+    }
+    Assert(request.RequestUri!.Host == "graph.microsoft.com", "Expected Graph sendMail phase.");
+    await Task.Delay(Timeout.InfiniteTimeSpan, cancellation);
+    throw new Exception("The shared Graph deadline did not cancel sendMail.");
+});
+var watch = System.Diagnostics.Stopwatch.StartNew();
+try
+{
+    await Mailer(deadlineHandler, totalTimeoutSeconds: 1)
+        .SendAsync(recipient, subject, body, CancellationToken.None);
+    throw new Exception("A stalled sendMail operation was not cancelled.");
+}
+catch (OperationCanceledException)
+{
+    Assert(deadlineCalls == 2, "The timeout must cover both OAuth and sendMail.");
+    Assert(watch.Elapsed < TimeSpan.FromSeconds(5), "Graph overall timeout exceeded the bounded test budget.");
+}
+
+// Caller cancellation is preserved, rather than hidden as an upstream error.
+var callerCancelled = new CancellationTokenSource();
+callerCancelled.Cancel();
+var callerCalls = 0;
+var callerHandler = new FakeHandler(async (_, cancellation) =>
+{
+    callerCalls++;
+    await Task.Delay(Timeout.InfiniteTimeSpan, cancellation);
+    throw new Exception("Caller cancellation should stop requests.");
+});
+try
+{
+    await Mailer(callerHandler)
+        .SendAsync(recipient, subject, body, callerCancelled.Token);
+    throw new Exception("Caller cancellation was not propagated.");
+}
+catch (OperationCanceledException)
+{
+    Assert(callerCalls <= 1, "Cancelled requests must not start sendMail.");
+}
+
+Console.WriteLine("PASS offline Graph: 202 accepted, OAuth 401, sendMail 403, HTTP 429 missing config, shared timeout, and caller cancellation. No secrets or OTP sent.");
 
 sealed class FakeHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> process)
     : HttpMessageHandler
