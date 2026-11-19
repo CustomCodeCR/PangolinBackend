@@ -1,4 +1,5 @@
 using System.Text;
+using System.Security.Cryptography;
 
 namespace CastroFallas.MiniQuote.Api.Services.Auth;
 
@@ -9,6 +10,12 @@ namespace CastroFallas.MiniQuote.Api.Services.Auth;
 public static class OtpEmailTemplate
 {
     public const string LoginUrl = "https://www.logisticacastrofallas.com/bienvenidos";
+
+    // Each OTP delivery gets an independent, non-sensitive reference in the subject.
+    // This reduces Gmail conversation grouping without exposing the access code.
+    public static string Subject() =>
+        "Código de acceso | Castro Fallas · " +
+        Convert.ToHexString(RandomNumberGenerator.GetBytes(4));
 
     public static string PlainText(string otp)
     {
