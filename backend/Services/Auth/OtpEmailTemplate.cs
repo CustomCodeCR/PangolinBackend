@@ -28,7 +28,7 @@ public static class OtpEmailTemplate
         var digits = new StringBuilder();
         foreach (var digit in otp)
         {
-            digits.Append("<span style=\"display:inline-block;box-sizing:border-box;width:35px;height:40px;line-height:38px;margin:0 3px 5px 0;border:1px solid #edd4d9;border-radius:7px;background:#ffffff;color:#a50921;font-family:Arial,Helvetica,sans-serif;font-size:25px;font-weight:700;text-align:center;vertical-align:middle;\">")
+            digits.Append("<span style=\"display:inline-block;box-sizing:border-box;width:34px;height:40px;line-height:38px;margin:0 3px 5px 0;border:1px solid #edd4d9;border-radius:7px;background:#ffffff;color:#a50921;font-family:Arial,Helvetica,sans-serif;font-size:25px;font-weight:700;text-align:center;vertical-align:middle;\">")
                 .Append(digit)
                 .Append("</span>");
         }
@@ -61,10 +61,10 @@ public static class OtpEmailTemplate
                 <tr><td align="center" class="cf-outer" style="padding:30px 14px;">
                   <table role="presentation" class="cf-panel" cellspacing="0" cellpadding="0" border="0" width="640" style="border-collapse:separate;width:100%;max-width:640px;background:#ffffff;border:1px solid #ebebeb;border-radius:14px;overflow:hidden;">
                     <tr>
-                      <td class="cf-brand" width="145" valign="middle" align="center" style="width:145px;padding:19px 8px;background:#ffffff;">
-                        <img src="cid:cf-otp-logo" width="103" height="154" alt="Castro Fallas" style="display:block;width:103px;height:154px;margin:0 auto;border:0;">
+                      <td class="cf-brand" width="126" valign="middle" align="center" style="width:126px;padding:19px 4px;background:#ffffff;">
+                        <img src="cid:cf-otp-logo" width="104" height="155" alt="Castro Fallas" style="display:block;width:104px;height:155px;margin:0 auto;border:0;">
                       </td>
-                      <td class="cf-content" width="348" valign="middle" style="width:348px;padding:27px 4px 24px 4px;text-align:left;background:#ffffff;">
+                      <td class="cf-content" width="306" valign="middle" style="width:306px;padding:29px 5px 26px 2px;text-align:left;background:#ffffff;">
                         <h1 style="margin:0 0 8px;color:#151923;font-size:22px;line-height:1.2;font-weight:700;">Tu código de acceso</h1>
                         <div style="height:2px;width:100%;max-width:245px;background:#af0922;margin:0 0 12px;"></div>
                         <p style="margin:0 0 14px;font-size:12px;line-height:1.5;color:#5f6268;">Usá este código para iniciar sesión de forma segura.</p>
@@ -77,8 +77,8 @@ public static class OtpEmailTemplate
                         <p style="margin:0 0 12px;font-size:11px;line-height:1.5;color:#52555d;">&#9201; Este código vence en <strong style="color:#a50921;">5 minutos.</strong></p>
                         <p style="margin:0;color:#73757c;font-size:10px;line-height:1.5;">Si no solicitaste este código, podés ignorar este mensaje. Tu cuenta se mantiene segura.</p>
                       </td>
-                      <td class="cf-globe" width="140" valign="top" align="right" style="width:140px;padding:0;background:#ffffff;vertical-align:top;">
-                        <img src="cid:cf-otp-globe" width="140" height="120" alt="" style="display:block;width:140px;height:120px;border:0;">
+                      <td class="cf-globe" width="202" valign="top" align="right" style="width:202px;padding:0;background:#ffffff;vertical-align:top;">
+                        <img src="cid:cf-otp-globe" width="202" height="285" alt="" style="display:block;width:202px;height:285px;border:0;">
                       </td>
                     </tr>
                     <tr><td colspan="3" bgcolor="#af0922" style="background:#af0922;height:7px;font-size:0;line-height:7px;">&nbsp;</td></tr>
