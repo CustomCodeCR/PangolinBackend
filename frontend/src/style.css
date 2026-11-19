@@ -5950,3 +5950,57 @@ html.theme-dark .login-screen .login-auth-card .login-auth-sending {
     border-bottom-color: rgba(255, 255, 255, .82) !important;
   }
 }
+
+
+/* Home transport cards on intermediate laptop widths.
+   Below full desktop, the news rail moves underneath so the six service
+   tabs cannot squeeze the active description into an unreadable strip.
+   The mobile (<=800px) accordion is intentionally untouched. */
+@media (min-width:801px) and (max-width:1550px) {
+  .app-site.home-page #servicios .services-news-layout {
+    grid-template-columns:minmax(0,1fr);
+    gap:26px;
+  }
+  .app-site.home-page #servicios .service-accordion {
+    height:clamp(455px,38vw,500px);
+    min-height:clamp(455px,38vw,500px);
+  }
+  .app-site.home-page #servicios .service-accordion__item {
+    height:100%;
+  }
+}
+
+/* CSS container measurements, not device names, drive the copy scale.
+   In particular, this also covers larger windows with browser zoom. */
+@media (min-width:801px) {
+  .app-site.home-page #servicios .services-main {
+    container-type:inline-size;
+  }
+  .app-site.home-page #servicios .service-accordion__panel {
+    align-items:safe flex-end;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+  }
+  .app-site.home-page #servicios .service-accordion__copy {
+    margin-right:0;
+  }
+}
+@container (max-width:1100px) {
+  .app-site.home-page #servicios .service-accordion__panel {
+    padding:20px 15px 22px;
+  }
+  .app-site.home-page #servicios .service-accordion__copy h3 {
+    font-size:clamp(20px,2.2vw,29px);
+    line-height:1.13;
+    margin-bottom:8px;
+  }
+  .app-site.home-page #servicios .service-accordion__copy p {
+    font-size:clamp(12px,1.15vw,14px);
+    line-height:1.45;
+    margin-bottom:12px;
+  }
+  .app-site.home-page #servicios .service-accordion__copy .btn {
+    min-height:40px;
+    padding:9px 14px;
+  }
+}
