@@ -38,10 +38,20 @@ for (const fixture of approvedTitleFixtures) {
   news.push({ ...news[0], id: '123e4567-e89b-12d3-a456-' + fixture.suffix.padStart(12, '0'), title: fixture.title })
 }
 
+// Casos adversos: el CMS no puede romper el sitemap con registros mal tipados.
+const invalidNews = [
+  { ...news[0], id: 123, title: 'ID no válido' },
+  { ...news[0], id: '123e4567-e89b-12d3-a456-426614170001', title: 99 },
+  { ...news[0], id: '123e4567-e89b-12d3-a456-426614170002', publishedAt: 123 },
+  { ...news[0], id: '123e4567-e89b-12d3-a456-426614170003', published: false },
+  { ...news[0], id: '123e4567-e89b-12d3-a456-426614170004', expiresAt: '2020-01-01T00:00:00Z' },
+  { ...news[0], id: '123e4567-e89b-12d3-a456-426614170005', expiresAt: 'fecha-inválida' }
+]
+
 const api = createServer((req, res) => {
   if (req.url === '/api/content/news') {
     res.writeHead(200, { 'Content-Type': 'application/json' })
-    res.end(JSON.stringify(news))
+    res.end(JSON.stringify([...news, ...invalidNews]))
     return
   }
   res.writeHead(404); res.end('Not found')
@@ -119,7 +129,21 @@ try {
   const descriptionValue = descriptionTag?.match(/content="([^"]*)"/)?.[1] || ''
   assert.ok(descriptionValue.length > 0 && descriptionValue.length <= 155,
     'La meta description de una noticia no debe ser larga ni quedar vacía')
+  const publicNewsResponse = await fetch(base + '/api/public-news')
+  assert.equal(publicNewsResponse.status, 200)
+  const publicArticles = await publicNewsResponse.json()
+  assert.deepEqual(publicArticles.map(article => article.id), news.map(article => article.id),
+    'La API pública debe excluir noticias no publicadas, caducadas o malformadas')
+
   const sitemap = await (await fetch(base + '/sitemap.xml')).text()
+  const articleLinks = [...sitemap.matchAll(/<loc>([^<]+)<\\/loc>/g)]
+    .map(match => match[1]).filter(url => url.includes('/noticias/'))
+  assert.equal(articleLinks.length, publicArticles.length,
+    'El sitemap debe anunciar exactamente los artículos accesibles en SSR')
+  for (const articleUrl of articleLinks) {
+    const response = await fetch(base + new URL(articleUrl).pathname)
+    assert.equal(response.status, 200, 'El sitemap incluye una noticia inaccesible: ' + articleUrl)
+  }
   assert.ok(sitemap.includes(slug), 'Noticia ausente en sitemap dinámico')
   assert.match(sitemap,
     /<url><loc>https:\/\/www\.logisticacastrofallas\.com\/servicios\/transporte-maritimo<\/loc><lastmod>\d{4}-\d{2}-\d{2}<\/lastmod><\/url>/,
