@@ -1049,8 +1049,12 @@ addText('about','Sobre nosotros','about.structure.6.title','Enfoque ambiental (h
 addText('about','Sobre nosotros','about.structure.6.description','Enfoque ambiental','Descripción principal',
   'Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.',
   'We seek opportunities to incorporate more responsible practices into our operations.')
-addMedia('about','Sobre nosotros','about.structure.6.media','Enfoque ambiental',
-  'Fotografía de operaciones (reemplazable)', '/images/about-operations-enhanced.webp')
+// A separate media slot allows the approved illustrative reference to be
+// displayed without changing any previously published corporate photo.
+addMedia('about','Sobre nosotros','about.environment.media','Enfoque ambiental',
+  'Imagen ilustrativa (reemplazable por fotografía oficial)', '/images/environmental-concept.webp')
+addMedia('about','Sobre nosotros','about.structure.6.media','Enfoque ambiental (histórico)',
+  'Fotografía anterior (conservada)', '/images/about-operations-enhanced.webp')
 const environmentalPillars: Array<[string,string]> = [
   ['Operaciones más responsables','More responsible operations'],
   ['Gestión eficiente de recursos','Efficient resource management'],
