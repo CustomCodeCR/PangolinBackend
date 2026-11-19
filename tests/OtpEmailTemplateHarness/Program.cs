@@ -32,7 +32,7 @@ Assert(html.Contains("class=\"cf-globe\" width=\"214\"", StringComparison.Ordina
     "Globe must extend the decorative fade 50px into the center.");
 Assert(html.Contains("class=\"cf-content\" width=\"262\"", StringComparison.Ordinal),
     "Keep the total email width at 640px while extending the globe.");
-Assert(html.Contains("src=\"cid:cf-otp-globe\" width=\"214\" height=\"285\"", StringComparison.Ordinal),
+Assert(html.Contains("src=\"cid:cf-otp-globe\" width=\"214\" height=\"302\"", StringComparison.Ordinal),
     "Keep the globe fully visible within the larger decoration area.");
 Assert(html.Contains("max-width:560px", StringComparison.Ordinal), "Mobile layout missing.");
 Assert(plain.Contains(sample, StringComparison.Ordinal), "Plain fallback must contain the complete OTP.");
