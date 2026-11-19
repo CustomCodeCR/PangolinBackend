@@ -676,11 +676,10 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
   align-items:stretch;
   gap:clamp(20px,2.4vw,44px);
   padding:clamp(14px,1.4vw,26px);
-  border:1px solid rgba(130,144,167,.26);
+  border:1px solid #e7dce2;
   border-radius:clamp(22px,2.2vw,32px);
-  /* Same corporate navy used by the structure card. */
-  background:#111b31;
-  box-shadow:0 20px 52px rgba(20,24,45,.16);
+  background:linear-gradient(120deg,#fff,#fffafc);
+  box-shadow:0 20px 52px rgba(42,25,39,.08);
 }
 .about-refresh__environment-media {
   position:relative;
@@ -710,14 +709,14 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
 }
 .about-refresh__environment-content .about-refresh__eyebrow {
   margin-bottom:14px;
-  color:#ff8298;
+  color:#b00929;
   font-size:clamp(11px,1vw,13px);
   letter-spacing:.13em;
 }
 .about-refresh__environment-content h2 {
   margin:0;
   max-width:680px;
-  color:#fff;
+  color:var(--about-ink);
   font-size:clamp(29px,2.8vw,49px);
   line-height:1.09;
   letter-spacing:-.045em;
@@ -734,7 +733,7 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
 .about-refresh__environment-description {
   margin:0;
   max-width:640px;
-  color:#e6eaf2;
+  color:var(--about-muted);
   font-size:clamp(15px,1.25vw,18px);
   line-height:1.7;
   white-space:pre-line;
@@ -757,12 +756,12 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
   min-width:0;
   padding:0 clamp(8px,1vw,20px);
   text-align:center;
-  color:#fff;
+  color:var(--about-ink);
 }
 .about-refresh__environment-pillar:not(:first-child) {
-  border-left:1px solid rgba(255,255,255,.25);
+  border-left:1px solid rgba(98,101,113,.27);
 }
-.about-refresh__environment-pillar svg {color:#ff8298;flex:none}
+.about-refresh__environment-pillar svg {color:#b00929;flex:none}
 .about-refresh__environment-pillar span {
   max-width:175px;
   font-size:clamp(12px,1.05vw,16px);
@@ -773,10 +772,11 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
 html.theme-dark .about-refresh__environment {
   background:linear-gradient(120deg,#0b1428,#101827 60%,#241528);
 }
+/* Match the dark background of "Nuestra estructura" exactly. */
 html.theme-dark .about-refresh__environment-card {
-  background:#111b31;
-  border-color:rgba(255,255,255,.19);
-  box-shadow:0 23px 55px rgba(0,0,0,.24);
+  background:linear-gradient(135deg,#0c152a,#101a33 65%,#2b1025);
+  border-color:rgba(130,144,167,.26);
+  box-shadow:0 26px 62px rgba(0,0,0,.22);
 }
 html.theme-dark .about-refresh__environment-media {background:#182638}
 html.theme-dark .about-refresh__environment-pillar:not(:first-child) {
