@@ -69,6 +69,7 @@ services:
       Ai__Groq__Model: ${GROQ_MODEL:-openai/gpt-oss-20b}
       Instagram__AccessToken: ${INSTAGRAM_ACCESS_TOKEN:-}
       Email__Mode: ${EMAIL_MODE:-LocalOutbox}
+      Email__LoginUrl: ${EMAIL_LOGIN_URL:-https://www.logisticacastrofallas.com/bienvenidos}
       Graph__TenantId: ${GRAPH_TENANT_ID:-}
       Graph__ClientId: ${GRAPH_CLIENT_ID:-}
       Graph__ClientSecret: ${GRAPH_CLIENT_SECRET:-}
