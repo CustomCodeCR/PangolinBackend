@@ -683,6 +683,13 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
 }
 .about-refresh__environment-media {
   position:relative;
+  /* The grid row can grow to match long CMS copy. Fix media width to its
+     column first; otherwise aspect-ratio can derive an oversized width from
+     the taller row and cover the adjacent text at intermediate viewports. */
+  width:100%;
+  max-width:100%;
+  height:auto;
+  align-self:center;
   min-width:0;
   min-height:0;
   aspect-ratio:855/494;
