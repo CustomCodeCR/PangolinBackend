@@ -23,6 +23,16 @@ public sealed class GraphEmailSender(HttpClient client, IConfiguration config)
             !string.Equals(parsed.Address, sender, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Graph:From inválido.");
 
+        // HttpClient.Timeout applies per request: OAuth and sendMail can each
+        // take up to 20 seconds. Bound the complete two-step operation so a
+        // stalled Microsoft provider cannot prolong the OTP form indefinitely.
+        // A shorter budget can be supplied for isolated regression tests.
+        var configuredSeconds = config.GetValue<int?>("Graph:TotalTimeoutSeconds");
+        var budgetSeconds = Math.Clamp(configuredSeconds ?? 25, 1, 25);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        deadline.CancelAfter(TimeSpan.FromSeconds(budgetSeconds));
+        var graphCt = deadline.Token;
+
         using var tokenResponse = await client.PostAsync(
             $"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token",
             new FormUrlEncodedContent(new Dictionary<string, string>
@@ -31,11 +41,11 @@ public sealed class GraphEmailSender(HttpClient client, IConfiguration config)
                 ["client_secret"] = secret,
                 ["scope"] = "https://graph.microsoft.com/.default",
                 ["grant_type"] = "client_credentials"
-            }), ct);
+            }), graphCt);
         if (!tokenResponse.IsSuccessStatusCode)
             throw new HttpRequestException($"No se pudo obtener token Graph (HTTP {(int)tokenResponse.StatusCode}).");
 
-        using var tokenDocument = JsonDocument.Parse(await tokenResponse.Content.ReadAsStringAsync(ct));
+        using var tokenDocument = JsonDocument.Parse(await tokenResponse.Content.ReadAsStringAsync(graphCt));
         if (!tokenDocument.RootElement.TryGetProperty("access_token", out var tokenElement))
             throw new InvalidOperationException("Respuesta OAuth de Graph sin access_token.");
         var token = tokenElement.GetString();
@@ -62,7 +72,7 @@ public sealed class GraphEmailSender(HttpClient client, IConfiguration config)
         var clientRequestId = Guid.NewGuid();
         request.Headers.Add("client-request-id", clientRequestId.ToString());
         request.Headers.Add("return-client-request-id", "true");
-        using var response = await client.SendAsync(request, ct);
+        using var response = await client.SendAsync(request, graphCt);
         if (!response.IsSuccessStatusCode)
         {
             // El cuerpo de Graph puede contener datos personales. Registrar solo códigos
@@ -71,8 +81,8 @@ public sealed class GraphEmailSender(HttpClient client, IConfiguration config)
             string? innerCode = null;
             try
             {
-                await using var stream = await response.Content.ReadAsStreamAsync(ct);
-                using var errorDocument = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+                await using var stream = await response.Content.ReadAsStreamAsync(graphCt);
+                using var errorDocument = await JsonDocument.ParseAsync(stream, cancellationToken: graphCt);
                 if (errorDocument.RootElement.TryGetProperty("error", out var error) &&
                     error.ValueKind == JsonValueKind.Object)
                 {
