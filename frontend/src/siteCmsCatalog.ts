@@ -1010,10 +1010,8 @@ const structureTitles: Array<[string,string]> = [
   ['Mesa de ayuda','Help desk'],['Agente propio en sitio','On-site agent'],
   ['Departamentos','Departments'],['Universidad corporativa','Corporate university']
 ]
+addText('about','Sobre nosotros','about.structure.kicker','Nuestra estructura','Antetítulo rojo','NUESTRA ORGANIZACIÓN','OUR ORGANIZATION')
 addText('about','Sobre nosotros','about.structure.heading','Nuestra estructura','Título','Nuestra estructura','Our structure')
-addText('about','Sobre nosotros','about.structure.intro','Nuestra estructura','Descripción general',
-  'Conocé las áreas y pilares de nuestra organización, presentes en la coordinación de nuestras operaciones.',
-  'Discover the areas and pillars of our organization that support the coordination of our operations.')
 // Structure now has four visible organizational areas (2–5). Retain the
 // historical environmental CMS keys (6) separately for its future section.
 structureTitles.forEach(([es,en],i)=>addText('about','Sobre nosotros','about.structure.'+(i+2)+'.title','Nuestra estructura','Elemento '+(i+1)+': título',es,en))
