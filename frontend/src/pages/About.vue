@@ -417,7 +417,8 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
 /* Corporate structure redesign: editorial photo panel + five accessible options.
    Existing CMS IDs 2–6 are preserved, and each photo is independently editable. */
 .about-refresh__structure {
-  padding-block: clamp(68px, 7.5vw, 116px);
+  padding-top:clamp(60px,6vw,88px);
+  padding-bottom:clamp(18px,2.1vw,32px);
   background: radial-gradient(ellipse at 0% 30%, rgba(167,16,53,.09), transparent 44%),
               linear-gradient(115deg, #f9f6f7, #f4f6fb);
 }
@@ -608,7 +609,7 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
   }
 }
 @media(max-width:480px){
-  .about-refresh__structure {padding-block:55px 66px}
+  .about-refresh__structure {padding-top:55px;padding-bottom:18px}
   .about-refresh__structure-heading h2 {font-size:clamp(32px,9vw,43px)}
   .about-refresh__structure-showcase {padding:9px;gap:10px}
   .about-refresh__structure-feature {min-height:380px}
@@ -664,16 +665,17 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
 /* Independent environmental section — light, editorial two-column layout.
    The content grows naturally when additional CMS text is published. */
 .about-refresh__environment {
-  padding-block:clamp(55px,7vw,98px);
-  scroll-margin-top:100px;
+  padding-top:clamp(12px,1.6vw,22px);
+  padding-bottom:clamp(18px,2.3vw,34px);
+  scroll-margin-top:85px;
   background:linear-gradient(140deg,#f9f5f6,#fff 55%,#fcf2f5);
 }
 .about-refresh__environment-card {
   display:grid;
   grid-template-columns:minmax(0,1fr) minmax(0,1fr);
   align-items:stretch;
-  gap:clamp(25px,3vw,52px);
-  padding:clamp(16px,1.8vw,26px);
+  gap:clamp(18px,2vw,36px);
+  padding:clamp(14px,1.35vw,24px);
   border:1px solid #e7dce2;
   border-radius:clamp(22px,2.2vw,32px);
   background:linear-gradient(120deg,#fff,#fffafc);
@@ -681,7 +683,7 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
 }
 .about-refresh__environment-media {
   min-width:0;
-  min-height:clamp(370px,31vw,520px);
+  min-height:clamp(360px,30vw,500px);
   overflow:hidden;
   border-radius:clamp(16px,1.3vw,22px);
   background:#e8eceb;
@@ -700,7 +702,7 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
   align-items:flex-start;
   justify-content:center;
   min-width:0;
-  padding:clamp(15px,2.1vw,36px) clamp(8px,1.1vw,18px);
+  padding:clamp(12px,1.35vw,24px) clamp(4px,.9vw,14px);
 }
 .about-refresh__environment-content .about-refresh__eyebrow {
   margin-bottom:14px;
@@ -712,7 +714,7 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
   margin:0;
   max-width:680px;
   color:var(--about-ink);
-  font-size:clamp(31px,3.5vw,56px);
+  font-size:clamp(31px,3.05vw,50px);
   line-height:1.09;
   letter-spacing:-.045em;
   overflow-wrap:break-word;
@@ -721,7 +723,7 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
   display:block;
   width:68px;
   height:4px;
-  margin:20px 0 25px;
+  margin:18px 0 23px;
   border-radius:4px;
   background:#b00929;
 }
@@ -740,7 +742,7 @@ html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
   align-items:start;
   width:100%;
   margin-top:auto;
-  padding-top:clamp(30px,4vw,58px);
+  padding-top:clamp(22px,2.6vw,42px);
 }
 .about-refresh__environment-pillar {
   display:flex;
@@ -779,7 +781,7 @@ html.theme-dark .about-refresh__environment-pillar:not(:first-child) {
 html.theme-dark .about-refresh__environment-content .about-refresh__eyebrow,
 html.theme-dark .about-refresh__environment-pillar svg {color:#ff8298}
 @media (max-width:1100px) {
-  .about-refresh__environment-card {gap:23px;grid-template-columns:minmax(0,.94fr) minmax(0,1.06fr)}
+  .about-refresh__environment-card {gap:17px;grid-template-columns:minmax(0,.94fr) minmax(0,1.06fr)}
   .about-refresh__environment-pillars {padding-top:28px}
   .about-refresh__environment-pillar {gap:10px;padding-inline:7px}
   .about-refresh__environment-pillar span {font-size:12px}
@@ -793,13 +795,13 @@ html.theme-dark .about-refresh__environment-pillar svg {color:#ff8298}
   .about-refresh__environment-pillar span {font-size:clamp(12px,2vw,15px)}
 }
 @media (max-width:540px) {
-  .about-refresh__environment {padding-block:52px 69px}
+  .about-refresh__environment {padding-block:12px 24px}
   .about-refresh__environment-card {padding:11px;border-radius:22px;gap:11px}
   .about-refresh__environment-media {height:240px;min-height:240px;border-radius:15px}
-  .about-refresh__environment-content {padding:19px 12px 18px}
+  .about-refresh__environment-content {padding:14px 12px 15px}
   .about-refresh__environment-content h2 {font-size:clamp(30px,8vw,39px)}
   .about-refresh__environment-description {font-size:15px}
-  .about-refresh__environment-pillars {grid-template-columns:1fr;gap:0;padding-top:26px}
+  .about-refresh__environment-pillars {grid-template-columns:1fr;gap:0;padding-top:20px}
   .about-refresh__environment-pillar {
     flex-direction:row;justify-content:flex-start;gap:16px;
     padding:13px 5px;text-align:left;
@@ -810,6 +812,9 @@ html.theme-dark .about-refresh__environment-pillar svg {color:#ff8298}
   .about-refresh__environment-pillar svg {width:28px;height:28px}
   .about-refresh__environment-pillar span {max-width:none;font-size:14px}
   html.theme-dark .about-refresh__environment-pillar:not(:first-child) {border-top-color:rgba(255,255,255,.25)}
+}
+.about-refresh__environment + .about-refresh__services {
+  padding-top:clamp(28px,3.3vw,52px);
 }
 .about-refresh__services{padding-block:clamp(92px,10vw,160px)}
 .about-refresh__capabilities{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(18px,2.3vw,36px)}
