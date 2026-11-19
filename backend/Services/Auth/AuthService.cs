@@ -304,10 +304,10 @@ public sealed class AuthService(
         message.From.Add(MailboxAddress.Parse(from));
         message.To.Add(MailboxAddress.Parse(email));
         message.Subject = "Código de acceso | Castro Fallas";
-        message.Body = new TextPart("plain")
-        {
-            Text = $"Tu código temporal de Castro Fallas es: {otp}\n\nVálido durante 5 minutos y una sola vez. Si no lo solicitaste, ignorá este mensaje."
-        };
+        // La alternativa de texto sigue disponible cuando el cliente bloquea HTML.
+        var plainText = OtpEmailTemplate.PlainText(otp);
+        var htmlText = OtpEmailTemplate.Html(otp);
+        message.Body = new BodyBuilder { TextBody = plainText, HtmlBody = htmlText }.ToMessageBody();
 
         // Demostración LOCAL: se genera un archivo .eml en el backend.
         // No se entrega a Gmail; no existe ningún endpoint que exponga el OTP.
@@ -326,7 +326,7 @@ public sealed class AuthService(
         }
         if (mode.Equals("Graph", StringComparison.OrdinalIgnoreCase))
         {
-            await graphEmailSender.SendAsync(email, message.Subject, ((TextPart)message.Body).Text, ct);
+            await graphEmailSender.SendAsync(email, message.Subject, plainText, ct, htmlText);
             return;
         }
         if (!mode.Equals("Smtp", StringComparison.OrdinalIgnoreCase))
