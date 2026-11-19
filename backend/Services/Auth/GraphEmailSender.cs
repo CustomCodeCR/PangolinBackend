@@ -8,9 +8,11 @@ namespace CastroFallas.MiniQuote.Api.Services.Auth;
 /// Envía correos a través de Microsoft Graph con credenciales de aplicación.
 /// Nunca se llama desde el navegador ni registra claves, tokens o contenido OTP.
 /// </summary>
+public sealed record InlineEmailImage(string FileName, string MimeType, string ContentId, byte[] Content);
+
 public sealed class GraphEmailSender(HttpClient client, IConfiguration config)
 {
-    public async Task SendAsync(string to, string subject, string body, CancellationToken ct)
+    public async Task SendAsync(string to, string subject, string body, CancellationToken ct, string? htmlBody = null, IReadOnlyList<InlineEmailImage>? inlineImages = null)
     {
         var tenant = Require("Graph:TenantId");
         var app = Require("Graph:ClientId");
@@ -52,16 +54,27 @@ public sealed class GraphEmailSender(HttpClient client, IConfiguration config)
         if (string.IsNullOrWhiteSpace(token))
             throw new InvalidOperationException("Token OAuth de Graph vacío.");
 
-        var payload = new
+        var graphMessage = new Dictionary<string, object>
         {
-            message = new
-            {
-                subject,
-                body = new { contentType = "Text", content = body },
-                toRecipients = new[] { new { emailAddress = new { address = to } } }
-            },
-            saveToSentItems = false
+            ["subject"] = subject,
+            ["body"] = new { contentType = htmlBody is null ? "Text" : "HTML", content = htmlBody ?? body },
+            ["toRecipients"] = new[] { new { emailAddress = new { address = to } } }
         };
+        if (inlineImages is { Count: > 0 })
+        {
+            // Images travel with the message. Outlook/Gmail need no public image URLs.
+            graphMessage["attachments"] = inlineImages.Select(image =>
+                new Dictionary<string, object>
+                {
+                    ["@odata.type"] = "#microsoft.graph.fileAttachment",
+                    ["name"] = image.FileName,
+                    ["contentType"] = image.MimeType,
+                    ["contentId"] = image.ContentId,
+                    ["isInline"] = true,
+                    ["contentBytes"] = Convert.ToBase64String(image.Content)
+                }).ToArray();
+        }
+        var payload = new { message = graphMessage, saveToSentItems = false };
         using var request = new HttpRequestMessage(HttpMethod.Post,
             $"https://graph.microsoft.com/v1.0/users/{Uri.EscapeDataString(sender)}/sendMail")
         {

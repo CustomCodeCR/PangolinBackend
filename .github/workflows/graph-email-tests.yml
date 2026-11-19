@@ -5,6 +5,9 @@ on:
     branches: [main-2, main]
     paths:
       - "backend/Services/Auth/GraphEmailSender.cs"
+      - "backend/Services/Auth/OtpEmailTemplate.cs"
+      - "backend/Services/Auth/AuthService.cs"
+      - "tests/OtpEmailTemplateHarness/**"
       - "tests/GraphEmailSenderHarness/**"
       - ".github/workflows/graph-email-tests.yml"
   workflow_dispatch:
@@ -23,3 +26,5 @@ jobs:
           dotnet-version: "10.0.x"
       - name: Check token, sendMail and error sanitization with local fake HTTP
         run: dotnet run --project tests/GraphEmailSenderHarness/GraphEmailSenderHarness.csproj -c Release
+      - name: Validate OTP email layout, plain fallback, no secrets in links
+        run: dotnet run --project tests/OtpEmailTemplateHarness/OtpEmailTemplateHarness.csproj -c Release

@@ -8,5 +8,6 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <Compile Include="../../backend/Services/Auth/GraphEmailSender.cs" Link="GraphEmailSender.cs" />
+    <Compile Include="../../backend/Services/Auth/OtpEmailAssets.cs" Link="OtpEmailAssets.cs" />
   </ItemGroup>
 </Project>

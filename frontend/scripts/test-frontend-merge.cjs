@@ -639,6 +639,21 @@ assert.match(tracking, /\.tracking-fields\{grid-template-columns:minmax\(0,1fr\)
 assert.match(tracking, /\.tracking-fields :is\(input,select\)\{min-height:54px;padding:13px 15px;font-size:16px;/, 'Controles táctiles con fuente legible en móvil')
 const homeStyles = source('src/style.css')
 
+// Laptop-width service accordion must have enough horizontal and vertical room
+// for the expanded title, description and CTA; mobile retains its own styles.
+const homeLaptopFix = homeStyles.split('/* Home transport cards on intermediate laptop widths.')[1] ?? ''
+assert.ok(homeLaptopFix, 'Falta ajuste responsive de tarjetas de transporte en laptops')
+assert.match(homeLaptopFix, /@media \(min-width:801px\) and \(max-width:1550px\)/,
+  'El nuevo layout aplica antes de pasar al diseño móvil')
+assert.match(homeLaptopFix, /grid-template-columns:minmax\(0,1fr\)/,
+  'En laptops las noticias deben dejar ancho completo a los servicios')
+assert.match(homeLaptopFix, /height:clamp\(455px,38vw,500px\)/,
+  'Las tarjetas deben ganar altura para el texto completo')
+assert.match(homeLaptopFix, /container-type:inline-size/,
+  'El texto debe ajustarse al ancho real de la columna de servicios')
+assert.match(homeLaptopFix, /overflow-y:auto/,
+  'Las descripciones largas deben seguir siendo accesibles si no caben')
+
 const serviceOverlayCss = homeStyles.split('.service-modal-backdrop{')[1]?.split('}')[0] ?? ''
 const serviceCardCss = homeStyles.split('.service-modal__sections section{')[1]?.split('}')[0] ?? ''
 const serviceGlowCss = homeStyles.split('.service-modal::before{')[1]?.split('}')[0] ?? ''
@@ -1065,7 +1080,11 @@ assert.match(otpService, /request_count % 2 = 1/, 'OTP permite un segundo intent
 assert.doesNotMatch(otpService, /AnyAsync\(x => x\.UsuarioId == user\.Uuid && x\.CreatedAt > now\.AddSeconds\(-60\)/, 'No bloquear el segundo intento con un límite de challenge obsoleto')
 assert.match(otpService, /last_requested_at <= NOW\(\) - INTERVAL '60 seconds'/, 'OTP conserva espera mínima por correo')
 assert.match(otpService, /GetOtpRetrySecondsAsync\(emailKey, ct\)/, 'Devuelve espera calculada desde PostgreSQL')
-assert.match(otpService, /await SendMailAsync\(email, otp, ct\)/, 'OTP sigue enviándose por proveedor')
+assert.match(otpService, /await SendMailAsync\(email, otp, id, ct\)/, 'OTP sigue enviándose por proveedor con el challenge existente')
+assert.match(otpService, /OtpEmailTemplate\.VerificationUrl\(challengeId, configuration\["Email:LoginUrl"\]\)/, 'El correo recupera el mismo challenge sin generar otro')
+assert.match(otpLogin, /window\.location\.hash\.slice\(1\)/, 'El enlace del correo conserva el challenge en un fragmento no enviado al servidor')
+assert.match(otpLogin, /ref<'identity' \| 'otp'>\(linkedChallenge \? 'otp' : 'identity'\)/, 'El enlace va directo al campo OTP')
+assert.match(otpLogin, /role === 'administrador' \? '\/administracion' : '\/home'/, 'El rol de sesión determina el destino después de verificar')
 assert.match(otpService, /x\.Uuid != id && x\.CreatedAt < row\.CreatedAt && x\.UsedAt == null/, 'Solo se invalidan OTP anteriores después del envío, sin afectar desafíos nuevos simultáneos')
 assert.match(otpBackend, /code = "otp_rate_limited"/, '429 por correo es distinguible')
 assert.match(otpBackend, /Headers\.RetryAfter/, '429 y 503 exponen Retry-After')
