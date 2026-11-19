@@ -61,10 +61,10 @@ public static class OtpEmailTemplate
                 <tr><td align="center" class="cf-outer" style="padding:30px 14px;">
                   <table role="presentation" class="cf-panel" cellspacing="0" cellpadding="0" border="0" width="640" style="border-collapse:separate;width:100%;max-width:640px;background:#ffffff;border:1px solid #ebebeb;border-radius:14px;overflow:hidden;">
                     <tr>
-                      <td class="cf-brand" width="126" valign="middle" align="center" style="width:126px;padding:19px 4px;background:#ffffff;">
-                        <img src="cid:cf-otp-logo" width="104" height="155" alt="Castro Fallas" style="display:block;width:104px;height:155px;margin:0 auto;border:0;">
+                      <td class="cf-brand" width="147" valign="middle" align="center" style="width:147px;padding:19px 16px;background:#ffffff;">
+                        <img src="cid:cf-otp-logo" width="92" height="138" alt="Castro Fallas" style="display:block;width:92px;height:138px;margin:0 auto;border:0;">
                       </td>
-                      <td class="cf-content" width="306" valign="middle" style="width:306px;padding:29px 5px 26px 2px;text-align:left;background:#ffffff;">
+                      <td class="cf-content" width="285" valign="middle" style="width:285px;padding:29px 5px 26px 2px;text-align:left;background:#ffffff;">
                         <h1 style="margin:0 0 8px;color:#151923;font-size:22px;line-height:1.2;font-weight:700;">Tu código de acceso</h1>
                         <div style="height:2px;width:100%;max-width:245px;background:#af0922;margin:0 0 12px;"></div>
                         <p style="margin:0 0 14px;font-size:12px;line-height:1.5;color:#5f6268;">Usá este código para iniciar sesión de forma segura.</p>
