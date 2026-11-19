@@ -1140,11 +1140,17 @@ html.theme-dark .about-refresh .about-refresh__purpose-symbol {
 }
 html.theme-dark .about-refresh .about-refresh__value-icon {
   background:#41223c;
-  color:#ff849a;
+  color:#ff849a !important;
+}
+html.theme-dark .about-refresh .about-refresh__value-icon :deep(svg) {
+  color:#ff849a !important;
 }
 html.theme-dark .about-refresh .about-refresh__value.is-open .about-refresh__value-icon {
   background:#b00929;
-  color:#fff;
+  color:#fff !important;
+}
+html.theme-dark .about-refresh .about-refresh__value.is-open .about-refresh__value-icon :deep(svg) {
+  color:#fff !important;
 }
 /* Target both component roots and the Lucide SVGs directly so the page's
    general dark-mode icon rules cannot turn these outlined icons white. */
