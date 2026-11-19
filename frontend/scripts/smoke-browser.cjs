@@ -615,7 +615,7 @@ async function assertServicesTheme(chrome, url) {
         assert.equal(iconPaint.environmental.length,3,'Deben existir tres íconos ambientales visibles')
         assert.equal(iconPaint.capabilities.length,5,'Deben existir cinco íconos de capacidades')
         for (const [group,icons] of Object.entries(iconPaint)) {
-          assert.ok(icons.every(svg=>svg.color==='rgb(255, 60, 97)' && svg.stroke==='rgb(255, 60, 97)'),
+          assert.ok(icons.every(svg=>svg.color==='rgb(176, 9, 41)' && svg.stroke==='rgb(176, 9, 41)'),
             'Los SVG de '+group+' deben verse rojos, no blancos, a '+width+'px: '+JSON.stringify(icons))
         }
       }
@@ -651,9 +651,9 @@ async function assertServicesTheme(chrome, url) {
         const closedAgain = await evaluate("(() => {const doc=document.documentElement;const old=doc.classList.contains('theme-dark');doc.classList.add('theme-dark');const first=document.querySelector('#nuestros-valores .about-refresh__value');const result={open:first.classList.contains('is-open'),bg:getComputedStyle(first.querySelector('.about-refresh__value-icon')).backgroundColor};doc.classList.toggle('theme-dark',old);return result})()")
         assert.equal(closedAgain.open,false,'La tarjeta debe volver a cerrarse')
         assert.equal(closedAgain.bg,'rgb(65, 34, 60)','El rojo desaparece al cerrar la tarjeta')
-        assert.equal(redPalette.capability,'rgb(255, 60, 97)',
+        assert.equal(redPalette.capability,'rgb(176, 9, 41)',
           'Los íconos de Capacidades deben tener el acento rojo')
-        assert.equal(redPalette.environmental,'rgb(255, 60, 97)',
+        assert.equal(redPalette.environmental,'rgb(176, 9, 41)',
           'Los íconos de Enfoque ambiental deben tener el acento rojo')
         assert.ok(redPalette.eyebrows.every(color=>color==='rgb(255, 60, 97)'),
           'Los antetítulos de Sobre nosotros deben ser rojos: '+JSON.stringify(redPalette))
