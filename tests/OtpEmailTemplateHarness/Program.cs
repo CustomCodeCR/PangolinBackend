@@ -26,6 +26,14 @@ Assert(!html.Contains("https://www.logisticacastrofallas.com/bienvenidos?", Stri
 Assert(!html.Contains("<script", StringComparison.OrdinalIgnoreCase), "Email must not include JavaScript.");
 Assert(!html.Contains("Copiar código", StringComparison.Ordinal), "No nonfunctional copy button.");
 Assert(html.Contains("width=\"640\"", StringComparison.Ordinal), "Desktop mail width missing.");
+Assert(html.Contains("class=\"cf-brand\" width=\"164\"", StringComparison.Ordinal),
+    "Left brand panel must use the symmetric 164px width.");
+Assert(html.Contains("class=\"cf-globe\" width=\"164\"", StringComparison.Ordinal),
+    "Right decorative panel must match left panel width.");
+Assert(html.Contains("class=\"cf-content\" width=\"312\"", StringComparison.Ordinal),
+    "Center column must balance the 640px email card.");
+Assert(html.Contains("src=\"cid:cf-otp-globe\" width=\"164\" height=\"285\"", StringComparison.Ordinal),
+    "Globe should fit within its symmetric right panel.");
 Assert(html.Contains("max-width:560px", StringComparison.Ordinal), "Mobile layout missing.");
 Assert(plain.Contains(sample, StringComparison.Ordinal), "Plain fallback must contain the complete OTP.");
 Assert(plain.Contains("5 minutos", StringComparison.Ordinal), "Plain fallback expiry missing.");
