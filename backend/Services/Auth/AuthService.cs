@@ -106,7 +106,7 @@ public sealed class AuthService(
 
         try
         {
-            await SendMailAsync(email, otp, ct);
+            await SendMailAsync(email, otp, id, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
@@ -294,9 +294,14 @@ public sealed class AuthService(
         new(u.Uuid, u.ClienteId, u.Cliente.Nombre, u.Correo, role, JwtAuthOptions.MapRole(role), null);
     private const string GenericMessage = "Si los datos corresponden a una cuenta habilitada, recibirás un código por correo.";
 
-    private async Task SendMailAsync(string email, string otp, CancellationToken ct)
+    private async Task SendMailAsync(string email, string otp, Guid challengeId, CancellationToken ct)
     {
         var mode = configuration["Email:Mode"] ?? "Smtp";
+        var verificationUrl = OtpEmailTemplate.VerificationUrl(challengeId, configuration["Email:LoginUrl"]);
+        // Never generate an insecure HTTP link in production.
+        if (!environment.IsDevelopment() &&
+            !verificationUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Email:LoginUrl requiere HTTPS fuera de Development.");
         string from = mode.Equals("Graph", StringComparison.OrdinalIgnoreCase)
             ? configuration["Graph:From"] ?? throw new InvalidOperationException("Graph:From sin configurar")
             : configuration["Smtp:From"] ?? "pruebas@castrofallas.local";
@@ -305,8 +310,8 @@ public sealed class AuthService(
         message.To.Add(MailboxAddress.Parse(email));
         message.Subject = OtpEmailTemplate.Subject();
         // La alternativa de texto sigue disponible cuando el cliente bloquea HTML.
-        var plainText = OtpEmailTemplate.PlainText(otp);
-        var htmlText = OtpEmailTemplate.Html(otp);
+        var plainText = OtpEmailTemplate.PlainText(otp, verificationUrl);
+        var htmlText = OtpEmailTemplate.Html(otp, verificationUrl);
         var body = new BodyBuilder { TextBody = plainText, HtmlBody = htmlText };
         foreach (var image in OtpEmailAssets.Images)
         {
