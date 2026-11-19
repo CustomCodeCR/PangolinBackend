@@ -47,7 +47,7 @@ public static class OtpEmailTemplate
                   .cf-outer { padding:16px 10px !important; }
                   .cf-panel { width:100% !important; }
                   .cf-brand { display:block !important; width:100% !important; padding:16px 18px 3px !important; text-align:center !important; }
-                  .cf-brand img { width:78px !important; height:117px !important; }
+                  .cf-brand img { width:78px !important; height:111px !important; }
                   .cf-globe { display:none !important; }
                   .cf-content { display:block !important; width:auto !important; padding:13px 19px 22px !important; text-align:center !important; }
                   .cf-actions { margin-left:auto !important; margin-right:auto !important; }
@@ -62,7 +62,7 @@ public static class OtpEmailTemplate
                   <table role="presentation" class="cf-panel" cellspacing="0" cellpadding="0" border="0" width="640" style="border-collapse:separate;width:100%;max-width:640px;background:#ffffff;border:1px solid #ebebeb;border-radius:14px;overflow:hidden;">
                     <tr>
                       <td class="cf-brand" width="147" valign="middle" align="center" style="width:147px;padding:19px 16px;background:#ffffff;">
-                        <img src="cid:cf-otp-logo" width="92" height="138" alt="Castro Fallas" style="display:block;width:92px;height:138px;margin:0 auto;border:0;">
+                        <img src="cid:cf-otp-logo" width="95" height="135" alt="Castro Fallas" style="display:block;width:95px;height:135px;margin:0 auto;border:0;">
                       </td>
                       <td class="cf-content" width="285" valign="middle" style="width:285px;padding:29px 5px 26px 2px;text-align:left;background:#ffffff;">
                         <h1 style="margin:0 0 8px;color:#151923;font-size:22px;line-height:1.2;font-weight:700;">Tu código de acceso</h1>
