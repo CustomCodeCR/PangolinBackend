@@ -428,34 +428,52 @@ async function assertServicesTheme(chrome, url) {
       }
     }
     console.log('PASS Chrome: últimas filas centradas en Valores y Capacidades (1100, 800 y 480px)')
-    // Five remaining "Sobre nuestra estructura" cards should wrap evenly
-    // and keep their original CMS IDs and accessible accordion controls.
-    const structureUrl = new URL('/nosotros',url).href
-    for (const scenario of [
-      { width: 1440, rows: [5] },
-      { width: 1100, rows: [3, 2] },
-      { width: 800, rows: [2, 2, 1] },
-      { width: 480, rows: [1, 1, 1, 1, 1] }
-    ]) {
+    // The new corporate structure showcase must replace five empty cards with
+    // one image-led panel and five CMS-backed, keyboard-accessible choices.
+    const structureUrl = new URL('/nosotros', url).href
+    for (const width of [1440, 1000, 760, 480, 375]) {
       await send('Emulation.setDeviceMetricsOverride', {
-        width:scenario.width,height:950,deviceScaleFactor:1,mobile:false
+        width, height: 1000, deviceScaleFactor: 1, mobile: false
       })
-      const nav = await send('Page.navigate',{url:structureUrl})
-      assert.ok(!nav.errorText,'No se pudo abrir Nosotros para comprobar estructura')
+      const nav = await send('Page.navigate', { url: structureUrl })
+      assert.ok(!nav.errorText, 'Chrome no pudo abrir Nosotros: ' + nav.errorText)
       let structureReady = false
-      for(let attempt=0;attempt<100;attempt++){
-        structureReady=await evaluate("document.querySelectorAll('#nuestra-estructura .about-refresh__structure-card').length === 5")
-        if(structureReady) break
-        await new Promise(resolve=>setTimeout(resolve,120))
+      for (let attempt = 0; attempt < 100; attempt++) {
+        structureReady = await evaluate("document.querySelectorAll('#nuestra-estructura .about-refresh__structure-choice').length === 5")
+        if (structureReady) break
+        await new Promise(resolve => setTimeout(resolve, 120))
       }
-      assert.ok(structureReady,'Deben mostrarse cinco módulos de estructura')
-      const layout=await evaluate("(() => {const root=document.querySelector('#nuestra-estructura .about-refresh__structure-grid');const bounds=root.getBoundingClientRect();const cards=[...root.querySelectorAll('.about-refresh__structure-card')];const rows=[];for(const node of cards){const r=node.getBoundingClientRect();const row=rows.find(x=>Math.abs(x[0].top-r.top)<2);if(row)row.push(r);else rows.push([r]);}const last=rows.at(-1);const center=(last[0].left+last.at(-1).right)/2;return {count:cards.length,rows:rows.map(x=>x.length),delta:Math.abs(center-(bounds.left+bounds.right)/2),widths:cards.map(x=>x.getBoundingClientRect().width),indices:cards.map(x=>x.querySelector('button')?.getAttribute('aria-controls')),labels:cards.map(x=>x.innerText)};})()")
-      assert.deepEqual(layout.rows,scenario.rows,'Estructura debe ocupar filas equilibradas a '+scenario.width+': '+JSON.stringify(layout))
-      assert.ok(layout.delta<=3,'La fila incompleta debe estar centrada: '+JSON.stringify(layout))
-      assert.ok(Math.max(...layout.widths)-Math.min(...layout.widths)<=2,'Tarjetas desiguales: '+JSON.stringify(layout))
-      assert.deepEqual(layout.indices,['about-structure-2','about-structure-3','about-structure-4','about-structure-5','about-structure-6'],'Las tarjetas deben conservar sus claves del CMS')
+      assert.ok(structureReady, 'Deben existir cinco opciones para Nuestra estructura: ' + width)
+      const initial = await evaluate("(() => { const root=document.querySelector('#nuestra-estructura'); const showcase=root.querySelector('.about-refresh__structure-showcase'); const menu=root.querySelector('.about-refresh__structure-menu'); const feature=root.querySelector('.about-refresh__structure-feature');const choices=[...menu.querySelectorAll('button')];const pressed=choices.flatMap((b,i)=>b.getAttribute('aria-pressed')==='true'?[i]:[]);return { choiceCount:choices.length, panelCount:root.querySelectorAll('.about-refresh__structure-feature').length, pressed, controls:choices.map(b=>b.getAttribute('aria-controls')), panelId:feature.id, hasMedia:!!feature.querySelector('img,video'), hasText:!!feature.querySelector('h3')&&!!feature.querySelector('p'), hasVisibleCopy:feature.querySelector('.about-refresh__structure-description')?.textContent?.trim().length>20, display:getComputedStyle(showcase).display, menuOrder:getComputedStyle(menu).order, featureOrder:getComputedStyle(feature).order, overflow:showcase.scrollWidth-showcase.clientWidth, documentOverflow:document.documentElement.scrollWidth-window.innerWidth }; })()")
+      assert.equal(initial.choiceCount, 5, 'Faltan opciones de estructura')
+      assert.equal(initial.panelCount, 1, 'Solo debe verse un panel fotográfico')
+      assert.deepEqual(initial.pressed, [0], 'Mesa de ayuda debe estar seleccionada al cargar')
+      assert.ok(initial.controls.every(id => id === 'about-structure-feature') && initial.panelId === 'about-structure-feature',
+        'Los botones deben controlar un panel accesible: ' + JSON.stringify(initial))
+      assert.ok(initial.hasMedia && initial.hasText && initial.hasVisibleCopy,
+        'El panel debe contener fotografía, título y texto real: ' + JSON.stringify(initial))
+      assert.ok(initial.overflow <= 3 && initial.documentOverflow <= 3,
+        'Nuestra estructura no debe provocar scroll horizontal: ' + JSON.stringify(initial))
+      if (width <= 760) {
+        assert.equal(initial.display, 'flex', 'En celular el panel debe apilarse')
+        assert.equal(initial.menuOrder, '0', 'El menú debe estar sobre la fotografía en móvil')
+        assert.equal(initial.featureOrder, '1', 'La fotografía debe quedar bajo las opciones en móvil')
+      } else {
+        assert.equal(initial.display, 'grid', 'En escritorio debe mantenerse el panel de dos columnas')
+      }
+      // Selecting a new option changes the content without creating blank cards.
+      await evaluate("document.querySelectorAll('#nuestra-estructura .about-refresh__structure-choice')[2].click(); true")
+      await new Promise(resolve => setTimeout(resolve, 550))
+      const departments = await evaluate("(() => { const root=document.querySelector('#nuestra-estructura');return { selected:root.querySelectorAll('.about-refresh__structure-choice[aria-pressed=true]').length===1&&root.querySelectorAll('.about-refresh__structure-choice')[2].getAttribute('aria-pressed')==='true',items:root.querySelectorAll('.about-refresh__structure-departments>span').length,panel:root.querySelectorAll('.about-refresh__structure-feature').length,heading:root.querySelector('.about-refresh__structure-feature h3')?.textContent?.trim(),hasMedia:!!root.querySelector('.about-refresh__structure-photo img,.about-refresh__structure-photo video') }; })()")
+      assert.ok(departments.selected && departments.panel === 1 && departments.items === 5 && departments.heading && departments.hasMedia,
+        'Los cinco departamentos deben mostrarse al seleccionar su apartado: ' + JSON.stringify(departments))
+      await evaluate("document.querySelectorAll('#nuestra-estructura .about-refresh__structure-choice')[4].click(); true")
+      await new Promise(resolve => setTimeout(resolve, 550))
+      const environment = await evaluate("(() => { const root=document.querySelector('#nuestra-estructura');return { selected:root.querySelectorAll('.about-refresh__structure-choice')[4].getAttribute('aria-pressed')==='true',body:root.querySelector('.about-refresh__structure-description')?.textContent?.trim(),deptCount:root.querySelectorAll('.about-refresh__structure-departments>span').length }; })()")
+      assert.ok(environment.selected && environment.body?.length>40 && environment.deptCount===0,
+        'Enfoque ambiental debe conservar su texto y no heredar los departamentos: ' + JSON.stringify(environment))
     }
-    console.log('PASS Chrome: cinco módulos de estructura y filas centradas en cuatro anchos')
+    console.log('PASS Chrome: Nuestra estructura con panel interactivo, cinco opciones, accesibilidad y responsive')
 
     // Contacto en Home: mantener cinco tarjetas iguales y centrar las
     // filas incompletas sin ensanchar la última tarjeta en móvil.
