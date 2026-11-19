@@ -593,8 +593,10 @@ async function assertServicesTheme(chrome, url) {
         'La sección debe adaptar el fondo al modo claro y oscuro: '+JSON.stringify(environmentPalette))
       assert.equal(environmentPalette.dark.bg,environmentPalette.dark.structureBg,
         'En modo oscuro el recuadro ambiental debe usar el mismo degradado de Nuestra estructura')
-      assert.equal(environmentPalette.dark.title,'rgb(246, 247, 251)',
-        'El título oscuro debe ser legible con las variables de tema: '+JSON.stringify(environmentPalette))
+      assert.equal(environmentPalette.dark.title,'rgb(255, 255, 255)',
+        'El título oscuro debe conservar texto blanco legible: '+JSON.stringify(environmentPalette))
+      assert.equal(environmentPalette.dark.kicker,'rgb(255, 130, 152)',
+        'El antetítulo ambiental debe conservar el acento rosado del modo oscuro: '+JSON.stringify(environmentPalette))
       assert.equal(environmentPalette.light.title,'rgb(32, 36, 45)',
         'El título claro debe usar la paleta de texto oscuro: '+JSON.stringify(environmentPalette))
       assert.notEqual(environmentPalette.light.pillar,environmentPalette.dark.pillar,
