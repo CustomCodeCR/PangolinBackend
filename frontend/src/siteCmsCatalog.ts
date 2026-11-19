@@ -1008,15 +1008,14 @@ addMedia('home','Inicio','home.services.panama.media','Transporte Panamá–Cost
 
 const structureTitles: Array<[string,string]> = [
   ['Mesa de ayuda','Help desk'],['Agente propio en sitio','On-site agent'],
-  ['Departamentos','Departments'],['Universidad corporativa','Corporate university'],
-  ['Enfoque ambiental','Environmental approach']
+  ['Departamentos','Departments'],['Universidad corporativa','Corporate university']
 ]
 addText('about','Sobre nosotros','about.structure.heading','Nuestra estructura','Título','Nuestra estructura','Our structure')
 addText('about','Sobre nosotros','about.structure.intro','Nuestra estructura','Descripción general',
   'Conocé las áreas y pilares de nuestra organización, presentes en la coordinación de nuestras operaciones.',
   'Discover the areas and pillars of our organization that support the coordination of our operations.')
-// Preserve original keys 2–6 (and published CMS edits), while providing five
-// independent photographs and descriptions for the new interactive panel.
+// Structure now has four visible organizational areas (2–5). Retain the
+// historical environmental CMS keys (6) separately for its future section.
 structureTitles.forEach(([es,en],i)=>addText('about','Sobre nosotros','about.structure.'+(i+2)+'.title','Nuestra estructura','Elemento '+(i+1)+': título',es,en))
 const structureDescriptions: Array<[string,string]> = [
   ['Un espacio de atención para orientar consultas y acompañar las necesidades de cada operación logística.',
@@ -1026,16 +1025,13 @@ const structureDescriptions: Array<[string,string]> = [
   ['Conocé las áreas que forman parte de nuestra estructura y contribuyen a la coordinación de cada servicio.',
    'Explore the areas within our structure that help coordinate our services.'],
   ['Un espacio orientado al intercambio de conocimientos y al desarrollo de nuestro equipo.',
-   'An initiative focused on knowledge sharing and the development of our team.'],
-  ['Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.',
-   'We seek opportunities to incorporate more responsible practices into our operations.']
+   'An initiative focused on knowledge sharing and the development of our team.']
 ]
 const structurePhotos = [
   '/images/about-operations-enhanced.webp',
   '/images/warehouse-person.webp',
   '/images/cover-logistics.webp',
-  '/images/about-operations.webp',
-  '/images/services-warehouse.webp'
+  '/images/about-operations.webp'
 ]
 structureDescriptions.forEach(([es,en],i)=>{
   addText('about','Sobre nosotros','about.structure.'+(i+2)+'.description',
@@ -1043,13 +1039,22 @@ structureDescriptions.forEach(([es,en],i)=>{
   addMedia('about','Sobre nosotros','about.structure.'+(i+2)+'.media',
     'Nuestra estructura','Elemento '+(i+1)+': fotografía',structurePhotos[i])
 })
+// Preserve the retired environmental menu item's CMS records without losing
+// previously published titles, text or media. They can be reused when an
+// independent Environmental Approach section is designed and approved.
+addText('about','Sobre nosotros','about.structure.6.title','Enfoque ambiental (pendiente)','Título',
+  'Enfoque ambiental','Environmental approach')
+addText('about','Sobre nosotros','about.structure.6.description','Enfoque ambiental (pendiente)','Descripción',
+  'Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.',
+  'We seek opportunities to incorporate more responsible practices into our operations.')
+addMedia('about','Sobre nosotros','about.structure.6.media','Enfoque ambiental (pendiente)','Fotografía','/images/services-warehouse.webp')
 const departments: Array<[string,string]> = [
   ['Consolidadora','Freight consolidation'],['Pedimentación','Customs declaration processing'],
   ['Contabilidad','Accounting'],['Servicio al cliente','Customer service'],
   ['Transporte interno de carga','Domestic cargo transport']
 ]
-departments.forEach(([es,en],i)=>addText('about','Sobre nosotros','about.structure.departments.'+i,'Sobre nuestra estructura','Departamento '+(i+1),es,en))
-addText('about','Sobre nosotros','about.structure.environment','Sobre nuestra estructura','Texto de enfoque ambiental',
+departments.forEach(([es,en],i)=>addText('about','Sobre nosotros','about.structure.departments.'+i,'Nuestra estructura','Departamento '+(i+1),es,en))
+addText('about','Sobre nosotros','about.structure.environment','Enfoque ambiental (pendiente)','Texto ambiental publicado',
   'Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.',
   'We seek opportunities to incorporate more responsible practices into our operations.')
 
