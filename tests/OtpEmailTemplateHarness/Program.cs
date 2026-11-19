@@ -28,12 +28,12 @@ Assert(!html.Contains("Copiar código", StringComparison.Ordinal), "No nonfuncti
 Assert(html.Contains("width=\"640\"", StringComparison.Ordinal), "Desktop mail width missing.");
 Assert(html.Contains("class=\"cf-brand\" width=\"164\"", StringComparison.Ordinal),
     "Left brand panel must use the symmetric 164px width.");
-Assert(html.Contains("class=\"cf-globe\" width=\"164\"", StringComparison.Ordinal),
-    "Right decorative panel must match left panel width.");
-Assert(html.Contains("class=\"cf-content\" width=\"312\"", StringComparison.Ordinal),
-    "Center column must balance the 640px email card.");
-Assert(html.Contains("src=\"cid:cf-otp-globe\" width=\"164\" height=\"285\"", StringComparison.Ordinal),
-    "Globe should fit within its symmetric right panel.");
+Assert(html.Contains("class=\"cf-globe\" width=\"214\"", StringComparison.Ordinal),
+    "Globe must extend the decorative fade 50px into the center.");
+Assert(html.Contains("class=\"cf-content\" width=\"262\"", StringComparison.Ordinal),
+    "Keep the total email width at 640px while extending the globe.");
+Assert(html.Contains("src=\"cid:cf-otp-globe\" width=\"214\" height=\"285\"", StringComparison.Ordinal),
+    "Keep the globe fully visible within the larger decoration area.");
 Assert(html.Contains("max-width:560px", StringComparison.Ordinal), "Mobile layout missing.");
 Assert(plain.Contains(sample, StringComparison.Ordinal), "Plain fallback must contain the complete OTP.");
 Assert(plain.Contains("5 minutos", StringComparison.Ordinal), "Plain fallback expiry missing.");
