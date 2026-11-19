@@ -1141,8 +1141,9 @@ html.theme-dark .about-refresh .about-refresh__value-icon {
   color:#fff;
 }
 html.theme-dark .about-refresh .about-refresh__capability-icon,
+html.theme-dark .about-refresh .about-refresh__capability-icon :deep(svg),
 html.theme-dark .about-refresh .about-refresh__environment-pillar svg {
-  color:#ff3c61;
+  color:#ff3c61 !important;
 }
 /* Headings are inherited from CMS; change their accent color, not their text. */
 html.theme-dark .about-refresh .about-refresh__eyebrow {
