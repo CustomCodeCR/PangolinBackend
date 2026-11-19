@@ -588,11 +588,19 @@ async function assertServicesTheme(chrome, url) {
         'Los ejes deben apilarse verticalmente en celulares pequeños: '+JSON.stringify(environment))
       assert.ok(environment.overflow<=3 && environment.bodyOverflow<=3 && environment.documentOverflow<=3,
         'La sección no debe producir desbordamiento horizontal: '+JSON.stringify(environment))
-      const environmentPalette=await evaluate("(() => {const doc=document.documentElement;const wasDark=doc.classList.contains('theme-dark');const card=document.querySelector('#enfoque-ambiental .about-refresh__environment-card');const heading=document.querySelector('#enfoque-ambiental h2');const kicker=document.querySelector('#enfoque-ambiental .about-refresh__eyebrow');doc.classList.remove('theme-dark');const light={bg:getComputedStyle(card).backgroundImage,title:getComputedStyle(heading).color,kicker:getComputedStyle(kicker).color};doc.classList.add('theme-dark');const dark={bg:getComputedStyle(card).backgroundImage,title:getComputedStyle(heading).color,kicker:getComputedStyle(kicker).color};doc.classList.toggle('theme-dark',wasDark);return {light,dark};})()")
+      const environmentPalette=await evaluate("(() => {const doc=document.documentElement;const wasDark=doc.classList.contains('theme-dark');const card=document.querySelector('#enfoque-ambiental .about-refresh__environment-card');const structure=document.querySelector('#nuestra-estructura .about-refresh__structure-showcase');const heading=document.querySelector('#enfoque-ambiental h2');const kicker=document.querySelector('#enfoque-ambiental .about-refresh__eyebrow');const pillars=document.querySelector('#enfoque-ambiental .about-refresh__environment-pillar');doc.classList.remove('theme-dark');const light={bg:getComputedStyle(card).backgroundImage,title:getComputedStyle(heading).color,kicker:getComputedStyle(kicker).color,pillar:getComputedStyle(pillars).color};doc.classList.add('theme-dark');const dark={bg:getComputedStyle(card).backgroundImage,structureBg:getComputedStyle(structure).backgroundImage,title:getComputedStyle(heading).color,kicker:getComputedStyle(kicker).color,pillar:getComputedStyle(pillars).color};doc.classList.toggle('theme-dark',wasDark);return {light,dark};})()")
       assert.notEqual(environmentPalette.light.bg,environmentPalette.dark.bg,
         'La sección debe adaptar el fondo al modo claro y oscuro: '+JSON.stringify(environmentPalette))
-      assert.notEqual(environmentPalette.light.title,environmentPalette.dark.title,
-        'El encabezado debe conservar contraste en ambos temas: '+JSON.stringify(environmentPalette))
+      assert.equal(environmentPalette.dark.bg,environmentPalette.dark.structureBg,
+        'En modo oscuro el recuadro ambiental debe usar el mismo degradado de Nuestra estructura')
+      assert.equal(environmentPalette.dark.title,'rgb(246, 247, 251)',
+        'El título oscuro debe ser legible con las variables de tema: '+JSON.stringify(environmentPalette))
+      assert.equal(environmentPalette.light.title,'rgb(32, 36, 45)',
+        'El título claro debe usar la paleta de texto oscuro: '+JSON.stringify(environmentPalette))
+      assert.notEqual(environmentPalette.light.pillar,environmentPalette.dark.pillar,
+        'Las etiquetas de los ejes deben conservar el contraste según el modo')
+      assert.ok(['Enfoque ambiental','Environmental approach'].includes(environment.title),
+        'El título no debe comenzar por Nuestro / Our: '+JSON.stringify(environment.title))
     }
     console.log('PASS Chrome: Enfoque ambiental independiente, CMS, tres ejes, 2 temas y responsive')
 
