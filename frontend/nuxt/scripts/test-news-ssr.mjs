@@ -136,7 +136,7 @@ try {
     'La API pública debe excluir noticias no publicadas, caducadas o malformadas')
 
   const sitemap = await (await fetch(base + '/sitemap.xml')).text()
-  const articleLinks = [...sitemap.matchAll(/<loc>([^<]+)<\\/loc>/g)]
+  const articleLinks = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)]
     .map(match => match[1]).filter(url => url.includes('/noticias/'))
   assert.equal(articleLinks.length, publicArticles.length,
     'El sitemap debe anunciar exactamente los artículos accesibles en SSR')
