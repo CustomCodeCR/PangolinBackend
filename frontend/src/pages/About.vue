@@ -75,6 +75,13 @@ const structureIntro = computed(() => locale.value.startsWith('es')
 const structureDepartments = computed(() => (locale.value.startsWith('es')
   ? ['Consolidadora', 'Pedimentación', 'Contabilidad', 'Servicio al cliente', 'Transporte interno de carga']
   : ['Freight consolidation', 'Customs declaration processing', 'Accounting', 'Customer service', 'Domestic cargo transport']))
+// Optional CMS descriptions: absent until the team publishes approved content.
+// Keep the current compact card layout when they are empty.
+const structureDepartmentDetails = computed(() =>
+  structureDepartments.value.map((_, i) =>
+    siteText(`about.structure.departments.${i}.description`, '', locale.value)
+  )
+)
 const valuesAccordionRef = ref<HTMLElement | null>(null)
 const closeValueOnOutsidePointer = (event: PointerEvent) => {
   if (openedValue.value === null || !(event.target instanceof Node)) return
@@ -299,6 +306,9 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
                       class="about-refresh__structure-department" role="listitem">
                       <component :is="departmentIcons[d]" :size="25" :stroke-width="1.8" aria-hidden="true" />
                       <span>{{ siteText('about.structure.departments.' + d, department, locale) }}</span>
+                      <p v-if="structureDepartmentDetails[d]" class="about-refresh__structure-department-detail">
+                        {{ structureDepartmentDetails[d] }}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -449,6 +459,17 @@ const copy = computed(() => locale.value.startsWith('en') ? ({
   line-height:1.38;
   overflow-wrap:break-word;
   grid-column:span 2;
+  height:auto;
+}
+.about-refresh__structure-department-detail {
+  margin:0;
+  max-width:100%;
+  color:#f0f3f8;
+  font-size:clamp(11px,.85vw,13px);
+  font-weight:450;
+  line-height:1.48;
+  white-space:pre-line;
+  overflow-wrap:anywhere;
 }
 .about-refresh__structure-department:nth-child(4) {grid-column:2 / span 2}
 .about-refresh__structure-department:nth-child(5) {grid-column:4 / span 2}
@@ -506,6 +527,18 @@ html.theme-dark .about-refresh__structure-choice.is-selected {
   background:linear-gradient(110deg,#c90b34,#880c2c);border-color:#f04466;
 }
 html.theme-dark .about-refresh__structure-choice-icon {color:#fff}
+/* As the photo panel narrows, prefer readable two-column cards; the names
+   and future descriptions always determine their natural height. */
+@media(max-width:1100px){
+  .about-refresh__structure-departments {grid-template-columns:repeat(2,minmax(0,1fr))}
+  .about-refresh__structure-department {grid-column:auto}
+  .about-refresh__structure-department:nth-child(4) {grid-column:auto}
+  .about-refresh__structure-department:nth-child(5) {
+    grid-column:1 / -1;
+    width:calc((100% - 12px) / 2);
+    justify-self:center;
+  }
+}
 @media(max-width:1000px){
   .about-refresh__structure-showcase {grid-template-columns:minmax(0,1.4fr) minmax(240px,1fr);min-height:0}
   .about-refresh__structure-choice {min-height:70px}
