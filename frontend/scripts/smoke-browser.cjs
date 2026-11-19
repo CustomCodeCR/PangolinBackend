@@ -481,16 +481,26 @@ async function assertServicesTheme(chrome, url) {
       assert.ok(departments.selected && departments.panel === 1 && departments.items === 5 && departments.icons === 5 && departments.heading && departments.hasMedia,
         'Deben mostrarse los cinco departamentos con sus iconos: ' + JSON.stringify(departments))
       assert.equal(departments.gridDisplay,'grid','Los departamentos deben usar su nueva distribución por columnas')
-      assert.equal(departments.columns,2,'Departamentos siempre debe tener dos columnas para lograr 2+2+1: '+JSON.stringify(departments))
+      assert.equal(departments.columns,width<=760?2:6,'Seis tracks para 3+2 en escritorio y dos columnas en celular: '+JSON.stringify(departments))
       assert.ok(departments.contentTop<=75,'El panel de Departamentos debe mantener el contenido arriba')
-      const geometry=await evaluate("(() => {const grid=document.querySelector('#nuestra-estructura .about-refresh__structure-departments');const cards=[...grid.querySelectorAll('.about-refresh__structure-department')];const bounds=cards.map(x=>x.getBoundingClientRect());const container=grid.getBoundingClientRect();return { widths:bounds.map(b=>b.width),tops:bounds.map(b=>b.top),centerDelta:Math.abs((bounds[4].left+bounds[4].right)/2-(container.left+container.right)/2),lastSpan:getComputedStyle(cards[4]).gridColumnStart,verticalSeparators:cards.some(c=>getComputedStyle(c).borderRightWidth==='1px'&&getComputedStyle(c).borderRightStyle==='solid'&&getComputedStyle(c).borderRightColor==='rgba(255, 255, 255, 0.35)') };})()")
+      const geometry=await evaluate("(() => {const grid=document.querySelector('#nuestra-estructura .about-refresh__structure-departments');const cards=[...grid.querySelectorAll('.about-refresh__structure-department')];const bounds=cards.map(x=>x.getBoundingClientRect());const container=grid.getBoundingClientRect();return { widths:bounds.map(b=>b.width),tops:bounds.map(b=>b.top),centerDelta:Math.abs((bounds[4].left+bounds[4].right)/2-(container.left+container.right)/2),lastSpan:getComputedStyle(cards[4]).gridColumnStart,pairCenterDelta:Math.abs((bounds[3].left+bounds[4].right)/2-(container.left+container.right)/2),verticalSeparators:cards.some(c=>getComputedStyle(c).borderRightWidth==='1px'&&getComputedStyle(c).borderRightStyle==='solid'&&getComputedStyle(c).borderRightColor==='rgba(255, 255, 255, 0.35)') };})()")
       assert.ok(Math.max(...geometry.widths)-Math.min(...geometry.widths)<=2,
         'Los cinco departamentos deben mantener el mismo ancho: '+JSON.stringify(geometry))
-      assert.ok(Math.abs(geometry.tops[0]-geometry.tops[1])<=2 && Math.abs(geometry.tops[2]-geometry.tops[3])<=2,
-        'Los departamentos deben distribuirse en filas de 2+2+1: '+JSON.stringify(geometry))
-      assert.ok(geometry.tops[2]>geometry.tops[0] && geometry.tops[4]>geometry.tops[2] && geometry.centerDelta<=2,
-        'El quinto departamento debe estar centrado en una tercera fila: '+JSON.stringify(geometry))
-      assert.equal(geometry.lastSpan,'1','La última tarjeta debe ocupar la columna completa para centrarse: '+JSON.stringify(geometry))
+      if (width > 760) {
+        assert.ok(Math.abs(geometry.tops[0]-geometry.tops[1])<=2 && Math.abs(geometry.tops[1]-geometry.tops[2])<=2,
+          'Los primeros tres departamentos deben compartir una fila: '+JSON.stringify(geometry))
+        assert.ok(Math.abs(geometry.tops[3]-geometry.tops[4])<=2 && geometry.tops[3]>geometry.tops[0],
+          'Los últimos dos departamentos deben compartir la fila inferior: '+JSON.stringify(geometry))
+        assert.ok(geometry.pairCenterDelta<=2,
+          'Los dos departamentos de abajo deben quedar centrados como grupo: '+JSON.stringify(geometry))
+        assert.equal(geometry.lastSpan,'4','La quinta tarjeta debe comenzar en la cuarta columna: '+JSON.stringify(geometry))
+      } else {
+        assert.ok(Math.abs(geometry.tops[0]-geometry.tops[1])<=2 && Math.abs(geometry.tops[2]-geometry.tops[3])<=2,
+          'Los departamentos deben adaptarse a dos columnas en celular: '+JSON.stringify(geometry))
+        assert.ok(geometry.tops[2]>geometry.tops[0] && geometry.tops[4]>geometry.tops[2] && geometry.centerDelta<=2,
+          'El quinto departamento debe quedar centrado debajo de los otros: '+JSON.stringify(geometry))
+        assert.equal(geometry.lastSpan,'1','La quinta tarjeta móvil debe centrarse en la última fila')
+      }
       assert.equal(geometry.verticalSeparators,false,'No deben quedar divisores verticales anteriores')
       await evaluate("document.querySelectorAll('#nuestra-estructura .about-refresh__structure-choice')[3].click(); true")
       await new Promise(resolve => setTimeout(resolve, 550))
@@ -498,7 +508,7 @@ async function assertServicesTheme(chrome, url) {
       assert.ok(university.selected && university.body?.length>35 && university.deptCount===0,
         'Universidad corporativa debe ser la cuarta opción, con texto independiente: ' + JSON.stringify(university))
     }
-    console.log('PASS Chrome: Nuestra estructura 4 opciones, texto arriba, departamentos en cuadrícula, claro/oscuro y responsive')
+    console.log('PASS Chrome: Nuestra estructura 4 opciones, texto arriba, departamentos 3+2 centrados, claro/oscuro y responsive')
 
     // Contacto en Home: mantener cinco tarjetas iguales y centrar las
     // filas incompletas sin ensanchar la última tarjeta en móvil.
