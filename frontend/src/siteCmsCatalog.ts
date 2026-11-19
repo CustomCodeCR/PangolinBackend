@@ -1037,15 +1037,28 @@ structureDescriptions.forEach(([es,en],i)=>{
   addMedia('about','Sobre nosotros','about.structure.'+(i+2)+'.media',
     'Nuestra estructura','Elemento '+(i+1)+': fotografía',structurePhotos[i])
 })
-// Preserve the retired environmental menu item's CMS records without losing
-// previously published titles, text or media. They can be reused when an
-// independent Environmental Approach section is designed and approved.
-addText('about','Sobre nosotros','about.structure.6.title','Enfoque ambiental (pendiente)','Título',
+// Environmental approach is now an independent, CMS-editable section.
+// Reuse the historical description and image keys so published content remains.
+// The old title key is retained as legacy data, not shown in the new heading.
+addText('about','Sobre nosotros','about.environment.kicker','Enfoque ambiental','Antetítulo rojo',
+  'COMPROMISO AMBIENTAL','ENVIRONMENTAL COMMITMENT')
+addText('about','Sobre nosotros','about.environment.heading','Enfoque ambiental','Título principal',
+  'Nuestro enfoque ambiental','Our environmental approach')
+addText('about','Sobre nosotros','about.structure.6.title','Enfoque ambiental (histórico)','Título anterior (conservado)',
   'Enfoque ambiental','Environmental approach')
-addText('about','Sobre nosotros','about.structure.6.description','Enfoque ambiental (pendiente)','Descripción',
+addText('about','Sobre nosotros','about.structure.6.description','Enfoque ambiental','Descripción principal',
   'Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.',
   'We seek opportunities to incorporate more responsible practices into our operations.')
-addMedia('about','Sobre nosotros','about.structure.6.media','Enfoque ambiental (pendiente)','Fotografía','/images/services-warehouse.webp')
+addMedia('about','Sobre nosotros','about.structure.6.media','Enfoque ambiental',
+  'Fotografía de operaciones (reemplazable)', '/images/about-operations-enhanced.webp')
+const environmentalPillars: Array<[string,string]> = [
+  ['Operaciones más responsables','More responsible operations'],
+  ['Gestión eficiente de recursos','Efficient resource management'],
+  ['Cuidado del entorno','Care for our environment']
+]
+environmentalPillars.forEach(([es,en],i) =>
+  addText('about','Sobre nosotros','about.environment.pillar.'+i+'.title',
+    'Enfoque ambiental','Elemento '+(i+1)+': texto',es,en))
 const departments: Array<[string,string]> = [
   ['Consolidadora','Freight consolidation'],['Pedimentación','Customs declaration processing'],
   ['Contabilidad','Accounting'],['Servicio al cliente','Customer service'],
@@ -1067,7 +1080,7 @@ departments.forEach(([es,en],i)=>{
     originalEn:''
   })
 })
-addText('about','Sobre nosotros','about.structure.environment','Enfoque ambiental (pendiente)','Texto ambiental publicado',
+addText('about','Sobre nosotros','about.structure.environment','Enfoque ambiental (histórico)','Texto ambiental anterior (conservado)',
   'Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.',
   'We seek opportunities to incorporate more responsible practices into our operations.')
 
