@@ -609,13 +609,30 @@ async function assertServicesTheme(chrome, url) {
           'Misión y Visión deben tener el mismo fondo oscuro que Valores: '+JSON.stringify(redPalette))
         assert.equal(redPalette.mission,'rgb(17, 27, 49)',
           'Los cuadros de Misión y Visión deben mantener el azul corporativo')
-        assert.equal(redPalette.badge,redPalette.valueIcon,
-          'Los íconos de Misión, Visión y Valores deben usar el mismo recuadro rojo')
         assert.equal(redPalette.badge,'rgb(176, 9, 41)',
-          'Los recuadros de los íconos deben usar el rojo del valor seleccionado')
+          'Misión y Visión mantienen los recuadros rojos corporativos')
         assert.equal(redPalette.badgeGlyph,'rgb(255, 255, 255)',
-          'Los íconos dentro de los recuadros rojos deben seguir blancos')
-        assert.equal(redPalette.valueGlyph,'rgb(255, 255, 255)')
+          'Los íconos de Misión y Visión deben seguir blancos sobre rojo')
+        assert.equal(redPalette.valueIcon,'rgb(65, 34, 60)',
+          'Los valores cerrados deben mantener sus recuadros morados originales')
+        assert.equal(redPalette.valueGlyph,'rgb(255, 132, 154)',
+          'Los valores cerrados conservan sus íconos rosados')
+        // Opening and closing should toggle ONLY the selected value to red.
+        await evaluate("document.querySelector('#nuestros-valores .about-refresh__value-trigger').click(); true")
+        await new Promise(resolve=>setTimeout(resolve,100))
+        const openValuePalette = await evaluate("(() => {const doc=document.documentElement;const old=doc.classList.contains('theme-dark');doc.classList.add('theme-dark');const cards=[...document.querySelectorAll('#nuestros-valores .about-refresh__value')];const first=cards[0];const result={isOpen:first.classList.contains('is-open'),bg:getComputedStyle(first.querySelector('.about-refresh__value-icon')).backgroundColor,glyph:getComputedStyle(first.querySelector('.about-refresh__value-icon')).color,otherBg:getComputedStyle(cards[1].querySelector('.about-refresh__value-icon')).backgroundColor};doc.classList.toggle('theme-dark',old);return result})()")
+        assert.ok(openValuePalette.isOpen,'La tarjeta seleccionada debe abrirse')
+        assert.equal(openValuePalette.bg,'rgb(176, 9, 41)',
+          'Solo el valor abierto debe mostrar el recuadro rojo: '+JSON.stringify(openValuePalette))
+        assert.equal(openValuePalette.glyph,'rgb(255, 255, 255)',
+          'El valor abierto debe mostrar el ícono blanco')
+        assert.equal(openValuePalette.otherBg,'rgb(65, 34, 60)',
+          'Las otras tarjetas cerradas deben seguir moradas')
+        await evaluate("document.querySelector('#nuestros-valores .about-refresh__value-trigger').click(); true")
+        await new Promise(resolve=>setTimeout(resolve,100))
+        const closedAgain = await evaluate("(() => {const doc=document.documentElement;const old=doc.classList.contains('theme-dark');doc.classList.add('theme-dark');const first=document.querySelector('#nuestros-valores .about-refresh__value');const result={open:first.classList.contains('is-open'),bg:getComputedStyle(first.querySelector('.about-refresh__value-icon')).backgroundColor};doc.classList.toggle('theme-dark',old);return result})()")
+        assert.equal(closedAgain.open,false,'La tarjeta debe volver a cerrarse')
+        assert.equal(closedAgain.bg,'rgb(65, 34, 60)','El rojo desaparece al cerrar la tarjeta')
         assert.equal(redPalette.capability,'rgb(255, 60, 97)',
           'Los íconos de Capacidades deben tener el acento rojo')
         assert.equal(redPalette.environmental,'rgb(255, 60, 97)',
