@@ -61,10 +61,10 @@ public static class OtpEmailTemplate
                 <tr><td align="center" class="cf-outer" style="padding:30px 14px;">
                   <table role="presentation" class="cf-panel" cellspacing="0" cellpadding="0" border="0" width="640" style="border-collapse:separate;width:100%;max-width:640px;background:#ffffff;border:1px solid #ebebeb;border-radius:14px;overflow:hidden;">
                     <tr>
-                      <td class="cf-brand" width="147" valign="middle" align="center" style="width:147px;padding:19px 16px;background:#ffffff;">
+                      <td class="cf-brand" width="164" valign="middle" align="center" style="width:164px;box-sizing:border-box;padding:19px 16px;background:#ffffff;">
                         <img src="cid:cf-otp-logo" width="95" height="135" alt="Castro Fallas" style="display:block;width:95px;height:135px;margin:0 auto;border:0;">
                       </td>
-                      <td class="cf-content" width="285" valign="middle" style="width:285px;padding:29px 5px 26px 2px;text-align:left;background:#ffffff;">
+                      <td class="cf-content" width="312" valign="middle" style="width:312px;box-sizing:border-box;padding:29px 5px 26px 2px;text-align:left;background:#ffffff;">
                         <h1 style="margin:0 0 8px;color:#151923;font-size:22px;line-height:1.2;font-weight:700;">Tu código de acceso</h1>
                         <div style="height:2px;width:100%;max-width:245px;background:#af0922;margin:0 0 12px;"></div>
                         <p style="margin:0 0 14px;font-size:12px;line-height:1.5;color:#5f6268;">Usá este código para iniciar sesión de forma segura.</p>
@@ -77,8 +77,8 @@ public static class OtpEmailTemplate
                         <p style="margin:0 0 12px;font-size:11px;line-height:1.5;color:#52555d;">&#9201; Este código vence en <strong style="color:#a50921;">5 minutos.</strong></p>
                         <p style="margin:0;color:#73757c;font-size:10px;line-height:1.5;">Si no solicitaste este código, podés ignorar este mensaje. Tu cuenta se mantiene segura.</p>
                       </td>
-                      <td class="cf-globe" width="202" valign="top" align="right" style="width:202px;padding:0;background:#ffffff;vertical-align:top;">
-                        <img src="cid:cf-otp-globe" width="202" height="285" alt="" style="display:block;width:202px;height:285px;border:0;">
+                      <td class="cf-globe" width="164" valign="top" align="right" style="width:164px;box-sizing:border-box;padding:0;background:#ffffff;vertical-align:top;">
+                        <img src="cid:cf-otp-globe" width="164" height="285" alt="" style="display:block;width:164px;height:285px;border:0;">
                       </td>
                     </tr>
                     <tr><td colspan="3" bgcolor="#af0922" style="background:#af0922;height:7px;font-size:0;line-height:7px;">&nbsp;</td></tr>
