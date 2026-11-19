@@ -1043,7 +1043,7 @@ structureDescriptions.forEach(([es,en],i)=>{
 addText('about','Sobre nosotros','about.environment.kicker','Enfoque ambiental','Antetítulo rojo',
   'COMPROMISO AMBIENTAL','ENVIRONMENTAL COMMITMENT')
 addText('about','Sobre nosotros','about.environment.heading','Enfoque ambiental','Título principal',
-  'Nuestro enfoque ambiental','Our environmental approach')
+  'Enfoque ambiental','Environmental approach')
 addText('about','Sobre nosotros','about.structure.6.title','Enfoque ambiental (histórico)','Título anterior (conservado)',
   'Enfoque ambiental','Environmental approach')
 addText('about','Sobre nosotros','about.structure.6.description','Enfoque ambiental','Descripción principal',
