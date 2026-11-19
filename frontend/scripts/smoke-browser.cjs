@@ -470,6 +470,11 @@ async function assertServicesTheme(chrome, url) {
       assert.equal(palette.light.color, 'rgb(34, 42, 55)', 'El modo claro debe usar texto oscuro')
       assert.equal(palette.dark.color, 'rgb(255, 255, 255)', 'El modo oscuro debe conservar texto blanco')
       assert.notEqual(palette.dark.surface, palette.light.surface, 'Cada tema debe tener su propio fondo')
+      // Active red option must have WHITE label, icon and arrow even in light mode.
+      const activePalette = await evaluate("(() => {const root=document.documentElement;const previous=root.classList.contains('theme-dark');root.classList.remove('theme-dark');const button=document.querySelector('#nuestra-estructura .about-refresh__structure-choice.is-selected');const result={label:getComputedStyle(button.querySelector('.about-refresh__structure-choice-name')).color,arrow:getComputedStyle(button.querySelector('.about-refresh__structure-choice-arrow')).color,icon:getComputedStyle(button.querySelector('.about-refresh__structure-choice-icon')).color,button:getComputedStyle(button).color};root.classList.toggle('theme-dark',previous);return result;})()")
+      for (const [part,color] of Object.entries(activePalette)) {
+        assert.equal(color,'rgb(255, 255, 255)','El elemento '+part+' de la opción activa debe ser blanco: '+JSON.stringify(activePalette))
+      }
       await evaluate("document.querySelectorAll('#nuestra-estructura .about-refresh__structure-choice')[2].click(); true")
       await new Promise(resolve => setTimeout(resolve, 550))
       const departments = await evaluate("(() => { const root=document.querySelector('#nuestra-estructura'); const grid=root.querySelector('.about-refresh__structure-departments');const feature=root.querySelector('.about-refresh__structure-feature');const fr=feature.getBoundingClientRect(), cr=feature.querySelector('.about-refresh__structure-feature-content').getBoundingClientRect(); return { selected:root.querySelectorAll('.about-refresh__structure-choice[aria-pressed=true]').length===1&&root.querySelectorAll('.about-refresh__structure-choice')[2].getAttribute('aria-pressed')==='true',items:root.querySelectorAll('.about-refresh__structure-department').length,icons:root.querySelectorAll('.about-refresh__structure-department svg').length,gridDisplay:grid&&getComputedStyle(grid).display,columns:grid&&getComputedStyle(grid).gridTemplateColumns.split(' ').length,panel:root.querySelectorAll('.about-refresh__structure-feature').length,heading:feature.querySelector('h3')?.textContent?.trim(),hasMedia:!!feature.querySelector('.about-refresh__structure-photo img,.about-refresh__structure-photo video'),contentTop:Math.round(cr.top-fr.top) }; })()")
@@ -478,6 +483,15 @@ async function assertServicesTheme(chrome, url) {
       assert.equal(departments.gridDisplay,'grid','Los departamentos deben usar su nueva distribución por columnas')
       assert.equal(departments.columns,width<=760?2:3,'La distribución debe ser responsive: '+JSON.stringify(departments))
       assert.ok(departments.contentTop<=75,'El panel de Departamentos debe mantener el contenido arriba')
+      const geometry=await evaluate("(() => {const grid=document.querySelector('#nuestra-estructura .about-refresh__structure-departments');const cards=[...grid.querySelectorAll('.about-refresh__structure-department')];const bounds=cards.map(x=>x.getBoundingClientRect());const container=grid.getBoundingClientRect();return { widths:bounds.map(b=>b.width),tops:bounds.map(b=>b.top),centerDelta:Math.abs((bounds[4].left+bounds[4].right)/2-(container.left+container.right)/2),lastSpan:getComputedStyle(cards[4]).gridColumnStart,verticalSeparators:cards.some(c=>getComputedStyle(c).borderRightWidth==='1px'&&getComputedStyle(c).borderRightStyle==='solid'&&getComputedStyle(c).borderRightColor==='rgba(255, 255, 255, 0.35)') };})()")
+      assert.ok(Math.max(...geometry.widths)-Math.min(...geometry.widths)<=2,
+        'Los cinco departamentos deben mantener el mismo ancho: '+JSON.stringify(geometry))
+      assert.ok(Math.abs(geometry.tops[0]-geometry.tops[1])<=2 && Math.abs(geometry.tops[2]-geometry.tops[3])<=2,
+        'Los departamentos deben distribuirse en filas de 2+2+1: '+JSON.stringify(geometry))
+      assert.ok(geometry.tops[2]>geometry.tops[0] && geometry.tops[4]>geometry.tops[2] && geometry.centerDelta<=2,
+        'El quinto departamento debe estar centrado en una tercera fila: '+JSON.stringify(geometry))
+      assert.equal(geometry.lastSpan,'1','La última tarjeta debe ocupar la columna completa para centrarse: '+JSON.stringify(geometry))
+      assert.equal(geometry.verticalSeparators,false,'No deben quedar divisores verticales anteriores')
       await evaluate("document.querySelectorAll('#nuestra-estructura .about-refresh__structure-choice')[3].click(); true")
       await new Promise(resolve => setTimeout(resolve, 550))
       const university = await evaluate("(() => { const root=document.querySelector('#nuestra-estructura');return { selected:root.querySelectorAll('.about-refresh__structure-choice')[3].getAttribute('aria-pressed')==='true',body:root.querySelector('.about-refresh__structure-description')?.textContent?.trim(),deptCount:root.querySelectorAll('.about-refresh__structure-department').length }; })()")
