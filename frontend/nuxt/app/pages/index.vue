@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import LegacyHome from '@legacy/Home.vue'
 import guides from '../../../seo/service-landings.json'
+// La fuente de los identificadores JSON-LD debe coincidir con los canonicals.
+const seoBase = String(useRuntimeConfig().public.siteUrl).replace(/\/$/, '')
 const { canonical, organizationId } = usePublicSeo({
   path: '/', title: 'Castro Fallas | Agencia aduanal y logística en Costa Rica',
   description: 'Grupo Castro Fallas: coordinación logística, agenciamiento aduanal, carga marítima, aérea y terrestre en Costa Rica. Servicios FCL, LCL, FTL y LTL.',
   schema: [{
-    '@type': 'Service', '@id': 'https://www.logisticacastrofallas.com/#transporte-logistico',
+    '@type': 'Service', '@id': seoBase + '/#transporte-logistico',
     name: 'Servicios de logística y transporte internacional',
-    provider: { '@id': 'https://www.logisticacastrofallas.com/#organizacion' },
+    provider: { '@id': seoBase + '/#organizacion' },
     areaServed: [{ '@type': 'Country', name: 'Costa Rica' }, { '@type': 'Country', name: 'Panamá' }],
-    url: 'https://www.logisticacastrofallas.com/servicios'
+    url: seoBase + '/servicios'
   }]
 })
 // The opening hero is rendered as a CSS background. Discover its fallback
