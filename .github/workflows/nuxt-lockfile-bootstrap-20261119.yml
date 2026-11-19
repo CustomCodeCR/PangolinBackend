@@ -1,0 +1,40 @@
+name: Nuxt lockfile bootstrap from validated CI artifact (temporary)
+on:
+  push:
+    branches:
+      - ci/nuxt-lockfile-repro-20261119
+    paths:
+      - .github/workflows/nuxt-lockfile-bootstrap-20261119.yml
+permissions:
+  contents: write
+  actions: read
+jobs:
+  restore-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ci/nuxt-lockfile-repro-20261119
+      # Exact lockfile that successfully built Nuxt on Ubuntu and Alpine,
+      # from run 44581684900. Do not run npm install or update dependencies.
+      - uses: actions/download-artifact@v4
+        with:
+          name: nuxt-dependency-graph
+          run-id: 44581684900
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: frontend/nuxt
+      - name: Verify successful run lockfile integrity and branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = ci/nuxt-lockfile-repro-20261119
+          test -s frontend/nuxt/package-lock.json
+          printf '%s  %s\n' '7add7eeeddd5e14c36f379733d74b7ef1824ac888aecf2795ef2312450335df6' 'frontend/nuxt/package-lock.json' | sha256sum -c -
+          node -e 'const l = require("./frontend/nuxt/package-lock.json"); if (l.lockfileVersion!==3 || !l.packages["node_modules/@rollup/rollup-linux-x64-musl"] || !l.packages["node_modules/nuxt"]) process.exit(1)'
+      - name: Commit exactly the validated lockfile to this experiment branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -f frontend/nuxt/package-lock.json
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "build(nuxt): commit exact lockfile from successful Ubuntu/Alpine CI"
+          git push origin HEAD:ci/nuxt-lockfile-repro-20261119
