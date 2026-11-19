@@ -64,7 +64,7 @@ public static class OtpEmailTemplate
                       <td class="cf-brand" width="195" valign="middle" align="center" style="width:195px;padding:25px 12px;background:#fffafd;">
                         <img src="{{BrandImageUrl}}" width="150" height="150" alt="Castro Fallas" style="display:block;width:150px;height:150px;object-fit:contain;margin:0 auto;border:0;">
                       </td>
-                      <td class="cf-content" valign="middle" style="padding:31px 27px 27px 7px;text-align:left;background:#ffffff;">
+                      <td class="cf-content" valign="middle" style="padding:31px 27px 27px 7px;text-align:left;background-color:#ffffff;background-image:radial-gradient(circle at 100% 0%,#fbe9ec 0%,#ffffff 54%);">
                         <h1 style="margin:0 0 8px;color:#151923;font-size:24px;line-height:1.2;font-weight:700;">Tu código de acceso</h1>
                         <div style="height:2px;width:100%;max-width:260px;background:#af0922;margin:0 0 12px;"></div>
                         <p style="margin:0 0 16px;font-size:12px;line-height:1.5;color:#5f6268;">Usá este código para iniciar sesión de forma segura.</p>
@@ -80,7 +80,6 @@ public static class OtpEmailTemplate
                     </tr>
                     <tr><td colspan="2" bgcolor="#af0922" style="background:#af0922;height:7px;font-size:0;line-height:7px;">&nbsp;</td></tr>
                   </table>
-                  <p style="margin:14px 0 0;font-size:11px;line-height:1.5;color:#81838a;">Grupo Castro Fallas · Correo automático de seguridad</p>
                 </td></tr>
               </table>
             </body>
