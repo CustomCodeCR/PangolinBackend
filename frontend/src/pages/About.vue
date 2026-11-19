@@ -1154,16 +1154,16 @@ html.theme-dark .about-refresh .about-refresh__value.is-open .about-refresh__val
 }
 /* Target both component roots and the Lucide SVGs directly so the page's
    general dark-mode icon rules cannot turn these outlined icons white. */
-/* The theme class is on <html>, outside this scoped Vue component.
-   :global() keeps that ancestor selector functional. Target the actual
-   rendered Lucide SVGs (not only their container) to avoid white icons. */
-:global(html.theme-dark) .about-refresh__capability-icon,
-:global(html.theme-dark) .about-refresh__capability-icon :deep(svg),
-:global(html.theme-dark) .about-refresh__environment-pillar :deep(svg) {
+/* The theme class lives on <html> outside this scoped Vue component.
+   Keep each complete selector within :global() so scoped compilation cannot
+   attach a component attribute to <html> or miss the actual Lucide SVGs. */
+:global(html.theme-dark .about-refresh .about-refresh__capability-icon),
+:global(html.theme-dark .about-refresh .about-refresh__capability-icon svg),
+:global(html.theme-dark .about-refresh .about-refresh__environment-pillar svg) {
   color:#ff3c61 !important;
 }
-:global(html.theme-dark) .about-refresh__capability-icon :deep(svg),
-:global(html.theme-dark) .about-refresh__environment-pillar :deep(svg) {
+:global(html.theme-dark .about-refresh .about-refresh__capability-icon svg),
+:global(html.theme-dark .about-refresh .about-refresh__environment-pillar svg) {
   stroke:#ff3c61 !important;
 }
 /* Keep all five department SVGs corporate red in dark mode, matching the
