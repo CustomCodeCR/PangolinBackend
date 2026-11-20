@@ -6030,3 +6030,25 @@ html.theme-dark .login-screen .login-auth-card .login-auth-sending {
     min-height:clamp(455px,38vw,500px);
   }
 }
+
+/* Home transport labels remain vertically anchored while cards expand.
+   The initial open card is selected before render (Home.vue); prevent
+   the collapsed trigger from participating in flex layout during resizing. */
+@media (min-width: 801px) {
+  .app-site.home-page #servicios .service-accordion__item > .service-accordion__trigger {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    align-items: center;
+    justify-content: center !important;
+  }
+  .app-site.home-page #servicios .service-accordion__item.is-open > .service-accordion__trigger {
+    width: 58px;
+  }
+  .app-site.home-page #servicios .service-accordion__trigger .service-accordion__name {
+    animation: none !important;
+    transition: none !important;
+  }
+}
