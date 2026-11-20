@@ -70,8 +70,13 @@ internal static class DholeQuoteHttpTest
             var schemaPath = Path.Combine(
                 Directory.GetCurrentDirectory(), "backend", "Database", "OfficialQuotesSchema.sql");
             Assert(File.Exists(schemaPath), "Run the harness from the repository root");
-            await using var schema = new NpgsqlCommand(await File.ReadAllTextAsync(schemaPath), db);
-            await schema.ExecuteNonQueryAsync();
+            var ddl = await File.ReadAllTextAsync(schemaPath);
+            await using (var schema = new NpgsqlCommand(ddl, db))
+                await schema.ExecuteNonQueryAsync();
+            // A second application must be safe on the same disposable DB:
+            // deployment tools can reapply this additive migration.
+            await using (var reapplied = new NpgsqlCommand(ddl, db))
+                await reapplied.ExecuteNonQueryAsync();
             // Only fictional admin identities. Public users are never created.
             await using var seedUsers = new NpgsqlCommand("""
                 INSERT INTO public.usuarios (uuid) VALUES
