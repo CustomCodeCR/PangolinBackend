@@ -115,6 +115,20 @@ internal static class DholeQuoteHttpTest
             AllowAutoRedirect = false
         });
 
+        // New private lookup is not accessible to guests, and stays disabled
+        // even for fictional admins until separately published/authorized.
+        using (var guestLookup = await client.GetAsync("/api/admin/dhole/lookup-catalogs/pricing-services"))
+            Assert(guestLookup.StatusCode == HttpStatusCode.Unauthorized,
+                "Guest cannot access private Pricing service lookup");
+        using (var adminLookup = new HttpRequestMessage(HttpMethod.Get,
+            "/api/admin/dhole/lookup-catalogs/pricing-services"))
+        {
+            adminLookup.Headers.Add("X-CI-Test-Actor", "authorizer");
+            using var result = await client.SendAsync(adminLookup);
+            Assert(result.StatusCode == HttpStatusCode.NotFound,
+                "Read-only Pricing lookup is disabled by default, even for admin");
+        }
+
         // Check form options from the same host before the submitted POST.
         var formResponse = await client.GetAsync(
             "/api/quotes/official/dhole-options?mode=Maritime&shipmentType=FCL");
