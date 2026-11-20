@@ -15,6 +15,14 @@ Requieren rol de administrador. Con `DholeLookups:Enabled=false` (predeterminado
 
 La configuración de servidor acepta únicamente dos rutas relativas con forma `api/external/v1/<slug>` y una clave distinta `DholeLookups:ApiKey`. La conexión usa host fijo HTTPS, redirecciones y cookies deshabilitadas, timeout de 10 s, respuesta máxima 2 MiB y salida normalizada. La proyección privada conserva `isActive` si la fuente lo publica, pero el resolvedor offline exige `isActive=true` para servicios de Pricing y tipos FTL; si está ausente o no puede verificarse, no permite resolver el UUID. Esto requiere que el futuro Gateway exponga ese dato de forma segura y confirme la compatibilidad de tamaño y tipo FTL. No se reenvía JSON opaco a visitantes ni se toma una URL del navegador.
 
+## Dependencia acordada con el equipo de Dhole (20/11/2026)
+
+El usuario confirmó que el equipo de Dhole **entregará posteriormente** las APIs de consulta de servicios de Pricing y tipos de equipo FTL. Aunque podría intentar configurarlas por su cuenta, le indicaron que esperara su entrega.
+
+**Decisión:** no crear, publicar ni modificar esos GET en DholeApiGateway ni en API Manager desde este proyecto. Mantener `DholeLookups:Enabled=false` y las opciones de servicios actuales como lista local de 12 elementos (sin «Transporte nacional»). Esta dependencia **no bloquea** las pruebas offline ni el desarrollo local de validaciones, pero **sí bloquea** el mapeo remoto con UUID vigentes y cualquier habilitación de POST.
+
+Cuando Dhole entregue las APIs, verificar rutas reales, permiso de lectura, credencial de mínimo privilegio, `isActive`, código único, UUID válido y campos `size`/`kind` de FTL antes de configurar BackendJJ. No asumir que la entrega equivalga a autorizar automáticamente envíos de cotizaciones.
+
 ## Activación futura, NO autorizada todavía
 Se requiere publicar explícitamente y verificar las dos APIs externas GET en Dhole, determinar campos y permisos, y entregar una clave de mínimo privilegio distinta a la de catálogos existentes. La publicación de `pricing-services` requiere una revisión aparte del Gateway: todavía no tiene identidad técnica automática.
 
