@@ -53,6 +53,22 @@ Dhole utiliza `Green` (72 h), `Yellow` (48 h) y `Red` (24 h) para calcular el pl
 
 La aprobación administrativa es provisional y se implementará con posibilidad de eliminarla después, sin eliminar necesariamente la regla de prioridad. El outbox de la PR #274 continúa desactivado por defecto y no envía tráfico a Dhole.
 
+## Contrato externo plano: proyección offline preparada
+
+La API externa oficial publicada tiene **103 campos de entrada**, solamente `priority` requerido; el target es `pricing-rate-request-create` y el único campo de salida publicado es `value` (opcional) sin `responseRoot`. Los defaults del servidor son `clientName=CLIENTE GENERICO` y `executiveName=Castro Fallas` y no pueden sobrescribirse desde el request público.
+
+La instantánea normalizada de lectura, sin API Keys ni datos personales, está en `scripts/contracts/dhole-solicitar-tarifa-published-20261120.json`. El adaptador **sin ningún transporte HTTP** está en `scripts/dhole-public-rate-request-preview.mjs`. Parte de un preview local autorizado y validado, utiliza únicamente el mapa público `form_*`, `requestContext_*` y `sellerContext_*`, y verifica la estructura de las listas de contenedores y carga consolidada. Incluye los valores provisionales `form_rateType=Spot` y `form_modality=Maritime/Air/Land` según lo observado en el asistente interno de Dhole; **no se deben considerar aceptados por el POST hasta una prueba contractual controlada**. Mantiene los pesos de carga consolidada como peso **total por línea**, no como peso multiplicado por paquetes.
+
+La función **nunca** produce un envío listo: devuelve `readyForSending=false` y bloqueos explícitos de identidad comercial, autorización de clave POST, catálogos GET actualizados y respuesta real del proveedor. No emite `clientName`, `executiveName`, `sellerUserId`, `form_clientName`, nombres de contacto, correos, teléfonos ni campos fuera de la allowlist. Tampoco entrega host, encabezados ni transportador. La clave de idempotencia local es determinista a partir del UUID de la cotización, pero no ha sido validada contra un POST real de Dhole.
+
+Ejecutar las pruebas **sin Internet ni credenciales**:
+
+```sh
+node --test scripts/tests/dhole-public-rate-request-preview.test.mjs scripts/tests/dhole-rate-request-preview.test.mjs scripts/tests/dhole-catalog-id-resolver.test.mjs
+```
+
+Los tests cubren las cinco modalidades, 103 entradas publicadas, los defaults bloqueados, arrays y pesos, UUID incorrectos, referencias, no filtración de datos personales e idempotencia. Los resultados de CI se confirman en PR #274, **no suponer éxito sin ver el último commit**.
+
 ## Pendientes que bloquean el POST
 
 1. Confirmar con el dueño de Dhole el tratamiento del cliente comercial y cómo accederá Pricing a nombre, correo y teléfono, sin sobrescribir los defaults publicados.
