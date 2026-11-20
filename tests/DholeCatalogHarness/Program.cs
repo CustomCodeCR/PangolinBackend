@@ -456,6 +456,73 @@ Console.WriteLine("OK: Itinerarios uses Dhole POL/POD, unique name filters and n
 
 
 
+// Two additional lookup catalogs are opt-in and admin-only; these tests
+// deliberately use fictional endpoints, data, and a dedicated fictional key.
+var lookupFakeHandler = new FakeDholeLookupHandler();
+using var lookupFakeHttp = new HttpClient(lookupFakeHandler) {
+    BaseAddress = new Uri("https://api.logisticacastrofallas.com/"),
+};
+var lookupFactory = new FakeDholeLookupHttpClientFactory(lookupFakeHttp);
+var disabledLookups = new DholeLookupCatalogService(
+    new ConfigurationBuilder().Build(), lookupFactory,
+    NullLogger<DholeLookupCatalogService>.Instance);
+Check(!disabledLookups.Enabled && !disabledLookups.IsConfiguredFor("pricing-services") &&
+    lookupFakeHandler.Calls == 0,
+    "Lookup feature disabled by default and cannot call upstream");
+
+var badPathSettings = new ConfigurationBuilder().AddInMemoryCollection(
+    new Dictionary<string, string?> {
+        ["DholeLookups:Enabled"] = "true",
+        ["DholeLookups:ApiKey"] = "fictional-lookup-only-key",
+        ["DholeLookups:PricingServicesPath"] = "https://untrusted.example/steal",
+        ["DholeLookups:LandEquipmentTypesPath"] = "api/external/v1/../secret"
+    }).Build();
+var badPathLookups = new DholeLookupCatalogService(
+    badPathSettings, lookupFactory, NullLogger<DholeLookupCatalogService>.Instance);
+Check(!badPathLookups.IsConfiguredFor("pricing-services") &&
+    !badPathLookups.IsConfiguredFor("land-equipment-types"),
+    "External absolute URL and path traversal are denied before any HTTP");
+try {
+    await badPathLookups.GetAsync("pricing-services", CancellationToken.None);
+    throw new Exception("FAILED: bad path must reject");
+} catch (DholeLookupUnavailableException) { /* expected */ }
+Check(lookupFakeHandler.Calls == 0, "Bad paths never call a provider");
+
+var lookupConfig = new ConfigurationBuilder().AddInMemoryCollection(
+    new Dictionary<string, string?> {
+        ["DholeLookups:Enabled"] = "true",
+        ["DholeLookups:ApiKey"] = "fictional-lookup-only-key",
+        ["DholeLookups:PricingServicesPath"] = "api/external/v1/servicios-pricing-qa1",
+        ["DholeLookups:LandEquipmentTypesPath"] = "api/external/v1/tipos-furgon-qa1"
+    }).Build();
+var lookups = new DholeLookupCatalogService(
+    lookupConfig, lookupFactory, NullLogger<DholeLookupCatalogService>.Instance);
+Check(lookups.IsConfiguredFor("pricing-services") &&
+    lookups.IsConfiguredFor("land-equipment-types"),
+    "Only explicit allowed GET routes and a separate key activate lookup");
+var servicesResult = await lookups.GetAsync("pricing-services", CancellationToken.None);
+Check(servicesResult.Catalog == "pricing-services" &&
+      servicesResult.Items.Length == 1 &&
+      servicesResult.Items[0].Code == "INTERNATIONAL" &&
+      servicesResult.Items[0].Name == "Transporte internacional",
+    "Pricing service is normalized, inactive items excluded");
+var ftlTypesResult = await lookups.GetAsync("land-equipment-types", CancellationToken.None);
+Check(ftlTypesResult.Catalog == "land-equipment-types" &&
+      ftlTypesResult.Items.Length == 1 &&
+      ftlTypesResult.Items[0].Code == "48FTL" &&
+      ftlTypesResult.Items[0].Size == "48",
+    "FTL equipment type is resolved separately from equipment size");
+Check(lookupFakeHandler.Calls == 2 && lookupFakeHandler.Forbidden == 0,
+    "Both mock requests are HTTPS GET, use exact paths and dedicated fake key");
+lookupFakeHandler.Fail = true;
+try {
+    await lookups.GetAsync("pricing-services", CancellationToken.None);
+    throw new Exception("FAILED: upstream failure not rejected");
+} catch (DholeLookupUnavailableException) { /* expected */ }
+Check(lookupFakeHandler.Calls == 3, "Rejected upstream does not return synthetic data");
+Console.WriteLine("OK: disabled-by-default Dhole lookups, path allowlist, separate key, mock GET-only and fail closed.");
+
+
 sealed class FakeDholeHttpClientFactory(HttpClient client) : IHttpClientFactory
 {
     public HttpClient CreateClient(string name)
@@ -500,6 +567,60 @@ sealed class FakeDholeHandler : HttpMessageHandler
                   }
                 ]
                 """)
+        });
+    }
+}
+
+
+sealed class FakeDholeLookupHttpClientFactory(HttpClient client) : IHttpClientFactory
+{
+    public HttpClient CreateClient(string name) =>
+        name == "DholeLookups" ? client :
+        throw new InvalidOperationException("Unapproved client type.");
+}
+
+sealed class FakeDholeLookupHandler : HttpMessageHandler
+{
+    public int Calls { get; private set; }
+    public int Forbidden { get; private set; }
+    public bool Fail { get; set; }
+
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request, CancellationToken ct)
+    {
+        Calls++;
+        var path = request.RequestUri?.AbsolutePath;
+        if (request.Method != HttpMethod.Get ||
+            request.RequestUri?.Scheme != Uri.UriSchemeHttps ||
+            request.RequestUri.Host != "api.logisticacastrofallas.com" ||
+            path is not ("/api/external/v1/servicios-pricing-qa1" or
+                         "/api/external/v1/tipos-furgon-qa1") ||
+            !request.Headers.TryGetValues("X-Api-Key", out var values) ||
+            !values.SequenceEqual(["fictional-lookup-only-key"]))
+        {
+            Forbidden++;
+            throw new InvalidOperationException("Unexpected external request.");
+        }
+        if (Fail) return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Forbidden));
+        var body = path == "/api/external/v1/servicios-pricing-qa1" ? """
+            [
+              { "id": "a1000000-0000-4000-8000-000000000001",
+                "code": "INTERNATIONAL", "name": "Transporte internacional",
+                "value": "Transporte internacional" },
+              { "id": "a1000000-0000-4000-8000-000000000002",
+                "code": "OLD", "name": "Obsoleto", "value": "Obsoleto",
+                "isActive": false }
+            ]
+            """ : """
+            [
+              { "id": "b1000000-0000-4000-8000-000000000001",
+                "code": "48FTL", "name": "Furgón 48", "value": "48FTL",
+                "metadata": { "size": "48", "kind": "furgon" } }
+            ]
+            """;
+        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(body)
         });
     }
 }
