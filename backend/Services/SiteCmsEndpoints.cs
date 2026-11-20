@@ -102,6 +102,20 @@ public static class SiteCmsEndpoints
             "services.access.heading1", "services.access.heading2", "services.access.intro",
             "services.access.tracking", "services.access.quote"
         }) TextKeys.Add(field);
+        // Fiscal and Panama cards (including modal copy) are listed in the visual editor.
+        // Keep the CMS allowlist synchronized so drafts and publications are not rejected.
+        MediaKeys.Add("home.services.fiscal.media");
+        MediaKeys.Add("home.services.panama.media");
+        foreach (var key in new[] {
+            "home.services.fiscal.title", "home.services.fiscal.detail",
+            "home.services.fiscal.locationA257", "home.services.fiscal.locationA287",
+            "home.services.fiscal.hazardous", "home.services.fiscal.rotation",
+            "home.services.panama.title", "home.services.panama.detail",
+            "home.services.panama.benefits.heading",
+            "home.services.panama.benefits.0", "home.services.panama.benefits.1",
+            "home.services.panama.benefits.2"
+        }) TextKeys.Add(key);
+
         // Seven editable Home infrastructure headings; only explicitly allowed CMS keys
         // are writable and publishable through the backend.
         foreach (var key in new[] {
