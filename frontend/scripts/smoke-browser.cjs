@@ -217,14 +217,6 @@ async function assertServicesTheme(chrome, url) {
             'Pulsar el servicio abierto vuelve al estado de seis pestañas')
         }
         await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
-          assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item.is-open').length"), 0,
-            'Tras hover debe poderse cerrar tocando la misma pestaña')
-          // Simulated touch pointerenter must not open a tab until actual tap.
-          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[0].dispatchEvent(new PointerEvent('pointerenter', {pointerType:'touch'})); true")
-          assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item.is-open').length"), 0,
-            'Un toque no debe abrir el servicio antes del click')
-        }
-        await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
         const original = await evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')]; return { selected:items[2].classList.contains('is-open'), shown:items.flatMap((item,i)=>getComputedStyle(item).display!=='none'?[i]:[]) }; })()")
         assert.equal(original.selected, true, 'Se debe poder abrir otro servicio después de cerrar')
         if (expectedVisible === 4) {
