@@ -272,6 +272,50 @@ test('Pricing service duplicates or inactive matches are blocked by code', () =>
   assert.ok(result.blockers.some(x => x.startsWith('serviceId:')));
 });
 
+test('active duplicate Pricing service code with malformed UUID cannot be ignored', () => {
+  const feed = withApprovedReadOnlyLookups(fixture());
+  feed['pricing-services'].items.push({
+    id: 'invalid-uuid', code: 'INT_TRANSPORT', name: 'Duplicado inválido',
+    value: 'Duplicado inválido', isActive: true,
+  });
+  const r = resolveDholeQuoteCatalogIds(request(), feed);
+  assert.equal(r.lookup.serviceIds['Transporte internacional'], undefined);
+  assert.ok(r.blockers.some(x => x.startsWith('serviceId:')));
+});
+test('active duplicate FTL type code blocks even with invalid UUID or conflicting kind', () => {
+  for (const bad of [
+    { id: 'invalid-uuid', code: '48_DRY_VAN', size: '48',
+      kind: 'dry-van', isActive: true },
+    { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      code: '48_DRY_VAN', size: '48', kind: 'reefer', isActive: true },
+  ]) {
+    const feed = withApprovedReadOnlyLookups(fixture());
+    feed['land-equipment-types'].items.push(bad);
+    const r = resolveDholeQuoteCatalogIds(request('Land', 'FTL'), feed);
+    assert.equal(r.lookup.equipment['FTL:48 pies|Furgón seco'], undefined);
+    assert.ok(r.blockers.some(x => x.startsWith('equipment:')));
+  }
+});
+test('duplicate equipment or size with invalid UUID cannot bypass ambiguity checks', () => {
+  const fcl = fixture();
+  fcl['container-types'].items.push({
+    id: 'invalid-uuid', code: '20DV', name: 'Tipo ambiguo',
+    size: '20', kind: 'dry-van', shipmentModes: ['FCL'],
+    modalities: ['Maritime'], isActive: true,
+  });
+  let r = resolveDholeQuoteCatalogIds(request(), fcl);
+  assert.deepEqual(r.lookup.equipment, {});
+  assert.ok(r.blockers.some(x => x.startsWith('equipment:')));
+
+  const truck = withApprovedReadOnlyLookups(fixture());
+  truck['truck-sizes'].items.push({
+    id: 'invalid-uuid', value: '48', name: '48 pies', isActive: true,
+  });
+  r = resolveDholeQuoteCatalogIds(request('Land', 'FTL'), truck);
+  assert.equal(r.lookup.equipment['FTL:48 pies|Furgón seco'], undefined);
+  assert.ok(r.blockers.some(x => x.startsWith('equipment:')));
+});
+
 test('land-equipment-types can supply FTL type UUID, never truck size UUID', () => {
   const q = request('Land', 'FTL');
   const r = resolveDholeQuoteCatalogIds(q, withApprovedReadOnlyLookups(fixture()));
