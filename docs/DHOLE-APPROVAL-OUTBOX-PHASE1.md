@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Preparar un recorrido seguro **cliente envía cotización → admin con permiso especial autoriza → se guarda un registro independiente para integración futura**. Esta fase **NO envía solicitudes ni tarifas a Dhole**. No existe cliente HTTP de escritura, ningún worker ni programador de reintentos.
+Preparar un recorrido seguro **cliente envía cotización → admin con permiso especial autoriza → se guarda un registro independiente para integración futura**. Esta fase **NO envía solicitudes ni tarifas a Dhole**. Se añadió posteriormente un cliente HTTP aislado y desactivado para pruebas con servidor falso, pero **no existe una ruta ni un worker que lo invoque**, ni programador de reintentos.
 
 La integración usa las cotizaciones oficiales existentes (`POST /api/quotes/official`), creadas por el asistente GIO o el formulario de cuatro pasos. No modifica el cotizador antiguo `POST /api/quotes`, ni los catálogos GET de Dhole ni Tracking.
 
