@@ -153,10 +153,10 @@ const serviceInfo = computed(() => Object.fromEntries([ ...(['Maritime', 'Land',
         siteText('home.services.fiscal.rotation', locale.value.startsWith('es') ? 'Manejo de inventario de rotación.' : 'Rotating inventory management.', locale.value)
       ] }] }],
   ['Panama', { title: siteText('home.services.panama.title', locale.value.startsWith('es') ? 'Transporte Panamá–Costa Rica' : 'Panama–Costa Rica transport', locale.value),
-    sections: [{ heading: locale.value.startsWith('es') ? 'Nuestra flota' : 'Our fleet',
-      items: [locale.value.startsWith('es') ? 'Más de 80 unidades caucionadas con sistema de rastreo.' : 'More than 80 bonded transport units with tracking.',
-        locale.value.startsWith('es') ? 'Unidades articuladas y no articuladas.' : 'Articulated and non-articulated units.',
-        locale.value.startsWith('es') ? 'Unidades de 28, 40, 45, 48 y 53 pies.' : '28, 40, 45, 48 and 53-foot units.'] }] }]
+    sections: [{ heading: locale.value.startsWith('es') ? 'Beneficios' : 'Benefits',
+      items: [locale.value.startsWith('es') ? 'Somos pioneros con amplia experiencia en el transporte de mercancía de Panamá - Costa Rica.' : 'We are pioneers with extensive experience in freight transport between Panama and Costa Rica.',
+        locale.value.startsWith('es') ? 'Contamos con bodega propia en Zona Libre Colón.' : 'We have our own warehouse in the Colón Free Zone.',
+        locale.value.startsWith('es') ? 'Ofrecemos salidas diarias con un tiempo de tránsito de 26 horas.' : 'We offer daily departures with a transit time of 26 hours.'] }] }]
  ]) as Record<HomeServiceKey, { title: string; sections: { heading: string; items: string[] }[] }>)
 const expandedFaq = ref<number | null>(0)
 const faqListRef = ref<HTMLElement | null>(null)
@@ -674,6 +674,20 @@ onUnmounted(() => {
                 <li v-for="item in group.items" :key="item">{{ item }}</li>
               </ul>
             </section>
+            <div v-if="modalService === 'Panama'" class="service-modal__warehouse">
+              <span class="service-modal__warehouse-icon" aria-hidden="true">⌖</span>
+              <div class="service-modal__warehouse-copy">
+                <strong>{{ locale.startsWith('es') ? 'Dirección de bodega:' : 'Warehouse address:' }}</strong>
+                <span>France Field Calle 7ma, Avenida 5ta, al lado de la Bodega Anker.</span>
+              </div>
+              <a
+                class="service-modal__route"
+                href="https://www.google.com/maps/dir/?api=1&destination=France%20Field%20Calle%207ma%2C%20Avenida%205ta%2C%20al%20lado%20de%20la%20Bodega%20Anker%2C%20Zona%20Libre%20de%20Colon%2C%20Panama"
+                target="_blank"
+                rel="noopener noreferrer"
+                :aria-label="locale.startsWith('es') ? 'Ver ruta a la bodega en Google Maps' : 'Get directions to the warehouse in Google Maps'"
+              >↗ <span>{{ locale.startsWith('es') ? 'Ver ruta' : 'Directions' }}</span></a>
+            </div>
           </div>
           <a class="btn btn-primary" :href="modalService === 'Fiscal' ? '/servicios/almacenamiento-fiscal' : modalService === 'Panama' ? '/servicios/transporte-panama-costa-rica' : `/cotizaciones?servicio=${modalService}`">
             {{ modalService === 'Fiscal' || modalService === 'Panama' ? (locale.startsWith('es') ? 'Conocer el servicio' : 'Explore service') : $t('custom.home.requestRate') }} <IconSymbol glyph="↗" />
@@ -687,6 +701,14 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.service-modal__warehouse { display: flex; align-items: center; gap: 16px; padding: 20px 0 2px; margin-top: 20px; border-top: 1px solid rgba(50, 55, 65, .18); }
+.service-modal__warehouse-icon { color: #b00929; font-size: 36px; line-height: 1; flex: 0 0 auto; }
+.service-modal__warehouse-copy { display: flex; flex: 1 1 auto; min-width: 0; flex-direction: column; gap: 4px; color: #262833; line-height: 1.5; }
+.service-modal__warehouse-copy strong { color: #b00929; }
+.service-modal__route { display: inline-flex; align-items: center; justify-content: center; gap: 9px; flex: 0 0 auto; padding: 10px 18px; border: 1.5px solid #b00929; border-radius: 999px; color: #b00929; font-weight: 700; text-decoration: none; background: rgba(255,255,255,.55); transition: background .2s ease; }
+.service-modal__route:hover, .service-modal__route:focus-visible { background: rgba(176,9,41,.11); }
+@media (max-width: 700px) { .service-modal__warehouse { align-items: flex-start; flex-wrap: wrap; gap: 10px; } .service-modal__warehouse-copy { flex-basis: calc(100% - 50px); } .service-modal__route { margin-left: 50px; } }
+
 .home-news-empty { padding: 24px 16px; margin: 0; color: #5d6270; font-size: 14px; line-height: 1.5; }
 /* The FAQ answer area is part of the same clickable card. */
 .faq-list .faq-item { cursor: pointer; }
