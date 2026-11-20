@@ -736,7 +736,7 @@ onUnmounted(() => {
 :global(html.theme-dark) .service-modal__route {
   background: rgba(33,27,32,.78) !important;
   border-color: rgba(255,255,255,.22);
-  color: #f5f7fb !important;
+  color: #b00929 !important;
 }
 :global(html.theme-dark) .service-modal__route:hover,
 :global(html.theme-dark) .service-modal__route:focus-visible {
