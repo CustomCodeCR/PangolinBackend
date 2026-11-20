@@ -79,7 +79,31 @@ Esta observación confirma que Shanghai es un **origen marítimo (POL) CY** eleg
 
 Se añadió un caso de prueba con el esquema observado y **UUID ficticio**: el normalizador lee `routeRole`, `transportMode`, `terminalType` desde `metadataJson`; `DholeQuoteLocationProjector` permite `POL/Maritime/CY` solo como origen y rechaza contradicciones de rol, sin identificar por nombre. El UUID real documentado se considera una **evidencia fechada, no un valor fijado en el código**.
 
-**Siguiente comprobación manual:** POE (puerto de entrada) para la ruta LCL elegida y POD marítimo, cada uno con su UUID de catálogo correcto; no inventar que el destino es San José ni reutilizar el UUID de POL.
+**Siguiente comprobación manual:** el POE marítimo Limón/Moin quedó confirmado posteriormente en esta revisión; falta elegir y verificar un POD del catálogo `pod`. No inventar que el destino es San José ni reutilizar los UUID de POL/POE.
+
+## POE Limón/Moin, Costa Rica confirmado en Config (20/11/2026)
+
+El usuario compartió el registro del catálogo interno autenticado `poe` para un punto marítimo de entrada en Costa Rica:
+
+| Dato | Valor |
+| --- | --- |
+| `id` (UUID del ítem POE) | `b18313cc-607c-49fc-952e-e30b6b25d784` |
+| `code` | `POE-2026-002` |
+| `slug` | `limon-moin-costa-rica` |
+| `name` / `value` | `Limón/Moin, Costa Rica` |
+| `catalogGroupSlug` | `poe` |
+| `isActive` | `true` |
+| `metadataJson.routeRole` | `POE` |
+| `metadataJson.countryCode` | `CR` |
+| `metadataJson.terminalType` | `CY` |
+| `metadataJson.transportMode` | `Maritime` |
+| `metadataJson.pricingWorkflow` | `true` |
+
+La observación es válida **como puerto de entrada (POE) para la prueba LCL marítima** desde Shanghai. No reutilizar este UUID como POL ni como POD; las identidades de esos catálogos son independientes, aun cuando coincidan nombres o ciudades. Para una prueba futura, verificar nuevamente su vigencia en la consulta autorizada de POE que ya existe y emplearlo en los campos de POE/destino requeridos por el contrato; no fijarlo en constantes del backend.
+
+La prueba offline de proyección del catálogo usa el registro estructural equivalente con un **UUID ficticio**, y exige `Maritime/CY/POE`; también rechaza su clasificación como origen o aeropuerto. Esta evidencia no significa que se haya enviado ninguna tarifa a Dhole.
+
+**Único registro de ruta pendiente para la prueba LCL:** un POD activo en el catálogo `pod`, elegido de acuerdo con la ruta. No suponer que el UUID de Limón/Moin en POE es el mismo que en POD.
 
 ## FTL: tipos y tamaños observados
 
