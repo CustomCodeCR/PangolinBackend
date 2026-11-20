@@ -10,7 +10,7 @@ La integración usa las cotizaciones oficiales existentes (`POST /api/quotes/off
 
 - Flag backend **deshabilitado por defecto**: `DholeSubmission:ApprovalQueueEnabled=false`.
 - Antes de activar, respaldar PostgreSQL y aplicar manualmente la migración aditiva al final de `backend/Database/OfficialQuotesSchema.sql` (tabla `public.official_quote_dhole_outbox`). **No borrar ni recrear volúmenes.**
-- En una máquina local de prueba, usar la variable de entorno `DholeSubmission__ApprovalQueueEnabled=true` solamente si la tabla existe y el backend está preparado para usarla.
+- En Docker híbrido local, una vez existente la tabla, configurar `DHOLE_APPROVAL_QUEUE_ENABLED=true` en el `.env` privado (Compose lo envía al backend como `DholeSubmission__ApprovalQueueEnabled`). **No habilitarlo en producción** hasta revisar la migración y los permisos. No hace falta una clave de escritura para esta fase porque no realiza POST externo.
 - Si la flag está apagada, **no se consulta ni escribe la tabla nueva**; la aprobación de cotizaciones continúa igual que antes.
 - La flag `DholeCatalogs:SubmissionEnabled` es para **validación de catálogos del formulario**, no autoriza un POST al proveedor. No confundirla con el envío de solicitudes.
 
