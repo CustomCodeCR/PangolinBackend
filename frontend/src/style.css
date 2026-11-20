@@ -6052,3 +6052,25 @@ html.theme-dark .login-screen .login-auth-card .login-auth-sending {
     transition: none !important;
   }
 }
+
+/* Panama warehouse route button: the global dark-theme * selector forces white
+   on nested spans/icons and gray borders, so the exception must also be global. */
+html.theme-dark .app-site.home-page .service-modal a.service-modal__route {
+  background: rgba(33, 27, 32, .78) !important;
+  border-color: rgba(255, 82, 110, .7) !important;
+  color: #ff526e !important;
+}
+html.theme-dark .app-site.home-page .service-modal a.service-modal__route span,
+html.theme-dark .app-site.home-page .service-modal a.service-modal__route svg,
+html.theme-dark .app-site.home-page .service-modal a.service-modal__route svg path {
+  color: #ff526e !important;
+}
+html.theme-dark .app-site.home-page .service-modal a.service-modal__route svg,
+html.theme-dark .app-site.home-page .service-modal a.service-modal__route svg path {
+  fill: currentColor !important;
+}
+html.theme-dark .app-site.home-page .service-modal a.service-modal__route:hover,
+html.theme-dark .app-site.home-page .service-modal a.service-modal__route:focus-visible {
+  background: rgba(52, 31, 43, .93) !important;
+  border-color: #ff526e !important;
+}
