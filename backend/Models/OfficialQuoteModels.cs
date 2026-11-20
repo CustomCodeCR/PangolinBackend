@@ -30,6 +30,8 @@ public sealed class OfficialQuoteDholeOutbox
     public Guid QuoteId { get; set; }
     public Guid? ApprovedById { get; set; }
     public string State { get; set; } = "AwaitingConnector";
+    // Provisional admin-selected priority for the future connector; Green by default.
+    public string Priority { get; set; } = "Green";
     public int AttemptCount { get; set; }
     public string? ExternalReference { get; set; }
     public string? LastErrorCode { get; set; }
