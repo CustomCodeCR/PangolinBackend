@@ -1,12 +1,19 @@
 // Local, read-only resolution against DholeCatalogNormalizer snapshots.
 // No fetch, HTTP client, credentials or persistence. A mapping is not permission
-// to transmit: the external pricing-rate-request contract is unpublished.
+// to transmit: the official external POST contract is published, but not enabled here.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const KIND_NAMES = new Map([
   ['dry-van', 'Dry Van'], ['high-cube', 'High Cube'],
   ['open-top', 'Open Top'], ['open-side', 'Open Side'],
   ['tank', 'Tank'], ['flat-rack', 'Flat Rack'], ['nor', 'NOR'],
 ]);
+const FTL_KINDS = new Map([
+  ['Furgón seco', { kind: 'dry-van', code: 'DRY_VAN' }],
+  ['Plataforma / Carreta', { kind: 'platform', code: 'PLATFORM' }],
+  ['Refrigerado', { kind: 'reefer', code: 'REEFER' }],
+  ['Furgón con cortina', { kind: 'curtain-side', code: 'CURTAIN_SIDE' }],
+]);
+const FTL_SIZES = new Set(['24', '26', '48', '53']);
 const FRESH_FOR_MS = 5 * 60 * 1000;
 const idValid = (id) => typeof id === 'string' &&
   UUID.test(id) && id !== '00000000-0000-0000-0000-000000000000';
@@ -97,18 +104,13 @@ export function resolveDholeQuoteCatalogIds(source, snapshots, now = Date.now())
         missing(blockers, 'equipment:' + key + ': tamaño de furgón ambiguo o ausente');
         continue;
       }
-      // A TYPE UUID, never the ID of the SIZE catalogue. Strictly require the
-      // same size and an explicit type description from the lookup metadata.
-      const typeName = String(line.type).normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '').toLowerCase();
-      const sizeCode = candidates[0].value;
-      const matches = unique(types ?? [], item =>
+      // Resolve a TYPE UUID, never the size UUID. Require the exact official
+      // size + kind + code triple; a generic "Furgón" cannot resolve.
+      const kind = FTL_KINDS.get(line.type);
+      const sizeCode = String(candidates[0].feet ?? candidates[0].value ?? '').trim();
+      const matches = kind && FTL_SIZES.has(sizeCode) ? unique(types ?? [], item =>
         idValid(item?.id) && item.size === sizeCode &&
-        typeof item.code === 'string' && item.code.trim().length > 0 &&
-        [item.name, item.kind].some(value =>
-          typeof value === 'string' && value.normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '').toLowerCase() === typeName));
-      if (matches.length !== 1) {
+        item.kind === kind.kind && item.code === sizeCode + '_' + kind.code) : [];      if (matches.length !== 1) {
         missing(blockers, 'equipment:' + key + ': falta verificar ID de tipo de furgón en Pricing');
         continue;
       }
