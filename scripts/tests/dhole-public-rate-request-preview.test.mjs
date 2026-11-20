@@ -236,6 +236,36 @@ test('payload cannot carry malformed, obsolete or fabricated equipment UUID and 
     assert.ok(validateDholePublicRateRequestShape(body).length>0);
   }
 });
+test('cross-context route IDs must agree before building a public request',()=>{
+  const make=()=>structuredClone(previewDholeRateRequest(quote('Maritime','FCL'),lookups));
+  for(const mismatch of [
+    p=>{p.internalPricingRequest.payload.requestContext.poeId=IDs.origin;},
+    p=>{p.internalPricingRequest.payload.requestContext.podId=IDs.poe;},
+    p=>{p.internalPricingRequest.poeName='Nombre de destino diferente';},
+  ]){
+    const preview=make();
+    mismatch(preview);
+    assert.throws(()=>previewDholePublicRateRequest(preview),/Referencias POE\/POD inconsistentes/);
+  }
+  const land=structuredClone(previewDholeRateRequest(quote('Land','FTL'),lookups));
+  land.internalPricingRequest.payload.requestContext.podId=IDs.pod;
+  assert.throws(()=>previewDholePublicRateRequest(land),/Referencias POE\/POD inconsistentes/);
+});
+test('total equipment weights, strict calendar dates and quote IDs are rechecked',()=>{
+  for(const [mode,type] of [['Maritime','FCL'],['Land','FTL']]){
+    const preview=structuredClone(previewDholeRateRequest(quote(mode,type),lookups));
+    preview.internalPricingRequest.payload.form.cargoWeightKg=9999;
+    assert.throws(()=>previewDholePublicRateRequest(preview),/Peso declarado no coincide/);
+  }
+  const invalidDate=structuredClone(previewDholeRateRequest(quote(),lookups));
+  invalidDate.internalPricingRequest.payload.form.loadDate='2026-02-30';
+  invalidDate.internalPricingRequest.payload.sellerContext.cargoReadyDate='2026-02-30';
+  assert.throws(()=>previewDholePublicRateRequest(invalidDate),/Datos críticos/);
+  const invalidKey=structuredClone(previewDholeRateRequest(quote(),lookups));
+  invalidKey.idempotencyKey='cf-official-zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz';
+  assert.throws(()=>previewDholePublicRateRequest(invalidKey),/idempotencia local inválida/);
+});
+
 test('no transport function or private API key is exposed by this adapter',()=>{
   const meta=dholePublicRateRequestContractReview();
   assert.equal(meta.noTransport,true);
