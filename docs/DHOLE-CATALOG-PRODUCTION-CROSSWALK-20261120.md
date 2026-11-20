@@ -58,6 +58,29 @@ El usuario abrió el catálogo interno `incoterms` de Dhole y compartió el JSON
 
 El UUID documentado es una **observación manual fechada**, no una constante de programación ni prueba de vigencia futura. El GET externo de Incoterms ya existe en el proyecto, por lo que las consultas ordinarias deben usar el catálogo actual habilitado; para un POST de prueba comprobar de nuevo que la fila seleccionada sigue activa. Esta observación no concede permiso para emitir un POST.
 
+## POL Shanghai, China confirmado en Config (20/11/2026)
+
+El usuario compartió un registro del catálogo autenticado de Dhole `pol`, observado en Config:
+
+| Dato | Valor |
+| --- | --- |
+| `id` (UUID del POL) | `037bd89d-f85d-49ed-aca1-afc47381aebf` |
+| `code` | `POL-2026-074` |
+| `slug` | `shanghai-china` |
+| `name` / `value` | `Shanghai, China` |
+| `isActive` | `true` |
+| `metadataJson.routeRole` | `POL` |
+| `metadataJson.countryCode` | `CN` |
+| `metadataJson.terminalType` | `CY` |
+| `metadataJson.transportMode` | `Maritime` |
+| `metadataJson.pricingWorkflow` | `true` |
+
+Esta observación confirma que Shanghai es un **origen marítimo (POL) CY** elegible al momento de la consulta. No implica que sea un POE ni un POD, y su UUID no debe usarse en campos de destino. Para una solicitud LCL, la correspondencia de la ruta es `form_originId` ← UUID de POL, pero el adaptador debe verificar ese UUID contra la lista de orígenes activa al preparar cualquier envío. El catálogo `pol` ya cuenta con una API GET externa en BackendJJ; no hace falta publicarla de nuevo.
+
+Se añadió un caso de prueba con el esquema observado y **UUID ficticio**: el normalizador lee `routeRole`, `transportMode`, `terminalType` desde `metadataJson`; `DholeQuoteLocationProjector` permite `POL/Maritime/CY` solo como origen y rechaza contradicciones de rol, sin identificar por nombre. El UUID real documentado se considera una **evidencia fechada, no un valor fijado en el código**.
+
+**Siguiente comprobación manual:** POE (puerto de entrada) para la ruta LCL elegida y POD marítimo, cada uno con su UUID de catálogo correcto; no inventar que el destino es San José ni reutilizar el UUID de POL.
+
 ## FTL: tipos y tamaños observados
 
 El grupo interno `land-equipment-types` contiene **16 registros activos**: cuatro tipos por cada tamaño 24, 26, 48 y 53 pies. Las combinaciones se identifican inequívocamente por `metadataJson.size`, `metadataJson.kind` y `code`, nunca por el UUID del catálogo de tamaños.
