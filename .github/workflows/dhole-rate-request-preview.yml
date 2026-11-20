@@ -5,10 +5,12 @@ on:
     paths:
       - 'scripts/dhole-rate-request-preview.mjs'
       - 'scripts/dhole-catalog-id-resolver.mjs'
+      - 'scripts/review-dhole-pricing-services-export.mjs'
       - 'scripts/dhole-public-rate-request-preview.mjs'
       - 'scripts/contracts/dhole-solicitar-tarifa-published-20261120.json'
       - 'scripts/tests/dhole-rate-request-preview.test.mjs'
       - 'scripts/tests/dhole-catalog-id-resolver.test.mjs'
+      - 'scripts/tests/review-dhole-pricing-services-export.test.mjs'
       - 'scripts/tests/dhole-public-rate-request-preview.test.mjs'
       - '.github/workflows/dhole-rate-request-preview.yml'
   workflow_dispatch:
@@ -25,4 +27,4 @@ jobs:
         with:
           node-version: '22'
       - name: Simulated Dhole mapping and idempotency (no outbound HTTP)
-        run: node --test scripts/tests/dhole-rate-request-preview.test.mjs scripts/tests/dhole-catalog-id-resolver.test.mjs scripts/tests/dhole-public-rate-request-preview.test.mjs
+        run: node --test scripts/tests/dhole-rate-request-preview.test.mjs scripts/tests/dhole-catalog-id-resolver.test.mjs scripts/tests/dhole-public-rate-request-preview.test.mjs scripts/tests/review-dhole-pricing-services-export.test.mjs
