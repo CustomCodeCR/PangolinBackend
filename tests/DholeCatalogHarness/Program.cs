@@ -518,13 +518,15 @@ var servicesResult = await lookups.GetAsync("pricing-services", CancellationToke
 Check(servicesResult.Catalog == "pricing-services" &&
       servicesResult.Items.Length == 1 &&
       servicesResult.Items[0].Code == "INTERNATIONAL" &&
-      servicesResult.Items[0].Name == "Transporte internacional",
+      servicesResult.Items[0].Name == "Transporte internacional" &&
+      servicesResult.Items[0].IsActive == true,
     "Pricing service is normalized, inactive items excluded");
 var ftlTypesResult = await lookups.GetAsync("land-equipment-types", CancellationToken.None);
 Check(ftlTypesResult.Catalog == "land-equipment-types" &&
       ftlTypesResult.Items.Length == 1 &&
       ftlTypesResult.Items[0].Code == "48FTL" &&
-      ftlTypesResult.Items[0].Size == "48",
+      ftlTypesResult.Items[0].Size == "48" &&
+      ftlTypesResult.Items[0].IsActive == true,
     "FTL equipment type is resolved separately from equipment size");
 Check(lookupFakeHandler.Calls == 2 && lookupFakeHandler.Forbidden == 0,
     "Both mock requests are HTTPS GET, use exact paths and dedicated fake key");
@@ -620,7 +622,7 @@ sealed class FakeDholeLookupHandler : HttpMessageHandler
             [
               { "id": "a1000000-0000-4000-8000-000000000001",
                 "code": "INTERNATIONAL", "name": "Transporte internacional",
-                "value": "Transporte internacional" },
+                "value": "Transporte internacional", "isActive": true },
               { "id": "a1000000-0000-4000-8000-000000000002",
                 "code": "OLD", "name": "Obsoleto", "value": "Obsoleto",
                 "isActive": false }
@@ -629,7 +631,7 @@ sealed class FakeDholeLookupHandler : HttpMessageHandler
             [
               { "id": "b1000000-0000-4000-8000-000000000001",
                 "code": "48FTL", "name": "Furgón 48", "value": "48FTL",
-                "metadata": { "size": "48", "kind": "furgon" } }
+                "isActive": true, "metadata": { "size": "48", "kind": "furgon" } }
             ]
             """;
         return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
