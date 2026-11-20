@@ -48,3 +48,27 @@ El módulo `scripts/dhole-rate-request-preview.mjs` es intencionalmente **puro y
 5. Solo tras aprobación explícita, probar **un POST real** en entorno autorizado, sin clientes reales y con supervisión. Luego modo con aprobación; **automático después**, en otra decisión.
 
 La PR #274 continúa en borrador y solo prepara localmente la autorización/outbox; **no implementa despachador**.
+
+## Fase de equivalencias de catálogos: resultados comprobables (sin red)
+
+Se agregó `scripts/dhole-catalog-id-resolver.mjs` con pruebas en `scripts/tests/dhole-catalog-id-resolver.test.mjs`. Consume solamente copias locales de `DholeCatalogSnapshot` (contrato de `DholeCatalogService`): `catalog`, `fetchedAtUtc`, `stale=false`, `items`. Rechaza catálogos obsoletos (más de cinco minutos), futuros, duplicados o sin UUID válido. **Los tests usan snapshots falsos**, no catálogos descargados de producción.
+
+Resultado del análisis de código existente:
+
+- **Incoterms:** los `DholeCatalogItem` ya tienen `Id` y `Value`. El wizard guarda `Incoterm` como valor de texto. Podemos resolver el UUID por **coincidencia exacta y única** sobre elementos vigentes; códigos repetidos o ausentes se bloquean. Debe ejecutarse con un snapshot vigente antes de cualquier intento remoto.
+- **POD:** la cotización ya guarda el UUID de Dhole. Podemos recuperar el nombre mediante el mismo UUID de un snapshot POD vigente; no inferirlo por la descripción de la ubicación.
+- **FCL:** `DholeEquipmentProjector` combina tamaños con tipos a partir de metadatos `size`, `kind`, `shipmentModes` y `modalities`. El identificador de **tipo de contenedor** es `TypeExternalId`, distinto del UUID del tamaño. La resolución offline lo usa solo si encuentra **una** combinación vigente e inequívoca con nombre de tamaño, nombre de tipo y código de tipo.
+- **FTL:** el catálogo `truck-sizes` proporciona UUID de **tamaño de furgón**, pero no prueba que sea el `containerTypeId` que Pricing espera en `landContainers`. **Nunca sustituir ese campo por el UUID del tamaño**. Queda bloqueado a la espera de confirmar su contrato/tipo de equipo en Pricing.
+- **Servicios:** los catálogos externos consultados no incluyen el catálogo de `serviceIds` de Pricing; los servicios de la web son etiquetas. Se requiere una operación **de solo lectura**, o una correspondencia revisada manualmente contra el catálogo vigente de Config/Pricing. No inventar UUID ni deducirlos a partir del nombre.
+- **Prioridad:** `Green/Yellow/Red` existe en el enum de Pricing, pero no se captura en la web. Debe definirse mediante aprobación/configuración administrativa; no usar una prioridad predeterminada sin autorización.
+- **Identidad comercial y endpoint público:** continuar bloqueados hasta revisar el contrato que se publique en el Gateway. La ruta interna `POST /api/pricing/rate-requests/` por sí sola no habilita consumidores externos.
+
+Este módulo **no crea** `serviceIds`, prioridad, usuario vendedor, URL pública ni API Key. Los bloqueos se muestran aunque resuelva todos los Incoterms, POD y equipos FCL.
+
+Ejecutar junto con el simulador sin acceso a Dhole:
+
+```sh
+node --test scripts/tests/dhole-rate-request-preview.test.mjs scripts/tests/dhole-catalog-id-resolver.test.mjs
+```
+
+No afecta el backend en ejecución ni agrega conexiones externas.
