@@ -197,18 +197,26 @@ async function assertServicesTheme(chrome, url) {
         assert.equal(reset.visible, 6, 'Cerrar debe devolver todas las pestañas: ' + JSON.stringify(reset))
         assert.equal(reset.opened, 0, 'Cerrar no debe dejar un servicio abierto')
         if (width === 390) {
-          // Mouse and trackpad must open on hover at compact widths, without a click.
-          // Touch does not use pointerenter; its click behavior remains unchanged.
-          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[1].dispatchEvent(new PointerEvent('pointerenter', {pointerType:'mouse',clientX:100,clientY:200})); true")
-          const hovered = await evaluate("(() => { const items=[...document.querySelectorAll('#servicios .service-accordion__item')];return { opened:items[1].classList.contains('is-open'), visible:items.filter(x=>getComputedStyle(x).display!=='none').length }; })()")
-          assert.ok(hovered.opened && hovered.visible === 4, 'El mouse debe abrir Marítimo al pasar por encima: ' + JSON.stringify(hovered))
-          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].dispatchEvent(new PointerEvent('pointerenter', {pointerType:'mouse',clientX:100,clientY:200})); true")
-          assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item')[1].classList.contains('is-open')"), true,
-            'No debe saltar al siguiente servicio por un cambio de columnas bajo el mouse')
-          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].dispatchEvent(new PointerEvent('pointerenter', {pointerType:'mouse',clientX:145,clientY:200})); true")
-          assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item')[2].classList.contains('is-open')"), true,
-            'Mover realmente el mouse hacia Terrestre debe abrirlo')
+          // Compact-width pointerenter can occur during hydration and when cards
+          // slide under a stationary mouse. It must NOT open another card.
+          for (const pointerType of ['mouse', 'pen', 'touch']) {
+            await evaluate(`document.querySelectorAll('#servicios .service-accordion__trigger')[1].dispatchEvent(new PointerEvent('pointerenter', {pointerType:'${pointerType}',clientX:100,clientY:200})); true`)
+            assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item.is-open').length"), 0,
+              'Una entrada de puntero no abre servicios compactos: ' + pointerType)
+          }
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[1].click(); true")
+          assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item.is-open').length"), 1,
+            'Un clic abre solo un servicio compacto')
           await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
+          assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item.is-open').length"), 1,
+            'Cambiar de servicio nunca deja dos paneles abiertos')
+          assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item')[2].classList.contains('is-open')"), true,
+            'El servicio nuevo queda seleccionado')
+          await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
+          assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item.is-open').length"), 0,
+            'Pulsar el servicio abierto vuelve al estado de seis pestañas')
+        }
+        await evaluate("document.querySelectorAll('#servicios .service-accordion__trigger')[2].click(); true")
           assert.equal(await evaluate("document.querySelectorAll('#servicios .service-accordion__item.is-open').length"), 0,
             'Tras hover debe poderse cerrar tocando la misma pestaña')
           // Simulated touch pointerenter must not open a tab until actual tap.
