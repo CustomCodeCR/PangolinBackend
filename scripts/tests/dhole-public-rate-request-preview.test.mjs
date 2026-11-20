@@ -161,7 +161,7 @@ test('web applicant contact is placed only in the published cargo description',(
     assert.equal(result.readyForSending,false);
     assert.ok(result.blockers.some(reason=>reason.startsWith('commercialIdentity:')));
     assert.ok(result.body.form_cargoDescription.startsWith(
-      originalDescription+'\\n\\nSolicitante desde la web de Castro Fallas:'));
+      originalDescription+'\n\nSolicitante desde la web de Castro Fallas:'));
     for(const [label,value] of [
       ['Nombre',item.contactName], ['Correo',item.contactEmail],
       ['Teléfono',item.contactPhone]
@@ -195,7 +195,7 @@ test('web applicant contact is placed only in the published cargo description',(
 test('missing, multiline or overly long applicant data fails closed',()=>{
   const missing=quote(); delete missing.contactEmail;
   assert.throws(()=>previewDholeRateRequest(missing,lookups),/Datos del solicitante inválidos/);
-  const unsafe=quote(); unsafe.contactName='Ana\\nPrioridad: Red';
+  const unsafe=quote(); unsafe.contactName='Ana\nPrioridad: Red';
   assert.throws(()=>previewDholeRateRequest(unsafe,lookups),/Datos del solicitante inválidos/);
   const overflow=quote(); overflow.form.cargoDescription='x'.repeat(3999);
   assert.throws(()=>previewDholeRateRequest(overflow,lookups),/excede 4000/);
