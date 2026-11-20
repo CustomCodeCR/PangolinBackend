@@ -32,6 +32,8 @@ Los 12 códigos identificados son únicos y activos en la muestra oficial del 20
 
 El wizard y GIO ofrecen ahora solo los **12 servicios observados**. Las solicitudes históricas que ya incluyan «Transporte nacional» se conservan tal como fueron registradas; **no se aceptará esa selección en cotizaciones nuevas**. No se configura todavía una API de servicios Dhole ni se inventan UUID. La consulta de catálogo autorizada y vigente será necesaria para mapear los servicios en un envío futuro.
 
+**Regla de validación del mapeo offline:** cada código activo debe aparecer exactamente una vez y esa única fila debe tener UUID válido. Dos filas activas con el mismo código —aunque una contenga un UUID inválido o metadatos FTL contradictorios— bloquean la correspondencia completa de ese servicio o equipo. Los tests cubren catálogos duplicados, UUID inválidos y tamaños ambiguos. Esto sigue siendo una preparación sin GET publicado ni POST real.
+
 ## FTL: tipos y tamaños observados
 
 El grupo interno `land-equipment-types` contiene **16 registros activos**: cuatro tipos por cada tamaño 24, 26, 48 y 53 pies. Las combinaciones se identifican inequívocamente por `metadataJson.size`, `metadataJson.kind` y `code`, nunca por el UUID del catálogo de tamaños.
