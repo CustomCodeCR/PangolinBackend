@@ -144,6 +144,39 @@ Check(DholeQuoteLocationProjector.Project("destination", "Air", poeItems).Option
 Check(DholeQuoteLocationProjector.Project("destination", "Land", poeItems).Options.Single().Name == "Guatemala",
     "POE ground accepts only Land/SD");
 
+// Real POE Config shape observed for Limon/Moin: use a synthetic UUID in tests,
+// never persist a production identifier or infer POE/POD equivalence by name.
+var limonMoinAsConfig = DholeCatalogNormalizer.Parse("""
+[
+  {
+    "id": "c9999999-9999-4999-8999-999999999999",
+    "catalogGroupSlug": "poe",
+    "code": "POE-2026-002",
+    "slug": "limon-moin-costa-rica",
+    "name": "Limón/Moin, Costa Rica",
+    "value": "Limón/Moin, Costa Rica",
+    "isActive": true,
+    "metadataJson": "{\"routeRole\":\"POE\",\"countryCode\":\"CR\",\"terminalType\":\"CY\",\"transportMode\":\"Maritime\",\"pricingWorkflow\":true}"
+  }
+]
+""");
+var limonMoinDestination = DholeQuoteLocationProjector.Project("destination", "Maritime", limonMoinAsConfig);
+Check(limonMoinDestination.Options.Length == 1 &&
+      limonMoinDestination.Options[0].ExternalId == "c9999999-9999-4999-8999-999999999999" &&
+      limonMoinDestination.Options[0].Code == "POE-2026-002" &&
+      limonMoinDestination.Options[0].Name == "Limón/Moin, Costa Rica" &&
+      limonMoinDestination.Options[0].Catalog == "poe" &&
+      limonMoinDestination.Options[0].Role == "destination" &&
+      limonMoinDestination.Options[0].TerminalType == "CY" &&
+      limonMoinDestination.Issues.Length == 0,
+    "Dhole Config Limón/Moin is active Maritime/CY POE usable as destination");
+Check(DholeQuoteLocationProjector.Project("destination", "Air", limonMoinAsConfig).Options.Length == 0,
+    "Maritime/CY POE must not map as an airport");
+Check(DholeQuoteLocationProjector.Project("origin", "Maritime", limonMoinAsConfig).Options.Length == 0 &&
+      DholeQuoteLocationProjector.Project("origin", "Maritime", limonMoinAsConfig)
+        .Issues.Single().Reason == "conflicting_route_role",
+    "POE ID must not be reused as origin or POD");
+
 var polItems = DholeCatalogNormalizer.Parse("""
 [
  { "id": "19a5ce22-340d-579f-ad27-f6517a2dde27", "name": "Acajutla", "value": "Acajutla", "transportMode": "Maritime", "terminalType": "CY", "routeRole": "POL" },
