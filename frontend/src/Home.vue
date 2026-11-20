@@ -17,8 +17,11 @@ const { t, locale } = useI18n({ useScope: 'global' })
 type HomeServiceKey = ServiceKey | 'Fiscal' | 'Panama'
 // On mobile keep the original vertical tab design and dimensions.
 // Tapping an already-open tab collapses it and restores all six choices.
-const activeService = ref<HomeServiceKey | null>(null)
-const compactServiceMode = ref(false)
+// Resolve the initial viewport before the first render so desktop service
+// labels don't shift into place when onMounted opens the default card.
+const initialCompactServices = typeof window !== 'undefined' && window.matchMedia('(max-width: 800px)').matches
+const activeService = ref<HomeServiceKey | null>(initialCompactServices ? null : 'Air')
+const compactServiceMode = ref(initialCompactServices)
 const serviceAccordionRef = ref<HTMLElement | null>(null)
 const serviceAccordionWidth = ref(0)
 const serviceWindowStart = ref(0)
