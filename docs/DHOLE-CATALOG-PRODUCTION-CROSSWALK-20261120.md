@@ -103,7 +103,30 @@ La observación es válida **como puerto de entrada (POE) para la prueba LCL mar
 
 La prueba offline de proyección del catálogo usa el registro estructural equivalente con un **UUID ficticio**, y exige `Maritime/CY/POE`; también rechaza su clasificación como origen o aeropuerto. Esta evidencia no significa que se haya enviado ninguna tarifa a Dhole.
 
-**Único registro de ruta pendiente para la prueba LCL:** un POD activo en el catálogo `pod`, elegido de acuerdo con la ruta. No suponer que el UUID de Limón/Moin en POE es el mismo que en POD.
+**Actualización posterior:** el usuario confirmó un POD separado y activo, `Moin, Costa Rica`, con `Maritime/SD`; se documenta a continuación. No reutilizar los UUID de POE como POD.
+
+## POD Moín, Costa Rica confirmado en Config (20/11/2026)
+
+El usuario compartió un registro del catálogo interno autenticado `pod`:
+
+| Dato | Valor observado |
+| --- | --- |
+| `id` (UUID POD, NO POE) | `346e6492-16ba-450b-8f01-4ed677996667` |
+| `code` | `POD-2026-020` |
+| `slug` | `moin-costa-rica` |
+| `name` / `value` | `Moin, Costa Rica` |
+| `catalogGroupSlug` | `pod` |
+| `isActive` | `true` |
+| `metadataJson.routeRole` | `POD` |
+| `metadataJson.countryCode` | `CR` |
+| `metadataJson.transportMode` | `Maritime` |
+| `metadataJson.terminalType` | `SD` |
+
+**POE y POD son entidades de catálogo distintas aunque se refieran a la zona de Moín:** la entrada POE anterior es `Limón/Moin, Costa Rica`, `Maritime/CY`, mientras que este POD es `Moin, Costa Rica`, `Maritime/SD`. Esta diferencia **no se debe corregir ni homogeneizar artificialmente**. La proyección ya mantiene todos los POD activos del catálogo propio y no exige `CY` para POD; el test añadido utiliza UUID ficticios y comprueba que no se sustituye el UUID de POE por el de POD.
+
+La ruta de revisión LCL marítima queda documentada con **POL Shanghai, China → POE Limón/Moin, Costa Rica + POD Moín, Costa Rica**; servicio Transporte internacional e Incoterm CIF también fueron observados activos. Es una ruta de **prueba técnica propuesta**, no una confirmación de factibilidad comercial o de tránsito marítimo efectivo entre esos puntos. Para cualquier POST posterior, comprobar en ese momento la vigencia de los UUID y la combinación admitida por Pricing. No reutilizar IDs de un catálogo en otro.
+
+**Estado:** con este registro no quedan más JSON de catálogos pendientes para *preparar el borrador de la prueba LCL*. La aceptación real del POST, visualización de `form_cargoDescription`, datos comerciales fijos e idempotencia siguen sin verificarse; el conector permanece desactivado y sin invocador.
 
 ## FTL: tipos y tamaños observados
 
