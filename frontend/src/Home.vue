@@ -493,7 +493,7 @@ onUnmounted(() => {
       <!-- Regional specialties: between the tracking globe and digital services. -->
       <section class="home-specialties" :aria-label="locale === 'es' ? 'Infraestructura y cobertura regional' : 'Regional infrastructure and coverage'">
         <div class="container home-specialties__inner">
-          <p class="home-specialties__eyebrow">{{ locale === 'es' ? 'INFRAESTRUCTURA Y COBERTURA' : 'INFRASTRUCTURE & COVERAGE' }}</p>
+          <p class="home-specialties__eyebrow">{{ siteText('home.specialties.heading', locale === 'es' ? 'INFRAESTRUCTURA Y COBERTURA' : 'INFRASTRUCTURE & COVERAGE', locale) }}</p>
           <div class="home-specialties__grid">
             <article class="home-specialties__item">
               <div class="home-specialties__icon-wrap" aria-hidden="true">
@@ -504,10 +504,10 @@ onUnmounted(() => {
             </svg>
               </div>
               <div class="home-specialties__copy">
-                <span class="home-specialties__overline">{{ locale === 'es' ? 'ALMACENAMIENTO' : 'WAREHOUSING' }} <b>01</b></span>
+                <span class="home-specialties__overline">{{ siteText('home.specialties.fiscal.eyebrow', locale === 'es' ? 'ALMACENAMIENTO' : 'WAREHOUSING', locale) }} <b>01</b></span>
                 <h2 class="home-specialties__heading">
-                  <span>{{ locale === 'es' ? 'Espacio para tu carga.' : 'Space for your cargo.' }}</span>
-                  <strong>{{ locale === 'es' ? 'Almacén fiscal A257 · A287' : 'Bonded warehousing A257 · A287' }}</strong>
+                  <span>{{ siteText('home.specialties.fiscal.lead', locale === 'es' ? 'Espacio para tu carga.' : 'Space for your cargo.', locale) }}</span>
+                  <strong>{{ siteText('home.specialties.fiscal.title', locale === 'es' ? 'Almacén fiscal A257 · A287' : 'Bonded warehousing A257 · A287', locale) }}</strong>
                 </h2>
               </div>
             </article>
@@ -520,10 +520,10 @@ onUnmounted(() => {
             </svg>
               </div>
               <div class="home-specialties__copy">
-                <span class="home-specialties__overline">{{ locale === 'es' ? 'TRANSPORTE REGIONAL' : 'REGIONAL TRANSPORT' }} <b>02</b></span>
+                <span class="home-specialties__overline">{{ siteText('home.specialties.panama.eyebrow', locale === 'es' ? 'TRANSPORTE REGIONAL' : 'REGIONAL TRANSPORT', locale) }} <b>02</b></span>
                 <h2 class="home-specialties__heading">
-                  <span>{{ locale === 'es' ? 'Movemos tu negocio.' : 'We move your business.' }}</span>
-                  <strong>{{ locale === 'es' ? 'Transporte entre Costa Rica y Panamá' : 'Transport between Costa Rica and Panama' }}</strong>
+                  <span>{{ siteText('home.specialties.panama.lead', locale === 'es' ? 'Movemos tu negocio.' : 'We move your business.', locale) }}</span>
+                  <strong>{{ siteText('home.specialties.panama.title', locale === 'es' ? 'Transporte entre Costa Rica y Panamá' : 'Transport between Costa Rica and Panama', locale) }}</strong>
                 </h2>
               </div>
             </article>
