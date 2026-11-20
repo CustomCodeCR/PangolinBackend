@@ -205,6 +205,11 @@ internal static class DholeQuoteHttpTest
             Assert(wrongType.StatusCode == HttpStatusCode.BadRequest,
                 "Server rejects invented equipment size/type pair");
 
+        using (var retiredService = await Submit(new(quote) {
+            ["services"] = new[] { "Transporte nacional" }
+        }))
+            Assert(retiredService.StatusCode == HttpStatusCode.BadRequest,
+                "Unlisted national transportation cannot be submitted by old or direct clients");
         using (var retiredTerm = await Submit(new(quote) { ["incoterm"] = "EXW" }))
             Assert(retiredTerm.StatusCode == HttpStatusCode.BadRequest,
                 "Server rejects inactive Dhole Incoterm");
