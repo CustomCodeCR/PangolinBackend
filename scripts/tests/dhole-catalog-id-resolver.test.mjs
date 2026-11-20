@@ -51,7 +51,7 @@ function request(mode = 'Maritime', shipmentType = 'FCL') {
       cargoDescription: 'Carga simulada', services: ['Transporte internacional'],
       equipment: shipmentType === 'FCL' || shipmentType === 'FTL' ? [{
         size: shipmentType === 'FCL' ? '20 pies' : '48 pies',
-        type: shipmentType === 'FCL' ? 'Dry Van' : 'Furgón',
+        type: shipmentType === 'FCL' ? 'Dry Van' : 'Furgón seco',
         quantity: 1, unitWeightsKg: [1500],
       }] : [],
       packages: shipmentType === 'FCL' || shipmentType === 'FTL' ? [] : [{
@@ -163,8 +163,8 @@ function withApprovedReadOnlyLookups(feed, now = Date.now()) {
   }]);
   feed['land-equipment-types'] = snapshot('land-equipment-types', [{
     id: '99999999-9999-4999-8999-999999999999',
-    code: '48FTL', name: 'Furgón 48', value: '48FTL',
-    size: '48', kind: 'furgon',
+    code: '48_DRY_VAN', name: '48 pies · Furgón seco', value: '48_DRY_VAN',
+    size: '48', kind: 'dry-van',
   }]);
   return feed;
 }
@@ -206,10 +206,10 @@ test('duplicate, stale and unmatched Pricing service catalogues never yield a gu
 test('land-equipment-types can supply FTL type UUID, never truck size UUID', () => {
   const q = request('Land', 'FTL');
   const r = resolveDholeQuoteCatalogIds(q, withApprovedReadOnlyLookups(fixture()));
-  const type = r.lookup.equipment['FTL:48 pies|Furgón'];
+  const type = r.lookup.equipment['FTL:48 pies|Furgón seco'];
   assert.equal(type.id, '99999999-9999-4999-8999-999999999999');
   assert.notEqual(type.id, ids.truckSize);
-  assert.equal(type.code, '48FTL');
+  assert.equal(type.code, '48_DRY_VAN');
   assert.equal(r.blockers.some(x => x.startsWith('equipment:')), false);
   const draft = previewDholeRateRequest(q, { ...r.lookup, priority: 'Yellow' });
   assert.equal(draft.readyForContractReview, true);
@@ -232,10 +232,63 @@ test('FTL type wrong size, stale data or ambiguous type never maps', () => {
   const duplicate = withApprovedReadOnlyLookups(fixture());
   duplicate['land-equipment-types'].items.push({
     id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-    code: '48FTL2', name: 'Furgón', value: 'FURGON',
-    size: '48', kind: 'furgon',
+    code: '48_DRY_VAN', name: '48 pies · Furgón seco duplicado', value: '48_DRY_VAN',
+    size: '48', kind: 'dry-van',
   });
   r = resolveDholeQuoteCatalogIds(q, duplicate);
   assert.deepEqual(r.lookup.equipment, {});
   assert.ok(r.blockers.some(x => x.startsWith('equipment:')));
+});
+
+const landKinds = [
+  ['Furgón seco', 'dry-van', 'DRY_VAN'],
+  ['Plataforma / Carreta', 'platform', 'PLATFORM'],
+  ['Refrigerado', 'reefer', 'REEFER'],
+  ['Furgón con cortina', 'curtain-side', 'CURTAIN_SIDE'],
+];
+test('all 16 reviewed official FTL combinations resolve only their own type UUID', () => {
+  const feed = withApprovedReadOnlyLookups(fixture());
+  const sizes = ['24', '26', '48', '53'];
+  feed['truck-sizes'].items = sizes.map((size, i) => ({
+    id: 'e2150000-0000-4000-8000-' + String(i + 1).padStart(12, '0'),
+    value: size, name: size === '24' ? '24 pies / 5 TON' :
+      size === '26' ? '26 pies / 7 TON' : size + ' pies',
+    feet: Number(size), isActive: true,
+  }));
+  feed['land-equipment-types'].items = sizes.flatMap((size, si) => landKinds.map(([label, kind, suffix], ki) => ({
+    id: 'e2140000-0000-4000-8000-' + String(1 + si * 4 + ki).padStart(12, '0'),
+    size, kind, code: size + '_' + suffix,
+    name: size + ' pies · ' + label, value: size + '_' + suffix, isActive: true,
+  })));
+  for (const size of sizes) {
+    for (const [label, kind, suffix] of landKinds) {
+      const quote = request('Land', 'FTL');
+      quote.form.equipment[0].size = feed['truck-sizes'].items.find(t => t.value === size).name;
+      quote.form.equipment[0].type = label;
+      const result = resolveDholeQuoteCatalogIds(quote, feed);
+      const resolved = result.lookup.equipment['FTL:' + quote.form.equipment[0].size + '|' + label];
+      assert.ok(resolved, size + ' ' + label + ' must resolve');
+      assert.equal(resolved.code, size + '_' + suffix);
+      assert.notEqual(resolved.id, feed['truck-sizes'].items.find(t => t.value === size).id);
+      assert.equal(result.blockers.some(x => x.startsWith('equipment:')), false);
+    }
+  }
+  const invalid = request('Land', 'FTL');
+  invalid.form.equipment[0].type = 'Furgón';
+  const result = resolveDholeQuoteCatalogIds(invalid, feed);
+  assert.ok(result.blockers.some(x => x.startsWith('equipment:')));
+  assert.deepEqual(result.lookup.equipment, {});
+});
+test('FTL code, kind and active status must all agree with the selected type', () => {
+  for (const change of [
+    item => { item.kind = 'reefer'; },
+    item => { item.code = '48_REEFER'; },
+    item => { item.isActive = false; },
+  ]) {
+    const feed = withApprovedReadOnlyLookups(fixture());
+    change(feed['land-equipment-types'].items[0]);
+    const result = resolveDholeQuoteCatalogIds(request('Land', 'FTL'), feed);
+    assert.ok(result.blockers.some(x => x.startsWith('equipment:')));
+    assert.deepEqual(result.lookup.equipment, {});
+  }
 });
