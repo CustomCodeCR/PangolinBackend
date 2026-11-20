@@ -12,6 +12,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<OfficialQuoteLocationUsage> OfficialQuoteLocationUsages => Set<OfficialQuoteLocationUsage>();
     public DbSet<OfficialQuotePermission> OfficialQuotePermissions => Set<OfficialQuotePermission>();
     public DbSet<OfficialQuoteAudit> OfficialQuoteAudit => Set<OfficialQuoteAudit>();
+    public DbSet<OfficialQuoteDholeOutbox> OfficialQuoteDholeOutbox => Set<OfficialQuoteDholeOutbox>();
     public DbSet<ManagedNews> ManagedNews => Set<ManagedNews>();
     public DbSet<ManagedComment> ManagedComments => Set<ManagedComment>();
     public DbSet<ManagedMedia> ManagedMedia => Set<ManagedMedia>();
@@ -122,6 +123,22 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         officialAudit.Property(x => x.Action).HasColumnName("action").HasMaxLength(32);
         officialAudit.Property(x => x.Comment).HasColumnName("comment").HasMaxLength(2000);
         officialAudit.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+
+        // Only accessed when DholeSubmission:ApprovalQueueEnabled is explicitly on.
+        var dholeOutbox = modelBuilder.Entity<OfficialQuoteDholeOutbox>();
+        dholeOutbox.ToTable("official_quote_dhole_outbox", "public");
+        dholeOutbox.HasKey(x => x.QuoteId);
+        dholeOutbox.Property(x => x.QuoteId).HasColumnName("quote_id");
+        dholeOutbox.Property(x => x.ApprovedById).HasColumnName("approved_by_id");
+        dholeOutbox.Property(x => x.State).HasColumnName("state").HasMaxLength(24);
+        dholeOutbox.Property(x => x.Priority).HasColumnName("priority").HasMaxLength(6);
+        dholeOutbox.Property(x => x.AttemptCount).HasColumnName("attempt_count");
+        dholeOutbox.Property(x => x.ExternalReference).HasColumnName("external_reference").HasMaxLength(180);
+        dholeOutbox.Property(x => x.LastErrorCode).HasColumnName("last_error_code").HasMaxLength(60);
+        dholeOutbox.Property(x => x.LastAttemptAtUtc).HasColumnName("last_attempt_at_utc");
+        dholeOutbox.Property(x => x.SentAtUtc).HasColumnName("sent_at_utc");
+        dholeOutbox.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+        dholeOutbox.Property(x => x.UpdatedAtUtc).HasColumnName("updated_at_utc");
 
         var contact = modelBuilder.Entity<QuoteContact>();
         contact.ToTable("quote_contacts");

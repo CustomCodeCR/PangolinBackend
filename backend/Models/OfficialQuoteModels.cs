@@ -23,6 +23,24 @@ public sealed class OfficialQuoteRequest
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
+// An approved quote is staged for a future, separately authorized Dhole API.
+// An outbox row does NOT imply any remote request was made.
+public sealed class OfficialQuoteDholeOutbox
+{
+    public Guid QuoteId { get; set; }
+    public Guid? ApprovedById { get; set; }
+    public string State { get; set; } = "AwaitingConnector";
+    // Provisional admin-selected priority for the future connector; Green by default.
+    public string Priority { get; set; } = "Green";
+    public int AttemptCount { get; set; }
+    public string? ExternalReference { get; set; }
+    public string? LastErrorCode { get; set; }
+    public DateTime? LastAttemptAtUtc { get; set; }
+    public DateTime? SentAtUtc { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
 public sealed class OfficialQuoteLocation
 {
     public Guid Id { get; set; } = Guid.NewGuid();

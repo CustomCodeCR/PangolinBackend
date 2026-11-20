@@ -144,6 +144,39 @@ Check(DholeQuoteLocationProjector.Project("destination", "Air", poeItems).Option
 Check(DholeQuoteLocationProjector.Project("destination", "Land", poeItems).Options.Single().Name == "Guatemala",
     "POE ground accepts only Land/SD");
 
+// Real POE Config shape observed for Limon/Moin: use a synthetic UUID in tests,
+// never persist a production identifier or infer POE/POD equivalence by name.
+var limonMoinAsConfig = DholeCatalogNormalizer.Parse("""
+[
+  {
+    "id": "c9999999-9999-4999-8999-999999999999",
+    "catalogGroupSlug": "poe",
+    "code": "POE-2026-002",
+    "slug": "limon-moin-costa-rica",
+    "name": "Limón/Moin, Costa Rica",
+    "value": "Limón/Moin, Costa Rica",
+    "isActive": true,
+    "metadataJson": "{\"routeRole\":\"POE\",\"countryCode\":\"CR\",\"terminalType\":\"CY\",\"transportMode\":\"Maritime\",\"pricingWorkflow\":true}"
+  }
+]
+""");
+var limonMoinDestination = DholeQuoteLocationProjector.Project("destination", "Maritime", limonMoinAsConfig);
+Check(limonMoinDestination.Options.Length == 1 &&
+      limonMoinDestination.Options[0].ExternalId == "c9999999-9999-4999-8999-999999999999" &&
+      limonMoinDestination.Options[0].Code == "POE-2026-002" &&
+      limonMoinDestination.Options[0].Name == "Limón/Moin, Costa Rica" &&
+      limonMoinDestination.Options[0].Catalog == "poe" &&
+      limonMoinDestination.Options[0].Role == "destination" &&
+      limonMoinDestination.Options[0].TerminalType == "CY" &&
+      limonMoinDestination.Issues.Length == 0,
+    "Dhole Config Limón/Moin is active Maritime/CY POE usable as destination");
+Check(DholeQuoteLocationProjector.Project("destination", "Air", limonMoinAsConfig).Options.Length == 0,
+    "Maritime/CY POE must not map as an airport");
+Check(DholeQuoteLocationProjector.Project("origin", "Maritime", limonMoinAsConfig).Options.Length == 0 &&
+      DholeQuoteLocationProjector.Project("origin", "Maritime", limonMoinAsConfig)
+        .Issues.Single().Reason == "conflicting_route_role",
+    "POE ID must not be reused as origin or POD");
+
 var polItems = DholeCatalogNormalizer.Parse("""
 [
  { "id": "19a5ce22-340d-579f-ad27-f6517a2dde27", "name": "Acajutla", "value": "Acajutla", "transportMode": "Maritime", "terminalType": "CY", "routeRole": "POL" },
@@ -163,6 +196,49 @@ Check(origins.Options.Any(x => x.ExternalId == "19a5ce22-340d-579f-ad27-f6517a2d
       maritimeDest.Options.Any(x => x.ExternalId == "25882b97-8df9-407f-8300-8994184dfad1"),
     "Same city can have different Dhole POL vs POE IDs, never map by name");
 
+// Shanghai POL: mirror the user-observed Config shape but keep all test IDs
+// synthetic. Role and Maritime/CY classification must come from metadataJson.
+var shanghaiFromConfig = DholeCatalogNormalizer.Parse("""
+[
+  {
+    "id": "c8888888-8888-4888-8888-888888888888",
+    "catalogGroupSlug": "pol",
+    "code": "POL-2026-074",
+    "name": "Shanghai, China",
+    "value": "Shanghai, China",
+    "isActive": true,
+    "metadataJson": "{\"routeRole\":\"POL\",\"countryCode\":\"CN\",\"terminalType\":\"CY\",\"transportMode\":\"Maritime\",\"pricingWorkflow\":true}"
+  }
+]
+""");
+var shanghaiAsOrigin = DholeQuoteLocationProjector.Project("origin", "Maritime", shanghaiFromConfig);
+Check(shanghaiAsOrigin.Options.Length == 1 &&
+      shanghaiAsOrigin.Options[0].ExternalId == "c8888888-8888-4888-8888-888888888888" &&
+      shanghaiAsOrigin.Options[0].Name == "Shanghai, China" &&
+      shanghaiAsOrigin.Options[0].Code == "POL-2026-074" &&
+      shanghaiAsOrigin.Options[0].TerminalType == "CY" &&
+      shanghaiAsOrigin.Options[0].Catalog == "pol" &&
+      shanghaiAsOrigin.Issues.Length == 0,
+    "Config Shanghai POL Maritime/CY is eligible as origin; preserves the catalog ID");
+Check(DholeQuoteLocationProjector.Project("origin", "Air", shanghaiFromConfig).Options.Length == 0,
+    "Shanghai Maritime/CY is not an Air origin");
+var conflictingShanghai = DholeCatalogNormalizer.Parse("""
+[
+  {
+    "id": "c8888888-8888-4888-8888-888888888888",
+    "code": "POL-2026-074",
+    "name": "Shanghai, China",
+    "value": "Shanghai, China",
+    "isActive": true,
+    "metadataJson": "{\"routeRole\":\"POE\",\"countryCode\":\"CN\",\"terminalType\":\"CY\",\"transportMode\":\"Maritime\"}"
+  }
+]
+""");
+var rejectedShanghai = DholeQuoteLocationProjector.Project("origin", "Maritime", conflictingShanghai);
+Check(rejectedShanghai.Options.Length == 0 &&
+      rejectedShanghai.Issues.Single().Reason == "conflicting_route_role",
+    "A conflicting POE role must never become a POL by matching its name");
+
 var podItems = DholeCatalogNormalizer.Parse("""
 [
  { "id": "d43f9a0e-3fed-449d-bea0-067c9a2c30c4", "name": "Legacy POD", "value": "Legacy POD" },
@@ -176,6 +252,38 @@ Check(pods.Options.Length == 3 && pods.Options.Any(x => x.Name == "Legacy POD") 
       pods.Options.Any(x => x.Name == "Invalid role") &&
       pods.Issues.Single().Reason == "conflicting_route_role",
     "All active POD entries stay selectable regardless of modality or role anomalies");
+
+// Official POD Moin pattern is Maritime/SD, intentionally different from
+// the Limón/Moin Maritime/CY POE. All IDs below are synthetic test fixtures.
+var moinPodFromConfig = DholeCatalogNormalizer.Parse("""
+[
+  {
+    "id": "c7777777-7777-4777-8777-777777777777",
+    "catalogGroupSlug": "pod",
+    "code": "POD-2026-020",
+    "slug": "moin-costa-rica",
+    "name": "Moin, Costa Rica",
+    "value": "Moin, Costa Rica",
+    "isActive": true,
+    "metadataJson": "{\"routeRole\":\"POD\",\"countryCode\":\"CR\",\"terminalType\":\"SD\",\"transportMode\":\"Maritime\"}"
+  }
+]
+""");
+var moinPodProjected = DholeQuoteLocationProjector.Project("pod", "Maritime", moinPodFromConfig);
+Check(moinPodProjected.Options.Length == 1 &&
+      moinPodProjected.Options[0].Catalog == "pod" &&
+      moinPodProjected.Options[0].Role == "pod" &&
+      moinPodProjected.Options[0].Name == "Moin, Costa Rica" &&
+      moinPodProjected.Options[0].Code == "POD-2026-020" &&
+      moinPodProjected.Options[0].TerminalType == "SD" &&
+      moinPodProjected.Options[0].ExternalId == "c7777777-7777-4777-8777-777777777777" &&
+      moinPodProjected.Issues.Length == 0,
+    "Maritime/SD Moin POD is kept as its own POD, distinct from CY POE");
+Check(moinPodProjected.Options[0].ExternalId != limonMoinDestination.Options[0].ExternalId &&
+      moinPodProjected.Options[0].Code != limonMoinDestination.Options[0].Code &&
+      DholeQuoteLocationProjector.Project("destination", "Maritime", moinPodFromConfig)
+        .Options.Length == 0,
+    "Moin POD must not be silently substituted for Limón/Moin POE");
 
 try
 {
@@ -374,19 +482,33 @@ var ftlCatalog = DholeQuoteFormCatalogBuilder.Build(
 Check(ftlCatalog.EquipmentSizes.Select(x => x.Value).SequenceEqual(
     ["24 pies / 5 TON", "26 pies / 7 TON", "48 pies", "53 pies"]),
     "Dhole FTL 48 replaces old static 40 without hardcoding a replacement");
+var allowedFtlTypes = new[] { "Furgón seco", "Plataforma / Carreta", "Refrigerado", "Furgón con cortina" };
+Check(ftlCatalog.EquipmentSizes.All(size => ftlCatalog.EquipmentTypesBySize[size.Value].SequenceEqual(allowedFtlTypes)),
+    "Every published compatible FTL size offers all four reviewed land equipment types");
 var ftlQuote = ReadSubmission("""
 {
     "mode":"Land", "shipmentType":"FTL", "catalogSource":"dhole",
     "originLocationId":"99999999-9999-4999-8999-999999999999",
     "destinationLocationId":"c2610000-0000-4000-8000-000000000003",
-    "incoterm":"FOB", "equipment":[{"size":"48 pies","type":"Furgón"}]
+    "incoterm":"FOB", "equipment":[{"size":"48 pies","type":"Furgón seco"}]
 }
 """);
 Check(DholeQuoteSelectionValidator.Validate(ftlQuote, ftlCatalog).OriginName == "Land Origin",
     "Active Dhole 48 FTL accepted");
 ExpectSelectionReject(ftlQuote with {
-    Equipment = [new OfficialContainerInput("40 pies", "Furgón", 1, [1000])]
+    Equipment = [new OfficialContainerInput("40 pies", "Furgón seco", 1, [1000])]
 }, ftlCatalog, "retired 40-foot FTL");
+foreach (var kind in allowedFtlTypes)
+{
+    var selected = ftlQuote with {
+        Equipment = [new OfficialContainerInput("48 pies", kind, 1, [1000])]
+    };
+    Check(DholeQuoteSelectionValidator.Validate(selected, ftlCatalog).OriginName == "Land Origin",
+        "FTL permits reviewed kind " + kind);
+}
+ExpectSelectionReject(ftlQuote with {
+    Equipment = [new OfficialContainerInput("48 pies", "Furgón", 1, [1000])]
+}, ftlCatalog, "generic Furgón does not identify a unique real Dhole kind");
 Console.WriteLine("OK: Quote submit contract validates external roles, FCL pairs, FTL live sizes and Incoterms.");
 
 ExpectSelectionReject(goodQuote with { Incoterm = null }, formCatalog, "omitted Dhole Incoterm");
@@ -456,6 +578,75 @@ Console.WriteLine("OK: Itinerarios uses Dhole POL/POD, unique name filters and n
 
 
 
+// Two additional lookup catalogs are opt-in and admin-only; these tests
+// deliberately use fictional endpoints, data, and a dedicated fictional key.
+var lookupFakeHandler = new FakeDholeLookupHandler();
+using var lookupFakeHttp = new HttpClient(lookupFakeHandler) {
+    BaseAddress = new Uri("https://api.logisticacastrofallas.com/"),
+};
+var lookupFactory = new FakeDholeLookupHttpClientFactory(lookupFakeHttp);
+var disabledLookups = new DholeLookupCatalogService(
+    new ConfigurationBuilder().Build(), lookupFactory,
+    NullLogger<DholeLookupCatalogService>.Instance);
+Check(!disabledLookups.Enabled && !disabledLookups.IsConfiguredFor("pricing-services") &&
+    lookupFakeHandler.Calls == 0,
+    "Lookup feature disabled by default and cannot call upstream");
+
+var badPathSettings = new ConfigurationBuilder().AddInMemoryCollection(
+    new Dictionary<string, string?> {
+        ["DholeLookups:Enabled"] = "true",
+        ["DholeLookups:ApiKey"] = "fictional-lookup-only-key",
+        ["DholeLookups:PricingServicesPath"] = "https://untrusted.example/steal",
+        ["DholeLookups:LandEquipmentTypesPath"] = "api/external/v1/../secret"
+    }).Build();
+var badPathLookups = new DholeLookupCatalogService(
+    badPathSettings, lookupFactory, NullLogger<DholeLookupCatalogService>.Instance);
+Check(!badPathLookups.IsConfiguredFor("pricing-services") &&
+    !badPathLookups.IsConfiguredFor("land-equipment-types"),
+    "External absolute URL and path traversal are denied before any HTTP");
+try {
+    await badPathLookups.GetAsync("pricing-services", CancellationToken.None);
+    throw new Exception("FAILED: bad path must reject");
+} catch (DholeLookupUnavailableException) { /* expected */ }
+Check(lookupFakeHandler.Calls == 0, "Bad paths never call a provider");
+
+var lookupConfig = new ConfigurationBuilder().AddInMemoryCollection(
+    new Dictionary<string, string?> {
+        ["DholeLookups:Enabled"] = "true",
+        ["DholeLookups:ApiKey"] = "fictional-lookup-only-key",
+        ["DholeLookups:PricingServicesPath"] = "api/external/v1/servicios-pricing-qa1",
+        ["DholeLookups:LandEquipmentTypesPath"] = "api/external/v1/tipos-furgon-qa1"
+    }).Build();
+var lookups = new DholeLookupCatalogService(
+    lookupConfig, lookupFactory, NullLogger<DholeLookupCatalogService>.Instance);
+Check(lookups.IsConfiguredFor("pricing-services") &&
+    lookups.IsConfiguredFor("land-equipment-types"),
+    "Only explicit allowed GET routes and a separate key activate lookup");
+var servicesResult = await lookups.GetAsync("pricing-services", CancellationToken.None);
+Check(servicesResult.Catalog == "pricing-services" &&
+      servicesResult.Items.Length == 1 &&
+      servicesResult.Items[0].Code == "INTERNATIONAL" &&
+      servicesResult.Items[0].Name == "Transporte internacional" &&
+      servicesResult.Items[0].IsActive == true,
+    "Pricing service is normalized, inactive items excluded");
+var ftlTypesResult = await lookups.GetAsync("land-equipment-types", CancellationToken.None);
+Check(ftlTypesResult.Catalog == "land-equipment-types" &&
+      ftlTypesResult.Items.Length == 1 &&
+      ftlTypesResult.Items[0].Code == "48FTL" &&
+      ftlTypesResult.Items[0].Size == "48" &&
+      ftlTypesResult.Items[0].IsActive == true,
+    "FTL equipment type is resolved separately from equipment size");
+Check(lookupFakeHandler.Calls == 2 && lookupFakeHandler.Forbidden == 0,
+    "Both mock requests are HTTPS GET, use exact paths and dedicated fake key");
+lookupFakeHandler.Fail = true;
+try {
+    await lookups.GetAsync("pricing-services", CancellationToken.None);
+    throw new Exception("FAILED: upstream failure not rejected");
+} catch (DholeLookupUnavailableException) { /* expected */ }
+Check(lookupFakeHandler.Calls == 3, "Rejected upstream does not return synthetic data");
+Console.WriteLine("OK: disabled-by-default Dhole lookups, path allowlist, separate key, mock GET-only and fail closed.");
+
+
 sealed class FakeDholeHttpClientFactory(HttpClient client) : IHttpClientFactory
 {
     public HttpClient CreateClient(string name)
@@ -500,6 +691,60 @@ sealed class FakeDholeHandler : HttpMessageHandler
                   }
                 ]
                 """)
+        });
+    }
+}
+
+
+sealed class FakeDholeLookupHttpClientFactory(HttpClient client) : IHttpClientFactory
+{
+    public HttpClient CreateClient(string name) =>
+        name == "DholeLookups" ? client :
+        throw new InvalidOperationException("Unapproved client type.");
+}
+
+sealed class FakeDholeLookupHandler : HttpMessageHandler
+{
+    public int Calls { get; private set; }
+    public int Forbidden { get; private set; }
+    public bool Fail { get; set; }
+
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request, CancellationToken ct)
+    {
+        Calls++;
+        var path = request.RequestUri?.AbsolutePath;
+        if (request.Method != HttpMethod.Get ||
+            request.RequestUri?.Scheme != Uri.UriSchemeHttps ||
+            request.RequestUri.Host != "api.logisticacastrofallas.com" ||
+            path is not ("/api/external/v1/servicios-pricing-qa1" or
+                         "/api/external/v1/tipos-furgon-qa1") ||
+            !request.Headers.TryGetValues("X-Api-Key", out var values) ||
+            !values.SequenceEqual(["fictional-lookup-only-key"]))
+        {
+            Forbidden++;
+            throw new InvalidOperationException("Unexpected external request.");
+        }
+        if (Fail) return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Forbidden));
+        var body = path == "/api/external/v1/servicios-pricing-qa1" ? """
+            [
+              { "id": "a1000000-0000-4000-8000-000000000001",
+                "code": "INTERNATIONAL", "name": "Transporte internacional",
+                "value": "Transporte internacional", "isActive": true },
+              { "id": "a1000000-0000-4000-8000-000000000002",
+                "code": "OLD", "name": "Obsoleto", "value": "Obsoleto",
+                "isActive": false }
+            ]
+            """ : """
+            [
+              { "id": "b1000000-0000-4000-8000-000000000001",
+                "code": "48FTL", "name": "Furgón 48", "value": "48FTL",
+                "isActive": true, "metadata": { "size": "48", "kind": "furgon" } }
+            ]
+            """;
+        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(body)
         });
     }
 }

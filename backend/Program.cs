@@ -51,6 +51,28 @@ builder.Services.AddHttpClient("DholeCatalogs", client =>
     AllowAutoRedirect = false,
     UseCookies = false
 });
+// Separate, opt-in GET-only Dhole lookup: never uses the normal catalogue key.
+// Fixed HTTPS host and redirects disabled even when the published path changes.
+builder.Services.AddHttpClient("DholeLookups", client =>
+{
+    client.BaseAddress = new Uri("https://api.logisticacastrofallas.com/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AllowAutoRedirect = false,
+    UseCookies = false
+});
+// Future POST transport only. No endpoint/worker invokes it in this phase.
+// Private DholeSubmission:ApiKey and PostEnabled are intentionally NOT in Compose.
+builder.Services.AddHttpClient("DholeQuotePost", client =>
+{
+    client.BaseAddress = new Uri("https://api.logisticacastrofallas.com/");
+    client.Timeout = TimeSpan.FromSeconds(12);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AllowAutoRedirect = false,
+    UseCookies = false
+});
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(postgres));
 // Redis y MongoDB se utilizan SOLO para cache/auditoría de cotizaciones.
 // Si no se configuran, el login y las cotizaciones siguen usando PostgreSQL.
@@ -121,6 +143,8 @@ builder.Services.AddSingleton<NewsTranslationService>();
 builder.Services.AddSingleton<TrackingStatusTranslationService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<DholeCatalogService>();
+builder.Services.AddSingleton<DholeLookupCatalogService>();
+builder.Services.AddSingleton<DholeQuotePostTransport>();
 builder.Services.AddSingleton<DholeQuoteFormCatalogLoader>();
 builder.Services.AddSingleton<AssistantFreeQuota>();
 builder.Services.AddSingleton<ObjectStorageService>();

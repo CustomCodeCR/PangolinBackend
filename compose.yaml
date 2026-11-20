@@ -65,6 +65,8 @@ services:
       Mongo__Database: castrofallas_logs
       DholeTracking__Enabled: ${DHOLE_TRACKING_ENABLED:-false}
       DholeTracking__ApiKey: ${DHOLE_TRACKING_API_KEY:-}
+      # Separate approval outbox; does not enable any external Dhole POST.
+      DholeSubmission__ApprovalQueueEnabled: ${DHOLE_APPROVAL_QUEUE_ENABLED:-false}
       Ai__Groq__ApiKey: ${GROQ_API_KEY:-}
       Ai__Groq__Model: ${GROQ_MODEL:-openai/gpt-oss-20b}
       Instagram__AccessToken: ${INSTAGRAM_ACCESS_TOKEN:-}

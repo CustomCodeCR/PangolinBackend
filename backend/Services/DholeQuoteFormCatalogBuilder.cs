@@ -80,11 +80,16 @@ public static class DholeQuoteFormCatalogBuilder
         {
             var equipment = DholeEquipmentProjector.Project(
                 Array.Empty<DholeCatalogItem>(), Array.Empty<DholeCatalogItem>(), truckSizes);
+            // Only sizes with a matching active land-equipment type in the
+            // reviewed official catalog (24, 26, 48 and 53 feet). The final
+            // connector still requires a fresh verified type UUID before POST.
             sizes = equipment.FtlSizes
+                .Where(x => x.Feet is 24 or 26 or 48 or 53)
                 .Select(x => new DholeFormEquipmentSize(x.Name, x.Name))
                 .ToArray();
             foreach (var size in sizes)
-                typesBySize[size.Value] = ["Furgón"];
+                typesBySize[size.Value] =
+                    ["Furgón seco", "Plataforma / Carreta", "Refrigerado", "Furgón con cortina"];
         }
 
         return new DholeQuoteFormCatalog(

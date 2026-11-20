@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ArrowLeft, CheckCircle2, ChevronRight, FileText, LoaderCircle, MapPin, Search, ShieldCheck, Ship } from '@lucide/vue'
 import { refreshSession } from '../services/auth'
-import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
+import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialEquipmentTypeLabel, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
 import { isCalendarDate, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
 import { loadDholeQuoteFormOptions, type DholeQuoteFormOptions } from '../lib/dholeQuoteForm'
 
@@ -146,7 +146,7 @@ const equipmentSizes = computed<Choice[]>(() => quoteCatalogSource.value === 'dh
   : officialEquipmentSizeOptions(values.shipmentType || '', tr))
 const equipmentTypes = computed<Choice[]>(() => quoteCatalogSource.value === 'dhole' && quoteCatalog.value
   ? (quoteCatalog.value.equipmentTypesBySize[values.equipmentSize] || []).map(value => ({
-      value,label:value === 'Furgón' ? tr('Furgón','Truck') : value
+      value,label:officialEquipmentTypeLabel(value, tr)
     }))
   : officialEquipmentTypeOptions(values.shipmentType || '', tr))
 const isEquipment = computed(() => ['FCL', 'FTL'].includes(values.shipmentType))
@@ -511,6 +511,14 @@ onMounted(() => {
         if (Number.isFinite(saved.at) && Date.now() - saved.at >= 0 && Date.now() - saved.at <= 30 * 60 * 1000 &&
             saved.values && ['Maritime','Air','Land'].includes(saved.values.mode)) {
           Object.assign(values, saved.values)
+          // Drafts created before the service-list update must not reintroduce
+          // retired choices into new submissions. Keep other selected services.
+          if (typeof values.services === 'string') {
+            const supported = [...new Set(values.services.split('|').filter(service =>
+              (officialServiceOptions as readonly string[]).includes(service)))]
+            if (supported.length) values.services = supported.join('|')
+            else delete values.services
+          }
           for (const key of Object.keys(values)) prefillConfirmation.add(key)
           prefilled.value = true
           advanceFrom(0)

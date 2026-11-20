@@ -71,3 +71,32 @@ CREATE TABLE IF NOT EXISTS public.official_quote_location_usage (
  PRIMARY KEY (location_id, shipment_type, route_role)
 );
 CREATE INDEX IF NOT EXISTS ix_official_quote_location_usage_lookup ON public.official_quote_location_usage (shipment_type, route_role);
+
+-- Opt-in stage for approved Dhole submissions. No external calls or worker.
+-- Apply this additive migration with a backup before enabling the queue flag.
+-- Only one staged record per quote, even after repeated requests.
+CREATE TABLE IF NOT EXISTS public.official_quote_dhole_outbox (
+    quote_id UUID PRIMARY KEY REFERENCES public.official_quote_requests(id) ON DELETE RESTRICT,
+    approved_by_id UUID NULL REFERENCES public.usuarios(uuid) ON DELETE SET NULL,
+    state VARCHAR(24) NOT NULL DEFAULT 'AwaitingConnector'
+        CHECK (state IN ('AwaitingConnector','Pending','Sending','Sent','Failed')),
+    priority VARCHAR(6) NOT NULL DEFAULT 'Green'
+        CONSTRAINT ck_official_quote_dhole_priority CHECK (priority IN ('Green','Yellow','Red')),
+    attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+    external_reference VARCHAR(180) NULL,
+    last_error_code VARCHAR(60) NULL,
+    last_attempt_at_utc TIMESTAMPTZ NULL,
+    sent_at_utc TIMESTAMPTZ NULL,
+    created_at_utc TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at_utc TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- Idempotent upgrade for an outbox created before priority was introduced.
+-- Apply with ApprovalQueueEnabled=false and a DB backup.
+-- The column CHECK is created only when adding priority to a legacy table;
+-- a fresh table already has the identically named table-level constraint.
+ALTER TABLE public.official_quote_dhole_outbox
+    ADD COLUMN IF NOT EXISTS priority VARCHAR(6) NOT NULL DEFAULT 'Green'
+    CONSTRAINT ck_official_quote_dhole_priority
+    CHECK (priority IN ('Green','Yellow','Red'));
+CREATE INDEX IF NOT EXISTS ix_official_quote_dhole_outbox_state
+    ON public.official_quote_dhole_outbox(state,created_at_utc);

@@ -262,7 +262,9 @@ async function main() {
     await rejectValue('2020-01-01', 'La fecha de carga lista debe ser hoy o posterior')
     const futureReadyDate = new Date(Date.now() + 45 * 86400000).toISOString().slice(0,10)
     await answer(futureReadyDate)
-    await waitFor(()=>evaluate('document.querySelectorAll(".gio-ops__service").length === 13'))
+    await waitFor(()=>evaluate('document.querySelectorAll(".gio-ops__service").length === 12'))
+    assert.equal(await evaluate('[...document.querySelectorAll(".gio-ops__service")].some(x=>x.textContent.includes("Transporte nacional"))'),false,
+      'National transport must not appear in new GIO quote choices')
     assert.equal(await evaluate('document.querySelectorAll(".gio-ops__service input:checked").length'),1,'International transportation is initially selected')
     await chooseService('Transporte internacional')
     assert.equal(await evaluate('document.querySelectorAll(".gio-ops__service input:checked").length'),0,'All services can be unchecked')

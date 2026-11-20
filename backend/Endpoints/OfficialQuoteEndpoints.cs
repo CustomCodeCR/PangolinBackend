@@ -8,7 +8,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CastroFallas.MiniQuote.Api.Endpoints;
 
-// Captura oficial independiente: no llama ni sincroniza con Dhole.
+// Captura oficial: aprobación opcionalmente prepara un outbox local.
+// Nunca llama a una API de escritura de Dhole.
 public static class OfficialQuoteEndpoints
 {
     private static readonly string[] Incoterms =
@@ -20,7 +21,7 @@ public static class OfficialQuoteEndpoints
         "Transporte internacional", "Agencia de Aduanas CR", "Agencia de Aduanas Exterior",
         "Almacenamiento", "Control de inventario", "Embalaje", "Exoneración",
         "Picking Carga", "Recepción de carga", "Seguro de carga", "Transporte entrega",
-        "Transporte recolección", "Transporte nacional"
+        "Transporte recolección"
     };
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     // Usar el día calendario de Costa Rica, no UTC ni la zona horaria del servidor.
@@ -113,10 +114,10 @@ public static class OfficialQuoteEndpoints
                 // valores libres de equipo aunque la solicitud llegue por HTTP directo.
                 var allowedSizes = s.ShipmentType == "FCL"
                     ? new[] { "20 pies", "40 pies", "45 pies", "48 pies" }
-                    : new[] { "24 pies / 5 TON", "26 pies / 7 TON", "40 pies", "53 pies" };
+                    : new[] { "24 pies / 5 TON", "26 pies / 7 TON", "48 pies", "53 pies" };
                 var allowedTypes = s.ShipmentType == "FCL"
                     ? new[] { "Dry Van", "High Cube", "Open Top", "Open Side", "Tank", "Flat Rack", "NOR" }
-                    : new[] { "Furgón" };
+                    : new[] { "Furgón seco", "Plataforma / Carreta", "Refrigerado", "Furgón con cortina" };
                 if (!useDholeCatalogs && (!allowedSizes.Contains(selectedSize, StringComparer.Ordinal) ||
                     !allowedTypes.Contains(selectedType, StringComparer.Ordinal)))
                     throw new ArgumentException("Seleccioná tamaño y tipo de equipo de las opciones oficiales.");
@@ -331,13 +332,14 @@ public static class OfficialQuoteEndpoints
         }).RequireAuthorization("registered");
 
         var admin = app.MapGroup("/api/admin/quotes/official").RequireAuthorization("admin");
-        admin.MapGet("/permissions/me", async (AppDbContext db, AuthService auth, HttpContext http,
+        admin.MapGet("/permissions/me", async (AppDbContext db, AuthService auth, IConfiguration config, HttpContext http,
             CancellationToken ct) =>
         {
             var actor = await auth.GetIdentityAsync(http, ct);
             var p = await Permission(db, actor, ct);
             return Results.Ok(new { canView = p?.CanView == true || p?.CanManage == true || p?.CanAuthorize == true,
-                canManage = p?.CanManage == true, canAuthorize = p?.CanAuthorize == true });
+                canManage = p?.CanManage == true, canAuthorize = p?.CanAuthorize == true,
+                dholeApprovalQueueEnabled = config.GetValue<bool>("DholeSubmission:ApprovalQueueEnabled") });
         });
         admin.MapGet("", async (AppDbContext db, AuthService auth, HttpContext http,
             int? page, CancellationToken ct) =>
@@ -358,7 +360,7 @@ public static class OfficialQuoteEndpoints
             return Results.Ok(new { items, total, page = n });
         });
         admin.MapGet("/{id:guid}", async (Guid id, AppDbContext db, AuthService auth,
-            HttpContext http, CancellationToken ct) =>
+            IConfiguration config, HttpContext http, CancellationToken ct) =>
         {
             var actor = await auth.GetIdentityAsync(http, ct);
             var p = await Permission(db, actor, ct);
@@ -369,9 +371,18 @@ public static class OfficialQuoteEndpoints
                 .Where(x => x.QuoteId == id).OrderByDescending(x => x.CreatedAtUtc)
                 .Select(x => new { x.Action, x.Comment, x.ActorUserId, x.CreatedAtUtc })
                 .Take(100).ToListAsync(ct);
+            // Do not access the optional outbox table when the rollout flag is off.
+            var outboxEnabled = config.GetValue<bool>("DholeSubmission:ApprovalQueueEnabled");
+            var outbox = outboxEnabled
+                ? await db.OfficialQuoteDholeOutbox.AsNoTracking()
+                    .Where(x => x.QuoteId == id)
+                    .Select(x => new { x.State, x.Priority }).FirstOrDefaultAsync(ct)
+                : null;
+            var dispatchState = outboxEnabled ? (outbox?.State ?? "NotStaged") : "Disabled";
             http.Response.Headers.CacheControl = "no-store";
             return Results.Ok(new { q.Id, q.CustomerName, q.Mode, q.ShipmentType, q.Status,
-                q.Authorization, q.AuthorizedAtUtc, q.CreatedAtUtc,
+                q.Authorization, q.AuthorizedAtUtc, q.CreatedAtUtc, dholeDispatchState = dispatchState,
+                dholePriority = outbox?.Priority,
                 form = JsonSerializer.Deserialize<JsonElement>(q.FormJson), history });
         });
 
@@ -398,15 +409,22 @@ public static class OfficialQuoteEndpoints
             return Results.Ok(new { q.Id, q.Status });
         }).RequireRateLimiting("auth");
 
-        admin.MapPut("/{id:guid}/authorization", async (Guid id, string decision,
-            AppDbContext db, AuthService auth, HttpContext http, CancellationToken ct) =>
+        admin.MapPut("/{id:guid}/authorization", async (Guid id, string decision, string? priority,
+            AppDbContext db, AuthService auth, IConfiguration config, HttpContext http, CancellationToken ct) =>
         {
             var actor = await auth.GetIdentityAsync(http, ct);
             var p = await Permission(db, actor, ct);
             if (p?.CanAuthorize != true) return Results.Forbid();
             if (decision is not ("Authorized" or "Rejected"))
                 return Results.BadRequest(new { error = "Decisión inválida." });
+            var selectedPriority = priority ?? "Green";
+            if (selectedPriority is not ("Green" or "Yellow" or "Red"))
+                return Results.BadRequest(new { error = "Prioridad Dhole inválida." });
             await using var tx = await db.Database.BeginTransactionAsync(ct);
+            // Lock this quote for the complete approval transaction, preventing
+            // concurrent authorizers from creating duplicate outbox entries.
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT 1 FROM public.official_quote_requests WHERE id = {id} FOR UPDATE", ct);
             var q = await db.OfficialQuotes.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (q is null) return Results.NotFound();
             if (q.Authorization != "Pending")
@@ -418,10 +436,28 @@ public static class OfficialQuoteEndpoints
             db.OfficialQuoteAudit.Add(new OfficialQuoteAudit {
                 QuoteId = id, ActorUserId = actor.UsuarioId, Action = decision
             });
+            // This is ONLY an approval outbox. There is no Dhole HTTP client,
+            // sender, timer or external POST associated with this transition.
+            // The table is optional and must be migrated before enabling the flag.
+            var staged = decision == "Authorized" &&
+                config.GetValue<bool>("DholeSubmission:ApprovalQueueEnabled");
+            if (staged)
+            {
+                db.OfficialQuoteDholeOutbox.Add(new OfficialQuoteDholeOutbox {
+                    QuoteId = id, ApprovedById = actor.UsuarioId,
+                    State = "AwaitingConnector", Priority = selectedPriority
+                });
+                db.OfficialQuoteAudit.Add(new OfficialQuoteAudit {
+                    QuoteId = id, ActorUserId = actor.UsuarioId, Action = "DholeStaged",
+                    Comment = "Prioridad " + selectedPriority +
+                        "; aprobada y registrada localmente; no enviada a Dhole."
+                });
+            }
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
-            // Solo autoriza internamente. NO envía ni declara enviada la solicitud a Dhole.
-            return Results.Ok(new { q.Id, q.Authorization, q.AuthorizedAtUtc });
+            return Results.Ok(new { q.Id, q.Authorization, q.AuthorizedAtUtc,
+                dholeDispatchState = staged ? "AwaitingConnector" : "Disabled",
+                dholePriority = staged ? selectedPriority : null });
         }).RequireRateLimiting("auth");
         return app;
     }

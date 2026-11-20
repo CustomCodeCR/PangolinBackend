@@ -2,11 +2,17 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
+using CastroFallas.MiniQuote.Api.Services.Auth;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Npgsql;
 
 internal static class DholeQuoteHttpTest
@@ -48,6 +54,8 @@ internal static class DholeQuoteHttpTest
         Environment.SetEnvironmentVariable("DholeCatalogs__ItinerariesEnabled", "false");
         Environment.SetEnvironmentVariable("DholeCatalogs__ApiKey", fakeKey);
         Environment.SetEnvironmentVariable("DholeTracking__Enabled", "false");
+        // CI-only approval queue: no sender exists; no external POST is possible.
+        Environment.SetEnvironmentVariable("DholeSubmission__ApprovalQueueEnabled", "true");
 
         await using (var db = new NpgsqlConnection(connectionString))
         {
@@ -62,8 +70,25 @@ internal static class DholeQuoteHttpTest
             var schemaPath = Path.Combine(
                 Directory.GetCurrentDirectory(), "backend", "Database", "OfficialQuotesSchema.sql");
             Assert(File.Exists(schemaPath), "Run the harness from the repository root");
-            await using var schema = new NpgsqlCommand(await File.ReadAllTextAsync(schemaPath), db);
-            await schema.ExecuteNonQueryAsync();
+            var ddl = await File.ReadAllTextAsync(schemaPath);
+            await using (var schema = new NpgsqlCommand(ddl, db))
+                await schema.ExecuteNonQueryAsync();
+            // A second application must be safe on the same disposable DB:
+            // deployment tools can reapply this additive migration.
+            await using (var reapplied = new NpgsqlCommand(ddl, db))
+                await reapplied.ExecuteNonQueryAsync();
+            // Only fictional admin identities. Public users are never created.
+            await using var seedUsers = new NpgsqlCommand("""
+                INSERT INTO public.usuarios (uuid) VALUES
+                ('aaaaaaaa-0000-4000-8000-000000000001'),
+                ('aaaaaaaa-0000-4000-8000-000000000002')
+                ON CONFLICT (uuid) DO NOTHING;
+                INSERT INTO public.official_quote_permissions
+                    (user_id, can_view, can_manage, can_authorize) VALUES
+                ('aaaaaaaa-0000-4000-8000-000000000001', true, true, true),
+                ('aaaaaaaa-0000-4000-8000-000000000002', true, true, false);
+                """, db);
+            await seedUsers.ExecuteNonQueryAsync();
         }
 
         var handler = new FakeDholeHttpHandler(fakeKey);
@@ -78,12 +103,36 @@ internal static class DholeQuoteHttpTest
                 // outbound named HTTP factory is replaced so no internet calls occur.
                 services.RemoveAll<IHttpClientFactory>();
                 services.AddSingleton<IHttpClientFactory>(new FakeDholeHttpClientFactory(handler));
+                // TestServer-only authentication: the production JWT + OTP
+                // behavior remains unchanged. The header never leaves CI.
+                services.AddAuthentication("CI-Admin").AddScheme<AuthenticationSchemeOptions,
+                    CiAdminAuthenticationHandler>("CI-Admin", _ => { });
+                services.PostConfigure<AuthenticationOptions>(options =>
+                {
+                    options.DefaultAuthenticateScheme = "CI-Admin";
+                    options.DefaultChallengeScheme = "CI-Admin";
+                    options.DefaultForbidScheme = "CI-Admin";
+                });
             });
         });
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false
         });
+
+        // New private lookup is not accessible to guests, and stays disabled
+        // even for fictional admins until separately published/authorized.
+        using (var guestLookup = await client.GetAsync("/api/admin/dhole/lookup-catalogs/pricing-services"))
+            Assert(guestLookup.StatusCode == HttpStatusCode.Unauthorized,
+                "Guest cannot access private Pricing service lookup");
+        using (var adminLookup = new HttpRequestMessage(HttpMethod.Get,
+            "/api/admin/dhole/lookup-catalogs/pricing-services"))
+        {
+            adminLookup.Headers.Add("X-CI-Test-Actor", "authorizer");
+            using var result = await client.SendAsync(adminLookup);
+            Assert(result.StatusCode == HttpStatusCode.NotFound,
+                "Read-only Pricing lookup is disabled by default, even for admin");
+        }
 
         // Check form options from the same host before the submitted POST.
         var formResponse = await client.GetAsync(
@@ -156,6 +205,11 @@ internal static class DholeQuoteHttpTest
             Assert(wrongType.StatusCode == HttpStatusCode.BadRequest,
                 "Server rejects invented equipment size/type pair");
 
+        using (var retiredService = await Submit(new(quote) {
+            ["services"] = new[] { "Transporte nacional" }
+        }))
+            Assert(retiredService.StatusCode == HttpStatusCode.BadRequest,
+                "Unlisted national transportation cannot be submitted by old or direct clients");
         using (var retiredTerm = await Submit(new(quote) { ["incoterm"] = "EXW" }))
             Assert(retiredTerm.StatusCode == HttpStatusCode.BadRequest,
                 "Server rejects inactive Dhole Incoterm");
@@ -205,10 +259,183 @@ internal static class DholeQuoteHttpTest
             Assert(Convert.ToInt64(await count.ExecuteScalarAsync()) == 1,
                 "Rejected submissions did not create rows");
         }
+        // The approval-outbox is a separate opt-in stage: merely sending a
+        // quote (even one whose catalogue is Dhole) must never queue it.
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var count = new NpgsqlCommand(
+                "SELECT COUNT(*) FROM public.official_quote_dhole_outbox", db);
+            Assert(Convert.ToInt64(await count.ExecuteScalarAsync()) == 0,
+                "Guest submissions never create a Dhole approval-outbox row");
+        }
+        // Verify the authorization/outbox feature against actual HTTP endpoints
+        // and the disposable PostgreSQL database; outbound traffic stays fake GET.
+        async Task<HttpResponseMessage> AdminRequest(HttpMethod method, string uri, string role)
+        {
+            using var request = new HttpRequestMessage(method, uri);
+            request.Headers.Add("X-CI-Test-Actor", role);
+            return await client.SendAsync(request);
+        }
+        async Task<HttpResponseMessage> Decide(Guid id, string decision,
+            string role = "authorizer", string? priority = null) =>
+            await AdminRequest(HttpMethod.Put,
+                $"/api/admin/quotes/official/{id}/authorization?decision={decision}" +
+                (priority is null ? "" : "&priority=" + Uri.EscapeDataString(priority)), role);
+        async Task<HttpResponseMessage> Details(Guid id, string role = "authorizer") =>
+            await AdminRequest(HttpMethod.Get, $"/api/admin/quotes/official/{id}", role);
+        async Task<(long count, string state, int attempts, string priority)> Outbox(Guid id)
+        {
+            await using var conn = new NpgsqlConnection(connectionString);
+            await conn.OpenAsync();
+            await using var cmd = new NpgsqlCommand("""
+                SELECT COUNT(*)::bigint,
+                       COALESCE(MAX(state), 'NotStaged'),
+                       COALESCE(MAX(attempt_count), 0),
+                       COALESCE(MAX(priority), '')
+                FROM public.official_quote_dhole_outbox WHERE quote_id = @id
+                """, conn);
+            cmd.Parameters.AddWithValue("id", id);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            Assert(await reader.ReadAsync(), "Outbox aggregate query returns one row");
+            return (reader.GetInt64(0), reader.GetString(1), reader.GetInt32(2), reader.GetString(3));
+        }
+        async Task<long> AuditCount(Guid id, string action)
+        {
+            await using var conn = new NpgsqlConnection(connectionString);
+            await conn.OpenAsync();
+            await using var cmd = new NpgsqlCommand("""
+                SELECT COUNT(*) FROM public.official_quote_audit
+                WHERE quote_id = @id AND action = @action
+                """, conn);
+            cmd.Parameters.AddWithValue("id", id);
+            cmd.Parameters.AddWithValue("action", action);
+            return Convert.ToInt64(await cmd.ExecuteScalarAsync());
+        }
+
+        using (var perms = await AdminRequest(HttpMethod.Get,
+            "/api/admin/quotes/official/permissions/me", "viewer"))
+        {
+            Assert(perms.StatusCode == HttpStatusCode.OK, "Viewing admin permissions works");
+            using var json = JsonDocument.Parse(await perms.Content.ReadAsStringAsync());
+            Assert(json.RootElement.GetProperty("canAuthorize").GetBoolean() == false,
+                "Regular admin cannot authorize Dhole submission");
+            Assert(json.RootElement.GetProperty("dholeApprovalQueueEnabled").GetBoolean(),
+                "Approval-only outbox is enabled in CI");
+        }
+        using (var noAuth = await Decide(createdId, "Authorized", "viewer"))
+            Assert(noAuth.StatusCode == HttpStatusCode.Forbidden,
+                "Admin without can_authorize denied even with a valid quote");
+        Assert((await Outbox(createdId)).count == 0,
+            "Unauthorized approval never creates outbox");
+        using (var badDecision = await Decide(createdId, "Sent"))
+            Assert(badDecision.StatusCode == HttpStatusCode.BadRequest,
+                "Cannot set remote status using authorization endpoint");
+        using (var badPriority = await Decide(createdId, "Authorized", priority: "Urgent"))
+            Assert(badPriority.StatusCode == HttpStatusCode.BadRequest,
+                "Unrecognized priority cannot stage a quote");
+        Assert((await Outbox(createdId)).count == 0,
+            "Invalid priority never stages the quote");
+
+        // Independent rejected quote: never enters integration outbox.
+        using var rejectedResponse = await Submit(quote);
+        Assert(rejectedResponse.StatusCode == HttpStatusCode.Created,
+            "Second fictional quote created for rejection test");
+        using var rejectedJson = JsonDocument.Parse(await rejectedResponse.Content.ReadAsStringAsync());
+        var rejectedId = rejectedJson.RootElement.GetProperty("id").GetGuid();
+        using (var rejected = await Decide(rejectedId, "Rejected"))
+            Assert(rejected.StatusCode == HttpStatusCode.OK, "Explicit rejection accepted");
+        Assert((await Outbox(rejectedId)).count == 0,
+            "Rejected quote never enters outbox");
+        Assert(await AuditCount(rejectedId, "Rejected") == 1,
+            "Rejected quote audited once");
+        using (var rejectAgain = await Decide(rejectedId, "Authorized"))
+            Assert(rejectAgain.StatusCode == HttpStatusCode.Conflict,
+                "Rejected decision is immutable");
+
+        using (var accepted = await Decide(createdId, "Authorized"))
+        {
+            Assert(accepted.StatusCode == HttpStatusCode.OK,
+                "Authorized quote accepted by admin permission");
+            using var json = JsonDocument.Parse(await accepted.Content.ReadAsStringAsync());
+            Assert(json.RootElement.GetProperty("dholeDispatchState").GetString() == "AwaitingConnector",
+                "Approval returns local staging state, not Sent");
+        }
+        var stage = await Outbox(createdId);
+        Assert(stage.count == 1 && stage.state == "AwaitingConnector" &&
+            stage.attempts == 0 && stage.priority == "Green",
+            "Default approval creates one local Green outbox row, zero attempts");
+        Assert(await AuditCount(createdId, "Authorized") == 1 &&
+            await AuditCount(createdId, "DholeStaged") == 1,
+            "Approval and local staging each audited once");
+        using (var details = await Details(createdId))
+        {
+            Assert(details.StatusCode == HttpStatusCode.OK, "Admin details available");
+            using var json = JsonDocument.Parse(await details.Content.ReadAsStringAsync());
+            Assert(json.RootElement.GetProperty("dholeDispatchState").GetString() == "AwaitingConnector",
+                "Admin details show local stage without pretending a send");
+            Assert(json.RootElement.GetProperty("dholePriority").GetString() == "Green",
+                "Default stage priority is visible in admin details");
+        }
+        using (var again = await Decide(createdId, "Authorized"))
+            Assert(again.StatusCode == HttpStatusCode.Conflict,
+                "Same approval cannot be repeated");
+        Assert((await Outbox(createdId)).count == 1,
+            "Duplicate request does not create a second outbox row");
+
+        // Explicit priority overrides must be persisted only for authorized admins.
+        foreach (var priority in new[] { "Yellow", "Red" })
+        {
+            using var overrideResponse = await Submit(quote);
+            Assert(overrideResponse.StatusCode == HttpStatusCode.Created,
+                "Fictional quote created for override test");
+            using var overrideJson = JsonDocument.Parse(await overrideResponse.Content.ReadAsStringAsync());
+            var overrideId = overrideJson.RootElement.GetProperty("id").GetGuid();
+            using (var denied = await Decide(overrideId, "Authorized", "viewer", priority))
+                Assert(denied.StatusCode == HttpStatusCode.Forbidden,
+                    "Viewer cannot choose an urgency override");
+            Assert((await Outbox(overrideId)).count == 0,
+                "Unauthorized priority override never stages a row");
+            using (var allowed = await Decide(overrideId, "Authorized", priority: priority))
+                Assert(allowed.StatusCode == HttpStatusCode.OK,
+                    "Admin may stage a valid " + priority + " priority");
+            var overridden = await Outbox(overrideId);
+            Assert(overridden.count == 1 && overridden.priority == priority && overridden.attempts == 0,
+                "Authorized " + priority + " priority persists without external POST");
+        }
+
+        // The public-quote policy intentionally limits a single TestServer IP to
+        // 12 requests per 10 minutes. Earlier negative cases consume that budget,
+        // so run this independent concurrency fixture in a second isolated host.
+        // Do NOT disable or increase production rate limits just to pass CI.
+        // Both hosts use the same disposable test DB and fake GET-only provider.
+        using var concurrencyFactory = factory.WithWebHostBuilder(_ => { });
+        using var concurrencyClient = concurrencyFactory.CreateClient(
+            new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        // Simultaneous admin approvals must serialize on the quote row.
+        using var simultaneousResponse = await concurrencyClient.PostAsJsonAsync(
+            "/api/quotes/official", quote);
+        Assert(simultaneousResponse.StatusCode == HttpStatusCode.Created,
+            "Third fictional quote created for concurrency test");
+        using var simultaneousJson = JsonDocument.Parse(await simultaneousResponse.Content.ReadAsStringAsync());
+        var simultaneousId = simultaneousJson.RootElement.GetProperty("id").GetGuid();
+        var concurrent = await Task.WhenAll(
+            Decide(simultaneousId, "Authorized"), Decide(simultaneousId, "Authorized"));
+        Assert(concurrent.Count(x => x.StatusCode == HttpStatusCode.OK) == 1 &&
+            concurrent.Count(x => x.StatusCode == HttpStatusCode.Conflict) == 1,
+            "Exactly one concurrent approval wins, the other is rejected");
+        foreach (var item in concurrent) item.Dispose();
+        Assert((await Outbox(simultaneousId)).count == 1 &&
+            await AuditCount(simultaneousId, "DholeStaged") == 1,
+            "Concurrent approval creates one outbox and one staging audit");
+
         Assert(handler.Requests > 0 && handler.ForbiddenRequests == 0,
             "All Dhole traffic was fake HTTPS GET and used the fictional key");
         Console.WriteLine("PASS: HTTP 201 + real isolated PostgreSQL row + external UUID persistence");
         Console.WriteLine("PASS: malformed roles, inactive Incoterm, invented equipment and local bypass rejected");
+        Console.WriteLine("PASS: permission denied / rejected / approved / duplicate / concurrent approval");
+        Console.WriteLine("PASS: approved Green default, admin-only Yellow/Red priority persisted; zero external POST");
+        Console.WriteLine("PASS: each approval stages exactly once; outbox attempts zero, no external POST");
         Console.WriteLine("PASS: all Dhole upstream traffic simulated; no real API, no mail, no production data");
     }
 }
@@ -308,5 +535,31 @@ sealed class FakeDholeHttpHandler(string key) : HttpMessageHandler
         {
             Content = new StringContent(body, Encoding.UTF8, "application/json")
         });
+    }
+}
+
+// This handler exists only in the CI TestServer project; it is not registered
+// in the production application. No token or external identity is trusted.
+sealed class CiAdminAuthenticationHandler(
+    IOptionsMonitor<AuthenticationSchemeOptions> options,
+    ILoggerFactory logger,
+    UrlEncoder encoder)
+    : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+{
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        var actor = Request.Headers["X-CI-Test-Actor"].ToString();
+        if (actor is not ("authorizer" or "viewer"))
+            return Task.FromResult(AuthenticateResult.NoResult());
+        var id = actor == "authorizer"
+            ? Guid.Parse("aaaaaaaa-0000-4000-8000-000000000001")
+            : Guid.Parse("aaaaaaaa-0000-4000-8000-000000000002");
+        var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, id.ToString()),
+            new Claim(ClaimTypes.Role, "admin")], Scheme.Name);
+        Context.Items["auth.identity"] = new AuthIdentity(id,
+            Guid.Parse("bbbbbbbb-0000-4000-8000-000000000001"),
+            "Cliente ficticio", "admin@example.invalid", "usuario", "admin", null);
+        return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(
+            new ClaimsPrincipal(identity), Scheme.Name)));
     }
 }
