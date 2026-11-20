@@ -49,7 +49,7 @@ El formulario oficial, GIO y la validación HTTP comparten los nuevos tipos. La 
 
 ## Prioridad y autorización
 
-Dhole utiliza `Green` (72 h), `Yellow` (48 h) y `Red` (24 h) para calcular el plazo de atención; no son promesas al cliente. La decisión de negocio acordada es **Green por defecto, editable por administrador durante la fase provisional de aprobación**. El conector real aún no existe; el valor debe persistirse de manera auditada antes de construirlo. No inferir `Red` por texto del cliente.
+Dhole utiliza `Green` (72 h), `Yellow` (48 h) y `Red` (24 h) para calcular el plazo de atención; no son promesas al cliente. La decisión de negocio acordada es **Green por defecto, editable por administrador durante la fase provisional de aprobación**. La PR #274 ahora registra la prioridad en el outbox **solo cuando `DholeSubmission:ApprovalQueueEnabled=true`**, después de verificar `can_authorize`; queda auditada con la aprobación. Con la flag apagada no accede a esa tabla, no selecciona prioridad de envío ni produce POST. No inferir `Red` por texto del cliente.
 
 La aprobación administrativa es provisional y se implementará con posibilidad de eliminarla después, sin eliminar necesariamente la regla de prioridad. El outbox de la PR #274 continúa desactivado por defecto y no envía tráfico a Dhole.
 
