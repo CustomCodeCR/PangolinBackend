@@ -131,6 +131,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         dholeOutbox.Property(x => x.QuoteId).HasColumnName("quote_id");
         dholeOutbox.Property(x => x.ApprovedById).HasColumnName("approved_by_id");
         dholeOutbox.Property(x => x.State).HasColumnName("state").HasMaxLength(24);
+        dholeOutbox.Property(x => x.Priority).HasColumnName("priority").HasMaxLength(6);
         dholeOutbox.Property(x => x.AttemptCount).HasColumnName("attempt_count");
         dholeOutbox.Property(x => x.ExternalReference).HasColumnName("external_reference").HasMaxLength(180);
         dholeOutbox.Property(x => x.LastErrorCode).HasColumnName("last_error_code").HasMaxLength(60);
