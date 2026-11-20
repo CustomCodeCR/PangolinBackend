@@ -42,6 +42,8 @@ function fixture(now = Date.now()) {
 }
 function request(mode = 'Maritime', shipmentType = 'FCL') {
   return { id: ids.quote, authorization: 'Authorized', customerName: 'Empresa ficticia',
+    contactName: 'Contacto CI', contactEmail: 'contacto@example.invalid',
+    contactPhone: '+506 2222-2222',
     originName: 'POL ficticio', destinationName: 'POE ficticio',
     form: {
       catalogSource: 'dhole', mode, shipmentType,
