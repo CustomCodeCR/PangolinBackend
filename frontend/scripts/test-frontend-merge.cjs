@@ -1170,4 +1170,28 @@ assert.match(itinerary, /'Demasiadas consultas por el momento'/, 'Mensaje compre
 assert.match(itinerary, /'Too many requests for now'/, 'Mensaje comprensible en inglés')
 assert.match(itinerary, /:disabled="retrySeconds > 0 \|\| cargando"/, 'Reintento bloqueado hasta que expire Retry-After')
 
+// Los siete textos de Infraestructura y cobertura deben existir en el editor,
+// usarse realmente en Inicio y estar permitidos por el backend al publicar.
+const regionalHome = source('src/Home.vue')
+const regionalSlots = source('src/siteCmsCatalog.ts')
+const regionalCmsApi = source('../backend/Services/SiteCmsEndpoints.cs')
+const regionalFields = [
+  ['home.specialties.heading', 'INFRAESTRUCTURA Y COBERTURA', 'INFRASTRUCTURE & COVERAGE'],
+  ['home.specialties.fiscal.eyebrow', 'ALMACENAMIENTO', 'WAREHOUSING'],
+  ['home.specialties.fiscal.lead', 'Espacio para tu carga.', 'Space for your cargo.'],
+  ['home.specialties.fiscal.title', 'Almacén fiscal A257 · A287', 'Bonded warehousing A257 · A287'],
+  ['home.specialties.panama.eyebrow', 'TRANSPORTE REGIONAL', 'REGIONAL TRANSPORT'],
+  ['home.specialties.panama.lead', 'Movemos tu negocio.', 'We move your business.'],
+  ['home.specialties.panama.title', 'Transporte entre Costa Rica y Panamá', 'Transport between Costa Rica and Panama']
+]
+for (const [key, es, en] of regionalFields) {
+  assert.ok(regionalHome.includes("siteText('" + key + "'"), 'Falta enlazar en Inicio el campo ' + key)
+  assert.ok(regionalSlots.includes("['" + key + "',"), 'Falta el campo en Editor visual: ' + key)
+  assert.ok(regionalSlots.includes("'" + es + "'") && regionalSlots.includes("'" + en + "'"),
+    'No se conservan los valores predeterminados ES/EN para ' + key)
+  assert.ok(regionalCmsApi.includes('"' + key + '"'), 'Backend CMS no permite guardar/publicar ' + key)
+}
+assert.match(regionalHome, /<b>01<\/b>/, 'No cambiar la numeración del almacén fiscal')
+assert.match(regionalHome, /<b>02<\/b>/, 'No cambiar la numeración del transporte regional')
+
 console.log('OK: SignalR, CMS, MinIO, news, itinerary and tracking contracts.')

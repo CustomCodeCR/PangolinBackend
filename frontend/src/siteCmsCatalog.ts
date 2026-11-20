@@ -991,6 +991,20 @@ capabilityTitles.forEach(([es,en],i)=>{
 ;['/images/services-warehouse.webp','/images/truck.webp','/images/warehouse-person.webp'].forEach((src,i)=>
   addMedia('about','Sobre nosotros','about.gallery.'+i+'.media','Galería','Foto '+(i+1),src))
 
+// El bloque de infraestructura regional de Inicio tiene siete campos
+// independientes en ambos idiomas, sin alterar el diseño ni los números 01/02.
+const homeSpecialtyFields: Array<[string,string,string,string]> = [
+  ['home.specialties.heading','Antetítulo de sección','INFRAESTRUCTURA Y COBERTURA','INFRASTRUCTURE & COVERAGE'],
+  ['home.specialties.fiscal.eyebrow','Almacén fiscal: categoría','ALMACENAMIENTO','WAREHOUSING'],
+  ['home.specialties.fiscal.lead','Almacén fiscal: frase superior','Espacio para tu carga.','Space for your cargo.'],
+  ['home.specialties.fiscal.title','Almacén fiscal: título principal','Almacén fiscal A257 · A287','Bonded warehousing A257 · A287'],
+  ['home.specialties.panama.eyebrow','Transporte regional: categoría','TRANSPORTE REGIONAL','REGIONAL TRANSPORT'],
+  ['home.specialties.panama.lead','Transporte regional: frase superior','Movemos tu negocio.','We move your business.'],
+  ['home.specialties.panama.title','Transporte regional: título principal','Transporte entre Costa Rica y Panamá','Transport between Costa Rica and Panama']
+]
+homeSpecialtyFields.forEach(([key,label,es,en]) =>
+  addText('home','Inicio',key,'Infraestructura y cobertura',label,es,en))
+
 // Nuevos módulos de Home y estructura: todos los textos editables por idioma.
 const newHomeFields: Array<[string,string,string,string,string]> = [
   ['home.services.fiscal.title','Almacén fiscal','Título','Almacén fiscal','Bonded warehouse'],
