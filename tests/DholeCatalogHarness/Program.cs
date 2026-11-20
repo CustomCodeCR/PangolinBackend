@@ -163,6 +163,49 @@ Check(origins.Options.Any(x => x.ExternalId == "19a5ce22-340d-579f-ad27-f6517a2d
       maritimeDest.Options.Any(x => x.ExternalId == "25882b97-8df9-407f-8300-8994184dfad1"),
     "Same city can have different Dhole POL vs POE IDs, never map by name");
 
+// Shanghai POL: mirror the user-observed Config shape but keep all test IDs
+// synthetic. Role and Maritime/CY classification must come from metadataJson.
+var shanghaiFromConfig = DholeCatalogNormalizer.Parse("""
+[
+  {
+    "id": "c8888888-8888-4888-8888-888888888888",
+    "catalogGroupSlug": "pol",
+    "code": "POL-2026-074",
+    "name": "Shanghai, China",
+    "value": "Shanghai, China",
+    "isActive": true,
+    "metadataJson": "{\"routeRole\":\"POL\",\"countryCode\":\"CN\",\"terminalType\":\"CY\",\"transportMode\":\"Maritime\",\"pricingWorkflow\":true}"
+  }
+]
+""");
+var shanghaiAsOrigin = DholeQuoteLocationProjector.Project("origin", "Maritime", shanghaiFromConfig);
+Check(shanghaiAsOrigin.Options.Length == 1 &&
+      shanghaiAsOrigin.Options[0].ExternalId == "c8888888-8888-4888-8888-888888888888" &&
+      shanghaiAsOrigin.Options[0].Name == "Shanghai, China" &&
+      shanghaiAsOrigin.Options[0].Code == "POL-2026-074" &&
+      shanghaiAsOrigin.Options[0].TerminalType == "CY" &&
+      shanghaiAsOrigin.Options[0].Catalog == "pol" &&
+      shanghaiAsOrigin.Issues.Length == 0,
+    "Config Shanghai POL Maritime/CY is eligible as origin; preserves the catalog ID");
+Check(DholeQuoteLocationProjector.Project("origin", "Air", shanghaiFromConfig).Options.Length == 0,
+    "Shanghai Maritime/CY is not an Air origin");
+var conflictingShanghai = DholeCatalogNormalizer.Parse("""
+[
+  {
+    "id": "c8888888-8888-4888-8888-888888888888",
+    "code": "POL-2026-074",
+    "name": "Shanghai, China",
+    "value": "Shanghai, China",
+    "isActive": true,
+    "metadataJson": "{\"routeRole\":\"POE\",\"countryCode\":\"CN\",\"terminalType\":\"CY\",\"transportMode\":\"Maritime\"}"
+  }
+]
+""");
+var rejectedShanghai = DholeQuoteLocationProjector.Project("origin", "Maritime", conflictingShanghai);
+Check(rejectedShanghai.Options.Length == 0 &&
+      rejectedShanghai.Issues.Single().Reason == "conflicting_route_role",
+    "A conflicting POE role must never become a POL by matching its name");
+
 var podItems = DholeCatalogNormalizer.Parse("""
 [
  { "id": "d43f9a0e-3fed-449d-bea0-067c9a2c30c4", "name": "Legacy POD", "value": "Legacy POD" },
