@@ -7,12 +7,18 @@ import { refreshSession } from '../services/auth'
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 const emit = defineEmits<{ (event: 'total-change', total: number): void }>()
 type Row = { id:string;customerName:string;mode:string;shipmentType:string;originName:string;destinationName:string;status:string;authorization:string;createdAtUtc:string }
-type Detail = {id:string;customerName:string;mode:string;shipmentType:string;status:string;authorization:string;dholeDispatchState:string;createdAtUtc:string;form:Record<string,unknown>;history:{action:string;comment:string|null;createdAtUtc:string}[]}
+type Detail = {id:string;customerName:string;mode:string;shipmentType:string;status:string;authorization:string;dholeDispatchState:string;dholePriority:string|null;createdAtUtc:string;form:Record<string,unknown>;history:{action:string;comment:string|null;createdAtUtc:string}[]}
 const rows=ref<Row[]>([])
 const detail=ref<Detail|null>(null)
 const permissions=ref({canView:false,canManage:false,canAuthorize:false,dholeApprovalQueueEnabled:false})
 const state=ref('Received')
 const comment=ref('')
+const dholePriority=ref('Green')
+const priorityOptions=[
+  {value:'Green',label:'Verde · Regular (72 h)'},
+  {value:'Yellow',label:'Amarillo · Prioritaria (48 h)'},
+  {value:'Red',label:'Rojo · Urgente (24 h)'}
+]
 const busy=ref(false)
 const error=ref('')
 const notice=ref('')
@@ -31,14 +37,15 @@ async function load(){busy.value=true;error.value='';try{
   rows.value=r.items;total.value=r.total;emit('total-change',r.total)
 }catch(e){error.value=msg(e)}finally{busy.value=false}}
 async function open(id:string){error.value='';detail.value=null;try{
-  const r=await api<Detail>('/api/admin/quotes/official/'+id);detail.value=r;state.value=r.status;comment.value=''
+  const r=await api<Detail>('/api/admin/quotes/official/'+id);detail.value=r;state.value=r.status;comment.value='';dholePriority.value=r.dholePriority||'Green'
 }catch(e){error.value=msg(e)}}
 async function review(){if(!detail.value||busy.value)return;busy.value=true;error.value='';notice.value='';try{
   await api('/api/admin/quotes/official/'+detail.value.id+'/review',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:state.value,comment:comment.value||null})})
   notice.value='Revisión guardada.';const id=detail.value.id;await load();await open(id)
 }catch(e){error.value=msg(e)}finally{busy.value=false}}
 async function decide(choice:'Authorized'|'Rejected'){if(!detail.value||busy.value)return;busy.value=true;error.value='';notice.value='';try{
-  await api('/api/admin/quotes/official/'+detail.value.id+'/authorization?decision='+choice,{method:'PUT'})
+  const selected=choice==='Authorized' && permissions.value.dholeApprovalQueueEnabled ? '&priority='+encodeURIComponent(dholePriority.value) : ''
+  await api('/api/admin/quotes/official/'+detail.value.id+'/authorization?decision='+choice+selected,{method:'PUT'})
   notice.value=choice==='Authorized'
     ? (permissions.value.dholeApprovalQueueEnabled ? 'Autorizada y registrada para integración. Todavía no enviada a Dhole.' : 'Autorizada internamente. No se ha enviado a Dhole.')
     : 'Autorización rechazada.'
@@ -168,6 +175,7 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
             <section class="off-admin-auth" aria-label="Estado de integración con Dhole">
               <h3>Estado de Dhole</h3>
               <p>{{dispatchNames[detail.dholeDispatchState] ?? 'Estado de envío no disponible'}}</p>
+              <p v-if="detail.dholePriority">Prioridad registrada: {{priorityOptions.find(item=>item.value===detail?.dholePriority)?.label ?? detail.dholePriority}}</p>
               <p v-if="detail.dholeDispatchState === 'AwaitingConnector'">Se registró la aprobación en Castro Fallas. Todavía no se ha realizado ningún envío externo.</p>
             </section>
             <h3>Información de la solicitud</h3>
@@ -194,6 +202,12 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
               <p>{{ permissions.dholeApprovalQueueEnabled
                 ? 'Autorizar crea un registro local pendiente de integración. Todavía no envía a Dhole.'
                 : 'Autorizar no envía la solicitud a Dhole.' }}</p>
+              <div v-if="permissions.dholeApprovalQueueEnabled" class="off-admin-select-field">
+                <label>Prioridad para Pricing</label>
+                <FieldDropdown v-model="dholePriority" aria-label="Prioridad para Pricing"
+                  :options="priorityOptions" />
+                <p class="off-admin-muted">Verde es la prioridad inicial. Solo quien autoriza puede cambiarla; no es una promesa de entrega al cliente.</p>
+              </div>
               <div class="off-admin-actions">
                 <button type="button" class="off-admin-primary" :disabled="busy" @click="decide('Authorized')">Autorizar para Dhole</button>
                 <button type="button" class="off-admin-button" :disabled="busy" @click="decide('Rejected')">Rechazar</button>
