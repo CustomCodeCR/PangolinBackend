@@ -89,21 +89,20 @@ export function resolveDholeQuoteCatalogIds(source, snapshots, now = Date.now())
     const types = freshItems(snapshots, 'container-types', now, blockers);
     if (sizes && types) for (const line of f.equipment ?? []) {
       const key = 'FCL:' + String(line.size) + '|' + String(line.type);
-      const sizesWithName = unique(sizes,
-        x => x?.name === line.size && idValid(x?.id));
-      if (sizesWithName.length !== 1) {
+      const sizesWithName = unique(sizes, x => x?.name === line.size);
+      if (sizesWithName.length !== 1 || !idValid(sizesWithName[0]?.id)) {
         missing(blockers, 'equipment:' + key + ': tamaño ambiguo o ausente');
         continue;
       }
       const sizeCode = sizesWithName[0].value;
       const matches = unique(types, item =>
-        idValid(item?.id) && item?.size === sizeCode &&
+        item?.size === sizeCode &&
         KIND_NAMES.get(String(item?.kind).toLowerCase()) === line.type &&
         contains(item?.shipmentModes, 'FCL') &&
         (contains(item?.modalities, 'Maritime') ||
-         contains(item?.modalities, 'Multimodal')) &&
-        typeof item?.code === 'string' && item.code.length > 0);
-      if (matches.length !== 1) {
+         contains(item?.modalities, 'Multimodal')));
+      if (matches.length !== 1 || !idValid(matches[0]?.id) ||
+          typeof matches[0]?.code !== 'string' || !matches[0].code.trim()) {
         missing(blockers, 'equipment:' + key + ': tipo ausente o ambiguo');
         continue;
       }
@@ -118,9 +117,8 @@ export function resolveDholeQuoteCatalogIds(source, snapshots, now = Date.now())
     const types = freshItems(snapshots, 'land-equipment-types', now, blockers, true);
     for (const line of f.equipment ?? []) {
       const key = 'FTL:' + String(line.size) + '|' + String(line.type);
-      const candidates = unique(trucks ?? [],
-        x => x?.name === line.size && idValid(x?.id));
-      if (candidates.length !== 1) {
+      const candidates = unique(trucks ?? [], x => x?.name === line.size);
+      if (candidates.length !== 1 || !idValid(candidates[0]?.id)) {
         missing(blockers, 'equipment:' + key + ': tamaño de furgón ambiguo o ausente');
         continue;
       }
@@ -128,9 +126,13 @@ export function resolveDholeQuoteCatalogIds(source, snapshots, now = Date.now())
       // size + kind + code triple; a generic "Furgón" cannot resolve.
       const kind = FTL_KINDS.get(line.type);
       const sizeCode = String(candidates[0].feet ?? candidates[0].value ?? '').trim();
+      // Resolve by the unique official *code* first. A second active row with
+      // the same code (even with invalid UUID or conflicting metadata) blocks
+      // mapping rather than being silently ignored.
       const matches = kind && FTL_SIZES.has(sizeCode) ? unique(types ?? [], item =>
-        idValid(item?.id) && item.size === sizeCode &&
-        item.kind === kind.kind && item.code === sizeCode + '_' + kind.code) : [];      if (matches.length !== 1) {
+        item?.code === sizeCode + '_' + kind.code) : [];
+      if (matches.length !== 1 || !idValid(matches[0]?.id) ||
+          matches[0]?.size !== sizeCode || matches[0]?.kind !== kind?.kind) {
         missing(blockers, 'equipment:' + key + ': falta verificar ID de tipo de furgón en Pricing');
         continue;
       }
@@ -144,14 +146,15 @@ export function resolveDholeQuoteCatalogIds(source, snapshots, now = Date.now())
   } else {
     const services = freshItems(snapshots, 'pricing-services', now, blockers, true);
     for (const name of f.services) {
-      const code = SERVICE_CODES[name];
+      const code = Object.hasOwn(SERVICE_CODES, name) ? SERVICE_CODES[name] : null;
       if (!code) {
         missing(blockers, 'serviceId:' + name + ': sin código confirmado en Pricing');
         continue;
       }
-      const matches = unique(services ?? [], x =>
-        idValid(x?.id) && x.code === code);
-      if (matches.length !== 1) {
+      // Match the code before validating UUID: duplicate active codes must
+      // reject even if only one record happens to carry a valid identifier.
+      const matches = unique(services ?? [], x => x?.code === code);
+      if (matches.length !== 1 || !idValid(matches[0]?.id)) {
         missing(blockers, 'serviceId:' + name + ': código no vigente o UUID ambiguo');
       } else lookup.serviceIds[name] = matches[0].id;
     }
