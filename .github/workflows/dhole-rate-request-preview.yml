@@ -1,0 +1,23 @@
+name: Dhole rate request contract (no network)
+on:
+  pull_request:
+    branches: [main-2]
+    paths:
+      - 'scripts/dhole-rate-request-preview.mjs'
+      - 'scripts/tests/dhole-rate-request-preview.test.mjs'
+      - '.github/workflows/dhole-rate-request-preview.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  no-post-contract:
+    name: Dry run 5 freight modes (no Dhole credentials)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Simulated Dhole mapping and idempotency (no outbound HTTP)
+        run: node --test scripts/tests/dhole-rate-request-preview.test.mjs
