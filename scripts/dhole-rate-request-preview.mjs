@@ -179,7 +179,8 @@ export function previewDholeRateRequest(source, lookups = {}) {
     formOutput.cargoPackages = lines.reduce((sum, item) => sum + item.packages, 0);
     formOutput.cargoWeightKg = lines.reduce((sum, item) => sum + item.weightKg, 0);
     formOutput.nonStackable ||= form.packages.some(x => x.stackability === 'NonStackable');
-    formOutput.cargoDescription = form.cargoDescription;
+    // Preserve the already-labelled applicant contact. Reassigning the raw
+    // form description here would drop contact details for LCL/AIR_LCL/LTL.
     formOutput.cargoLines = lines;
   }
   // The Pricing catalog documents sellerContext as distinct from form; we
