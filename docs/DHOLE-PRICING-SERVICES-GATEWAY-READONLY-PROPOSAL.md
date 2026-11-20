@@ -18,7 +18,7 @@
    - Descripción: `Servicios de Pricing (solo lectura, campos limitados)`.
    - `ThirdParty:PricingServicesCatalogEnabled=false` **por defecto**.
 2. En `ThirdPartyServiceIdentity.cs`, permitir esa pareja exacta target/slug **solo cuando** `ThirdParty:PricingServicesCatalogEnabled=true`, tanto en `IsReady` como en `GetCredential` (incluyendo la ruta de token explícito, para evitar bypass). Conservar únicamente `config.catalog-items.view`, sin nuevos permisos, sin mutaciones y sin alcance de creación de tarifas.
-3. En `ThirdPartyFieldCatalog.Outputs`, tratar `config-catalog-pricing-services` **antes** de la rama genérica `config-catalog-*` y permitir exclusivamente `id`, `code`, `name` y `value`; no permitir `metadata`, `metadataJson` ni campos comerciales internos. `Inputs` vacío; sin filtros/IDs del consumidor.
+3. En `ThirdPartyFieldCatalog.Outputs`, tratar `config-catalog-pricing-services` **antes** de la rama genérica `config-catalog-*` y permitir exclusivamente `id`, `code`, `name`, `value` e `isActive` (o una garantía probada de filtrado por activos desde el Gateway); no permitir `metadata`, `metadataJson` ni campos comerciales internos. `Inputs` vacío; sin filtros/IDs del consumidor.
 4. Mantener desactivada la bandera y no publicar el endpoint hasta revisar la PR de Gateway, pruebas de auth/Config y legitimidad de los datos seleccionados. El usuario debe aprobar por separado cualquier publicación en el API Manager o entrega de API Key.
 
 ## Vigencia de los elementos: bloqueo adicional detectado
@@ -34,7 +34,7 @@ Este requisito sigue **pendiente**: no se modificó el Gateway, no se publicó n
 - Con bandera apagada, `IsReady=false` y `GetCredential=null`, **incluso con token explícito configurado**.
 - Con bandera activada, el target GET exacto de `pricing-services` obtiene exclusivamente scope `config.catalog-items.view`; no tiene `roles`, `permissions`, sesión ni alcances de escritura.
 - Rechazar target cambiado a `POST`/`PUT`, `CatalogSlug` distinto, ruta distinta y código `route.*`.
-- El catálogo de campos de salida ofrece solo `id`, `code`, `name`, `value`; `metadataJson` queda fuera de la allowlist.
+- El catálogo de campos de salida ofrece `id`, `code`, `name`, `value` e `isActive` sin `metadataJson`; probar el filtrado de elementos activos y nunca interpretar un campo ausente como `true`.
 - Verificar proyección de datos de Config con registros ficticios, inactivos, duplicados y sin UUID; no usar servidores reales en CI.
 
 ## Mapeo preparado de Castro Fallas
