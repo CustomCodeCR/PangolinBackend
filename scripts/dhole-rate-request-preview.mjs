@@ -20,6 +20,39 @@ const validId = (value) => typeof value === 'string' && UUID.test(value) &&
 const isText = (v) => typeof v === 'string' && v.trim().length > 0;
 const isPositive = (n) => typeof n === 'number' && Number.isFinite(n) && n > 0;
 const idKey = (type, key) => type + ':' + key;
+// Dhole owner decision (2026-11-20): preserve Gateway's locked commercial
+// client/executive defaults, and place the web applicant contact in the
+// published cargo *description* field, after the actual goods description.
+// This is a dry-run artifact ONLY; no remote sender exists in this module.
+// Avoid control-character/newline injection into the labelled contact block.
+function contactValue(value, label, limit) {
+  if (!isText(value) || value.trim().length > limit ||
+      /[\u0000-\u001f\u007f-\u009f]/u.test(value))
+    throw new Error('Datos del solicitante inválidos: ' + label);
+  return value.trim();
+}
+function cargoDescriptionWithApplicant(source, original) {
+  const name = contactValue(source.contactName, 'nombre', 150);
+  const email = contactValue(source.contactEmail, 'correo', 255);
+  const phone = contactValue(source.contactPhone, 'teléfono', 40);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+      !/^[+0-9 ()-]{7,40}$/.test(phone))
+    throw new Error('Datos de contacto del solicitante inválidos.');
+  const addition = [
+    '',
+    '',
+    'Solicitante desde la web de Castro Fallas:',
+    'Nombre: ' + name,
+    'Correo: ' + email,
+    'Teléfono: ' + phone,
+  ].join('\n');
+  const description = original.trimEnd() + addition;
+  // The official web form's description is capped at 4000 characters.
+  // Never silently truncate goods or personal contact details to make space.
+  if (description.length > 4000)
+    throw new Error('Descripción para Dhole excede 4000 caracteres al añadir el contacto.');
+  return description;
+}
 function weightKg(value, unit) {
   if (!isPositive(value)) throw new Error('Peso inválido.');
   if (unit === 'kg') return value;
@@ -90,7 +123,7 @@ export function previewDholeRateRequest(source, lookups = {}) {
     ...(validId(incotermId) ? { incotermId } : {}),
     ...(serviceIds.length === services.length ? { serviceIds } : {}),
     loadDate: form.cargoReadyDate,
-    cargoDescription: form.cargoDescription,
+    cargoDescription: cargoDescriptionWithApplicant(source, form.cargoDescription),
     ...(isText(form.observations) ? { cargoObservations: form.observations } : {}),
     ...(typeof form.cargoValue === 'number' && form.cargoValue >= 0 ?
       { cargoValue: form.cargoValue } : {}),
@@ -188,7 +221,7 @@ export function previewDholeRateRequest(source, lookups = {}) {
     warnings: [
       'POST público Dhole existente; esta vista previa interna NO representa los campos planos form_*, requestContext_* y sellerContext_* autorizados.',
       'Sin envío, ni clave API, ni escritura en Dhole. Verificar campos y valores fijos del Gateway oficial antes de conectar el POST.',
-      'Campos dedicados de contacto no mapeados; direcciones, descripciones y observaciones pueden contener datos personales y requieren revisión antes de cualquier POST.',
+      'Nombre, correo y teléfono del solicitante incorporados únicamente en la descripción de carga del preview; requieren acceso restringido y validación con Dhole antes de un POST real.',
     ],
   });
 }
