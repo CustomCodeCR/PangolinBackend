@@ -8,7 +8,7 @@ import SiteFooter from '../components/SiteFooter.vue'
 import IconSymbol from '../components/IconSymbol.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import { refreshSession } from '../services/auth'
-import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
+import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialEquipmentTypeLabel, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
 import { loadDholeQuoteFormOptions, type DholeQuoteFormOptions } from '../lib/dholeQuoteForm'
 import { costaRicaToday, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
 
@@ -84,7 +84,7 @@ function equipmentTypeOptionsFor(line: ContainerLine) {
   if (catalogSource.value === 'dhole' && dholeFormOptions.value) {
     return (dholeFormOptions.value.equipmentTypesBySize[line.size] || []).map(value => ({
       value,
-      label: value === 'Furgón' ? q('Furgón', 'Truck') : value
+      label: officialEquipmentTypeLabel(value, q)
     }))
   }
   return equipmentTypeOptions.value
