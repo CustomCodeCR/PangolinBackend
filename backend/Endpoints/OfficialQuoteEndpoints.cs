@@ -114,10 +114,10 @@ public static class OfficialQuoteEndpoints
                 // valores libres de equipo aunque la solicitud llegue por HTTP directo.
                 var allowedSizes = s.ShipmentType == "FCL"
                     ? new[] { "20 pies", "40 pies", "45 pies", "48 pies" }
-                    : new[] { "24 pies / 5 TON", "26 pies / 7 TON", "40 pies", "53 pies" };
+                    : new[] { "24 pies / 5 TON", "26 pies / 7 TON", "48 pies", "53 pies" };
                 var allowedTypes = s.ShipmentType == "FCL"
                     ? new[] { "Dry Van", "High Cube", "Open Top", "Open Side", "Tank", "Flat Rack", "NOR" }
-                    : new[] { "Furgón" };
+                    : new[] { "Furgón seco", "Plataforma / Carreta", "Refrigerado", "Furgón con cortina" };
                 if (!useDholeCatalogs && (!allowedSizes.Contains(selectedSize, StringComparer.Ordinal) ||
                     !allowedTypes.Contains(selectedType, StringComparer.Ordinal)))
                     throw new ArgumentException("Seleccioná tamaño y tipo de equipo de las opciones oficiales.");
