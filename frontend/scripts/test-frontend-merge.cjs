@@ -1148,4 +1148,28 @@ assert.match(itinerary, /'Demasiadas consultas por el momento'/, 'Mensaje compre
 assert.match(itinerary, /'Too many requests for now'/, 'Mensaje comprensible en inglés')
 assert.match(itinerary, /:disabled="retrySeconds > 0 \|\| cargando"/, 'Reintento bloqueado hasta que expire Retry-After')
 
+// Asegurar que los siete textos de Infraestructura y cobertura son editables
+// de extremo a extremo, sin cambios en los valores visibles de esta rama.
+const regionalHome = source('src/Home.vue')
+const regionalSlots = source('src/siteCmsCatalog.ts')
+const regionalCmsApi = source('../backend/Services/SiteCmsEndpoints.cs')
+const regionalFields = [
+  ['home.specialties.heading', 'INFRAESTRUCTURA Y COBERTURA', 'INFRASTRUCTURE & COVERAGE'],
+  ['home.specialties.fiscal.eyebrow', 'ALMACENAMIENTO', 'WAREHOUSING'],
+  ['home.specialties.fiscal.lead', 'Espacio para tu carga.', 'Space for your cargo.'],
+  ['home.specialties.fiscal.title', 'Almacenamiento fiscal A257 · A287', 'Bonded warehousing A257 · A287'],
+  ['home.specialties.panama.eyebrow', 'TRANSPORTE REGIONAL', 'REGIONAL TRANSPORT'],
+  ['home.specialties.panama.lead', 'Movemos tu negocio.', 'We move your business.'],
+  ['home.specialties.panama.title', 'Transporte entre Costa Rica y Panamá', 'Transport between Costa Rica and Panama']
+]
+for (const [key, es, en] of regionalFields) {
+  assert.ok(regionalHome.includes("siteText('" + key + "'"), 'Inicio no consulta el campo ' + key)
+  assert.ok(regionalSlots.includes("['" + key + "',"), 'Campo ausente del Editor visual ' + key)
+  assert.ok(regionalSlots.includes("'" + es + "'") && regionalSlots.includes("'" + en + "'"),
+    'Los textos ES/EN deben mantener sus valores predeterminados ' + key)
+  assert.ok(regionalCmsApi.includes('"' + key + '"'), 'Backend no permite publicar ' + key)
+}
+assert.match(regionalHome, /<b>01<\/b>/, 'Conservar la numeración del almacén fiscal')
+assert.match(regionalHome, /<b>02<\/b>/, 'Conservar la numeración del transporte regional')
+
 console.log('OK: SignalR, CMS, MinIO, news, itinerary and tracking contracts.')
