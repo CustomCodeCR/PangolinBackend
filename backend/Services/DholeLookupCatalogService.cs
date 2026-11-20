@@ -12,7 +12,7 @@ namespace CastroFallas.MiniQuote.Api.Services;
 public sealed record DholeLookupItem(
     string Id, string Code, string Name, string Value, string? Size, string? Kind);
 public sealed record DholeLookupResult(
-    string Catalog, DateTimeOffset FetchedAtUtc, DholeLookupItem[] Items);
+    string Catalog, DateTimeOffset FetchedAtUtc, bool Stale, DholeLookupItem[] Items);
 
 public sealed class DholeLookupUnavailableException : Exception
 {
@@ -75,7 +75,8 @@ public sealed class DholeLookupCatalogService(
             // forward opaque Pricing metadata, context, or upstream JSON.
             var safe = items.Select(x => new DholeLookupItem(
                 x.Id, x.Code, x.Name, x.Value, x.Size, x.Kind)).ToArray();
-            return new DholeLookupResult(catalog, DateTimeOffset.UtcNow, safe);
+            // This client has no stale-cache fallback: success means a fresh GET.
+            return new DholeLookupResult(catalog, DateTimeOffset.UtcNow, false, safe);
         }
         catch (Exception ex) when (!ct.IsCancellationRequested &&
             ex is (HttpRequestException or JsonException or IOException or
