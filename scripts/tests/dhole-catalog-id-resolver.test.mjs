@@ -158,7 +158,7 @@ function withApprovedReadOnlyLookups(feed, now = Date.now()) {
     catalog, fetchedAtUtc: new Date(now).toISOString(), stale: false, items,
   });
   feed['pricing-services'] = snapshot('pricing-services', [{
-    id: ids.service, code: 'INTERNATIONAL', name: 'Transporte internacional',
+    id: ids.service, code: 'INT_TRANSPORT', name: 'Transporte internacional',
     value: 'Transporte internacional',
   }]);
   feed['land-equipment-types'] = snapshot('land-equipment-types', [{
@@ -168,7 +168,7 @@ function withApprovedReadOnlyLookups(feed, now = Date.now()) {
   }]);
   return feed;
 }
-test('read-only pricing-services resolves service UUID only for a unique exact name', () => {
+test('read-only pricing-services resolves service UUID only for a unique reviewed code', () => {
   const feed = withApprovedReadOnlyLookups(fixture());
   const q = request();
   const r = resolveDholeQuoteCatalogIds(q, feed);
@@ -183,7 +183,7 @@ test('read-only pricing-services resolves service UUID only for a unique exact n
 test('duplicate, stale and unmatched Pricing service catalogues never yield a guessed UUID', () => {
   const dup = withApprovedReadOnlyLookups(fixture());
   dup['pricing-services'].items.push({
-    id: '88888888-8888-4888-8888-888888888888', code: 'DUPLICATE',
+    id: '88888888-8888-4888-8888-888888888888', code: 'INT_TRANSPORT',
     name: 'Transporte internacional', value: 'Transporte internacional',
   });
   let r = resolveDholeQuoteCatalogIds(request(), dup);
@@ -197,12 +197,63 @@ test('duplicate, stale and unmatched Pricing service catalogues never yield a gu
   assert.ok(r.blockers.some(x => x.startsWith('snapshot:pricing-services')));
 
   const unmatched = withApprovedReadOnlyLookups(fixture());
-  unmatched['pricing-services'].items[0].name = 'Transporte nacional';
-  unmatched['pricing-services'].items[0].value = 'Transporte nacional';
+  unmatched['pricing-services'].items[0].code = 'UNKNOWN_SERVICE';
   r = resolveDholeQuoteCatalogIds(request(), unmatched);
   assert.equal(r.lookup.serviceIds['Transporte internacional'], undefined);
   assert.ok(r.blockers.some(x => x.startsWith('serviceId:')));
 });
+const officialServiceCodes = [
+  ['Transporte internacional', 'INT_TRANSPORT'],
+  ['Agencia de Aduanas CR', 'CUSTOMS_CR'],
+  ['Agencia de Aduanas Exterior', 'CUSTOMS_FOREIGN'],
+  ['Almacenamiento', 'STORAGE'],
+  ['Control de inventario', 'INVENTORY_CONTROL'],
+  ['Embalaje', 'PACKING'],
+  ['Exoneración', 'EXONERATION'],
+  ['Picking Carga', 'PICKING'],
+  ['Recepción de carga', 'RECEPTION'],
+  ['Seguro de carga', 'CARGO_INSURANCE'],
+  ['Transporte entrega', 'DELIVERY'],
+  ['Transporte recolección', 'PICKUP'],
+];
+test('all 12 official Pricing services map by verified code despite different labels', () => {
+  const feed = withApprovedReadOnlyLookups(fixture());
+  feed['pricing-services'].items = officialServiceCodes.map(([name, code], i) => ({
+    id: 'c2300000-0000-4000-8000-' + String(i + 1).padStart(12, '0'),
+    name: name === 'Embalaje' ? 'Embalaje de carga' :
+      name === 'Picking Carga' ? 'Picking cargas' :
+      name === 'Agencia de Aduanas CR' ? 'Agencia de Aduanas CRC' : name,
+    value: name === 'Embalaje' ? 'Embalaje de carga' : name,
+    code, isActive: true,
+  }));
+  const quote = request();
+  quote.form.services = officialServiceCodes.map(([name]) => name);
+  const r = resolveDholeQuoteCatalogIds(quote, feed);
+  assert.equal(Object.keys(r.lookup.serviceIds).length, 12);
+  assert.equal(r.blockers.filter(x => x.startsWith('serviceId:')).length, 0);
+  const noEquivalent = request();
+  noEquivalent.form.services = ['Transporte nacional'];
+  const unmatched = resolveDholeQuoteCatalogIds(noEquivalent, feed);
+  assert.equal(unmatched.lookup.serviceIds['Transporte nacional'], undefined);
+  assert.ok(unmatched.blockers.some(x => x.startsWith('serviceId:Transporte nacional:')));
+});
+test('Pricing service duplicates or inactive matches are blocked by code', () => {
+  const feed = withApprovedReadOnlyLookups(fixture());
+  feed['pricing-services'].items[0].isActive = false;
+  let result = resolveDholeQuoteCatalogIds(request(), feed);
+  assert.deepEqual(result.lookup.serviceIds, {});
+  assert.ok(result.blockers.some(x => x.startsWith('serviceId:')));
+  const duplicate = withApprovedReadOnlyLookups(fixture());
+  duplicate['pricing-services'].items.push({
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    code: 'INT_TRANSPORT', name: 'Other label', value: 'Other',
+    isActive: true,
+  });
+  result = resolveDholeQuoteCatalogIds(request(), duplicate);
+  assert.deepEqual(result.lookup.serviceIds, {});
+  assert.ok(result.blockers.some(x => x.startsWith('serviceId:')));
+});
+
 test('land-equipment-types can supply FTL type UUID, never truck size UUID', () => {
   const q = request('Land', 'FTL');
   const r = resolveDholeQuoteCatalogIds(q, withApprovedReadOnlyLookups(fixture()));
