@@ -667,7 +667,7 @@ onUnmounted(() => {
           <button class="service-modal__close" type="button" :aria-label="$t('custom.home.close')" @click="modalService = null"><IconSymbol glyph="×" :size="20" /></button>
           <p class="section-tag">{{ $t('custom.home.modalEyebrow') }}</p>
           <h2>{{ serviceInfo[modalService].title }}</h2>
-          <div class="service-modal__sections">
+          <div class="service-modal__sections" :class="{ 'service-modal__sections--panama': modalService === 'Panama' }">
             <section v-for="group in serviceInfo[modalService].sections" :key="group.heading">
               <h3>{{ group.heading }}</h3>
               <ul>
@@ -675,7 +675,7 @@ onUnmounted(() => {
               </ul>
             </section>
             <div v-if="modalService === 'Panama'" class="service-modal__warehouse">
-              <span class="service-modal__warehouse-icon" aria-hidden="true">⌖</span>
+              <svg class="service-modal__warehouse-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>
               <div class="service-modal__warehouse-copy">
                 <strong>{{ locale.startsWith('es') ? 'Dirección de bodega:' : 'Warehouse address:' }}</strong>
                 <span>France Field Calle 7ma, Avenida 5ta, al lado de la Bodega Anker.</span>
@@ -701,13 +701,16 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.service-modal__warehouse { display: flex; align-items: center; gap: 16px; padding: 20px 0 2px; margin-top: 20px; border-top: 1px solid rgba(50, 55, 65, .18); }
-.service-modal__warehouse-icon { color: #b00929; font-size: 36px; line-height: 1; flex: 0 0 auto; }
-.service-modal__warehouse-copy { display: flex; flex: 1 1 auto; min-width: 0; flex-direction: column; gap: 4px; color: #262833; line-height: 1.5; }
-.service-modal__warehouse-copy strong { color: #b00929; }
-.service-modal__route { display: inline-flex; align-items: center; justify-content: center; gap: 9px; flex: 0 0 auto; padding: 10px 18px; border: 1.5px solid #b00929; border-radius: 999px; color: #b00929; font-weight: 700; text-decoration: none; background: rgba(255,255,255,.55); transition: background .2s ease; }
+.service-modal__sections--panama { display: block; padding: 30px 36px; border-radius: 24px; background: rgba(255, 255, 255, .79); color: #393d48; }
+.service-modal__sections--panama > section { background: transparent !important; box-shadow: none !important; border: 0 !important; padding: 0 !important; margin: 0 !important; border-radius: 0 !important; }
+.service-modal__sections--panama > section h3 { color: #b00929; }
+.service-modal__warehouse { display: flex; align-items: center; gap: 12px; margin-top: 22px; padding-top: 20px; border-top: 1px solid rgba(50, 55, 65, .2); }
+.service-modal__warehouse-icon { color: #b00929; width: 23px; height: 23px; flex: 0 0 23px; }
+.service-modal__warehouse-copy { display: flex; flex: 1 1 auto; min-width: 0; align-items: baseline; flex-wrap: wrap; gap: 5px 10px; color: #323540; line-height: 1.45; }
+.service-modal__warehouse-copy strong { color: #262833; white-space: nowrap; font-weight: 700; }
+.service-modal__route { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: 0 0 auto; padding: 9px 16px; border: 1.5px solid #b00929; border-radius: 999px; color: #b00929; font-size: .85em; font-weight: 700; text-decoration: none; background: rgba(255,255,255,.6); transition: background .2s ease; white-space: nowrap; }
 .service-modal__route:hover, .service-modal__route:focus-visible { background: rgba(176,9,41,.11); }
-@media (max-width: 700px) { .service-modal__warehouse { align-items: flex-start; flex-wrap: wrap; gap: 10px; } .service-modal__warehouse-copy { flex-basis: calc(100% - 50px); } .service-modal__route { margin-left: 50px; } }
+@media (max-width: 700px) { .service-modal__sections--panama { padding: 22px 20px; border-radius: 18px; } .service-modal__warehouse { align-items: flex-start; flex-wrap: wrap; gap: 10px; } .service-modal__warehouse-copy { flex: 1 1 calc(100% - 35px); } .service-modal__route { margin-left: 35px; } }
 
 .home-news-empty { padding: 24px 16px; margin: 0; color: #5d6270; font-size: 14px; line-height: 1.5; }
 /* The FAQ answer area is part of the same clickable card. */
