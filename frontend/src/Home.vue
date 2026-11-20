@@ -15,23 +15,18 @@ import { useI18n } from 'vue-i18n'
 
 const { t, locale } = useI18n({ useScope: 'global' })
 type HomeServiceKey = ServiceKey | 'Fiscal' | 'Panama'
-// On mobile keep the original vertical tab design and dimensions.
-// Tapping an already-open tab collapses it and restores all six choices.
-// Resolve the initial viewport before the first render so desktop service
-// labels don't shift into place when onMounted opens the default card.
-const initialCompactServices = typeof window !== 'undefined' && window.matchMedia('(max-width: 800px)').matches
-const activeService = ref<HomeServiceKey | null>(initialCompactServices ? null : 'Air')
-const compactServiceMode = ref(initialCompactServices)
+// Nuxt SSR cannot know the viewport width. Hydration must start from the
+// SAME markup on server and client; otherwise a server-rendered open panel
+// survives on compact screens as an orphan after a reload.
+// Phones and narrow windows start with all six vertical tabs collapsed.
+// Desktop selects Air after mount, when the media query can be evaluated.
+const activeService = ref<HomeServiceKey | null>(null)
+const compactServiceMode = ref(false)
 const serviceAccordionRef = ref<HTMLElement | null>(null)
 const serviceAccordionWidth = ref(0)
 const serviceWindowStart = ref(0)
 let serviceAccordionObserver: ResizeObserver | undefined
 let serviceCompactQuery: MediaQueryList | undefined
-// A layout shift can fire pointerenter on a different tab while the pointer is
-// stationary. Require an actual cursor movement before accepting another hover.
-let lastServiceHoverPoint: { x: number; y: number } | null = null
-function resetHomeServiceHover() { lastServiceHoverPoint = null }
-
 function updateServiceLayout() {
   const compact = serviceCompactQuery?.matches ?? false
   if (compact !== compactServiceMode.value) {
@@ -69,16 +64,11 @@ function activateHomeService(key: HomeServiceKey) {
   activeService.value = key
 }
 
-// Mouse hover opens the original accordion on any screen size.
-// Touch pointerenter is intentionally ignored: touch continues to toggle on tap.
+// Compact-width hover can fire on page load, after refresh, or while the
+// expanding cards move under a stationary cursor. Open these tabs ONLY on
+// an intentional click/tap/keyboard activation; keep hover on desktop.
 function openHomeServiceFromPointer(key: HomeServiceKey, event: PointerEvent) {
-  if (event.pointerType !== 'mouse' && event.pointerType !== 'pen') return
-  if (compactServiceMode.value && lastServiceHoverPoint && activeService.value !== key) {
-    const dx = event.clientX - lastServiceHoverPoint.x
-    const dy = event.clientY - lastServiceHoverPoint.y
-    if (dx * dx + dy * dy < 12 * 12) return
-  }
-  lastServiceHoverPoint = { x: event.clientX, y: event.clientY }
+  if (compactServiceMode.value || (event.pointerType !== 'mouse' && event.pointerType !== 'pen')) return
   activateHomeService(key)
 }
 function openHomeServiceFromFocus(key: HomeServiceKey) {
@@ -88,7 +78,6 @@ function toggleHomeService(key: HomeServiceKey) {
   if (compactServiceMode.value && activeService.value === key) {
     activeService.value = null
     serviceWindowStart.value = 0
-    resetHomeServiceHover()
   } else {
     activateHomeService(key)
   }
@@ -355,7 +344,7 @@ onUnmounted(() => {
               {{ siteText('home.services.intro', $t('phrases.p011'), locale) }}
             </p>
 
-            <div ref="serviceAccordionRef" class="service-accordion" :class="{ 'is-collapsed': compactServiceMode && activeService === null }" :aria-label="$t('phrases.p134')" @pointerleave="resetHomeServiceHover">
+            <div ref="serviceAccordionRef" class="service-accordion" :class="{ 'is-collapsed': compactServiceMode && activeService === null }" :aria-label="$t('phrases.p134')">
               <article
                 v-for="service in transportServices"
                 :key="service.key"
