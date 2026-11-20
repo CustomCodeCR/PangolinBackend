@@ -29,6 +29,16 @@ Antes de publicar o activar esta consulta, el dueño de Dhole debe escoger y ver
 
 Este requisito sigue **pendiente**: no se modificó el Gateway, no se publicó ningún GET y no existe autorización de POST.
 
+## Revisión adicional del GET de tipos FTL (código Gateway actual)
+
+Revisado directamente en `CustomCodeCR/DholeApiGateway` el 20/11/2026:
+
+- `ThirdPartyServiceIdentity.AllowedCatalogs` **ya incluye** el target `config-catalog-trailer-types` con slug exacto `land-equipment-types`, método GET, servicio `config` y scope fijo `config.catalog-items.view`. **Esto demuestra viabilidad técnica, no publicación ni autorización de una API externa**.
+- `ThirdPartyFieldCatalog.Outputs` permite hoy `id`, `code`, `name`, `value` e `isActive` para catálogos, pero **no ofrece proyecciones tipadas separadas** de `metadataJson.size` y `metadataJson.kind`. El resolvedor FTL necesita esos dos valores para corroborar la relación entre tamaño, clase y código.
+- En una **PR aparte de DholeApiGateway**, añadir a la lista de salidas únicamente para `config-catalog-trailer-types` los campos públicos `size` y `kind` con rutas internas `metadataJson.size` y `metadataJson.kind`. No abrir `metadata` ni `metadataJson` completos. Publicar `isActive` explícito y probar rechazo de inactivos, duplicados, valores sin tamaño/tipo y metadatos contradictorios.
+- Para `pricing-services`, la salida mínima propuesta sigue siendo `id`, `code`, `name`, `value`, `isActive`. La relación con los 12 servicios de la web se haría **por código verificado** contra catálogo vigente, **no por igualdad de nombres visibles**.
+- Aún hace falta una persona con permisos de escritura y publicación en DholeApiGateway/API Manager. No se crearon ramas, se cambiaron permisos ni se habilitaron endpoints en Dhole desde BackendJJ.
+
 ## Pruebas de Gateway a exigir
 
 - Con bandera apagada, `IsReady=false` y `GetCredential=null`, **incluso con token explícito configurado**.
@@ -39,6 +49,6 @@ Este requisito sigue **pendiente**: no se modificó el Gateway, no se publicó n
 
 ## Mapeo preparado de Castro Fallas
 
-En `scripts/dhole-catalog-id-resolver.mjs` los snapshots opcionales `pricing-services` y `land-equipment-types` se aceptan **solo** con `catalog` correcto, `stale=false`, fecha fresca y UUID único. Los servicios requieren nombre/valor coincidente; FTL requiere **UUID de tipo**, código, tamaño explícito igual al grupo de tamaños y tipo semántico coincidente. Si no hay catálogos publicados, respuesta ambigua o metadatos de tamaño insuficientes, la solicitud continúa bloqueada.
+En `scripts/dhole-catalog-id-resolver.mjs` los snapshots opcionales `pricing-services` y `land-equipment-types` se aceptan **solo** con `catalog` correcto, `stale=false`, fecha fresca y UUID único. Los servicios requieren **código único y UUID válido**; FTL requiere **UUID de tipo**, código, tamaño explícito igual al grupo de tamaños y tipo semántico coincidente. Si no hay catálogos publicados, respuesta ambigua o metadatos de tamaño insuficientes, la solicitud continúa bloqueada.
 
 **No habilitar ningún POST de Pricing, ni publicar la API, ni fusionar esta PR con la suposición de que el Gateway ya está disponible.**
