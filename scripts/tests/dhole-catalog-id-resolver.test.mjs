@@ -159,15 +159,32 @@ function withApprovedReadOnlyLookups(feed, now = Date.now()) {
   });
   feed['pricing-services'] = snapshot('pricing-services', [{
     id: ids.service, code: 'INT_TRANSPORT', name: 'Transporte internacional',
-    value: 'Transporte internacional',
+    value: 'Transporte internacional', isActive: true,
   }]);
   feed['land-equipment-types'] = snapshot('land-equipment-types', [{
     id: '99999999-9999-4999-8999-999999999999',
     code: '48_DRY_VAN', name: '48 pies · Furgón seco', value: '48_DRY_VAN',
-    size: '48', kind: 'dry-van',
+    size: '48', kind: 'dry-van', isActive: true,
   }]);
   return feed;
 }
+test('Pricing service and FTL type without an explicit active flag cannot resolve', () => {
+  const serviceFeed = withApprovedReadOnlyLookups(fixture());
+  delete serviceFeed['pricing-services'].items[0].isActive;
+  const serviceResult = resolveDholeQuoteCatalogIds(request(), serviceFeed);
+  assert.equal(serviceResult.lookup.serviceIds['Transporte internacional'], undefined);
+  assert.ok(serviceResult.blockers.some(x => x.startsWith('serviceId:')));
+
+  const typeFeed = withApprovedReadOnlyLookups(fixture());
+  delete typeFeed['land-equipment-types'].items[0].isActive;
+  const typeResult = resolveDholeQuoteCatalogIds(request('Land', 'FTL'), typeFeed);
+  assert.equal(typeResult.lookup.equipment['FTL:48 pies|Furgón seco'], undefined);
+  assert.ok(typeResult.blockers.some(x => x.startsWith('equipment:')));
+
+  // This fail-closed behavior is necessary while the Gateway does not expose
+  // or independently prove active-state filtering for these two catalogues.
+});
+
 test('read-only pricing-services resolves service UUID only for a unique reviewed code', () => {
   const feed = withApprovedReadOnlyLookups(fixture());
   const q = request();
@@ -185,6 +202,7 @@ test('duplicate, stale and unmatched Pricing service catalogues never yield a gu
   dup['pricing-services'].items.push({
     id: '88888888-8888-4888-8888-888888888888', code: 'INT_TRANSPORT',
     name: 'Transporte internacional', value: 'Transporte internacional',
+    isActive: true,
   });
   let r = resolveDholeQuoteCatalogIds(request(), dup);
   assert.equal(r.lookup.serviceIds['Transporte internacional'], undefined);
@@ -284,7 +302,7 @@ test('FTL type wrong size, stale data or ambiguous type never maps', () => {
   duplicate['land-equipment-types'].items.push({
     id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     code: '48_DRY_VAN', name: '48 pies · Furgón seco duplicado', value: '48_DRY_VAN',
-    size: '48', kind: 'dry-van',
+    size: '48', kind: 'dry-van', isActive: true,
   });
   r = resolveDholeQuoteCatalogIds(q, duplicate);
   assert.deepEqual(r.lookup.equipment, {});
