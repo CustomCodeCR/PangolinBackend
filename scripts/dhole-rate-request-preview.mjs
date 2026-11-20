@@ -188,7 +188,7 @@ export function previewDholeRateRequest(source, lookups = {}) {
     warnings: [
       'POST público Dhole existente; esta vista previa interna NO representa los campos planos form_*, requestContext_* y sellerContext_* autorizados.',
       'Sin envío, ni clave API, ni escritura en Dhole. Verificar campos y valores fijos del Gateway oficial antes de conectar el POST.',
-      'Datos de contacto personales no incluidos en el contrato conocido.',
+      'Campos dedicados de contacto no mapeados; direcciones, descripciones y observaciones pueden contener datos personales y requieren revisión antes de cualquier POST.',
     ],
   });
 }
