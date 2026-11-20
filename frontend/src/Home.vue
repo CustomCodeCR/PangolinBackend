@@ -706,8 +706,21 @@ onUnmounted(() => {
 /* Keep the original benefits card; the address is a separate unboxed footer row. */
 .service-modal__sections:has(> .service-modal__warehouse) { display: flex; flex-direction: column; gap: 0; }
 .service-modal__warehouse { display: flex; align-items: center; gap: 12px; margin-top: 20px; padding: 20px 0 0; border-top: 1px solid rgba(50,55,65,.2); background: transparent; }
-/* Shares the exact glass surface, border and corners of the Benefits <section>. */
-.service-modal__warehouse-panel { display: flex; align-items: center; gap: 12px; flex: 1 1 auto; min-width: 0; }
+/* Both service cards use exactly the same translucent surface as frontend/src/style.css. */
+.service-modal__sections > section,
+.service-modal__warehouse-panel {
+  background: rgba(255,255,255,.72) !important;
+  border: 1px solid rgba(177,13,42,.15);
+  border-radius: 15px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+:global(html.theme-dark) .service-modal__sections > section,
+:global(html.theme-dark) .service-modal__warehouse-panel {
+  background: rgba(33,27,32,.78) !important;
+  border-color: rgba(255,255,255,.14);
+}
+.service-modal__warehouse-panel { display: flex; align-items: center; gap: 12px; flex: 1 1 auto; min-width: 0; padding: 18px; }
 .service-modal__warehouse-icon { flex: 0 0 34px; width: 34px; height: 34px; color: #b00929; }
 .service-modal__warehouse-copy { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; gap: 6px; color: #30333c; line-height: 1.5; }
 .service-modal__warehouse-copy strong { font-weight: 700; color: #b00929; }
