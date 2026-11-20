@@ -33,14 +33,14 @@ const missing = (errors, key) => {
 };
 
 // Resolves names saved by the official wizard against fresh, *catalog-backed*
-// IDs. Intentional omissions: service IDs (not in current seven endpoints),
-// priority (admin decision), CRM identity, and any FTL containerTypeId inferred
-// solely from a trailer SIZE. False positives are worse than a blocking warning.
+// IDs. Pricing service and FTL type lookups are optional and only available
+// AFTER separately approved/publicly published read-only GET APIs exist.
+// Priority, CRM identity and the external POST contract are never invented.
 export function resolveDholeQuoteCatalogIds(source, snapshots, now = Date.now()) {
   const f = source?.form ?? source;
   if (!f || f.catalogSource !== 'dhole') throw new Error('Fuente Dhole no validada.');
   const blockers = [];
-  const lookup = { incotermIds: {}, equipment: {} };
+  const lookup = { incotermIds: {}, serviceIds: {}, equipment: {} };
   const termItems = freshItems(snapshots, 'incoterms', now, blockers);
   if (termItems) {
     const terms = unique(termItems, item => item?.value === f.incoterm);
@@ -88,22 +88,47 @@ export function resolveDholeQuoteCatalogIds(source, snapshots, now = Date.now())
   }
   if (f.shipmentType === 'FTL') {
     const trucks = freshItems(snapshots, 'truck-sizes', now, blockers);
-    if (trucks) for (const line of f.equipment ?? []) {
+    const types = freshItems(snapshots, 'land-equipment-types', now, blockers);
+    for (const line of f.equipment ?? []) {
       const key = 'FTL:' + String(line.size) + '|' + String(line.type);
-      const candidates = unique(trucks, x => x?.name === line.size && idValid(x?.id));
+      const candidates = unique(trucks ?? [],
+        x => x?.name === line.size && idValid(x?.id));
       if (candidates.length !== 1) {
         missing(blockers, 'equipment:' + key + ': tamaño de furgón ambiguo o ausente');
-      } else {
-        // Not added to lookup.equipment: truck size != proved containerTypeId.
-        missing(blockers, 'equipment:' + key + ': falta verificar ID de tipo de furgón en Pricing');
+        continue;
       }
+      // A TYPE UUID, never the ID of the SIZE catalogue. Strictly require the
+      // same size and an explicit type description from the lookup metadata.
+      const typeName = String(line.type).normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const sizeCode = candidates[0].value;
+      const matches = unique(types ?? [], item =>
+        idValid(item?.id) && item.size === sizeCode &&
+        typeof item.code === 'string' && item.code.trim().length > 0 &&
+        [item.name, item.kind].some(value =>
+          typeof value === 'string' && value.normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '').toLowerCase() === typeName));
+      if (matches.length !== 1) {
+        missing(blockers, 'equipment:' + key + ': falta verificar ID de tipo de furgón en Pricing');
+        continue;
+      }
+      lookup.equipment[key] = {
+        id: matches[0].id, name: line.type, code: matches[0].code,
+      };
     }
   }
-  if (!Array.isArray(f.services) || f.services.length === 0)
+  if (!Array.isArray(f.services) || f.services.length === 0) {
     missing(blockers, 'serviceIds: no hay servicios para mapear');
-  else
-    for (const name of f.services)
-      missing(blockers, 'serviceId:' + name + ': no publicado en catálogos disponibles');
+  } else {
+    const services = freshItems(snapshots, 'pricing-services', now, blockers);
+    for (const name of f.services) {
+      const matches = unique(services ?? [], x =>
+        idValid(x?.id) && (x.name === name || x.value === name));
+      if (matches.length !== 1) {
+        missing(blockers, 'serviceId:' + name + ': sin UUID inequívoco autorizado');
+      } else lookup.serviceIds[name] = matches[0].id;
+    }
+  }
   missing(blockers, 'priority: debe elegirla un administrador autorizado');
   missing(blockers, 'externalContract: POST público y sus campos todavía no publicados');
 
