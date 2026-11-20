@@ -11,7 +11,6 @@ from pathlib import Path
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 
 BASE = sys.argv[1].rstrip("/")
@@ -124,12 +123,20 @@ with webdriver.Chrome(options=options) as driver:
                 ) < 260 else 4
                 select(5)
                 check_open(5, count)
-                # Real WebDriver click causes mouse movement and focus, not
-                # merely a JS click. It must never reopen the old panel.
-                fiscal = driver.find_elements(
-                    By.CSS_SELECTOR, "#servicios .service-accordion__trigger"
-                )[4]
-                fiscal.click()
+                # Synthetic viewport dimensions disagree with ChromeDriver's
+                # physical window coordinates at 768px. Dispatch the pointer
+                # entry/focus/click sequence on the actual button instead.
+                # The mouse entry must not auto-open a compact tab.
+                driver.execute_script("""
+                  const fiscal = document.querySelectorAll(
+                    '#servicios .service-accordion__trigger'
+                  )[4];
+                  fiscal.dispatchEvent(new PointerEvent('pointerenter', {
+                    pointerType: 'mouse', clientX: 180, clientY: 350
+                  }));
+                  fiscal.focus();
+                  fiscal.click();
+                """)
                 check_open(4, count)
                 assert snapshot()["panels"] == 1
                 select(4)
