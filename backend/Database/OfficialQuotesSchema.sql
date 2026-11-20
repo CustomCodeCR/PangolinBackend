@@ -80,6 +80,8 @@ CREATE TABLE IF NOT EXISTS public.official_quote_dhole_outbox (
     approved_by_id UUID NULL REFERENCES public.usuarios(uuid) ON DELETE SET NULL,
     state VARCHAR(24) NOT NULL DEFAULT 'AwaitingConnector'
         CHECK (state IN ('AwaitingConnector','Pending','Sending','Sent','Failed')),
+    priority VARCHAR(6) NOT NULL DEFAULT 'Green'
+        CONSTRAINT ck_official_quote_dhole_priority CHECK (priority IN ('Green','Yellow','Red')),
     attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
     external_reference VARCHAR(180) NULL,
     last_error_code VARCHAR(60) NULL,
@@ -88,5 +90,21 @@ CREATE TABLE IF NOT EXISTS public.official_quote_dhole_outbox (
     created_at_utc TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at_utc TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Idempotent upgrade for an outbox created before priority was introduced.
+-- Apply while ApprovalQueueEnabled=false, after backing up the DB.
+ALTER TABLE public.official_quote_dhole_outbox
+    ADD COLUMN IF NOT EXISTS priority VARCHAR(6) NOT NULL DEFAULT 'Green';
+DO $
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'ck_official_quote_dhole_priority'
+          AND conrelid = 'public.official_quote_dhole_outbox'::regclass
+    ) THEN
+        ALTER TABLE public.official_quote_dhole_outbox
+            ADD CONSTRAINT ck_official_quote_dhole_priority
+            CHECK (priority IN ('Green','Yellow','Red'));
+    END IF;
+END $;
 CREATE INDEX IF NOT EXISTS ix_official_quote_dhole_outbox_state
     ON public.official_quote_dhole_outbox(state,created_at_utc);
