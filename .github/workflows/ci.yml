@@ -95,5 +95,6 @@ jobs:
           python3 -m py_compile scripts/preflight-production.py
           python3 scripts/preflight-production.py .env.production
           docker compose --env-file .env.production -f compose.production.yaml config --quiet
+          python3 scripts/test-dhole-catalog-production-compose.py
       - name: Build production frontend and non-dev backend images
         run: docker compose --env-file .env.production -f compose.production.yaml build frontend backend
