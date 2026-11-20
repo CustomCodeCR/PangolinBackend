@@ -373,14 +373,16 @@ public static class OfficialQuoteEndpoints
                 .Take(100).ToListAsync(ct);
             // Do not access the optional outbox table when the rollout flag is off.
             var outboxEnabled = config.GetValue<bool>("DholeSubmission:ApprovalQueueEnabled");
-            var dispatchState = outboxEnabled
-                ? (await db.OfficialQuoteDholeOutbox.AsNoTracking()
-                    .Where(x => x.QuoteId == id).Select(x => x.State)
-                    .FirstOrDefaultAsync(ct) ?? "NotStaged")
-                : "Disabled";
+            var outbox = outboxEnabled
+                ? await db.OfficialQuoteDholeOutbox.AsNoTracking()
+                    .Where(x => x.QuoteId == id)
+                    .Select(x => new { x.State, x.Priority }).FirstOrDefaultAsync(ct)
+                : null;
+            var dispatchState = outboxEnabled ? (outbox?.State ?? "NotStaged") : "Disabled";
             http.Response.Headers.CacheControl = "no-store";
             return Results.Ok(new { q.Id, q.CustomerName, q.Mode, q.ShipmentType, q.Status,
                 q.Authorization, q.AuthorizedAtUtc, q.CreatedAtUtc, dholeDispatchState = dispatchState,
+                dholePriority = outbox?.Priority,
                 form = JsonSerializer.Deserialize<JsonElement>(q.FormJson), history });
         });
 
@@ -407,7 +409,7 @@ public static class OfficialQuoteEndpoints
             return Results.Ok(new { q.Id, q.Status });
         }).RequireRateLimiting("auth");
 
-        admin.MapPut("/{id:guid}/authorization", async (Guid id, string decision,
+        admin.MapPut("/{id:guid}/authorization", async (Guid id, string decision, string? priority,
             AppDbContext db, AuthService auth, IConfiguration config, HttpContext http, CancellationToken ct) =>
         {
             var actor = await auth.GetIdentityAsync(http, ct);
@@ -415,6 +417,9 @@ public static class OfficialQuoteEndpoints
             if (p?.CanAuthorize != true) return Results.Forbid();
             if (decision is not ("Authorized" or "Rejected"))
                 return Results.BadRequest(new { error = "Decisión inválida." });
+            var selectedPriority = priority ?? "Green";
+            if (selectedPriority is not ("Green" or "Yellow" or "Red"))
+                return Results.BadRequest(new { error = "Prioridad Dhole inválida." });
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             // Lock this quote for the complete approval transaction, preventing
             // concurrent authorizers from creating duplicate outbox entries.
@@ -439,17 +444,20 @@ public static class OfficialQuoteEndpoints
             if (staged)
             {
                 db.OfficialQuoteDholeOutbox.Add(new OfficialQuoteDholeOutbox {
-                    QuoteId = id, ApprovedById = actor.UsuarioId, State = "AwaitingConnector"
+                    QuoteId = id, ApprovedById = actor.UsuarioId,
+                    State = "AwaitingConnector", Priority = selectedPriority
                 });
                 db.OfficialQuoteAudit.Add(new OfficialQuoteAudit {
                     QuoteId = id, ActorUserId = actor.UsuarioId, Action = "DholeStaged",
-                    Comment = "Aprobada y registrada localmente; no enviada a Dhole."
+                    Comment = "Prioridad " + selectedPriority +
+                        "; aprobada y registrada localmente; no enviada a Dhole."
                 });
             }
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
             return Results.Ok(new { q.Id, q.Authorization, q.AuthorizedAtUtc,
-                dholeDispatchState = staged ? "AwaitingConnector" : "Disabled" });
+                dholeDispatchState = staged ? "AwaitingConnector" : "Disabled",
+                dholePriority = staged ? selectedPriority : null });
         }).RequireRateLimiting("auth");
         return app;
     }
