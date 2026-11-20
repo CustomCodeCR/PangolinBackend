@@ -27,7 +27,7 @@ La tabla reserva campos para un futuro adaptador (`Pending`, `Sending`, `Sent`, 
 
 ## Pendiente para el envío REAL (otra PR)
 
-- El POST **sí fue publicado** en el Dhole oficial como `api/external/v1/solicitar-tarifa-wjicua4` (distinto del Dhole de pruebas). Verificar su configuración efectiva al conectar el sender, sus inputs/defaults y el response real. La clave Pangolin dispone de siete GET, pero **no tiene autorización para el POST** observado; no reutilizarla para escritura. Ver `docs/DHOLE-CATALOG-PRODUCTION-CROSSWALK-20261120.md`.
+- El POST **sí fue publicado** en el Dhole oficial como `api/external/v1/solicitar-tarifa-wjicua4` (distinto del Dhole de pruebas). Verificar su configuración efectiva al conectar el sender, sus inputs/defaults y el response real. La clave Pangolin originalmente disponía de siete GET; el 20/11/2026 el usuario confirmó que **vinculó «Solicitar tarifa» también a Pangolin** en API Manager. No se ha probado el permiso efectivo con POST autenticado ni se ha activado un sender. Por mínimo privilegio, se recomienda separar permisos de lectura y escritura antes del uso operativo. Ver `docs/DHOLE-CATALOG-PRODUCTION-CROSSWALK-20261120.md`.
 - Mapeo validado campo por campo entre `OfficialQuoteSubmit` y el contrato externo: modalidad, ubicación, POD, Incoterm, cargas y unidades; decidir qué campos internos no deben transmitirse.
 - Idempotencia / deduplicación soportada por Dhole o reconciliación por referencia antes de reintentos tras timeout; nunca asumir que un timeout significa que Dhole no creó la solicitud.
 - Controlar credenciales exclusivamente en backend, host/path fijos, HTTPS, sin redirects, tamaños y timeouts acotados, respuestas sanitizadas, auditoría sin datos personales ni secretos.
