@@ -1014,7 +1014,11 @@ const newHomeFields: Array<[string,string,string,string,string]> = [
   ['home.services.fiscal.hazardous','Almacén fiscal','Carga peligrosa','Manejo de carga peligrosa, sujeto a requisitos y autorizaciones.','Dangerous goods handling subject to applicable requirements and permits.'],
   ['home.services.fiscal.rotation','Almacén fiscal','Inventario de rotación','Manejo de inventario de rotación.','Rotating inventory management.'],
   ['home.services.panama.title','Transporte Panamá–Costa Rica','Título','Transporte Panamá–Costa Rica','Panama–Costa Rica transport'],
-  ['home.services.panama.detail','Transporte Panamá–Costa Rica','Descripción','Más de 80 unidades caucionadas con rastreo, articuladas y no articuladas, de 28, 40, 45, 48 y 53 pies.','More than 80 bonded transport units with tracking, articulated and non-articulated, in 28, 40, 45, 48 and 53-foot sizes.']
+  ['home.services.panama.detail','Transporte Panamá–Costa Rica','Descripción','Más de 80 unidades caucionadas con rastreo, articuladas y no articuladas, de 28, 40, 45, 48 y 53 pies.','More than 80 bonded transport units with tracking, articulated and non-articulated, in 28, 40, 45, 48 and 53-foot sizes.'],
+  ['home.services.panama.benefits.heading','Transporte Panamá–Costa Rica','Ventana emergente: encabezado de beneficios','Beneficios','Benefits'],
+  ['home.services.panama.benefits.0','Transporte Panamá–Costa Rica','Ventana emergente: beneficio 1','Somos pioneros con amplia experiencia en el transporte de mercancía de Panamá - Costa Rica.','We are pioneers with extensive experience in freight transport between Panama and Costa Rica.'],
+  ['home.services.panama.benefits.1','Transporte Panamá–Costa Rica','Ventana emergente: beneficio 2','Contamos con bodega propia en Zona Libre Colón.','We have our own warehouse in the Colón Free Zone.'],
+  ['home.services.panama.benefits.2','Transporte Panamá–Costa Rica','Ventana emergente: beneficio 3','Ofrecemos salidas diarias con un tiempo de tránsito de 26 horas.','We offer daily departures with a transit time of 26 hours.']
 ]
 newHomeFields.forEach(([key,section,label,es,en])=>addText('home','Inicio',key,section,label,es,en))
 addMedia('home','Inicio','home.services.fiscal.media','Almacén fiscal','Imagen de tarjeta y modal','/images/services-warehouse.webp')
