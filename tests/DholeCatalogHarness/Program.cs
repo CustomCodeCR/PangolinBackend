@@ -374,19 +374,33 @@ var ftlCatalog = DholeQuoteFormCatalogBuilder.Build(
 Check(ftlCatalog.EquipmentSizes.Select(x => x.Value).SequenceEqual(
     ["24 pies / 5 TON", "26 pies / 7 TON", "48 pies", "53 pies"]),
     "Dhole FTL 48 replaces old static 40 without hardcoding a replacement");
+var allowedFtlTypes = new[] { "Furgón seco", "Plataforma / Carreta", "Refrigerado", "Furgón con cortina" };
+Check(ftlCatalog.EquipmentSizes.All(size => ftlCatalog.EquipmentTypesBySize[size.Value].SequenceEqual(allowedFtlTypes)),
+    "Every published compatible FTL size offers all four reviewed land equipment types");
 var ftlQuote = ReadSubmission("""
 {
     "mode":"Land", "shipmentType":"FTL", "catalogSource":"dhole",
     "originLocationId":"99999999-9999-4999-8999-999999999999",
     "destinationLocationId":"c2610000-0000-4000-8000-000000000003",
-    "incoterm":"FOB", "equipment":[{"size":"48 pies","type":"Furgón"}]
+    "incoterm":"FOB", "equipment":[{"size":"48 pies","type":"Furgón seco"}]
 }
 """);
 Check(DholeQuoteSelectionValidator.Validate(ftlQuote, ftlCatalog).OriginName == "Land Origin",
     "Active Dhole 48 FTL accepted");
 ExpectSelectionReject(ftlQuote with {
-    Equipment = [new OfficialContainerInput("40 pies", "Furgón", 1, [1000])]
+    Equipment = [new OfficialContainerInput("40 pies", "Furgón seco", 1, [1000])]
 }, ftlCatalog, "retired 40-foot FTL");
+foreach (var kind in allowedFtlTypes)
+{
+    var selected = ftlQuote with {
+        Equipment = [new OfficialContainerInput("48 pies", kind, 1, [1000])]
+    };
+    Check(DholeQuoteSelectionValidator.Validate(selected, ftlCatalog).OriginName == "Land Origin",
+        "FTL permits reviewed kind " + kind);
+}
+ExpectSelectionReject(ftlQuote with {
+    Equipment = [new OfficialContainerInput("48 pies", "Furgón", 1, [1000])]
+}, ftlCatalog, "generic Furgón does not identify a unique real Dhole kind");
 Console.WriteLine("OK: Quote submit contract validates external roles, FCL pairs, FTL live sizes and Incoterms.");
 
 ExpectSelectionReject(goodQuote with { Incoterm = null }, formCatalog, "omitted Dhole Incoterm");
