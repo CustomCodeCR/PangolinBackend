@@ -96,7 +96,10 @@ for(const [mode,type,shipment,modality,field] of MODES) {
     assert.equal(b.form_originId,IDs.origin);
     assert.equal(b.form_incotermId,IDs.incoterm);
     assert.deepEqual(b.form_serviceIds,[IDs.service]);
-    assert.equal(b.form_cargoDescription,'Mercancía CI');
+    assert.ok(b.form_cargoDescription.startsWith('Mercancía CI\n\nSolicitante desde la web de Castro Fallas:'));
+    assert.ok(b.form_cargoDescription.includes('Nombre: Contacto CI'));
+    assert.ok(b.form_cargoDescription.includes('Correo: privado@example.invalid'));
+    assert.ok(b.form_cargoDescription.includes('Teléfono: 00000000'));
     assert.equal(b.form_cargoValue,1600);
     assert.equal(b.sellerContext_cargoReadyDate,'2026-12-18');
     assert.equal(b.requestContext_incotermName,'CIF');
@@ -137,9 +140,7 @@ for(const [mode,type,shipment,modality,field] of MODES) {
     }
   });
 }
-test('commercial and contact identity changes never alter the flat Dhole review payload',()=>{
-  // The local guest quote can use contactName as customerName; that does not
-  // authorize mapping the contact to a commercial client in Dhole.
+test('web applicant contact is placed only in the published cargo description',()=>{
   const guest=quote();
   guest.customerName='CONTACTO-VISITANTE-CONFUNDIBLE';
   guest.contactName='CONTACTO-VISITANTE-CONFUNDIBLE';
@@ -152,28 +153,52 @@ test('commercial and contact identity changes never alter the flat Dhole review 
   registered.contactEmail='registrado-privado@example.invalid';
   registered.contactPhone='+506 1111-1111';
 
+  const baseline=prepared('Maritime','FCL').body;
   for(const item of [guest,registered]) {
-    const before=previewDholeRateRequest(item,lookups);
-    const result=previewDholePublicRateRequest(before);
-    const baseline=prepared('Maritime','FCL');
+    const originalDescription=item.form.cargoDescription;
+    const internal=previewDholeRateRequest(item,lookups);
+    const result=previewDholePublicRateRequest(internal);
     assert.equal(result.readyForSending,false);
     assert.ok(result.blockers.some(reason=>reason.startsWith('commercialIdentity:')));
-    assert.deepEqual(result.body,baseline.body,
-      'Local identity must not silently change the public Pricing request');
-    const publicBody=JSON.stringify(result.body);
-    for(const privateValue of [item.customerName,item.contactName,item.contactEmail,item.contactPhone]) {
-      assert.ok(!publicBody.includes(privateValue),
-        'Customer or contact identity leaked through the published flat body');
-    }
+    assert.ok(result.body.form_cargoDescription.startsWith(
+      originalDescription+'\\n\\nSolicitante desde la web de Castro Fallas:'));
+    for(const [label,value] of [
+      ['Nombre',item.contactName], ['Correo',item.contactEmail],
+      ['Teléfono',item.contactPhone]
+    ]) assert.ok(result.body.form_cargoDescription.includes(label+': '+value));
+    assert.equal(item.form.cargoDescription,originalDescription,'Original quote must not be mutated');
+
+    // No company registration is guessed from a visitor's name. The
+    // registered company's identity is NOT injected into the locked Dhole client.
+    if(item===registered)
+      assert.ok(!JSON.stringify(result.body).includes(item.customerName));
     for(const key of ['clientName','executiveName','sellerUserId',
       'form_clientName','form_executiveName','form_clientId',
       'form_executiveId','requestContext_executiveName']) {
-      assert.equal(Object.hasOwn(result.body,key),false,key+' must not be sent');
+      assert.equal(Object.hasOwn(result.body,key),false,key+' must remain untouched');
     }
-    assert.deepEqual(contract.defaults,{
-      clientName:'CLIENTE GENERICO', executiveName:'Castro Fallas'
-    });
+    const nonDescription=structuredClone(result.body);
+    const baselineNonDescription=structuredClone(baseline);
+    delete nonDescription.form_cargoDescription;
+    delete baselineNonDescription.form_cargoDescription;
+    assert.deepEqual(nonDescription,baselineNonDescription,
+      'Contact updates must not alter any other Pricing field');
+    for(const privateValue of [item.contactEmail,item.contactPhone]) {
+      assert.ok(!JSON.stringify(nonDescription).includes(privateValue),
+        'Applicant data may only appear inside the approved description field');
+    }
   }
+  assert.deepEqual(contract.defaults,{
+    clientName:'CLIENTE GENERICO',executiveName:'Castro Fallas'
+  });
+});
+test('missing, multiline or overly long applicant data fails closed',()=>{
+  const missing=quote(); delete missing.contactEmail;
+  assert.throws(()=>previewDholeRateRequest(missing,lookups),/Datos del solicitante inválidos/);
+  const unsafe=quote(); unsafe.contactName='Ana\\nPrioridad: Red';
+  assert.throws(()=>previewDholeRateRequest(unsafe,lookups),/Datos del solicitante inválidos/);
+  const overflow=quote(); overflow.form.cargoDescription='x'.repeat(3999);
+  assert.throws(()=>previewDholeRateRequest(overflow,lookups),/excede 4000/);
 });
 
 test('Gateway-style reconstruction from flat fields restores only documented nested paths',()=>{
