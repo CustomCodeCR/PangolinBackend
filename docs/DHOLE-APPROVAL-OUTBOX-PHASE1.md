@@ -9,7 +9,7 @@ La integración usa las cotizaciones oficiales existentes (`POST /api/quotes/off
 ## Activación segura
 
 - Flag backend **deshabilitado por defecto**: `DholeSubmission:ApprovalQueueEnabled=false`.
-- Antes de activar, respaldar PostgreSQL y aplicar manualmente la migración aditiva al final de `backend/Database/OfficialQuotesSchema.sql` (tabla `public.official_quote_dhole_outbox`). **No borrar ni recrear volúmenes.**
+- Antes de activar, respaldar PostgreSQL y aplicar manualmente la migración aditiva al final de `backend/Database/OfficialQuotesSchema.sql` (tabla `public.official_quote_dhole_outbox` y columna `priority`; el ALTER es idempotente). **No borrar ni recrear volúmenes.**
 - En Docker híbrido local, una vez existente la tabla, configurar `DHOLE_APPROVAL_QUEUE_ENABLED=true` en el `.env` privado (Compose lo envía al backend como `DholeSubmission__ApprovalQueueEnabled`). **No habilitarlo en producción** hasta revisar la migración y los permisos. No hace falta una clave de escritura para esta fase porque no realiza POST externo.
 - Si la flag está apagada, **no se consulta ni escribe la tabla nueva**; la aprobación de cotizaciones continúa igual que antes.
 - La flag `DholeCatalogs:SubmissionEnabled` es para **validación de catálogos del formulario**, no autoriza un POST al proveedor. No confundirla con el envío de solicitudes.
@@ -19,7 +19,7 @@ La integración usa las cotizaciones oficiales existentes (`POST /api/quotes/off
 1. Cliente completa la cotización. La autorización inicial continúa `Pending`; no hay outbox.
 2. El administrador con `official_quote_permissions.can_authorize=true` puede autorizar o rechazar. Los demás administradores continúan pudiendo gestionar, pero **no autorizar**.
 3. Si decide `Rejected`: se registra la decisión, **sin crear outbox**.
-4. Si decide `Authorized` **y** `DholeSubmission:ApprovalQueueEnabled=true`: dentro de la transacción de aprobación se crea **una** fila con `quote_id` como clave primaria, `state=AwaitingConnector`, `attempt_count=0` y la identidad del administrador. Se registra `DholeStaged` en auditoría. Las decisiones concurrentes sobre la misma solicitud se serializan con un bloqueo de fila.
+4. Si decide `Authorized` **y** `DholeSubmission:ApprovalQueueEnabled=true`: dentro de la transacción de aprobación se crea **una** fila con `quote_id` como clave primaria, `state=AwaitingConnector`, `attempt_count=0` y la identidad del administrador. Se registra `DholeStaged` en auditoría junto con la prioridad. El administrador inicia en **Green**, puede elegir **Yellow** o **Red** antes de aprobar, y esa prioridad se persiste en el outbox. Las decisiones concurrentes sobre la misma solicitud se serializan con un bloqueo de fila.
 5. El panel muestra el estado `Aprobada; pendiente de integración con Dhole`, nunca `Enviada`, porque aún no se hizo una llamada al proveedor.
 6. Una autorización previamente realizada con la flag apagada permanece autorizada pero no se encola retroactivamente.
 
@@ -27,7 +27,7 @@ La tabla reserva campos para un futuro adaptador (`Pending`, `Sending`, `Sent`, 
 
 ## Pendiente para el envío REAL (otra PR)
 
-- Contrato autorizado del endpoint de Dhole (método, ruta y versión), ejemplo de request/response, headers y permisos de la clave de API. La mención interna `solicitar-tarifa` no verifica por sí sola su contrato.
+- El POST **sí fue publicado** en el Dhole oficial como `api/external/v1/solicitar-tarifa-wjicua4` (distinto del Dhole de pruebas). Verificar su configuración efectiva al conectar el sender, sus inputs/defaults y el response real. La clave Pangolin dispone de siete GET, pero **no tiene autorización para el POST** observado; no reutilizarla para escritura. Ver `docs/DHOLE-CATALOG-PRODUCTION-CROSSWALK-20261120.md`.
 - Mapeo validado campo por campo entre `OfficialQuoteSubmit` y el contrato externo: modalidad, ubicación, POD, Incoterm, cargas y unidades; decidir qué campos internos no deben transmitirse.
 - Idempotencia / deduplicación soportada por Dhole o reconciliación por referencia antes de reintentos tras timeout; nunca asumir que un timeout significa que Dhole no creó la solicitud.
 - Controlar credenciales exclusivamente en backend, host/path fijos, HTTPS, sin redirects, tamaños y timeouts acotados, respuestas sanitizadas, auditoría sin datos personales ni secretos.
