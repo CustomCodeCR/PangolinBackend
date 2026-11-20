@@ -95,7 +95,7 @@ async function waitFor(check, description, timeout=18000) {
   throw Error('Timed out: '+description)
 }
 async function main() {
-  const profile=fs.mkdtempSync(path.join(os.tmpdir(),'dhole-wizard-cdp-'))
+  let profile=fs.mkdtempSync(path.join(os.tmpdir(),'dhole-wizard-cdp-'))
   let vite, chrome, socket, evaluate
   const artifacts=path.resolve(frontend,'../artifacts/dhole-quote-visual')
   try {
@@ -108,17 +108,38 @@ async function main() {
     await waitFor(async()=> (await fetch('http://'+host+':5194/cotizaciones')).ok,
       'Vite server',24000)
 
-    chrome=spawn(bin(),[
-      '--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',
-      '--no-first-run','--disable-background-networking','--disable-extensions',
-      '--remote-allow-origins=*','--remote-debugging-port=0',
-      '--user-data-dir='+profile,'about:blank'
-    ],{stdio:'ignore'})
+    // Shared GitHub runners occasionally need a second Chrome launch even when
+    // Vite is already ready. Retry once with a fresh, isolated profile. Keep
+    // browser stderr bounded so a failed test identifies Chrome vs. UI errors.
     let debugPort=0
-    await waitFor(async()=>{
-      try { debugPort=Number(fs.readFileSync(path.join(profile,'DevToolsActivePort'),'utf8').split('\n')[0]) } catch {}
-      return debugPort>0
-    },'Chrome debugging port')
+    for (let attempt=1; attempt<=2; attempt++) {
+      let stderr=''
+      let launchError=null
+      chrome=spawn(bin(),[
+        '--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',
+        '--no-first-run','--disable-background-networking','--disable-extensions',
+        '--remote-allow-origins=*','--remote-debugging-port=0',
+        '--user-data-dir='+profile,'about:blank'
+      ],{stdio:['ignore','ignore','pipe']})
+      chrome.on('error',error => { launchError=error })
+      chrome.stderr.on('data',chunk => { stderr=(stderr+chunk.toString()).slice(-3000) })
+      try {
+        await waitFor(async()=>{
+          if (launchError || chrome.exitCode !== null) return false
+          try { debugPort=Number(fs.readFileSync(path.join(profile,'DevToolsActivePort'),'utf8').split('\n')[0]) } catch {}
+          return debugPort>0
+        },'Chrome debugging port',30000)
+        break
+      } catch (error) {
+        console.warn('Chrome launch '+attempt+' failed:',launchError?.message || error.message)
+        if (stderr) console.warn('Chrome stderr (last 3000 chars):',stderr)
+        chrome.kill()
+        if (attempt===2) throw error
+        try { fs.rmSync(profile,{recursive:true,force:true,maxRetries:5,retryDelay:200}) } catch {}
+        profile=fs.mkdtempSync(path.join(os.tmpdir(),'dhole-wizard-cdp-'))
+        debugPort=0
+      }
+    }
     const target=await (await fetch('http://'+host+':'+debugPort+'/json/list')).json()
     const page=target.find(t=>t.type==='page' && t.webSocketDebuggerUrl)
     assert.ok(page,'Chrome page target missing')
