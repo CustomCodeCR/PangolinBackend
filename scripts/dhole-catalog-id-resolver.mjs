@@ -41,7 +41,7 @@ const contains = (list, value) => Array.isArray(list) &&
 
 // A real DholeCatalogService snapshot has {catalog, fetchedAtUtc, stale, items};
 // the mapping rejects stale/missing catalogues instead of using legacy defaults.
-function freshItems(snapshots, key, now, errors) {
+function freshItems(snapshots, key, now, errors, requireExplicitActive = false) {
   const snapshot = snapshots?.[key];
   const ms = Date.parse(snapshot?.fetchedAtUtc);
   if (snapshot?.catalog !== key || snapshot.stale !== false ||
@@ -50,7 +50,9 @@ function freshItems(snapshots, key, now, errors) {
     errors.push('snapshot:' + key + ': ausente, obsoleto o no verificado');
     return null;
   }
-  return snapshot.items.filter(active);
+  // A missing isActive flag is not evidence of an active Pricing service or FTL type.
+  // Other legacy catalogues keep their existing semantics until their contracts change.
+  return snapshot.items.filter(item => requireExplicitActive ? item?.isActive === true : active(item));
 }
 const unique = (items, predicate) => items.filter(predicate);
 const missing = (errors, key) => {
@@ -113,7 +115,7 @@ export function resolveDholeQuoteCatalogIds(source, snapshots, now = Date.now())
   }
   if (f.shipmentType === 'FTL') {
     const trucks = freshItems(snapshots, 'truck-sizes', now, blockers);
-    const types = freshItems(snapshots, 'land-equipment-types', now, blockers);
+    const types = freshItems(snapshots, 'land-equipment-types', now, blockers, true);
     for (const line of f.equipment ?? []) {
       const key = 'FTL:' + String(line.size) + '|' + String(line.type);
       const candidates = unique(trucks ?? [],
@@ -140,7 +142,7 @@ export function resolveDholeQuoteCatalogIds(source, snapshots, now = Date.now())
   if (!Array.isArray(f.services) || f.services.length === 0) {
     missing(blockers, 'serviceIds: no hay servicios para mapear');
   } else {
-    const services = freshItems(snapshots, 'pricing-services', now, blockers);
+    const services = freshItems(snapshots, 'pricing-services', now, blockers, true);
     for (const name of f.services) {
       const code = SERVICE_CODES[name];
       if (!code) {
