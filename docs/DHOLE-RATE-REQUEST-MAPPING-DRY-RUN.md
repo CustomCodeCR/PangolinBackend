@@ -1,11 +1,11 @@
 # Dhole «Solicitar tarifa»: mapeo y prueba local sin envío
 
-> Análisis reproducible, **no** contrato público de escritura aprobado. Esta fase no solicita, publica, genera claves ni envía cotizaciones a Dhole. `main-2` no cambia.
+> Pruebas reproducibles y **simulación del payload INTERNO**. La API POST externa **sí existe en el Dhole oficial**, pero no hay clave de escritura autorizada ni adaptador plano probado. Esta fase no publica, genera claves ni envía cotizaciones; `main-2` no cambia. La evidencia oficial posterior se detalla en `docs/DHOLE-CATALOG-PRODUCTION-CROSSWALK-20261120.md`.
 
 ## Evidencia a 20 noviembre 2026
 
 - Capturas en API Manager del usuario: `GET /api/integrations/third-party/catalog` expone `pricing-rate-request-create` con `ready=true`, `method=POST` y `path=/api/pricing/rate-requests/`. El campo de catálogo `priority` es obligatorio; el catálogo permite `payload` completo o `payload.*` desglosado, nunca ambos a la vez.
-- `GET /api/integrations/third-party/endpoints` devolvió `[]`: no existe **contrato público publicado** en ese ambiente.
+- `GET /api/integrations/third-party/endpoints` devolvió `[]` en el **Dhole de pruebas**. En el **Dhole oficial** se confirmó el POST externo `/api/external/v1/solicitar-tarifa-wjicua4` publicado y habilitado. La clave de catálogos Pangolin tiene siete GET, pero **no tiene autorización para ese POST**.
 - `GET /api/integrations/third-party/status` devolvió `routesRegistered=true` y `storageReady=true`. Esto **no** implica autorización de nuestra API Key para escritura.
 - Código fuente de Dhole: `CustomCodeCR/DholeApiGateway/Dhole.ApiGateway/ThirdParty/ThirdPartyFieldCatalog.cs`, `ThirdPartyRateRequestFormCatalog.cs`, `ThirdPartyServiceIdentity.cs`, `ThirdPartyApiEndpoints.cs`. Internamente Pricing usa `CustomCodeCR/DholePricingService/src/Dhole.Pricing.Api/Endpoints/RateRequestEndpoints.cs`. El enum `RateRequestPriority` declara `Green`, `Yellow` y `Red`. Estos campos/modelos pueden cambiar; verificar contra despliegue activo.
 - El Gateway exige `Idempotency-Key` en POST, de 8 a 128 caracteres. La respuesta pública depende del `outputs` publicado; puede devolver el identificador con un nombre configurable, p. ej. `solicitudId`.
@@ -41,7 +41,7 @@ El módulo `scripts/dhole-rate-request-preview.mjs` es intencionalmente **puro y
 
 ## Bloqueos antes de conectar escritura (PR diferente)
 
-1. Publicación **explícita** del contrato para `pricing-rate-request-create`, revisión de campos públicos/defaults y vendedor institucional fijo; recién entonces puede otorgarse una API Key limitada. No reutilizar ciegamente la clave de catálogos.
+1. **Ya existe** el POST externo en Dhole oficial. Falta verificar al conectar el sender su lista de entradas publicada, defaults y outputs, y autorizar una API Key de escritura independiente. No reutilizar la clave de siete GET de Pangolin.
 2. Resolver con catálogos reales UUID de Incoterm, servicios y equipo, y verificar campos/números con Pricing. Confirmar `shipmentMode`, `priority`, tipos de tarifa, identidad comercial y contacto, formato de peso en líneas, POE/POD y cargo handling.
 3. Confirmar en sandbox que `Idempotency-Key` estable por cotización previene duplicados; cotejar identificador remoto por lectura después de timeouts.
 4. Probar autorización y rechazo con DB desechable en CI, incluyendo administrador sin `can_authorize`; mantener bandera de envío apagada, sin secretos en repositorio.
@@ -61,7 +61,7 @@ Resultado del análisis de código existente:
 - **FTL:** el catálogo `truck-sizes` proporciona UUID de **tamaño de furgón**, pero no prueba que sea el `containerTypeId` que Pricing espera en `landContainers`. **Nunca sustituir ese campo por el UUID del tamaño**. Queda bloqueado a la espera de confirmar su contrato/tipo de equipo en Pricing.
 - **Servicios:** los catálogos externos consultados no incluyen el catálogo de `serviceIds` de Pricing; los servicios de la web son etiquetas. Se requiere una operación **de solo lectura**, o una correspondencia revisada manualmente contra el catálogo vigente de Config/Pricing. No inventar UUID ni deducirlos a partir del nombre.
 - **Prioridad:** `Green/Yellow/Red` existe en el enum de Pricing, pero no se captura en la web. Debe definirse mediante aprobación/configuración administrativa; no usar una prioridad predeterminada sin autorización.
-- **Identidad comercial y endpoint público:** continuar bloqueados hasta revisar el contrato que se publique en el Gateway. La ruta interna `POST /api/pricing/rate-requests/` por sí sola no habilita consumidores externos.
+- **Identidad comercial y endpoint público:** el POST plano está publicado en el Dhole oficial, pero hay defaults fijos para cliente/ejecutivo y quedan pendientes las decisiones sobre datos de cliente y contacto. El simulador continúa construyendo el payload **anidado interno**, no un request externo validado.
 
 Este módulo **no crea** `serviceIds`, prioridad, usuario vendedor, URL pública ni API Key. Los bloqueos se muestran aunque resuelva todos los Incoterms, POD y equipos FCL.
 
@@ -80,7 +80,7 @@ En `CustomCodeCR/DholeWeb/src/modules/pricing/composables/usePricingCatalogs.ts`
 - `incoterms`: ya existe una API GET de catálogo para Castro Fallas.
 - `container-types` y `container-sizes`: ya existen API GET y permiten resolver una combinación FCL.
 - `land-equipment-sizes`: disponible como API de tamaños de furgón, **no** equivale a un UUID de tipo.
-- `land-equipment-types`: **existe como catálogo interno** y está contemplado por el Gateway bajo el target aprobado `config-catalog-trailer-types`, pero aún **no tenemos una API externa publicada ni datos consultados** para la integración.
+- `land-equipment-types`: el usuario compartió **16 registros activos del Dhole oficial** desde la consulta interna autenticada de Config. No se ha publicado una API GET externa para resolverlos automáticamente; el backend sigue con lookups desactivados.
 - `pricing-services`: **existe como catálogo interno** para `serviceIds`; no aparece en la lista fija de catálogos con identidad técnica automática en `Dhole.ApiGateway/ThirdParty/ThirdPartyServiceIdentity.cs`. Requiere evaluar una publicación de solo lectura con permisos explícitos, sin ampliar autorizaciones de escritura.
 
-Por tanto: **no es necesario inventar los tipos FTL ni los IDs de servicio**. Hay fuentes internas candidatas, pero primero hay que habilitar una ruta autorizada de consulta y verificar etiquetas/UUID reales antes de generar el mapa. En esta PR **no se publica ninguna de ellas** ni se modifica Dhole.
+Por tanto: **no es necesario inventar los tipos FTL ni los IDs de servicio**. Ya se verificaron 12 de los 13 códigos de servicio y 16 combinaciones FTL de la muestra oficial; falta obtenerlos de forma **vigente y autorizada** cuando se construya el sender real. `Transporte nacional` no tiene código equivalente confirmado y debe bloquearse, no sustituirse. En esta PR **no se publica ninguna API GET adicional** ni se modifica Dhole.
