@@ -1194,4 +1194,35 @@ for (const [key, es, en] of regionalFields) {
 assert.match(regionalHome, /<b>01<\/b>/, 'No cambiar la numeración del almacén fiscal')
 assert.match(regionalHome, /<b>02<\/b>/, 'No cambiar la numeración del transporte regional')
 
+// Fiscal and Panama home slots must be registered in all three layers:
+ // editor catalog -> CMS endpoint allowlist -> live Home consumer.
+const homeServiceSlots = [
+  'home.services.fiscal.title',
+  'home.services.fiscal.detail',
+  'home.services.fiscal.locationA257',
+  'home.services.fiscal.locationA287',
+  'home.services.fiscal.hazardous',
+  'home.services.fiscal.rotation',
+  'home.services.panama.title',
+  'home.services.panama.detail',
+  'home.services.panama.benefits.heading',
+  'home.services.panama.benefits.0',
+  'home.services.panama.benefits.1',
+  'home.services.panama.benefits.2'
+]
+for (const key of homeServiceSlots) {
+  assert.ok(regionalSlots.includes("['" + key + "',"), 'Campo ausente del editor visual: ' + key)
+  assert.ok(regionalCmsApi.includes('"' + key + '"'), 'El backend no permite guardar/publicar: ' + key)
+  assert.ok(regionalHome.includes("siteText('" + key + "'"), 'Inicio no consume el campo publicado: ' + key)
+}
+for (const service of ['fiscal', 'panama']) {
+  const key = 'home.services.' + service + '.media'
+  assert.ok(regionalSlots.includes("addMedia('home','Inicio','" + key + "'"),
+    'Imagen o video ausente del editor visual: ' + key)
+  assert.ok(regionalCmsApi.includes('"' + key + '"'),
+    'El backend no permite guardar/publicar el medio: ' + key)
+}
+assert.match(regionalHome, /siteVisual\(`home\.services\.\$\{service\.key\.toLowerCase\(\)\}\.media`/,
+  'Las tarjetas deben consumir la imagen publicada por el CMS')
+
 console.log('OK: SignalR, CMS, MinIO, news, itinerary and tracking contracts.')
