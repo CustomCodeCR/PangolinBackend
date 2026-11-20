@@ -153,10 +153,12 @@ const serviceInfo = computed(() => Object.fromEntries([ ...(['Maritime', 'Land',
         siteText('home.services.fiscal.rotation', locale.value.startsWith('es') ? 'Manejo de inventario de rotación.' : 'Rotating inventory management.', locale.value)
       ] }] }],
   ['Panama', { title: siteText('home.services.panama.title', locale.value.startsWith('es') ? 'Transporte Panamá–Costa Rica' : 'Panama–Costa Rica transport', locale.value),
-    sections: [{ heading: locale.value.startsWith('es') ? 'Beneficios' : 'Benefits',
-      items: [locale.value.startsWith('es') ? 'Somos pioneros con amplia experiencia en el transporte de mercancía de Panamá - Costa Rica.' : 'We are pioneers with extensive experience in freight transport between Panama and Costa Rica.',
-        locale.value.startsWith('es') ? 'Contamos con bodega propia en Zona Libre Colón.' : 'We have our own warehouse in the Colón Free Zone.',
-        locale.value.startsWith('es') ? 'Ofrecemos salidas diarias con un tiempo de tránsito de 26 horas.' : 'We offer daily departures with a transit time of 26 hours.'] }] }]
+    sections: [{ heading: siteText('home.services.panama.benefits.heading', locale.value.startsWith('es') ? 'Beneficios' : 'Benefits', locale.value),
+      items: [
+        siteText('home.services.panama.benefits.0', locale.value.startsWith('es') ? 'Somos pioneros con amplia experiencia en el transporte de mercancía de Panamá - Costa Rica.' : 'We are pioneers with extensive experience in freight transport between Panama and Costa Rica.', locale.value),
+        siteText('home.services.panama.benefits.1', locale.value.startsWith('es') ? 'Contamos con bodega propia en Zona Libre Colón.' : 'We have our own warehouse in the Colón Free Zone.', locale.value),
+        siteText('home.services.panama.benefits.2', locale.value.startsWith('es') ? 'Ofrecemos salidas diarias con un tiempo de tránsito de 26 horas.' : 'We offer daily departures with a transit time of 26 hours.', locale.value)
+      ] }] }]
  ]) as Record<HomeServiceKey, { title: string; sections: { heading: string; items: string[] }[] }>)
 const expandedFaq = ref<number | null>(0)
 const faqListRef = ref<HTMLElement | null>(null)
