@@ -72,3 +72,15 @@ node --test scripts/tests/dhole-rate-request-preview.test.mjs scripts/tests/dhol
 ```
 
 No afecta el backend en ejecución ni agrega conexiones externas.
+
+## Investigación de catálogos internos existentes en Dhole
+
+En `CustomCodeCR/DholeWeb/src/modules/pricing/composables/usePricingCatalogs.ts` se verificó que **Pricing consume estos grupos de Config**:
+
+- `incoterms`: ya existe una API GET de catálogo para Castro Fallas.
+- `container-types` y `container-sizes`: ya existen API GET y permiten resolver una combinación FCL.
+- `land-equipment-sizes`: disponible como API de tamaños de furgón, **no** equivale a un UUID de tipo.
+- `land-equipment-types`: **existe como catálogo interno** y está contemplado por el Gateway bajo el target aprobado `config-catalog-trailer-types`, pero aún **no tenemos una API externa publicada ni datos consultados** para la integración.
+- `pricing-services`: **existe como catálogo interno** para `serviceIds`; no aparece en la lista fija de catálogos con identidad técnica automática en `Dhole.ApiGateway/ThirdParty/ThirdPartyServiceIdentity.cs`. Requiere evaluar una publicación de solo lectura con permisos explícitos, sin ampliar autorizaciones de escritura.
+
+Por tanto: **no es necesario inventar los tipos FTL ni los IDs de servicio**. Hay fuentes internas candidatas, pero primero hay que habilitar una ruta autorizada de consulta y verificar etiquetas/UUID reales antes de generar el mapa. En esta PR **no se publica ninguna de ellas** ni se modifica Dhole.
