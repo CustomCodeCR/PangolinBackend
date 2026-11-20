@@ -122,7 +122,7 @@ foreach (var scenario in fixtureDocument.RootElement.EnumerateArray())
     var body = scenario.GetProperty("body");
     Check(body.GetProperty("priority").GetString() == "Green", "Priority preserved");
     var description = body.GetProperty("form_cargoDescription").GetString()!;
-    Check(description.StartsWith("Repuestos automotrices simulados\\n\\n", StringComparison.Ordinal) &&
+    Check(description.StartsWith("Repuestos automotrices simulados\n\n", StringComparison.Ordinal) &&
           description.Contains("Nombre: Persona ficticia", StringComparison.Ordinal) &&
           description.Contains("Correo: prueba@example.invalid", StringComparison.Ordinal) &&
           description.Contains("Teléfono: +506 0000-0000", StringComparison.Ordinal),
@@ -131,10 +131,10 @@ foreach (var scenario in fixtureDocument.RootElement.EnumerateArray())
         "form_clientId", "form_clientName", "form_executiveId", "form_executiveName" })
         Check(!body.TryGetProperty(forbidden, out _), "No company/executive override: " + forbidden);
     var mode = body.GetProperty("shipmentMode").GetString()!;
-    Check(mode == scenarioName switch {
+    Check(mode == (scenarioName switch {
         "FCL" => "Fcl", "LCL" => "Lcl", "AIR_LCL" => "Air",
         "FTL" => "Ftl", "LTL" => "Ltl", _ => "not-a-mode"
-    }, "Expected external shipment mode");
+    }), "Expected external shipment mode");
     Check((mode is "Fcl" or "Lcl") == body.TryGetProperty("form_podId", out _),
         "POD only when maritime");
     var equipmentField = mode == "Fcl" ? "form_fclContainers" : "form_landContainers";
