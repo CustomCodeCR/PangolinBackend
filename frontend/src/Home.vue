@@ -732,6 +732,17 @@ onUnmounted(() => {
 .service-modal__route { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: 0 0 auto; margin-left: auto; padding: 9px 15px; border: 1.5px solid #e58d9c; border-radius: 999px; color: #b00929; font-size: .86em; font-weight: 700; text-decoration: none; white-space: nowrap; background: rgba(255,225,232,.72); transition: background .2s ease, border-color .2s ease; }
 .service-modal__route-icon { width: 19px; height: 19px; flex: none; }
 .service-modal__route:hover, .service-modal__route:focus-visible { background: rgba(255,211,222,.94); border-color: #b00929; }
+/* Dark mode: match the other translucent dark modal elements, not the light pink pill. */
+:global(html.theme-dark) .service-modal__route {
+  background: rgba(33,27,32,.78) !important;
+  border-color: rgba(255,255,255,.22);
+  color: #f5f7fb !important;
+}
+:global(html.theme-dark) .service-modal__route:hover,
+:global(html.theme-dark) .service-modal__route:focus-visible {
+  background: rgba(55,35,45,.9) !important;
+  border-color: rgba(255,255,255,.42);
+}
 @media (max-width: 700px) { .service-modal__warehouse { align-items: flex-start; flex-wrap: wrap; gap: 12px; } .service-modal__warehouse-panel { flex: 1 1 100%; gap: 10px; } .service-modal__warehouse-icon { width: 26px; height: 26px; flex-basis: 26px; } .service-modal__route { margin-left: auto; } }
 
 .home-news-empty { padding: 24px 16px; margin: 0; color: #5d6270; font-size: 14px; line-height: 1.5; }
