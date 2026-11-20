@@ -26,6 +26,15 @@ services:
       # Dynamics is opt-in on the production host and never exposes its API key to Vite/browser.
       DholeTracking__Enabled: "${PANGOLIN_DHOLE_TRACKING_ENABLED:-false}"
       DholeTracking__ApiKey: "${PANGOLIN_DHOLE_TRACKING_API_KEY:-}"
+      # Dhole quote/catalog APIs use a separate key from tracking. Defaults are
+      # opt-out so an image deployment cannot silently change quote submissions.
+      DholeCatalogs__Enabled: "${PANGOLIN_DHOLE_CATALOGS_ENABLED:-false}"
+      DholeCatalogs__ApiKey: "${PANGOLIN_DHOLE_CATALOGS_API_KEY:-}"
+      # Both form and submission must be true AFTER validating all five modes.
+      DholeCatalogs__FormEnabled: "${PANGOLIN_DHOLE_CATALOGS_FORM_ENABLED:-false}"
+      DholeCatalogs__SubmissionEnabled: "${PANGOLIN_DHOLE_CATALOGS_SUBMISSION_ENABLED:-false}"
+      # Independent opt-in for itinerary port suggestions (not tracking).
+      DholeCatalogs__ItinerariesEnabled: "${PANGOLIN_DHOLE_CATALOGS_ITINERARIES_ENABLED:-false}"
       # Optional verified proxy hops for public-read and auth quotas.
       # Empty by default: do not trust X-Forwarded-For until the real production
       # chain and stable proxy identities are confirmed. Never use a Docker subnet.
