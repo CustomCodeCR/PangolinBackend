@@ -7,10 +7,10 @@ import { refreshSession } from '../services/auth'
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 const emit = defineEmits<{ (event: 'total-change', total: number): void }>()
 type Row = { id:string;customerName:string;mode:string;shipmentType:string;originName:string;destinationName:string;status:string;authorization:string;createdAtUtc:string }
-type Detail = {id:string;customerName:string;mode:string;shipmentType:string;status:string;authorization:string;createdAtUtc:string;form:Record<string,unknown>;history:{action:string;comment:string|null;createdAtUtc:string}[]}
+type Detail = {id:string;customerName:string;mode:string;shipmentType:string;status:string;authorization:string;dholeDispatchState:string;createdAtUtc:string;form:Record<string,unknown>;history:{action:string;comment:string|null;createdAtUtc:string}[]}
 const rows=ref<Row[]>([])
 const detail=ref<Detail|null>(null)
-const permissions=ref({canView:false,canManage:false,canAuthorize:false})
+const permissions=ref({canView:false,canManage:false,canAuthorize:false,dholeApprovalQueueEnabled:false})
 const state=ref('Received')
 const comment=ref('')
 const busy=ref(false)
@@ -39,7 +39,9 @@ async function review(){if(!detail.value||busy.value)return;busy.value=true;erro
 }catch(e){error.value=msg(e)}finally{busy.value=false}}
 async function decide(choice:'Authorized'|'Rejected'){if(!detail.value||busy.value)return;busy.value=true;error.value='';notice.value='';try{
   await api('/api/admin/quotes/official/'+detail.value.id+'/authorization?decision='+choice,{method:'PUT'})
-  notice.value=choice==='Authorized'?'Autorizada internamente. No se ha enviado a Dhole.':'Autorización rechazada.'
+  notice.value=choice==='Authorized'
+    ? (permissions.value.dholeApprovalQueueEnabled ? 'Autorizada y registrada para integración. Todavía no enviada a Dhole.' : 'Autorizada internamente. No se ha enviado a Dhole.')
+    : 'Autorización rechazada.'
   const id=detail.value.id;await load();await open(id)
 }catch(e){error.value=msg(e)}finally{busy.value=false}}
 onMounted(async()=>{const user=await refreshSession();if(user?.role!=='administrador'){error.value='Requiere sesión de administrador.';return}
@@ -59,6 +61,12 @@ const statusNames: Record<string, string> = {
 }
 const decisionNames: Record<string, string> = {
   Pending: 'Pendiente', Authorized: 'Autorizada', Rejected: 'Rechazada'
+}
+const dispatchNames: Record<string, string> = {
+  Disabled: 'Integración de envío no habilitada', NotStaged: 'Sin registro de envío',
+  AwaitingConnector: 'Aprobada; pendiente de integración con Dhole',
+  Pending: 'Pendiente de transmisión', Sending: 'En proceso de envío',
+  Sent: 'Confirmada por Dhole', Failed: 'Envío fallido'
 }
 const fieldNames: Record<string, string> = {
   mode:'Modalidad', shipmentType:'Tipo de embarque', originLocationId:'Origen (referencia)', destinationLocationId:'Destino (referencia)',
@@ -157,6 +165,11 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
               <span class="off-admin-approval">{{decisionNames[detail.authorization] ?? detail.authorization}}</span>
               <span class="off-admin-muted">{{displayDate(detail.createdAtUtc)}}</span>
             </div>
+            <section class="off-admin-auth" aria-label="Estado de integración con Dhole">
+              <h3>Estado de Dhole</h3>
+              <p>{{dispatchNames[detail.dholeDispatchState] ?? 'Estado de envío no disponible'}}</p>
+              <p v-if="detail.dholeDispatchState === 'AwaitingConnector'">Se registró la aprobación en Castro Fallas. Todavía no se ha realizado ningún envío externo.</p>
+            </section>
             <h3>Información de la solicitud</h3>
             <dl class="off-admin-data">
               <div v-for="(value,key) in detail.form" :key="String(key)">
@@ -178,7 +191,9 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
             </form>
             <section v-if="permissions.canAuthorize && detail.authorization==='Pending'" class="off-admin-auth">
               <h3>Autorización especial</h3>
-              <p>Autorizar no envía la solicitud a Dhole.</p>
+              <p>{{ permissions.dholeApprovalQueueEnabled
+                ? 'Autorizar crea un registro local pendiente de integración. Todavía no envía a Dhole.'
+                : 'Autorizar no envía la solicitud a Dhole.' }}</p>
               <div class="off-admin-actions">
                 <button type="button" class="off-admin-primary" :disabled="busy" @click="decide('Authorized')">Autorizar para Dhole</button>
                 <button type="button" class="off-admin-button" :disabled="busy" @click="decide('Rejected')">Rechazar</button>
