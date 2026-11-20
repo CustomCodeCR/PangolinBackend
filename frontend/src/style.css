@@ -6074,3 +6074,15 @@ html.theme-dark .app-site.home-page .service-modal a.service-modal__route:focus-
   background: rgba(52, 31, 43, .93) !important;
   border-color: #ff526e !important;
 }
+
+/* Make the Panama warehouse label and target icon match the Benefits heading.
+   The site-wide dark-theme text rule otherwise overrides their inherited colors. */
+html.theme-dark .app-site.home-page .service-modal .service-modal__warehouse-copy strong,
+html.theme-dark .app-site.home-page .service-modal svg.service-modal__warehouse-icon,
+html.theme-dark .app-site.home-page .service-modal svg.service-modal__warehouse-icon * {
+  color: #ff526e !important;
+}
+html.theme-dark .app-site.home-page .service-modal svg.service-modal__warehouse-icon,
+html.theme-dark .app-site.home-page .service-modal svg.service-modal__warehouse-icon * {
+  stroke: #ff526e !important;
+}
