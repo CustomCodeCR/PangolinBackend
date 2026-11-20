@@ -5956,7 +5956,7 @@ html.theme-dark .login-screen .login-auth-card .login-auth-sending {
    Below full desktop, the news rail moves underneath so the six service
    tabs cannot squeeze the active description into an unreadable strip.
    The mobile (<=800px) accordion is intentionally untouched. */
-@media (min-width:801px) and (max-width:1550px) {
+@media (min-width:801px) and (max-width:1100px) {
   .app-site.home-page #servicios .services-news-layout {
     grid-template-columns:minmax(0,1fr);
     gap:26px;
@@ -6002,5 +6002,31 @@ html.theme-dark .login-screen .login-auth-card .login-auth-sending {
   .app-site.home-page #servicios .service-accordion__copy .btn {
     min-height:40px;
     padding:9px 14px;
+  }
+}
+
+
+/* Laptop Home: retain the desktop services + news side-by-side composition
+   above the true stacked-layout breakpoint. The 801–1100px stacked view
+   and <=800px mobile accordion keep their existing behavior. */
+@media (min-width:1101px) and (max-width:1550px) {
+  .app-site.home-page #servicios .services-news-layout {
+    grid-template-columns:minmax(0,1fr) minmax(215px,clamp(215px,19vw,280px));
+    gap:clamp(16px,2vw,30px);
+    align-items:stretch !important;
+  }
+  .app-site.home-page #servicios .services-main { min-width:0; }
+  .app-site.home-page #servicios .home-news-sidebar {
+    min-width:0;
+    height:auto;
+    align-self:stretch;
+  }
+  .app-site.home-page #servicios .home-news-sidebar__list {
+    min-height:0;
+    flex:1 1 auto;
+  }
+  .app-site.home-page #servicios .service-accordion {
+    height:clamp(455px,38vw,500px);
+    min-height:clamp(455px,38vw,500px);
   }
 }
