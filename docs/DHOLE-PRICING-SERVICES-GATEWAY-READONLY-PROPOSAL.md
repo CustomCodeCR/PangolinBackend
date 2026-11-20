@@ -21,6 +21,14 @@
 3. En `ThirdPartyFieldCatalog.Outputs`, tratar `config-catalog-pricing-services` **antes** de la rama genérica `config-catalog-*` y permitir exclusivamente `id`, `code`, `name` y `value`; no permitir `metadata`, `metadataJson` ni campos comerciales internos. `Inputs` vacío; sin filtros/IDs del consumidor.
 4. Mantener desactivada la bandera y no publicar el endpoint hasta revisar la PR de Gateway, pruebas de auth/Config y legitimidad de los datos seleccionados. El usuario debe aprobar por separado cualquier publicación en el API Manager o entrega de API Key.
 
+## Vigencia de los elementos: bloqueo adicional detectado
+
+El normalizador de BackendJJ descarta `isActive: false` **cuando ese campo llega en la respuesta**; si no llega, no puede demostrar que el elemento siga activo. Por tanto, limitar el GET a `id/code/name/value` sin una garantía explícita sobre vigencia **no basta para autorizar el mapeo de UUID**.
+
+Antes de publicar o activar esta consulta, el dueño de Dhole debe escoger y verificar una solución de mínimo privilegio: que el Gateway filtre estrictamente los elementos activos en el servidor y se pruebe el filtro, o que publique además `isActive` (sin metadatos privados) y que BackendJJ exija explícitamente `true` para servicios y tipos de equipo. **No inferir actividad de un campo ausente**. Para los tipos FTL también hay que verificar tamaño y clase de equipo sin publicar `metadataJson` opaco.
+
+Este requisito sigue **pendiente**: no se modificó el Gateway, no se publicó ningún GET y no existe autorización de POST.
+
 ## Pruebas de Gateway a exigir
 
 - Con bandera apagada, `IsReady=false` y `GetCredential=null`, **incluso con token explícito configurado**.
