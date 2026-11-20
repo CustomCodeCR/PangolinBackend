@@ -155,7 +155,9 @@ export function resolveDholeQuoteCatalogIds(source, snapshots, now = Date.now())
     }
   }
   missing(blockers, 'priority: debe elegirla un administrador autorizado');
-  missing(blockers, 'externalContract: POST público y sus campos todavía no publicados');
+  // A published POST exists, but this resolver creates only internal preview
+  // lookups, not an allowlisted flat external request.
+  missing(blockers, 'externalContract: falta validar transformación al POST público plano');
 
   return { lookup, blockers };
 }
