@@ -14,6 +14,24 @@ const FTL_KINDS = new Map([
   ['Furgón con cortina', { kind: 'curtain-side', code: 'CURTAIN_SIDE' }],
 ]);
 const FTL_SIZES = new Set(['24', '26', '48', '53']);
+// Stable Config/Pricing service codes verified against the official catalog.
+// Do not commit production UUIDs: each preview must resolve an active, unique
+// UUID from a fresh catalog snapshot. "Transporte nacional" has no verified
+// Pricing service code and must remain blocked, not remapped to delivery/pickup.
+const SERVICE_CODES = Object.freeze({
+  'Transporte internacional': 'INT_TRANSPORT',
+  'Agencia de Aduanas CR': 'CUSTOMS_CR',
+  'Agencia de Aduanas Exterior': 'CUSTOMS_FOREIGN',
+  'Almacenamiento': 'STORAGE',
+  'Control de inventario': 'INVENTORY_CONTROL',
+  'Embalaje': 'PACKING',
+  'Exoneración': 'EXONERATION',
+  'Picking Carga': 'PICKING',
+  'Recepción de carga': 'RECEPTION',
+  'Seguro de carga': 'CARGO_INSURANCE',
+  'Transporte entrega': 'DELIVERY',
+  'Transporte recolección': 'PICKUP',
+});
 const FRESH_FOR_MS = 5 * 60 * 1000;
 const idValid = (id) => typeof id === 'string' &&
   UUID.test(id) && id !== '00000000-0000-0000-0000-000000000000';
@@ -124,10 +142,15 @@ export function resolveDholeQuoteCatalogIds(source, snapshots, now = Date.now())
   } else {
     const services = freshItems(snapshots, 'pricing-services', now, blockers);
     for (const name of f.services) {
+      const code = SERVICE_CODES[name];
+      if (!code) {
+        missing(blockers, 'serviceId:' + name + ': sin código confirmado en Pricing');
+        continue;
+      }
       const matches = unique(services ?? [], x =>
-        idValid(x?.id) && (x.name === name || x.value === name));
+        idValid(x?.id) && x.code === code);
       if (matches.length !== 1) {
-        missing(blockers, 'serviceId:' + name + ': sin UUID inequívoco autorizado');
+        missing(blockers, 'serviceId:' + name + ': código no vigente o UUID ambiguo');
       } else lookup.serviceIds[name] = matches[0].id;
     }
   }
