@@ -71,6 +71,21 @@ node --test scripts/tests/dhole-public-rate-request-preview.test.mjs scripts/tes
 
 Los tests cubren las cinco modalidades, 103 entradas publicadas, los defaults bloqueados, arrays y pesos, UUID incorrectos, referencias, no filtración de datos personales e idempotencia. Los resultados de CI se confirman en PR #274, **no suponer éxito sin ver el último commit**.
 
+## Identidad comercial y contacto — revisión local sin envío (20-11-2026)
+
+Se verificó en `backend/Endpoints/OfficialQuoteEndpoints.cs` y `backend/Models/OfficialQuoteModels.cs`:
+
+- Una cotización **autenticada** toma `CustomerName` de `user.NombreCliente`, y guarda `ClienteId`/`UsuarioId` cuando están presentes.
+- En una cotización de **visitante sin sesión**, `CustomerName` se inicializa con `ContactName` porque no hay identidad de empresa autenticada. **Este texto NO verifica el cliente comercial** de Pricing ni debe convertirse en `clientName` externo sin una regla confirmada.
+- En ambos casos se guardan separadamente `ContactName`, `ContactEmail` y `ContactPhone` en Castro Fallas; el formulario original queda también en `FormJson`. El administrador autorizado puede consultar el detalle local. Esto no da automáticamente permiso para exponer los contactos a Dhole.
+- En el contrato POST externo publicado, `clientName=CLIENTE GENERICO` y `executiveName=Castro Fallas` son *defaults de servidor*. El adaptador plano no los sobrescribe ni emite identificadores de cliente/ejecutivo, nombres de contacto, correos, teléfonos o referencias comerciales inventadas. **No inferir que Dhole ya puede recuperar los contactos desde estos defaults.**
+- La salida `readyForSending=false` y el bloqueo `commercialIdentity:` permanecen obligatorios hasta que el responsable de Dhole indique cómo identificar a la empresa, cómo consultar de forma autorizada sus contactos, y cómo verificar la correspondencia sin exponer información innecesaria.
+- **Precisión de privacidad:** la exclusión de campos dedicados de contacto no garantiza que el JSON esté libre de datos personales: `cargoDescription`, observaciones, direcciones de recolección/entrega u otros textos aportados por usuarios pueden incluirlos. Revisar propósito, minimización y acceso antes de habilitar envíos externos.
+
+Se agregaron tests offline que comparan un visitante (nombre de contacto usado localmente como `CustomerName`) y una empresa registrada con contactos distintos. Cambiar esos valores **no altera el cuerpo plano** preparado para revisión; los defaults del proveedor se mantienen intactos y la función sigue bloqueada. La prueba no transmite tráfico ni valida el tratamiento remoto.
+
+**Decisión todavía pendiente:** el equipo comercial y el responsable de Dhole deben acordar la forma de identificar clientes reales y consultar contactos; no se asume un campo externo nuevo, un enlace automático por nombre ni acceso desde Dhole a la base de datos de Castro Fallas.
+
 ## Pendientes que bloquean el POST
 
 1. Confirmar con el dueño de Dhole el tratamiento del cliente comercial y cómo accederá Pricing a nombre, correo y teléfono, sin sobrescribir los defaults publicados.
