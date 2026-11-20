@@ -119,8 +119,8 @@ function checkedCargo(items) {
 }
 const REVIEW_BLOCKERS = Object.freeze([
   'commercialIdentity: validar en Dhole que el contacto se muestre en descripción y que CLIENTE GENERICO/Castro Fallas sigan fijos',
-  'catalogFreshness: validar UUID en catálogos vigentes con lecturas autorizadas antes de cualquier POST',
-  'apiPermission: clave separada autorizada para Solicitar tarifa todavía no disponible',
+  'catalogFreshness: validar UUID vigentes antes de POST real; para prueba controlada cabe verificación manual autorizada sin nuevos GET',
+  'apiPermission: Pangolin vinculada al POST según usuario; verificar permiso efectivo y secreto privado antes de prueba autorizada',
   'providerResponse: salida opcional value; no asumir identificador ni confirmación remota sin prueba controlada',
 ]);
 
