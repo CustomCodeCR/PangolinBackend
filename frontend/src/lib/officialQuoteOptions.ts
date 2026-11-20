@@ -31,6 +31,9 @@ export function officialServiceName(value: string, tr: QuoteTranslate): string {
 }
 
 
+export function officialEquipmentTypeLabel(value: string, tr: QuoteTranslate): string {
+  return officialEquipmentTypeOptions('FTL', tr).find(item => item.value === value)?.label ?? value
+}
 
 export function officialEquipmentSizeOptions(type: string, tr: QuoteTranslate): QuoteChoice[] {
   if (type === 'FCL') return ['20','40','45','48'].map(n => ({
@@ -40,7 +43,7 @@ export function officialEquipmentSizeOptions(type: string, tr: QuoteTranslate): 
   if (type === 'FTL') return [
     {value:'24 pies / 5 TON',label:'24 ' + tr('pies','ft') + ' / 5 TON'},
     {value:'26 pies / 7 TON',label:'26 ' + tr('pies','ft') + ' / 7 TON'},
-    {value:'40 pies',label:'40 ' + tr('pies','ft')},
+    {value:'48 pies',label:'48 ' + tr('pies','ft')},
     {value:'53 pies',label:'53 ' + tr('pies','ft')}
   ]
   return []
@@ -49,6 +52,11 @@ export function officialEquipmentSizeOptions(type: string, tr: QuoteTranslate): 
 export function officialEquipmentTypeOptions(type: string, tr: QuoteTranslate): QuoteChoice[] {
   if (type === 'FCL') return ['Dry Van','High Cube','Open Top','Open Side','Tank','Flat Rack','NOR']
     .map(value => ({value,label:value}))
-  if (type === 'FTL') return [{value:'Furgón',label:tr('Furgón','Truck')}]
+  if (type === 'FTL') return [
+    {value:'Furgón seco',label:tr('Furgón seco','Dry van')},
+    {value:'Plataforma / Carreta',label:tr('Plataforma / Carreta','Platform / Flatbed')},
+    {value:'Refrigerado',label:tr('Refrigerado','Refrigerated')},
+    {value:'Furgón con cortina',label:tr('Furgón con cortina','Curtainsider')}
+  ]
   return []
 }
