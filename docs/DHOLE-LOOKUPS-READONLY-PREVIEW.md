@@ -13,7 +13,7 @@ Fuentes internas: `DholeApiGateway/ThirdParty/ThirdPartyServiceIdentity.cs` cont
 
 Requieren rol de administrador. Con `DholeLookups:Enabled=false` (predeterminado), responden 404. Si se activa sin disponer de clave propia y ruta externa publicada responden 503. No hay POST, proceso automático ni persistencia de UUID.
 
-La configuración de servidor acepta únicamente dos rutas relativas con forma `api/external/v1/<slug>` y una clave distinta `DholeLookups:ApiKey`. La conexión usa host fijo HTTPS, redirecciones y cookies deshabilitadas, timeout de 10 s, respuesta máxima 2 MiB y salida normalizada. No se reenvía JSON opaco a visitantes ni se toma una URL del navegador.
+La configuración de servidor acepta únicamente dos rutas relativas con forma `api/external/v1/<slug>` y una clave distinta `DholeLookups:ApiKey`. La conexión usa host fijo HTTPS, redirecciones y cookies deshabilitadas, timeout de 10 s, respuesta máxima 2 MiB y salida normalizada. La proyección privada conserva `isActive` si la fuente lo publica, pero el resolvedor offline exige `isActive=true` para servicios de Pricing y tipos FTL; si está ausente o no puede verificarse, no permite resolver el UUID. Esto requiere que el futuro Gateway exponga ese dato de forma segura y confirme la compatibilidad de tamaño y tipo FTL. No se reenvía JSON opaco a visitantes ni se toma una URL del navegador.
 
 ## Activación futura, NO autorizada todavía
 Se requiere publicar explícitamente y verificar las dos APIs externas GET en Dhole, determinar campos y permisos, y entregar una clave de mínimo privilegio distinta a la de catálogos existentes. La publicación de `pricing-services` requiere una revisión aparte del Gateway: todavía no tiene identidad técnica automática.
