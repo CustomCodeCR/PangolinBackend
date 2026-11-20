@@ -267,25 +267,28 @@ internal static class DholeQuoteHttpTest
             request.Headers.Add("X-CI-Test-Actor", role);
             return await client.SendAsync(request);
         }
-        async Task<HttpResponseMessage> Decide(Guid id, string decision, string role = "authorizer") =>
+        async Task<HttpResponseMessage> Decide(Guid id, string decision,
+            string role = "authorizer", string? priority = null) =>
             await AdminRequest(HttpMethod.Put,
-                $"/api/admin/quotes/official/{id}/authorization?decision={decision}", role);
+                $"/api/admin/quotes/official/{id}/authorization?decision={decision}" +
+                (priority is null ? "" : "&priority=" + Uri.EscapeDataString(priority)), role);
         async Task<HttpResponseMessage> Details(Guid id, string role = "authorizer") =>
             await AdminRequest(HttpMethod.Get, $"/api/admin/quotes/official/{id}", role);
-        async Task<(long count, string state, int attempts)> Outbox(Guid id)
+        async Task<(long count, string state, int attempts, string priority)> Outbox(Guid id)
         {
             await using var conn = new NpgsqlConnection(connectionString);
             await conn.OpenAsync();
             await using var cmd = new NpgsqlCommand("""
                 SELECT COUNT(*)::bigint,
                        COALESCE(MAX(state), 'NotStaged'),
-                       COALESCE(MAX(attempt_count), 0)
+                       COALESCE(MAX(attempt_count), 0),
+                       COALESCE(MAX(priority), '')
                 FROM public.official_quote_dhole_outbox WHERE quote_id = @id
                 """, conn);
             cmd.Parameters.AddWithValue("id", id);
             await using var reader = await cmd.ExecuteReaderAsync();
             Assert(await reader.ReadAsync(), "Outbox aggregate query returns one row");
-            return (reader.GetInt64(0), reader.GetString(1), reader.GetInt32(2));
+            return (reader.GetInt64(0), reader.GetString(1), reader.GetInt32(2), reader.GetString(3));
         }
         async Task<long> AuditCount(Guid id, string action)
         {
@@ -318,6 +321,11 @@ internal static class DholeQuoteHttpTest
         using (var badDecision = await Decide(createdId, "Sent"))
             Assert(badDecision.StatusCode == HttpStatusCode.BadRequest,
                 "Cannot set remote status using authorization endpoint");
+        using (var badPriority = await Decide(createdId, "Authorized", priority: "Urgent"))
+            Assert(badPriority.StatusCode == HttpStatusCode.BadRequest,
+                "Unrecognized priority cannot stage a quote");
+        Assert((await Outbox(createdId)).count == 0,
+            "Invalid priority never stages the quote");
 
         // Independent rejected quote: never enters integration outbox.
         using var rejectedResponse = await Submit(quote);
@@ -344,8 +352,9 @@ internal static class DholeQuoteHttpTest
                 "Approval returns local staging state, not Sent");
         }
         var stage = await Outbox(createdId);
-        Assert(stage.count == 1 && stage.state == "AwaitingConnector" && stage.attempts == 0,
-            "Approved quote creates exactly one local outbox record, zero attempts");
+        Assert(stage.count == 1 && stage.state == "AwaitingConnector" &&
+            stage.attempts == 0 && stage.priority == "Green",
+            "Default approval creates one local Green outbox row, zero attempts");
         Assert(await AuditCount(createdId, "Authorized") == 1 &&
             await AuditCount(createdId, "DholeStaged") == 1,
             "Approval and local staging each audited once");
@@ -355,12 +364,35 @@ internal static class DholeQuoteHttpTest
             using var json = JsonDocument.Parse(await details.Content.ReadAsStringAsync());
             Assert(json.RootElement.GetProperty("dholeDispatchState").GetString() == "AwaitingConnector",
                 "Admin details show local stage without pretending a send");
+            Assert(json.RootElement.GetProperty("dholePriority").GetString() == "Green",
+                "Default stage priority is visible in admin details");
         }
         using (var again = await Decide(createdId, "Authorized"))
             Assert(again.StatusCode == HttpStatusCode.Conflict,
                 "Same approval cannot be repeated");
         Assert((await Outbox(createdId)).count == 1,
             "Duplicate request does not create a second outbox row");
+
+        // Explicit priority overrides must be persisted only for authorized admins.
+        foreach (var priority in new[] { "Yellow", "Red" })
+        {
+            using var overrideResponse = await Submit(quote);
+            Assert(overrideResponse.StatusCode == HttpStatusCode.Created,
+                "Fictional quote created for override test");
+            using var overrideJson = JsonDocument.Parse(await overrideResponse.Content.ReadAsStringAsync());
+            var overrideId = overrideJson.RootElement.GetProperty("id").GetGuid();
+            using (var denied = await Decide(overrideId, "Authorized", "viewer", priority))
+                Assert(denied.StatusCode == HttpStatusCode.Forbidden,
+                    "Viewer cannot choose an urgency override");
+            Assert((await Outbox(overrideId)).count == 0,
+                "Unauthorized priority override never stages a row");
+            using (var allowed = await Decide(overrideId, "Authorized", priority: priority))
+                Assert(allowed.StatusCode == HttpStatusCode.OK,
+                    "Admin may stage a valid " + priority + " priority");
+            var overridden = await Outbox(overrideId);
+            Assert(overridden.count == 1 && overridden.priority == priority && overridden.attempts == 0,
+                "Authorized " + priority + " priority persists without external POST");
+        }
 
         // Simultaneous admin approvals must serialize on the quote row.
         using var simultaneousResponse = await Submit(quote);
@@ -383,6 +415,7 @@ internal static class DholeQuoteHttpTest
         Console.WriteLine("PASS: HTTP 201 + real isolated PostgreSQL row + external UUID persistence");
         Console.WriteLine("PASS: malformed roles, inactive Incoterm, invented equipment and local bypass rejected");
         Console.WriteLine("PASS: permission denied / rejected / approved / duplicate / concurrent approval");
+        Console.WriteLine("PASS: approved Green default, admin-only Yellow/Red priority persisted; zero external POST");
         Console.WriteLine("PASS: each approval stages exactly once; outbox attempts zero, no external POST");
         Console.WriteLine("PASS: all Dhole upstream traffic simulated; no real API, no mail, no production data");
     }
