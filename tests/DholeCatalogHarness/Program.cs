@@ -253,6 +253,38 @@ Check(pods.Options.Length == 3 && pods.Options.Any(x => x.Name == "Legacy POD") 
       pods.Issues.Single().Reason == "conflicting_route_role",
     "All active POD entries stay selectable regardless of modality or role anomalies");
 
+// Official POD Moin pattern is Maritime/SD, intentionally different from
+// the Limón/Moin Maritime/CY POE. All IDs below are synthetic test fixtures.
+var moinPodFromConfig = DholeCatalogNormalizer.Parse("""
+[
+  {
+    "id": "c7777777-7777-4777-8777-777777777777",
+    "catalogGroupSlug": "pod",
+    "code": "POD-2026-020",
+    "slug": "moin-costa-rica",
+    "name": "Moin, Costa Rica",
+    "value": "Moin, Costa Rica",
+    "isActive": true,
+    "metadataJson": "{\"routeRole\":\"POD\",\"countryCode\":\"CR\",\"terminalType\":\"SD\",\"transportMode\":\"Maritime\"}"
+  }
+]
+""");
+var moinPodProjected = DholeQuoteLocationProjector.Project("pod", "Maritime", moinPodFromConfig);
+Check(moinPodProjected.Options.Length == 1 &&
+      moinPodProjected.Options[0].Catalog == "pod" &&
+      moinPodProjected.Options[0].Role == "pod" &&
+      moinPodProjected.Options[0].Name == "Moin, Costa Rica" &&
+      moinPodProjected.Options[0].Code == "POD-2026-020" &&
+      moinPodProjected.Options[0].TerminalType == "SD" &&
+      moinPodProjected.Options[0].ExternalId == "c7777777-7777-4777-8777-777777777777" &&
+      moinPodProjected.Issues.Length == 0,
+    "Maritime/SD Moin POD is kept as its own POD, distinct from CY POE");
+Check(moinPodProjected.Options[0].ExternalId != limonMoinDestination.Options[0].ExternalId &&
+      moinPodProjected.Options[0].Code != limonMoinDestination.Options[0].Code &&
+      DholeQuoteLocationProjector.Project("destination", "Maritime", moinPodFromConfig)
+        .Options.Length == 0,
+    "Moin POD must not be silently substituted for Limón/Moin POE");
+
 try
 {
     DholeQuoteLocationProjector.Project("pod", "Air", podItems);
