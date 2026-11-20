@@ -102,6 +102,14 @@ public static class SiteCmsEndpoints
             "services.access.heading1", "services.access.heading2", "services.access.intro",
             "services.access.tracking", "services.access.quote"
         }) TextKeys.Add(field);
+        // Whitelisted bilingual labels for the Home infrastructure section.
+        foreach (var key in new[] {
+            "home.specialties.heading",
+            "home.specialties.fiscal.eyebrow", "home.specialties.fiscal.lead",
+            "home.specialties.fiscal.title",
+            "home.specialties.panama.eyebrow", "home.specialties.panama.lead",
+            "home.specialties.panama.title"
+        }) TextKeys.Add(key);
         for(var i=0;i<4;i++)
         {
             TextKeys.Add("home.stats." + i + ".label");
