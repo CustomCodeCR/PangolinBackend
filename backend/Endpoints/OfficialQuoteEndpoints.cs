@@ -21,7 +21,7 @@ public static class OfficialQuoteEndpoints
         "Transporte internacional", "Agencia de Aduanas CR", "Agencia de Aduanas Exterior",
         "Almacenamiento", "Control de inventario", "Embalaje", "Exoneración",
         "Picking Carga", "Recepción de carga", "Seguro de carga", "Transporte entrega",
-        "Transporte recolección", "Transporte nacional"
+        "Transporte recolección"
     };
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     // Usar el día calendario de Costa Rica, no UTC ni la zona horaria del servidor.
