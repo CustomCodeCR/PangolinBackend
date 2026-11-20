@@ -10,7 +10,7 @@ namespace CastroFallas.MiniQuote.Api.Services;
 // enables Pricing POST. An explicit published endpoint and an independently
 // scoped key are required for EACH catalogue.
 public sealed record DholeLookupItem(
-    string Id, string Code, string Name, string Value, string? Size, string? Kind);
+    string Id, string Code, string Name, string Value, bool? IsActive, string? Size, string? Kind);
 public sealed record DholeLookupResult(
     string Catalog, DateTimeOffset FetchedAtUtc, bool Stale, DholeLookupItem[] Items);
 
@@ -74,7 +74,7 @@ public sealed class DholeLookupCatalogService(
             // The selected fields are sufficient for offline matching; do NOT
             // forward opaque Pricing metadata, context, or upstream JSON.
             var safe = items.Select(x => new DholeLookupItem(
-                x.Id, x.Code, x.Name, x.Value, x.Size, x.Kind)).ToArray();
+                x.Id, x.Code, x.Name, x.Value, x.IsActive, x.Size, x.Kind)).ToArray();
             // This client has no stale-cache fallback: success means a fresh GET.
             return new DholeLookupResult(catalog, DateTimeOffset.UtcNow, false, safe);
         }
