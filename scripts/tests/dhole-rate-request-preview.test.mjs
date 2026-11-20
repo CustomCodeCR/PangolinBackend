@@ -28,6 +28,8 @@ function quote(mode = 'Maritime', shipmentType = 'FCL') {
     id: ids.quote,
     authorization: 'Authorized',
     customerName: 'Cliente ficticio CI',
+    contactName: 'Contacto CI', contactEmail: 'contacto@example.invalid',
+    contactPhone: '+506 2222-2222',
     originName: 'Origen ficticio',
     destinationName: 'Destino ficticio',
     form: {
