@@ -30,9 +30,25 @@ Los 12 códigos identificados son únicos y activos en la muestra oficial del 20
 | Transporte recolección | `PICKUP` | Distinto de entrega |
 | **Transporte nacional (retirado de nuevas cotizaciones)** | **No figura en el selector de Dhole** | **Decisión del 2026-11-20:** eliminarlo de las opciones del formulario y GIO y rechazarlo en nuevas solicitudes HTTP; no alterar cotizaciones históricas ni sustituirlo por otros servicios |
 
-El wizard y GIO ofrecen ahora solo los **12 servicios observados**. Las solicitudes históricas que ya incluyan «Transporte nacional» se conservan tal como fueron registradas; **no se aceptará esa selección en cotizaciones nuevas**. No se configura todavía una API de servicios Dhole ni se inventan UUID. La consulta de catálogo autorizada y vigente será necesaria para mapear los servicios en un envío futuro.
+El wizard y GIO ofrecen ahora solo los **12 servicios observados**. Las solicitudes históricas que ya incluyan «Transporte nacional» se conservan tal como fueron registradas; **no se aceptará esa selección en cotizaciones nuevas**. No se configura todavía una nueva API externa GET de servicios Dhole ni se inventan UUID. Para una prueba puntual podrá hacerse una verificación **manual reciente** de los UUID concretamente necesarios; para un envío automatizado estable hará falta una fuente de lectura autorizada y actualizable.
 
 **Regla de validación del mapeo offline:** cada código activo debe aparecer exactamente una vez y esa única fila debe tener UUID válido. Dos filas activas con el mismo código —aunque una contenga un UUID inválido o metadatos FTL contradictorios— bloquean la correspondencia completa de ese servicio o equipo. Los tests cubren catálogos duplicados, UUID inválidos y tamaños ambiguos. Esto sigue siendo una preparación sin GET publicado ni POST real.
+
+## Confirmación manual de los 12 UUID de Pricing (20/11/2026)
+
+El usuario aportó la respuesta **JSON del GET interno autenticado** que vio en Chrome DevTools en la pantalla oficial \`Config / Catálogos / Servicios de Pricing\`, ruta interna \`/api/config/catalog-items/by-group/pricing-services\` (respuesta con \`success=true\` y \`data[]\`). Esta ruta **no es** una nueva API externa GET de Dhole para BackendJJ.
+
+La respuesta muestra **12 entradas**, todas con \`catalogGroupSlug=pricing-services\`, \`catalogGroupCode=PRICING_SERVICES\`, \`isActive=true\`, 12 códigos distintos y 12 UUID distintos. Para el código \`INT_TRANSPORT\` se confirma que el UUID del **ítem de catálogo** (\`data[].id\`) es distinto del UUID listado en su \`metadataJson.rateTermItemIds\`. Solo \`data[].id\` puede mapearse a \`form_serviceIds\`. Los demás códigos también coinciden con la tabla de correspondencia anterior; no se detecta \`Transporte nacional\`.
+
+**No persistir los 12 UUID en el repositorio ni en constantes del backend:** esta evidencia demuestra el estado observado por el usuario en ese instante, no su vigencia indefinida. Para reproducir la comprobación, guardar **localmente y temporalmente** el contenido JSON de la pestaña Response (nunca Headers, tokens o credenciales) y ejecutar:
+
+\`\`\`sh
+node scripts/review-dhole-pricing-services-export.mjs /ruta/privada/pricing-services.json
+\`\`\`
+
+La herramienta **solo lee el archivo local**, exige la lista exacta de 12 servicios, estados activos, grupo correcto y UUID únicos; no consulta ni escribe en Dhole. Su salida de consola muestra únicamente códigos y UUID para **revisión humana**, con \`readyForRemotePost=false\`. Si los datos cambian, se rechaza o debe revisarse el nuevo contrato; no fuerza asociaciones por \`name\`, \`sortOrder\` ni por \`rateTermItemIds\`. Las pruebas automatizadas usan UUID exclusivamente ficticios.
+
+Para una **única** prueba controlada de POST posterior, sin esas dos APIs GET nuevas, se podrán verificar manualmente y en ese momento los identificadores realmente utilizados por la solicitud (servicio, Incoterm, ubicaciones, POD si marítima). Un export anterior no basta por sí solo para demostrar vigencia en la fecha del envío. El cliente HTTP permanece desactivado y sin ruta invocable.
 
 ## FTL: tipos y tamaños observados
 
