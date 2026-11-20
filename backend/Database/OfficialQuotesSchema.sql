@@ -91,20 +91,12 @@ CREATE TABLE IF NOT EXISTS public.official_quote_dhole_outbox (
     updated_at_utc TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 -- Idempotent upgrade for an outbox created before priority was introduced.
--- Apply while ApprovalQueueEnabled=false, after backing up the DB.
+-- Apply with ApprovalQueueEnabled=false and a DB backup.
+-- The column CHECK is created only when adding priority to a legacy table;
+-- a fresh table already has the identically named table-level constraint.
 ALTER TABLE public.official_quote_dhole_outbox
-    ADD COLUMN IF NOT EXISTS priority VARCHAR(6) NOT NULL DEFAULT 'Green';
-DO $
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint
-        WHERE conname = 'ck_official_quote_dhole_priority'
-          AND conrelid = 'public.official_quote_dhole_outbox'::regclass
-    ) THEN
-        ALTER TABLE public.official_quote_dhole_outbox
-            ADD CONSTRAINT ck_official_quote_dhole_priority
-            CHECK (priority IN ('Green','Yellow','Red'));
-    END IF;
-END $;
+    ADD COLUMN IF NOT EXISTS priority VARCHAR(6) NOT NULL DEFAULT 'Green'
+    CONSTRAINT ck_official_quote_dhole_priority
+    CHECK (priority IN ('Green','Yellow','Red'));
 CREATE INDEX IF NOT EXISTS ix_official_quote_dhole_outbox_state
     ON public.official_quote_dhole_outbox(state,created_at_utc);
