@@ -61,7 +61,7 @@ La API externa oficial publicada tiene **103 campos de entrada**, solamente `pri
 
 La instantánea normalizada de lectura, sin API Keys ni datos personales, está en `scripts/contracts/dhole-solicitar-tarifa-published-20261120.json`. El adaptador **sin ningún transporte HTTP** está en `scripts/dhole-public-rate-request-preview.mjs`. Parte de un preview local autorizado y validado, utiliza únicamente el mapa público `form_*`, `requestContext_*` y `sellerContext_*`, y verifica la estructura de las listas de contenedores y carga consolidada. Incluye los valores provisionales `form_rateType=Spot` y `form_modality=Maritime/Air/Land` según lo observado en el asistente interno de Dhole; **no se deben considerar aceptados por el POST hasta una prueba contractual controlada**. Mantiene los pesos de carga consolidada como peso **total por línea**, no como peso multiplicado por paquetes.
 
-La función **nunca** produce un envío listo: devuelve `readyForSending=false` y bloqueos explícitos de identidad comercial, autorización de clave POST, catálogos GET actualizados y respuesta real del proveedor. No emite `clientName`, `executiveName`, `sellerUserId`, `form_clientName`, nombres de contacto, correos, teléfonos ni campos fuera de la allowlist. Tampoco entrega host, encabezados ni transportador. La clave de idempotencia local es determinista a partir del UUID de la cotización, pero no ha sido validada contra un POST real de Dhole.
+La función **nunca** produce un envío listo: devuelve `readyForSending=false` y bloqueos explícitos de validación del uso del campo de descripción en Dhole, autorización de clave POST, catálogos GET actualizados y respuesta real del proveedor. No emite campos **independientes** `clientName`, `executiveName`, `sellerUserId`, `form_clientName`, `contactName`, `contactEmail`, `contactPhone` ni campos fuera de la allowlist; **los valores de nombre, correo y teléfono sí se incluyen deliberadamente dentro de `form_cargoDescription`**, según la decisión comercial documentada. Tampoco entrega host, encabezados ni transportador. La clave de idempotencia local es determinista a partir del UUID de la cotización, pero no ha sido validada contra un POST real de Dhole.
 
 Ejecutar las pruebas **sin Internet ni credenciales**:
 
@@ -84,11 +84,30 @@ Se verificó en `backend/Endpoints/OfficialQuoteEndpoints.cs` y `backend/Models/
 
 Se agregaron tests offline que comparan un visitante (nombre de contacto usado localmente como `CustomerName`) y una empresa registrada con contactos distintos. Cambiar esos valores **no altera el cuerpo plano** preparado para revisión; los defaults del proveedor se mantienen intactos y la función sigue bloqueada. La prueba no transmite tráfico ni valida el tratamiento remoto.
 
-**Decisión todavía pendiente:** el equipo comercial y el responsable de Dhole deben acordar la forma de identificar clientes reales y consultar contactos; no se asume un campo externo nuevo, un enlace automático por nombre ni acceso desde Dhole a la base de datos de Castro Fallas.
+**Decisión posterior, 20/11/2026:** el responsable de Dhole indicó conservar `CLIENTE GENERICO` y `Castro Fallas`, y usar la descripción para nombre, correo y teléfono del solicitante. No se asume un campo externo nuevo, enlace automático por nombre ni acceso directo desde Dhole a la base de datos de Castro Fallas.
+
+## Decisión confirmada con el responsable de Dhole: contacto en descripción
+
+**Acordado el 20/11/2026:** los valores de servidor `clientName=CLIENTE GENERICO` y `executiveName=Castro Fallas` deben **permanecer exactamente como están**. No crear ni enlazar un cliente comercial diferente por la identidad introducida en nuestra web.
+
+El nombre, correo y teléfono **obligatorios** que la persona introduce en el formulario de Castro Fallas se añadirán como bloque claramente etiquetado al final de la descripción de la carga, preservando primero la descripción original. El contrato público de la API ya ofrece `form_cargoDescription` (`payload.form.cargoDescription`); `form_cargoObservations` es un campo separado, no el elegido para esta decisión. Ejemplo de **datos ficticios**:
+
+```text
+Repuestos automotrices
+
+Solicitante desde la web de Castro Fallas:
+Nombre: Persona de ejemplo
+Correo: ejemplo@example.invalid
+Teléfono: +506 2222-2222
+```
+
+La transformación se prepara únicamente en `scripts/dhole-rate-request-preview.mjs` y se refleja en `form_cargoDescription` del adaptador plano offline. No modifica `FormJson`, ni la descripción guardada localmente, ni `clientName`, `executiveName`, `sellerUserId`, ni los campos de cliente/ejecutivo de Pricing. Se rechazan contactos incompletos, caracteres de control y descripciones finales que superen 4000 caracteres; nunca se truncan datos silenciosamente. Las pruebas usan únicamente identidades ficticias.
+
+**Todavía no es un permiso de envío:** esa descripción contendrá datos personales. Antes de conectar un POST real, validar con el responsable que Dhole la guarda y visualiza solo para usuarios autorizados, la protección de esos datos y el límite aceptado por Pricing. Las API GET pendientes y la autorización POST siguen siendo bloqueos independientes. No ejecutar pruebas reales con contactos personales.
 
 ## Pendientes que bloquean el POST
 
-1. Confirmar con el dueño de Dhole el tratamiento del cliente comercial y cómo accederá Pricing a nombre, correo y teléfono, sin sobrescribir los defaults publicados.
+1. **Decisión tomada:** conservar los defaults de cliente/ejecutivo, añadir nombre/correo/teléfono web al final de `form_cargoDescription`. **Pendiente técnico:** confirmar que Dhole guarda y muestra ese campo de forma adecuada y con acceso restringido antes de cualquier POST real.
 2. **Decisión tomada:** «Transporte nacional» ya no se ofrece en nuevas cotizaciones de la web y el backend lo rechaza en envíos nuevos; los datos históricos permanecen intactos. No incorporarlo a solicitudes remotas por una equivalencia inventada.
 3. Disponer de consulta autenticada de solo lectura de `pricing-services` y `land-equipment-types` para la resolución **vigente** de UUID; el JSON compartido sirve para revisar códigos y tests, no para dar por vigente un ID en el futuro.
 4. Habilitar posteriormente una clave de escritura autorizada específicamente para el POST, sin reutilizar la clave Pangolin de catálogos.
