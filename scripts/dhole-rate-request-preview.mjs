@@ -1,6 +1,8 @@
 // Dry-run ONLY: no network clients, credentials, databases, or file writes.
-// Models the INTERNAL Pricing request, not a published /api/external/v1/{slug}
-// contract. Public field names/defaults must be discovered once an API exists.
+// Models the INTERNAL Pricing request, NOT the published flat third-party POST.
+// The official slug is solicitar-tarifa-wjicua4. It exists in production, but
+// field allowlisting/defaults and the provider response are not proven by this
+// pure local simulator. No write capability is present.
 import { createHash } from 'node:crypto';
 
 const MODES = Object.freeze({
@@ -184,8 +186,8 @@ export function previewDholeRateRequest(source, lookups = {}) {
     idempotencyKey: 'cf-official-' + source.id.toLowerCase(),
     internalPricingRequest: request,
     warnings: [
-      'Contrato EXTERNO aún no publicado: nombres públicos y defaults no confirmados.',
-      'Sin envío, ni clave API, ni escritura en Dhole. Verificar payload contra Pricing.',
+      'POST público Dhole existente; esta vista previa interna NO representa los campos planos form_*, requestContext_* y sellerContext_* autorizados.',
+      'Sin envío, ni clave API, ni escritura en Dhole. Verificar campos y valores fijos del Gateway oficial antes de conectar el POST.',
       'Datos de contacto personales no incluidos en el contrato conocido.',
     ],
   });
