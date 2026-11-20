@@ -20,7 +20,7 @@ function fixture(now = Date.now()) {
   });
   return {
     incoterms: snapshot('incoterms', [
-      { id: ids.incoterm, value: 'CIF', name: 'CIF', code: 'CIF', isActive: true },
+      { id: ids.incoterm, value: 'CIF', name: 'CIF', code: 'INC-2026-006', slug: 'cfi', isActive: true },
       { id: 'a1000000-0000-4000-8000-000000000002', value: 'EXW', name: 'EXW', isActive: false },
     ]),
     pod: snapshot('pod', [{ id: ids.pod, name: 'Destino final simulado', value: 'POD', isActive: true }]),
@@ -85,6 +85,24 @@ test('CIF, FCL size/type combination and maritime POD resolve from mock GET snap
   assert.equal(draft.internalPricingRequest.payload.form.fclContainers[0].containerTypeId, ids.fcl);
   assert.equal(draft.internalPricingRequest.podName, 'Destino final simulado');
 });
+test('CIF resolves by its business value, not the Dhole code or atypical slug', () => {
+  // The real Config catalog showed value CIF, code INC-2026-006 and slug cfi.
+  // Keep the ID fictional in tests: never fix production master IDs in code.
+  const feed = fixture();
+  const cif = feed.incoterms.items[0];
+  assert.equal(cif.value, 'CIF');
+  assert.equal(cif.code, 'INC-2026-006');
+  assert.equal(cif.slug, 'cfi');
+  const result = resolveDholeQuoteCatalogIds(request(), feed);
+  assert.equal(result.lookup.incotermIds.CIF, ids.incoterm);
+  assert.equal(result.blockers.some(x => x.startsWith('incotermId:')), false);
+  const inconsistent = fixture();
+  inconsistent.incoterms.items[0].value = 'NOT_CIF';
+  const refused = resolveDholeQuoteCatalogIds(request(), inconsistent);
+  assert.equal(refused.lookup.incotermIds.CIF, undefined);
+  assert.ok(refused.blockers.some(x => x.startsWith('incotermId:')));
+});
+
 test('inactive Incoterm is never selected, even when code matches', () => {
   const q = request(); q.form.incoterm = 'EXW';
   const r = resolveDholeQuoteCatalogIds(q, fixture());
