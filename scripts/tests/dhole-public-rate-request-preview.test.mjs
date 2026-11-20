@@ -137,6 +137,45 @@ for(const [mode,type,shipment,modality,field] of MODES) {
     }
   });
 }
+test('commercial and contact identity changes never alter the flat Dhole review payload',()=>{
+  // The local guest quote can use contactName as customerName; that does not
+  // authorize mapping the contact to a commercial client in Dhole.
+  const guest=quote();
+  guest.customerName='CONTACTO-VISITANTE-CONFUNDIBLE';
+  guest.contactName='CONTACTO-VISITANTE-CONFUNDIBLE';
+  guest.contactEmail='visitante-privado@example.invalid';
+  guest.contactPhone='+506 0000-0000';
+
+  const registered=quote();
+  registered.customerName='EMPRESA-REGISTRADA-PRIVADA';
+  registered.contactName='CONTACTO-REGISTRADO-PRIVADO';
+  registered.contactEmail='registrado-privado@example.invalid';
+  registered.contactPhone='+506 1111-1111';
+
+  for(const item of [guest,registered]) {
+    const before=previewDholeRateRequest(item,lookups);
+    const result=previewDholePublicRateRequest(before);
+    const baseline=prepared('Maritime','FCL');
+    assert.equal(result.readyForSending,false);
+    assert.ok(result.blockers.some(reason=>reason.startsWith('commercialIdentity:')));
+    assert.deepEqual(result.body,baseline.body,
+      'Local identity must not silently change the public Pricing request');
+    const publicBody=JSON.stringify(result.body);
+    for(const privateValue of [item.customerName,item.contactName,item.contactEmail,item.contactPhone]) {
+      assert.ok(!publicBody.includes(privateValue),
+        'Customer or contact identity leaked through the published flat body');
+    }
+    for(const key of ['clientName','executiveName','sellerUserId',
+      'form_clientName','form_executiveName','form_clientId',
+      'form_executiveId','requestContext_executiveName']) {
+      assert.equal(Object.hasOwn(result.body,key),false,key+' must not be sent');
+    }
+    assert.deepEqual(contract.defaults,{
+      clientName:'CLIENTE GENERICO', executiveName:'Castro Fallas'
+    });
+  }
+});
+
 test('Gateway-style reconstruction from flat fields restores only documented nested paths',()=>{
   const flat=prepared('Land','FTL').body;
   const rebuilt=structuredClone(contract.defaults);
