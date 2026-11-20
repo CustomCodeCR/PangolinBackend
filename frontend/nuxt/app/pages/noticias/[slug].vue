@@ -9,6 +9,8 @@ if (error.value) throw createError({ statusCode: 503, statusMessage: 'Noticias t
 const article = (data.value || []).find(item => articleSlug(item) === route.params.slug)
 if (!article) throw createError({ statusCode: 404, statusMessage: 'Noticia no encontrada' })
 const path = '/noticias/' + articleSlug(article)
+// Coincide con la fuente canónica de usePublicSeo también en previews.
+const seoBase = String(useRuntimeConfig().public.siteUrl).replace(/\/$/, '')
 const approvedNewsSeoTitles: Record<string, string> = {
   // Titles explicitly approved for search results; do not modify visible headlines.
   'f4c941bb': 'Hacienda refuerza control de ingreso de mercancías',
@@ -29,14 +31,14 @@ const metaDescription = rawDescription.length > 155
   : rawDescription
 const schema = {
   '@type': 'Article',
-  '@id': 'https://www.logisticacastrofallas.com' + path + '#articulo',
+  '@id': seoBase + path + '#articulo',
   headline: article.title,
   description: article.description || plainArticleText(article.body).slice(0, 170),
-  mainEntityOfPage: 'https://www.logisticacastrofallas.com' + path,
+  mainEntityOfPage: seoBase + path,
   author: article.author ? { '@type': 'Person', name: article.author } : { '@type': 'Organization', name: 'Grupo Castro Fallas' },
-  publisher: { '@id': 'https://www.logisticacastrofallas.com/#organizacion' },
+  publisher: { '@id': seoBase + '/#organizacion' },
   ...(article.publishedAt ? { datePublished: article.publishedAt } : {}),
-  image: 'https://www.logisticacastrofallas.com' + image
+  image: seoBase + image
 }
 usePublicSeo({
   path, title: seoTitle,

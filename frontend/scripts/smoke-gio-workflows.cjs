@@ -18,6 +18,8 @@ let failNextQuote = false
 let rejectedQuoteAttempts = 0
 let trackingReads = 0
 let itineraryReads = 0
+let dholeOptionsReads = 0
+const dynamicDholeMock = process.env.GIO_DHOLE_MOCK === '1'
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 function chromeBinary() {
@@ -38,11 +40,40 @@ const api = http.createServer(async (req, res) => {
     : send(401,{error:'Unauthorized'})
   if (url.pathname === '/api/content/site') return send(200,{})
   if (url.pathname === '/api/content/news') return send(200,[])
+  // Run this browser test twice: first with the legacy form, then with
+  // a fake dynamic catalogue using identical labels but EXTERNAL UUIDs.
+  if (url.pathname === '/api/quotes/official/dhole-options') {
+    dholeOptionsReads++
+    if (!dynamicDholeMock) return send(404,{code:'dhole_form_disabled'})
+    // Simulate the full-sized real Air POL/POE feeds: hundreds of "A" records
+    // followed by an airport at the END. Search must never drop late entries.
+    const mockLocations = (size, known, suffix) => [
+      known,
+      ...Array.from({length:size-2}, (_,i)=>({
+        id:'a0000000-0000-4000-8000-'+String(i+1).padStart(12,'0'),
+        displayName:'Aeropuerto A '+String(i+1).padStart(4,'0')+suffix,
+        code:'A-'+String(i+1)
+      })),
+      {id:'f0000000-0000-4000-8000-'+suffix.padStart(12,'0'),
+       displayName:'Zúrich terminal '+suffix,code:'ZRH'}
+    ]
+    return send(200,{
+      source:'dhole',mode:url.searchParams.get('mode'),shipmentType:url.searchParams.get('shipmentType'),
+      incoterms:['FOB'],
+      origins:mockLocations(854,{id:'11111111-1111-4111-8111-111111111111',displayName:'Shanghái',code:'SHA'},'1'),
+      destinations:mockLocations(851,{id:'22222222-2222-4222-8222-222222222222',displayName:'Puerto Caldera',code:'CAL'},'2'),
+      pods:[{id:'33333333-3333-4333-8333-333333333333',displayName:'POD terrestre',code:'TER'}],
+      equipmentSizes:[{value:'40 pies',label:'40 pies'}],
+      equipmentTypesBySize:{'40 pies':['Dry Van']}
+    })
+  }
   if (url.pathname === '/api/assistant/quote-locations' || url.pathname === '/api/quotes/official/locations') {
     const source = url.searchParams.get('routeRole')
     const item = source === 'origin'
       ? {id:'11111111-1111-1111-1111-111111111111',displayName:'Shanghái',code:'SHA'}
-      : {id:'22222222-2222-2222-2222-222222222222',displayName:'Puerto Caldera',code:'CAL'}
+      : source === 'pod'
+        ? {id:'33333333-3333-3333-8333-333333333333',displayName:'POD terrestre',code:'TER'}
+        : {id:'22222222-2222-2222-2222-222222222222',displayName:'Puerto Caldera',code:'CAL'}
     return send(200,{items:[item]})
   }
   if (url.pathname === '/api/quotes/official' && req.method === 'POST') {
@@ -189,6 +220,19 @@ async function main() {
     await choose('Marítimo')
     await choose('FCL')
     await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__location-list button")'))
+    if (dynamicDholeMock) {
+      const results = await evaluate('({full:document.querySelector(".gio-ops__location-count")?.textContent.trim(),visible:document.querySelectorAll(".gio-ops__location-dock .gio-ops__location-list button").length,more:!!document.querySelector(".gio-ops__location-dock .gio-ops__more"),scrollable:document.querySelector(".gio-ops__location-dock .gio-ops__location-list").scrollHeight>document.querySelector(".gio-ops__location-dock .gio-ops__location-list").clientHeight})')
+      assert.equal(results.full,'854','All 854 Dhole origins must be counted')
+      assert.equal(results.visible,854,'Every Dhole option must be rendered without a Show More button')
+      assert.equal(results.more,false,'No Show More button is allowed')
+      assert.ok(results.scrollable,'Full list should be scrollable without expanding GIO')
+      assert.ok(await evaluate('(()=>{const el=document.querySelector(".gio-ops__form input");const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(el,"Zúrich");el.dispatchEvent(new Event("input",{bubbles:true}));return true})()'))
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__location-list button")?.textContent.includes("Zúrich terminal 1")'))
+      assert.equal(await evaluate('document.querySelector(".gio-ops__location-count")?.textContent.trim()'),'1',
+        'Searching must find an airport at the END of the whole feed')
+      assert.ok(await evaluate('(()=>{const el=document.querySelector(".gio-ops__form input");const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(el,"");el.dispatchEvent(new Event("input",{bubbles:true}));return true})()'))
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__location-count")?.textContent.trim()==="854"'))
+    }
     const placement = await evaluate('(()=>{const dock=document.querySelector(".gio-ops__location-dock").getBoundingClientRect();const input=document.querySelector(".gio-ops__form").getBoundingClientRect();const btn=document.querySelector(".gio-ops__location-list button").getBoundingClientRect();return {aboveInput:dock.bottom<=input.top+2,visible:btn.top>=dock.top && btn.bottom<=dock.bottom+2,codeVisible:!!document.querySelector(".gio-ops__location-list button small")}})()')
     assert.ok(placement.aboveInput && placement.visible,'Suggestions must remain visible above composer in the compact panel')
     assert.equal(placement.codeVisible,false,'Never display import codes such as VIDEO-SEA')
@@ -207,6 +251,12 @@ async function main() {
     await confirm()
     await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__location-list button")'))
     await choose('Puerto Caldera')
+    await confirm()
+    await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__location-list button")'))
+    assert.ok(await has('POD'),'GIO must ask maritime FCL customers for POD')
+    assert.equal(await evaluate('[...document.querySelectorAll(".gio-ops__choices button")].some(b=>b.textContent.includes("Omitir"))'),false,
+      'Mandatory maritime FCL POD cannot be skipped in GIO')
+    await choose('POD terrestre')
     await confirm()
     await choose('FOB')
     await rejectValue('2020-01-01', 'La fecha de carga lista debe ser hoy o posterior')
@@ -276,8 +326,16 @@ async function main() {
     assert.equal(quoteWrites[0].equipment[0].type,'Dry Van')
     assert.equal(quoteWrites[0].contactName,'Edited Client')
     assert.deepEqual(quoteWrites[0].equipment[0].unitWeightsKg,[8000])
-    assert.equal(quoteWrites[0].originLocationId,'11111111-1111-1111-1111-111111111111')
-    assert.equal(quoteWrites[0].destinationLocationId,'22222222-2222-2222-2222-222222222222')
+    assert.equal(quoteWrites[0].catalogSource, dynamicDholeMock ? 'dhole' : null,
+      'Explicit source discriminates dynamic Dhole from legacy quotes')
+    assert.ok(dholeOptionsReads >= 1,'GIO must check whether Dhole quote options are enabled')
+    assert.equal(quoteWrites[0].originLocationId,
+      dynamicDholeMock ? '11111111-1111-4111-8111-111111111111' : '11111111-1111-1111-1111-111111111111')
+    assert.equal(quoteWrites[0].destinationLocationId,
+      dynamicDholeMock ? '22222222-2222-4222-8222-222222222222' : '22222222-2222-2222-2222-222222222222')
+    assert.equal(quoteWrites[0].podLocationId,
+      dynamicDholeMock ? '33333333-3333-4333-8333-333333333333' : '33333333-3333-3333-8333-333333333333',
+      'Maritime FCL must include confirmed POD in submissions from GIO')
     assert.ok(await evaluate(`!!document.querySelector('.gio-ops__card a[href="/cotizaciones?gioReceipt=1"]')`),'Guest must see the direct quote receipt link')
     // Reuse confirmed fields to request a distinct quote as an admin.
     role = 'administrador'
@@ -346,6 +404,29 @@ async function main() {
     assert.equal(contrastDark.value,'rgb(255, 255, 255)','Dark mode receipt values must stay white')
     assert.equal(contrastDark.button,'rgb(255, 255, 255)','Dark mode new request button stays white')
     assert.notEqual(contrastDark.groupBg,'rgb(249, 247, 249)','Dark mode receipt cards must not keep their light background')
+    if (dynamicDholeMock) {
+      // Exercise the exact AIR_LCL route reported by users: a whole feed of
+      // 854 POL and 851 POE options remains searchable beyond early "A" items.
+      await cdp('Page.navigate',{url:'http://'+host+':5189/?gioAir=1'})
+      await waitFor(()=>evaluate('!!document.querySelector(".site-assistant__mascot")'))
+      assert.ok(await click('.site-assistant__mascot'))
+      await waitFor(()=>evaluate('document.querySelectorAll(".site-assistant__quick button").length===4'))
+      assert.ok(await evaluate('document.querySelectorAll(".site-assistant__quick button")[0].click()||true'))
+      await choose('Aéreo')
+      await choose('Carga aérea')
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__location-count")?.textContent.trim()==="854"'))
+      assert.ok(await evaluate('(()=>{const el=document.querySelector(".gio-ops__form input");const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(el,"Zúrich");el.dispatchEvent(new Event("input",{bubbles:true}));return true})()'))
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__location-count")?.textContent.trim()==="1"'))
+      await choose('Zúrich terminal 1')
+      await confirm()
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__location-count")?.textContent.trim()==="851"'))
+      assert.ok(await evaluate('(()=>{const el=document.querySelector(".gio-ops__form input");const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(el,"Zúrich");el.dispatchEvent(new Event("input",{bubbles:true}));return true})()'))
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__location-count")?.textContent.trim()==="1"'))
+      await choose('Zúrich terminal 2')
+      await confirm()
+      await waitFor(()=>has('Incoterm'))
+      console.log('PASS: Air AIR_LCL searches all 854 POL / 851 POE, including final Zúrich options')
+    }
     console.log('PASS: guest/admin quotes, services, storage/delivery requirements, invalid inputs, contrast, complete receipts, itineraries, and tracking guards')
   } finally {
     try { socket?.close() } catch {}

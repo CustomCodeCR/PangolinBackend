@@ -10,7 +10,6 @@ const requiredPaths = ['/', '/nosotros', '/servicios', '/noticias']
 const conciseServiceTitles = new Set([
   '/servicios/agenciamiento-aduanal',
   '/servicios/almacenamiento-fiscal',
-  '/servicios/bodegaje-general',
   '/servicios/consolidadora-de-carga'
 ])
 const failed = []
@@ -42,6 +41,9 @@ const paths = sitemapUrls.map((loc) => {
 })
 for (const path of requiredPaths) assert.ok(paths.includes(path), 'Falta ruta principal en sitemap: ' + path)
 assert.ok(!paths.some(path => path === '/empresas' || path.startsWith('/empresas/')), 'Empresas no debe publicarse en el sitemap')
+for (const retired of ['/servicios/bodegaje-general', '/servicios/transporte-internacional']) {
+  assert.ok(!paths.includes(retired), 'Servicio retirado aún anunciado en sitemap: ' + retired)
+}
 
 for (const path of paths) {
   try {
@@ -79,7 +81,7 @@ for (const path of paths) {
   }
 }
 
-for (const unknown of ['/ruta-seo-inexistente-qa-94329', '/servicios/ruta-inexistente', '/empresas', '/empresas/aduanera-castro-fallas', '/empresas/transporte-castro-fallas', '/empresas/neriteka', '/empresas/ruta-inexistente', '/noticias/ruta-inexistente']) {
+for (const unknown of ['/ruta-seo-inexistente-qa-94329', '/servicios/ruta-inexistente', '/servicios/bodegaje-general', '/servicios/transporte-internacional', '/empresas', '/empresas/aduanera-castro-fallas', '/empresas/transporte-castro-fallas', '/empresas/neriteka', '/empresas/ruta-inexistente', '/noticias/ruta-inexistente']) {
   const response = await get(unknown)
   if (response.status !== 404) fail(unknown, 'posible soft 404: HTTP ' + response.status + ' en una ruta inexistente')
 }

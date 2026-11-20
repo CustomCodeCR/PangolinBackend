@@ -59,7 +59,7 @@ const escapeHtml = value => String(value).replace(/&/g, '&amp;').replace(/</g, '
 function renderServiceFallback(route) {
   if (route === '/servicios') {
     const faqs = (serviceFaqs.servicios || []).map(faq => '<details><summary>' + escapeHtml(faq.question.es) + '</summary><p>' + escapeHtml(faq.answer.es) + '</p></details>').join('\n')
-    return '<main id="seo-service-content" lang="es-CR"><header><p>TRANSPORTE Y LOGÍSTICA · COSTA RICA</p><h1>Servicios aduanales, almacenamiento y carga</h1><p>Grupo Castro Fallas coordina consultas de agenciamiento aduanal, almacenamiento fiscal, bodegaje general, carga consolidada y transporte internacional. Alcance, disponibilidad y condiciones se confirman según cada operación.</p></header><section aria-labelledby="seo-service-faq"><h2 id="seo-service-faq">Preguntas frecuentes sobre nuestros servicios</h2>' + faqs + '</section><p><a href="/cotizaciones">Solicitar cotización</a></p></main>'
+    return '<main id="seo-service-content" lang="es-CR"><header><p>TRANSPORTE Y LOGÍSTICA · COSTA RICA</p><h1>Servicios aduanales, almacenamiento y carga</h1><p>Grupo Castro Fallas coordina consultas de agenciamiento aduanal, almacén fiscal, carga consolidada y transporte marítimo, aéreo y terrestre. Alcance, disponibilidad y condiciones se confirman según cada operación.</p></header><section aria-labelledby="seo-service-faq"><h2 id="seo-service-faq">Preguntas frecuentes sobre nuestros servicios</h2>' + faqs + '</section><p><a href="/cotizaciones">Solicitar cotización</a></p></main>'
   }
   const slug = route.split('/').pop()
   const page = servicePages.find(item => item.slug === slug)

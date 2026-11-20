@@ -42,7 +42,12 @@ checks = {
         and "form.services.includes('Almacenamiento')" in wizard
         and "form.fiscalStorageDays" in wizard
     ),
-    "LCL exige POD": 's.ShipmentType == "LCL" && s.PodLocationId is null' in api,
+    "POD obligatorio en marítimo FCL/LCL (backend, wizard y GIO)": (
+        's.Mode == "Maritime" && (!s.PodLocationId.HasValue || s.PodLocationId == Guid.Empty)' in api
+        and "mode.value === 'Maritime' && !form.podLocationId" in wizard
+        and "values.mode === 'Maritime') result.push({key:'pod'" in gio
+        and "values.mode === 'Maritime' ? ['pod'] : []" in gio
+    ),
     "cotizador exige fecha de hoy o posterior": (
         'isCargoReadyDateOnOrAfterToday(form.cargoReadyDate)' in wizard
         and ':min="earliestReadyDate"' in wizard

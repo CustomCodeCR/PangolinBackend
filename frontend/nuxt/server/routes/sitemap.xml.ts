@@ -1,4 +1,4 @@
-import { articlePath } from '../../app/utils/news'
+import { articlePath, isCrawlableNews, PUBLIC_NEWS_LIMIT } from '../../app/utils/news'
 import type { PublicNews } from '../../app/utils/news'
 import serviceGuides from '../../../seo/service-landings.json'
 import servicePages from '../../../seo/service-pages.json'
@@ -13,7 +13,11 @@ export default defineCachedEventHandler(async event => {
   try {
     const articles = await $fetch<PublicNews[]>(String(config.cmsApiBase).replace(/\/$/, '') + '/api/content/news', { timeout: 5000 })
     if (Array.isArray(articles)) {
-      for (const item of articles) if (item && item.id && item.title && item.published !== false && (!item.expiresAt || Date.parse(item.expiresAt) > Date.now())) urls.push(articlePath(item))
+      // Evita datos malformados y mantiene paridad con /api/public-news (máximo 250).
+      const now = Date.now()
+      for (const item of articles.filter(item => isCrawlableNews(item, now)).slice(0, PUBLIC_NEWS_LIMIT)) {
+        urls.push(articlePath(item))
+      }
     }
   } catch {
     // La caída temporal del CMS no debe impedir el sitemap de páginas estables.

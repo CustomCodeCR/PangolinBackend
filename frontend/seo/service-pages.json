@@ -1,7 +1,10 @@
 [
   {
     "slug": "transporte-maritimo",
-    "serviceType": { "es": "Coordinación de transporte marítimo internacional de carga", "en": "International ocean freight coordination" },
+    "serviceType": {
+      "es": "Coordinación de transporte marítimo internacional de carga",
+      "en": "International ocean freight coordination"
+    },
     "title": {
       "es": "Transporte marítimo de carga",
       "en": "Ocean freight transportation"
@@ -52,7 +55,10 @@
   },
   {
     "slug": "transporte-terrestre",
-    "serviceType": { "es": "Coordinación de transporte terrestre internacional de carga", "en": "International land freight coordination" },
+    "serviceType": {
+      "es": "Coordinación de transporte terrestre internacional de carga",
+      "en": "International land freight coordination"
+    },
     "title": {
       "es": "Transporte terrestre internacional",
       "en": "International land freight"
@@ -103,7 +109,10 @@
   },
   {
     "slug": "transporte-aereo",
-    "serviceType": { "es": "Coordinación de transporte aéreo internacional de carga", "en": "International air freight coordination" },
+    "serviceType": {
+      "es": "Coordinación de transporte aéreo internacional de carga",
+      "en": "International air freight coordination"
+    },
     "title": {
       "es": "Transporte aéreo de carga",
       "en": "Air freight transportation"
@@ -153,59 +162,11 @@
     }
   },
   {
-    "slug": "transporte-internacional",
-    "serviceType": { "es": "Coordinación de transporte terrestre, marítimo y aéreo internacional", "en": "International land, ocean and air freight coordination" },
-    "title": {
-      "es": "Transporte internacional de carga",
-      "en": "International freight transportation"
-    },
-    "eyebrow": {
-      "es": "LOGÍSTICA INTERNACIONAL",
-      "en": "INTERNATIONAL LOGISTICS"
-    },
-    "lead": {
-      "es": "Una sola coordinación para explorar transporte terrestre, marítimo o aéreo según el origen, el destino y las características de tu carga.",
-      "en": "One point of coordination to explore land, ocean or air freight based on your cargo, origin and destination."
-    },
-    "location": {
-      "es": "Conectamos Costa Rica con destinos internacionales",
-      "en": "Connecting Costa Rica with international destinations"
-    },
-    "image": "/images/hero.webp",
-    "imageAlt": {
-      "es": "Operación de transporte internacional y logística de carga",
-      "en": "International freight transportation and logistics operation"
-    },
-    "sections": [
-      {
-        "title": {
-          "es": "Tres modalidades, una consulta",
-          "en": "Three modes, one enquiry"
-        },
-        "body": {
-          "es": "El equipo puede revisar alternativas terrestres, marítimas y aéreas. La modalidad, la ruta y la disponibilidad se determinan para cada solicitud; no se asumen tiempos ni tarifas antes de cotizar.",
-          "en": "The team can review land, ocean and air options. Mode, route and availability are determined for each enquiry; timings and rates are not assumed before quotation."
-        }
-      },
-      {
-        "title": {
-          "es": "Prepará los datos de tu envío",
-          "en": "Prepare your shipment details"
-        },
-        "body": {
-          "es": "Para iniciar, compartí origen y destino, descripción de la mercancía, peso o dimensiones aproximadas y fecha estimada. Castro Fallas te contactará para continuar la revisión.",
-          "en": "To get started, provide origin and destination, cargo description, approximate weight or dimensions and estimated date. Castro Fallas will follow up to continue the review."
-        }
-      }
-    ],
-    "quoteLabel": {
-      "es": "Consultar transporte internacional",
-      "en": "Ask about international freight"
-    }
-  },
-  {
     "slug": "transporte-local",
-    "serviceType": { "es": "Coordinación de transporte local de carga con Neriteka", "en": "Local freight transportation coordination with Neriteka" },
+    "serviceType": {
+      "es": "Coordinación de transporte local de carga con Neriteka",
+      "en": "Local freight transportation coordination with Neriteka"
+    },
     "title": {
       "es": "Transporte local en Costa Rica",
       "en": "Local transportation in Costa Rica"
@@ -256,7 +217,10 @@
   },
   {
     "slug": "transporte-panama-costa-rica",
-    "serviceType": { "es": "Coordinación de transporte terrestre de carga entre Panamá y Costa Rica", "en": "Land freight coordination between Panama and Costa Rica" },
+    "serviceType": {
+      "es": "Coordinación de transporte terrestre de carga entre Panamá y Costa Rica",
+      "en": "Land freight coordination between Panama and Costa Rica"
+    },
     "title": {
       "es": "Transporte de carga Panamá–Costa Rica",
       "en": "Panama–Costa Rica freight transportation"
@@ -297,6 +261,16 @@
         "body": {
           "es": "La disponibilidad, los requisitos de cruce y las condiciones de transporte deben confirmarse antes de coordinar. La solicitud no constituye una tarifa ni una reserva.",
           "en": "Availability, border requirements and transportation terms must be confirmed before coordination. An enquiry is not a rate or a booking."
+        }
+      },
+      {
+        "title": {
+          "es": "Flota y seguimiento",
+          "en": "Fleet and tracking"
+        },
+        "body": {
+          "es": "Más de 80 unidades caucionadas con sistema de rastreo, articuladas y no articuladas. Disponemos de unidades de 28, 40, 45, 48 y 53 pies. La disponibilidad y las condiciones se confirman para cada operación.",
+          "en": "More than 80 bonded transport units equipped with tracking, articulated and non-articulated. Unit sizes include 28, 40, 45, 48 and 53 feet. Availability and conditions are confirmed for each operation."
         }
       }
     ],

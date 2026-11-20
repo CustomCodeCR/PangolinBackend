@@ -13,6 +13,7 @@ on:
       - "backend/Endpoints/OfficialQuoteEndpoints.cs"
       - "backend/Program.cs"
       - "frontend/scripts/smoke-gio-workflows.cjs"
+      - "frontend/scripts/smoke-dhole-wizard.cjs"
       - ".github/workflows/gio-main2-check.yml"
   workflow_dispatch:
 
@@ -45,3 +46,29 @@ jobs:
         run: node frontend/scripts/smoke-browser.cjs
       - name: Exercise real GIO actions with a fake backend in Chrome
         run: node frontend/scripts/smoke-gio-workflows.cjs
+      - name: Exercise GIO with fake Dhole UUIDs and dynamic equipment options
+        env:
+          GIO_DHOLE_MOCK: "1"
+        run: node frontend/scripts/smoke-gio-workflows.cjs
+
+  quote-wizard-browser:
+    name: Chrome quote wizard (Dhole opt-in and responsive visual)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install pinned frontend dependencies
+        run: npm ci --prefix frontend
+      - name: Exercise official quote wizard with fake Dhole and real Chrome DOM
+        run: node frontend/scripts/smoke-dhole-wizard.cjs
+      - name: Upload isolated desktop/mobile/dark review screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dhole-quote-wizard-visual
+          path: artifacts/dhole-quote-visual/
+          if-no-files-found: ignore

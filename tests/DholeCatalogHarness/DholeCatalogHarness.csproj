@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Compile Include="../../backend/Services/DholeCatalogNormalizer.cs" Link="DholeCatalogNormalizer.cs" />
+    <Compile Include="../../backend/Services/DholeQuoteLocationProjector.cs" Link="DholeQuoteLocationProjector.cs" />
+    <Compile Include="../../backend/Services/DholeEquipmentProjector.cs" Link="DholeEquipmentProjector.cs" />
+    <Compile Include="../../backend/Services/DholeCatalogService.cs" Link="DholeCatalogService.cs" />
+    <Compile Include="../../backend/Services/DholeQuoteFormCatalogBuilder.cs" Link="DholeQuoteFormCatalogBuilder.cs" />
+    <Compile Include="../../backend/Services/DholeQuoteFormCatalogLoader.cs" Link="DholeQuoteFormCatalogLoader.cs" />
+    <Compile Include="../../backend/Services/DholeItineraryLocationProjector.cs" Link="DholeItineraryLocationProjector.cs" />
+    <Compile Include="../../backend/Models/OfficialQuoteModels.cs" Link="OfficialQuoteModels.cs" />
+  </ItemGroup>
+</Project>

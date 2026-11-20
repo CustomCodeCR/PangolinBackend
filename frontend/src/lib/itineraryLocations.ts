@@ -10,7 +10,8 @@ type CatalogueResponse = { items?: Array<{ displayName?: string; code?: string |
 const catalogueCache = new Map<string, Promise<ItineraryLocationChoice[]>>()
 // The catalogue is public, changes infrequently, and is shared by itinerary and admin.
 // sessionStorage prevents a full burst of catalogue requests on every refresh.
-const STORAGE_PREFIX = 'castrofallas:itinerary-locations:v1:'
+// New schema/source rollout: do not reuse old location-filter snapshots.
+const STORAGE_PREFIX = 'castrofallas:itinerary-locations:v2:'
 const CACHE_MS = 5 * 60 * 1000
 
 function readStored(key: string): ItineraryLocationChoice[] | null {

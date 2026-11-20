@@ -15,7 +15,7 @@ static void Assert(bool ok, string reason)
 {
     if (!ok) throw new Exception(reason);
 }
-static GraphEmailSender Mailer(HttpMessageHandler handler, bool includeConfig = true)
+static GraphEmailSender Mailer(HttpMessageHandler handler, bool includeConfig = true, int? totalTimeoutSeconds = null)
 {
     var values = includeConfig
         ? new Dictionary<string, string?>
@@ -26,6 +26,8 @@ static GraphEmailSender Mailer(HttpMessageHandler handler, bool includeConfig = 
             ["Graph:From"] = sender
         }
         : new Dictionary<string, string?>();
+    if (totalTimeoutSeconds is int limit)
+        values["Graph:TotalTimeoutSeconds"] = limit.ToString(System.Globalization.CultureInfo.InvariantCulture);
     var config = new ConfigurationBuilder().AddInMemoryCollection(values).Build();
     return new GraphEmailSender(new HttpClient(handler), config);
 }
@@ -69,6 +71,8 @@ var success = new FakeHandler(async (request, ct) =>
         var message = json.RootElement.GetProperty("message");
         Assert(message.GetProperty("toRecipients")[0].GetProperty("emailAddress")
             .GetProperty("address").GetString() == recipient, "Wrong mail recipient.");
+        Assert(message.GetProperty("body").GetProperty("contentType").GetString() == "Text",
+            "Existing text-only Graph calls must retain their content type.");
         Assert(message.GetProperty("body").GetProperty("content").GetString() == body,
             "Mail fixture body changed.");
     }
@@ -77,6 +81,64 @@ var success = new FakeHandler(async (request, ct) =>
 });
 await Mailer(success).SendAsync(recipient, subject, body, CancellationToken.None);
 Assert(tokenCalls == 1 && sendCalls == 1, "202 case must make exactly two requests.");
+
+// The OTP email can opt into HTML without changing other callers of SendAsync.
+const string htmlFixture = "<!doctype html><html><body><strong>LOCAL_HTML_FIXTURE</strong></body></html>";
+var htmlCalls = 0;
+var htmlHandler = new FakeHandler(async (request, ct) =>
+{
+    htmlCalls++;
+    if (request.RequestUri!.Host == "login.microsoftonline.com") return AccessToken();
+    Assert(request.RequestUri.Host == "graph.microsoft.com", "Unexpected HTML mail host.");
+    using var json = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
+    var htmlBody = json.RootElement.GetProperty("message").GetProperty("body");
+    Assert(htmlBody.GetProperty("contentType").GetString() == "HTML", "Graph must send OTP HTML.");
+    Assert(htmlBody.GetProperty("content").GetString() == htmlFixture, "Graph HTML body mismatch.");
+    return new HttpResponseMessage(HttpStatusCode.Accepted);
+});
+await Mailer(htmlHandler).SendAsync(recipient, subject, body, CancellationToken.None, htmlFixture);
+Assert(htmlCalls == 2, "HTML case must send OAuth + Graph request.");
+
+// Inline images: Graph must receive both MIME Content-IDs as file attachments.
+Assert(OtpEmailAssets.Images.Count == 2, "Missing corporate graphics.");
+Assert(OtpEmailAssets.Images[0].Content.AsSpan(0, 8)
+    .SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }), "G graphic is not PNG.");
+Assert(System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(OtpEmailAssets.Images[0].Content.AsSpan(16, 4)) >= 250 &&
+       System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(OtpEmailAssets.Images[0].Content.AsSpan(20, 4)) >= 375,
+       "Red G source image is below high-density email resolution.");
+Assert(OtpEmailAssets.Images[1].Content[0] == 0xff &&
+       OtpEmailAssets.Images[1].Content[1] == 0xd8, "Globe graphic is not JPEG.");
+Assert(OtpEmailAssets.Images[1].Content.Length >= 4000 &&
+       OtpEmailAssets.Images[1].Content[^2] == 0xff &&
+       OtpEmailAssets.Images[1].Content[^1] == 0xd9,
+       "Globe JPEG is incomplete or damaged.");
+var inlineCalls = 0;
+var inlineHandler = new FakeHandler(async (request, ct) =>
+{
+    inlineCalls++;
+    if (request.RequestUri!.Host == "login.microsoftonline.com") return AccessToken();
+    using var payload = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
+    var message = payload.RootElement.GetProperty("message");
+    Assert(message.GetProperty("body").GetProperty("contentType").GetString() == "HTML",
+        "Inline email must be HTML.");
+    var resources = message.GetProperty("attachments");
+    Assert(resources.GetArrayLength() == 2, "Two inline image attachments expected.");
+    foreach (var attachment in resources.EnumerateArray())
+    {
+        Assert(attachment.GetProperty("@odata.type").GetString() == "#microsoft.graph.fileAttachment",
+            "Invalid Graph inline image attachment type.");
+        Assert(attachment.GetProperty("isInline").GetBoolean(), "Graphic must be inline.");
+        var contentId = attachment.GetProperty("contentId").GetString();
+        Assert(contentId is OtpEmailAssets.LogoCid or OtpEmailAssets.GlobeCid,
+            "Unknown inline image CID.");
+        Assert(Convert.FromBase64String(attachment.GetProperty("contentBytes").GetString()!).Length > 100,
+            "Missing embedded graphic data.");
+    }
+    return new HttpResponseMessage(HttpStatusCode.Accepted);
+});
+await Mailer(inlineHandler).SendAsync(recipient, subject, body, CancellationToken.None,
+    htmlFixture, OtpEmailAssets.Images);
+Assert(inlineCalls == 2, "Graph inline image test did not reach sendMail.");
 
 // Token rejection: no sendMail call must follow a failed OAuth request.
 var oauthCalls = 0;
@@ -144,7 +206,57 @@ catch (InvalidOperationException ex) when (ex.Message.Contains("Graph:TenantId",
     Assert(missingCalls == 0, "Invalid config must stop before external requests.");
 }
 
-Console.WriteLine("PASS offline Graph: 202 accepted, OAuth 401, sendMail 403, HTTP 429 and missing config. No secrets or OTP sent.");
+// A shared deadline must span OAuth and sendMail: without it each HTTP request
+// can consume its own 20-second timeout. Use a one-second isolated fixture,
+// never contact Microsoft or log the OTP.
+var deadlineCalls = 0;
+var deadlineHandler = new FakeHandler(async (request, cancellation) =>
+{
+    deadlineCalls++;
+    if (deadlineCalls == 1)
+    {
+        await Task.Delay(500, cancellation);
+        return AccessToken();
+    }
+    Assert(request.RequestUri!.Host == "graph.microsoft.com", "Expected Graph sendMail phase.");
+    await Task.Delay(Timeout.InfiniteTimeSpan, cancellation);
+    throw new Exception("The shared Graph deadline did not cancel sendMail.");
+});
+var watch = System.Diagnostics.Stopwatch.StartNew();
+try
+{
+    await Mailer(deadlineHandler, totalTimeoutSeconds: 1)
+        .SendAsync(recipient, subject, body, CancellationToken.None);
+    throw new Exception("A stalled sendMail operation was not cancelled.");
+}
+catch (OperationCanceledException)
+{
+    Assert(deadlineCalls == 2, "The timeout must cover both OAuth and sendMail.");
+    Assert(watch.Elapsed < TimeSpan.FromSeconds(5), "Graph overall timeout exceeded the bounded test budget.");
+}
+
+// Caller cancellation is preserved, rather than hidden as an upstream error.
+var callerCancelled = new CancellationTokenSource();
+callerCancelled.Cancel();
+var callerCalls = 0;
+var callerHandler = new FakeHandler(async (_, cancellation) =>
+{
+    callerCalls++;
+    await Task.Delay(Timeout.InfiniteTimeSpan, cancellation);
+    throw new Exception("Caller cancellation should stop requests.");
+});
+try
+{
+    await Mailer(callerHandler)
+        .SendAsync(recipient, subject, body, callerCancelled.Token);
+    throw new Exception("Caller cancellation was not propagated.");
+}
+catch (OperationCanceledException)
+{
+    Assert(callerCalls <= 1, "Cancelled requests must not start sendMail.");
+}
+
+Console.WriteLine("PASS offline Graph: 202 accepted, OAuth 401, sendMail 403, HTTP 429 missing config, shared timeout, and caller cancellation. No secrets or OTP sent.");
 
 sealed class FakeHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> process)
     : HttpMessageHandler

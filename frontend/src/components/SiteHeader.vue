@@ -2,7 +2,7 @@
 import SiteMedia from './SiteMedia.vue'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, ArrowRightLeft, ArrowUpRight, Boxes, ChevronDown, ChevronRight, Globe, LayoutGrid, MapPin, Menu, Moon, Package, Plane, Settings, ShieldCheck, Ship, Sun, Truck, UserRound, Warehouse, X } from '@lucide/vue'
+import { ArrowLeft, ArrowRightLeft, ArrowUpRight, Boxes, ChevronDown, ChevronRight, LayoutGrid, MapPin, Menu, Moon, Package, Plane, Settings, ShieldCheck, Ship, Sun, Truck, UserRound, Warehouse, X } from '@lucide/vue'
 import LanguageSwitcher from './LanguageSwitcher.vue'
 import serviceGuides from '../../seo/service-landings.json'
 import { servicePages } from '../content/servicePages'
@@ -140,7 +140,6 @@ const allServicesLink = computed(() => primaryServicesLinks.value.find(link => l
 const generalServicesLinks = computed(() => primaryServicesLinks.value.filter(link => link.url !== '/servicios'))
 const generalServiceIcon = (url: string) => ({
   '/servicios/almacenamiento-fiscal': Warehouse,
-  '/servicios/bodegaje-general': Package,
   '/servicios/agenciamiento-aduanal': ShieldCheck,
   '/servicios/consolidadora-de-carga': Boxes
 } as Record<string, typeof Package>)[url] ?? Package
@@ -150,7 +149,6 @@ const transportServiceIcon = (url: string) => {
   if (path.includes('aereo')) return Plane
   if (path.includes('panama-costa-rica')) return ArrowRightLeft
   if (path.includes('local')) return MapPin
-  if (path.includes('internacional') && !path.includes('terrestre')) return Globe
   return Truck
 }
 const isCurrentService = (href: string) => href.split('?')[0] === currentPath.value

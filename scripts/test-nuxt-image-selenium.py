@@ -26,7 +26,7 @@ driver.set_script_timeout(40)
 try:
     for index, route in enumerate((
         "/", "/nosotros", "/servicios", "/servicios/transporte-maritimo",
-        "/servicios/bodegaje-general", "/noticias", "/empresas",
+        "/servicios/almacenamiento-fiscal", "/noticias", "/empresas",
     )):
         driver.get(BASE + route)
         WebDriverWait(driver, 20).until(

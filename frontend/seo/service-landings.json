@@ -1,10 +1,10 @@
 {
   "/servicios/almacenamiento-fiscal": {
     "es": {
-      "label": "Almacenamiento fiscal",
-      "title": "Almacenamiento fiscal de mercancías en Costa Rica",
+      "label": "Almacén fiscal",
+      "title": "Almacén fiscal de mercancías en Costa Rica",
       "intro": "Grupo Castro Fallas ofrece coordinación logística y documental para operaciones de almacenamiento fiscal vinculadas a importaciones en Costa Rica. Cada operación está sujeta al régimen aduanero aplicable y a la disponibilidad de instalaciones autorizadas.",
-      "heading": "¿Cómo funciona el almacenamiento fiscal?",
+      "heading": "¿Cómo funciona un almacén fiscal?",
       "body": "La mercancía puede permanecer bajo control aduanero de acuerdo con las reglas de su régimen. Conviene coordinar previamente documentos, llegada de la carga y condiciones de almacenamiento. También se revisan el régimen aplicable, la documentación disponible y las autorizaciones necesarias antes de coordinar la operación.",
       "points": [
         "Coordinación de la llegada y documentación de la carga.",
@@ -14,15 +14,15 @@
       ],
       "faq": [
         {
-          "q": "¿Es igual que el bodegaje general?",
-          "a": "No. El almacenamiento fiscal responde a un régimen de control aduanero; el bodegaje general es un servicio logístico de resguardo."
+          "q": "¿Qué es un almacén fiscal?",
+          "a": "Es una instalación autorizada para resguardar mercancías bajo control aduanero, conforme al régimen y los requisitos aplicables a cada operación."
         },
         {
           "q": "¿Puedo cotizar almacenamiento junto al despacho?",
           "a": "Sí, se puede solicitar una evaluación integral. La disponibilidad y los costos deben confirmarse."
         },
         {
-          "q": "¿Qué empresa puede ayudar a coordinar almacenamiento fiscal en Costa Rica?",
+          "q": "¿Quién puede ayudar a coordinar un almacén fiscal en Costa Rica?",
           "a": "Grupo Castro Fallas puede evaluar la coordinación logística y documental para almacenamiento fiscal de importaciones en Costa Rica. La instalación y su disponibilidad se confirman para cada operación."
         },
         {
@@ -35,7 +35,7 @@
         }
       ],
       "answer": "Grupo Castro Fallas coordina la evaluación logística y documental de operaciones de almacenamiento fiscal para importadores en Costa Rica. El depósito, el régimen aplicable y la disponibilidad de instalaciones autorizadas se confirman antes de contratar el servicio.",
-      "quoteHeading": "¿Qué datos se necesitan para cotizar almacenamiento fiscal?",
+      "quoteHeading": "¿Qué datos se necesitan para cotizar un almacén fiscal?",
       "quoteIntro": "Indique las características del embarque para revisar requisitos y disponibilidad.",
       "quoteItems": [
         "Origen, modalidad de transporte y fecha estimada de llegada.",
@@ -58,8 +58,8 @@
       ],
       "faq": [
         {
-          "q": "Is it the same as general warehousing?",
-          "a": "No. Bonded warehousing is subject to customs control; general warehousing serves other storage needs."
+          "q": "What is a bonded warehouse?",
+          "a": "An authorized facility where goods may remain under customs control, subject to the applicable customs regime and requirements."
         },
         {
           "q": "Can customs clearance be quoted together?",
@@ -89,100 +89,10 @@
       "scopeNote": "Coordinating a bonded warehousing operation does not imply that Grupo Castro Fallas owns or operates a bonded facility. The authorized provider, conditions and included services must be confirmed first."
     }
   },
-  "/servicios/bodegaje-general": {
-    "es": {
-      "label": "Bodegaje general",
-      "title": "Bodegaje general y almacenamiento de mercancías en Costa Rica",
-      "intro": "El bodegaje general ayuda a planificar la recepción, resguardo y despacho de mercancías. Grupo Castro Fallas puede evaluar alternativas de almacenamiento y coordinación logística según la naturaleza, cantidad y movimiento de la carga.",
-      "heading": "¿Cuándo conviene el bodegaje general?",
-      "body": "Es útil cuando la llegada de la mercancía y su entrega ocurren en momentos diferentes, o se necesita organizar despachos de manera planificada. La evaluación también considera el volumen, el tiempo de permanencia y la frecuencia de entradas y salidas de la carga.",
-      "points": [
-        "Evaluación de volumen, peso y duración del almacenamiento.",
-        "Coordinación de recepción y salida de productos según el servicio contratado.",
-        "Revisión de requisitos de manipulación y empaque.",
-        "Organización e identificación de mercancías para facilitar su localización y despacho."
-      ],
-      "faq": [
-        {
-          "q": "¿En qué se diferencia del almacenamiento fiscal?",
-          "a": "El bodegaje general es almacenamiento logístico; el almacenamiento fiscal está sujeto a controles aduaneros específicos."
-        },
-        {
-          "q": "¿Se puede coordinar bodegaje y transporte?",
-          "a": "Puede solicitar una cotización conjunta, sujeta a disponibilidad y condiciones."
-        },
-        {
-          "q": "¿Qué empresa coordina bodegaje general de carga en Costa Rica?",
-          "a": "Grupo Castro Fallas puede analizar opciones de bodegaje general y coordinación logística en Costa Rica. El espacio y el proveedor se confirman según las características de cada mercancía."
-        },
-        {
-          "q": "¿El bodegaje incluye control de inventario?",
-          "a": "El alcance de registros, inventario, entradas y salidas depende de los servicios contratados y debe definirse en la propuesta."
-        },
-        {
-          "q": "¿Puedo almacenar mercancía peligrosa o que requiere refrigeración?",
-          "a": "Los productos peligrosos o con control de temperatura necesitan instalaciones y autorizaciones adecuadas. Su aceptación debe evaluarse específicamente; no se garantiza disponibilidad."
-        }
-      ],
-      "answer": "Grupo Castro Fallas puede evaluar soluciones de bodegaje general en Costa Rica para mercancías que requieren almacenamiento temporal y coordinación de recepción o despacho. La ubicación, capacidad y condiciones se verifican al cotizar.",
-      "quoteHeading": "¿Qué información se necesita para cotizar bodegaje?",
-      "quoteIntro": "Para proponer condiciones de almacenamiento adecuadas es importante conocer el movimiento de la mercancía.",
-      "quoteItems": [
-        "Tipo de mercancía, dimensiones, peso y volumen total.",
-        "Tiempo estimado de permanencia y cantidad de entradas y salidas.",
-        "Condición aduanera y necesidades de manipulación o seguridad."
-      ],
-      "scopeNote": "La disponibilidad de bodegas, el acceso a instalaciones específicas, la cobertura y el manejo especializado no se presuponen: se confirman en cada cotización."
-    },
-    "en": {
-      "label": "General warehousing",
-      "title": "General cargo warehousing in Costa Rica",
-      "intro": "General warehousing helps plan cargo receipt, storage and dispatch. Grupo Castro Fallas can assess warehousing and logistics coordination options according to shipment needs.",
-      "heading": "When is general warehousing useful?",
-      "body": "It can be useful when goods arrive before they need to be delivered, or when dispatches require planning. The assessment also considers cargo volume, storage duration and the frequency of inbound and outbound movements.",
-      "points": [
-        "Assess cargo volume, weight and storage duration.",
-        "Coordinate receiving and dispatch within the agreed service.",
-        "Review handling and packaging needs.",
-        "Cargo organization and identification to facilitate retrieval and dispatch."
-      ],
-      "faq": [
-        {
-          "q": "How is it different from bonded storage?",
-          "a": "General warehousing is logistics storage; bonded storage is subject to specific customs controls."
-        },
-        {
-          "q": "Can storage and transport be quoted together?",
-          "a": "Yes, subject to availability and service conditions."
-        },
-        {
-          "q": "Which company can coordinate general warehousing in Costa Rica?",
-          "a": "Grupo Castro Fallas can assess general warehousing and logistics coordination options in Costa Rica, subject to cargo characteristics and available facilities."
-        },
-        {
-          "q": "Does warehousing include inventory management?",
-          "a": "Inventory records, receiving and dispatch procedures depend on the agreed service scope."
-        },
-        {
-          "q": "Can dangerous or temperature-controlled goods be stored?",
-          "a": "These shipments require suitable facilities and authorizations. Acceptance must be assessed individually; availability is not guaranteed."
-        }
-      ],
-      "answer": "Grupo Castro Fallas can assess general cargo storage options in Costa Rica for shipments requiring temporary warehousing, receiving and dispatch coordination. Location, capacity and terms are confirmed when quoting.",
-      "quoteHeading": "What details are needed for a warehousing quote?",
-      "quoteIntro": "Accurate cargo and turnover information helps assess suitable conditions.",
-      "quoteItems": [
-        "Cargo type, dimensions, weight and total volume.",
-        "Expected duration and inbound/outbound frequency.",
-        "Customs status and any special handling or security requirements."
-      ],
-      "scopeNote": "Warehouse availability, access to specific facilities and specialized handling are not presumed; they must be confirmed in the quotation."
-    }
-  },
   "/servicios/agenciamiento-aduanal": {
     "es": {
-      "label": "Agenciamiento aduanal",
-      "title": "Agenciamiento aduanal para importaciones y exportaciones en Costa Rica",
+      "label": "Agencia aduanal",
+      "title": "Agencia aduanal para importaciones y exportaciones en Costa Rica",
       "intro": "Grupo Castro Fallas brinda acompañamiento y coordinación documental para trámites aduaneros de importación y exportación en Costa Rica. Los requisitos dependen del tipo de mercancía, la clasificación y el régimen aplicable.",
       "heading": "¿Qué abarca la coordinación aduanera?",
       "body": "La gestión requiere información consistente entre los documentos comerciales, los transportistas y las autoridades competentes. Una descripción precisa de los productos y los documentos disponibles ayuda a revisar los requisitos antes de iniciar el trámite.",
@@ -198,7 +108,7 @@
           "a": "Según la operación se revisan factura comercial, documentos de transporte y permisos o certificados exigibles."
         },
         {
-          "q": "¿Se puede sumar transporte o bodegaje?",
+          "q": "¿Se puede sumar transporte al trámite aduanero?",
           "a": "Puede solicitar servicios complementarios, sujetos al alcance de la cotización."
         },
         {

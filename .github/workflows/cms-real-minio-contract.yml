@@ -7,6 +7,8 @@ on:
       - tests/CmsRealMinioContract/**
       - backend/Services/CmsImageVariants.cs
       - backend/Services/ObjectStorageService.cs
+      - compose.yaml
+      - scripts/test-cms-webp-compose.py
       - .github/workflows/cms-real-minio-contract.yml
 
 permissions:

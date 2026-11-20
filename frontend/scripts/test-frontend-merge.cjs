@@ -399,29 +399,28 @@ for (const padding of [
 ]) {
   assert.ok(serviceStepsCss.includes(padding), 'Separación superior responsive para el número 02: ' + padding)
 }
-// Only the four long-form guide services need a more compact vertical
+// Only the three remaining long-form guide services need a more compact vertical
 // arrangement; transport pages keep their already approved stage spacing.
 const longGuideSlugs = Object.keys(JSON.parse(source('seo/service-landings.json')))
 assert.deepEqual(longGuideSlugs.sort(), [
   '/servicios/agenciamiento-aduanal',
   '/servicios/almacenamiento-fiscal',
-  '/servicios/bodegaje-general',
   '/servicios/consolidadora-de-carga'
-], 'Solo los cuatro servicios de texto extendido reciben el ajuste')
+], 'Solo los tres servicios de texto extendido reciben el ajuste')
 assert.match(serviceLanding, /service-landing-page--long-guide': Boolean\(guides\[route\]\)/,
-  'La clase de texto extendido se activa únicamente en las cuatro guías')
+  'La clase de texto extendido se activa únicamente en las tres guías')
 assert.match(serviceLanding, /service-landing-page--balanced-guide': Boolean\(guides\[route\]\) && route !== '\/servicios\/almacenamiento-fiscal'/,
-  'Solo Bodegaje, Agenciamiento y Consolidadora reciben el ajuste; Fiscal permanece igual')
+  'Solo Agenciamiento y Consolidadora reciben el ajuste; Fiscal permanece igual')
 assert.match(serviceStepsCss, /\.service-landing-page--balanced-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-grid\s*\{\s*padding-top:clamp\(72px,calc\(5\.2vw \+ 14px\),92px\);\s*gap:clamp\(18px,1\.9vw,26px\);/,
   'Los tres servicios recuperan ligeramente la posición vertical anterior')
 assert.match(serviceStepsCss, /\.service-landing-page--balanced-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-visual\s*\{\s*height:clamp\(210px,30svh,310px\);\s*max-height:100%;/,
   'Las fotografías de los tres servicios recuperan su tamaño, con altura adaptable')
 assert.match(serviceStepsCss, /@media\(min-width:901px\)\s*\{\s*\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-grid\s*\{\s*padding-top:clamp\(42px,4vw,60px\);\s*gap:clamp\(14px,1\.5vw,22px\);/,
-  'Las cuatro guías adelantan texto y foto sin afectar a transportes')
+  'Las tres guías adelantan texto y foto sin afectar a transportes')
 assert.match(serviceStepsCss, /\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-section-heading>p:not\(\.section-tag\)\s*\{\s*font-size:clamp\(16px,1\.2vw,18px\);\s*line-height:1\.55;/,
   'Los párrafos largos conservan todo el contenido y utilizan un ritmo vertical compacto')
 assert.match(serviceStepsCss, /\.service-landing-page--long-guide \.service-landing-story \.service-landing-step--details \.service-landing-detail-visual\s*\{\s*height:clamp\(210px,30svh,310px\);\s*max-height:100%;\s*min-height:0;/,
-  'Las fotos de las cuatro guías recuperan su tamaño máximo anterior')
+  'Las fotos de las tres guías recuperan su tamaño máximo anterior')
 assert.match(serviceStepsCss, /grid-template-rows:max-content minmax\(0,1fr\);\s*max-height:calc\(min\(100svh - 48px,820px\) - clamp\(30px,4vw,58px\) - 14px\)/,
   'La imagen se adapta al espacio que queda debajo del texto y dentro del video')
 // The light hero's transition is shorter/lower on desktop, while the dark
@@ -433,11 +432,11 @@ assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-hero::
 // Long-form guides lower the visible fade without moving the following frame;
 // the transport pages retain the shared baseline transition.
 assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-page--long-guide \.service-landing-hero::after\s*\{\s*height:clamp\(105px,13svh,155px\);/,
-  'Las cuatro guías bajan el inicio visual del difuminado de portada')
-assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-page--long-guide \.service-landing-story::before\s*\{\s*backdrop-filter:blur\(10px\);/,
-  'Las cuatro guías hacen coherente el difuminado entre ambas capas')
+  'Las tres guías bajan el inicio visual del difuminado de portada')
+assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-page--long-guide \.service-landing-story::before\s*\{\s*backdrop-filter:none;/,
+  'Las tres guías conservan el empalme sin desenfocar la fotografía')
 assert.match(serviceStepsCss, /html:not\(\.theme-dark\) \.service-landing-hero::after\s*\{\s*height:clamp\(130px,16svh,190px\);/,
-  'El difuminado ya aprobado en transportes se conserva')
+  'La altura de la transición en transportes se conserva sin alterar el layout')
 // Regression: top navigation underlines are hover/focus-only in both themes,
 // while the existing active item stays a red pill.
 const hoverOnlyNavCss = source('src/style.css')
@@ -639,6 +638,25 @@ assert.match(tracking, /@click="openGuide"/, 'Conservar la guía a solicitud del
 assert.match(tracking, /\.tracking-fields\{grid-template-columns:minmax\(0,1fr\);gap:20px;/, 'Separar los campos en móvil')
 assert.match(tracking, /\.tracking-fields :is\(input,select\)\{min-height:54px;padding:13px 15px;font-size:16px;/, 'Controles táctiles con fuente legible en móvil')
 const homeStyles = source('src/style.css')
+
+// Laptop-width service accordion must have enough horizontal and vertical room
+// for the expanded title, description and CTA; mobile retains its own styles.
+const homeLaptopFix = homeStyles.split('/* Home transport cards on intermediate laptop widths.')[1] ?? ''
+assert.ok(homeLaptopFix, 'Falta ajuste responsive de tarjetas de transporte en laptops')
+assert.match(homeLaptopFix, /@media \(min-width:801px\) and \(max-width:1100px\)/,
+  'Solo los anchos intermedios estrechos deben apilar noticias debajo de servicios')
+assert.match(homeLaptopFix, /grid-template-columns:minmax\(0,1fr\)/,
+  'En pantallas estrechas los servicios conservan el ancho completo')
+assert.match(homeStyles, /@media \(min-width:1101px\) and \(max-width:1550px\)/,
+  'Las laptops deben mantener las noticias a un lado')
+assert.match(homeStyles, /grid-template-columns:minmax\(0,1fr\) minmax\(215px,clamp\(215px,19vw,280px\)\)/,
+  'El layout de laptops conserva las dos columnas')
+assert.match(homeLaptopFix, /height:clamp\(455px,38vw,500px\)/,
+  'Las tarjetas deben ganar altura para el texto completo')
+assert.match(homeLaptopFix, /container-type:inline-size/,
+  'El texto debe ajustarse al ancho real de la columna de servicios')
+assert.match(homeLaptopFix, /overflow-y:auto/,
+  'Las descripciones largas deben seguir siendo accesibles si no caben')
 
 const serviceOverlayCss = homeStyles.split('.service-modal-backdrop{')[1]?.split('}')[0] ?? ''
 const serviceCardCss = homeStyles.split('.service-modal__sections section{')[1]?.split('}')[0] ?? ''
@@ -1066,7 +1084,11 @@ assert.match(otpService, /request_count % 2 = 1/, 'OTP permite un segundo intent
 assert.doesNotMatch(otpService, /AnyAsync\(x => x\.UsuarioId == user\.Uuid && x\.CreatedAt > now\.AddSeconds\(-60\)/, 'No bloquear el segundo intento con un límite de challenge obsoleto')
 assert.match(otpService, /last_requested_at <= NOW\(\) - INTERVAL '60 seconds'/, 'OTP conserva espera mínima por correo')
 assert.match(otpService, /GetOtpRetrySecondsAsync\(emailKey, ct\)/, 'Devuelve espera calculada desde PostgreSQL')
-assert.match(otpService, /await SendMailAsync\(email, otp, ct\)/, 'OTP sigue enviándose por proveedor')
+assert.match(otpService, /await SendMailAsync\(email, otp, id, ct\)/, 'OTP sigue enviándose por proveedor con el challenge existente')
+assert.match(otpService, /OtpEmailTemplate\.VerificationUrl\(challengeId, configuration\["Email:LoginUrl"\]\)/, 'El correo recupera el mismo challenge sin generar otro')
+assert.match(otpLogin, /window\.location\.hash\.slice\(1\)/, 'El enlace del correo conserva el challenge en un fragmento no enviado al servidor')
+assert.match(otpLogin, /ref<'identity' \| 'otp'>\(linkedChallenge \? 'otp' : 'identity'\)/, 'El enlace va directo al campo OTP')
+assert.match(otpLogin, /role === 'administrador' \? '\/administracion' : '\/home'/, 'El rol de sesión determina el destino después de verificar')
 assert.match(otpService, /x\.Uuid != id && x\.CreatedAt < row\.CreatedAt && x\.UsedAt == null/, 'Solo se invalidan OTP anteriores después del envío, sin afectar desafíos nuevos simultáneos')
 assert.match(otpBackend, /code = "otp_rate_limited"/, '429 por correo es distinguible')
 assert.match(otpBackend, /Headers\.RetryAfter/, '429 y 503 exponen Retry-After')
@@ -1148,8 +1170,8 @@ assert.match(itinerary, /'Demasiadas consultas por el momento'/, 'Mensaje compre
 assert.match(itinerary, /'Too many requests for now'/, 'Mensaje comprensible en inglés')
 assert.match(itinerary, /:disabled="retrySeconds > 0 \|\| cargando"/, 'Reintento bloqueado hasta que expire Retry-After')
 
-// Asegurar que los siete textos de Infraestructura y cobertura son editables
-// de extremo a extremo, sin cambios en los valores visibles de esta rama.
+// Los siete textos de Infraestructura y cobertura deben existir en el editor,
+// usarse realmente en Inicio y estar permitidos por el backend al publicar.
 const regionalHome = source('src/Home.vue')
 const regionalSlots = source('src/siteCmsCatalog.ts')
 const regionalCmsApi = source('../backend/Services/SiteCmsEndpoints.cs')
@@ -1157,19 +1179,19 @@ const regionalFields = [
   ['home.specialties.heading', 'INFRAESTRUCTURA Y COBERTURA', 'INFRASTRUCTURE & COVERAGE'],
   ['home.specialties.fiscal.eyebrow', 'ALMACENAMIENTO', 'WAREHOUSING'],
   ['home.specialties.fiscal.lead', 'Espacio para tu carga.', 'Space for your cargo.'],
-  ['home.specialties.fiscal.title', 'Almacenamiento fiscal A257 · A287', 'Bonded warehousing A257 · A287'],
+  ['home.specialties.fiscal.title', 'Almacén fiscal A257 · A287', 'Bonded warehousing A257 · A287'],
   ['home.specialties.panama.eyebrow', 'TRANSPORTE REGIONAL', 'REGIONAL TRANSPORT'],
   ['home.specialties.panama.lead', 'Movemos tu negocio.', 'We move your business.'],
   ['home.specialties.panama.title', 'Transporte entre Costa Rica y Panamá', 'Transport between Costa Rica and Panama']
 ]
 for (const [key, es, en] of regionalFields) {
-  assert.ok(regionalHome.includes("siteText('" + key + "'"), 'Inicio no consulta el campo ' + key)
-  assert.ok(regionalSlots.includes("['" + key + "',"), 'Campo ausente del Editor visual ' + key)
+  assert.ok(regionalHome.includes("siteText('" + key + "'"), 'Falta enlazar en Inicio el campo ' + key)
+  assert.ok(regionalSlots.includes("['" + key + "',"), 'Falta el campo en Editor visual: ' + key)
   assert.ok(regionalSlots.includes("'" + es + "'") && regionalSlots.includes("'" + en + "'"),
-    'Los textos ES/EN deben mantener sus valores predeterminados ' + key)
-  assert.ok(regionalCmsApi.includes('"' + key + '"'), 'Backend no permite publicar ' + key)
+    'No se conservan los valores predeterminados ES/EN para ' + key)
+  assert.ok(regionalCmsApi.includes('"' + key + '"'), 'Backend CMS no permite guardar/publicar ' + key)
 }
-assert.match(regionalHome, /<b>01<\/b>/, 'Conservar la numeración del almacén fiscal')
-assert.match(regionalHome, /<b>02<\/b>/, 'Conservar la numeración del transporte regional')
+assert.match(regionalHome, /<b>01<\/b>/, 'No cambiar la numeración del almacén fiscal')
+assert.match(regionalHome, /<b>02<\/b>/, 'No cambiar la numeración del transporte regional')
 
 console.log('OK: SignalR, CMS, MinIO, news, itinerary and tracking contracts.')

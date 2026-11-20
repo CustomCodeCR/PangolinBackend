@@ -17,7 +17,6 @@ const targetedServiceRoutes = [
   '/servicios/consolidadora-de-carga',
   '/servicios/transporte-maritimo',
   '/servicios/transporte-aereo',
-  '/servicios/transporte-internacional',
   '/servicios/transporte-local',
   '/servicios/transporte-terrestre',
   '/servicios/transporte-panama-costa-rica'
@@ -35,14 +34,16 @@ for (const route of targetedServiceRoutes) {
 for (const route of [
   '/servicios/almacenamiento-fiscal','/servicios/agenciamiento-aduanal',
   '/servicios/consolidadora-de-carga','/servicios/transporte-maritimo',
-  '/servicios/transporte-aereo','/servicios/transporte-internacional',
+  '/servicios/transporte-aereo',
   '/servicios/transporte-local'
 ]) {
   assert.ok(keywords[route].clusters && keywords[route].validationRequired?.length,
     'Conservar las familias de búsqueda y términos pendientes de validar: ' + route)
 }
-assert.ok(keywords['/servicios/transporte-internacional'].clusters.multimodal.includes('Transporte multimodal'),
-  'Multimodal utiliza la página existente de transporte internacional sin crear rutas duplicadas')
+assert.equal(keywords['/servicios/transporte-internacional'], undefined,
+  'El catálogo de búsqueda no debe anunciar la página retirada de transporte internacional')
+assert.equal(routeSeo['/servicios/bodegaje-general'], undefined, 'Bodegaje general no debe seguir publicado como página');
+assert.equal(routeSeo['/servicios/transporte-internacional'], undefined, 'Transporte internacional retirado no debe conservar página');
 assert.equal(routeSeo['/servicios/transporte-multimodal'], undefined,
   'No agregar una nueva ruta de multimodal fuera del catálogo aprobado')
 const publicServiceSeo = source('app/pages/servicios/[slug].vue')
@@ -52,18 +53,18 @@ assert.match(publicServiceSeo, /const metaDescription = seoMeta\?\.description \
   'La metadescripción SSR debe coincidir con el HTML estático')
 assert.match(publicServiceSeo, /description: metaDescription/,
   'Nuxt no debe sobrescribir los metadatos optimizados con párrafos de guía')
-assert.equal(Object.keys(guides).length, 4, 'Se esperaban cuatro guías especializadas')
+assert.equal(Object.keys(guides).length, 3, 'Se esperan tres guías especializadas')
 for (const [route, guide] of Object.entries(guides)) {
   assert.ok(route.startsWith('/servicios/'), 'Ruta de servicio inválida: ' + route)
   assert.ok(guide.es.title && guide.es.answer && guide.es.faq?.length >= 5, 'Contenido AEO incompleto: ' + route)
 }
-assert.equal(newServices.length, 6, 'La PR139 debe incluir seis páginas nuevas de servicios')
+assert.equal(newServices.length, 5, 'Se esperan cinco páginas activas de transporte')
 assert.equal(new Set(newServices.map(item => item.slug)).size, newServices.length, 'Slugs duplicados en servicios')
 for (const item of newServices) {
   assert.ok(item.slug && item.title?.es && item.title?.en && item.lead?.es, 'Contenido bilingüe de servicio incompleto')
   assert.ok(serviceFaqs[item.slug]?.length >= 2, 'Faltan preguntas frecuentes en: ' + item.slug)
 }
-assert.match(source('app/pages/servicios/[slug].vue'), /LegacyServiceLanding/, 'Las seis páginas nuevas usan el diseño unificado en Nuxt')
+assert.match(source('app/pages/servicios/[slug].vue'), /LegacyServiceLanding/, 'Los cinco transportes usan el diseño unificado en Nuxt')
 assert.match(source('server/routes/sitemap.xml.ts'), /servicePages/, 'Las páginas nuevas faltan del sitemap de Nuxt')
 assert.match(source('nuxt.config.ts'), /servicePages\.map/, 'Las páginas nuevas faltan del prerender')
 assert.match(source('scripts/stage-public.mjs'), /BingSiteAuth.xml/, 'Falta publicar verificación Bing en Nuxt')
@@ -84,19 +85,27 @@ assert.match(source('../src/components/SiteFooter.vue'), /<h2\b/, 'El pie de pá
 assert.match(source('../src/style.css'), /\.site-footer h2\{font-size:13px;margin:1px 0 14px\}/, 'El diseño del pie debe conservarse después del cambio semántico')
 assert.match(source('../../deploy/nuxt-hybrid-gateway.conf'), /location = \/home\s*\{\s*return 301 https:\/\/www\.logisticacastrofallas\.com\/;/, 'El alias /home debe redirigir directamente al dominio HTTPS canónico')
 const serviceIndex = source('../src/pages/Services.vue')
-assert.match(serviceIndex, /serviceDirectory/, 'El catálogo necesita directorio de enlaces HTML visibles')
-assert.match(serviceIndex, /servicePages\.map/, 'Deben enlazarse los seis transportes desde Servicios')
-assert.match(serviceIndex, /Object\.entries\(serviceGuides\)/, 'Deben enlazarse las cuatro guías desde Servicios')
-assert.match(serviceIndex, /:href="link.href"/, 'Las guías deben tener enlaces rastreables, no solo modales')
-assert.match(serviceIndex, /min-height:\s*76px/, 'Tarjetas SEO en escritorio deben ser compactas')
-assert.match(serviceIndex, /min-height:\s*66px/, 'Tarjetas SEO en móvil deben ser compactas')
-assert.match(serviceIndex, /services-directory__card:focus-visible/, 'Enlaces SEO necesitan foco visible')
-assert.match(serviceIndex, /services-directory__card-arrow.*<svg/, 'Flechas de Servicios deben usar un SVG centrable, no un glifo tipográfico')
+assert.match(serviceIndex, /serviceDirectory/, 'El catálogo necesita enlaces HTML rastreables')
+assert.match(serviceIndex, /servicePages\.map/, 'Deben enlazarse los cinco transportes desde Servicios')
+assert.match(serviceIndex, /Object\.entries\(serviceGuides\)/, 'Deben enlazarse las tres guías desde Servicios')
+assert.match(serviceIndex, /:href="link.href"/, 'Cada tarjeta debe seguir siendo un enlace HTML real')
+assert.match(serviceIndex, /services-directory__categories/, 'El carrusel debe permitir cambiar de categoría')
+assert.match(serviceIndex, /v-show="activeDirectoryCategory === group.id"/, 'Solo una categoría puede estar visible')
+assert.match(serviceIndex, /v-for="repeat in 5"/, 'Cinco secuencias cierran un loop sin saltos')
+assert.match(serviceIndex, /:tabindex="repeat !== 3 \? -1 : undefined"/, 'Las copias del loop no deben duplicar enlaces por teclado')
+assert.match(serviceIndex, /services-directory__card-cta/, 'Cada tarjeta necesita un botón visual Ver más')
+assert.match(serviceIndex, /Ver más/, 'El botón del carrusel debe decir Ver más')
+assert.doesNotMatch(serviceIndex, /services-directory__motion/, 'El carrusel no debe incluir un botón de pausa')
+assert.match(serviceIndex, /\.services-directory__card:focus-visible/, 'Enlaces navegables necesitan foco visible')
+assert.match(serviceIndex, /services-directory__card-arrow.*<svg/, 'La acción Ver más debe conservar flecha SVG')
+assert.match(serviceIndex, /requestAnimationFrame\(animateDirectory\)/, 'El carrusel debe usar una única posición continua')
+assert.match(serviceIndex, /directoryPointerMove/, 'El carrusel debe permitir arrastre horizontal')
+assert.match(serviceIndex, /directoryVideoSrc/, 'Cada servicio debe tener vista previa de video contextual')
+assert.match(serviceIndex, /prefers-reduced-motion:reduce/, 'Debe desactivarse la animación para movimiento reducido')
 const serviceGlobalCss = source('../src/style.css')
-assert.match(serviceGlobalCss, /html\.theme-dark \.app-site\.services-page \.services-directory a\.services-directory__card/, 'Colores oscuros de servicios requieren selector global final')
-assert.match(serviceGlobalCss, /background:\s*#0b1428\s*!important/, 'Tarjetas SEO oscuras necesitan el azul corporativo de referencia')
-assert.match(serviceGlobalCss, /background-image:\s*none\s*!important/, 'Tarjetas SEO oscuras no deben tener degradado claro')
-assert.match(serviceGlobalCss, /-webkit-text-fill-color:\s*#f4f6fa\s*!important/, 'Contraste de texto oscuro debe ignorar reglas globales heredadas')
+assert.match(serviceGlobalCss, /html\.theme-dark \.app-site\.services-page \.services-directory a\.services-directory__card/, 'Modo oscuro necesita un selector estable')
+assert.match(serviceGlobalCss, /background:#142239!important/, 'Modo oscuro necesita un fondo de respaldo contrastado')
+assert.match(serviceGlobalCss, /-webkit-text-fill-color:#fff!important/, 'Los títulos deben conservar contraste sobre las fotos')
 
 const languageSwitcher = source('../src/components/LanguageSwitcher.vue')
 const languageFlags = source('../src/components/LanguageFlag.vue')

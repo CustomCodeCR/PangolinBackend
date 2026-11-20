@@ -19,8 +19,8 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Check high/critical npm advisories (include dev dependencies)
-        run: npm audit --prefix frontend --audit-level=high
+      - name: Audit all npm dependencies strictly (including development)
+        run: node scripts/audit-frontend-deps.cjs
 
   build:
     name: Build .NET and Vue

@@ -102,7 +102,8 @@ public static class SiteCmsEndpoints
             "services.access.heading1", "services.access.heading2", "services.access.intro",
             "services.access.tracking", "services.access.quote"
         }) TextKeys.Add(field);
-        // Whitelisted bilingual labels for the Home infrastructure section.
+        // Seven editable Home infrastructure headings; only explicitly allowed CMS keys
+        // are writable and publishable through the backend.
         foreach (var key in new[] {
             "home.specialties.heading",
             "home.specialties.fiscal.eyebrow", "home.specialties.fiscal.lead",
@@ -118,11 +119,11 @@ public static class SiteCmsEndpoints
         }
 
         var guideSlugs = new[] {
-            "almacenamiento-fiscal", "bodegaje-general", "agenciamiento-aduanal", "consolidadora-de-carga"
+            "almacenamiento-fiscal", "agenciamiento-aduanal", "consolidadora-de-carga"
         };
         var transportSlugs = new[] {
             "transporte-maritimo", "transporte-terrestre", "transporte-aereo",
-            "transporte-internacional", "transporte-local", "transporte-panama-costa-rica"
+            "transporte-local", "transporte-panama-costa-rica"
         };
         foreach (var slug in guideSlugs.Concat(transportSlugs))
         {

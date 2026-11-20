@@ -5784,66 +5784,51 @@ html.theme-dark .content-manager .manager-itinerary-location-field .manager-itin
   }
 }
 
-/* Servicios: contraste real de los enlaces SEO en modo oscuro.
-   El CSS base fuerza texto blanco en toda la web. Estas superficies DEBEN
-   ser oscuras, con regla global específica posterior a los estilos generales.
-   Evitar que el scoped CSS de Vue o el orden de carga Nuxt/Vite cambie esto. */
-html.theme-dark .app-site.services-page .services-directory {
-  background: #0b1428 !important;
-  background-color: #0b1428 !important;
-  background-image: none !important;
+/* Carrusel visual de Servicios en modo oscuro.
+   Las fotografías son elementos <img>/<video> y se mantienen visibles encima
+   del color de respaldo, a diferencia del antiguo directorio de cajas planas. */
+html.theme-dark .app-site.services-page .services-directory{
+  background:#0b1428!important;background-color:#0b1428!important;background-image:none!important;
 }
-html.theme-dark .app-site.services-page .services-directory .services-directory__intro {
-  color: #cbd2df !important;
-  -webkit-text-fill-color: #cbd2df !important;
+html.theme-dark .app-site.services-page .services-directory .services-directory__intro{
+  color:#cbd2df!important;-webkit-text-fill-color:#cbd2df!important;
 }
-html.theme-dark .app-site.services-page .services-directory .services-directory__group-heading {
-  border-color: rgba(255,255,255,.23) !important;
+html.theme-dark .app-site.services-page .services-directory .services-directory__categories{
+  background:#142039;border-color:#435069;
 }
-html.theme-dark .app-site.services-page .services-directory .services-directory__group-heading h3 {
-  color: #f4f6fa !important;
-  -webkit-text-fill-color: #f4f6fa !important;
+html.theme-dark .app-site.services-page .services-directory .services-directory__category{
+  color:#f4f6fa;-webkit-text-fill-color:#f4f6fa;
 }
-html.theme-dark .app-site.services-page .services-directory .services-directory__count {
-  color: #ffa6b6 !important;
-  -webkit-text-fill-color: #ffa6b6 !important;
+html.theme-dark .app-site.services-page .services-directory .services-directory__category.is-active{
+  background:#b20b2d;color:#fff;-webkit-text-fill-color:#fff;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__category:not(.is-active):hover{
+  background:#23304a;
 }
 html.theme-dark .app-site.services-page .services-directory a.services-directory__card,
-html.theme-dark .app-site.services-page .services-directory a.services-directory__card:is(:link,:visited) {
-  background: #0b1428 !important;
-  background-color: #0b1428 !important;
-  background-image: none !important;
-  border: 1px solid #435069 !important;
-  color: #f4f6fa !important;
-  -webkit-text-fill-color: #f4f6fa !important;
-  box-shadow: none !important;
+html.theme-dark .app-site.services-page .services-directory a.services-directory__card:is(:link,:visited){
+  background:#142239!important;background-image:none!important;border-color:#435069!important;
+  color:#f4f6fa!important;-webkit-text-fill-color:#f4f6fa!important;
 }
-html.theme-dark .app-site.services-page .services-directory .services-directory__card .services-directory__card-title {
-  color: #f4f6fa !important;
-  -webkit-text-fill-color: #f4f6fa !important;
+html.theme-dark .app-site.services-page .services-directory .services-directory__card .services-directory__card-title{
+  color:#fff!important;-webkit-text-fill-color:#fff!important;
 }
-html.theme-dark .app-site.services-page .services-directory .services-directory__card .services-directory__card-index {
-  color: #ffa2b2 !important;
-  -webkit-text-fill-color: #ffa2b2 !important;
+html.theme-dark .app-site.services-page .services-directory .services-directory__card .services-directory__card-cta{
+  background:#0b1428!important;border:1px solid #46536b!important;
+  color:#f4f6fa!important;-webkit-text-fill-color:#f4f6fa!important;
 }
-html.theme-dark .app-site.services-page .services-directory .services-directory__card .services-directory__card-arrow {
-  background: #301e34 !important;
-  background-image: none !important;
-  border-color: #805068 !important;
-  color: #ffc1cb !important;
-  -webkit-text-fill-color: #ffc1cb !important;
+html.theme-dark .app-site.services-page .services-directory .services-directory__card .services-directory__card-arrow{
+  background:#2b2138!important;color:#f4f6fa!important;-webkit-text-fill-color:#f4f6fa!important;
 }
-html.theme-dark .app-site.services-page .services-directory .services-directory__card:is(:hover,:focus-visible) {
-  background: #132039 !important;
-  background-color: #132039 !important;
-  background-image: none !important;
-  border-color: #e45775 !important;
-  box-shadow: 0 6px 20px rgba(0,0,0,.25) !important;
+html.theme-dark .app-site.services-page .services-directory .services-directory__card:is(:hover,:focus-visible){
+  border-color:#f07189!important;box-shadow:inset 0 0 0 2px rgba(240,113,137,.42)!important;
 }
-html.theme-dark .app-site.services-page .services-directory .services-directory__card:is(:hover,:focus-visible) .services-directory__card-arrow {
-  background: #b30c2d !important;
-  color: #fff !important;
-  -webkit-text-fill-color: #fff !important;
+html.theme-dark .app-site.services-page .services-directory .services-directory__card:is(:hover,:focus-visible) .services-directory__card-cta{
+  background:#172641!important;border-color:#64718a!important;
+  color:#fff!important;-webkit-text-fill-color:#fff!important;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__card:is(:hover,:focus-visible) .services-directory__card-arrow{
+  background:#b20b2d!important;color:#fff!important;-webkit-text-fill-color:#fff!important;
 }
 
 /* Login OTP: use the same dark navy surfaces as the form, even when the
@@ -5963,5 +5948,107 @@ html.theme-dark .login-screen .login-auth-card .login-auth-sending {
   .site-header .main-nav > a:not(.is-active):not(.nav-login):is(:hover, :focus-visible),
   .site-header .main-nav .nav-dropdown:not(.nav-dropdown--active) > .nav-dropdown__trigger:is(:hover, :focus-visible) {
     border-bottom-color: rgba(255, 255, 255, .82) !important;
+  }
+}
+
+
+/* Home transport cards on intermediate laptop widths.
+   Below full desktop, the news rail moves underneath so the six service
+   tabs cannot squeeze the active description into an unreadable strip.
+   The mobile (<=800px) accordion is intentionally untouched. */
+@media (min-width:801px) and (max-width:1100px) {
+  .app-site.home-page #servicios .services-news-layout {
+    grid-template-columns:minmax(0,1fr);
+    gap:26px;
+  }
+  .app-site.home-page #servicios .service-accordion {
+    height:clamp(455px,38vw,500px);
+    min-height:clamp(455px,38vw,500px);
+  }
+  .app-site.home-page #servicios .service-accordion__item {
+    height:100%;
+  }
+}
+
+/* CSS container measurements, not device names, drive the copy scale.
+   In particular, this also covers larger windows with browser zoom. */
+@media (min-width:801px) {
+  .app-site.home-page #servicios .services-main {
+    container-type:inline-size;
+  }
+  .app-site.home-page #servicios .service-accordion__panel {
+    align-items:safe flex-end;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+  }
+  .app-site.home-page #servicios .service-accordion__copy {
+    margin-right:0;
+  }
+}
+@container (max-width:1100px) {
+  .app-site.home-page #servicios .service-accordion__panel {
+    padding:20px 15px 22px;
+  }
+  .app-site.home-page #servicios .service-accordion__copy h3 {
+    font-size:clamp(20px,2.2vw,29px);
+    line-height:1.13;
+    margin-bottom:8px;
+  }
+  .app-site.home-page #servicios .service-accordion__copy p {
+    font-size:clamp(12px,1.15vw,14px);
+    line-height:1.45;
+    margin-bottom:12px;
+  }
+  .app-site.home-page #servicios .service-accordion__copy .btn {
+    min-height:40px;
+    padding:9px 14px;
+  }
+}
+
+
+/* Laptop Home: retain the desktop services + news side-by-side composition
+   above the true stacked-layout breakpoint. The 801–1100px stacked view
+   and <=800px mobile accordion keep their existing behavior. */
+@media (min-width:1101px) and (max-width:1550px) {
+  .app-site.home-page #servicios .services-news-layout {
+    grid-template-columns:minmax(0,1fr) minmax(215px,clamp(215px,19vw,280px));
+    gap:clamp(16px,2vw,30px);
+    align-items:stretch !important;
+  }
+  .app-site.home-page #servicios .services-main { min-width:0; }
+  .app-site.home-page #servicios .home-news-sidebar {
+    min-width:0;
+    height:auto;
+    align-self:stretch;
+  }
+  .app-site.home-page #servicios .home-news-sidebar__list {
+    min-height:0;
+    flex:1 1 auto;
+  }
+  .app-site.home-page #servicios .service-accordion {
+    height:clamp(455px,38vw,500px);
+    min-height:clamp(455px,38vw,500px);
+  }
+}
+
+/* Home transport labels remain vertically anchored while cards expand.
+   The initial open card is selected before render (Home.vue); prevent
+   the collapsed trigger from participating in flex layout during resizing. */
+@media (min-width: 801px) {
+  .app-site.home-page #servicios .service-accordion__item > .service-accordion__trigger {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    align-items: center;
+    justify-content: center !important;
+  }
+  .app-site.home-page #servicios .service-accordion__item.is-open > .service-accordion__trigger {
+    width: 58px;
+  }
+  .app-site.home-page #servicios .service-accordion__trigger .service-accordion__name {
+    animation: none !important;
+    transition: none !important;
   }
 }

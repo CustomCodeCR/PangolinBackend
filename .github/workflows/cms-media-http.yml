@@ -12,6 +12,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - name: Check local CMS WebP opt-in and production separation
+        run: python3 scripts/test-cms-webp-compose.py
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x

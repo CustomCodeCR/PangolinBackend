@@ -2,15 +2,22 @@
 import IconSymbol from '../components/IconSymbol.vue'
 import SiteMedia from '../components/SiteMedia.vue'
 import { siteText, siteVisual, siteCssImage } from '../siteCms'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LanguageSwitcher from '../components/LanguageSwitcher.vue'
 import { refreshSession } from '../services/auth'
 const { t, locale } = useI18n({ useScope: 'global' })
 const email = ref('')
 const otp = ref('')
-const challengeId = ref('')
-const step = ref<'identity' | 'otp'>('identity')
+const otpInput = ref<HTMLInputElement | null>(null)
+
+// The email contains only a random, non-secret challenge ID in the URL fragment.
+// The six-digit OTP never travels through a link and is still mandatory.
+const emailLinkChallenge = new URLSearchParams(window.location.hash.slice(1)).get('otpRequest')
+const linkedChallenge = emailLinkChallenge && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(emailLinkChallenge)
+  ? emailLinkChallenge : ''
+const challengeId = ref(linkedChallenge)
+const step = ref<'identity' | 'otp'>(linkedChallenge ? 'otp' : 'identity')
 const message = ref('')
 const error = ref('')
 const errorKind = ref<'' | 'mail' | 'rate'>('')
@@ -71,8 +78,17 @@ function beginRetryCooldown(response: Response) {
 }
 watch(email, () => { error.value = ''; errorKind.value = ''; restoreRetryCooldown() })
 const nextPath = new URLSearchParams(window.location.search).get('next')
-const destination = nextPath?.startsWith('/') && !nextPath.startsWith('//') && !nextPath.startsWith('/\\')
-  ? nextPath : '/home'
+const safeNextPath = nextPath?.startsWith('/') && !nextPath.startsWith('//') && !nextPath.startsWith('/\\')
+  ? nextPath : null
+function destinationFor(role: string): string {
+  return safeNextPath ?? (role === 'administrador' ? '/administracion' : '/home')
+}
+function backToEmail() {
+  challengeId.value = ''
+  step.value = 'identity'
+  error.value = ''
+  if (linkedChallenge) window.history.replaceState(null, '', window.location.pathname + window.location.search)
+}
 
 const systemThemeQuery = window.matchMedia?.('(prefers-color-scheme: dark)')
 function applyThemePreference() {
@@ -92,7 +108,17 @@ onMounted(async () => {
   sessionStorage.removeItem(RETRY_STORAGE_KEY)
   restoreRetryCooldown()
   retryTimer = window.setInterval(updateRetryCountdown, 1000)
-  if (await refreshSession()) window.location.replace(destination)
+  const current = await refreshSession()
+  // When switching accounts via email, keep the OTP field available even
+  // if another account is already authenticated in this browser.
+  if (current && !linkedChallenge) {
+    window.location.replace(destinationFor(current.role))
+    return
+  }
+  if (linkedChallenge) {
+    await nextTick()
+    otpInput.value?.focus()
+  }
 })
 onUnmounted(() => {
   systemThemeQuery?.removeEventListener('change', syncSystemTheme)
@@ -184,7 +210,7 @@ async function verifyCode() {
     }
     const user = await refreshSession()
     if (!user) throw new Error(t('custom.login.roleNotReturned'))
-    window.location.assign(destination)
+    window.location.assign(destinationFor(user.role))
   } catch (e) {
     error.value = e instanceof Error ? e.message : t('custom.login.verifyError')
   } finally {
@@ -233,11 +259,11 @@ function enterAsGuest() {
         <form v-else class="login-auth-form" @submit.prevent="verifyCode">
           <p class="login-auth-help">{{ message || $t('custom.login.otpMessage') }}</p>
           <label>{{ $t('custom.login.otpLabel') }}
-            <input v-model="otp" required minlength="6" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" />
+            <input ref="otpInput" v-model="otp" required minlength="6" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" />
           </label>
           <p class="login-auth-help">{{ $t('custom.login.otpHelp') }}</p>
           <button class="login-auth-primary" type="submit" :disabled="loading || otp.length !== 6 || (errorKind === 'rate' && retrySeconds > 0)">{{ loading ? $t('custom.login.verifying') : $t('custom.login.verify') }} <IconSymbol glyph="→" /></button>
-          <button class="login-auth-back" type="button" @click="step = 'identity'; error = ''">{{ $t('custom.login.back') }}</button>
+          <button class="login-auth-back" type="button" @click="backToEmail">{{ $t('custom.login.back') }}</button>
         </form>
 
         <div v-if="error && (errorKind === 'mail' || errorKind === 'rate')" class="login-auth-feedback" role="alert">
