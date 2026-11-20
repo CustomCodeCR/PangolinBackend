@@ -511,6 +511,14 @@ onMounted(() => {
         if (Number.isFinite(saved.at) && Date.now() - saved.at >= 0 && Date.now() - saved.at <= 30 * 60 * 1000 &&
             saved.values && ['Maritime','Air','Land'].includes(saved.values.mode)) {
           Object.assign(values, saved.values)
+          // Drafts created before the service-list update must not reintroduce
+          // retired choices into new submissions. Keep other selected services.
+          if (typeof values.services === 'string') {
+            const supported = [...new Set(values.services.split('|').filter(service =>
+              (officialServiceOptions as readonly string[]).includes(service)))]
+            if (supported.length) values.services = supported.join('|')
+            else delete values.services
+          }
           for (const key of Object.keys(values)) prefillConfirmation.add(key)
           prefilled.value = true
           advanceFrom(0)
