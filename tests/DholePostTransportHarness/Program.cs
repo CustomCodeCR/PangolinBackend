@@ -104,7 +104,59 @@ Check(await prepared.PostValidatedAsync(quoteId, valid.RootElement, Cancellation
     == DholeQuotePostOutcome.Rejected, "403 is rejected");
 Check(fake.Calls == 3, "No automatic retry after rejected request");
 
-Console.WriteLine("PASS: default-off, missing key, allowlist, locked identity, fixed HTTPS host, idempotency, fake 2xx/429/403; no live POST.");
+// End-to-end mock handoff: real JS internal->public adapter generates 5 synthetic
+// flat bodies, but only this injected fake handler receives them (NEVER Dhole).
+Check(args.Length == 1, "A synthetic fixture JSON path is required for end-to-end verification");
+using var fixtureDocument = JsonDocument.Parse(await File.ReadAllTextAsync(args[0]));
+Check(fixtureDocument.RootElement.ValueKind == JsonValueKind.Array &&
+      fixtureDocument.RootElement.GetArrayLength() == 5, "Five shipment scenarios required");
+var scenariosSeen = new HashSet<string>(StringComparer.Ordinal);
+foreach (var scenario in fixtureDocument.RootElement.EnumerateArray())
+{
+    Check(scenario.GetProperty("source").GetString() == "synthetic-no-live-catalogs" &&
+          !scenario.GetProperty("transmissionPermitted").GetBoolean(),
+        "Only fake test cases may be exercised");
+    var scenarioName = scenario.GetProperty("scenario").GetString()!;
+    Check(scenariosSeen.Add(scenarioName), "Each mode must be distinct");
+    var id = Guid.Parse(scenario.GetProperty("quoteId").GetString()!);
+    var body = scenario.GetProperty("body");
+    Check(body.GetProperty("priority").GetString() == "Green", "Priority preserved");
+    var description = body.GetProperty("form_cargoDescription").GetString()!;
+    Check(description.StartsWith("Repuestos automotrices simulados\\n\\n", StringComparison.Ordinal) &&
+          description.Contains("Nombre: Persona ficticia", StringComparison.Ordinal) &&
+          description.Contains("Correo: prueba@example.invalid", StringComparison.Ordinal) &&
+          description.Contains("Teléfono: +506 0000-0000", StringComparison.Ordinal),
+        "Goods description and applicant details are preserved");
+    foreach (var forbidden in new[] { "clientName", "executiveName", "sellerUserId",
+        "form_clientId", "form_clientName", "form_executiveId", "form_executiveName" })
+        Check(!body.TryGetProperty(forbidden, out _), "No company/executive override: " + forbidden);
+    var mode = body.GetProperty("shipmentMode").GetString()!;
+    Check(mode == scenarioName switch {
+        "FCL" => "Fcl", "LCL" => "Lcl", "AIR_LCL" => "Air",
+        "FTL" => "Ftl", "LTL" => "Ltl", _ => "not-a-mode"
+    }, "Expected external shipment mode");
+    Check((mode is "Fcl" or "Lcl") == body.TryGetProperty("form_podId", out _),
+        "POD only when maritime");
+    var equipmentField = mode == "Fcl" ? "form_fclContainers" : "form_landContainers";
+    var consolidated = mode is "Lcl" or "Air" or "Ltl";
+    Check(consolidated
+        ? body.TryGetProperty("sellerContext_consolidatedCargoLines", out _)
+        : body.TryGetProperty(equipmentField, out _),
+        "Equipment or consolidated cargo must be preserved");
+    var before = fake.Calls;
+    fake.NextStatus = HttpStatusCode.OK;
+    Check(await prepared.PostValidatedAsync(id, body, CancellationToken.None)
+        == DholeQuotePostOutcome.HttpAcceptedUnverified, "Fake 2xx only");
+    Check(fake.Calls == before + 1, "One fake POST per scenario, no automatic retries");
+    Check(fake.LastIdempotency == "cf-official-" + id.ToString("D"),
+        "Separate deterministic idempotency per synthetic quote");
+    Check(fake.LastBody == body.GetRawText(),
+        "Fake receiver gets precisely the flat published adapter body");
+}
+Check(scenariosSeen.SetEquals(new[] { "FCL", "LCL", "AIR_LCL", "FTL", "LTL" }),
+    "All five distinct quote modes verified");
+Console.WriteLine("PASS: default-off and 5-mode JS-to-C# fake POST, fixed host/idempotency, locked defaults, no live network.");
+
 
 sealed class FakePostFactory(HttpClient fake) : IHttpClientFactory
 {
