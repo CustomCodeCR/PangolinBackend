@@ -3,7 +3,7 @@
 ## Alcance
 La PR prepara un cliente y rutas de consulta de solo lectura en BackendJJ. El comportamiento predeterminado está desactivado; **no publica APIs en Dhole, no genera claves, no transmite cotizaciones y no habilita ningún POST externo**.
 
-El usuario verificó que `GET /api/integrations/third-party/endpoints` devolvió `[]` en el entorno mostrado. La presencia de un catálogo interno no significa que haya una API externa publicada.
+La respuesta `[]` de `GET /api/integrations/third-party/endpoints` procedía del **Dhole de pruebas**, no del oficial. En el **Dhole oficial** sí está publicada la API POST `solicitar-tarifa-wjicua4`, pero las dos consultas GET internas (`pricing-services`, `land-equipment-types`) todavía no constan como APIs externas publicadas. Ver `docs/DHOLE-CATALOG-PRODUCTION-CROSSWALK-20261120.md`. No confundir los permisos de la API POST con la publicación de catálogos internos.
 
 Fuentes internas: `DholeApiGateway/ThirdParty/ThirdPartyServiceIdentity.cs` contempla la identidad GET para `land-equipment-types` como target `config-catalog-trailer-types`, pero no para `pricing-services`. El código `DholeWeb/src/modules/pricing/composables/usePricingCatalogs.ts` utiliza los grupos `pricing-services`, `land-equipment-types` y `land-equipment-sizes`.
 
