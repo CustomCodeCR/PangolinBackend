@@ -205,6 +205,16 @@ internal static class DholeQuoteHttpTest
             Assert(Convert.ToInt64(await count.ExecuteScalarAsync()) == 1,
                 "Rejected submissions did not create rows");
         }
+        // The approval-outbox is a separate opt-in stage: merely sending a
+        // quote (even one whose catalogue is Dhole) must never queue it.
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var count = new NpgsqlCommand(
+                "SELECT COUNT(*) FROM public.official_quote_dhole_outbox", db);
+            Assert(Convert.ToInt64(await count.ExecuteScalarAsync()) == 0,
+                "Guest submissions never create a Dhole approval-outbox row");
+        }
         Assert(handler.Requests > 0 && handler.ForbiddenRequests == 0,
             "All Dhole traffic was fake HTTPS GET and used the fictional key");
         Console.WriteLine("PASS: HTTP 201 + real isolated PostgreSQL row + external UUID persistence");
