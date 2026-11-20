@@ -188,8 +188,7 @@ const serviceIcons: Record<string, Component> = {
   'Recepción de carga': PackageCheck,
   'Seguro de carga': ShieldCheck,
   'Transporte entrega': Truck,
-  'Transporte recolección': Truck,
-  'Transporte nacional': Truck
+  'Transporte recolección': Truck
 }
 const cargoFlagOptions = ['Carga peligrosa','No estibable','Sobrepeso']
 const cargoFlagIcons: Record<string, Component> = {
