@@ -705,7 +705,7 @@ onUnmounted(() => {
 <style scoped>
 /* Keep the original benefits card; the address is a separate unboxed footer row. */
 .service-modal__sections:has(> .service-modal__warehouse) { display: flex; flex-direction: column; gap: 0; }
-.service-modal__warehouse { display: flex; align-items: center; gap: 12px; margin-top: 20px; padding: 20px 0 0; border-top: 1px solid rgba(50,55,65,.2); background: transparent; }
+.service-modal__warehouse { display: flex; align-items: center; gap: 12px; margin-top: 20px; padding: 20px 0 0; border-top: 1px solid rgba(50,55,65,.38); background: transparent; }
 /* Both service cards use exactly the same translucent surface as frontend/src/style.css. */
 .service-modal__sections > section,
 .service-modal__warehouse-panel {
