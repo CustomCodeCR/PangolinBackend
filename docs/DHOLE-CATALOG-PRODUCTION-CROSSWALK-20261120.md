@@ -50,6 +50,14 @@ La herramienta **solo lee el archivo local**, exige la lista exacta de 12 servic
 
 Para una **única** prueba controlada de POST posterior, sin esas dos APIs GET nuevas, se podrán verificar manualmente y en ese momento los identificadores realmente utilizados por la solicitud (servicio, Incoterm, ubicaciones, POD si marítima). Un export anterior no basta por sí solo para demostrar vigencia en la fecha del envío. El cliente HTTP permanece desactivado y sin ruta invocable.
 
+## Incoterm CIF confirmado en Config oficial (20/11/2026)
+
+El usuario abrió el catálogo interno `incoterms` de Dhole y compartió el JSON de respuesta de lectura autenticada (11 filas visibles). La entrada observada para **CIF** tiene `id=241c055c-8f11-4834-b18b-cc07db384c8a`, `value=CIF`, `name=CIF`, `code=INC-2026-006`, `slug=cfi` e `isActive=true`. La aparente inversión en el slug `cfi` no debe corregirse en Dhole desde BackendJJ.
+
+**Regla de integración:** en nuestro wizard el Incoterm seleccionado es `CIF` (valor comercial). El resolvedor busca coincidencia **exacta y única por `value`**, comprueba que el elemento esté activo y resuelve su `id`. No debe exigir `code=CIF` ni `slug=cif`. Se añadió un test offline que usa el código y slug observados con un **UUID ficticio** para comprobar esta semántica.
+
+El UUID documentado es una **observación manual fechada**, no una constante de programación ni prueba de vigencia futura. El GET externo de Incoterms ya existe en el proyecto, por lo que las consultas ordinarias deben usar el catálogo actual habilitado; para un POST de prueba comprobar de nuevo que la fila seleccionada sigue activa. Esta observación no concede permiso para emitir un POST.
+
 ## FTL: tipos y tamaños observados
 
 El grupo interno `land-equipment-types` contiene **16 registros activos**: cuatro tipos por cada tamaño 24, 26, 48 y 53 pies. Las combinaciones se identifican inequívocamente por `metadataJson.size`, `metadataJson.kind` y `code`, nunca por el UUID del catálogo de tamaños.
