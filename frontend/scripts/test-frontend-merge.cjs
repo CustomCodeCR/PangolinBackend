@@ -643,10 +643,14 @@ const homeStyles = source('src/style.css')
 // for the expanded title, description and CTA; mobile retains its own styles.
 const homeLaptopFix = homeStyles.split('/* Home transport cards on intermediate laptop widths.')[1] ?? ''
 assert.ok(homeLaptopFix, 'Falta ajuste responsive de tarjetas de transporte en laptops')
-assert.match(homeLaptopFix, /@media \(min-width:801px\) and \(max-width:1550px\)/,
-  'El nuevo layout aplica antes de pasar al diseño móvil')
+assert.match(homeLaptopFix, /@media \(min-width:801px\) and \(max-width:1100px\)/,
+  'Solo los anchos intermedios estrechos deben apilar noticias debajo de servicios')
 assert.match(homeLaptopFix, /grid-template-columns:minmax\(0,1fr\)/,
-  'En laptops las noticias deben dejar ancho completo a los servicios')
+  'En pantallas estrechas los servicios conservan el ancho completo')
+assert.match(homeStyles, /@media \(min-width:1101px\) and \(max-width:1550px\)/,
+  'Las laptops deben mantener las noticias a un lado')
+assert.match(homeStyles, /grid-template-columns:minmax\(0,1fr\) minmax\(215px,clamp\(215px,19vw,280px\)\)/,
+  'El layout de laptops conserva las dos columnas')
 assert.match(homeLaptopFix, /height:clamp\(455px,38vw,500px\)/,
   'Las tarjetas deben ganar altura para el texto completo')
 assert.match(homeLaptopFix, /container-type:inline-size/,
