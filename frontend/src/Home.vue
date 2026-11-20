@@ -702,9 +702,9 @@ onUnmounted(() => {
 <style scoped>
 /* Keep the original benefits card; the address is a separate unboxed footer row. */
 .service-modal__sections:has(> .service-modal__warehouse) { display: flex; flex-direction: column; gap: 0; }
-.service-modal__warehouse { display: flex; align-items: center; gap: 16px; margin-top: 20px; padding: 20px 0 0; border-top: 1px solid rgba(50,55,65,.2); background: transparent; }
-.service-modal__warehouse-copy { display: flex; align-items: baseline; flex-wrap: wrap; flex: 1 1 auto; min-width: 0; gap: 5px 12px; color: #30333c; line-height: 1.5; }
-.service-modal__warehouse-copy strong { font-weight: 700; color: #242630; white-space: nowrap; }
+.service-modal__warehouse { display: flex; align-items: center; justify-content: flex-start; gap: 10px; margin-top: 20px; padding: 20px 0 0; border-top: 1px solid rgba(50,55,65,.2); background: transparent; }
+.service-modal__warehouse-copy { display: flex; align-items: baseline; flex-wrap: wrap; flex: 0 1 auto; min-width: 0; gap: 5px 12px; color: #30333c; line-height: 1.5; }
+.service-modal__warehouse-copy strong { font-weight: 700; color: #b00929; white-space: nowrap; }
 .service-modal__route { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: 0 0 auto; padding: 9px 15px; border: 1.5px solid #e58d9c; border-radius: 999px; color: #b00929; font-size: .86em; font-weight: 700; text-decoration: none; white-space: nowrap; background: rgba(255,225,232,.72); transition: background .2s ease, border-color .2s ease; }
 .service-modal__route-icon { width: 19px; height: 19px; flex: none; }
 .service-modal__route:hover, .service-modal__route:focus-visible { background: rgba(255,211,222,.94); border-color: #b00929; }
