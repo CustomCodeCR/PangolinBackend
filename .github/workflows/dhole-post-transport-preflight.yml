@@ -6,6 +6,9 @@ on:
       - 'backend/Services/DholeQuotePostTransport.cs'
       - 'backend/Program.cs'
       - 'tests/DholePostTransportHarness/**'
+      - 'scripts/dhole-post-transport-fixtures.mjs'
+      - 'scripts/dhole-rate-request-preview.mjs'
+      - 'scripts/dhole-public-rate-request-preview.mjs'
       - '.github/workflows/dhole-post-transport-preflight.yml'
   workflow_dispatch:
 permissions:
@@ -20,5 +23,10 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - name: Fake HTTP only; no credentials or remote POST
-        run: dotnet run --project tests/DholePostTransportHarness/DholePostTransportHarness.csproj --configuration Release
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build five fake external quote contracts (Node, offline only)
+        run: node scripts/dhole-post-transport-fixtures.mjs "$RUNNER_TEMP/dhole-flat-fixtures.json"
+      - name: Verify fake C# POST with five JS-generated contracts; never contact Dhole
+        run: dotnet run --project tests/DholePostTransportHarness/DholePostTransportHarness.csproj --configuration Release -- "$RUNNER_TEMP/dhole-flat-fixtures.json"
