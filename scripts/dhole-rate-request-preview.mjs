@@ -211,8 +211,9 @@ export function previewDholeRateRequest(source, lookups = {}) {
   };
   if (form.podLocationId && !isText(lookups.podName))
     pending('podName: resolver nombre final de Dhole');
-  // Deliberately do NOT include contactEmail/phone or sellerUserId until a
-  // published contract authorizes them. No price/cost is fabricated.
+  // Contact name/email/phone appear ONLY within cargoDescription as agreed
+  // with Dhole's owner; no separate contact fields or sellerUserId are emitted.
+  // No price/cost is fabricated.
   return Object.freeze({
     readyForContractReview: blocking.length === 0,
     blocking,
