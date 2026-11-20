@@ -344,7 +344,7 @@ onUnmounted(() => {
               {{ siteText('home.services.intro', $t('phrases.p011'), locale) }}
             </p>
 
-            <div ref="serviceAccordionRef" class="service-accordion" :class="{ 'is-collapsed': compactServiceMode && activeService === null }" :aria-label="$t('phrases.p134')">
+            <div ref="serviceAccordionRef" class="service-accordion" :class="{ 'is-collapsed': activeService === null }" :aria-label="$t('phrases.p134')">
               <article
                 v-for="service in transportServices"
                 :key="service.key"
