@@ -35,6 +35,7 @@ const EMIT = Object.freeze([
   'requestContext_incotermName','requestContext_poeId','requestContext_podId',
   'sellerContext_cargoReadyDate','sellerContext_consolidatedCargoLines',
 ]);
+const emitSet = new Set(EMIT);
 
 function getPath(root, internalPath) {
   return internalPath.split('.').reduce(
@@ -191,12 +192,14 @@ export function previewDholePublicRateRequest(internalPreview) {
 }
 
 // Conservative preflight for the published input allowlist. Mirrors the
-// Gateway's strict top-level field selection, not its internal business rules.
+// Gateway's published field selection AND our narrower outbound allowlist;
+// this is a local preflight, not a validation of internal business rules.
 export function validateDholePublicRateRequestShape(body) {
   const problems=[];
   if (!body || typeof body !== 'object' || Array.isArray(body)) return ['body: objeto JSON requerido'];
   for (const key of Object.keys(body)) {
     if (!publicInputs.has(key)) problems.push('unpublished:'+key);
+    else if (!emitSet.has(key)) problems.push('not-allowlisted:'+key);
     if (hasOwn(contract.defaults,key)) problems.push('locked:'+key);
   }
   if (!['Green','Yellow','Red'].includes(body.priority)) problems.push('priority: inválida');
