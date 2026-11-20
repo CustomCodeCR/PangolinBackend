@@ -118,7 +118,7 @@ function checkedCargo(items) {
   }
 }
 const REVIEW_BLOCKERS = Object.freeze([
-  'commercialIdentity: confirmar uso de CLIENTE GENERICO, cliente comercial y acceso a contactos con dueño de Dhole',
+  'commercialIdentity: validar en Dhole que el contacto se muestre en descripción y que CLIENTE GENERICO/Castro Fallas sigan fijos',
   'catalogFreshness: validar UUID en catálogos vigentes con lecturas autorizadas antes de cualquier POST',
   'apiPermission: clave separada autorizada para Solicitar tarifa todavía no disponible',
   'providerResponse: salida opcional value; no asumir identificador ni confirmación remota sin prueba controlada',
