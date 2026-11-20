@@ -675,6 +675,7 @@ onUnmounted(() => {
               </ul>
             </section>
             <div v-if="modalService === 'Panama'" class="service-modal__warehouse">
+              <svg class="service-modal__warehouse-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M1 12h6M17 12h6"/></svg>
               <div class="service-modal__warehouse-copy">
                 <strong>{{ locale.startsWith('es') ? 'Dirección de bodega:' : 'Warehouse address:' }}</strong>
                 <span>France Field Calle 7ma, Avenida 5ta, al lado de la Bodega Anker.</span>
@@ -702,13 +703,14 @@ onUnmounted(() => {
 <style scoped>
 /* Keep the original benefits card; the address is a separate unboxed footer row. */
 .service-modal__sections:has(> .service-modal__warehouse) { display: flex; flex-direction: column; gap: 0; }
-.service-modal__warehouse { display: flex; align-items: center; justify-content: flex-start; gap: 10px; margin-top: 20px; padding: 20px 0 0; border-top: 1px solid rgba(50,55,65,.2); background: transparent; }
-.service-modal__warehouse-copy { display: flex; align-items: baseline; flex-wrap: wrap; flex: 0 1 auto; min-width: 0; gap: 5px 12px; color: #30333c; line-height: 1.5; }
-.service-modal__warehouse-copy strong { font-weight: 700; color: #b00929; white-space: nowrap; }
-.service-modal__route { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: 0 0 auto; padding: 9px 15px; border: 1.5px solid #e58d9c; border-radius: 999px; color: #b00929; font-size: .86em; font-weight: 700; text-decoration: none; white-space: nowrap; background: rgba(255,225,232,.72); transition: background .2s ease, border-color .2s ease; }
+.service-modal__warehouse { display: flex; align-items: center; gap: 16px; margin-top: 20px; padding: 20px 0 0; border-top: 1px solid rgba(50,55,65,.2); background: transparent; }
+.service-modal__warehouse-icon { flex: 0 0 34px; width: 34px; height: 34px; color: #b00929; }
+.service-modal__warehouse-copy { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; gap: 6px; color: #30333c; line-height: 1.5; }
+.service-modal__warehouse-copy strong { font-weight: 700; color: #b00929; }
+.service-modal__route { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: 0 0 auto; margin-left: auto; padding: 9px 15px; border: 1.5px solid #e58d9c; border-radius: 999px; color: #b00929; font-size: .86em; font-weight: 700; text-decoration: none; white-space: nowrap; background: rgba(255,225,232,.72); transition: background .2s ease, border-color .2s ease; }
 .service-modal__route-icon { width: 19px; height: 19px; flex: none; }
 .service-modal__route:hover, .service-modal__route:focus-visible { background: rgba(255,211,222,.94); border-color: #b00929; }
-@media (max-width: 700px) { .service-modal__warehouse { align-items: flex-start; flex-wrap: wrap; gap: 12px; } .service-modal__warehouse-copy { flex-basis: 100%; } }
+@media (max-width: 700px) { .service-modal__warehouse { align-items: flex-start; flex-wrap: wrap; gap: 12px; } .service-modal__warehouse-icon { width: 26px; height: 26px; flex-basis: 26px; } .service-modal__warehouse-copy { flex-basis: calc(100% - 38px); } .service-modal__route { margin-left: 38px; } }
 
 .home-news-empty { padding: 24px 16px; margin: 0; color: #5d6270; font-size: 14px; line-height: 1.5; }
 /* The FAQ answer area is part of the same clickable card. */
