@@ -8,7 +8,7 @@ export const officialServiceOptions = [
   'Transporte internacional', 'Agencia de Aduanas CR', 'Agencia de Aduanas Exterior',
   'Almacenamiento', 'Control de inventario', 'Embalaje', 'Exoneración',
   'Picking Carga', 'Recepción de carga', 'Seguro de carga', 'Transporte entrega',
-  'Transporte recolección', 'Transporte nacional'
+  'Transporte recolección'
 ] as const
 const officialServiceNames: Readonly<Record<string, [string,string]>> = {
   'Transporte internacional':['Transporte internacional','International transportation'],
