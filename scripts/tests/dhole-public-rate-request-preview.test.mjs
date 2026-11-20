@@ -203,6 +203,26 @@ test('unknown public fields, locked values, arbitrary nested payloads and PII ar
     assert.ok(errors.length,'invalid input must be rejected: '+JSON.stringify(injection).slice(-120));
   }
 });
+test('every published field outside Castro Fallas outbound allowlist is rejected',()=>{
+  const meta=dholePublicRateRequestContractReview();
+  const allowed=new Set(meta.fieldsEmitted);
+  const valid=prepared('Land','FTL').body;
+  const excluded=contract.inputs.filter(field=>!allowed.has(field.public));
+  assert.ok(excluded.length>0,'Published fields should be narrower than outbound fields');
+  for(const field of excluded){
+    const candidate={...valid,[field.public]:'synthetic-test-value'};
+    const problems=validateDholePublicRateRequestShape(candidate);
+    assert.ok(problems.includes('not-allowlisted:'+field.public),
+      'Unexpected published field was accepted: '+field.public);
+  }
+  for(const field of ['form_clientId','form_executiveId','requestContext_executiveName',
+    'supportDocuments','sellerContext_chargeableVolumeCbm']){
+    assert.ok(excluded.some(x=>x.public===field),
+      'Sensitive or unconfirmed field must stay excluded: '+field);
+  }
+  assert.deepEqual(validateDholePublicRateRequestShape(valid),[]);
+});
+
 test('payload cannot carry malformed, obsolete or fabricated equipment UUID and quantities',()=>{
   const valid=prepared('Maritime','FCL').body;
   const changes=[
