@@ -224,6 +224,11 @@ async function main() {
     assert.equal(noSkipPod,false,'Maritime POD must never offer skip / no additional POD')
     await click('#quote-pod-options [role=option]')
     assert.equal(await evaluate('document.querySelector("#quote-pod").value'),'POD Dhole')
+    const quoteServices=await evaluate('[...document.querySelectorAll(".official-service-card .official-service-name")].map(x=>x.textContent.trim())')
+    assert.equal(quoteServices.length,12,'Official quote wizard must only show the 12 reviewed service labels')
+    assert.ok(!quoteServices.includes('Transporte nacional'),'Retired national transport must not be selectable')
+    assert.ok(quoteServices.includes('Transporte internacional') && quoteServices.includes('Transporte recolección'),
+      'Existing allowed services remain available')
     await selectDropdown('quote-incoterm','CIF')
     const future=new Date(Date.now()+30*86400000).toISOString().slice(0,10)
     await value('input[type=date]',future)
