@@ -404,8 +404,17 @@ internal static class DholeQuoteHttpTest
                 "Authorized " + priority + " priority persists without external POST");
         }
 
+        // The public-quote policy intentionally limits a single TestServer IP to
+        // 12 requests per 10 minutes. Earlier negative cases consume that budget,
+        // so run this independent concurrency fixture in a second isolated host.
+        // Do NOT disable or increase production rate limits just to pass CI.
+        // Both hosts use the same disposable test DB and fake GET-only provider.
+        using var concurrencyFactory = factory.WithWebHostBuilder(_ => { });
+        using var concurrencyClient = concurrencyFactory.CreateClient(
+            new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         // Simultaneous admin approvals must serialize on the quote row.
-        using var simultaneousResponse = await Submit(quote);
+        using var simultaneousResponse = await concurrencyClient.PostAsJsonAsync(
+            "/api/quotes/official", quote);
         Assert(simultaneousResponse.StatusCode == HttpStatusCode.Created,
             "Third fictional quote created for concurrency test");
         using var simultaneousJson = JsonDocument.Parse(await simultaneousResponse.Content.ReadAsStringAsync());
