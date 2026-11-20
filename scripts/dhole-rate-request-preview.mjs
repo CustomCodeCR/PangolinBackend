@@ -80,7 +80,7 @@ export function previewDholeRateRequest(source, lookups = {}) {
     return id;
   }).filter(validId);
   const formOutput = {
-    rateType: 'RateRequest',
+    // Rate type is intentionally omitted: its allowed values are not yet verified.
     shipmentMode,
     originId: form.originLocationId,
     destinationId: form.destinationLocationId,
