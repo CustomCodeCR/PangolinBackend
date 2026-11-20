@@ -12,7 +12,7 @@
 
 ## Servicios de Castro Fallas → código del catálogo Pricing
 
-Los 12 códigos identificados son únicos y activos en la muestra oficial del 2026-11-20. El resolver `scripts/dhole-catalog-id-resolver.mjs` realiza la correspondencia **por código verificado**, no por igualdad de etiqueta. Se rechaza una selección si el código no aparece de forma única en una copia **reciente** del catálogo.
+Los 12 códigos identificados son únicos y activos en la muestra oficial del 2026-11-20. **Los servicios que se muestran hoy en la web siguen siendo opciones locales: aún no se cargan ni mapean automáticamente desde Dhole.** Las capturas del selector de Pricing del 2026-11-20 confirman visualmente estos 12 servicios, y no muestran «Transporte nacional». El resolver `scripts/dhole-catalog-id-resolver.mjs` prepara una correspondencia **por código verificado** solo para una futura integración con una API GET aprobada y catálogos vigentes, no para la captura actual del wizard/GIO. Se rechaza una selección si el código no aparece de forma única en una copia **reciente** del catálogo.
 
 | Servicio Castro Fallas | Código Dhole | Observación |
 | --- | --- | --- |
@@ -28,9 +28,9 @@ Los 12 códigos identificados son únicos y activos en la muestra oficial del 20
 | Seguro de carga | `CARGO_INSURANCE` | Pricing exige valor de carga para calcular seguro; no inventar un importe |
 | Transporte entrega | `DELIVERY` | Distinto de recolección |
 | Transporte recolección | `PICKUP` | Distinto de entrega |
-| **Transporte nacional** | **Sin equivalencia confirmada** | **Bloquear su mapeo para POST**: no sustituir por `DELIVERY`, `PICKUP` ni `INT_TRANSPORT` |
+| **Transporte nacional (retirado de nuevas cotizaciones)** | **No figura en el selector de Dhole** | **Decisión del 2026-11-20:** eliminarlo de las opciones del formulario y GIO y rechazarlo en nuevas solicitudes HTTP; no alterar cotizaciones históricas ni sustituirlo por otros servicios |
 
-El wizard puede continuar **capturando** la solicitud local; un campo pendiente de correspondencia impide considerarla lista para el conector remoto. No eliminar el servicio de la solicitud original ni inventar UUID.
+El wizard y GIO ofrecen ahora solo los **12 servicios observados**. Las solicitudes históricas que ya incluyan «Transporte nacional» se conservan tal como fueron registradas; **no se aceptará esa selección en cotizaciones nuevas**. No se configura todavía una API de servicios Dhole ni se inventan UUID. La consulta de catálogo autorizada y vigente será necesaria para mapear los servicios en un envío futuro.
 
 ## FTL: tipos y tamaños observados
 
@@ -72,7 +72,7 @@ Los tests cubren las cinco modalidades, 103 entradas publicadas, los defaults bl
 ## Pendientes que bloquean el POST
 
 1. Confirmar con el dueño de Dhole el tratamiento del cliente comercial y cómo accederá Pricing a nombre, correo y teléfono, sin sobrescribir los defaults publicados.
-2. Definir explícitamente `Transporte nacional` o aceptar que las solicitudes que lo incluyan **queden bloqueadas para envío remoto**, conservando la solicitud local.
+2. **Decisión tomada:** «Transporte nacional» ya no se ofrece en nuevas cotizaciones de la web y el backend lo rechaza en envíos nuevos; los datos históricos permanecen intactos. No incorporarlo a solicitudes remotas por una equivalencia inventada.
 3. Disponer de consulta autenticada de solo lectura de `pricing-services` y `land-equipment-types` para la resolución **vigente** de UUID; el JSON compartido sirve para revisar códigos y tests, no para dar por vigente un ID en el futuro.
 4. Habilitar posteriormente una clave de escritura autorizada específicamente para el POST, sin reutilizar la clave Pangolin de catálogos.
 5. Validar el JSON **público y plano** contra los campos realmente publicados; el preview existente modela la solicitud interna anidada, no garantiza que sea aceptada por el Gateway oficial.
