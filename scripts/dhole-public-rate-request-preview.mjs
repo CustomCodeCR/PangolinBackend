@@ -14,6 +14,11 @@ const present = value => value !== undefined && value !== null;
 const number = value => typeof value === 'number' && Number.isFinite(value);
 const positive = value => number(value) && value > 0;
 const text = value => typeof value === 'string' && value.trim().length > 0;
+const calendarDate = value => {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const day = new Date(value + 'T00:00:00Z');
+  return Number.isFinite(day.valueOf()) && day.toISOString().slice(0, 10) === value;
+};
 const hasOwn = (object,key) => Object.prototype.hasOwnProperty.call(object,key);
 const allowedModes = Object.freeze({
   Fcl:'Maritime', Lcl:'Maritime', Air:'Air', Ftl:'Land', Ltl:'Land',
@@ -143,18 +148,30 @@ export function previewDholePublicRateRequest(internalPreview) {
   const f = request.payload.form;
   const rc = request.payload.requestContext ?? {};
   const seller = request.payload.sellerContext ?? {};
+  // Public top-level and nested route references must describe the same shipment.
+  if (rc.poeId !== request.poeId ||
+      (maritime ? rc.podId !== request.podId : present(rc.podId)) ||
+      (present(request.poeName) && request.poeName !== request.destinationName))
+    throw new Error('Referencias POE/POD inconsistentes entre contextos.');
   if (!['Green','Yellow','Red'].includes(request.priority) ||
       !validId(f.incotermId) || !Array.isArray(f.serviceIds) ||
       !f.serviceIds.length || !f.serviceIds.every(validId) ||
       new Set(f.serviceIds).size !== f.serviceIds.length ||
       !text(f.cargoDescription) || !positive(f.cargoWeightKg) ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(f.loadDate ?? '') ||
+      !calendarDate(f.loadDate) ||
       seller.cargoReadyDate !== f.loadDate)
     throw new Error('Datos críticos de Pricing no están validados.');
   if (request.shipmentMode === 'Fcl') checkedEquipment(f.fclContainers,'FCL');
   else if (present(f.fclContainers)) throw new Error('Contenedores FCL en modalidad incompatible.');
   if (request.shipmentMode === 'Ftl') checkedEquipment(f.landContainers,'FTL');
   else if (present(f.landContainers)) throw new Error('Equipos FTL en modalidad incompatible.');
+  if (['Fcl','Ftl'].includes(request.shipmentMode)) {
+    const equipment = request.shipmentMode === 'Fcl' ? f.fclContainers : f.landContainers;
+    const totalKg = equipment.reduce((sum,line)=>
+      sum + line.unitWeightsKg.reduce((partial,weight)=>partial + weight,0),0);
+    if (!Number.isFinite(totalKg) || Math.abs(totalKg - f.cargoWeightKg) > 0.00001)
+      throw new Error('Peso declarado no coincide con los pesos de los equipos.');
+  }
   if (['Lcl','Air','Ltl'].includes(request.shipmentMode)) {
     checkedCargo(seller.consolidatedCargoLines);
     if (f.cargoPackages !== seller.consolidatedCargoLines.reduce((sum,line)=>sum+line.packages,0))
@@ -176,8 +193,8 @@ export function previewDholePublicRateRequest(internalPreview) {
   const review = validateDholePublicRateRequestShape(body);
   if (review.length) throw new Error(review.join(' | '));
   if (typeof internalPreview.idempotencyKey !== 'string' ||
-      !/^cf-official-[0-9a-f-]{36}$/.test(internalPreview.idempotencyKey) ||
-      internalPreview.idempotencyKey.length < 8 ||
+      !internalPreview.idempotencyKey.startsWith('cf-official-') ||
+      !validId(internalPreview.idempotencyKey.slice('cf-official-'.length)) ||
       internalPreview.idempotencyKey.length > 128)
     throw new Error('Clave de idempotencia local inválida.');
   return Object.freeze({
