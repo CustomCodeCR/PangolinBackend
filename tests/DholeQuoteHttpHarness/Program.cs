@@ -11,6 +11,9 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
+using Microsoft.EntityFrameworkCore;
+using CastroFallas.MiniQuote.Api.Data;
+using CastroFallas.MiniQuote.Api.Services;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -503,6 +506,59 @@ internal static class DholeQuoteHttpTest
             Assert(detailJson.RootElement.GetProperty("dholeDispatchState").GetString() == "PendingDispatch",
                 "Administration shows direct state independently of approval");
         }
+        // Claiming is a separate, fully offline primitive: no hosted worker or
+        // Dhole HTTP client is registered. Require two flags (both default off).
+        var previewFlags = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                ["DholeSubmission:ClaimPreviewEnabled"] = "true"
+            }).Build();
+        var disabledFlags = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                ["DholeSubmission:ClaimPreviewEnabled"] = "false"
+            }).Build();
+        DbContextOptions<AppDbContext> opts = new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql(connectionString).Options;
+        await using (var db = new AppDbContext(opts))
+        {
+            var gated = new DholeOfficialOutboxClaimService(disabledFlags);
+            Assert(!gated.Enabled &&
+                await gated.ClaimOneForOfflineReviewAsync(db, CancellationToken.None) is null,
+                "Claim disabled means zero database state transitions");
+        }
+        var claimer = new DholeOfficialOutboxClaimService(previewFlags);
+        async Task<Guid?> ClaimOnce()
+        {
+            await using var scoped = new AppDbContext(opts);
+            return await claimer.ClaimOneForOfflineReviewAsync(scoped, CancellationToken.None);
+        }
+        var concurrentClaims = await Task.WhenAll(ClaimOnce(), ClaimOnce());
+        Assert(concurrentClaims.Count(id => id == directId) == 1 &&
+            concurrentClaims.Count(id => id is null) == 1,
+            "Two concurrent claimers can claim exactly one outbox row");
+        Assert(await ClaimOnce() is null,
+            "An InFlight claim is never automatically re-claimed");
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var inspect = new NpgsqlCommand("""
+                SELECT state, attempt_count, last_attempt_at_utc,
+                       external_reference
+                FROM public.official_quote_dhole_creation_outbox
+                WHERE quote_id = @id
+                """, db);
+            inspect.Parameters.AddWithValue("id", directId);
+            await using var reader = await inspect.ExecuteReaderAsync();
+            Assert(await reader.ReadAsync() &&
+                reader.GetString(0) == "InFlight" &&
+                reader.GetInt32(1) == 1 &&
+                !reader.IsDBNull(2) &&
+                reader.IsDBNull(3),
+                "Atomic claim increments one attempt without fabricating Dhole confirmation");
+        }
         // Force an outbox constraint failure: the official quote MUST roll back.
         long beforeFailure;
         await using (var db = new NpgsqlConnection(connectionString))
@@ -548,6 +604,7 @@ internal static class DholeQuoteHttpTest
         Console.WriteLine("PASS: approved Green default, admin-only Yellow/Red priority persisted; zero external POST");
         Console.WriteLine("PASS: each approval stages exactly once; outbox attempts zero, no external POST");
         Console.WriteLine("PASS: direct creation outbox independent; atomic save/rollback, unique key and admin visibility");
+        Console.WriteLine("PASS: two concurrent DB claimers select one job, no retry, no remote HTTP");
         Console.WriteLine("PASS: all Dhole upstream traffic simulated; no real API, no mail, no production data");
     }
 }
