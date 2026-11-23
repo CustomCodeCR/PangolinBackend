@@ -1268,4 +1268,29 @@ assert.ok(!regionalSlots.includes("addText('about','Sobre nosotros','about.struc
 assert.ok(aboutEditor.includes("'about.structure.environment'"),
   'Conservar la lectura de registros históricos sin exponerlos en el editor')
 
+// Full-editor audit regression: the eight service-directory cards have
+// CMS-editable media slots on Servicios, distinct from each landing page's media.
+const directoryServiceSlugs = JSON.parse(source('seo/service-pages.json')).map(item => item.slug)
+const directoryGuideSlugs = Object.keys(JSON.parse(source('seo/service-landings.json')))
+  .map(route => route.split('/').pop())
+const editableDirectorySlugs = [...new Set([...directoryServiceSlugs, ...directoryGuideSlugs])]
+assert.equal(editableDirectorySlugs.length, 8, 'Cambió el conjunto de rutas del directorio; actualizar la auditoría del CMS')
+assert.match(regionalCmsApi,
+  /foreach \(var slug in guideSlugs\.Concat\(transportSlugs\)\)[\s\S]*?MediaKeys\.Add\("services\.directory\." \+ slug \+ "\.media"\)/,
+  'El backend debe autorizar las imágenes editables del directorio de servicios')
+assert.match(regionalSlots, /'services\.directory\.' \+ service\.slug \+ '\.media'/,
+  'El editor debe registrar los medios de las cinco rutas de transporte')
+assert.match(regionalSlots, /'services\.directory\.' \+ slug \+ '\.media'/,
+  'El editor debe registrar los medios de las tres rutas logísticas')
+const directoryServicesPage = source('src/pages/Services.vue')
+assert.ok(directoryServicesPage.includes("siteVisual('services.directory.' + link.slug + '.media'"),
+  'Las tarjetas del directorio deben mostrar la imagen publicada por el editor')
+// The initial literal catalog entries must never be offered when the API does
+// not accept them. Retired slots are intentionally hidden from the editor.
+for (const key of [...regionalSlots.matchAll(/"key":\s*"([^"]+)"/g)].map(match => match[1])) {
+  if (/^home\.digital\.card\.[0-2]\.(title|subtitle)$/.test(key)) continue
+  assert.ok(regionalCmsApi.includes('"' + key + '"'),
+    'Editor visual muestra un campo que el backend rechaza: ' + key)
+}
+
 console.log('OK: SignalR, CMS, MinIO, news, itinerary and tracking contracts.')
