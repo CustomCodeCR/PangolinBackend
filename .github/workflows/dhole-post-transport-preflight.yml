@@ -13,6 +13,10 @@ on:
       - 'backend/Program.cs'
       - 'tests/DholePostTransportHarness/**'
       - 'scripts/dhole-post-transport-fixtures.mjs'
+      - 'scripts/dhole-temporary-manual-catalog-import.mjs'
+      - 'scripts/review-dhole-pricing-services-export.mjs'
+      - 'scripts/tests/dhole-temporary-manual-catalog-import.test.mjs'
+      - 'scripts/dhole-catalog-id-resolver.mjs'
       - 'scripts/dhole-one-shot-ci-fixture.mjs'
       - 'scripts/dhole-lcl-manual-preflight.mjs'
       - 'tools/DholeOneShotQuote/**'
@@ -42,6 +46,8 @@ jobs:
           node-version: '22'
       - name: Check 103-field Dhole contract and mandatory/conditional wizard-GIO parity without network
         run: node scripts/test-dhole-official-gio-field-coverage.mjs
+      - name: Map 12 services and 16 FTL types using only fictional manual exports
+        run: node --test scripts/tests/dhole-temporary-manual-catalog-import.test.mjs
       - name: Validate real official web/GIO form projection into unsendable Dhole drafts
         run: dotnet run --project tests/DholeOfficialDraftHarness/DholeOfficialDraftHarness.csproj --configuration Release
       - name: Build five fake external quote contracts (Node, offline only)
