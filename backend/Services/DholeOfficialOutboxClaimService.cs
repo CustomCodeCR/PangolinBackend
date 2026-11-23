@@ -19,6 +19,82 @@ public sealed class DholeOfficialOutboxClaimService(IConfiguration configuration
         configuration.GetValue<bool>("DholeSubmission:DirectOutboxEnabled") &&
         configuration.GetValue<bool>("DholeSubmission:ClaimPreviewEnabled");
 
+
+    /// <summary>
+    /// Future-dispatch preparation path: claims exactly the quote that passed
+    /// the server-only preflight. The old ClaimOne method remains restricted to
+    /// disposable Postgres tests; this method never sends HTTP either.
+    /// A review result is NOT authorization for a Pricing POST.
+    /// </summary>
+    public async Task<Guid?> ClaimReviewedQuoteForOfflineReviewAsync(
+        AppDbContext db, DholeOfficialFlatReview? review, CancellationToken ct)
+    {
+        if (!Enabled || review is null ||
+            !review.ReadyForContractReview || review.RemoteSubmissionPermitted ||
+            review.OfficialQuoteId == Guid.Empty ||
+            review.Body.ValueKind != System.Text.Json.JsonValueKind.Object ||
+            review.IdempotencyKey !=
+                "cf-official-" + review.OfficialQuoteId.ToString("D"))
+            return null;
+
+        // Independently verify local outbox identity/state; never trust a
+        // browser-supplied ID, a stale InFlight row, or any attempt already made.
+        var item = await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.QuoteId == review.OfficialQuoteId, ct);
+        if (item is null ||
+            item.State != "PendingDispatch" ||
+            item.IdempotencyKey != review.IdempotencyKey ||
+            item.AttemptCount != 0 ||
+            item.LastAttemptAtUtc is not null ||
+            item.ExternalReference is not null ||
+            item.VerifiedAtUtc is not null)
+            return null;
+
+        // Verify that an administrative copy still exists and is explicitly
+        // a Dhole-backed submission. Never read the legacy approval outbox.
+        var saved = await db.OfficialQuotes.AsNoTracking()
+            .Where(x => x.Id == item.QuoteId)
+            .Select(x => new { x.FormJson, x.Mode, x.ShipmentType })
+            .SingleOrDefaultAsync(ct);
+        if (saved is null || string.IsNullOrWhiteSpace(saved.FormJson) ||
+            saved.FormJson.Length > 128 * 1024 ||
+            !saved.FormJson.Contains("\"catalogSource\":\"dhole\"",
+                StringComparison.Ordinal))
+            return null;
+
+        // The final CAS protects the state after the checks above, including
+        // concurrent workers that independently reviewed the same quote.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.Transaction = tx.GetDbTransaction();
+        command.CommandText = """
+            UPDATE public.official_quote_dhole_creation_outbox
+            SET state = 'InFlight',
+                attempt_count = attempt_count + 1,
+                last_attempt_at_utc = now(),
+                updated_at_utc = now()
+            WHERE quote_id = @quote_id
+              AND idempotency_key = @idempotency_key
+              AND state = 'PendingDispatch'
+              AND attempt_count = 0
+              AND last_attempt_at_utc IS NULL
+              AND external_reference IS NULL
+              AND verified_at_utc IS NULL
+            RETURNING quote_id
+            """;
+        var id = command.CreateParameter();
+        id.ParameterName = "quote_id";
+        id.Value = review.OfficialQuoteId;
+        command.Parameters.Add(id);
+        var key = command.CreateParameter();
+        key.ParameterName = "idempotency_key";
+        key.Value = review.IdempotencyKey;
+        command.Parameters.Add(key);
+        var claimed = await command.ExecuteScalarAsync(ct);
+        await tx.CommitAsync(ct);
+        return claimed is Guid selected ? selected : null;
+    }
+
     public async Task<Guid?> ClaimOneForOfflineReviewAsync(
         AppDbContext db, CancellationToken ct)
     {
