@@ -262,7 +262,22 @@ if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("Dev
         var sql = await File.ReadAllTextAsync(scriptPath);
         await db.Database.ExecuteSqlRawAsync(sql);
         var officialPath = Path.Combine(app.Environment.ContentRootPath, "Database", "OfficialQuotesSchema.sql");
-        await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(officialPath));
+        // This reviewed SQL file includes PostgreSQL regex quantifiers (e.g.
+        // {64}). ExecuteSqlRawAsync feeds SQL through composite formatting and
+        // can throw FormatException even though the SQL itself is valid.
+        // Execute the static local migration as literal SQL through ADO.NET.
+        // Only Development with ApplySchema=true may run this path.
+        await db.Database.OpenConnectionAsync();
+        try
+        {
+            await using var officialCommand = db.Database.GetDbConnection().CreateCommand();
+            officialCommand.CommandText = await File.ReadAllTextAsync(officialPath);
+            await officialCommand.ExecuteNonQueryAsync();
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
         // Ubicaciones ficticias e inequívocamente marcadas como PRUEBA.
         // Solo se cargan en el ambiente Development cuando se aplica el esquema local.
         // Nunca se cargan automáticamente en producción ni sustituyen el catálogo oficial.
