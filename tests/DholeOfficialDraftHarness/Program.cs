@@ -104,3 +104,112 @@ Block(()=>DholeOfficialQuoteDraftBuilder.Project(lcl with {
     PodLocationId=null
 },quoteId,maritime),"maritime requires POD");
 Console.WriteLine("PASS: invalid or unverified inputs rejected before Admin persistence. Zero HTTP.");
+
+// The second stage deliberately builds a contract REVIEW, not a request to send.
+// Resolutions are wholly fictional and fresh relative to a deterministic CI clock.
+var verifiedAt = new DateTime(2026, 11, 23, 16, 0, 0, DateTimeKind.Utc);
+var reviewAt = verifiedAt.AddMinutes(3);
+var catalog = new DholeOfficialCatalogResolution(
+    verifiedAt,
+    Guid.Parse("a1000000-0000-4000-8000-000000000001"), "CIF",
+    [new DholeOfficialServiceResolution(
+        "Transporte internacional", Guid.Parse("c2300000-0000-4000-8000-000000000001"))],
+    []);
+var flat = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(preview, catalog, reviewAt);
+Assert(flat.ReadyForContractReview && !flat.RemoteSubmissionPermitted,
+    "review is deliberately not authorized for remote submission");
+Assert(flat.IdempotencyKey == "cf-official-" + quoteId.ToString("D"),
+    "flat review matches creation outbox idempotency key");
+var body = flat.Body;
+Assert(body.GetProperty("shipmentMode").GetString() == "Lcl" &&
+    body.GetProperty("form_modality").GetString() == "Maritime" &&
+    body.GetProperty("form_rateType").GetString() == "Spot" &&
+    body.GetProperty("priority").GetString() == "Green",
+    "LCL published top-level fields, Spot and fixed Green priority");
+Assert(body.GetProperty("form_originId").GetString() == pol.ToString("D") &&
+    body.GetProperty("poeId").GetString() == poe.ToString("D") &&
+    body.GetProperty("form_destinationId").GetString() == poe.ToString("D") &&
+    body.GetProperty("podId").GetString() == pod.ToString("D") &&
+    body.GetProperty("requestContext_podId").GetString() == pod.ToString("D"),
+    "POL, POE and POD keep distinct verified identifiers");
+Assert(body.GetProperty("form_incotermId").GetString() == catalog.IncotermId.ToString("D") &&
+    body.GetProperty("form_serviceIds")[0].GetString() == catalog.Services[0].Id.ToString("D"),
+    "Incoterm and services from explicitly validated resolutions");
+Assert(body.GetProperty("form_cargoPackages").GetInt32() == 3 &&
+    body.GetProperty("form_cargoWeightKg").GetDecimal() == 10 &&
+    body.GetProperty("form_nonStackable").GetBoolean(),
+    "total packages and total kg preserved");
+var box = body.GetProperty("sellerContext_consolidatedCargoLines")[0];
+Assert(box.GetProperty("quantity").GetInt32() == 3 &&
+    box.GetProperty("unitType").GetString() == "Box" &&
+    Math.Abs(box.GetProperty("weightKg").GetDecimal() * 3m - 10m) < 0.00001m &&
+    box.GetProperty("length").GetDecimal() == 20 &&
+    box.GetProperty("width").GetDecimal() == 12 &&
+    box.GetProperty("height").GetDecimal() == 8 &&
+    !box.GetProperty("isStackable").GetBoolean(),
+    "seller preview will receive 3 correctly typed and measured boxes");
+Assert(!body.TryGetProperty("clientName", out _) &&
+    !body.TryGetProperty("form_clientName", out _) &&
+    !body.TryGetProperty("sellerUserId", out _) &&
+    !body.TryGetProperty("form_cargoValue", out _) &&
+    !body.TryGetProperty("form_currencyId", out _) &&
+    !body.TryGetProperty("form_fclContainers", out _),
+    "never invent fixed identities, seller, currency, cargo amount or FCL equipment");
+
+foreach (var consolidation in new[]{air,ltl})
+{
+    var shape = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(consolidation, catalog, reviewAt).Body;
+    Assert(shape.GetProperty("shipmentMode").GetString() == consolidation.ShipmentMode &&
+        !shape.TryGetProperty("podId", out _) &&
+        shape.GetProperty("sellerContext_consolidatedCargoLines")[0]
+            .GetProperty("unitType").GetString() == "Box",
+        "Air and LTL use consolidated lines, no maritime POD");
+}
+var fullCatalog = catalog with
+{
+    Equipment =
+    [
+        new DholeOfficialEquipmentResolution(
+            "40 pies", "Dry Van",
+            Guid.Parse("f6000000-0000-4000-8000-000000000001"),
+            "40 Dry Van", "FCL-40-DRY")
+    ]
+};
+var fclFlat = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(fcl, fullCatalog, reviewAt).Body;
+Assert(fclFlat.GetProperty("form_fclContainers")[0].GetProperty("quantity").GetInt32() == 2 &&
+    fclFlat.GetProperty("form_fclContainers")[0].GetProperty("unitWeightsKg")[0].GetDecimal() == 1100 &&
+    fclFlat.GetProperty("form_cargoWeightKg").GetDecimal() == 2400 &&
+    !fclFlat.TryGetProperty("sellerContext_consolidatedCargoLines", out _),
+    "FCL equipment preserves individual weights and correct total");
+var ftlFlat = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(ftl, fullCatalog, reviewAt).Body;
+Assert(ftlFlat.GetProperty("form_landContainers")[0].GetProperty("containerTypeCode").GetString() == "FCL-40-DRY" &&
+    !ftlFlat.TryGetProperty("podId", out _),
+    "FTL equipment uses resolved type and forbids maritime POD");
+
+// Reject incomplete, stale, swapped and forged resolver snapshots before any HTTP.
+Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+    preview, catalog with { VerifiedAtUtc = reviewAt.AddMinutes(-20) }, reviewAt),
+    "expired catalog");
+Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+    preview, catalog with { IncotermValue = "FOB" }, reviewAt),
+    "incorrect incoterm value");
+Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+    preview, catalog with { IncotermId = Guid.Empty }, reviewAt),
+    "missing incoterm id");
+Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+    preview, catalog with { Services = [] }, reviewAt),
+    "missing service IDs");
+Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+    preview, catalog with { Services = [new DholeOfficialServiceResolution(
+        "Agencia de Aduanas CR", catalog.Services[0].Id)] }, reviewAt),
+    "wrong service resolution");
+Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+    fcl, catalog, reviewAt),
+    "equipment UUID missing");
+Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+    fcl, fullCatalog with { Equipment = [fullCatalog.Equipment[0] with { Type = "High Cube" }] }, reviewAt),
+    "equipment type mismatch");
+Assert(!flat.RemoteSubmissionPermitted, "no send gate is exposed even for passing review");
+Console.WriteLine("PASS: five modes project to flat Dhole review with real LCL cargo shape and resolved fake catalog UUIDs.");
+Console.WriteLine("PASS: invalid/stale catalog snapshots blocked; no HTTP, dispatcher or secrets.");
+
