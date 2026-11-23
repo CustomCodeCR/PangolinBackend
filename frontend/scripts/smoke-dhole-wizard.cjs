@@ -40,6 +40,7 @@ const api = http.createServer(async (req, res) => {
     if (explicitlyLegacy) return send(res, 404, {code:'dhole_form_disabled'})
     return send(res, 200, {
       source: 'dhole',
+      clientCreateIdempotencyEnabled: true,
       mode: url.searchParams.get('mode'),
       shipmentType: url.searchParams.get('shipmentType'),
       incoterms: ['CIF', 'FOB'],
