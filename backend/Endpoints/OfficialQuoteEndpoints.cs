@@ -248,6 +248,7 @@ public static class OfficialQuoteEndpoints
                 Validate(input, useDholeCatalogs: useDhole);
                 string originName;
                 string destinationName;
+                DholeValidatedRoute? verifiedDholeRoute = null;
                 if (useDhole)
                 {
                     // A fresh server-side snapshot, never a browser-provided list
@@ -255,6 +256,7 @@ public static class OfficialQuoteEndpoints
                     var catalog = await dholeLoader.LoadFreshAsync(
                         input.Mode!, input.ShipmentType!, ct);
                     var selected = DholeQuoteSelectionValidator.Validate(input, catalog);
+                    verifiedDholeRoute = selected;
                     originName = selected.OriginName;
                     destinationName = selected.DestinationName;
                 }
@@ -296,6 +298,15 @@ public static class OfficialQuoteEndpoints
                     DestinationName = destinationName,
                     FormJson = JsonSerializer.Serialize(input, Json)
                 };
+                if (useDhole)
+                {
+                    // Map the REAL validated wizard/GIO request (not browser-mapped JSON).
+                    // This first phase only validates a local unsendable draft.
+                    // The original quote is saved in Administration as usual.
+                    // NO API key, network call, approval gate or dispatch occurs here.
+                    _ = DholeOfficialQuoteDraftBuilder.Project(
+                        input, quote.Id, verifiedDholeRoute!);
+                }
                 db.OfficialQuotes.Add(quote);
                 await db.SaveChangesAsync(ct);
                 http.Response.Headers.CacheControl = "no-store";
