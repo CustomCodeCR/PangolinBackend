@@ -23,6 +23,24 @@ public sealed class OfficialQuoteRequest
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
+// Creation-time outbox for validated Dhole-backed official submissions.
+// Independent of administrative approval. Never contains duplicated PII or a payload.
+// No worker or sender consumes these records yet.
+public sealed class OfficialQuoteDholeCreationOutbox
+{
+    public Guid QuoteId { get; set; }
+    public string IdempotencyKey { get; set; } = "";
+    public string State { get; set; } = "PendingDispatch";
+    public string Priority { get; set; } = "Green";
+    public int AttemptCount { get; set; }
+    public string? ExternalReference { get; set; }
+    public string? LastErrorCode { get; set; }
+    public DateTime? LastAttemptAtUtc { get; set; }
+    public DateTime? VerifiedAtUtc { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
 // An approved quote is staged for a future, separately authorized Dhole API.
 // An outbox row does NOT imply any remote request was made.
 public sealed class OfficialQuoteDholeOutbox
