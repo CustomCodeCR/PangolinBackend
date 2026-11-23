@@ -77,7 +77,9 @@ Assert(fcl.ShipmentMode=="Fcl" && fcl.CargoUnits.Count==0 &&
 Assert(fcl.PendingCatalogResolutions.Any(x=>x.StartsWith("equipmentIds:")),
     "FCL equipment IDs not invented");
 var ftl=DholeOfficialQuoteDraftBuilder.Project(full with {
-    Mode="Land",ShipmentType="FTL",PodLocationId=null
+    Mode="Land", ShipmentType="FTL", PodLocationId=null,
+    Equipment=[new OfficialContainerInput(
+        "48 pies","Furgón seco",2,[1100m,1300m])]
 },quoteId,land);
 Assert(ftl.ShipmentMode=="Ftl" && ftl.TotalWeightKg==2400,"FTL preserves equipment");
 Console.WriteLine("PASS: LCL, AIR_LCL, LTL, FCL and FTL mapped with verified route labels.");
@@ -170,7 +172,7 @@ var fullCatalog = catalog with
     Equipment =
     [
         new DholeOfficialEquipmentResolution(
-            "40 pies", "Dry Van",
+            "Fcl", "40 pies", "Dry Van",
             Guid.Parse("f6000000-0000-4000-8000-000000000001"),
             "40 Dry Van", "FCL-40-DRY")
     ]
@@ -181,8 +183,18 @@ Assert(fclFlat.GetProperty("form_fclContainers")[0].GetProperty("quantity").GetI
     fclFlat.GetProperty("form_cargoWeightKg").GetDecimal() == 2400 &&
     !fclFlat.TryGetProperty("sellerContext_consolidatedCargoLines", out _),
     "FCL equipment preserves individual weights and correct total");
-var ftlFlat = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(ftl, fullCatalog, reviewAt).Body;
-Assert(ftlFlat.GetProperty("form_landContainers")[0].GetProperty("containerTypeCode").GetString() == "FCL-40-DRY" &&
+var ftlCatalog = catalog with
+{
+    Equipment =
+    [
+        new DholeOfficialEquipmentResolution(
+            "Ftl", "48 pies", "Furgón seco",
+            Guid.Parse("f6000000-0000-4000-8000-000000000002"),
+            "48 Furgón seco", "FTL-48-DRY")
+    ]
+};
+var ftlFlat = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(ftl, ftlCatalog, reviewAt).Body;
+Assert(ftlFlat.GetProperty("form_landContainers")[0].GetProperty("containerTypeCode").GetString() == "FTL-48-DRY" &&
     !ftlFlat.TryGetProperty("podId", out _),
     "FTL equipment uses resolved type and forbids maritime POD");
 
@@ -209,6 +221,8 @@ Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
 Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
     fcl, fullCatalog with { Equipment = [fullCatalog.Equipment[0] with { Type = "High Cube" }] }, reviewAt),
     "equipment type mismatch");
+Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+    ftl, fullCatalog, reviewAt), "FCL type cannot be used for FTL");
 Assert(!flat.RemoteSubmissionPermitted, "no send gate is exposed even for passing review");
 Console.WriteLine("PASS: five modes project to flat Dhole review with real LCL cargo shape and resolved fake catalog UUIDs.");
 Console.WriteLine("PASS: invalid/stale catalog snapshots blocked; no HTTP, dispatcher or secrets.");
