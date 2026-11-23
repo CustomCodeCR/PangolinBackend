@@ -7,7 +7,7 @@ import { isCalendarDate, isCargoReadyDateOnOrAfterToday } from '../lib/costaRica
 import { loadDholeQuoteFormOptions, type DholeQuoteFormOptions } from '../lib/dholeQuoteForm'
 import { prepareQuoteSubmissionAttempt, clearQuoteSubmissionAttempt,
   legacyQuoteResultUncertain, setLegacyQuoteResultUncertain,
-  type QuoteSubmissionAttempt } from '../lib/officialQuoteSubmissionAttempt'
+  unresolvedKeyedQuoteAttempt, type QuoteSubmissionAttempt } from '../lib/officialQuoteSubmissionAttempt'
 
 type Kind = 'quote' | 'tracking' | 'itinerary'
 type Phase = 'collect' | 'confirm' | 'review' | 'auth' | 'location' | 'result'
@@ -879,8 +879,12 @@ async function submitQuote() {
   const body = JSON.stringify(payload)
   const serverDedup = quoteCatalogSource.value === 'dhole' &&
     quoteCatalog.value?.clientCreateIdempotencyEnabled === true
-  if (!serverDedup &&
-      (legacyAttemptMayHaveSaved || legacyQuoteResultUncertain(CREATE_ATTEMPT_KEY)))
+  // Never cross an unresolved submission into a different server mode.
+  // Previously unkeyed requests have no recoverable creation identity;
+  // previously keyed attempts must never silently become unkeyed.
+  if (legacyAttemptMayHaveSaved ||
+      legacyQuoteResultUncertain(CREATE_ATTEMPT_KEY) ||
+      (!serverDedup && unresolvedKeyedQuoteAttempt(CREATE_ATTEMPT_KEY, activeCreateAttempt)))
     throw new Error(tr(
       'El resultado del envío anterior es incierto. Consultá con soporte antes de reenviar para evitar duplicados.',
       'The previous request may have been saved. Contact support before retrying to avoid duplicates.'))
