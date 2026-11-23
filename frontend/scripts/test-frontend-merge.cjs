@@ -1225,4 +1225,72 @@ for (const service of ['fiscal', 'panama']) {
 assert.match(regionalHome, /siteVisual\(`home\.services\.\$\{service\.key\.toLowerCase\(\)\}\.media`/,
   'Las tarjetas deben consumir la imagen publicada por el CMS')
 
+// About visual editor: each active structure/environment field must be
+// registered in the catalog, permitted by the CMS API and consumed in About.
+const aboutEditor = source('src/pages/About.vue')
+for (const key of [
+  'about.structure.kicker',
+  'about.structure.heading',
+  'about.environment.kicker',
+  'about.environment.heading',
+  'about.structure.6.description'
+]) {
+  assert.ok(regionalSlots.includes("'" + key + "'"), 'Campo Sobre nosotros ausente del editor: ' + key)
+  assert.ok(regionalCmsApi.includes('"' + key + '"'), 'CMS rechaza el campo Sobre nosotros: ' + key)
+  assert.ok(aboutEditor.includes("'" + key + "'"), 'Sobre nosotros no usa el campo: ' + key)
+}
+for (const [catalog, api, consumer] of [
+  ["'about.structure.'+(i+2)+'.title'", 'TextKeys.Add("about.structure." + i + ".title")', 'siteText(`about.structure.${offset + 2}.title`'],
+  ["'about.structure.'+(i+2)+'.description'", 'TextKeys.Add("about.structure." + i + ".description")', 'siteText(`about.structure.${offset + 2}.description`'],
+  ["'about.structure.'+(i+2)+'.media'", 'MediaKeys.Add("about.structure." + i + ".media")', '`about.structure.${selectedStructure.index}.media`'],
+  ["'about.structure.departments.'+i", 'TextKeys.Add("about.structure.departments." + i)', 'siteText(`about.structure.departments.${index}`, department, locale.value)'],
+  ["key:'about.structure.departments.'+i+'.description'", 'TextKeys.Add("about.structure.departments." + i + ".description")', 'siteText(`about.structure.departments.${i}.description`'],
+  ["'about.environment.pillar.'+i+'.title'", 'TextKeys.Add("about.environment.pillar." + i + ".title")', "siteText('about.environment.pillar.' + index + '.title'"]
+]) {
+  assert.ok(regionalSlots.includes(catalog), 'Campo dinámico no registrado en Editor visual: ' + catalog)
+  assert.ok(regionalCmsApi.includes(api), 'Campo dinámico no permitido por CMS: ' + api)
+  assert.ok(aboutEditor.includes(consumer), 'Campo dinámico no leído por Sobre nosotros: ' + consumer)
+}
+assert.ok(regionalCmsApi.includes('for (var i = 2; i <= 5; i++)'),
+  'CMS debe permitir las cuatro áreas de Nuestra estructura')
+assert.ok(regionalCmsApi.includes('for (var i = 0; i < 5; i++)'),
+  'CMS debe permitir los cinco departamentos y sus descripciones')
+assert.ok(regionalCmsApi.includes('MediaKeys.Add("about.structure.6.media")'),
+  'CMS debe permitir la fotografía de Enfoque ambiental')
+assert.ok(regionalSlots.includes("'about.structure.6.media'"),
+  'Falta la fotografía ambiental en el editor')
+assert.ok(aboutEditor.includes('slot-key="about.structure.6.media"'),
+  'La fotografía ambiental debe consumirse en la página')
+assert.ok(!regionalSlots.includes("addText('about','Sobre nosotros','about.structure.6.title'"),
+  'El título ambiental histórico no debe aparecer duplicado en el editor')
+assert.ok(!regionalSlots.includes("addText('about','Sobre nosotros','about.structure.environment'"),
+  'El texto ambiental histórico no debe aparecer duplicado en el editor')
+assert.ok(aboutEditor.includes("'about.structure.environment'"),
+  'Conservar la lectura de registros históricos sin exponerlos en el editor')
+
+// Full-editor audit regression: the eight service-directory cards have
+// CMS-editable media slots on Servicios, distinct from each landing page's media.
+const directoryServiceSlugs = JSON.parse(source('seo/service-pages.json')).map(item => item.slug)
+const directoryGuideSlugs = Object.keys(JSON.parse(source('seo/service-landings.json')))
+  .map(route => route.split('/').pop())
+const editableDirectorySlugs = [...new Set([...directoryServiceSlugs, ...directoryGuideSlugs])]
+assert.equal(editableDirectorySlugs.length, 8, 'Cambió el conjunto de rutas del directorio; actualizar la auditoría del CMS')
+assert.match(regionalCmsApi,
+  /foreach \(var slug in guideSlugs\.Concat\(transportSlugs\)\)[\s\S]*?MediaKeys\.Add\("services\.directory\." \+ slug \+ "\.media"\)/,
+  'El backend debe autorizar las imágenes editables del directorio de servicios')
+assert.match(regionalSlots, /'services\.directory\.' \+ service\.slug \+ '\.media'/,
+  'El editor debe registrar los medios de las cinco rutas de transporte')
+assert.match(regionalSlots, /'services\.directory\.' \+ slug \+ '\.media'/,
+  'El editor debe registrar los medios de las tres rutas logísticas')
+const directoryServicesPage = source('src/pages/Services.vue')
+assert.ok(directoryServicesPage.includes("siteVisual('services.directory.' + link.slug + '.media'"),
+  'Las tarjetas del directorio deben mostrar la imagen publicada por el editor')
+// The initial literal catalog entries must never be offered when the API does
+// not accept them. Retired slots are intentionally hidden from the editor.
+for (const key of [...regionalSlots.matchAll(/"key":\s*"([^"]+)"/g)].map(match => match[1])) {
+  if (/^home\.digital\.card\.[0-2]\.(title|subtitle)$/.test(key)) continue
+  assert.ok(regionalCmsApi.includes('"' + key + '"'),
+    'Editor visual muestra un campo que el backend rechaza: ' + key)
+}
+
 console.log('OK: SignalR, CMS, MinIO, news, itinerary and tracking contracts.')
