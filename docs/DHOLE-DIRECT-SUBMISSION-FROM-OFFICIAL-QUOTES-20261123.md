@@ -68,6 +68,16 @@ La operación evita que dos resultados concurrentes sobrescriban una misma entre
 
 **Sigue faltando:** verificar identidad externa con una consulta independiente y credenciales adecuadas, diseñar conciliación manual de `Unconfirmed` / `HttpAcceptedUnverified`, y conectar un dispatcher auténtico solo con autorización y despliegue por separado. La prueba de estas primitivas no demuestra operación del pipeline completo.
 
+## Sexto paso en borrador: conciliación de solo lectura, sin consulta a Pricing
+
+Se añadió `DholeOfficialOutboxReconciliationPreview.PreviewAsync`. **No se registra en DI, no expone endpoint, no ejecuta HTTP ni modifica PostgreSQL**. Solo permite, en un arnés aislado y con **ambas** opciones `DholeSubmission:DirectOutboxEnabled=true` y `DholeSubmission:ReconciliationPreviewEnabled=true`, consultar el estado del outbox por UUID. La opción nueva no aparece en Compose y por defecto está desactivada.
+
+La respuesta no incluye información personal, el formulario ni payload; devuelve identidad idempotente, estado, cantidad de intentos y una acción sugerida de revisión. Los estados `InFlight`, `HttpAcceptedUnverified` y `Unconfirmed` exigen comprobación independiente en Pricing. La inspección **nunca** permite reintentos automáticos, ni marca una creación como realizada. Si detecta inconsistencias entre ID, idempotencia, intentos, fecha, estado y referencia, indica `InvestigateLocalDataIntegrity` en vez de inferir éxito. `LocalConfirmationRecorded` significa únicamente que el registro **local** tiene referencia y fecha de verificación, no que se consultó Dhole.
+
+El test PostgreSQL aislado comprueba: bandera apagada sin lectura; resultado HTTP aceptado todavía no confirmado; ningún reintento; cotización inexistente sin falso éxito; y persistencia local intacta tras inspección.
+
+**Pendiente antes de cualquier producción:** método autorizado para encontrar la solicitud en Pricing por clave idempotente o referencia validada, prueba de no-duplicación y de identidad de empresa, trazabilidad de quién verificó y cuándo, revisión de permisos, y aceptación explícita del usuario para habilitar workers/POST. Los GET `pricing-services` y `land-equipment-types` siguen pendientes de entrega por el equipo Dhole. No asumir que el listado local equivale a evidencia remota.
+
 **Fases siguientes pendientes:**
 
 1. [Implementado, pendiente de verificación CI] Guardar copia oficial + outbox en una única transacción solo para Dhole si se habilita DirectOutboxEnabled.
