@@ -421,12 +421,26 @@ def main():
         status, created_news = call(browser, '/api/admin/content/news', news)
         require(status == 201 and created_news.get('id'), f'Crear noticia: {status} {created_news}')
         news_id = created_news['id']
+        slug = created_news.get('slug')
+        require(isinstance(slug, str) and slug.endswith(news_id.replace('-', '')[-8:]),
+                'Crear noticia publicada debe guardar un permalink inmutable.')
+        require(created_news.get('contentModifiedAt'),
+                'Crear noticia publicada debe registrar la fecha de contenido.')
         status, public_news = call(build_opener(), '/api/content/news')
         require(status == 200 and any(row['id'] == news_id and row.get('body') == news['body']
-                                      for row in public_news),
-                'La noticia publicada y su contenido no se ven en el sitio público.')
+                                      and row.get('slug') == slug for row in public_news),
+                'La noticia publicada y su permalink no se ven en el sitio público.')
+        # Editar título y fecha nunca debe cambiar la URL, ni aceptar un slug
+        # inventado desde el navegador del administrador.
+        edited_news = dict(news, title=news['title'] + ' ACTUALIZADA',
+                           publishedAt='2026-11-21T12:00:00Z', slug='injection')
+        status, edited = call(browser, '/api/admin/content/news/' + news_id, edited_news, 'PUT')
+        require(status == 200 and edited.get('slug') == slug and edited.get('title') == edited_news['title'],
+                f'La edición no debe modificar el permalink: {status} {edited}')
         status, hidden = call(browser, '/api/admin/content/news/' + news_id,
-                              dict(news, published=False), 'PUT')
+                              dict(edited_news, published=False), 'PUT')
+        require(status == 200 and hidden.get('slug') == slug,
+                'Despublicar una noticia no debe borrar su URL fija.')
         require(status == 200 and hidden.get('published') is False,
                 f'No se pudo ocultar noticia: {status} {hidden}')
         status, public_news = call(build_opener(), '/api/content/news')
