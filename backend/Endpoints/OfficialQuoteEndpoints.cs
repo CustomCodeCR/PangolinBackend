@@ -8,7 +8,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CastroFallas.MiniQuote.Api.Endpoints;
 
-// Captura oficial: aprobación opcionalmente prepara un outbox local.
+// Captura oficial: guarda la copia administrativa; un outbox opcional
+// se crea en la misma transacción y no depende de aprobación previa.
 // Nunca llama a una API de escritura de Dhole.
 public static class OfficialQuoteEndpoints
 {
@@ -307,12 +308,36 @@ public static class OfficialQuoteEndpoints
                     _ = DholeOfficialQuoteDraftBuilder.Project(
                         input, quote.Id, verifiedDholeRoute!);
                 }
-                db.OfficialQuotes.Add(quote);
-                await db.SaveChangesAsync(ct);
+                // Persist only a job identity, not a second copy of personal data.
+                // Nothing sends HTTP or constructs the external payload at this stage.
+                var stageDirect = useDhole && config.GetValue<bool>("DholeSubmission:DirectOutboxEnabled");
+                if (stageDirect)
+                {
+                    // Both records commit together or neither does. The unique
+                    // quote ID and idempotency key prevent duplicate outbox jobs.
+                    await using var transaction = await db.Database.BeginTransactionAsync(ct);
+                    db.OfficialQuotes.Add(quote);
+                    db.OfficialQuoteDholeCreationOutbox.Add(new OfficialQuoteDholeCreationOutbox
+                    {
+                        QuoteId = quote.Id,
+                        IdempotencyKey = "cf-official-" + quote.Id.ToString("D"),
+                        State = "PendingDispatch",
+                        Priority = "Green"
+                    });
+                    await db.SaveChangesAsync(ct);
+                    await transaction.CommitAsync(ct);
+                }
+                else
+                {
+                    // Legacy/local behavior is unchanged when the new flag is off.
+                    db.OfficialQuotes.Add(quote);
+                    await db.SaveChangesAsync(ct);
+                }
                 http.Response.Headers.CacheControl = "no-store";
                 return Results.Created($"/api/quotes/official/{quote.Id}", new
                 {
-                    quote.Id, quote.Status, quote.Authorization, quote.CreatedAtUtc
+                    quote.Id, quote.Status, quote.Authorization, quote.CreatedAtUtc,
+                    dholeDispatchState = stageDirect ? "PendingDispatch" : "Disabled"
                 });
             }
             catch (ArgumentException ex)
@@ -352,7 +377,8 @@ public static class OfficialQuoteEndpoints
             var p = await Permission(db, actor, ct);
             return Results.Ok(new { canView = p?.CanView == true || p?.CanManage == true || p?.CanAuthorize == true,
                 canManage = p?.CanManage == true, canAuthorize = p?.CanAuthorize == true,
-                dholeApprovalQueueEnabled = config.GetValue<bool>("DholeSubmission:ApprovalQueueEnabled") });
+                dholeApprovalQueueEnabled = config.GetValue<bool>("DholeSubmission:ApprovalQueueEnabled"),
+                dholeDirectOutboxEnabled = config.GetValue<bool>("DholeSubmission:DirectOutboxEnabled") });
         });
         admin.MapGet("", async (AppDbContext db, AuthService auth, HttpContext http,
             int? page, CancellationToken ct) =>
@@ -384,18 +410,26 @@ public static class OfficialQuoteEndpoints
                 .Where(x => x.QuoteId == id).OrderByDescending(x => x.CreatedAtUtc)
                 .Select(x => new { x.Action, x.Comment, x.ActorUserId, x.CreatedAtUtc })
                 .Take(100).ToListAsync(ct);
-            // Do not access the optional outbox table when the rollout flag is off.
-            var outboxEnabled = config.GetValue<bool>("DholeSubmission:ApprovalQueueEnabled");
-            var outbox = outboxEnabled
+            // Never query either optional outbox without its enabled flag.
+            // Direct delivery is independent of historical admin authorization.
+            var directEnabled = config.GetValue<bool>("DholeSubmission:DirectOutboxEnabled");
+            var approvalEnabled = config.GetValue<bool>("DholeSubmission:ApprovalQueueEnabled");
+            var directOutbox = directEnabled
+                ? await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
+                    .Where(x => x.QuoteId == id)
+                    .Select(x => new { x.State, x.Priority }).FirstOrDefaultAsync(ct)
+                : null;
+            var approvalOutbox = !directEnabled && approvalEnabled
                 ? await db.OfficialQuoteDholeOutbox.AsNoTracking()
                     .Where(x => x.QuoteId == id)
                     .Select(x => new { x.State, x.Priority }).FirstOrDefaultAsync(ct)
                 : null;
-            var dispatchState = outboxEnabled ? (outbox?.State ?? "NotStaged") : "Disabled";
+            var dispatchState = directEnabled ? (directOutbox?.State ?? "NotStaged") :
+                approvalEnabled ? (approvalOutbox?.State ?? "NotStaged") : "Disabled";
             http.Response.Headers.CacheControl = "no-store";
             return Results.Ok(new { q.Id, q.CustomerName, q.Mode, q.ShipmentType, q.Status,
                 q.Authorization, q.AuthorizedAtUtc, q.CreatedAtUtc, dholeDispatchState = dispatchState,
-                dholePriority = outbox?.Priority,
+                dholePriority = directEnabled ? directOutbox?.Priority : approvalOutbox?.Priority,
                 form = JsonSerializer.Deserialize<JsonElement>(q.FormJson), history });
         });
 
@@ -453,7 +487,8 @@ public static class OfficialQuoteEndpoints
             // sender, timer or external POST associated with this transition.
             // The table is optional and must be migrated before enabling the flag.
             var staged = decision == "Authorized" &&
-                config.GetValue<bool>("DholeSubmission:ApprovalQueueEnabled");
+                config.GetValue<bool>("DholeSubmission:ApprovalQueueEnabled") &&
+                !config.GetValue<bool>("DholeSubmission:DirectOutboxEnabled");
             if (staged)
             {
                 db.OfficialQuoteDholeOutbox.Add(new OfficialQuoteDholeOutbox {
