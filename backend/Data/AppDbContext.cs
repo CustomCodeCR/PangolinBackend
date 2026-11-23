@@ -85,6 +85,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         official.Property(x => x.OriginName).HasColumnName("origin_name").HasMaxLength(180);
         official.Property(x => x.DestinationName).HasColumnName("destination_name").HasMaxLength(180);
         official.Property(x => x.FormJson).HasColumnName("form_json").HasColumnType("jsonb");
+        official.Property(x => x.ClientSubmissionKey).HasColumnName("client_submission_key");
+        official.HasIndex(x => x.ClientSubmissionKey).IsUnique()
+            .HasFilter("client_submission_key IS NOT NULL");
+        official.Property(x => x.ClientSubmissionDigest).HasColumnName("client_submission_digest").HasMaxLength(64);
         official.Property(x => x.Status).HasColumnName("status").HasMaxLength(30);
         official.Property(x => x.Authorization).HasColumnName("approval_status").HasMaxLength(15);
         official.Property(x => x.AuthorizedById).HasColumnName("authorized_by_id");
