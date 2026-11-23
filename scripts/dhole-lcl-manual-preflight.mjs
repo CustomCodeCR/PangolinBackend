@@ -133,11 +133,14 @@ export function previewObservedLclRoute(evidence){
     'form_clientName','form_executiveName','form_clientId','form_executiveId',
     'contactEmail','contactPhone','contactName'])
     if(Object.hasOwn(body,forbidden))throw new Error('Campo prohibido '+forbidden);
-  if(!Array.isArray(body.sellerContext_consolidatedCargoLines)||
-     body.sellerContext_consolidatedCargoLines.length!==1||
-     body.sellerContext_consolidatedCargoLines[0].packages!==3||
-     body.form_cargoPackages!==3||body.form_cargoWeightKg!==10)
-    throw new Error('LCL: pesos/paquetes consolidados inesperados');
+  const cargo=body.sellerContext_consolidatedCargoLines;
+  if(!Array.isArray(cargo)||cargo.length!==1||
+     cargo[0].quantity!==3||cargo[0].unitType!=='Box'||
+     cargo[0].isStackable!==false||
+     cargo[0].length!==20||cargo[0].width!==12||cargo[0].height!==8||
+     Math.abs(cargo[0].weightKg*3-10)>0.000001||
+     body.form_cargoPackages!==3||Math.abs(body.form_cargoWeightKg-10)>0.000001)
+    throw new Error('LCL: Pricing debe recibir 3 cajas, dimensiones y 10 kg totales');
   if(Object.hasOwn(body,'form_cargoValue')||
      Object.hasOwn(body,'form_currencyId'))
     throw new Error('No enviar importe de mercancía sin moneda verificada');
