@@ -777,6 +777,9 @@ internal static class DholeQuoteHttpTest
                 DestinationName = reviewedRoute.DestinationName,
                 FormJson = storedReviewForm
             });
+            // EF has no navigation relationship between the optional tables;
+            // persist the fictional ADMIN parent first to satisfy its FK.
+            await db.SaveChangesAsync();
             db.OfficialQuoteDholeCreationOutbox.Add(
                 new OfficialQuoteDholeCreationOutbox
                 {
