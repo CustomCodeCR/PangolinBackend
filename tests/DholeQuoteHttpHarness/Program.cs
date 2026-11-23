@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -269,6 +270,14 @@ internal static class DholeQuoteHttpTest
             Assert(Convert.ToInt64(await count.ExecuteScalarAsync()) == 0,
                 "Guest submissions never create a Dhole approval-outbox row");
         }
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var count = new NpgsqlCommand(
+                "SELECT COUNT(*) FROM public.official_quote_dhole_creation_outbox", db);
+            Assert(Convert.ToInt64(await count.ExecuteScalarAsync()) == 0,
+                "Direct outbox stays empty with its flag disabled");
+        }
         // Verify the authorization/outbox feature against actual HTTP endpoints
         // and the disposable PostgreSQL database; outbound traffic stays fake GET.
         async Task<HttpResponseMessage> AdminRequest(HttpMethod method, string uri, string role)
@@ -429,6 +438,108 @@ internal static class DholeQuoteHttpTest
             await AuditCount(simultaneousId, "DholeStaged") == 1,
             "Concurrent approval creates one outbox and one staging audit");
 
+        // Separate HTTP host: direct outbox ON, approval outbox OFF.
+        // Production's 12/10-minute public quote rate limit stays unchanged.
+        using var directFactory = factory.WithWebHostBuilder(host =>
+            host.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                    ["DholeSubmission:ApprovalQueueEnabled"] = "false"
+                })));
+        using var directClient = directFactory.CreateClient(
+            new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var directResponse = await directClient.PostAsJsonAsync("/api/quotes/official", quote);
+        Assert(directResponse.StatusCode == HttpStatusCode.Created,
+            "Direct opt-in creates one fictional quote and its outbox atomically");
+        using var directReceipt = JsonDocument.Parse(await directResponse.Content.ReadAsStringAsync());
+        var directId = directReceipt.RootElement.GetProperty("id").GetGuid();
+        Assert(directReceipt.RootElement.GetProperty("dholeDispatchState").GetString() == "PendingDispatch",
+            "Creation returns pending state, never claims remote delivery");
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var query = new NpgsqlCommand("""
+                SELECT o.state, o.idempotency_key, o.priority, o.attempt_count,
+                       q.approval_status, o.external_reference
+                FROM public.official_quote_dhole_creation_outbox o
+                JOIN public.official_quote_requests q ON q.id = o.quote_id
+                WHERE o.quote_id = @id
+                """, db);
+            query.Parameters.AddWithValue("id", directId);
+            await using var reader = await query.ExecuteReaderAsync();
+            Assert(await reader.ReadAsync(), "Outbox and official copy both persisted");
+            Assert(reader.GetString(0) == "PendingDispatch" &&
+                   reader.GetString(1) == "cf-official-" + directId.ToString("D") &&
+                   reader.GetString(2) == "Green" && reader.GetInt32(3) == 0 &&
+                   reader.GetString(4) == "Pending" && reader.IsDBNull(5),
+                "Stable key, Green default, zero attempts, no approval and no remote ref");
+            Assert(!await reader.ReadAsync(), "Only one direct job per quote");
+        }
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var duplicate = new NpgsqlCommand("""
+                INSERT INTO public.official_quote_dhole_creation_outbox
+                    (quote_id, idempotency_key, state)
+                VALUES (@quote, @key, 'PendingDispatch')
+                """, db);
+            duplicate.Parameters.AddWithValue("quote", directId);
+            duplicate.Parameters.AddWithValue("key", "cf-official-" + directId.ToString("D"));
+            var refused = false;
+            try { await duplicate.ExecuteNonQueryAsync(); }
+            catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UniqueViolation)
+            { refused = true; }
+            Assert(refused, "PK/UNIQUE refuse a duplicate delivery job");
+        }
+        using (var detailRequest = new HttpRequestMessage(HttpMethod.Get,
+            $"/api/admin/quotes/official/{directId}"))
+        {
+            detailRequest.Headers.Add("X-CI-Test-Actor", "viewer");
+            using var detailResponse = await directClient.SendAsync(detailRequest);
+            Assert(detailResponse.StatusCode == HttpStatusCode.OK,
+                "Admin can inspect direct delivery status without authorizing it");
+            using var detailJson = JsonDocument.Parse(await detailResponse.Content.ReadAsStringAsync());
+            Assert(detailJson.RootElement.GetProperty("dholeDispatchState").GetString() == "PendingDispatch",
+                "Administration shows direct state independently of approval");
+        }
+        // Force an outbox constraint failure: the official quote MUST roll back.
+        long beforeFailure;
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var count = new NpgsqlCommand(
+                "SELECT COUNT(*) FROM public.official_quote_requests", db);
+            beforeFailure = Convert.ToInt64(await count.ExecuteScalarAsync());
+            await using var block = new NpgsqlCommand("""
+                ALTER TABLE public.official_quote_dhole_creation_outbox
+                    ADD CONSTRAINT ck_ci_refuse_pending CHECK (state <> 'PendingDispatch') NOT VALID
+                """, db);
+            await block.ExecuteNonQueryAsync();
+        }
+        try
+        {
+            using var failed = await directClient.PostAsJsonAsync("/api/quotes/official", quote);
+            Assert(failed.StatusCode == HttpStatusCode.InternalServerError,
+                "Simulated DB outbox failure must not return an issued quote receipt");
+            await using var db = new NpgsqlConnection(connectionString);
+            await db.OpenAsync();
+            await using var count = new NpgsqlCommand(
+                "SELECT COUNT(*) FROM public.official_quote_requests", db);
+            Assert(Convert.ToInt64(await count.ExecuteScalarAsync()) == beforeFailure,
+                "Failure to stage the delivery rolls back the official quote in one transaction");
+        }
+        finally
+        {
+            await using var db = new NpgsqlConnection(connectionString);
+            await db.OpenAsync();
+            await using var unblock = new NpgsqlCommand("""
+                ALTER TABLE public.official_quote_dhole_creation_outbox
+                    DROP CONSTRAINT IF EXISTS ck_ci_refuse_pending
+                """, db);
+            await unblock.ExecuteNonQueryAsync();
+        }
+
         Assert(handler.Requests > 0 && handler.ForbiddenRequests == 0,
             "All Dhole traffic was fake HTTPS GET and used the fictional key");
         Console.WriteLine("PASS: HTTP 201 + real isolated PostgreSQL row + external UUID persistence");
@@ -436,6 +547,7 @@ internal static class DholeQuoteHttpTest
         Console.WriteLine("PASS: permission denied / rejected / approved / duplicate / concurrent approval");
         Console.WriteLine("PASS: approved Green default, admin-only Yellow/Red priority persisted; zero external POST");
         Console.WriteLine("PASS: each approval stages exactly once; outbox attempts zero, no external POST");
+        Console.WriteLine("PASS: direct creation outbox independent; atomic save/rollback, unique key and admin visibility");
         Console.WriteLine("PASS: all Dhole upstream traffic simulated; no real API, no mail, no production data");
     }
 }
