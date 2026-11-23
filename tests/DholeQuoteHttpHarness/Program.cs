@@ -870,6 +870,48 @@ internal static class DholeQuoteHttpTest
                 "Concurrent keyed requests persist exactly one official quote");
         }
 
+        // Force a DB constraint failure during a keyed transaction. The
+        // official copy and the client key must BOTH roll back so that the same
+        // key can safely be used after the isolated DB fault is removed.
+        var recoverableKey = Guid.NewGuid();
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var block = new NpgsqlCommand("""
+                ALTER TABLE public.official_quote_dhole_creation_outbox
+                    ADD CONSTRAINT ck_ci_dedup_rollback CHECK (state <> 'PendingDispatch') NOT VALID
+                """, db);
+            await block.ExecuteNonQueryAsync();
+        }
+        try
+        {
+            using var failed = await CreateWithClientKey(recoverableKey, quote);
+            Assert(failed.StatusCode == HttpStatusCode.InternalServerError,
+                "Outbox error in keyed request prevents issuing an incorrect receipt");
+            await using var db = new NpgsqlConnection(connectionString);
+            await db.OpenAsync();
+            await using var probe = new NpgsqlCommand("""
+                SELECT COUNT(*) FROM public.official_quote_requests
+                WHERE client_submission_key = @key
+                """, db);
+            probe.Parameters.AddWithValue("key", recoverableKey);
+            Assert(Convert.ToInt64(await probe.ExecuteScalarAsync()) == 0,
+                "Failed outbox insert rolls back keyed official quote as well");
+        }
+        finally
+        {
+            await using var db = new NpgsqlConnection(connectionString);
+            await db.OpenAsync();
+            await using var unblock = new NpgsqlCommand("""
+                ALTER TABLE public.official_quote_dhole_creation_outbox
+                    DROP CONSTRAINT IF EXISTS ck_ci_dedup_rollback
+                """, db);
+            await unblock.ExecuteNonQueryAsync();
+        }
+        using (var recovered = await CreateWithClientKey(recoverableKey, quote))
+            Assert(recovered.StatusCode == HttpStatusCode.Created,
+                "Exact keyed retry after proven rollback creates original quote once");
+
         Assert(handler.Requests > 0 && handler.ForbiddenRequests == 0,
             "All Dhole traffic was fake HTTPS GET and used the fictional key");
         Console.WriteLine("PASS: HTTP 201 + real isolated PostgreSQL row + external UUID persistence");
@@ -882,6 +924,7 @@ internal static class DholeQuoteHttpTest
         Console.WriteLine("PASS: offline outcomes record exactly once and never claim verified creation");
         Console.WriteLine("PASS: disabled-by-default reconciliation flags accepted HTTP as unverified; zero retries");
         Console.WriteLine("PASS: opt-in quote creation deduplication returns one ID and outbox across replays/races");
+        Console.WriteLine("PASS: failed keyed transaction rolls back both quote and outbox and accepts same-key recovery");
         Console.WriteLine("PASS: all Dhole upstream traffic simulated; no real API, no mail, no production data");
     }
 }
