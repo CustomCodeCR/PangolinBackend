@@ -8,4 +8,4 @@ export default defineCachedEventHandler(async (event): Promise<PublicNews[]> => 
   // Misma validación y límite que el sitemap para no anunciar URLs con 404.
   const now = Date.now()
   return result.filter((item): item is PublicNews => isCrawlableNews(item, now)).slice(0, PUBLIC_NEWS_LIMIT)
-}, { maxAge: 300, swr: true, name: 'public-pangolin-news' })
+}, { maxAge: 120, swr: true, name: 'public-pangolin-news' })

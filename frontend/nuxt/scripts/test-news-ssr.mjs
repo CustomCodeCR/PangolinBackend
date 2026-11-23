@@ -37,6 +37,15 @@ const approvedTitleFixtures = [
 for (const fixture of approvedTitleFixtures) {
   news.push({ ...news[0], id: '123e4567-e89b-12d3-a456-' + fixture.suffix.padStart(12, '0'), title: fixture.title })
 }
+// The stored slug survives edits to title and publication date.
+const stableSlug = '2026-11-02-titulo-anterior-14174111'
+const stableArticle = {
+  ...news[0], id: '123e4567-e89b-12d3-a456-426614174111',
+  title: 'Título editorial actualizado', slug: stableSlug,
+  publishedAt: '2026-11-20T12:00:00Z',
+  contentModifiedAt: '2026-11-23T18:00:00Z'
+}
+news.push(stableArticle)
 
 // Casos adversos: el CMS no puede romper el sitemap con registros mal tipados.
 const invalidNews = [
@@ -156,6 +165,32 @@ try {
     assert.equal(response.status, 200, 'El sitemap incluye una noticia inaccesible: ' + articleUrl)
   }
   assert.ok(sitemap.includes(slug), 'Noticia ausente en sitemap dinámico')
+  // Permanent permalink appears in sitemap, including an actual editorial lastmod.
+  const stablePath = '/noticias/' + stableSlug
+  assert.match(sitemap, new RegExp(stableSlug + '<\\/loc><lastmod>2026-11-23<\\/lastmod>'),
+    'La URL fija debe aparecer con su fecha real de modificación')
+  const stableResponse = await fetch(base + stablePath)
+  assert.equal(stableResponse.status, 200, 'El permalink guardado debe resolver HTTP 200')
+  const stableHtml = await stableResponse.text()
+  assert.match(stableHtml, /Título editorial actualizado/,
+    'La noticia conserva URL pero actualiza el título visible')
+  assert.match(stableHtml, /"dateModified":"2026-11-23T18:00:00Z"/,
+    'El Article JSON-LD debe conservar fecha real de edición')
+  // Old title/changed date (or arbitrary old descriptive slug with the same
+  // unique ID suffix) must redirect, never return a soft 404 or another 200.
+  for (const alias of [
+    '/noticias/2026-11-20-titulo-editorial-actualizado-14174111',
+    '/noticias/2026-11-02-titulo-anterior-editado-14174111'
+  ]) {
+    const redirect = await fetch(base + alias, { redirect: 'manual' })
+    assert.equal(redirect.status, 301, 'Una URL anterior debe redirigir con 301: ' + alias)
+    assert.equal(new URL(redirect.headers.get('location'), base).pathname, stablePath,
+      'La URL antigua debe apuntar al permalink original')
+  }
+  const oldQuery = await fetch(base + '/noticias?article=' + stableArticle.id, { redirect: 'manual' })
+  assert.equal(oldQuery.status, 301, 'La antigua URL con ?article= debe redirigir con 301')
+  assert.equal(new URL(oldQuery.headers.get('location'), base).pathname, stablePath)
+
   assert.match(sitemap,
     /<url><loc>https:\/\/www\.logisticacastrofallas\.com\/servicios\/transporte-maritimo<\/loc><lastmod>\d{4}-\d{2}-\d{2}<\/lastmod><\/url>/,
     'El sitemap debe usar fechas editoriales conocidas en páginas de servicios')
@@ -193,9 +228,24 @@ try {
     const removedPage = await fetch(base + retired)
     assert.equal(removedPage.status, 404, 'La página retirada debe devolver HTTP 404: ' + retired)
   }
+  // A deleted, unpublished or expired article must NEVER redirect via the
+  // legacy UUID suffix. Only articles in the live public CMS feed may resolve.
+  for (const unavailable of [
+    '/noticias/2026-11-02-noticia-eliminada-14179999',
+    '/noticias/2026-11-02-edicion-antigua-14170003', // unpublished fixture
+    '/noticias/2026-11-02-edicion-antigua-14170004'  // expired fixture
+  ]) {
+    const response = await fetch(base + unavailable, { redirect: 'manual' })
+    assert.equal(response.status, 404,
+      'Una noticia eliminada, despublicada o caducada no debe redirigir: ' + unavailable)
+  }
+  for (const suffix of ['14179999', '14170003', '14170004']) {
+    assert.ok(!sitemap.includes('-' + suffix),
+      'Sitemap no debe publicar URLs de noticias eliminadas o privadas: ' + suffix)
+  }
   const missing = await fetch(base + '/noticias/no-existe')
   assert.equal(missing.status, 404)
-  console.log('Noticias SSR, Article JSON-LD, sitemap dinámico y 404: OK')
+  console.log('Noticias SSR, enlaces permanentes, revocación, sitemap y 404: OK')
 } finally {
   nuxt.kill('SIGTERM')
   await new Promise(resolve => api.close(resolve))

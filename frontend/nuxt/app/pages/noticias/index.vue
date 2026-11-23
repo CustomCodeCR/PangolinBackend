@@ -10,6 +10,14 @@ usePublicSeo({
   description: 'Publicaciones del Grupo Castro Fallas sobre transporte de carga, logística y comercio exterior en Costa Rica y Centroamérica.',
   image: '/images/cover-logistics.jpeg'
 })
+const route = useRoute()
+// Previous /noticias?article=UUID links remain valid and consolidate to
+// the permanent article URL on the server, without client-only redirects.
+const legacyId = route.query.article
+if (typeof legacyId === 'string') {
+  const requested = (data.value || []).find(item => item.id === legacyId)
+  if (requested) await navigateTo(articlePath(requested), { redirectCode: 301, replace: true })
+}
 const articles = computed(() => data.value || [])
 
 const legacyNews = computed<ManagedNews[]>(() => articles.value.map(article => ({
@@ -17,7 +25,8 @@ const legacyNews = computed<ManagedNews[]>(() => articles.value.map(article => (
   description: article.description || '', body: article.body || '',
   image: article.image || '/images/cover-logistics.jpeg',
   published: article.published !== false, author: article.author || undefined,
-  publishedAt: article.publishedAt || null, expiresAt: article.expiresAt || null
+  publishedAt: article.publishedAt || null, expiresAt: article.expiresAt || null,
+  slug: article.slug || null, contentModifiedAt: article.contentModifiedAt || null
 })))
 </script>
 <template>

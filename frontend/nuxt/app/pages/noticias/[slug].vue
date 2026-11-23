@@ -2,13 +2,23 @@
 import LegacyNews from '@legacy/pages/News.vue'
 import type { ManagedNews } from '@legacy/adminContent'
 import type { PublicNews } from '../../utils/news'
-import { articleSlug, plainArticleText } from '../../utils/news'
+import { articleSlug, articlePath, plainArticleText } from '../../utils/news'
 const route = useRoute()
 const { data, error } = await useFetch<PublicNews[]>('/api/public-news', { key: 'public-news', server: true })
 if (error.value) throw createError({ statusCode: 503, statusMessage: 'Noticias temporalmente no disponibles' })
-const article = (data.value || []).find(item => articleSlug(item) === route.params.slug)
+const requestedSlug = String(route.params.slug || '')
+const published = data.value || []
+const exact = published.find(item => articleSlug(item) === requestedSlug)
+// Legacy URLs include a stable 8-hex ID suffix even when their title/date
+// changed. Redirect only an unambiguous match; never expose an unpublished post.
+const oldSuffix = requestedSlug.match(/-([a-f0-9]{8})$/i)?.[1]?.toLowerCase()
+const aliases = exact || !oldSuffix ? [] : published.filter(item =>
+  item.id.replace(/-/g, '').slice(-8).toLowerCase() === oldSuffix)
+const article = exact ?? (aliases.length === 1 ? aliases[0] : null)
 if (!article) throw createError({ statusCode: 404, statusMessage: 'Noticia no encontrada' })
-const path = '/noticias/' + articleSlug(article)
+const path = articlePath(article)
+if (requestedSlug !== articleSlug(article))
+  await navigateTo(path, { redirectCode: 301, replace: true })
 // Coincide con la fuente canónica de usePublicSeo también en previews.
 const seoBase = String(useRuntimeConfig().public.siteUrl).replace(/\/$/, '')
 const approvedNewsSeoTitles: Record<string, string> = {
@@ -38,6 +48,7 @@ const schema = {
   author: article.author ? { '@type': 'Person', name: article.author } : { '@type': 'Organization', name: 'Grupo Castro Fallas' },
   publisher: { '@id': seoBase + '/#organizacion' },
   ...(article.publishedAt ? { datePublished: article.publishedAt } : {}),
+  ...(article.contentModifiedAt ? { dateModified: article.contentModifiedAt } : {}),
   image: seoBase + image
 }
 usePublicSeo({
@@ -46,7 +57,8 @@ usePublicSeo({
   type: 'article', image, schema: [schema]
 })
 useSeoMeta({
-  ...(article.publishedAt ? { articlePublishedTime: article.publishedAt } : {})
+  ...(article.publishedAt ? { articlePublishedTime: article.publishedAt } : {}),
+  ...(article.contentModifiedAt ? { articleModifiedTime: article.contentModifiedAt } : {})
 })
 const body = plainArticleText(article.body || article.description)
 
@@ -55,7 +67,8 @@ const legacyNews = computed<ManagedNews[]>(() => (data.value || []).map(item => 
   description: item.description || '', body: item.body || '',
   image: item.image || '/images/cover-logistics.jpeg',
   published: item.published !== false, author: item.author || undefined,
-  publishedAt: item.publishedAt || null, expiresAt: item.expiresAt || null
+  publishedAt: item.publishedAt || null, expiresAt: item.expiresAt || null,
+  slug: item.slug || null, contentModifiedAt: item.contentModifiedAt || null
 })))
 </script>
 <template>

@@ -320,8 +320,11 @@ for (const translation of [
 ]) assert.ok(news.includes(translation), 'Todos los estados de noticias deben traducirse: ' + translation)
 
 
-assert.match(news, /const articleSlug = \(article: \{ id: string; title: string; publishedAt\?: string \| null \}\) =>/, 'Cada noticia tiene un slug con fecha y título legibles')
-assert.ok(news.includes("article.publishedAt?.slice(0,10)"), 'La URL empieza por fecha de publicación')
+assert.match(news, /const articleSlug = \(article: \{ id: string; title: string; publishedAt\?: string \| null; slug\?: string \| null \}\) =>/, 'Cada noticia admite un slug permanente guardado por el CMS')
+assert.match(news, /return article\.slug && article\.slug\.length <= 240/, 'El slug guardado tiene prioridad sobre recalcular desde el titular')
+assert.ok(news.includes("article.publishedAt?.slice(0,10)"), 'Las noticias antiguas conservan URL legible de fecha y título')
+assert.match(source('nuxt/app/utils/news.ts'), /return article\.slug/, 'Nuxt utiliza el mismo permalink permanente que la vista anterior')
+assert.match(source('nuxt/app/pages/noticias/[slug].vue'), /redirectCode: 301/, 'Nuxt redirige variantes antiguas sin duplicar contenido')
 assert.match(news, /news-article-page__date/, 'La noticia muestra la fecha arriba a la derecha')
 assert.match(news, /news-article-page__author/, 'La noticia muestra su autor al finalizar el texto')
 assert.match(manager, /v-model.trim="newsForm.author"/, 'El editor permite añadir autor')

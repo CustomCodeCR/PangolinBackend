@@ -28,9 +28,14 @@ const slugifyNewsTitle = (title: string) => title.normalize('NFD')
   .toLowerCase()
   .replace(/[^a-z0-9]+/g, '-')
   .replace(/^-+|-+$/g, '') || 'noticia'
-const articleSlug = (article: { id: string; title: string; publishedAt?: string | null }) =>
-  `${article.publishedAt?.slice(0,10) || 'sin-fecha'}-${slugifyNewsTitle(article.title)}-${article.id.replace(/-/g, '').slice(-8).toLowerCase()}`
-const articlePath = (article: { id: string; title: string; publishedAt?: string | null }) => `/noticias/${articleSlug(article)}`
+const articleSlug = (article: { id: string; title: string; publishedAt?: string | null; slug?: string | null }) => {
+  const suffix = article.id.replace(/-/g, '').slice(-8).toLowerCase()
+  return article.slug && article.slug.length <= 240 &&
+    /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(article.slug) && article.slug.endsWith('-' + suffix)
+    ? article.slug
+    : `${article.publishedAt?.slice(0,10) || 'sin-fecha'}-${slugifyNewsTitle(article.title)}-${suffix}`
+}
+const articlePath = (article: { id: string; title: string; publishedAt?: string | null; slug?: string | null }) => `/noticias/${articleSlug(article)}`
 const articleHref = (id: string) => {
   const article = managedNews.value.find(item => item.id === id)
   return article ? articlePath(article) : '/noticias'
