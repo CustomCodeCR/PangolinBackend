@@ -107,7 +107,66 @@ has(backend,['ClientCreateIdempotencyEnabled','X-CF-Quote-Request-Key',
   'Server creation dedup');
 has(schema,['CREATE TABLE IF NOT EXISTS public.official_quote_client_submissions',
   'submission_key UUID PRIMARY KEY', 'request_digest VARCHAR(64)',
+  "request_digest ~ '^[0-9a-f]{64}
+has(context,['OfficialQuoteClientSubmissions','request_digest','submission_key'],'EF mapping');
+has(retry,['crypto.subtle.digest','crypto.randomUUID','sessionStorage',
+  'previous.digest !== digest'], 'Per-tab duplicate protection');
+for (const frontend of [wizard,gio])
+  has(frontend,['prepareQuoteSubmissionAttempt','clearQuoteSubmissionAttempt',
+    'X-CF-Quote-Request-Key'],'Quote UI retry protection');
+assert.ok(!retry.includes('JSON.stringify({body'), 'Do not persist raw quote bodies in retry state');
+assert.ok(!schema.includes('ALTER TABLE public.official_quote_requests\n    ADD COLUMN'),
+  'Historic official quote table must not require a migration when the flag is off');
+has(optionsType,['clientCreateIdempotencyEnabled','typeof v.clientCreateIdempotencyEnabled'],
+  'Validated public Dhole capability');
+has(catalogEndpoint,['ClientCreateIdempotencyEnabled','DholeSubmission:ClientCreateIdempotencyEnabled'],
+  'Public read-only feature capability');
+has(backend,['quote_idempotency_unavailable','http.Request.Headers.ContainsKey'],
+  'Fail-closed keyed POST when feature toggled off');
+for (const source of [wizard,gio])
+  has(source,['legacyQuoteResultUncertain','setLegacyQuoteResultUncertain',
+    'clientCreateIdempotencyEnabled','serverDedup',
+    'if (serverDedup) headers[\'X-CF-Quote-Request-Key\']'],
+    'Client must not assume server accepts deduplication');
+has(retry,['legacyQuoteResultUncertain','setLegacyQuoteResultUncertain',
+  'sessionStorage.setItem(storageKey + \':unverified\', \'1\')',
+  'unresolvedKeyedQuoteAttempt'],
+  'PII-free blocking marker and downgrade guard');
+for (const source of [wizard,gio]) {
+  has(source,['unresolvedKeyedQuoteAttempt(CREATE_ATTEMPT_KEY, activeCreateAttempt)',
+    'legacyAttemptMayHaveSaved ||','legacyQuoteResultUncertain(CREATE_ATTEMPT_KEY)'],
+    'No automatic cross-mode retry of an ambiguous quote');
+}
+console.log('PASS: browser trusts explicit server opt-in only; keyed POST fails closed if flag goes off.');
+
+console.log('PASS: default-off server creation idempotency, add-only schema, stable client keys with no raw-body storage.');
+
+console.log('PASS: 103 published API inputs classified; 12 services share exact Pricing codes.');
+console.log('PASS: wizard and GIO retain mandatory, conditional and optional user data.');
+console.log('PASS: extra cargo lines and insurance currency captured; unverified money IDs omitted.');
+console.log('PASS: no remote Dhole calls or API credentials used in parity audit.');
+",
   'REFERENCES public.official_quote_requests(id)'], 'Separate opt-in dedup table');
+// Schema previously suffered a truncated CHECK followed by duplicated SQL.
+// Reject both regressions before the expensive disposable-Postgres CI job.
+const tables = [...schema.matchAll(/CREATE TABLE IF NOT EXISTS public\.([a-z_]+)/g)]
+  .map(x => x[1]);
+const expectedTables = [
+  'official_quote_locations','official_quote_requests',
+  'official_quote_client_submissions','official_quote_permissions',
+  'official_quote_audit','official_quote_location_usage',
+  'official_quote_dhole_outbox','official_quote_dhole_creation_outbox'
+];
+assert.deepEqual(tables,expectedTables,
+  'OfficialQuote SQL must declare each of eight tables exactly once');
+const indexes = [...schema.matchAll(/CREATE (?:UNIQUE )?INDEX IF NOT EXISTS ([a-z_]+)/g)]
+  .map(x => x[1]);
+assert.equal(indexes.length,new Set(indexes).size,
+  'OfficialQuote SQL must not repeat indexes after a truncated table');
+assert.doesNotMatch(schema,/\n\),\s*\n\s*created_at_utc\s+TIMESTAMPTZ/,
+  'OfficialQuote SQL must not contain orphaned CREATE TABLE fragments');
+assert.match(schema,/request_digest[\s\S]*?created_at_utc TIMESTAMPTZ NOT NULL DEFAULT now\(\)\s*\);/,
+  'Client submission table must close before the next index declaration');
 has(context,['OfficialQuoteClientSubmissions','request_digest','submission_key'],'EF mapping');
 has(retry,['crypto.subtle.digest','crypto.randomUUID','sessionStorage',
   'previous.digest !== digest'], 'Per-tab duplicate protection');
