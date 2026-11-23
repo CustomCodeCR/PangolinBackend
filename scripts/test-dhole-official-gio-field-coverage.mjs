@@ -17,6 +17,7 @@ const optionsType = read('frontend/src/lib/dholeQuoteForm.ts');
 const catalogEndpoint = read('backend/Endpoints/DholeCatalogEndpoints.cs');
 const schema = read('backend/Database/OfficialQuotesSchema.sql');
 const context = read('backend/Data/AppDbContext.cs');
+const httpHarness = read('tests/DholeQuoteHttpHarness/Program.cs');
 
 const has = (src,fields,label) => {
   for (const field of fields) assert.ok(src.includes(field), label+': missing '+field);
@@ -109,6 +110,24 @@ has(schema,['CREATE TABLE IF NOT EXISTS public.official_quote_client_submissions
   'submission_key UUID PRIMARY KEY', 'request_digest VARCHAR(64)',
   "request_digest ~ '^[0-9a-f]{64}$'",
   'REFERENCES public.official_quote_requests(id)'], 'Separate opt-in dedup table');
+// The disposable PostgreSQL C# harness must also retain its full raw SQL.
+const rawDelimiters = httpHarness.split('"""').length - 1;
+assert.ok(rawDelimiters >= 20 && rawDelimiters % 2 === 0,
+  'PostgreSQL harness C# raw SQL delimiters must be balanced');
+assert.equal(httpHarness.split('internal static class DholeQuoteHttpTest').length - 1, 1,
+  'Only one HTTP harness class may be present');
+assert.equal(httpHarness.split('sealed class FakeDholeHttpClientFactory').length - 1, 1,
+  'Only one fake Dhole HTTP factory may be present');
+const harnessKeyStart = httpHarness.indexOf('CREATE TABLE IF NOT EXISTS public.official_quote_client_submissions');
+const harnessKeyEnd = httpHarness.indexOf('""", db);', harnessKeyStart);
+assert.ok(harnessKeyStart >= 0 && harnessKeyEnd > harnessKeyStart,
+  'Client-key table DDL must have a closing C# raw string');
+const harnessKeySql = httpHarness.slice(harnessKeyStart, harnessKeyEnd);
+assert.ok(harnessKeySql.includes("CHECK (request_digest ~ '^[0-9a-f]{64}$'),") &&
+  harnessKeySql.includes('created_at_utc TIMESTAMPTZ NOT NULL DEFAULT now()') &&
+  harnessKeySql.trim().endsWith(')'),
+  'Client-key test DDL must contain complete CHECK and closing parenthesis');
+
 // Schema previously suffered a truncated CHECK followed by duplicated SQL.
 // Reject both regressions before the expensive disposable-Postgres CI job.
 const tables = [...schema.matchAll(/CREATE TABLE IF NOT EXISTS public\.([a-z_]+)/g)]
