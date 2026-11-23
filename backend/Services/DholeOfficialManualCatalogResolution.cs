@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json;
 
@@ -49,7 +50,7 @@ public static class DholeOfficialManualCatalogResolution
         };
     private static readonly string[] LandSizes = ["24", "26", "48", "53"];
 
-    private static void Require(bool condition, string error)
+    private static void Require([DoesNotReturnIf(false)] bool condition, string error)
     {
         if (!condition) throw new ArgumentException("Mapeo temporal Dhole: " + error);
     }
