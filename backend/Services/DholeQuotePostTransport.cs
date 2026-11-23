@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -124,7 +125,171 @@ public sealed class DholeQuotePostTransport(
                 !Guid.TryParse(id.GetString(), out var parsed) || parsed == Guid.Empty)
                 return false;
         }
-        return true;
+        // A field allowlist alone is insufficient: a syntactically correct
+        // payload could combine different POE/POD IDs or attach FTL equipment
+        // to an LCL quote. This is a second, independent fail-closed guard.
+        return IsConsistentQuoteBody(body, mode.GetString()!);
+    }
+
+    private static bool ValidUuid(JsonElement value) =>
+        value.ValueKind == JsonValueKind.String &&
+        Guid.TryParse(value.GetString(), out var guid) && guid != Guid.Empty;
+
+    private static bool RequiredUuid(JsonElement body, string key) =>
+        body.TryGetProperty(key, out var value) && ValidUuid(value);
+
+    private static bool Text(JsonElement value) =>
+        value.ValueKind == JsonValueKind.String &&
+        !string.IsNullOrWhiteSpace(value.GetString()) &&
+        value.GetString()!.Length <= 4000;
+
+    private static bool RequiredText(JsonElement body, string key) =>
+        body.TryGetProperty(key, out var value) && Text(value);
+
+    private static bool Positive(JsonElement value, out decimal number)
+    {
+        number = 0;
+        return value.ValueKind == JsonValueKind.Number &&
+            value.TryGetDecimal(out number) &&
+            number > 0 && number <= 1_000_000_000m;
+    }
+
+    private static bool ExactDate(JsonElement body, string key)
+    {
+        if (!body.TryGetProperty(key, out var value) ||
+            value.ValueKind != JsonValueKind.String) return false;
+        return DateOnly.TryParseExact(value.GetString(), "yyyy-MM-dd",
+            CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
+    }
+
+    private static bool IsConsistentQuoteBody(JsonElement body, string shipmentMode)
+    {
+        var expectedMode = shipmentMode switch
+        {
+            "Fcl" or "Lcl" => "Maritime",
+            "Air" => "Air",
+            "Ftl" or "Ltl" => "Land",
+            _ => ""
+        };
+        if (expectedMode == "" || !RequiredUuid(body, "form_originId") ||
+            !RequiredUuid(body, "form_destinationId") ||
+            !RequiredUuid(body, "poeId") ||
+            !RequiredUuid(body, "form_incotermId") ||
+            !RequiredUuid(body, "requestContext_poeId") ||
+            !RequiredText(body, "originName") ||
+            !RequiredText(body, "destinationName") ||
+            !RequiredText(body, "poeName") ||
+            !RequiredText(body, "requestContext_incotermName") ||
+            !RequiredText(body, "form_rateType") ||
+            body.GetProperty("form_rateType").GetString() != "Spot" ||
+            !RequiredText(body, "form_modality") ||
+            body.GetProperty("form_modality").GetString() != expectedMode ||
+            !RequiredText(body, "form_shipmentMode") ||
+            body.GetProperty("form_shipmentMode").GetString() != shipmentMode ||
+            !ExactDate(body, "form_loadDate") ||
+            !ExactDate(body, "sellerContext_cargoReadyDate") ||
+            body.GetProperty("form_loadDate").GetString() !=
+                body.GetProperty("sellerContext_cargoReadyDate").GetString() ||
+            body.GetProperty("form_destinationId").GetString() != body.GetProperty("poeId").GetString() ||
+            body.GetProperty("requestContext_poeId").GetString() != body.GetProperty("poeId").GetString() ||
+            body.GetProperty("destinationName").GetString() != body.GetProperty("poeName").GetString())
+            return false;
+
+        bool maritime = expectedMode == "Maritime";
+        foreach (var name in new[] { "podId", "form_podId", "requestContext_podId" })
+        {
+            if (maritime)
+            {
+                if (!RequiredUuid(body, name) ||
+                    body.GetProperty(name).GetString() != body.GetProperty("podId").GetString())
+                    return false;
+            }
+            else if (body.TryGetProperty(name, out _)) return false;
+        }
+        if (maritime && !RequiredText(body, "podName")) return false;
+        if (!maritime && body.TryGetProperty("podName", out _)) return false;
+
+        var ids = body.GetProperty("form_serviceIds");
+        var distinctIds = new HashSet<Guid>();
+        foreach (var id in ids.EnumerateArray())
+            if (!ValidUuid(id) || !distinctIds.Add(Guid.Parse(id.GetString()!)))
+                return false;
+
+        if (!body.TryGetProperty("form_cargoWeightKg", out var total) ||
+            !Positive(total, out var totalKg)) return false;
+        foreach (var optionalFlag in new[] { "form_nonStackable", "form_dangerousCargo", "form_overweight" })
+            if (body.TryGetProperty(optionalFlag, out var flag) &&
+                flag.ValueKind is not (JsonValueKind.True or JsonValueKind.False)) return false;
+
+        bool full = shipmentMode is "Fcl" or "Ftl";
+        var expectedEquipment = shipmentMode == "Fcl" ? "form_fclContainers" : "form_landContainers";
+        if (full)
+        {
+            if (body.TryGetProperty("sellerContext_consolidatedCargoLines", out _) ||
+                body.TryGetProperty("form_cargoPackages", out _) ||
+                body.TryGetProperty(shipmentMode == "Fcl" ? "form_landContainers" : "form_fclContainers", out _) ||
+                !body.TryGetProperty(expectedEquipment, out var equipment) ||
+                equipment.ValueKind != JsonValueKind.Array ||
+                equipment.GetArrayLength() is < 1 or > 25)
+                return false;
+            decimal sum = 0;
+            foreach (var line in equipment.EnumerateArray())
+            {
+                if (line.ValueKind != JsonValueKind.Object ||
+                    line.EnumerateObject().Any(p => p.Name is not
+                        ("containerTypeId" or "containerTypeName" or "containerTypeCode" or "quantity" or "unitWeightsKg")) ||
+                    !RequiredUuid(line, "containerTypeId") ||
+                    !RequiredText(line, "containerTypeName") ||
+                    !RequiredText(line, "containerTypeCode") ||
+                    !line.TryGetProperty("quantity", out var quantity) ||
+                    !quantity.TryGetInt32(out var count) || count is < 1 or > 100 ||
+                    !line.TryGetProperty("unitWeightsKg", out var weights) ||
+                    weights.ValueKind != JsonValueKind.Array || weights.GetArrayLength() != count)
+                    return false;
+                foreach (var weight in weights.EnumerateArray())
+                {
+                    if (!Positive(weight, out var kg)) return false;
+                    sum += kg;
+                }
+            }
+            return Math.Abs(sum - totalKg) <= 0.00001m;
+        }
+
+        if (body.TryGetProperty("form_fclContainers", out _) ||
+            body.TryGetProperty("form_landContainers", out _) ||
+            !body.TryGetProperty("sellerContext_consolidatedCargoLines", out var cargo) ||
+            cargo.ValueKind != JsonValueKind.Array || cargo.GetArrayLength() is < 1 or > 25 ||
+            !body.TryGetProperty("form_cargoPackages", out var packages) ||
+            !packages.TryGetInt32(out var totalPackages) || totalPackages < 1)
+            return false;
+        decimal sumKg = 0;
+        long sumPackages = 0;
+        bool anyNonStackable = false;
+        foreach (var line in cargo.EnumerateArray())
+        {
+            if (line.ValueKind != JsonValueKind.Object ||
+                line.EnumerateObject().Any(p => p.Name is not
+                    ("description" or "quantity" or "unitType" or "weightKg" or "length" or "width" or "height" or "isStackable")) ||
+                !RequiredText(line, "description") ||
+                !RequiredText(line, "unitType") ||
+                line.GetProperty("unitType").GetString() is not ("Box" or "Pallet" or "Loose" or "Other") ||
+                !line.TryGetProperty("quantity", out var qty) ||
+                !qty.TryGetInt32(out var count) || count is < 1 or > 10000 ||
+                !line.TryGetProperty("weightKg", out var weight) || !Positive(weight, out var kg) ||
+                !line.TryGetProperty("length", out var length) || !Positive(length, out _) ||
+                !line.TryGetProperty("width", out var width) || !Positive(width, out _) ||
+                !line.TryGetProperty("height", out var height) || !Positive(height, out _) ||
+                !line.TryGetProperty("isStackable", out var stackability) ||
+                stackability.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                return false;
+            sumPackages += count;
+            sumKg += count * kg;
+            anyNonStackable |= stackability.ValueKind == JsonValueKind.False;
+        }
+        if (sumPackages != totalPackages || Math.Abs(sumKg - totalKg) > 0.00001m)
+            return false;
+        return !body.TryGetProperty("form_nonStackable", out var aggregate) ||
+            (aggregate.ValueKind == JsonValueKind.True) == anyNonStackable;
     }
 }
 
