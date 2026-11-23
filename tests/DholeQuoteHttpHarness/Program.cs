@@ -668,7 +668,7 @@ internal static class DholeQuoteHttpTest
                 review.State == "HttpAcceptedUnverified" &&
                 review.AttemptCount == 1 &&
                 review.NextReviewAction == "VerifyProviderCreationInPricing" &&
-                !review.ProviderCreationVerified &&
+                !review.LocalConfirmationRecorded &&
                 !review.AutomaticRetryAllowed &&
                 !review.DataIntegrityProblem,
                 "Accepted HTTP requires independent Pricing verification; no retry");
