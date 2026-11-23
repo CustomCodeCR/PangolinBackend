@@ -100,3 +100,25 @@ ALTER TABLE public.official_quote_dhole_outbox
     CHECK (priority IN ('Green','Yellow','Red'));
 CREATE INDEX IF NOT EXISTS ix_official_quote_dhole_outbox_state
     ON public.official_quote_dhole_outbox(state,created_at_utc);
+
+// Creation-time outbox for new Dhole-backed official quotes. Entirely independent
+// of the old administrator-approval outbox; no external HTTP/worker uses this table.
+// Apply with a database backup before setting DirectOutboxEnabled=true.
+// A quote and its delivery job are committed or rolled back together.
+CREATE TABLE IF NOT EXISTS public.official_quote_dhole_creation_outbox (
+    quote_id UUID PRIMARY KEY REFERENCES public.official_quote_requests(id) ON DELETE RESTRICT,
+    idempotency_key VARCHAR(80) NOT NULL UNIQUE CHECK (length(btrim(idempotency_key)) > 0),
+    state VARCHAR(32) NOT NULL DEFAULT 'PendingDispatch'
+        CHECK (state IN ('PendingDispatch','InFlight','HttpAcceptedUnverified',
+                        'Rejected','Unconfirmed','Confirmed','Failed')),
+    priority VARCHAR(6) NOT NULL DEFAULT 'Green' CHECK (priority IN ('Green','Yellow','Red')),
+    attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+    external_reference VARCHAR(180) NULL,
+    last_error_code VARCHAR(60) NULL,
+    last_attempt_at_utc TIMESTAMPTZ NULL,
+    verified_at_utc TIMESTAMPTZ NULL,
+    created_at_utc TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at_utc TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ix_official_quote_dhole_creation_state
+    ON public.official_quote_dhole_creation_outbox(state, created_at_utc);
