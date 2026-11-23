@@ -768,6 +768,108 @@ internal static class DholeQuoteHttpTest
                 "Currency retained with untouched pending job and no remote transmission");
         }
 
+        // Independent, default-OFF quote-creation idempotency gate.
+        // New host only; tests never enable it in a production environment.
+        using var idempotentFactory = factory.WithWebHostBuilder(host =>
+            host.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                    ["DholeSubmission:ClientCreateIdempotencyEnabled"] = "true",
+                    ["DholeSubmission:ApprovalQueueEnabled"] = "false"
+                })));
+        using var idempotentClient = idempotentFactory.CreateClient(
+            new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        async Task<HttpResponseMessage> CreateWithClientKey(
+            Guid? key, Dictionary<string, object?> body)
+        {
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post, "/api/quotes/official") {
+                Content = JsonContent.Create(body)
+            };
+            if (key.HasValue)
+                request.Headers.Add("X-CF-Quote-Request-Key", key.Value.ToString("D"));
+            return await idempotentClient.SendAsync(request);
+        }
+        using (var missing = await CreateWithClientKey(null, quote))
+            Assert(missing.StatusCode == HttpStatusCode.BadRequest,
+                "Opted-in submission requires a nonempty client request key");
+        using (var malformed = await CreateWithClientKey(Guid.Empty, quote))
+            Assert(malformed.StatusCode == HttpStatusCode.BadRequest,
+                "Empty client request keys cannot bypass creation uniqueness");
+
+        var firstKey = Guid.NewGuid();
+        Guid idempotentId;
+        using (var first = await CreateWithClientKey(firstKey, quote))
+        {
+            Assert(first.StatusCode == HttpStatusCode.Created,
+                "First valid keyed request creates an original official quote");
+            using var json = JsonDocument.Parse(await first.Content.ReadAsStringAsync());
+            idempotentId = json.RootElement.GetProperty("id").GetGuid();
+        }
+        using (var replay = await CreateWithClientKey(firstKey, quote))
+        {
+            Assert(replay.StatusCode == HttpStatusCode.Created,
+                "Lost receipt can be replayed with the exact same random key");
+            using var json = JsonDocument.Parse(await replay.Content.ReadAsStringAsync());
+            Assert(json.RootElement.GetProperty("id").GetGuid() == idempotentId &&
+                json.RootElement.GetProperty("idempotentReplay").GetBoolean(),
+                "Repeat returns original ID, never a new quote or outbox");
+        }
+        using (var changed = await CreateWithClientKey(firstKey,
+            new Dictionary<string, object?>(quote) {
+                ["cargoDescription"] = "Changed cargo must not reuse the previous key"
+            }))
+            Assert(changed.StatusCode == HttpStatusCode.Conflict,
+                "Same key with different cargo cannot replace an earlier submission");
+
+        var raceKey = Guid.NewGuid();
+        var parallel = await Task.WhenAll(
+            CreateWithClientKey(raceKey, quote),
+            CreateWithClientKey(raceKey, quote));
+        Guid? raceResultId = null;
+        foreach (var result in parallel)
+        {
+            using (result)
+            {
+                Assert(result.StatusCode == HttpStatusCode.Created,
+                    "Two concurrent requests with same key must share an existing receipt");
+                using var json = JsonDocument.Parse(await result.Content.ReadAsStringAsync());
+                var receivedId = json.RootElement.GetProperty("id").GetGuid();
+                Assert(raceResultId is null || raceResultId == receivedId,
+                    "Race must not generate different official quote IDs");
+                raceResultId = receivedId;
+            }
+        }
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var query = new NpgsqlCommand("""
+                SELECT q.id, q.client_submission_digest, count(o.quote_id)
+                FROM public.official_quote_requests q
+                LEFT JOIN public.official_quote_dhole_creation_outbox o ON o.quote_id = q.id
+                WHERE q.client_submission_key = @key
+                GROUP BY q.id, q.client_submission_digest
+                """, db);
+            query.Parameters.AddWithValue("key", firstKey);
+            await using var row = await query.ExecuteReaderAsync();
+            Assert(await row.ReadAsync() && row.GetGuid(0) == idempotentId &&
+                   row.GetString(1).Length == 64 && row.GetInt64(2) == 1 &&
+                   !await row.ReadAsync(),
+                "Exactly one quote with a SHA256 digest and one delivery job per client key");
+        }
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var query = new NpgsqlCommand("""
+                SELECT count(*) FROM public.official_quote_requests
+                WHERE client_submission_key = @key
+                """, db);
+            query.Parameters.AddWithValue("key", raceKey);
+            Assert(Convert.ToInt64(await query.ExecuteScalarAsync()) == 1,
+                "Concurrent keyed requests persist exactly one official quote");
+        }
+
         Assert(handler.Requests > 0 && handler.ForbiddenRequests == 0,
             "All Dhole traffic was fake HTTPS GET and used the fictional key");
         Console.WriteLine("PASS: HTTP 201 + real isolated PostgreSQL row + external UUID persistence");
@@ -779,6 +881,7 @@ internal static class DholeQuoteHttpTest
         Console.WriteLine("PASS: two concurrent DB claimers select one job, no retry, no remote HTTP");
         Console.WriteLine("PASS: offline outcomes record exactly once and never claim verified creation");
         Console.WriteLine("PASS: disabled-by-default reconciliation flags accepted HTTP as unverified; zero retries");
+        Console.WriteLine("PASS: opt-in quote creation deduplication returns one ID and outbox across replays/races");
         Console.WriteLine("PASS: all Dhole upstream traffic simulated; no real API, no mail, no production data");
     }
 }
