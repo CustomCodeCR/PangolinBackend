@@ -7,6 +7,9 @@ on:
       - 'backend/Program.cs'
       - 'tests/DholePostTransportHarness/**'
       - 'scripts/dhole-post-transport-fixtures.mjs'
+      - 'scripts/dhole-one-shot-ci-fixture.mjs'
+      - 'scripts/dhole-lcl-manual-preflight.mjs'
+      - 'tools/DholeOneShotQuote/**'
       - 'scripts/dhole-rate-request-preview.mjs'
       - 'scripts/dhole-public-rate-request-preview.mjs'
       - '.github/workflows/dhole-post-transport-preflight.yml'
@@ -30,3 +33,14 @@ jobs:
         run: node scripts/dhole-post-transport-fixtures.mjs "$RUNNER_TEMP/dhole-flat-fixtures.json"
       - name: Verify fake C# POST with five JS-generated contracts; never contact Dhole
         run: dotnet run --project tests/DholePostTransportHarness/DholePostTransportHarness.csproj --configuration Release -- "$RUNNER_TEMP/dhole-flat-fixtures.json"
+      - name: Generate a wholly fictional manual-LCL review (local file only)
+        run: node scripts/dhole-one-shot-ci-fixture.mjs "$RUNNER_TEMP/dhole-one-shot-review.json"
+      - name: Compile and preview the one-shot CLI with no network
+        run: dotnet run --project tools/DholeOneShotQuote/DholeOneShotQuote.csproj --configuration Release -- preview "$RUNNER_TEMP/dhole-one-shot-review.json"
+      - name: Prove NO ENVIAR review cannot be sent without a separate approval
+        run: |
+          if dotnet run --project tools/DholeOneShotQuote/DholeOneShotQuote.csproj --no-build --configuration Release -- send "$RUNNER_TEMP/dhole-one-shot-review.json" "$RUNNER_TEMP/nonexistent-approval.json"; then
+            echo "ERROR: One-shot test review unexpectedly sendable"
+            exit 1
+          fi
+          echo "PASS: direct send blocked for the offline review"
