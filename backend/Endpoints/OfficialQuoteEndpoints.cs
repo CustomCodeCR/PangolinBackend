@@ -477,6 +477,14 @@ public static class OfficialQuoteEndpoints
             var actor = await auth.GetIdentityAsync(http, ct);
             var p = await Permission(db, actor, ct);
             if (p?.CanAuthorize != true) return Results.Forbid();
+            // Direct submissions are created independently of administrator
+            // authorization. Do not permit an old API client to silently
+            // mutate approval status after the direct rollout is enabled.
+            if (config.GetValue<bool>("DholeSubmission:DirectOutboxEnabled"))
+                return Results.Conflict(new {
+                    code = "direct_submission_no_approval",
+                    error = "Las solicitudes directas a Dhole no requieren aprobación administrativa."
+                });
             if (decision is not ("Authorized" or "Rejected"))
                 return Results.BadRequest(new { error = "Decisión inválida." });
             var selectedPriority = priority ?? "Green";
