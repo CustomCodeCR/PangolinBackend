@@ -24,12 +24,20 @@ Esta decisión **sustituye la propuesta anterior de aprobación administrativa a
 - En la ruta POST oficial, tras validar catálogo fresco, el backend proyecta el borrador y **después guarda la solicitud original en PostgreSQL**. Si el mapeo de una solicitud nueva con catálogo Dhole resulta incompatible, devuelve error de validación sin guardar una copia a medias. Nada conecta aquí con `DholeQuotePostTransport`.
 - Tests de .NET y los existentes de frontend verifican las cinco modalidades y preservan el comportamiento de las cotizaciones anteriores. No hay consulta remota de precios ni POST a Dhole en CI.
 
-## Segundo paso, pendiente de implementación y revisión
+## Segundo paso, implementado en borrador (pendiente de CI y autorización de despliegue)
 
-Crear un **outbox transaccional de creación** con estado `PendingDispatch`, enlazado a `OfficialQuoteRequest.Id` y una clave de idempotencia estable:
+Se añadió una tabla **separada**, `public.official_quote_dhole_creation_outbox`, con estado inicial `PendingDispatch`, ligada a `OfficialQuoteRequest.Id` y clave de idempotencia `cf-official-{quoteId}`, única y estable. No reutiliza el outbox histórico dependiente de autorización.
 
-1. En **una única transacción** guardar copia oficial + outbox (si el usuario usa catálogo Dhole y el envío directo está habilitado). No poner secretos ni información personal duplicada en logs.
-2. Un dispatcher del backend obtiene IDs de catálogo vigentes, resuelve servicios/Incoterm/equipos, construye el contrato plano permitido y hace el POST oficial con API Key privada; sin paso de aprobación administrativa.
+El nuevo flag `DholeSubmission:DirectOutboxEnabled=false` (apagado por ausencia de configuración) registra la copia original y el job en **una sola transacción**, solo en solicitudes `catalogSource=dhole` que ya pasaron validaciones y proyección local. No guarda contactos duplicados, secretos ni payload externo: estos permanecen únicamente en la cotización original; el dispatcher futuro deberá reconstruirlos y resolver catálogos vigentes. No genera solicitudes HTTP reales y conserva comportamiento heredado cuando está apagado.
+
+La migración aditiva en `backend/Database/OfficialQuotesSchema.sql` debe aplicarse con respaldo **antes** de habilitar este flag. La PR/CI no activa el flag en producción. El estado aparece en el detalle de Administración al habilitarse, sin requerir una aprobación administrativa.
+
+**Limitación deliberada:** la unicidad protege cada cotización y su clave de envío; no deduplica todavía dos POST HTTP independientes del navegador que creen dos cotizaciones diferentes. Eso requerirá una clave idempotente de creación validada en una fase posterior. Los estados avanzados están reservados en el esquema; ningún worker los cambia aún.
+
+**Fases siguientes pendientes:**
+
+1. [Implementado, pendiente de verificación CI] Guardar copia oficial + outbox en una única transacción solo para Dhole si se habilita DirectOutboxEnabled.
+2. [Pendiente] Un dispatcher del backend obtiene IDs de catálogo vigentes, resuelve servicios/Incoterm/equipos, construye el contrato plano permitido y hace el POST oficial con API Key privada; sin paso de aprobación administrativa.
 3. `HttpAcceptedUnverified` **no significa creación confirmada**: no reintentar automáticamente un resultado incierto o 2xx sin una política probada de idempotencia externa. Mostrar `Unconfirmed` y pedir verificación en Pricing.
 4. Evitar duplicados incluso con peticiones simultáneas; disponer de reconciliación de envíos, trazabilidad y permisos de lectura adecuados.
 5. Mantener el envío apagado por defecto hasta validación end-to-end, simulación de errores, autorización para despliegue y pruebas de roles de acceso a contactos.
