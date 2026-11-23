@@ -1,0 +1,37 @@
+# Decisión de negocio actualizada — Cotizaciones oficiales → Dhole directo
+
+**Fecha:** 2026-11-23. **Base:** PR #274 en borrador. Sin activación de POST, sin fusión a main-2/producción y sin nueva prueba real.
+
+## Flujo aprobado por el usuario
+
+Al crear una cotización en el formulario oficial o mediante GIO:
+
+1. Validar la solicitud en el backend y los catálogos de Dhole seleccionados.
+2. **Conservar íntegramente la copia original** en `public.official_quote_requests` (`/api/quotes/official`), disponible en Administración como siempre.
+3. Preparar automáticamente su envío al Dhole oficial, **sin aprobación previa del administrador**.
+4. Mostrar el estado de entrega en Administración, sin reemplazar el estado comercial de la solicitud.
+
+Esta decisión **sustituye la propuesta anterior de aprobación administrativa antes de Dhole**. `DholeSubmission:ApprovalQueueEnabled`, `/authorization` y el outbox condicionado a aprobación son código experimental previo y **no deben usarse como dependencia del envío directo**. Se conservarán los flujos históricos hasta que el nuevo sistema esté validado. El objetivo final es un **outbox transaccional en la creación**, no enviar directamente desde Vue/GIO y no depender de la autorización comercial interna.
+
+## Primer paso ya implementado en esta PR: capturar y proyectar
+
+- El wizard agrega `packages[].unitType` seleccionable (`Box`, `Pallet`, `Loose`, `Other`), obligatorio solo si el catálogo seleccionado es `dhole`; una solicitud local heredada conserva compatibilidad.
+- GIO pregunta el tipo de bulto únicamente si utiliza catálogos Dhole. Como GIO pide peso **por bulto**, lo multiplica por la cantidad para persistir un peso **total por línea**, igual que el formulario oficial.
+- El DTO `OfficialPackageInput` añade `UnitType` opcional para registros antiguos, y la validación del endpoint exige un tipo explícito si usa Dhole.
+- `DholeOfficialQuoteDraftBuilder.Project` toma `OfficialQuoteSubmit` validado en backend, el ID asignado por Castro Fallas y la ruta validada contra un catálogo **fresco**, y genera **solo en memoria** un modelo de envío con origen/POE/POD, tipo de embarque, incoterm, servicios, datos del solicitante y mercancía.
+- El modelo conserva `totalWeightKg` y distribuye los kilogramos por unidad solo para Dhole. Para líneas consolidadas: `quantity`, `unitType`, `weightKg` por unidad, `length`, `width`, `height`, `isStackable`. Evita el defecto de la primera prueba (una unidad histórica sin dimensiones).
+- El modelo es **no enviable** y declara pendientes los IDs de servicios/Incoterm y de equipos cuando corresponda; no adivina UUID, ni cliente/ejecutivo, ni importes.
+- En la ruta POST oficial, tras validar catálogo fresco, el backend proyecta el borrador y **después guarda la solicitud original en PostgreSQL**. Si el mapeo de una solicitud nueva con catálogo Dhole resulta incompatible, devuelve error de validación sin guardar una copia a medias. Nada conecta aquí con `DholeQuotePostTransport`.
+- Tests de .NET y los existentes de frontend verifican las cinco modalidades y preservan el comportamiento de las cotizaciones anteriores. No hay consulta remota de precios ni POST a Dhole en CI.
+
+## Segundo paso, pendiente de implementación y revisión
+
+Crear un **outbox transaccional de creación** con estado `PendingDispatch`, enlazado a `OfficialQuoteRequest.Id` y una clave de idempotencia estable:
+
+1. En **una única transacción** guardar copia oficial + outbox (si el usuario usa catálogo Dhole y el envío directo está habilitado). No poner secretos ni información personal duplicada en logs.
+2. Un dispatcher del backend obtiene IDs de catálogo vigentes, resuelve servicios/Incoterm/equipos, construye el contrato plano permitido y hace el POST oficial con API Key privada; sin paso de aprobación administrativa.
+3. `HttpAcceptedUnverified` **no significa creación confirmada**: no reintentar automáticamente un resultado incierto o 2xx sin una política probada de idempotencia externa. Mostrar `Unconfirmed` y pedir verificación en Pricing.
+4. Evitar duplicados incluso con peticiones simultáneas; disponer de reconciliación de envíos, trazabilidad y permisos de lectura adecuados.
+5. Mantener el envío apagado por defecto hasta validación end-to-end, simulación de errores, autorización para despliegue y pruebas de roles de acceso a contactos.
+
+**Este documento no es autorización para un segundo POST real.** La prueba anterior ya consumió su autorización específica. No debe borrarse ni modificar su evidencia sin conservar el resultado.
