@@ -286,7 +286,14 @@ internal static class DholeQuoteHttpTest
                     quote_id UUID NOT NULL UNIQUE
                         REFERENCES public.official_quote_requests(id) ON DELETE RESTRICT,
                     request_digest VARCHAR(64) NOT NULL
-                        CHECK (request_digest ~ '^[0-9a-f]{64}
+                        CHECK (request_digest ~ '^[0-9a-f]{64}$'),
+                    created_at_utc TIMESTAMPTZ NOT NULL DEFAULT now()
+                )
+                """, db);
+            await install.ExecuteNonQueryAsync();
+        }
+
+        // The approval-outbox is a separate opt-in stage: merely sending a
         // quote (even one whose catalogue is Dhole) must never queue it.
         await using (var db = new NpgsqlConnection(connectionString))
         {
