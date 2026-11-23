@@ -634,7 +634,7 @@ internal static class DholeQuoteHttpTest
             Assert(await row.ReadAsync() &&
                 row.GetString(0) == "HttpAcceptedUnverified" &&
                 row.GetInt32(1) == 1 &&
-                row.GetString(2) == "AwaitingPricingVerification" &&
+                row.IsDBNull(2) &&
                 row.IsDBNull(3) && row.IsDBNull(4),
                 "Accepted HTTP status is unverified and never fabricates a Pricing reference");
         }
