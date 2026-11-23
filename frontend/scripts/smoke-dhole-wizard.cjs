@@ -15,6 +15,7 @@ const frontend = path.resolve(__dirname, '..')
 const host = '127.0.0.1'
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 let posts = []
+let postKeys = []
 let optionsReads = 0
 let legacyLocationReads = 0
 let upstreamIsDown = false
@@ -66,6 +67,7 @@ const api = http.createServer(async (req, res) => {
     }]})
   }
   if (url.pathname === '/api/quotes/official' && req.method === 'POST') {
+    postKeys.push(String(req.headers['x-cf-quote-request-key'] || ''))
     const parts = []
     for await (const part of req) parts.push(part)
     const data = JSON.parse(Buffer.concat(parts).toString('utf8'))
@@ -291,6 +293,11 @@ async function main() {
     assert.ok(posts[0].services.includes('Seguro de carga'),'Chosen insurance must be in submitted services')
     assert.equal(posts[0].cargoValue,1500,'Wizard must retain declared cargo value')
     assert.equal(posts[0].cargoCurrencyCode,'USD','Wizard must retain ISO currency')
+    assert.equal(postKeys.length,1,'Wizard should send only once after validation')
+    assert.match(postKeys[0], /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      'Wizard must include a strong UUIDv4 client creation key')
+    assert.equal(await evaluate('sessionStorage.getItem("gcf-official-quote-wizard-attempt-v1")'),null,
+      'Confirmed receipt removes only the temporary creation retry identity')
     assert.ok(await evaluate('document.body.innerText.includes('+JSON.stringify(confirmationId)+')'),'Receipt shows mock id')
     assert.equal(legacyLocationReads,0,'Form never called local catalogue during Dhole success')
     console.log('PASS Chrome: four-step wizard preserves external UUID, pair-restricted equipment, responsive/dark mode and receipt')
