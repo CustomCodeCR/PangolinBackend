@@ -9,18 +9,16 @@ const string sample = "004219";
 var html = OtpEmailTemplate.Html(sample);
 var plain = OtpEmailTemplate.PlainText(sample);
 
-var generatedSubjects = Enumerable.Range(0, 20)
-    .Select(_ => OtpEmailTemplate.Subject()).ToArray();
-Assert(generatedSubjects.Distinct(StringComparer.Ordinal).Count() == generatedSubjects.Length,
-    "Each new OTP email must have a unique subject reference.");
-foreach (var subject in generatedSubjects)
-{
-    Assert(System.Text.RegularExpressions.Regex.IsMatch(
-        subject, @"^Código de acceso \| Castro Fallas · [A-F0-9]{8}$"),
-        "OTP email subject must include only a random, non-sensitive reference.");
-    Assert(!subject.Contains(sample, StringComparison.Ordinal),
-        "Do not expose the OTP value in the subject.");
-}
+// Product-approved proposal: the subject carries the same six-digit OTP shown
+// inside the mail, including leading zeroes. It must not contain a second
+// identifier that could be mistaken for the login code.
+var actualSubject = OtpEmailTemplate.Subject(sample);
+Assert(actualSubject == "Código de acceso | Castro Fallas · " + sample,
+    "OTP subject must show exactly the code to enter, not a random reference.");
+Assert(!System.Text.RegularExpressions.Regex.IsMatch(actualSubject, @"[A-F0-9]{8}$"),
+    "The old eight-character reference must not appear as the code.");
+Assert(OtpEmailTemplate.Subject("750406").EndsWith("750406", StringComparison.Ordinal),
+    "A different OTP must generate a different subject, avoiding conversation grouping.");
 
 Assert(html.StartsWith("<!doctype html>", StringComparison.OrdinalIgnoreCase), "Email must be HTML5.");
 Assert(html.Contains("lang=\"es\"", StringComparison.Ordinal), "Spanish locale missing.");
@@ -100,6 +98,8 @@ foreach (var digit in sample)
 foreach (var invalid in new[] { "", "12345", "1234567", "12345x", "123<45" })
 {
     try { _ = OtpEmailTemplate.Html(invalid); throw new Exception("Invalid OTP accepted."); }
+    catch (ArgumentException) { /* Expected. */ }
+    try { _ = OtpEmailTemplate.Subject(invalid); throw new Exception("Invalid subject OTP accepted."); }
     catch (ArgumentException) { /* Expected. */ }
 }
 try { _ = OtpEmailTemplate.PlainText(null!); throw new Exception("Null OTP accepted."); }
