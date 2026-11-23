@@ -85,11 +85,15 @@ for (const unknown of ['/ruta-seo-inexistente-qa-94329', '/servicios/ruta-inexis
   const response = await get(unknown)
   if (response.status !== 404) fail(unknown, 'posible soft 404: HTTP ' + response.status + ' en una ruta inexistente')
 }
-const home = await get('/home')
-if (home.status !== 301 || new URL(home.headers.get('location') || '', previewOrigin).pathname !== '/') {
-  fail('/home', 'alias no redirige permanentemente al inicio')
+for (const alias of ['/home', '/home/']) {
+  const home = await get(alias)
+  const location = home.headers.get('location') || ''
+  const destination = new URL(location || alias, previewOrigin)
+  if (home.status !== 301 || destination.pathname !== '/' || destination.search !== '') {
+    fail(alias, 'alias no redirige permanentemente al inicio sin parámetros')
+  }
+  if (paths.includes(alias)) fail(alias, 'alias de redirección incluido en sitemap')
 }
-if (paths.includes('/home')) fail('/home', 'alias de redirección incluido en sitemap')
 
 const robotsResponse = await get('/robots.txt')
 if (robotsResponse.status !== 200) fail('/robots.txt', 'HTTP ' + robotsResponse.status)

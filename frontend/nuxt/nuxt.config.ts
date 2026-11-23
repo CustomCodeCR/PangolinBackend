@@ -32,6 +32,11 @@ export default defineNuxtConfig({
     }
   },
   routeRules: {
+    // Safety net when a request reaches Nuxt without passing through the
+    // production gateway, which already redirects /home to the canonical root.
+    // Keep this alias out of the sitemap and preserve the current local host.
+    '/home': { redirect: { to: '/', statusCode: 301 } },
+    '/home/': { redirect: { to: '/', statusCode: 301 } },
     '/': { prerender: true },
     '/nosotros': { prerender: true },
     '/servicios': { prerender: true },
