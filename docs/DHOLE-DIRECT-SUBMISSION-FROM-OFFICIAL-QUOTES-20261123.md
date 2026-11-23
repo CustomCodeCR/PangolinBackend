@@ -48,6 +48,12 @@ Conserva POL/POE/POD según rol, contacto solo en descripción, prioridad Green 
 
 **PENDIENTE para una integración de extremo a extremo:** servicio que obtenga y certifique los catálogos vigentes de Dhole; revisar los campos comerciales del formulario que todavía no se incluyen en el borrador (observaciones, almacenamiento, direcciones, CABYS según su disponibilidad), validación de contrato del API Gateway, acceso a contactos según rol en Pricing, implementación de dispatcher y reconciliación sin reintentos ambiguos. No enviar este borrador a Dhole ni activar ninguna bandera hasta obtener aprobación específica.
 
+## Política futura de estados de entrega (sin dispatcher ni red)
+
+`backend/Services/DholeOfficialDeliveryStateMachine.cs` define una política **pura y aislada**, que no modifica PostgreSQL ni envía HTTP. `PendingDispatch → InFlight` representa un único intento futuro; un 2xx llega únicamente a `HttpAcceptedUnverified`, mientras que timeouts, HTTP 429/5xx o respuestas perdidas terminan en `Unconfirmed`. Los rechazos explícitos usan `Rejected`; fallos locales previos a envío, `Failed`. Ninguna transición admite reintentos automáticos. La confirmación solo se admite desde `HttpAcceptedUnverified` o `Unconfirmed`, con referencia de verificación manual en Pricing.
+
+Las pruebas aisladas prueban el bloqueo de reenvío y de confirmaciones sin evidencia; la política **NO constituye** un mecanismo de claims de BD, un proceso de reconciliación, ni un worker. Sigue pendiente implementar bloqueo concurrente, persistencia atómica de estados y criterios de comprobación del identificador externo, antes de conectar transportes.
+
 **Fases siguientes pendientes:**
 
 1. [Implementado, pendiente de verificación CI] Guardar copia oficial + outbox en una única transacción solo para Dhole si se habilita DirectOutboxEnabled.
