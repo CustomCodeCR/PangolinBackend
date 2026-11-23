@@ -5,6 +5,7 @@ import { refreshSession } from '../services/auth'
 import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialEquipmentTypeLabel, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
 import { isCalendarDate, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
 import { loadDholeQuoteFormOptions, type DholeQuoteFormOptions } from '../lib/dholeQuoteForm'
+import { prepareQuoteSubmissionAttempt, clearQuoteSubmissionAttempt, type QuoteSubmissionAttempt } from '../lib/officialQuoteSubmissionAttempt'
 
 type Kind = 'quote' | 'tracking' | 'itinerary'
 type Phase = 'collect' | 'confirm' | 'review' | 'auth' | 'location' | 'result'
@@ -62,6 +63,8 @@ const shipments = ref<Shipment[]>([])
 const shipmentTruncated = ref(false)
 const restrictedTracking = ref(false)
 const STORAGE_KEY = 'gcf-gio-quote-draft-v1'
+const CREATE_ATTEMPT_KEY = 'gcf-official-quote-gio-attempt-v1'
+let activeCreateAttempt: QuoteSubmissionAttempt | null = null
 const prefilled = ref(false)
 const editingField = ref('')
 type PendingValue = { key: string; value: string; display: string; locationId?: string }
@@ -870,11 +873,30 @@ async function submitQuote() {
     pickupAddress:requestedServices.includes('Transporte recolección') ? values.pickupAddress : null,
     fiscalStorageDays:requestedServices.includes('Almacenamiento') ? Number(values.fiscalStorageDays) : null
   }
-  const data = await jsonResponse(await fetch('/api/quotes/official',{method:'POST',credentials:'same-origin',
-    headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}))
+  const body = JSON.stringify(payload)
+  activeCreateAttempt = await prepareQuoteSubmissionAttempt(
+    CREATE_ATTEMPT_KEY, body, activeCreateAttempt)
+  const response = await fetch('/api/quotes/official',{method:'POST',credentials:'same-origin',
+    headers:{
+      'Content-Type':'application/json',
+      'X-CF-Quote-Request-Key':activeCreateAttempt.key
+    },body})
+  let data: Record<string,any>
+  try { data = await jsonResponse(response) }
+  catch (reason) {
+    // Only a confirmed validation rejection can safely release the key.
+    // Network failure or server failure may have committed the quote already.
+    if (response.status === 400) {
+      clearQuoteSubmissionAttempt(CREATE_ATTEMPT_KEY)
+      activeCreateAttempt = null
+    }
+    throw reason
+  }
   quoteId.value = String(data.id || '')
   quoteStatus.value = String(data.status || '')
   if (!quoteId.value) throw new Error(tr('No recibimos el identificador de la solicitud. Consultá con soporte antes de repetir el envío.','No request ID was returned. Contact support before submitting again.'))
+  clearQuoteSubmissionAttempt(CREATE_ATTEMPT_KEY)
+  activeCreateAttempt = null
   try {
     sessionStorage.removeItem(STORAGE_KEY)
     sessionStorage.setItem('gcf-gio-quote-receipt-v1', JSON.stringify({
