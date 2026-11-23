@@ -17,7 +17,7 @@ Assert(actualSubject == "Código de acceso | Castro Fallas · " + sample,
     "OTP subject must show exactly the code to enter, not a random reference.");
 Assert(!System.Text.RegularExpressions.Regex.IsMatch(actualSubject, @"[A-F0-9]{8}$"),
     "The old eight-character reference must not appear as the code.");
-Assert(OtpEmailTemplate.Subject("750406").EndsWith("750406", StringComparison.Ordinal),
+Assert(OtpEmailTemplate.Subject("314159").EndsWith("314159", StringComparison.Ordinal),
     "A different OTP must generate a different subject, avoiding conversation grouping.");
 
 Assert(html.StartsWith("<!doctype html>", StringComparison.OrdinalIgnoreCase), "Email must be HTML5.");
