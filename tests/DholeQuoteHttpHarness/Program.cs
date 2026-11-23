@@ -574,6 +574,71 @@ internal static class DholeQuoteHttpTest
                 reader.IsDBNull(3),
                 "Atomic claim increments one attempt without fabricating Dhole confirmation");
         }
+        // Isolated result recording: even a successful mock HTTP result is
+        // never equivalent to a verified Pricing-created request.
+        var outcomeFlags = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                ["DholeSubmission:OutcomePreviewEnabled"] = "true"
+            }).Build();
+        var noOutcomeFlags = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                ["DholeSubmission:OutcomePreviewEnabled"] = "false"
+            }).Build();
+        await using (var db = new AppDbContext(opts))
+        {
+            var gated = new DholeOfficialOutboxOutcomeService(noOutcomeFlags);
+            Assert(!gated.Enabled &&
+                !await gated.RecordAttemptOutcomeForOfflineReviewAsync(
+                    db, directId, DholeDeliveryEvent.HttpAcceptedButUnverified,
+                    CancellationToken.None),
+                "Disabled result recorder makes no state changes");
+        }
+        var recorder = new DholeOfficialOutboxOutcomeService(outcomeFlags);
+        await using (var db = new AppDbContext(opts))
+        {
+            var forbidden = false;
+            try
+            {
+                await recorder.RecordAttemptOutcomeForOfflineReviewAsync(
+                    db, directId, DholeDeliveryEvent.ManualConfirmInPricing,
+                    CancellationToken.None);
+            }
+            catch (InvalidOperationException) { forbidden = true; }
+            Assert(forbidden, "Automatic completion cannot mark remote quote Confirmed");
+        }
+        async Task<bool> RecordAcceptedOnce()
+        {
+            await using var scoped = new AppDbContext(opts);
+            return await recorder.RecordAttemptOutcomeForOfflineReviewAsync(
+                scoped, directId, DholeDeliveryEvent.HttpAcceptedButUnverified,
+                CancellationToken.None);
+        }
+        var outcomes = await Task.WhenAll(RecordAcceptedOnce(), RecordAcceptedOnce());
+        Assert(outcomes.Count(x => x) == 1 && outcomes.Count(x => !x) == 1,
+            "Concurrent result recording allows exactly one state update");
+        Assert(!await RecordAcceptedOnce(), "HTTP 2xx cannot re-complete an already recorded quote");
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var result = new NpgsqlCommand("""
+                SELECT state, attempt_count, last_error_code, external_reference,
+                       verified_at_utc
+                FROM public.official_quote_dhole_creation_outbox WHERE quote_id = @id
+                """, db);
+            result.Parameters.AddWithValue("id", directId);
+            await using var row = await result.ExecuteReaderAsync();
+            Assert(await row.ReadAsync() &&
+                row.GetString(0) == "HttpAcceptedUnverified" &&
+                row.GetInt32(1) == 1 &&
+                row.GetString(2) == "AwaitingPricingVerification" &&
+                row.IsDBNull(3) && row.IsDBNull(4),
+                "Accepted HTTP status is unverified and never fabricates a Pricing reference");
+        }
+        // The offline result state and claim are isolated and cannot dispatch HTTP.
         // Force an outbox constraint failure: the official quote MUST roll back.
         long beforeFailure;
         await using (var db = new NpgsqlConnection(connectionString))
@@ -652,6 +717,7 @@ internal static class DholeQuoteHttpTest
         Console.WriteLine("PASS: each approval stages exactly once; outbox attempts zero, no external POST");
         Console.WriteLine("PASS: direct creation outbox independent; atomic save/rollback, unique key and admin visibility");
         Console.WriteLine("PASS: two concurrent DB claimers select one job, no retry, no remote HTTP");
+        Console.WriteLine("PASS: offline outcomes record exactly once and never claim verified creation");
         Console.WriteLine("PASS: all Dhole upstream traffic simulated; no real API, no mail, no production data");
     }
 }
