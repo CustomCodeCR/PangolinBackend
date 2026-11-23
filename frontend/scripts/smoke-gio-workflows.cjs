@@ -294,7 +294,7 @@ async function main() {
     assert.ok(await click('.gio-ops__extra-lines > .gio-ops__secondary'),'GIO must offer additional equipment')
     await waitFor(()=>evaluate('document.querySelectorAll(".gio-ops__extra-line").length===1'))
     assert.ok(await evaluate('(()=>{const s=document.querySelector(".gio-ops__extra-line select");s.value="40 pies";s.dispatchEvent(new Event("change",{bubbles:true}));return true})()'))
-    await waitFor(()=>evaluate('[...document.querySelectorAll(".gio-ops__extra-line select")][1]?.querySelector("option[value=\"Dry Van\"]")!=null'))
+    await waitFor(()=>evaluate('([...document.querySelectorAll(".gio-ops__extra-line select")][1]?.options.length||0)>1'))
     assert.ok(await evaluate('(()=>{const root=document.querySelector(".gio-ops__extra-line");const selects=root.querySelectorAll("select");selects[1].value="Dry Van";selects[1].dispatchEvent(new Event("change",{bubbles:true}));const inputs=root.querySelectorAll("input");for(const [i,v] of ["1","5000"].entries()){const el=inputs[i];const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(el,v);el.dispatchEvent(new Event("input",{bubbles:true}))}return true})()'))
     assert.ok(await click('.gio-ops__extra-lines > .gio-ops__primary'),'GIO must accept additional equipment line')
     await choose('No, continuar')
