@@ -44,7 +44,7 @@ function quote(mode='Maritime',shipmentType='FCL') {
         type:shipmentType==='FCL'?'Dry Van':'Furgón seco',
         quantity:2,unitWeightsKg:[1100,1300],
       }]:[],
-      packages:full?[]:[{description:'Caja de prueba',quantity:3,weight:10,
+      packages:full?[]:[{description:'Caja de prueba',quantity:3,unitType:'Box',weight:10,
         length:20,width:12,height:8,stackability:'NonStackable'}],
       weightUnit:'lb',dimensionUnit:'in', observations:'Solo prueba',
       cargoFlags:['Carga peligrosa'], cargoValue:1600,
