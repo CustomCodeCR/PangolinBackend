@@ -358,7 +358,8 @@ public static class ContentEndpoints
             target.Description != input.Description!.Trim() ||
             target.Body != (input.Body?.Trim() ?? "") ||
             target.Image != (input.Image?.Trim() ?? "") ||
-            target.Author != (input.Author?.Trim() ?? "");
+            target.Author != (input.Author?.Trim() ?? "") ||
+            (input.PublishedAt.HasValue && input.PublishedAt.Value.Date != target.PublishedAt?.Date);
 
         target.Title = input.Title!.Trim();
         target.Category = input.Category!.Trim();
