@@ -72,14 +72,14 @@ const decisionNames: Record<string, string> = {
 const dispatchNames: Record<string, string> = {
   Disabled: 'Integración de envío no habilitada', NotStaged: 'Sin registro de envío',
   AwaitingConnector: 'Aprobada; pendiente de integración con Dhole',
-  PendingDispatch: 'Registrada para futuro envío (todavía no enviada)',
-  InFlight: 'Intento de envío en curso',
+  PendingDispatch: 'Guardada; pendiente de procesamiento de envío',
+  InFlight: 'Intento de envío iniciado; recepción aún no verificada',
   HttpAcceptedUnverified: 'HTTP aceptado; pendiente de comprobar en Pricing',
   Unconfirmed: 'Resultado de entrega incierto; requiere revisión',
   Rejected: 'Dhole rechazó la solicitud',
   Confirmed: 'Creación confirmada en Dhole',
   Pending: 'Pendiente de transmisión', Sending: 'En proceso de envío',
-  Sent: 'Confirmada por Dhole', Failed: 'Envío fallido'
+  Sent: 'Confirmada por Dhole', Failed: 'No se pudo preparar el envío; requiere revisión'
 }
 const fieldNames: Record<string, string> = {
   mode:'Modalidad', shipmentType:'Tipo de embarque', originLocationId:'Origen (referencia)', destinationLocationId:'Destino (referencia)',
@@ -183,7 +183,10 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
               <p>{{dispatchNames[detail.dholeDispatchState] ?? 'Estado de envío no disponible'}}</p>
               <p v-if="detail.dholePriority">Prioridad registrada: {{priorityOptions.find(item=>item.value===detail?.dholePriority)?.label ?? detail.dholePriority}}</p>
               <p v-if="detail.dholeDispatchState === 'AwaitingConnector'">Se registró la aprobación en Castro Fallas. Todavía no se ha realizado ningún envío externo.</p>
-              <p v-if="detail.dholeDispatchState === 'PendingDispatch'">La copia está guardada en Administración y la entrega está pendiente. Todavía no existe un dispatcher activo ni se ha realizado un POST a Dhole.</p>
+              <p v-if="detail.dholeDispatchState === 'PendingDispatch'">La copia está guardada en Administración. El envío está pendiente y todavía no hay confirmación de Pricing.</p>
+               <p v-if="detail.dholeDispatchState === 'InFlight'">Se inició un único intento de entrega. No lo reenvíes: si la respuesta se perdió, Pricing podría haber creado la solicitud.</p>
+               <p v-if="detail.dholeDispatchState === 'HttpAcceptedUnverified'">La API aceptó la solicitud por HTTP, pero la creación todavía debe verificarse en Pricing. No la reenvíes.</p>
+               <p v-if="detail.dholeDispatchState === 'Unconfirmed'">El resultado remoto es incierto. Verificá si la solicitud existe en Pricing antes de cualquier acción; no hay reintento automático.</p>
             </section>
             <h3>Información de la solicitud</h3>
             <dl class="off-admin-data">
