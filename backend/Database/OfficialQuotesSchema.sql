@@ -41,6 +41,17 @@ CREATE TABLE IF NOT EXISTS public.official_quote_requests (
 ALTER TABLE public.official_quote_requests ALTER COLUMN cliente_id DROP NOT NULL;
 ALTER TABLE public.official_quote_requests ALTER COLUMN usuario_id DROP NOT NULL;
 
+-- Optional and backwards-compatible creation idempotency: must be migrated
+-- before DholeSubmission:ClientCreateIdempotencyEnabled is enabled.
+-- NULLs preserve every historical row and the original copy-only behavior.
+ALTER TABLE public.official_quote_requests
+    ADD COLUMN IF NOT EXISTS client_submission_key UUID NULL;
+ALTER TABLE public.official_quote_requests
+    ADD COLUMN IF NOT EXISTS client_submission_digest VARCHAR(64) NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_official_quote_client_submission_key
+    ON public.official_quote_requests(client_submission_key)
+    WHERE client_submission_key IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS ix_official_quotes_customer_date
     ON public.official_quote_requests(cliente_id,created_at_utc DESC);
 CREATE INDEX IF NOT EXISTS ix_official_quotes_review_date
