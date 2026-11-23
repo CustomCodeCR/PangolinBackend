@@ -985,7 +985,7 @@ async function perform() {
                 <input v-model.number="line.quantity" type="number" min="1" max="100" step="1" />
               </label>
               <label>{{ tr('Peso por equipo en kg, separado por comas','Weight in kg per equipment unit, comma-separated') }}
-                <input v-model="line.weights" maxlength="900" :placeholder="tr('Ej.: 1200, 1100','E.g. 1200, 1100')" />
+                <input v-model="line.weights" maxlength="1200" :placeholder="tr('Ej.: 1200, 1100','E.g. 1200, 1100')" />
               </label>
             </div>
           </template>
