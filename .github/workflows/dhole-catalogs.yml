@@ -12,6 +12,7 @@ on:
       - 'backend/Models/OfficialQuoteModels.cs'
       - 'backend/Data/AppDbContext.cs'
       - 'backend/Database/OfficialQuotesSchema.sql'
+      - 'backend/Services/DholeOfficialOutboxClaimService.cs'
       - 'backend/Endpoints/DholeCatalogEndpoints.cs'
       - 'backend/Program.cs'
       - 'tests/DholeCatalogHarness/**'
