@@ -66,6 +66,9 @@ test('five manual catalogue rows build complete LCL published flat body but NEVE
   assert.equal(b.requestContext_podId,data.pod.id);
   assert.equal(b.form_cargoPackages,3);
   assert.equal(b.form_cargoWeightKg,10);
+  // No commercial valuation/currency was provided for the fictional shipment.
+  assert.equal(Object.hasOwn(b,'form_cargoValue'),false);
+  assert.equal(Object.hasOwn(b,'form_currencyId'),false);
   assert.equal(b.sellerContext_consolidatedCargoLines[0].packages,3);
   assert.equal(b.sellerContext_consolidatedCargoLines[0].weightKg,10);
   assert.ok(b.form_cargoDescription.includes(
