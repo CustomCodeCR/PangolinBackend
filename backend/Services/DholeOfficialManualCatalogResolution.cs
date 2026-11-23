@@ -121,6 +121,7 @@ public static class DholeOfficialManualCatalogResolution
 
         JsonElement Items(string key, int expected)
         {
+            JsonElement items = default;
             Require(snapshots.TryGetProperty(key, out var snapshot) &&
                 snapshot.ValueKind == JsonValueKind.Object &&
                 Text(snapshot, "catalog") == key &&
@@ -129,7 +130,7 @@ public static class DholeOfficialManualCatalogResolution
                 Text(snapshot, "fetchedAtUtc") == reviewed.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture) &&
                 snapshot.TryGetProperty("stale", out var stale) &&
                 stale.ValueKind == JsonValueKind.False &&
-                snapshot.TryGetProperty("items", out var items) &&
+                snapshot.TryGetProperty("items", out items) &&
                 items.ValueKind == JsonValueKind.Array && items.GetArrayLength() == expected,
                 key + " incompleto o sin procedencia");
             return items;
@@ -150,8 +151,9 @@ public static class DholeOfficialManualCatalogResolution
         var selectedServices = new List<DholeOfficialServiceResolution>();
         foreach (var name in draft.Services)
         {
+            JsonElement item = default;
             Require(ServiceCodes.TryGetValue(name, out var code) &&
-                indexedServices.TryGetValue(code!, out var item),
+                indexedServices.TryGetValue(code!, out item),
                 "servicio sin correspondencia confirmada: " + name);
             selectedServices.Add(new(name, code!, Id(item), true));
         }
