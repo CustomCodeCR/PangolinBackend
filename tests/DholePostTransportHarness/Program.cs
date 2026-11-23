@@ -137,6 +137,10 @@ await Refuse(body => body["form_serviceIds"] = new JsonArray(
     "Reject duplicate Pricing service UUIDs");
 await Refuse(body => body["form_cargoWeightKg"] = 1500,
     "Reject mismatched total equipment weight");
+await Refuse(body => body["form_cargoValue"] = 1600,
+    "Reject insured amounts without a validated currency mapping");
+await Refuse(body => body["form_currencyId"] = "77777777-7777-4777-8777-777777777777",
+    "Reject unreviewed Pricing currency identity");
 await Refuse(body => body["form_fclContainers"]![0]!["quantity"] = 2,
     "Reject equipment quantity different from per-unit weights");
 await Refuse(body => body["form_landContainers"] = new JsonArray(),
