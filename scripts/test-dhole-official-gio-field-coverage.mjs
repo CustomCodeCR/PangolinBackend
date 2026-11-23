@@ -13,6 +13,8 @@ const model = read('backend/Models/OfficialQuoteModels.cs');
 const draft = read('backend/Services/DholeOfficialQuoteDraftBuilder.cs');
 const flat = read('backend/Services/DholeOfficialQuoteFlatPreviewBuilder.cs');
 const retry = read('frontend/src/lib/officialQuoteSubmissionAttempt.ts');
+const optionsType = read('frontend/src/lib/dholeQuoteForm.ts');
+const catalogEndpoint = read('backend/Endpoints/DholeCatalogEndpoints.cs');
 const schema = read('backend/Database/OfficialQuotesSchema.sql');
 const context = read('backend/Data/AppDbContext.cs');
 
@@ -115,6 +117,22 @@ for (const frontend of [wizard,gio])
 assert.ok(!retry.includes('JSON.stringify({body'), 'Do not persist raw quote bodies in retry state');
 assert.ok(!schema.includes('ALTER TABLE public.official_quote_requests\n    ADD COLUMN'),
   'Historic official quote table must not require a migration when the flag is off');
+has(optionsType,['clientCreateIdempotencyEnabled','typeof v.clientCreateIdempotencyEnabled'],
+  'Validated public Dhole capability');
+has(catalogEndpoint,['ClientCreateIdempotencyEnabled','DholeSubmission:ClientCreateIdempotencyEnabled'],
+  'Public read-only feature capability');
+has(backend,['quote_idempotency_unavailable','http.Request.Headers.ContainsKey'],
+  'Fail-closed keyed POST when feature toggled off');
+for (const source of [wizard,gio])
+  has(source,['legacyQuoteResultUncertain','setLegacyQuoteResultUncertain',
+    'clientCreateIdempotencyEnabled','serverDedup',
+    'if (serverDedup) headers[\'X-CF-Quote-Request-Key\']'],
+    'Client must not assume server accepts deduplication');
+has(retry,['legacyQuoteResultUncertain','setLegacyQuoteResultUncertain',
+  'sessionStorage.setItem(storageKey + \':unverified\', \'1\')'],
+  'PII-free blocking marker for ambiguous legacy POST outcomes');
+console.log('PASS: browser trusts explicit server opt-in only; keyed POST fails closed if flag goes off.');
+
 console.log('PASS: default-off server creation idempotency, add-only schema, stable client keys with no raw-body storage.');
 
 console.log('PASS: 103 published API inputs classified; 12 services share exact Pricing codes.');
