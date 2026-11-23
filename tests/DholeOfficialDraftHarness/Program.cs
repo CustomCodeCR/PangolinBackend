@@ -416,6 +416,53 @@ using (var manualDocument = JsonDocument.Parse(manualJson))
             serviceRows[0].id,
         "Manual Config 12-service mapping enables local flat review but never sending");
 
+    // Prove the future dispatch path reconstructs from the ADMIN copy,
+    // never from browser-supplied IDs or an invented payload.
+    var storedOfficial = new OfficialQuoteRequest
+    {
+        Id = quoteId,
+        Mode = lcl.Mode!,
+        ShipmentType = lcl.ShipmentType!,
+        ContactName = lcl.ContactName!,
+        ContactEmail = lcl.ContactEmail!,
+        ContactPhone = lcl.ContactPhone!,
+        OriginName = maritime.OriginName,
+        DestinationName = maritime.DestinationName,
+        FormJson = JsonSerializer.Serialize(lcl,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web))
+    };
+    var fromAdmin = DholeOfficialDispatchPreflight.ReviewSavedQuote(
+        storedOfficial, maritime, manualDocument.RootElement, live, reviewAt);
+    Assert(fromAdmin.OfficialQuoteId == quoteId &&
+        fromAdmin.IdempotencyKey == manualLclBody.IdempotencyKey &&
+        fromAdmin.Body.GetProperty("form_serviceIds")[0].GetString() ==
+            serviceRows[0].id &&
+        !fromAdmin.RemoteSubmissionPermitted,
+        "Persisted Admin quote is the source for a verified, unsendable dispatch preview");
+    Block(() => DholeOfficialDispatchPreflight.ReviewSavedQuote(
+        storedOfficial, new DholeValidatedRoute("forged", maritime.DestinationName, maritime.PodName),
+        manualDocument.RootElement, live, reviewAt),
+        "Reject mismatched route label before building quote POST");
+    Block(() => DholeOfficialDispatchPreflight.ReviewSavedQuote(
+        new OfficialQuoteRequest
+        {
+            Id = quoteId, Mode = storedOfficial.Mode,
+            ShipmentType = storedOfficial.ShipmentType,
+            ContactName = storedOfficial.ContactName,
+            ContactEmail = "tampered@example.invalid",
+            ContactPhone = storedOfficial.ContactPhone,
+            OriginName = storedOfficial.OriginName,
+            DestinationName = storedOfficial.DestinationName,
+            FormJson = storedOfficial.FormJson
+        },
+        maritime, manualDocument.RootElement, live, reviewAt),
+        "Reject mismatched contact between saved Admin columns and form JSON");
+    Block(() => DholeOfficialDispatchPreflight.ReviewSavedQuote(
+        storedOfficial, maritime, manualDocument.RootElement,
+        live, verifiedAt.AddMinutes(6)),
+        "Reject expired temporary IDs in Admin quote preflight");
+    Console.WriteLine("PASS: Admin persisted quote -> typed short-lived catalogue -> offline flat review, no HTTP.");
+
     var manualFcl = DholeOfficialManualCatalogResolution.Review(
         fcl, manualDocument.RootElement, live, reviewAt);
     var manualFclBody = DholeOfficialQuoteFlatPreviewBuilder
