@@ -76,6 +76,9 @@ static bool IsReviewedLcl(JsonElement root, out JsonElement body)
         packages.ValueKind != JsonValueKind.Number || packages.GetInt32() != 3 ||
         !body.TryGetProperty("form_cargoWeightKg", out var weight) ||
         weight.ValueKind != JsonValueKind.Number || weight.GetDecimal() != 10 ||
+        // Do not permit unqualified commercial value/currency in this manual scenario.
+        body.TryGetProperty("form_cargoValue", out _) ||
+        body.TryGetProperty("form_currencyId", out _) ||
         body.TryGetProperty("form_fclContainers", out _) ||
         body.TryGetProperty("form_landContainers", out _))
         return false;
@@ -147,9 +150,12 @@ try
         Console.Error.WriteLine("BLOCKED: operator declined.");
         return 65;
     }
-    // One atomic marker per local approval; it is reserved before HTTP.
-    // Never auto-retry after a timeout, 429 or 5xx.
-    var marker = Path.GetFullPath(args[2]) + ".attempted";
+    // Single-attempt record per QUOTE ID within this local approval directory,
+    // not merely per approval filename (which can be copied under a new name).
+    // Never auto-retry after timeout, 429 or 5xx: creation can be unconfirmed.
+    var approvalDirectory = Path.GetDirectoryName(Path.GetFullPath(args[2]))!;
+    var marker = Path.Combine(approvalDirectory, ".dhole-one-shot-" +
+        quoteId.ToString("N") + ".attempted");
     using (var once = new FileStream(marker, FileMode.CreateNew, FileAccess.Write, FileShare.None))
         once.Write(Encoding.UTF8.GetBytes("ONE_ATTEMPT_RESERVED\n"));
 
