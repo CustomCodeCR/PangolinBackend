@@ -54,6 +54,12 @@ Conserva POL/POE/POD según rol, contacto solo en descripción, prioridad Green 
 
 Las pruebas aisladas prueban el bloqueo de reenvío y de confirmaciones sin evidencia; la política **NO constituye** un mecanismo de claims de BD, un proceso de reconciliación, ni un worker. Sigue pendiente implementar bloqueo concurrente, persistencia atómica de estados y criterios de comprobación del identificador externo, antes de conectar transportes.
 
+## Cuarto paso en borrador: selección concurrente del outbox sin red
+
+El nuevo `DholeOfficialOutboxClaimService.ClaimOneForOfflineReviewAsync` es una primitiva de PostgreSQL **no registrada** en DI ni conectada a HTTP, worker o scheduler. Una sentencia atómica usa `FOR UPDATE SKIP LOCKED` para tomar **como máximo una fila** `PendingDispatch` y pasarla a `InFlight`, aumentando `attempt_count` una sola vez. Requiere **ambos** flags `DholeSubmission:DirectOutboxEnabled=true` y `DholeSubmission:ClaimPreviewEnabled=true`; este último es una barrera exclusiva de pruebas y no aparece en ningún Compose de producción. En condiciones normales no modifica nada.
+
+La prueba de PostgreSQL desechable crea una sola cotización y ejecuta dos reclamaciones concurrentes: solo una debe obtenerla; ninguna la recupera en un segundo intento, y no aparece una referencia remota ficticia. **Esto todavía no es un dispatcher real ni envía POST.** Si el proceso cae tras marcar `InFlight`, la fila queda bloqueada para reintentos automáticos: hay que determinar manualmente si alguna solicitud llegó a Pricing antes de resetearla. Permanecen pendientes el manejo transaccional de resultados y la reconciliación verificable en Dhole.
+
 **Fases siguientes pendientes:**
 
 1. [Implementado, pendiente de verificación CI] Guardar copia oficial + outbox en una única transacción solo para Dhole si se habilita DirectOutboxEnabled.
