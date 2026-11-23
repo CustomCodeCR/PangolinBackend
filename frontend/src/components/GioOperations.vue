@@ -1105,7 +1105,9 @@ async function perform() {
 .gio-ops__extra-line>strong{grid-column:1/-1}
 .gio-ops__extra-line>button{justify-self:start}
 .gio-ops__extra-line label{display:flex;flex-direction:column;gap:4px;min-width:0}
-.gio-ops__extra-line input,.gio-ops__extra-line select,.gio-ops__form textarea{font:inherit;width:100%;min-width:0;background:var(--gio-field,#fff);color:var(--gio-field-text,#151515);border:1px solid var(--gio-line,#888);border-radius:8px;padding:9px}
+.gio-ops__extra-line input,.gio-ops__extra-line select,.gio-ops__form textarea{font:inherit;width:100%;min-width:0;background:var(--gio-input,#14192d);color:var(--gio-ink,#fff);border:1px solid var(--gio-line,#888);border-radius:8px;padding:9px}
+.gio-ops__form textarea{flex:1 1 auto;min-height:74px;resize:vertical}
+@media(max-width:800px){.gio-ops__extra-line input,.gio-ops__extra-line select,.gio-ops__form textarea{font-size:16px}}
 .gio-ops__extra-lines>.gio-ops__primary,.gio-ops__extra-lines>.gio-ops__secondary{align-self:flex-start}
 .gio-ops__bar{flex:0 0 auto;display:flex;align-items:center;gap:10px;min-height:41px;padding:6px 12px;border-bottom:1px solid var(--gio-line,#555)}
 .gio-ops__bar strong{flex:1;font-size:12px}.gio-ops__bar>span{color:var(--gio-muted,#aaa)}
