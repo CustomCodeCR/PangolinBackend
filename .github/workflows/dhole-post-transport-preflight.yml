@@ -22,6 +22,7 @@ on:
       - 'frontend/src/components/GioOperations.vue'
       - 'frontend/src/pages/OfficialQuoteWizard.vue'
       - 'frontend/src/lib/officialQuoteOptions.ts'
+      - 'frontend/src/lib/officialQuoteSubmissionAttempt.ts'
       - '.github/workflows/dhole-post-transport-preflight.yml'
   workflow_dispatch:
 permissions:
