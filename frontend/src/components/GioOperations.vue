@@ -446,6 +446,23 @@ function advanceFrom(start: number) {
       phase.value = 'collect'
       return
     }
+    // Stored draft data is untrusted (outdated options, malformed cargo
+    // rows, edited quantities, invalid ISO currencies). Validate it again
+    // before presenting a review or silently skipping a prefilled answer.
+    if (props.kind === 'quote' && value) {
+      const issue = validation(item.key, value)
+      if (issue) {
+        delete values[item.key]
+        if (item.key === 'additionalLines') {
+          extraEquipmentLines.value = []
+          extraPackageLines.value = []
+        }
+        prefillConfirmation.delete(item.key)
+        phase.value = 'collect'
+        error.value = issue
+        return
+      }
+    }
     if (isQuoteLocation(item.key) && !selectedLocations[item.key] || props.kind === 'itinerary' && isCatalogueLocation(item.key) && !value) {
       phase.value = 'collect'
       return
@@ -514,8 +531,12 @@ function commitValue(item: Step, value: string, locationId?: string) {
   const edited = editingField.value !== ''
   editingField.value = ''
   if (edited) {
-    const missing = steps.value.findIndex(step => !step.optional &&
-      (!values[step.key] || (isQuoteLocation(step.key) && !selectedLocations[step.key])))
+    const missing = steps.value.findIndex(step => {
+      const existing = values[step.key] || ''
+      return (!step.optional &&
+          (!existing || (isQuoteLocation(step.key) && !selectedLocations[step.key]))) ||
+        (props.kind === 'quote' && !!existing && !!validation(step.key, existing))
+    })
     if (missing >= 0) advanceFrom(missing)
     else phase.value = 'review'
   } else advanceFrom(stepIndex.value + 1)
