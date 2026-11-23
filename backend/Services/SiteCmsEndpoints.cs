@@ -163,6 +163,9 @@ public static class SiteCmsEndpoints
         };
         foreach (var slug in guideSlugs.Concat(transportSlugs))
         {
+            // The services directory carousel uses a separate editable image
+            // for each of these eight known routes.
+            MediaKeys.Add("services.directory." + slug + ".media");
             var prefix = "service." + slug + ".";
             MediaKeys.Add(prefix + "hero.media");
             MediaKeys.Add(prefix + "story.media");
