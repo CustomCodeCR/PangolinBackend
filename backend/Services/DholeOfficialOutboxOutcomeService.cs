@@ -36,9 +36,9 @@ public sealed class DholeOfficialOutboxOutcomeService(IConfiguration configurati
             throw new InvalidOperationException("Unsafe Dhole outcome.");
 
         // Controlled codes only: no remote response text, URLs, PII or credentials.
-        string errorCode = outcome switch
+        string? errorCode = outcome switch
         {
-            DholeDeliveryEvent.HttpAcceptedButUnverified => "AwaitingPricingVerification",
+            DholeDeliveryEvent.HttpAcceptedButUnverified => null,
             DholeDeliveryEvent.RemoteResultUnknown => "RemoteOutcomeUnknown",
             DholeDeliveryEvent.ProviderRejected => "ProviderRejected",
             DholeDeliveryEvent.LocalValidationFailed => "LocalValidationFailed",
