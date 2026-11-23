@@ -1029,10 +1029,16 @@ html.theme-dark .app-site.home-page #servicios .service-accordion__item .service
   -webkit-text-fill-color: #fff !important;
   -webkit-text-stroke: 0 transparent !important;
 }
-/* El riel activo claro deja de ser rojo sólido para que su texto rojo se lea. */
+/* En claro, conservar el riel activo rojo original con letras blancas.
+   Solo las pestañas cerradas usan texto rojo sobre el fondo claro. */
 html:not(.theme-dark) .app-site.home-page #servicios .service-accordion__item.is-open > .service-accordion__trigger {
-  background: #fff0f4 !important;
-  border-right-color: rgba(176, 9, 41, .32) !important;
+  background: #b20b2d !important;
+  border-right-color: rgba(255, 255, 255, .22) !important;
+}
+html:not(.theme-dark) .app-site.home-page #servicios .service-accordion__item.is-open > .service-accordion__trigger .service-accordion__name {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  -webkit-text-stroke: 0 transparent !important;
 }
 /* Título completo de Panamá–Costa Rica, visible dentro de la tarjeta abierta. */
 html:not(.theme-dark) .app-site.home-page #servicios .service-accordion__item[data-service-key="Panama"] .service-accordion__copy h3 {
