@@ -1055,14 +1055,12 @@ structureDescriptions.forEach(([es,en],i)=>{
   addMedia('about','Sobre nosotros','about.structure.'+(i+2)+'.media',
     'Nuestra estructura','Elemento '+(i+1)+': fotografía',structurePhotos[i])
 })
-// Environmental approach is now an independent, CMS-editable section.
-// Reuse the historical description and image keys so published content remains.
-// The old title key is retained as legacy data, not shown in the new heading.
+// Environmental approach has one visible title and description in the editor.
+// Keep legacy keys in storage for backwards-compatible page fallbacks; do not
+// expose redundant historical fields as editable slots.
 addText('about','Sobre nosotros','about.environment.kicker','Enfoque ambiental','Antetítulo rojo',
   'COMPROMISO AMBIENTAL','ENVIRONMENTAL COMMITMENT')
 addText('about','Sobre nosotros','about.environment.heading','Enfoque ambiental','Título principal',
-  'Enfoque ambiental','Environmental approach')
-addText('about','Sobre nosotros','about.structure.6.title','Enfoque ambiental (histórico)','Título anterior (conservado)',
   'Enfoque ambiental','Environmental approach')
 addText('about','Sobre nosotros','about.structure.6.description','Enfoque ambiental','Descripción principal',
   'Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.',
@@ -1100,10 +1098,6 @@ departments.forEach(([es,en],i)=>{
     originalEn:''
   })
 })
-addText('about','Sobre nosotros','about.structure.environment','Enfoque ambiental (histórico)','Texto ambiental anterior (conservado)',
-  'Buscamos identificar oportunidades para incorporar prácticas más responsables en nuestras operaciones.',
-  'We seek opportunities to incorporate more responsible practices into our operations.')
-
 // Inicio: nuevos títulos de rastreo, indicadores, noticias y accesos.
 const homeExtra: Array<[string,string,string,string]> = [
   ['home.tracking.heading1','Rastreo','Título 1','phrases.p021'],
