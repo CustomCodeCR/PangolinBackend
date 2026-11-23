@@ -47,14 +47,17 @@ public static class OfficialQuoteEndpoints
     }
 
     private static async Task<IResult> RepeatReceiptAsync(
-        OfficialQuoteRequest existing, string expectedDigest,
+        OfficialQuoteClientSubmission record, string expectedDigest,
         bool stageDirect, AppDbContext db, CancellationToken ct)
     {
-        if (!string.Equals(existing.ClientSubmissionDigest, expectedDigest, StringComparison.Ordinal))
+        if (!string.Equals(record.RequestDigest, expectedDigest, StringComparison.Ordinal))
             return Results.Conflict(new {
                 code = "quote_request_key_conflict",
                 error = "Esta clave ya fue usada para una solicitud diferente. Consultá con soporte antes de reenviar."
             });
+        // The FK guarantees the parent exists. The key table stores no PII.
+        var existing = await db.OfficialQuotes.AsNoTracking()
+            .SingleAsync(x => x.Id == record.QuoteId, ct);
         var dispatchState = stageDirect
             ? await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
                 .Where(x => x.QuoteId == existing.Id)
@@ -330,8 +333,8 @@ public static class OfficialQuoteEndpoints
                     requestDigest = SubmissionDigest(input, user);
                     // Replays must survive a changed or temporarily unavailable
                     // catalogue after the original quote was already committed.
-                    var prior = await db.OfficialQuotes.AsNoTracking()
-                        .FirstOrDefaultAsync(x => x.ClientSubmissionKey == requestKey, ct);
+                    var prior = await db.OfficialQuoteClientSubmissions.AsNoTracking()
+                        .FirstOrDefaultAsync(x => x.SubmissionKey == requestKey, ct);
                     if (prior is not null)
                     {
                         http.Response.Headers.CacheControl = "no-store";
@@ -390,9 +393,7 @@ public static class OfficialQuoteEndpoints
                     Mode = input.Mode!, ShipmentType = input.ShipmentType!,
                     OriginName = originName,
                     DestinationName = destinationName,
-                    FormJson = JsonSerializer.Serialize(input, Json),
-                    ClientSubmissionKey = requestKey,
-                    ClientSubmissionDigest = requestDigest
+                    FormJson = JsonSerializer.Serialize(input, Json)
                 };
                 if (useDhole)
                 {
@@ -415,18 +416,27 @@ public static class OfficialQuoteEndpoints
                         await LockCreationKeyAsync(db, requestKey!.Value, transaction, ct);
                         // The first request may have committed while this request
                         // waited for the lock. Never create another copy in that case.
-                        var prior = await db.OfficialQuotes.AsNoTracking()
-                            .FirstOrDefaultAsync(x => x.ClientSubmissionKey == requestKey, ct);
+                        var prior = await db.OfficialQuoteClientSubmissions.AsNoTracking()
+                            .FirstOrDefaultAsync(x => x.SubmissionKey == requestKey, ct);
                         if (prior is not null)
                         {
                             http.Response.Headers.CacheControl = "no-store";
                             return await RepeatReceiptAsync(prior, requestDigest!, stageDirect, db, ct);
                         }
                     }
-                    // Principal first for the FK. Both SaveChanges operations
-                    // remain atomic and roll back together on any failure.
+                    // Parent first for both FK-dependent child tables. Either
+                    // all records commit or all are rolled back.
                     db.OfficialQuotes.Add(quote);
                     await db.SaveChangesAsync(ct);
+                    if (deduplicateCreate)
+                    {
+                        db.OfficialQuoteClientSubmissions.Add(new OfficialQuoteClientSubmission
+                        {
+                            SubmissionKey = requestKey!.Value,
+                            QuoteId = quote.Id,
+                            RequestDigest = requestDigest!
+                        });
+                    }
                     if (stageDirect)
                     {
                         db.OfficialQuoteDholeCreationOutbox.Add(new OfficialQuoteDholeCreationOutbox
@@ -436,8 +446,8 @@ public static class OfficialQuoteEndpoints
                             State = "PendingDispatch",
                             Priority = "Green"
                         });
-                        await db.SaveChangesAsync(ct);
                     }
+                    await db.SaveChangesAsync(ct);
                     await transaction.CommitAsync(ct);
                 }
                 else
