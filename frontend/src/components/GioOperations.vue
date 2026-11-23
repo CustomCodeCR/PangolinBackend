@@ -408,6 +408,8 @@ function validation(key: string, value: string): string {
   if (key === 'cargoValue' && value &&
       values.services?.split('|').includes('Seguro de carga') && Number(value) <= 0)
     return tr('El seguro exige un valor declarado positivo.', 'Insurance requires a positive declared value.')
+  if (key === 'declaredPackages' && value && Number(value) > 2147483647)
+    return tr('La cantidad supera el máximo admitido.', 'The count exceeds the supported maximum.')
   if (key === 'cargoCurrencyCode' && !/^[A-Z]{3}$/.test(value))
     return tr('Ingresá un código ISO de 3 letras mayúsculas.', 'Enter a 3-letter uppercase ISO code.')
   if (key === 'cargoValue' && value && Number(value) > 1000000000000)
@@ -523,6 +525,7 @@ function accept(value = input.value, explicitLocationId?: string) {
   if (busy.value || phase.value !== 'collect' || !current.value) return
   const item = current.value
   let v = value.trim()
+  if (item.key === 'cargoCurrencyCode') v = v.toUpperCase()
   error.value = validation(item.key, v)
   if (error.value) return
   let locationId = explicitLocationId
