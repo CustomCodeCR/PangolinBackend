@@ -8,7 +8,7 @@ namespace CastroFallas.MiniQuote.Api.Services;
 // This preview never contacts Dhole, stores secrets, or hands data to a sender.
 public sealed record DholeOfficialServiceResolution(string Name, Guid Id);
 public sealed record DholeOfficialEquipmentResolution(
-    string Size, string Type, Guid TypeId, string TypeName, string TypeCode);
+    string ShipmentMode, string Size, string Type, Guid TypeId, string TypeName, string TypeCode);
 public sealed record DholeOfficialCatalogResolution(
     DateTime VerifiedAtUtc, Guid IncotermId, string IncotermValue,
     IReadOnlyList<DholeOfficialServiceResolution> Services,
@@ -140,7 +140,8 @@ public static class DholeOfficialQuoteFlatPreviewBuilder
             var pairs = draft.EquipmentUnits
                 .Select(e => (e.Size, e.Type)).Distinct().ToArray();
             if (mapping.Count != pairs.Length ||
-                mapping.Any(e => e is null || e.TypeId == Guid.Empty ||
+                mapping.Any(e => e is null || e.ShipmentMode != draft.ShipmentMode ||
+                    e.TypeId == Guid.Empty ||
                     string.IsNullOrWhiteSpace(e.TypeName) || string.IsNullOrWhiteSpace(e.TypeCode)) ||
                 mapping.Select(e => (e.Size, e.Type)).Distinct().Count() != mapping.Count)
                 throw new ArgumentException("Dhole preview: resolución de tipos de equipo inválida.");
