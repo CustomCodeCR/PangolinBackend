@@ -93,6 +93,28 @@ public static class SiteCmsEndpoints
         }
         for (var i=0;i<3;i++) MediaKeys.Add("about.gallery." + i + ".media");
 
+        // Sobre nosotros: allow only the active structure and environmental editor slots.
+        // Historical CMS rows remain in storage but are not editable as duplicate fields.
+        foreach (var key in new[] {
+            "about.structure.kicker", "about.structure.heading",
+            "about.environment.kicker", "about.environment.heading",
+            "about.structure.6.description"
+        }) TextKeys.Add(key);
+        for (var i = 2; i <= 5; i++)
+        {
+            TextKeys.Add("about.structure." + i + ".title");
+            TextKeys.Add("about.structure." + i + ".description");
+            MediaKeys.Add("about.structure." + i + ".media");
+        }
+        for (var i = 0; i < 5; i++)
+        {
+            TextKeys.Add("about.structure.departments." + i);
+            TextKeys.Add("about.structure.departments." + i + ".description");
+        }
+        for (var i = 0; i < 3; i++)
+            TextKeys.Add("about.environment.pillar." + i + ".title");
+        MediaKeys.Add("about.structure.6.media");
+
         foreach (var field in new[] {
             "home.tracking.heading1", "home.tracking.heading2", "home.tracking.intro",
             "home.access.heading1", "home.access.heading2", "home.access.tracking", "home.access.quote",
