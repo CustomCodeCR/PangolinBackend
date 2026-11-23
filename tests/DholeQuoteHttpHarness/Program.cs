@@ -826,6 +826,38 @@ internal static class DholeQuoteHttpTest
             }))
             Assert(changed.StatusCode == HttpStatusCode.Conflict,
                 "Same key with different cargo cannot replace an earlier submission");
+        // Simulate an outage or paused catalog rollout AFTER a quote was saved.
+        // The exact keyed replay must still return its original receipt,
+        // without requesting any live Dhole GET catalog or creating a second job.
+        using (var catalogOfflineFactory = factory.WithWebHostBuilder(host =>
+            host.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["DholeCatalogs:FormEnabled"] = "false",
+                    ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                    ["DholeSubmission:ClientCreateIdempotencyEnabled"] = "true",
+                    ["DholeSubmission:ApprovalQueueEnabled"] = "false"
+                }))))
+        using (var offlineClient = catalogOfflineFactory.CreateClient(
+            new WebApplicationFactoryClientOptions { AllowAutoRedirect = false }))
+        {
+            using var previous = new HttpRequestMessage(
+                HttpMethod.Post, "/api/quotes/official") { Content = JsonContent.Create(quote) };
+            previous.Headers.Add("X-CF-Quote-Request-Key", firstKey.ToString("D"));
+            using var replayOffline = await offlineClient.SendAsync(previous);
+            Assert(replayOffline.StatusCode == HttpStatusCode.Created,
+                "Exact previous quote can be recovered while live catalogs are disabled");
+            using var recovery = JsonDocument.Parse(await replayOffline.Content.ReadAsStringAsync());
+            Assert(recovery.RootElement.GetProperty("id").GetGuid() == idempotentId &&
+                recovery.RootElement.GetProperty("idempotentReplay").GetBoolean(),
+                "Catalog outage replay gives the original request only");
+            using var fresh = new HttpRequestMessage(
+                HttpMethod.Post, "/api/quotes/official") { Content = JsonContent.Create(quote) };
+            fresh.Headers.Add("X-CF-Quote-Request-Key", Guid.NewGuid().ToString("D"));
+            using var blockedNew = await offlineClient.SendAsync(fresh);
+            Assert(blockedNew.StatusCode == HttpStatusCode.ServiceUnavailable,
+                "A catalog outage must still prevent NEW quote creation");
+        }
 
         var raceKey = Guid.NewGuid();
         var parallel = await Task.WhenAll(
@@ -929,6 +961,7 @@ internal static class DholeQuoteHttpTest
         Console.WriteLine("PASS: offline outcomes record exactly once and never claim verified creation");
         Console.WriteLine("PASS: disabled-by-default reconciliation flags accepted HTTP as unverified; zero retries");
         Console.WriteLine("PASS: opt-in quote creation deduplication returns one ID and outbox across replays/races");
+        Console.WriteLine("PASS: exact retry remains recoverable through catalog outage; new creations fail closed");
         Console.WriteLine("PASS: failed keyed transaction rolls back both quote and outbox and accepts same-key recovery");
         Console.WriteLine("PASS: all Dhole upstream traffic simulated; no real API, no mail, no production data");
     }
