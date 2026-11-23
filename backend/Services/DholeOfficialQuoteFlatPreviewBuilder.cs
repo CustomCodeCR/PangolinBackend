@@ -15,10 +15,12 @@ public sealed record DholeOfficialCatalogResolution(
     IReadOnlyList<DholeOfficialServiceResolution> Services,
     IReadOnlyList<DholeOfficialEquipmentResolution> Equipment);
 public sealed record DholeOfficialFlatReview(
-    Guid OfficialQuoteId, string IdempotencyKey, JsonElement Body)
+    Guid OfficialQuoteId, string IdempotencyKey, JsonElement Body,
+    IReadOnlyList<string> BlockingIssues)
 {
-    public bool ReadyForContractReview => true;
-    // Even a validated local contract review is NOT authorized for dispatch.
+    // A locally complete contract review is NOT permission for an external POST.
+    // Unsupported commercial fields must be resolved, not silently dropped.
+    public bool ReadyForContractReview => BlockingIssues.Count == 0;
     public bool RemoteSubmissionPermitted => false;
 }
 
@@ -250,9 +252,18 @@ public static class DholeOfficialQuoteFlatPreviewBuilder
         }
         // The preview deliberately excludes fixed Dhole identities, sellerUserId,
         // money without verified currency, and all unpublished API fields.
+        // The published Gateway schema contains many optional Pricing fields.
+        // If the original request has extra commercial information that we have
+        // not resolved from an authorized catalog, the review is BLOCKED even
+        // though the safe, partial JSON preview can still be inspected offline.
+        var unresolved = draft.PendingCatalogResolutions.Where(x =>
+            x.StartsWith("cargoValue:", StringComparison.Ordinal) ||
+            x.StartsWith("destinationHandling:", StringComparison.Ordinal) ||
+            x.StartsWith("declaredFigures:", StringComparison.Ordinal)).ToArray();
         return new DholeOfficialFlatReview(
             draft.OfficialQuoteId,
             "cf-official-" + draft.OfficialQuoteId.ToString("D"),
-            JsonSerializer.SerializeToElement(payload));
+            JsonSerializer.SerializeToElement(payload),
+            unresolved);
     }
 }
