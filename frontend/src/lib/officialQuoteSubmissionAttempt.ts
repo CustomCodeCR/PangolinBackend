@@ -84,6 +84,15 @@ export async function prepareQuoteSubmissionAttempt(
   return created
 }
 
+// A keyed request can outlive a backend rollout change. If the server no
+// longer supports safe keyed replay, NEVER downgrade it to an unkeyed POST.
+// The in-memory object is needed for LAN HTTP previews (no session hash).
+export function unresolvedKeyedQuoteAttempt(
+  storageKey: string, inMemory: QuoteSubmissionAttempt | null
+): boolean {
+  return inMemory !== null || storedAttempt(storageKey) !== null
+}
+
 // Legacy servers intentionally have no creation-key registry. If a POST's
 // result is ambiguous, never silently send it again after a page reload.
 // The marker contains NO quote data, UUID or PII; the UI must offer support.
