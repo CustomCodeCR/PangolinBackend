@@ -320,7 +320,8 @@ public static class OfficialQuoteEndpoints
                     // the exact random client key and identical data match.
                     string suppliedKey = http.Request.Headers["X-CF-Quote-Request-Key"].ToString();
                     if (!Guid.TryParseExact(suppliedKey, "D", out var parsedKey) ||
-                        parsedKey == Guid.Empty || suppliedKey != parsedKey.ToString("D"))
+                        parsedKey == Guid.Empty || suppliedKey != parsedKey.ToString("D") ||
+                        suppliedKey[14] != '4' || !"89ab".Contains(suppliedKey[19]))
                         return Results.BadRequest(new {
                             code = "quote_request_key_required",
                             error = "La solicitud requiere una clave única válida; actualizá el formulario."
