@@ -797,6 +797,10 @@ internal static class DholeQuoteHttpTest
         using (var malformed = await CreateWithClientKey(Guid.Empty, quote))
             Assert(malformed.StatusCode == HttpStatusCode.BadRequest,
                 "Empty client request keys cannot bypass creation uniqueness");
+        using (var weak = await CreateWithClientKey(
+            Guid.Parse("11111111-1111-1111-8111-111111111111"), quote))
+            Assert(weak.StatusCode == HttpStatusCode.BadRequest,
+                "Predictable non-v4 request keys cannot be used to retrieve receipts");
 
         var firstKey = Guid.NewGuid();
         Guid idempotentId;
