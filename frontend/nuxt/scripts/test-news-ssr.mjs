@@ -57,7 +57,23 @@ const invalidNews = [
   { ...news[0], id: '123e4567-e89b-12d3-a456-426614170005', expiresAt: 'fecha-inválida' }
 ]
 
+// Simulate a CMS deletion after a page was served, while its full list can
+// still be stale in Nitro cache. The single-item GET is authoritative.
+const revokedNews = new Set()
 const api = createServer((req, res) => {
+  const single = req.url?.match(/^\/api\/content\/news\/([a-f0-9-]{36})$/i)
+  if (single) {
+    const candidate = news.find(item => item.id.toLowerCase() === single[1].toLowerCase())
+    if (!candidate || revokedNews.has(candidate.id) || candidate.published === false ||
+        (candidate.expiresAt && Date.parse(candidate.expiresAt) <= Date.now())) {
+      res.writeHead(404, { 'Cache-Control': 'no-store' })
+      res.end('Not found')
+      return
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
+    res.end(JSON.stringify(candidate))
+    return
+  }
   if (req.url === '/api/content/news') {
     res.writeHead(200, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify([...news, ...invalidNews]))
@@ -245,7 +261,22 @@ try {
   }
   const missing = await fetch(base + '/noticias/no-existe')
   assert.equal(missing.status, 404)
-  console.log('Noticias SSR, enlaces permanentes, revocación, sitemap y 404: OK')
+
+  // Regression for local Docker: an article already served HTTP 200 and was
+  // deleted from PostgreSQL, but the cached news list still contains it.
+  // Both its canonical path and old aliases must immediately return HTTP 404.
+  revokedNews.add(news[0].id)
+  const afterDelete = await fetch(base + slug, { redirect: 'manual' })
+  assert.equal(afterDelete.status, 404,
+    'No se debe servir un 200 obsoleto tras eliminar una noticia visitada')
+  const afterDeleteAlias = await fetch(base + '/noticias/2026-11-02-antiguo-titulo-14174000',
+    { redirect: 'manual' })
+  assert.equal(afterDeleteAlias.status, 404,
+    'Las URL antiguas tampoco deben redirigir a noticias eliminadas')
+  const liveAfterDelete = await fetch(base + '/api/public-news?id=' + news[0].id)
+  assert.equal(liveAfterDelete.status, 404,
+    'GET individual debe consultar el CMS en vivo aun si el feed está cacheado')
+  console.log('Noticias SSR, enlaces permanentes, revocación instantánea, sitemap y 404: OK')
 } finally {
   nuxt.kill('SIGTERM')
   await new Promise(resolve => api.close(resolve))
