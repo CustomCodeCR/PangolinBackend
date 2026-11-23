@@ -60,8 +60,17 @@ async function testMode(secure) {
     assert.equal(attempt.transientBody,original,'LAN comparison stays in process memory')
     assert.equal(store.size,0,'Insecure LAN must not persist a non-SHA256 fingerprint')
   }
+  assert.equal(api.legacyQuoteResultUncertain(key),false,
+    'No legacy uncertainty before the first potential submission')
+  api.setLegacyQuoteResultUncertain(key)
+  assert.equal(api.legacyQuoteResultUncertain(key),true,
+    'Legacy HTTP uncertainty survives navigation without storing a quote body')
+  assert.equal(store.get(key+':unverified'),'1',
+    'Legacy uncertainty marker must contain no identity or cargo data')
   api.clearQuoteSubmissionAttempt(key)
   assert.equal(store.has(key),false,'Verified receipt must clear the retry key')
+  assert.equal(api.legacyQuoteResultUncertain(key),false,
+    'A verified receipt also clears the legacy unknown-outcome marker')
 }
 
 (async()=>{
