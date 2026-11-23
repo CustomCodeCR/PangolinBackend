@@ -34,6 +34,7 @@ El arnés HTTP sobre PostgreSQL desechable `tests/DholeQuoteHttpHarness/Program.
 3. pérdida de respuesta / repetición idéntica → mismo UUID, sin segunda inserción;
 4. reutilización de clave con contenido distinto → 409;
 5. dos POST concurrentes con la misma clave → una fila en la tabla de claves, una cotización y un solo job;
-6. fallo intencional de la inserción de outbox → reversión de cotización y clave, con recuperación del mismo intento tras restablecer la BD;\n7. catálogo dinámico simulado y ninguna llamada externa de escritura.
+6. fallo intencional de la inserción de outbox → reversión de cotización y clave, con recuperación del mismo intento tras restablecer la BD;
+7. catálogo dinámico simulado y ninguna llamada externa de escritura.
 
 Los smokes de navegador de GIO y cotizador comprueban generación de clave v4, reutilización tras error simulado y eliminación al recibir el recibo. La compilación de estas modificaciones sigue pendiente de la cola de GitHub Actions.
