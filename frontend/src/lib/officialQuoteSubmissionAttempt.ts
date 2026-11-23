@@ -84,6 +84,22 @@ export async function prepareQuoteSubmissionAttempt(
   return created
 }
 
+// Legacy servers intentionally have no creation-key registry. If a POST's
+// result is ambiguous, never silently send it again after a page reload.
+// The marker contains NO quote data, UUID or PII; the UI must offer support.
+export function legacyQuoteResultUncertain(storageKey: string): boolean {
+  try { return sessionStorage.getItem(storageKey + ':unverified') === '1' }
+  catch { return false }
+}
+
+export function setLegacyQuoteResultUncertain(storageKey: string): void {
+  try { sessionStorage.setItem(storageKey + ':unverified', '1') }
+  catch { /* UI keeps an in-memory guard in private browsing. */ }
+}
+
 export function clearQuoteSubmissionAttempt(storageKey: string): void {
-  try { sessionStorage.removeItem(storageKey) } catch { /* private browsing */ }
+  try {
+    sessionStorage.removeItem(storageKey)
+    sessionStorage.removeItem(storageKey + ':unverified')
+  } catch { /* private browsing */ }
 }
