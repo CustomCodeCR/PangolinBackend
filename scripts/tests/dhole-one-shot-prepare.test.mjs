@@ -56,6 +56,13 @@ test('authorized package is scoped to new UUID, exact compact JSON and digest',(
   assert.equal(b.form_podId,id.pod);
   assert.equal(b.form_cargoPackages,3);
   assert.equal(b.form_cargoWeightKg,10);
+  assert.equal(b.sellerContext_consolidatedCargoLines[0].quantity,3);
+  assert.equal(b.sellerContext_consolidatedCargoLines[0].unitType,'Box');
+  assert.equal(b.sellerContext_consolidatedCargoLines[0].length,20);
+  assert.equal(b.sellerContext_consolidatedCargoLines[0].width,12);
+  assert.equal(b.sellerContext_consolidatedCargoLines[0].height,8);
+  assert.equal(b.sellerContext_consolidatedCargoLines[0].isStackable,false);
+  assert.ok(Math.abs(b.sellerContext_consolidatedCargoLines[0].weightKg*3-10)<1e-8);
   assert.ok(b.form_cargoDescription.includes('prueba@example.invalid'));
   assert.equal(approval.quoteId,quoteId);
   assert.equal(approval.scope,'PR274_ONE_QUOTE_LCL_OFFICIAL_DHOLE');
