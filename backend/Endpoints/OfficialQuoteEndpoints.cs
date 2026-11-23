@@ -142,6 +142,8 @@ public static class OfficialQuoteEndpoints
                     line.Height is null or <= 0 or > 100000 ||
                     line.Stackability is not ("Stackable" or "NonStackable"))
                     throw new ArgumentException("Completá cantidades, peso, medidas y estibabilidad.");
+                if (useDholeCatalogs && line.UnitType is not ("Box" or "Pallet" or "Loose" or "Other"))
+                    throw new ArgumentException("Seleccioná el tipo de unidad para cada línea que se enviará a Dhole.");
             }
         }
         Required(s.CargoDescription, "Descripción de carga", 4000);
