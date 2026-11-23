@@ -101,10 +101,10 @@ ALTER TABLE public.official_quote_dhole_outbox
 CREATE INDEX IF NOT EXISTS ix_official_quote_dhole_outbox_state
     ON public.official_quote_dhole_outbox(state,created_at_utc);
 
-// Creation-time outbox for new Dhole-backed official quotes. Entirely independent
-// of the old administrator-approval outbox; no external HTTP/worker uses this table.
-// Apply with a database backup before setting DirectOutboxEnabled=true.
-// A quote and its delivery job are committed or rolled back together.
+-- Creation-time outbox for new Dhole-backed official quotes. Entirely independent
+-- of the old administrator-approval outbox; no external HTTP/worker uses this table.
+-- Apply with a database backup before setting DirectOutboxEnabled=true.
+-- A quote and its delivery job are committed or rolled back together.
 CREATE TABLE IF NOT EXISTS public.official_quote_dhole_creation_outbox (
     quote_id UUID PRIMARY KEY REFERENCES public.official_quote_requests(id) ON DELETE RESTRICT,
     idempotency_key VARCHAR(80) NOT NULL UNIQUE CHECK (length(btrim(idempotency_key)) > 0),
