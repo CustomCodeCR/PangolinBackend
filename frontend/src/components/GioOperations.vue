@@ -436,7 +436,9 @@ function advanceFrom(start: number) {
     }
     if (value && prefillConfirmation.has(item.key)) {
       prefillConfirmation.delete(item.key)
-      pendingValue.value = { key:item.key, value, display:item.key === 'services' ? serviceNames(value) : item.choices?.find(choice=>choice.value===value)?.label || value }
+      pendingValue.value = { key:item.key, value, display:item.key === 'additionalLines'
+        ? extraLineLabel(value) : item.key === 'services' ? serviceNames(value)
+          : item.choices?.find(choice=>choice.value===value)?.label || value }
       phase.value = 'confirm'
       return
     }
