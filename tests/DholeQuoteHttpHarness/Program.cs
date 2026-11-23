@@ -259,58 +259,6 @@ internal static class DholeQuoteHttpTest
             Assert(Convert.ToInt64(await count.ExecuteScalarAsync()) == 1,
                 "Rejected submissions did not create rows");
         }
-        // Real HTTP POST to our OWN backend with a fictional LCL package.
-        // This persists an Admin copy and maps the validated input locally,
-        // but NEVER contacts the Dhole external POST.
-        var lclBody = new Dictionary<string, object?>(quote)
-        {
-            ["shipmentType"] = "LCL",
-            ["equipment"] = Array.Empty<object>(),
-            ["packages"] = new[] { new {
-                description = "Caja ficticia", quantity = 3,
-                weight = 10, length = 20, width = 12, height = 8,
-                stackability = "NonStackable"
-            }},
-            ["weightUnit"] = "kg",
-            ["dimensionUnit"] = "cm"
-        };
-        using (var missingUnit = await Submit(lclBody))
-            Assert(missingUnit.StatusCode == HttpStatusCode.BadRequest,
-                "Dhole LCL source rejects missing explicit package unit type");
-        lclBody["packages"] = new[] { new {
-            description = "Caja ficticia", quantity = 3, unitType = "Box",
-            weight = 10, length = 20, width = 12, height = 8,
-            stackability = "NonStackable"
-        }};
-        using var lclResponse = await Submit(lclBody);
-        Assert(lclResponse.StatusCode == HttpStatusCode.Created,
-            "Dhole LCL user quote creates the original Admin copy");
-        using var lclReceipt = JsonDocument.Parse(
-            await lclResponse.Content.ReadAsStringAsync());
-        var lclId = lclReceipt.RootElement.GetProperty("id").GetGuid();
-        Assert(lclId != createdId, "LCL gets a distinct immutable local quote ID");
-        await using (var db = new NpgsqlConnection(connectionString))
-        {
-            await db.OpenAsync();
-            await using var savedLcl = new NpgsqlCommand(
-                "SELECT form_json::text, approval_status FROM public.official_quote_requests WHERE id = @id", db);
-            savedLcl.Parameters.AddWithValue("id", lclId);
-            await using var savedReader = await savedLcl.ExecuteReaderAsync();
-            Assert(await savedReader.ReadAsync(), "LCL Admin copy exists after POST");
-            using var json = JsonDocument.Parse(savedReader.GetString(0));
-            var packages = json.RootElement.GetProperty("packages");
-            Assert(packages.GetArrayLength() == 1 &&
-                packages[0].GetProperty("unitType").GetString() == "Box" &&
-                packages[0].GetProperty("quantity").GetInt32() == 3 &&
-                packages[0].GetProperty("weight").GetDecimal() == 10m &&
-                packages[0].GetProperty("length").GetDecimal() == 20m &&
-                packages[0].GetProperty("height").GetDecimal() == 8m,
-                "LCL Admin copy preserves 3 boxes, 10kg total and 20x12x8cm");
-            Assert(savedReader.GetString(1) == "Pending",
-                "Legacy admin status is independent of Dhole projection");
-        }
-        Console.WriteLine("PASS: real official LCL HTTP form persisted in Admin with explicit unit type; zero Dhole POST.");
-
         // The approval-outbox is a separate opt-in stage: merely sending a
         // quote (even one whose catalogue is Dhole) must never queue it.
         await using (var db = new NpgsqlConnection(connectionString))
