@@ -230,6 +230,65 @@ Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
 Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
     ftl, fullCatalog, reviewAt), "FCL type cannot be used for FTL");
 Assert(!flat.RemoteSubmissionPermitted, "no send gate is exposed even for passing review");
+
+var extendedLcl = lcl with
+{
+    Packages = [
+        lcl.Packages![0],
+        new OfficialPackageInput("Segunda línea de repuestos", 2, 12, 15, 10, 6, "Stackable", "Pallet")
+    ],
+    Services = ["Transporte internacional", "Almacenamiento", "Transporte entrega", "Transporte recolección"],
+    CargoFlags = ["Carga peligrosa", "No estibable", "Sobrepeso"],
+    CabysCode = "1234567890000",
+    Observations = "Mercancía frágil: coordinar equipo de seguridad.",
+    FiscalStorageDays = 5,
+    PickupAddress = "Bodega origen de prueba, China",
+    DeliveryAddress = "Almacén destino de prueba, Costa Rica",
+    CargoValue = 1500,
+    DeclaredWeight = 22,
+    DeclaredPackages = 5,
+    DestinationHandling = "Gestión especial"
+};
+var extended = DholeOfficialQuoteDraftBuilder.Project(extendedLcl, quoteId, maritime);
+Assert(extended.CargoUnits.Count == 2 &&
+    extended.TotalPackages == 5 &&
+    extended.TotalWeightKg == 22 &&
+    extended.CabysCode == "1234567890000" &&
+    extended.FiscalStorageDays == 5 &&
+    extended.DangerousCargo && extended.OverweightCargo &&
+    extended.PendingCatalogResolutions.Any(b => b.StartsWith("cargoValue:")) &&
+    extended.PendingCatalogResolutions.Any(b => b.StartsWith("destinationHandling:")),
+    "Two cargo lines and all extra user fields must survive the local quote projection");
+var extendedCatalog = catalog with
+{
+    Services = [
+        catalog.Services[0],
+        new DholeOfficialServiceResolution("Almacenamiento", "STORAGE",
+            Guid.Parse("c2300000-0000-4000-8000-000000000002"), true),
+        new DholeOfficialServiceResolution("Transporte entrega", "DELIVERY",
+            Guid.Parse("c2300000-0000-4000-8000-000000000003"), true),
+        new DholeOfficialServiceResolution("Transporte recolección", "PICKUP",
+            Guid.Parse("c2300000-0000-4000-8000-000000000004"), true)
+    ]
+};
+var extendedBody = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(extended, extendedCatalog, reviewAt).Body;
+Assert(extendedBody.GetProperty("sellerContext_consolidatedCargoLines").GetArrayLength() == 2 &&
+    extendedBody.GetProperty("form_cargoPackages").GetInt32() == 5 &&
+    extendedBody.GetProperty("form_cargoWeightKg").GetDecimal() == 22 &&
+    extendedBody.GetProperty("form_storageDays").GetInt32() == 5 &&
+    extendedBody.GetProperty("form_cabysCode").GetString() == "1234567890000" &&
+    extendedBody.GetProperty("form_cargoObservations").GetString()?.StartsWith("Mercancía frágil") == true &&
+    extendedBody.GetProperty("form_pickupAddress").GetString()?.Contains("Bodega origen") == true &&
+    extendedBody.GetProperty("form_inlandDeliveryLocation_address").GetString()?.Contains("Almacén destino") == true &&
+    extendedBody.GetProperty("form_dangerousCargo").GetBoolean() &&
+    extendedBody.GetProperty("form_overweight").GetBoolean() &&
+    extendedBody.GetProperty("sellerContext_consolidatedCargoLines")[1]
+        .GetProperty("unitType").GetString() == "Pallet" &&
+    !extendedBody.TryGetProperty("form_cargoValue", out _) &&
+    !extendedBody.TryGetProperty("form_currencyId", out _),
+    "Published flat review preserves safe details but never guesses commercial currency");
+Console.WriteLine("PASS: extra lines, flags, storage, CABYS, notes and delivery fields retained; currency blocks remain.");
+
 Console.WriteLine("PASS: five modes project to flat Dhole review with real LCL cargo shape and resolved fake catalog UUIDs.");
 Console.WriteLine("PASS: invalid/stale catalog snapshots blocked; no HTTP, dispatcher or secrets.");
 
