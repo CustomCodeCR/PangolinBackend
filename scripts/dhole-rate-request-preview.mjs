@@ -167,17 +167,28 @@ export function previewDholeRateRequest(source, lookups = {}) {
     const lines = form.packages.map((line, index) => {
       if (!Number.isInteger(line.quantity) || line.quantity < 1 || !isText(line.description))
         throw new Error('Bulto ' + index + ': datos básicos inválidos.');
+      // Verified against Dhole PricingSellerHandoffPreview: sellerContext expects
+      // quantity, unitType, dimensions (without Cm suffix) and kg PER UNIT.
+      // Never invent a package type. The old packages/lengthCm keys persisted
+      // but Pricing displayed one legacy unit with zero dimensions.
+      if (!['Box','Pallet','Loose','Other'].includes(line.unitType) ||
+          !['Stackable','NonStackable'].includes(line.stackability))
+        throw new Error('Bulto ' + index + ': tipo de unidad o estibabilidad no confirmados.');
+      const totalWeightKg = weightKg(line.weight, form.weightUnit);
       return {
         description: line.description,
-        packages: line.quantity,
-        weightKg: weightKg(line.weight, form.weightUnit),
-        lengthCm: lengthCm(line.length, form.dimensionUnit),
-        widthCm: lengthCm(line.width, form.dimensionUnit),
-        heightCm: lengthCm(line.height, form.dimensionUnit),
+        quantity: line.quantity,
+        unitType: line.unitType,
+        weightKg: totalWeightKg / line.quantity,
+        length: lengthCm(line.length, form.dimensionUnit),
+        width: lengthCm(line.width, form.dimensionUnit),
+        height: lengthCm(line.height, form.dimensionUnit),
+        isStackable: line.stackability === 'Stackable',
       };
     });
-    formOutput.cargoPackages = lines.reduce((sum, item) => sum + item.packages, 0);
-    formOutput.cargoWeightKg = lines.reduce((sum, item) => sum + item.weightKg, 0);
+    formOutput.cargoPackages = lines.reduce((sum, item) => sum + item.quantity, 0);
+    formOutput.cargoWeightKg = lines.reduce(
+      (sum, item) => sum + item.quantity * item.weightKg, 0);
     formOutput.nonStackable ||= form.packages.some(x => x.stackability === 'NonStackable');
     // Preserve the already-labelled applicant contact. Reassigning the raw
     // form description here would drop contact details for LCL/AIR_LCL/LTL.
