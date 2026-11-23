@@ -303,6 +303,72 @@ async function main() {
     assert.equal(legacyLocationReads,0,'Form never called local catalogue during Dhole success')
     console.log('PASS Chrome: four-step wizard preserves external UUID, pair-restricted equipment, responsive/dark mode and receipt')
 
+    // A consolidated LCL cargo line is authoritative for stackability.
+    // Never show a duplicate global checkbox that could contradict the line.
+    await cdp('Page.navigate',{url:'http://'+host+':5194/cotizaciones?check=lcl-stackability'})
+    await waitFor(()=>exists('.official-page .official-choice'),'Fresh LCL wizard')
+    await chooseMode('Marítimo')
+    await click('.official-primary')
+    await waitFor(()=>exists('.official-choice'),'LCL transport selection')
+    await chooseMode('LCL')
+    await click('.official-primary')
+    await waitFor(()=>exists('#quote-origin'),'LCL route details')
+    await click('#quote-origin + .official-location-toggle')
+    await waitFor(()=>exists('#quote-origin-options li button'),'LCL origin list')
+    await click('#quote-origin-options li button')
+    await click('#quote-destination + .official-location-toggle')
+    await waitFor(()=>exists('#quote-destination-options li button'),'LCL destination list')
+    await click('#quote-destination-options li button')
+    await click('#quote-pod + .official-location-toggle')
+    await waitFor(()=>exists('#quote-pod-options [role=option]'),'LCL maritime POD')
+    await click('#quote-pod-options [role=option]')
+    await selectDropdown('quote-incoterm','CIF')
+    await value('input[type=date]',future)
+    await click('.official-primary')
+    await waitFor(()=>exists('.official-line input[maxlength="400"]'),'LCL cargo line')
+    const visibleFlags = await evaluate('[...document.querySelectorAll(".official-cargo-flags-grid .official-service-name")].map(x=>x.textContent.trim())')
+    assert.deepEqual(visibleFlags,['Carga peligrosa','Sobrepeso'],
+      'No estibable must NOT appear twice; only per-line stackability is editable')
+    assert.ok(await evaluate('document.body.textContent.includes("La estibabilidad se indica por separado")'),
+      'Explain that the aggregate non-stackable flag follows cargo lines')
+    await value('.official-line input[maxlength="400"]','Cajas CI')
+    await value('.official-line input[type="number"][min="1"]','2')
+    const countDimensions = await evaluate(`(()=>{
+      const inputs=[...document.querySelectorAll('.official-line input[type="number"][min="0.001"]')]
+      if(inputs.length!==4) return inputs.length
+      const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set
+      for(const [i,value] of ['400','40','50','60'].entries()) {
+        setter.call(inputs[i],value)
+        inputs[i].dispatchEvent(new Event('input',{bubbles:true}))
+        inputs[i].dispatchEvent(new Event('change',{bubbles:true}))
+      }
+      return inputs.length
+    })()`)
+    assert.equal(countDimensions,4,'LCL must provide weight plus three dimensions per line')
+    await click('button[aria-label="Tipo de unidad"]')
+    await waitFor(()=>exists('.cf-dropdown__menu[aria-label="Tipo de unidad"] [role=option]'),'Cargo unit choices')
+    const boxChosen = await evaluate('(()=>{const choice=[...document.querySelectorAll(".cf-dropdown__menu[role=listbox] [role=option]")].find(x=>x.textContent.trim()==="Caja");if(!choice)return false;choice.click();return true})()')
+    assert.ok(boxChosen,'LCL mock must allow Box as its cargo unit')
+    await click('button[aria-label="Estibabilidad"]')
+    await waitFor(()=>exists('.cf-dropdown__menu[aria-label="Estibabilidad"] [role=option]'),'Per-line stackability choices')
+    const nonStackableChosen = await evaluate('(()=>{const choice=[...document.querySelectorAll(".cf-dropdown__menu[role=listbox] [role=option]")].find(x=>x.textContent.trim()==="No estibable");if(!choice)return false;choice.click();return true})()')
+    assert.ok(nonStackableChosen,'Package must allow NonStackable on its own line')
+    await value('.official-fields textarea[maxlength="4000"]','Mercancía CI consolidada')
+    await value('input[autocomplete=name]','Cliente LCL CI')
+    await value('input[autocomplete=email]','lcl-quote@example.invalid')
+    await value('input[autocomplete=tel]','+506 2222 2222')
+    await click('.official-primary')
+    await waitFor(()=>posts.length===2,'LCL mock submission')
+    assert.equal(posts[1].shipmentType,'LCL')
+    assert.equal(posts[1].packages.length,1)
+    assert.equal(posts[1].packages[0].quantity,2)
+    assert.equal(posts[1].packages[0].weight,400,'Form cargo weight is total for this line')
+    assert.equal(posts[1].packages[0].stackability,'NonStackable')
+    assert.equal(posts[1].packages[0].unitType,'Box')
+    assert.deepEqual(posts[1].cargoFlags,['No estibable'],
+      'Line-level nonstackability must derive one aggregate flag automatically')
+    console.log('PASS Chrome: LCL line-level stackability derives global flag with no duplicate checkbox')
+
     // Any live Dhole outage must block progression, not silently revert to
     // outdated local UUIDs. A fresh navigation resets the Vue form.
     upstreamIsDown=true
@@ -317,7 +383,7 @@ async function main() {
     assert.equal(await evaluate('document.querySelector(".official-progress-item.current")?.textContent.includes("2")'),true,
       'Outage must keep wizard on step two')
     assert.equal(legacyLocationReads,0,'Outage must not request legacy locations')
-    assert.equal(posts.length,1,'Outage must not submit a second quote')
+    assert.equal(posts.length,2,'Outage must not submit an additional quote')
     console.log('PASS Chrome: failure of Dhole catalogue blocks route, no unsafe local fallback')
 
     upstreamIsDown=false
