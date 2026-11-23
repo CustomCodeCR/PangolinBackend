@@ -422,6 +422,13 @@ def main():
         require(status == 201 and created_news.get('id'), f'Crear noticia: {status} {created_news}')
         news_id = created_news['id']
         slug = created_news.get('slug')
+        single_headers = {}
+        status, public_detail = call(build_opener(), '/api/content/news/' + news_id,
+                                     response_headers=single_headers)
+        require(status == 200 and public_detail.get('id') == news_id,
+                'La API individual debe servir la noticia publicada.')
+        require(single_headers.get('Cache-Control') == 'no-store',
+                'El detalle público no debe almacenarse en caché.')
         require(isinstance(slug, str) and slug.endswith(news_id.replace('-', '')[-8:]),
                 'Crear noticia publicada debe guardar un permalink inmutable.')
         require(created_news.get('contentModifiedAt'),
@@ -446,6 +453,9 @@ def main():
         status, public_news = call(build_opener(), '/api/content/news')
         require(status == 200 and all(row['id'] != news_id for row in public_news),
                 'Una noticia despublicada permanece visible.')
+        status, _ = call(build_opener(), '/api/content/news/' + news_id)
+        require(status == 404,
+                'Una noticia despublicada debe devolver HTTP 404 desde el CMS.')
         status, created_media = call(browser, '/api/admin/content/media', media)
         require(status == 201 and created_media.get('id'), f'Crear multimedia: {status} {created_media}')
         media_id = created_media['id']
@@ -474,6 +484,9 @@ def main():
         if news_id:
             status, _ = call(browser, '/api/admin/content/news/' + news_id, method='DELETE')
             require(status == 204, f'No se limpió noticia de prueba: {status}')
+            status, _ = call(build_opener(), '/api/content/news/' + news_id)
+            require(status == 404,
+                    'Una noticia eliminada debe devolver HTTP 404 desde PostgreSQL.')
         if media_id:
             status, _ = call(browser, '/api/admin/content/media/' + media_id, method='DELETE')
             require(status == 204, f'No se limpió multimedia de prueba: {status}')

@@ -35,6 +35,34 @@ public static class ContentEndpoints
             }).ToList());
         });
 
+        // Una ficha individual debe comprobarse en PostgreSQL en cada petición.
+        // Las listas/cache de Nuxt pueden conservar temporalmente un registro
+        // eliminado o despublicado; nunca deben convertirlo en un HTTP 200.
+        app.MapGet("/api/content/news/{id:guid}", async (
+            Guid id, AppDbContext db, IConfiguration config, HttpContext http, CancellationToken ct) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+            var now = DateTime.UtcNow;
+            var news = await db.ManagedNews.AsNoTracking()
+                .Where(x => x.Id == id && x.Published && (x.ExpiresAt == null || x.ExpiresAt > now))
+                .Select(x => new
+                {
+                    x.Id, x.Title, x.Category, x.Description, x.Body, x.Image,
+                    x.Published, x.Author, x.PublishedAt, x.ExpiresAt, x.Slug, x.ContentModifiedAt
+                })
+                .FirstOrDefaultAsync(ct);
+            if (news is null) return Results.NotFound();
+            var deliveryEnabled = config.GetValue<bool>("CmsNews:BinaryImageDeliveryEnabled");
+            return Results.Ok(new
+            {
+                news.Id, news.Title, news.Category, news.Description, news.Body,
+                Image = CmsInlineNewsImages.PublicImageSrc(news.Id, news.Image, deliveryEnabled),
+                news.Published, news.Author, news.PublishedAt, news.ExpiresAt,
+                Slug = news.Slug ?? NewsPermalink.Create(news.Title, news.PublishedAt, news.Id),
+                news.ContentModifiedAt
+            });
+        });
+
         // Traducción pública exclusivamente de artículos publicados. Almacena en caché
         // por ID + versión para no volver a cobrar por cada cambio del idioma.
         app.MapGet("/api/content/news/{id:guid}/translation", async (
