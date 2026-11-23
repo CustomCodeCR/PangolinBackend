@@ -5,6 +5,7 @@ on:
     paths:
       - 'backend/Services/DholeQuotePostTransport.cs'
       - 'backend/Services/DholeOfficialQuoteDraftBuilder.cs'
+      - 'backend/Services/DholeOfficialQuoteFlatPreviewBuilder.cs'
       - 'backend/Models/OfficialQuoteModels.cs'
       - 'backend/Endpoints/OfficialQuoteEndpoints.cs'
       - 'tests/DholeOfficialDraftHarness/**'
