@@ -155,6 +155,8 @@ internal static class DholeQuoteHttpTest
         using var form = JsonDocument.Parse(await formResponse.Content.ReadAsStringAsync());
         var options = form.RootElement;
         Assert(options.GetProperty("source").GetString() == "dhole", "Source explicitly Dhole");
+        Assert(!options.GetProperty("clientCreateIdempotencyEnabled").GetBoolean(),
+            "Server without the dedup flag must explicitly advertise that safe retry is unavailable");
         Assert(options.GetProperty("origins").GetArrayLength() == 1 &&
             options.GetProperty("destinations").GetArrayLength() == 1,
             "Expected exactly one mocked POL and POE");
@@ -473,6 +475,14 @@ internal static class DholeQuoteHttpTest
                 })));
         using var directClient = directFactory.CreateClient(
             new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using (var unexpectedKey = new HttpRequestMessage(
+            HttpMethod.Post, "/api/quotes/official") { Content = JsonContent.Create(quote) })
+        {
+            unexpectedKey.Headers.Add("X-CF-Quote-Request-Key", Guid.NewGuid().ToString("D"));
+            using var blockedKey = await directClient.SendAsync(unexpectedKey);
+            Assert(blockedKey.StatusCode == HttpStatusCode.ServiceUnavailable,
+                "If key support was disabled between GET and POST, refuse rather than create duplicates");
+        }
         using (var noInsuredValue = await directClient.PostAsJsonAsync(
             "/api/quotes/official", new Dictionary<string, object?>(quote)
             {
@@ -801,6 +811,15 @@ internal static class DholeQuoteHttpTest
                 })));
         using var idempotentClient = idempotentFactory.CreateClient(
             new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using (var capability = await idempotentClient.GetAsync(
+            "/api/quotes/official/dhole-options?mode=Maritime&shipmentType=FCL"))
+        {
+            Assert(capability.StatusCode == HttpStatusCode.OK,
+                "Explicit dedup rollout still returns Dhole catalogue choices");
+            using var advertised = JsonDocument.Parse(await capability.Content.ReadAsStringAsync());
+            Assert(advertised.RootElement.GetProperty("clientCreateIdempotencyEnabled").GetBoolean(),
+                "Creation-key support must be truthfully advertised to both quote clients");
+        }
         async Task<HttpResponseMessage> CreateWithClientKey(
             Guid? key, Dictionary<string, object?> body)
         {
