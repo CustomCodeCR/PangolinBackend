@@ -34,6 +34,20 @@ La migración aditiva en `backend/Database/OfficialQuotesSchema.sql` debe aplica
 
 **Limitación deliberada:** la unicidad protege cada cotización y su clave de envío; no deduplica todavía dos POST HTTP independientes del navegador que creen dos cotizaciones diferentes. Eso requerirá una clave idempotente de creación validada en una fase posterior. Los estados avanzados están reservados en el esquema; ningún worker los cambia aún.
 
+## Tercer paso en preparación: revisión local del contrato plano
+
+El backend añade `DholeOfficialQuoteFlatPreviewBuilder.BuildReview`, sin conectar a ningún worker, HTTP ni endpoint público. Toma el borrador de formulario/GIO y una resolución explícita de catálogos que debe proceder de una fuente autenticada. **Bloquea** resoluciones vencidas (más de 15 minutos), IDs vacíos, servicios que no correspondan exactamente, Incoterm inconsistente y equipamiento cuyo modo, tamaño o tipo no coincida.
+
+La vista de revisión construye los campos planos publicados `form_*`, `requestContext_*` y `sellerContext_*` y valida los cinco modos:
+
+- FCL: `form_fclContainers` con UUID de tipo verificado y peso individual;
+- FTL: `form_landContainers` usando UUID de **tipo FTL**, no de tamaño;
+- LCL/Air/LTL: `sellerContext_consolidatedCargoLines` con `quantity`, `unitType`, `weightKg` **por unidad**, dimensiones y estibabilidad; totales separados.
+
+Conserva POL/POE/POD según rol, contacto solo en descripción, prioridad Green y tarifa Spot provisional. **No envía ni inventa** cliente/ejecutivo, vendedor, importes, divisa o IDs faltantes. El objeto declara siempre `RemoteSubmissionPermitted=false`; un contrato revisable **no equivale a un payload aprobado para transmisión**. El arnés .NET prueba las cinco modalidades con IDs ficticios y rechaza cruces FCL/FTL o catálogos caducados. Ninguno de esos fixtures representa un catálogo autorizado para producción.
+
+**PENDIENTE para una integración de extremo a extremo:** servicio que obtenga y certifique los catálogos vigentes de Dhole; revisar los campos comerciales del formulario que todavía no se incluyen en el borrador (observaciones, almacenamiento, direcciones, CABYS según su disponibilidad), validación de contrato del API Gateway, acceso a contactos según rol en Pricing, implementación de dispatcher y reconciliación sin reintentos ambiguos. No enviar este borrador a Dhole ni activar ninguna bandera hasta obtener aprobación específica.
+
 **Fases siguientes pendientes:**
 
 1. [Implementado, pendiente de verificación CI] Guardar copia oficial + outbox en una única transacción solo para Dhole si se habilita DirectOutboxEnabled.
