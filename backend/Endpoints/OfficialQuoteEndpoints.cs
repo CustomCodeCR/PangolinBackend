@@ -316,7 +316,11 @@ public static class OfficialQuoteEndpoints
                     // Both records commit together or neither does. The unique
                     // quote ID and idempotency key prevent duplicate outbox jobs.
                     await using var transaction = await db.Database.BeginTransactionAsync(ct);
+                    // Insert the principal quote first so PostgreSQL's FK exists
+                    // before inserting its outbox child. Both SaveChanges remain
+                    // inside ONE transaction, so failure of either rolls back both.
                     db.OfficialQuotes.Add(quote);
+                    await db.SaveChangesAsync(ct);
                     db.OfficialQuoteDholeCreationOutbox.Add(new OfficialQuoteDholeCreationOutbox
                     {
                         QuoteId = quote.Id,
