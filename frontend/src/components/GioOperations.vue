@@ -5,7 +5,9 @@ import { refreshSession } from '../services/auth'
 import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialEquipmentTypeLabel, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
 import { isCalendarDate, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
 import { loadDholeQuoteFormOptions, type DholeQuoteFormOptions } from '../lib/dholeQuoteForm'
-import { prepareQuoteSubmissionAttempt, clearQuoteSubmissionAttempt, type QuoteSubmissionAttempt } from '../lib/officialQuoteSubmissionAttempt'
+import { prepareQuoteSubmissionAttempt, clearQuoteSubmissionAttempt,
+  legacyQuoteResultUncertain, setLegacyQuoteResultUncertain,
+  type QuoteSubmissionAttempt } from '../lib/officialQuoteSubmissionAttempt'
 
 type Kind = 'quote' | 'tracking' | 'itinerary'
 type Phase = 'collect' | 'confirm' | 'review' | 'auth' | 'location' | 'result'
@@ -65,6 +67,7 @@ const restrictedTracking = ref(false)
 const STORAGE_KEY = 'gcf-gio-quote-draft-v1'
 const CREATE_ATTEMPT_KEY = 'gcf-official-quote-gio-attempt-v1'
 let activeCreateAttempt: QuoteSubmissionAttempt | null = null
+let legacyAttemptMayHaveSaved = false
 const prefilled = ref(false)
 const editingField = ref('')
 type PendingValue = { key: string; value: string; display: string; locationId?: string }
@@ -874,21 +877,33 @@ async function submitQuote() {
     fiscalStorageDays:requestedServices.includes('Almacenamiento') ? Number(values.fiscalStorageDays) : null
   }
   const body = JSON.stringify(payload)
-  activeCreateAttempt = await prepareQuoteSubmissionAttempt(
-    CREATE_ATTEMPT_KEY, body, activeCreateAttempt)
+  const serverDedup = quoteCatalogSource.value === 'dhole' &&
+    quoteCatalog.value?.clientCreateIdempotencyEnabled === true
+  if (!serverDedup &&
+      (legacyAttemptMayHaveSaved || legacyQuoteResultUncertain(CREATE_ATTEMPT_KEY)))
+    throw new Error(tr(
+      'El resultado del envío anterior es incierto. Consultá con soporte antes de reenviar para evitar duplicados.',
+      'The previous request may have been saved. Contact support before retrying to avoid duplicates.'))
+  if (serverDedup)
+    activeCreateAttempt = await prepareQuoteSubmissionAttempt(
+      CREATE_ATTEMPT_KEY, body, activeCreateAttempt)
+  const headers: Record<string,string> = {'Content-Type':'application/json'}
+  if (serverDedup) headers['X-CF-Quote-Request-Key'] = activeCreateAttempt!.key
+  else {
+    // Without the optional DB key registry, a lost response is not safe
+    // to resend. Persist only a PII-free uncertainty marker.
+    legacyAttemptMayHaveSaved = true
+    setLegacyQuoteResultUncertain(CREATE_ATTEMPT_KEY)
+  }
   const response = await fetch('/api/quotes/official',{method:'POST',credentials:'same-origin',
-    headers:{
-      'Content-Type':'application/json',
-      'X-CF-Quote-Request-Key':activeCreateAttempt.key
-    },body})
+    headers,body})
   let data: Record<string,any>
   try { data = await jsonResponse(response) }
   catch (reason) {
-    // Only a confirmed validation rejection can safely release the key.
-    // Network failure or server failure may have committed the quote already.
     if (response.status === 400) {
       clearQuoteSubmissionAttempt(CREATE_ATTEMPT_KEY)
       activeCreateAttempt = null
+      legacyAttemptMayHaveSaved = false
     }
     throw reason
   }
@@ -897,6 +912,7 @@ async function submitQuote() {
   if (!quoteId.value) throw new Error(tr('No recibimos el identificador de la solicitud. Consultá con soporte antes de repetir el envío.','No request ID was returned. Contact support before submitting again.'))
   clearQuoteSubmissionAttempt(CREATE_ATTEMPT_KEY)
   activeCreateAttempt = null
+  legacyAttemptMayHaveSaved = false
   try {
     sessionStorage.removeItem(STORAGE_KEY)
     sessionStorage.setItem('gcf-gio-quote-receipt-v1', JSON.stringify({
