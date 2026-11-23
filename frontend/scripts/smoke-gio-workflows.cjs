@@ -14,6 +14,7 @@ const frontend = path.resolve(__dirname, '..')
 const host = '127.0.0.1'
 let role = null
 let quoteWrites = []
+let quotePostKeys = []
 let failNextQuote = false
 let rejectedQuoteAttempts = 0
 let trackingReads = 0
@@ -77,6 +78,7 @@ const api = http.createServer(async (req, res) => {
     return send(200,{items:[item]})
   }
   if (url.pathname === '/api/quotes/official' && req.method === 'POST') {
+    quotePostKeys.push(String(req.headers['x-cf-quote-request-key'] || ''))
     const chunks = []
     for await (const chunk of req) chunks.push(chunk)
     const body = JSON.parse(Buffer.concat(chunks).toString())
@@ -323,11 +325,18 @@ async function main() {
     await waitFor(()=>has('Proveedor temporalmente no disponible'))
     assert.equal(rejectedQuoteAttempts,1,'Exactly one simulated provider failure should occur')
     assert.equal(quoteWrites.length,0,'A failed request must not be counted as a created quote')
+    assert.match(quotePostKeys[0], /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      'GIO must generate a random v4 UUID for a quote creation attempt')
     assert.ok(await evaluate('!!document.querySelector(".gio-ops__card .gio-ops__edit")'),
       'GIO must retain the review after a server failure')
     await click('.gio-ops__primary')
     await waitFor(()=>has('33333333-3333-3333-3333-333333333333'))
     assert.equal(quoteWrites.length,1,'Guest quote must be created exactly once')
+    assert.equal(quotePostKeys.length,2,'Mock network/server failure permits exactly one safe retry')
+    assert.equal(quotePostKeys[0],quotePostKeys[1],
+      'GIO must reuse the identical creation key on retries after uncertain HTTP failures')
+    assert.equal(await evaluate('sessionStorage.getItem("gcf-official-quote-gio-attempt-v1")'),null,
+      'Verified creation receipt clears the temporary retry identity')
     const guestReceipt = await evaluate('(()=>{try{return JSON.parse(sessionStorage.getItem("gcf-gio-quote-receipt-v1")||"null")}catch{return null}})()')
     assert.equal(guestReceipt?.id,'33333333-3333-3333-3333-333333333333','Guest must retain the issued receipt')
     assert.ok(Array.isArray(guestReceipt?.details) && guestReceipt.details.length > 10,
