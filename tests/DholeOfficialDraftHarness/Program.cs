@@ -391,7 +391,7 @@ DholeCatalogItem FakeItem(
     string[]? modalities = null, string[]? shipmentModes = null) =>
     new(externalId, code, name, value, true, 1, null, null, null, null,
         size, kind, null, null, modalities ?? [], shipmentModes ?? []);
-var live = new Dictionary<string, DholeCatalogSnapshot>(StringComparer.Ordinal)
+var live = new Dictionary<string, DholeOfficialExistingCatalogSnapshot>(StringComparer.Ordinal)
 {
     ["incoterms"] = new("incoterms", new DateTimeOffset(verifiedAt), false,
         [FakeItem("b1000000-0000-4000-8000-000000000001", "INC-CIF",
@@ -437,7 +437,7 @@ using (var manualDocument = JsonDocument.Parse(manualJson))
     Block(() => DholeOfficialManualCatalogResolution.Review(
         preview, manualDocument.RootElement, live, verifiedAt.AddMinutes(6)),
         "Manual Config mapping expires after five minutes");
-    var staleLive = new Dictionary<string, DholeCatalogSnapshot>(live)
+    var staleLive = new Dictionary<string, DholeOfficialExistingCatalogSnapshot>(live)
     {
         ["incoterms"] = live["incoterms"] with { Stale = true }
     };
