@@ -136,7 +136,12 @@ public static class DholeCatalogEndpoints
             try
             {
                 var choices = await loader.LoadFreshAsync(mode, shipmentType, ct);
-                return Results.Ok(choices);
+                // Browser must not assume delivery of an idempotency header
+                // means that the server stores a creation key.
+                return Results.Ok(choices with {
+                    ClientCreateIdempotencyEnabled =
+                        config.GetValue<bool>("DholeSubmission:ClientCreateIdempotencyEnabled")
+                });
             }
             catch (ArgumentException)
             {
