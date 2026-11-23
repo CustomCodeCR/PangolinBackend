@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
 using CastroFallas.MiniQuote.Api.Data;
+using CastroFallas.MiniQuote.Api.Models;
 using CastroFallas.MiniQuote.Api.Services;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -736,6 +737,105 @@ internal static class DholeQuoteHttpTest
                    row.GetInt32(1) == 1 && row.IsDBNull(2),
                 "Read-only reconciliation preview makes no state or reference changes");
         }
+        // New dispatcher-preparation path: first build a genuinely validated,
+        // unsendable flat review for a separate fictional ADMIN quote. Claim
+        // only this exact quote; no worker or network sender is registered.
+        var reviewedId = Guid.NewGuid();
+        var storedReviewForm = JsonSerializer.Serialize(quote);
+        var reviewedRoute = new DholeValidatedRoute(
+            "Puerto Seguro - POL", "Puerto Seguro - POE", "Puerto Seguro - POD");
+        var reviewedInput = JsonSerializer.Deserialize<OfficialQuoteSubmit>(
+            storedReviewForm, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+        var reviewedDraft = DholeOfficialQuoteDraftBuilder.Project(
+            reviewedInput, reviewedId, reviewedRoute);
+        var resolved = new DholeOfficialCatalogResolution(
+            DateTime.UtcNow,
+            Guid.Parse("f1000000-0000-4000-8000-000000000001"), "CIF",
+            [new DholeOfficialServiceResolution(
+                "Transporte internacional", "INT_TRANSPORT",
+                Guid.Parse("f2000000-0000-4000-8000-000000000001"), true)],
+            [new DholeOfficialEquipmentResolution(
+                "Fcl", "20 pies", "Dry Van",
+                Guid.Parse("f3000000-0000-4000-8000-000000000001"),
+                "20 Dry Van", "20DV", true)]);
+        var reviewedFlat = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+            reviewedDraft, resolved, DateTime.UtcNow);
+        Assert(reviewedFlat.ReadyForContractReview &&
+            !reviewedFlat.RemoteSubmissionPermitted,
+            "An offline flat review is complete but never authorizes a POST");
+        await using (var db = new AppDbContext(opts))
+        {
+            db.OfficialQuotes.Add(new OfficialQuoteRequest
+            {
+                Id = reviewedId,
+                CustomerName = "CI Dhole Test",
+                ContactName = "CI Dhole Test",
+                ContactEmail = "dhole-qa@example.invalid",
+                ContactPhone = "+506 2222 2222",
+                Mode = "Maritime", ShipmentType = "FCL",
+                OriginName = reviewedRoute.OriginName,
+                DestinationName = reviewedRoute.DestinationName,
+                FormJson = storedReviewForm
+            });
+            db.OfficialQuoteDholeCreationOutbox.Add(
+                new OfficialQuoteDholeCreationOutbox
+                {
+                    QuoteId = reviewedId,
+                    IdempotencyKey = reviewedFlat.IdempotencyKey,
+                    State = "PendingDispatch"
+                });
+            await db.SaveChangesAsync();
+        }
+        await using (var db = new AppDbContext(opts))
+        {
+            Assert(await claimer.ClaimReviewedQuoteForOfflineReviewAsync(
+                db, reviewedFlat with { BlockingIssues = ["cargoValue: unresolved currency"] },
+                CancellationToken.None) is null,
+                "Unresolved contract blockers must prevent even an offline claim");
+            Assert(await claimer.ClaimReviewedQuoteForOfflineReviewAsync(
+                db, reviewedFlat with { IdempotencyKey = "cf-official-" + Guid.NewGuid().ToString("D") },
+                CancellationToken.None) is null,
+                "A mismatched idempotency key must never claim a different quote");
+            Assert(await claimer.ClaimReviewedQuoteForOfflineReviewAsync(
+                db, reviewedFlat with { OfficialQuoteId = Guid.NewGuid() },
+                CancellationToken.None) is null,
+                "A mismatched review identity never claims an outbox row");
+            var disabledReviewedClaim = new DholeOfficialOutboxClaimService(disabledFlags);
+            Assert(await disabledReviewedClaim.ClaimReviewedQuoteForOfflineReviewAsync(
+                db, reviewedFlat, CancellationToken.None) is null,
+                "Default-off claim cannot mutate even a fully reviewed quote");
+        }
+        async Task<Guid?> ClaimReviewedOnce()
+        {
+            await using var db = new AppDbContext(opts);
+            return await claimer.ClaimReviewedQuoteForOfflineReviewAsync(
+                db, reviewedFlat, CancellationToken.None);
+        }
+        var reviewedClaims = await Task.WhenAll(ClaimReviewedOnce(), ClaimReviewedOnce());
+        Assert(reviewedClaims.Count(x => x == reviewedId) == 1 &&
+            reviewedClaims.Count(x => x is null) == 1,
+            "Two concurrent reviewed claimers can claim the selected quote exactly once");
+        Assert(await ClaimReviewedOnce() is null,
+            "Reviewed quote cannot be reclaimed once InFlight");
+        await using (var conn = new NpgsqlConnection(connectionString))
+        {
+            await conn.OpenAsync();
+            await using var query = new NpgsqlCommand("""
+                SELECT state, attempt_count, last_attempt_at_utc,
+                       external_reference, verified_at_utc
+                FROM public.official_quote_dhole_creation_outbox
+                WHERE quote_id = @quote
+                """, conn);
+            query.Parameters.AddWithValue("quote", reviewedId);
+            await using var reader = await query.ExecuteReaderAsync();
+            Assert(await reader.ReadAsync() &&
+                reader.GetString(0) == "InFlight" &&
+                reader.GetInt32(1) == 1 &&
+                !reader.IsDBNull(2) && reader.IsDBNull(3) && reader.IsDBNull(4),
+                "Offline reviewed claim persists exactly one attempt and no fictitious Pricing receipt");
+        }
+        Console.WriteLine("PASS: scoped offline dispatcher claim refuses blockers, duplicate claims and false Pricing confirmation.");
+
         // The offline result state and claim are isolated and cannot dispatch HTTP.
         // Force an outbox constraint failure: the official quote MUST roll back.
         long beforeFailure;
