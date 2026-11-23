@@ -203,6 +203,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         news.Property(x => x.Body).HasColumnName("body").HasColumnType("text").IsRequired();
         news.Property(x => x.Image).HasColumnName("image").HasColumnType("text").IsRequired();
         news.Property(x => x.Published).HasColumnName("published");
+        news.Property(x => x.Slug).HasColumnName("slug").HasMaxLength(240);
+        news.Property(x => x.ContentModifiedAt).HasColumnName("content_modified_at").HasColumnType("timestamp with time zone");
         news.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp with time zone");
         news.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp with time zone");
 
