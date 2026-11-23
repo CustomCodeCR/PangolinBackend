@@ -110,5 +110,8 @@ public sealed record OfficialQuoteSubmit(
     string? Observations, List<string>? CargoFlags,
     string? DestinationHandling,
     string? DeliveryAddress = null, string? PickupAddress = null, int? FiscalStorageDays = null,
-    string? CatalogSource = null);
+    string? CatalogSource = null,
+    // ISO 4217 code entered by the customer. NEVER assume a Dhole currency
+    // UUID from this code; a later authenticated lookup must verify the ID.
+    string? CargoCurrencyCode = null);
 public sealed record OfficialReviewUpdate(string? Status, string? Comment);
