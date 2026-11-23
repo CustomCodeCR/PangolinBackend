@@ -110,10 +110,10 @@ assert.ok(activeLabelRule.includes('color: #fff !important') &&
   'La pestaña abierta debe mostrar letras blancas rellenas sobre rojo en claro')
 // The large service titles (including Transporte Panamá–Costa Rica) must
 // remain white over the photograph. Only the vertical tab labels change.
-assert.doesNotMatch(homeAccordion, /service-accordion__copy h3\\s*\\{/,
+assert.doesNotMatch(homeAccordion, /service-accordion__copy h3\s*\{/,
   'No sobrescribir el color original de los títulos grandes del acordeón')
 const homeGlobalCss = source('../src/style.css')
-assert.match(homeGlobalCss, /\\.service-accordion__copy h3\\{margin:0 0 8px;color:#fff;/,
+assert.match(homeGlobalCss, /\.service-accordion__copy h3\{margin:0 0 8px;color:#fff;/,
   'Los títulos grandes deben conservar su color blanco original')
 
 const serviceIndex = source('../src/pages/Services.vue')
