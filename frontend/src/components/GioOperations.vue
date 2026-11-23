@@ -645,9 +645,13 @@ async function submitQuote() {
     equipment:equipment ? [{size:values.equipmentSize,type:values.equipmentType,quantity:Number(values.equipmentQuantity),unitWeightsKg:weights}] : [],
     packages:equipment ? [] : [{
       description:values.cargoDescription,quantity:Number(values.packageQuantity),
-       unitType:quoteCatalogSource.value === 'dhole' ? values.packageUnitType : null,
-      // GIO collects weight PER package; stored official line uses TOTAL weight.
-       weight:Number(values.packageWeight)*Number(values.packageQuantity),length:Number(values.packageLength),width:Number(values.packageWidth),
+      unitType:quoteCatalogSource.value === 'dhole' ? values.packageUnitType : null,
+      // For Dhole, the official form persists TOTAL per cargo line.
+      // Keep the legacy GIO behavior unchanged for local catalog requests.
+      weight:quoteCatalogSource.value === 'dhole'
+        ? Number(values.packageWeight)*Number(values.packageQuantity)
+        : Number(values.packageWeight),
+      length:Number(values.packageLength),width:Number(values.packageWidth),
       height:Number(values.packageHeight),stackability:values.stackable
     }],
     dimensionUnit:equipment ? null : 'cm',weightUnit:equipment ? null : 'kg',
