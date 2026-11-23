@@ -37,6 +37,14 @@ jobs:
         run: node scripts/dhole-one-shot-ci-fixture.mjs "$RUNNER_TEMP/dhole-one-shot-review.json"
       - name: Compile and preview the one-shot CLI with no network
         run: dotnet run --project tools/DholeOneShotQuote/DholeOneShotQuote.csproj --configuration Release -- preview "$RUNNER_TEMP/dhole-one-shot-review.json"
+      - name: Reject an LCL amount with no verified currency (no network)
+        run: |
+          node -e 'const fs=require("node:fs");const p=process.argv[1],o=process.argv[2];const j=JSON.parse(fs.readFileSync(p,"utf8"));j.publishedFlatBody.form_cargoValue=1600;fs.writeFileSync(o,JSON.stringify(j));' "$RUNNER_TEMP/dhole-one-shot-review.json" "$RUNNER_TEMP/invalid-currencyless-review.json"
+          if dotnet run --project tools/DholeOneShotQuote/DholeOneShotQuote.csproj --no-build --configuration Release -- preview "$RUNNER_TEMP/invalid-currencyless-review.json"; then
+            echo "ERROR: Currencyless cargo value was accepted"
+            exit 1
+          fi
+          echo "PASS: unqualified cargo value rejected before any POST"
       - name: Prove NO ENVIAR review cannot be sent without a separate approval
         run: |
           if dotnet run --project tools/DholeOneShotQuote/DholeOneShotQuote.csproj --no-build --configuration Release -- send "$RUNNER_TEMP/dhole-one-shot-review.json" "$RUNNER_TEMP/nonexistent-approval.json"; then
