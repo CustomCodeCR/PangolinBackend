@@ -271,7 +271,14 @@ var extendedCatalog = catalog with
             Guid.Parse("c2300000-0000-4000-8000-000000000004"), true)
     ]
 };
-var extendedBody = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(extended, extendedCatalog, reviewAt).Body;
+var extendedReview = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(extended, extendedCatalog, reviewAt);
+Assert(!extendedReview.ReadyForContractReview && !extendedReview.RemoteSubmissionPermitted &&
+    extendedReview.BlockingIssues.Count == 3 &&
+    extendedReview.BlockingIssues.Any(x => x.StartsWith("cargoValue:")) &&
+    extendedReview.BlockingIssues.Any(x => x.StartsWith("destinationHandling:")) &&
+    extendedReview.BlockingIssues.Any(x => x.StartsWith("declaredFigures:")),
+    "Unmapped commercial values must block remote-ready status and remain visible for review");
+var extendedBody = extendedReview.Body;
 Assert(extendedBody.GetProperty("sellerContext_consolidatedCargoLines").GetArrayLength() == 2 &&
     extendedBody.GetProperty("form_cargoPackages").GetInt32() == 5 &&
     extendedBody.GetProperty("form_cargoWeightKg").GetDecimal() == 22 &&
