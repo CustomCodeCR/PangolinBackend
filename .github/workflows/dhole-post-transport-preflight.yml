@@ -4,6 +4,10 @@ on:
     branches: [main-2]
     paths:
       - 'backend/Services/DholeQuotePostTransport.cs'
+      - 'backend/Services/DholeOfficialQuoteDraftBuilder.cs'
+      - 'backend/Models/OfficialQuoteModels.cs'
+      - 'backend/Endpoints/OfficialQuoteEndpoints.cs'
+      - 'tests/DholeOfficialDraftHarness/**'
       - 'backend/Program.cs'
       - 'tests/DholePostTransportHarness/**'
       - 'scripts/dhole-post-transport-fixtures.mjs'
@@ -29,6 +33,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Validate real official web/GIO form projection into unsendable Dhole drafts
+        run: dotnet run --project tests/DholeOfficialDraftHarness/DholeOfficialDraftHarness.csproj --configuration Release
       - name: Build five fake external quote contracts (Node, offline only)
         run: node scripts/dhole-post-transport-fixtures.mjs "$RUNNER_TEMP/dhole-flat-fixtures.json"
       - name: Verify fake C# POST with five JS-generated contracts; never contact Dhole
