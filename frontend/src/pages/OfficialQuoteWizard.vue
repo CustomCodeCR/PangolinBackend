@@ -13,7 +13,7 @@ import { loadDholeQuoteFormOptions, type DholeQuoteFormOptions } from '../lib/dh
 import { costaRicaToday, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
 import { prepareQuoteSubmissionAttempt, clearQuoteSubmissionAttempt,
   legacyQuoteResultUncertain, setLegacyQuoteResultUncertain,
-  type QuoteSubmissionAttempt } from '../lib/officialQuoteSubmissionAttempt'
+  unresolvedKeyedQuoteAttempt, type QuoteSubmissionAttempt } from '../lib/officialQuoteSubmissionAttempt'
 
 const { locale } = useI18n({ useScope: 'global' })
 const q = (es: string, en: string) => locale.value === 'en' ? en : es
@@ -515,8 +515,12 @@ async function submit() {
   // a key it cannot honor or silently accept duplicate retransmissions.
   const serverDedup = catalogSource.value === 'dhole' &&
     dholeFormOptions.value?.clientCreateIdempotencyEnabled === true
-  if (!serverDedup &&
-      (legacyAttemptMayHaveSaved || legacyQuoteResultUncertain(CREATE_ATTEMPT_KEY))) {
+  // An ambiguous unkeyed submission cannot be made safe just because
+  // the server later enables keys. Likewise an unresolved keyed submission
+  // must never be silently downgraded to a NEW unkeyed request.
+  if (legacyAttemptMayHaveSaved ||
+      legacyQuoteResultUncertain(CREATE_ATTEMPT_KEY) ||
+      (!serverDedup && unresolvedKeyedQuoteAttempt(CREATE_ATTEMPT_KEY, activeCreateAttempt))) {
     error.value = q(
       'El resultado del envío anterior es incierto. Consultá con soporte antes de volver a enviarlo para evitar duplicados.',
       'The prior submission may have been saved. Contact support before submitting again to avoid duplicates.')
