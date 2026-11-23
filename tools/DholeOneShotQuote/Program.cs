@@ -10,7 +10,7 @@ static bool TextIs(JsonElement obj, string key, string value) =>
     obj.TryGetProperty(key, out var x) && x.ValueKind == JsonValueKind.String &&
     x.GetString() == value;
 static bool BooleanIs(JsonElement obj, string key, bool value) =>
-    obj.TryGetProperty(key, out var x) && x.ValueKind is JsonValueKind.True or JsonValueKind.False &&
+    obj.TryGetProperty(key, out var x) && (x.ValueKind is JsonValueKind.True or JsonValueKind.False) &&
     x.GetBoolean() == value;
 static Guid Id(JsonElement obj, string key) =>
     obj.TryGetProperty(key, out var x) && x.ValueKind == JsonValueKind.String &&
@@ -64,7 +64,7 @@ static bool IsReviewedLcl(JsonElement root, out JsonElement body)
         !body.TryGetProperty("form_serviceIds", out var services) ||
         services.ValueKind != JsonValueKind.Array || services.GetArrayLength() != 1 ||
         services[0].ValueKind != JsonValueKind.String ||
-        !Guid.TryParse(services[0].GetString(), out var service) ||
+        !Guid.TryParse(services[0].GetString(), out var service) || service == Guid.Empty ||
         new HashSet<Guid> { pol, poe, pod, cif, service }.Count != 5)
         return false;
     if (!body.TryGetProperty("form_cargoDescription", out var desc) ||
