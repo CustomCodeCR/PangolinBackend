@@ -330,6 +330,38 @@ const integer = (s: string, max: number) => /^\d+$/.test(s) && Number(s) > 0 && 
 const scrollEnd = async () => { await nextTick(); scroller.value?.scrollTo({top:scroller.value.scrollHeight,behavior:'smooth'}) }
 
 function validation(key: string, value: string): string {
+  if (key === 'additionalLines') {
+    try {
+      const {kind,lines} = parseExtraLines(value)
+      for (const raw of lines) {
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw))
+          throw Error('invalid cargo line')
+        const line = raw as Record<string, unknown>
+        if (kind === 'equipment') {
+          const size = String(line.size || ''), type = String(line.type || '')
+          const weights = String(line.weights || '').split(',').map(x => x.trim())
+          if (!equipmentSizes.value.some(choice => choice.value === size) ||
+              !extraEquipmentTypes(size).some(choice => choice.value === type) ||
+              !integer(String(line.quantity || ''), 100) ||
+              weights.length !== Number(line.quantity) ||
+              weights.some(x => !positive(x) || Number(x) > 100000000))
+            throw Error('invalid equipment')
+        } else if (String(line.description || '').trim().length < 2 ||
+            String(line.description).length > 400 ||
+            !integer(String(line.quantity || ''), 10000) ||
+            (quoteCatalogSource.value === 'dhole' && !cargoUnitChoices.value.some(x => x.value === line.unitType)) ||
+            !['Stackable','NonStackable'].includes(String(line.stackability)) ||
+            !positive(String(line.weight || '')) || Number(line.weight) > 100000000 ||
+            ['length','width','height'].some(key =>
+              !positive(String(line[key] || '')) || Number(line[key]) > 100000))
+          throw Error('invalid package')
+      }
+      return ''
+    } catch {
+      return tr('Revisá cada línea: tipo del catálogo, cantidad, pesos, medidas y estibabilidad válidos.',
+        'Check every line: catalog type, quantity, weights, dimensions and stackability.')
+    }
+  }
   if (key === 'services') {
     const list = value.split('|').filter(Boolean)
     if (!list.length || new Set(list).size !== list.length ||
@@ -360,7 +392,15 @@ function validation(key: string, value: string): string {
     if (weights.length !== Number(values.equipmentQuantity) || weights.some(x => !positive(x) || Number(x) > 100000000))
       return tr('Debe haber un peso positivo por cada unidad de equipo.', 'Provide one positive weight per equipment unit.')
   }
+  if (['cargoValue','declaredWeight','declaredPackages'].includes(key) && value &&
+      (!Number.isFinite(Number(value)) || Number(value) < 0 ||
+        (key === 'declaredPackages' && !/^\d+$/.test(value))))
+    return tr('Ingresá un número no negativo válido.', 'Enter a valid non-negative number.')
+  if (key === 'cargoValue' && value && Number(value) > 1000000000000)
+    return tr('Valor fuera del límite permitido.', 'Declared value exceeds the allowed range.')
   const maxLength: Record<string,number> = {cargoDescription:4000, contactName:150, contactEmail:255,
+    cabysCode:40,observations:4000,destinationHandling:100, cargoValue:40,
+    declaredWeight:40,declaredPackages:12,
     contactPhone:40, exwPickupAddress:800, deliveryAddress:800, pickupAddress:800, reference:64, equipmentWeights:400}
   if (value.length > (maxLength[key] ?? 200)) return tr('El dato es demasiado largo.', 'This value is too long.')
   if (['cargoDescription','contactName','exwPickupAddress','deliveryAddress','pickupAddress'].includes(key)) {
@@ -410,18 +450,26 @@ function advanceFrom(start: number) {
 }
 function commitValue(item: Step, value: string, locationId?: string) {
   if (item.key === 'mode' && values.mode !== value) {
+    extraEquipmentLines.value = []
+    extraPackageLines.value = []
     for (const key of ['shipmentType','origin','destination','pod','equipmentSize','equipmentType','equipmentQuantity',
-      'equipmentWeights','packageQuantity','packageUnitType','packageWeight','packageLength','packageWidth','packageHeight','stackable']) delete values[key]
+      'equipmentWeights','packageQuantity','packageUnitType','packageWeight','packageLength','packageWidth','packageHeight','stackable','additionalLines']) delete values[key]
     for (const role of ['origin','destination','pod']) delete selectedLocations[role]
     clearQuoteCatalog()
   }
   if (item.key === 'shipmentType' && values.shipmentType !== value) {
+    extraEquipmentLines.value = []
+    extraPackageLines.value = []
     for (const role of ['origin','destination','pod']) { delete values[role]; delete selectedLocations[role] }
     for (const key of ['equipmentSize','equipmentType','equipmentQuantity','equipmentWeights','packageQuantity',
-      'packageUnitType','packageWeight','packageLength','packageWidth','packageHeight','stackable']) delete values[key]
+      'packageUnitType','packageWeight','packageLength','packageWidth','packageHeight','stackable','additionalLines']) delete values[key]
     clearQuoteCatalog()
   }
   if (item.key === 'equipmentSize' && values.equipmentSize !== value) delete values.equipmentType
+  if (item.key === 'advancedDetails' && value !== 'yes') {
+    for (const key of ['cabysCode','cargoValue','declaredWeight','declaredPackages',
+      'overweight','destinationHandling','observations']) delete values[key]
+  }
   if (item.key === 'incoterm' && value !== 'EXW') {
     delete values.exwCargoStatus
     delete values.exwPickupAddress
@@ -439,7 +487,9 @@ function commitValue(item: Step, value: string, locationId?: string) {
     else delete selectedLocations[item.key]
   }
   values[item.key] = value
-  const display = item.key === 'services' ? serviceNames(value) : item.choices?.find(choice => choice.value === value)?.label || value || tr('Omitido','Skipped')
+  const display = item.key === 'additionalLines' ? extraLineLabel(value)
+    : item.key === 'services' ? serviceNames(value)
+    : item.choices?.find(choice => choice.value === value)?.label || value || tr('Omitido','Skipped')
   history.value.push({question:item.prompt,answer:display})
   input.value = ''
   const edited = editingField.value !== ''
@@ -519,7 +569,8 @@ function editField(key: string) {
   phase.value = 'collect'
   editingField.value = key
   stepIndex.value = index
-  input.value = values[key] || proposedLocations[key] || ''
+  input.value = key === 'additionalLines' ? '' : values[key] || proposedLocations[key] || ''
+  if (key === 'additionalLines') restoreExtraLines()
   if (key === 'services') selectedServices.value = (values.services || 'Transporte internacional').split('|').filter(Boolean)
   history.value = []
   void scrollEnd()
@@ -595,6 +646,7 @@ onMounted(() => {
         if (Number.isFinite(saved.at) && Date.now() - saved.at >= 0 && Date.now() - saved.at <= 30 * 60 * 1000 &&
             saved.values && ['Maritime','Air','Land'].includes(saved.values.mode)) {
           Object.assign(values, saved.values)
+          restoreExtraLines()
           // Drafts created before the service-list update must not reintroduce
           // retired choices into new submissions. Keep other selected services.
           if (typeof values.services === 'string') {
@@ -713,6 +765,7 @@ async function submitQuote() {
     return
   }
   const equipment = isEquipment.value
+  const extra = parseExtraLines(values.additionalLines)
   const requestedServices = values.services.split('|')
   const weights = equipment ? values.equipmentWeights.split(',').map(x => Number(x.trim())) : []
   const payload = {
@@ -722,7 +775,13 @@ async function submitQuote() {
     podLocationId:values.mode === 'Maritime' ? selectedLocations.pod : null,
     contactName:values.contactName, contactEmail:values.contactEmail,contactPhone:values.contactPhone,
     incoterm:values.incoterm,cargoReadyDate:values.cargoReadyDate,services:requestedServices,
-    equipment:equipment ? [{size:values.equipmentSize,type:values.equipmentType,quantity:Number(values.equipmentQuantity),unitWeightsKg:weights}] : [],
+    equipment:equipment ? [
+      {size:values.equipmentSize,type:values.equipmentType,quantity:Number(values.equipmentQuantity),unitWeightsKg:weights},
+      ...(extra.lines as GioExtraEquipment[]).map(line => ({
+        size:line.size,type:line.type,quantity:Number(line.quantity),
+        unitWeightsKg:String(line.weights).split(',').map(v => Number(v.trim()))
+      }))
+    ] : [],
     packages:equipment ? [] : [{
       description:values.cargoDescription,quantity:Number(values.packageQuantity),
       unitType:quoteCatalogSource.value === 'dhole' ? values.packageUnitType : null,
@@ -733,13 +792,32 @@ async function submitQuote() {
         : Number(values.packageWeight),
       length:Number(values.packageLength),width:Number(values.packageWidth),
       height:Number(values.packageHeight),stackability:values.stackable
-    }],
+    }, ...(extra.lines as GioExtraPackage[]).map(line => ({
+      description:line.description,quantity:Number(line.quantity),
+      unitType:quoteCatalogSource.value === 'dhole' ? line.unitType : null,
+      weight:quoteCatalogSource.value === 'dhole' ? Number(line.weight)*Number(line.quantity) : Number(line.weight),
+      length:Number(line.length),width:Number(line.width),height:Number(line.height),
+      stackability:line.stackability
+    }))],
     dimensionUnit:equipment ? null : 'cm',weightUnit:equipment ? null : 'kg',
     exwCargoStatus:values.incoterm === 'EXW' ? values.exwCargoStatus : null,
     exwPickupAddress:values.incoterm === 'EXW' ? values.exwPickupAddress : null,
-    cargoDescription:values.cargoDescription,cabysCode:null,cargoValue:null,declaredWeight:null,
-    declaredPackages:null,observations:values.dangerousGoods === 'unsure' ? 'La peligrosidad de la carga está pendiente de confirmar.' : null,
-    cargoFlags:[...(values.dangerousGoods === 'yes' ? ['Carga peligrosa'] : []),...(!equipment && values.stackable === 'NonStackable' ? ['No estibable'] : [])],destinationHandling:null,
+    cargoDescription:values.cargoDescription,
+    cabysCode:values.cabysCode || null,
+    cargoValue:values.cargoValue ? Number(values.cargoValue) : null,
+    declaredWeight:values.declaredWeight ? Number(values.declaredWeight) : null,
+    declaredPackages:values.declaredPackages ? Number(values.declaredPackages) : null,
+    observations:[
+      ...(values.dangerousGoods === 'unsure' ? ['La peligrosidad de la carga está pendiente de confirmar.'] : []),
+      ...(values.observations ? [values.observations] : [])
+    ].join('\n') || null,
+    cargoFlags:[
+      ...(values.dangerousGoods === 'yes' ? ['Carga peligrosa'] : []),
+      ...(values.overweight === 'yes' ? ['Sobrepeso'] : []),
+      ...(!equipment && (values.stackable === 'NonStackable' ||
+        (extra.lines as GioExtraPackage[]).some(line => line.stackability === 'NonStackable'))
+        ? ['No estibable'] : [])
+    ],destinationHandling:values.destinationHandling || null,
     deliveryAddress:requestedServices.includes('Transporte entrega') ? values.deliveryAddress : null,
     pickupAddress:requestedServices.includes('Transporte recolección') ? values.pickupAddress : null,
     fiscalStorageDays:requestedServices.includes('Almacenamiento') ? Number(values.fiscalStorageDays) : null
