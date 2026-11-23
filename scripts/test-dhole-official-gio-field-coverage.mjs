@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 const read = p => readFileSync(new URL('../'+p, import.meta.url), 'utf8');
 const contract = JSON.parse(read('scripts/contracts/dhole-solicitar-tarifa-published-20261120.json'));
 const wizard = read('frontend/src/pages/OfficialQuoteWizard.vue');
+const admin = read('frontend/src/pages/OfficialQuoteAdmin.vue');
 const gio = read('frontend/src/components/GioOperations.vue');
 const options = read('frontend/src/lib/officialQuoteOptions.ts');
 const backend = read('backend/Endpoints/OfficialQuoteEndpoints.cs');
@@ -196,6 +197,19 @@ for (const source of [wizard,gio]) {
 console.log('PASS: browser trusts explicit server opt-in only; keyed POST fails closed if flag goes off.');
 
 console.log('PASS: default-off server creation idempotency, add-only schema, stable client keys with no raw-body storage.');
+
+// Delivery states must remain accurate both before and after the separately
+// authorized rollout. Never tell administrators to retry an uncertain POST.
+has(admin,[
+  "PendingDispatch: 'Guardada; pendiente de procesamiento de envío'",
+  "InFlight: 'Intento de envío iniciado; recepción aún no verificada'",
+  "HttpAcceptedUnverified: 'HTTP aceptado; pendiente de comprobar en Pricing'",
+  "Unconfirmed: 'Resultado de entrega incierto; requiere revisión'",
+  "No lo reenvíes: si la respuesta se perdió",
+  "no hay reintento automático"
+], 'Safe delivery visibility in Administration');
+assert.doesNotMatch(admin,/Todavía no existe un dispatcher activo/,
+  'Pending state must remain accurate if a dispatcher is later enabled');
 
 console.log('PASS: 103 published API inputs classified; 12 services share exact Pricing codes.');
 console.log('PASS: wizard and GIO retain mandatory, conditional and optional user data.');
