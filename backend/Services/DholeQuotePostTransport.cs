@@ -242,6 +242,7 @@ public sealed class DholeQuotePostTransport(
                     !RequiredText(line, "containerTypeName") ||
                     !RequiredText(line, "containerTypeCode") ||
                     !line.TryGetProperty("quantity", out var quantity) ||
+                    quantity.ValueKind != JsonValueKind.Number ||
                     !quantity.TryGetInt32(out var count) || count is < 1 or > 100 ||
                     !line.TryGetProperty("unitWeightsKg", out var weights) ||
                     weights.ValueKind != JsonValueKind.Array || weights.GetArrayLength() != count)
@@ -260,6 +261,7 @@ public sealed class DholeQuotePostTransport(
             !body.TryGetProperty("sellerContext_consolidatedCargoLines", out var cargo) ||
             cargo.ValueKind != JsonValueKind.Array || cargo.GetArrayLength() is < 1 or > 25 ||
             !body.TryGetProperty("form_cargoPackages", out var packages) ||
+            packages.ValueKind != JsonValueKind.Number ||
             !packages.TryGetInt32(out var totalPackages) || totalPackages < 1)
             return false;
         decimal sumKg = 0;
@@ -274,6 +276,7 @@ public sealed class DholeQuotePostTransport(
                 !RequiredText(line, "unitType") ||
                 line.GetProperty("unitType").GetString() is not ("Box" or "Pallet" or "Loose" or "Other") ||
                 !line.TryGetProperty("quantity", out var qty) ||
+                qty.ValueKind != JsonValueKind.Number ||
                 !qty.TryGetInt32(out var count) || count is < 1 or > 10000 ||
                 !line.TryGetProperty("weightKg", out var weight) || !Positive(weight, out var kg) ||
                 !line.TryGetProperty("length", out var length) || !Positive(length, out _) ||
