@@ -11,6 +11,7 @@ import { refreshSession } from '../services/auth'
 import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialEquipmentTypeLabel, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
 import { loadDholeQuoteFormOptions, type DholeQuoteFormOptions } from '../lib/dholeQuoteForm'
 import { costaRicaToday, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
+import { prepareQuoteSubmissionAttempt, clearQuoteSubmissionAttempt, type QuoteSubmissionAttempt } from '../lib/officialQuoteSubmissionAttempt'
 
 const { locale } = useI18n({ useScope: 'global' })
 const q = (es: string, en: string) => locale.value === 'en' ? en : es
@@ -40,6 +41,8 @@ type GioReceipt = { at: number; id: string; status: string; mode: string; origin
 const gioReceipt = ref<GioReceipt | null>(null)
 const error = ref('')
 const createdId = ref('')
+const CREATE_ATTEMPT_KEY = 'gcf-official-quote-wizard-attempt-v1'
+let activeCreateAttempt: QuoteSubmissionAttempt | null = null
 const earliestReadyDate = ref(costaRicaToday())
 let earliestReadyTimer: number | undefined
 const syncEarliestReadyDate = () => { earliestReadyDate.value = costaRicaToday() }
@@ -506,13 +509,32 @@ async function submit() {
   if (error.value) return
   busy.value = true
   try {
+    const body = JSON.stringify(payload())
+    activeCreateAttempt = await prepareQuoteSubmissionAttempt(
+      CREATE_ATTEMPT_KEY, body, activeCreateAttempt)
     const response = await fetch('/api/quotes/official', {
       method:'POST',credentials:'same-origin',
-      headers:{'Content-Type':'application/json'},body:JSON.stringify(payload())
+      headers:{
+        'Content-Type':'application/json',
+        'X-CF-Quote-Request-Key':activeCreateAttempt.key
+      },body
     })
     const data = await response.json() as {id?:string;error?:string}
-    if (!response.ok) throw new Error(data.error || 'No se pudo enviar la solicitud (HTTP '+response.status+').')
-    createdId.value = data.id || ''
+    if (!response.ok) {
+      // A verified 400 rejects the request BEFORE creating a quote; corrections
+      // can get a fresh key. Network/5xx failures are ambiguous: retain key.
+      if (response.status === 400) {
+        clearQuoteSubmissionAttempt(CREATE_ATTEMPT_KEY)
+        activeCreateAttempt = null
+      }
+      throw new Error(data.error || 'No se pudo confirmar la solicitud (HTTP '+response.status+').')
+    }
+    if (!data.id) throw new Error(q(
+      'No recibimos el identificador de la cotización. Consultá con soporte antes de repetir el envío.',
+      'No quote ID was received. Contact support before resubmitting.'))
+    createdId.value = data.id
+    clearQuoteSubmissionAttempt(CREATE_ATTEMPT_KEY)
+    activeCreateAttempt = null
   } catch (e) { error.value = e instanceof Error ? e.message : 'Error al enviar.' }
   finally { busy.value = false }
 }
