@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.Json;
 using CastroFallas.MiniQuote.Api.Models;
 using CastroFallas.MiniQuote.Api.Services;
 
@@ -333,6 +335,124 @@ Console.WriteLine("PASS: extra lines, flags, storage, CABYS, notes and delivery 
 Console.WriteLine("PASS: five modes project to flat Dhole review with real LCL cargo shape and resolved fake catalog UUIDs.");
 Console.WriteLine("PASS: invalid/stale catalog snapshots blocked; no HTTP, dispatcher or secrets.");
 
+
+// Browser-exported Config IDs are never hardcoded as production constants.
+// All values below are fictional. Test the typed bridge which will eventually
+// consume short-lived private exports and the existing seven external GETs.
+var codeList = new[]
+{
+    "INT_TRANSPORT", "CUSTOMS_CR", "CUSTOMS_FOREIGN", "STORAGE",
+    "INVENTORY_CONTROL", "PACKING", "EXONERATION", "PICKING",
+    "RECEPTION", "CARGO_INSURANCE", "DELIVERY", "PICKUP"
+};
+var serviceRows = codeList.Select((code, i) => new
+{
+    id = $"b9000000-0000-4000-8000-{i + 1:D12}",
+    code, name = code, value = code, isActive = true
+}).ToArray();
+var landKinds = new[] {
+    (Suffix:"DRY_VAN", Kind:"dry-van"),
+    (Suffix:"PLATFORM", Kind:"platform"),
+    (Suffix:"REEFER", Kind:"reefer"),
+    (Suffix:"CURTAIN_SIDE", Kind:"curtain-side")
+};
+var landRows = new[] { "24", "26", "48", "53" }
+    .SelectMany((size, index) => landKinds.Select((kind, offset) => new
+    {
+        id = $"b8000000-0000-4000-8000-{index * 4 + offset + 1:D12}",
+        code = size + "_" + kind.Suffix, size, kind = kind.Kind,
+        name = size + " " + kind.Kind,
+        value = size + "_" + kind.Suffix, isActive = true
+    })).ToArray();
+var manualStamp = verifiedAt.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture);
+var expiresStamp = verifiedAt.AddMinutes(5)
+    .ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture);
+var provenance = "manually-reviewed-internal-config-export-not-live-get";
+var manualJson = JsonSerializer.Serialize(new Dictionary<string, object>
+{
+    ["source"] = "temporary-internal-config-browser-export",
+    ["reviewedAtUtc"] = manualStamp,
+    ["expiresAtUtc"] = expiresStamp,
+    ["readyForRemotePost"] = false,
+    ["noTransport"] = true,
+    ["snapshots"] = new Dictionary<string, object>
+    {
+        ["pricing-services"] = new {
+            catalog = "pricing-services", fetchedAtUtc = manualStamp,
+            stale = false, provenance, items = serviceRows },
+        ["land-equipment-types"] = new {
+            catalog = "land-equipment-types", fetchedAtUtc = manualStamp,
+            stale = false, provenance, items = landRows }
+    }
+});
+DholeCatalogItem FakeItem(
+    string externalId, string code, string name, string value,
+    string? size = null, string? kind = null,
+    string[]? modalities = null, string[]? shipmentModes = null) =>
+    new(externalId, code, name, value, true, 1, null, null, null, null,
+        size, kind, null, null, modalities ?? [], shipmentModes ?? []);
+var live = new Dictionary<string, DholeCatalogSnapshot>(StringComparer.Ordinal)
+{
+    ["incoterms"] = new("incoterms", new DateTimeOffset(verifiedAt), false,
+        [FakeItem("b1000000-0000-4000-8000-000000000001", "INC-CIF",
+            "CIF", "CIF")]),
+    ["truck-sizes"] = new("truck-sizes", new DateTimeOffset(verifiedAt), false,
+        [FakeItem("b1000000-0000-4000-8000-000000000002", "48", "48 pies", "48")]),
+    ["container-sizes"] = new("container-sizes", new DateTimeOffset(verifiedAt), false,
+        [FakeItem("b1000000-0000-4000-8000-000000000003", "40", "40 pies", "40")]),
+    ["container-types"] = new("container-types", new DateTimeOffset(verifiedAt), false,
+        [FakeItem("b1000000-0000-4000-8000-000000000004", "40_DRY_VAN",
+            "40 Dry Van", "40_DRY_VAN", "40", "dry-van", ["Maritime"], ["FCL"])])
+};
+using (var manualDocument = JsonDocument.Parse(manualJson))
+{
+    var manualLcl = DholeOfficialManualCatalogResolution.Review(
+        preview, manualDocument.RootElement, live, reviewAt);
+    var manualLclBody = DholeOfficialQuoteFlatPreviewBuilder
+        .BuildReview(preview, manualLcl, reviewAt);
+    Assert(manualLclBody.ReadyForContractReview &&
+        !manualLclBody.RemoteSubmissionPermitted &&
+        manualLclBody.Body.GetProperty("form_serviceIds")[0].GetString() ==
+            serviceRows[0].id,
+        "Manual Config 12-service mapping enables local flat review but never sending");
+
+    var manualFcl = DholeOfficialManualCatalogResolution.Review(
+        fcl, manualDocument.RootElement, live, reviewAt);
+    var manualFclBody = DholeOfficialQuoteFlatPreviewBuilder
+        .BuildReview(fcl, manualFcl, reviewAt);
+    Assert(manualFclBody.Body.GetProperty("form_fclContainers")[0]
+        .GetProperty("containerTypeId").GetString() ==
+        "b1000000-0000-4000-8000-000000000004",
+        "FCL equipment UUID comes from existing active GET, not manual size");
+
+    var manualFtl = DholeOfficialManualCatalogResolution.Review(
+        ftl, manualDocument.RootElement, live, reviewAt);
+    var manualFtlBody = DholeOfficialQuoteFlatPreviewBuilder
+        .BuildReview(ftl, manualFtl, reviewAt);
+    Assert(manualFtlBody.Body.GetProperty("form_landContainers")[0]
+        .GetProperty("containerTypeId").GetString() ==
+        landRows.Single(x => x.code == "48_DRY_VAN").id,
+        "FTL resolves catalog TYPE UUID by unique code/size/kind, never size UUID");
+
+    Block(() => DholeOfficialManualCatalogResolution.Review(
+        preview, manualDocument.RootElement, live, verifiedAt.AddMinutes(6)),
+        "Manual Config mapping expires after five minutes");
+    var staleLive = new Dictionary<string, DholeCatalogSnapshot>(live)
+    {
+        ["incoterms"] = live["incoterms"] with { Stale = true }
+    };
+    Block(() => DholeOfficialManualCatalogResolution.Review(
+        preview, manualDocument.RootElement, staleLive, reviewAt),
+        "Manual service IDs cannot bypass stale or unverified existing GETs");
+    var forgedManual = manualJson.Replace(
+        "manually-reviewed-internal-config-export-not-live-get",
+        "unverified-json-from-client", StringComparison.Ordinal);
+    using var forged = JsonDocument.Parse(forgedManual);
+    Block(() => DholeOfficialManualCatalogResolution.Review(
+        preview, forged.RootElement, live, reviewAt),
+        "Browser-forged catalog snapshot provenance must be refused");
+}
+Console.WriteLine("PASS: 12 services + 16 land types bridge into typed offline review, with existing GETs and no POST.");
 
 static void ForbidState(Action action, string reason)
 {
