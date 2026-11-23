@@ -69,8 +69,14 @@ test('five manual catalogue rows build complete LCL published flat body but NEVE
   // No commercial valuation/currency was provided for the fictional shipment.
   assert.equal(Object.hasOwn(b,'form_cargoValue'),false);
   assert.equal(Object.hasOwn(b,'form_currencyId'),false);
-  assert.equal(b.sellerContext_consolidatedCargoLines[0].packages,3);
-  assert.equal(b.sellerContext_consolidatedCargoLines[0].weightKg,10);
+  assert.equal(b.sellerContext_consolidatedCargoLines[0].quantity,3);
+  assert.equal(b.sellerContext_consolidatedCargoLines[0].unitType,'Box');
+  assert.equal(b.sellerContext_consolidatedCargoLines[0].isStackable,false);
+  assert.equal(b.sellerContext_consolidatedCargoLines[0].length,20);
+  assert.equal(b.sellerContext_consolidatedCargoLines[0].width,12);
+  assert.equal(b.sellerContext_consolidatedCargoLines[0].height,8);
+  assert.ok(Math.abs(b.sellerContext_consolidatedCargoLines[0].weightKg*3-10)<1e-8);
+  assert.equal(Object.hasOwn(b.sellerContext_consolidatedCargoLines[0],'packages'),false);
   assert.ok(b.form_cargoDescription.includes(
     'Repuestos automotrices de prueba (sin carga real)\n\nSolicitante desde la web de Castro Fallas:'));
   for(const label of ['Nombre: Persona de Prueba','Correo: prueba@example.invalid',
