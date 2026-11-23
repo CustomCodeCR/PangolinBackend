@@ -84,7 +84,8 @@ export function previewObservedLclRoute(evidence){
       services:['Transporte internacional'],
       cargoDescription:'Repuestos automotrices de prueba (sin carga real)',
       observations:'PRUEBA TECNICA FICTICIA. NO ENVIAR.',
-      cargoValue:1600,
+      // No cargo value is assumed: the source did not establish its currency.
+      // Pricing insurance was not selected. Avoid false commercial amounts.
       packages:[{
         description:'Caja de repuestos simulada',quantity:3,weight:10,
         length:20,width:12,height:8,stackability:'NonStackable'
@@ -137,6 +138,9 @@ export function previewObservedLclRoute(evidence){
      body.sellerContext_consolidatedCargoLines[0].packages!==3||
      body.form_cargoPackages!==3||body.form_cargoWeightKg!==10)
     throw new Error('LCL: pesos/paquetes consolidados inesperados');
+  if(Object.hasOwn(body,'form_cargoValue')||
+     Object.hasOwn(body,'form_currencyId'))
+    throw new Error('No enviar importe de mercancía sin moneda verificada');
   if(Object.hasOwn(body,'form_fclContainers')||
      Object.hasOwn(body,'form_landContainers'))
     throw new Error('LCL no debe incluir equipo completo');
