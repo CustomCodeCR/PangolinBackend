@@ -174,6 +174,16 @@ fake.NextStatus = HttpStatusCode.Forbidden;
 Check(await prepared.PostValidatedAsync(quoteId, valid.RootElement, CancellationToken.None)
     == DholeQuotePostOutcome.Rejected, "403 is rejected");
 Check(fake.Calls == 3, "No automatic retry after rejected request");
+fake.NextStatus = HttpStatusCode.Conflict;
+Check(await prepared.PostValidatedAsync(quoteId, valid.RootElement, CancellationToken.None)
+    == DholeQuotePostOutcome.Unconfirmed,
+    "Pricing idempotency 409 while prior create is processing is uncertain, not rejection");
+Check(fake.Calls == 4, "No automatic retry after ambiguous 409");
+fake.NextStatus = HttpStatusCode.RequestTimeout;
+Check(await prepared.PostValidatedAsync(quoteId, valid.RootElement, CancellationToken.None)
+    == DholeQuotePostOutcome.Unconfirmed,
+    "HTTP 408 can follow remote processing and must be reconciled");
+Check(fake.Calls == 5, "No automatic retry after gateway timeout");
 
 // End-to-end mock handoff: real JS internal->public adapter generates 5 synthetic
 // flat bodies, but only this injected fake handler receives them (NEVER Dhole).
