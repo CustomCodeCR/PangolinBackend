@@ -16,6 +16,10 @@ public sealed class OfficialQuoteRequest
     public string DestinationName { get; set; } = "";
     // JSONB conserva la captura sin convertir medidas/pesos ni calcular precios.
     public string FormJson { get; set; } = "{}";
+    // Client-side creation deduplication (separate from Dhole delivery key).
+    // Both nullable for historic rows and feature-off deployments.
+    public Guid? ClientSubmissionKey { get; set; }
+    public string? ClientSubmissionDigest { get; set; }
     public string Status { get; set; } = "Received";
     public string Authorization { get; set; } = "Pending";
     public Guid? AuthorizedById { get; set; }
