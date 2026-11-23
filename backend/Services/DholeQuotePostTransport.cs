@@ -97,7 +97,9 @@ public sealed class DholeQuotePostTransport(
         }
     }
 
-    private static bool IsValidFlatBody(JsonElement body)
+    // Pure local validation; it makes NO HTTP call and does not grant
+    // authorization to dispatch. Shared by pre-claim review and transport.
+    public static bool IsValidFlatBody(JsonElement body)
     {
         if (body.ValueKind != JsonValueKind.Object) return false;
         var seen = new HashSet<string>(StringComparer.Ordinal);
