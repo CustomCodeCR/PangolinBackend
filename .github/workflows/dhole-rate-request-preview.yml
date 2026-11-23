@@ -6,6 +6,8 @@ on:
       - 'scripts/dhole-rate-request-preview.mjs'
       - 'scripts/dhole-catalog-id-resolver.mjs'
       - 'scripts/review-dhole-pricing-services-export.mjs'
+      - 'scripts/dhole-temporary-manual-catalog-import.mjs'
+      - 'scripts/tests/dhole-temporary-manual-catalog-import.test.mjs'
       - 'scripts/dhole-lcl-manual-preflight.mjs'
       - 'scripts/dhole-one-shot-prepare.mjs'
       - 'scripts/dhole-public-rate-request-preview.mjs'
@@ -31,4 +33,4 @@ jobs:
         with:
           node-version: '22'
       - name: Simulated Dhole mapping and idempotency (no outbound HTTP)
-        run: node --test scripts/tests/dhole-rate-request-preview.test.mjs scripts/tests/dhole-catalog-id-resolver.test.mjs scripts/tests/dhole-public-rate-request-preview.test.mjs scripts/tests/review-dhole-pricing-services-export.test.mjs scripts/tests/dhole-lcl-manual-preflight.test.mjs scripts/tests/dhole-one-shot-prepare.test.mjs
+        run: node --test scripts/tests/dhole-rate-request-preview.test.mjs scripts/tests/dhole-catalog-id-resolver.test.mjs scripts/tests/dhole-public-rate-request-preview.test.mjs scripts/tests/review-dhole-pricing-services-export.test.mjs scripts/tests/dhole-temporary-manual-catalog-import.test.mjs scripts/tests/dhole-lcl-manual-preflight.test.mjs scripts/tests/dhole-one-shot-prepare.test.mjs
