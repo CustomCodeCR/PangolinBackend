@@ -200,6 +200,10 @@ const steps = computed<Step[]>(() => {
   )
   else result.push(
     {key:'packageQuantity',prompt:i('¿Cuántos bultos enviarás?','How many packages will you ship?')},
+     ...(quoteCatalogSource.value === 'dhole' ? [{key:'packageUnitType',prompt:i('¿Qué tipo de unidad de carga son?','What type of cargo unit are these?'),choices:[
+       {value:'Box',label:i('Caja','Box')}, {value:'Pallet',label:i('Tarima','Pallet')},
+       {value:'Loose',label:i('Bulto suelto','Loose package')}, {value:'Other',label:i('Otra unidad','Other unit')}
+     ]}] : []),
     {key:'packageWeight',prompt:i('¿Cuánto pesa cada bulto en kg?','How much does each package weigh in kg?')},
     {key:'packageLength',prompt:i('¿Largo de cada bulto, en cm?','Length of each package in cm?')},
     {key:'packageWidth',prompt:i('¿Ancho de cada bulto, en cm?','Width of each package in cm?')},
@@ -221,7 +225,7 @@ const fieldLabels: Record<string, [string, string]> = {
   exwCargoStatus:['Estado EXW','EXW status'],exwPickupAddress:['Recolección EXW','EXW pickup'],
   cargoDescription:['Mercancía','Goods'],dangerousGoods:['Carga peligrosa','Dangerous goods'],equipmentSize:['Tamaño equipo','Equipment size'],equipmentType:['Tipo equipo','Equipment type'],
   equipmentQuantity:['Cantidad equipos','Equipment quantity'],equipmentWeights:['Pesos por unidad (kg)','Weights per unit (kg)'],
-  packageQuantity:['Bultos','Packages'],packageWeight:['Peso por bulto (kg)','Weight per package (kg)'],
+  packageQuantity:['Bultos','Packages'],packageUnitType:['Tipo de unidad','Cargo unit type'],packageWeight:['Peso por bulto (kg)','Weight per package (kg)'],
   packageLength:['Largo (cm)','Length (cm)'],packageWidth:['Ancho (cm)','Width (cm)'],packageHeight:['Alto (cm)','Height (cm)'],
   stackable:['Estibable','Stackable'], services:['Servicios solicitados','Requested services'],
   fiscalStorageDays:['Días de almacenaje fiscal','Fiscal storage days'], deliveryAddress:['Dirección de entrega','Delivery address'], pickupAddress:['Dirección de recolección','Pickup address'],
@@ -327,14 +331,14 @@ function advanceFrom(start: number) {
 function commitValue(item: Step, value: string, locationId?: string) {
   if (item.key === 'mode' && values.mode !== value) {
     for (const key of ['shipmentType','origin','destination','pod','equipmentSize','equipmentType','equipmentQuantity',
-      'equipmentWeights','packageQuantity','packageWeight','packageLength','packageWidth','packageHeight','stackable']) delete values[key]
+      'equipmentWeights','packageQuantity','packageUnitType','packageWeight','packageLength','packageWidth','packageHeight','stackable']) delete values[key]
     for (const role of ['origin','destination','pod']) delete selectedLocations[role]
     clearQuoteCatalog()
   }
   if (item.key === 'shipmentType' && values.shipmentType !== value) {
     for (const role of ['origin','destination','pod']) { delete values[role]; delete selectedLocations[role] }
     for (const key of ['equipmentSize','equipmentType','equipmentQuantity','equipmentWeights','packageQuantity',
-      'packageWeight','packageLength','packageWidth','packageHeight','stackable']) delete values[key]
+      'packageUnitType','packageWeight','packageLength','packageWidth','packageHeight','stackable']) delete values[key]
     clearQuoteCatalog()
   }
   if (item.key === 'equipmentSize' && values.equipmentSize !== value) delete values.equipmentType
@@ -641,7 +645,9 @@ async function submitQuote() {
     equipment:equipment ? [{size:values.equipmentSize,type:values.equipmentType,quantity:Number(values.equipmentQuantity),unitWeightsKg:weights}] : [],
     packages:equipment ? [] : [{
       description:values.cargoDescription,quantity:Number(values.packageQuantity),
-      weight:Number(values.packageWeight),length:Number(values.packageLength),width:Number(values.packageWidth),
+       unitType:quoteCatalogSource.value === 'dhole' ? values.packageUnitType : null,
+      // GIO collects weight PER package; stored official line uses TOTAL weight.
+       weight:Number(values.packageWeight)*Number(values.packageQuantity),length:Number(values.packageLength),width:Number(values.packageWidth),
       height:Number(values.packageHeight),stackability:values.stackable
     }],
     dimensionUnit:equipment ? null : 'cm',weightUnit:equipment ? null : 'kg',
