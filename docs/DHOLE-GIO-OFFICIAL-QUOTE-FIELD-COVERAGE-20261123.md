@@ -27,7 +27,7 @@ Fecha de revisión: 2026-11-23. Rama: `feat/dhole-approved-submission-outbox-202
 | FCL/FTL equipos | Hasta 25 líneas; tamaño, tipo, cantidad, pesos por unidad | Línea inicial + 24 adicionales editables | Revalida tamaño/tipo frente a catálogo y pesos por unidad; FTL requiere **UUID de tipo**, no de tamaño |
 | LCL/Air/LTL bultos | Hasta 25 líneas con cantidad, tipo, peso total de línea, dimensiones y estibabilidad | Línea inicial + 24 adicionales con peso **por bulto** | GIO convierte al peso total de línea al persistir; ambos terminan en peso **por unidad** para `sellerContext_consolidatedCargoLines` |
 | Unidades | cm/m/in y kg/lb en formulario | cm/kg en GIO | Ambos se normalizan a cm/kg en borrador; GIO informa explícitamente su unidad |
-| Carga peligrosa / no estibable / sobrepeso | Opciones del formulario | Pregunta peligrosa, estibabilidad por línea y sobrepeso en datos adicionales | Banderas guardadas y publicadas en vista preliminar cuando aplica |
+| Carga peligrosa / no estibable / sobrepeso | Peligrosa y sobrepeso en opciones generales; **no estibable se deduce de cada bulto** (no hay casilla duplicada) | Pregunta peligrosa, estibabilidad por línea y sobrepeso en datos adicionales | Ambos generan automáticamente la bandera global «No estibable» cuando alguna línea indica `NonStackable`, evitando contradicciones con las líneas individuales |
 | CABYS | Opcional | Opcional en datos adicionales | Se conserva y se proyecta a `form_cabysCode` si existe |
 | Valor declarado | Opcional; **obligatorio y positivo para seguro de carga** | Igual | Debe incluir código de moneda ISO de 3 letras; **no se construye `form_currencyId` sin catálogo de divisas autorizado** |
 | Moneda valor declarado | Si se declara valor, texto ISO 4217 (no un UUID) | Igual | Se almacena como código, no como ID de Pricing |
@@ -35,6 +35,13 @@ Fecha de revisión: 2026-11-23. Rama: `feat/dhole-approved-submission-outbox-202
 | Observaciones | Opcionales | Opcionales, hasta 4000 caracteres | `form_cargoObservations` solo si hay texto |
 | Manejo en destino | Texto opcional | Texto opcional | Permanece en Administración; **no se fuerza a `portHandlingMode` sin opciones verificadas** |
 | Nombre, correo y teléfono | Obligatorios | Obligatorios | Se conservan; nunca se inventan `form_clientId`, vendedor o ejecutivo |
+
+## Diferencias de presentación (no pérdida de campos obligatorios)
+
+- **GIO** agrupa CABYS, peso/bultos declarados, sobrepeso, manejo en destino y observaciones detrás de la pregunta «Datos adicionales»; el formulario los expone directamente como datos opcionales. El valor declarado y la moneda se preguntan en ambos si se solicita seguro de carga, aunque se omitan otros datos.
+- **GIO** pregunta los pesos **por bulto (kg)** y dimensiones en **cm**; el formulario solicita peso **total de línea** y permite seleccionar kg/lb y cm/m/in. Los datos se normalizan para el backend; no deben compararse numéricamente sin multiplicar por cantidad.
+- La pregunta «Añadir línea» no exige repetir bultos idénticos: una línea con cantidad 10 representa 10 cajas iguales. Si hay otro grupo con medidas, tipo o peso diferente, se agrega otra línea (hasta 25 en total: la inicial y 24 adicionales).
+- **Estibabilidad** se registra por cada línea en ambos formularios. Una línea marcada `NonStackable` determina automáticamente la bandera global `No estibable`; esta no aparece como casilla independiente en el formulario. Si todas son `Stackable`, no se agrega la bandera.
 
 ## Opciones verificadas y límites
 
