@@ -60,6 +60,7 @@ const api = http.createServer(async (req, res) => {
     ]
     return send(200,{
       source:'dhole',mode:url.searchParams.get('mode'),shipmentType:url.searchParams.get('shipmentType'),
+      clientCreateIdempotencyEnabled:true,
       incoterms:['FOB'],
       origins:mockLocations(854,{id:'11111111-1111-4111-8111-111111111111',displayName:'Shanghái',code:'SHA'},'1'),
       destinations:mockLocations(851,{id:'22222222-2222-4222-8222-222222222222',displayName:'Puerto Caldera',code:'CAL'},'2'),
@@ -85,7 +86,8 @@ const api = http.createServer(async (req, res) => {
     if (failNextQuote) {
       failNextQuote = false
       rejectedQuoteAttempts++
-      return send(503,{error:'Proveedor temporalmente no disponible'})
+      return send(dynamicDholeMock ? 503 : 400,
+        {error:'Proveedor temporalmente no disponible'})
     }
     quoteWrites.push(body)
     return send(201,{id:'33333333-3333-3333-3333-333333333333',status:'Received'})
@@ -325,16 +327,24 @@ async function main() {
     await waitFor(()=>has('Proveedor temporalmente no disponible'))
     assert.equal(rejectedQuoteAttempts,1,'Exactly one simulated provider failure should occur')
     assert.equal(quoteWrites.length,0,'A failed request must not be counted as a created quote')
-    assert.match(quotePostKeys[0], /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
-      'GIO must generate a random v4 UUID for a quote creation attempt')
+    if (dynamicDholeMock)
+      assert.match(quotePostKeys[0], /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+        'Dhole-enabled GIO must generate a secure random v4 creation key')
+    else
+      assert.equal(quotePostKeys[0],'',
+        'Legacy GIO must not send a key the server cannot deduplicate')
     assert.ok(await evaluate('!!document.querySelector(".gio-ops__card .gio-ops__edit")'),
       'GIO must retain the review after a server failure')
     await click('.gio-ops__primary')
     await waitFor(()=>has('33333333-3333-3333-3333-333333333333'))
     assert.equal(quoteWrites.length,1,'Guest quote must be created exactly once')
     assert.equal(quotePostKeys.length,2,'Mock network/server failure permits exactly one safe retry')
-    assert.equal(quotePostKeys[0],quotePostKeys[1],
-      'GIO must reuse the identical creation key on retries after uncertain HTTP failures')
+    if (dynamicDholeMock)
+      assert.equal(quotePostKeys[0],quotePostKeys[1],
+        'Dhole-enabled GIO must reuse the original key after ambiguous HTTP failure')
+    else
+      assert.equal(quotePostKeys[1],'',
+        'Legacy validation retry must not invent deduplication capability')
     assert.equal(await evaluate('sessionStorage.getItem("gcf-official-quote-gio-attempt-v1")'),null,
       'Verified creation receipt clears the temporary retry identity')
     const guestReceipt = await evaluate('(()=>{try{return JSON.parse(sessionStorage.getItem("gcf-gio-quote-receipt-v1")||"null")}catch{return null}})()')
