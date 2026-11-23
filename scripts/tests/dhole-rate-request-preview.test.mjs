@@ -142,6 +142,12 @@ test('malformed weights, units, packages, dates, equipment quantity are rejected
   assert.throws(() => previewDholeRateRequest(wrongUnits, lookup), /Unidad de peso/);
   const wrongPackage = quote('Land', 'LTL'); wrongPackage.form.packages[0].quantity = 0;
   assert.throws(() => previewDholeRateRequest(wrongPackage, lookup), /Bulto/);
+  const untyped = quote('Maritime','LCL'); delete untyped.form.packages[0].unitType;
+  assert.throws(() => previewDholeRateRequest(untyped, lookup), /tipo de unidad/);
+  const unknown = quote('Air','AIR_LCL'); unknown.form.packages[0].unitType = 'Desconocido';
+  assert.throws(() => previewDholeRateRequest(unknown, lookup), /tipo de unidad/);
+  const unstacked = quote('Land','LTL'); delete unstacked.form.packages[0].stackability;
+  assert.throws(() => previewDholeRateRequest(unstacked, lookup), /estibabilidad/);
 });
 test('simulated fake provider enforces idempotent retry, conflict, incomplete mapping', () => {
   const store = new Map();
