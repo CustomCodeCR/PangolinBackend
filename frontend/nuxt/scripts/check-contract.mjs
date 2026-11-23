@@ -105,8 +105,15 @@ for (const [theme, color] of [['html:not(.theme-dark)', '#b00929'], ['html.theme
     titleRule.includes('-webkit-text-fill-color: ' + color + ' !important'),
     'El título Panamá–Costa Rica debe respetar el tema ' + theme)
 }
-assert.match(homeAccordion, /\.service-accordion__item\.is-open > \.service-accordion__trigger\s*\{\s*background: #fff0f4 !important;/,
-  'La pestaña abierta clara necesita un fondo que contraste con su texto rojo')
+const lightActive = 'html:not(.theme-dark) .app-site.home-page #servicios .service-accordion__item.is-open > .service-accordion__trigger'
+const activeTrackRule = accordionRule(lightActive)
+assert.ok(activeTrackRule.includes('background: #b20b2d !important'),
+  'La franja de la pestaña abierta debe conservar el rojo institucional en claro')
+const activeLabelRule = accordionRule(lightActive + ' .service-accordion__name')
+assert.ok(activeLabelRule.includes('color: #fff !important') &&
+  activeLabelRule.includes('-webkit-text-fill-color: #fff !important') &&
+  activeLabelRule.includes('-webkit-text-stroke: 0 transparent !important'),
+  'La pestaña abierta debe mostrar letras blancas rellenas sobre rojo en claro')
 const serviceIndex = source('../src/pages/Services.vue')
 assert.match(serviceIndex, /serviceDirectory/, 'El catálogo necesita enlaces HTML rastreables')
 assert.match(serviceIndex, /servicePages\.map/, 'Deben enlazarse los cinco transportes desde Servicios')
