@@ -47,17 +47,17 @@ public static class OfficialQuoteEndpoints
     }
 
     private static async Task<IResult> RepeatReceiptAsync(
-        OfficialQuoteClientSubmission record, string expectedDigest,
+        OfficialQuoteClientSubmission submission, string expectedDigest,
         bool stageDirect, AppDbContext db, CancellationToken ct)
     {
-        if (!string.Equals(record.RequestDigest, expectedDigest, StringComparison.Ordinal))
+        if (!string.Equals(submission.RequestDigest, expectedDigest, StringComparison.Ordinal))
             return Results.Conflict(new {
                 code = "quote_request_key_conflict",
                 error = "Esta clave ya fue usada para una solicitud diferente. Consultá con soporte antes de reenviar."
             });
         // The FK guarantees the parent exists. The key table stores no PII.
         var existing = await db.OfficialQuotes.AsNoTracking()
-            .SingleAsync(x => x.Id == record.QuoteId, ct);
+            .SingleAsync(x => x.Id == submission.QuoteId, ct);
         var dispatchState = stageDirect
             ? await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
                 .Where(x => x.QuoteId == existing.Id)
