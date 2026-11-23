@@ -19,7 +19,7 @@ type Mode = 'Maritime' | 'Air' | 'Land'
 type Type = 'FCL' | 'LCL' | 'AIR_LCL' | 'FTL' | 'LTL'
 type Loc = { id: string; displayName: string; code: string | null }
 type ContainerLine = { size: string; type: string; quantity: number; unitWeightsKg: number[] }
-type PackageLine = { description: string; quantity: number; weight: number; length: number; width: number; height: number; stackability: 'Stackable' | 'NonStackable' }
+type PackageLine = { description: string; quantity: number; unitType: '' | 'Box' | 'Pallet' | 'Loose' | 'Other'; weight: number; length: number; width: number; height: number; stackability: 'Stackable' | 'NonStackable' }
 const localQuotePreview = import.meta.env.DEV && new URLSearchParams(window.location.search).get('previewRole') === 'cliente'
 const previewLocations: Loc[] = [
   { id: 'preview-acajutla', displayName: 'Acajutla, El Salvador', code: null },
@@ -54,7 +54,7 @@ const form = reactive({
   incoterm: '', cargoReadyDate: '', exwCargoStatus: '', exwPickupAddress: '',
   services: ['Transporte internacional'] as string[],
   equipment: [{ size: '', type: '', quantity: 1, unitWeightsKg: [0] }] as ContainerLine[],
-  packages: [{ description: '', quantity: 1, weight: 0, length: 0, width: 0, height: 0, stackability: 'Stackable' }] as PackageLine[],
+  packages: [{ description: '', quantity: 1, unitType: '', weight: 0, length: 0, width: 0, height: 0, stackability: 'Stackable' }] as PackageLine[],
   dimensionUnit: 'cm', weightUnit: 'kg', cargoDescription: '', cabysCode: '',
   cargoValue: '' as number | '', declaredWeight: '' as number | '', declaredPackages: '' as number | '',
   observations: '', cargoFlags: [] as string[], destinationHandling: '',
@@ -262,7 +262,7 @@ const receiptSections = computed(() => {
         : '',
       packagesSummary: !equipmentMode.value
         ? form.packages.map((item, i) =>
-          String(i+1) + '. ' + item.description + ' · ' + item.quantity + ' × ' + item.weight +
+          String(i+1) + '. ' + item.description + (item.unitType ? ' (' + item.unitType + ')' : '') + ' · ' + item.quantity + ' × ' + item.weight +
           ' kg · ' + item.length + ' × ' + item.width + ' × ' + item.height + ' ' + form.dimensionUnit).join('\n')
         : '',
       contactName: form.contactName, contactEmail: form.contactEmail, contactPhone: form.contactPhone
@@ -310,7 +310,7 @@ function toggle(collection: string[], value: string) {
   else collection.push(value)
 }
 function addEquipment() { if (form.equipment.length < 25) form.equipment.push({size:'',type:'',quantity:1,unitWeightsKg:[0]}) }
-function addPackage() { if (form.packages.length < 25) form.packages.push({description:'',quantity:1,weight:0,length:0,width:0,height:0,stackability:'Stackable'}) }
+function addPackage() { if (form.packages.length < 25) form.packages.push({description:'',quantity:1,unitType:'',weight:0,length:0,width:0,height:0,stackability:'Stackable'}) }
 function syncWeights(line: ContainerLine) {
   const n = Number(line.quantity)
   if (!Number.isInteger(n) || n < 1 || n > 25) return
@@ -449,6 +449,7 @@ function validate(): string {
   if (!form.contactName.trim() || !form.contactEmail.trim() || !form.contactPhone.trim()) return q('Completá los datos de contacto.', 'Complete your contact details.')
   if (!form.cargoDescription.trim()) return q('Describí la carga.', 'Describe the cargo.')
   if (!equipmentMode.value && form.packages.some(x => !x.description.trim() || x.quantity < 1 || x.weight <= 0 || x.length <= 0 || x.width <= 0 || x.height <= 0)) return q('Completá todas las medidas y los pesos de cada línea.', 'Complete the dimensions and weight for every cargo line.')
+  if (!equipmentMode.value && catalogSource.value === 'dhole' && form.packages.some(x => !x.unitType)) return q('Seleccioná el tipo de unidad de cada línea para Dhole.', 'Select the cargo unit type of each line for Dhole.')
   return ''
 }
 async function next() {
@@ -711,6 +712,16 @@ async function submit() {
                 <div class="official-fields">
                   <label class="full">{{ q('Descripción', 'Description') }} <span>*</span><input v-model.trim="line.description" maxlength="400" /></label>
                   <label>{{ q('Cantidad', 'Quantity') }} <span>*</span><input v-model.number="line.quantity" min="1" step="1" type="number" /></label>
+                   <div class="official-custom-field official-incoterm-field">
+                     <label>{{ q('Tipo de unidad', 'Cargo unit type') }} <span v-if="catalogSource === 'dhole'">*</span></label>
+                     <FieldDropdown v-model="line.unitType" :aria-label="q('Tipo de unidad', 'Cargo unit type')" :options="[
+                       {value:'',label:q('Seleccioná una opción','Select an option')},
+                       {value:'Box',label:q('Caja','Box')},
+                       {value:'Pallet',label:q('Tarima','Pallet')},
+                       {value:'Loose',label:q('Bulto suelto','Loose package')},
+                       {value:'Other',label:q('Otra unidad','Other unit')}
+                     ]" />
+                   </div>
                   <label>{{ q('Peso total', 'Total weight') }} <span>*</span><input v-model.number="line.weight" min="0.001" step="any" type="number" /></label>
                   <label>{{ q('Largo', 'Length') }} <span>*</span><input v-model.number="line.length" min="0.001" step="any" type="number" /></label>
                   <label>{{ q('Ancho', 'Width') }} <span>*</span><input v-model.number="line.width" min="0.001" step="any" type="number" /></label>
