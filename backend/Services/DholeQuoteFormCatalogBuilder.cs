@@ -17,7 +17,9 @@ public sealed record DholeQuoteFormCatalog(
     DholeFormLocation[] Destinations,
     DholeFormLocation[] Pods,
     DholeFormEquipmentSize[] EquipmentSizes,
-    Dictionary<string, string[]> EquipmentTypesBySize);
+    Dictionary<string, string[]> EquipmentTypesBySize,
+    // Public capability only; does not send data or expose a secret.
+    bool ClientCreateIdempotencyEnabled = false);
 
 public sealed record DholeValidatedRoute(string OriginName, string DestinationName, string? PodName);
 
