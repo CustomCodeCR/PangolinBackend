@@ -21,7 +21,14 @@ public sealed record DholeOfficialQuoteDraft(
     IReadOnlyList<DholeOfficialCargoUnit> CargoUnits,
     IReadOnlyList<DholeOfficialEquipmentUnit> EquipmentUnits,
     decimal TotalWeightKg, int TotalPackages, bool NonStackable,
-    IReadOnlyList<string> PendingCatalogResolutions)
+    IReadOnlyList<string> PendingCatalogResolutions,
+    string? CabysCode = null, string? Observations = null,
+    string? PickupAddress = null, string? DeliveryAddress = null,
+    int? FiscalStorageDays = null, bool DangerousCargo = false,
+    bool OverweightCargo = false, decimal? CargoValue = null,
+    decimal? DeclaredWeight = null, int? DeclaredPackages = null,
+    string? DestinationHandling = null, string? ExwCargoStatus = null,
+    string? ExwPickupAddress = null)
 {
     // A draft is NOT a sendable request, even if all quantities are valid.
     public bool RemoteSubmissionPermitted => false;
@@ -159,6 +166,14 @@ public static class DholeOfficialQuoteDraftBuilder
         var blockers = new List<string> { "incotermId: consultar UUID Dhole vigente",
             "serviceIds: consultar IDs del catálogo pricing-services mediante fuente autorizada" };
         if (full) blockers.Add("equipmentIds: resolver equipo/tamaño con identificadores vigentes");
+        // Fields needing separate Pricing currency/handling contracts are kept
+        // in the local draft and Administration but NEVER guessed for outbound.
+        if (input.CargoValue is not null)
+            blockers.Add("cargoValue: falta moneda y UUID de divisa verificados en Dhole");
+        if (!string.IsNullOrWhiteSpace(input.DestinationHandling))
+            blockers.Add("destinationHandling: falta mapear modalidad de manipulación publicada");
+        if (input.DeclaredWeight is not null || input.DeclaredPackages is not null)
+            blockers.Add("declaredFigures: revisar uso comercial antes de transportar");
         // This is a projection of the original Admin copy, never a replacement.
         return new DholeOfficialQuoteDraft(
             quoteId, input.Mode!, shipment,
@@ -168,6 +183,19 @@ public static class DholeOfficialQuoteDraftBuilder
             description, cargo, equipment, totalKg, totalPackages,
             input.CargoFlags?.Contains("No estibable") == true ||
                 cargo.Any(x => !x.IsStackable),
-            blockers);
+            blockers,
+            CabysCode: input.CabysCode?.Trim(),
+            Observations: input.Observations?.Trim(),
+            PickupAddress: input.PickupAddress?.Trim(),
+            DeliveryAddress: input.DeliveryAddress?.Trim(),
+            FiscalStorageDays: input.FiscalStorageDays,
+            DangerousCargo: input.CargoFlags?.Contains("Carga peligrosa") == true,
+            OverweightCargo: input.CargoFlags?.Contains("Sobrepeso") == true,
+            CargoValue: input.CargoValue,
+            DeclaredWeight: input.DeclaredWeight,
+            DeclaredPackages: input.DeclaredPackages,
+            DestinationHandling: input.DestinationHandling,
+            ExwCargoStatus: input.ExwCargoStatus,
+            ExwPickupAddress: input.ExwPickupAddress);
     }
 }
