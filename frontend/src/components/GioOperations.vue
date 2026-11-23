@@ -915,7 +915,60 @@ async function perform() {
       </div>
       <template v-if="phase === 'collect' && current">
         <div class="gio-ops__bubble">{{ current.prompt }}</div>
-        <div v-if="current.key === 'services'" class="gio-ops__services">
+        <div v-if="current.key === 'additionalLines'" class="gio-ops__extra-lines">
+          <p class="gio-ops__note">{{ tr('La primera línea ya quedó registrada. Podés añadir hasta 24 más; cada una conserva su peso y sus medidas.', 'Your first line is already recorded. Add up to 24 more; each keeps its own weights and dimensions.') }}</p>
+          <template v-if="isEquipment">
+            <div v-for="(line,index) in extraEquipmentLines" :key="index" class="gio-ops__extra-line">
+              <strong>{{ tr('Equipo adicional','Additional equipment') }} {{ index+2 }}</strong>
+              <button type="button" class="gio-ops__secondary" @click="extraEquipmentLines.splice(index,1)">{{ tr('Quitar','Remove') }}</button>
+              <label>{{ tr('Tamaño','Size') }}
+                <select v-model="line.size" @change="line.type=''">
+                  <option value="">{{ tr('Seleccionar','Select') }}</option>
+                  <option v-for="choice in equipmentSizes" :key="choice.value" :value="choice.value">{{ choice.label }}</option>
+                </select>
+              </label>
+              <label>{{ tr('Tipo','Type') }}
+                <select v-model="line.type">
+                  <option value="">{{ tr('Seleccionar','Select') }}</option>
+                  <option v-for="choice in extraEquipmentTypes(line.size)" :key="choice.value" :value="choice.value">{{ choice.label }}</option>
+                </select>
+              </label>
+              <label>{{ tr('Cantidad','Quantity') }}
+                <input v-model.number="line.quantity" type="number" min="1" max="100" step="1" />
+              </label>
+              <label>{{ tr('Peso por equipo en kg, separado por comas','Weight in kg per equipment unit, comma-separated') }}
+                <input v-model="line.weights" maxlength="900" :placeholder="tr('Ej.: 1200, 1100','E.g. 1200, 1100')" />
+              </label>
+            </div>
+          </template>
+          <template v-else>
+            <div v-for="(line,index) in extraPackageLines" :key="index" class="gio-ops__extra-line">
+              <strong>{{ tr('Línea de bultos adicional','Additional cargo line') }} {{ index+2 }}</strong>
+              <button type="button" class="gio-ops__secondary" @click="extraPackageLines.splice(index,1)">{{ tr('Quitar','Remove') }}</button>
+              <label>{{ tr('Descripción','Description') }}<input v-model.trim="line.description" maxlength="400" /></label>
+              <label>{{ tr('Tipo de unidad','Cargo unit type') }}
+                <select v-model="line.unitType">
+                  <option value="">{{ tr('Seleccionar','Select') }}</option>
+                  <option v-for="choice in cargoUnitChoices" :key="choice.value" :value="choice.value">{{ choice.label }}</option>
+                </select>
+              </label>
+              <label>{{ tr('Cantidad','Quantity') }}<input v-model.number="line.quantity" type="number" min="1" max="10000" step="1" /></label>
+              <label>{{ tr('Peso por bulto (kg)','Weight per package (kg)') }}<input v-model.number="line.weight" type="number" min="0.001" step="any" /></label>
+              <label>{{ tr('Largo (cm)','Length (cm)') }}<input v-model.number="line.length" type="number" min="0.001" step="any" /></label>
+              <label>{{ tr('Ancho (cm)','Width (cm)') }}<input v-model.number="line.width" type="number" min="0.001" step="any" /></label>
+              <label>{{ tr('Alto (cm)','Height (cm)') }}<input v-model.number="line.height" type="number" min="0.001" step="any" /></label>
+              <label>{{ tr('Estibabilidad','Stackability') }}
+                <select v-model="line.stackability">
+                  <option value="Stackable">{{ tr('Estibable','Stackable') }}</option>
+                  <option value="NonStackable">{{ tr('No estibable','Non-stackable') }}</option>
+                </select>
+              </label>
+            </div>
+          </template>
+          <button class="gio-ops__secondary" type="button" :disabled="busy || (isEquipment ? extraEquipmentLines.length : extraPackageLines.length) >= 24" @click="addExtraLine">+ {{ tr('Añadir línea','Add another line') }}</button>
+          <button class="gio-ops__primary" type="button" :disabled="busy" @click="accept(extraLinesRaw())">{{ tr('Continuar','Continue') }} <ChevronRight :size="15" /></button>
+        </div>
+        <div v-else-if="current.key === 'services'" class="gio-ops__services">
           <label v-for="service in serviceChoices" :key="service.value" class="gio-ops__service">
             <input type="checkbox" :checked="selectedServices.includes(service.value)" @change="toggleService(service.value)" />
             <span>{{ service.label }}</span>
@@ -1009,9 +1062,10 @@ async function perform() {
       <p v-else class="gio-ops__note">{{ tr('Sin coincidencias. Escribe otra ciudad o puerto.','No matches. Try a different city or port.') }}</p>
       <p v-if="error" class="gio-ops__error" role="alert">{{ error }}</p>
     </section>
-    <form v-if="phase === 'collect' && current && !current.choices && current.key !== 'services'" class="gio-ops__form" @submit.prevent="isCatalogueLocation(current.key) ? accept(locationTerm) : accept()">
+    <form v-if="phase === 'collect' && current && !current.choices && current.key !== 'services' && current.key !== 'additionalLines'" class="gio-ops__form" @submit.prevent="isCatalogueLocation(current.key) ? accept(locationTerm) : accept()">
       <input v-if="isCatalogueLocation(current.key)" v-model="locationTerm" :placeholder="tr('Buscar ciudad, puerto o aeropuerto…','Search city, port or airport…')" :aria-label="current.prompt" :disabled="locationLoading || !!locationLoadError || !locationChoices.length" maxlength="120" autocomplete="off" />
-      <input v-else v-model="input" :placeholder="current.hint || tr('Escribe tu respuesta…','Type your answer…')" :aria-label="current.prompt" :disabled="busy" :maxlength="['deliveryAddress','pickupAddress'].includes(current.key) ? 800 : 400" />
+      <textarea v-else-if="current.key === 'observations'" v-model="input" rows="3" maxlength="4000" :aria-label="current.prompt" :disabled="busy" />
+      <input v-else v-model="input" :placeholder="current.hint || tr('Escribe tu respuesta…','Type your answer…')" :aria-label="current.prompt" :disabled="busy" :maxlength="['deliveryAddress','pickupAddress','exwPickupAddress'].includes(current.key) ? 800 : current.key === 'cabysCode' ? 40 : current.key === 'destinationHandling' ? 100 : 400" />
       <button type="submit" :disabled="busy || (isCatalogueLocation(current.key) ? !locationTerm.trim() || locationLoading || !locationChoices.length : !input.trim() && !current.optional)" :aria-label="tr('Continuar','Continue')"><ChevronRight :size="19" /></button>
     </form>
   </div>
@@ -1019,6 +1073,13 @@ async function perform() {
 
 <style scoped>
 .gio-ops{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;min-width:0;color:var(--gio-ink,#fff);font-size:12px}
+.gio-ops__extra-lines{display:flex;flex-direction:column;gap:9px;padding:8px 0}
+.gio-ops__extra-line{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;border:1px solid var(--gio-line,#777);border-radius:10px;padding:10px}
+.gio-ops__extra-line>strong{grid-column:1/-1}
+.gio-ops__extra-line>button{justify-self:start}
+.gio-ops__extra-line label{display:flex;flex-direction:column;gap:4px;min-width:0}
+.gio-ops__extra-line input,.gio-ops__extra-line select,.gio-ops__form textarea{font:inherit;width:100%;min-width:0;background:var(--gio-field,#fff);color:var(--gio-field-text,#151515);border:1px solid var(--gio-line,#888);border-radius:8px;padding:9px}
+.gio-ops__extra-lines>.gio-ops__primary,.gio-ops__extra-lines>.gio-ops__secondary{align-self:flex-start}
 .gio-ops__bar{flex:0 0 auto;display:flex;align-items:center;gap:10px;min-height:41px;padding:6px 12px;border-bottom:1px solid var(--gio-line,#555)}
 .gio-ops__bar strong{flex:1;font-size:12px}.gio-ops__bar>span{color:var(--gio-muted,#aaa)}
 .gio-ops__back{display:inline-flex;align-items:center;gap:5px;color:var(--gio-ink,#fff);border:0;background:transparent;font-size:11px;cursor:pointer}
