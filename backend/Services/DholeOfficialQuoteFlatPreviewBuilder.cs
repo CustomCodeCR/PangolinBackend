@@ -9,7 +9,8 @@ namespace CastroFallas.MiniQuote.Api.Services;
 public sealed record DholeOfficialServiceResolution(
     string Name, string Code, Guid Id, bool IsActive);
 public sealed record DholeOfficialEquipmentResolution(
-    string ShipmentMode, string Size, string Type, Guid TypeId, string TypeName, string TypeCode);
+    string ShipmentMode, string Size, string Type, Guid TypeId, string TypeName,
+    string TypeCode, bool IsActive = false);
 public sealed record DholeOfficialCatalogResolution(
     DateTime VerifiedAtUtc, Guid IncotermId, string IncotermValue,
     IReadOnlyList<DholeOfficialServiceResolution> Services,
@@ -185,10 +186,12 @@ public static class DholeOfficialQuoteFlatPreviewBuilder
             var pairs = draft.EquipmentUnits
                 .Select(e => (e.Size, e.Type)).Distinct().ToArray();
             if (mapping.Count != pairs.Length ||
-                mapping.Any(e => e is null || e.ShipmentMode != draft.ShipmentMode ||
+                mapping.Any(e => e is null || !e.IsActive ||
+                    e.ShipmentMode != draft.ShipmentMode ||
                     e.TypeId == Guid.Empty ||
                     string.IsNullOrWhiteSpace(e.TypeName) || string.IsNullOrWhiteSpace(e.TypeCode)) ||
-                mapping.Select(e => (e.Size, e.Type)).Distinct().Count() != mapping.Count)
+                mapping.Select(e => (e.Size, e.Type)).Distinct().Count() != mapping.Count ||
+                mapping.Select(e => e.TypeId).Distinct().Count() != mapping.Count)
                 throw new ArgumentException("Dhole preview: resolución de tipos de equipo inválida.");
             var items = new List<Dictionary<string, object?>>();
             decimal weightSum = 0;
