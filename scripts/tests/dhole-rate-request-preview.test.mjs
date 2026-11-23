@@ -82,8 +82,15 @@ for (const [mode, type, expectedMode, field] of expected) {
     } else {
       const lines = p.internalPricingRequest.payload.sellerContext[field];
       assert.equal(lines.length, 1);
-      assert.ok(Math.abs(lines[0].weightKg - 4.5359237) < 1e-8, 'Conversión lb a kg');
-      assert.equal(lines[0].lengthCm, 50.8);
+      assert.ok(Math.abs(lines[0].weightKg * 3 - 4.5359237) < 1e-8, 'Peso total desde unidades');
+      assert.equal(lines[0].length, 50.8);
+      assert.equal(lines[0].width, 30.48);
+      assert.equal(lines[0].height, 20.32);
+      assert.equal(lines[0].quantity, 3);
+      assert.equal(lines[0].unitType, 'Box');
+      assert.equal(lines[0].isStackable, false);
+      assert.equal('packages' in lines[0], false);
+      assert.equal('lengthCm' in lines[0], false);
       assert.equal(p.internalPricingRequest.payload.form.cargoPackages, 3);
       assert.equal(p.internalPricingRequest.payload.form.nonStackable, true);
     }
