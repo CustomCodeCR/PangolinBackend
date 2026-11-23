@@ -131,10 +131,14 @@ try
         return 65;
     }
     var quoteId = Id(auth, "quoteId");
+    // A future live approval MUST use the same new quote ID as the payload's
+    // idempotency identity; never reuse the fixed offline test quote reference.
+    // This prevents accidentally sending a reviewed body under a different ID.
     if (quoteId == Guid.Parse("a1111111-1111-4111-8111-111111111112") ||
+        !TextIs(review.RootElement, "idempotencyKey", "cf-official-" + quoteId.ToString("D")) ||
         Console.IsInputRedirected)
     {
-        Console.Error.WriteLine("BLOCKED: fresh ID and interactive console required.");
+        Console.Error.WriteLine("BLOCKED: matching fresh identity and interactive console required.");
         return 65;
     }
     var secret = Environment.GetEnvironmentVariable("DHOLE_ONE_SHOT_API_KEY");
