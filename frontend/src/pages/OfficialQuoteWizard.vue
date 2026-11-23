@@ -56,7 +56,7 @@ const form = reactive({
   equipment: [{ size: '', type: '', quantity: 1, unitWeightsKg: [0] }] as ContainerLine[],
   packages: [{ description: '', quantity: 1, unitType: '', weight: 0, length: 0, width: 0, height: 0, stackability: 'Stackable' }] as PackageLine[],
   dimensionUnit: 'cm', weightUnit: 'kg', cargoDescription: '', cabysCode: '',
-  cargoValue: '' as number | '', declaredWeight: '' as number | '', declaredPackages: '' as number | '',
+  cargoValue: '' as number | '', cargoCurrencyCode: '', declaredWeight: '' as number | '', declaredPackages: '' as number | '',
   observations: '', cargoFlags: [] as string[], destinationHandling: '',
   deliveryAddress: '', pickupAddress: '', fiscalStorageDays: '' as number | ''
 })
@@ -452,6 +452,10 @@ function validate(): string {
   }
   if (!form.contactName.trim() || !form.contactEmail.trim() || !form.contactPhone.trim()) return q('Completá los datos de contacto.', 'Complete your contact details.')
   if (!form.cargoDescription.trim()) return q('Describí la carga.', 'Describe the cargo.')
+  if (form.services.includes('Seguro de carga') && (form.cargoValue === '' || !Number.isFinite(Number(form.cargoValue)) || Number(form.cargoValue) <= 0))
+    return q('Para el seguro de carga indicá un valor declarado positivo.', 'For cargo insurance enter a positive declared cargo value.')
+  if (Number(form.cargoValue) > 0 && !/^[A-Z]{3}$/.test(form.cargoCurrencyCode.trim().toUpperCase()))
+    return q('Indicá la moneda del valor declarado (código ISO de 3 letras).', 'Enter the declared value currency (3-letter ISO code).')
   if (!equipmentMode.value && form.packages.some(x => !x.description.trim() || x.quantity < 1 || x.weight <= 0 || x.length <= 0 || x.width <= 0 || x.height <= 0)) return q('Completá todas las medidas y los pesos de cada línea.', 'Complete the dimensions and weight for every cargo line.')
   if (!equipmentMode.value && catalogSource.value === 'dhole' && form.packages.some(x => !x.unitType)) return q('Seleccioná el tipo de unidad de cada línea para Dhole.', 'Select the cargo unit type of each line for Dhole.')
   return ''
@@ -479,6 +483,7 @@ function payload() {
     exwPickupAddress: form.incoterm === 'EXW' ? form.exwPickupAddress : null,
     cargoDescription: form.cargoDescription, cabysCode: form.cabysCode || null,
     cargoValue: form.cargoValue === '' ? null : Number(form.cargoValue),
+    cargoCurrencyCode: Number(form.cargoValue) > 0 ? form.cargoCurrencyCode.trim().toUpperCase() : null,
     declaredWeight: form.declaredWeight === '' ? null : Number(form.declaredWeight),
     declaredPackages: form.declaredPackages === '' ? null : Number(form.declaredPackages),
     observations: form.observations || null, cargoFlags: form.cargoFlags,
@@ -688,7 +693,8 @@ async function submit() {
             <div class="official-fields">
               <label class="full">{{ q('Descripción de la carga', 'Cargo description') }} <span>*</span><textarea v-model.trim="form.cargoDescription" rows="3" maxlength="4000" :placeholder="q('¿Qué productos necesitás transportar?', 'What products do you need to ship?')" /></label>
               <label>{{ q('Código CABYS (opcional)', 'CABYS code (optional)') }}<input v-model.trim="form.cabysCode" maxlength="40" :placeholder="q('Ingresá el código si lo conocés', 'Enter the code if you know it')" /></label>
-              <label>{{ q('Valor de la carga (si aplica)', 'Cargo value (if applicable)') }}<input v-model.number="form.cargoValue" type="number" min="0" step="any" /></label>
+              <label>{{ q('Valor de la carga (si aplica)', 'Cargo value (if applicable)') }} <span v-if="form.services.includes('Seguro de carga')">*</span><input v-model.number="form.cargoValue" type="number" min="0" step="any" /></label>
+              <label v-if="Number(form.cargoValue) > 0 || form.services.includes('Seguro de carga')">{{ q('Moneda del valor declarado (ISO 4217)', 'Declared value currency (ISO 4217)') }} <span>*</span><input v-model.trim="form.cargoCurrencyCode" maxlength="3" :placeholder="q('Ej.: USD, CRC', 'E.g. USD, CRC')" autocapitalize="characters" /></label>
               <label>{{ q('Peso declarado (si aplica)', 'Declared weight (if applicable)') }}<input v-model.number="form.declaredWeight" type="number" min="0" step="any" /></label>
               <label>{{ q('Cantidad de bultos (si aplica)', 'Number of packages (if applicable)') }}<input v-model.number="form.declaredPackages" type="number" min="0" step="1" /></label>
             </div>
