@@ -19,10 +19,18 @@ export default defineEventHandler(async event => {
         !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
       throw createError({ statusCode: 400, statusMessage: 'Identificador de noticia inválido' })
     setHeader(event, 'Cache-Control', 'no-store')
-    const base = String(useRuntimeConfig(event).cmsApiBase).replace(/\\/$/, '')
+    const base = String(useRuntimeConfig(event).cmsApiBase).replace(/\/$/, '')
     // This endpoint is backed by PostgreSQL and enforces Published/ExpiresAt.
     // Do not turn an upstream 404 into a successful empty news page.
-    return await $fetch<PublicNews>(base + '/api/content/news/' + id, { timeout: 5000 })
+    try {
+      return await $fetch<PublicNews>(base + '/api/content/news/' + id, { timeout: 5000 })
+    } catch (cause: unknown) {
+      const code = (cause as { statusCode?: number; response?: { status?: number } })?.statusCode ??
+        (cause as { response?: { status?: number } })?.response?.status
+      if (code === 404)
+        throw createError({ statusCode: 404, statusMessage: 'Noticia no encontrada' })
+      throw createError({ statusCode: 503, statusMessage: 'Noticias temporalmente no disponibles' })
+    }
   }
   return cachedPublicNews(event)
 })
