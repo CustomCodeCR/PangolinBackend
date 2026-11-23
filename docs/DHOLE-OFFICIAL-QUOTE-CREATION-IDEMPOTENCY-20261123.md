@@ -17,6 +17,10 @@ Se añadió una protección separada para la **creación de la cotización**, no
 - Para envíos concurrentes, PostgreSQL `pg_advisory_xact_lock` serializa la misma clave dentro de la transacción, y la clave primaria única de `official_quote_client_submissions` proporciona una segunda barrera.
 - La transacción guarda copia administrativa y, si `DirectOutboxEnabled=true`, un único registro de outbox; falla todo junto si falla cualquiera de los pasos.
 
+### Protección adicional al cambiar la configuración
+
+Si una cotización tuvo un POST **sin clave** y su respuesta fue incierta, habilitar la idempotencia posteriormente **no autoriza** crearla de nuevo con una clave nueva. En sentido inverso, una cotización enviada con clave pero todavía sin recibo no puede reenviarse **sin clave** si el servidor deshabilita la función antes del siguiente intento. Ambos formularios conservan el bloqueo de la solicitud ambigua hasta recibir verificación, evitando un cambio de modo silencioso. La ruta segura usa `unresolvedKeyedQuoteAttempt` además del marcador `:unverified` de solicitudes anteriores sin clave. El comprobador de paridad y el arnés del helper verifican estas reglas sin enviar datos a Dhole.
+
 ## Seguridad, mantenimiento y limitaciones
 
 - La migración aditiva está en `backend/Database/OfficialQuotesSchema.sql`: crea una **tabla independiente**, con clave primaria, referencia única a la cotización y hash del contenido. **No añade columnas ni modifica el mapeo de `official_quote_requests`**. Por eso el flujo histórico sigue funcionando aunque esa tabla aún no exista y el flag esté apagado. Aplicar migración con respaldo **antes** de activar `ClientCreateIdempotencyEnabled`.
