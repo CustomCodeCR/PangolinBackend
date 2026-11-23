@@ -47,6 +47,10 @@ async function testMode(secure) {
   const resumed = await api.prepareQuoteSubmissionAttempt(key,original,
     secure ? null : attempt)
   assert.equal(resumed.key,attempt.key,'Retry must preserve original creation key')
+  assert.equal(api.unresolvedKeyedQuoteAttempt(key,attempt),true,
+    'A pending keyed request must not be downgraded if server disables support')
+  assert.equal(api.unresolvedKeyedQuoteAttempt(key,null),secure,
+    'Only the secure-session path retains the keyed identity after a page refresh')
   await assert.rejects(api.prepareQuoteSubmissionAttempt(key,modified,attempt),
     /Para evitar duplicados/,'Modified ambiguous request must be refused')
   if (secure) {
@@ -69,6 +73,8 @@ async function testMode(secure) {
     'Legacy uncertainty marker must contain no identity or cargo data')
   api.clearQuoteSubmissionAttempt(key)
   assert.equal(store.has(key),false,'Verified receipt must clear the retry key')
+  assert.equal(api.unresolvedKeyedQuoteAttempt(key,null),false,
+    'A verified receipt frees the key for a new request')
   assert.equal(api.legacyQuoteResultUncertain(key),false,
     'A verified receipt also clears the legacy unknown-outcome marker')
 }
