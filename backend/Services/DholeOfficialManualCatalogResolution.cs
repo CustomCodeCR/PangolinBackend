@@ -7,6 +7,13 @@ namespace CastroFallas.MiniQuote.Api.Services;
 // into the same typed resolution consumed by DholeOfficialQuoteFlatPreviewBuilder.
 // It has NO sender, outbox access, API key, worker or network calls. A future
 // dispatcher must separately authorize and validate upstream identity/response.
+// Snapshot DTO intentionally independent from the live HTTP/catalogue service.
+// A future coordinator can adapt an actual verified DholeOfficialExistingCatalogSnapshot, but
+// this offline bridge has no dependency on HttpClient, DI or network libraries.
+public sealed record DholeOfficialExistingCatalogSnapshot(
+    string Catalog, DateTimeOffset FetchedAtUtc, bool Stale,
+    DholeCatalogItem[] Items);
+
 public static class DholeOfficialManualCatalogResolution
 {
     private static readonly TimeSpan MaxAge = TimeSpan.FromMinutes(5);
@@ -79,8 +86,8 @@ public static class DholeOfficialManualCatalogResolution
             name + " no fue verificado en los últimos 5 minutos");
     }
 
-    private static DholeCatalogSnapshot Live(
-        IReadOnlyDictionary<string, DholeCatalogSnapshot> snapshots,
+    private static DholeOfficialExistingCatalogSnapshot Live(
+        IReadOnlyDictionary<string, DholeOfficialExistingCatalogSnapshot> snapshots,
         string catalog, DateTimeOffset now)
     {
         Require(snapshots.TryGetValue(catalog, out var snapshot) &&
@@ -92,7 +99,7 @@ public static class DholeOfficialManualCatalogResolution
 
     public static DholeOfficialCatalogResolution Review(
         DholeOfficialQuoteDraft draft, JsonElement manual,
-        IReadOnlyDictionary<string, DholeCatalogSnapshot> liveSnapshots, DateTime utcNow)
+        IReadOnlyDictionary<string, DholeOfficialExistingCatalogSnapshot> liveSnapshots, DateTime utcNow)
     {
         Require(utcNow.Kind == DateTimeKind.Utc && draft is not null &&
             manual.ValueKind == JsonValueKind.Object &&
