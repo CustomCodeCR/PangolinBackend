@@ -311,6 +311,10 @@ function toggle(collection: string[], value: string) {
 }
 function addEquipment() { if (form.equipment.length < 25) form.equipment.push({size:'',type:'',quantity:1,unitWeightsKg:[0]}) }
 function addPackage() { if (form.packages.length < 25) form.packages.push({description:'',quantity:1,unitType:'',weight:0,length:0,width:0,height:0,stackability:'Stackable'}) }
+function setPackageUnitType(line: PackageLine, value: string) {
+  line.unitType = value === 'Box' || value === 'Pallet' || value === 'Loose' || value === 'Other'
+    ? value : ''
+}
 function syncWeights(line: ContainerLine) {
   const n = Number(line.quantity)
   if (!Number.isInteger(n) || n < 1 || n > 25) return
@@ -714,7 +718,7 @@ async function submit() {
                   <label>{{ q('Cantidad', 'Quantity') }} <span>*</span><input v-model.number="line.quantity" min="1" step="1" type="number" /></label>
                    <div class="official-custom-field official-incoterm-field">
                      <label>{{ q('Tipo de unidad', 'Cargo unit type') }} <span v-if="catalogSource === 'dhole'">*</span></label>
-                     <FieldDropdown v-model="line.unitType" :aria-label="q('Tipo de unidad', 'Cargo unit type')" :options="[
+                     <FieldDropdown :model-value="line.unitType" @update:model-value="value => setPackageUnitType(line, value)" :aria-label="q('Tipo de unidad', 'Cargo unit type')" :options="[
                        {value:'',label:q('Seleccioná una opción','Select an option')},
                        {value:'Box',label:q('Caja','Box')},
                        {value:'Pallet',label:q('Tarima','Pallet')},
