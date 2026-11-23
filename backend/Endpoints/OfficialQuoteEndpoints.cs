@@ -1,10 +1,13 @@
 using System.Net.Mail;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using CastroFallas.MiniQuote.Api.Data;
 using CastroFallas.MiniQuote.Api.Models;
 using CastroFallas.MiniQuote.Api.Services.Auth;
 using CastroFallas.MiniQuote.Api.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace CastroFallas.MiniQuote.Api.Endpoints;
 
@@ -31,6 +34,55 @@ public static class OfficialQuoteEndpoints
 
     private static DateOnly TodayInCostaRica() =>
         DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CostaRicaTimeZone));
+
+    // Creation deduplication is distinct from the future Dhole delivery key.
+    // It is enabled only with its own opt-in, after the additive SQL migration.
+    private static string SubmissionDigest(OfficialQuoteSubmit input, AuthIdentity? actor)
+    {
+        var canonical = JsonSerializer.Serialize(input, Json);
+        var fingerprintInput = canonical + "|user:" + actor?.UsuarioId.ToString("D") +
+            "|customer:" + actor?.ClienteId.ToString("D");
+        return Convert.ToHexString(SHA256.HashData(
+            Encoding.UTF8.GetBytes(fingerprintInput))).ToLowerInvariant();
+    }
+
+    private static async Task<IResult> RepeatReceiptAsync(
+        OfficialQuoteRequest existing, string expectedDigest,
+        bool stageDirect, AppDbContext db, CancellationToken ct)
+    {
+        if (!string.Equals(existing.ClientSubmissionDigest, expectedDigest, StringComparison.Ordinal))
+            return Results.Conflict(new {
+                code = "quote_request_key_conflict",
+                error = "Esta clave ya fue usada para una solicitud diferente. Consultá con soporte antes de reenviar."
+            });
+        var dispatchState = stageDirect
+            ? await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
+                .Where(x => x.QuoteId == existing.Id)
+                .Select(x => x.State).FirstOrDefaultAsync(ct) ?? "NotStaged"
+            : "Disabled";
+        return Results.Created($"/api/quotes/official/{existing.Id}", new
+        {
+            existing.Id, existing.Status, existing.Authorization,
+            existing.CreatedAtUtc, dholeDispatchState = dispatchState,
+            idempotentReplay = true
+        });
+    }
+
+    private static async Task LockCreationKeyAsync(
+        AppDbContext db, Guid key, IDbContextTransaction transaction, CancellationToken ct)
+    {
+        // PostgreSQL transaction-scoped advisory lock makes concurrent
+        // requests with the same random 128-bit key serialize. The UNIQUE
+        // index is an independent DB-level duplicate defence.
+        await using var cmd = db.Database.GetDbConnection().CreateCommand();
+        cmd.Transaction = transaction.GetDbTransaction();
+        cmd.CommandText = "SELECT pg_advisory_xact_lock(274, hashtext(@submission_key))";
+        var parameter = cmd.CreateParameter();
+        parameter.ParameterName = "submission_key";
+        parameter.Value = key.ToString("N");
+        cmd.Parameters.Add(parameter);
+        await cmd.ExecuteScalarAsync(ct);
+    }
 
     private static async Task<OfficialQuotePermission?> Permission(
         AppDbContext db, AuthIdentity? user, CancellationToken ct)
@@ -257,6 +309,35 @@ public static class OfficialQuoteEndpoints
                     return Results.Json(new { code = "catalog_source_required", error = "Actualizá la página de cotizaciones para utilizar el catálogo vigente." },
                         statusCode: StatusCodes.Status409Conflict);
 
+                var stageDirect = useDhole && config.GetValue<bool>("DholeSubmission:DirectOutboxEnabled");
+                var deduplicateCreate = useDhole &&
+                    config.GetValue<bool>("DholeSubmission:ClientCreateIdempotencyEnabled");
+                Guid? requestKey = null;
+                string? requestDigest = null;
+                if (deduplicateCreate)
+                {
+                    // Do not read the optional schema or claim success unless
+                    // the exact random client key and identical data match.
+                    string suppliedKey = http.Request.Headers["X-CF-Quote-Request-Key"].ToString();
+                    if (!Guid.TryParseExact(suppliedKey, "D", out var parsedKey) ||
+                        parsedKey == Guid.Empty || suppliedKey != parsedKey.ToString("D"))
+                        return Results.BadRequest(new {
+                            code = "quote_request_key_required",
+                            error = "La solicitud requiere una clave única válida; actualizá el formulario."
+                        });
+                    requestKey = parsedKey;
+                    requestDigest = SubmissionDigest(input, user);
+                    // Replays must survive a changed or temporarily unavailable
+                    // catalogue after the original quote was already committed.
+                    var prior = await db.OfficialQuotes.AsNoTracking()
+                        .FirstOrDefaultAsync(x => x.ClientSubmissionKey == requestKey, ct);
+                    if (prior is not null)
+                    {
+                        http.Response.Headers.CacheControl = "no-store";
+                        return await RepeatReceiptAsync(prior, requestDigest, stageDirect, db, ct);
+                    }
+                }
+
                 Validate(input, useDholeCatalogs: useDhole);
                 string originName;
                 string destinationName;
@@ -308,7 +389,9 @@ public static class OfficialQuoteEndpoints
                     Mode = input.Mode!, ShipmentType = input.ShipmentType!,
                     OriginName = originName,
                     DestinationName = destinationName,
-                    FormJson = JsonSerializer.Serialize(input, Json)
+                    FormJson = JsonSerializer.Serialize(input, Json),
+                    ClientSubmissionKey = requestKey,
+                    ClientSubmissionDigest = requestDigest
                 };
                 if (useDhole)
                 {
@@ -321,30 +404,44 @@ public static class OfficialQuoteEndpoints
                 }
                 // Persist only a job identity, not a second copy of personal data.
                 // Nothing sends HTTP or constructs the external payload at this stage.
-                var stageDirect = useDhole && config.GetValue<bool>("DholeSubmission:DirectOutboxEnabled");
-                if (stageDirect)
+                if (stageDirect || deduplicateCreate)
                 {
-                    // Both records commit together or neither does. The unique
-                    // quote ID and idempotency key prevent duplicate outbox jobs.
+                    // A single transaction protects the official copy, optional
+                    // creation-key uniqueness, and the Dhole outbox registration.
                     await using var transaction = await db.Database.BeginTransactionAsync(ct);
-                    // Insert the principal quote first so PostgreSQL's FK exists
-                    // before inserting its outbox child. Both SaveChanges remain
-                    // inside ONE transaction, so failure of either rolls back both.
+                    if (deduplicateCreate)
+                    {
+                        await LockCreationKeyAsync(db, requestKey!.Value, transaction, ct);
+                        // The first request may have committed while this request
+                        // waited for the lock. Never create another copy in that case.
+                        var prior = await db.OfficialQuotes.AsNoTracking()
+                            .FirstOrDefaultAsync(x => x.ClientSubmissionKey == requestKey, ct);
+                        if (prior is not null)
+                        {
+                            http.Response.Headers.CacheControl = "no-store";
+                            return await RepeatReceiptAsync(prior, requestDigest!, stageDirect, db, ct);
+                        }
+                    }
+                    // Principal first for the FK. Both SaveChanges operations
+                    // remain atomic and roll back together on any failure.
                     db.OfficialQuotes.Add(quote);
                     await db.SaveChangesAsync(ct);
-                    db.OfficialQuoteDholeCreationOutbox.Add(new OfficialQuoteDholeCreationOutbox
+                    if (stageDirect)
                     {
-                        QuoteId = quote.Id,
-                        IdempotencyKey = "cf-official-" + quote.Id.ToString("D"),
-                        State = "PendingDispatch",
-                        Priority = "Green"
-                    });
-                    await db.SaveChangesAsync(ct);
+                        db.OfficialQuoteDholeCreationOutbox.Add(new OfficialQuoteDholeCreationOutbox
+                        {
+                            QuoteId = quote.Id,
+                            IdempotencyKey = "cf-official-" + quote.Id.ToString("D"),
+                            State = "PendingDispatch",
+                            Priority = "Green"
+                        });
+                        await db.SaveChangesAsync(ct);
+                    }
                     await transaction.CommitAsync(ct);
                 }
                 else
                 {
-                    // Legacy/local behavior is unchanged when the new flag is off.
+                    // Legacy/local behavior is unchanged when flags are off.
                     db.OfficialQuotes.Add(quote);
                     await db.SaveChangesAsync(ct);
                 }
