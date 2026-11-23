@@ -149,7 +149,8 @@ assert.doesNotMatch(schema,/\n\),\s*\n\s*created_at_utc\s+TIMESTAMPTZ/,
 assert.match(schema,/request_digest[\s\S]*?created_at_utc TIMESTAMPTZ NOT NULL DEFAULT now\(\)\s*\);/,
   'Client submission table must close before the next index declaration');
 has(context,['OfficialQuoteClientSubmissions','request_digest','submission_key'],'EF mapping');
-has(retry,['crypto.subtle.digest','crypto.randomUUID','sessionStorage',
+has(retry,['crypto.subtle.digest','availableCrypto.randomUUID',
+  'availableCrypto.getRandomValues','sessionStorage',
   'previous.digest !== digest'], 'Per-tab duplicate protection');
 for (const frontend of [wizard,gio])
   has(frontend,['prepareQuoteSubmissionAttempt','clearQuoteSubmissionAttempt',
