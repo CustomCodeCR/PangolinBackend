@@ -71,7 +71,8 @@ const structureTitles = computed(() => structureCopy.value.map((entry, offset) =
 const selectedStructure = computed(() => structureTitles.value.find(item => item.index === selectedStructureIndex.value) ?? structureTitles.value[0])
 const structureDepartments = computed(() => (locale.value.startsWith('es')
   ? ['Consolidadora', 'Pedimentación', 'Contabilidad', 'Servicio al cliente', 'Transporte interno de carga']
-  : ['Freight consolidation', 'Customs declaration processing', 'Accounting', 'Customer service', 'Domestic cargo transport']))
+  : ['Freight consolidation', 'Customs declaration processing', 'Accounting', 'Customer service', 'Domestic cargo transport'])
+  .map((department, index) => siteText(`about.structure.departments.${index}`, department, locale.value)))
 // Optional CMS descriptions: absent until the team publishes approved content.
 // Keep the current compact card layout when they are empty.
 const structureDepartmentDetails = computed(() =>
