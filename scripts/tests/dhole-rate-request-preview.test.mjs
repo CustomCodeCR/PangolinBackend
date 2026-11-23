@@ -46,7 +46,7 @@ function quote(mode = 'Maritime', shipmentType = 'FCL') {
         quantity: 2, unitWeightsKg: [1200, 1400],
       }] : [],
       packages: hasEquipment ? [] : [{
-        description: 'Cajas simuladas', quantity: 3,
+        description: 'Cajas simuladas', quantity: 3, unitType: 'Box',
         weight: 10, length: 20, width: 12, height: 8,
         stackability: 'NonStackable',
       }],
