@@ -47,6 +47,11 @@ public sealed class DholeQuotePostTransport(
     // No compose environment variable for PostEnabled or a private write key is
     // provided in this PR; nobody should turn it on until a later deployment decision.
     public bool Enabled => config.GetValue<bool>("DholeSubmission:PostEnabled");
+    // Does not send HTTP; lets a separately gated coordinator avoid consuming
+    // a once-only outbox attempt when the private write key is absent.
+    public bool IsConfiguredForOneAttempt =>
+        Enabled && config["DholeSubmission:ApiKey"] is { } secret &&
+        KeyFormat.IsMatch(secret);
 
     public async Task<DholeQuotePostOutcome> PostValidatedAsync(
         Guid quoteId, JsonElement publishedFlatBody, CancellationToken ct)
