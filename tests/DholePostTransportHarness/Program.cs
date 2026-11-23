@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using CastroFallas.MiniQuote.Api.Services;
 using Microsoft.Extensions.Configuration;
 
@@ -24,10 +25,42 @@ static JsonDocument Body(string? replacement = null) => JsonDocument.Parse(repla
 {
   "priority": "Green",
   "shipmentMode": "Fcl",
-  "form_serviceIds": ["11111111-1111-4111-8111-111111111111"],
-  "form_cargoDescription": "Repuestos automotrices\n\nSolicitante desde la web de Castro Fallas:\nNombre: Persona simulada\nCorreo: prueba@example.invalid\nTeléfono: +506 0000-0000"
+  "originName": "Puerto Origen CI",
+  "destinationName": "Puerto Destino CI",
+  "poeId": "22222222-2222-4222-8222-222222222222",
+  "poeName": "Puerto Destino CI",
+  "podId": "33333333-3333-4333-8333-333333333333",
+  "podName": "POD CI",
+  "form_rateType": "Spot",
+  "form_modality": "Maritime",
+  "form_shipmentMode": "Fcl",
+  "form_originId": "11111111-1111-4111-8111-111111111111",
+  "form_destinationId": "22222222-2222-4222-8222-222222222222",
+  "form_podId": "33333333-3333-4333-8333-333333333333",
+  "form_incotermId": "44444444-4444-4444-8444-444444444444",
+  "form_serviceIds": ["55555555-5555-4555-8555-555555555555"],
+  "form_loadDate": "2026-12-03",
+  "form_cargoDescription": "Repuestos automotrices\n\nSolicitante desde la web de Castro Fallas:\nNombre: Persona simulada\nCorreo: prueba@example.invalid\nTeléfono: +506 0000-0000",
+  "form_cargoWeightKg": 1200,
+  "form_fclContainers": [{
+    "containerTypeId": "66666666-6666-4666-8666-666666666666",
+    "containerTypeName": "40 Dry Van",
+    "containerTypeCode": "FCL-40-DRY",
+    "quantity": 1,
+    "unitWeightsKg": [1200]
+  }],
+  "requestContext_incotermName": "CIF",
+  "requestContext_poeId": "22222222-2222-4222-8222-222222222222",
+  "requestContext_podId": "33333333-3333-4333-8333-333333333333",
+  "sellerContext_cargoReadyDate": "2026-12-03"
 }
 """);
+static JsonDocument Modified(JsonElement original, Action<JsonObject> change)
+{
+    var body = JsonNode.Parse(original.GetRawText())!.AsObject();
+    change(body);
+    return JsonDocument.Parse(body.ToJsonString());
+}
 
 var secret = "dh_ext_" + new string('a', 64); // synthetic key, NOT an actual Dhole secret
 var quoteId = Guid.Parse("a1111111-1111-4111-8111-111111111111");
@@ -79,6 +112,40 @@ using (var other = Body("""
 Check(await prepared.PostValidatedAsync(Guid.Empty, valid.RootElement, CancellationToken.None)
     == DholeQuotePostOutcome.InvalidPayload, "Quote UUID is mandatory");
 Check(fake.Calls == 0, "Invalid payload must not contact Dhole");
+
+// Simulate malformed or forged requests against the final HTTP boundary,
+// not only the earlier form. None may reach even the fake transport handler.
+async Task Refuse(Action<JsonObject> edit, string reason)
+{
+    using var tampered = Modified(valid.RootElement, edit);
+    Check(await prepared.PostValidatedAsync(quoteId, tampered.RootElement, CancellationToken.None)
+        == DholeQuotePostOutcome.InvalidPayload, reason);
+}
+await Refuse(body => body["form_originId"] = "not-a-uuid",
+    "Reject unverified origin UUID");
+await Refuse(body => body["form_destinationId"] = "77777777-7777-4777-8777-777777777777",
+    "Reject route identity mismatch");
+await Refuse(body => body["requestContext_podId"] = "77777777-7777-4777-8777-777777777777",
+    "Reject mismatched maritime POD");
+await Refuse(body => body["form_modality"] = "Land",
+    "Reject mismatched shipment modality");
+await Refuse(body => body["form_loadDate"] = "2026-02-31",
+    "Reject invalid calendar date");
+await Refuse(body => body["form_serviceIds"] = new JsonArray(
+    "55555555-5555-4555-8555-555555555555",
+    "55555555-5555-4555-8555-555555555555"),
+    "Reject duplicate Pricing service UUIDs");
+await Refuse(body => body["form_cargoWeightKg"] = 1500,
+    "Reject mismatched total equipment weight");
+await Refuse(body => body["form_fclContainers"]![0]!["quantity"] = 2,
+    "Reject equipment quantity different from per-unit weights");
+await Refuse(body => body["form_landContainers"] = new JsonArray(),
+    "Reject land equipment in a maritime quote");
+await Refuse(body => body["form_cargoPackages"] = 1,
+    "Reject package data attached to full container");
+await Refuse(body => body["form_fclContainers"]![0]!["unitWeightsKg"] = new JsonArray("wrong-type"),
+    "Reject nonnumeric per-unit weights");
+Check(fake.Calls == 0, "Forged, contradictory or malformed cargo never reaches HTTP");
 
 fake.NextStatus = HttpStatusCode.OK;
 Check(await prepared.PostValidatedAsync(quoteId, valid.RootElement, CancellationToken.None)
