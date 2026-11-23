@@ -844,6 +844,96 @@ internal static class DholeQuoteHttpTest
         }
         Console.WriteLine("PASS: scoped offline dispatcher claim refuses blockers, duplicate claims and false Pricing confirmation.");
 
+        // Full one-shot composition is intentionally NOT registered in Program:
+        // use a strict in-process fake for its only outbound HTTP client.
+        var coordinatorQuoteId = Guid.NewGuid();
+        var coordinatorDraft = DholeOfficialQuoteDraftBuilder.Project(
+            reviewedInput, coordinatorQuoteId, reviewedRoute);
+        var coordinatorFlat = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+            coordinatorDraft, resolved, DateTime.UtcNow);
+        await using (var db = new AppDbContext(opts))
+        {
+            db.OfficialQuotes.Add(new OfficialQuoteRequest
+            {
+                Id = coordinatorQuoteId,
+                CustomerName = "CI Dhole Test",
+                ContactName = "CI Dhole Test",
+                ContactEmail = "dhole-qa@example.invalid",
+                ContactPhone = "+506 2222 2222",
+                Mode = "Maritime", ShipmentType = "FCL",
+                OriginName = reviewedRoute.OriginName,
+                DestinationName = reviewedRoute.DestinationName,
+                FormJson = storedReviewForm
+            });
+            await db.SaveChangesAsync();
+            db.OfficialQuoteDholeCreationOutbox.Add(
+                new OfficialQuoteDholeCreationOutbox
+                {
+                    QuoteId = coordinatorQuoteId,
+                    IdempotencyKey = coordinatorFlat.IdempotencyKey,
+                    State = "PendingDispatch"
+                });
+            await db.SaveChangesAsync();
+        }
+        var fictionalPostKey = "dh_ext_" + new string('a', 64);
+        var fakePost = new CiFakeDholeQuotePostHandler(fictionalPostKey, coordinatorQuoteId);
+        var fakePostFactory = new CiFakeDholeQuotePostFactory(fakePost);
+        IConfiguration CoordinatorConfig(bool enabled) =>
+            new ConfigurationBuilder().AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                    ["DholeSubmission:ClaimPreviewEnabled"] = "true",
+                    ["DholeSubmission:OutcomePreviewEnabled"] = "true",
+                    ["DholeSubmission:PostEnabled"] = "true",
+                    ["DholeSubmission:DispatcherEnabled"] = enabled.ToString(),
+                    ["DholeSubmission:ApiKey"] = fictionalPostKey
+                }).Build();
+        DholeOfficialDispatchAttemptCoordinator Coordinator(IConfiguration cfg) =>
+            new(cfg, new DholeOfficialOutboxClaimService(cfg),
+                new DholeOfficialOutboxOutcomeService(cfg),
+                new DholeQuotePostTransport(cfg, fakePostFactory));
+        await using (var db = new AppDbContext(opts))
+        {
+            var disarmed = Coordinator(CoordinatorConfig(false));
+            var off = await disarmed.AttemptOnceAsync(
+                db, coordinatorFlat, CancellationToken.None);
+            Assert(off.State == "Disabled" && !off.Claimed && fakePost.Calls == 0,
+                "Dispatcher opt-in disabled: zero database changes and zero HTTP, even fake");
+        }
+        var coordinator = Coordinator(CoordinatorConfig(true));
+        await using (var db = new AppDbContext(opts))
+        {
+            var sent = await coordinator.AttemptOnceAsync(
+                db, coordinatorFlat, CancellationToken.None);
+            Assert(sent.Claimed && sent.State == "HttpAcceptedUnverified" &&
+                sent.TransportAcceptedLocally && !sent.RemoteCreationConfirmed &&
+                !sent.AutomaticRetryAllowed && fakePost.Calls == 1,
+                "Mock HTTP 200 only proves accepted transport, never Pricing creation");
+            var duplicate = await coordinator.AttemptOnceAsync(
+                db, coordinatorFlat, CancellationToken.None);
+            Assert(duplicate.State == "AlreadyClaimedOrInvalid" &&
+                !duplicate.Claimed && fakePost.Calls == 1,
+                "Completed attempt cannot issue a second fake POST");
+        }
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var state = new NpgsqlCommand("""
+                SELECT state, attempt_count, external_reference, verified_at_utc
+                FROM public.official_quote_dhole_creation_outbox
+                WHERE quote_id = @id
+                """, db);
+            state.Parameters.AddWithValue("id", coordinatorQuoteId);
+            await using var row = await state.ExecuteReaderAsync();
+            Assert(await row.ReadAsync() &&
+                row.GetString(0) == "HttpAcceptedUnverified" &&
+                row.GetInt32(1) == 1 &&
+                row.IsDBNull(2) && row.IsDBNull(3),
+                "Post accepted in fake CI remains unverified with exactly one attempt");
+        }
+        Console.WriteLine("PASS: dormant one-shot coordinator uses fake-only HTTP, keeps 2xx unverified and refuses replay.");
+
         // The offline result state and claim are isolated and cannot dispatch HTTP.
         // Force an outbox constraint failure: the official quote MUST roll back.
         long beforeFailure;
@@ -1120,6 +1210,55 @@ internal static class DholeQuoteHttpTest
         Console.WriteLine("PASS: exact retry remains recoverable through catalog outage; new creations fail closed");
         Console.WriteLine("PASS: failed keyed transaction rolls back both quote and outbox and accepts same-key recovery");
         Console.WriteLine("PASS: all Dhole upstream traffic simulated; no real API, no mail, no production data");
+    }
+}
+
+// Strictly fake sender for the CI-only coordinator. Production never registers
+// this factory and no test sends HTTP to a real Pricing/Gateway service.
+sealed class CiFakeDholeQuotePostFactory(CiFakeDholeQuotePostHandler handler) : IHttpClientFactory
+{
+    public HttpClient CreateClient(string name)
+    {
+        if (name != "DholeQuotePost") throw new InvalidOperationException(
+            "Mock coordinator cannot request any other external client.");
+        return new HttpClient(handler, disposeHandler: false)
+        {
+            Timeout = TimeSpan.FromSeconds(3)
+        };
+    }
+}
+
+sealed class CiFakeDholeQuotePostHandler(string key, Guid quoteId) : HttpMessageHandler
+{
+    public int Calls { get; private set; }
+
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        Calls++;
+        AssertFake(request.Method == HttpMethod.Post &&
+            request.RequestUri?.ToString() ==
+                "https://api.logisticacastrofallas.com/api/external/v1/solicitar-tarifa-wjicua4" &&
+            request.Headers.TryGetValues("X-Api-Key", out var secret) &&
+            secret.SingleOrDefault() == key &&
+            request.Headers.TryGetValues("Idempotency-Key", out var keys) &&
+            keys.SingleOrDefault() == "cf-official-" + quoteId.ToString("D"),
+            "Fake handler rejected unexpected method, URL, key or identity.");
+        var json = await request.Content!.ReadAsStringAsync(cancellationToken);
+        using var body = JsonDocument.Parse(json);
+        AssertFake(body.RootElement.GetProperty("shipmentMode").GetString() == "Fcl",
+            "Only fictional FCL payload may reach fake handler.");
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                "\"f8000000-0000-4000-8000-000000000001\"",
+                Encoding.UTF8, "application/json")
+        };
+    }
+
+    private static void AssertFake(bool condition, string error)
+    {
+        if (!condition) throw new InvalidOperationException(error);
     }
 }
 
