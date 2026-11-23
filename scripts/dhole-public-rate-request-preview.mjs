@@ -89,9 +89,12 @@ export function dholePublicRateRequestContractReview() {
 const EQUIPMENT = new Set([
   'containerTypeId','containerTypeName','containerTypeCode','quantity','unitWeightsKg'
 ]);
+// Dhole Seller Handoff contract: quantity and weightKg PER UNIT; dimensions
+// are in centimeters under length/width/height, and type is explicit.
 const CARGO = new Set([
-  'description','packages','weightKg','lengthCm','widthCm','heightCm'
+  'description','quantity','unitType','weightKg','length','width','height','isStackable'
 ]);
+const CARGO_TYPES = new Set(['Pallet','Loose','Box','Other']);
 function checkedEquipment(items,label) {
   if (!Array.isArray(items) || !items.length) throw new Error(label+': faltan equipos.');
   for (const item of items) {
@@ -111,10 +114,11 @@ function checkedCargo(items) {
   for (const item of items) {
     if (!item || typeof item !== 'object' || Array.isArray(item) ||
         Object.keys(item).some(key=>!CARGO.has(key)) || !text(item.description) ||
-        !Number.isInteger(item.packages) || item.packages < 1 ||
+        !Number.isInteger(item.quantity) || item.quantity < 1 ||
+        !CARGO_TYPES.has(item.unitType) || typeof item.isStackable !== 'boolean' ||
         !positive(item.weightKg) ||
-        !['lengthCm','widthCm','heightCm'].every(key=>positive(item[key])))
-      throw new Error('Línea consolidada inválida; peso en kg corresponde a toda la línea.');
+        !['length','width','height'].every(key=>positive(item[key])))
+      throw new Error('Línea consolidada inválida: cantidad, tipo, dimensiones y peso por unidad.');
   }
 }
 const REVIEW_BLOCKERS = Object.freeze([
@@ -174,9 +178,10 @@ export function previewDholePublicRateRequest(internalPreview) {
   }
   if (['Lcl','Air','Ltl'].includes(request.shipmentMode)) {
     checkedCargo(seller.consolidatedCargoLines);
-    if (f.cargoPackages !== seller.consolidatedCargoLines.reduce((sum,line)=>sum+line.packages,0))
+    if (f.cargoPackages !== seller.consolidatedCargoLines.reduce((sum,line)=>sum+line.quantity,0))
       throw new Error('Bultos consolidados no coinciden con el total declarado.');
-    const sumWeight = seller.consolidatedCargoLines.reduce((sum,line)=>sum+line.weightKg,0);
+    const sumWeight = seller.consolidatedCargoLines.reduce(
+      (sum,line)=>sum+line.quantity*line.weightKg,0);
     if (Math.abs(sumWeight-f.cargoWeightKg)>0.00001)
       throw new Error('Peso de carga consolidada no coincide con el peso total.');
   } else if (present(seller.consolidatedCargoLines))
