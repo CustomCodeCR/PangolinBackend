@@ -115,7 +115,8 @@ var catalog = new DholeOfficialCatalogResolution(
     verifiedAt,
     Guid.Parse("a1000000-0000-4000-8000-000000000001"), "CIF",
     [new DholeOfficialServiceResolution(
-        "Transporte internacional", Guid.Parse("c2300000-0000-4000-8000-000000000001"))],
+        "Transporte internacional", "INT_TRANSPORT",
+        Guid.Parse("c2300000-0000-4000-8000-000000000001"), true)],
     []);
 var flat = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(preview, catalog, reviewAt);
 Assert(flat.ReadyForContractReview && !flat.RemoteSubmissionPermitted,
@@ -212,9 +213,14 @@ Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
     preview, catalog with { Services = [] }, reviewAt),
     "missing service IDs");
 Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
-    preview, catalog with { Services = [new DholeOfficialServiceResolution(
-        "Agencia de Aduanas CR", catalog.Services[0].Id)] }, reviewAt),
-    "wrong service resolution");
+    preview, catalog with { Services = [catalog.Services[0] with { Name = "Agencia de Aduanas CR" }] }, reviewAt),
+    "wrong service name resolution");
+Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+    preview, catalog with { Services = [catalog.Services[0] with { Code = "CUSTOMS_CR" }] }, reviewAt),
+    "wrong Pricing service code");
+Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+    preview, catalog with { Services = [catalog.Services[0] with { IsActive = false }] }, reviewAt),
+    "inactive Pricing service");
 Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
     fcl, catalog, reviewAt),
     "equipment UUID missing");
