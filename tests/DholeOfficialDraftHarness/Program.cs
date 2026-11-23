@@ -66,10 +66,10 @@ Assert(ltl.ShipmentMode=="Ltl" &&
     Math.Abs(ltl.TotalWeightKg-4.5359237m)<0.00000001m &&
     ltl.CargoUnits[0].LengthCm==50.8m,"LTL unit conversion");
 var full=lcl with {
-    Packages:[],
-    Equipment:[new OfficialContainerInput(
+    Packages = [],
+    Equipment = [new OfficialContainerInput(
         "40 pies","Dry Van",2,[1100m,1300m])],
-    ShipmentType:"FCL"
+    ShipmentType = "FCL"
 };
 var fcl=DholeOfficialQuoteDraftBuilder.Project(full,quoteId,maritime);
 Assert(fcl.ShipmentMode=="Fcl" && fcl.CargoUnits.Count==0 &&
@@ -83,13 +83,13 @@ Assert(ftl.ShipmentMode=="Ftl" && ftl.TotalWeightKg==2400,"FTL preserves equipme
 Console.WriteLine("PASS: LCL, AIR_LCL, LTL, FCL and FTL mapped with verified route labels.");
 
 Block(()=>DholeOfficialQuoteDraftBuilder.Project(lcl with {
-    Packages:[lcl.Packages![0] with {UnitType=null}]
+    Packages = [lcl.Packages![0] with {UnitType=null}]
 },quoteId,maritime),"missing unit type");
 Block(()=>DholeOfficialQuoteDraftBuilder.Project(lcl with {
-    Packages:[lcl.Packages![0] with {UnitType="Inventado"}]
+    Packages = [lcl.Packages![0] with {UnitType="Inventado"}]
 },quoteId,maritime),"invented unit type");
 Block(()=>DholeOfficialQuoteDraftBuilder.Project(lcl with {
-    Packages:[lcl.Packages![0] with {Stackability=null}]
+    Packages = [lcl.Packages![0] with {Stackability=null}]
 },quoteId,maritime),"unknown stackability");
 Block(()=>DholeOfficialQuoteDraftBuilder.Project(lcl with {
     CatalogSource="local"
