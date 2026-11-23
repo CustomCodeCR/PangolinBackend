@@ -13,7 +13,7 @@ public sealed record DholeOutboxReconciliationReview(
     string State,
     int AttemptCount,
     string NextReviewAction,
-    bool ProviderCreationVerified,
+    bool LocalConfirmationRecorded,
     bool AutomaticRetryAllowed,
     bool DataIntegrityProblem);
 
@@ -78,13 +78,13 @@ public sealed class DholeOfficialOutboxReconciliationPreview(IConfiguration conf
                 _ => "InvestigateLocalDataIntegrity"
             };
 
-        // "ProviderCreationVerified" indicates ONLY that the local database
+        // "LocalConfirmationRecorded" indicates ONLY that the local database
         // holds a confirmed row with reference and verification timestamp. It
         // never independently attests to what currently exists in Pricing.
         return new DholeOutboxReconciliationReview(
             entry.QuoteId, entry.IdempotencyKey, entry.State,
             entry.AttemptCount, action,
-            ProviderCreationVerified: !integrityProblem && isVerified,
+            LocalConfirmationRecorded: !integrityProblem && isVerified,
             AutomaticRetryAllowed: false,
             DataIntegrityProblem: integrityProblem);
     }
