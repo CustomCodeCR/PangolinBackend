@@ -270,9 +270,17 @@ const steps = computed<Step[]>(() => {
     {value:'yes',label:i('Sí, completar datos adicionales','Yes, add further details')},
     {value:'no',label:i('No, continuar','No, continue')}
   ]})
+  const insurance = requestedServices.includes('Seguro de carga')
+  if (values.advancedDetails === 'yes')
+    result.push({key:'cabysCode',prompt:i('¿Código CABYS de la mercancía, si lo conocés?','CABYS cargo code, if known?'),optional:true})
+  if (values.advancedDetails === 'yes' || insurance)
+    result.push({key:'cargoValue',prompt:insurance
+      ? i('Para seguro de carga, ¿cuál es el valor declarado de la mercancía?','For cargo insurance, what is the declared cargo value?')
+      : i('¿Valor declarado de la carga (opcional; no representa una tarifa)?','Declared cargo value (optional; not a freight quote)?'),
+      optional:!insurance})
+  if (insurance || (values.cargoValue && Number(values.cargoValue) > 0))
+    result.push({key:'cargoCurrencyCode',prompt:i('¿En qué moneda está el valor declarado? Escribí el código ISO de 3 letras (ej.: USD, CRC).','What currency is the declared value in? Enter a 3-letter ISO code (e.g. USD, CRC).')})
   if (values.advancedDetails === 'yes') result.push(
-    {key:'cabysCode',prompt:i('¿Código CABYS de la mercancía, si lo conocés?','CABYS cargo code, if known?'),optional:true},
-    {key:'cargoValue',prompt:i('¿Valor declarado de la carga (opcional; no representa una tarifa)?','Declared cargo value (optional; not a freight quote)?'),optional:true},
     {key:'declaredWeight',prompt:i('¿Peso declarado adicional (opcional)?','Additional declared weight (optional)?'),optional:true},
     {key:'declaredPackages',prompt:i('¿Cantidad declarada adicional de bultos (opcional)?','Additional declared package count (optional)?'),optional:true},
     {key:'overweight',prompt:i('¿La carga se considera sobrepeso?','Is this overweight cargo?'),choices:[
@@ -302,6 +310,7 @@ const fieldLabels: Record<string, [string, string]> = {
   additionalLines:['Líneas adicionales','Additional lines'],
   advancedDetails:['Datos adicionales','Additional details'],
   cabysCode:['Código CABYS','CABYS code'],cargoValue:['Valor declarado','Declared value'],
+  cargoCurrencyCode:['Moneda del valor','Value currency'],
   declaredWeight:['Peso declarado adicional','Additional declared weight'],
   declaredPackages:['Bultos declarados adicionales','Additional declared packages'],
   overweight:['Sobrepeso','Overweight'],destinationHandling:['Manejo en destino','Destination handling'],
@@ -396,10 +405,15 @@ function validation(key: string, value: string): string {
       (!Number.isFinite(Number(value)) || Number(value) < 0 ||
         (key === 'declaredPackages' && !/^\d+$/.test(value))))
     return tr('Ingresá un número no negativo válido.', 'Enter a valid non-negative number.')
+  if (key === 'cargoValue' && value &&
+      values.services?.split('|').includes('Seguro de carga') && Number(value) <= 0)
+    return tr('El seguro exige un valor declarado positivo.', 'Insurance requires a positive declared value.')
+  if (key === 'cargoCurrencyCode' && !/^[A-Z]{3}$/.test(value))
+    return tr('Ingresá un código ISO de 3 letras mayúsculas.', 'Enter a 3-letter uppercase ISO code.')
   if (key === 'cargoValue' && value && Number(value) > 1000000000000)
     return tr('Valor fuera del límite permitido.', 'Declared value exceeds the allowed range.')
   const maxLength: Record<string,number> = {cargoDescription:4000, contactName:150, contactEmail:255,
-    cabysCode:40,observations:4000,destinationHandling:100, cargoValue:40,
+    cabysCode:40,observations:4000,destinationHandling:100, cargoCurrencyCode:3,cargoValue:40,
     declaredWeight:40,declaredPackages:12,
     contactPhone:40, exwPickupAddress:800, deliveryAddress:800, pickupAddress:800, reference:64, equipmentWeights:400}
   if (value.length > (maxLength[key] ?? 200)) return tr('El dato es demasiado largo.', 'This value is too long.')
@@ -469,7 +483,7 @@ function commitValue(item: Step, value: string, locationId?: string) {
   }
   if (item.key === 'equipmentSize' && values.equipmentSize !== value) delete values.equipmentType
   if (item.key === 'advancedDetails' && value !== 'yes') {
-    for (const key of ['cabysCode','cargoValue','declaredWeight','declaredPackages',
+    for (const key of ['cabysCode','cargoValue','cargoCurrencyCode','declaredWeight','declaredPackages',
       'overweight','destinationHandling','observations']) delete values[key]
   }
   if (item.key === 'incoterm' && value !== 'EXW') {
@@ -483,6 +497,7 @@ function commitValue(item: Step, value: string, locationId?: string) {
     if (!selected.includes('Transporte recolección')) delete values.pickupAddress
     selectedServices.value = selected
   }
+  if (item.key === 'cargoValue' && values.cargoValue !== value) delete values.cargoCurrencyCode
   if (item.key === 'equipmentQuantity' && values.equipmentQuantity !== value) delete values.equipmentWeights
   if (isQuoteLocation(item.key)) {
     if (locationId) selectedLocations[item.key] = locationId
@@ -813,6 +828,7 @@ async function submitQuote() {
     cargoDescription:values.cargoDescription,
     cabysCode:values.cabysCode || null,
     cargoValue:values.cargoValue ? Number(values.cargoValue) : null,
+    cargoCurrencyCode:Number(values.cargoValue) > 0 ? values.cargoCurrencyCode : null,
     declaredWeight:values.declaredWeight ? Number(values.declaredWeight) : null,
     declaredPackages:values.declaredPackages ? Number(values.declaredPackages) : null,
     observations:[
