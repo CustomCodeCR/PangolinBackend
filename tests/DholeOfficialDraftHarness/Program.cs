@@ -233,3 +233,56 @@ Assert(!flat.RemoteSubmissionPermitted, "no send gate is exposed even for passin
 Console.WriteLine("PASS: five modes project to flat Dhole review with real LCL cargo shape and resolved fake catalog UUIDs.");
 Console.WriteLine("PASS: invalid/stale catalog snapshots blocked; no HTTP, dispatcher or secrets.");
 
+
+static void ForbidState(Action action, string reason)
+{
+    try
+    {
+        action();
+        throw new Exception("FAIL: unsafe delivery transition allowed: " + reason);
+    }
+    catch (InvalidOperationException) { }
+}
+var claimed = DholeOfficialDeliveryStateMachine.Advance(
+    "PendingDispatch", DholeDeliveryEvent.ClaimForOneAttempt);
+Assert(claimed.NextState == "InFlight" && !claimed.RemoteCreationConfirmed &&
+    !claimed.AutomaticRetryAllowed, "claim creates one in-flight attempt, not a confirmation");
+var accepted = DholeOfficialDeliveryStateMachine.Advance(
+    "InFlight", DholeDeliveryEvent.HttpAcceptedButUnverified);
+Assert(accepted.NextState == "HttpAcceptedUnverified" && !accepted.RemoteCreationConfirmed,
+    "2xx only proves HTTP accepted");
+var remoteTimeout = DholeOfficialDeliveryStateMachine.Advance(
+    "InFlight", DholeDeliveryEvent.RemoteResultUnknown);
+Assert(remoteTimeout.NextState == "Unconfirmed" && !remoteTimeout.AutomaticRetryAllowed,
+    "timeout or lost response stops automatic retry");
+var rejected = DholeOfficialDeliveryStateMachine.Advance(
+    "InFlight", DholeDeliveryEvent.ProviderRejected);
+Assert(rejected.NextState == "Rejected" && !rejected.AutomaticRetryAllowed,
+    "provider rejection is never implicitly retried");
+var localError = DholeOfficialDeliveryStateMachine.Advance(
+    "InFlight", DholeDeliveryEvent.LocalValidationFailed);
+Assert(localError.NextState == "Failed" && !localError.AutomaticRetryAllowed,
+    "local validation failure cannot send again automatically");
+var found = DholeOfficialDeliveryStateMachine.Advance(
+    "Unconfirmed", DholeDeliveryEvent.ManualConfirmInPricing, "pricing-verified-ci");
+Assert(found.NextState == "Confirmed" && found.RemoteCreationConfirmed &&
+    !found.AutomaticRetryAllowed, "only verified Pricing evidence confirms remote creation");
+ForbidState(() => DholeOfficialDeliveryStateMachine.Advance(
+    "PendingDispatch", DholeDeliveryEvent.ManualConfirmInPricing, "fake"),
+    "unattempted quote cannot be marked confirmed");
+ForbidState(() => DholeOfficialDeliveryStateMachine.Advance(
+    "InFlight", DholeDeliveryEvent.ManualConfirmInPricing, "fake"),
+    "in-flight quote cannot be directly confirmed");
+ForbidState(() => DholeOfficialDeliveryStateMachine.Advance(
+    "Unconfirmed", DholeDeliveryEvent.ClaimForOneAttempt),
+    "ambiguous remote outcome cannot auto retry");
+ForbidState(() => DholeOfficialDeliveryStateMachine.Advance(
+    "HttpAcceptedUnverified", DholeDeliveryEvent.ClaimForOneAttempt),
+    "HTTP 2xx cannot auto retry");
+ForbidState(() => DholeOfficialDeliveryStateMachine.Advance(
+    "Unconfirmed", DholeDeliveryEvent.ManualConfirmInPricing, ""),
+    "no external verification reference");
+ForbidState(() => DholeOfficialDeliveryStateMachine.Advance(
+    "Confirmed", DholeDeliveryEvent.ClaimForOneAttempt),
+    "confirmed quote cannot auto send twice");
+Console.WriteLine("PASS: delivery state machine rejects unsafe retries and false remote confirmations.");
