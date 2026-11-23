@@ -7,6 +7,7 @@ on:
       - "frontend/src/components/AssistantBot.vue"
       - "frontend/src/pages/OfficialQuoteWizard.vue"
       - "frontend/src/lib/officialQuoteOptions.ts"
+      - "frontend/src/lib/officialQuoteSubmissionAttempt.ts"
       - "frontend/scripts/test-frontend-merge.cjs"
       - "frontend/src/services/auth.ts"
       - "backend/Services/AssistantService.cs"
