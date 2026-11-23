@@ -13,6 +13,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<OfficialQuotePermission> OfficialQuotePermissions => Set<OfficialQuotePermission>();
     public DbSet<OfficialQuoteAudit> OfficialQuoteAudit => Set<OfficialQuoteAudit>();
     public DbSet<OfficialQuoteDholeOutbox> OfficialQuoteDholeOutbox => Set<OfficialQuoteDholeOutbox>();
+    public DbSet<OfficialQuoteClientSubmission> OfficialQuoteClientSubmissions => Set<OfficialQuoteClientSubmission>();
     public DbSet<OfficialQuoteDholeCreationOutbox> OfficialQuoteDholeCreationOutbox => Set<OfficialQuoteDholeCreationOutbox>();
     public DbSet<ManagedNews> ManagedNews => Set<ManagedNews>();
     public DbSet<ManagedComment> ManagedComments => Set<ManagedComment>();
@@ -85,10 +86,6 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         official.Property(x => x.OriginName).HasColumnName("origin_name").HasMaxLength(180);
         official.Property(x => x.DestinationName).HasColumnName("destination_name").HasMaxLength(180);
         official.Property(x => x.FormJson).HasColumnName("form_json").HasColumnType("jsonb");
-        official.Property(x => x.ClientSubmissionKey).HasColumnName("client_submission_key");
-        official.HasIndex(x => x.ClientSubmissionKey).IsUnique()
-            .HasFilter("client_submission_key IS NOT NULL");
-        official.Property(x => x.ClientSubmissionDigest).HasColumnName("client_submission_digest").HasMaxLength(64);
         official.Property(x => x.Status).HasColumnName("status").HasMaxLength(30);
         official.Property(x => x.Authorization).HasColumnName("approval_status").HasMaxLength(15);
         official.Property(x => x.AuthorizedById).HasColumnName("authorized_by_id");
@@ -128,6 +125,17 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         officialAudit.Property(x => x.Action).HasColumnName("action").HasMaxLength(32);
         officialAudit.Property(x => x.Comment).HasColumnName("comment").HasMaxLength(2000);
         officialAudit.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+
+        // Optional creation deduplication is a completely separate table.
+        // Its query is guarded by ClientCreateIdempotencyEnabled.
+        var creation = modelBuilder.Entity<OfficialQuoteClientSubmission>();
+        creation.ToTable("official_quote_client_submissions", "public");
+        creation.HasKey(x => x.SubmissionKey);
+        creation.Property(x => x.SubmissionKey).HasColumnName("submission_key");
+        creation.Property(x => x.QuoteId).HasColumnName("quote_id");
+        creation.HasIndex(x => x.QuoteId).IsUnique();
+        creation.Property(x => x.RequestDigest).HasColumnName("request_digest").HasMaxLength(64);
+        creation.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
 
         // Direct creation outbox: a separate opt-in path, not dependent on approval.
         // Never query this table unless its migration and flag are enabled.
