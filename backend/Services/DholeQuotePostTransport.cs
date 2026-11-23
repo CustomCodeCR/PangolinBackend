@@ -25,6 +25,9 @@ public sealed class DholeQuotePostTransport(
     private const int MaxBodyBytes = 128 * 1024;
     private const int MaxResponseBytes = 64 * 1024;
     // Exact narrow allowlist from the reviewed external contract preview.
+    // No form_cargoValue yet: the currency UUID and insurance commercial
+    // semantics are NOT verified. An insured quote must block upstream rather
+    // than send an unlabeled monetary amount or silently omit it.
     // Any new field requires another code review; never automatically forward 103 inputs.
     private static readonly HashSet<string> AllowedFields = new(StringComparer.Ordinal)
     {
@@ -32,7 +35,7 @@ public sealed class DholeQuotePostTransport(
         "podId", "podName", "form_rateType", "form_modality", "form_shipmentMode",
         "form_originId", "form_destinationId", "form_podId", "form_incotermId",
         "form_serviceIds", "form_loadDate", "form_cargoDescription", "form_cargoObservations",
-        "form_cargoValue", "form_cargoWeightKg", "form_cargoPackages", "form_storageDays",
+        "form_cargoWeightKg", "form_cargoPackages", "form_storageDays",
         "form_cabysCode", "form_pickupAddress", "form_dangerousCargo", "form_nonStackable",
         "form_overweight", "form_fclContainers", "form_landContainers",
         "form_inlandDeliveryLocation_address", "requestContext_incotermName",
