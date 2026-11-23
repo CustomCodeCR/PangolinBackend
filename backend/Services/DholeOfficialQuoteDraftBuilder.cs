@@ -59,8 +59,8 @@ public static class DholeOfficialQuoteDraftBuilder
         OfficialQuoteSubmit input, Guid quoteId, DholeValidatedRoute route)
     {
         if (quoteId == Guid.Empty || input.CatalogSource != "dhole" ||
-            input.OriginLocationId is null or { } origin && origin == Guid.Empty ||
-            input.DestinationLocationId is null or { } poe && poe == Guid.Empty ||
+            !input.OriginLocationId.HasValue || input.OriginLocationId == Guid.Empty ||
+            !input.DestinationLocationId.HasValue || input.DestinationLocationId == Guid.Empty ||
             string.IsNullOrWhiteSpace(route.OriginName) ||
             string.IsNullOrWhiteSpace(route.DestinationName))
             throw new ArgumentException("Dhole: falta identidad o ruta previamente verificada.");
