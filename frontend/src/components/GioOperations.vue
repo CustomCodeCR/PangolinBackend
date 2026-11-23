@@ -271,7 +271,11 @@ const steps = computed<Step[]>(() => {
     {key:'packageHeight',prompt:i('¿Alto de cada bulto, en cm?','Height of each package in cm?')},
     {key:'stackable',prompt:i('¿Se pueden apilar los bultos?','Can the packages be stacked?'),choices:[{value:'Stackable',label:i('Sí','Yes')},{value:'NonStackable',label:'No'}]}
   )
-  result.push({key:'additionalLines',prompt:i('¿Tenés otras líneas de carga o equipos? Agregá hasta 24 más, con sus propios datos.','Do you have more cargo or equipment lines? Add up to 24 with their own details.')})
+  result.push({key:'additionalLines',prompt:isEquipment.value
+    ? i('¿Necesitás otro tamaño o tipo de equipo? Si son iguales, usá la cantidad de la primera línea. Podés agregar hasta 24 grupos más.',
+        'Do you need another equipment size or type? If the units are identical, use the quantity on the first line. You can add up to 24 more groups.')
+    : i('¿Tenés bultos con distinto peso, tamaño o tipo? Los bultos iguales van juntos en una línea usando Cantidad. Podés agregar hasta 24 grupos más.',
+        'Do any packages have different weights, dimensions or types? Identical packages belong in one line using Quantity. You can add up to 24 more groups.')})
   result.push({key:'advancedDetails',prompt:i('¿Querés incluir los datos adicionales de tu tarifa (CABYS, valor declarado, observaciones y manejo)?','Would you like to include additional quote details (CABYS, declared value, notes and handling)?'),choices:[
     {value:'yes',label:i('Sí, completar datos adicionales','Yes, add further details')},
     {value:'no',label:i('No, continuar','No, continue')}
@@ -1006,7 +1010,9 @@ async function perform() {
       <template v-if="phase === 'collect' && current">
         <div class="gio-ops__bubble">{{ current.prompt }}</div>
         <div v-if="current.key === 'additionalLines'" class="gio-ops__extra-lines">
-          <p class="gio-ops__note">{{ tr('La primera línea ya quedó registrada. Podés añadir hasta 24 más; cada una conserva su peso y sus medidas.', 'Your first line is already recorded. Add up to 24 more; each keeps its own weights and dimensions.') }}</p>
+          <p class="gio-ops__note">{{ isEquipment
+            ? tr('La primera línea de equipo ya quedó registrada. Añadí otra solo si necesitás un tipo o tamaño diferente.', 'Your first equipment group is already recorded. Add another only for a different type or size.')
+            : tr('La primera línea ya quedó registrada. Ejemplo: 10 cajas iguales = una línea con cantidad 10; otras tarimas o cajas de diferente tamaño = una línea adicional.', 'Your first cargo group is recorded. Example: 10 identical boxes = one line with quantity 10; pallets or different-size boxes = another line.') }}</p>
           <template v-if="isEquipment">
             <div v-for="(line,index) in extraEquipmentLines" :key="index" class="gio-ops__extra-line">
               <strong>{{ tr('Equipo adicional','Additional equipment') }} {{ index+2 }}</strong>
