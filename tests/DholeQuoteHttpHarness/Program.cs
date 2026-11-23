@@ -849,11 +849,12 @@ internal static class DholeQuoteHttpTest
         {
             await db.OpenAsync();
             await using var query = new NpgsqlCommand("""
-                SELECT q.id, q.client_submission_digest, count(o.quote_id)
-                FROM public.official_quote_requests q
+                SELECT q.id, s.request_digest, count(o.quote_id)
+                FROM public.official_quote_client_submissions s
+                JOIN public.official_quote_requests q ON q.id = s.quote_id
                 LEFT JOIN public.official_quote_dhole_creation_outbox o ON o.quote_id = q.id
-                WHERE q.client_submission_key = @key
-                GROUP BY q.id, q.client_submission_digest
+                WHERE s.submission_key = @key
+                GROUP BY q.id, s.request_digest
                 """, db);
             query.Parameters.AddWithValue("key", firstKey);
             await using var row = await query.ExecuteReaderAsync();
@@ -866,8 +867,8 @@ internal static class DholeQuoteHttpTest
         {
             await db.OpenAsync();
             await using var query = new NpgsqlCommand("""
-                SELECT count(*) FROM public.official_quote_requests
-                WHERE client_submission_key = @key
+                SELECT count(*) FROM public.official_quote_client_submissions
+                WHERE submission_key = @key
                 """, db);
             query.Parameters.AddWithValue("key", raceKey);
             Assert(Convert.ToInt64(await query.ExecuteScalarAsync()) == 1,
@@ -895,8 +896,8 @@ internal static class DholeQuoteHttpTest
             await using var db = new NpgsqlConnection(connectionString);
             await db.OpenAsync();
             await using var probe = new NpgsqlCommand("""
-                SELECT COUNT(*) FROM public.official_quote_requests
-                WHERE client_submission_key = @key
+                SELECT COUNT(*) FROM public.official_quote_client_submissions
+                WHERE submission_key = @key
                 """, db);
             probe.Parameters.AddWithValue("key", recoverableKey);
             Assert(Convert.ToInt64(await probe.ExecuteScalarAsync()) == 0,
