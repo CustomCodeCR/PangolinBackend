@@ -89,15 +89,20 @@ assert.match(source('../../deploy/nuxt-hybrid-gateway.conf'), /location = \/home
 const homeAccordion = source('../src/Home.vue')
 assert.match(homeAccordion, /:data-service-key="service.key"/,
   'Cada pestaña del Inicio necesita una clave estable para sus estilos')
+const accordionRule = selector => {
+  const index = homeAccordion.indexOf(selector + ' {')
+  assert.ok(index >= 0, 'Falta regla CSS para ' + selector)
+  return homeAccordion.slice(index + selector.length + 2).split('}')[0]
+}
 for (const [theme, color] of [['html:not(.theme-dark)', '#b00929'], ['html.theme-dark', '#fff']]) {
-  const labelRule = homeAccordion.slice(homeAccordion.indexOf(theme + ' .app-site.home-page #servicios .service-accordion__item .service-accordion__trigger .service-accordion__name {'))
-  assert.ok(labelRule.startsWith(theme + ' .app-site.home-page #servicios .service-accordion__item .service-accordion__trigger .service-accordion__name {') &&
-    labelRule.slice(0, 235).includes('color: ' + color + ' !important') &&
-    labelRule.slice(0, 235).includes('-webkit-text-fill-color: ' + color + ' !important') &&
-    labelRule.slice(0, 245).includes('-webkit-text-stroke: 0 transparent !important'),
+  const labelRule = accordionRule(theme + ' .app-site.home-page #servicios .service-accordion__item .service-accordion__trigger .service-accordion__name')
+  assert.ok(labelRule.includes('color: ' + color + ' !important') &&
+    labelRule.includes('-webkit-text-fill-color: ' + color + ' !important') &&
+    labelRule.includes('-webkit-text-stroke: 0 transparent !important'),
     'El nombre vertical debe ser sólido ' + color + ' en ' + theme)
-  assert.ok(homeAccordion.includes(theme + ' .app-site.home-page #servicios .service-accordion__item[data-service-key="Panama"] .service-accordion__copy h3 {') &&
-    homeAccordion.includes('color: ' + color + ' !important'),
+  const titleRule = accordionRule(theme + ' .app-site.home-page #servicios .service-accordion__item[data-service-key="Panama"] .service-accordion__copy h3')
+  assert.ok(titleRule.includes('color: ' + color + ' !important') &&
+    titleRule.includes('-webkit-text-fill-color: ' + color + ' !important'),
     'El título Panamá–Costa Rica debe respetar el tema ' + theme)
 }
 assert.match(homeAccordion, /\.service-accordion__item\.is-open > \.service-accordion__trigger\s*\{\s*background: #fff0f4 !important;/,
