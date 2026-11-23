@@ -352,6 +352,7 @@ onUnmounted(() => {
                 v-for="service in transportServices"
                 :key="service.key"
                 class="service-accordion__item"
+                :data-service-key="service.key"
                 :class="{ 'is-open': activeService === service.key }"
                 :hidden="compactServiceMode && !visibleHomeServiceKeys.has(service.key)"
                  :style="{ '--service-image': siteCssImage(`home.services.${service.key.toLowerCase()}.media`, transportServices.find(item => item.key === service.key)?.photo ?? '/images/hero.webp') }"
@@ -1014,5 +1015,33 @@ html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__o
   html .app-site.home-page #servicios .service-accordion__item {
     transition: none !important;
   }
+}
+
+/* Color de los seis nombres verticales del Inicio: texto sólido, no contorno.
+   Se aplica a pestañas abiertas y cerradas sin alterar el acordeón ni sus animaciones. */
+html:not(.theme-dark) .app-site.home-page #servicios .service-accordion__item .service-accordion__trigger .service-accordion__name {
+  color: #b00929 !important;
+  -webkit-text-fill-color: #b00929 !important;
+  -webkit-text-stroke: 0 transparent !important;
+}
+html.theme-dark .app-site.home-page #servicios .service-accordion__item .service-accordion__trigger .service-accordion__name {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  -webkit-text-stroke: 0 transparent !important;
+}
+/* El riel activo claro deja de ser rojo sólido para que su texto rojo se lea. */
+html:not(.theme-dark) .app-site.home-page #servicios .service-accordion__item.is-open > .service-accordion__trigger {
+  background: #fff0f4 !important;
+  border-right-color: rgba(176, 9, 41, .32) !important;
+}
+/* Título completo de Panamá–Costa Rica, visible dentro de la tarjeta abierta. */
+html:not(.theme-dark) .app-site.home-page #servicios .service-accordion__item[data-service-key="Panama"] .service-accordion__copy h3 {
+  color: #b00929 !important;
+  -webkit-text-fill-color: #b00929 !important;
+  text-shadow: 0 0 8px rgba(255,255,255,.95), 0 1px 3px rgba(255,255,255,.8) !important;
+}
+html.theme-dark .app-site.home-page #servicios .service-accordion__item[data-service-key="Panama"] .service-accordion__copy h3 {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
 }
 </style>
