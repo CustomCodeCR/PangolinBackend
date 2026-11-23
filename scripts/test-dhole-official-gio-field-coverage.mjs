@@ -129,8 +129,14 @@ for (const source of [wizard,gio])
     'if (serverDedup) headers[\'X-CF-Quote-Request-Key\']'],
     'Client must not assume server accepts deduplication');
 has(retry,['legacyQuoteResultUncertain','setLegacyQuoteResultUncertain',
-  'sessionStorage.setItem(storageKey + \':unverified\', \'1\')'],
-  'PII-free blocking marker for ambiguous legacy POST outcomes');
+  'sessionStorage.setItem(storageKey + \':unverified\', \'1\')',
+  'unresolvedKeyedQuoteAttempt'],
+  'PII-free blocking marker and downgrade guard');
+for (const source of [wizard,gio]) {
+  has(source,['unresolvedKeyedQuoteAttempt(CREATE_ATTEMPT_KEY, activeCreateAttempt)',
+    'legacyAttemptMayHaveSaved ||','legacyQuoteResultUncertain(CREATE_ATTEMPT_KEY)'],
+    'No automatic cross-mode retry of an ambiguous quote');
+}
 console.log('PASS: browser trusts explicit server opt-in only; keyed POST fails closed if flag goes off.');
 
 console.log('PASS: default-off server creation idempotency, add-only schema, stable client keys with no raw-body storage.');
