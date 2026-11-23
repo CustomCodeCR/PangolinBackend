@@ -18,6 +18,10 @@ on:
       - 'tools/DholeOneShotQuote/**'
       - 'scripts/dhole-rate-request-preview.mjs'
       - 'scripts/dhole-public-rate-request-preview.mjs'
+      - 'scripts/test-dhole-official-gio-field-coverage.mjs'
+      - 'frontend/src/components/GioOperations.vue'
+      - 'frontend/src/pages/OfficialQuoteWizard.vue'
+      - 'frontend/src/lib/officialQuoteOptions.ts'
       - '.github/workflows/dhole-post-transport-preflight.yml'
   workflow_dispatch:
 permissions:
@@ -35,6 +39,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Check 103-field Dhole contract and mandatory/conditional wizard-GIO parity without network
+        run: node scripts/test-dhole-official-gio-field-coverage.mjs
       - name: Validate real official web/GIO form projection into unsendable Dhole drafts
         run: dotnet run --project tests/DholeOfficialDraftHarness/DholeOfficialDraftHarness.csproj --configuration Release
       - name: Build five fake external quote contracts (Node, offline only)
