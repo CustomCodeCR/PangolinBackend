@@ -11,7 +11,9 @@ import { refreshSession } from '../services/auth'
 import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialEquipmentTypeLabel, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
 import { loadDholeQuoteFormOptions, type DholeQuoteFormOptions } from '../lib/dholeQuoteForm'
 import { costaRicaToday, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
-import { prepareQuoteSubmissionAttempt, clearQuoteSubmissionAttempt, type QuoteSubmissionAttempt } from '../lib/officialQuoteSubmissionAttempt'
+import { prepareQuoteSubmissionAttempt, clearQuoteSubmissionAttempt,
+  legacyQuoteResultUncertain, setLegacyQuoteResultUncertain,
+  type QuoteSubmissionAttempt } from '../lib/officialQuoteSubmissionAttempt'
 
 const { locale } = useI18n({ useScope: 'global' })
 const q = (es: string, en: string) => locale.value === 'en' ? en : es
@@ -43,6 +45,7 @@ const error = ref('')
 const createdId = ref('')
 const CREATE_ATTEMPT_KEY = 'gcf-official-quote-wizard-attempt-v1'
 let activeCreateAttempt: QuoteSubmissionAttempt | null = null
+let legacyAttemptMayHaveSaved = false
 const earliestReadyDate = ref(costaRicaToday())
 let earliestReadyTimer: number | undefined
 const syncEarliestReadyDate = () => { earliestReadyDate.value = costaRicaToday() }
@@ -507,25 +510,41 @@ async function submit() {
   }
   error.value = validate()
   if (error.value) return
+  // Only true from the CURRENT Dhole options endpoint means PostgreSQL
+  // actually deduplicates keyed requests. A legacy backend must not receive
+  // a key it cannot honor or silently accept duplicate retransmissions.
+  const serverDedup = catalogSource.value === 'dhole' &&
+    dholeFormOptions.value?.clientCreateIdempotencyEnabled === true
+  if (!serverDedup &&
+      (legacyAttemptMayHaveSaved || legacyQuoteResultUncertain(CREATE_ATTEMPT_KEY))) {
+    error.value = q(
+      'El resultado del envío anterior es incierto. Consultá con soporte antes de volver a enviarlo para evitar duplicados.',
+      'The prior submission may have been saved. Contact support before submitting again to avoid duplicates.')
+    return
+  }
   busy.value = true
   try {
     const body = JSON.stringify(payload())
-    activeCreateAttempt = await prepareQuoteSubmissionAttempt(
-      CREATE_ATTEMPT_KEY, body, activeCreateAttempt)
+    if (serverDedup)
+      activeCreateAttempt = await prepareQuoteSubmissionAttempt(
+        CREATE_ATTEMPT_KEY, body, activeCreateAttempt)
+    const headers: Record<string,string> = { 'Content-Type':'application/json' }
+    if (serverDedup) headers['X-CF-Quote-Request-Key'] = activeCreateAttempt!.key
+    else {
+      // Mark before fetch: the connection could be lost after DB commit.
+      legacyAttemptMayHaveSaved = true
+      setLegacyQuoteResultUncertain(CREATE_ATTEMPT_KEY)
+    }
     const response = await fetch('/api/quotes/official', {
-      method:'POST',credentials:'same-origin',
-      headers:{
-        'Content-Type':'application/json',
-        'X-CF-Quote-Request-Key':activeCreateAttempt.key
-      },body
+      method:'POST',credentials:'same-origin',headers,body
     })
     const data = await response.json() as {id?:string;error?:string}
     if (!response.ok) {
-      // A verified 400 rejects the request BEFORE creating a quote; corrections
-      // can get a fresh key. Network/5xx failures are ambiguous: retain key.
       if (response.status === 400) {
+        // Server definitively rejected validation before saving the request.
         clearQuoteSubmissionAttempt(CREATE_ATTEMPT_KEY)
         activeCreateAttempt = null
+        legacyAttemptMayHaveSaved = false
       }
       throw new Error(data.error || 'No se pudo confirmar la solicitud (HTTP '+response.status+').')
     }
@@ -535,6 +554,7 @@ async function submit() {
     createdId.value = data.id
     clearQuoteSubmissionAttempt(CREATE_ATTEMPT_KEY)
     activeCreateAttempt = null
+    legacyAttemptMayHaveSaved = false
   } catch (e) { error.value = e instanceof Error ? e.message : 'Error al enviar.' }
   finally { busy.value = false }
 }
