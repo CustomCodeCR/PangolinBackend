@@ -6,7 +6,8 @@ namespace CastroFallas.MiniQuote.Api.Services;
 // Contract review only. An authorized backend catalogue loader must create
 // these resolutions from CURRENT and trusted Dhole catalogue responses.
 // This preview never contacts Dhole, stores secrets, or hands data to a sender.
-public sealed record DholeOfficialServiceResolution(string Name, Guid Id);
+public sealed record DholeOfficialServiceResolution(
+    string Name, string Code, Guid Id, bool IsActive);
 public sealed record DholeOfficialEquipmentResolution(
     string ShipmentMode, string Size, string Type, Guid TypeId, string TypeName, string TypeCode);
 public sealed record DholeOfficialCatalogResolution(
@@ -24,6 +25,24 @@ public sealed record DholeOfficialFlatReview(
 public static class DholeOfficialQuoteFlatPreviewBuilder
 {
     private const decimal WeightToleranceKg = 0.00001m;
+    // Stable Config/Pricing service codes; IDs MUST come from a currently
+    // authorized catalogue snapshot, never from this map or a browser.
+    private static readonly IReadOnlyDictionary<string, string> ServiceCodes =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["Transporte internacional"] = "INT_TRANSPORT",
+            ["Agencia de Aduanas CR"] = "CUSTOMS_CR",
+            ["Agencia de Aduanas Exterior"] = "CUSTOMS_FOREIGN",
+            ["Almacenamiento"] = "STORAGE",
+            ["Control de inventario"] = "INVENTORY_CONTROL",
+            ["Embalaje"] = "PACKING",
+            ["Exoneración"] = "EXONERATION",
+            ["Picking Carga"] = "PICKING",
+            ["Recepción de carga"] = "RECEPTION",
+            ["Seguro de carga"] = "CARGO_INSURANCE",
+            ["Transporte entrega"] = "DELIVERY",
+            ["Transporte recolección"] = "PICKUP"
+        };
     private static readonly TimeSpan MaximumCatalogAge = TimeSpan.FromMinutes(15);
 
     private static string Required(string? text, string field)
@@ -83,7 +102,9 @@ public static class DholeOfficialQuoteFlatPreviewBuilder
             throw new ArgumentException("Dhole preview: Incoterm no coincide con catálogo.");
         if (draft.Services is not { Count: > 0 } || catalogs.Services is null ||
             draft.Services.Count != catalogs.Services.Count ||
-            catalogs.Services.Any(s => s is null || string.IsNullOrWhiteSpace(s.Name) || s.Id == Guid.Empty))
+            catalogs.Services.Any(s => s is null || s.IsActive != true ||
+                string.IsNullOrWhiteSpace(s.Name) || string.IsNullOrWhiteSpace(s.Code) ||
+                s.Id == Guid.Empty))
             throw new ArgumentException("Dhole preview: servicios sin resolución completa.");
 
         var serviceIds = new List<string>();
@@ -94,7 +115,9 @@ public static class DholeOfficialQuoteFlatPreviewBuilder
             if (!uniqueServiceNames.Add(name))
                 throw new ArgumentException("Dhole preview: servicio repetido.");
             var found = catalogs.Services.Where(s => s.Name == name).ToArray();
-            if (found.Length != 1 || !uniqueServiceIds.Add(found[0].Id))
+            if (!ServiceCodes.TryGetValue(name, out var expectedCode) ||
+                found.Length != 1 || found[0].Code != expectedCode ||
+                !uniqueServiceIds.Add(found[0].Id))
                 throw new ArgumentException("Dhole preview: servicio sin UUID único verificado.");
             serviceIds.Add(found[0].Id.ToString("D"));
         }
