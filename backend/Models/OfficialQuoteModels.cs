@@ -16,10 +16,6 @@ public sealed class OfficialQuoteRequest
     public string DestinationName { get; set; } = "";
     // JSONB conserva la captura sin convertir medidas/pesos ni calcular precios.
     public string FormJson { get; set; } = "{}";
-    // Client-side creation deduplication (separate from Dhole delivery key).
-    // Both nullable for historic rows and feature-off deployments.
-    public Guid? ClientSubmissionKey { get; set; }
-    public string? ClientSubmissionDigest { get; set; }
     public string Status { get; set; } = "Received";
     public string Authorization { get; set; } = "Pending";
     public Guid? AuthorizedById { get; set; }
@@ -27,6 +23,16 @@ public sealed class OfficialQuoteRequest
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
+// Completely separate table, queried only when creation idempotency is opted in.
+// This avoids changing the historic official quote schema while the flag is OFF.
+public sealed class OfficialQuoteClientSubmission
+{
+    public Guid SubmissionKey { get; set; }
+    public Guid QuoteId { get; set; }
+    public string RequestDigest { get; set; } = "";
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
 // Creation-time outbox for validated Dhole-backed official submissions.
 // Independent of administrative approval. Never contains duplicated PII or a payload.
 // No worker or sender consumes these records yet.
