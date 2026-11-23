@@ -175,7 +175,7 @@ var fullCatalog = catalog with
         new DholeOfficialEquipmentResolution(
             "Fcl", "40 pies", "Dry Van",
             Guid.Parse("f6000000-0000-4000-8000-000000000001"),
-            "40 Dry Van", "FCL-40-DRY")
+            "40 Dry Van", "FCL-40-DRY", true)
     ]
 };
 var fclFlat = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(fcl, fullCatalog, reviewAt).Body;
@@ -184,6 +184,40 @@ Assert(fclFlat.GetProperty("form_fclContainers")[0].GetProperty("quantity").GetI
     fclFlat.GetProperty("form_cargoWeightKg").GetDecimal() == 2400 &&
     !fclFlat.TryGetProperty("sellerContext_consolidatedCargoLines", out _),
     "FCL equipment preserves individual weights and correct total");
+Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+    fcl, fullCatalog with { Equipment = [
+        fullCatalog.Equipment[0] with { IsActive = false }] }, reviewAt),
+    "inactive equipment type may not be resolved even if UUID is present");
+
+// Two distinct sizes must never alias the same Catalog item UUID.
+var fclTwoTypes = fcl with {
+    EquipmentUnits = [
+        fcl.EquipmentUnits[0],
+        new DholeOfficialEquipmentUnit("20 pies", "High Cube", 1, [500m])
+    ],
+    TotalWeightKg = fcl.TotalWeightKg + 500m
+};
+var twoTypeCatalog = fullCatalog with {
+    Equipment = [
+        fullCatalog.Equipment[0],
+        new DholeOfficialEquipmentResolution(
+            "Fcl", "20 pies", "High Cube",
+            Guid.Parse("f6000000-0000-4000-8000-000000000003"),
+            "20 High Cube", "FCL-20-HC", true)
+    ]
+};
+var verifiedTwoTypes = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+    fclTwoTypes, twoTypeCatalog, reviewAt);
+Assert(verifiedTwoTypes.Body.GetProperty("form_fclContainers").GetArrayLength() == 2 &&
+    !verifiedTwoTypes.RemoteSubmissionPermitted,
+    "different active FCL types with distinct UUIDs may be reviewed, never sent");
+Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+    fclTwoTypes, twoTypeCatalog with { Equipment = [
+        twoTypeCatalog.Equipment[0],
+        twoTypeCatalog.Equipment[1] with {
+            TypeId = twoTypeCatalog.Equipment[0].TypeId }
+    ] }, reviewAt),
+    "different equipment combinations cannot share one Pricing type UUID");
 var ftlCatalog = catalog with
 {
     Equipment =
@@ -191,7 +225,7 @@ var ftlCatalog = catalog with
         new DholeOfficialEquipmentResolution(
             "Ftl", "48 pies", "Furgón seco",
             Guid.Parse("f6000000-0000-4000-8000-000000000002"),
-            "48 Furgón seco", "FTL-48-DRY")
+            "48 Furgón seco", "FTL-48-DRY", true)
     ]
 };
 var ftlFlat = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(ftl, ftlCatalog, reviewAt).Body;
