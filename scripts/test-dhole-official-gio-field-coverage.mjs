@@ -12,6 +12,9 @@ const backend = read('backend/Endpoints/OfficialQuoteEndpoints.cs');
 const model = read('backend/Models/OfficialQuoteModels.cs');
 const draft = read('backend/Services/DholeOfficialQuoteDraftBuilder.cs');
 const flat = read('backend/Services/DholeOfficialQuoteFlatPreviewBuilder.cs');
+const retry = read('frontend/src/lib/officialQuoteSubmissionAttempt.ts');
+const schema = read('backend/Database/OfficialQuotesSchema.sql');
+const context = read('backend/Data/AppDbContext.cs');
 
 const has = (src,fields,label) => {
   for (const field of fields) assert.ok(src.includes(field), label+': missing '+field);
@@ -94,6 +97,25 @@ for (const forbidden of ['form_currencyId','form_clientId','form_executiveId',
   'form_freightCost','form_freightSale','sellerUserId']) {
   assert.ok(!projected.has(forbidden),'Unverified business identity/money field '+forbidden);
 }
+
+// Client creation keys are independent from future Dhole delivery keys.
+// The backend feature is deliberately OFF by default; schema is additive.
+has(backend,['ClientCreateIdempotencyEnabled','X-CF-Quote-Request-Key',
+  'pg_advisory_xact_lock','ClientSubmissionDigest','idempotentReplay'],
+  'Server creation dedup');
+has(schema,['ADD COLUMN IF NOT EXISTS client_submission_key',
+  'ADD COLUMN IF NOT EXISTS client_submission_digest',
+  'ux_official_quote_client_submission_key'], 'Additive dedup migration');
+has(context,['ClientSubmissionKey','ClientSubmissionDigest'],'EF mapping');
+has(retry,['crypto.subtle.digest','crypto.randomUUID','sessionStorage',
+  'previous.digest !== digest'], 'Per-tab duplicate protection');
+for (const frontend of [wizard,gio])
+  has(frontend,['prepareQuoteSubmissionAttempt','clearQuoteSubmissionAttempt',
+    'X-CF-Quote-Request-Key'],'Quote UI retry protection');
+assert.ok(!retry.includes('JSON.stringify({body'), 'Do not persist raw quote bodies in retry state');
+assert.ok(!schema.includes('client_submission_key UUID NOT NULL'),
+  'Historic quotes must not acquire a mandatory client key');
+console.log('PASS: default-off server creation idempotency, add-only schema, stable client keys with no raw-body storage.');
 
 console.log('PASS: 103 published API inputs classified; 12 services share exact Pricing codes.');
 console.log('PASS: wizard and GIO retain mandatory, conditional and optional user data.');
