@@ -452,6 +452,21 @@ internal static class DholeQuoteHttpTest
                 })));
         using var directClient = directFactory.CreateClient(
             new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using (var noInsuredValue = await directClient.PostAsJsonAsync(
+            "/api/quotes/official", new Dictionary<string, object?>(quote)
+            {
+                ["services"] = new[] { "Transporte internacional", "Seguro de carga" }
+            }))
+            Assert(noInsuredValue.StatusCode == HttpStatusCode.BadRequest,
+                "Insurance requires a positive cargo value before quote persistence");
+        using (var noCurrency = await directClient.PostAsJsonAsync(
+            "/api/quotes/official", new Dictionary<string, object?>(quote)
+            {
+                ["services"] = new[] { "Transporte internacional", "Seguro de carga" },
+                ["cargoValue"] = 1500
+            }))
+            Assert(noCurrency.StatusCode == HttpStatusCode.BadRequest,
+                "Declared value cannot be submitted without explicit currency");
         using var directResponse = await directClient.PostAsJsonAsync("/api/quotes/official", quote);
         Assert(directResponse.StatusCode == HttpStatusCode.Created,
             "Direct opt-in creates one fictional quote and its outbox atomically");
@@ -594,6 +609,38 @@ internal static class DholeQuoteHttpTest
                     DROP CONSTRAINT IF EXISTS ck_ci_refuse_pending
                 """, db);
             await unblock.ExecuteNonQueryAsync();
+        }
+
+        // Valid declared insurance amount/currency remain in the ADMIN copy,
+        // still with zero external POST and no invented form_currencyId.
+        using (var insuredResponse = await directClient.PostAsJsonAsync(
+            "/api/quotes/official", new Dictionary<string, object?>(quote)
+            {
+                ["services"] = new[] { "Transporte internacional", "Seguro de carga" },
+                ["cargoValue"] = 1500,
+                ["cargoCurrencyCode"] = "USD"
+            }))
+        {
+            Assert(insuredResponse.StatusCode == HttpStatusCode.Created,
+                "Insurance quote with ISO currency creates an administrative copy");
+            using var created = JsonDocument.Parse(await insuredResponse.Content.ReadAsStringAsync());
+            var insuredId = created.RootElement.GetProperty("id").GetGuid();
+            await using var conn = new NpgsqlConnection(connectionString);
+            await conn.OpenAsync();
+            await using var sql = new NpgsqlCommand("""
+                SELECT q.form_json::text, o.state, o.attempt_count
+                FROM public.official_quote_requests q
+                JOIN public.official_quote_dhole_creation_outbox o ON o.quote_id = q.id
+                WHERE q.id = @id
+                """, conn);
+            sql.Parameters.AddWithValue("id", insuredId);
+            await using var reader = await sql.ExecuteReaderAsync();
+            Assert(await reader.ReadAsync(), "Insurance outbox and admin copy both exist");
+            using var saved = JsonDocument.Parse(reader.GetString(0));
+            Assert(saved.RootElement.GetProperty("cargoCurrencyCode").GetString() == "USD" &&
+                saved.RootElement.GetProperty("cargoValue").GetInt32() == 1500 &&
+                reader.GetString(1) == "PendingDispatch" && reader.GetInt32(2) == 0,
+                "Currency retained with untouched pending job and no remote transmission");
         }
 
         Assert(handler.Requests > 0 && handler.ForbiddenRequests == 0,
