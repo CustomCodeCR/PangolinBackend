@@ -101,20 +101,20 @@ for (const forbidden of ['form_currencyId','form_clientId','form_executiveId',
 // Client creation keys are independent from future Dhole delivery keys.
 // The backend feature is deliberately OFF by default; schema is additive.
 has(backend,['ClientCreateIdempotencyEnabled','X-CF-Quote-Request-Key',
-  'pg_advisory_xact_lock','ClientSubmissionDigest','idempotentReplay'],
+  'pg_advisory_xact_lock','OfficialQuoteClientSubmissions','idempotentReplay'],
   'Server creation dedup');
-has(schema,['ADD COLUMN IF NOT EXISTS client_submission_key',
-  'ADD COLUMN IF NOT EXISTS client_submission_digest',
-  'ux_official_quote_client_submission_key'], 'Additive dedup migration');
-has(context,['ClientSubmissionKey','ClientSubmissionDigest'],'EF mapping');
+has(schema,['CREATE TABLE IF NOT EXISTS public.official_quote_client_submissions',
+  'submission_key UUID PRIMARY KEY', 'request_digest VARCHAR(64)',
+  'REFERENCES public.official_quote_requests(id)'], 'Separate opt-in dedup table');
+has(context,['OfficialQuoteClientSubmissions','request_digest','submission_key'],'EF mapping');
 has(retry,['crypto.subtle.digest','crypto.randomUUID','sessionStorage',
   'previous.digest !== digest'], 'Per-tab duplicate protection');
 for (const frontend of [wizard,gio])
   has(frontend,['prepareQuoteSubmissionAttempt','clearQuoteSubmissionAttempt',
     'X-CF-Quote-Request-Key'],'Quote UI retry protection');
 assert.ok(!retry.includes('JSON.stringify({body'), 'Do not persist raw quote bodies in retry state');
-assert.ok(!schema.includes('client_submission_key UUID NOT NULL'),
-  'Historic quotes must not acquire a mandatory client key');
+assert.ok(!schema.includes('ALTER TABLE public.official_quote_requests\n    ADD COLUMN'),
+  'Historic official quote table must not require a migration when the flag is off');
 console.log('PASS: default-off server creation idempotency, add-only schema, stable client keys with no raw-body storage.');
 
 console.log('PASS: 103 published API inputs classified; 12 services share exact Pricing codes.');
