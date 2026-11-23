@@ -60,6 +60,14 @@ El nuevo `DholeOfficialOutboxClaimService.ClaimOneForOfflineReviewAsync` es una 
 
 La prueba de PostgreSQL desechable crea una sola cotización y ejecuta dos reclamaciones concurrentes: solo una debe obtenerla; ninguna la recupera en un segundo intento, y no aparece una referencia remota ficticia. **Esto todavía no es un dispatcher real ni envía POST.** Si el proceso cae tras marcar `InFlight`, la fila queda bloqueada para reintentos automáticos: hay que determinar manualmente si alguna solicitud llegó a Pricing antes de resetearla. Permanecen pendientes el manejo transaccional de resultados y la reconciliación verificable en Dhole.
 
+## Quinto paso en borrador: registrar resultado de un intento aislado, sin confirmar Dhole
+
+`DholeOfficialOutboxOutcomeService.RecordAttemptOutcomeForOfflineReviewAsync` es una segunda primitiva de **base de datos únicamente**, sin DI, endpoint, worker ni transporte de red. Requiere `DholeSubmission:DirectOutboxEnabled=true` y `DholeSubmission:OutcomePreviewEnabled=true` (ausente en los Compose y desactivado por defecto). La sentencia SQL parametrizada y atómica cambia una fila `InFlight` **solo con un intento registrado** a uno de estos estados: `HttpAcceptedUnverified`, `Unconfirmed`, `Rejected` o `Failed`.
+
+La operación evita que dos resultados concurrentes sobrescriban una misma entrega; nunca asigna `external_reference`, `verified_at_utc`, `Confirmed` ni habilita reintento. Un HTTP 2xx **no es** prueba de creación en Pricing. Guarda exclusivamente códigos de error controlados, no textos recibidos de Dhole, direcciones, contactos ni credenciales. El arnés PostgreSQL de CI valida opt-in apagado, rechazo de confirmación sin verificación, dos escrituras concurrentes (solo gana una), inmutabilidad posterior y ausencia de referencia remota.
+
+**Sigue faltando:** verificar identidad externa con una consulta independiente y credenciales adecuadas, diseñar conciliación manual de `Unconfirmed` / `HttpAcceptedUnverified`, y conectar un dispatcher auténtico solo con autorización y despliegue por separado. La prueba de estas primitivas no demuestra operación del pipeline completo.
+
 **Fases siguientes pendientes:**
 
 1. [Implementado, pendiente de verificación CI] Guardar copia oficial + outbox en una única transacción solo para Dhole si se habilita DirectOutboxEnabled.
