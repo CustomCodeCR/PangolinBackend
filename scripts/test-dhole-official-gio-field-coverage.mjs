@@ -47,6 +47,21 @@ has(backend,['CargoCurrencyCode','Seguro de carga',
 has(gio,['additionalLines','extraEquipmentLines','extraPackageLines','extraEquipmentTypes',
   'packageUnitType','parseExtraLines','Seguro de carga','cargoCurrencyCode'],
   'GIO additional lines');
+// Stackability is a per-line fact in BOTH interfaces. The wizard must not
+// offer an independent "No estibable" checkbox: it can contradict the lines.
+// Both clients must derive the aggregate flag from any non-stackable line.
+assert.match(wizard,/const cargoFlagOptions = \['Carga peligrosa','Sobrepeso'\]/,
+  'Wizard must not render a redundant global non-stackable option');
+assert.doesNotMatch(wizard,/const cargoFlagOptions = \[[^\]]*'No estibable'/,
+  'Non-stackability must not be a separately selectable cargo flag');
+assert.match(wizard,
+  /form\.packages\.some\(line => line\.stackability === 'NonStackable'\)[\s\S]*?cargoFlags\.push\('No estibable'\)/,
+  'Wizard must derive aggregate non-stackability from per-line answers');
+assert.match(gio,/extra\.lines as GioExtraPackage\[\]\)\.some\(line => line\.stackability === 'NonStackable'\)/,
+  'GIO must derive aggregate non-stackability from all lines');
+has(gio,['advancedDetails','cabysCode','cargoValue','cargoCurrencyCode',
+  'declaredWeight','declaredPackages','destinationHandling','overweight',
+  'observations'], 'GIO optional advanced data parity');
 // A resumed conversational draft must not treat restored values as validated.
 // Both the sequential flow and edit->review shortcut must re-check answers.
 assert.match(gio, /function advanceFrom\([\s\S]*?const issue = validation\(item\.key, value\)/,
