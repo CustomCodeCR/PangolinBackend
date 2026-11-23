@@ -10,6 +10,13 @@ type Kind = 'quote' | 'tracking' | 'itinerary'
 type Phase = 'collect' | 'confirm' | 'review' | 'auth' | 'location' | 'result'
 type Choice = { value: string; label: string }
 type Step = { key: string; prompt: string; choices?: Choice[]; optional?: boolean; hint?: string }
+type GioExtraEquipment = { size: string; type: string; quantity: number; weights: string }
+type GioExtraPackage = {
+  description: string; quantity: number; unitType: string; weight: number;
+  length: number; width: number; height: number; stackability: string
+}
+const extraEquipmentLines = ref<GioExtraEquipment[]>([])
+const extraPackageLines = ref<GioExtraPackage[]>([])
 type Location = { id: string; displayName: string; code: string | null }
 type Itinerary = { id: string; pol: string; pod: string; etd: string; eta: string; status: string; transport: string; modality: string }
 type Shipment = { title?: string | null; status?: string | null; origin?: string | null; destination?: string | null; etd?: string | null; eta?: string | null; customerStatus?: string | null; vessel?: string | null; bcf?: string | null; updatedAtUtc?: string | null }
@@ -150,6 +157,54 @@ const equipmentTypes = computed<Choice[]>(() => quoteCatalogSource.value === 'dh
     }))
   : officialEquipmentTypeOptions(values.shipmentType || '', tr))
 const isEquipment = computed(() => ['FCL', 'FTL'].includes(values.shipmentType))
+const extraEquipmentTypes = (size: string): Choice[] => quoteCatalogSource.value === 'dhole' && quoteCatalog.value
+  ? (quoteCatalog.value.equipmentTypesBySize[size] || []).map(value => ({
+      value, label: officialEquipmentTypeLabel(value, tr)
+    }))
+  : officialEquipmentTypeOptions(values.shipmentType || '', tr)
+const cargoUnitChoices = computed<Choice[]>(() => [
+  {value:'Box',label:tr('Caja','Box')}, {value:'Pallet',label:tr('Tarima','Pallet')},
+  {value:'Loose',label:tr('Bulto suelto','Loose package')}, {value:'Other',label:tr('Otra unidad','Other unit')}
+])
+const newExtraEquipment = (): GioExtraEquipment => ({size:'',type:'',quantity:1,weights:''})
+const newExtraPackage = (): GioExtraPackage => ({
+  description:'',quantity:1,unitType:'',weight:0,length:0,width:0,height:0,stackability:'Stackable'
+})
+function addExtraLine() {
+  const lines = isEquipment.value ? extraEquipmentLines.value : extraPackageLines.value
+  if (lines.length >= 24) return
+  if (isEquipment.value) extraEquipmentLines.value.push(newExtraEquipment())
+  else extraPackageLines.value.push(newExtraPackage())
+}
+function extraLinesRaw(): string {
+  const lines = isEquipment.value ? extraEquipmentLines.value : extraPackageLines.value
+  return lines.length ? JSON.stringify({kind:isEquipment.value ? 'equipment' : 'packages',lines}) : 'none'
+}
+function parseExtraLines(raw: string): {kind:'equipment'|'packages';lines:unknown[]} {
+  if (raw === 'none') return {kind:isEquipment.value ? 'equipment' : 'packages',lines:[]}
+  const obj = JSON.parse(raw) as {kind?:string;lines?:unknown[]}
+  if (!obj || obj.kind !== (isEquipment.value ? 'equipment' : 'packages') ||
+      !Array.isArray(obj.lines) || obj.lines.length < 1 || obj.lines.length > 24)
+    throw new Error('Additional cargo lines invalid')
+  return {kind:obj.kind as 'equipment'|'packages',lines:obj.lines}
+}
+function restoreExtraLines() {
+  extraEquipmentLines.value = []
+  extraPackageLines.value = []
+  try {
+    if (!values.additionalLines || values.additionalLines === 'none') return
+    const data = parseExtraLines(values.additionalLines)
+    if (data.kind === 'equipment') extraEquipmentLines.value = data.lines as GioExtraEquipment[]
+    else extraPackageLines.value = data.lines as GioExtraPackage[]
+  } catch { delete values.additionalLines }
+}
+function extraLineLabel(value: string): string {
+  if (!value || value === 'none') return tr('Sin líneas adicionales','No additional lines')
+  try {
+    const parsed = parseExtraLines(value)
+    return parsed.lines.length+' '+tr('línea(s) adicional(es)','additional line(s)')
+  } catch { return tr('Líneas por revisar','Lines need review') }
+}
 const shipmentOptions = computed<Choice[]>(() => values.mode === 'Maritime'
   ? [{value:'FCL',label:i('Contenedor completo (FCL)','Full container (FCL)')},{value:'LCL',label:i('Carga consolidada (LCL)','Consolidated cargo (LCL)')}]
   : values.mode === 'Air' ? [{value:'AIR_LCL',label:i('Carga aérea (AIR LCL)','Air cargo (AIR LCL)')}]
@@ -210,6 +265,22 @@ const steps = computed<Step[]>(() => {
     {key:'packageHeight',prompt:i('¿Alto de cada bulto, en cm?','Height of each package in cm?')},
     {key:'stackable',prompt:i('¿Se pueden apilar los bultos?','Can the packages be stacked?'),choices:[{value:'Stackable',label:i('Sí','Yes')},{value:'NonStackable',label:'No'}]}
   )
+  result.push({key:'additionalLines',prompt:i('¿Tenés otras líneas de carga o equipos? Agregá hasta 24 más, con sus propios datos.','Do you have more cargo or equipment lines? Add up to 24 with their own details.')})
+  result.push({key:'advancedDetails',prompt:i('¿Querés incluir los datos adicionales de tu tarifa (CABYS, valor declarado, observaciones y manejo)?','Would you like to include additional quote details (CABYS, declared value, notes and handling)?'),choices:[
+    {value:'yes',label:i('Sí, completar datos adicionales','Yes, add further details')},
+    {value:'no',label:i('No, continuar','No, continue')}
+  ]})
+  if (values.advancedDetails === 'yes') result.push(
+    {key:'cabysCode',prompt:i('¿Código CABYS de la mercancía, si lo conocés?','CABYS cargo code, if known?'),optional:true},
+    {key:'cargoValue',prompt:i('¿Valor declarado de la carga (opcional; no representa una tarifa)?','Declared cargo value (optional; not a freight quote)?'),optional:true},
+    {key:'declaredWeight',prompt:i('¿Peso declarado adicional (opcional)?','Additional declared weight (optional)?'),optional:true},
+    {key:'declaredPackages',prompt:i('¿Cantidad declarada adicional de bultos (opcional)?','Additional declared package count (optional)?'),optional:true},
+    {key:'overweight',prompt:i('¿La carga se considera sobrepeso?','Is this overweight cargo?'),choices:[
+      {value:'yes',label:i('Sí','Yes')},{value:'no',label:'No'}
+    ]},
+    {key:'destinationHandling',prompt:i('¿Necesitás indicar manejo especial en destino?','Any special handling at destination?'),optional:true},
+    {key:'observations',prompt:i('¿Observaciones adicionales para el equipo de cotizaciones?','Additional notes for the quoting team?'),optional:true}
+  )
   result.push(
     {key:'contactName',prompt:i('¿A nombre de quién hacemos la solicitud?','Who should be the contact for this request?')},
     {key:'contactEmail',prompt:i('¿Cuál es tu correo de contacto?','What is your contact email?')},
@@ -228,13 +299,22 @@ const fieldLabels: Record<string, [string, string]> = {
   packageQuantity:['Bultos','Packages'],packageUnitType:['Tipo de unidad','Cargo unit type'],packageWeight:['Peso por bulto (kg)','Weight per package (kg)'],
   packageLength:['Largo (cm)','Length (cm)'],packageWidth:['Ancho (cm)','Width (cm)'],packageHeight:['Alto (cm)','Height (cm)'],
   stackable:['Estibable','Stackable'], services:['Servicios solicitados','Requested services'],
+  additionalLines:['Líneas adicionales','Additional lines'],
+  advancedDetails:['Datos adicionales','Additional details'],
+  cabysCode:['Código CABYS','CABYS code'],cargoValue:['Valor declarado','Declared value'],
+  declaredWeight:['Peso declarado adicional','Additional declared weight'],
+  declaredPackages:['Bultos declarados adicionales','Additional declared packages'],
+  overweight:['Sobrepeso','Overweight'],destinationHandling:['Manejo en destino','Destination handling'],
+  observations:['Observaciones','Notes'],
   fiscalStorageDays:['Días de almacenaje fiscal','Fiscal storage days'], deliveryAddress:['Dirección de entrega','Delivery address'], pickupAddress:['Dirección de recolección','Pickup address'],
   contactName:['Contacto','Contact'],contactEmail:['Correo','Email'],contactPhone:['Teléfono','Phone'],
   reference:['Referencia','Reference'],referenceType:['Tipo de referencia','Reference type'],transport:['Transporte','Transport'],departure:['Desde la fecha','Departure from']
 }
 const summary = computed(() => steps.value.map(step => ({
   key:step.key, label: tr((fieldLabels[step.key] ?? [step.key,step.key])[0], (fieldLabels[step.key] ?? [step.key,step.key])[1]),
-  value: step.key === 'services' ? serviceNames(values.services || '') : step.choices?.find(option => option.value === values[step.key])?.label ?? values[step.key]
+  value: step.key === 'additionalLines' ? extraLineLabel(values.additionalLines || '')
+    : step.key === 'services' ? serviceNames(values.services || '')
+    : step.choices?.find(option => option.value === values[step.key])?.label ?? values[step.key]
 })).filter(item => item.value))
 // Keep every matching location selectable at once in the scrollable list;
 // filter the complete Dhole feed, not just its first page.
