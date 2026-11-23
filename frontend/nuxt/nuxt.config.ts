@@ -41,8 +41,9 @@ export default defineNuxtConfig({
     '/nosotros': { prerender: true },
     '/servicios': { prerender: true },
     '/servicios/**': { prerender: true },
-    '/noticias': { swr: 300 },
-    '/noticias/**': { swr: 300 },
+    // Reduce temporary stale listings after publication without disabling cache.
+    '/noticias': { swr: 120 },
+    '/noticias/**': { swr: 120 },
     // Las rutas privadas siguen en la SPA actual y no deben enviarse a este servicio.
     '/administracion/**': { ssr: false },
     '/cotizaciones/**': { ssr: false },
