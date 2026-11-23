@@ -84,6 +84,24 @@ assert.doesNotMatch(source('../src/components/SiteFooter.vue'), /<h3\b/, 'El pie
 assert.match(source('../src/components/SiteFooter.vue'), /<h2\b/, 'El pie de página debe usar H2 para sus grupos')
 assert.match(source('../src/style.css'), /\.site-footer h2\{font-size:13px;margin:1px 0 14px\}/, 'El diseño del pie debe conservarse después del cambio semántico')
 assert.match(source('../../deploy/nuxt-hybrid-gateway.conf'), /location = \/home\s*\{\s*return 301 https:\/\/www\.logisticacastrofallas\.com\/;/, 'El alias /home debe redirigir directamente al dominio HTTPS canónico')
+// The six Home accordion labels and the Panama headline must preserve
+// readable solid colors in both themes (including the expanded active tab).
+const homeAccordion = source('../src/Home.vue')
+assert.match(homeAccordion, /:data-service-key="service.key"/,
+  'Cada pestaña del Inicio necesita una clave estable para sus estilos')
+for (const [theme, color] of [['html:not(.theme-dark)', '#b00929'], ['html.theme-dark', '#fff']]) {
+  const labelRule = homeAccordion.slice(homeAccordion.indexOf(theme + ' .app-site.home-page #servicios .service-accordion__item .service-accordion__trigger .service-accordion__name {'))
+  assert.ok(labelRule.startsWith(theme + ' .app-site.home-page #servicios .service-accordion__item .service-accordion__trigger .service-accordion__name {') &&
+    labelRule.slice(0, 235).includes('color: ' + color + ' !important') &&
+    labelRule.slice(0, 235).includes('-webkit-text-fill-color: ' + color + ' !important') &&
+    labelRule.slice(0, 245).includes('-webkit-text-stroke: 0 transparent !important'),
+    'El nombre vertical debe ser sólido ' + color + ' en ' + theme)
+  assert.ok(homeAccordion.includes(theme + ' .app-site.home-page #servicios .service-accordion__item[data-service-key="Panama"] .service-accordion__copy h3 {') &&
+    homeAccordion.includes('color: ' + color + ' !important'),
+    'El título Panamá–Costa Rica debe respetar el tema ' + theme)
+}
+assert.match(homeAccordion, /\.service-accordion__item\.is-open > \.service-accordion__trigger\s*\{\s*background: #fff0f4 !important;/,
+  'La pestaña abierta clara necesita un fondo que contraste con su texto rojo')
 const serviceIndex = source('../src/pages/Services.vue')
 assert.match(serviceIndex, /serviceDirectory/, 'El catálogo necesita enlaces HTML rastreables')
 assert.match(serviceIndex, /servicePages\.map/, 'Deben enlazarse los cinco transportes desde Servicios')
