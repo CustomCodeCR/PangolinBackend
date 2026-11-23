@@ -41,6 +41,12 @@ has(backend,['CargoCurrencyCode','Seguro de carga',
 has(gio,['additionalLines','extraEquipmentLines','extraPackageLines','extraEquipmentTypes',
   'packageUnitType','parseExtraLines','Seguro de carga','cargoCurrencyCode'],
   'GIO additional lines');
+// A resumed conversational draft must not treat restored values as validated.
+// Both the sequential flow and edit->review shortcut must re-check answers.
+assert.match(gio, /function advanceFrom\([\s\S]*?const issue = validation\(item\.key, value\)/,
+  'GIO must revalidate restored quote answers before review');
+assert.match(gio, /const missing = steps\.value\.findIndex\([\s\S]*?validation\(step\.key, existing\)/,
+  'GIO edit shortcut must refuse malformed restored quote answers');
 has(wizard,['addPackage','addEquipment','equipmentTypeOptionsFor',
   'equipmentTypesBySize','form.cargoCurrencyCode'],'Wizard conditional fields');
 has(draft,['CargoCurrencyCode','CargoUnits','EquipmentUnits','FiscalStorageDays',
