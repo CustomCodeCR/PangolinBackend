@@ -76,7 +76,9 @@ public sealed record OfficialContainerInput(
     string? Size, string? Type, int? Quantity, List<decimal>? UnitWeightsKg);
 public sealed record OfficialPackageInput(
     string? Description, int? Quantity, decimal? Weight,
-    decimal? Length, decimal? Width, decimal? Height, string? Stackability);
+    decimal? Length, decimal? Width, decimal? Height, string? Stackability,
+    // Explicit Dhole category: legacy quotes may omit it; never infer from description.
+    string? UnitType = null);
 public sealed record OfficialQuoteSubmit(
     string? Mode, string? ShipmentType,
     Guid? OriginLocationId, Guid? DestinationLocationId, Guid? PodLocationId,
