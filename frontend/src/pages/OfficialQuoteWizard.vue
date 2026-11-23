@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import type { Component } from 'vue'
-import { AlertTriangle, Boxes, FileCheck, FileText, Globe, Layers, Package, PackageCheck, Scale, ShieldCheck, Ship, Truck, Warehouse } from '@lucide/vue'
+import { AlertTriangle, Boxes, FileCheck, FileText, Globe, Package, PackageCheck, Scale, ShieldCheck, Ship, Truck, Warehouse } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
@@ -196,16 +196,13 @@ const serviceIcons: Record<string, Component> = {
   'Transporte entrega': Truck,
   'Transporte recolección': Truck
 }
-const cargoFlagOptions = ['Carga peligrosa','No estibable','Sobrepeso']
+// Estibabilidad belongs to each cargo line; the global flag is derived for
+// Pricing and never selected separately to avoid conflicting answers.
+const cargoFlagOptions = ['Carga peligrosa','Sobrepeso']
 const cargoFlagIcons: Record<string, Component> = {
   'Carga peligrosa': AlertTriangle,
-  'No estibable': Layers,
   'Sobrepeso': Scale
 }
-const visibleCargoFlagOptions = computed(() => shipmentType.value === 'FCL' ? cargoFlagOptions.filter(flag => flag !== 'No estibable') : cargoFlagOptions)
-watch(() => shipmentType.value === 'FCL', (isFullContainer) => {
-  if (isFullContainer) form.cargoFlags = form.cargoFlags.filter(flag => flag !== 'No estibable')
-})
 const stepNames = computed(() => [q('Modalidad', 'Mode'), q('Embarque', 'Shipment'), q('Información', 'Information'), q('Carga y envío', 'Cargo and delivery')])
 
 // Receipt details are a snapshot of this visitor's own confirmed submission.
@@ -474,6 +471,10 @@ async function next() {
 }
 function back() { if (step.value > 1) {step.value--;error.value='';window.scrollTo({top:0,behavior:'smooth'})} }
 function payload() {
+  const cargoFlags = form.cargoFlags.filter(flag => flag !== 'No estibable')
+  if (!equipmentMode.value && form.packages.some(line => line.stackability === 'NonStackable')) {
+    cargoFlags.push('No estibable')
+  }
   return {
     mode: mode.value, shipmentType: shipmentType.value,
     catalogSource: catalogSource.value === 'dhole' ? 'dhole' : null,
@@ -492,7 +493,7 @@ function payload() {
     cargoCurrencyCode: Number(form.cargoValue) > 0 ? form.cargoCurrencyCode.trim().toUpperCase() : null,
     declaredWeight: form.declaredWeight === '' ? null : Number(form.declaredWeight),
     declaredPackages: form.declaredPackages === '' ? null : Number(form.declaredPackages),
-    observations: form.observations || null, cargoFlags: form.cargoFlags,
+    observations: form.observations || null, cargoFlags,
     destinationHandling: form.destinationHandling || null,
     deliveryAddress: form.services.includes('Transporte entrega') ? form.deliveryAddress.trim() : null,
     pickupAddress: form.services.includes('Transporte recolección') ? form.pickupAddress.trim() : null,
@@ -793,8 +794,9 @@ async function submit() {
               </div>
             </div>
             <div class="official-nested"><h3>{{ q('Opciones de carga', 'Cargo options') }}</h3>
+              <p v-if="!equipmentMode" class="official-hint">{{ q('La estibabilidad se indica por separado en cada línea de carga y se refleja automáticamente en la solicitud.', 'Stackability is set for each cargo line and reflected automatically in the request.') }}</p>
               <div class="official-service-grid official-cargo-flags-grid">
-                <label v-for="flag in visibleCargoFlagOptions" :key="flag" class="official-service-card"
+                <label v-for="flag in cargoFlagOptions" :key="flag" class="official-service-card"
                   :class="{ 'official-service-card--selected': form.cargoFlags.includes(flag) }">
                   <input type="checkbox" :checked="form.cargoFlags.includes(flag)" @change="toggle(form.cargoFlags, flag)" />
                   <span class="official-service-icon" aria-hidden="true"><component :is="cargoFlagIcons[flag]" :size="22" :stroke-width="1.8" /></span>
