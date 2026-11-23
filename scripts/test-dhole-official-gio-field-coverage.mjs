@@ -35,12 +35,11 @@ has(gio,quoteFields.filter(x=>!['originLocationId','destinationLocationId','podL
   'GIO');
 has(model,['CargoCurrencyCode','OfficialContainerInput','OfficialPackageInput','OfficialQuoteSubmit'],
   'Backend DTO');
-has(backend,['cargoCurrencyCode'.replace('c','C'),'Seguro de carga',
+has(backend,['CargoCurrencyCode','Seguro de carga',
   'Seleccioná el POD','DholeQuoteSelectionValidator','AllowedServices'],
   'Backend authoritative validator');
 has(gio,['additionalLines','extraEquipmentLines','extraPackageLines','extraEquipmentTypes',
-  'sellerContext_consolidatedCargoLines'.replace('sellerContext_','')=== 'consolidatedCargoLines' ?
-    'packageUnitType' : 'packageUnitType','parseExtraLines','Seguro de carga','cargoCurrencyCode'],
+  'packageUnitType','parseExtraLines','Seguro de carga','cargoCurrencyCode'],
   'GIO additional lines');
 has(wizard,['addPackage','addEquipment','equipmentTypeOptionsFor',
   'equipmentTypesBySize','form.cargoCurrencyCode'],'Wizard conditional fields');
@@ -74,6 +73,11 @@ const allowed = new Set(contract.inputs.map(x=>x.public));
 const projected = new Set(emitted.filter(x=>x.startsWith('form_') ||
   x.startsWith('requestContext_') || x.startsWith('sellerContext_') ||
   ['priority','shipmentMode','originName','destinationName','poeId','poeName','podId','podName'].includes(x)));
+// Equipment choice is dynamic: its public key depends on the reviewed mode.
+for (const key of ['form_fclContainers','form_landContainers']) {
+  assert.ok(flat.includes('"'+key+'"'),'Dynamic equipment key missing: '+key);
+  projected.add(key);
+}
 for (const key of projected) assert.ok(allowed.has(key),'Unpublished flat field '+key);
 for (const key of ['form_cargoDescription','form_cargoWeightKg','form_fclContainers',
   'form_landContainers','form_cargoPackages','sellerContext_consolidatedCargoLines',
