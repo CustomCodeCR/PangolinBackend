@@ -191,7 +191,12 @@ ALTER TABLE public.cms_news ADD COLUMN IF NOT EXISTS body TEXT NOT NULL DEFAULT 
 ALTER TABLE public.cms_news ADD COLUMN IF NOT EXISTS author VARCHAR(160) NOT NULL DEFAULT '';
 ALTER TABLE public.cms_news ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ NULL;
 ALTER TABLE public.cms_news ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ NULL;
+-- En desarrollo se añaden columnas, sin cambiar URL ni titulares anteriores.
+ALTER TABLE public.cms_news ADD COLUMN IF NOT EXISTS slug VARCHAR(240) NULL;
+ALTER TABLE public.cms_news ADD COLUMN IF NOT EXISTS content_modified_at TIMESTAMPTZ NULL;
 UPDATE public.cms_news SET published_at = created_at WHERE published = TRUE AND published_at IS NULL;
+UPDATE public.cms_news SET content_modified_at = COALESCE(updated_at, published_at, created_at)
+WHERE published = TRUE AND content_modified_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_cms_news_published ON public.cms_news(published, created_at DESC);
 -- Comentarios moderados: los borradores nunca se exponen en la API pública.
 CREATE TABLE IF NOT EXISTS public.cms_comments (
