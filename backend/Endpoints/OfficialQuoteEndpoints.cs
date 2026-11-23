@@ -303,6 +303,15 @@ public static class OfficialQuoteEndpoints
                 var stageDirect = useDhole && config.GetValue<bool>("DholeSubmission:DirectOutboxEnabled");
                 var deduplicateCreate = useDhole &&
                     config.GetValue<bool>("DholeSubmission:ClientCreateIdempotencyEnabled");
+                // If a client explicitly sends a creation key, never silently
+                // ignore it. That could turn a retry into a second quote when
+                // operators turn off idempotency between catalog GET and POST.
+                if (useDhole && !deduplicateCreate &&
+                    http.Request.Headers.ContainsKey("X-CF-Quote-Request-Key"))
+                    return Results.Json(new {
+                        code = "quote_idempotency_unavailable",
+                        error = "La protección contra solicitudes duplicadas no está disponible. Consultá con soporte antes de reenviar."
+                    }, statusCode: StatusCodes.Status503ServiceUnavailable);
                 Guid? requestKey = null;
                 string? requestDigest = null;
                 if (deduplicateCreate)
