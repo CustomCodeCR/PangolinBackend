@@ -43,7 +43,9 @@ export default defineNuxtConfig({
     '/servicios/**': { prerender: true },
     // Reduce temporary stale listings after publication without disabling cache.
     '/noticias': { swr: 120 },
-    '/noticias/**': { swr: 120 },
+    // Individual articles must not cache successful HTML; deleting a post must
+    // never leave a cached HTTP 200 while the client shows "Noticia no disponible".
+    '/noticias/**': { swr: false },
     // Las rutas privadas siguen en la SPA actual y no deben enviarse a este servicio.
     '/administracion/**': { ssr: false },
     '/cotizaciones/**': { ssr: false },
