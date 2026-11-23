@@ -24,11 +24,11 @@ Comando:
 
 La salida debe ser un archivo nuevo, creado con permisos privados. **No subirla al repositorio ni usarla como POST.** El script lee el archivo local, no consulta APIs ni utiliza credenciales.
 
-El ejemplo contiene prioridad Green, modalidad LCL/Maritime, Spot provisional, carga ficticia para 2026-12-18, tres cajas de repuestos con 10 kg de peso total por línea y valor ficticio 1600. El texto de carga incorpora un bloque de contacto: Persona de Prueba, prueba@example.invalid y +506 0000-0000. La simulación de autorización sirve solo al adaptador offline, **no equivale a la aprobación de un administrador real**.
+El ejemplo contiene prioridad Green, modalidad LCL/Maritime, Spot provisional, carga ficticia para 2026-12-18, tres cajas de repuestos con 10 kg de peso total por línea. **No incluye valor comercial ni moneda**, porque el ejemplo anterior contemplaba un importe de 1600 sin moneda verificada; no se ha seleccionado seguro de carga. El texto de carga incorpora un bloque de contacto: Persona de Prueba, prueba@example.invalid y +506 0000-0000. La simulación de autorización sirve solo al adaptador offline, **no equivale a la aprobación de un administrador real**.
 
 El mapeo guarda el UUID de servicio en form_serviceIds (nunca el de rateTermItemIds), POL en form_originId, POE en form_destinationId/poeId y POD en form_podId/podId. Los valores fijos de Dhole CLIENTE GENERICO y Castro Fallas se respetan **sin transmitir ningún campo que los sobrescriba**.
 
-El resultado siempre incluye readyForSending=false, remoteSubmissionPermitted=false y noTransport=true, además de bloqueos explícitos. Valida estado activo, código, rol, país, terminal, modalidad, UUID distintos y coherencia de campos, contactos y pesos.
+El resultado siempre incluye readyForSending=false, remoteSubmissionPermitted=false y noTransport=true, además de bloqueos explícitos. **El cuerpo plano no lleva `form_cargoValue` ni `form_currencyId`; no inventamos importe ni divisa.** Valida estado activo, código, rol, país, terminal, modalidad, UUID distintos y coherencia de campos, contactos y pesos.
 
 ## Antes de una prueba auténtica con POST
 
