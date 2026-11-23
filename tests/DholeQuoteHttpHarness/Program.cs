@@ -638,6 +638,56 @@ internal static class DholeQuoteHttpTest
                 row.IsDBNull(3) && row.IsDBNull(4),
                 "Accepted HTTP status is unverified and never fabricates a Pricing reference");
         }
+        // Read-only diagnostic for future manual reconciliation. It cannot
+        // confirm provider creation or authorize another automatic POST.
+        var reconciliationFlags = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                ["DholeSubmission:ReconciliationPreviewEnabled"] = "true"
+            }).Build();
+        var reconciliationDisabled = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                ["DholeSubmission:ReconciliationPreviewEnabled"] = "false"
+            }).Build();
+        await using (var db = new AppDbContext(opts))
+        {
+            var disabledPreview = new DholeOfficialOutboxReconciliationPreview(reconciliationDisabled);
+            Assert(!disabledPreview.Enabled &&
+                await disabledPreview.PreviewAsync(db, directId, CancellationToken.None) is null,
+                "Reconciliation cannot read optional table when preview flag is off");
+        }
+        var reconciliation = new DholeOfficialOutboxReconciliationPreview(reconciliationFlags);
+        await using (var db = new AppDbContext(opts))
+        {
+            var review = await reconciliation.PreviewAsync(db, directId, CancellationToken.None);
+            Assert(review is not null &&
+                review.IdempotencyKey == "cf-official-" + directId.ToString("D") &&
+                review.State == "HttpAcceptedUnverified" &&
+                review.AttemptCount == 1 &&
+                review.NextReviewAction == "VerifyProviderCreationInPricing" &&
+                !review.ProviderCreationVerified &&
+                !review.AutomaticRetryAllowed &&
+                !review.DataIntegrityProblem,
+                "Accepted HTTP requires independent Pricing verification; no retry");
+            var absent = await reconciliation.PreviewAsync(db, Guid.NewGuid(), CancellationToken.None);
+            Assert(absent is null, "Unknown quote has no preview, not a fake success");
+        }
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var unchanged = new NpgsqlCommand("""
+                SELECT state, attempt_count, external_reference
+                FROM public.official_quote_dhole_creation_outbox WHERE quote_id = @id
+                """, db);
+            unchanged.Parameters.AddWithValue("id", directId);
+            await using var row = await unchanged.ExecuteReaderAsync();
+            Assert(await row.ReadAsync() && row.GetString(0) == "HttpAcceptedUnverified" &&
+                   row.GetInt32(1) == 1 && row.IsDBNull(2),
+                "Read-only reconciliation preview makes no state or reference changes");
+        }
         // The offline result state and claim are isolated and cannot dispatch HTTP.
         // Force an outbox constraint failure: the official quote MUST roll back.
         long beforeFailure;
@@ -718,6 +768,7 @@ internal static class DholeQuoteHttpTest
         Console.WriteLine("PASS: direct creation outbox independent; atomic save/rollback, unique key and admin visibility");
         Console.WriteLine("PASS: two concurrent DB claimers select one job, no retry, no remote HTTP");
         Console.WriteLine("PASS: offline outcomes record exactly once and never claim verified creation");
+        Console.WriteLine("PASS: disabled-by-default reconciliation flags accepted HTTP as unverified; zero retries");
         Console.WriteLine("PASS: all Dhole upstream traffic simulated; no real API, no mail, no production data");
     }
 }
