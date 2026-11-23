@@ -37,6 +37,14 @@ jobs:
         run: node scripts/dhole-one-shot-ci-fixture.mjs "$RUNNER_TEMP/dhole-one-shot-review.json"
       - name: Compile and preview the one-shot CLI with no network
         run: dotnet run --project tools/DholeOneShotQuote/DholeOneShotQuote.csproj --configuration Release -- preview "$RUNNER_TEMP/dhole-one-shot-review.json"
+      - name: Reject cargo fields that previously rendered as one legacy unit (no network)
+        run: |
+          node -e 'const fs=require("node:fs");const [p,o]=process.argv.slice(1);const j=JSON.parse(fs.readFileSync(p,"utf8"));j.publishedFlatBody.sellerContext_consolidatedCargoLines=[{description:"Caja CI",packages:3,weightKg:10,lengthCm:20,widthCm:12,heightCm:8}];fs.writeFileSync(o,JSON.stringify(j));' "$RUNNER_TEMP/dhole-one-shot-review.json" "$RUNNER_TEMP/dhole-legacy-wrong-cargo.json"
+          if dotnet run --project tools/DholeOneShotQuote/DholeOneShotQuote.csproj --no-build --configuration Release -- preview "$RUNNER_TEMP/dhole-legacy-wrong-cargo.json"; then
+            echo "ERROR: historical one-unit cargo shape unexpectedly passed."
+            exit 1
+          fi
+          echo "PASS: old 1-unit zero-dimension cargo shape blocked."
       - name: Reject an LCL amount with no verified currency (no network)
         run: |
           node -e 'const fs=require("node:fs");const p=process.argv[1],o=process.argv[2];const j=JSON.parse(fs.readFileSync(p,"utf8"));j.publishedFlatBody.form_cargoValue=1600;fs.writeFileSync(o,JSON.stringify(j));' "$RUNNER_TEMP/dhole-one-shot-review.json" "$RUNNER_TEMP/invalid-currencyless-review.json"
