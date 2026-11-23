@@ -130,9 +130,15 @@ for(const [mode,type,shipment,modality,field] of MODES) {
       assert.equal(type==='FCL'?'form_landContainers' in b:'form_fclContainers' in b,false);
     }else{
       assert.equal(b[field].length,1);
-      assert.equal(b[field][0].packages,3);
-      assert.ok(Math.abs(b[field][0].weightKg-4.5359237)<1e-8);
-      assert.equal(b[field][0].lengthCm,50.8);
+      assert.equal(b[field][0].quantity,3);
+      assert.equal(b[field][0].unitType,'Box');
+      assert.equal(b[field][0].isStackable,false);
+      assert.ok(Math.abs(b[field][0].weightKg*3-4.5359237)<1e-8);
+      assert.equal(b[field][0].length,50.8);
+      assert.equal(b[field][0].width,30.48);
+      assert.equal(b[field][0].height,20.32);
+      assert.equal('packages' in b[field][0],false);
+      assert.equal('lengthCm' in b[field][0],false);
       assert.equal(b.form_cargoPackages,3);
       assert.ok(Math.abs(b.form_cargoWeightKg-4.5359237)<1e-8);
       assert.equal('form_fclContainers' in b,false);
