@@ -86,6 +86,17 @@ try {
     await delay(200)
   }
   assert.ok(ready, 'Nuxt no inició: ' + logs.slice(-3000))
+  // News listing must render real editorial content on the server, not only
+  // the loading shell after JavaScript, and keep descriptive card-image alt.
+  const listingResponse = await fetch(base + '/noticias')
+  assert.equal(listingResponse.status, 200, 'El listado de noticias debe responder 200 en SSR')
+  const listingHtml = await listingResponse.text()
+  assert.match(listingHtml, /Consultá nuestras publicaciones sobre logística/,
+    'Falta contexto editorial visible en el HTML SSR de Noticias')
+  assert.match(listingHtml, /Logística Costa Rica/,
+    'El listado SSR debe mostrar las noticias publicadas')
+  assert.match(listingHtml, /news-editorial-card__image/,
+    'El listado SSR debe renderizar imágenes de sus noticias')
   const slug = '/noticias/2026-11-02-logistica-costa-rica-14174000'
   const page = await fetch(base + slug)
   assert.equal(page.status, 200)
