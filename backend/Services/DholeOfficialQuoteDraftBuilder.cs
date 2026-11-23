@@ -119,12 +119,14 @@ public static class DholeOfficialQuoteDraftBuilder
             {
                 if (string.IsNullOrWhiteSpace(line.Size) ||
                     string.IsNullOrWhiteSpace(line.Type) ||
-                    line.Quantity is not > 0 || line.UnitWeightsKg?.Count != line.Quantity ||
-                    line.UnitWeightsKg.Any(weight => weight <= 0))
+                    line.Quantity is not > 0 ||
+                    line.UnitWeightsKg is not { Count: > 0 } weights ||
+                    weights.Count != line.Quantity ||
+                    weights.Any(weight => weight <= 0))
                     throw new ArgumentException("Dhole: equipo sin pesos por unidad.");
                 equipment.Add(new(line.Size, line.Type, line.Quantity.Value,
-                    line.UnitWeightsKg.ToArray()));
-                totalKg += line.UnitWeightsKg.Sum();
+                    weights.ToArray()));
+                totalKg += weights.Sum();
             }
         }
         else
