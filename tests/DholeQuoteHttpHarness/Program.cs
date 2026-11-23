@@ -793,6 +793,11 @@ internal static class DholeQuoteHttpTest
                 CancellationToken.None) is null,
                 "Unresolved contract blockers must prevent even an offline claim");
             Assert(await claimer.ClaimReviewedQuoteForOfflineReviewAsync(
+                db, reviewedFlat with {
+                    Body = JsonSerializer.SerializeToElement(new { priority = "Green" }) },
+                CancellationToken.None) is null,
+                "A JSON shell is never a valid Dhole payload or permission to claim");
+            Assert(await claimer.ClaimReviewedQuoteForOfflineReviewAsync(
                 db, reviewedFlat with { IdempotencyKey = "cf-official-" + Guid.NewGuid().ToString("D") },
                 CancellationToken.None) is null,
                 "A mismatched idempotency key must never claim a different quote");
