@@ -82,6 +82,29 @@ static bool IsReviewedLcl(JsonElement root, out JsonElement body)
         body.TryGetProperty("form_fclContainers", out _) ||
         body.TryGetProperty("form_landContainers", out _))
         return false;
+    // Real Pricing handoff reads quantity/unitType, dimension keys without
+    // Cm suffix and weightKg PER UNIT. Reject our earlier historical display
+    // shape (1 legacy unit, zero dimensions) before any future live attempt.
+    if (!body.TryGetProperty("sellerContext_consolidatedCargoLines", out var cargo) ||
+        cargo.ValueKind != JsonValueKind.Array || cargo.GetArrayLength() != 1)
+        return false;
+    var line = cargo[0];
+    if (line.ValueKind != JsonValueKind.Object ||
+        !TextIs(line, "unitType", "Box") ||
+        !BooleanIs(line, "isStackable", false) ||
+        !line.TryGetProperty("quantity", out var units) ||
+        units.ValueKind != JsonValueKind.Number || units.GetInt32() != 3 ||
+        !line.TryGetProperty("weightKg", out var unitWeight) ||
+        unitWeight.ValueKind != JsonValueKind.Number ||
+        Math.Abs(unitWeight.GetDouble() * 3d - 10d) > 0.000001 ||
+        !line.TryGetProperty("length", out var length) ||
+        length.ValueKind != JsonValueKind.Number || length.GetDouble() != 20d ||
+        !line.TryGetProperty("width", out var width) ||
+        width.ValueKind != JsonValueKind.Number || width.GetDouble() != 12d ||
+        !line.TryGetProperty("height", out var height) ||
+        height.ValueKind != JsonValueKind.Number || height.GetDouble() != 8d ||
+        line.TryGetProperty("packages", out _) || line.TryGetProperty("lengthCm", out _))
+        return false;
     foreach (var key in new[] { "clientName", "executiveName", "sellerUserId",
         "contactName", "contactEmail", "contactPhone", "payload" })
         if (body.TryGetProperty(key, out _)) return false;
