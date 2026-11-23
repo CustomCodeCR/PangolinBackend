@@ -524,6 +524,12 @@ function accept(value = input.value, explicitLocationId?: string) {
       return
     }
   }
+  // The additional lines were already confirmed explicitly by pressing
+  // Continue on the structured editor; never expose raw JSON in a chat bubble.
+  if (item.key === 'additionalLines') {
+    commitValue(item, v, locationId)
+    return
+  }
   if (!item.choices && v) {
     pendingValue.value = {key:item.key, value:v, display:item.key === 'services' ? serviceNames(v) : v, locationId}
     phase.value = 'confirm'
