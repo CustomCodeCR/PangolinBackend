@@ -57,10 +57,26 @@ public sealed class DholeOfficialOutboxClaimService(IConfiguration configuration
             .Select(x => new { x.FormJson, x.Mode, x.ShipmentType })
             .SingleOrDefaultAsync(ct);
         if (saved is null || string.IsNullOrWhiteSpace(saved.FormJson) ||
-            saved.FormJson.Length > 128 * 1024 ||
-            !saved.FormJson.Contains("\"catalogSource\":\"dhole\"",
-                StringComparison.Ordinal))
+            saved.FormJson.Length > 128 * 1024)
             return null;
+        try
+        {
+            using var stored = System.Text.Json.JsonDocument.Parse(saved.FormJson);
+            var root = stored.RootElement;
+            if (root.ValueKind != System.Text.Json.JsonValueKind.Object ||
+                !root.TryGetProperty("catalogSource", out var source) ||
+                source.ValueKind != System.Text.Json.JsonValueKind.String ||
+                source.GetString() != "dhole" ||
+                !root.TryGetProperty("mode", out var mode) ||
+                mode.GetString() != saved.Mode ||
+                !root.TryGetProperty("shipmentType", out var shipment) ||
+                shipment.GetString() != saved.ShipmentType)
+                return null;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return null;
+        }
 
         // The final CAS protects the state after the checks above, including
         // concurrent workers that independently reviewed the same quote.
