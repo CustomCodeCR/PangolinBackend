@@ -228,9 +228,24 @@ try {
     const removedPage = await fetch(base + retired)
     assert.equal(removedPage.status, 404, 'La página retirada debe devolver HTTP 404: ' + retired)
   }
+  // A deleted, unpublished or expired article must NEVER redirect via the
+  // legacy UUID suffix. Only articles in the live public CMS feed may resolve.
+  for (const unavailable of [
+    '/noticias/2026-11-02-noticia-eliminada-14179999',
+    '/noticias/2026-11-02-edicion-antigua-14170003', // unpublished fixture
+    '/noticias/2026-11-02-edicion-antigua-14170004'  // expired fixture
+  ]) {
+    const response = await fetch(base + unavailable, { redirect: 'manual' })
+    assert.equal(response.status, 404,
+      'Una noticia eliminada, despublicada o caducada no debe redirigir: ' + unavailable)
+  }
+  for (const suffix of ['14179999', '14170003', '14170004']) {
+    assert.ok(!sitemap.includes('-' + suffix),
+      'Sitemap no debe publicar URLs de noticias eliminadas o privadas: ' + suffix)
+  }
   const missing = await fetch(base + '/noticias/no-existe')
   assert.equal(missing.status, 404)
-  console.log('Noticias SSR, Article JSON-LD, sitemap dinámico y 404: OK')
+  console.log('Noticias SSR, enlaces permanentes, revocación, sitemap y 404: OK')
 } finally {
   nuxt.kill('SIGTERM')
   await new Promise(resolve => api.close(resolve))
