@@ -10,13 +10,19 @@ export default defineCachedEventHandler(async event => {
   const config = useRuntimeConfig(event)
   const base = String(config.public.siteUrl).replace(/\/$/, '')
   const urls = ['/', '/nosotros', '/servicios', '/noticias', '/privacidad', '/terminos', '/cookies', '/licencias', ...Object.keys(serviceGuides), ...servicePages.map(page => '/servicios/' + page.slug)]
+  const newsLastmod = new Map<string, string>()
   try {
     const articles = await $fetch<PublicNews[]>(String(config.cmsApiBase).replace(/\/$/, '') + '/api/content/news', { timeout: 5000 })
     if (Array.isArray(articles)) {
       // Evita datos malformados y mantiene paridad con /api/public-news (máximo 250).
       const now = Date.now()
       for (const item of articles.filter(item => isCrawlableNews(item, now)).slice(0, PUBLIC_NEWS_LIMIT)) {
-        urls.push(articlePath(item))
+        const path = articlePath(item)
+        urls.push(path)
+        // Lastmod reflects actual editorial changes, not crawl/publish guesses.
+        const changed = item.contentModifiedAt
+        if (changed && /^\d{4}-\d{2}-\d{2}T/.test(changed) && Number.isFinite(Date.parse(changed)))
+          newsLastmod.set(path, changed.slice(0, 10))
       }
     }
   } catch {
@@ -28,10 +34,10 @@ export default defineCachedEventHandler(async event => {
     unique.map(path => {
       // Emit lastmod only when the editorial route inventory already records a real date.
       // Article publishedAt is not necessarily the date of the latest content update.
-      const date = (routeSeo as Record<string, { lastModified?: string }>)[path]?.lastModified
+      const date = newsLastmod.get(path) ?? (routeSeo as Record<string, { lastModified?: string }>)[path]?.lastModified
       const lastmod = date && /^\d{4}-\d{2}-\d{2}$/.test(date) &&
         !Number.isNaN(Date.parse(date)) ? '<lastmod>' + date + '</lastmod>' : ''
       return '  <url><loc>' + escapeXml(base + path) + '</loc>' + lastmod + '</url>'
     }).join('\n') +
     '\n</urlset>\n'
-}, { maxAge: 600, swr: true, name: 'pangolin-sitemap' })
+}, { maxAge: 120, swr: true, name: 'pangolin-sitemap' })
