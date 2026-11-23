@@ -10,7 +10,7 @@ type Row = { id:string;customerName:string;mode:string;shipmentType:string;origi
 type Detail = {id:string;customerName:string;mode:string;shipmentType:string;status:string;authorization:string;dholeDispatchState:string;dholePriority:string|null;createdAtUtc:string;form:Record<string,unknown>;history:{action:string;comment:string|null;createdAtUtc:string}[]}
 const rows=ref<Row[]>([])
 const detail=ref<Detail|null>(null)
-const permissions=ref({canView:false,canManage:false,canAuthorize:false,dholeApprovalQueueEnabled:false})
+const permissions=ref({canView:false,canManage:false,canAuthorize:false,dholeApprovalQueueEnabled:false,dholeDirectOutboxEnabled:false})
 const state=ref('Received')
 const comment=ref('')
 const dholePriority=ref('Green')
@@ -72,6 +72,12 @@ const decisionNames: Record<string, string> = {
 const dispatchNames: Record<string, string> = {
   Disabled: 'Integración de envío no habilitada', NotStaged: 'Sin registro de envío',
   AwaitingConnector: 'Aprobada; pendiente de integración con Dhole',
+  PendingDispatch: 'Registrada para futuro envío (todavía no enviada)',
+  InFlight: 'Intento de envío en curso',
+  HttpAcceptedUnverified: 'HTTP aceptado; pendiente de comprobar en Pricing',
+  Unconfirmed: 'Resultado de entrega incierto; requiere revisión',
+  Rejected: 'Dhole rechazó la solicitud',
+  Confirmed: 'Creación confirmada en Dhole',
   Pending: 'Pendiente de transmisión', Sending: 'En proceso de envío',
   Sent: 'Confirmada por Dhole', Failed: 'Envío fallido'
 }
@@ -148,7 +154,7 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
               <span class="off-admin-route">{{item.originName}} → {{item.destinationName}}</span>
               <span class="off-admin-item-bottom">
                 <span class="off-admin-status">{{statusNames[item.status] ?? item.status}}</span>
-                <span class="off-admin-approval">{{decisionNames[item.authorization] ?? item.authorization}}</span>
+                <span v-if="!permissions.dholeDirectOutboxEnabled" class="off-admin-approval">{{decisionNames[item.authorization] ?? item.authorization}}</span>
               </span>
             </button>
           </div>
@@ -169,7 +175,7 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
             </div>
             <div class="off-admin-status-row">
               <span class="off-admin-status">{{statusNames[detail.status] ?? detail.status}}</span>
-              <span class="off-admin-approval">{{decisionNames[detail.authorization] ?? detail.authorization}}</span>
+              <span v-if="!permissions.dholeDirectOutboxEnabled" class="off-admin-approval">{{decisionNames[detail.authorization] ?? detail.authorization}}</span>
               <span class="off-admin-muted">{{displayDate(detail.createdAtUtc)}}</span>
             </div>
             <section class="off-admin-auth" aria-label="Estado de integración con Dhole">
@@ -177,6 +183,7 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
               <p>{{dispatchNames[detail.dholeDispatchState] ?? 'Estado de envío no disponible'}}</p>
               <p v-if="detail.dholePriority">Prioridad registrada: {{priorityOptions.find(item=>item.value===detail?.dholePriority)?.label ?? detail.dholePriority}}</p>
               <p v-if="detail.dholeDispatchState === 'AwaitingConnector'">Se registró la aprobación en Castro Fallas. Todavía no se ha realizado ningún envío externo.</p>
+              <p v-if="detail.dholeDispatchState === 'PendingDispatch'">La copia está guardada en Administración y la entrega está pendiente. Todavía no existe un dispatcher activo ni se ha realizado un POST a Dhole.</p>
             </section>
             <h3>Información de la solicitud</h3>
             <dl class="off-admin-data">
@@ -197,7 +204,7 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
               </label>
               <button type="submit" class="off-admin-primary" :disabled="busy">Guardar revisión</button>
             </form>
-            <section v-if="permissions.canAuthorize && detail.authorization==='Pending'" class="off-admin-auth">
+            <section v-if="permissions.canAuthorize && detail.authorization==='Pending' && !permissions.dholeDirectOutboxEnabled" class="off-admin-auth">
               <h3>Autorización especial</h3>
               <p>{{ permissions.dholeApprovalQueueEnabled
                 ? 'Autorizar crea un registro local pendiente de integración. Todavía no envía a Dhole.'
