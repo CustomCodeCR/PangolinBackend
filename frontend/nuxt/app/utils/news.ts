@@ -9,6 +9,8 @@ export type PublicNews = {
   author?: string | null
   publishedAt?: string | null
   expiresAt?: string | null
+  slug?: string | null
+  contentModifiedAt?: string | null
 }
 // El sitemap y la API pública deben compartir exactamente las mismas reglas.
 // Un registro CMS malformado no debe causar HTTP 500 en el sitemap completo.
@@ -29,10 +31,19 @@ export function isCrawlableNews(value: unknown, now = Date.now()): value is Publ
   return true
 }
 
-export function articleSlug(article: PublicNews): string {
+export function legacyArticleSlug(article: PublicNews): string {
   const title = article.title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'noticia'
   return `${article.publishedAt?.slice(0, 10) || 'sin-fecha'}-${title}-${article.id.replace(/-/g, '').slice(-8).toLowerCase()}`
+}
+export function articleSlug(article: PublicNews): string {
+  // Existing news without a stored slug keeps its current published URL.
+  // Once frozen by the backend, edits never change the permalink.
+  const suffix = article.id.replace(/-/g, '').slice(-8).toLowerCase()
+  if (typeof article.slug === 'string' && article.slug.length <= 240 &&
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(article.slug) && article.slug.endsWith('-' + suffix))
+    return article.slug
+  return legacyArticleSlug(article)
 }
 export function articlePath(article: PublicNews): string {
   return '/noticias/' + articleSlug(article)
