@@ -10,5 +10,6 @@
     <Compile Include="../../backend/Models/OfficialQuoteModels.cs" Link="OfficialQuoteModels.cs" />
     <Compile Include="../../backend/Services/DholeOfficialQuoteDraftBuilder.cs" Link="DholeOfficialQuoteDraftBuilder.cs" />
     <Compile Include="../../backend/Services/DholeOfficialQuoteFlatPreviewBuilder.cs" Link="DholeOfficialQuoteFlatPreviewBuilder.cs" />
+    <Compile Include="../../backend/Services/DholeOfficialDeliveryStateMachine.cs" Link="DholeOfficialDeliveryStateMachine.cs" />
   </ItemGroup>
 </Project>
