@@ -28,7 +28,7 @@ public sealed record DholeOfficialQuoteDraft(
     bool OverweightCargo = false, decimal? CargoValue = null,
     decimal? DeclaredWeight = null, int? DeclaredPackages = null,
     string? DestinationHandling = null, string? ExwCargoStatus = null,
-    string? ExwPickupAddress = null)
+    string? ExwPickupAddress = null, string? CargoCurrencyCode = null)
 {
     // A draft is NOT a sendable request, even if all quantities are valid.
     public bool RemoteSubmissionPermitted => false;
@@ -196,6 +196,7 @@ public static class DholeOfficialQuoteDraftBuilder
             DeclaredPackages: input.DeclaredPackages,
             DestinationHandling: input.DestinationHandling,
             ExwCargoStatus: input.ExwCargoStatus,
-            ExwPickupAddress: input.ExwPickupAddress);
+            ExwPickupAddress: input.ExwPickupAddress,
+            CargoCurrencyCode: input.CargoCurrencyCode);
     }
 }
