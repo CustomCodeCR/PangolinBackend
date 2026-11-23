@@ -84,7 +84,12 @@ public sealed class DholeQuotePostTransport(
         {
             using var response = await clients.CreateClient("DholeQuotePost")
                 .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-            if (response.StatusCode == HttpStatusCode.TooManyRequests ||
+            // Pricing's idempotency middleware returns 409 while an identical
+            // key is processing. Its completed response is retained 24 hours,
+            // not forever; 409 and 408 are therefore UNKNOWN, not rejection or
+            // permission to auto-retry the original creation.
+            if (response.StatusCode is HttpStatusCode.Conflict or
+                HttpStatusCode.RequestTimeout or HttpStatusCode.TooManyRequests ||
                 (int)response.StatusCode >= 500)
                 return DholeQuotePostOutcome.Unconfirmed;
             if (!response.IsSuccessStatusCode)
