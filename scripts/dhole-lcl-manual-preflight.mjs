@@ -87,7 +87,7 @@ export function previewObservedLclRoute(evidence){
       // No cargo value is assumed: the source did not establish its currency.
       // Pricing insurance was not selected. Avoid false commercial amounts.
       packages:[{
-        description:'Caja de repuestos simulada',quantity:3,weight:10,
+        description:'Caja de repuestos simulada',quantity:3,unitType:'Box',weight:10,
         length:20,width:12,height:8,stackability:'NonStackable'
       }],
       weightUnit:'kg',dimensionUnit:'cm',
