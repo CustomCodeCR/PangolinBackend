@@ -59,7 +59,9 @@ const fixtures = cases.map(([mode,type,shipment],i)=>{
       }],
       dimensionUnit:'in',weightUnit:'lb',
       observations:'Solo demostración de contrato, no enviar',
-      cargoFlags:['Carga peligrosa'],cargoValue:1600
+      // Currency/insurance terms are not resolved for automatic delivery;
+      // these synthetic transport fixtures must not include insured value.
+      cargoFlags:['Carga peligrosa']
     }
   };
   const internal = previewDholeRateRequest(input,lookups);
