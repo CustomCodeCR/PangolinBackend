@@ -145,6 +145,26 @@ public static class DholeOfficialQuoteFlatPreviewBuilder
             ["requestContext_poeId"] = draft.PoeId.ToString("D"),
             ["sellerContext_cargoReadyDate"] = draft.CargoReadyDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
         };
+        // Preserves the user-provided business details already validated by
+        // OfficialQuoteEndpoints. These published contract keys are optional:
+        // never invent prices, a currency UUID, commercial identities or rate IDs.
+        if (!string.IsNullOrWhiteSpace(draft.CabysCode))
+            payload["form_cabysCode"] = draft.CabysCode;
+        if (!string.IsNullOrWhiteSpace(draft.Observations))
+            payload["form_cargoObservations"] = draft.Observations;
+        if (draft.FiscalStorageDays is > 0)
+            payload["form_storageDays"] = draft.FiscalStorageDays;
+        if (draft.DangerousCargo)
+            payload["form_dangerousCargo"] = true;
+        if (draft.OverweightCargo)
+            payload["form_overweight"] = true;
+        var effectivePickupAddress = !string.IsNullOrWhiteSpace(draft.PickupAddress)
+            ? draft.PickupAddress : draft.ExwPickupAddress;
+        if (!string.IsNullOrWhiteSpace(effectivePickupAddress))
+            payload["form_pickupAddress"] = effectivePickupAddress;
+        if (!string.IsNullOrWhiteSpace(draft.DeliveryAddress))
+            payload["form_inlandDeliveryLocation_address"] = draft.DeliveryAddress;
+
         if (maritime)
         {
             payload["podId"] = draft.PodId!.Value.ToString("D");
