@@ -32,6 +32,11 @@ const approvedTitleFixtures = [
     suffix: '294af1f0',
     title: 'Centroamérica aprueba nuevas regulaciones aduaneras para modernizar el comercio regional',
     seoTitle: 'Centroamérica aprueba nuevas regulaciones aduaneras'
+  },
+  {
+    suffix: '42ed9cb4',
+    title: 'Pese a caída global de fletes, anuncian aumento de US$1.000 hacia América Latina.',
+    seoTitle: 'Alza de US$1.000 en fletes a América Latina | Castro Fallas'
   }
 ]
 for (const fixture of approvedTitleFixtures) {

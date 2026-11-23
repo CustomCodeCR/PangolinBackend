@@ -41,7 +41,10 @@ const approvedNewsSeoTitles: Record<string, string> = {
   // Titles explicitly approved for search results; do not modify visible headlines.
   'f4c941bb': 'Hacienda refuerza control de ingreso de mercancías',
   '38e374a5': 'Puertos de China: posibles retrasos a Centroamérica',
-  '294af1f0': 'Centroamérica aprueba nuevas regulaciones aduaneras'
+  '294af1f0': 'Centroamérica aprueba nuevas regulaciones aduaneras',
+  // La auditoría del 23/11/2026 detectó 103 caracteres en el título anterior.
+  // Mantener el titular editorial visible y acortar solo el título SEO.
+  '42ed9cb4': 'Alza de US$1.000 en fletes a América Latina | Castro Fallas'
 }
 const articleIdSuffix = article.id.replace(/-/g, '').slice(-8).toLowerCase()
 const seoTitle = approvedNewsSeoTitles[articleIdSuffix] ?? article.title + ' | Grupo Castro Fallas'
