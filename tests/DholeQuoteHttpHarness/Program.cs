@@ -474,6 +474,16 @@ internal static class DholeQuoteHttpTest
         var directId = directReceipt.RootElement.GetProperty("id").GetGuid();
         Assert(directReceipt.RootElement.GetProperty("dholeDispatchState").GetString() == "PendingDispatch",
             "Creation returns pending state, never claims remote delivery");
+        // Legacy administrator authorization must not become a hidden gate or
+        // mutate direct submissions even if an old client invokes the API.
+        using (var manualApproval = new HttpRequestMessage(
+            HttpMethod.Put, $"/api/admin/quotes/official/{directId}/authorization?decision=Authorized"))
+        {
+            manualApproval.Headers.Add("X-CI-Test-Actor", "authorizer");
+            using var directDecision = await directClient.SendAsync(manualApproval);
+            Assert(directDecision.StatusCode == HttpStatusCode.Conflict,
+                "Direct Dhole submission cannot require or accept legacy admin approval");
+        }
         await using (var db = new NpgsqlConnection(connectionString))
         {
             await db.OpenAsync();
