@@ -17,11 +17,14 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{1
 const sha = /^[0-9a-f]{64}$/i
 
 function newSecureUUID(): string {
-  if (globalThis.crypto?.randomUUID) return crypto.randomUUID()
-  if (!globalThis.crypto?.getRandomValues)
+  // The TS DOM lib marks randomUUID as mandatory, but browsers on HTTP LAN
+  // may omit it. Partial<Crypto> reflects that runtime reality for typechecks.
+  const availableCrypto: Partial<Crypto> | undefined = globalThis.crypto
+  if (availableCrypto?.randomUUID) return availableCrypto.randomUUID()
+  if (!availableCrypto?.getRandomValues)
     throw new Error('Tu navegador no puede crear una clave aleatoria segura. Consultá con soporte.')
   const bytes = new Uint8Array(16)
-  crypto.getRandomValues(bytes)
+  availableCrypto.getRandomValues(bytes)
   bytes[6] = (bytes[6] & 0x0f) | 0x40
   bytes[8] = (bytes[8] & 0x3f) | 0x80
   const hex = Array.from(bytes, n => n.toString(16).padStart(2, '0'))
