@@ -15,7 +15,7 @@ services:
       DholeSubmission__NewQuotesStartUtc: ""
       DholeSubmission__TemporaryCatalogsEnabled: "true"
       DholeSubmission__TemporaryCatalogsValidUntilUtc: ${DHOLE_PILOT_CATALOG_EXPIRY_UTC:?Fecha de vigencia UTC revisada}
-      DholeSubmission__ManualCommercialReviewEnabled: ${DHOLE_PILOT_MANUAL_COMMERCIAL_REVIEW:-false}
+      DholeSubmission__ManualCommercialReviewEnabled: "true"
       DholeSubmission__AcceptCreationReceiptEnabled: "true"
       DholeSubmission__VerificationEnabled: "false"
       DholeSubmission__ConfirmationEmailEnabled: "true"
