@@ -1,0 +1,7 @@
+# Temporary dispatch catalog — 2026-11-24
+
+The owner authorized a temporary mapping while the missing GETs are being published. The backend-only snapshot contains the 12 service and 16 land type identifiers supplied in the project chat, plus the three currency UUIDs. These are catalog identifiers, not credentials. Currency UUID lookup is ready; it is NOT yet authority to use form_currencyId for cargo value.
+
+To select this source after deployment is separately authorized, set DholeSubmission:TemporaryCatalogsEnabled=true and DholeSubmission:TemporaryCatalogsValidUntilUtc to an explicit UTC timestamp in yyyy-MM-ddTHH:mm:ssZ format. The maximum cutoff is 2026-12-01T00:00:00Z; choose a shorter date if the catalog owner cannot guarantee stability until that time. Default off; no flags changed in this commit. The runtime still requires all relevant live GETs for routes, Incoterms and sizes/types. No fake freshness timestamps, no fallback from failed live lookups, and expired temporary configuration blocks dispatch before claim. Turn the temporary flag off when the two real external lookup paths and scoped read credentials are ready. Do not extend the hard cutoff without reviewing new source evidence.
+
+No worker is registered and no real POST has been performed. Commercial currency/insurance meaning and permissions still require verification. Existing draft harness covers the temporary map and expiry without new network tests.

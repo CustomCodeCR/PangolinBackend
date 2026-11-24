@@ -33,6 +33,15 @@ public static class DholeOfficialDispatchPreflight
             draft => DholeOfficialManualCatalogResolution.ReviewPublished(
                 draft, existingGetCatalogs, utcNow));
 
+    public static DholeOfficialFlatReview ReviewSavedQuoteWithTemporaryCatalogs(
+        OfficialQuoteRequest savedQuote,
+        DholeValidatedRoute verifiedRoute,
+        IReadOnlyDictionary<string, DholeOfficialExistingCatalogSnapshot> existingGetCatalogs,
+        DateTime utcNow, DateTimeOffset validUntilUtc) =>
+        ReviewSavedQuoteCore(savedQuote, verifiedRoute, existingGetCatalogs, utcNow,
+            draft => DholeOfficialManualCatalogResolution.ReviewTemporary(
+                draft, existingGetCatalogs, utcNow, validUntilUtc));
+
     private static DholeOfficialFlatReview ReviewSavedQuoteCore(
         OfficialQuoteRequest savedQuote,
         DholeValidatedRoute verifiedRoute,

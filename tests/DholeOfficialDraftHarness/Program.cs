@@ -520,6 +520,25 @@ using (var manualDocument = JsonDocument.Parse(manualJson))
         preview, forged.RootElement, live, reviewAt),
         "Browser-forged catalog snapshot provenance must be refused");
 }
+// Temporary snapshot uses owner-provided IDs; never sends anything in CI.
+var tempNow = new DateTime(2026, 11, 24, 12, 0, 0, DateTimeKind.Utc);
+var tempExpiry = new DateTimeOffset(tempNow.AddDays(2));
+var tempLive = live.ToDictionary(x => x.Key, x => x.Value with
+    { FetchedAtUtc = new DateTimeOffset(tempNow) }, StringComparer.Ordinal);
+var tempLcl = DholeOfficialManualCatalogResolution.ReviewTemporary(preview, tempLive, tempNow, tempExpiry);
+Assert(tempLcl.Services.Any(x => x.Id == Guid.Parse("c2300000-0000-4000-8000-000000000001")),
+    "Temporary services use supplied real identifiers");
+var tempFtl = DholeOfficialManualCatalogResolution.ReviewTemporary(ftl, tempLive, tempNow, tempExpiry);
+Assert(tempFtl.Equipment.Single().TypeId == Guid.Parse("c2130000-0000-4000-8000-000000000001"),
+    "48-foot dry van resolves to type UUID, not size UUID");
+Assert(DholeTemporaryDispatchCatalog.CurrencyId("USD", new DateTimeOffset(tempNow), tempExpiry) ==
+    Guid.Parse("873e26af-62a3-4e8d-83ba-0aaca1470ac0") &&
+    DholeTemporaryDispatchCatalog.CurrencyId("JPY", new DateTimeOffset(tempNow), tempExpiry) is null,
+    "Known temporary currency UUID only");
+Block(() => DholeOfficialManualCatalogResolution.ReviewTemporary(preview, tempLive, tempNow,
+    new DateTimeOffset(tempNow)), "Temporary expiry cannot be bypassed");
+Block(() => DholeOfficialManualCatalogResolution.ReviewTemporary(preview, tempLive, tempNow,
+    DholeTemporaryDispatchCatalog.HardCutoffUtc.AddDays(1)), "Temporary expiry is bounded");
 Console.WriteLine("PASS: 12 services + 16 land types bridge into typed offline review, with existing GETs and no POST.");
 
 static void ForbidState(Action action, string reason)

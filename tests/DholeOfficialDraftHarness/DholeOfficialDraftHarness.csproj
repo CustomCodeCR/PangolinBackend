@@ -13,6 +13,7 @@
     <Compile Include="../../backend/Services/DholeCatalogNormalizer.cs" Link="DholeCatalogNormalizer.cs" />
     <Compile Include="../../backend/Services/DholeEquipmentProjector.cs" Link="DholeEquipmentProjector.cs" />
     <Compile Include="../../backend/Services/DholeOfficialManualCatalogResolution.cs" Link="DholeOfficialManualCatalogResolution.cs" />
+    <Compile Include="../../backend/Services/DholeTemporaryDispatchCatalog.cs" Link="DholeTemporaryDispatchCatalog.cs" />
     <Compile Include="../../backend/Services/DholeOfficialDispatchPreflight.cs" Link="DholeOfficialDispatchPreflight.cs" />
     <Compile Include="../../backend/Services/DholeOfficialDeliveryStateMachine.cs" Link="DholeOfficialDeliveryStateMachine.cs" />
   </ItemGroup>

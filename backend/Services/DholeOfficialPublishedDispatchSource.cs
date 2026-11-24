@@ -1,21 +1,36 @@
 using System.Text.Json;
+using System.Globalization;
+using Microsoft.Extensions.Configuration;
 using CastroFallas.MiniQuote.Api.Models;
 
 namespace CastroFallas.MiniQuote.Api.Services;
 
 /// <summary>
-/// Server-only preparation using published, authorized GETs. No POST, no
-/// manual-export fallback and no worker registration. Paths and read credentials
-/// must be configured by the operator; missing or stale catalogs fail closed.
+/// Server-only preparation using authorized GETs and an explicitly selected
+/// short-lived temporary catalog. No POST, implicit fallback or worker registration.
+/// Missing, stale or expired data fails closed.
 /// </summary>
 public sealed class DholeOfficialPublishedDispatchSource(
     DholeQuoteFormCatalogLoader forms,
-    DholeLookupCatalogService lookups)
+    DholeLookupCatalogService lookups,
+    IConfiguration configuration)
 {
     private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
-    public bool IsConfiguredFor(string shipmentType) =>
-        lookups.IsConfiguredFor("pricing-services") &&
-        (shipmentType != "FTL" || lookups.IsConfiguredFor("land-equipment-types"));
+    private bool UseTemporary => configuration.GetValue<bool>("DholeSubmission:TemporaryCatalogsEnabled");
+
+    private DateTimeOffset? TemporaryExpiry()
+    {
+        var text = configuration["DholeSubmission:TemporaryCatalogsValidUntilUtc"];
+        return DateTimeOffset.TryParseExact(text, "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var expires)
+            && DholeTemporaryDispatchCatalog.IsUsable(DateTimeOffset.UtcNow, expires)
+            ? expires : null;
+    }
+
+    public bool IsConfiguredFor(string shipmentType) => UseTemporary
+        ? TemporaryExpiry() is not null
+        : lookups.IsConfiguredFor("pricing-services") &&
+          (shipmentType != "FTL" || lookups.IsConfiguredFor("land-equipment-types"));
 
     public async Task<DholeOfficialFlatReview> ReviewAsync(
         OfficialQuoteRequest savedQuote, CancellationToken ct)
@@ -31,10 +46,13 @@ public sealed class DholeOfficialPublishedDispatchSource(
         if (!IsConfiguredFor(form.ShipmentType))
             throw new DholeLookupUnavailableException();
 
+        var useTemporary = UseTemporary;
+        var expiry = useTemporary ? TemporaryExpiry() : null;
+        if (useTemporary && expiry is null) throw new DholeLookupUnavailableException();
         var catalogJob = forms.LoadFreshWithSnapshotsAsync(form.Mode, form.ShipmentType, ct);
-        var keys = form.ShipmentType == "FTL"
-            ? new[] { "pricing-services", "land-equipment-types" }
-            : new[] { "pricing-services" };
+        string[] keys = useTemporary ? [] : form.ShipmentType == "FTL"
+            ? ["pricing-services", "land-equipment-types"]
+            : ["pricing-services"];
         var lookupJob = Task.WhenAll(keys.Select(key => lookups.GetAsync(key, ct)));
         await Task.WhenAll(catalogJob, lookupJob);
         var (catalog, snapshots) = await catalogJob;
@@ -54,7 +72,13 @@ public sealed class DholeOfficialPublishedDispatchSource(
             now - x.FetchedAtUtc > TimeSpan.FromMinutes(5)))
             throw new DholeCatalogUnavailableException();
 
-        return DholeOfficialDispatchPreflight.ReviewSavedQuoteWithPublishedCatalogs(
-            savedQuote, route, all, now);
+        if (useTemporary != UseTemporary ||
+            (useTemporary && TemporaryExpiry() != expiry))
+            throw new DholeLookupUnavailableException();
+        return useTemporary
+            ? DholeOfficialDispatchPreflight.ReviewSavedQuoteWithTemporaryCatalogs(
+                savedQuote, route, all, now, expiry!.Value)
+            : DholeOfficialDispatchPreflight.ReviewSavedQuoteWithPublishedCatalogs(
+                savedQuote, route, all, now);
     }
 }
