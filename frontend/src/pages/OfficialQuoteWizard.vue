@@ -8,7 +8,7 @@ import SiteFooter from '../components/SiteFooter.vue'
 import IconSymbol from '../components/IconSymbol.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import { refreshSession } from '../services/auth'
-import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialEquipmentTypeLabel, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
+import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialEquipmentTypeLabel, officialServiceOptions, officialServiceName, officialCurrencyOptions, isOfficialCurrency } from '../lib/officialQuoteOptions'
 import { loadDholeQuoteFormOptions, type DholeQuoteFormOptions } from '../lib/dholeQuoteForm'
 import { costaRicaToday, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
 import { prepareQuoteSubmissionAttempt, clearQuoteSubmissionAttempt,
@@ -472,8 +472,8 @@ function validate(currentStep = step.value): string {
   if (!form.cargoDescription.trim()) return q('Describí la carga.', 'Describe the cargo.')
   if (form.services.includes('Seguro de carga') && (form.cargoValue === '' || !Number.isFinite(Number(form.cargoValue)) || Number(form.cargoValue) <= 0))
     return q('Para el seguro de carga indicá un valor declarado positivo.', 'For cargo insurance enter a positive declared cargo value.')
-  if (Number(form.cargoValue) > 0 && !/^[A-Z]{3}$/.test(form.cargoCurrencyCode.trim().toUpperCase()))
-    return q('Indicá la moneda del valor declarado (código ISO de 3 letras).', 'Enter the declared value currency (3-letter ISO code).')
+  if (Number(form.cargoValue) > 0 && !isOfficialCurrency(form.cargoCurrencyCode))
+    return q('Seleccioná una moneda disponible para el valor declarado.', 'Select an available currency for the declared value.')
   if (!equipmentMode.value && form.packages.some(x => !x.description.trim() || x.quantity < 1 || x.weight <= 0 || x.length <= 0 || x.width <= 0 || x.height <= 0)) return q('Completá todas las medidas y los pesos de cada línea.', 'Complete the dimensions and weight for every cargo line.')
   if (!equipmentMode.value && catalogSource.value === 'dhole' && form.packages.some(x => !x.unitType)) return q('Seleccioná el tipo de unidad de cada línea para Dhole.', 'Select the cargo unit type of each line for Dhole.')
   return ''
@@ -785,7 +785,11 @@ async function submit() {
               <label class="full">{{ q('Descripción de la carga', 'Cargo description') }} <span>*</span><textarea v-model.trim="form.cargoDescription" rows="3" maxlength="4000" :placeholder="q('¿Qué productos necesitás transportar?', 'What products do you need to ship?')" /></label>
               <label>{{ q('Código CABYS (opcional)', 'CABYS code (optional)') }}<input v-model.trim="form.cabysCode" maxlength="40" :placeholder="q('Ingresá el código si lo conocés', 'Enter the code if you know it')" /></label>
               <label>{{ q('Valor de la carga (si aplica)', 'Cargo value (if applicable)') }} <span v-if="form.services.includes('Seguro de carga')">*</span><input id="quote-cargo-value" v-model.number="form.cargoValue" type="number" min="0" step="any" /></label>
-              <label v-if="Number(form.cargoValue) > 0 || form.services.includes('Seguro de carga')">{{ q('Moneda del valor declarado (ISO 4217)', 'Declared value currency (ISO 4217)') }} <span>*</span><input id="quote-cargo-currency" v-model.trim="form.cargoCurrencyCode" maxlength="3" :placeholder="q('Ej.: USD, CRC', 'E.g. USD, CRC')" autocapitalize="characters" /></label>
+              <div v-if="Number(form.cargoValue) > 0 || form.services.includes('Seguro de carga')" class="official-custom-field official-incoterm-field">
+                <label for="quote-cargo-currency">{{ q('Moneda del valor declarado', 'Declared value currency') }} <span>*</span></label>
+                <FieldDropdown id="quote-cargo-currency" v-model="form.cargoCurrencyCode" :aria-label="q('Moneda del valor declarado', 'Declared value currency')"
+                  :options="[{value:'',label:q('Seleccionar','Select')}, ...officialCurrencyOptions(q)]" />
+              </div>
               <label>{{ q('Peso declarado (si aplica)', 'Declared weight (if applicable)') }}<input v-model.number="form.declaredWeight" type="number" min="0" step="any" /></label>
               <label>{{ q('Cantidad de bultos (si aplica)', 'Number of packages (if applicable)') }}<input v-model.number="form.declaredPackages" type="number" min="0" step="1" /></label>
             </div>

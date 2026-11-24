@@ -2,6 +2,20 @@
 // Keep serialized values identical across both entry points.
 export type QuoteChoice = { value: string; label: string }
 export type QuoteTranslate = (es: string, en: string) => string
+// Temporary reviewed Dhole currency options, pending a published currency GET.
+const officialCurrencyCodes = ['USD','CRC','EUR'] as const
+export function isOfficialCurrency(value: string): boolean {
+  return (officialCurrencyCodes as readonly string[]).includes(value)
+}
+export function officialCurrencyOptions(tr: QuoteTranslate): QuoteChoice[] {
+  const names: Record<typeof officialCurrencyCodes[number], string> = {
+    USD: tr('Dólar estadounidense','US dollar'),
+    CRC: tr('Colón costarricense','Costa Rican colón'),
+    EUR: tr('Euro','Euro')
+  }
+  return officialCurrencyCodes.map(value => ({value, label: value + ' — ' + names[value]}))
+}
+
 export const officialIncoterms = ['EXW','FCA','FAS','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP'] as const
 
 export const officialServiceOptions = [

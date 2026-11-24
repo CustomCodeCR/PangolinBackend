@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ArrowLeft, CheckCircle2, ChevronRight, FileText, LoaderCircle, MapPin, Search, ShieldCheck, Ship } from '@lucide/vue'
 import { refreshSession } from '../services/auth'
-import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialEquipmentTypeLabel, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
+import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialEquipmentTypeLabel, officialServiceOptions, officialServiceName, officialCurrencyOptions, isOfficialCurrency } from '../lib/officialQuoteOptions'
 import { isCalendarDate, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
 import { loadDholeQuoteFormOptions, type DholeQuoteFormOptions } from '../lib/dholeQuoteForm'
 import { prepareQuoteSubmissionAttempt, clearQuoteSubmissionAttempt,
@@ -293,7 +293,7 @@ const steps = computed<Step[]>(() => {
       : i('¿Valor declarado de la carga (opcional; no representa una tarifa)?','Declared cargo value (optional; not a freight quote)?'),
       optional:!insurance})
   if (insurance || (values.cargoValue && Number(values.cargoValue) > 0))
-    result.push({key:'cargoCurrencyCode',prompt:i('¿En qué moneda está el valor declarado? Escribí el código ISO de 3 letras (ej.: USD, CRC).','What currency is the declared value in? Enter a 3-letter ISO code (e.g. USD, CRC).')})
+    result.push({key:'cargoCurrencyCode',prompt:i('¿En qué moneda está el valor declarado?','What currency is the declared value in?'),choices:officialCurrencyOptions(i)})
   if (values.advancedDetails === 'yes') result.push(
     {key:'declaredWeight',prompt:i('¿Peso declarado adicional (opcional)?','Additional declared weight (optional)?'),optional:true},
     {key:'declaredPackages',prompt:i('¿Cantidad declarada adicional de bultos (opcional)?','Additional declared package count (optional)?'),optional:true},
@@ -424,8 +424,8 @@ function validation(key: string, value: string): string {
     return tr('El seguro exige un valor declarado positivo.', 'Insurance requires a positive declared value.')
   if (key === 'declaredPackages' && value && Number(value) > 2147483647)
     return tr('La cantidad supera el máximo admitido.', 'The count exceeds the supported maximum.')
-  if (key === 'cargoCurrencyCode' && !/^[A-Z]{3}$/.test(value))
-    return tr('Ingresá un código ISO de 3 letras mayúsculas.', 'Enter a 3-letter uppercase ISO code.')
+  if (key === 'cargoCurrencyCode' && !isOfficialCurrency(value))
+    return tr('Seleccioná una moneda disponible.', 'Select an available currency.')
   if (key === 'cargoValue' && value && Number(value) > 1000000000000)
     return tr('Valor fuera del límite permitido.', 'Declared value exceeds the allowed range.')
   const maxLength: Record<string,number> = {cargoDescription:4000, contactName:150, contactEmail:255,
