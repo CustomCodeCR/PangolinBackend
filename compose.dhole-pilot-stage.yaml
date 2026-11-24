@@ -7,6 +7,7 @@ services:
       DholeSubmission__DirectOutboxEnabled: "true"
       DholeSubmission__ClientCreateIdempotencyEnabled: "true"
       DholeSubmission__ApprovalQueueEnabled: "false"
+      DholeSubmission__ExwPilotEnabled: "false"
       DholeSubmission__WorkerEnabled: "false"
       DholeSubmission__DispatcherEnabled: "false"
       DholeSubmission__PostEnabled: "false"

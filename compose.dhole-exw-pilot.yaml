@@ -1,0 +1,7 @@
+# LOCAL ONLY; exact UUID, condition and controlled contact.
+services:
+  backend:
+    environment:
+      DholeSubmission__ExwPilotEnabled: "true"
+      DholeSubmission__ExwPilotContactEmail: ${DHOLE_EXW_PILOT_EMAIL:?Correo controlado}
+      DholeSubmission__ExwPilotCondition: ${DHOLE_EXW_PILOT_CONDITION:?Condicion autorizada}

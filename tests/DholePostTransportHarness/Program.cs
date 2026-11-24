@@ -300,6 +300,52 @@ foreach (var scenario in fixtureDocument.RootElement.EnumerateArray())
 }
 Check(scenariosSeen.SetEquals(new[] { "FCL", "LCL", "AIR_LCL", "FTL", "LTL" }),
     "All five distinct quote modes verified");
+// EXW pilot: only the selected exact synthetic quote may carry the field.
+var exwSettings = Settings(enabled: true, key: secret);
+exwSettings["ASPNETCORE_ENVIRONMENT"] = "Development";
+exwSettings["DholeSubmission:ExwPilotEnabled"] = "true";
+exwSettings["DholeSubmission:WorkerEnabled"] = "true";
+exwSettings["DholeSubmission:PilotQuoteId"] = quoteId.ToString("D");
+exwSettings["DholeSubmission:TemporaryCatalogsEnabled"] = "true";
+exwSettings["DholeSubmission:TemporaryCatalogsValidUntilUtc"] = DateTime.UtcNow.AddHours(1).ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
+exwSettings["DholeSubmission:ExwPilotContactEmail"] = "prueba@example.invalid";
+var exwFake = new FakePostHandler { NextStatus = HttpStatusCode.OK };
+using var exwHttp = new HttpClient(exwFake);
+var exwTransport = new DholeQuotePostTransport(exwSettings, new FakePostFactory(exwHttp));
+foreach (var (status, condition) in new[] { ("fiscal", "FiscalCargo"), ("nationalized", "NationalizedCargo") })
+{
+    Check(DholeQuotePostTransport.ExwCondition(status) == condition, "Exact EXW mapping");
+    exwSettings["DholeSubmission:ExwPilotCondition"] = condition;
+    using var exwBody = Modified(valid.RootElement, b =>
+    {
+        b["shipmentMode"] = "Lcl";
+        b["form_shipmentMode"] = "Lcl";
+        b.Remove("form_fclContainers");
+        b["form_cargoPackages"] = 1;
+        b["sellerContext_consolidatedCargoLines"] = JsonNode.Parse("""
+            [{"description":"CI","quantity":1,"unitType":"Box","weightKg":1200,"length":10,"width":10,"height":10,"isStackable":true}]
+            """);
+        b["requestContext_incotermName"] = "EXW";
+        b["form_pickupAddress"] = "Prueba interna";
+        b["form_cargoCondition"] = condition;
+        b["form_cargoDescription"] = DholeQuotePostTransport.ExwPilotMarker + "\n\n" +
+            b["form_cargoDescription"]!.GetValue<string>().Split("\n\n", 2)[1];
+    });
+    Check(!DholeQuotePostTransport.IsValidFlatBody(exwBody.RootElement), "EXW field default-off");
+    Check(DholeQuotePostTransport.IsValidForQuote(exwSettings, quoteId, exwBody.RootElement), "Exact scoped EXW pilot");
+    Check(!DholeQuotePostTransport.IsValidForQuote(exwSettings, Guid.NewGuid(), exwBody.RootElement), "Other UUID blocked");
+    exwSettings["DholeSubmission:AllNewQuotesEnabled"] = "true";
+    Check(!DholeQuotePostTransport.IsValidForQuote(exwSettings, quoteId, exwBody.RootElement), "Bulk forbidden");
+    exwSettings["DholeSubmission:AllNewQuotesEnabled"] = "false";
+    exwSettings["ASPNETCORE_ENVIRONMENT"] = "Production";
+    Check(!DholeQuotePostTransport.IsValidForQuote(exwSettings, quoteId, exwBody.RootElement), "Production forbidden");
+    exwSettings["ASPNETCORE_ENVIRONMENT"] = "Development";
+    using var wrong = Modified(exwBody.RootElement, b => b["form_cargoCondition"] = "other");
+    Check(!DholeQuotePostTransport.IsValidForQuote(exwSettings, quoteId, wrong.RootElement), "Unrecognized condition blocked");
+    Check(await exwTransport.PostValidatedAsync(quoteId, exwBody.RootElement, CancellationToken.None)
+        == DholeQuotePostOutcome.HttpAcceptedUnverified, "Fake EXW POST accepted");
+}
+Check(exwFake.Calls == 2, "Only two fake EXW POSTs");
 Console.WriteLine("PASS: default-off and 5-mode JS-to-C# fake POST, fixed host/idempotency, locked defaults, no live network.");
 
 

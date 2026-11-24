@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.Configuration;
 using CastroFallas.MiniQuote.Api.Models;
 
@@ -73,10 +74,26 @@ public sealed class DholeOfficialPublishedDispatchSource(
             throw new DholeLookupUnavailableException();
         var manualCommercialReview = configuration.GetValue<bool>(
             "DholeSubmission:ManualCommercialReviewEnabled");
-        return useTemporary
+        var review = useTemporary
             ? DholeOfficialDispatchPreflight.ReviewSavedQuoteWithTemporaryCatalogs(
                 savedQuote, route, all, now, expiry, manualCommercialReview)
             : DholeOfficialDispatchPreflight.ReviewSavedQuoteWithPublishedCatalogs(
                 savedQuote, route, all, now, manualCommercialReview);
+        if (!configuration.GetValue<bool>("DholeSubmission:ExwPilotEnabled"))
+            return review;
+        var condition = DholeQuotePostTransport.ExwCondition(form.ExwCargoStatus);
+        if (!useTemporary || expiry is null || !manualCommercialReview ||
+            form.Incoterm != "EXW" || form.ShipmentType != "LCL" ||
+            condition is null || condition != configuration["DholeSubmission:ExwPilotCondition"] ||
+            string.IsNullOrWhiteSpace(form.ExwPickupAddress) ||
+            !string.Equals(form.ContactEmail, configuration["DholeSubmission:ExwPilotContactEmail"], StringComparison.Ordinal) ||
+            !DholeQuotePostTransport.IsExwPilotScope(configuration, savedQuote.Id))
+            throw new ArgumentException("EXW pilot scope invalid.");
+        var body = JsonNode.Parse(review.Body.GetRawText())!.AsObject();
+        body["form_cargoCondition"] = condition;
+        var pilotReview = review with { Body = JsonSerializer.SerializeToElement(body) };
+        if (!DholeQuotePostTransport.IsValidForQuote(configuration, savedQuote.Id, pilotReview.Body))
+            throw new ArgumentException("EXW pilot payload invalid.");
+        return pilotReview;
     }
 }
