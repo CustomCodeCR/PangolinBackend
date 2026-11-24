@@ -136,6 +136,46 @@ public static class DholeOfficialManualCatalogResolution
             return items;
         }
 
+        return Resolve(draft, liveSnapshots, now, reviewed, Items);
+    }
+
+    // Separate source for real, authenticated published GETs. Never wrap live
+    // data as a manual export or extend the timestamp of a browser snapshot.
+    public static DholeOfficialCatalogResolution ReviewPublished(
+        DholeOfficialQuoteDraft draft,
+        IReadOnlyDictionary<string, DholeOfficialExistingCatalogSnapshot> snapshots,
+        DateTime utcNow)
+    {
+        Require(draft is not null && snapshots is not null &&
+            utcNow.Kind == DateTimeKind.Utc, "revisión publicada inválida");
+        var now = new DateTimeOffset(utcNow);
+        var services = Live(snapshots, "pricing-services", now);
+        var earliest = services.FetchedAtUtc;
+        if (draft.ShipmentMode == "Ftl")
+        {
+            var land = Live(snapshots, "land-equipment-types", now);
+            if (land.FetchedAtUtc < earliest) earliest = land.FetchedAtUtc;
+        }
+
+        JsonElement Items(string key, int expected)
+        {
+            var snapshot = Live(snapshots, key, now);
+            Require(snapshot.Items.Length == expected, key + " incompleto");
+            return JsonSerializer.SerializeToElement(snapshot.Items.Select(x => new
+            {
+                id = x.Id, code = x.Code, name = x.Name, value = x.Value,
+                isActive = x.IsActive, size = x.Size, kind = x.Kind
+            }).ToArray());
+        }
+        return Resolve(draft, snapshots, now, earliest, Items);
+    }
+
+    private static DholeOfficialCatalogResolution Resolve(
+        DholeOfficialQuoteDraft draft,
+        IReadOnlyDictionary<string, DholeOfficialExistingCatalogSnapshot> liveSnapshots,
+        DateTimeOffset now, DateTimeOffset reviewed,
+        Func<string, int, JsonElement> Items)
+    {
         var services = Items("pricing-services", 12);
         var indexedServices = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
         var serviceIds = new HashSet<Guid>();
@@ -222,10 +262,12 @@ public static class DholeOfficialManualCatalogResolution
                     Text(item, "name"), code, true));
             }
         }
-        // ReviewedAtUtc is the earliest common observation, not a new fresh
-        // timestamp that would extend the life of a manually exported ID.
-        var verifiedAt = new[] {reviewed, Live(liveSnapshots, "incoterms", now).FetchedAtUtc}
-            .Min();
+        // Preserve the oldest timestamp of all relevant verified sources.
+        var keys = new List<string> { "incoterms" };
+        if (draft.ShipmentMode == "Fcl") keys.AddRange(["container-sizes", "container-types"]);
+        if (draft.ShipmentMode == "Ftl") keys.Add("truck-sizes");
+        var verifiedAt = keys.Select(key => Live(liveSnapshots, key, now).FetchedAtUtc)
+            .Append(reviewed).Min();
         return new DholeOfficialCatalogResolution(
             verifiedAt.UtcDateTime, incotermId, draft.IncotermValue,
             selectedServices, equipment);

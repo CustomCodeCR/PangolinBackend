@@ -19,7 +19,26 @@ public static class DholeOfficialDispatchPreflight
         DholeValidatedRoute verifiedRoute,
         JsonElement temporaryPrivateCatalogs,
         IReadOnlyDictionary<string, DholeOfficialExistingCatalogSnapshot> existingGetCatalogs,
-        DateTime utcNow)
+        DateTime utcNow) =>
+        ReviewSavedQuoteCore(savedQuote, verifiedRoute, existingGetCatalogs, utcNow,
+            draft => DholeOfficialManualCatalogResolution.Review(
+                draft, temporaryPrivateCatalogs, existingGetCatalogs, utcNow));
+
+    public static DholeOfficialFlatReview ReviewSavedQuoteWithPublishedCatalogs(
+        OfficialQuoteRequest savedQuote,
+        DholeValidatedRoute verifiedRoute,
+        IReadOnlyDictionary<string, DholeOfficialExistingCatalogSnapshot> existingGetCatalogs,
+        DateTime utcNow) =>
+        ReviewSavedQuoteCore(savedQuote, verifiedRoute, existingGetCatalogs, utcNow,
+            draft => DholeOfficialManualCatalogResolution.ReviewPublished(
+                draft, existingGetCatalogs, utcNow));
+
+    private static DholeOfficialFlatReview ReviewSavedQuoteCore(
+        OfficialQuoteRequest savedQuote,
+        DholeValidatedRoute verifiedRoute,
+        IReadOnlyDictionary<string, DholeOfficialExistingCatalogSnapshot> existingGetCatalogs,
+        DateTime utcNow,
+        Func<DholeOfficialQuoteDraft, DholeOfficialCatalogResolution> resolve)
     {
         if (savedQuote is null || savedQuote.Id == Guid.Empty ||
             string.IsNullOrWhiteSpace(savedQuote.FormJson) ||
@@ -55,8 +74,7 @@ public static class DholeOfficialDispatchPreflight
 
         var draft = DholeOfficialQuoteDraftBuilder.Project(
             form, savedQuote.Id, verifiedRoute);
-        var ids = DholeOfficialManualCatalogResolution.Review(
-            draft, temporaryPrivateCatalogs, existingGetCatalogs, utcNow);
+        var ids = resolve(draft);
         var review = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
             draft, ids, utcNow);
 

@@ -410,6 +410,27 @@ using (var manualDocument = JsonDocument.Parse(manualJson))
         preview, manualDocument.RootElement, live, reviewAt);
     var manualLclBody = DholeOfficialQuoteFlatPreviewBuilder
         .BuildReview(preview, manualLcl, reviewAt);
+    var published = new Dictionary<string, DholeOfficialExistingCatalogSnapshot>(live)
+    {
+        ["pricing-services"] = new("pricing-services", new DateTimeOffset(verifiedAt), false,
+            serviceRows.Select(x => FakeItem(x.id, x.code, x.name, x.value)).ToArray()),
+        ["land-equipment-types"] = new("land-equipment-types", new DateTimeOffset(verifiedAt), false,
+            landRows.Select(x => FakeItem(x.id, x.code, x.name, x.value, x.size, x.kind)).ToArray())
+    };
+    foreach (var draft in new[] { preview, fcl, ftl })
+    {
+        var manualIds = DholeOfficialManualCatalogResolution.Review(
+            draft, manualDocument.RootElement, live, reviewAt);
+        var publishedIds = DholeOfficialManualCatalogResolution.ReviewPublished(draft, published, reviewAt);
+        Assert(DholeOfficialQuoteFlatPreviewBuilder.BuildReview(draft, manualIds, reviewAt).Body.GetRawText() ==
+            DholeOfficialQuoteFlatPreviewBuilder.BuildReview(draft, publishedIds, reviewAt).Body.GetRawText(),
+            "Published lookup and manual review resolve the same fictional IDs");
+    }
+    Block(() => DholeOfficialManualCatalogResolution.ReviewPublished(
+        preview, published, verifiedAt.AddMinutes(6)), "Published lookup cannot use expired data");
+    published["pricing-services"] = published["pricing-services"] with { Stale = true };
+    Block(() => DholeOfficialManualCatalogResolution.ReviewPublished(
+        preview, published, reviewAt), "Published lookup cannot use stale data");
     Assert(manualLclBody.ReadyForContractReview &&
         !manualLclBody.RemoteSubmissionPermitted &&
         manualLclBody.Body.GetProperty("form_serviceIds")[0].GetString() ==
