@@ -603,6 +603,11 @@ var tempNow = new DateTime(2026, 11, 24, 12, 0, 0, DateTimeKind.Utc);
 var tempExpiry = new DateTimeOffset(tempNow.AddDays(2));
 var tempLive = live.ToDictionary(x => x.Key, x => x.Value with
     { FetchedAtUtc = new DateTimeOffset(tempNow) }, StringComparer.Ordinal);
+Assert(new[] { "USD", "CRC", "EUR" }.All(DholeTemporaryDispatchCatalog.IsSupportedCurrency) &&
+    !DholeTemporaryDispatchCatalog.IsSupportedCurrency("ARS") &&
+    !DholeTemporaryDispatchCatalog.IsSupportedCurrency("usd") &&
+    !DholeTemporaryDispatchCatalog.IsSupportedCurrency(null),
+    "Capture currency allowlist matches three reviewed catalog codes");
 var tempLcl = DholeOfficialManualCatalogResolution.ReviewTemporary(preview, tempLive, tempNow, tempExpiry);
 Assert(tempLcl.Services.Any(x => x.Id == Guid.Parse("c2300000-0000-4000-8000-000000000001")),
     "Temporary services use supplied real identifiers");

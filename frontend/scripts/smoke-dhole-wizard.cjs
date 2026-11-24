@@ -282,7 +282,12 @@ async function main() {
     await click('.official-primary')
     assert.equal(posts.length,0,'Cargo insurance without currency must not submit')
     assert.ok(await exists('#quote-cargo-currency'),'Missing currency keeps the form editable')
-    await value('#quote-cargo-currency','USD')
+    await click('#quote-cargo-currency')
+    await waitFor(()=>exists('#quote-cargo-currency-options [role=option]'),'Currency choices')
+    assert.deepEqual(await evaluate('[...document.querySelectorAll("#quote-cargo-currency-options [role=option]")].map(x=>x.textContent.trim())'),
+      ['Seleccionar','USD — Dólar estadounidense','CRC — Colón costarricense','EUR — Euro'],
+      'Only three reviewed currencies and the empty placeholder are offered')
+    await click('#quote-cargo-currency-options [role=option]:nth-child(2)')
     await click('.official-primary')
     await waitFor(()=>exists('.official-success'),'Successful submit and receipt')
     assert.equal(posts.length,1,'Exactly one request was sent')

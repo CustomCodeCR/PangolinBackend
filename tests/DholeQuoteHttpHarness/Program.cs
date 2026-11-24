@@ -506,6 +506,18 @@ internal static class DholeQuoteHttpTest
             }))
             Assert(noCurrency.StatusCode == HttpStatusCode.BadRequest,
                 "Declared value cannot be submitted without explicit currency");
+        foreach (var unsupportedCurrency in new[] { "ARS", "JPY", "usd", "XXX", "USD " })
+        {
+            using var unsupported = await directClient.PostAsJsonAsync(
+                "/api/quotes/official", new Dictionary<string, object?>(quote)
+                {
+                    ["services"] = new[] { "Transporte internacional", "Seguro de carga" },
+                    ["cargoValue"] = 1500,
+                    ["cargoCurrencyCode"] = unsupportedCurrency
+                });
+            Assert(unsupported.StatusCode == HttpStatusCode.BadRequest,
+                "Unsupported currency must be rejected before quote persistence");
+        }
         using var directResponse = await directClient.PostAsJsonAsync("/api/quotes/official", quote);
         Assert(directResponse.StatusCode == HttpStatusCode.Created,
             "Direct opt-in creates one fictional quote and its outbox atomically");

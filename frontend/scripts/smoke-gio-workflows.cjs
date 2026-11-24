@@ -306,7 +306,12 @@ async function main() {
     await answer('1234567890000')
     await rejectValue('0', 'El seguro exige un valor declarado positivo')
     await answer('1500')
-    await answer('USD')
+    await waitFor(()=>has('¿En qué moneda está el valor declarado?'))
+    assert.equal(await evaluate('!!document.querySelector(".gio-ops__form input")'),false,'Currency must use choices, not free text')
+    assert.deepEqual(await evaluate('[...document.querySelectorAll(".gio-ops__choices button")].map(x=>x.textContent.trim())'),
+      ['USD — Dólar estadounidense','CRC — Colón costarricense','EUR — Euro'],
+      'GIO offers only the same three currencies as the wizard')
+    await choose('USD — Dólar estadounidense')
     await answer('8000')
     await answer('2')
     await choose('Sí')

@@ -229,10 +229,8 @@ public static class OfficialQuoteEndpoints
         if (s.Services.Contains("Seguro de carga") && s.CargoValue is null or <= 0)
             throw new ArgumentException("Para seguro de carga indicá el valor declarado de la mercancía.");
         var needsCurrency = s.CargoValue is > 0;
-        if (needsCurrency && (s.CargoCurrencyCode is null ||
-            s.CargoCurrencyCode.Length != 3 ||
-            s.CargoCurrencyCode.Any(x => x is < 'A' or > 'Z')))
-            throw new ArgumentException("Indicá la moneda del valor declarado con un código ISO de tres letras.");
+        if (needsCurrency && !DholeTemporaryDispatchCatalog.IsSupportedCurrency(s.CargoCurrencyCode))
+            throw new ArgumentException("Seleccioná una moneda del valor declarado disponible: USD, CRC o EUR.");
         if (!needsCurrency && !string.IsNullOrWhiteSpace(s.CargoCurrencyCode))
             throw new ArgumentException("La moneda declarada requiere un valor de mercancía positivo.");
         if (s.CargoFlags?.Count > 12 || s.CargoFlags?.Any(x => x.Length > 50) == true)
