@@ -160,6 +160,8 @@ await Refuse(body => body["form_cargoPackages"] = 1,
     "Reject package data attached to full container");
 await Refuse(body => body["form_fclContainers"]![0]!["unitWeightsKg"] = new JsonArray("wrong-type"),
     "Reject nonnumeric per-unit weights");
+await Refuse(body => body["form_equipmentQuantity"] = 1,
+    "Reject FTL summary fields on maritime full container");
 await Refuse(body => body["form_cargoLengthCm"] = 100,
     "Reject Air dimension fields on FCL");
 Check(fake.Calls == 0, "Forged, contradictory or malformed cargo never reaches HTTP");
@@ -237,6 +239,26 @@ foreach (var scenario in fixtureDocument.RootElement.EnumerateArray())
         ? body.TryGetProperty("sellerContext_consolidatedCargoLines", out _)
         : body.TryGetProperty(equipmentField, out _),
         "Equipment or consolidated cargo must be preserved");
+    if (mode == "Ftl")
+    {
+        using var native = Modified(body, b =>
+        {
+            var line = b["form_landContainers"]![0]!.DeepClone();
+            line["containerTypeCode"] = "24_DRY_VAN";
+            b["form_landContainers"] = new JsonArray(line);
+            b["form_cargoWeightKg"] = line["unitWeightsKg"]!.AsArray().Sum(x => x!.GetValue<decimal>());
+            b["form_equipmentId"] = line["containerTypeId"]!.DeepClone();
+            b["form_equipmentType"] = line["containerTypeId"]!.DeepClone();
+            b["form_equipmentSize"] = "24";
+            b["form_equipmentQuantity"] = line["quantity"]!.DeepClone();
+        });
+        Check(DholeQuotePostTransport.IsValidFlatBody(native.RootElement), "FTL native equipment matches verified line");
+        using var wrong = Modified(native.RootElement, b => b["form_equipmentQuantity"] = 999);
+        using var partial = Modified(native.RootElement, b => b.Remove("form_equipmentId"));
+        Check(!DholeQuotePostTransport.IsValidFlatBody(wrong.RootElement) &&
+            !DholeQuotePostTransport.IsValidFlatBody(partial.RootElement),
+            "Reject contradictory or incomplete FTL summary");
+    }
     if (mode == "Air")
     {
         // Use the same mock fixture line and validate the optional native Air

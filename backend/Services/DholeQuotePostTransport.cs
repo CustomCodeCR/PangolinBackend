@@ -37,6 +37,7 @@ public sealed class DholeQuotePostTransport(
         "form_serviceIds", "form_loadDate", "form_cargoDescription", "form_cargoObservations",
         "form_cargoWeightKg", "form_cargoPackages", "form_storageDays",
         "form_cargoLengthCm", "form_cargoWidthCm", "form_cargoHeightCm",
+        "form_equipmentId", "form_equipmentType", "form_equipmentSize", "form_equipmentQuantity",
         "form_cabysCode", "form_pickupAddress", "form_dangerousCargo", "form_nonStackable",
         "form_overweight", "form_fclContainers", "form_landContainers",
         "form_inlandDeliveryLocation_address", "requestContext_incotermName",
@@ -276,6 +277,18 @@ public sealed class DholeQuotePostTransport(
             dimensionFields.Any(name => !body.TryGetProperty(name, out var value) || !Positive(value, out _))))
             return false;
 
+        string[] equipmentFields = ["form_equipmentId", "form_equipmentType", "form_equipmentSize", "form_equipmentQuantity"];
+        var hasEquipmentSummary = equipmentFields.Any(name => body.TryGetProperty(name, out _));
+        if (hasEquipmentSummary && (shipmentMode != "Ftl" ||
+            !RequiredUuid(body, equipmentFields[0]) || !RequiredUuid(body, equipmentFields[1]) ||
+            body.GetProperty(equipmentFields[0]).GetString() != body.GetProperty(equipmentFields[1]).GetString() ||
+            !RequiredText(body, equipmentFields[2]) ||
+            body.GetProperty(equipmentFields[2]).GetString() is not ("24" or "26" or "48" or "53") ||
+            !body.TryGetProperty(equipmentFields[3], out var summaryQuantity) ||
+            summaryQuantity.ValueKind != JsonValueKind.Number || !summaryQuantity.TryGetInt32(out var summaryCount) ||
+            summaryCount < 1))
+            return false;
+
         bool full = shipmentMode is "Fcl" or "Ftl";
         var expectedEquipment = shipmentMode == "Fcl" ? "form_fclContainers" : "form_landContainers";
         if (full)
@@ -288,6 +301,7 @@ public sealed class DholeQuotePostTransport(
                 equipment.GetArrayLength() is < 1 or > 25)
                 return false;
             decimal sum = 0;
+            int totalEquipment = 0;
             foreach (var line in equipment.EnumerateArray())
             {
                 if (line.ValueKind != JsonValueKind.Object ||
@@ -302,13 +316,19 @@ public sealed class DholeQuotePostTransport(
                     !line.TryGetProperty("unitWeightsKg", out var weights) ||
                     weights.ValueKind != JsonValueKind.Array || weights.GetArrayLength() != count)
                     return false;
+                totalEquipment += count;
+                if (hasEquipmentSummary &&
+                    (line.GetProperty("containerTypeId").GetString() != body.GetProperty(equipmentFields[0]).GetString() ||
+                     line.GetProperty("containerTypeCode").GetString()!.Split('_')[0] != body.GetProperty(equipmentFields[2]).GetString()))
+                    return false;
                 foreach (var weight in weights.EnumerateArray())
                 {
                     if (!Positive(weight, out var kg)) return false;
                     sum += kg;
                 }
             }
-            return Math.Abs(sum - totalKg) <= 0.00001m;
+            return Math.Abs(sum - totalKg) <= 0.00001m &&
+                (!hasEquipmentSummary || totalEquipment == body.GetProperty(equipmentFields[3]).GetInt32());
         }
 
         if (body.TryGetProperty("form_fclContainers", out _) ||

@@ -217,6 +217,22 @@ public static class DholeOfficialQuoteFlatPreviewBuilder
             if (Math.Abs(weightSum - draft.TotalWeightKg) > WeightToleranceKg)
                 throw new ArgumentException("Dhole preview: peso de equipos no coincide.");
             payload[draft.ShipmentMode == "Fcl" ? "form_fclContainers" : "form_landContainers"] = items;
+            // DholeWeb's FTL selector uses the resolved type UUID for both
+            // equipmentType and equipmentId. The seller handoff summary reads
+            // equipmentSize and equipmentQuantity rather than landContainers.
+            // Only project a general selection for a homogeneous equipment type.
+            if (draft.ShipmentMode == "Ftl" && mapping.Count == 1)
+            {
+                var resolved = mapping[0];
+                var sizeCode = resolved.TypeCode.Split('_')[0];
+                if (sizeCode is "24" or "26" or "48" or "53")
+                {
+                    payload["form_equipmentId"] = resolved.TypeId.ToString("D");
+                    payload["form_equipmentType"] = resolved.TypeId.ToString("D");
+                    payload["form_equipmentSize"] = sizeCode;
+                    payload["form_equipmentQuantity"] = draft.EquipmentUnits.Sum(x => x.Quantity);
+                }
+            }
         }
         else
         {

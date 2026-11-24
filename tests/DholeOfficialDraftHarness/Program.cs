@@ -241,13 +241,28 @@ var ftlCatalog = catalog with
         new DholeOfficialEquipmentResolution(
             "Ftl", "48 pies", "Furgón seco",
             Guid.Parse("f6000000-0000-4000-8000-000000000002"),
-            "48 Furgón seco", "FTL-48-DRY", true)
+            "48 Furgón seco", "48_DRY_VAN", true)
     ]
 };
 var ftlFlat = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(ftl, ftlCatalog, reviewAt).Body;
-Assert(ftlFlat.GetProperty("form_landContainers")[0].GetProperty("containerTypeCode").GetString() == "FTL-48-DRY" &&
+Assert(ftlFlat.GetProperty("form_landContainers")[0].GetProperty("containerTypeCode").GetString() == "48_DRY_VAN" &&
     !ftlFlat.TryGetProperty("podId", out _),
     "FTL equipment uses resolved type and forbids maritime POD");
+Assert(ftlFlat.GetProperty("form_equipmentId").GetString() == ftlCatalog.Equipment[0].TypeId.ToString("D") &&
+    ftlFlat.GetProperty("form_equipmentType").GetString() == ftlCatalog.Equipment[0].TypeId.ToString("D") &&
+    ftlFlat.GetProperty("form_equipmentSize").GetString() == "48" &&
+    ftlFlat.GetProperty("form_equipmentQuantity").GetInt32() == 2 &&
+    !fclFlat.TryGetProperty("form_equipmentId", out _),
+    "FTL homogeneous selection fills native summary using the verified type UUID");
+var mixedFtl = ftl with { EquipmentUnits = [ftl.EquipmentUnits[0],
+    new DholeOfficialEquipmentUnit("53 pies", "Furgón seco", 1, [500m])], TotalWeightKg = 2900m };
+var mixedFtlCatalog = ftlCatalog with { Equipment = [ftlCatalog.Equipment[0],
+    new DholeOfficialEquipmentResolution("Ftl", "53 pies", "Furgón seco",
+        Guid.Parse("f6000000-0000-4000-8000-000000000005"), "53 Furgón seco", "53_DRY_VAN", true)] };
+var mixedFtlBody = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(mixedFtl, mixedFtlCatalog, reviewAt).Body;
+Assert(!mixedFtlBody.TryGetProperty("form_equipmentId", out _) &&
+    mixedFtlBody.GetProperty("form_landContainers").GetArrayLength() == 2,
+    "Mixed equipment retains all lines without inventing a general equipment selection");
 
 // Reject incomplete, stale, swapped and forged resolver snapshots before any HTTP.
 Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
