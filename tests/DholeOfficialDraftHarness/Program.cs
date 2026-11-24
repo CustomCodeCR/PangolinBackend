@@ -170,6 +170,20 @@ foreach (var consolidation in new[]{air,ltl})
             .GetProperty("unitType").GetString() == "Box",
         "Air and LTL use consolidated lines, no maritime POD");
 }
+var airFlat = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(air, catalog, reviewAt).Body;
+Assert(airFlat.GetProperty("form_cargoLengthCm").GetDecimal() == 20 &&
+    airFlat.GetProperty("form_cargoWidthCm").GetDecimal() == 12 &&
+    airFlat.GetProperty("form_cargoHeightCm").GetDecimal() == 8 &&
+    airFlat.GetProperty("form_cargoPackages").GetInt32() == 3,
+    "Single Air line: native dimensions are per package, not multiplied by quantity");
+var mixedAir = air with { CargoUnits = [air.CargoUnits[0],
+    air.CargoUnits[0] with { Quantity = 1, WeightKgPerUnit = 2m, LengthCm = 40m }],
+    TotalPackages = 4, TotalWeightKg = 12m };
+var mixedAirFlat = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(mixedAir, catalog, reviewAt).Body;
+Assert(!mixedAirFlat.TryGetProperty("form_cargoLengthCm", out _) &&
+    mixedAirFlat.GetProperty("sellerContext_consolidatedCargoLines").GetArrayLength() == 2 &&
+    !body.TryGetProperty("form_cargoLengthCm", out _),
+    "Do not invent single dimensions for multiple Air lines or change LCL");
 var fullCatalog = catalog with
 {
     Equipment =

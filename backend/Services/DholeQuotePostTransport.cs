@@ -36,6 +36,7 @@ public sealed class DholeQuotePostTransport(
         "form_originId", "form_destinationId", "form_podId", "form_incotermId",
         "form_serviceIds", "form_loadDate", "form_cargoDescription", "form_cargoObservations",
         "form_cargoWeightKg", "form_cargoPackages", "form_storageDays",
+        "form_cargoLengthCm", "form_cargoWidthCm", "form_cargoHeightCm",
         "form_cabysCode", "form_pickupAddress", "form_dangerousCargo", "form_nonStackable",
         "form_overweight", "form_fclContainers", "form_landContainers",
         "form_inlandDeliveryLocation_address", "requestContext_incotermName",
@@ -269,6 +270,12 @@ public sealed class DholeQuotePostTransport(
             if (body.TryGetProperty(optionalFlag, out var flag) &&
                 flag.ValueKind is not (JsonValueKind.True or JsonValueKind.False)) return false;
 
+        string[] dimensionFields = ["form_cargoLengthCm", "form_cargoWidthCm", "form_cargoHeightCm"];
+        var hasDimensions = dimensionFields.Any(name => body.TryGetProperty(name, out _));
+        if (hasDimensions && (shipmentMode != "Air" ||
+            dimensionFields.Any(name => !body.TryGetProperty(name, out var value) || !Positive(value, out _))))
+            return false;
+
         bool full = shipmentMode is "Fcl" or "Ftl";
         var expectedEquipment = shipmentMode == "Fcl" ? "form_fclContainers" : "form_landContainers";
         if (full)
@@ -337,6 +344,12 @@ public sealed class DholeQuotePostTransport(
             sumKg += count * kg;
             anyNonStackable |= stackability.ValueKind == JsonValueKind.False;
         }
+        if (hasDimensions &&
+            (cargo.GetArrayLength() != 1 ||
+             body.GetProperty(dimensionFields[0]).GetDecimal() != cargo[0].GetProperty("length").GetDecimal() ||
+             body.GetProperty(dimensionFields[1]).GetDecimal() != cargo[0].GetProperty("width").GetDecimal() ||
+             body.GetProperty(dimensionFields[2]).GetDecimal() != cargo[0].GetProperty("height").GetDecimal()))
+            return false;
         if (sumPackages != totalPackages || Math.Abs(sumKg - totalKg) > 0.00001m)
             return false;
         return !body.TryGetProperty("form_nonStackable", out var aggregate) ||

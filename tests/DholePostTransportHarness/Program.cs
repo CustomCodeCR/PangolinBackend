@@ -160,6 +160,8 @@ await Refuse(body => body["form_cargoPackages"] = 1,
     "Reject package data attached to full container");
 await Refuse(body => body["form_fclContainers"]![0]!["unitWeightsKg"] = new JsonArray("wrong-type"),
     "Reject nonnumeric per-unit weights");
+await Refuse(body => body["form_cargoLengthCm"] = 100,
+    "Reject Air dimension fields on FCL");
 Check(fake.Calls == 0, "Forged, contradictory or malformed cargo never reaches HTTP");
 
 fake.NextStatus = HttpStatusCode.OK;
@@ -235,6 +237,28 @@ foreach (var scenario in fixtureDocument.RootElement.EnumerateArray())
         ? body.TryGetProperty("sellerContext_consolidatedCargoLines", out _)
         : body.TryGetProperty(equipmentField, out _),
         "Equipment or consolidated cargo must be preserved");
+    if (mode == "Air")
+    {
+        // Use the same mock fixture line and validate the optional native Air
+        // dimensions independently of the legacy JS adapter.
+        using var oneLine = Modified(body, b =>
+        {
+            var line = b["sellerContext_consolidatedCargoLines"]![0]!.DeepClone();
+            b["sellerContext_consolidatedCargoLines"] = new JsonArray(line);
+            b["form_cargoPackages"] = line["quantity"]!.GetValue<int>();
+            b["form_cargoWeightKg"] = line["quantity"]!.GetValue<int>() * line["weightKg"]!.GetValue<decimal>();
+            b["form_nonStackable"] = !line["isStackable"]!.GetValue<bool>();
+            b["form_cargoLengthCm"] = line["length"]!.DeepClone();
+            b["form_cargoWidthCm"] = line["width"]!.DeepClone();
+            b["form_cargoHeightCm"] = line["height"]!.DeepClone();
+        });
+        Check(DholeQuotePostTransport.IsValidFlatBody(oneLine.RootElement), "Valid Air dimensions match cargo line");
+        using var wrong = Modified(oneLine.RootElement, b => b["form_cargoLengthCm"] = 999999999);
+        using var partial = Modified(oneLine.RootElement, b => b.Remove("form_cargoHeightCm"));
+        Check(!DholeQuotePostTransport.IsValidFlatBody(wrong.RootElement) &&
+            !DholeQuotePostTransport.IsValidFlatBody(partial.RootElement),
+            "Reject conflicting or incomplete Air dimensions");
+    }
     var before = fake.Calls;
     fake.NextStatus = HttpStatusCode.OK;
     Check(await prepared.PostValidatedAsync(id, body, CancellationToken.None)

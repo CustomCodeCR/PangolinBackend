@@ -253,6 +253,16 @@ public static class DholeOfficialQuoteFlatPreviewBuilder
                 throw new ArgumentException("Dhole preview: suma de bultos/pesos inconsistente.");
             payload["form_cargoPackages"] = packageCount;
             payload["sellerContext_consolidatedCargoLines"] = items;
+            // Pricing's Air summary uses the published form dimension fields.
+            // For a single homogeneous line these are unambiguous per-package
+            // dimensions, not totals. Keep the complete structured cargo lines.
+            if (draft.ShipmentMode == "Air" && draft.CargoUnits.Count == 1)
+            {
+                var line = draft.CargoUnits[0];
+                payload["form_cargoLengthCm"] = line.LengthCm;
+                payload["form_cargoWidthCm"] = line.WidthCm;
+                payload["form_cargoHeightCm"] = line.HeightCm;
+            }
         }
         // The preview deliberately excludes fixed Dhole identities, sellerUserId,
         // money without verified currency, and all unpublished API fields.
