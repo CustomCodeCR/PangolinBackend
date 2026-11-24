@@ -156,6 +156,19 @@ builder.Services.AddSingleton<DholeCatalogService>();
 builder.Services.AddSingleton<DholeLookupCatalogService>();
 builder.Services.AddSingleton<DholeQuotePostTransport>();
 builder.Services.AddSingleton<DholeQuoteFormCatalogLoader>();
+// Registration is deliberately opt-in at startup; no default environment or
+// Compose settings activate it. The worker also checks runtime safety gates.
+if (builder.Configuration.GetValue<bool>("DholeSubmission:WorkerEnabled"))
+{
+    builder.Services.AddScoped<DholeOfficialOutboxClaimService>();
+    builder.Services.AddScoped<DholeOfficialOutboxOutcomeService>();
+    builder.Services.AddScoped<DholeOfficialDispatchAttemptCoordinator>();
+    builder.Services.AddScoped<DholeOfficialPublishedDispatchSource>();
+    builder.Services.AddScoped<DholeOfficialDispatchPass>();
+    builder.Services.AddScoped<DholeOfficialPricingVerification>();
+    builder.Services.AddScoped<DholeOfficialConfirmationEmail>();
+    builder.Services.AddHostedService<DholeOfficialDispatchWorker>();
+}
 builder.Services.AddSingleton<AssistantFreeQuota>();
 builder.Services.AddSingleton<ObjectStorageService>();
 builder.Services.AddHttpClient("Groq", client =>

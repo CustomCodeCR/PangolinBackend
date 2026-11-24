@@ -1192,6 +1192,23 @@ internal static class DholeQuoteHttpTest
             seed.Parameters.AddWithValue("reference", receiptReference);
             Assert(await seed.ExecuteNonQueryAsync() == 1, "Seed only the isolated fake receipt");
         }
+        // A default host must not schedule an outbound worker. Scope can be
+        // prepared locally with a single synthetic quote ID, never enabled in CI.
+        Assert(DholeOfficialWorkerScope.Read(new ConfigurationBuilder().Build()) is null,
+            "Default configuration cannot schedule any Dhole dispatch");
+        var scopeConfig = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["DholeSubmission:WorkerEnabled"] = "true",
+                ["DholeSubmission:ApplicantContactSharingApproved"] = "true",
+                ["DholeSubmission:ClientCreateIdempotencyEnabled"] = "true",
+                ["DholeSubmission:PilotQuoteId"] = idempotentId.ToString("D")
+            }).Build();
+        Assert(DholeOfficialWorkerScope.Read(scopeConfig)?.PilotQuoteId == idempotentId,
+            "Pilot scope is restricted to its exact quote");
+        scopeConfig["DholeSubmission:AllNewQuotesEnabled"] = "true";
+        Assert(DholeOfficialWorkerScope.Read(scopeConfig) is null,
+            "Conflicting pilot and broad scope is rejected");
         var notifyConfig = new ConfigurationBuilder().AddInMemoryCollection(
             new Dictionary<string, string?>
             {
@@ -1314,7 +1331,7 @@ sealed class CiFakeReceiptNotificationHandler(Guid reference) : HttpMessageHandl
         {
             VerificationCalls++;
             return new HttpResponseMessage(HttpStatusCode.OK) {
-                Content = JsonContent.Create(new { id = reference, status = "Pending" })
+                Content = JsonContent.Create(new { id = reference, status = "Open" })
             };
         }
         if (request.Method == HttpMethod.Post && uri.Host == "login.microsoftonline.com")

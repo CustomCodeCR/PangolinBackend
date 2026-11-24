@@ -64,8 +64,7 @@ public sealed class DholeOfficialPricingVerification(
                 !root.TryGetProperty("id", out var id) || id.ValueKind != JsonValueKind.String ||
                 !Guid.TryParseExact(id.GetString(), "D", out var remote) || remote != reference ||
                 !root.TryGetProperty("status", out var status) || status.ValueKind != JsonValueKind.String ||
-                string.IsNullOrWhiteSpace(status.GetString()) ||
-                status.GetString()!.Contains("cancel", StringComparison.OrdinalIgnoreCase))
+                status.GetString() is not ("Open" or "Completed"))
                 return false;
         }
         catch (Exception ex) when (!ct.IsCancellationRequested && ex is

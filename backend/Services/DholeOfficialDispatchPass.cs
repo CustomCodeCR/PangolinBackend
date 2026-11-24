@@ -4,8 +4,8 @@ using Microsoft.EntityFrameworkCore;
 namespace CastroFallas.MiniQuote.Api.Services;
 
 /// <summary>
-/// Dormant bounded queue consumer. Not registered or scheduled. A future
-/// explicitly authorized host supplies a fresh scoped DbContext for each pass.
+/// Bounded queue consumer. An explicitly authorized host supplies a fresh
+/// scoped DbContext and a fixed pilot/new-submission scope for each pass.
 /// Only never-attempted pending rows qualify; no replay of ambiguous deliveries.
 /// </summary>
 public sealed record DholeOfficialDispatchPassResult(
@@ -16,7 +16,8 @@ public sealed class DholeOfficialDispatchPass(
     DholeOfficialDispatchAttemptCoordinator coordinator)
 {
     public async Task<DholeOfficialDispatchPassResult> RunAsync(
-        AppDbContext db, Guid? afterQuoteId, CancellationToken ct)
+        AppDbContext db, Guid? afterQuoteId, CancellationToken ct,
+        DholeOfficialWorkerScope? scope = null, int limit = 20)
     {
         if (!coordinator.Enabled)
             return new(afterQuoteId, 0, 0, 0);
@@ -28,10 +29,15 @@ public sealed class DholeOfficialDispatchPass(
             .Where(x => x.State == "PendingDispatch" && x.AttemptCount == 0 &&
                 x.LastAttemptAtUtc == null && x.ProviderReferenceCandidate == null &&
                 x.ExternalReference == null && x.VerifiedAtUtc == null);
+        if (scope?.PilotQuoteId is Guid pilot)
+            query = query.Where(x => x.QuoteId == pilot);
+        if (scope?.StartAfterUtc is DateTime start)
+            query = query.Where(x => x.CreatedAtUtc >= start);
+        limit = Math.Clamp(limit, 1, 20);
         if (afterQuoteId is Guid cursor)
             query = query.Where(x => x.QuoteId.CompareTo(cursor) > 0);
         var ids = await query.OrderBy(x => x.QuoteId).Select(x => x.QuoteId)
-            .Take(20).ToListAsync(ct);
+            .Take(limit).ToListAsync(ct);
         int reviewed = 0, claimed = 0, blocked = 0;
         foreach (var id in ids)
         {
@@ -58,7 +64,7 @@ public sealed class DholeOfficialDispatchPass(
             if (result.Claimed) claimed++;
             else blocked++;
         }
-        return new(reviewed == 0 || reviewed == ids.Count && ids.Count < 20
+        return new(reviewed == 0 || reviewed == ids.Count && ids.Count < limit
             ? null : ids[reviewed - 1], reviewed, claimed, blocked);
     }
 }

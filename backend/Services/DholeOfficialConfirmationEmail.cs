@@ -20,11 +20,17 @@ public sealed class DholeOfficialConfirmationEmail(
         new[] { "Graph:TenantId", "Graph:ClientId", "Graph:ClientSecret", "Graph:From" }
             .All(key => !string.IsNullOrWhiteSpace(config[key]));
 
-    public async Task<int> RunAsync(AppDbContext db, CancellationToken ct)
+    public async Task<int> RunAsync(AppDbContext db, CancellationToken ct,
+        DholeOfficialWorkerScope? scope = null)
     {
         if (!Enabled) return 0;
+        var outbox = db.OfficialQuoteDholeCreationOutbox.AsNoTracking();
+        if (scope?.PilotQuoteId is Guid pilot)
+            outbox = outbox.Where(x => x.QuoteId == pilot);
+        if (scope?.StartAfterUtc is DateTime start)
+            outbox = outbox.Where(x => x.CreatedAtUtc >= start);
         var jobs = await (
-            from o in db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
+            from o in outbox
             join q in db.OfficialQuotes.AsNoTracking() on o.QuoteId equals q.Id
             where o.State == "Confirmed" && o.AttemptCount == 1 &&
                 o.VerifiedAtUtc != null && o.ExternalReference != null &&
