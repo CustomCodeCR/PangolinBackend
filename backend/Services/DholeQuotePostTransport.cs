@@ -38,7 +38,7 @@ public sealed class DholeQuotePostTransport(
         "form_cargoWeightKg", "form_cargoPackages", "form_storageDays",
         "form_cargoLengthCm", "form_cargoWidthCm", "form_cargoHeightCm",
         "form_equipmentId", "form_equipmentType", "form_equipmentSize", "form_equipmentQuantity",
-        "form_cabysCode", "form_pickupAddress", "form_dangerousCargo", "form_nonStackable",
+        "form_cabysCode", "form_pickupAddress", "form_cargoCondition", "form_dangerousCargo", "form_nonStackable",
         "form_overweight", "form_fclContainers", "form_landContainers",
         "form_inlandDeliveryLocation_address", "requestContext_incotermName",
         "requestContext_poeId", "requestContext_podId", "sellerContext_cargoReadyDate",
@@ -238,6 +238,17 @@ public sealed class DholeQuotePostTransport(
             body.GetProperty("form_destinationId").GetString() != body.GetProperty("poeId").GetString() ||
             body.GetProperty("requestContext_poeId").GetString() != body.GetProperty("poeId").GetString() ||
             body.GetProperty("destinationName").GetString() != body.GetProperty("poeName").GetString())
+            return false;
+
+        var isExw = body.GetProperty("requestContext_incotermName").GetString() == "EXW";
+        if (isExw)
+        {
+            if (!RequiredText(body, "form_pickupAddress") ||
+                !RequiredText(body, "form_cargoCondition") ||
+                body.GetProperty("form_cargoCondition").GetString() is not ("FiscalCargo" or "NationalizedCargo"))
+                return false;
+        }
+        else if (body.TryGetProperty("form_cargoCondition", out _))
             return false;
 
         if (body.TryGetProperty("form_cargoObservations", out var observations) &&

@@ -148,6 +148,23 @@ await Refuse(body => body["form_serviceIds"] = new JsonArray(
     "Reject duplicate Pricing service UUIDs");
 await Refuse(body => body["form_cargoWeightKg"] = 1500,
     "Reject mismatched total equipment weight");
+await Refuse(body => body["form_cargoCondition"] = "FiscalCargo",
+    "Non-EXW cannot carry customs condition");
+await Refuse(body => body["requestContext_incotermName"] = "EXW",
+    "EXW cannot omit condition and address");
+await Refuse(body => { body["requestContext_incotermName"] = "EXW"; body["form_pickupAddress"] = "Bodega CI"; body["form_cargoCondition"] = "invented"; },
+    "EXW rejects unknown customs condition");
+await Refuse(body => { body["requestContext_incotermName"] = "EXW"; body["form_cargoCondition"] = "FiscalCargo"; },
+    "EXW rejects missing pickup address");
+foreach (var condition in new[] { "FiscalCargo", "NationalizedCargo" })
+{
+    using var exw = Modified(valid.RootElement, body => {
+        body["requestContext_incotermName"] = "EXW";
+        body["form_pickupAddress"] = "Bodega CI";
+        body["form_cargoCondition"] = condition;
+    });
+    Check(DholeQuotePostTransport.IsValidFlatBody(exw.RootElement), "Reviewed EXW condition accepted at transport boundary");
+}
 await Refuse(body => body["form_cargoValue"] = 1600,
     "Reject insured amounts without a validated currency mapping");
 await Refuse(body => body["form_currencyId"] = "77777777-7777-4777-8777-777777777777",

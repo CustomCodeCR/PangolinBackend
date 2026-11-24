@@ -166,6 +166,21 @@ public static class DholeOfficialQuoteFlatPreviewBuilder
             ? draft.PickupAddress : draft.ExwPickupAddress;
         if (!string.IsNullOrWhiteSpace(effectivePickupAddress))
             payload["form_pickupAddress"] = effectivePickupAddress;
+        // Native text field verified in both live LCL EXW pilots.
+        if (draft.IncotermValue == "EXW")
+        {
+            if (string.IsNullOrWhiteSpace(draft.ExwPickupAddress))
+                throw new ArgumentException("Dhole preview: falta dirección de recolección EXW.");
+            payload["form_cargoCondition"] = draft.ExwCargoStatus switch
+            {
+                "fiscal" => "FiscalCargo",
+                "nationalized" => "NationalizedCargo",
+                _ => throw new ArgumentException("Dhole preview: condición aduanera EXW inválida.")
+            };
+        }
+        else if (!string.IsNullOrWhiteSpace(draft.ExwCargoStatus) ||
+                 !string.IsNullOrWhiteSpace(draft.ExwPickupAddress))
+            throw new ArgumentException("Dhole preview: condición o dirección EXW fuera de EXW.");
         if (!string.IsNullOrWhiteSpace(draft.DeliveryAddress))
             payload["form_inlandDeliveryLocation_address"] = draft.DeliveryAddress;
 
