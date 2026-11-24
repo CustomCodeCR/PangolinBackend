@@ -300,6 +300,54 @@ foreach (var scenario in fixtureDocument.RootElement.EnumerateArray())
 }
 Check(scenariosSeen.SetEquals(new[] { "FCL", "LCL", "AIR_LCL", "FTL", "LTL" }),
     "All five distinct quote modes verified");
+// Pilot cannot bypass the default allowlist; use a separate fake handler.
+var pilotFake = new FakePostHandler { NextStatus = HttpStatusCode.OK };
+using var pilotHttp = new HttpClient(pilotFake);
+var pilotConfig = Settings(enabled: true, key: secret);
+pilotConfig["ASPNETCORE_ENVIRONMENT"] = "Development";
+pilotConfig["DholeSubmission:CurrencyPilotEnabled"] = "true";
+pilotConfig["DholeSubmission:WorkerEnabled"] = "true";
+pilotConfig["DholeSubmission:PilotQuoteId"] = quoteId.ToString("D");
+pilotConfig["DholeSubmission:TemporaryCatalogsEnabled"] = "true";
+pilotConfig["DholeSubmission:TemporaryCatalogsValidUntilUtc"] =
+    DateTime.UtcNow.AddHours(1).ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
+pilotConfig["DholeSubmission:CurrencyPilotContactEmail"] = "prueba@example.invalid";
+var pilotTransport = new DholeQuotePostTransport(pilotConfig, new FakePostFactory(pilotHttp));
+using var pilotBody = Modified(valid.RootElement, b =>
+{
+    b["shipmentMode"] = "Lcl";
+    b["form_shipmentMode"] = "Lcl";
+    b.Remove("form_fclContainers");
+    b["form_cargoPackages"] = 1;
+    b["sellerContext_consolidatedCargoLines"] = JsonNode.Parse("""
+        [{"description":"CI","quantity":1,"unitType":"Box","weightKg":1200,"length":10,"width":10,"height":10,"isStackable":true}]
+        """);
+    b["form_serviceIds"] = new JsonArray("c2300000-0000-4000-8000-000000000005");
+    b["form_cargoDescription"] = DholeQuotePostTransport.CurrencyPilotMarker + "\n" +
+        b["form_cargoDescription"]!.GetValue<string>();
+    b["form_cargoValue"] = 500000;
+    b["form_currencyId"] = "e13c17e0-904f-4a13-bac7-041559f482fe";
+});
+Check(!DholeQuotePostTransport.IsValidFlatBody(pilotBody.RootElement), "Pilot money default-off");
+Check(DholeQuotePostTransport.IsValidForQuote(pilotConfig, quoteId, pilotBody.RootElement), "Exact scoped currency test");
+foreach (var gate in new[] { "DholeSubmission:CurrencyPilotEnabled", "DholeSubmission:WorkerEnabled" })
+{
+    pilotConfig[gate] = "false";
+    Check(!DholeQuotePostTransport.IsValidForQuote(pilotConfig, quoteId, pilotBody.RootElement), "Missing pilot gate blocks");
+    pilotConfig[gate] = "true";
+}
+pilotConfig["DholeSubmission:AllNewQuotesEnabled"] = "true";
+Check(!DholeQuotePostTransport.IsValidForQuote(pilotConfig, quoteId, pilotBody.RootElement), "Bulk scope forbidden");
+pilotConfig["DholeSubmission:AllNewQuotesEnabled"] = "false";
+pilotConfig["ASPNETCORE_ENVIRONMENT"] = "Production";
+Check(!DholeQuotePostTransport.IsValidForQuote(pilotConfig, quoteId, pilotBody.RootElement), "Production pilot forbidden");
+pilotConfig["ASPNETCORE_ENVIRONMENT"] = "Development";
+Check(!DholeQuotePostTransport.IsValidForQuote(pilotConfig, Guid.NewGuid(), pilotBody.RootElement), "Other UUID forbidden");
+using var wrongAmount = Modified(pilotBody.RootElement, b => b["form_cargoValue"] = 123);
+Check(!DholeQuotePostTransport.IsValidForQuote(pilotConfig, quoteId, wrongAmount.RootElement), "Unexpected amount forbidden");
+Check(await pilotTransport.PostValidatedAsync(quoteId, pilotBody.RootElement, CancellationToken.None)
+    == DholeQuotePostOutcome.HttpAcceptedUnverified && pilotFake.Calls == 1, "One isolated fake pilot POST");
+
 Console.WriteLine("PASS: default-off and 5-mode JS-to-C# fake POST, fixed host/idempotency, locked defaults, no live network.");
 
 

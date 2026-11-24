@@ -37,7 +37,7 @@ public sealed class DholeOfficialDispatchAttemptCoordinator(
         if (!Enabled) return Stop("Disabled");
         if (review is null || !review.ReadyForContractReview ||
             review.RemoteSubmissionPermitted ||
-            !DholeQuotePostTransport.IsValidFlatBody(review.Body))
+            !DholeQuotePostTransport.IsValidForQuote(configuration, review.OfficialQuoteId, review.Body))
             return Stop("PreflightBlocked");
 
         // Claim is an irreversible once-only reservation *before* HTTP.

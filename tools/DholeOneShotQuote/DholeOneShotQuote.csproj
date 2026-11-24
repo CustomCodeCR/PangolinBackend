@@ -8,5 +8,6 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <Compile Include="../../backend/Services/DholeQuotePostTransport.cs" Link="DholeQuotePostTransport.cs" />
+    <Compile Include="../../backend/Services/DholeTemporaryDispatchCatalog.cs" Link="DholeTemporaryDispatchCatalog.cs" />
   </ItemGroup>
 </Project>

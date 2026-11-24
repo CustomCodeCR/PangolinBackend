@@ -32,7 +32,7 @@ public sealed class DholeOfficialOutboxClaimService(IConfiguration configuration
         if (!Enabled || review is null ||
             !review.ReadyForContractReview || review.RemoteSubmissionPermitted ||
             review.OfficialQuoteId == Guid.Empty ||
-            !DholeQuotePostTransport.IsValidFlatBody(review.Body) ||
+            !DholeQuotePostTransport.IsValidForQuote(configuration, review.OfficialQuoteId, review.Body) ||
             review.IdempotencyKey !=
                 "cf-official-" + review.OfficialQuoteId.ToString("D"))
             return null;

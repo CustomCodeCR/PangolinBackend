@@ -78,6 +78,13 @@ internal static class DholeTemporaryDispatchCatalog
     public static bool IsSupportedCurrency(string? iso) =>
         iso is not null && Currencies.ContainsKey(iso);
 
+    // Restricted synthetic pilot only: these three exact amount/currency pairs
+    // were selected for comparison, not as equivalent exchange-rate values.
+    public static bool IsCurrencyPilotPair(Guid id, decimal amount) =>
+        (Currencies["USD"] == id && amount == 1000m) ||
+        (Currencies["CRC"] == id && amount == 500000m) ||
+        (Currencies["EUR"] == id && amount == 1000m);
+
     // Catalog data only. Does not establish the commercial meaning of form_currencyId.
     public static Guid? CurrencyId(string? iso, DateTimeOffset now, DateTimeOffset? expires) =>
         IsUsable(now, expires) && iso is not null && Currencies.TryGetValue(iso, out var id)

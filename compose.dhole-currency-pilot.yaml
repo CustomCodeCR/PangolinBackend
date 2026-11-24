@@ -1,0 +1,7 @@
+# LOCAL ONLY: combine with existing preview, stage and exact-ID send overlays.
+# Never use on production, never merge this experimental branch.
+services:
+  backend:
+    environment:
+      DholeSubmission__CurrencyPilotEnabled: "true"
+      DholeSubmission__CurrencyPilotContactEmail: ${DHOLE_CURRENCY_PILOT_EMAIL:?Correo controlado del operador}

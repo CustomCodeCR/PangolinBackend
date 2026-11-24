@@ -68,7 +68,7 @@ public sealed class DholeQuotePostTransport(
         var secret = config["DholeSubmission:ApiKey"];
         if (secret is null || !KeyFormat.IsMatch(secret))
             return new(DholeQuotePostOutcome.NotConfigured, null);
-        if (quoteId == Guid.Empty || !IsValidFlatBody(publishedFlatBody))
+        if (quoteId == Guid.Empty || !IsValidForQuote(config, quoteId, publishedFlatBody))
             return new(DholeQuotePostOutcome.InvalidPayload, null);
 
         byte[] payload = Encoding.UTF8.GetBytes(publishedFlatBody.GetRawText());
@@ -139,13 +139,48 @@ public sealed class DholeQuotePostTransport(
 
     // Pure local validation; it makes NO HTTP call and does not grant
     // authorization to dispatch. Shared by pre-claim review and transport.
-    public static bool IsValidFlatBody(JsonElement body)
+    public const string CurrencyPilotMarker = "PRUEBA TECNICA - NO COTIZAR - MONEDA";
+
+    // The experimental fields never become generally allowed. The same
+    // authorization is rechecked before pre-claim and before HTTP.
+    public static bool IsCurrencyPilotScope(IConfiguration configuration, Guid quoteId)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return configuration.GetValue<bool>("DholeSubmission:CurrencyPilotEnabled") &&
+            string.Equals(configuration["ASPNETCORE_ENVIRONMENT"], "Development", StringComparison.Ordinal) &&
+            configuration.GetValue<bool>("DholeSubmission:WorkerEnabled") &&
+            !configuration.GetValue<bool>("DholeSubmission:AllNewQuotesEnabled") &&
+            string.IsNullOrWhiteSpace(configuration["DholeSubmission:NewQuotesStartUtc"]) &&
+            Guid.TryParseExact(configuration["DholeSubmission:PilotQuoteId"], "D", out var pilot) &&
+            pilot != Guid.Empty && pilot == quoteId &&
+            configuration.GetValue<bool>("DholeSubmission:TemporaryCatalogsEnabled") &&
+            DateTimeOffset.TryParseExact(configuration["DholeSubmission:TemporaryCatalogsValidUntilUtc"],
+                "yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal, out var expiry) &&
+            expiry.Offset == TimeSpan.Zero && expiry > now && expiry <= now.AddHours(24) &&
+            !string.IsNullOrWhiteSpace(configuration["DholeSubmission:CurrencyPilotContactEmail"]);
+    }
+
+    public static bool IsValidForQuote(IConfiguration configuration, Guid quoteId, JsonElement body)
+    {
+        if (!configuration.GetValue<bool>("DholeSubmission:CurrencyPilotEnabled"))
+            return IsValidFlatBody(body);
+        if (!IsCurrencyPilotScope(configuration, quoteId) || !IsValidFlatBody(body, true))
+            return false;
+        var email = configuration["DholeSubmission:CurrencyPilotContactEmail"]!;
+        var description = body.GetProperty("form_cargoDescription").GetString()!;
+        return description.Split('\n').Any(x => x == "Correo: " + email);
+    }
+
+    public static bool IsValidFlatBody(JsonElement body, bool currencyPilot = false)
     {
         if (body.ValueKind != JsonValueKind.Object) return false;
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var property in body.EnumerateObject())
         {
-            if (!AllowedFields.Contains(property.Name) || !seen.Add(property.Name))
+            if ((!AllowedFields.Contains(property.Name) &&
+                !(currencyPilot && property.Name is ("form_cargoValue" or "form_currencyId"))) ||
+                !seen.Add(property.Name))
                 return false;
         }
         if (!body.TryGetProperty("priority", out var priority) ||
@@ -170,6 +205,15 @@ public sealed class DholeQuotePostTransport(
                 !Guid.TryParse(id.GetString(), out var parsed) || parsed == Guid.Empty)
                 return false;
         }
+        if (currencyPilot &&
+            (mode.GetString() != "Lcl" ||
+             !description.GetString()!.StartsWith(CurrencyPilotMarker, StringComparison.Ordinal) ||
+             !body.TryGetProperty("form_cargoValue", out var amount) || !Positive(amount, out var declared) ||
+             !RequiredUuid(body, "form_currencyId") ||
+             !DholeTemporaryDispatchCatalog.IsCurrencyPilotPair(
+                 Guid.Parse(body.GetProperty("form_currencyId").GetString()!), declared) ||
+             !ids.EnumerateArray().Any(x => x.GetString() == "c2300000-0000-4000-8000-000000000005")))
+            return false;
         // A field allowlist alone is insufficient: a syntactically correct
         // payload could combine different POE/POD IDs or attach FTL equipment
         // to an LCL quote. This is a second, independent fail-closed guard.

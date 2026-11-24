@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.Configuration;
 using CastroFallas.MiniQuote.Api.Models;
 
@@ -73,10 +74,29 @@ public sealed class DholeOfficialPublishedDispatchSource(
             throw new DholeLookupUnavailableException();
         var manualCommercialReview = configuration.GetValue<bool>(
             "DholeSubmission:ManualCommercialReviewEnabled");
-        return useTemporary
+        var review = useTemporary
             ? DholeOfficialDispatchPreflight.ReviewSavedQuoteWithTemporaryCatalogs(
                 savedQuote, route, all, now, expiry, manualCommercialReview)
             : DholeOfficialDispatchPreflight.ReviewSavedQuoteWithPublishedCatalogs(
                 savedQuote, route, all, now, manualCommercialReview);
+
+        if (!configuration.GetValue<bool>("DholeSubmission:CurrencyPilotEnabled"))
+            return review;
+        // Only a persisted synthetic LCL quote with explicit operator scope,
+        // controlled email and a fresh bounded temporary catalog may carry money.
+        if (!useTemporary || expiry is null || !manualCommercialReview ||
+            !DholeQuotePostTransport.IsCurrencyPilotScope(configuration, savedQuote.Id) ||
+            !string.Equals(form.ContactEmail, configuration["DholeSubmission:CurrencyPilotContactEmail"], StringComparison.Ordinal) ||
+            form.CargoValue is not decimal amount ||
+            DholeTemporaryDispatchCatalog.CurrencyId(form.CargoCurrencyCode, now, expiry) is not Guid currencyId ||
+            !DholeTemporaryDispatchCatalog.IsCurrencyPilotPair(currencyId, amount))
+            throw new ArgumentException("Currency pilot scope or controlled amount invalid.");
+        var body = JsonNode.Parse(review.Body.GetRawText())!.AsObject();
+        body["form_cargoValue"] = amount;
+        body["form_currencyId"] = currencyId.ToString("D");
+        var pilotReview = review with { Body = JsonSerializer.SerializeToElement(body) };
+        if (!DholeQuotePostTransport.IsValidForQuote(configuration, savedQuote.Id, pilotReview.Body))
+            throw new ArgumentException("Currency pilot payload invalid.");
+        return pilotReview;
     }
 }
