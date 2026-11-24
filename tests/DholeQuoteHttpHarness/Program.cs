@@ -1410,6 +1410,8 @@ sealed class CiFakeReceiptNotificationHandler(Guid reference) : HttpMessageHandl
                 !html.Contains("https://www.logisticacastrofallas.com/") ||
                 attachments.GetArrayLength() != 1 ||
                 logo.GetProperty("contentId").GetString() != "cf-quote-logo" ||
+                logo.GetProperty("name").GetString() != "castro-fallas-logo-blanco.png" ||
+                !html.Contains("width=\"128\" height=\"56\"") ||
                 !logo.GetProperty("isInline").GetBoolean() ||
                 Convert.FromBase64String(logo.GetProperty("contentBytes").GetString()!).Length < 100)
                 throw new InvalidOperationException("Unexpected mock branded email content");
