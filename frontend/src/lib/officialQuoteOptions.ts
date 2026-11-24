@@ -85,7 +85,8 @@ export function totalCargoWeightKg(weights: unknown[], unit: string): number | n
   return Number.isFinite(total) && total > 0 ? total : null
 }
 export function formatCargoWeightKg(weight: number, tr: QuoteTranslate): string {
-  return weight.toLocaleString(tr('es-CR','en-US'), {maximumFractionDigits: 3})
+  return weight.toLocaleString(tr('es-CR','en-US'), weight > 0 && weight < 0.001
+    ? {maximumSignificantDigits: 3} : {maximumFractionDigits: 9})
 }
 export function declaredWeightAdvisory(declared: unknown, totalKg: number | null, tr: QuoteTranslate): string {
   if (declared === '' || declared === null || declared === undefined ||
@@ -93,8 +94,9 @@ export function declaredWeightAdvisory(declared: unknown, totalKg: number | null
   const weight = Number(declared)
   if (!Number.isFinite(weight) || weight < 0) return ''
   const delta = weight - totalKg
-  // UI-only tolerance for estimates/rounding, not a commercial validation rule.
-  if (Math.abs(delta) <= Math.max(1, totalKg * 0.01)) return ''
+  // No business tolerance: flag every real difference in either direction.
+  // Ignore only machine-level floating-point noise from sums/conversions.
+  if (Math.abs(delta) <= Number.EPSILON * Math.max(Math.abs(weight), totalKg) * 4) return ''
   const calculated = formatCargoWeightKg(totalKg, tr)
   const stated = formatCargoWeightKg(weight, tr)
   const difference = formatCargoWeightKg(Math.abs(delta), tr)

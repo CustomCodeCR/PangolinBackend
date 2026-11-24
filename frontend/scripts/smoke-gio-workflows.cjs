@@ -317,8 +317,11 @@ async function main() {
       assert.ok(await evaluate('(()=>{const field=document.querySelector(".gio-ops__form input");if(!field)return false;const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(field,'+JSON.stringify(text)+');field.dispatchEvent(new Event("input",{bubbles:true}));field.closest("form").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));return true})()'))
       await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__confirmation")'))
     }
-    await setDeclaredWeight('13001')
-    assert.equal(await evaluate('!!document.querySelector(".gio-ops__confirmation .gio-ops__weight-advisory")'),false,'Within tolerance')
+    await setDeclaredWeight('13000')
+    assert.equal(await evaluate('!!document.querySelector(".gio-ops__confirmation .gio-ops__weight-advisory")'),false,'Equal weights do not warn')
+    await click('.gio-ops__confirm-actions .gio-ops__secondary')
+    await setDeclaredWeight('13000.1')
+    await waitFor(()=>evaluate('document.querySelector(".gio-ops__confirmation .gio-ops__weight-advisory")?.textContent.includes("kg menos")'))
     await click('.gio-ops__confirm-actions .gio-ops__secondary')
     await setDeclaredWeight('8000')
     await waitFor(()=>evaluate('document.querySelector(".gio-ops__confirmation .gio-ops__weight-advisory")?.textContent.includes("kg más")'))
