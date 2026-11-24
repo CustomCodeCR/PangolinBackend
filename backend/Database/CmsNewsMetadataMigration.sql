@@ -27,20 +27,11 @@ ALTER TABLE public.cms_news ADD COLUMN IF NOT EXISTS author VARCHAR(160) NOT NUL
 ALTER TABLE public.cms_news ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ NULL;
 -- Scheduled news expiry is optional. Existing records remain permanent by default.
 ALTER TABLE public.cms_news ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ NULL;
--- Stable public permalinks and editorial lastmod (same schema as AuthSchema.sql).
-ALTER TABLE public.cms_news ADD COLUMN IF NOT EXISTS slug VARCHAR(240) NULL;
-ALTER TABLE public.cms_news ADD COLUMN IF NOT EXISTS content_modified_at TIMESTAMPTZ NULL;
 
 -- Only backfill old published news. Existing, explicitly set dates and drafts remain unchanged.
 UPDATE public.cms_news
 SET published_at = created_at
 WHERE published = TRUE AND published_at IS NULL;
-
--- Preserve previously stored slugs and editorial timestamps; legacy slugs are
--- derived by the API until the first edit, using the previous title/date.
-UPDATE public.cms_news
-SET content_modified_at = COALESCE(updated_at, published_at, created_at)
-WHERE published = TRUE AND content_modified_at IS NULL;
 
 DO $verify$
 DECLARE
@@ -64,20 +55,9 @@ BEGIN
     OR expiry_type <> 'timestamp with time zone' OR expiry_nullable <> 'YES' THEN
     RAISE EXCEPTION 'cms_news metadata columns have unexpected types or constraints';
   END IF;
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema='public' AND table_name='cms_news' AND column_name='slug'
-      AND data_type='character varying' AND character_maximum_length=240 AND is_nullable='YES'
-  ) OR NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema='public' AND table_name='cms_news' AND column_name='content_modified_at'
-      AND data_type='timestamp with time zone' AND is_nullable='YES'
-  ) THEN
-    RAISE EXCEPTION 'cms_news permalink metadata columns have unexpected types or constraints';
-  END IF;
   IF EXISTS (
     SELECT 1 FROM public.cms_news
-    WHERE published = TRUE AND (published_at IS NULL OR content_modified_at IS NULL)
+    WHERE published = TRUE AND published_at IS NULL
   ) THEN
     RAISE EXCEPTION 'cms_news published metadata backfill incomplete';
   END IF;

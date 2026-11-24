@@ -386,9 +386,10 @@ jobs:
           export PGUSER=pangolin
           export PGPASSWORD="$(read_var PANGOLIN_POSTGRES_PASSWORD)"
           # The migration is idempotent and fails atomically; never restart on partial schema.
-          docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" \
-            /app/Database/CmsNewsMetadataMigration.sql \
-            | docker run --rm -i --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD \
+          {
+            docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/CmsNewsMetadataMigration.sql
+            docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/CmsNewsPermalinksMigration.sql
+          } | docker run --rm -i --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD \
                 postgres:16-alpine psql -X -d pangolin --single-transaction -v ON_ERROR_STOP=1 -f - >/dev/null
           columns="$(docker run --rm --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD \
             postgres:16-alpine psql -X -d pangolin -Atqc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='cms_news' AND column_name IN ('author','published_at','expires_at','slug','content_modified_at')")"

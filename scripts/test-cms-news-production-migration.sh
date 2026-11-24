@@ -32,7 +32,7 @@ INSERT INTO public.cms_news VALUES
  (1,'Legacy published',true,'2026-01-01T00:00:00Z','2026-01-02T00:00:00Z','Author','2026-01-01T00:00:00Z',NULL),
  (2,'Draft',false,'2026-01-01T00:00:00Z','2026-01-01T00:00:00Z','',NULL,NULL);
 SQL
-sql --single-transaction -f - < backend/Database/CmsNewsMetadataMigration.sql
+cat backend/Database/CmsNewsMetadataMigration.sql backend/Database/CmsNewsPermalinksMigration.sql | sql --single-transaction -f -
 sql <<'SQL'
 DO $test$
 BEGIN
@@ -48,7 +48,7 @@ END
 $test$;
 UPDATE public.cms_news SET slug='stable-original', content_modified_at='2026-01-03T00:00:00Z' WHERE id=1;
 SQL
-sql --single-transaction -f - < backend/Database/CmsNewsMetadataMigration.sql
+cat backend/Database/CmsNewsMetadataMigration.sql backend/Database/CmsNewsPermalinksMigration.sql | sql --single-transaction -f -
 sql <<'SQL'
 DO $test$
 BEGIN
