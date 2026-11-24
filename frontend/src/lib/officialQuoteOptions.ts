@@ -75,21 +75,31 @@ export function officialEquipmentTypeOptions(type: string, tr: QuoteTranslate): 
   return []
 }
 
-// Advisory only: declared packages may describe a different packaging level.
-// Never change or validate away either of the original quantities.
-export function packageCountAdvisory(shipmentType: string, declared: unknown,
-  quantities: unknown[], tr: QuoteTranslate): string {
-  if (!['LCL','AIR_LCL','LTL'].includes(shipmentType) || !quantities.length ||
-      declared === '' || declared === null || declared === undefined) return ''
-  const count = Number(declared)
-  const lines = quantities.map(Number)
-  if (!Number.isSafeInteger(count) || count < 0 ||
-      lines.some(n => !Number.isSafeInteger(n) || n < 1)) return ''
-  const total = lines.reduce((sum, n) => sum + n, 0)
-  if (!Number.isSafeInteger(total) || total === count) return ''
-  const difference = Math.abs(total - count)
+// Compare only complete positive line weights; do not infer missing values.
+export function totalCargoWeightKg(weights: unknown[], unit: string): number | null {
+  if (!weights.length || !['kg','lb'].includes(unit) ||
+      weights.some(v => v === '' || v === null || v === undefined)) return null
+  const numbers = weights.map(Number)
+  if (numbers.some(n => !Number.isFinite(n) || n <= 0)) return null
+  const total = numbers.reduce((sum, n) => sum + n, 0) * (unit === 'lb' ? 0.45359237 : 1)
+  return Number.isFinite(total) && total > 0 ? total : null
+}
+export function formatCargoWeightKg(weight: number, tr: QuoteTranslate): string {
+  return weight.toLocaleString(tr('es-CR','en-US'), {maximumFractionDigits: 3})
+}
+export function declaredWeightAdvisory(declared: unknown, totalKg: number | null, tr: QuoteTranslate): string {
+  if (declared === '' || declared === null || declared === undefined ||
+      totalKg === null || !Number.isFinite(totalKg) || totalKg <= 0) return ''
+  const weight = Number(declared)
+  if (!Number.isFinite(weight) || weight < 0) return ''
+  const delta = weight - totalKg
+  // UI-only tolerance for estimates/rounding, not a commercial validation rule.
+  if (Math.abs(delta) <= Math.max(1, totalKg * 0.01)) return ''
+  const calculated = formatCargoWeightKg(totalKg, tr)
+  const stated = formatCargoWeightKg(weight, tr)
+  const difference = formatCargoWeightKg(Math.abs(delta), tr)
   return tr(
-    `Las líneas de carga suman ${total} ${total === 1 ? 'bulto' : 'bultos'} y declaraste ${count} (${difference} ${total < count ? 'menos' : 'más'} en las líneas). Revisá los datos; si la diferencia es intencional, podés continuar.`,
-    `Cargo lines total ${total} ${total === 1 ? 'package' : 'packages'} and you declared ${count} (${difference} ${total < count ? 'fewer' : 'more'} in the lines). Review the details; if the difference is intentional, you can continue.`
+    `El peso calculado es ${calculated} kg y declaraste ${stated} kg (${difference} kg ${delta > 0 ? 'menos' : 'más'} en las líneas). Revisá que ambos pesos tengan la misma base (por ejemplo, embalaje o tara). Si la diferencia es intencional, podés continuar.`,
+    `The calculated weight is ${calculated} kg and you declared ${stated} kg (${difference} kg ${delta > 0 ? 'less' : 'more'} in the lines). Check that both weights use the same basis (e.g. packaging or tare). If the difference is intentional, you can continue.`
   )
 }
