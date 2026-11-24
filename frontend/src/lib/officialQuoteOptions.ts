@@ -89,7 +89,7 @@ export function packageCountAdvisory(shipmentType: string, declared: unknown,
   if (!Number.isSafeInteger(total) || total === count) return ''
   const difference = Math.abs(total - count)
   return tr(
-    `Las líneas de carga suman ${total} bultos y declaraste ${count} (${difference} ${total < count ? 'menos' : 'más'} en las líneas). Revisá los datos; si la diferencia es intencional, podés continuar.`,
-    `Cargo lines total ${total} packages and you declared ${count} (${difference} ${total < count ? 'fewer' : 'more'} in the lines). Review the details; if the difference is intentional, you can continue.`
+    `Las líneas de carga suman ${total} ${total === 1 ? 'bulto' : 'bultos'} y declaraste ${count} (${difference} ${total < count ? 'menos' : 'más'} en las líneas). Revisá los datos; si la diferencia es intencional, podés continuar.`,
+    `Cargo lines total ${total} ${total === 1 ? 'package' : 'packages'} and you declared ${count} (${difference} ${total < count ? 'fewer' : 'more'} in the lines). Review the details; if the difference is intentional, you can continue.`
   )
 }
