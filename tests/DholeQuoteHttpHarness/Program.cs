@@ -1058,6 +1058,27 @@ internal static class DholeQuoteHttpTest
             using var json = JsonDocument.Parse(await first.Content.ReadAsStringAsync());
             idempotentId = json.RootElement.GetProperty("id").GetGuid();
         }
+        // The public status route is a receipt capability, not an ID-only lookup.
+        async Task<HttpResponseMessage> ReadDelivery(Guid? key)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get,
+                "/api/quotes/official/" + idempotentId.ToString("D") + "/delivery-status");
+            if (key.HasValue)
+                request.Headers.Add("X-CF-Quote-Request-Key", key.Value.ToString("D"));
+            return await idempotentClient.SendAsync(request);
+        }
+        using (var absent = await ReadDelivery(null))
+            Assert(absent.StatusCode == HttpStatusCode.NotFound, "Quote ID alone is not a receipt capability");
+        using (var wrong = await ReadDelivery(Guid.NewGuid()))
+            Assert(wrong.StatusCode == HttpStatusCode.NotFound, "A different quote key cannot read this receipt");
+        using (var status = await ReadDelivery(firstKey))
+        {
+            Assert(status.StatusCode == HttpStatusCode.OK, "Original quote receipt is readable");
+            using var json = JsonDocument.Parse(await status.Content.ReadAsStringAsync());
+            Assert(json.RootElement.EnumerateObject().Count() == 1 &&
+                json.RootElement.GetProperty("dholeDispatchState").GetString() == "PendingDispatch",
+                "Pending receipt has no personal data and does not claim remote success");
+        }
         using (var replay = await CreateWithClientKey(firstKey, quote))
         {
             Assert(replay.StatusCode == HttpStatusCode.Created,
@@ -1154,6 +1175,63 @@ internal static class DholeQuoteHttpTest
                 "Concurrent keyed requests persist exactly one official quote");
         }
 
+        // Exercise the new notification path on one fictional row. A real
+        // Pricing request is never created: the isolated DB and mock GET prove
+        // the transition and the exact same Graph handler counts one email.
+        var receiptReference = Guid.Parse("f8100000-0000-4000-8000-000000000001");
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var seed = new NpgsqlCommand("""
+                UPDATE public.official_quote_dhole_creation_outbox
+                SET state = 'HttpAcceptedUnverified', attempt_count = 1,
+                    last_attempt_at_utc = now(), provider_reference_candidate = @reference
+                WHERE quote_id = @id
+                """, db);
+            seed.Parameters.AddWithValue("id", idempotentId);
+            seed.Parameters.AddWithValue("reference", receiptReference);
+            Assert(await seed.ExecuteNonQueryAsync() == 1, "Seed only the isolated fake receipt");
+        }
+        var notifyConfig = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                ["DholeSubmission:VerificationEnabled"] = "true",
+                ["DholeSubmission:VerificationPath"] = "api/external/v1/ci-fake-verification",
+                ["DholeSubmission:VerificationApiKey"] = "dh_ext_" + new string('b', 64),
+                ["DholeSubmission:ConfirmationEmailEnabled"] = "true",
+                ["Email:Mode"] = "Graph",
+                ["Graph:TenantId"] = "f8200000-0000-4000-8000-000000000001",
+                ["Graph:ClientId"] = "f8200000-0000-4000-8000-000000000002",
+                ["Graph:ClientSecret"] = "ci-fictional",
+                ["Graph:From"] = "sender@example.invalid"
+            }).Build();
+        var fakeNotification = new CiFakeReceiptNotificationHandler(receiptReference);
+        using var notificationHttp = new HttpClient(fakeNotification);
+        var verifier = new DholeOfficialPricingVerification(notifyConfig,
+            new CiFakeReceiptNotificationFactory(notificationHttp));
+        var notifier = new DholeOfficialConfirmationEmail(notifyConfig,
+            new GraphEmailSender(notificationHttp, notifyConfig));
+        await using (var db = new AppDbContext(opts))
+        {
+            Assert(await notifier.RunAsync(db, CancellationToken.None) == 0 &&
+                fakeNotification.MailCalls == 0, "Unverified receipt cannot send a confirmation email");
+            Assert(await verifier.VerifyAsync(db, idempotentId, CancellationToken.None),
+                "Matching independent fake GET confirms exactly the stored receipt");
+            Assert(!await verifier.VerifyAsync(db, idempotentId, CancellationToken.None) &&
+                fakeNotification.VerificationCalls == 1, "Confirmation is not repeated");
+            Assert(await notifier.RunAsync(db, CancellationToken.None) == 1 &&
+                await notifier.RunAsync(db, CancellationToken.None) == 0 &&
+                fakeNotification.MailCalls == 1, "Exactly one mock email after confirmed receipt");
+        }
+        using (var status = await ReadDelivery(firstKey))
+        {
+            using var json = JsonDocument.Parse(await status.Content.ReadAsStringAsync());
+            Assert(status.StatusCode == HttpStatusCode.OK &&
+                json.RootElement.GetProperty("dholeDispatchState").GetString() == "Confirmed",
+                "Same receipt reports confirmed creation after independent fake verification");
+        }
+
         // Force a DB constraint failure during a keyed transaction. The
         // official copy and the client key must BOTH roll back so that the same
         // key can safely be used after the isolated DB fault is removed.
@@ -1217,6 +1295,47 @@ internal static class DholeQuoteHttpTest
 
 // Strictly fake sender for the CI-only coordinator. Production never registers
 // this factory and no test sends HTTP to a real Pricing/Gateway service.
+sealed class CiFakeReceiptNotificationFactory(HttpClient client) : IHttpClientFactory
+{
+    public HttpClient CreateClient(string name) => name == "DholeQuoteVerification"
+        ? client : throw new InvalidOperationException("Unexpected fake notification client");
+}
+sealed class CiFakeReceiptNotificationHandler(Guid reference) : HttpMessageHandler
+{
+    public int VerificationCalls { get; private set; }
+    public int MailCalls { get; private set; }
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+    {
+        var uri = request.RequestUri!;
+        if (request.Method == HttpMethod.Get &&
+            uri.ToString() == "https://api.logisticacastrofallas.com/api/external/v1/ci-fake-verification/" + reference.ToString("D") &&
+            request.Headers.TryGetValues("X-Api-Key", out var keys) &&
+            keys.SingleOrDefault() == "dh_ext_" + new string('b', 64))
+        {
+            VerificationCalls++;
+            return new HttpResponseMessage(HttpStatusCode.OK) {
+                Content = JsonContent.Create(new { id = reference, status = "Pending" })
+            };
+        }
+        if (request.Method == HttpMethod.Post && uri.Host == "login.microsoftonline.com")
+            return new HttpResponseMessage(HttpStatusCode.OK) {
+                Content = JsonContent.Create(new { access_token = "fake-ci-graph-token" })
+            };
+        if (request.Method == HttpMethod.Post && uri.Host == "graph.microsoft.com" &&
+            uri.AbsolutePath.EndsWith("/sendMail", StringComparison.Ordinal))
+        {
+            using var doc = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
+            var message = doc.RootElement.GetProperty("message");
+            if (!message.GetProperty("subject").GetString()!.Contains("cotización enviada") ||
+                !message.GetProperty("body").GetProperty("content").GetString()!.Contains("Pricing"))
+                throw new InvalidOperationException("Unexpected mock email content");
+            MailCalls++;
+            return new HttpResponseMessage(HttpStatusCode.Accepted);
+        }
+        throw new InvalidOperationException("All real HTTP is forbidden in this mock.");
+    }
+}
+
 sealed class CiFakeDholeQuotePostFactory(CiFakeDholeQuotePostHandler handler) : IHttpClientFactory
 {
     public HttpClient CreateClient(string name)

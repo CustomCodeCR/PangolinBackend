@@ -62,6 +62,16 @@ builder.Services.AddHttpClient("DholeLookups", client =>
     AllowAutoRedirect = false,
     UseCookies = false
 });
+// Independent read-only Pricing verification. No hosted service invokes it yet.
+builder.Services.AddHttpClient("DholeQuoteVerification", client =>
+{
+    client.BaseAddress = new Uri("https://api.logisticacastrofallas.com/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AllowAutoRedirect = false,
+    UseCookies = false
+});
 // Future POST transport only. No endpoint/worker invokes it in this phase.
 // Private DholeSubmission:ApiKey and PostEnabled are intentionally NOT in Compose.
 builder.Services.AddHttpClient("DholeQuotePost", client =>

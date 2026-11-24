@@ -27,11 +27,12 @@ export function useOfficialQuoteDeliveryStatus() {
     const deadline = Date.now() + 120_000
     const poll = async () => {
       if (current !== generation || Date.now() >= deadline) return
-      controller = new AbortController()
-      const timeout = setTimeout(() => controller?.abort(), 8_000)
+      const requestController = new AbortController()
+      controller = requestController
+      const timeout = setTimeout(() => requestController.abort(), 8_000)
       try {
         const response = await fetch('/api/quotes/official/' + encodeURIComponent(id) + '/delivery-status', {
-          credentials:'same-origin', cache:'no-store', signal:controller.signal,
+          credentials:'same-origin', cache:'no-store', signal:requestController.signal,
           headers:{'X-CF-Quote-Request-Key':key}
         })
         if (current !== generation) return

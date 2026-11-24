@@ -58,11 +58,14 @@ public static class OfficialQuoteEndpoints
         // The FK guarantees the parent exists. The key table stores no PII.
         var existing = await db.OfficialQuotes.AsNoTracking()
             .SingleAsync(x => x.Id == submission.QuoteId, ct);
-        var dispatchState = stageDirect
+        var receipt = stageDirect
             ? await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
                 .Where(x => x.QuoteId == existing.Id)
-                .Select(x => x.State).FirstOrDefaultAsync(ct) ?? "NotStaged"
-            : "Disabled";
+                .Select(x => new { x.State, x.ExternalReference, x.VerifiedAtUtc })
+                .FirstOrDefaultAsync(ct)
+            : null;
+        var dispatchState = !stageDirect ? "Disabled" : receipt is null ? "NotStaged" :
+            PublicDeliveryState(receipt.State, receipt.ExternalReference, receipt.VerifiedAtUtc);
         return Results.Created($"/api/quotes/official/{existing.Id}", new
         {
             existing.Id, existing.Status, existing.Authorization,
@@ -70,6 +73,10 @@ public static class OfficialQuoteEndpoints
             idempotentReplay = true
         });
     }
+
+    private static string PublicDeliveryState(string state, string? externalReference, DateTime? verifiedAtUtc) =>
+        state == "Confirmed" && (!Guid.TryParse(externalReference, out var reference) ||
+            reference == Guid.Empty || verifiedAtUtc is null) ? "Unconfirmed" : state;
 
     private static async Task LockCreationKeyAsync(
         AppDbContext db, Guid key, IDbContextTransaction transaction, CancellationToken ct)
@@ -314,10 +321,7 @@ public static class OfficialQuoteEndpoints
                 .Select(x => new { x.State, x.ExternalReference, x.VerifiedAtUtc })
                 .SingleOrDefaultAsync(ct);
             if (receipt is null) return Results.NotFound();
-            var state = receipt.State == "Confirmed" &&
-                (!Guid.TryParse(receipt.ExternalReference, out var reference) ||
-                 reference == Guid.Empty || receipt.VerifiedAtUtc is null)
-                ? "Unconfirmed" : receipt.State;
+            var state = PublicDeliveryState(receipt.State, receipt.ExternalReference, receipt.VerifiedAtUtc);
             return Results.Ok(new { dholeDispatchState = state });
         }).RequireRateLimiting("public-read");
 
