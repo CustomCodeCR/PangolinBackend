@@ -271,13 +271,19 @@ public static class DholeOfficialManualCatalogResolution
                     x.Name == pair.Size && LandSizes.Contains(x.Value, StringComparer.Ordinal))
                     .ToArray();
                 Require(knownSizes.Length == 1, "tamaño FTL no vigente");
+                Require(Guid.TryParseExact(knownSizes[0].Id, "D", out var sizeId) &&
+                    sizeId != Guid.Empty && !landIds.Contains(sizeId) &&
+                    knownSizes[0].Code == knownSizes[0].Value &&
+                    trucks.Count(x => x.Id == knownSizes[0].Id) == 1 &&
+                    trucks.Count(x => x.IsActive == true && x.Value == knownSizes[0].Value) == 1,
+                    "UUID o código de tamaño FTL inválido o ambiguo");
                 var kind = LandKinds.Where(x => x.Value.Type == pair.Type).ToArray();
                 Require(kind.Length == 1, "tipo FTL desconocido");
                 var code = knownSizes[0].Value + "_" + kind[0].Key;
                 Require(indexedLand.TryGetValue(code, out var item),
                     "falta tipo FTL para el tamaño seleccionado");
                 equipment.Add(new("Ftl", pair.Size, pair.Type, Id(item),
-                    Text(item, "name"), code, true));
+                    Text(item, "name"), code, true, sizeId));
             }
         }
         // Preserve the oldest timestamp of all relevant verified sources.
