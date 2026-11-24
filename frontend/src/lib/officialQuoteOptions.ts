@@ -74,3 +74,22 @@ export function officialEquipmentTypeOptions(type: string, tr: QuoteTranslate): 
   ]
   return []
 }
+
+// Advisory only: declared packages may describe a different packaging level.
+// Never change or validate away either of the original quantities.
+export function packageCountAdvisory(shipmentType: string, declared: unknown,
+  quantities: unknown[], tr: QuoteTranslate): string {
+  if (!['LCL','AIR_LCL','LTL'].includes(shipmentType) || !quantities.length ||
+      declared === '' || declared === null || declared === undefined) return ''
+  const count = Number(declared)
+  const lines = quantities.map(Number)
+  if (!Number.isSafeInteger(count) || count < 0 ||
+      lines.some(n => !Number.isSafeInteger(n) || n < 1)) return ''
+  const total = lines.reduce((sum, n) => sum + n, 0)
+  if (!Number.isSafeInteger(total) || total === count) return ''
+  const difference = Math.abs(total - count)
+  return tr(
+    `Las líneas de carga suman ${total} bultos y declaraste ${count} (${difference} ${total < count ? 'menos' : 'más'} en las líneas). Revisá los datos; si la diferencia es intencional, podés continuar.`,
+    `Cargo lines total ${total} packages and you declared ${count} (${difference} ${total < count ? 'fewer' : 'more'} in the lines). Review the details; if the difference is intentional, you can continue.`
+  )
+}

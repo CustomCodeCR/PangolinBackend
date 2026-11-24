@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ArrowLeft, CheckCircle2, ChevronRight, FileText, LoaderCircle, MapPin, Search, ShieldCheck, Ship } from '@lucide/vue'
 import { refreshSession } from '../services/auth'
-import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialEquipmentTypeLabel, officialServiceOptions, officialServiceName, officialCurrencyOptions, isOfficialCurrency } from '../lib/officialQuoteOptions'
+import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialEquipmentTypeLabel, officialServiceOptions, officialServiceName, officialCurrencyOptions, isOfficialCurrency, packageCountAdvisory } from '../lib/officialQuoteOptions'
 import { isCalendarDate, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
 import { loadDholeQuoteFormOptions, type DholeQuoteFormOptions } from '../lib/dholeQuoteForm'
 import { prepareQuoteSubmissionAttempt, clearQuoteSubmissionAttempt,
@@ -198,6 +198,14 @@ function parseExtraLines(raw: string): {kind:'equipment'|'packages';lines:unknow
     throw new Error('Additional cargo lines invalid')
   return {kind:obj.kind as 'equipment'|'packages',lines:obj.lines}
 }
+const packageCountNotice = computed(() => {
+  if (props.kind !== 'quote' || isEquipment.value || !values.additionalLines) return ''
+  try {
+    const extra = parseExtraLines(values.additionalLines)
+    return packageCountAdvisory(values.shipmentType || '', values.declaredPackages,
+      [values.packageQuantity, ...(extra.lines as GioExtraPackage[]).map(line => line.quantity)], tr)
+  } catch { return '' }
+})
 function restoreExtraLines() {
   extraEquipmentLines.value = []
   extraPackageLines.value = []
@@ -1102,6 +1110,7 @@ async function perform() {
           <dl>
             <div v-for="item in summary" :key="item.key"><dt>{{ item.label }}</dt><dd>{{ item.value }}</dd><button class="gio-ops__edit" type="button" :aria-label="tr('Editar ','Edit ') + item.label" @click="editField(item.key)">{{ tr('Editar','Edit') }}</button></div>
           </dl>
+          <p v-if="packageCountNotice" class="gio-ops__package-advisory" role="status">{{ packageCountNotice }}</p>
           <p v-if="kind === 'quote'" class="gio-ops__note">{{ tr('Esta es una solicitud, no una tarifa confirmada. Los precios los confirma Castro Fallas.','This is a request, not a confirmed rate. Castro Fallas confirms prices.') }}</p>
         </section>
         <button class="gio-ops__primary" type="button" :disabled="busy" @click="perform"><LoaderCircle v-if="busy" :size="16" class="gio-ops__spin" /><CheckCircle2 v-else :size="16" />{{ busy ? tr('Procesando…','Processing…') : kind === 'quote' ? tr('Confirmar y enviar solicitud','Confirm and submit request') : tr('Consultar','Search') }}</button>
@@ -1176,6 +1185,7 @@ async function perform() {
 </template>
 
 <style scoped>
+.gio-ops__package-advisory{padding:9px;border:1px solid #ba8b42;border-radius:9px;color:var(--gio-ink,#fff);background:rgba(190,135,40,.09);font-size:12px;line-height:1.5;margin:4px 0}
 .gio-ops{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;min-width:0;color:var(--gio-ink,#fff);font-size:12px}
 .gio-ops__extra-lines{display:flex;flex-direction:column;gap:9px;padding:8px 0}
 .gio-ops__extra-line{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;border:1px solid var(--gio-line,#777);border-radius:10px;padding:10px}

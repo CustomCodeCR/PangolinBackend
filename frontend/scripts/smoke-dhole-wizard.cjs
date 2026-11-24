@@ -364,6 +364,20 @@ async function main() {
       'Explain that the aggregate non-stackable flag follows cargo lines')
     await value('.official-line input[maxlength="400"]','Cajas CI')
     await value('.official-line input[type="number"][min="1"]','2')
+    assert.equal(await exists('.official-package-advisory'),false,'No declaration: no warning')
+    await value('#quote-declared-packages','2')
+    await waitFor(async()=>!await exists('.official-package-advisory'),'Matching counts: no warning')
+    await value('#quote-declared-packages','3')
+    await waitFor(()=>exists('.official-package-advisory'),'Declared count exceeds line count')
+    assert.ok(await evaluate('document.querySelector(".official-package-advisory").textContent.includes("1 menos")'))
+    await value('#quote-declared-packages','1')
+    await waitFor(()=>evaluate('document.querySelector(".official-package-advisory")?.textContent.includes("1 más")'),'Lines exceed declared count')
+    await click('.official-nested .official-ghost')
+    await waitFor(()=>evaluate('document.querySelectorAll(".official-line").length===2'),'Add package line')
+    await value('#quote-declared-packages','3')
+    await waitFor(async()=>!await exists('.official-package-advisory'),'Additional line included in total')
+    await click('.official-line .official-remove')
+    await waitFor(()=>exists('.official-package-advisory'),'Removing line restores warning')
     const countDimensions = await evaluate(`(()=>{
       const inputs=[...document.querySelectorAll('.official-line input[type="number"][min="0.001"]')]
       if(inputs.length!==4) return inputs.length
@@ -396,6 +410,7 @@ async function main() {
     assert.equal(posts[1].shipmentType,'LCL')
     assert.equal(posts[1].packages.length,1)
     assert.equal(posts[1].packages[0].quantity,2)
+    assert.equal(posts[1].declaredPackages,3,'Advisory is nonblocking and preserves independent declared quantity')
     assert.equal(posts[1].packages[0].weight,400,'Form cargo weight is total for this line')
     assert.equal(posts[1].packages[0].stackability,'NonStackable')
     assert.equal(posts[1].packages[0].unitType,'Box')

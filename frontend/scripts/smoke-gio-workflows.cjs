@@ -322,6 +322,7 @@ async function main() {
     await answer('test@example.invalid')
     await answer('+506 2272 6772')
     await waitFor(()=>has('Confirmar y enviar solicitud'))
+    assert.equal(await evaluate('!!document.querySelector(".gio-ops__package-advisory")'),false,'Equipment quotes never compare equipment units to declared packages')
     const editContact = await evaluate('(()=>{const row=[...document.querySelectorAll(".gio-ops__card dl>div")].find(x=>x.querySelector("dt")?.textContent==="Contacto");if(!row)return false;row.querySelector(".gio-ops__edit").click();return true})()')
     assert.ok(editContact,'User must be able to edit a specific field')
     await answer('Edited Client')
