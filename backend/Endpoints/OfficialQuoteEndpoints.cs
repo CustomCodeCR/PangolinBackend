@@ -1,14 +1,19 @@
 using System.Net.Mail;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using CastroFallas.MiniQuote.Api.Data;
 using CastroFallas.MiniQuote.Api.Models;
 using CastroFallas.MiniQuote.Api.Services.Auth;
 using CastroFallas.MiniQuote.Api.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace CastroFallas.MiniQuote.Api.Endpoints;
 
-// Captura oficial independiente: no llama ni sincroniza con Dhole.
+// Captura oficial: guarda la copia administrativa; un outbox opcional
+// se crea en la misma transacción y no depende de aprobación previa.
+// Nunca llama a una API de escritura de Dhole.
 public static class OfficialQuoteEndpoints
 {
     private static readonly string[] Incoterms =
@@ -20,7 +25,7 @@ public static class OfficialQuoteEndpoints
         "Transporte internacional", "Agencia de Aduanas CR", "Agencia de Aduanas Exterior",
         "Almacenamiento", "Control de inventario", "Embalaje", "Exoneración",
         "Picking Carga", "Recepción de carga", "Seguro de carga", "Transporte entrega",
-        "Transporte recolección", "Transporte nacional"
+        "Transporte recolección"
     };
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     // Usar el día calendario de Costa Rica, no UTC ni la zona horaria del servidor.
@@ -29,6 +34,75 @@ public static class OfficialQuoteEndpoints
 
     private static DateOnly TodayInCostaRica() =>
         DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CostaRicaTimeZone));
+
+    // Creation deduplication is distinct from the future Dhole delivery key.
+    // It is enabled only with its own opt-in, after the additive SQL migration.
+    private static string SubmissionDigest(OfficialQuoteSubmit input, AuthIdentity? actor)
+    {
+        var canonical = JsonSerializer.Serialize(input, Json);
+        var fingerprintInput = canonical + "|user:" + actor?.UsuarioId.ToString("D") +
+            "|customer:" + actor?.ClienteId.ToString("D");
+        return Convert.ToHexString(SHA256.HashData(
+            Encoding.UTF8.GetBytes(fingerprintInput))).ToLowerInvariant();
+    }
+
+    private static async Task<IResult> RepeatReceiptAsync(
+        OfficialQuoteClientSubmission submission, string expectedDigest,
+        bool stageDirect, AppDbContext db, CancellationToken ct)
+    {
+        if (!string.Equals(submission.RequestDigest, expectedDigest, StringComparison.Ordinal))
+            return Results.Conflict(new {
+                code = "quote_request_key_conflict",
+                error = "Esta clave ya fue usada para una solicitud diferente. Consultá con soporte antes de reenviar."
+            });
+        // The FK guarantees the parent exists. The key table stores no PII.
+        var existing = await db.OfficialQuotes.AsNoTracking()
+            .SingleAsync(x => x.Id == submission.QuoteId, ct);
+        var receipt = stageDirect
+            ? await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
+                .Where(x => x.QuoteId == existing.Id)
+                .Select(x => new { x.State, x.ExternalReference, x.VerifiedAtUtc,
+                    x.ProviderReferenceCandidate, x.CreationReceiptAcceptedAtUtc })
+                .FirstOrDefaultAsync(ct)
+            : null;
+        var dispatchState = !stageDirect ? "Disabled" : receipt is null ? "NotStaged" :
+            PublicDeliveryState(receipt.State, receipt.ExternalReference, receipt.VerifiedAtUtc,
+                receipt.ProviderReferenceCandidate, receipt.CreationReceiptAcceptedAtUtc);
+        return Results.Created($"/api/quotes/official/{existing.Id}", new
+        {
+            existing.Id, existing.Status, existing.Authorization,
+            existing.CreatedAtUtc, dholeDispatchState = dispatchState,
+            idempotentReplay = true
+        });
+    }
+
+    private static string PublicDeliveryState(string state, string? externalReference,
+        DateTime? verifiedAtUtc, Guid? candidate, DateTime? creationAcceptedAtUtc)
+    {
+        if (state == "Confirmed")
+            return Guid.TryParse(externalReference, out var reference) &&
+                reference != Guid.Empty && verifiedAtUtc is not null ? state : "Unconfirmed";
+        if (state == "HttpAcceptedUnverified" && creationAcceptedAtUtc is not null &&
+            candidate is Guid id && id != Guid.Empty && externalReference is null && verifiedAtUtc is null)
+            return "AcceptedByProvider";
+        return state;
+    }
+
+    private static async Task LockCreationKeyAsync(
+        AppDbContext db, Guid key, IDbContextTransaction transaction, CancellationToken ct)
+    {
+        // PostgreSQL transaction-scoped advisory lock makes concurrent
+        // requests with the same random 128-bit key serialize. The UNIQUE
+        // index is an independent DB-level duplicate defence.
+        await using var cmd = db.Database.GetDbConnection().CreateCommand();
+        cmd.Transaction = transaction.GetDbTransaction();
+        cmd.CommandText = "SELECT pg_advisory_xact_lock(274, hashtext(@submission_key))";
+        var parameter = cmd.CreateParameter();
+        parameter.ParameterName = "submission_key";
+        parameter.Value = key.ToString("N");
+        cmd.Parameters.Add(parameter);
+        await cmd.ExecuteScalarAsync(ct);
+    }
 
     private static async Task<OfficialQuotePermission?> Permission(
         AppDbContext db, AuthIdentity? user, CancellationToken ct)
@@ -113,10 +187,10 @@ public static class OfficialQuoteEndpoints
                 // valores libres de equipo aunque la solicitud llegue por HTTP directo.
                 var allowedSizes = s.ShipmentType == "FCL"
                     ? new[] { "20 pies", "40 pies", "45 pies", "48 pies" }
-                    : new[] { "24 pies / 5 TON", "26 pies / 7 TON", "40 pies", "53 pies" };
+                    : new[] { "24 pies / 5 TON", "26 pies / 7 TON", "48 pies", "53 pies" };
                 var allowedTypes = s.ShipmentType == "FCL"
                     ? new[] { "Dry Van", "High Cube", "Open Top", "Open Side", "Tank", "Flat Rack", "NOR" }
-                    : new[] { "Furgón" };
+                    : new[] { "Furgón seco", "Plataforma / Carreta", "Refrigerado", "Furgón con cortina" };
                 if (!useDholeCatalogs && (!allowedSizes.Contains(selectedSize, StringComparer.Ordinal) ||
                     !allowedTypes.Contains(selectedType, StringComparer.Ordinal)))
                     throw new ArgumentException("Seleccioná tamaño y tipo de equipo de las opciones oficiales.");
@@ -141,6 +215,8 @@ public static class OfficialQuoteEndpoints
                     line.Height is null or <= 0 or > 100000 ||
                     line.Stackability is not ("Stackable" or "NonStackable"))
                     throw new ArgumentException("Completá cantidades, peso, medidas y estibabilidad.");
+                if (useDholeCatalogs && line.UnitType is not ("Box" or "Pallet" or "Loose" or "Other"))
+                    throw new ArgumentException("Seleccioná el tipo de unidad para cada línea que se enviará a Dhole.");
             }
         }
         Required(s.CargoDescription, "Descripción de carga", 4000);
@@ -148,6 +224,17 @@ public static class OfficialQuoteEndpoints
         Optional(s.Observations, 4000);
         if (s.CargoValue is < 0 || s.DeclaredWeight is < 0 || s.DeclaredPackages is < 0)
             throw new ArgumentException("Valor, peso y cantidad no admiten negativos.");
+        // A requested cargo insurance quote cannot be priced from an unspecified
+        // declared amount/currency. The ISO code is NOT a trusted Dhole UUID.
+        if (s.Services.Contains("Seguro de carga") && s.CargoValue is null or <= 0)
+            throw new ArgumentException("Para seguro de carga indicá el valor declarado de la mercancía.");
+        var needsCurrency = s.CargoValue is > 0;
+        if (needsCurrency && (s.CargoCurrencyCode is null ||
+            s.CargoCurrencyCode.Length != 3 ||
+            s.CargoCurrencyCode.Any(x => x is < 'A' or > 'Z')))
+            throw new ArgumentException("Indicá la moneda del valor declarado con un código ISO de tres letras.");
+        if (!needsCurrency && !string.IsNullOrWhiteSpace(s.CargoCurrencyCode))
+            throw new ArgumentException("La moneda declarada requiere un valor de mercancía positivo.");
         if (s.CargoFlags?.Count > 12 || s.CargoFlags?.Any(x => x.Length > 50) == true)
             throw new ArgumentException("Opciones de carga inválidas.");
         if (s.Incoterm == "EXW")
@@ -217,6 +304,39 @@ public static class OfficialQuoteEndpoints
         group.MapGet("/locations", GetPublicAssistantLocations)
             .RequireRateLimiting("public-read");
 
+        // Receipt capability: the quote UUID alone is never sufficient.
+        // Return only delivery state, never applicant details or remote UUID.
+        group.MapGet("/{id:guid}/delivery-status", async (Guid id, AppDbContext db,
+            AuthService auth, IConfiguration config, HttpContext http, CancellationToken ct) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+            if (!config.GetValue<bool>("DholeSubmission:DirectOutboxEnabled") ||
+                !config.GetValue<bool>("DholeSubmission:ClientCreateIdempotencyEnabled"))
+                return Results.NotFound();
+            var supplied = http.Request.Headers["X-CF-Quote-Request-Key"].ToString();
+            if (!Guid.TryParseExact(supplied, "D", out var key) || key == Guid.Empty ||
+                supplied != key.ToString("D") || supplied[14] != '4' ||
+                !"89ab".Contains(supplied[19]))
+                return Results.NotFound();
+            var actor = await auth.GetIdentityAsync(http, ct);
+            var owned = await (
+                from s in db.OfficialQuoteClientSubmissions.AsNoTracking()
+                join q in db.OfficialQuotes.AsNoTracking() on s.QuoteId equals q.Id
+                where s.SubmissionKey == key && q.Id == id &&
+                    (q.UsuarioId == null || q.UsuarioId == (actor == null ? (Guid?)null : actor.UsuarioId))
+                select q.Id).AnyAsync(ct);
+            if (!owned) return Results.NotFound();
+            var receipt = await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
+                .Where(x => x.QuoteId == id)
+                .Select(x => new { x.State, x.ExternalReference, x.VerifiedAtUtc,
+                    x.ProviderReferenceCandidate, x.CreationReceiptAcceptedAtUtc })
+                .SingleOrDefaultAsync(ct);
+            if (receipt is null) return Results.NotFound();
+            var state = PublicDeliveryState(receipt.State, receipt.ExternalReference, receipt.VerifiedAtUtc,
+                receipt.ProviderReferenceCandidate, receipt.CreationReceiptAcceptedAtUtc);
+            return Results.Ok(new { dholeDispatchState = state });
+        }).RequireRateLimiting("public-read");
+
         group.MapPost("", async (OfficialQuoteSubmit input, AppDbContext db, AuthService auth,
             IConfiguration config, DholeCatalogService dholeService,
             DholeQuoteFormCatalogLoader dholeLoader, HttpContext http, CancellationToken ct) =>
@@ -230,13 +350,55 @@ public static class OfficialQuoteEndpoints
                 if (input.CatalogSource is not null && input.CatalogSource is not ("local" or "dhole"))
                     return Results.BadRequest(new { error = "Fuente de catálogo inválida." });
                 bool useDhole = input.CatalogSource == "dhole";
+                var stageDirect = useDhole && config.GetValue<bool>("DholeSubmission:DirectOutboxEnabled");
+                var deduplicateCreate = useDhole &&
+                    config.GetValue<bool>("DholeSubmission:ClientCreateIdempotencyEnabled");
+                // If a client explicitly sends a creation key, never silently
+                // ignore it. That could turn a retry into a second quote when
+                // operators turn off idempotency between catalog GET and POST.
+                if (useDhole && !deduplicateCreate &&
+                    http.Request.Headers.ContainsKey("X-CF-Quote-Request-Key"))
+                    return Results.Json(new {
+                        code = "quote_idempotency_unavailable",
+                        error = "La protección contra solicitudes duplicadas no está disponible. Consultá con soporte antes de reenviar."
+                    }, statusCode: StatusCodes.Status503ServiceUnavailable);
+                Guid? requestKey = null;
+                string? requestDigest = null;
+                if (deduplicateCreate)
+                {
+                    // Do not read the optional schema or claim success unless
+                    // the exact random client key and identical data match.
+                    string suppliedKey = http.Request.Headers["X-CF-Quote-Request-Key"].ToString();
+                    if (!Guid.TryParseExact(suppliedKey, "D", out var parsedKey) ||
+                        parsedKey == Guid.Empty || suppliedKey != parsedKey.ToString("D") ||
+                        suppliedKey[14] != '4' || !"89ab".Contains(suppliedKey[19]))
+                        return Results.BadRequest(new {
+                            code = "quote_request_key_required",
+                            error = "La solicitud requiere una clave única válida; actualizá el formulario."
+                        });
+                    requestKey = parsedKey;
+                    requestDigest = SubmissionDigest(input, user);
+                    // Replays must survive a changed or temporarily unavailable
+                    // catalogue after the original quote was already committed.
+                    var prior = await db.OfficialQuoteClientSubmissions.AsNoTracking()
+                        .FirstOrDefaultAsync(x => x.SubmissionKey == requestKey, ct);
+                    if (prior is not null)
+                    {
+                        http.Response.Headers.CacheControl = "no-store";
+                        return await RepeatReceiptAsync(prior, requestDigest, stageDirect, db, ct);
+                    }
+                }
+
+                // Only NEW creations require available live catalogs. A
+                // confirmed replay of the exact same persisted request is
+                // allowed even if Dhole GETs have subsequently gone down or
+                // the catalog rollout has been disabled. It never creates a
+                // new quote or reaches an external write API.
                 bool dynamicRollout = config.GetValue<bool>("DholeCatalogs:FormEnabled") &&
                     config.GetValue<bool>("DholeCatalogs:SubmissionEnabled");
                 if (useDhole && (!dynamicRollout || !dholeService.IsConfigured))
                     return Results.Json(new { code = "dhole_quote_disabled", error = "El catálogo Dhole no está habilitado." },
                         statusCode: StatusCodes.Status503ServiceUnavailable);
-                // Once the dynamic wizard AND its submit validator are enabled,
-                // no new request may bypass Dhole by omitting catalogSource.
                 // Historical records and deployments with flags off are unaffected.
                 if (!useDhole && dynamicRollout)
                     return Results.Json(new { code = "catalog_source_required", error = "Actualizá la página de cotizaciones para utilizar el catálogo vigente." },
@@ -245,6 +407,7 @@ public static class OfficialQuoteEndpoints
                 Validate(input, useDholeCatalogs: useDhole);
                 string originName;
                 string destinationName;
+                DholeValidatedRoute? verifiedDholeRoute = null;
                 if (useDhole)
                 {
                     // A fresh server-side snapshot, never a browser-provided list
@@ -252,6 +415,7 @@ public static class OfficialQuoteEndpoints
                     var catalog = await dholeLoader.LoadFreshAsync(
                         input.Mode!, input.ShipmentType!, ct);
                     var selected = DholeQuoteSelectionValidator.Validate(input, catalog);
+                    verifiedDholeRoute = selected;
                     originName = selected.OriginName;
                     destinationName = selected.DestinationName;
                 }
@@ -293,12 +457,72 @@ public static class OfficialQuoteEndpoints
                     DestinationName = destinationName,
                     FormJson = JsonSerializer.Serialize(input, Json)
                 };
-                db.OfficialQuotes.Add(quote);
-                await db.SaveChangesAsync(ct);
+                if (useDhole)
+                {
+                    // Map the REAL validated wizard/GIO request (not browser-mapped JSON).
+                    // This first phase only validates a local unsendable draft.
+                    // The original quote is saved in Administration as usual.
+                    // NO API key, network call, approval gate or dispatch occurs here.
+                    _ = DholeOfficialQuoteDraftBuilder.Project(
+                        input, quote.Id, verifiedDholeRoute!);
+                }
+                // Persist only a job identity, not a second copy of personal data.
+                // Nothing sends HTTP or constructs the external payload at this stage.
+                if (stageDirect || deduplicateCreate)
+                {
+                    // A single transaction protects the official copy, optional
+                    // creation-key uniqueness, and the Dhole outbox registration.
+                    await using var transaction = await db.Database.BeginTransactionAsync(ct);
+                    if (deduplicateCreate)
+                    {
+                        await LockCreationKeyAsync(db, requestKey!.Value, transaction, ct);
+                        // The first request may have committed while this request
+                        // waited for the lock. Never create another copy in that case.
+                        var prior = await db.OfficialQuoteClientSubmissions.AsNoTracking()
+                            .FirstOrDefaultAsync(x => x.SubmissionKey == requestKey, ct);
+                        if (prior is not null)
+                        {
+                            http.Response.Headers.CacheControl = "no-store";
+                            return await RepeatReceiptAsync(prior, requestDigest!, stageDirect, db, ct);
+                        }
+                    }
+                    // Parent first for both FK-dependent child tables. Either
+                    // all records commit or all are rolled back.
+                    db.OfficialQuotes.Add(quote);
+                    await db.SaveChangesAsync(ct);
+                    if (deduplicateCreate)
+                    {
+                        db.OfficialQuoteClientSubmissions.Add(new OfficialQuoteClientSubmission
+                        {
+                            SubmissionKey = requestKey!.Value,
+                            QuoteId = quote.Id,
+                            RequestDigest = requestDigest!
+                        });
+                    }
+                    if (stageDirect)
+                    {
+                        db.OfficialQuoteDholeCreationOutbox.Add(new OfficialQuoteDholeCreationOutbox
+                        {
+                            QuoteId = quote.Id,
+                            IdempotencyKey = "cf-official-" + quote.Id.ToString("D"),
+                            State = "PendingDispatch",
+                            Priority = "Green"
+                        });
+                    }
+                    await db.SaveChangesAsync(ct);
+                    await transaction.CommitAsync(ct);
+                }
+                else
+                {
+                    // Legacy/local behavior is unchanged when flags are off.
+                    db.OfficialQuotes.Add(quote);
+                    await db.SaveChangesAsync(ct);
+                }
                 http.Response.Headers.CacheControl = "no-store";
                 return Results.Created($"/api/quotes/official/{quote.Id}", new
                 {
-                    quote.Id, quote.Status, quote.Authorization, quote.CreatedAtUtc
+                    quote.Id, quote.Status, quote.Authorization, quote.CreatedAtUtc,
+                    dholeDispatchState = stageDirect ? "PendingDispatch" : "Disabled"
                 });
             }
             catch (ArgumentException ex)
@@ -331,13 +555,15 @@ public static class OfficialQuoteEndpoints
         }).RequireAuthorization("registered");
 
         var admin = app.MapGroup("/api/admin/quotes/official").RequireAuthorization("admin");
-        admin.MapGet("/permissions/me", async (AppDbContext db, AuthService auth, HttpContext http,
+        admin.MapGet("/permissions/me", async (AppDbContext db, AuthService auth, IConfiguration config, HttpContext http,
             CancellationToken ct) =>
         {
             var actor = await auth.GetIdentityAsync(http, ct);
             var p = await Permission(db, actor, ct);
             return Results.Ok(new { canView = p?.CanView == true || p?.CanManage == true || p?.CanAuthorize == true,
-                canManage = p?.CanManage == true, canAuthorize = p?.CanAuthorize == true });
+                canManage = p?.CanManage == true, canAuthorize = p?.CanAuthorize == true,
+                dholeApprovalQueueEnabled = config.GetValue<bool>("DholeSubmission:ApprovalQueueEnabled"),
+                dholeDirectOutboxEnabled = config.GetValue<bool>("DholeSubmission:DirectOutboxEnabled") });
         });
         admin.MapGet("", async (AppDbContext db, AuthService auth, HttpContext http,
             int? page, CancellationToken ct) =>
@@ -358,7 +584,7 @@ public static class OfficialQuoteEndpoints
             return Results.Ok(new { items, total, page = n });
         });
         admin.MapGet("/{id:guid}", async (Guid id, AppDbContext db, AuthService auth,
-            HttpContext http, CancellationToken ct) =>
+            IConfiguration config, HttpContext http, CancellationToken ct) =>
         {
             var actor = await auth.GetIdentityAsync(http, ct);
             var p = await Permission(db, actor, ct);
@@ -369,9 +595,39 @@ public static class OfficialQuoteEndpoints
                 .Where(x => x.QuoteId == id).OrderByDescending(x => x.CreatedAtUtc)
                 .Select(x => new { x.Action, x.Comment, x.ActorUserId, x.CreatedAtUtc })
                 .Take(100).ToListAsync(ct);
+            // Never query either optional outbox without its enabled flag.
+            // Direct delivery is independent of historical admin authorization.
+            var directEnabled = config.GetValue<bool>("DholeSubmission:DirectOutboxEnabled");
+            var approvalEnabled = config.GetValue<bool>("DholeSubmission:ApprovalQueueEnabled");
+            var directOutbox = directEnabled
+                ? await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
+                    .Where(x => x.QuoteId == id)
+                    .Select(x => new { x.State, x.Priority, x.ProviderReferenceCandidate,
+                        x.ExternalReference, x.VerifiedAtUtc, x.CreationReceiptAcceptedAtUtc, x.ConfirmationEmailClaimedAtUtc,
+                        x.ConfirmationEmailAcceptedAtUtc, x.ConfirmationEmailErrorCode }).FirstOrDefaultAsync(ct)
+                : null;
+            var approvalOutbox = !directEnabled && approvalEnabled
+                ? await db.OfficialQuoteDholeOutbox.AsNoTracking()
+                    .Where(x => x.QuoteId == id)
+                    .Select(x => new { x.State, x.Priority }).FirstOrDefaultAsync(ct)
+                : null;
+            var dispatchState = directEnabled ? (directOutbox is null ? "NotStaged" :
+                PublicDeliveryState(directOutbox.State, directOutbox.ExternalReference,
+                    directOutbox.VerifiedAtUtc, directOutbox.ProviderReferenceCandidate,
+                    directOutbox.CreationReceiptAcceptedAtUtc)) :
+                approvalEnabled ? (approvalOutbox?.State ?? "NotStaged") : "Disabled";
             http.Response.Headers.CacheControl = "no-store";
             return Results.Ok(new { q.Id, q.CustomerName, q.Mode, q.ShipmentType, q.Status,
-                q.Authorization, q.AuthorizedAtUtc, q.CreatedAtUtc,
+                q.Authorization, q.AuthorizedAtUtc, q.CreatedAtUtc, dholeDispatchState = dispatchState,
+                dholePriority = directEnabled ? directOutbox?.Priority : approvalOutbox?.Priority,
+                dholeReceiptCandidate = directOutbox?.ProviderReferenceCandidate,
+                dholeVerifiedReference = directOutbox?.ExternalReference,
+                dholeVerifiedAtUtc = directOutbox?.VerifiedAtUtc,
+                dholeConfirmationEmailState = directOutbox is null ||
+                    dispatchState is not ("Confirmed" or "AcceptedByProvider") ? null :
+                    directOutbox.ConfirmationEmailAcceptedAtUtc != null ? "Accepted" :
+                    directOutbox.ConfirmationEmailErrorCode != null ? "NeedsReview" :
+                    directOutbox.ConfirmationEmailClaimedAtUtc != null ? "Claimed" : "Pending",
                 form = JsonSerializer.Deserialize<JsonElement>(q.FormJson), history });
         });
 
@@ -398,15 +654,30 @@ public static class OfficialQuoteEndpoints
             return Results.Ok(new { q.Id, q.Status });
         }).RequireRateLimiting("auth");
 
-        admin.MapPut("/{id:guid}/authorization", async (Guid id, string decision,
-            AppDbContext db, AuthService auth, HttpContext http, CancellationToken ct) =>
+        admin.MapPut("/{id:guid}/authorization", async (Guid id, string decision, string? priority,
+            AppDbContext db, AuthService auth, IConfiguration config, HttpContext http, CancellationToken ct) =>
         {
             var actor = await auth.GetIdentityAsync(http, ct);
             var p = await Permission(db, actor, ct);
             if (p?.CanAuthorize != true) return Results.Forbid();
+            // Direct submissions are created independently of administrator
+            // authorization. Do not permit an old API client to silently
+            // mutate approval status after the direct rollout is enabled.
+            if (config.GetValue<bool>("DholeSubmission:DirectOutboxEnabled"))
+                return Results.Conflict(new {
+                    code = "direct_submission_no_approval",
+                    error = "Las solicitudes directas a Dhole no requieren aprobación administrativa."
+                });
             if (decision is not ("Authorized" or "Rejected"))
                 return Results.BadRequest(new { error = "Decisión inválida." });
+            var selectedPriority = priority ?? "Green";
+            if (selectedPriority is not ("Green" or "Yellow" or "Red"))
+                return Results.BadRequest(new { error = "Prioridad Dhole inválida." });
             await using var tx = await db.Database.BeginTransactionAsync(ct);
+            // Lock this quote for the complete approval transaction, preventing
+            // concurrent authorizers from creating duplicate outbox entries.
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT 1 FROM public.official_quote_requests WHERE id = {id} FOR UPDATE", ct);
             var q = await db.OfficialQuotes.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (q is null) return Results.NotFound();
             if (q.Authorization != "Pending")
@@ -418,10 +689,29 @@ public static class OfficialQuoteEndpoints
             db.OfficialQuoteAudit.Add(new OfficialQuoteAudit {
                 QuoteId = id, ActorUserId = actor.UsuarioId, Action = decision
             });
+            // This is ONLY an approval outbox. There is no Dhole HTTP client,
+            // sender, timer or external POST associated with this transition.
+            // The table is optional and must be migrated before enabling the flag.
+            var staged = decision == "Authorized" &&
+                config.GetValue<bool>("DholeSubmission:ApprovalQueueEnabled") &&
+                !config.GetValue<bool>("DholeSubmission:DirectOutboxEnabled");
+            if (staged)
+            {
+                db.OfficialQuoteDholeOutbox.Add(new OfficialQuoteDholeOutbox {
+                    QuoteId = id, ApprovedById = actor.UsuarioId,
+                    State = "AwaitingConnector", Priority = selectedPriority
+                });
+                db.OfficialQuoteAudit.Add(new OfficialQuoteAudit {
+                    QuoteId = id, ActorUserId = actor.UsuarioId, Action = "DholeStaged",
+                    Comment = "Prioridad " + selectedPriority +
+                        "; aprobada y registrada localmente; no enviada a Dhole."
+                });
+            }
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
-            // Solo autoriza internamente. NO envía ni declara enviada la solicitud a Dhole.
-            return Results.Ok(new { q.Id, q.Authorization, q.AuthorizedAtUtc });
+            return Results.Ok(new { q.Id, q.Authorization, q.AuthorizedAtUtc,
+                dholeDispatchState = staged ? "AwaitingConnector" : "Disabled",
+                dholePriority = staged ? selectedPriority : null });
         }).RequireRateLimiting("auth");
         return app;
     }

@@ -35,6 +35,26 @@ services:
       DholeCatalogs__SubmissionEnabled: "${PANGOLIN_DHOLE_CATALOGS_SUBMISSION_ENABLED:-false}"
       # Independent opt-in for itinerary port suggestions (not tracking).
       DholeCatalogs__ItinerariesEnabled: "${PANGOLIN_DHOLE_CATALOGS_ITINERARIES_ENABLED:-false}"
+      # Explicit rollout only: all write/notification gates OFF by default.
+      DholeSubmission__DirectOutboxEnabled: "${PANGOLIN_DHOLE_DIRECT_OUTBOX_ENABLED:-false}"
+      DholeSubmission__ClientCreateIdempotencyEnabled: "${PANGOLIN_DHOLE_CLIENT_IDEMPOTENCY_ENABLED:-false}"
+      DholeSubmission__WorkerEnabled: "${PANGOLIN_DHOLE_WORKER_ENABLED:-false}"
+      DholeSubmission__DispatcherEnabled: "${PANGOLIN_DHOLE_DISPATCHER_ENABLED:-false}"
+      DholeSubmission__ClaimPreviewEnabled: "${PANGOLIN_DHOLE_CLAIM_ENABLED:-false}"
+      DholeSubmission__OutcomePreviewEnabled: "${PANGOLIN_DHOLE_OUTCOME_ENABLED:-false}"
+      DholeSubmission__PostEnabled: "${PANGOLIN_DHOLE_POST_ENABLED:-false}"
+      DholeSubmission__ApiKey: "${PANGOLIN_DHOLE_POST_API_KEY:-}"
+      DholeSubmission__ApplicantContactSharingApproved: "${PANGOLIN_DHOLE_CONTACT_SHARING_APPROVED:-false}"
+      DholeSubmission__AllNewQuotesEnabled: "${PANGOLIN_DHOLE_ALL_NEW_QUOTES_ENABLED:-false}"
+      DholeSubmission__NewQuotesStartUtc: "${PANGOLIN_DHOLE_NEW_QUOTES_START_UTC:-}"
+      DholeSubmission__TemporaryCatalogsEnabled: "${PANGOLIN_DHOLE_TEMPORARY_CATALOGS_ENABLED:-false}"
+      DholeSubmission__TemporaryCatalogsValidUntilUtc: "${PANGOLIN_DHOLE_TEMPORARY_CATALOGS_VALID_UNTIL_UTC:-}"
+      DholeSubmission__ManualCommercialReviewEnabled: "${PANGOLIN_DHOLE_MANUAL_COMMERCIAL_REVIEW_ENABLED:-false}"
+      DholeSubmission__AcceptCreationReceiptEnabled: "${PANGOLIN_DHOLE_ACCEPT_CREATION_RECEIPT_ENABLED:-false}"
+      DholeSubmission__ConfirmationEmailEnabled: "${PANGOLIN_DHOLE_CONFIRMATION_EMAIL_ENABLED:-false}"
+      DholeSubmission__VerificationEnabled: "${PANGOLIN_DHOLE_VERIFICATION_ENABLED:-false}"
+      DholeSubmission__VerificationPath: "${PANGOLIN_DHOLE_VERIFICATION_PATH:-}"
+      DholeSubmission__VerificationApiKey: "${PANGOLIN_DHOLE_VERIFICATION_API_KEY:-}"
       # Optional verified proxy hops for public-read and auth quotas.
       # Empty by default: do not trust X-Forwarded-For until the real production
       # chain and stable proxy identities are confirmed. Never use a Docker subnet.

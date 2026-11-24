@@ -11,7 +11,7 @@ from email.parser import BytesParser
 from http.cookiejar import CookieJar
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from subprocess import DEVNULL, Popen, TimeoutExpired, run
+from subprocess import DEVNULL, STDOUT, Popen, TimeoutExpired, run
 from threading import Thread
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
@@ -20,6 +20,7 @@ import json
 import os
 import re
 import time
+import tempfile
 import uuid
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -715,10 +716,19 @@ def main():
         "Redis__ConnectionString": "",
         "Mongo__ConnectionString": "",
     })
+    # Diagnostics only on isolated CI failures; no real production credentials.
+    backend_log = tempfile.TemporaryFile(mode="w+b")
     proc = Popen(["dotnet", "run", "--no-build", "-c", "Release", "--no-launch-profile"],
-                 cwd=ROOT / "backend", env=env, stdout=DEVNULL, stderr=DEVNULL)
+                 cwd=ROOT / "backend", env=env, stdout=backend_log, stderr=STDOUT)
     try:
-        wait_for_backend(proc)
+        try:
+            wait_for_backend(proc)
+        except AssertionError:
+            backend_log.flush()
+            backend_log.seek(0)
+            output = backend_log.read()[-6000:].decode("utf-8", errors="replace")
+            print("Isolated backend startup failure (log tail):\n" + output, flush=True)
+            raise
         seed = (ROOT / "backend" / "Database" / "SeedLocal.sql").read_text()
         run(["docker", "exec", "-i", PG_CONTAINER, "psql", "-v", "ON_ERROR_STOP=1",
              "-U", "postgres", "-d", "login"], input=seed, text=True, check=True,
@@ -740,6 +750,7 @@ def main():
             proc.wait()
         server.shutdown()
         server.server_close()
+        backend_log.close()
 
 
 if __name__ == "__main__":

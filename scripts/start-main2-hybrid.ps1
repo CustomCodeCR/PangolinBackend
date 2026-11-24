@@ -5,7 +5,8 @@
 param(
     [ValidateSet('up', 'status', 'verify', 'rollback')]
     [string]$Action = 'up',
-    [string]$BindIp = '127.0.0.1'
+    [string]$BindIp = '127.0.0.1',
+    [switch]$StageDholePilot
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -143,6 +144,19 @@ try {
         } else {
             Write-Host 'Dhole sin clave en .env; se conservan los catalogos locales.'
         }
+    }
+
+    # Staging only: no POST, Graph confirmation or dispatcher even if
+    # inherited configuration exists. Restrict this pilot to loopback.
+    if ($StageDholePilot) {
+        if ($Action -ne 'up' -or $BindIp -ne '127.0.0.1') {
+            throw 'StageDholePilot solo permite Action up y BindIp 127.0.0.1.'
+        }
+        if (-not ($activeFiles -contains 'compose.dhole-main2-preview.yaml')) {
+            throw 'Configura primero la clave GET privada DHOLE_LOCAL_PREVIEW_KEY.'
+        }
+        $activeFiles += @('-f', 'compose.dhole-pilot-stage.yaml')
+        Write-Host 'Piloto local: se guarda la copia y el job; POST y correo desactivados.'
     }
 
     switch ($Action) {

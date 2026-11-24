@@ -12,6 +12,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<OfficialQuoteLocationUsage> OfficialQuoteLocationUsages => Set<OfficialQuoteLocationUsage>();
     public DbSet<OfficialQuotePermission> OfficialQuotePermissions => Set<OfficialQuotePermission>();
     public DbSet<OfficialQuoteAudit> OfficialQuoteAudit => Set<OfficialQuoteAudit>();
+    public DbSet<OfficialQuoteDholeOutbox> OfficialQuoteDholeOutbox => Set<OfficialQuoteDholeOutbox>();
+    public DbSet<OfficialQuoteClientSubmission> OfficialQuoteClientSubmissions => Set<OfficialQuoteClientSubmission>();
+    public DbSet<OfficialQuoteDholeCreationOutbox> OfficialQuoteDholeCreationOutbox => Set<OfficialQuoteDholeCreationOutbox>();
     public DbSet<ManagedNews> ManagedNews => Set<ManagedNews>();
     public DbSet<ManagedComment> ManagedComments => Set<ManagedComment>();
     public DbSet<ManagedMedia> ManagedMedia => Set<ManagedMedia>();
@@ -122,6 +125,56 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         officialAudit.Property(x => x.Action).HasColumnName("action").HasMaxLength(32);
         officialAudit.Property(x => x.Comment).HasColumnName("comment").HasMaxLength(2000);
         officialAudit.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+
+        // Optional creation deduplication is a completely separate table.
+        // Its query is guarded by ClientCreateIdempotencyEnabled.
+        var creation = modelBuilder.Entity<OfficialQuoteClientSubmission>();
+        creation.ToTable("official_quote_client_submissions", "public");
+        creation.HasKey(x => x.SubmissionKey);
+        creation.Property(x => x.SubmissionKey).HasColumnName("submission_key");
+        creation.Property(x => x.QuoteId).HasColumnName("quote_id");
+        creation.HasIndex(x => x.QuoteId).IsUnique();
+        creation.Property(x => x.RequestDigest).HasColumnName("request_digest").HasMaxLength(64);
+        creation.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+
+        // Direct creation outbox: a separate opt-in path, not dependent on approval.
+        // Never query this table unless its migration and flag are enabled.
+        var directOutbox = modelBuilder.Entity<OfficialQuoteDholeCreationOutbox>();
+        directOutbox.ToTable("official_quote_dhole_creation_outbox", "public");
+        directOutbox.HasKey(x => x.QuoteId);
+        directOutbox.Property(x => x.QuoteId).HasColumnName("quote_id");
+        directOutbox.Property(x => x.IdempotencyKey).HasColumnName("idempotency_key").HasMaxLength(80);
+        directOutbox.HasIndex(x => x.IdempotencyKey).IsUnique();
+        directOutbox.Property(x => x.State).HasColumnName("state").HasMaxLength(32);
+        directOutbox.Property(x => x.Priority).HasColumnName("priority").HasMaxLength(6);
+        directOutbox.Property(x => x.AttemptCount).HasColumnName("attempt_count");
+        directOutbox.Property(x => x.ProviderReferenceCandidate).HasColumnName("provider_reference_candidate");
+        directOutbox.Property(x => x.CreationReceiptAcceptedAtUtc).HasColumnName("creation_receipt_accepted_at_utc");
+        directOutbox.Property(x => x.ConfirmationEmailClaimedAtUtc).HasColumnName("confirmation_email_claimed_at_utc");
+        directOutbox.Property(x => x.ConfirmationEmailAcceptedAtUtc).HasColumnName("confirmation_email_accepted_at_utc");
+        directOutbox.Property(x => x.ConfirmationEmailErrorCode).HasColumnName("confirmation_email_error_code").HasMaxLength(60);
+        directOutbox.Property(x => x.ExternalReference).HasColumnName("external_reference").HasMaxLength(180);
+        directOutbox.Property(x => x.LastErrorCode).HasColumnName("last_error_code").HasMaxLength(60);
+        directOutbox.Property(x => x.LastAttemptAtUtc).HasColumnName("last_attempt_at_utc");
+        directOutbox.Property(x => x.VerifiedAtUtc).HasColumnName("verified_at_utc");
+        directOutbox.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+        directOutbox.Property(x => x.UpdatedAtUtc).HasColumnName("updated_at_utc");
+
+        // Only accessed when DholeSubmission:ApprovalQueueEnabled is explicitly on.
+        var dholeOutbox = modelBuilder.Entity<OfficialQuoteDholeOutbox>();
+        dholeOutbox.ToTable("official_quote_dhole_outbox", "public");
+        dholeOutbox.HasKey(x => x.QuoteId);
+        dholeOutbox.Property(x => x.QuoteId).HasColumnName("quote_id");
+        dholeOutbox.Property(x => x.ApprovedById).HasColumnName("approved_by_id");
+        dholeOutbox.Property(x => x.State).HasColumnName("state").HasMaxLength(24);
+        dholeOutbox.Property(x => x.Priority).HasColumnName("priority").HasMaxLength(6);
+        dholeOutbox.Property(x => x.AttemptCount).HasColumnName("attempt_count");
+        dholeOutbox.Property(x => x.ExternalReference).HasColumnName("external_reference").HasMaxLength(180);
+        dholeOutbox.Property(x => x.LastErrorCode).HasColumnName("last_error_code").HasMaxLength(60);
+        dholeOutbox.Property(x => x.LastAttemptAtUtc).HasColumnName("last_attempt_at_utc");
+        dholeOutbox.Property(x => x.SentAtUtc).HasColumnName("sent_at_utc");
+        dholeOutbox.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+        dholeOutbox.Property(x => x.UpdatedAtUtc).HasColumnName("updated_at_utc");
 
         var contact = modelBuilder.Entity<QuoteContact>();
         contact.ToTable("quote_contacts");

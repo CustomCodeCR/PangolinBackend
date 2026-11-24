@@ -51,6 +51,38 @@ builder.Services.AddHttpClient("DholeCatalogs", client =>
     AllowAutoRedirect = false,
     UseCookies = false
 });
+// Separate, opt-in GET-only Dhole lookup: never uses the normal catalogue key.
+// Fixed HTTPS host and redirects disabled even when the published path changes.
+builder.Services.AddHttpClient("DholeLookups", client =>
+{
+    client.BaseAddress = new Uri("https://api.logisticacastrofallas.com/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AllowAutoRedirect = false,
+    UseCookies = false
+});
+// Independent read-only Pricing verification. No hosted service invokes it yet.
+builder.Services.AddHttpClient("DholeQuoteVerification", client =>
+{
+    client.BaseAddress = new Uri("https://api.logisticacastrofallas.com/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AllowAutoRedirect = false,
+    UseCookies = false
+});
+// Future POST transport only. No endpoint/worker invokes it in this phase.
+// Private DholeSubmission:ApiKey and PostEnabled are intentionally NOT in Compose.
+builder.Services.AddHttpClient("DholeQuotePost", client =>
+{
+    client.BaseAddress = new Uri("https://api.logisticacastrofallas.com/");
+    client.Timeout = TimeSpan.FromSeconds(12);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AllowAutoRedirect = false,
+    UseCookies = false
+});
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(postgres));
 // Redis y MongoDB se utilizan SOLO para cache/auditoría de cotizaciones.
 // Si no se configuran, el login y las cotizaciones siguen usando PostgreSQL.
@@ -121,7 +153,22 @@ builder.Services.AddSingleton<NewsTranslationService>();
 builder.Services.AddSingleton<TrackingStatusTranslationService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<DholeCatalogService>();
+builder.Services.AddSingleton<DholeLookupCatalogService>();
+builder.Services.AddSingleton<DholeQuotePostTransport>();
 builder.Services.AddSingleton<DholeQuoteFormCatalogLoader>();
+// Registration is deliberately opt-in at startup; no default environment or
+// Compose settings activate it. The worker also checks runtime safety gates.
+if (builder.Configuration.GetValue<bool>("DholeSubmission:WorkerEnabled"))
+{
+    builder.Services.AddScoped<DholeOfficialOutboxClaimService>();
+    builder.Services.AddScoped<DholeOfficialOutboxOutcomeService>();
+    builder.Services.AddScoped<DholeOfficialDispatchAttemptCoordinator>();
+    builder.Services.AddScoped<DholeOfficialPublishedDispatchSource>();
+    builder.Services.AddScoped<DholeOfficialDispatchPass>();
+    builder.Services.AddScoped<DholeOfficialPricingVerification>();
+    builder.Services.AddScoped<DholeOfficialConfirmationEmail>();
+    builder.Services.AddHostedService<DholeOfficialDispatchWorker>();
+}
 builder.Services.AddSingleton<AssistantFreeQuota>();
 builder.Services.AddSingleton<ObjectStorageService>();
 builder.Services.AddHttpClient("Groq", client =>
@@ -238,7 +285,22 @@ if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("Dev
         var sql = await File.ReadAllTextAsync(scriptPath);
         await db.Database.ExecuteSqlRawAsync(sql);
         var officialPath = Path.Combine(app.Environment.ContentRootPath, "Database", "OfficialQuotesSchema.sql");
-        await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(officialPath));
+        // This reviewed SQL file includes PostgreSQL regex quantifiers (e.g.
+        // {64}). ExecuteSqlRawAsync feeds SQL through composite formatting and
+        // can throw FormatException even though the SQL itself is valid.
+        // Execute the static local migration as literal SQL through ADO.NET.
+        // Only Development with ApplySchema=true may run this path.
+        await db.Database.OpenConnectionAsync();
+        try
+        {
+            await using var officialCommand = db.Database.GetDbConnection().CreateCommand();
+            officialCommand.CommandText = await File.ReadAllTextAsync(officialPath);
+            await officialCommand.ExecuteNonQueryAsync();
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
         // Ubicaciones ficticias e inequívocamente marcadas como PRUEBA.
         // Solo se cargan en el ambiente Development cuando se aplica el esquema local.
         // Nunca se cargan automáticamente en producción ni sustituyen el catálogo oficial.
