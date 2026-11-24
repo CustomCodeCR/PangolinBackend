@@ -20,6 +20,7 @@ let optionsReads = 0
 let legacyLocationReads = 0
 let upstreamIsDown = false
 let explicitlyLegacy = false
+let optionsDelayMs = 0
 const originId = '11111111-1111-4111-8111-111111111111'
 const destId = '22222222-2222-4222-8222-222222222222'
 const podId = '33333333-3333-4333-8333-333333333333'
@@ -36,6 +37,7 @@ const api = http.createServer(async (req, res) => {
   if (url.pathname === '/api/content/news') return send(res, 200, [])
   if (url.pathname === '/api/quotes/official/dhole-options') {
     optionsReads++
+    if (optionsDelayMs) await sleep(optionsDelayMs)
     if (upstreamIsDown) return send(res, 503, {code:'catalog_upstream_unavailable'})
     if (explicitlyLegacy) return send(res, 404, {code:'dhole_form_disabled'})
     return send(res, 200, {
@@ -311,8 +313,32 @@ async function main() {
     await click('.official-primary')
     await waitFor(()=>exists('.official-choice'),'LCL transport selection')
     await chooseMode('LCL')
-    await click('.official-primary')
+    // Reproduce rapid Continue presses while Dhole options are still loading.
+    optionsDelayMs=700
+    const readsBeforeBurst=optionsReads
+    await evaluate(`(()=>{
+      const next=document.querySelector('.official-primary')
+      for(let i=0;i<8;i++) next.click()
+    })()`)
+    await waitFor(()=>evaluate('document.querySelector(".official-primary")?.disabled === true'),'Navigation locked during catalog request')
+    assert.equal(await evaluate('document.querySelector(".official-back")?.disabled'),true,'Back locked during catalog request')
+    assert.equal(await evaluate('[...document.querySelectorAll(".official-choice")].every(x=>x.disabled)'),true,'Shipment selection locked during catalog request')
+    await evaluate(`(()=>{
+      const next=document.querySelector('.official-primary')
+      for(let i=0;i<8;i++) next.dispatchEvent(new MouseEvent('click',{bubbles:true}))
+    })()`)
     await waitFor(()=>exists('#quote-origin'),'LCL route details')
+    await sleep(850)
+    optionsDelayMs=0
+    assert.equal(optionsReads,readsBeforeBurst+1,'Rapid clicks must start exactly one catalog request')
+    assert.ok(await exists('#quote-incoterm'),'Rapid clicks must not skip the mandatory Incoterm step')
+    assert.equal(await evaluate('document.querySelector(".official-progress-item.current")?.getAttribute("aria-current")'), 'step')
+    assert.equal(await evaluate('document.querySelector(".official-progress-item.current span")?.textContent.trim()'),'3')
+    assert.equal(await exists('.official-fields textarea[maxlength="4000"]'),false,'Step four must not open before route validation')
+    assert.equal(posts.length,1,'Rapid navigation must not create another quote')
+    await click('.official-primary')
+    assert.ok(await exists('#quote-incoterm'),'Empty route still blocks step four')
+    console.log('PASS Chrome: repeated navigation while slow catalog loads never skips step 3')
     await click('#quote-origin + .official-location-toggle')
     await waitFor(()=>exists('#quote-origin-options li button'),'LCL origin list')
     await click('#quote-origin-options li button')

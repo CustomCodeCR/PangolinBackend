@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import type { Component } from 'vue'
 import { AlertTriangle, Boxes, FileCheck, FileText, Globe, Package, PackageCheck, Scale, ShieldCheck, Ship, Truck, Warehouse } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
@@ -35,6 +35,7 @@ const previewLocations: Loc[] = [
   { id: 'preview-antwerp', displayName: 'Antwerp / Amberes, Bélgica', code: null }
 ]
 const step = ref(1)
+const advancing = ref(false)
 const mode = ref<Mode | null>(null)
 const shipmentType = ref<Type | null>(null)
 const catalogSource = ref<'local' | 'dhole'>('local')
@@ -301,6 +302,7 @@ function displayService(value: string) {
   return officialServiceName(value, q)
 }
 function selectMode(value: Mode) {
+  if (advancing.value || step.value !== 1) return
   if (mode.value !== value) {
     mode.value = value
     shipmentType.value = null
@@ -309,6 +311,11 @@ function selectMode(value: Mode) {
     form.originLocationId = ''; form.destinationLocationId = ''; form.podLocationId = ''
     locations.value = []; destinations.value = []; podOptions.value = []
   }
+  error.value = ''
+}
+function selectShipment(value: Type) {
+  if (advancing.value || step.value !== 2 || !typeOptions.value.some(x => x.value === value)) return
+  shipmentType.value = value
   error.value = ''
 }
 function toggle(collection: string[], value: string) {
@@ -441,10 +448,10 @@ onMounted(async () => {
 onUnmounted(() => {
   if (earliestReadyTimer !== undefined) window.clearInterval(earliestReadyTimer)
 })
-function validate(): string {
-  if (step.value === 1) return mode.value ? '' : q('Seleccioná la modalidad.', 'Select a transport mode.')
-  if (step.value === 2) return shipmentType.value ? '' : q('Seleccioná el tipo de embarque.', 'Select a shipment type.')
-  if (step.value === 3) {
+function validate(currentStep = step.value): string {
+  if (currentStep === 1) return mode.value ? '' : q('Seleccioná la modalidad.', 'Select a transport mode.')
+  if (currentStep === 2) return shipmentType.value && typeOptions.value.some(x => x.value === shipmentType.value) ? '' : q('Seleccioná el tipo de embarque.', 'Select a shipment type.')
+  if (currentStep === 3) {
     if (!form.originLocationId || !form.destinationLocationId || form.originLocationId === form.destinationLocationId) return q('Elegí origen y destino distintos.', 'Choose different origin and destination locations.')
     if (mode.value === 'Maritime' && !form.podLocationId) return q('Seleccioná el POD obligatorio para transporte marítimo.', 'Select the required POD for ocean freight.')
     if (!form.incoterm) return q('Seleccioná un Incoterm.', 'Select an Incoterm.')
@@ -472,12 +479,28 @@ function validate(): string {
   return ''
 }
 async function next() {
-  error.value = validate()
+  // Multiple clicks during the asynchronous catalog load used to capture
+  // step 2, then independently increment the live step to 3 and 4.
+  if (advancing.value || busy.value || step.value >= 4 || createdId.value) return
+  const from = step.value
+  error.value = validate(from)
   if (error.value) return
-  if (step.value === 2 && !(await loadLocations())) return
-  if (step.value < 4) { step.value++; window.scrollTo({top:0,behavior:'smooth'}) }
+  advancing.value = true
+  try {
+    if (from === 2 && !(await loadLocations())) return
+    if (step.value !== from) return
+    step.value = from + 1
+    window.scrollTo({top:0,behavior:'smooth'})
+    // Keep the lock until the new controls have replaced the old ones.
+    await nextTick()
+  } finally {
+    advancing.value = false
+  }
 }
-function back() { if (step.value > 1) {step.value--;error.value='';window.scrollTo({top:0,behavior:'smooth'})} }
+function back() {
+  if (advancing.value || busy.value || createdId.value) return
+  if (step.value > 1) {step.value--;error.value='';window.scrollTo({top:0,behavior:'smooth'})}
+}
 function payload() {
   const cargoFlags = form.cargoFlags.filter(flag => flag !== 'No estibable')
   if (!equipmentMode.value && form.packages.some(line => line.stackability === 'NonStackable')) {
@@ -509,7 +532,18 @@ function payload() {
   }
 }
 async function submit() {
-  if (busy.value) return
+  if (busy.value || advancing.value || step.value !== 4 || createdId.value) return
+  // Independently revalidate all previous screens, not only the visible one.
+  for (const previous of [1, 2, 3]) {
+    const issue = validate(previous)
+    if (issue) {
+      error.value = issue
+      step.value = previous
+      syncEarliestReadyDate()
+      window.scrollTo({top:0,behavior:'smooth'})
+      return
+    }
+  }
   // Recheck on submit: a wizard can stay open across midnight in Costa Rica.
   if (!isCargoReadyDateOnOrAfterToday(form.cargoReadyDate)) {
     error.value = cargoReadyDateError()
@@ -624,7 +658,7 @@ async function submit() {
             <p class="official-hint">{{ q('Elegí la modalidad que mejor corresponde a tu solicitud.', 'Choose the transport mode that best fits your request.') }}</p>
             <div class="official-choices">
               <button v-for="choice in modeOptions" :key="choice.value" type="button" class="official-choice"
-                :class="{ chosen: mode === choice.value }" :aria-pressed="mode === choice.value"
+                :class="{ chosen: mode === choice.value }" :aria-pressed="mode === choice.value" :disabled="advancing"
                 @click="selectMode(choice.value)">
                 <span class="official-emoji"><IconSymbol :glyph="choice.icon" :size="28" /></span><strong>{{ choice.title }}</strong><small>{{ choice.text }}</small>
               </button>
@@ -635,8 +669,8 @@ async function submit() {
             <p class="official-hint">{{ q('Mostramos únicamente las opciones de', 'Showing only') }} {{ mode === 'Maritime' ? q('transporte marítimo', 'ocean freight') : mode === 'Air' ? q('transporte aéreo', 'air freight') : q('transporte terrestre', 'ground transportation') }}.</p>
             <div class="official-choices">
               <button v-for="choice in typeOptions" :key="choice.value" type="button" class="official-choice"
-                :class="{ chosen: shipmentType === choice.value }" :aria-pressed="shipmentType === choice.value"
-                @click="shipmentType = choice.value">
+                :class="{ chosen: shipmentType === choice.value }" :aria-pressed="shipmentType === choice.value" :disabled="advancing"
+                @click="selectShipment(choice.value)">
                 <strong>{{ choice.title }}</strong><small>{{ choice.text }}</small>
               </button>
             </div>
@@ -821,9 +855,9 @@ async function submit() {
           </template>
           <p v-if="error" class="official-error" role="alert">{{ error }}</p>
           <footer class="official-buttons">
-            <button v-if="step>1" type="button" class="official-back" :disabled="busy" @click="back">{{ q('Atrás', 'Back') }}</button><span v-else></span>
-            <button v-if="step<4" type="button" class="official-primary" @click="next">{{ q('Continuar', 'Continue') }}</button>
-            <button v-else type="button" class="official-primary" :disabled="busy" @click="submit">{{ busy ? q('Enviando…', 'Sending…') : q('Enviar solicitud', 'Submit request') + ' →' }}</button>
+            <button v-if="step>1" type="button" class="official-back" :disabled="busy || advancing" @click="back">{{ q('Atrás', 'Back') }}</button><span v-else></span>
+            <button v-if="step<4" type="button" class="official-primary" :disabled="advancing || busy" :aria-busy="advancing" @click="next">{{ advancing && step === 2 ? q('Cargando opciones…', 'Loading options…') : q('Continuar', 'Continue') }}</button>
+            <button v-else type="button" class="official-primary" :disabled="busy || advancing" @click="submit">{{ busy ? q('Enviando…', 'Sending…') : q('Enviar solicitud', 'Submit request') + ' →' }}</button>
           </footer>
         </section>
       </template>
