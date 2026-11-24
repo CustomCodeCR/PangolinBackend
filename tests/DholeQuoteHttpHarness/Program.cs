@@ -1399,9 +1399,28 @@ sealed class CiFakeReceiptNotificationHandler(Guid reference) : HttpMessageHandl
         {
             using var doc = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
             var message = doc.RootElement.GetProperty("message");
+            var body = message.GetProperty("body");
+            var html = body.GetProperty("content").GetString()!;
+            var attachments = message.GetProperty("attachments");
+            var logo = attachments[0];
             if (!message.GetProperty("subject").GetString()!.Contains("cotización enviada") ||
-                !message.GetProperty("body").GetProperty("content").GetString()!.Contains("Pricing"))
-                throw new InvalidOperationException("Unexpected mock email content");
+                body.GetProperty("contentType").GetString() != "HTML" ||
+                !html.Contains("Pricing") || !html.Contains("cid:cf-quote-logo") ||
+                !html.Contains("no una tarifa aprobada") || !html.Contains("Modalidad") ||
+                !html.Contains("https://www.logisticacastrofallas.com/") ||
+                attachments.GetArrayLength() != 1 ||
+                logo.GetProperty("contentId").GetString() != "cf-quote-logo" ||
+                !logo.GetProperty("isInline").GetBoolean() ||
+                Convert.FromBase64String(logo.GetProperty("contentBytes").GetString()!).Length < 100)
+                throw new InvalidOperationException("Unexpected mock branded email content");
+            var unsafeText = OfficialQuoteConfirmationTemplate.Build(
+                Guid.Parse("f8100000-0000-4000-8000-000000000010"), "Land", "FTL",
+                "<script>alert(1)</script>", "Destino & puerto", ["Seguro de carga"]);
+            if (unsafeText.Html.Contains("<script>") ||
+                !unsafeText.Html.Contains("&lt;script&gt;") ||
+                !unsafeText.Html.Contains("Destino &amp; puerto") ||
+                !unsafeText.PlainText.Contains("Seguro de carga"))
+                throw new InvalidOperationException("Quote email did not escape customer data");
             MailCalls++;
             return new HttpResponseMessage(HttpStatusCode.Accepted);
         }

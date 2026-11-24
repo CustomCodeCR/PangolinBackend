@@ -1,4 +1,6 @@
 using System.Net.Mail;
+using System.Text.Json;
+using CastroFallas.MiniQuote.Api.Models;
 using CastroFallas.MiniQuote.Api.Data;
 using CastroFallas.MiniQuote.Api.Services.Auth;
 using Microsoft.EntityFrameworkCore;
@@ -40,7 +42,7 @@ public sealed class DholeOfficialConfirmationEmail(
                   o.ExternalReference == null && o.VerifiedAtUtc == null))
             orderby o.VerifiedAtUtc ?? o.CreationReceiptAcceptedAtUtc, o.QuoteId
             select new { o.QuoteId, o.State, o.ExternalReference, o.ProviderReferenceCandidate,
-                q.ContactEmail })
+                q.ContactEmail, q.Mode, q.ShipmentType, q.OriginName, q.DestinationName, q.FormJson })
             .Take(20).ToListAsync(ct);
 
         int accepted = 0;
@@ -75,14 +77,20 @@ public sealed class DholeOfficialConfirmationEmail(
                     error = "InvalidRecipient";
                 else
                 {
-                    var subject = "Solicitud de cotización enviada | Castro Fallas";
-                    var body = "¡Gracias por confiar en Castro Fallas!\n\n" +
-                        "Tu solicitud de cotización se envió correctamente. " +
-                        "Nuestro equipo de Pricing la atenderá y se pondrá en contacto con vos.\n\n" +
-                        "Referencia de tu solicitud: " + job.QuoteId.ToString("D") + "\n\n" +
-                        "Este mensaje confirma la recepción de la solicitud, no una tarifa aprobada.\n\n" +
-                        "Logística Castro Fallas";
-                    await graph.SendAsync(address.Address, subject, body, ct);
+                    // Read only the original administrative copy. Keep the
+                    // message useful even if optional legacy form data is missing.
+                    IReadOnlyList<string> services = [];
+                    try
+                    {
+                        services = JsonSerializer.Deserialize<OfficialQuoteSubmit>(
+                            job.FormJson, new JsonSerializerOptions(JsonSerializerDefaults.Web))
+                            ?.Services ?? [];
+                    }
+                    catch (JsonException) { }
+                    var message = OfficialQuoteConfirmationTemplate.Build(job.QuoteId,
+                        job.Mode, job.ShipmentType, job.OriginName, job.DestinationName, services);
+                    await graph.SendAsync(address.Address, message.Subject, message.PlainText, ct,
+                        message.Html, OfficialQuoteConfirmationTemplate.Images);
                 }
             }
             catch (Exception ex) when (ex is HttpRequestException or IOException or
