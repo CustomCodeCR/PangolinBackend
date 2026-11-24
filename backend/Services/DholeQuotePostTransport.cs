@@ -238,6 +238,11 @@ public sealed class DholeQuotePostTransport(
             body.GetProperty("destinationName").GetString() != body.GetProperty("poeName").GetString())
             return false;
 
+        if (body.TryGetProperty("form_cargoObservations", out var observations) &&
+            (observations.ValueKind != JsonValueKind.String ||
+             string.IsNullOrWhiteSpace(observations.GetString()) ||
+             observations.GetString()!.Length > 6000))
+            return false;
         bool maritime = expectedMode == "Maritime";
         foreach (var name in new[] { "podId", "form_podId", "requestContext_podId" })
         {

@@ -28,26 +28,27 @@ public static class DholeOfficialDispatchPreflight
         OfficialQuoteRequest savedQuote,
         DholeValidatedRoute verifiedRoute,
         IReadOnlyDictionary<string, DholeOfficialExistingCatalogSnapshot> existingGetCatalogs,
-        DateTime utcNow) =>
+        DateTime utcNow, bool manualCommercialReview = false) =>
         ReviewSavedQuoteCore(savedQuote, verifiedRoute, existingGetCatalogs, utcNow,
             draft => DholeOfficialManualCatalogResolution.ReviewPublished(
-                draft, existingGetCatalogs, utcNow));
+                draft, existingGetCatalogs, utcNow), manualCommercialReview);
 
     public static DholeOfficialFlatReview ReviewSavedQuoteWithTemporaryCatalogs(
         OfficialQuoteRequest savedQuote,
         DholeValidatedRoute verifiedRoute,
         IReadOnlyDictionary<string, DholeOfficialExistingCatalogSnapshot> existingGetCatalogs,
-        DateTime utcNow, DateTimeOffset validUntilUtc) =>
+        DateTime utcNow, DateTimeOffset validUntilUtc, bool manualCommercialReview = false) =>
         ReviewSavedQuoteCore(savedQuote, verifiedRoute, existingGetCatalogs, utcNow,
             draft => DholeOfficialManualCatalogResolution.ReviewTemporary(
-                draft, existingGetCatalogs, utcNow, validUntilUtc));
+                draft, existingGetCatalogs, utcNow, validUntilUtc), manualCommercialReview);
 
     private static DholeOfficialFlatReview ReviewSavedQuoteCore(
         OfficialQuoteRequest savedQuote,
         DholeValidatedRoute verifiedRoute,
         IReadOnlyDictionary<string, DholeOfficialExistingCatalogSnapshot> existingGetCatalogs,
         DateTime utcNow,
-        Func<DholeOfficialQuoteDraft, DholeOfficialCatalogResolution> resolve)
+        Func<DholeOfficialQuoteDraft, DholeOfficialCatalogResolution> resolve,
+        bool manualCommercialReview = false)
     {
         if (savedQuote is null || savedQuote.Id == Guid.Empty ||
             string.IsNullOrWhiteSpace(savedQuote.FormJson) ||
@@ -85,7 +86,7 @@ public static class DholeOfficialDispatchPreflight
             form, savedQuote.Id, verifiedRoute);
         var ids = resolve(draft);
         var review = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
-            draft, ids, utcNow);
+            draft, ids, utcNow, manualCommercialReview);
 
         // Defensive check: a future coordinator must not mix another outbox
         // identity or misinterpret a review result as permission to send.

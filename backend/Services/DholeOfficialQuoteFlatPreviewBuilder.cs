@@ -62,7 +62,8 @@ public static class DholeOfficialQuoteFlatPreviewBuilder
     }
 
     public static DholeOfficialFlatReview BuildReview(
-        DholeOfficialQuoteDraft draft, DholeOfficialCatalogResolution catalogs, DateTime nowUtc)
+        DholeOfficialQuoteDraft draft, DholeOfficialCatalogResolution catalogs, DateTime nowUtc,
+        bool manualCommercialReview = false)
     {
         if (draft is null || catalogs is null || nowUtc.Kind != DateTimeKind.Utc ||
             catalogs.VerifiedAtUtc.Kind != DateTimeKind.Utc ||
@@ -262,7 +263,48 @@ public static class DholeOfficialQuoteFlatPreviewBuilder
         var unresolved = draft.PendingCatalogResolutions.Where(x =>
             x.StartsWith("cargoValue:", StringComparison.Ordinal) ||
             x.StartsWith("destinationHandling:", StringComparison.Ordinal) ||
-            x.StartsWith("declaredFigures:", StringComparison.Ordinal)).ToArray();
+            x.StartsWith("declaredFigures:", StringComparison.Ordinal)).ToList();
+
+        // Opt-in: preserve original commercial facts for human Pricing review,
+        // without misinterpreting declared values as USD FOB.
+        if (manualCommercialReview)
+        {
+            var notes = new List<string>();
+            if (draft.CargoValue is decimal amount)
+            {
+                if (amount < 0 || (amount > 0 &&
+                    (draft.CargoCurrencyCode is not { Length: 3 } iso ||
+                     iso.Any(c => c is < 'A' or > 'Z'))))
+                    throw new ArgumentException("Dhole: valor/moneda declarados inválidos.");
+                notes.Add("Valor declarado original: " + amount.ToString(CultureInfo.InvariantCulture) +
+                    (string.IsNullOrEmpty(draft.CargoCurrencyCode) ? "" : " " + draft.CargoCurrencyCode) +
+                    ". Pricing: confirmar base FOB, moneda y conversión a USD antes de calcular seguro.");
+            }
+            if (draft.DeclaredWeight is decimal weight)
+                notes.Add("Peso declarado adicional (valor original): " + weight.ToString(CultureInfo.InvariantCulture) +
+                    ". No sustituye el peso calculado de las líneas.");
+            if (draft.DeclaredPackages is int packages)
+                notes.Add("Bultos declarados adicionales: " + packages.ToString(CultureInfo.InvariantCulture) +
+                    ". No sustituye la cantidad calculada de las líneas.");
+            if (!string.IsNullOrWhiteSpace(draft.DestinationHandling))
+                notes.Add("Manejo especial en destino (texto original): " + draft.DestinationHandling);
+            if (!string.IsNullOrWhiteSpace(draft.ExwCargoStatus))
+                notes.Add("Estado EXW de la carga: " + draft.ExwCargoStatus);
+            if (!string.IsNullOrWhiteSpace(draft.ExwPickupAddress) &&
+                draft.ExwPickupAddress != effectivePickupAddress)
+                notes.Add("Dirección EXW original: " + draft.ExwPickupAddress);
+            if (notes.Count > 0)
+            {
+                var observations = (string.IsNullOrWhiteSpace(draft.Observations)
+                    ? "" : draft.Observations + "\n\n") +
+                    "DATOS DECLARADOS POR EL SOLICITANTE — REVISIÓN COMERCIAL DE PRICING:\n" +
+                    string.Join("\n", notes);
+                if (observations.Length > 6000)
+                    throw new ArgumentException("Dhole: observaciones exceden el límite de revisión.");
+                payload["form_cargoObservations"] = observations;
+                unresolved.Clear();
+            }
+        }
         return new DholeOfficialFlatReview(
             draft.OfficialQuoteId,
             "cf-official-" + draft.OfficialQuoteId.ToString("D"),

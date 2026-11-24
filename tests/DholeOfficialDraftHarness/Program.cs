@@ -330,7 +330,22 @@ Assert(extendedBody.GetProperty("sellerContext_consolidatedCargoLines").GetArray
     !extendedBody.TryGetProperty("form_cargoValue", out _) &&
     !extendedBody.TryGetProperty("form_currencyId", out _),
     "Published flat review preserves safe details but never guesses commercial currency");
-Console.WriteLine("PASS: extra lines, flags, storage, CABYS, notes and delivery fields retained; currency blocks remain.");
+foreach (var iso in new[] { "USD", "CRC", "EUR" })
+{
+    var commercial = extended with { CargoCurrencyCode = iso };
+    var manual = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+        commercial, extendedCatalog, reviewAt, manualCommercialReview:true);
+    var notes = manual.Body.GetProperty("form_cargoObservations").GetString()!;
+    Assert(manual.ReadyForContractReview && !manual.RemoteSubmissionPermitted &&
+        notes.Contains("1500 " + iso) && notes.Contains("Gestión especial") &&
+        notes.Contains("Peso declarado adicional") && notes.Contains("Bultos declarados adicionales") &&
+        notes.StartsWith("Mercancía frágil") &&
+        !manual.Body.TryGetProperty("form_cargoValue", out _) &&
+        !manual.Body.TryGetProperty("form_currencyId", out _) &&
+        manual.Body.GetProperty("form_cargoWeightKg").GetDecimal() == 22,
+        "Manual review preserves original commercial inputs without invented conversions");
+}
+Console.WriteLine("PASS: extra lines, flags, storage, CABYS, notes and delivery fields retained; default currency blocks remain.");
 
 Console.WriteLine("PASS: five modes project to flat Dhole review with real LCL cargo shape and resolved fake catalog UUIDs.");
 Console.WriteLine("PASS: invalid/stale catalog snapshots blocked; no HTTP, dispatcher or secrets.");

@@ -590,7 +590,9 @@ public static class OfficialQuoteEndpoints
             var directOutbox = directEnabled
                 ? await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
                     .Where(x => x.QuoteId == id)
-                    .Select(x => new { x.State, x.Priority, x.ProviderReferenceCandidate }).FirstOrDefaultAsync(ct)
+                    .Select(x => new { x.State, x.Priority, x.ProviderReferenceCandidate,
+                        x.ExternalReference, x.VerifiedAtUtc, x.ConfirmationEmailClaimedAtUtc,
+                        x.ConfirmationEmailAcceptedAtUtc, x.ConfirmationEmailErrorCode }).FirstOrDefaultAsync(ct)
                 : null;
             var approvalOutbox = !directEnabled && approvalEnabled
                 ? await db.OfficialQuoteDholeOutbox.AsNoTracking()
@@ -604,6 +606,12 @@ public static class OfficialQuoteEndpoints
                 q.Authorization, q.AuthorizedAtUtc, q.CreatedAtUtc, dholeDispatchState = dispatchState,
                 dholePriority = directEnabled ? directOutbox?.Priority : approvalOutbox?.Priority,
                 dholeReceiptCandidate = directOutbox?.ProviderReferenceCandidate,
+                dholeVerifiedReference = directOutbox?.ExternalReference,
+                dholeVerifiedAtUtc = directOutbox?.VerifiedAtUtc,
+                dholeConfirmationEmailState = directOutbox?.State != "Confirmed" ? null :
+                    directOutbox.ConfirmationEmailAcceptedAtUtc != null ? "Accepted" :
+                    directOutbox.ConfirmationEmailErrorCode != null ? "NeedsReview" :
+                    directOutbox.ConfirmationEmailClaimedAtUtc != null ? "Claimed" : "Pending",
                 form = JsonSerializer.Deserialize<JsonElement>(q.FormJson), history });
         });
 

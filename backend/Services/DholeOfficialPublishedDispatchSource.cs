@@ -75,10 +75,12 @@ public sealed class DholeOfficialPublishedDispatchSource(
         if (useTemporary != UseTemporary ||
             (useTemporary && TemporaryExpiry() != expiry))
             throw new DholeLookupUnavailableException();
+        var manualCommercialReview = configuration.GetValue<bool>(
+            "DholeSubmission:ManualCommercialReviewEnabled");
         return useTemporary
             ? DholeOfficialDispatchPreflight.ReviewSavedQuoteWithTemporaryCatalogs(
-                savedQuote, route, all, now, expiry!.Value)
+                savedQuote, route, all, now, expiry!.Value, manualCommercialReview)
             : DholeOfficialDispatchPreflight.ReviewSavedQuoteWithPublishedCatalogs(
-                savedQuote, route, all, now);
+                savedQuote, route, all, now, manualCommercialReview);
     }
 }
