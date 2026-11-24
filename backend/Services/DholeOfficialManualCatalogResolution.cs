@@ -170,13 +170,13 @@ public static class DholeOfficialManualCatalogResolution
         return Resolve(draft, snapshots, now, earliest, Items);
     }
 
-    // The temporary deployment catalog has its own explicit finite validity.
+    // The explicitly enabled temporary deployment catalog may have an optional expiry.
     // Its entries are not live GET observations; preserve the real timestamps
     // for all route, Incoterm and equipment-size/type GETs.
     public static DholeOfficialCatalogResolution ReviewTemporary(
         DholeOfficialQuoteDraft draft,
         IReadOnlyDictionary<string, DholeOfficialExistingCatalogSnapshot> liveSnapshots,
-        DateTime utcNow, DateTimeOffset validUntilUtc)
+        DateTime utcNow, DateTimeOffset? validUntilUtc)
     {
         Require(draft is not null && liveSnapshots is not null &&
             utcNow.Kind == DateTimeKind.Utc, "revisión temporal inválida");

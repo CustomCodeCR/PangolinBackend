@@ -37,7 +37,7 @@ public static class DholeOfficialDispatchPreflight
         OfficialQuoteRequest savedQuote,
         DholeValidatedRoute verifiedRoute,
         IReadOnlyDictionary<string, DholeOfficialExistingCatalogSnapshot> existingGetCatalogs,
-        DateTime utcNow, DateTimeOffset validUntilUtc, bool manualCommercialReview = false) =>
+        DateTime utcNow, DateTimeOffset? validUntilUtc, bool manualCommercialReview = false) =>
         ReviewSavedQuoteCore(savedQuote, verifiedRoute, existingGetCatalogs, utcNow,
             draft => DholeOfficialManualCatalogResolution.ReviewTemporary(
                 draft, existingGetCatalogs, utcNow, validUntilUtc), manualCommercialReview);

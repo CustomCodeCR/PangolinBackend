@@ -581,8 +581,24 @@ Assert(DholeTemporaryDispatchCatalog.CurrencyId("USD", new DateTimeOffset(tempNo
     "Known temporary currency UUID only");
 Block(() => DholeOfficialManualCatalogResolution.ReviewTemporary(preview, tempLive, tempNow,
     new DateTimeOffset(tempNow)), "Temporary expiry cannot be bypassed");
-Block(() => DholeOfficialManualCatalogResolution.ReviewTemporary(preview, tempLive, tempNow,
-    DholeTemporaryDispatchCatalog.HardCutoffUtc.AddDays(1)), "Temporary expiry is bounded");
+// No mandatory date cutoff, but optional expiry and freshness of real GETs remain enforced.
+var futureNow = new DateTime(2027, 2, 1, 12, 0, 0, DateTimeKind.Utc);
+var futureLive = tempLive.ToDictionary(x => x.Key, x => x.Value with
+    { FetchedAtUtc = new DateTimeOffset(futureNow) }, StringComparer.Ordinal);
+Assert(DholeTemporaryDispatchCatalog.TryReadValidity(null, new DateTimeOffset(futureNow), out var noExpiry) &&
+    noExpiry is null &&
+    DholeTemporaryDispatchCatalog.TryReadValidity("", new DateTimeOffset(futureNow), out var emptyExpiry) &&
+    emptyExpiry is null &&
+    DholeTemporaryDispatchCatalog.TryReadValidity("2027-03-01T00:00:00Z", new DateTimeOffset(futureNow), out var futureExpiry) &&
+    futureExpiry == new DateTimeOffset(2027, 3, 1, 0, 0, 0, TimeSpan.Zero) &&
+    !DholeTemporaryDispatchCatalog.TryReadValidity("invalid", new DateTimeOffset(futureNow), out _) &&
+    !DholeTemporaryDispatchCatalog.TryReadValidity("2026-12-01T00:00:00Z", new DateTimeOffset(futureNow), out _),
+    "Optional validity has no fixed cutoff; malformed or expired explicit values are rejected");
+var futureReview = DholeOfficialManualCatalogResolution.ReviewTemporary(ftl, futureLive, futureNow, noExpiry);
+Assert(futureReview.Equipment.Single().TypeId == tempFtl.Equipment.Single().TypeId,
+    "Temporary mapping remains usable after the former hard cutoff");
+Block(() => DholeOfficialManualCatalogResolution.ReviewTemporary(preview, tempLive, futureNow, null),
+    "Indefinite temporary mapping never authorizes stale live GETs");
 Console.WriteLine("PASS: 12 services + 16 land types bridge into typed offline review, with existing GETs and no POST.");
 
 static void ForbidState(Action action, string reason)
