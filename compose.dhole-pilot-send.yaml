@@ -1,0 +1,23 @@
+# LOCAL ONLY, NEVER part of normal start-main2-hybrid. Apply only after the
+# specific fictional quote has been reviewed and the owner authorizes ONE POST.
+# Must be combined with stage overlay and existing GET preview overlay.
+services:
+  backend:
+    environment:
+      DholeSubmission__WorkerEnabled: "true"
+      DholeSubmission__DispatcherEnabled: "true"
+      DholeSubmission__ClaimPreviewEnabled: "true"
+      DholeSubmission__OutcomePreviewEnabled: "true"
+      DholeSubmission__PostEnabled: "true"
+      DholeSubmission__ApplicantContactSharingApproved: "true"
+      DholeSubmission__PilotQuoteId: ${DHOLE_PILOT_QUOTE_ID:?UUID exacto de prueba autorizado}
+      DholeSubmission__AllNewQuotesEnabled: "false"
+      DholeSubmission__NewQuotesStartUtc: ""
+      DholeSubmission__TemporaryCatalogsEnabled: "true"
+      DholeSubmission__TemporaryCatalogsValidUntilUtc: ${DHOLE_PILOT_CATALOG_EXPIRY_UTC:?Fecha de vigencia UTC revisada}
+      DholeSubmission__ManualCommercialReviewEnabled: ${DHOLE_PILOT_MANUAL_COMMERCIAL_REVIEW:-false}
+      DholeSubmission__AcceptCreationReceiptEnabled: "true"
+      DholeSubmission__VerificationEnabled: "false"
+      DholeSubmission__ConfirmationEmailEnabled: "true"
+      DholeSubmission__ApiKey: ${DHOLE_PILOT_POST_KEY:?Clave POST privada}
+      Email__Mode: "Graph"

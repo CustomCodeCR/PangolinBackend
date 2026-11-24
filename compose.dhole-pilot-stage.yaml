@@ -1,0 +1,17 @@
+# LOCAL ONLY. Used by -StageDholePilot on loopback.
+# Stage one operator-selected synthetic quote. This overlay cannot send.
+services:
+  backend:
+    environment:
+      Features__OfficialQuotesEnabled: "true"
+      DholeSubmission__DirectOutboxEnabled: "true"
+      DholeSubmission__ClientCreateIdempotencyEnabled: "true"
+      DholeSubmission__ApprovalQueueEnabled: "false"
+      DholeSubmission__WorkerEnabled: "false"
+      DholeSubmission__DispatcherEnabled: "false"
+      DholeSubmission__PostEnabled: "false"
+      DholeSubmission__ConfirmationEmailEnabled: "false"
+      DholeSubmission__VerificationEnabled: "false"
+      DholeSubmission__AcceptCreationReceiptEnabled: "false"
+      DholeSubmission__AllNewQuotesEnabled: "false"
+      DholeSubmission__ApiKey: ""
