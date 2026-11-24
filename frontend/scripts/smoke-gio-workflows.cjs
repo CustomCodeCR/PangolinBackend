@@ -482,6 +482,47 @@ async function main() {
       await confirm()
       await waitFor(()=>has('Incoterm'))
       console.log('PASS: Air AIR_LCL searches all 854 POL / 851 POE, including final Zúrich options')
+      await choose('FOB')
+      await answer(futureReadyDate)
+      await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__services .gio-ops__primary")'))
+      await click('.gio-ops__services .gio-ops__primary')
+      await confirm()
+      await answer('Cajas de repuestos')
+      await choose('No')
+      await answer('5')
+      await choose('Caja')
+      for (const v of ['20','40','50','60']) await answer(v)
+      await choose('Sí')
+      await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__extra-lines")'))
+      await click('.gio-ops__extra-lines > .gio-ops__primary')
+      await choose('Sí, completar datos adicionales')
+      await choose('Omitir') // CABYS
+      await choose('Omitir') // cargo value
+      await choose('Omitir') // declared weight
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__package-reference strong")?.textContent==="5"'))
+      const setDeclared = async text => {
+        assert.ok(await evaluate('(()=>{const field=document.querySelector(".gio-ops__form input");if(!field)return false;const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(field,'+JSON.stringify(text)+');field.dispatchEvent(new Event("input",{bubbles:true}));field.closest("form").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));return true})()'))
+        await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__confirmation")'))
+      }
+      await setDeclared('10')
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__confirmation .gio-ops__package-advisory")?.textContent.includes("5 menos")'))
+      await click('.gio-ops__confirm-actions .gio-ops__secondary')
+      await setDeclared('5')
+      assert.equal(await evaluate('!!document.querySelector(".gio-ops__confirmation .gio-ops__package-advisory")'),false,'Equal counts must not warn')
+      await click('.gio-ops__confirm-actions .gio-ops__secondary')
+      await setDeclared('3')
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__confirmation .gio-ops__package-advisory")?.textContent.includes("2 más")'))
+      await confirm()
+      await choose('No')
+      await choose('Omitir') // destination handling
+      await choose('Omitir') // observations
+      await answer('Cliente prueba bultos')
+      await answer('packages@example.invalid')
+      await answer('+506 2222 2222')
+      await waitFor(()=>has('Confirmar y enviar solicitud'))
+      assert.ok(await evaluate('document.querySelector(".gio-ops__card .gio-ops__package-advisory")?.textContent.includes("2 más")'),'Warning persists in final review without blocking')
+      assert.equal(quoteWrites.length,2,'Advisory test must not submit a quote')
+      console.log('PASS: GIO shows reference, immediate mismatch warning, correction and final review')
     }
     console.log('PASS: guest/admin quotes, services, storage/delivery requirements, invalid inputs, contrast, complete receipts, itineraries, and tracking guards')
   } finally {

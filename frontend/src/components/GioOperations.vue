@@ -198,14 +198,20 @@ function parseExtraLines(raw: string): {kind:'equipment'|'packages';lines:unknow
     throw new Error('Additional cargo lines invalid')
   return {kind:obj.kind as 'equipment'|'packages',lines:obj.lines}
 }
-const packageCountNotice = computed(() => {
-  if (props.kind !== 'quote' || isEquipment.value || !values.additionalLines) return ''
+const packageLineQuantities = computed<number[]>(() => {
+  if (props.kind !== 'quote' || !['LCL','AIR_LCL','LTL'].includes(values.shipmentType) || !values.additionalLines) return []
   try {
     const extra = parseExtraLines(values.additionalLines)
-    return packageCountAdvisory(values.shipmentType || '', values.declaredPackages,
-      [values.packageQuantity, ...(extra.lines as GioExtraPackage[]).map(line => line.quantity)], tr)
-  } catch { return '' }
+    const quantities = [Number(values.packageQuantity), ...(extra.lines as GioExtraPackage[]).map(line => Number(line.quantity))]
+    return quantities.every(n => Number.isSafeInteger(n) && n > 0) ? quantities : []
+  } catch { return [] }
 })
+const calculatedPackageCount = computed(() => packageLineQuantities.value.length
+  ? packageLineQuantities.value.reduce((sum, n) => sum + n, 0) : null)
+const packageCountNotice = computed(() => packageCountAdvisory(
+  values.shipmentType || '', values.declaredPackages, packageLineQuantities.value, tr))
+const pendingPackageCountNotice = computed(() => pendingValue.value?.key === 'declaredPackages'
+  ? packageCountAdvisory(values.shipmentType || '', pendingValue.value.value, packageLineQuantities.value, tr) : '')
 function restoreExtraLines() {
   extraEquipmentLines.value = []
   extraPackageLines.value = []
@@ -304,7 +310,7 @@ const steps = computed<Step[]>(() => {
     result.push({key:'cargoCurrencyCode',prompt:i('¿En qué moneda está el valor declarado?','What currency is the declared value in?'),choices:officialCurrencyOptions(i)})
   if (values.advancedDetails === 'yes') result.push(
     {key:'declaredWeight',prompt:i('¿Peso declarado adicional (opcional)?','Additional declared weight (optional)?'),optional:true},
-    {key:'declaredPackages',prompt:i('¿Cantidad declarada adicional de bultos (opcional)?','Additional declared package count (optional)?'),optional:true},
+    {key:'declaredPackages',prompt:i('¿Cuál es la cantidad total de bultos declarados? (Opcional)','What is the total number of declared packages? (Optional)'),optional:true},
     {key:'overweight',prompt:i('¿La carga se considera sobrepeso?','Is this overweight cargo?'),choices:[
       {value:'yes',label:i('Sí','Yes')},{value:'no',label:'No'}
     ]},
@@ -334,7 +340,7 @@ const fieldLabels: Record<string, [string, string]> = {
   cabysCode:['Código CABYS','CABYS code'],cargoValue:['Valor declarado','Declared value'],
   cargoCurrencyCode:['Moneda del valor','Value currency'],
   declaredWeight:['Peso declarado adicional','Additional declared weight'],
-  declaredPackages:['Bultos declarados adicionales','Additional declared packages'],
+  declaredPackages:['Total de bultos declarados','Total declared packages'],
   overweight:['Sobrepeso','Overweight'],destinationHandling:['Manejo en destino','Destination handling'],
   observations:['Observaciones','Notes'],
   fiscalStorageDays:['Días de almacenaje fiscal','Fiscal storage days'], deliveryAddress:['Dirección de entrega','Delivery address'], pickupAddress:['Dirección de recolección','Pickup address'],
@@ -1024,6 +1030,10 @@ async function perform() {
       </div>
       <template v-if="phase === 'collect' && current">
         <div class="gio-ops__bubble">{{ current.prompt }}</div>
+        <div v-if="current.key === 'declaredPackages' && calculatedPackageCount !== null" class="gio-ops__bubble gio-ops__bubble--quiet gio-ops__package-reference">
+          {{ tr('Total según las líneas de carga:', 'Total from cargo lines:') }} <strong>{{ calculatedPackageCount }}</strong>.
+          {{ tr('Podés declarar una cantidad diferente si corresponde a otro nivel de embalaje, u omitir este dato.', 'You can declare a different count for another packaging level, or skip this field.') }}
+        </div>
         <div v-if="current.key === 'additionalLines'" class="gio-ops__extra-lines">
           <p class="gio-ops__note">{{ isEquipment
             ? tr('La primera línea de equipo ya quedó registrada. Añadí otra solo si necesitás un tipo o tamaño diferente.', 'Your first equipment group is already recorded. Add another only for a different type or size.')
@@ -1096,6 +1106,7 @@ async function perform() {
         <div class="gio-ops__bubble">{{ tr('Esto fue lo que entendí para', 'This is what I understood for') }} <strong>{{ tr((fieldLabels[pendingValue.key] || [pendingValue.key,pendingValue.key])[0], (fieldLabels[pendingValue.key] || [pendingValue.key,pendingValue.key])[1]) }}</strong>:</div>
         <section class="gio-ops__card gio-ops__confirmation">
           <p class="gio-ops__confirmed-value">{{ pendingValue.display }}</p>
+          <p v-if="pendingPackageCountNotice" class="gio-ops__package-advisory" role="status">{{ pendingPackageCountNotice }}</p>
           <p class="gio-ops__note">{{ tr('¿Está correcto? Lo guardaré solo cuando lo confirmes.','Is this correct? I will only save it when you confirm.') }}</p>
           <div class="gio-ops__confirm-actions">
             <button class="gio-ops__primary" type="button" @click="confirmPending"><CheckCircle2 :size="16" />{{ tr('Sí, continuar','Yes, continue') }}</button>
@@ -1107,10 +1118,10 @@ async function perform() {
         <div class="gio-ops__bubble">{{ tr('Ya tengo los datos. Confirma el resumen antes de continuar.','I have the information. Please review it before proceeding.') }}</div>
         <section class="gio-ops__card">
           <h3><FileText :size="18" />{{ tr('Resumen','Summary') }}</h3>
+          <p v-if="packageCountNotice" class="gio-ops__package-advisory" role="status">{{ packageCountNotice }}</p>
           <dl>
             <div v-for="item in summary" :key="item.key"><dt>{{ item.label }}</dt><dd>{{ item.value }}</dd><button class="gio-ops__edit" type="button" :aria-label="tr('Editar ','Edit ') + item.label" @click="editField(item.key)">{{ tr('Editar','Edit') }}</button></div>
           </dl>
-          <p v-if="packageCountNotice" class="gio-ops__package-advisory" role="status">{{ packageCountNotice }}</p>
           <p v-if="kind === 'quote'" class="gio-ops__note">{{ tr('Esta es una solicitud, no una tarifa confirmada. Los precios los confirma Castro Fallas.','This is a request, not a confirmed rate. Castro Fallas confirms prices.') }}</p>
         </section>
         <button class="gio-ops__primary" type="button" :disabled="busy" @click="perform"><LoaderCircle v-if="busy" :size="16" class="gio-ops__spin" /><CheckCircle2 v-else :size="16" />{{ busy ? tr('Procesando…','Processing…') : kind === 'quote' ? tr('Confirmar y enviar solicitud','Confirm and submit request') : tr('Consultar','Search') }}</button>
