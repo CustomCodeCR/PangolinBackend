@@ -7,6 +7,7 @@ on:
       - "frontend/src/components/AssistantBot.vue"
       - "frontend/src/pages/OfficialQuoteWizard.vue"
       - "frontend/src/lib/officialQuoteOptions.ts"
+      - "frontend/src/lib/officialQuoteSubmissionAttempt.ts"
       - "frontend/scripts/test-frontend-merge.cjs"
       - "frontend/src/services/auth.ts"
       - "backend/Services/AssistantService.cs"
@@ -14,6 +15,7 @@ on:
       - "backend/Program.cs"
       - "frontend/scripts/smoke-gio-workflows.cjs"
       - "frontend/scripts/smoke-dhole-wizard.cjs"
+      - "frontend/scripts/test-official-quote-submission-attempt.cjs"
       - ".github/workflows/gio-main2-check.yml"
   workflow_dispatch:
 
@@ -38,6 +40,8 @@ jobs:
         run: dotnet build backend/CastroFallas.MiniQuote.Api.csproj --configuration Release
       - name: Install pinned frontend dependencies
         run: npm ci --prefix frontend
+      - name: Check retry safety on HTTPS and LAN HTTP without touching Dhole
+        run: node frontend/scripts/test-official-quote-submission-attempt.cjs
       - name: Compile TypeScript and Vue into production assets
         run: npm run build --prefix frontend
       - name: Verify preserved frontend integration contracts

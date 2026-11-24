@@ -15,6 +15,7 @@ const frontend = path.resolve(__dirname, '..')
 const host = '127.0.0.1'
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 let posts = []
+let postKeys = []
 let optionsReads = 0
 let legacyLocationReads = 0
 let upstreamIsDown = false
@@ -39,6 +40,7 @@ const api = http.createServer(async (req, res) => {
     if (explicitlyLegacy) return send(res, 404, {code:'dhole_form_disabled'})
     return send(res, 200, {
       source: 'dhole',
+      clientCreateIdempotencyEnabled: true,
       mode: url.searchParams.get('mode'),
       shipmentType: url.searchParams.get('shipmentType'),
       incoterms: ['CIF', 'FOB'],
@@ -66,6 +68,7 @@ const api = http.createServer(async (req, res) => {
     }]})
   }
   if (url.pathname === '/api/quotes/official' && req.method === 'POST') {
+    postKeys.push(String(req.headers['x-cf-quote-request-key'] || ''))
     const parts = []
     for await (const part of req) parts.push(part)
     const data = JSON.parse(Buffer.concat(parts).toString('utf8'))
@@ -95,7 +98,7 @@ async function waitFor(check, description, timeout=18000) {
   throw Error('Timed out: '+description)
 }
 async function main() {
-  const profile=fs.mkdtempSync(path.join(os.tmpdir(),'dhole-wizard-cdp-'))
+  let profile=fs.mkdtempSync(path.join(os.tmpdir(),'dhole-wizard-cdp-'))
   let vite, chrome, socket, evaluate
   const artifacts=path.resolve(frontend,'../artifacts/dhole-quote-visual')
   try {
@@ -108,17 +111,38 @@ async function main() {
     await waitFor(async()=> (await fetch('http://'+host+':5194/cotizaciones')).ok,
       'Vite server',24000)
 
-    chrome=spawn(bin(),[
-      '--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',
-      '--no-first-run','--disable-background-networking','--disable-extensions',
-      '--remote-allow-origins=*','--remote-debugging-port=0',
-      '--user-data-dir='+profile,'about:blank'
-    ],{stdio:'ignore'})
+    // Shared GitHub runners occasionally need a second Chrome launch even when
+    // Vite is already ready. Retry once with a fresh, isolated profile. Keep
+    // browser stderr bounded so a failed test identifies Chrome vs. UI errors.
     let debugPort=0
-    await waitFor(async()=>{
-      try { debugPort=Number(fs.readFileSync(path.join(profile,'DevToolsActivePort'),'utf8').split('\n')[0]) } catch {}
-      return debugPort>0
-    },'Chrome debugging port')
+    for (let attempt=1; attempt<=2; attempt++) {
+      let stderr=''
+      let launchError=null
+      chrome=spawn(bin(),[
+        '--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',
+        '--no-first-run','--disable-background-networking','--disable-extensions',
+        '--remote-allow-origins=*','--remote-debugging-port=0',
+        '--user-data-dir='+profile,'about:blank'
+      ],{stdio:['ignore','ignore','pipe']})
+      chrome.on('error',error => { launchError=error })
+      chrome.stderr.on('data',chunk => { stderr=(stderr+chunk.toString()).slice(-3000) })
+      try {
+        await waitFor(async()=>{
+          if (launchError || chrome.exitCode !== null) return false
+          try { debugPort=Number(fs.readFileSync(path.join(profile,'DevToolsActivePort'),'utf8').split('\n')[0]) } catch {}
+          return debugPort>0
+        },'Chrome debugging port',30000)
+        break
+      } catch (error) {
+        console.warn('Chrome launch '+attempt+' failed:',launchError?.message || error.message)
+        if (stderr) console.warn('Chrome stderr (last 3000 chars):',stderr)
+        chrome.kill()
+        if (attempt===2) throw error
+        try { fs.rmSync(profile,{recursive:true,force:true,maxRetries:5,retryDelay:200}) } catch {}
+        profile=fs.mkdtempSync(path.join(os.tmpdir(),'dhole-wizard-cdp-'))
+        debugPort=0
+      }
+    }
     const target=await (await fetch('http://'+host+':'+debugPort+'/json/list')).json()
     const page=target.find(t=>t.type==='page' && t.webSocketDebuggerUrl)
     assert.ok(page,'Chrome page target missing')
@@ -203,6 +227,13 @@ async function main() {
     assert.equal(noSkipPod,false,'Maritime POD must never offer skip / no additional POD')
     await click('#quote-pod-options [role=option]')
     assert.equal(await evaluate('document.querySelector("#quote-pod").value'),'POD Dhole')
+    const quoteServices=await evaluate('[...document.querySelectorAll(".official-service-card .official-service-name")].map(x=>x.textContent.trim())')
+    assert.equal(quoteServices.length,12,'Official quote wizard must only show the 12 reviewed service labels')
+    assert.ok(!quoteServices.includes('Transporte nacional'),'Retired national transport must not be selectable')
+    assert.ok(quoteServices.includes('Transporte internacional') && quoteServices.includes('Transporte recolección'),
+      'Existing allowed services remain available')
+    const insuranceSelected = await evaluate('(()=>{const label=[...document.querySelectorAll(".official-service-card")].find(x=>x.textContent.includes("Seguro de carga"));if(!label)return false;const checkbox=label.querySelector("input[type=checkbox]");if(!checkbox)return false;checkbox.click();return checkbox.checked})()')
+    assert.ok(insuranceSelected,'Cargo insurance must be a selectable official service')
     await selectDropdown('quote-incoterm','CIF')
     const future=new Date(Date.now()+30*86400000).toISOString().slice(0,10)
     await value('input[type=date]',future)
@@ -239,10 +270,17 @@ async function main() {
     await click('.official-primary')
     await waitFor(()=>exists('.official-fields textarea[maxlength="4000"]'),'Step four cargo')
     await value('.official-fields textarea[maxlength="4000"]','CI cargo mock')
+    assert.ok(await exists('#quote-cargo-value'),'Declared cargo value input must exist')
+    await value('#quote-cargo-value','1500')
+    await waitFor(()=>exists('#quote-cargo-currency'),'Insurance must ask for ISO currency')
     await value('input[autocomplete=name]','Cliente CI')
     await value('input[autocomplete=email]','ci-quote@example.invalid')
     await value('input[autocomplete=tel]','+506 2222 2222')
     assert.equal(posts.length,0,'Wizard must never submit before the user presses Submit')
+    await click('.official-primary')
+    assert.equal(posts.length,0,'Cargo insurance without currency must not submit')
+    assert.ok(await exists('#quote-cargo-currency'),'Missing currency keeps the form editable')
+    await value('#quote-cargo-currency','USD')
     await click('.official-primary')
     await waitFor(()=>exists('.official-success'),'Successful submit and receipt')
     assert.equal(posts.length,1,'Exactly one request was sent')
@@ -253,9 +291,86 @@ async function main() {
     assert.equal(posts[0].equipment[0].size,'45 pies')
     assert.equal(posts[0].equipment[0].type,'High Cube')
     assert.equal(posts[0].contactName,'Cliente CI')
+    assert.ok(posts[0].services.includes('Seguro de carga'),'Chosen insurance must be in submitted services')
+    assert.equal(posts[0].cargoValue,1500,'Wizard must retain declared cargo value')
+    assert.equal(posts[0].cargoCurrencyCode,'USD','Wizard must retain ISO currency')
+    assert.equal(postKeys.length,1,'Wizard should send only once after validation')
+    assert.match(postKeys[0], /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      'Wizard must include a strong UUIDv4 client creation key')
+    assert.equal(await evaluate('sessionStorage.getItem("gcf-official-quote-wizard-attempt-v1")'),null,
+      'Confirmed receipt removes only the temporary creation retry identity')
     assert.ok(await evaluate('document.body.innerText.includes('+JSON.stringify(confirmationId)+')'),'Receipt shows mock id')
     assert.equal(legacyLocationReads,0,'Form never called local catalogue during Dhole success')
     console.log('PASS Chrome: four-step wizard preserves external UUID, pair-restricted equipment, responsive/dark mode and receipt')
+
+    // A consolidated LCL cargo line is authoritative for stackability.
+    // Never show a duplicate global checkbox that could contradict the line.
+    await cdp('Page.navigate',{url:'http://'+host+':5194/cotizaciones?check=lcl-stackability'})
+    await waitFor(()=>exists('.official-page .official-choice'),'Fresh LCL wizard')
+    await chooseMode('Marítimo')
+    await click('.official-primary')
+    await waitFor(()=>exists('.official-choice'),'LCL transport selection')
+    await chooseMode('LCL')
+    await click('.official-primary')
+    await waitFor(()=>exists('#quote-origin'),'LCL route details')
+    await click('#quote-origin + .official-location-toggle')
+    await waitFor(()=>exists('#quote-origin-options li button'),'LCL origin list')
+    await click('#quote-origin-options li button')
+    await click('#quote-destination + .official-location-toggle')
+    await waitFor(()=>exists('#quote-destination-options li button'),'LCL destination list')
+    await click('#quote-destination-options li button')
+    await click('#quote-pod + .official-location-toggle')
+    await waitFor(()=>exists('#quote-pod-options [role=option]'),'LCL maritime POD')
+    await click('#quote-pod-options [role=option]')
+    await selectDropdown('quote-incoterm','CIF')
+    await value('input[type=date]',future)
+    await click('.official-primary')
+    await waitFor(()=>exists('.official-line input[maxlength="400"]'),'LCL cargo line')
+    const visibleFlags = await evaluate('[...document.querySelectorAll(".official-cargo-flags-grid .official-service-name")].map(x=>x.textContent.trim())')
+    assert.deepEqual(visibleFlags,['Carga peligrosa','Sobrepeso'],
+      'No estibable must NOT appear twice; only per-line stackability is editable')
+    assert.ok(await evaluate('document.body.textContent.includes("La estibabilidad se indica por separado")'),
+      'Explain that the aggregate non-stackable flag follows cargo lines')
+    await value('.official-line input[maxlength="400"]','Cajas CI')
+    await value('.official-line input[type="number"][min="1"]','2')
+    const countDimensions = await evaluate(`(()=>{
+      const inputs=[...document.querySelectorAll('.official-line input[type="number"][min="0.001"]')]
+      if(inputs.length!==4) return inputs.length
+      const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set
+      for(const [i,value] of ['400','40','50','60'].entries()) {
+        setter.call(inputs[i],value)
+        inputs[i].dispatchEvent(new Event('input',{bubbles:true}))
+        inputs[i].dispatchEvent(new Event('change',{bubbles:true}))
+      }
+      return inputs.length
+    })()`)
+    assert.equal(countDimensions,4,'LCL must provide weight plus three dimensions per line')
+    const lclCargoDropdownCount = await evaluate('document.querySelectorAll(".official-line .cf-dropdown__trigger").length')
+    assert.equal(lclCargoDropdownCount,2,'LCL cargo line must have unit-type and stackability selectors')
+    await click('.official-line .cf-dropdown__trigger')
+    await waitFor(()=>exists('.cf-dropdown__menu [role=option]'),'Cargo unit choices')
+    const boxChosen = await evaluate('(()=>{const choice=[...document.querySelectorAll(".cf-dropdown__menu[role=listbox] [role=option]")].find(x=>x.textContent.trim()==="Caja");if(!choice)return false;choice.click();return true})()')
+    assert.ok(boxChosen,'LCL mock must allow Box as its cargo unit')
+    const openedStackability = await evaluate('(()=>{const controls=document.querySelectorAll(".official-line .cf-dropdown__trigger");if(controls.length!==2)return false;controls[1].scrollIntoView({block:"center",behavior:"instant"});controls[1].click();return true})()')
+    assert.ok(openedStackability,'Open per-line stackability selector')
+    await waitFor(()=>exists('.cf-dropdown__menu [role=option]'),'Per-line stackability choices')
+    const nonStackableChosen = await evaluate('(()=>{const choice=[...document.querySelectorAll(".cf-dropdown__menu[role=listbox] [role=option]")].find(x=>x.textContent.trim()==="No estibable");if(!choice)return false;choice.click();return true})()')
+    assert.ok(nonStackableChosen,'Package must allow NonStackable on its own line')
+    await value('.official-fields textarea[maxlength="4000"]','Mercancía CI consolidada')
+    await value('input[autocomplete=name]','Cliente LCL CI')
+    await value('input[autocomplete=email]','lcl-quote@example.invalid')
+    await value('input[autocomplete=tel]','+506 2222 2222')
+    await click('.official-primary')
+    await waitFor(()=>posts.length===2,'LCL mock submission')
+    assert.equal(posts[1].shipmentType,'LCL')
+    assert.equal(posts[1].packages.length,1)
+    assert.equal(posts[1].packages[0].quantity,2)
+    assert.equal(posts[1].packages[0].weight,400,'Form cargo weight is total for this line')
+    assert.equal(posts[1].packages[0].stackability,'NonStackable')
+    assert.equal(posts[1].packages[0].unitType,'Box')
+    assert.deepEqual(posts[1].cargoFlags,['No estibable'],
+      'Line-level nonstackability must derive one aggregate flag automatically')
+    console.log('PASS Chrome: LCL line-level stackability derives global flag with no duplicate checkbox')
 
     // Any live Dhole outage must block progression, not silently revert to
     // outdated local UUIDs. A fresh navigation resets the Vue form.
@@ -271,7 +386,7 @@ async function main() {
     assert.equal(await evaluate('document.querySelector(".official-progress-item.current")?.textContent.includes("2")'),true,
       'Outage must keep wizard on step two')
     assert.equal(legacyLocationReads,0,'Outage must not request legacy locations')
-    assert.equal(posts.length,1,'Outage must not submit a second quote')
+    assert.equal(posts.length,2,'Outage must not submit an additional quote')
     console.log('PASS Chrome: failure of Dhole catalogue blocks route, no unsafe local fallback')
 
     upstreamIsDown=false

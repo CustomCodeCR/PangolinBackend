@@ -14,6 +14,7 @@ const frontend = path.resolve(__dirname, '..')
 const host = '127.0.0.1'
 let role = null
 let quoteWrites = []
+let quotePostKeys = []
 let failNextQuote = false
 let rejectedQuoteAttempts = 0
 let trackingReads = 0
@@ -59,6 +60,7 @@ const api = http.createServer(async (req, res) => {
     ]
     return send(200,{
       source:'dhole',mode:url.searchParams.get('mode'),shipmentType:url.searchParams.get('shipmentType'),
+      clientCreateIdempotencyEnabled:true,
       incoterms:['FOB'],
       origins:mockLocations(854,{id:'11111111-1111-4111-8111-111111111111',displayName:'Shanghái',code:'SHA'},'1'),
       destinations:mockLocations(851,{id:'22222222-2222-4222-8222-222222222222',displayName:'Puerto Caldera',code:'CAL'},'2'),
@@ -77,13 +79,15 @@ const api = http.createServer(async (req, res) => {
     return send(200,{items:[item]})
   }
   if (url.pathname === '/api/quotes/official' && req.method === 'POST') {
+    quotePostKeys.push(String(req.headers['x-cf-quote-request-key'] || ''))
     const chunks = []
     for await (const chunk of req) chunks.push(chunk)
     const body = JSON.parse(Buffer.concat(chunks).toString())
     if (failNextQuote) {
       failNextQuote = false
       rejectedQuoteAttempts++
-      return send(503,{error:'Proveedor temporalmente no disponible'})
+      return send(dynamicDholeMock ? 503 : 400,
+        {error:'Proveedor temporalmente no disponible'})
     }
     quoteWrites.push(body)
     return send(201,{id:'33333333-3333-3333-3333-333333333333',status:'Received'})
@@ -262,7 +266,9 @@ async function main() {
     await rejectValue('2020-01-01', 'La fecha de carga lista debe ser hoy o posterior')
     const futureReadyDate = new Date(Date.now() + 45 * 86400000).toISOString().slice(0,10)
     await answer(futureReadyDate)
-    await waitFor(()=>evaluate('document.querySelectorAll(".gio-ops__service").length === 13'))
+    await waitFor(()=>evaluate('document.querySelectorAll(".gio-ops__service").length === 12'))
+    assert.equal(await evaluate('[...document.querySelectorAll(".gio-ops__service")].some(x=>x.textContent.includes("Transporte nacional"))'),false,
+      'National transport must not appear in new GIO quote choices')
     assert.equal(await evaluate('document.querySelectorAll(".gio-ops__service input:checked").length'),1,'International transportation is initially selected')
     await chooseService('Transporte internacional')
     assert.equal(await evaluate('document.querySelectorAll(".gio-ops__service input:checked").length'),0,'All services can be unchecked')
@@ -270,6 +276,7 @@ async function main() {
     await chooseService('Transporte internacional')
     await chooseService('Almacenamiento')
     await chooseService('Transporte entrega')
+    await chooseService('Seguro de carga')
     assert.ok(await click('.gio-ops__services .gio-ops__primary'),'Service selection must continue')
     await waitFor(()=>has('¿Está correcto?'))
     await confirm()
@@ -288,6 +295,23 @@ async function main() {
     await choose('Dry Van')
     await answer('1')
     await answer('8000')
+    await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__extra-lines")'))
+    assert.ok(await click('.gio-ops__extra-lines > .gio-ops__secondary'),'GIO must offer additional equipment')
+    await waitFor(()=>evaluate('document.querySelectorAll(".gio-ops__extra-line").length===1'))
+    assert.ok(await evaluate('(()=>{const s=document.querySelector(".gio-ops__extra-line select");s.value="40 pies";s.dispatchEvent(new Event("change",{bubbles:true}));return true})()'))
+    await waitFor(()=>evaluate('([...document.querySelectorAll(".gio-ops__extra-line select")][1]?.options.length||0)>1'))
+    assert.ok(await evaluate('(()=>{const root=document.querySelector(".gio-ops__extra-line");const selects=root.querySelectorAll("select");selects[1].value="Dry Van";selects[1].dispatchEvent(new Event("change",{bubbles:true}));const inputs=root.querySelectorAll("input");for(const [i,v] of ["1","5000"].entries()){const el=inputs[i];const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(el,v);el.dispatchEvent(new Event("input",{bubbles:true}))}return true})()'))
+    assert.ok(await click('.gio-ops__extra-lines > .gio-ops__primary'),'GIO must accept additional equipment line')
+    await choose('Sí, completar datos adicionales')
+    await answer('1234567890000')
+    await rejectValue('0', 'El seguro exige un valor declarado positivo')
+    await answer('1500')
+    await answer('USD')
+    await answer('8000')
+    await answer('2')
+    await choose('Sí')
+    await answer('Descarga delicada en destino')
+    await choose('Omitir')
     await answer('Test Client')
     await rejectValue('correo-invalido', 'Correo electrónico inválido')
     await answer('test@example.invalid')
@@ -303,20 +327,43 @@ async function main() {
     await waitFor(()=>has('Proveedor temporalmente no disponible'))
     assert.equal(rejectedQuoteAttempts,1,'Exactly one simulated provider failure should occur')
     assert.equal(quoteWrites.length,0,'A failed request must not be counted as a created quote')
+    if (dynamicDholeMock)
+      assert.match(quotePostKeys[0], /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+        'Dhole-enabled GIO must generate a secure random v4 creation key')
+    else
+      assert.equal(quotePostKeys[0],'',
+        'Legacy GIO must not send a key the server cannot deduplicate')
     assert.ok(await evaluate('!!document.querySelector(".gio-ops__card .gio-ops__edit")'),
       'GIO must retain the review after a server failure')
     await click('.gio-ops__primary')
     await waitFor(()=>has('33333333-3333-3333-3333-333333333333'))
     assert.equal(quoteWrites.length,1,'Guest quote must be created exactly once')
+    assert.equal(quotePostKeys.length,2,'Mock network/server failure permits exactly one safe retry')
+    if (dynamicDholeMock)
+      assert.equal(quotePostKeys[0],quotePostKeys[1],
+        'Dhole-enabled GIO must reuse the original key after ambiguous HTTP failure')
+    else
+      assert.equal(quotePostKeys[1],'',
+        'Legacy validation retry must not invent deduplication capability')
+    assert.equal(await evaluate('sessionStorage.getItem("gcf-official-quote-gio-attempt-v1")'),null,
+      'Verified creation receipt clears the temporary retry identity')
     const guestReceipt = await evaluate('(()=>{try{return JSON.parse(sessionStorage.getItem("gcf-gio-quote-receipt-v1")||"null")}catch{return null}})()')
     assert.equal(guestReceipt?.id,'33333333-3333-3333-3333-333333333333','Guest must retain the issued receipt')
     assert.ok(Array.isArray(guestReceipt?.details) && guestReceipt.details.length > 10,
       'GIO must preserve the complete submitted summary rather than only route and ID')
     assert.equal(guestReceipt.details.find(x=>x.key==='contactName')?.value, 'Edited Client')
     assert.equal(guestReceipt.details.find(x=>x.key==='equipmentWeights')?.value, '8000')
-    assert.deepEqual(quoteWrites[0].services,['Transporte internacional','Almacenamiento','Transporte entrega'])
+    assert.deepEqual(quoteWrites[0].services,
+      ['Transporte internacional','Almacenamiento','Transporte entrega','Seguro de carga'])
     assert.equal(quoteWrites[0].fiscalStorageDays,12,'Fiscal storage days must be included')
     assert.equal(quoteWrites[0].deliveryAddress,'Centro de distribución, San José, Costa Rica')
+    assert.equal(quoteWrites[0].cabysCode,'1234567890000','GIO must preserve optional CABYS code')
+    assert.equal(quoteWrites[0].cargoValue,1500,'Insurance requires positive declared amount')
+    assert.equal(quoteWrites[0].cargoCurrencyCode,'USD','Insurance requires explicit ISO currency')
+    assert.equal(quoteWrites[0].declaredWeight,8000,'Optional declared weight must be retained')
+    assert.equal(quoteWrites[0].declaredPackages,2,'Optional declared packages must be retained')
+    assert.ok(quoteWrites[0].cargoFlags.includes('Sobrepeso'),'Overweight flag from GIO must be retained')
+    assert.equal(quoteWrites[0].destinationHandling,'Descarga delicada en destino')
     assert.equal(quoteWrites[0].pickupAddress,null,'Unselected pickup service must not send an address')
     assert.ok(guestReceipt.details.find(x=>x.key==='services')?.value?.includes('Almacenamiento'),
       'Receipt must include the confirmed service list')
@@ -326,6 +373,9 @@ async function main() {
     assert.equal(quoteWrites[0].equipment[0].type,'Dry Van')
     assert.equal(quoteWrites[0].contactName,'Edited Client')
     assert.deepEqual(quoteWrites[0].equipment[0].unitWeightsKg,[8000])
+    assert.equal(quoteWrites[0].equipment.length,2,'Additional GIO line must reach the official backend')
+    assert.deepEqual(quoteWrites[0].equipment[1],{size:'40 pies',type:'Dry Van',quantity:1,unitWeightsKg:[5000]},
+      'GIO must preserve selected catalog combination and per-unit weight for an additional line')
     assert.equal(quoteWrites[0].catalogSource, dynamicDholeMock ? 'dhole' : null,
       'Explicit source discriminates dynamic Dhole from legacy quotes')
     assert.ok(dholeOptionsReads >= 1,'GIO must check whether Dhole quote options are enabled')

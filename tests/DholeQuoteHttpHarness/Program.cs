@@ -2,11 +2,22 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
+using CastroFallas.MiniQuote.Api.Services.Auth;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
+using Microsoft.EntityFrameworkCore;
+using CastroFallas.MiniQuote.Api.Data;
+using CastroFallas.MiniQuote.Api.Models;
+using CastroFallas.MiniQuote.Api.Services;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Npgsql;
 
 internal static class DholeQuoteHttpTest
@@ -48,6 +59,8 @@ internal static class DholeQuoteHttpTest
         Environment.SetEnvironmentVariable("DholeCatalogs__ItinerariesEnabled", "false");
         Environment.SetEnvironmentVariable("DholeCatalogs__ApiKey", fakeKey);
         Environment.SetEnvironmentVariable("DholeTracking__Enabled", "false");
+        // CI-only approval queue: no sender exists; no external POST is possible.
+        Environment.SetEnvironmentVariable("DholeSubmission__ApprovalQueueEnabled", "true");
 
         await using (var db = new NpgsqlConnection(connectionString))
         {
@@ -62,8 +75,35 @@ internal static class DholeQuoteHttpTest
             var schemaPath = Path.Combine(
                 Directory.GetCurrentDirectory(), "backend", "Database", "OfficialQuotesSchema.sql");
             Assert(File.Exists(schemaPath), "Run the harness from the repository root");
-            await using var schema = new NpgsqlCommand(await File.ReadAllTextAsync(schemaPath), db);
-            await schema.ExecuteNonQueryAsync();
+            var ddl = await File.ReadAllTextAsync(schemaPath);
+            await using (var schema = new NpgsqlCommand(ddl, db))
+                await schema.ExecuteNonQueryAsync();
+            // A second application must be safe on the same disposable DB:
+            // deployment tools can reapply this additive migration.
+            await using (var reapplied = new NpgsqlCommand(ddl, db))
+                await reapplied.ExecuteNonQueryAsync();
+            // Only fictional admin identities. Public users are never created.
+            await using var seedUsers = new NpgsqlCommand("""
+                INSERT INTO public.usuarios (uuid) VALUES
+                ('aaaaaaaa-0000-4000-8000-000000000001'),
+                ('aaaaaaaa-0000-4000-8000-000000000002')
+                ON CONFLICT (uuid) DO NOTHING;
+                INSERT INTO public.official_quote_permissions
+                    (user_id, can_view, can_manage, can_authorize) VALUES
+                ('aaaaaaaa-0000-4000-8000-000000000001', true, true, true),
+                ('aaaaaaaa-0000-4000-8000-000000000002', true, true, false);
+                """, db);
+            await seedUsers.ExecuteNonQueryAsync();
+        }
+
+        // The optional key-table migration is intentionally absent when
+        // checking the historic submission route with the feature disabled.
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var removeOptional = new NpgsqlCommand(
+                "DROP TABLE public.official_quote_client_submissions", db);
+            await removeOptional.ExecuteNonQueryAsync();
         }
 
         var handler = new FakeDholeHttpHandler(fakeKey);
@@ -78,12 +118,36 @@ internal static class DholeQuoteHttpTest
                 // outbound named HTTP factory is replaced so no internet calls occur.
                 services.RemoveAll<IHttpClientFactory>();
                 services.AddSingleton<IHttpClientFactory>(new FakeDholeHttpClientFactory(handler));
+                // TestServer-only authentication: the production JWT + OTP
+                // behavior remains unchanged. The header never leaves CI.
+                services.AddAuthentication("CI-Admin").AddScheme<AuthenticationSchemeOptions,
+                    CiAdminAuthenticationHandler>("CI-Admin", _ => { });
+                services.PostConfigure<AuthenticationOptions>(options =>
+                {
+                    options.DefaultAuthenticateScheme = "CI-Admin";
+                    options.DefaultChallengeScheme = "CI-Admin";
+                    options.DefaultForbidScheme = "CI-Admin";
+                });
             });
         });
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false
         });
+
+        // New private lookup is not accessible to guests, and stays disabled
+        // even for fictional admins until separately published/authorized.
+        using (var guestLookup = await client.GetAsync("/api/admin/dhole/lookup-catalogs/pricing-services"))
+            Assert(guestLookup.StatusCode == HttpStatusCode.Unauthorized,
+                "Guest cannot access private Pricing service lookup");
+        using (var adminLookup = new HttpRequestMessage(HttpMethod.Get,
+            "/api/admin/dhole/lookup-catalogs/pricing-services"))
+        {
+            adminLookup.Headers.Add("X-CI-Test-Actor", "authorizer");
+            using var result = await client.SendAsync(adminLookup);
+            Assert(result.StatusCode == HttpStatusCode.NotFound,
+                "Read-only Pricing lookup is disabled by default, even for admin");
+        }
 
         // Check form options from the same host before the submitted POST.
         var formResponse = await client.GetAsync(
@@ -92,6 +156,8 @@ internal static class DholeQuoteHttpTest
         using var form = JsonDocument.Parse(await formResponse.Content.ReadAsStringAsync());
         var options = form.RootElement;
         Assert(options.GetProperty("source").GetString() == "dhole", "Source explicitly Dhole");
+        Assert(!options.GetProperty("clientCreateIdempotencyEnabled").GetBoolean(),
+            "Server without the dedup flag must explicitly advertise that safe retry is unavailable");
         Assert(options.GetProperty("origins").GetArrayLength() == 1 &&
             options.GetProperty("destinations").GetArrayLength() == 1,
             "Expected exactly one mocked POL and POE");
@@ -156,6 +222,11 @@ internal static class DholeQuoteHttpTest
             Assert(wrongType.StatusCode == HttpStatusCode.BadRequest,
                 "Server rejects invented equipment size/type pair");
 
+        using (var retiredService = await Submit(new(quote) {
+            ["services"] = new[] { "Transporte nacional" }
+        }))
+            Assert(retiredService.StatusCode == HttpStatusCode.BadRequest,
+                "Unlisted national transportation cannot be submitted by old or direct clients");
         using (var retiredTerm = await Submit(new(quote) { ["incoterm"] = "EXW" }))
             Assert(retiredTerm.StatusCode == HttpStatusCode.BadRequest,
                 "Server rejects inactive Dhole Incoterm");
@@ -205,11 +276,1183 @@ internal static class DholeQuoteHttpTest
             Assert(Convert.ToInt64(await count.ExecuteScalarAsync()) == 1,
                 "Rejected submissions did not create rows");
         }
+        // The original quote succeeded with the key table absent.
+        // Install only its additive migration before testing opted-in replays.
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var install = new NpgsqlCommand("""
+                CREATE TABLE IF NOT EXISTS public.official_quote_client_submissions (
+                    submission_key UUID PRIMARY KEY,
+                    quote_id UUID NOT NULL UNIQUE
+                        REFERENCES public.official_quote_requests(id) ON DELETE RESTRICT,
+                    request_digest VARCHAR(64) NOT NULL
+                        CHECK (request_digest ~ '^[0-9a-f]{64}$'),
+                    created_at_utc TIMESTAMPTZ NOT NULL DEFAULT now()
+                )
+                """, db);
+            await install.ExecuteNonQueryAsync();
+        }
+
+        // The approval-outbox is a separate opt-in stage: merely sending a
+        // quote (even one whose catalogue is Dhole) must never queue it.
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var count = new NpgsqlCommand(
+                "SELECT COUNT(*) FROM public.official_quote_dhole_outbox", db);
+            Assert(Convert.ToInt64(await count.ExecuteScalarAsync()) == 0,
+                "Guest submissions never create a Dhole approval-outbox row");
+        }
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var count = new NpgsqlCommand(
+                "SELECT COUNT(*) FROM public.official_quote_dhole_creation_outbox", db);
+            Assert(Convert.ToInt64(await count.ExecuteScalarAsync()) == 0,
+                "Direct outbox stays empty with its flag disabled");
+        }
+        // Verify the authorization/outbox feature against actual HTTP endpoints
+        // and the disposable PostgreSQL database; outbound traffic stays fake GET.
+        async Task<HttpResponseMessage> AdminRequest(HttpMethod method, string uri, string role)
+        {
+            using var request = new HttpRequestMessage(method, uri);
+            request.Headers.Add("X-CI-Test-Actor", role);
+            return await client.SendAsync(request);
+        }
+        async Task<HttpResponseMessage> Decide(Guid id, string decision,
+            string role = "authorizer", string? priority = null) =>
+            await AdminRequest(HttpMethod.Put,
+                $"/api/admin/quotes/official/{id}/authorization?decision={decision}" +
+                (priority is null ? "" : "&priority=" + Uri.EscapeDataString(priority)), role);
+        async Task<HttpResponseMessage> Details(Guid id, string role = "authorizer") =>
+            await AdminRequest(HttpMethod.Get, $"/api/admin/quotes/official/{id}", role);
+        async Task<(long count, string state, int attempts, string priority)> Outbox(Guid id)
+        {
+            await using var conn = new NpgsqlConnection(connectionString);
+            await conn.OpenAsync();
+            await using var cmd = new NpgsqlCommand("""
+                SELECT COUNT(*)::bigint,
+                       COALESCE(MAX(state), 'NotStaged'),
+                       COALESCE(MAX(attempt_count), 0),
+                       COALESCE(MAX(priority), '')
+                FROM public.official_quote_dhole_outbox WHERE quote_id = @id
+                """, conn);
+            cmd.Parameters.AddWithValue("id", id);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            Assert(await reader.ReadAsync(), "Outbox aggregate query returns one row");
+            return (reader.GetInt64(0), reader.GetString(1), reader.GetInt32(2), reader.GetString(3));
+        }
+        async Task<long> AuditCount(Guid id, string action)
+        {
+            await using var conn = new NpgsqlConnection(connectionString);
+            await conn.OpenAsync();
+            await using var cmd = new NpgsqlCommand("""
+                SELECT COUNT(*) FROM public.official_quote_audit
+                WHERE quote_id = @id AND action = @action
+                """, conn);
+            cmd.Parameters.AddWithValue("id", id);
+            cmd.Parameters.AddWithValue("action", action);
+            return Convert.ToInt64(await cmd.ExecuteScalarAsync());
+        }
+
+        using (var perms = await AdminRequest(HttpMethod.Get,
+            "/api/admin/quotes/official/permissions/me", "viewer"))
+        {
+            Assert(perms.StatusCode == HttpStatusCode.OK, "Viewing admin permissions works");
+            using var json = JsonDocument.Parse(await perms.Content.ReadAsStringAsync());
+            Assert(json.RootElement.GetProperty("canAuthorize").GetBoolean() == false,
+                "Regular admin cannot authorize Dhole submission");
+            Assert(json.RootElement.GetProperty("dholeApprovalQueueEnabled").GetBoolean(),
+                "Approval-only outbox is enabled in CI");
+        }
+        using (var noAuth = await Decide(createdId, "Authorized", "viewer"))
+            Assert(noAuth.StatusCode == HttpStatusCode.Forbidden,
+                "Admin without can_authorize denied even with a valid quote");
+        Assert((await Outbox(createdId)).count == 0,
+            "Unauthorized approval never creates outbox");
+        using (var badDecision = await Decide(createdId, "Sent"))
+            Assert(badDecision.StatusCode == HttpStatusCode.BadRequest,
+                "Cannot set remote status using authorization endpoint");
+        using (var badPriority = await Decide(createdId, "Authorized", priority: "Urgent"))
+            Assert(badPriority.StatusCode == HttpStatusCode.BadRequest,
+                "Unrecognized priority cannot stage a quote");
+        Assert((await Outbox(createdId)).count == 0,
+            "Invalid priority never stages the quote");
+
+        // Independent rejected quote: never enters integration outbox.
+        using var rejectedResponse = await Submit(quote);
+        Assert(rejectedResponse.StatusCode == HttpStatusCode.Created,
+            "Second fictional quote created for rejection test");
+        using var rejectedJson = JsonDocument.Parse(await rejectedResponse.Content.ReadAsStringAsync());
+        var rejectedId = rejectedJson.RootElement.GetProperty("id").GetGuid();
+        using (var rejected = await Decide(rejectedId, "Rejected"))
+            Assert(rejected.StatusCode == HttpStatusCode.OK, "Explicit rejection accepted");
+        Assert((await Outbox(rejectedId)).count == 0,
+            "Rejected quote never enters outbox");
+        Assert(await AuditCount(rejectedId, "Rejected") == 1,
+            "Rejected quote audited once");
+        using (var rejectAgain = await Decide(rejectedId, "Authorized"))
+            Assert(rejectAgain.StatusCode == HttpStatusCode.Conflict,
+                "Rejected decision is immutable");
+
+        using (var accepted = await Decide(createdId, "Authorized"))
+        {
+            Assert(accepted.StatusCode == HttpStatusCode.OK,
+                "Authorized quote accepted by admin permission");
+            using var json = JsonDocument.Parse(await accepted.Content.ReadAsStringAsync());
+            Assert(json.RootElement.GetProperty("dholeDispatchState").GetString() == "AwaitingConnector",
+                "Approval returns local staging state, not Sent");
+        }
+        var stage = await Outbox(createdId);
+        Assert(stage.count == 1 && stage.state == "AwaitingConnector" &&
+            stage.attempts == 0 && stage.priority == "Green",
+            "Default approval creates one local Green outbox row, zero attempts");
+        Assert(await AuditCount(createdId, "Authorized") == 1 &&
+            await AuditCount(createdId, "DholeStaged") == 1,
+            "Approval and local staging each audited once");
+        using (var details = await Details(createdId))
+        {
+            Assert(details.StatusCode == HttpStatusCode.OK, "Admin details available");
+            using var json = JsonDocument.Parse(await details.Content.ReadAsStringAsync());
+            Assert(json.RootElement.GetProperty("dholeDispatchState").GetString() == "AwaitingConnector",
+                "Admin details show local stage without pretending a send");
+            Assert(json.RootElement.GetProperty("dholePriority").GetString() == "Green",
+                "Default stage priority is visible in admin details");
+        }
+        using (var again = await Decide(createdId, "Authorized"))
+            Assert(again.StatusCode == HttpStatusCode.Conflict,
+                "Same approval cannot be repeated");
+        Assert((await Outbox(createdId)).count == 1,
+            "Duplicate request does not create a second outbox row");
+
+        // Explicit priority overrides must be persisted only for authorized admins.
+        foreach (var priority in new[] { "Yellow", "Red" })
+        {
+            using var overrideResponse = await Submit(quote);
+            Assert(overrideResponse.StatusCode == HttpStatusCode.Created,
+                "Fictional quote created for override test");
+            using var overrideJson = JsonDocument.Parse(await overrideResponse.Content.ReadAsStringAsync());
+            var overrideId = overrideJson.RootElement.GetProperty("id").GetGuid();
+            using (var denied = await Decide(overrideId, "Authorized", "viewer", priority))
+                Assert(denied.StatusCode == HttpStatusCode.Forbidden,
+                    "Viewer cannot choose an urgency override");
+            Assert((await Outbox(overrideId)).count == 0,
+                "Unauthorized priority override never stages a row");
+            using (var allowed = await Decide(overrideId, "Authorized", priority: priority))
+                Assert(allowed.StatusCode == HttpStatusCode.OK,
+                    "Admin may stage a valid " + priority + " priority");
+            var overridden = await Outbox(overrideId);
+            Assert(overridden.count == 1 && overridden.priority == priority && overridden.attempts == 0,
+                "Authorized " + priority + " priority persists without external POST");
+        }
+
+        // The public-quote policy intentionally limits a single TestServer IP to
+        // 12 requests per 10 minutes. Earlier negative cases consume that budget,
+        // so run this independent concurrency fixture in a second isolated host.
+        // Do NOT disable or increase production rate limits just to pass CI.
+        // Both hosts use the same disposable test DB and fake GET-only provider.
+        using var concurrencyFactory = factory.WithWebHostBuilder(_ => { });
+        using var concurrencyClient = concurrencyFactory.CreateClient(
+            new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        // Simultaneous admin approvals must serialize on the quote row.
+        using var simultaneousResponse = await concurrencyClient.PostAsJsonAsync(
+            "/api/quotes/official", quote);
+        Assert(simultaneousResponse.StatusCode == HttpStatusCode.Created,
+            "Third fictional quote created for concurrency test");
+        using var simultaneousJson = JsonDocument.Parse(await simultaneousResponse.Content.ReadAsStringAsync());
+        var simultaneousId = simultaneousJson.RootElement.GetProperty("id").GetGuid();
+        var concurrent = await Task.WhenAll(
+            Decide(simultaneousId, "Authorized"), Decide(simultaneousId, "Authorized"));
+        Assert(concurrent.Count(x => x.StatusCode == HttpStatusCode.OK) == 1 &&
+            concurrent.Count(x => x.StatusCode == HttpStatusCode.Conflict) == 1,
+            "Exactly one concurrent approval wins, the other is rejected");
+        foreach (var item in concurrent) item.Dispose();
+        Assert((await Outbox(simultaneousId)).count == 1 &&
+            await AuditCount(simultaneousId, "DholeStaged") == 1,
+            "Concurrent approval creates one outbox and one staging audit");
+
+        // Separate HTTP host: direct outbox ON, approval outbox OFF.
+        // Production's 12/10-minute public quote rate limit stays unchanged.
+        using var directFactory = factory.WithWebHostBuilder(host =>
+            host.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                    ["DholeSubmission:ApprovalQueueEnabled"] = "false"
+                })));
+        using var directClient = directFactory.CreateClient(
+            new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using (var unexpectedKey = new HttpRequestMessage(
+            HttpMethod.Post, "/api/quotes/official") { Content = JsonContent.Create(quote) })
+        {
+            unexpectedKey.Headers.Add("X-CF-Quote-Request-Key", Guid.NewGuid().ToString("D"));
+            using var blockedKey = await directClient.SendAsync(unexpectedKey);
+            Assert(blockedKey.StatusCode == HttpStatusCode.ServiceUnavailable,
+                "If key support was disabled between GET and POST, refuse rather than create duplicates");
+        }
+        using (var noInsuredValue = await directClient.PostAsJsonAsync(
+            "/api/quotes/official", new Dictionary<string, object?>(quote)
+            {
+                ["services"] = new[] { "Transporte internacional", "Seguro de carga" }
+            }))
+            Assert(noInsuredValue.StatusCode == HttpStatusCode.BadRequest,
+                "Insurance requires a positive cargo value before quote persistence");
+        using (var noCurrency = await directClient.PostAsJsonAsync(
+            "/api/quotes/official", new Dictionary<string, object?>(quote)
+            {
+                ["services"] = new[] { "Transporte internacional", "Seguro de carga" },
+                ["cargoValue"] = 1500
+            }))
+            Assert(noCurrency.StatusCode == HttpStatusCode.BadRequest,
+                "Declared value cannot be submitted without explicit currency");
+        using var directResponse = await directClient.PostAsJsonAsync("/api/quotes/official", quote);
+        Assert(directResponse.StatusCode == HttpStatusCode.Created,
+            "Direct opt-in creates one fictional quote and its outbox atomically");
+        using var directReceipt = JsonDocument.Parse(await directResponse.Content.ReadAsStringAsync());
+        var directId = directReceipt.RootElement.GetProperty("id").GetGuid();
+        Assert(directReceipt.RootElement.GetProperty("dholeDispatchState").GetString() == "PendingDispatch",
+            "Creation returns pending state, never claims remote delivery");
+        // Legacy administrator authorization must not become a hidden gate or
+        // mutate direct submissions even if an old client invokes the API.
+        using (var manualApproval = new HttpRequestMessage(
+            HttpMethod.Put, $"/api/admin/quotes/official/{directId}/authorization?decision=Authorized"))
+        {
+            manualApproval.Headers.Add("X-CI-Test-Actor", "authorizer");
+            using var directDecision = await directClient.SendAsync(manualApproval);
+            Assert(directDecision.StatusCode == HttpStatusCode.Conflict,
+                "Direct Dhole submission cannot require or accept legacy admin approval");
+        }
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var query = new NpgsqlCommand("""
+                SELECT o.state, o.idempotency_key, o.priority, o.attempt_count,
+                       q.approval_status, o.external_reference
+                FROM public.official_quote_dhole_creation_outbox o
+                JOIN public.official_quote_requests q ON q.id = o.quote_id
+                WHERE o.quote_id = @id
+                """, db);
+            query.Parameters.AddWithValue("id", directId);
+            await using var reader = await query.ExecuteReaderAsync();
+            Assert(await reader.ReadAsync(), "Outbox and official copy both persisted");
+            Assert(reader.GetString(0) == "PendingDispatch" &&
+                   reader.GetString(1) == "cf-official-" + directId.ToString("D") &&
+                   reader.GetString(2) == "Green" && reader.GetInt32(3) == 0 &&
+                   reader.GetString(4) == "Pending" && reader.IsDBNull(5),
+                "Stable key, Green default, zero attempts, no approval and no remote ref");
+            Assert(!await reader.ReadAsync(), "Only one direct job per quote");
+        }
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var duplicate = new NpgsqlCommand("""
+                INSERT INTO public.official_quote_dhole_creation_outbox
+                    (quote_id, idempotency_key, state)
+                VALUES (@quote, @key, 'PendingDispatch')
+                """, db);
+            duplicate.Parameters.AddWithValue("quote", directId);
+            duplicate.Parameters.AddWithValue("key", "cf-official-" + directId.ToString("D"));
+            var refused = false;
+            try { await duplicate.ExecuteNonQueryAsync(); }
+            catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UniqueViolation)
+            { refused = true; }
+            Assert(refused, "PK/UNIQUE refuse a duplicate delivery job");
+        }
+        using (var detailRequest = new HttpRequestMessage(HttpMethod.Get,
+            $"/api/admin/quotes/official/{directId}"))
+        {
+            detailRequest.Headers.Add("X-CI-Test-Actor", "viewer");
+            using var detailResponse = await directClient.SendAsync(detailRequest);
+            Assert(detailResponse.StatusCode == HttpStatusCode.OK,
+                "Admin can inspect direct delivery status without authorizing it");
+            using var detailJson = JsonDocument.Parse(await detailResponse.Content.ReadAsStringAsync());
+            Assert(detailJson.RootElement.GetProperty("dholeDispatchState").GetString() == "PendingDispatch",
+                "Administration shows direct state independently of approval");
+        }
+        // Claiming is a separate, fully offline primitive: no hosted worker or
+        // Dhole HTTP client is registered. Require two flags (both default off).
+        var previewFlags = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                ["DholeSubmission:ClaimPreviewEnabled"] = "true"
+            }).Build();
+        var disabledFlags = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                ["DholeSubmission:ClaimPreviewEnabled"] = "false"
+            }).Build();
+        DbContextOptions<AppDbContext> opts = new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql(connectionString).Options;
+        await using (var db = new AppDbContext(opts))
+        {
+            var gated = new DholeOfficialOutboxClaimService(disabledFlags);
+            Assert(!gated.Enabled &&
+                await gated.ClaimOneForOfflineReviewAsync(db, CancellationToken.None) is null,
+                "Claim disabled means zero database state transitions");
+        }
+        var claimer = new DholeOfficialOutboxClaimService(previewFlags);
+        async Task<Guid?> ClaimOnce()
+        {
+            await using var scoped = new AppDbContext(opts);
+            return await claimer.ClaimOneForOfflineReviewAsync(scoped, CancellationToken.None);
+        }
+        var concurrentClaims = await Task.WhenAll(ClaimOnce(), ClaimOnce());
+        Assert(concurrentClaims.Count(id => id == directId) == 1 &&
+            concurrentClaims.Count(id => id is null) == 1,
+            "Two concurrent claimers can claim exactly one outbox row");
+        Assert(await ClaimOnce() is null,
+            "An InFlight claim is never automatically re-claimed");
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var inspect = new NpgsqlCommand("""
+                SELECT state, attempt_count, last_attempt_at_utc,
+                       external_reference
+                FROM public.official_quote_dhole_creation_outbox
+                WHERE quote_id = @id
+                """, db);
+            inspect.Parameters.AddWithValue("id", directId);
+            await using var reader = await inspect.ExecuteReaderAsync();
+            Assert(await reader.ReadAsync() &&
+                reader.GetString(0) == "InFlight" &&
+                reader.GetInt32(1) == 1 &&
+                !reader.IsDBNull(2) &&
+                reader.IsDBNull(3),
+                "Atomic claim increments one attempt without fabricating Dhole confirmation");
+        }
+        // Isolated result recording: even a successful mock HTTP result is
+        // never equivalent to a verified Pricing-created request.
+        var outcomeFlags = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                ["DholeSubmission:OutcomePreviewEnabled"] = "true"
+            }).Build();
+        var noOutcomeFlags = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                ["DholeSubmission:OutcomePreviewEnabled"] = "false"
+            }).Build();
+        await using (var db = new AppDbContext(opts))
+        {
+            var gated = new DholeOfficialOutboxOutcomeService(noOutcomeFlags);
+            Assert(!gated.Enabled &&
+                !await gated.RecordAttemptOutcomeForOfflineReviewAsync(
+                    db, directId, DholeDeliveryEvent.HttpAcceptedButUnverified,
+                    CancellationToken.None),
+                "Disabled result recorder makes no state changes");
+        }
+        var recorder = new DholeOfficialOutboxOutcomeService(outcomeFlags);
+        await using (var db = new AppDbContext(opts))
+        {
+            var forbidden = false;
+            try
+            {
+                await recorder.RecordAttemptOutcomeForOfflineReviewAsync(
+                    db, directId, DholeDeliveryEvent.ManualConfirmInPricing,
+                    CancellationToken.None);
+            }
+            catch (InvalidOperationException) { forbidden = true; }
+            Assert(forbidden, "Automatic completion cannot mark remote quote Confirmed");
+        }
+        async Task<bool> RecordAcceptedOnce()
+        {
+            await using var scoped = new AppDbContext(opts);
+            return await recorder.RecordAttemptOutcomeForOfflineReviewAsync(
+                scoped, directId, DholeDeliveryEvent.HttpAcceptedButUnverified,
+                CancellationToken.None);
+        }
+        var outcomes = await Task.WhenAll(RecordAcceptedOnce(), RecordAcceptedOnce());
+        Assert(outcomes.Count(x => x) == 1 && outcomes.Count(x => !x) == 1,
+            "Concurrent result recording allows exactly one state update");
+        Assert(!await RecordAcceptedOnce(), "HTTP 2xx cannot re-complete an already recorded quote");
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var result = new NpgsqlCommand("""
+                SELECT state, attempt_count, last_error_code, external_reference,
+                       verified_at_utc
+                FROM public.official_quote_dhole_creation_outbox WHERE quote_id = @id
+                """, db);
+            result.Parameters.AddWithValue("id", directId);
+            await using var row = await result.ExecuteReaderAsync();
+            Assert(await row.ReadAsync() &&
+                row.GetString(0) == "HttpAcceptedUnverified" &&
+                row.GetInt32(1) == 1 &&
+                row.IsDBNull(2) &&
+                row.IsDBNull(3) && row.IsDBNull(4),
+                "Accepted HTTP status is unverified and never fabricates a Pricing reference");
+        }
+        // Read-only diagnostic for future manual reconciliation. It cannot
+        // confirm provider creation or authorize another automatic POST.
+        var reconciliationFlags = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                ["DholeSubmission:ReconciliationPreviewEnabled"] = "true"
+            }).Build();
+        var reconciliationDisabled = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                ["DholeSubmission:ReconciliationPreviewEnabled"] = "false"
+            }).Build();
+        await using (var db = new AppDbContext(opts))
+        {
+            var disabledPreview = new DholeOfficialOutboxReconciliationPreview(reconciliationDisabled);
+            Assert(!disabledPreview.Enabled &&
+                await disabledPreview.PreviewAsync(db, directId, CancellationToken.None) is null,
+                "Reconciliation cannot read optional table when preview flag is off");
+        }
+        var reconciliation = new DholeOfficialOutboxReconciliationPreview(reconciliationFlags);
+        await using (var db = new AppDbContext(opts))
+        {
+            var review = await reconciliation.PreviewAsync(db, directId, CancellationToken.None);
+            Assert(review is not null &&
+                review.IdempotencyKey == "cf-official-" + directId.ToString("D") &&
+                review.State == "HttpAcceptedUnverified" &&
+                review.AttemptCount == 1 &&
+                review.NextReviewAction == "VerifyProviderCreationInPricing" &&
+                !review.LocalConfirmationRecorded &&
+                !review.AutomaticRetryAllowed &&
+                !review.DataIntegrityProblem,
+                "Accepted HTTP requires independent Pricing verification; no retry");
+            var absent = await reconciliation.PreviewAsync(db, Guid.NewGuid(), CancellationToken.None);
+            Assert(absent is null, "Unknown quote has no preview, not a fake success");
+        }
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var unchanged = new NpgsqlCommand("""
+                SELECT state, attempt_count, external_reference
+                FROM public.official_quote_dhole_creation_outbox WHERE quote_id = @id
+                """, db);
+            unchanged.Parameters.AddWithValue("id", directId);
+            await using var row = await unchanged.ExecuteReaderAsync();
+            Assert(await row.ReadAsync() && row.GetString(0) == "HttpAcceptedUnverified" &&
+                   row.GetInt32(1) == 1 && row.IsDBNull(2),
+                "Read-only reconciliation preview makes no state or reference changes");
+        }
+        // New dispatcher-preparation path: first build a genuinely validated,
+        // unsendable flat review for a separate fictional ADMIN quote. Claim
+        // only this exact quote; no worker or network sender is registered.
+        var reviewedId = Guid.NewGuid();
+        var storedReviewForm = JsonSerializer.Serialize(quote);
+        var reviewedRoute = new DholeValidatedRoute(
+            "Puerto Seguro - POL", "Puerto Seguro - POE", "Puerto Seguro - POD");
+        var reviewedInput = JsonSerializer.Deserialize<OfficialQuoteSubmit>(
+            storedReviewForm, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+        var reviewedDraft = DholeOfficialQuoteDraftBuilder.Project(
+            reviewedInput, reviewedId, reviewedRoute);
+        var resolved = new DholeOfficialCatalogResolution(
+            DateTime.UtcNow,
+            Guid.Parse("f1000000-0000-4000-8000-000000000001"), "CIF",
+            [new DholeOfficialServiceResolution(
+                "Transporte internacional", "INT_TRANSPORT",
+                Guid.Parse("f2000000-0000-4000-8000-000000000001"), true)],
+            [new DholeOfficialEquipmentResolution(
+                "Fcl", "20 pies", "Dry Van",
+                Guid.Parse("f3000000-0000-4000-8000-000000000001"),
+                "20 Dry Van", "20DV", true)]);
+        var reviewedFlat = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+            reviewedDraft, resolved, DateTime.UtcNow);
+        Assert(reviewedFlat.ReadyForContractReview &&
+            !reviewedFlat.RemoteSubmissionPermitted,
+            "An offline flat review is complete but never authorizes a POST");
+        await using (var db = new AppDbContext(opts))
+        {
+            db.OfficialQuotes.Add(new OfficialQuoteRequest
+            {
+                Id = reviewedId,
+                CustomerName = "CI Dhole Test",
+                ContactName = "CI Dhole Test",
+                ContactEmail = "dhole-qa@example.invalid",
+                ContactPhone = "+506 2222 2222",
+                Mode = "Maritime", ShipmentType = "FCL",
+                OriginName = reviewedRoute.OriginName,
+                DestinationName = reviewedRoute.DestinationName,
+                FormJson = storedReviewForm
+            });
+            // EF has no navigation relationship between the optional tables;
+            // persist the fictional ADMIN parent first to satisfy its FK.
+            await db.SaveChangesAsync();
+            db.OfficialQuoteDholeCreationOutbox.Add(
+                new OfficialQuoteDholeCreationOutbox
+                {
+                    QuoteId = reviewedId,
+                    IdempotencyKey = reviewedFlat.IdempotencyKey,
+                    State = "PendingDispatch"
+                });
+            await db.SaveChangesAsync();
+        }
+        await using (var db = new AppDbContext(opts))
+        {
+            Assert(await claimer.ClaimReviewedQuoteForOfflineReviewAsync(
+                db, reviewedFlat with { BlockingIssues = ["cargoValue: unresolved currency"] },
+                CancellationToken.None) is null,
+                "Unresolved contract blockers must prevent even an offline claim");
+            Assert(await claimer.ClaimReviewedQuoteForOfflineReviewAsync(
+                db, reviewedFlat with {
+                    Body = JsonSerializer.SerializeToElement(new { priority = "Green" }) },
+                CancellationToken.None) is null,
+                "A JSON shell is never a valid Dhole payload or permission to claim");
+            Assert(await claimer.ClaimReviewedQuoteForOfflineReviewAsync(
+                db, reviewedFlat with { IdempotencyKey = "cf-official-" + Guid.NewGuid().ToString("D") },
+                CancellationToken.None) is null,
+                "A mismatched idempotency key must never claim a different quote");
+            Assert(await claimer.ClaimReviewedQuoteForOfflineReviewAsync(
+                db, reviewedFlat with { OfficialQuoteId = Guid.NewGuid() },
+                CancellationToken.None) is null,
+                "A mismatched review identity never claims an outbox row");
+            var disabledReviewedClaim = new DholeOfficialOutboxClaimService(disabledFlags);
+            Assert(await disabledReviewedClaim.ClaimReviewedQuoteForOfflineReviewAsync(
+                db, reviewedFlat, CancellationToken.None) is null,
+                "Default-off claim cannot mutate even a fully reviewed quote");
+        }
+        async Task<Guid?> ClaimReviewedOnce()
+        {
+            await using var db = new AppDbContext(opts);
+            return await claimer.ClaimReviewedQuoteForOfflineReviewAsync(
+                db, reviewedFlat, CancellationToken.None);
+        }
+        var reviewedClaims = await Task.WhenAll(ClaimReviewedOnce(), ClaimReviewedOnce());
+        Assert(reviewedClaims.Count(x => x == reviewedId) == 1 &&
+            reviewedClaims.Count(x => x is null) == 1,
+            "Two concurrent reviewed claimers can claim the selected quote exactly once");
+        Assert(await ClaimReviewedOnce() is null,
+            "Reviewed quote cannot be reclaimed once InFlight");
+        await using (var conn = new NpgsqlConnection(connectionString))
+        {
+            await conn.OpenAsync();
+            await using var query = new NpgsqlCommand("""
+                SELECT state, attempt_count, last_attempt_at_utc,
+                       external_reference, verified_at_utc
+                FROM public.official_quote_dhole_creation_outbox
+                WHERE quote_id = @quote
+                """, conn);
+            query.Parameters.AddWithValue("quote", reviewedId);
+            await using var reader = await query.ExecuteReaderAsync();
+            Assert(await reader.ReadAsync() &&
+                reader.GetString(0) == "InFlight" &&
+                reader.GetInt32(1) == 1 &&
+                !reader.IsDBNull(2) && reader.IsDBNull(3) && reader.IsDBNull(4),
+                "Offline reviewed claim persists exactly one attempt and no fictitious Pricing receipt");
+        }
+        Console.WriteLine("PASS: scoped offline dispatcher claim refuses blockers, duplicate claims and false Pricing confirmation.");
+
+        // Full one-shot composition is intentionally NOT registered in Program:
+        // use a strict in-process fake for its only outbound HTTP client.
+        var coordinatorQuoteId = Guid.NewGuid();
+        var coordinatorDraft = DholeOfficialQuoteDraftBuilder.Project(
+            reviewedInput, coordinatorQuoteId, reviewedRoute);
+        var coordinatorFlat = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+            coordinatorDraft, resolved, DateTime.UtcNow);
+        await using (var db = new AppDbContext(opts))
+        {
+            db.OfficialQuotes.Add(new OfficialQuoteRequest
+            {
+                Id = coordinatorQuoteId,
+                CustomerName = "CI Dhole Test",
+                ContactName = "CI Dhole Test",
+                ContactEmail = "dhole-qa@example.invalid",
+                ContactPhone = "+506 2222 2222",
+                Mode = "Maritime", ShipmentType = "FCL",
+                OriginName = reviewedRoute.OriginName,
+                DestinationName = reviewedRoute.DestinationName,
+                FormJson = storedReviewForm
+            });
+            await db.SaveChangesAsync();
+            db.OfficialQuoteDholeCreationOutbox.Add(
+                new OfficialQuoteDholeCreationOutbox
+                {
+                    QuoteId = coordinatorQuoteId,
+                    IdempotencyKey = coordinatorFlat.IdempotencyKey,
+                    State = "PendingDispatch"
+                });
+            await db.SaveChangesAsync();
+        }
+        var fictionalPostKey = "dh_ext_" + new string('a', 64);
+        var fakePost = new CiFakeDholeQuotePostHandler(fictionalPostKey, coordinatorQuoteId);
+        var fakePostFactory = new CiFakeDholeQuotePostFactory(fakePost);
+        IConfiguration CoordinatorConfig(bool enabled) =>
+            new ConfigurationBuilder().AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                    ["DholeSubmission:ClaimPreviewEnabled"] = "true",
+                    ["DholeSubmission:OutcomePreviewEnabled"] = "true",
+                    ["DholeSubmission:PostEnabled"] = "true",
+                    ["DholeSubmission:DispatcherEnabled"] = enabled.ToString(),
+                    ["DholeSubmission:ApiKey"] = fictionalPostKey
+                }).Build();
+        DholeOfficialDispatchAttemptCoordinator Coordinator(IConfiguration cfg) =>
+            new(cfg, new DholeOfficialOutboxClaimService(cfg),
+                new DholeOfficialOutboxOutcomeService(cfg),
+                new DholeQuotePostTransport(cfg, fakePostFactory));
+        await using (var db = new AppDbContext(opts))
+        {
+            var disarmed = Coordinator(CoordinatorConfig(false));
+            var off = await disarmed.AttemptOnceAsync(
+                db, coordinatorFlat, CancellationToken.None);
+            Assert(off.State == "Disabled" && !off.Claimed && fakePost.Calls == 0,
+                "Dispatcher opt-in disabled: zero database changes and zero HTTP, even fake");
+        }
+        var coordinator = Coordinator(CoordinatorConfig(true));
+        await using (var db = new AppDbContext(opts))
+        {
+            var sent = await coordinator.AttemptOnceAsync(
+                db, coordinatorFlat, CancellationToken.None);
+            Assert(sent.Claimed && sent.State == "HttpAcceptedUnverified" &&
+                sent.ProviderReferenceCandidate == Guid.Parse("f8000000-0000-4000-8000-000000000001") &&
+                sent.TransportAcceptedLocally && !sent.RemoteCreationConfirmed &&
+                !sent.AutomaticRetryAllowed && fakePost.Calls == 1,
+                "Mock HTTP 200 only proves accepted transport, never Pricing creation");
+            var duplicate = await coordinator.AttemptOnceAsync(
+                db, coordinatorFlat, CancellationToken.None);
+            Assert(duplicate.State == "AlreadyClaimedOrInvalid" &&
+                !duplicate.Claimed && fakePost.Calls == 1,
+                "Completed attempt cannot issue a second fake POST");
+        }
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var state = new NpgsqlCommand("""
+                SELECT state, attempt_count, external_reference, verified_at_utc, provider_reference_candidate
+                FROM public.official_quote_dhole_creation_outbox
+                WHERE quote_id = @id
+                """, db);
+            state.Parameters.AddWithValue("id", coordinatorQuoteId);
+            await using var row = await state.ExecuteReaderAsync();
+            Assert(await row.ReadAsync() &&
+                row.GetString(0) == "HttpAcceptedUnverified" &&
+                row.GetInt32(1) == 1 &&
+                row.IsDBNull(2) && row.IsDBNull(3) &&
+                row.GetGuid(4) == Guid.Parse("f8000000-0000-4000-8000-000000000001"),
+                "Gateway receipt is retained separately, without confirmation or another attempt");
+        }
+        Console.WriteLine("PASS: dormant one-shot coordinator uses fake-only HTTP, keeps 2xx unverified and refuses replay.");
+
+        // The offline result state and claim are isolated and cannot dispatch HTTP.
+        // Force an outbox constraint failure: the official quote MUST roll back.
+        long beforeFailure;
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var count = new NpgsqlCommand(
+                "SELECT COUNT(*) FROM public.official_quote_requests", db);
+            beforeFailure = Convert.ToInt64(await count.ExecuteScalarAsync());
+            await using var block = new NpgsqlCommand("""
+                ALTER TABLE public.official_quote_dhole_creation_outbox
+                    ADD CONSTRAINT ck_ci_refuse_pending CHECK (state <> 'PendingDispatch') NOT VALID
+                """, db);
+            await block.ExecuteNonQueryAsync();
+        }
+        try
+        {
+            using var failed = await directClient.PostAsJsonAsync("/api/quotes/official", quote);
+            Assert(failed.StatusCode == HttpStatusCode.InternalServerError,
+                "Simulated DB outbox failure must not return an issued quote receipt");
+            await using var db = new NpgsqlConnection(connectionString);
+            await db.OpenAsync();
+            await using var count = new NpgsqlCommand(
+                "SELECT COUNT(*) FROM public.official_quote_requests", db);
+            Assert(Convert.ToInt64(await count.ExecuteScalarAsync()) == beforeFailure,
+                "Failure to stage the delivery rolls back the official quote in one transaction");
+        }
+        finally
+        {
+            await using var db = new NpgsqlConnection(connectionString);
+            await db.OpenAsync();
+            await using var unblock = new NpgsqlCommand("""
+                ALTER TABLE public.official_quote_dhole_creation_outbox
+                    DROP CONSTRAINT IF EXISTS ck_ci_refuse_pending
+                """, db);
+            await unblock.ExecuteNonQueryAsync();
+        }
+
+        // Valid declared insurance amount/currency remain in the ADMIN copy,
+        // still with zero external POST and no invented form_currencyId.
+        using (var insuredResponse = await directClient.PostAsJsonAsync(
+            "/api/quotes/official", new Dictionary<string, object?>(quote)
+            {
+                ["services"] = new[] { "Transporte internacional", "Seguro de carga" },
+                ["cargoValue"] = 1500,
+                ["cargoCurrencyCode"] = "USD"
+            }))
+        {
+            Assert(insuredResponse.StatusCode == HttpStatusCode.Created,
+                "Insurance quote with ISO currency creates an administrative copy");
+            using var created = JsonDocument.Parse(await insuredResponse.Content.ReadAsStringAsync());
+            var insuredId = created.RootElement.GetProperty("id").GetGuid();
+            await using var conn = new NpgsqlConnection(connectionString);
+            await conn.OpenAsync();
+            await using var sql = new NpgsqlCommand("""
+                SELECT q.form_json::text, o.state, o.attempt_count
+                FROM public.official_quote_requests q
+                JOIN public.official_quote_dhole_creation_outbox o ON o.quote_id = q.id
+                WHERE q.id = @id
+                """, conn);
+            sql.Parameters.AddWithValue("id", insuredId);
+            await using var reader = await sql.ExecuteReaderAsync();
+            Assert(await reader.ReadAsync(), "Insurance outbox and admin copy both exist");
+            using var saved = JsonDocument.Parse(reader.GetString(0));
+            Assert(saved.RootElement.GetProperty("cargoCurrencyCode").GetString() == "USD" &&
+                saved.RootElement.GetProperty("cargoValue").GetInt32() == 1500 &&
+                reader.GetString(1) == "PendingDispatch" && reader.GetInt32(2) == 0,
+                "Currency retained with untouched pending job and no remote transmission");
+        }
+
+        // Independent, default-OFF quote-creation idempotency gate.
+        // New host only; tests never enable it in a production environment.
+        using var idempotentFactory = factory.WithWebHostBuilder(host =>
+            host.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                    ["DholeSubmission:ClientCreateIdempotencyEnabled"] = "true",
+                    ["DholeSubmission:ApprovalQueueEnabled"] = "false"
+                })));
+        using var idempotentClient = idempotentFactory.CreateClient(
+            new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using (var capability = await idempotentClient.GetAsync(
+            "/api/quotes/official/dhole-options?mode=Maritime&shipmentType=FCL"))
+        {
+            Assert(capability.StatusCode == HttpStatusCode.OK,
+                "Explicit dedup rollout still returns Dhole catalogue choices");
+            using var advertised = JsonDocument.Parse(await capability.Content.ReadAsStringAsync());
+            Assert(advertised.RootElement.GetProperty("clientCreateIdempotencyEnabled").GetBoolean(),
+                "Creation-key support must be truthfully advertised to both quote clients");
+        }
+        async Task<HttpResponseMessage> CreateWithClientKey(
+            Guid? key, Dictionary<string, object?> body)
+        {
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post, "/api/quotes/official") {
+                Content = JsonContent.Create(body)
+            };
+            if (key.HasValue)
+                request.Headers.Add("X-CF-Quote-Request-Key", key.Value.ToString("D"));
+            return await idempotentClient.SendAsync(request);
+        }
+        using (var missing = await CreateWithClientKey(null, quote))
+            Assert(missing.StatusCode == HttpStatusCode.BadRequest,
+                "Opted-in submission requires a nonempty client request key");
+        using (var malformed = await CreateWithClientKey(Guid.Empty, quote))
+            Assert(malformed.StatusCode == HttpStatusCode.BadRequest,
+                "Empty client request keys cannot bypass creation uniqueness");
+        using (var weak = await CreateWithClientKey(
+            Guid.Parse("11111111-1111-1111-8111-111111111111"), quote))
+            Assert(weak.StatusCode == HttpStatusCode.BadRequest,
+                "Predictable non-v4 request keys cannot be used to retrieve receipts");
+
+        var firstKey = Guid.NewGuid();
+        Guid idempotentId;
+        using (var first = await CreateWithClientKey(firstKey, quote))
+        {
+            Assert(first.StatusCode == HttpStatusCode.Created,
+                "First valid keyed request creates an original official quote");
+            using var json = JsonDocument.Parse(await first.Content.ReadAsStringAsync());
+            idempotentId = json.RootElement.GetProperty("id").GetGuid();
+        }
+        // The public status route is a receipt capability, not an ID-only lookup.
+        async Task<HttpResponseMessage> ReadDelivery(Guid? key)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get,
+                "/api/quotes/official/" + idempotentId.ToString("D") + "/delivery-status");
+            if (key.HasValue)
+                request.Headers.Add("X-CF-Quote-Request-Key", key.Value.ToString("D"));
+            return await idempotentClient.SendAsync(request);
+        }
+        using (var absent = await ReadDelivery(null))
+            Assert(absent.StatusCode == HttpStatusCode.NotFound, "Quote ID alone is not a receipt capability");
+        using (var wrong = await ReadDelivery(Guid.NewGuid()))
+            Assert(wrong.StatusCode == HttpStatusCode.NotFound, "A different quote key cannot read this receipt");
+        using (var status = await ReadDelivery(firstKey))
+        {
+            Assert(status.StatusCode == HttpStatusCode.OK, "Original quote receipt is readable");
+            using var json = JsonDocument.Parse(await status.Content.ReadAsStringAsync());
+            Assert(json.RootElement.EnumerateObject().Count() == 1 &&
+                json.RootElement.GetProperty("dholeDispatchState").GetString() == "PendingDispatch",
+                "Pending receipt has no personal data and does not claim remote success");
+        }
+        using (var replay = await CreateWithClientKey(firstKey, quote))
+        {
+            Assert(replay.StatusCode == HttpStatusCode.Created,
+                "Lost receipt can be replayed with the exact same random key");
+            using var json = JsonDocument.Parse(await replay.Content.ReadAsStringAsync());
+            Assert(json.RootElement.GetProperty("id").GetGuid() == idempotentId &&
+                json.RootElement.GetProperty("idempotentReplay").GetBoolean(),
+                "Repeat returns original ID, never a new quote or outbox");
+        }
+        using (var changed = await CreateWithClientKey(firstKey,
+            new Dictionary<string, object?>(quote) {
+                ["cargoDescription"] = "Changed cargo must not reuse the previous key"
+            }))
+            Assert(changed.StatusCode == HttpStatusCode.Conflict,
+                "Same key with different cargo cannot replace an earlier submission");
+        // Simulate an outage or paused catalog rollout AFTER a quote was saved.
+        // The exact keyed replay must still return its original receipt,
+        // without requesting any live Dhole GET catalog or creating a second job.
+        using (var catalogOfflineFactory = factory.WithWebHostBuilder(host =>
+            host.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["DholeCatalogs:FormEnabled"] = "false",
+                    ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                    ["DholeSubmission:ClientCreateIdempotencyEnabled"] = "true",
+                    ["DholeSubmission:ApprovalQueueEnabled"] = "false"
+                }))))
+        using (var offlineClient = catalogOfflineFactory.CreateClient(
+            new WebApplicationFactoryClientOptions { AllowAutoRedirect = false }))
+        {
+            using var previous = new HttpRequestMessage(
+                HttpMethod.Post, "/api/quotes/official") { Content = JsonContent.Create(quote) };
+            previous.Headers.Add("X-CF-Quote-Request-Key", firstKey.ToString("D"));
+            using var replayOffline = await offlineClient.SendAsync(previous);
+            Assert(replayOffline.StatusCode == HttpStatusCode.Created,
+                "Exact previous quote can be recovered while live catalogs are disabled");
+            using var recovery = JsonDocument.Parse(await replayOffline.Content.ReadAsStringAsync());
+            Assert(recovery.RootElement.GetProperty("id").GetGuid() == idempotentId &&
+                recovery.RootElement.GetProperty("idempotentReplay").GetBoolean(),
+                "Catalog outage replay gives the original request only");
+            using var fresh = new HttpRequestMessage(
+                HttpMethod.Post, "/api/quotes/official") { Content = JsonContent.Create(quote) };
+            fresh.Headers.Add("X-CF-Quote-Request-Key", Guid.NewGuid().ToString("D"));
+            using var blockedNew = await offlineClient.SendAsync(fresh);
+            Assert(blockedNew.StatusCode == HttpStatusCode.ServiceUnavailable,
+                "A catalog outage must still prevent NEW quote creation");
+        }
+
+        var raceKey = Guid.NewGuid();
+        var parallel = await Task.WhenAll(
+            CreateWithClientKey(raceKey, quote),
+            CreateWithClientKey(raceKey, quote));
+        Guid? raceResultId = null;
+        foreach (var result in parallel)
+        {
+            using (result)
+            {
+                Assert(result.StatusCode == HttpStatusCode.Created,
+                    "Two concurrent requests with same key must share an existing receipt");
+                using var json = JsonDocument.Parse(await result.Content.ReadAsStringAsync());
+                var receivedId = json.RootElement.GetProperty("id").GetGuid();
+                Assert(raceResultId is null || raceResultId == receivedId,
+                    "Race must not generate different official quote IDs");
+                raceResultId = receivedId;
+            }
+        }
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var query = new NpgsqlCommand("""
+                SELECT q.id, s.request_digest, count(o.quote_id)
+                FROM public.official_quote_client_submissions s
+                JOIN public.official_quote_requests q ON q.id = s.quote_id
+                LEFT JOIN public.official_quote_dhole_creation_outbox o ON o.quote_id = q.id
+                WHERE s.submission_key = @key
+                GROUP BY q.id, s.request_digest
+                """, db);
+            query.Parameters.AddWithValue("key", firstKey);
+            await using var row = await query.ExecuteReaderAsync();
+            Assert(await row.ReadAsync() && row.GetGuid(0) == idempotentId &&
+                   row.GetString(1).Length == 64 && row.GetInt64(2) == 1 &&
+                   !await row.ReadAsync(),
+                "Exactly one quote with a SHA256 digest and one delivery job per client key");
+        }
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var query = new NpgsqlCommand("""
+                SELECT count(*) FROM public.official_quote_client_submissions
+                WHERE submission_key = @key
+                """, db);
+            query.Parameters.AddWithValue("key", raceKey);
+            Assert(Convert.ToInt64(await query.ExecuteScalarAsync()) == 1,
+                "Concurrent keyed requests persist exactly one official quote");
+        }
+
+        // Exercise the new notification path on one fictional row. A real
+        // Pricing request is never created: the isolated DB and mock GET prove
+        // the transition and the exact same Graph handler counts one email.
+        var receiptReference = Guid.Parse("f8100000-0000-4000-8000-000000000001");
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var seed = new NpgsqlCommand("""
+                UPDATE public.official_quote_dhole_creation_outbox
+                SET state = 'HttpAcceptedUnverified', attempt_count = 1,
+                    last_attempt_at_utc = now(), provider_reference_candidate = @reference
+                WHERE quote_id = @id
+                """, db);
+            seed.Parameters.AddWithValue("id", idempotentId);
+            seed.Parameters.AddWithValue("reference", receiptReference);
+            Assert(await seed.ExecuteNonQueryAsync() == 1, "Seed only the isolated fake receipt");
+        }
+        // A default host must not schedule an outbound worker. Scope can be
+        // prepared locally with a single synthetic quote ID, never enabled in CI.
+        Assert(DholeOfficialWorkerScope.Read(new ConfigurationBuilder().Build()) is null,
+            "Default configuration cannot schedule any Dhole dispatch");
+        var scopeConfig = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["DholeSubmission:WorkerEnabled"] = "true",
+                ["DholeSubmission:ApplicantContactSharingApproved"] = "true",
+                ["DholeSubmission:ClientCreateIdempotencyEnabled"] = "true",
+                ["DholeSubmission:PilotQuoteId"] = idempotentId.ToString("D")
+            }).Build();
+        Assert(DholeOfficialWorkerScope.Read(scopeConfig)?.PilotQuoteId == idempotentId,
+            "Pilot scope is restricted to its exact quote");
+        scopeConfig["DholeSubmission:AllNewQuotesEnabled"] = "true";
+        Assert(DholeOfficialWorkerScope.Read(scopeConfig) is null,
+            "Conflicting pilot and broad scope is rejected");
+        var notifyConfig = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["DholeSubmission:DirectOutboxEnabled"] = "true",
+                ["DholeSubmission:VerificationEnabled"] = "true",
+                ["DholeSubmission:VerificationPath"] = "api/external/v1/ci-fake-verification",
+                ["DholeSubmission:VerificationApiKey"] = "dh_ext_" + new string('b', 64),
+                ["DholeSubmission:ConfirmationEmailEnabled"] = "true",
+                ["Email:Mode"] = "Graph",
+                ["Graph:TenantId"] = "f8200000-0000-4000-8000-000000000001",
+                ["Graph:ClientId"] = "f8200000-0000-4000-8000-000000000002",
+                ["Graph:ClientSecret"] = "ci-fictional",
+                ["Graph:From"] = "sender@example.invalid"
+            }).Build();
+        var fakeNotification = new CiFakeReceiptNotificationHandler(receiptReference);
+        using var notificationHttp = new HttpClient(fakeNotification);
+        var verifier = new DholeOfficialPricingVerification(notifyConfig,
+            new CiFakeReceiptNotificationFactory(notificationHttp));
+        var notifier = new DholeOfficialConfirmationEmail(notifyConfig,
+            new GraphEmailSender(notificationHttp, notifyConfig));
+        await using (var db = new AppDbContext(opts))
+        {
+            Assert(await notifier.RunAsync(db, CancellationToken.None) == 0 &&
+                fakeNotification.MailCalls == 0, "Unverified receipt cannot send a confirmation email");
+            Assert(await verifier.VerifyAsync(db, idempotentId, CancellationToken.None),
+                "Matching independent fake GET confirms exactly the stored receipt");
+            Assert(!await verifier.VerifyAsync(db, idempotentId, CancellationToken.None) &&
+                fakeNotification.VerificationCalls == 1, "Confirmation is not repeated");
+            Assert(await notifier.RunAsync(db, CancellationToken.None) == 1 &&
+                await notifier.RunAsync(db, CancellationToken.None) == 0 &&
+                fakeNotification.MailCalls == 1, "Exactly one mock email after confirmed receipt");
+        }
+        using (var status = await ReadDelivery(firstKey))
+        {
+            using var json = JsonDocument.Parse(await status.Content.ReadAsStringAsync());
+            Assert(status.StatusCode == HttpStatusCode.OK &&
+                json.RootElement.GetProperty("dholeDispatchState").GetString() == "Confirmed",
+                "Same receipt reports confirmed creation after independent fake verification");
+        }
+
+        // Temporary POST-receipt policy: no independent GET needed, but no
+        // retroactive promotion of a previously recorded ambiguous receipt.
+        var temporaryKey = Guid.NewGuid();
+        Guid temporaryId;
+        using (var created = await CreateWithClientKey(temporaryKey, quote))
+        {
+            Assert(created.StatusCode == HttpStatusCode.Created, "Temporary-policy quote saved");
+            using var json = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+            temporaryId = json.RootElement.GetProperty("id").GetGuid();
+        }
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var seed = new NpgsqlCommand("""
+                UPDATE public.official_quote_dhole_creation_outbox
+                SET state='InFlight', attempt_count=1, last_attempt_at_utc=now()
+                WHERE quote_id=@id
+                """, db);
+            seed.Parameters.AddWithValue("id", temporaryId);
+            Assert(await seed.ExecuteNonQueryAsync() == 1, "Isolated mock attempt");
+        }
+        notifyConfig["DholeSubmission:VerificationEnabled"] = "false";
+        notifyConfig["DholeSubmission:AcceptCreationReceiptEnabled"] = "true";
+        notifyConfig["DholeSubmission:OutcomePreviewEnabled"] = "true";
+        var temporaryRecorder = new DholeOfficialOutboxOutcomeService(notifyConfig);
+        var tempReference = Guid.Parse("f8100000-0000-4000-8000-000000000002");
+        await using (var db = new AppDbContext(opts))
+        {
+            Assert(temporaryRecorder.AcceptCreationReceipt &&
+                await temporaryRecorder.RecordAttemptOutcomeForOfflineReviewAsync(db, temporaryId,
+                    DholeDeliveryEvent.HttpAcceptedButUnverified, CancellationToken.None, tempReference),
+                "New valid creation receipt is recorded without independent verification");
+            var saved = await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
+                .SingleAsync(x => x.QuoteId == temporaryId);
+            Assert(saved.State == "HttpAcceptedUnverified" &&
+                saved.CreationReceiptAcceptedAtUtc != null &&
+                saved.VerifiedAtUtc == null && saved.ExternalReference == null,
+                "Creation evidence never masquerades as independent verification");
+            var pilotScope = new DholeOfficialWorkerScope(temporaryId, null);
+            Assert(await notifier.RunAsync(db, CancellationToken.None, pilotScope) == 1 &&
+                await notifier.RunAsync(db, CancellationToken.None, pilotScope) == 0 &&
+                fakeNotification.MailCalls == 2 &&
+                fakeNotification.VerificationCalls == 1,
+                "One additional mock email, no additional verification GET");
+        }
+        using (var request = new HttpRequestMessage(HttpMethod.Get,
+            "/api/quotes/official/" + temporaryId.ToString("D") + "/delivery-status"))
+        {
+            request.Headers.Add("X-CF-Quote-Request-Key", temporaryKey.ToString("D"));
+            using var status = await idempotentClient.SendAsync(request);
+            using var json = JsonDocument.Parse(await status.Content.ReadAsStringAsync());
+            Assert(status.StatusCode == HttpStatusCode.OK &&
+                json.RootElement.GetProperty("dholeDispatchState").GetString() == "AcceptedByProvider",
+                "Customer success from valid authorized creation receipt");
+        }
+
+        // Force a DB constraint failure during a keyed transaction. The
+        // official copy and the client key must BOTH roll back so that the same
+        // key can safely be used after the isolated DB fault is removed.
+        var recoverableKey = Guid.NewGuid();
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var block = new NpgsqlCommand("""
+                ALTER TABLE public.official_quote_dhole_creation_outbox
+                    ADD CONSTRAINT ck_ci_dedup_rollback CHECK (state <> 'PendingDispatch') NOT VALID
+                """, db);
+            await block.ExecuteNonQueryAsync();
+        }
+        try
+        {
+            using var failed = await CreateWithClientKey(recoverableKey, quote);
+            Assert(failed.StatusCode == HttpStatusCode.InternalServerError,
+                "Outbox error in keyed request prevents issuing an incorrect receipt");
+            await using var db = new NpgsqlConnection(connectionString);
+            await db.OpenAsync();
+            await using var probe = new NpgsqlCommand("""
+                SELECT COUNT(*) FROM public.official_quote_client_submissions
+                WHERE submission_key = @key
+                """, db);
+            probe.Parameters.AddWithValue("key", recoverableKey);
+            Assert(Convert.ToInt64(await probe.ExecuteScalarAsync()) == 0,
+                "Failed outbox insert rolls back keyed official quote as well");
+        }
+        finally
+        {
+            await using var db = new NpgsqlConnection(connectionString);
+            await db.OpenAsync();
+            await using var unblock = new NpgsqlCommand("""
+                ALTER TABLE public.official_quote_dhole_creation_outbox
+                    DROP CONSTRAINT IF EXISTS ck_ci_dedup_rollback
+                """, db);
+            await unblock.ExecuteNonQueryAsync();
+        }
+        using (var recovered = await CreateWithClientKey(recoverableKey, quote))
+            Assert(recovered.StatusCode == HttpStatusCode.Created,
+                "Exact keyed retry after proven rollback creates original quote once");
+
         Assert(handler.Requests > 0 && handler.ForbiddenRequests == 0,
             "All Dhole traffic was fake HTTPS GET and used the fictional key");
+        Console.WriteLine("PASS: legacy quote created with optional client key table missing");
         Console.WriteLine("PASS: HTTP 201 + real isolated PostgreSQL row + external UUID persistence");
         Console.WriteLine("PASS: malformed roles, inactive Incoterm, invented equipment and local bypass rejected");
+        Console.WriteLine("PASS: permission denied / rejected / approved / duplicate / concurrent approval");
+        Console.WriteLine("PASS: approved Green default, admin-only Yellow/Red priority persisted; zero external POST");
+        Console.WriteLine("PASS: each approval stages exactly once; outbox attempts zero, no external POST");
+        Console.WriteLine("PASS: direct creation outbox independent; atomic save/rollback, unique key and admin visibility");
+        Console.WriteLine("PASS: two concurrent DB claimers select one job, no retry, no remote HTTP");
+        Console.WriteLine("PASS: offline outcomes record exactly once and never claim verified creation");
+        Console.WriteLine("PASS: disabled-by-default reconciliation flags accepted HTTP as unverified; zero retries");
+        Console.WriteLine("PASS: opt-in quote creation deduplication returns one ID and outbox across replays/races");
+        Console.WriteLine("PASS: exact retry remains recoverable through catalog outage; new creations fail closed");
+        Console.WriteLine("PASS: failed keyed transaction rolls back both quote and outbox and accepts same-key recovery");
         Console.WriteLine("PASS: all Dhole upstream traffic simulated; no real API, no mail, no production data");
+    }
+}
+
+// Strictly fake sender for the CI-only coordinator. Production never registers
+// this factory and no test sends HTTP to a real Pricing/Gateway service.
+sealed class CiFakeReceiptNotificationFactory(HttpClient client) : IHttpClientFactory
+{
+    public HttpClient CreateClient(string name) => name == "DholeQuoteVerification"
+        ? client : throw new InvalidOperationException("Unexpected fake notification client");
+}
+sealed class CiFakeReceiptNotificationHandler(Guid reference) : HttpMessageHandler
+{
+    public int VerificationCalls { get; private set; }
+    public int MailCalls { get; private set; }
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+    {
+        var uri = request.RequestUri!;
+        if (request.Method == HttpMethod.Get &&
+            uri.ToString() == "https://api.logisticacastrofallas.com/api/external/v1/ci-fake-verification/" + reference.ToString("D") &&
+            request.Headers.TryGetValues("X-Api-Key", out var keys) &&
+            keys.SingleOrDefault() == "dh_ext_" + new string('b', 64))
+        {
+            VerificationCalls++;
+            return new HttpResponseMessage(HttpStatusCode.OK) {
+                Content = JsonContent.Create(new { id = reference, status = "Open" })
+            };
+        }
+        if (request.Method == HttpMethod.Post && uri.Host == "login.microsoftonline.com")
+            return new HttpResponseMessage(HttpStatusCode.OK) {
+                Content = JsonContent.Create(new { access_token = "fake-ci-graph-token" })
+            };
+        if (request.Method == HttpMethod.Post && uri.Host == "graph.microsoft.com" &&
+            uri.AbsolutePath.EndsWith("/sendMail", StringComparison.Ordinal))
+        {
+            using var doc = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
+            var message = doc.RootElement.GetProperty("message");
+            if (!message.GetProperty("subject").GetString()!.Contains("cotización enviada") ||
+                !message.GetProperty("body").GetProperty("content").GetString()!.Contains("Pricing"))
+                throw new InvalidOperationException("Unexpected mock email content");
+            MailCalls++;
+            return new HttpResponseMessage(HttpStatusCode.Accepted);
+        }
+        throw new InvalidOperationException("All real HTTP is forbidden in this mock.");
+    }
+}
+
+sealed class CiFakeDholeQuotePostFactory(CiFakeDholeQuotePostHandler handler) : IHttpClientFactory
+{
+    public HttpClient CreateClient(string name)
+    {
+        if (name != "DholeQuotePost") throw new InvalidOperationException(
+            "Mock coordinator cannot request any other external client.");
+        return new HttpClient(handler, disposeHandler: false)
+        {
+            Timeout = TimeSpan.FromSeconds(3)
+        };
+    }
+}
+
+sealed class CiFakeDholeQuotePostHandler(string key, Guid quoteId) : HttpMessageHandler
+{
+    public int Calls { get; private set; }
+
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        Calls++;
+        AssertFake(request.Method == HttpMethod.Post &&
+            request.RequestUri?.ToString() ==
+                "https://api.logisticacastrofallas.com/api/external/v1/solicitar-tarifa-wjicua4" &&
+            request.Headers.TryGetValues("X-Api-Key", out var secret) &&
+            secret.SingleOrDefault() == key &&
+            request.Headers.TryGetValues("Idempotency-Key", out var keys) &&
+            keys.SingleOrDefault() == "cf-official-" + quoteId.ToString("D"),
+            "Fake handler rejected unexpected method, URL, key or identity.");
+        var json = await request.Content!.ReadAsStringAsync(cancellationToken);
+        using var body = JsonDocument.Parse(json);
+        AssertFake(body.RootElement.GetProperty("shipmentMode").GetString() == "Fcl",
+            "Only fictional FCL payload may reach fake handler.");
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                "{\"value\":\"f8000000-0000-4000-8000-000000000001\"}",
+                Encoding.UTF8, "application/json")
+        };
+    }
+
+    private static void AssertFake(bool condition, string error)
+    {
+        if (!condition) throw new InvalidOperationException(error);
     }
 }
 
@@ -308,5 +1551,31 @@ sealed class FakeDholeHttpHandler(string key) : HttpMessageHandler
         {
             Content = new StringContent(body, Encoding.UTF8, "application/json")
         });
+    }
+}
+
+// This handler exists only in the CI TestServer project; it is not registered
+// in the production application. No token or external identity is trusted.
+sealed class CiAdminAuthenticationHandler(
+    IOptionsMonitor<AuthenticationSchemeOptions> options,
+    ILoggerFactory logger,
+    UrlEncoder encoder)
+    : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+{
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        var actor = Request.Headers["X-CI-Test-Actor"].ToString();
+        if (actor is not ("authorizer" or "viewer"))
+            return Task.FromResult(AuthenticateResult.NoResult());
+        var id = actor == "authorizer"
+            ? Guid.Parse("aaaaaaaa-0000-4000-8000-000000000001")
+            : Guid.Parse("aaaaaaaa-0000-4000-8000-000000000002");
+        var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, id.ToString()),
+            new Claim(ClaimTypes.Role, "admin")], Scheme.Name);
+        Context.Items["auth.identity"] = new AuthIdentity(id,
+            Guid.Parse("bbbbbbbb-0000-4000-8000-000000000001"),
+            "Cliente ficticio", "admin@example.invalid", "usuario", "admin", null);
+        return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(
+            new ClaimsPrincipal(identity), Scheme.Name)));
     }
 }
