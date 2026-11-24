@@ -302,6 +302,8 @@ public sealed class DholeQuotePostTransport(
                 return false;
             decimal sum = 0;
             int totalEquipment = 0;
+            string? summaryLineType = null;
+            string? summaryLineCode = null;
             foreach (var line in equipment.EnumerateArray())
             {
                 if (line.ValueKind != JsonValueKind.Object ||
@@ -317,10 +319,19 @@ public sealed class DholeQuotePostTransport(
                     weights.ValueKind != JsonValueKind.Array || weights.GetArrayLength() != count)
                     return false;
                 totalEquipment += count;
-                if (hasEquipmentSummary &&
-                    (line.GetProperty("containerTypeId").GetString() != body.GetProperty(equipmentFields[0]).GetString() ||
-                     line.GetProperty("containerTypeCode").GetString()!.Split('_')[0] != body.GetProperty(equipmentFields[2]).GetString()))
-                    return false;
+                if (hasEquipmentSummary)
+                {
+                    var lineType = line.GetProperty("containerTypeId").GetString()!;
+                    var lineCode = line.GetProperty("containerTypeCode").GetString()!;
+                    // Native summary is a size UUID; detailed lines are type UUIDs.
+                    // The server-side resolver establishes size identity from a fresh GET.
+                    if (Guid.Parse(lineType) == Guid.Parse(body.GetProperty(equipmentFields[0]).GetString()!) ||
+                        lineCode.Split('_')[0] != body.GetProperty(equipmentFields[2]).GetString() ||
+                        (summaryLineType is not null && (summaryLineType != lineType || summaryLineCode != lineCode)))
+                        return false;
+                    summaryLineType = lineType;
+                    summaryLineCode = lineCode;
+                }
                 foreach (var weight in weights.EnumerateArray())
                 {
                     if (!Positive(weight, out var kg)) return false;
