@@ -379,7 +379,7 @@ async function main() {
     // Remove the newly added (second) line, not the first populated line.
     await click('.official-line:last-of-type .official-remove')
     await waitFor(()=>evaluate('document.querySelectorAll(".official-line").length===1 && document.querySelector(".official-package-advisory")?.textContent.includes("1 menos")'),'Removing added line restores original count warning')
-    assert.equal(await evaluate('document.querySelector(".official-line input[maxlength=400]").value'),'Cajas CI','Original line remains intact')
+    assert.equal(await evaluate(`document.querySelector('.official-line input[maxlength="400"]').value`),'Cajas CI','Original line remains intact')
     const countDimensions = await evaluate(`(()=>{
       const inputs=[...document.querySelectorAll('.official-line input[type="number"][min="0.001"]')]
       if(inputs.length!==4) return inputs.length
