@@ -8,7 +8,7 @@ import SiteFooter from '../components/SiteFooter.vue'
 import IconSymbol from '../components/IconSymbol.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import { refreshSession } from '../services/auth'
-import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialEquipmentTypeLabel, officialServiceOptions, officialServiceName, officialCurrencyOptions, isOfficialCurrency } from '../lib/officialQuoteOptions'
+import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialEquipmentTypeLabel, officialServiceOptions, officialServiceName, officialCurrencyOptions, isOfficialCurrency, totalCargoWeightKg, formatCargoWeightKg, declaredWeightAdvisory } from '../lib/officialQuoteOptions'
 import { loadDholeQuoteFormOptions, type DholeQuoteFormOptions } from '../lib/dholeQuoteForm'
 import { costaRicaToday, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
 import { prepareQuoteSubmissionAttempt, clearQuoteSubmissionAttempt,
@@ -324,6 +324,16 @@ function toggle(collection: string[], value: string) {
   else collection.push(value)
 }
 function addEquipment() { if (form.equipment.length < 25) form.equipment.push({size:'',type:'',quantity:1,unitWeightsKg:[0]}) }
+const calculatedWeightKg = computed(() => {
+  if (!shipmentType.value) return null
+  if (equipmentMode.value) {
+    if (form.equipment.some(line => !Number.isInteger(Number(line.quantity)) ||
+        Number(line.quantity) < 1 || line.unitWeightsKg.length !== Number(line.quantity))) return null
+    return totalCargoWeightKg(form.equipment.flatMap(line => line.unitWeightsKg), 'kg')
+  }
+  return totalCargoWeightKg(form.packages.map(line => line.weight), form.weightUnit)
+})
+const weightNotice = computed(() => declaredWeightAdvisory(form.declaredWeight, calculatedWeightKg.value, q))
 function addPackage() { if (form.packages.length < 25) form.packages.push({description:'',quantity:1,unitType:'',weight:0,length:0,width:0,height:0,stackability:'Stackable'}) }
 function setPackageUnitType(line: PackageLine, value: string) {
   line.unitType = value === 'Box' || value === 'Pallet' || value === 'Loose' || value === 'Other'
@@ -790,7 +800,7 @@ async function submit() {
                 <FieldDropdown id="quote-cargo-currency" v-model="form.cargoCurrencyCode" :aria-label="q('Moneda del valor declarado', 'Declared value currency')"
                   :options="[{value:'',label:q('Seleccionar','Select')}, ...officialCurrencyOptions(q)]" />
               </div>
-              <label>{{ q('Peso declarado (si aplica)', 'Declared weight (if applicable)') }}<input v-model.number="form.declaredWeight" type="number" min="0" step="any" /></label>
+              <label>{{ q('Peso total declarado (kg, opcional)', 'Total declared weight (kg, optional)') }}<input id="quote-declared-weight" v-model.number="form.declaredWeight" type="number" min="0" step="any" /></label>
               <label>{{ q('Cantidad de bultos (si aplica)', 'Number of packages (if applicable)') }}<input v-model.number="form.declaredPackages" type="number" min="0" step="1" /></label>
             </div>
             <div v-if="!equipmentMode" class="official-nested">
@@ -806,7 +816,7 @@ async function submit() {
   </div>
   <div class="official-custom-field official-incoterm-field">
     <label>{{ q('Unidad de peso', 'Weight unit') }}</label>
-    <FieldDropdown v-model="form.weightUnit" :aria-label="q('Unidad de peso', 'Weight unit')" :options="[
+    <FieldDropdown id="quote-weight-unit" v-model="form.weightUnit" :aria-label="q('Unidad de peso', 'Weight unit')" :options="[
       {value:'kg',label:q('Kilogramos','Kilograms')+' (kg)'},
       {value:'lb',label:q('Libras','Pounds')+' (lb)'}
     ]" />
@@ -841,6 +851,10 @@ async function submit() {
                 </div>
               </div>
             </div>
+            <div v-if="calculatedWeightKg !== null" class="official-weight-reference">
+              <p class="official-hint">{{ q('Peso calculado según las líneas:', 'Calculated weight from cargo lines:') }} <strong>{{ formatCargoWeightKg(calculatedWeightKg, q) }} kg</strong></p>
+              <div v-if="weightNotice" class="official-weight-advisory" role="status"><AlertTriangle :size="18" aria-hidden="true" /><span>{{ weightNotice }}</span></div>
+            </div>
             <div class="official-nested"><h3>{{ q('Opciones de carga', 'Cargo options') }}</h3>
               <p v-if="!equipmentMode" class="official-hint">{{ q('La estibabilidad se indica por separado en cada línea de carga y se refleja automáticamente en la solicitud.', 'Stackability is set for each cargo line and reflected automatically in the request.') }}</p>
               <div class="official-service-grid official-cargo-flags-grid">
@@ -871,6 +885,8 @@ async function submit() {
 </template>
 
 <style scoped>
+.official-weight-advisory{display:flex;align-items:flex-start;gap:9px;margin-top:12px;padding:12px;border:1px solid #ba8b42;border-radius:12px;color:inherit;font-size:13px;line-height:1.5;background:rgba(190,135,40,.09)}.official-weight-advisory svg{flex-shrink:0;color:#b37a25}
+:global(html.theme-dark) .official-weight-advisory svg{color:#f2b85d}
 .official-page{background:linear-gradient(142deg,#fff8f8 0%,#f7f4f6 56%,#fff 100%);color:#242630}.official-shell{width:min(960px,calc(100% - 32px));margin:auto;padding:52px 0 90px}.official-header{max-width:700px;margin-bottom:29px}.official-kicker{font-size:11px;font-weight:900;letter-spacing:.16em;color:#a90a26;margin:0 0 12px}.official-header h1{font-family:"Arial Black",system-ui,sans-serif;font-size:clamp(34px,5vw,58px);font-weight:900;line-height:1.09;letter-spacing:-.055em;margin:0 0 17px}.official-header h1 span{color:#b20c2a}.official-header>p:last-child,.official-hint{color:#626778;font-size:14px;line-height:1.7}.official-progress{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:20px}.official-progress-item{display:flex;align-items:center;gap:9px;border-radius:12px;padding:11px 12px;background:#efedf0;color:#777584;min-width:0}.official-progress-item span{display:grid;place-items:center;flex-shrink:0;width:29px;height:29px;border-radius:50%;background:#dedbe0;font-size:12px;font-weight:850}.official-progress-item small{font-size:12px;font-weight:750;white-space:normal}.official-progress-item.current{background:#a90928;color:white}.official-progress-item.current span{background:white;color:#a90928}.official-progress-item.done{color:#39735a;background:#e8f5ec}.official-panel{background:white;border:1px solid #e9e0e5;box-shadow:0 20px 55px #38202a0b;border-radius:23px;padding:clamp(20px,4vw,42px)}.official-panel h2{font-size:clamp(23px,3vw,30px);letter-spacing:-.035em;margin:0 0 8px}.official-choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px;margin-top:28px}.official-choice{background:#fff;border:1px solid #dcdde4;border-radius:15px;min-height:140px;display:flex;flex-direction:column;text-align:left;gap:11px;padding:21px;cursor:pointer;color:#262935}.official-choice:hover,.official-choice.chosen{border-color:#af1432;background:#fff6f7;box-shadow:0 0 0 2px #b5142920}.official-emoji{font-size:27px}.official-choice strong{font-size:17px}.official-choice small{font-size:12px;color:#687080;line-height:1.5}.official-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}.official-fields label,.official-single{display:flex;flex-direction:column;gap:7px;font-size:12px;color:#4e5260;font-weight:800;min-width:0}.official-fields label span{color:#ad112f}.official-fields .full{grid-column:1/-1}.official-fields input,.official-fields select,.official-fields textarea,.official-single textarea{width:100%;background:white;color:#252937;border:1px solid #cfd0d9;border-radius:10px;padding:12px;min-height:45px;font:inherit;font-size:14px;outline-offset:2px}.official-fields input:focus,.official-fields select:focus,.official-fields textarea:focus{outline:2px solid #b61534}.official-nested{margin-top:27px;padding-top:24px;border-top:1px solid #eee5e9}.official-nested h3{font-size:17px;margin:0 0 12px}.official-line{padding:18px;background:#faf9fb;border:1px solid #e8e1e7;border-radius:14px;margin:12px 0}.official-line strong{font-size:13px}.official-headline{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}.official-ghost,.official-remove{border:1px solid #d6bdc5;background:white;color:#9b1732;font-size:12px;font-weight:850;border-radius:9px;padding:9px 12px;cursor:pointer}.official-remove{color:#7a5964}.official-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:15px 0}.official-checks label{display:flex;align-items:center;gap:8px;font-size:13px;line-height:1.5}.official-checks input{accent-color:#ae112e;width:17px;height:17px}.official-single{margin-top:20px}.official-summary{padding:15px;margin-top:25px;display:grid;gap:8px;border-radius:12px;background:#f8f5f7;font-size:13px;overflow-wrap:anywhere}.official-summary span{color:#656b76}.official-buttons{border-top:1px solid #ede7eb;padding-top:22px;margin-top:29px;display:flex;justify-content:space-between;gap:12px}.official-primary,.official-back{padding:13px 23px;border-radius:11px;min-height:46px;border:0;font-weight:850;font-size:13px;cursor:pointer}.official-primary{background:#b20c2d;color:white}.official-primary:disabled{opacity:.6}.official-back{border:1px solid #d4c4cc;color:#9b1b36;background:white}.official-error,.official-catalog-alert{margin-top:20px;padding:13px;border-radius:12px;border:1px solid #e8b4bf;color:#981a38;background:#fff0f3;font-size:13px;line-height:1.6}.official-success{text-align:center;background:white;border-radius:22px;border:1px solid #dfd9df;padding:50px 24px}.official-success-icon{font-size:36px;color:#238756}.official-success h2{font-size:28px}.official-success p{line-height:1.6}.official-id{overflow-wrap:anywhere;color:#697080;font-size:13px}.official-link{display:inline-block;margin-top:16px;color:white;background:#ad0d2b;padding:12px 20px;border-radius:10px;font-weight:800}@media(max-width:670px){.official-shell{padding-top:30px}.official-progress-item{flex-direction:column;padding:9px 4px;gap:4px;text-align:center}.official-progress-item small{font-size:10px}.official-fields,.official-checks{grid-template-columns:1fr}.official-buttons .official-primary{flex:1}.official-choices{grid-template-columns:1fr}.official-choice{min-height:98px}}
 
 /* El formulario reemplaza a la versión anterior sin perder su rojo institucional. */
