@@ -75,6 +75,7 @@ const dispatchNames: Record<string, string> = {
   PendingDispatch: 'Guardada; pendiente de procesamiento de envío',
   InFlight: 'Intento de envío iniciado; recepción aún no verificada',
   HttpAcceptedUnverified: 'HTTP aceptado; pendiente de comprobar en Pricing',
+  AcceptedByProvider: 'Solicitud aceptada por la API de creación; sin verificación GET independiente',
   Unconfirmed: 'Resultado de entrega incierto; requiere revisión',
   Rejected: 'Dhole rechazó la solicitud',
   Confirmed: 'Creación confirmada en Dhole',
@@ -182,7 +183,8 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
               <h3>Estado de Dhole</h3>
               <p>{{dispatchNames[detail.dholeDispatchState] ?? 'Estado de envío no disponible'}}</p>
               <p v-if="detail.dholePriority">Prioridad registrada: {{priorityOptions.find(item=>item.value===detail?.dholePriority)?.label ?? detail.dholePriority}}</p>
-              <template v-if="detail.dholeDispatchState === 'Confirmed'">
+              <template v-if="detail.dholeDispatchState === 'Confirmed' || detail.dholeDispatchState === 'AcceptedByProvider'">
+                <p v-if="detail.dholeDispatchState === 'AcceptedByProvider' && detail.dholeReceiptCandidate">UUID devuelto por la API de creación: {{detail.dholeReceiptCandidate}}. Verificación independiente pendiente.</p>
                 <p v-if="detail.dholeVerifiedReference">Referencia verificada en Pricing: {{detail.dholeVerifiedReference}}</p>
                 <p v-if="detail.dholeConfirmationEmailState === 'Accepted'">Correo de confirmación aceptado por Microsoft Graph.</p>
                 <p v-else-if="detail.dholeConfirmationEmailState === 'NeedsReview' || detail.dholeConfirmationEmailState === 'Claimed'">Revisar estado del correo de confirmación. No reenviar automáticamente.</p>

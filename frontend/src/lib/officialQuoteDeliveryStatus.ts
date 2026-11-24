@@ -4,7 +4,7 @@ import { onUnmounted, ref } from 'vue'
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 const quoteUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const states = ['Disabled','NotStaged','PendingDispatch','InFlight','HttpAcceptedUnverified','Unconfirmed','Rejected','Failed','Confirmed']
+const states = ['Disabled','NotStaged','PendingDispatch','InFlight','HttpAcceptedUnverified','Unconfirmed','Rejected','Failed','Confirmed','AcceptedByProvider']
 const pending = new Set(['PendingDispatch','InFlight','HttpAcceptedUnverified','Unconfirmed'])
 
 export function useOfficialQuoteDeliveryStatus() {
@@ -55,7 +55,7 @@ export function useOfficialQuoteDeliveryStatus() {
 }
 
 export function quoteDeliveryMessage(state:string, tr:(es:string,en:string)=>string) {
-  if (state === 'Confirmed') return tr(
+  if (state === 'Confirmed' || state === 'AcceptedByProvider') return tr(
     '¡Tu solicitud de cotización se envió correctamente! Nuestro equipo de Pricing la atenderá y se pondrá en contacto con vos.',
     'Your quote request was successfully sent! Our Pricing team will review it and contact you.')
   if (state === 'Rejected' || state === 'Failed' || state === 'Unconfirmed') return tr(

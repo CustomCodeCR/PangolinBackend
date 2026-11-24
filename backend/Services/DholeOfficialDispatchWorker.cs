@@ -67,7 +67,8 @@ public sealed class DholeOfficialDispatchWorker(
                 // Do not start new POSTs unless all confirmation dependencies
                 // are configured. Previously accepted receipts can still be
                 // independently verified and notified when POST is disabled.
-                if (coordinator.Enabled && verifier.Enabled && mail.Enabled &&
+                var receiptPolicy = sp.GetRequiredService<DholeOfficialOutboxOutcomeService>();
+                if (coordinator.Enabled && (verifier.Enabled || receiptPolicy.AcceptCreationReceipt) && mail.Enabled &&
                     source.IsConfiguredFor("LCL") && source.IsConfiguredFor("FTL") &&
                     config.GetValue<bool>("Features:OfficialQuotesEnabled") &&
                     config.GetValue<bool>("DholeCatalogs:FormEnabled") &&

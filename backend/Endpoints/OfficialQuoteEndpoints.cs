@@ -61,11 +61,13 @@ public static class OfficialQuoteEndpoints
         var receipt = stageDirect
             ? await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
                 .Where(x => x.QuoteId == existing.Id)
-                .Select(x => new { x.State, x.ExternalReference, x.VerifiedAtUtc })
+                .Select(x => new { x.State, x.ExternalReference, x.VerifiedAtUtc,
+                    x.ProviderReferenceCandidate, x.CreationReceiptAcceptedAtUtc })
                 .FirstOrDefaultAsync(ct)
             : null;
         var dispatchState = !stageDirect ? "Disabled" : receipt is null ? "NotStaged" :
-            PublicDeliveryState(receipt.State, receipt.ExternalReference, receipt.VerifiedAtUtc);
+            PublicDeliveryState(receipt.State, receipt.ExternalReference, receipt.VerifiedAtUtc,
+                receipt.ProviderReferenceCandidate, receipt.CreationReceiptAcceptedAtUtc);
         return Results.Created($"/api/quotes/official/{existing.Id}", new
         {
             existing.Id, existing.Status, existing.Authorization,
@@ -74,9 +76,17 @@ public static class OfficialQuoteEndpoints
         });
     }
 
-    private static string PublicDeliveryState(string state, string? externalReference, DateTime? verifiedAtUtc) =>
-        state == "Confirmed" && (!Guid.TryParse(externalReference, out var reference) ||
-            reference == Guid.Empty || verifiedAtUtc is null) ? "Unconfirmed" : state;
+    private static string PublicDeliveryState(string state, string? externalReference,
+        DateTime? verifiedAtUtc, Guid? candidate, DateTime? creationAcceptedAtUtc)
+    {
+        if (state == "Confirmed")
+            return Guid.TryParse(externalReference, out var reference) &&
+                reference != Guid.Empty && verifiedAtUtc is not null ? state : "Unconfirmed";
+        if (state == "HttpAcceptedUnverified" && creationAcceptedAtUtc is not null &&
+            candidate is Guid id && id != Guid.Empty && externalReference is null && verifiedAtUtc is null)
+            return "AcceptedByProvider";
+        return state;
+    }
 
     private static async Task LockCreationKeyAsync(
         AppDbContext db, Guid key, IDbContextTransaction transaction, CancellationToken ct)
@@ -318,10 +328,12 @@ public static class OfficialQuoteEndpoints
             if (!owned) return Results.NotFound();
             var receipt = await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
                 .Where(x => x.QuoteId == id)
-                .Select(x => new { x.State, x.ExternalReference, x.VerifiedAtUtc })
+                .Select(x => new { x.State, x.ExternalReference, x.VerifiedAtUtc,
+                    x.ProviderReferenceCandidate, x.CreationReceiptAcceptedAtUtc })
                 .SingleOrDefaultAsync(ct);
             if (receipt is null) return Results.NotFound();
-            var state = PublicDeliveryState(receipt.State, receipt.ExternalReference, receipt.VerifiedAtUtc);
+            var state = PublicDeliveryState(receipt.State, receipt.ExternalReference, receipt.VerifiedAtUtc,
+                receipt.ProviderReferenceCandidate, receipt.CreationReceiptAcceptedAtUtc);
             return Results.Ok(new { dholeDispatchState = state });
         }).RequireRateLimiting("public-read");
 
@@ -591,7 +603,7 @@ public static class OfficialQuoteEndpoints
                 ? await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
                     .Where(x => x.QuoteId == id)
                     .Select(x => new { x.State, x.Priority, x.ProviderReferenceCandidate,
-                        x.ExternalReference, x.VerifiedAtUtc, x.ConfirmationEmailClaimedAtUtc,
+                        x.ExternalReference, x.VerifiedAtUtc, x.CreationReceiptAcceptedAtUtc, x.ConfirmationEmailClaimedAtUtc,
                         x.ConfirmationEmailAcceptedAtUtc, x.ConfirmationEmailErrorCode }).FirstOrDefaultAsync(ct)
                 : null;
             var approvalOutbox = !directEnabled && approvalEnabled
@@ -599,7 +611,10 @@ public static class OfficialQuoteEndpoints
                     .Where(x => x.QuoteId == id)
                     .Select(x => new { x.State, x.Priority }).FirstOrDefaultAsync(ct)
                 : null;
-            var dispatchState = directEnabled ? (directOutbox?.State ?? "NotStaged") :
+            var dispatchState = directEnabled ? (directOutbox is null ? "NotStaged" :
+                PublicDeliveryState(directOutbox.State, directOutbox.ExternalReference,
+                    directOutbox.VerifiedAtUtc, directOutbox.ProviderReferenceCandidate,
+                    directOutbox.CreationReceiptAcceptedAtUtc)) :
                 approvalEnabled ? (approvalOutbox?.State ?? "NotStaged") : "Disabled";
             http.Response.Headers.CacheControl = "no-store";
             return Results.Ok(new { q.Id, q.CustomerName, q.Mode, q.ShipmentType, q.Status,
@@ -608,7 +623,8 @@ public static class OfficialQuoteEndpoints
                 dholeReceiptCandidate = directOutbox?.ProviderReferenceCandidate,
                 dholeVerifiedReference = directOutbox?.ExternalReference,
                 dholeVerifiedAtUtc = directOutbox?.VerifiedAtUtc,
-                dholeConfirmationEmailState = directOutbox?.State != "Confirmed" ? null :
+                dholeConfirmationEmailState = directOutbox is null ||
+                    dispatchState is not ("Confirmed" or "AcceptedByProvider") ? null :
                     directOutbox.ConfirmationEmailAcceptedAtUtc != null ? "Accepted" :
                     directOutbox.ConfirmationEmailErrorCode != null ? "NeedsReview" :
                     directOutbox.ConfirmationEmailClaimedAtUtc != null ? "Claimed" : "Pending",

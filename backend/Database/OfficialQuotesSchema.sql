@@ -133,6 +133,9 @@ CREATE TABLE IF NOT EXISTS public.official_quote_dhole_creation_outbox (
 -- A provider receipt is not the verified external_reference.
 ALTER TABLE public.official_quote_dhole_creation_outbox
     ADD COLUMN IF NOT EXISTS provider_reference_candidate UUID NULL;
+-- Distinct from independent GET verification; never backfill old receipts.
+ALTER TABLE public.official_quote_dhole_creation_outbox
+    ADD COLUMN IF NOT EXISTS creation_receipt_accepted_at_utc TIMESTAMPTZ NULL;
 -- Confirmation email uses an independent once-only reservation. A failure or
 -- lost response never reopens the Dhole POST or automatically repeats mail.
 ALTER TABLE public.official_quote_dhole_creation_outbox

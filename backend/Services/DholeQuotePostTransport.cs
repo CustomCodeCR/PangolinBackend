@@ -106,7 +106,7 @@ public sealed class DholeQuotePostTransport(
             // verification. Do not retain or log any raw response content.
             var raw = await response.Content.ReadAsStringAsync(ct);
             return new(DholeQuotePostOutcome.HttpAcceptedUnverified,
-                ReadPublishedReference(raw));
+                response.StatusCode == HttpStatusCode.OK ? ReadPublishedReference(raw) : null);
         }
         catch (Exception ex) when (ex is HttpRequestException or IOException or
             InvalidOperationException or OperationCanceledException)

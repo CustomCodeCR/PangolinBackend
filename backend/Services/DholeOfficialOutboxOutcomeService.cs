@@ -16,6 +16,12 @@ public sealed class DholeOfficialOutboxOutcomeService(IConfiguration configurati
         configuration.GetValue<bool>("DholeSubmission:DirectOutboxEnabled") &&
         configuration.GetValue<bool>("DholeSubmission:OutcomePreviewEnabled");
 
+    // Explicit temporary policy: the reviewed HTTP 200 creation contract
+    // returns the persisted UUID. Independent GET remains a separate option.
+    public bool AcceptCreationReceipt => Enabled &&
+        configuration.GetValue<bool>("DholeSubmission:AcceptCreationReceiptEnabled") &&
+        !configuration.GetValue<bool>("DholeSubmission:VerificationEnabled");
+
     public async Task<bool> RecordAttemptOutcomeForOfflineReviewAsync(
         AppDbContext db, Guid quoteId, DholeDeliveryEvent outcome, CancellationToken ct,
         Guid? providerReferenceCandidate = null)
@@ -54,16 +60,22 @@ public sealed class DholeOfficialOutboxOutcomeService(IConfiguration configurati
         // Atomic compare-and-set. A second or concurrent completion cannot
         // overwrite a recorded outcome. We intentionally do not reclaim stale
         // InFlight rows after crashes: reconciliation requires human review.
+        var acceptReceipt = AcceptCreationReceipt &&
+            outcome == DholeDeliveryEvent.HttpAcceptedButUnverified &&
+            providerReferenceCandidate.HasValue;
         var affected = await db.Database.ExecuteSqlInterpolatedAsync($"""
             UPDATE public.official_quote_dhole_creation_outbox
             SET state = {decision.NextState},
                 last_error_code = {errorCode},
                 provider_reference_candidate = CAST({providerReferenceCandidate?.ToString("D")} AS uuid),
+                creation_receipt_accepted_at_utc =
+                    CASE WHEN {acceptReceipt} THEN now() ELSE NULL END,
                 updated_at_utc = now()
             WHERE quote_id = {quoteId}
               AND state = 'InFlight'
               AND attempt_count = 1
               AND provider_reference_candidate IS NULL
+              AND creation_receipt_accepted_at_utc IS NULL
               AND external_reference IS NULL
               AND verified_at_utc IS NULL
             """, ct);

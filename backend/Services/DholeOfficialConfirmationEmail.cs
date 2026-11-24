@@ -8,7 +8,8 @@ namespace CastroFallas.MiniQuote.Api.Services;
 /// <summary>
 /// Separate once-only notification pass, dormant until explicitly enabled and
 /// invoked by the future host. Graph acceptance is not inbox delivery. Never
-/// causes another Dhole POST, never mails an unverified quote.
+/// causes another Dhole POST. Requires either independent GET confirmation
+/// or a newly recorded, explicitly authorized creation receipt.
 /// </summary>
 public sealed class DholeOfficialConfirmationEmail(
     IConfiguration config, GraphEmailSender graph)
@@ -32,11 +33,14 @@ public sealed class DholeOfficialConfirmationEmail(
         var jobs = await (
             from o in outbox
             join q in db.OfficialQuotes.AsNoTracking() on o.QuoteId equals q.Id
-            where o.State == "Confirmed" && o.AttemptCount == 1 &&
-                o.VerifiedAtUtc != null && o.ExternalReference != null &&
-                o.ConfirmationEmailClaimedAtUtc == null
-            orderby o.VerifiedAtUtc, o.QuoteId
-            select new { o.QuoteId, o.ExternalReference, q.ContactEmail })
+            where o.AttemptCount == 1 && o.ConfirmationEmailClaimedAtUtc == null &&
+                ((o.State == "Confirmed" && o.VerifiedAtUtc != null && o.ExternalReference != null) ||
+                 (o.State == "HttpAcceptedUnverified" && o.CreationReceiptAcceptedAtUtc != null &&
+                  o.ProviderReferenceCandidate != null && o.ProviderReferenceCandidate != Guid.Empty &&
+                  o.ExternalReference == null && o.VerifiedAtUtc == null))
+            orderby o.VerifiedAtUtc ?? o.CreationReceiptAcceptedAtUtc, o.QuoteId
+            select new { o.QuoteId, o.State, o.ExternalReference, o.ProviderReferenceCandidate,
+                q.ContactEmail })
             .Take(20).ToListAsync(ct);
 
         int accepted = 0;
@@ -44,17 +48,23 @@ public sealed class DholeOfficialConfirmationEmail(
         {
             ct.ThrowIfCancellationRequested();
             if (!Enabled) break;
-            if (!Guid.TryParse(job.ExternalReference, out var reference) || reference == Guid.Empty)
+            var independentlyVerified = job.State == "Confirmed";
+            if (independentlyVerified
+                ? !Guid.TryParse(job.ExternalReference, out var reference) || reference == Guid.Empty
+                : job.ProviderReferenceCandidate is null || job.ProviderReferenceCandidate == Guid.Empty)
                 continue;
             // Atomic reservation before Graph. No auto-reclaim: ambiguous email
             // delivery must be reconciled separately, not sent repeatedly.
             var claimed = await db.Database.ExecuteSqlInterpolatedAsync($"""
                 UPDATE public.official_quote_dhole_creation_outbox
                 SET confirmation_email_claimed_at_utc = now()
-                WHERE quote_id = {job.QuoteId} AND state = 'Confirmed'
-                  AND attempt_count = 1 AND verified_at_utc IS NOT NULL
-                  AND external_reference = {job.ExternalReference}
+                WHERE quote_id = {job.QuoteId} AND attempt_count = 1
                   AND confirmation_email_claimed_at_utc IS NULL
+                  AND ((state = 'Confirmed' AND verified_at_utc IS NOT NULL
+                        AND external_reference = {job.ExternalReference})
+                    OR (state = 'HttpAcceptedUnverified' AND creation_receipt_accepted_at_utc IS NOT NULL
+                        AND provider_reference_candidate = CAST({job.ProviderReferenceCandidate?.ToString("D")} AS uuid)
+                        AND external_reference IS NULL AND verified_at_utc IS NULL))
                 """, ct);
             if (claimed != 1) continue;
             string? error = null;
@@ -85,7 +95,7 @@ public sealed class DholeOfficialConfirmationEmail(
                 SET confirmation_email_accepted_at_utc =
                     CASE WHEN CAST({error} AS text) IS NULL THEN now() ELSE NULL END,
                     confirmation_email_error_code = {error}
-                WHERE quote_id = {job.QuoteId} AND state = 'Confirmed'
+                WHERE quote_id = {job.QuoteId}
                   AND confirmation_email_claimed_at_utc IS NOT NULL
                   AND confirmation_email_accepted_at_utc IS NULL
                   AND confirmation_email_error_code IS NULL

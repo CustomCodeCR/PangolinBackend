@@ -1125,8 +1125,8 @@ async function perform() {
       <template v-else-if="phase === 'result'">
         <template v-if="kind === 'quote'">
           <div class="gio-ops__bubble" role="status">{{ quoteDeliveryMessage(deliveryState, tr) }}</div>
-          <div v-if="deliveryState === 'Confirmed'" class="gio-ops__bubble">{{ tr('Te enviaremos un correo de confirmación a la dirección indicada.','We will send a confirmation email to the address you provided.') }}</div>
-          <section class="gio-ops__card"><h3><CheckCircle2 :size="18" />{{ deliveryState === 'Confirmed' ? tr('Solicitud enviada','Request sent') : tr('Solicitud recibida','Request received') }}</h3><p class="gio-ops__id">{{ quoteId }}</p><p>{{ quoteStatus }}</p><a class="gio-ops__primary gio-ops__link" :href="quoteResultUrl">{{ quoteResultAdmin ? tr('Ver cotizaciones en administración','Review quotes in administration') : tr('Ir a cotizaciones','Go to quotes') }}</a></section>
+          <div v-if="(deliveryState === 'Confirmed' || deliveryState === 'AcceptedByProvider')" class="gio-ops__bubble">{{ tr('Te enviaremos un correo de confirmación a la dirección indicada.','We will send a confirmation email to the address you provided.') }}</div>
+          <section class="gio-ops__card"><h3><CheckCircle2 :size="18" />{{ (deliveryState === 'Confirmed' || deliveryState === 'AcceptedByProvider') ? tr('Solicitud enviada','Request sent') : tr('Solicitud recibida','Request received') }}</h3><p class="gio-ops__id">{{ quoteId }}</p><p>{{ quoteStatus }}</p><a class="gio-ops__primary gio-ops__link" :href="quoteResultUrl">{{ quoteResultAdmin ? tr('Ver cotizaciones en administración','Review quotes in administration') : tr('Ir a cotizaciones','Go to quotes') }}</a></section>
         </template>
         <template v-else-if="kind === 'itinerary'">
           <div class="gio-ops__bubble">{{ itineraryTotal ? tr('Estos son los itinerarios publicados que coinciden con tu búsqueda.','These published itineraries match your search.') : tr('No hay itinerarios publicados con esos filtros.','There are no published itineraries matching those filters.') }}</div>

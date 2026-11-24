@@ -149,6 +149,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         directOutbox.Property(x => x.Priority).HasColumnName("priority").HasMaxLength(6);
         directOutbox.Property(x => x.AttemptCount).HasColumnName("attempt_count");
         directOutbox.Property(x => x.ProviderReferenceCandidate).HasColumnName("provider_reference_candidate");
+        directOutbox.Property(x => x.CreationReceiptAcceptedAtUtc).HasColumnName("creation_receipt_accepted_at_utc");
         directOutbox.Property(x => x.ConfirmationEmailClaimedAtUtc).HasColumnName("confirmation_email_claimed_at_utc");
         directOutbox.Property(x => x.ConfirmationEmailAcceptedAtUtc).HasColumnName("confirmation_email_accepted_at_utc");
         directOutbox.Property(x => x.ConfirmationEmailErrorCode).HasColumnName("confirmation_email_error_code").HasMaxLength(60);

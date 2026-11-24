@@ -585,9 +585,9 @@ async function submit() {
       </header>
       <div v-if="createdId" class="official-success" role="status">
         <span class="official-success-icon">✓</span>
-          <h2>{{ deliveryState === 'Confirmed' ? q('¡Solicitud enviada!', 'Request sent!') : q('¡Solicitud recibida!', 'Request received!') }}</h2>
+          <h2>{{ (deliveryState === 'Confirmed' || deliveryState === 'AcceptedByProvider') ? q('¡Solicitud enviada!', 'Request sent!') : q('¡Solicitud recibida!', 'Request received!') }}</h2>
           <p>{{ quoteDeliveryMessage(deliveryState, q) }}</p>
-          <p v-if="deliveryState === 'Confirmed'">{{ q('Te enviaremos un correo de confirmación a la dirección indicada.', 'We will send a confirmation email to the address you provided.') }}</p>
+          <p v-if="(deliveryState === 'Confirmed' || deliveryState === 'AcceptedByProvider')">{{ q('Te enviaremos un correo de confirmación a la dirección indicada.', 'We will send a confirmation email to the address you provided.') }}</p>
           <p class="official-id">{{ q('Número de referencia:', 'Reference number:') }} {{ createdId }}</p>
           <section v-if="receiptSections.length" class="official-receipt" aria-labelledby="official-receipt-title">
             <h3 id="official-receipt-title">{{ q('Resumen de tu solicitud', 'Your request summary') }}</h3>

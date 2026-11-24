@@ -1249,6 +1249,62 @@ internal static class DholeQuoteHttpTest
                 "Same receipt reports confirmed creation after independent fake verification");
         }
 
+        // Temporary POST-receipt policy: no independent GET needed, but no
+        // retroactive promotion of a previously recorded ambiguous receipt.
+        var temporaryKey = Guid.NewGuid();
+        Guid temporaryId;
+        using (var created = await CreateWithClientKey(temporaryKey, quote))
+        {
+            Assert(created.StatusCode == HttpStatusCode.Created, "Temporary-policy quote saved");
+            using var json = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+            temporaryId = json.RootElement.GetProperty("id").GetGuid();
+        }
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var seed = new NpgsqlCommand("""
+                UPDATE public.official_quote_dhole_creation_outbox
+                SET state='InFlight', attempt_count=1, last_attempt_at_utc=now()
+                WHERE quote_id=@id
+                """, db);
+            seed.Parameters.AddWithValue("id", temporaryId);
+            Assert(await seed.ExecuteNonQueryAsync() == 1, "Isolated mock attempt");
+        }
+        notifyConfig["DholeSubmission:VerificationEnabled"] = "false";
+        notifyConfig["DholeSubmission:AcceptCreationReceiptEnabled"] = "true";
+        notifyConfig["DholeSubmission:OutcomePreviewEnabled"] = "true";
+        var temporaryRecorder = new DholeOfficialOutboxOutcomeService(notifyConfig);
+        var tempReference = Guid.Parse("f8100000-0000-4000-8000-000000000002");
+        await using (var db = new AppDbContext(opts))
+        {
+            Assert(temporaryRecorder.AcceptCreationReceipt &&
+                await temporaryRecorder.RecordAttemptOutcomeForOfflineReviewAsync(db, temporaryId,
+                    DholeDeliveryEvent.HttpAcceptedButUnverified, CancellationToken.None, tempReference),
+                "New valid creation receipt is recorded without independent verification");
+            var saved = await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
+                .SingleAsync(x => x.QuoteId == temporaryId);
+            Assert(saved.State == "HttpAcceptedUnverified" &&
+                saved.CreationReceiptAcceptedAtUtc != null &&
+                saved.VerifiedAtUtc == null && saved.ExternalReference == null,
+                "Creation evidence never masquerades as independent verification");
+            var pilotScope = new DholeOfficialWorkerScope(temporaryId, null);
+            Assert(await notifier.RunAsync(db, CancellationToken.None, pilotScope) == 1 &&
+                await notifier.RunAsync(db, CancellationToken.None, pilotScope) == 0 &&
+                fakeNotification.MailCalls == 2 &&
+                fakeNotification.VerificationCalls == 1,
+                "One additional mock email, no additional verification GET");
+        }
+        using (var request = new HttpRequestMessage(HttpMethod.Get,
+            "/api/quotes/official/" + temporaryId.ToString("D") + "/delivery-status"))
+        {
+            request.Headers.Add("X-CF-Quote-Request-Key", temporaryKey.ToString("D"));
+            using var status = await idempotentClient.SendAsync(request);
+            using var json = JsonDocument.Parse(await status.Content.ReadAsStringAsync());
+            Assert(status.StatusCode == HttpStatusCode.OK &&
+                json.RootElement.GetProperty("dholeDispatchState").GetString() == "AcceptedByProvider",
+                "Customer success from valid authorized creation receipt");
+        }
+
         // Force a DB constraint failure during a keyed transaction. The
         // official copy and the client key must BOTH roll back so that the same
         // key can safely be used after the isolated DB fault is removed.
