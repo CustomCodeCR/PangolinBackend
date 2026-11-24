@@ -65,7 +65,7 @@ public static class OfficialQuoteConfirmationTemplate
             <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
             <meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">
             <title>{{Subject}}</title>
-            <style>@media screen and (max-width:480px){.cf-outer{padding:10px 6px!important}.cf-body{padding:23px 18px!important}.cf-header{padding:16px 18px!important}.cf-title{font-size:23px!important}}</style>
+            <style>@media screen and (max-width:480px){.cf-outer{padding:10px 6px!important}.cf-body{padding:23px 18px!important}.cf-header{padding:16px 18px!important}.cf-title{font-size:23px!important} }</style>
             </head><body style="margin:0;padding:0;background:#f5f5f5;color:#252525;font-family:Arial,Helvetica,sans-serif;">
             <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">Tu solicitud de cotización fue enviada a Pricing.</div>
             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f5f5f5"><tr>
