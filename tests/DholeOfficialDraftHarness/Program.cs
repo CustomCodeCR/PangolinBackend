@@ -241,24 +241,34 @@ var ftlCatalog = catalog with
         new DholeOfficialEquipmentResolution(
             "Ftl", "48 pies", "Furgón seco",
             Guid.Parse("f6000000-0000-4000-8000-000000000002"),
-            "48 Furgón seco", "48_DRY_VAN", true)
+            "48 Furgón seco", "48_DRY_VAN", true,
+            Guid.Parse("b1000000-0000-4000-8000-000000000002"))
     ]
 };
 var ftlFlat = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(ftl, ftlCatalog, reviewAt).Body;
 Assert(ftlFlat.GetProperty("form_landContainers")[0].GetProperty("containerTypeCode").GetString() == "48_DRY_VAN" &&
     !ftlFlat.TryGetProperty("podId", out _),
     "FTL equipment uses resolved type and forbids maritime POD");
-Assert(ftlFlat.GetProperty("form_equipmentId").GetString() == ftlCatalog.Equipment[0].TypeId.ToString("D") &&
-    ftlFlat.GetProperty("form_equipmentType").GetString() == ftlCatalog.Equipment[0].TypeId.ToString("D") &&
+Assert(ftlFlat.GetProperty("form_equipmentId").GetString() == ftlCatalog.Equipment[0].LandSizeId!.Value.ToString("D") &&
+    ftlFlat.GetProperty("form_equipmentType").GetString() == ftlCatalog.Equipment[0].LandSizeId!.Value.ToString("D") &&
+    ftlFlat.GetProperty("form_landContainers")[0].GetProperty("containerTypeId").GetString() ==
+        ftlCatalog.Equipment[0].TypeId.ToString("D") &&
     ftlFlat.GetProperty("form_equipmentSize").GetString() == "48" &&
     ftlFlat.GetProperty("form_equipmentQuantity").GetInt32() == 2 &&
     !fclFlat.TryGetProperty("form_equipmentId", out _),
-    "FTL homogeneous selection fills native summary using the verified type UUID");
+    "FTL native summary uses verified size UUID while detailed line retains type UUID");
+Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(ftl,
+    ftlCatalog with { Equipment = [ftlCatalog.Equipment[0] with { LandSizeId = null }] }, reviewAt),
+    "FTL missing size identity fails closed");
+Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(ftl,
+    ftlCatalog with { Equipment = [ftlCatalog.Equipment[0] with { LandSizeId = ftlCatalog.Equipment[0].TypeId }] }, reviewAt),
+    "FTL must not use type UUID as size UUID");
 var mixedFtl = ftl with { EquipmentUnits = [ftl.EquipmentUnits[0],
     new DholeOfficialEquipmentUnit("53 pies", "Furgón seco", 1, [500m])], TotalWeightKg = 2900m };
 var mixedFtlCatalog = ftlCatalog with { Equipment = [ftlCatalog.Equipment[0],
     new DholeOfficialEquipmentResolution("Ftl", "53 pies", "Furgón seco",
-        Guid.Parse("f6000000-0000-4000-8000-000000000005"), "53 Furgón seco", "53_DRY_VAN", true)] };
+        Guid.Parse("f6000000-0000-4000-8000-000000000005"), "53 Furgón seco", "53_DRY_VAN", true,
+        Guid.Parse("b1000000-0000-4000-8000-000000000053"))] };
 var mixedFtlBody = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(mixedFtl, mixedFtlCatalog, reviewAt).Body;
 Assert(!mixedFtlBody.TryGetProperty("form_equipmentId", out _) &&
     mixedFtlBody.GetProperty("form_landContainers").GetArrayLength() == 2,
@@ -545,6 +555,30 @@ using (var manualDocument = JsonDocument.Parse(manualJson))
         .GetProperty("containerTypeId").GetString() ==
         landRows.Single(x => x.code == "48_DRY_VAN").id,
         "FTL resolves catalog TYPE UUID by unique code/size/kind, never size UUID");
+    Assert(manualFtlBody.Body.GetProperty("form_equipmentId").GetString() ==
+        live["truck-sizes"].Items.Single().Id &&
+        manualFtlBody.Body.GetProperty("form_equipmentType").GetString() ==
+        live["truck-sizes"].Items.Single().Id,
+        "Manual resolution uses live size UUID for the Pricing native selector");
+    var ambiguousSizes = new Dictionary<string, DholeOfficialExistingCatalogSnapshot>(live)
+    {
+        ["truck-sizes"] = live["truck-sizes"] with
+        {
+            Items = [live["truck-sizes"].Items[0],
+                FakeItem("b1000000-0000-4000-8000-000000000099", "48", "Duplicate 48", "48")]
+        }
+    };
+    Block(() => DholeOfficialManualCatalogResolution.Review(
+        ftl, manualDocument.RootElement, ambiguousSizes, reviewAt), "Ambiguous live FTL size code");
+    var wrongSizeCode = new Dictionary<string, DholeOfficialExistingCatalogSnapshot>(live)
+    {
+        ["truck-sizes"] = live["truck-sizes"] with
+        {
+            Items = [FakeItem("b1000000-0000-4000-8000-000000000002", "53", "48 pies", "48")]
+        }
+    };
+    Block(() => DholeOfficialManualCatalogResolution.Review(
+        ftl, manualDocument.RootElement, wrongSizeCode, reviewAt), "Contradictory live FTL size code");
 
     Block(() => DholeOfficialManualCatalogResolution.Review(
         preview, manualDocument.RootElement, live, verifiedAt.AddMinutes(6)),

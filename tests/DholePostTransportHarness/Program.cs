@@ -247,12 +247,19 @@ foreach (var scenario in fixtureDocument.RootElement.EnumerateArray())
             line["containerTypeCode"] = "24_DRY_VAN";
             b["form_landContainers"] = new JsonArray(line);
             b["form_cargoWeightKg"] = line["unitWeightsKg"]!.AsArray().Sum(x => x!.GetValue<decimal>());
-            b["form_equipmentId"] = line["containerTypeId"]!.DeepClone();
-            b["form_equipmentType"] = line["containerTypeId"]!.DeepClone();
+            b["form_equipmentId"] = "b1000000-0000-4000-8000-000000000024";
+            b["form_equipmentType"] = "b1000000-0000-4000-8000-000000000024";
             b["form_equipmentSize"] = "24";
             b["form_equipmentQuantity"] = line["quantity"]!.DeepClone();
         });
-        Check(DholeQuotePostTransport.IsValidFlatBody(native.RootElement), "FTL native equipment matches verified line");
+        Check(DholeQuotePostTransport.IsValidFlatBody(native.RootElement), "FTL native equipment uses size distinct from the specific type line");
+        using var swapped = Modified(native.RootElement, b =>
+        {
+            b["form_equipmentId"] = b["form_landContainers"]![0]!["containerTypeId"]!.DeepClone();
+            b["form_equipmentType"] = b["form_landContainers"]![0]!["containerTypeId"]!.DeepClone();
+        });
+        Check(!DholeQuotePostTransport.IsValidFlatBody(swapped.RootElement),
+            "Reject type UUID substituted for FTL native size");
         using var wrong = Modified(native.RootElement, b => b["form_equipmentQuantity"] = 999);
         using var partial = Modified(native.RootElement, b => b.Remove("form_equipmentId"));
         Check(!DholeQuotePostTransport.IsValidFlatBody(wrong.RootElement) &&
