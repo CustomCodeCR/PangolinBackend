@@ -383,7 +383,14 @@ check(all(token in news_migration for token in (
           'WHERE published = TRUE AND published_at IS NULL',
           "SET LOCAL lock_timeout = '5s'"))
       and 'CmsNewsMetadataMigration.sql' in prod_workflow
-      and "column_name IN ('author','published_at','expires_at')" in prod_workflow
+      and 'CmsNewsPermalinksMigration.sql' in prod_workflow
+      and prod_workflow.index('/app/Database/CmsNewsMetadataMigration.sql') < prod_workflow.index('/app/Database/CmsNewsPermalinksMigration.sql') < prod_workflow.index('Deploy backend and frontend')
+      and "column_name IN ('author','published_at','expires_at','slug','content_modified_at')" in prod_workflow
+      and 'ADD COLUMN IF NOT EXISTS slug VARCHAR(240) NULL' in read('backend/Database/CmsNewsPermalinksMigration.sql')
+      and 'ADD COLUMN IF NOT EXISTS content_modified_at TIMESTAMPTZ NULL' in read('backend/Database/CmsNewsPermalinksMigration.sql')
+      and 'scripts/test-cms-news-production-migration.sh' in read('.github/workflows/ci.yml')
+      and '$base/noticias' in prod_workflow
+      and '/api/content/news' in prod_workflow
       and 'x.ExpiresAt' in read('backend/Services/ContentEndpoints.cs')
       and 'scripts/test-cms-news-migration.py' in read('.github/workflows/integration-check.yml'),
       'Migracion CMS aditiva, idempotente, probada por CI y aplicada antes de reiniciar')

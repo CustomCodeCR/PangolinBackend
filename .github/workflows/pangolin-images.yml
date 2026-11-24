@@ -386,17 +386,18 @@ jobs:
           export PGUSER=pangolin
           export PGPASSWORD="$(read_var PANGOLIN_POSTGRES_PASSWORD)"
           # The migration is idempotent and fails atomically; never restart on partial schema.
-          docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" \
-            /app/Database/CmsNewsMetadataMigration.sql \
-            | docker run --rm -i --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD \
+          {
+            docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/CmsNewsMetadataMigration.sql
+            docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/CmsNewsPermalinksMigration.sql
+          } | docker run --rm -i --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD \
                 postgres:16-alpine psql -X -d pangolin --single-transaction -v ON_ERROR_STOP=1 -f - >/dev/null
           columns="$(docker run --rm --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD \
-            postgres:16-alpine psql -X -d pangolin -Atqc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='cms_news' AND column_name IN ('author','published_at','expires_at')")"
-          if [[ "$columns" != "3" ]]; then
+            postgres:16-alpine psql -X -d pangolin -Atqc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='cms_news' AND column_name IN ('author','published_at','expires_at','slug','content_modified_at')")"
+          if [[ "$columns" != "5" ]]; then
             echo "::error::CMS news metadata schema not ready; refusing to deploy."
             exit 1
           fi
-          echo "CMS news migration verified (author, published_at, expires_at; idempotent, no news deleted)."
+          echo "CMS news migration verified (author, published_at, expires_at, slug, content_modified_at; idempotent, no news deleted)."
           unset PGPASSWORD
 
       - name: Deploy backend and frontend (images only)
@@ -452,6 +453,11 @@ jobs:
           itinerary_http="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$local_port/api/itinerarios?page=1&pageSize=1")"
           if [[ "$itinerary_http" != "200" ]]; then
             echo "::error::Public itineraries API unavailable (HTTP $itinerary_http)."
+            exit 1
+          fi
+          news_http="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "http://127.0.0.1:$local_port/api/content/news")"
+          if [[ "$news_http" != "200" ]]; then
+            echo "::error::Public news API unavailable (HTTP $news_http)."
             exit 1
           fi
           # Un ID con formato válido no debe permitir leer solicitudes ajenas sin sesión.
@@ -526,6 +532,12 @@ jobs:
           grep -Fq 'class="service-landing-faq__item"' /tmp/pangolin-service-fiscal.html
           curl -fsS --max-time 10 "$base/robots.txt" | grep -q 'OAI-SearchBot'
           curl -fsS --max-time 10 "$base/sitemap.xml" | grep -q 'almacenamiento-fiscal'
+          curl -fsS --max-time 20 "$base/api/content/news" >/dev/null
+          news_http="$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' "$base/noticias")"
+          if [[ "$news_http" != "200" ]]; then
+            echo "::error::Nuxt news canary unavailable (HTTP $news_http)."
+            exit 1
+          fi
           curl -fsS --max-time 10 "$base/api/health/ready" >/dev/null
           for path in '/cotizaciones' '/tracking' '/administracion'; do
             status="$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' "$base$path")"
@@ -564,6 +576,12 @@ jobs:
             false
           fi
           curl -fsS --max-time 8 -H "Host: $host" http://127.0.0.1/api/health/ready >/dev/null
+          curl -fsS --max-time 20 -H "Host: $host" http://127.0.0.1/api/content/news >/dev/null
+          news_http="$(curl -sS --max-time 20 -H "Host: $host" -o /dev/null -w '%{http_code}' http://127.0.0.1/noticias)"
+          if [[ "$news_http" != "200" ]]; then
+            echo "::error::WWW news page unavailable (HTTP $news_http)."
+            false
+          fi
           echo "$PANGOLIN_IMAGE_TAG" > "$HOME/pangolin-release/current-tag"
           echo "Nuxt SSR active on WWW; Fennec apex unchanged; legacy frontend available for rollback."
           trap - ERR
