@@ -15,7 +15,8 @@ public sealed record DholeOutboxReconciliationReview(
     string NextReviewAction,
     bool LocalConfirmationRecorded,
     bool AutomaticRetryAllowed,
-    bool DataIntegrityProblem);
+    bool DataIntegrityProblem,
+    Guid? ProviderReferenceCandidate = null);
 
 public sealed class DholeOfficialOutboxReconciliationPreview(IConfiguration configuration)
 {
@@ -37,7 +38,8 @@ public sealed class DholeOfficialOutboxReconciliationPreview(IConfiguration conf
             .Select(x => new
             {
                 x.QuoteId, x.IdempotencyKey, x.State, x.AttemptCount,
-                x.LastAttemptAtUtc, x.ExternalReference, x.VerifiedAtUtc
+                x.LastAttemptAtUtc, x.ExternalReference, x.VerifiedAtUtc,
+                x.ProviderReferenceCandidate
             })
             .SingleOrDefaultAsync(ct);
         if (entry is null) return null;
@@ -62,8 +64,13 @@ public sealed class DholeOfficialOutboxReconciliationPreview(IConfiguration conf
             "PendingDispatch" or "InFlight" or "HttpAcceptedUnverified" or
             "Rejected" or "Unconfirmed" or "Confirmed" or "Failed";
 
+        bool candidateConsistent = entry.ProviderReferenceCandidate is null ||
+            (entry.ProviderReferenceCandidate != Guid.Empty &&
+                (entry.State is "HttpAcceptedUnverified" or "Unconfirmed" ||
+                 (isVerified && Guid.TryParse(entry.ExternalReference, out var verified) &&
+                  verified == entry.ProviderReferenceCandidate)));
         bool integrityProblem = !validIdentity || !expectedAttemptCount ||
-                                !evidenceConsistent || !knownState;
+                                !evidenceConsistent || !knownState || !candidateConsistent;
 
         var action = integrityProblem ? "InvestigateLocalDataIntegrity" :
             entry.State switch
@@ -86,6 +93,7 @@ public sealed class DholeOfficialOutboxReconciliationPreview(IConfiguration conf
             entry.AttemptCount, action,
             LocalConfirmationRecorded: !integrityProblem && isVerified,
             AutomaticRetryAllowed: false,
-            DataIntegrityProblem: integrityProblem);
+            DataIntegrityProblem: integrityProblem,
+            ProviderReferenceCandidate: integrityProblem ? null : entry.ProviderReferenceCandidate);
     }
 }

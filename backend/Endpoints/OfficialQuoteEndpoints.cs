@@ -552,7 +552,7 @@ public static class OfficialQuoteEndpoints
             var directOutbox = directEnabled
                 ? await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
                     .Where(x => x.QuoteId == id)
-                    .Select(x => new { x.State, x.Priority }).FirstOrDefaultAsync(ct)
+                    .Select(x => new { x.State, x.Priority, x.ProviderReferenceCandidate }).FirstOrDefaultAsync(ct)
                 : null;
             var approvalOutbox = !directEnabled && approvalEnabled
                 ? await db.OfficialQuoteDholeOutbox.AsNoTracking()
@@ -565,6 +565,7 @@ public static class OfficialQuoteEndpoints
             return Results.Ok(new { q.Id, q.CustomerName, q.Mode, q.ShipmentType, q.Status,
                 q.Authorization, q.AuthorizedAtUtc, q.CreatedAtUtc, dholeDispatchState = dispatchState,
                 dholePriority = directEnabled ? directOutbox?.Priority : approvalOutbox?.Priority,
+                dholeReceiptCandidate = directOutbox?.ProviderReferenceCandidate,
                 form = JsonSerializer.Deserialize<JsonElement>(q.FormJson), history });
         });
 

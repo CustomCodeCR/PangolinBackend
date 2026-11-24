@@ -12,7 +12,8 @@ namespace CastroFallas.MiniQuote.Api.Services;
 /// </summary>
 public sealed record DholeOfficialDispatchAttemptResult(
     string State, bool Claimed, bool TransportAcceptedLocally,
-    bool RemoteCreationConfirmed, bool AutomaticRetryAllowed);
+    bool RemoteCreationConfirmed, bool AutomaticRetryAllowed,
+    Guid? ProviderReferenceCandidate = null);
 
 public sealed class DholeOfficialDispatchAttemptCoordinator(
     IConfiguration configuration,
@@ -44,19 +45,20 @@ public sealed class DholeOfficialDispatchAttemptCoordinator(
         var id = await claimer.ClaimReviewedQuoteForOfflineReviewAsync(db, review, ct);
         if (id is null) return Stop("AlreadyClaimedOrInvalid");
 
-        DholeQuotePostOutcome outcome;
+        DholeQuotePostReceipt receipt;
         try
         {
-            outcome = await transport.PostValidatedAsync(id.Value, review.Body, ct);
+            receipt = await transport.PostWithReceiptAsync(id.Value, review.Body, ct);
         }
         catch (Exception ex) when (ex is HttpRequestException or IOException or
             OperationCanceledException or InvalidOperationException)
         {
             // A thrown exception after claim may mean the remote side created
             // the request. Never auto resend or mark creation confirmed.
-            outcome = DholeQuotePostOutcome.Unconfirmed;
+            receipt = new(DholeQuotePostOutcome.Unconfirmed, null);
         }
 
+        var outcome = receipt.Outcome;
         var completionEvent = outcome switch
         {
             DholeQuotePostOutcome.HttpAcceptedUnverified =>
@@ -70,7 +72,8 @@ public sealed class DholeOfficialDispatchAttemptCoordinator(
         // A failure persisting the result leaves InFlight, which is intentionally
         // NOT automatically reclaimed. No raw response or PII is logged.
         var recorded = await recorder.RecordAttemptOutcomeForOfflineReviewAsync(
-            db, id.Value, completionEvent, CancellationToken.None);
+            db, id.Value, completionEvent, CancellationToken.None,
+            receipt.ProviderReferenceCandidate);
         var state = recorded
             ? DholeOfficialDeliveryStateMachine.Advance(
                 "InFlight", completionEvent).NextState
@@ -79,6 +82,7 @@ public sealed class DholeOfficialDispatchAttemptCoordinator(
             state, true,
             outcome == DholeQuotePostOutcome.HttpAcceptedUnverified,
             RemoteCreationConfirmed:false,
-            AutomaticRetryAllowed:false);
+            AutomaticRetryAllowed:false,
+            ProviderReferenceCandidate: recorded ? receipt.ProviderReferenceCandidate : null);
     }
 }

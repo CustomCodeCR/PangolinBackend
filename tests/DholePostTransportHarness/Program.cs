@@ -69,6 +69,17 @@ using var fakeHttp = new HttpClient(fake);
 var factory = new FakePostFactory(fakeHttp);
 using var valid = Body();
 
+// Published response receipt parsing only: no extra HTTP cases.
+var receiptId = Guid.Parse("f8000000-0000-4000-8000-000000000001");
+Check(DholeQuotePostTransport.ReadPublishedReference(
+    "{\"value\":\"f8000000-0000-4000-8000-000000000001\"}") == receiptId,
+    "Published Gateway response retains the UUID candidate");
+foreach (var invalidReceipt in new[] { "{}", "not-json", "\"f8000000-0000-4000-8000-000000000001\"",
+    "{\"value\":\"00000000-0000-0000-0000-000000000000\"}",
+    "{\"value\":\"f8000000-0000-4000-8000-000000000001\",\"value\":\"other\"}" })
+    Check(DholeQuotePostTransport.ReadPublishedReference(invalidReceipt) is null,
+        "Invalid or ambiguous receipts cannot provide a candidate");
+
 // Key present but feature absent: zero HTTP requests.
 var disabled = new DholeQuotePostTransport(Settings(key: secret), factory);
 Check(!disabled.Enabled, "POST must default to disabled");

@@ -907,6 +907,7 @@ internal static class DholeQuoteHttpTest
             var sent = await coordinator.AttemptOnceAsync(
                 db, coordinatorFlat, CancellationToken.None);
             Assert(sent.Claimed && sent.State == "HttpAcceptedUnverified" &&
+                sent.ProviderReferenceCandidate == Guid.Parse("f8000000-0000-4000-8000-000000000001") &&
                 sent.TransportAcceptedLocally && !sent.RemoteCreationConfirmed &&
                 !sent.AutomaticRetryAllowed && fakePost.Calls == 1,
                 "Mock HTTP 200 only proves accepted transport, never Pricing creation");
@@ -920,7 +921,7 @@ internal static class DholeQuoteHttpTest
         {
             await db.OpenAsync();
             await using var state = new NpgsqlCommand("""
-                SELECT state, attempt_count, external_reference, verified_at_utc
+                SELECT state, attempt_count, external_reference, verified_at_utc, provider_reference_candidate
                 FROM public.official_quote_dhole_creation_outbox
                 WHERE quote_id = @id
                 """, db);
@@ -929,8 +930,9 @@ internal static class DholeQuoteHttpTest
             Assert(await row.ReadAsync() &&
                 row.GetString(0) == "HttpAcceptedUnverified" &&
                 row.GetInt32(1) == 1 &&
-                row.IsDBNull(2) && row.IsDBNull(3),
-                "Post accepted in fake CI remains unverified with exactly one attempt");
+                row.IsDBNull(2) && row.IsDBNull(3) &&
+                row.GetGuid(4) == Guid.Parse("f8000000-0000-4000-8000-000000000001"),
+                "Gateway receipt is retained separately, without confirmation or another attempt");
         }
         Console.WriteLine("PASS: dormant one-shot coordinator uses fake-only HTTP, keeps 2xx unverified and refuses replay.");
 
@@ -1251,7 +1253,7 @@ sealed class CiFakeDholeQuotePostHandler(string key, Guid quoteId) : HttpMessage
         return new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent(
-                "\"f8000000-0000-4000-8000-000000000001\"",
+                "{\"value\":\"f8000000-0000-4000-8000-000000000001\"}",
                 Encoding.UTF8, "application/json")
         };
     }

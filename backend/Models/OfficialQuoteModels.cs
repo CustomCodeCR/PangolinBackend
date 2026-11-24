@@ -43,6 +43,7 @@ public sealed class OfficialQuoteDholeCreationOutbox
     public string State { get; set; } = "PendingDispatch";
     public string Priority { get; set; } = "Green";
     public int AttemptCount { get; set; }
+    public Guid? ProviderReferenceCandidate { get; set; }
     public string? ExternalReference { get; set; }
     public string? LastErrorCode { get; set; }
     public DateTime? LastAttemptAtUtc { get; set; }

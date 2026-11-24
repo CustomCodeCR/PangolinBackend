@@ -8,7 +8,7 @@ namespace CastroFallas.MiniQuote.Api.Services;
 /// Future-dispatcher DATABASE primitive. No registration, route, hosted worker,
 /// network client or retry loop. Disabled unless both flags are explicitly true.
 /// It can only record outcomes of one pre-existing InFlight attempt; never
-/// sets Confirmed, stores provider text, or generates a remote reference.
+/// sets Confirmed, stores provider text, or invents a remote reference.
 /// </summary>
 public sealed class DholeOfficialOutboxOutcomeService(IConfiguration configuration)
 {
@@ -17,7 +17,8 @@ public sealed class DholeOfficialOutboxOutcomeService(IConfiguration configurati
         configuration.GetValue<bool>("DholeSubmission:OutcomePreviewEnabled");
 
     public async Task<bool> RecordAttemptOutcomeForOfflineReviewAsync(
-        AppDbContext db, Guid quoteId, DholeDeliveryEvent outcome, CancellationToken ct)
+        AppDbContext db, Guid quoteId, DholeDeliveryEvent outcome, CancellationToken ct,
+        Guid? providerReferenceCandidate = null)
     {
         if (!Enabled) return false;
         if (quoteId == Guid.Empty)
@@ -29,6 +30,11 @@ public sealed class DholeOfficialOutboxOutcomeService(IConfiguration configurati
             DholeDeliveryEvent.ProviderRejected or
             DholeDeliveryEvent.LocalValidationFailed))
             throw new InvalidOperationException("This outcome cannot be persisted automatically.");
+
+        if (providerReferenceCandidate is not null &&
+            (providerReferenceCandidate == Guid.Empty ||
+             outcome != DholeDeliveryEvent.HttpAcceptedButUnverified))
+            throw new InvalidOperationException("Unexpected Dhole receipt candidate.");
 
         var decision = DholeOfficialDeliveryStateMachine.Advance("InFlight", outcome);
         if (decision.RemoteCreationConfirmed || decision.AutomaticRetryAllowed ||
@@ -52,10 +58,12 @@ public sealed class DholeOfficialOutboxOutcomeService(IConfiguration configurati
             UPDATE public.official_quote_dhole_creation_outbox
             SET state = {decision.NextState},
                 last_error_code = {errorCode},
+                provider_reference_candidate = CAST({providerReferenceCandidate?.ToString("D")} AS uuid),
                 updated_at_utc = now()
             WHERE quote_id = {quoteId}
               AND state = 'InFlight'
               AND attempt_count = 1
+              AND provider_reference_candidate IS NULL
               AND external_reference IS NULL
               AND verified_at_utc IS NULL
             """, ct);

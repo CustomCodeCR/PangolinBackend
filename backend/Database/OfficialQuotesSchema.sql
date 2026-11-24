@@ -130,5 +130,8 @@ CREATE TABLE IF NOT EXISTS public.official_quote_dhole_creation_outbox (
     created_at_utc TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at_utc TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- A provider receipt is not the verified external_reference.
+ALTER TABLE public.official_quote_dhole_creation_outbox
+    ADD COLUMN IF NOT EXISTS provider_reference_candidate UUID NULL;
 CREATE INDEX IF NOT EXISTS ix_official_quote_dhole_creation_state
     ON public.official_quote_dhole_creation_outbox(state, created_at_utc);

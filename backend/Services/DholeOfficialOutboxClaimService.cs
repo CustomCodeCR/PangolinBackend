@@ -46,6 +46,7 @@ public sealed class DholeOfficialOutboxClaimService(IConfiguration configuration
             item.IdempotencyKey != review.IdempotencyKey ||
             item.AttemptCount != 0 ||
             item.LastAttemptAtUtc is not null ||
+            item.ProviderReferenceCandidate is not null ||
             item.ExternalReference is not null ||
             item.VerifiedAtUtc is not null)
             return null;
@@ -94,6 +95,7 @@ public sealed class DholeOfficialOutboxClaimService(IConfiguration configuration
               AND state = 'PendingDispatch'
               AND attempt_count = 0
               AND last_attempt_at_utc IS NULL
+              AND provider_reference_candidate IS NULL
               AND external_reference IS NULL
               AND verified_at_utc IS NULL
             RETURNING quote_id

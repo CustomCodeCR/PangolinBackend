@@ -148,6 +148,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         directOutbox.Property(x => x.State).HasColumnName("state").HasMaxLength(32);
         directOutbox.Property(x => x.Priority).HasColumnName("priority").HasMaxLength(6);
         directOutbox.Property(x => x.AttemptCount).HasColumnName("attempt_count");
+        directOutbox.Property(x => x.ProviderReferenceCandidate).HasColumnName("provider_reference_candidate");
         directOutbox.Property(x => x.ExternalReference).HasColumnName("external_reference").HasMaxLength(180);
         directOutbox.Property(x => x.LastErrorCode).HasColumnName("last_error_code").HasMaxLength(60);
         directOutbox.Property(x => x.LastAttemptAtUtc).HasColumnName("last_attempt_at_utc");

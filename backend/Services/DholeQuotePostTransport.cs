@@ -53,19 +53,24 @@ public sealed class DholeQuotePostTransport(
         Enabled && config["DholeSubmission:ApiKey"] is { } secret &&
         KeyFormat.IsMatch(secret);
 
+    // Compatibility for the existing isolated one-shot tool.
     public async Task<DholeQuotePostOutcome> PostValidatedAsync(
+        Guid quoteId, JsonElement publishedFlatBody, CancellationToken ct) =>
+        (await PostWithReceiptAsync(quoteId, publishedFlatBody, ct)).Outcome;
+
+    public async Task<DholeQuotePostReceipt> PostWithReceiptAsync(
         Guid quoteId, JsonElement publishedFlatBody, CancellationToken ct)
     {
         // Fail CLOSED before inspecting or serializing potentially private user data.
-        if (!Enabled) return DholeQuotePostOutcome.Disabled;
+        if (!Enabled) return new(DholeQuotePostOutcome.Disabled, null);
         var secret = config["DholeSubmission:ApiKey"];
         if (secret is null || !KeyFormat.IsMatch(secret))
-            return DholeQuotePostOutcome.NotConfigured;
+            return new(DholeQuotePostOutcome.NotConfigured, null);
         if (quoteId == Guid.Empty || !IsValidFlatBody(publishedFlatBody))
-            return DholeQuotePostOutcome.InvalidPayload;
+            return new(DholeQuotePostOutcome.InvalidPayload, null);
 
         byte[] payload = Encoding.UTF8.GetBytes(publishedFlatBody.GetRawText());
-        if (payload.Length > MaxBodyBytes) return DholeQuotePostOutcome.InvalidPayload;
+        if (payload.Length > MaxBodyBytes) return new(DholeQuotePostOutcome.InvalidPayload, null);
 
         using var request = new HttpRequestMessage(HttpMethod.Post, FixedDestination);
         request.Headers.TryAddWithoutValidation("X-Api-Key", secret);
@@ -91,20 +96,43 @@ public sealed class DholeQuotePostTransport(
             if (response.StatusCode is HttpStatusCode.Conflict or
                 HttpStatusCode.RequestTimeout or HttpStatusCode.TooManyRequests ||
                 (int)response.StatusCode >= 500)
-                return DholeQuotePostOutcome.Unconfirmed;
+                return new(DholeQuotePostOutcome.Unconfirmed, null);
             if (!response.IsSuccessStatusCode)
-                return DholeQuotePostOutcome.Rejected;
+                return new(DholeQuotePostOutcome.Rejected, null);
             if (response.Content.Headers.ContentLength is > MaxResponseBytes)
-                return DholeQuotePostOutcome.Unconfirmed;
+                return new(DholeQuotePostOutcome.Unconfirmed, null);
             await response.Content.LoadIntoBufferAsync(MaxResponseBytes, ct);
-            // 2xx only means HTTP accepted; not proof of persisted Pricing ID.
-            return DholeQuotePostOutcome.HttpAcceptedUnverified;
+            // Gateway's published value is a receipt candidate, never independent
+            // verification. Do not retain or log any raw response content.
+            var raw = await response.Content.ReadAsStringAsync(ct);
+            return new(DholeQuotePostOutcome.HttpAcceptedUnverified,
+                ReadPublishedReference(raw));
         }
         catch (Exception ex) when (ex is HttpRequestException or IOException or
             InvalidOperationException or OperationCanceledException)
         {
-            return DholeQuotePostOutcome.Unconfirmed;
+            return new(DholeQuotePostOutcome.Unconfirmed, null);
         }
+    }
+
+    // Only the reviewed external projection {"value":"UUID"} is accepted.
+    // Missing, malformed, duplicate or unexpected fields remain unverified.
+    public static Guid? ReadPublishedReference(string raw)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(raw);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object ||
+                root.EnumerateObject().Count() != 1 ||
+                !root.TryGetProperty("value", out var value) ||
+                value.ValueKind != JsonValueKind.String ||
+                !Guid.TryParseExact(value.GetString(), "D", out var id) ||
+                id == Guid.Empty)
+                return null;
+            return id;
+        }
+        catch (JsonException) { return null; }
     }
 
     // Pure local validation; it makes NO HTTP call and does not grant
@@ -311,7 +339,10 @@ public sealed class DholeQuotePostTransport(
     }
 }
 
-/// <summary>No remote reference is returned or invented by this transport.</summary>
+/// <summary>Provider response candidate, not a verified remote creation.</summary>
+public sealed record DholeQuotePostReceipt(DholeQuotePostOutcome Outcome, Guid? ProviderReferenceCandidate);
+
+/// <summary>HTTP outcome only; no status implies independent confirmation.</summary>
 public enum DholeQuotePostOutcome
 {
     Disabled,
