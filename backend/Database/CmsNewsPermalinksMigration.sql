@@ -1,4 +1,4 @@
--- News permalink columns, additive and repeatable. NO se ejecuta automáticamente en producción.
+-- News permalink columns, additive and repeatable. Applied after CMS metadata in the production migration transaction.
 -- Run on the verified database after backup, BEFORE deploying backend code:
 -- psql -X -v ON_ERROR_STOP=1 --single-transaction -f CmsNewsPermalinksMigration.sql
 SET LOCAL lock_timeout = '5s';
@@ -48,6 +48,9 @@ BEGIN
       AND data_type = 'timestamp with time zone' AND is_nullable = 'YES'
   ) THEN
     RAISE EXCEPTION 'Unexpected cms_news permalink column definitions';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.cms_news WHERE published = TRUE AND content_modified_at IS NULL) THEN
+    RAISE EXCEPTION 'cms_news editorial timestamp backfill incomplete';
   END IF;
 END
 $verify$;

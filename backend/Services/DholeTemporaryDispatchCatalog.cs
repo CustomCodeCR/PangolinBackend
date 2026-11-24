@@ -1,19 +1,33 @@
 using System.Text.Json;
+using System.Globalization;
 
 namespace CastroFallas.MiniQuote.Api.Services;
 
 // Temporary server-side snapshot supplied by the project owner, November 2026.
 // Catalog UUIDs are identifiers, not API credentials. Never exposed by the public form.
-// An explicit deployment expiry is required, and cannot exceed the hard cutoff.
-// Do not relabel this snapshot as live or extend its life automatically.
+// Owner approved continued use without a mandatory calendar expiry on 2026-11-24.
+// An optional operator-configured UTC expiry remains supported.
+// Do not relabel this snapshot as live; replace it with authorized GETs when available.
 internal static class DholeTemporaryDispatchCatalog
 {
     private static readonly DateTimeOffset SnapshotDay = new(2026, 11, 24, 0, 0, 0, TimeSpan.Zero);
-    internal static readonly DateTimeOffset HardCutoffUtc = new(2026, 12, 1, 0, 0, 0, TimeSpan.Zero);
+    public static bool IsUsable(DateTimeOffset now, DateTimeOffset? expires) =>
+        now >= SnapshotDay && (expires is null ||
+            (expires.Value.Offset == TimeSpan.Zero && now < expires.Value));
 
-    public static bool IsUsable(DateTimeOffset now, DateTimeOffset expires) =>
-        now >= SnapshotDay && expires.Offset == TimeSpan.Zero &&
-        expires <= HardCutoffUtc && now < expires;
+    // Empty is intentional indefinite validity, not an invalid timestamp.
+    // A nonempty malformed or expired setting must still fail closed.
+    public static bool TryReadValidity(string? text, DateTimeOffset now, out DateTimeOffset? expires)
+    {
+        expires = null;
+        if (string.IsNullOrEmpty(text))
+            return IsUsable(now, null);
+        if (!DateTimeOffset.TryParseExact(text, "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsed))
+            return false;
+        expires = parsed;
+        return IsUsable(now, expires);
+    }
 
     private static readonly (string Id, string Code, string Name)[] Services =
     [
@@ -60,7 +74,7 @@ internal static class DholeTemporaryDispatchCatalog
         };
 
     // Catalog data only. Does not establish the commercial meaning of form_currencyId.
-    public static Guid? CurrencyId(string? iso, DateTimeOffset now, DateTimeOffset expires) =>
+    public static Guid? CurrencyId(string? iso, DateTimeOffset now, DateTimeOffset? expires) =>
         IsUsable(now, expires) && iso is not null && Currencies.TryGetValue(iso, out var id)
             ? id : null;
 
