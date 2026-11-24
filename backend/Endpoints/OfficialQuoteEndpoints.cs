@@ -287,6 +287,40 @@ public static class OfficialQuoteEndpoints
         group.MapGet("/locations", GetPublicAssistantLocations)
             .RequireRateLimiting("public-read");
 
+        // Receipt capability: the quote UUID alone is never sufficient.
+        // Return only delivery state, never applicant details or remote UUID.
+        group.MapGet("/{id:guid}/delivery-status", async (Guid id, AppDbContext db,
+            AuthService auth, IConfiguration config, HttpContext http, CancellationToken ct) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+            if (!config.GetValue<bool>("DholeSubmission:DirectOutboxEnabled") ||
+                !config.GetValue<bool>("DholeSubmission:ClientCreateIdempotencyEnabled"))
+                return Results.NotFound();
+            var supplied = http.Request.Headers["X-CF-Quote-Request-Key"].ToString();
+            if (!Guid.TryParseExact(supplied, "D", out var key) || key == Guid.Empty ||
+                supplied != key.ToString("D") || supplied[14] != '4' ||
+                !"89ab".Contains(supplied[19]))
+                return Results.NotFound();
+            var actor = await auth.GetIdentityAsync(http, ct);
+            var owned = await (
+                from s in db.OfficialQuoteClientSubmissions.AsNoTracking()
+                join q in db.OfficialQuotes.AsNoTracking() on s.QuoteId equals q.Id
+                where s.SubmissionKey == key && q.Id == id &&
+                    (q.UsuarioId == null || q.UsuarioId == (actor == null ? (Guid?)null : actor.UsuarioId))
+                select q.Id).AnyAsync(ct);
+            if (!owned) return Results.NotFound();
+            var receipt = await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
+                .Where(x => x.QuoteId == id)
+                .Select(x => new { x.State, x.ExternalReference, x.VerifiedAtUtc })
+                .SingleOrDefaultAsync(ct);
+            if (receipt is null) return Results.NotFound();
+            var state = receipt.State == "Confirmed" &&
+                (!Guid.TryParse(receipt.ExternalReference, out var reference) ||
+                 reference == Guid.Empty || receipt.VerifiedAtUtc is null)
+                ? "Unconfirmed" : receipt.State;
+            return Results.Ok(new { dholeDispatchState = state });
+        }).RequireRateLimiting("public-read");
+
         group.MapPost("", async (OfficialQuoteSubmit input, AppDbContext db, AuthService auth,
             IConfiguration config, DholeCatalogService dholeService,
             DholeQuoteFormCatalogLoader dholeLoader, HttpContext http, CancellationToken ct) =>

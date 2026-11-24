@@ -9,6 +9,8 @@ import { prepareQuoteSubmissionAttempt, clearQuoteSubmissionAttempt,
   legacyQuoteResultUncertain, setLegacyQuoteResultUncertain,
   unresolvedKeyedQuoteAttempt, type QuoteSubmissionAttempt } from '../lib/officialQuoteSubmissionAttempt'
 
+import { useOfficialQuoteDeliveryStatus, quoteDeliveryMessage } from '../lib/officialQuoteDeliveryStatus'
+
 type Kind = 'quote' | 'tracking' | 'itinerary'
 type Phase = 'collect' | 'confirm' | 'review' | 'auth' | 'location' | 'result'
 type Choice = { value: string; label: string }
@@ -41,6 +43,8 @@ const locationTerm = ref('')
 const locationChoices = ref<Location[]>([])
 const quoteId = ref('')
 const quoteStatus = ref('')
+const delivery = useOfficialQuoteDeliveryStatus()
+const deliveryState = delivery.state
 const quoteResultUrl = ref('/cotizaciones')
 const quoteResultAdmin = ref(false)
 const itineraryResultUrl = computed(() => {
@@ -918,6 +922,8 @@ async function submitQuote() {
   quoteId.value = String(data.id || '')
   quoteStatus.value = String(data.status || '')
   if (!quoteId.value) throw new Error(tr('No recibimos el identificador de la solicitud. Consultá con soporte antes de repetir el envío.','No request ID was returned. Contact support before submitting again.'))
+  const receiptKey = activeCreateAttempt?.key
+  delivery.follow(quoteId.value, receiptKey, data.dholeDispatchState)
   clearQuoteSubmissionAttempt(CREATE_ATTEMPT_KEY)
   activeCreateAttempt = null
   legacyAttemptMayHaveSaved = false
@@ -925,6 +931,7 @@ async function submitQuote() {
     sessionStorage.removeItem(STORAGE_KEY)
     sessionStorage.setItem('gcf-gio-quote-receipt-v1', JSON.stringify({
       at:Date.now(), id:quoteId.value, status:quoteStatus.value,
+      receiptKey, deliveryState:deliveryState.value,
       mode:values.mode, origin:values.origin, destination:values.destination,
       // Snapshot only the fields confirmed and submitted. Nothing goes in the URL,
       // and the public receipt never fetches other customers' requests by ID.
@@ -1117,8 +1124,9 @@ async function perform() {
       </template>
       <template v-else-if="phase === 'result'">
         <template v-if="kind === 'quote'">
-          <div class="gio-ops__bubble">{{ tr('¡Solicitud registrada! Este es el identificador confirmado por el sistema.','Request created! This is the ID returned by the system.') }}</div>
-          <section class="gio-ops__card"><h3><CheckCircle2 :size="18" />{{ tr('Solicitud recibida','Request received') }}</h3><p class="gio-ops__id">{{ quoteId }}</p><p>{{ quoteStatus }}</p><a class="gio-ops__primary gio-ops__link" :href="quoteResultUrl">{{ quoteResultAdmin ? tr('Ver cotizaciones en administración','Review quotes in administration') : tr('Ir a cotizaciones','Go to quotes') }}</a></section>
+          <div class="gio-ops__bubble" role="status">{{ quoteDeliveryMessage(deliveryState, tr) }}</div>
+          <div v-if="deliveryState === 'Confirmed'" class="gio-ops__bubble">{{ tr('Te enviaremos un correo de confirmación a la dirección indicada.','We will send a confirmation email to the address you provided.') }}</div>
+          <section class="gio-ops__card"><h3><CheckCircle2 :size="18" />{{ deliveryState === 'Confirmed' ? tr('Solicitud enviada','Request sent') : tr('Solicitud recibida','Request received') }}</h3><p class="gio-ops__id">{{ quoteId }}</p><p>{{ quoteStatus }}</p><a class="gio-ops__primary gio-ops__link" :href="quoteResultUrl">{{ quoteResultAdmin ? tr('Ver cotizaciones en administración','Review quotes in administration') : tr('Ir a cotizaciones','Go to quotes') }}</a></section>
         </template>
         <template v-else-if="kind === 'itinerary'">
           <div class="gio-ops__bubble">{{ itineraryTotal ? tr('Estos son los itinerarios publicados que coinciden con tu búsqueda.','These published itineraries match your search.') : tr('No hay itinerarios publicados con esos filtros.','There are no published itineraries matching those filters.') }}</div>

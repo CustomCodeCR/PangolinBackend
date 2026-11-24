@@ -15,6 +15,8 @@ import { prepareQuoteSubmissionAttempt, clearQuoteSubmissionAttempt,
   legacyQuoteResultUncertain, setLegacyQuoteResultUncertain,
   unresolvedKeyedQuoteAttempt, type QuoteSubmissionAttempt } from '../lib/officialQuoteSubmissionAttempt'
 
+import { useOfficialQuoteDeliveryStatus, quoteDeliveryMessage } from '../lib/officialQuoteDeliveryStatus'
+
 const { locale } = useI18n({ useScope: 'global' })
 const q = (es: string, en: string) => locale.value === 'en' ? en : es
 
@@ -39,10 +41,12 @@ const catalogSource = ref<'local' | 'dhole'>('local')
 const dholeFormOptions = ref<DholeQuoteFormOptions | null>(null)
 const busy = ref(false)
 type GioReceiptDetail = { key: string; value: string }
-type GioReceipt = { at: number; id: string; status: string; mode: string; origin: string; destination: string; details?: GioReceiptDetail[] }
+type GioReceipt = { at: number; id: string; status: string; mode: string; origin: string; destination: string; details?: GioReceiptDetail[]; deliveryState?:string; receiptKey?:string }
 const gioReceipt = ref<GioReceipt | null>(null)
 const error = ref('')
 const createdId = ref('')
+const delivery = useOfficialQuoteDeliveryStatus()
+const deliveryState = delivery.state
 const CREATE_ATTEMPT_KEY = 'gcf-official-quote-wizard-attempt-v1'
 let activeCreateAttempt: QuoteSubmissionAttempt | null = null
 let legacyAttemptMayHaveSaved = false
@@ -423,6 +427,10 @@ onMounted(async () => {
             details
           }
           createdId.value = saved.id
+          // Treat only the server's authenticated receipt read as confirmation.
+          // Session storage is merely a same-tab capability handoff.
+          if (saved.receiptKey)
+            delivery.follow(saved.id, saved.receiptKey, 'PendingDispatch')
         }
       }
     } catch { /* Invalid or blocked storage: leave the normal quote form available. */ }
@@ -543,7 +551,7 @@ async function submit() {
     const response = await fetch('/api/quotes/official', {
       method:'POST',credentials:'same-origin',headers,body
     })
-    const data = await response.json() as {id?:string;error?:string}
+    const data = await response.json() as {id?:string;error?:string;dholeDispatchState?:string}
     if (!response.ok) {
       if (response.status === 400) {
         // Server definitively rejected validation before saving the request.
@@ -557,6 +565,7 @@ async function submit() {
       'No recibimos el identificador de la cotización. Consultá con soporte antes de repetir el envío.',
       'No quote ID was received. Contact support before resubmitting.'))
     createdId.value = data.id
+    delivery.follow(data.id, activeCreateAttempt?.key, data.dholeDispatchState)
     clearQuoteSubmissionAttempt(CREATE_ATTEMPT_KEY)
     activeCreateAttempt = null
     legacyAttemptMayHaveSaved = false
@@ -576,8 +585,9 @@ async function submit() {
       </header>
       <div v-if="createdId" class="official-success" role="status">
         <span class="official-success-icon">✓</span>
-          <h2>{{ q('¡Solicitud recibida!', 'Request received!') }}</h2>
-          <p>{{ q('Se guardó correctamente y está pendiente de revisión administrativa. Todavía no se ha enviado a Dhole.', 'Your request was saved and is awaiting administrative review. It has not been sent to Dhole.') }}</p>
+          <h2>{{ deliveryState === 'Confirmed' ? q('¡Solicitud enviada!', 'Request sent!') : q('¡Solicitud recibida!', 'Request received!') }}</h2>
+          <p>{{ quoteDeliveryMessage(deliveryState, q) }}</p>
+          <p v-if="deliveryState === 'Confirmed'">{{ q('Te enviaremos un correo de confirmación a la dirección indicada.', 'We will send a confirmation email to the address you provided.') }}</p>
           <p class="official-id">{{ q('Número de referencia:', 'Reference number:') }} {{ createdId }}</p>
           <section v-if="receiptSections.length" class="official-receipt" aria-labelledby="official-receipt-title">
             <h3 id="official-receipt-title">{{ q('Resumen de tu solicitud', 'Your request summary') }}</h3>

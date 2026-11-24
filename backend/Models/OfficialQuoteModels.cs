@@ -44,6 +44,9 @@ public sealed class OfficialQuoteDholeCreationOutbox
     public string Priority { get; set; } = "Green";
     public int AttemptCount { get; set; }
     public Guid? ProviderReferenceCandidate { get; set; }
+    public DateTime? ConfirmationEmailClaimedAtUtc { get; set; }
+    public DateTime? ConfirmationEmailAcceptedAtUtc { get; set; }
+    public string? ConfirmationEmailErrorCode { get; set; }
     public string? ExternalReference { get; set; }
     public string? LastErrorCode { get; set; }
     public DateTime? LastAttemptAtUtc { get; set; }

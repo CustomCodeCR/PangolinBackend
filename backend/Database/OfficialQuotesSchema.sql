@@ -133,5 +133,11 @@ CREATE TABLE IF NOT EXISTS public.official_quote_dhole_creation_outbox (
 -- A provider receipt is not the verified external_reference.
 ALTER TABLE public.official_quote_dhole_creation_outbox
     ADD COLUMN IF NOT EXISTS provider_reference_candidate UUID NULL;
+-- Confirmation email uses an independent once-only reservation. A failure or
+-- lost response never reopens the Dhole POST or automatically repeats mail.
+ALTER TABLE public.official_quote_dhole_creation_outbox
+    ADD COLUMN IF NOT EXISTS confirmation_email_claimed_at_utc TIMESTAMPTZ NULL,
+    ADD COLUMN IF NOT EXISTS confirmation_email_accepted_at_utc TIMESTAMPTZ NULL,
+    ADD COLUMN IF NOT EXISTS confirmation_email_error_code VARCHAR(60) NULL;
 CREATE INDEX IF NOT EXISTS ix_official_quote_dhole_creation_state
     ON public.official_quote_dhole_creation_outbox(state, created_at_utc);
