@@ -8,7 +8,13 @@ namespace CastroFallas.MiniQuote.Api.Services;
 public sealed class DholeQuoteFormCatalogLoader(DholeCatalogService catalogs)
 {
     public async Task<DholeQuoteFormCatalog> LoadFreshAsync(
-        string mode, string shipmentType, CancellationToken ct)
+        string mode, string shipmentType, CancellationToken ct) =>
+        (await LoadFreshWithSnapshotsAsync(mode, shipmentType, ct)).Catalog;
+
+    // Reuse the same route/equipment reads for server-only dispatch preflight.
+    // The original timestamps are retained, not replaced with the review time.
+    public async Task<(DholeQuoteFormCatalog Catalog, DholeCatalogSnapshot[] Snapshots)>
+        LoadFreshWithSnapshotsAsync(string mode, string shipmentType, CancellationToken ct)
     {
         if ((mode, shipmentType) is not
             (("Maritime", "FCL") or ("Maritime", "LCL") or
@@ -47,6 +53,6 @@ public sealed class DholeQuoteFormCatalogLoader(DholeCatalogService catalogs)
             (shipmentType is "FCL" or "FTL" && result.EquipmentSizes.Length == 0))
             throw new DholeCatalogUnavailableException();
 
-        return result;
+        return (result, snapshots);
     }
 }

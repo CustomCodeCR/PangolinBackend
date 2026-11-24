@@ -1,5 +1,4 @@
 using System.Text;
-using System.Security.Cryptography;
 using System.Net;
 
 namespace CastroFallas.MiniQuote.Api.Services.Auth;
@@ -12,11 +11,15 @@ public static class OtpEmailTemplate
 {
     public const string LoginUrl = "https://www.logisticacastrofallas.com/bienvenidos";
 
-    // Each OTP delivery gets an independent, non-sensitive reference in the subject.
-    // This reduces Gmail conversation grouping without exposing the access code.
-    public static string Subject() =>
-        "Código de acceso | Castro Fallas · " +
-        Convert.ToHexString(RandomNumberGenerator.GetBytes(4));
+    // Show the actual six-digit code instead of an easily confused random
+    // eight-character reference. This is an explicit product decision:
+    // email subjects can appear on lock-screen notifications and in mail logs.
+    // Never add the code to URLs, headers other than Subject, or app logs.
+    public static string Subject(string otp)
+    {
+        ValidateOtp(otp);
+        return "Código de acceso | Castro Fallas · " + otp;
+    }
 
     // The fragment carries only an opaque challenge ID, never the OTP.
     // Fragments stay in the browser and are not transmitted to the web server.

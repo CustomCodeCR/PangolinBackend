@@ -203,6 +203,7 @@ const homeNewsLoaded = ref(false)
 const homeNewsError = ref(false)
 const homeNews = computed(() => managedNews.value.filter(article => article.published && article.title.trim()).slice(0, 3).map(article => ({
   id: article.id, category: article.category, title: article.title,
+  slug: article.slug || null,
   image: article.image || '/images/cover-logistics.jpeg'
 })))
 
@@ -400,7 +401,7 @@ onUnmounted(() => {
                     v-for="item in homeNews"
                     :key="`${copy}-${item.id}`"
                     class="home-hero-news__card"
-                    :href="'/noticias?article=' + encodeURIComponent(item.id)"
+                    :href="item.slug ? '/noticias/' + encodeURIComponent(item.slug) : '/noticias?article=' + encodeURIComponent(item.id)"
                     :tabindex="copy > 1 ? -1 : 0"
                     :aria-label="`${$t('custom.home.newsAria')}: ${item.title}`"
                   >
@@ -1013,5 +1014,29 @@ html:not(.theme-dark) .app-site.home-page .home-specialties .home-specialties__o
   html .app-site.home-page #servicios .service-accordion__item {
     transition: none !important;
   }
+}
+
+/* Color de los seis nombres verticales del Inicio: texto sólido, no contorno.
+   Se aplica a pestañas abiertas y cerradas sin alterar el acordeón ni sus animaciones. */
+html:not(.theme-dark) .app-site.home-page #servicios .service-accordion__item .service-accordion__trigger .service-accordion__name {
+  color: #b00929 !important;
+  -webkit-text-fill-color: #b00929 !important;
+  -webkit-text-stroke: 0 transparent !important;
+}
+html.theme-dark .app-site.home-page #servicios .service-accordion__item .service-accordion__trigger .service-accordion__name {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  -webkit-text-stroke: 0 transparent !important;
+}
+/* En claro, conservar el riel activo rojo original con letras blancas.
+   Solo las pestañas cerradas usan texto rojo sobre el fondo claro. */
+html:not(.theme-dark) .app-site.home-page #servicios .service-accordion__item.is-open > .service-accordion__trigger {
+  background: #b20b2d !important;
+  border-right-color: rgba(255, 255, 255, .22) !important;
+}
+html:not(.theme-dark) .app-site.home-page #servicios .service-accordion__item.is-open > .service-accordion__trigger .service-accordion__name {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  -webkit-text-stroke: 0 transparent !important;
 }
 </style>

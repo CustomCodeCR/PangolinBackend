@@ -308,7 +308,7 @@ public sealed class AuthService(
         var message = new MimeMessage();
         message.From.Add(MailboxAddress.Parse(from));
         message.To.Add(MailboxAddress.Parse(email));
-        message.Subject = OtpEmailTemplate.Subject();
+        message.Subject = OtpEmailTemplate.Subject(otp);
         // La alternativa de texto sigue disponible cuando el cliente bloquea HTML.
         var plainText = OtpEmailTemplate.PlainText(otp, verificationUrl);
         var htmlText = OtpEmailTemplate.Html(otp, verificationUrl);

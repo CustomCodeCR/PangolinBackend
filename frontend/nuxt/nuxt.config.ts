@@ -32,12 +32,20 @@ export default defineNuxtConfig({
     }
   },
   routeRules: {
+    // Safety net when a request reaches Nuxt without passing through the
+    // production gateway, which already redirects /home to the canonical root.
+    // Keep this alias out of the sitemap and preserve the current local host.
+    '/home': { redirect: { to: '/', statusCode: 301 } },
+    '/home/': { redirect: { to: '/', statusCode: 301 } },
     '/': { prerender: true },
     '/nosotros': { prerender: true },
     '/servicios': { prerender: true },
     '/servicios/**': { prerender: true },
-    '/noticias': { swr: 300 },
-    '/noticias/**': { swr: 300 },
+    // Reduce temporary stale listings after publication without disabling cache.
+    '/noticias': { swr: 120 },
+    // Individual articles must not cache successful HTML; deleting a post must
+    // never leave a cached HTTP 200 while the client shows "Noticia no disponible".
+    '/noticias/**': { swr: false },
     // Las rutas privadas siguen en la SPA actual y no deben enviarse a este servicio.
     '/administracion/**': { ssr: false },
     '/cotizaciones/**': { ssr: false },

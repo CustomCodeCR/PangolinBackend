@@ -13,6 +13,8 @@ export type DholeQuoteFormOptions = {
   pods: DholeFormLocation[]
   equipmentSizes: DholeFormChoice[]
   equipmentTypesBySize: Record<string, string[]>
+  // Defaults to false for legacy mock/backend responses. Only true is trusted.
+  clientCreateIdempotencyEnabled?: boolean
 }
 
 function isLocation(item: unknown): item is DholeFormLocation {
@@ -46,6 +48,8 @@ function checkOptions(value: unknown,
       !Array.isArray(v.equipmentSizes) || !v.equipmentSizes.every(isChoice) ||
       !v.equipmentTypesBySize || typeof v.equipmentTypesBySize !== 'object' ||
       Array.isArray(v.equipmentTypesBySize)) return false
+  if (v.clientCreateIdempotencyEnabled !== undefined &&
+      typeof v.clientCreateIdempotencyEnabled !== 'boolean') return false
   const types = Object.values(v.equipmentTypesBySize as Record<string, unknown>)
   return v.incoterms.length > 0 && v.origins.length > 0 && v.destinations.length > 0 &&
     (mode !== 'Maritime' || v.pods.length > 0) &&

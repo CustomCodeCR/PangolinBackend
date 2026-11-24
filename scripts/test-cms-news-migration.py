@@ -14,6 +14,7 @@ if os.environ.get("GITHUB_ACTIONS") != "true":
 
 root = Path(__file__).resolve().parents[1]
 migration = (root / "backend/Database/CmsNewsMetadataMigration.sql").read_text(encoding="utf-8")
+permalink_migration = (root / "backend/Database/CmsNewsPermalinksMigration.sql").read_text(encoding="utf-8")
 database = "cf_cms_news_migration_ci_" + uuid.uuid4().hex[:12]
 base = ["docker", "compose", "exec", "-T", "postgres"]
 
@@ -35,7 +36,8 @@ CREATE TABLE public.cms_news (
   id integer PRIMARY KEY,
   title text NOT NULL,
   published boolean NOT NULL DEFAULT FALSE,
-  created_at timestamptz NOT NULL
+  created_at timestamptz NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 INSERT INTO public.cms_news (id, title, published, created_at) VALUES
   (1, 'Legacy published', TRUE, '2025-01-10T10:00:00Z'),
@@ -62,6 +64,21 @@ WHERE id=1;""",
     )
     apply_migration()
     apply_migration()
+
+    # Permanent news URLs: additive migration must be repeatable and never
+    # overwrite a slug assigned during a previous publication.
+    def apply_permalink_migration() -> None:
+        run("psql", "-X", "-v", "ON_ERROR_STOP=1", "--single-transaction",
+            "-U", "postgres", "-d", database, "-f", "-", sql=permalink_migration)
+
+    apply_permalink_migration()
+    run("psql", "-X", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", database,
+        sql="""UPDATE public.cms_news
+SET slug='2025-01-10-legacy-published-11223344',
+    content_modified_at='2026-11-23T18:00:00Z'
+WHERE id=1;""")
+    apply_permalink_migration()
+    apply_permalink_migration()
     run(
         "psql", "-X", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", database,
         sql="""
@@ -86,6 +103,14 @@ BEGIN
      )
      OR (SELECT author FROM public.cms_news WHERE id=2) <> ''
      OR (SELECT published_at FROM public.cms_news WHERE id=2) IS NOT NULL
+     OR (SELECT slug FROM public.cms_news WHERE id=1)
+           <> '2025-01-10-legacy-published-11223344'
+     OR (SELECT content_modified_at FROM public.cms_news WHERE id=1)
+           <> '2026-11-23T18:00:00Z'::timestamptz
+     OR (SELECT slug FROM public.cms_news WHERE id=2) IS NOT NULL
+     OR (SELECT slug FROM public.cms_news WHERE id=3) IS NOT NULL
+     OR (SELECT content_modified_at FROM public.cms_news WHERE id=2) IS NOT NULL
+     OR (SELECT content_modified_at FROM public.cms_news WHERE id=3) IS NULL
   THEN
     RAISE EXCEPTION 'CMS news migration modified existing content or metadata';
   END IF;
@@ -93,6 +118,6 @@ END
 $verify$;
 """,
     )
-    print("OK: CMS migration replay preserves publication/expiry dates, metadata, rows and drafts")
+    print("OK: CMS migrations are idempotent; publication dates, prior URLs, modifications and drafts preserved")
 finally:
     run("dropdb", "-U", "postgres", "--if-exists", database)

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../backend/Models/OfficialQuoteModels.cs" Link="OfficialQuoteModels.cs" />
+    <Compile Include="../../backend/Services/DholeOfficialQuoteDraftBuilder.cs" Link="DholeOfficialQuoteDraftBuilder.cs" />
+    <Compile Include="../../backend/Services/DholeOfficialQuoteFlatPreviewBuilder.cs" Link="DholeOfficialQuoteFlatPreviewBuilder.cs" />
+    <Compile Include="../../backend/Services/DholeCatalogNormalizer.cs" Link="DholeCatalogNormalizer.cs" />
+    <Compile Include="../../backend/Services/DholeEquipmentProjector.cs" Link="DholeEquipmentProjector.cs" />
+    <Compile Include="../../backend/Services/DholeOfficialManualCatalogResolution.cs" Link="DholeOfficialManualCatalogResolution.cs" />
+    <Compile Include="../../backend/Services/DholeTemporaryDispatchCatalog.cs" Link="DholeTemporaryDispatchCatalog.cs" />
+    <Compile Include="../../backend/Services/DholeOfficialDispatchPreflight.cs" Link="DholeOfficialDispatchPreflight.cs" />
+    <Compile Include="../../backend/Services/DholeOfficialDeliveryStateMachine.cs" Link="DholeOfficialDeliveryStateMachine.cs" />
+  </ItemGroup>
+</Project>

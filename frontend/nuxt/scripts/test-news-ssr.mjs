@@ -32,11 +32,25 @@ const approvedTitleFixtures = [
     suffix: '294af1f0',
     title: 'Centroamérica aprueba nuevas regulaciones aduaneras para modernizar el comercio regional',
     seoTitle: 'Centroamérica aprueba nuevas regulaciones aduaneras'
+  },
+  {
+    suffix: '42ed9cb4',
+    title: 'Pese a caída global de fletes, anuncian aumento de US$1.000 hacia América Latina.',
+    seoTitle: 'Alza de US$1.000 en fletes a América Latina | Castro Fallas'
   }
 ]
 for (const fixture of approvedTitleFixtures) {
   news.push({ ...news[0], id: '123e4567-e89b-12d3-a456-' + fixture.suffix.padStart(12, '0'), title: fixture.title })
 }
+// The stored slug survives edits to title and publication date.
+const stableSlug = '2026-11-02-titulo-anterior-14174111'
+const stableArticle = {
+  ...news[0], id: '123e4567-e89b-12d3-a456-426614174111',
+  title: 'Título editorial actualizado', slug: stableSlug,
+  publishedAt: '2026-11-20T12:00:00Z',
+  contentModifiedAt: '2026-11-23T18:00:00Z'
+}
+news.push(stableArticle)
 
 // Casos adversos: el CMS no puede romper el sitemap con registros mal tipados.
 const invalidNews = [
@@ -48,7 +62,23 @@ const invalidNews = [
   { ...news[0], id: '123e4567-e89b-12d3-a456-426614170005', expiresAt: 'fecha-inválida' }
 ]
 
+// Simulate a CMS deletion after a page was served, while its full list can
+// still be stale in Nitro cache. The single-item GET is authoritative.
+const revokedNews = new Set()
 const api = createServer((req, res) => {
+  const single = req.url?.match(/^\/api\/content\/news\/([a-f0-9-]{36})$/i)
+  if (single) {
+    const candidate = news.find(item => item.id.toLowerCase() === single[1].toLowerCase())
+    if (!candidate || revokedNews.has(candidate.id) || candidate.published === false ||
+        (candidate.expiresAt && Date.parse(candidate.expiresAt) <= Date.now())) {
+      res.writeHead(404, { 'Cache-Control': 'no-store' })
+      res.end('Not found')
+      return
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
+    res.end(JSON.stringify(candidate))
+    return
+  }
   if (req.url === '/api/content/news') {
     res.writeHead(200, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify([...news, ...invalidNews]))
@@ -86,6 +116,17 @@ try {
     await delay(200)
   }
   assert.ok(ready, 'Nuxt no inició: ' + logs.slice(-3000))
+  // News listing must render real editorial content on the server, not only
+  // the loading shell after JavaScript, and keep descriptive card-image alt.
+  const listingResponse = await fetch(base + '/noticias')
+  assert.equal(listingResponse.status, 200, 'El listado de noticias debe responder 200 en SSR')
+  const listingHtml = await listingResponse.text()
+  assert.match(listingHtml, /Consultá nuestras publicaciones sobre logística/,
+    'Falta contexto editorial visible en el HTML SSR de Noticias')
+  assert.match(listingHtml, /Logística Costa Rica/,
+    'El listado SSR debe mostrar las noticias publicadas')
+  assert.match(listingHtml, /news-editorial-card__image/,
+    'El listado SSR debe renderizar imágenes de sus noticias')
   const slug = '/noticias/2026-11-02-logistica-costa-rica-14174000'
   const page = await fetch(base + slug)
   assert.equal(page.status, 200)
@@ -145,6 +186,32 @@ try {
     assert.equal(response.status, 200, 'El sitemap incluye una noticia inaccesible: ' + articleUrl)
   }
   assert.ok(sitemap.includes(slug), 'Noticia ausente en sitemap dinámico')
+  // Permanent permalink appears in sitemap, including an actual editorial lastmod.
+  const stablePath = '/noticias/' + stableSlug
+  assert.match(sitemap, new RegExp(stableSlug + '<\\/loc><lastmod>2026-11-23<\\/lastmod>'),
+    'La URL fija debe aparecer con su fecha real de modificación')
+  const stableResponse = await fetch(base + stablePath)
+  assert.equal(stableResponse.status, 200, 'El permalink guardado debe resolver HTTP 200')
+  const stableHtml = await stableResponse.text()
+  assert.match(stableHtml, /Título editorial actualizado/,
+    'La noticia conserva URL pero actualiza el título visible')
+  assert.match(stableHtml, /"dateModified":"2026-11-23T18:00:00Z"/,
+    'El Article JSON-LD debe conservar fecha real de edición')
+  // Old title/changed date (or arbitrary old descriptive slug with the same
+  // unique ID suffix) must redirect, never return a soft 404 or another 200.
+  for (const alias of [
+    '/noticias/2026-11-20-titulo-editorial-actualizado-14174111',
+    '/noticias/2026-11-02-titulo-anterior-editado-14174111'
+  ]) {
+    const redirect = await fetch(base + alias, { redirect: 'manual' })
+    assert.equal(redirect.status, 301, 'Una URL anterior debe redirigir con 301: ' + alias)
+    assert.equal(new URL(redirect.headers.get('location'), base).pathname, stablePath,
+      'La URL antigua debe apuntar al permalink original')
+  }
+  const oldQuery = await fetch(base + '/noticias?article=' + stableArticle.id, { redirect: 'manual' })
+  assert.equal(oldQuery.status, 301, 'La antigua URL con ?article= debe redirigir con 301')
+  assert.equal(new URL(oldQuery.headers.get('location'), base).pathname, stablePath)
+
   assert.match(sitemap,
     /<url><loc>https:\/\/www\.logisticacastrofallas\.com\/servicios\/transporte-maritimo<\/loc><lastmod>\d{4}-\d{2}-\d{2}<\/lastmod><\/url>/,
     'El sitemap debe usar fechas editoriales conocidas en páginas de servicios')
@@ -182,9 +249,39 @@ try {
     const removedPage = await fetch(base + retired)
     assert.equal(removedPage.status, 404, 'La página retirada debe devolver HTTP 404: ' + retired)
   }
+  // A deleted, unpublished or expired article must NEVER redirect via the
+  // legacy UUID suffix. Only articles in the live public CMS feed may resolve.
+  for (const unavailable of [
+    '/noticias/2026-11-02-noticia-eliminada-14179999',
+    '/noticias/2026-11-02-edicion-antigua-14170003', // unpublished fixture
+    '/noticias/2026-11-02-edicion-antigua-14170004'  // expired fixture
+  ]) {
+    const response = await fetch(base + unavailable, { redirect: 'manual' })
+    assert.equal(response.status, 404,
+      'Una noticia eliminada, despublicada o caducada no debe redirigir: ' + unavailable)
+  }
+  for (const suffix of ['14179999', '14170003', '14170004']) {
+    assert.ok(!sitemap.includes('-' + suffix),
+      'Sitemap no debe publicar URLs de noticias eliminadas o privadas: ' + suffix)
+  }
   const missing = await fetch(base + '/noticias/no-existe')
   assert.equal(missing.status, 404)
-  console.log('Noticias SSR, Article JSON-LD, sitemap dinámico y 404: OK')
+
+  // Regression for local Docker: an article already served HTTP 200 and was
+  // deleted from PostgreSQL, but the cached news list still contains it.
+  // Both its canonical path and old aliases must immediately return HTTP 404.
+  revokedNews.add(news[0].id)
+  const afterDelete = await fetch(base + slug, { redirect: 'manual' })
+  assert.equal(afterDelete.status, 404,
+    'No se debe servir un 200 obsoleto tras eliminar una noticia visitada')
+  const afterDeleteAlias = await fetch(base + '/noticias/2026-11-02-antiguo-titulo-14174000',
+    { redirect: 'manual' })
+  assert.equal(afterDeleteAlias.status, 404,
+    'Las URL antiguas tampoco deben redirigir a noticias eliminadas')
+  const liveAfterDelete = await fetch(base + '/api/public-news?id=' + news[0].id)
+  assert.equal(liveAfterDelete.status, 404,
+    'GET individual debe consultar el CMS en vivo aun si el feed está cacheado')
+  console.log('Noticias SSR, enlaces permanentes, revocación instantánea, sitemap y 404: OK')
 } finally {
   nuxt.kill('SIGTERM')
   await new Promise(resolve => api.close(resolve))

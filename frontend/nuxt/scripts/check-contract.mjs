@@ -84,6 +84,38 @@ assert.doesNotMatch(source('../src/components/SiteFooter.vue'), /<h3\b/, 'El pie
 assert.match(source('../src/components/SiteFooter.vue'), /<h2\b/, 'El pie de página debe usar H2 para sus grupos')
 assert.match(source('../src/style.css'), /\.site-footer h2\{font-size:13px;margin:1px 0 14px\}/, 'El diseño del pie debe conservarse después del cambio semántico')
 assert.match(source('../../deploy/nuxt-hybrid-gateway.conf'), /location = \/home\s*\{\s*return 301 https:\/\/www\.logisticacastrofallas\.com\/;/, 'El alias /home debe redirigir directamente al dominio HTTPS canónico')
+// The six Home accordion tabs use theme-specific colors; expanded card
+// headings keep their original white-on-photo styles in both themes.
+const homeAccordion = source('../src/Home.vue')
+const accordionRule = selector => {
+  const index = homeAccordion.indexOf(selector + ' {')
+  assert.ok(index >= 0, 'Falta regla CSS para ' + selector)
+  return homeAccordion.slice(index + selector.length + 2).split('}')[0]
+}
+for (const [theme, color] of [['html:not(.theme-dark)', '#b00929'], ['html.theme-dark', '#fff']]) {
+  const labelRule = accordionRule(theme + ' .app-site.home-page #servicios .service-accordion__item .service-accordion__trigger .service-accordion__name')
+  assert.ok(labelRule.includes('color: ' + color + ' !important') &&
+    labelRule.includes('-webkit-text-fill-color: ' + color + ' !important') &&
+    labelRule.includes('-webkit-text-stroke: 0 transparent !important'),
+    'El nombre vertical debe ser sólido ' + color + ' en ' + theme)
+}
+const lightActive = 'html:not(.theme-dark) .app-site.home-page #servicios .service-accordion__item.is-open > .service-accordion__trigger'
+const activeTrackRule = accordionRule(lightActive)
+assert.ok(activeTrackRule.includes('background: #b20b2d !important'),
+  'La franja de la pestaña abierta debe conservar el rojo institucional en claro')
+const activeLabelRule = accordionRule(lightActive + ' .service-accordion__name')
+assert.ok(activeLabelRule.includes('color: #fff !important') &&
+  activeLabelRule.includes('-webkit-text-fill-color: #fff !important') &&
+  activeLabelRule.includes('-webkit-text-stroke: 0 transparent !important'),
+  'La pestaña abierta debe mostrar letras blancas rellenas sobre rojo en claro')
+// The large service titles (including Transporte Panamá–Costa Rica) must
+// remain white over the photograph. Only the vertical tab labels change.
+assert.doesNotMatch(homeAccordion, /service-accordion__copy h3\s*\{/,
+  'No sobrescribir el color original de los títulos grandes del acordeón')
+const homeGlobalCss = source('../src/style.css')
+assert.match(homeGlobalCss, /\.service-accordion__copy h3\{margin:0 0 8px;color:#fff;/,
+  'Los títulos grandes deben conservar su color blanco original')
+
 const serviceIndex = source('../src/pages/Services.vue')
 assert.match(serviceIndex, /serviceDirectory/, 'El catálogo necesita enlaces HTML rastreables')
 assert.match(serviceIndex, /servicePages\.map/, 'Deben enlazarse los cinco transportes desde Servicios')

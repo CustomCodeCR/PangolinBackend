@@ -1,16 +1,21 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import type { Component } from 'vue'
-import { AlertTriangle, Boxes, FileCheck, FileText, Globe, Layers, Package, PackageCheck, Scale, ShieldCheck, Ship, Truck, Warehouse } from '@lucide/vue'
+import { AlertTriangle, Boxes, FileCheck, FileText, Globe, Package, PackageCheck, Scale, ShieldCheck, Ship, Truck, Warehouse } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import IconSymbol from '../components/IconSymbol.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import { refreshSession } from '../services/auth'
-import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
+import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialEquipmentTypeLabel, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
 import { loadDholeQuoteFormOptions, type DholeQuoteFormOptions } from '../lib/dholeQuoteForm'
 import { costaRicaToday, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
+import { prepareQuoteSubmissionAttempt, clearQuoteSubmissionAttempt,
+  legacyQuoteResultUncertain, setLegacyQuoteResultUncertain,
+  unresolvedKeyedQuoteAttempt, type QuoteSubmissionAttempt } from '../lib/officialQuoteSubmissionAttempt'
+
+import { useOfficialQuoteDeliveryStatus, quoteDeliveryMessage } from '../lib/officialQuoteDeliveryStatus'
 
 const { locale } = useI18n({ useScope: 'global' })
 const q = (es: string, en: string) => locale.value === 'en' ? en : es
@@ -19,7 +24,7 @@ type Mode = 'Maritime' | 'Air' | 'Land'
 type Type = 'FCL' | 'LCL' | 'AIR_LCL' | 'FTL' | 'LTL'
 type Loc = { id: string; displayName: string; code: string | null }
 type ContainerLine = { size: string; type: string; quantity: number; unitWeightsKg: number[] }
-type PackageLine = { description: string; quantity: number; weight: number; length: number; width: number; height: number; stackability: 'Stackable' | 'NonStackable' }
+type PackageLine = { description: string; quantity: number; unitType: '' | 'Box' | 'Pallet' | 'Loose' | 'Other'; weight: number; length: number; width: number; height: number; stackability: 'Stackable' | 'NonStackable' }
 const localQuotePreview = import.meta.env.DEV && new URLSearchParams(window.location.search).get('previewRole') === 'cliente'
 const previewLocations: Loc[] = [
   { id: 'preview-acajutla', displayName: 'Acajutla, El Salvador', code: null },
@@ -30,16 +35,22 @@ const previewLocations: Loc[] = [
   { id: 'preview-antwerp', displayName: 'Antwerp / Amberes, Bélgica', code: null }
 ]
 const step = ref(1)
+const advancing = ref(false)
 const mode = ref<Mode | null>(null)
 const shipmentType = ref<Type | null>(null)
 const catalogSource = ref<'local' | 'dhole'>('local')
 const dholeFormOptions = ref<DholeQuoteFormOptions | null>(null)
 const busy = ref(false)
 type GioReceiptDetail = { key: string; value: string }
-type GioReceipt = { at: number; id: string; status: string; mode: string; origin: string; destination: string; details?: GioReceiptDetail[] }
+type GioReceipt = { at: number; id: string; status: string; mode: string; origin: string; destination: string; details?: GioReceiptDetail[]; deliveryState?:string; receiptKey?:string }
 const gioReceipt = ref<GioReceipt | null>(null)
 const error = ref('')
 const createdId = ref('')
+const delivery = useOfficialQuoteDeliveryStatus()
+const deliveryState = delivery.state
+const CREATE_ATTEMPT_KEY = 'gcf-official-quote-wizard-attempt-v1'
+let activeCreateAttempt: QuoteSubmissionAttempt | null = null
+let legacyAttemptMayHaveSaved = false
 const earliestReadyDate = ref(costaRicaToday())
 let earliestReadyTimer: number | undefined
 const syncEarliestReadyDate = () => { earliestReadyDate.value = costaRicaToday() }
@@ -54,9 +65,9 @@ const form = reactive({
   incoterm: '', cargoReadyDate: '', exwCargoStatus: '', exwPickupAddress: '',
   services: ['Transporte internacional'] as string[],
   equipment: [{ size: '', type: '', quantity: 1, unitWeightsKg: [0] }] as ContainerLine[],
-  packages: [{ description: '', quantity: 1, weight: 0, length: 0, width: 0, height: 0, stackability: 'Stackable' }] as PackageLine[],
+  packages: [{ description: '', quantity: 1, unitType: '', weight: 0, length: 0, width: 0, height: 0, stackability: 'Stackable' }] as PackageLine[],
   dimensionUnit: 'cm', weightUnit: 'kg', cargoDescription: '', cabysCode: '',
-  cargoValue: '' as number | '', declaredWeight: '' as number | '', declaredPackages: '' as number | '',
+  cargoValue: '' as number | '', cargoCurrencyCode: '', declaredWeight: '' as number | '', declaredPackages: '' as number | '',
   observations: '', cargoFlags: [] as string[], destinationHandling: '',
   deliveryAddress: '', pickupAddress: '', fiscalStorageDays: '' as number | ''
 })
@@ -84,7 +95,7 @@ function equipmentTypeOptionsFor(line: ContainerLine) {
   if (catalogSource.value === 'dhole' && dholeFormOptions.value) {
     return (dholeFormOptions.value.equipmentTypesBySize[line.size] || []).map(value => ({
       value,
-      label: value === 'Furgón' ? q('Furgón', 'Truck') : value
+      label: officialEquipmentTypeLabel(value, q)
     }))
   }
   return equipmentTypeOptions.value
@@ -188,19 +199,15 @@ const serviceIcons: Record<string, Component> = {
   'Recepción de carga': PackageCheck,
   'Seguro de carga': ShieldCheck,
   'Transporte entrega': Truck,
-  'Transporte recolección': Truck,
-  'Transporte nacional': Truck
+  'Transporte recolección': Truck
 }
-const cargoFlagOptions = ['Carga peligrosa','No estibable','Sobrepeso']
+// Estibabilidad belongs to each cargo line; the global flag is derived for
+// Pricing and never selected separately to avoid conflicting answers.
+const cargoFlagOptions = ['Carga peligrosa','Sobrepeso']
 const cargoFlagIcons: Record<string, Component> = {
   'Carga peligrosa': AlertTriangle,
-  'No estibable': Layers,
   'Sobrepeso': Scale
 }
-const visibleCargoFlagOptions = computed(() => shipmentType.value === 'FCL' ? cargoFlagOptions.filter(flag => flag !== 'No estibable') : cargoFlagOptions)
-watch(() => shipmentType.value === 'FCL', (isFullContainer) => {
-  if (isFullContainer) form.cargoFlags = form.cargoFlags.filter(flag => flag !== 'No estibable')
-})
 const stepNames = computed(() => [q('Modalidad', 'Mode'), q('Embarque', 'Shipment'), q('Información', 'Information'), q('Carga y envío', 'Cargo and delivery')])
 
 // Receipt details are a snapshot of this visitor's own confirmed submission.
@@ -263,7 +270,7 @@ const receiptSections = computed(() => {
         : '',
       packagesSummary: !equipmentMode.value
         ? form.packages.map((item, i) =>
-          String(i+1) + '. ' + item.description + ' · ' + item.quantity + ' × ' + item.weight +
+          String(i+1) + '. ' + item.description + (item.unitType ? ' (' + item.unitType + ')' : '') + ' · ' + item.quantity + ' × ' + item.weight +
           ' kg · ' + item.length + ' × ' + item.width + ' × ' + item.height + ' ' + form.dimensionUnit).join('\n')
         : '',
       contactName: form.contactName, contactEmail: form.contactEmail, contactPhone: form.contactPhone
@@ -295,6 +302,7 @@ function displayService(value: string) {
   return officialServiceName(value, q)
 }
 function selectMode(value: Mode) {
+  if (advancing.value || step.value !== 1) return
   if (mode.value !== value) {
     mode.value = value
     shipmentType.value = null
@@ -305,13 +313,22 @@ function selectMode(value: Mode) {
   }
   error.value = ''
 }
+function selectShipment(value: Type) {
+  if (advancing.value || step.value !== 2 || !typeOptions.value.some(x => x.value === value)) return
+  shipmentType.value = value
+  error.value = ''
+}
 function toggle(collection: string[], value: string) {
   const at = collection.indexOf(value)
   if (at >= 0) collection.splice(at, 1)
   else collection.push(value)
 }
 function addEquipment() { if (form.equipment.length < 25) form.equipment.push({size:'',type:'',quantity:1,unitWeightsKg:[0]}) }
-function addPackage() { if (form.packages.length < 25) form.packages.push({description:'',quantity:1,weight:0,length:0,width:0,height:0,stackability:'Stackable'}) }
+function addPackage() { if (form.packages.length < 25) form.packages.push({description:'',quantity:1,unitType:'',weight:0,length:0,width:0,height:0,stackability:'Stackable'}) }
+function setPackageUnitType(line: PackageLine, value: string) {
+  line.unitType = value === 'Box' || value === 'Pallet' || value === 'Loose' || value === 'Other'
+    ? value : ''
+}
 function syncWeights(line: ContainerLine) {
   const n = Number(line.quantity)
   if (!Number.isInteger(n) || n < 1 || n > 25) return
@@ -417,6 +434,10 @@ onMounted(async () => {
             details
           }
           createdId.value = saved.id
+          // Treat only the server's authenticated receipt read as confirmation.
+          // Session storage is merely a same-tab capability handoff.
+          if (saved.receiptKey)
+            delivery.follow(saved.id, saved.receiptKey, 'PendingDispatch')
         }
       }
     } catch { /* Invalid or blocked storage: leave the normal quote form available. */ }
@@ -427,10 +448,10 @@ onMounted(async () => {
 onUnmounted(() => {
   if (earliestReadyTimer !== undefined) window.clearInterval(earliestReadyTimer)
 })
-function validate(): string {
-  if (step.value === 1) return mode.value ? '' : q('Seleccioná la modalidad.', 'Select a transport mode.')
-  if (step.value === 2) return shipmentType.value ? '' : q('Seleccioná el tipo de embarque.', 'Select a shipment type.')
-  if (step.value === 3) {
+function validate(currentStep = step.value): string {
+  if (currentStep === 1) return mode.value ? '' : q('Seleccioná la modalidad.', 'Select a transport mode.')
+  if (currentStep === 2) return shipmentType.value && typeOptions.value.some(x => x.value === shipmentType.value) ? '' : q('Seleccioná el tipo de embarque.', 'Select a shipment type.')
+  if (currentStep === 3) {
     if (!form.originLocationId || !form.destinationLocationId || form.originLocationId === form.destinationLocationId) return q('Elegí origen y destino distintos.', 'Choose different origin and destination locations.')
     if (mode.value === 'Maritime' && !form.podLocationId) return q('Seleccioná el POD obligatorio para transporte marítimo.', 'Select the required POD for ocean freight.')
     if (!form.incoterm) return q('Seleccioná un Incoterm.', 'Select an Incoterm.')
@@ -449,17 +470,42 @@ function validate(): string {
   }
   if (!form.contactName.trim() || !form.contactEmail.trim() || !form.contactPhone.trim()) return q('Completá los datos de contacto.', 'Complete your contact details.')
   if (!form.cargoDescription.trim()) return q('Describí la carga.', 'Describe the cargo.')
+  if (form.services.includes('Seguro de carga') && (form.cargoValue === '' || !Number.isFinite(Number(form.cargoValue)) || Number(form.cargoValue) <= 0))
+    return q('Para el seguro de carga indicá un valor declarado positivo.', 'For cargo insurance enter a positive declared cargo value.')
+  if (Number(form.cargoValue) > 0 && !/^[A-Z]{3}$/.test(form.cargoCurrencyCode.trim().toUpperCase()))
+    return q('Indicá la moneda del valor declarado (código ISO de 3 letras).', 'Enter the declared value currency (3-letter ISO code).')
   if (!equipmentMode.value && form.packages.some(x => !x.description.trim() || x.quantity < 1 || x.weight <= 0 || x.length <= 0 || x.width <= 0 || x.height <= 0)) return q('Completá todas las medidas y los pesos de cada línea.', 'Complete the dimensions and weight for every cargo line.')
+  if (!equipmentMode.value && catalogSource.value === 'dhole' && form.packages.some(x => !x.unitType)) return q('Seleccioná el tipo de unidad de cada línea para Dhole.', 'Select the cargo unit type of each line for Dhole.')
   return ''
 }
 async function next() {
-  error.value = validate()
+  // Multiple clicks during the asynchronous catalog load used to capture
+  // step 2, then independently increment the live step to 3 and 4.
+  if (advancing.value || busy.value || step.value >= 4 || createdId.value) return
+  const from = step.value
+  error.value = validate(from)
   if (error.value) return
-  if (step.value === 2 && !(await loadLocations())) return
-  if (step.value < 4) { step.value++; window.scrollTo({top:0,behavior:'smooth'}) }
+  advancing.value = true
+  try {
+    if (from === 2 && !(await loadLocations())) return
+    if (step.value !== from) return
+    step.value = from + 1
+    window.scrollTo({top:0,behavior:'smooth'})
+    // Keep the lock until the new controls have replaced the old ones.
+    await nextTick()
+  } finally {
+    advancing.value = false
+  }
 }
-function back() { if (step.value > 1) {step.value--;error.value='';window.scrollTo({top:0,behavior:'smooth'})} }
+function back() {
+  if (advancing.value || busy.value || createdId.value) return
+  if (step.value > 1) {step.value--;error.value='';window.scrollTo({top:0,behavior:'smooth'})}
+}
 function payload() {
+  const cargoFlags = form.cargoFlags.filter(flag => flag !== 'No estibable')
+  if (!equipmentMode.value && form.packages.some(line => line.stackability === 'NonStackable')) {
+    cargoFlags.push('No estibable')
+  }
   return {
     mode: mode.value, shipmentType: shipmentType.value,
     catalogSource: catalogSource.value === 'dhole' ? 'dhole' : null,
@@ -475,9 +521,10 @@ function payload() {
     exwPickupAddress: form.incoterm === 'EXW' ? form.exwPickupAddress : null,
     cargoDescription: form.cargoDescription, cabysCode: form.cabysCode || null,
     cargoValue: form.cargoValue === '' ? null : Number(form.cargoValue),
+    cargoCurrencyCode: Number(form.cargoValue) > 0 ? form.cargoCurrencyCode.trim().toUpperCase() : null,
     declaredWeight: form.declaredWeight === '' ? null : Number(form.declaredWeight),
     declaredPackages: form.declaredPackages === '' ? null : Number(form.declaredPackages),
-    observations: form.observations || null, cargoFlags: form.cargoFlags,
+    observations: form.observations || null, cargoFlags,
     destinationHandling: form.destinationHandling || null,
     deliveryAddress: form.services.includes('Transporte entrega') ? form.deliveryAddress.trim() : null,
     pickupAddress: form.services.includes('Transporte recolección') ? form.pickupAddress.trim() : null,
@@ -485,7 +532,18 @@ function payload() {
   }
 }
 async function submit() {
-  if (busy.value) return
+  if (busy.value || advancing.value || step.value !== 4 || createdId.value) return
+  // Independently revalidate all previous screens, not only the visible one.
+  for (const previous of [1, 2, 3]) {
+    const issue = validate(previous)
+    if (issue) {
+      error.value = issue
+      step.value = previous
+      syncEarliestReadyDate()
+      window.scrollTo({top:0,behavior:'smooth'})
+      return
+    }
+  }
   // Recheck on submit: a wizard can stay open across midnight in Costa Rica.
   if (!isCargoReadyDateOnOrAfterToday(form.cargoReadyDate)) {
     error.value = cargoReadyDateError()
@@ -495,15 +553,56 @@ async function submit() {
   }
   error.value = validate()
   if (error.value) return
+  // Only true from the CURRENT Dhole options endpoint means PostgreSQL
+  // actually deduplicates keyed requests. A legacy backend must not receive
+  // a key it cannot honor or silently accept duplicate retransmissions.
+  const serverDedup = catalogSource.value === 'dhole' &&
+    dholeFormOptions.value?.clientCreateIdempotencyEnabled === true
+  // An ambiguous unkeyed submission cannot be made safe just because
+  // the server later enables keys. Likewise an unresolved keyed submission
+  // must never be silently downgraded to a NEW unkeyed request.
+  if (legacyAttemptMayHaveSaved ||
+      legacyQuoteResultUncertain(CREATE_ATTEMPT_KEY) ||
+      (!serverDedup && unresolvedKeyedQuoteAttempt(CREATE_ATTEMPT_KEY, activeCreateAttempt))) {
+    error.value = q(
+      'El resultado del envío anterior es incierto. Consultá con soporte antes de volver a enviarlo para evitar duplicados.',
+      'The prior submission may have been saved. Contact support before submitting again to avoid duplicates.')
+    return
+  }
   busy.value = true
   try {
+    const body = JSON.stringify(payload())
+    if (serverDedup)
+      activeCreateAttempt = await prepareQuoteSubmissionAttempt(
+        CREATE_ATTEMPT_KEY, body, activeCreateAttempt)
+    const headers: Record<string,string> = { 'Content-Type':'application/json' }
+    if (serverDedup) headers['X-CF-Quote-Request-Key'] = activeCreateAttempt!.key
+    else {
+      // Mark before fetch: the connection could be lost after DB commit.
+      legacyAttemptMayHaveSaved = true
+      setLegacyQuoteResultUncertain(CREATE_ATTEMPT_KEY)
+    }
     const response = await fetch('/api/quotes/official', {
-      method:'POST',credentials:'same-origin',
-      headers:{'Content-Type':'application/json'},body:JSON.stringify(payload())
+      method:'POST',credentials:'same-origin',headers,body
     })
-    const data = await response.json() as {id?:string;error?:string}
-    if (!response.ok) throw new Error(data.error || 'No se pudo enviar la solicitud (HTTP '+response.status+').')
-    createdId.value = data.id || ''
+    const data = await response.json() as {id?:string;error?:string;dholeDispatchState?:string}
+    if (!response.ok) {
+      if (response.status === 400) {
+        // Server definitively rejected validation before saving the request.
+        clearQuoteSubmissionAttempt(CREATE_ATTEMPT_KEY)
+        activeCreateAttempt = null
+        legacyAttemptMayHaveSaved = false
+      }
+      throw new Error(data.error || 'No se pudo confirmar la solicitud (HTTP '+response.status+').')
+    }
+    if (!data.id) throw new Error(q(
+      'No recibimos el identificador de la cotización. Consultá con soporte antes de repetir el envío.',
+      'No quote ID was received. Contact support before resubmitting.'))
+    createdId.value = data.id
+    delivery.follow(data.id, activeCreateAttempt?.key, data.dholeDispatchState)
+    clearQuoteSubmissionAttempt(CREATE_ATTEMPT_KEY)
+    activeCreateAttempt = null
+    legacyAttemptMayHaveSaved = false
   } catch (e) { error.value = e instanceof Error ? e.message : 'Error al enviar.' }
   finally { busy.value = false }
 }
@@ -520,8 +619,9 @@ async function submit() {
       </header>
       <div v-if="createdId" class="official-success" role="status">
         <span class="official-success-icon">✓</span>
-          <h2>{{ q('¡Solicitud recibida!', 'Request received!') }}</h2>
-          <p>{{ q('Se guardó correctamente y está pendiente de revisión administrativa. Todavía no se ha enviado a Dhole.', 'Your request was saved and is awaiting administrative review. It has not been sent to Dhole.') }}</p>
+          <h2>{{ (deliveryState === 'Confirmed' || deliveryState === 'AcceptedByProvider') ? q('¡Solicitud enviada!', 'Request sent!') : q('¡Solicitud recibida!', 'Request received!') }}</h2>
+          <p>{{ quoteDeliveryMessage(deliveryState, q) }}</p>
+          <p v-if="(deliveryState === 'Confirmed' || deliveryState === 'AcceptedByProvider')">{{ q('Te enviaremos un correo de confirmación a la dirección indicada.', 'We will send a confirmation email to the address you provided.') }}</p>
           <p class="official-id">{{ q('Número de referencia:', 'Reference number:') }} {{ createdId }}</p>
           <section v-if="receiptSections.length" class="official-receipt" aria-labelledby="official-receipt-title">
             <h3 id="official-receipt-title">{{ q('Resumen de tu solicitud', 'Your request summary') }}</h3>
@@ -558,7 +658,7 @@ async function submit() {
             <p class="official-hint">{{ q('Elegí la modalidad que mejor corresponde a tu solicitud.', 'Choose the transport mode that best fits your request.') }}</p>
             <div class="official-choices">
               <button v-for="choice in modeOptions" :key="choice.value" type="button" class="official-choice"
-                :class="{ chosen: mode === choice.value }" :aria-pressed="mode === choice.value"
+                :class="{ chosen: mode === choice.value }" :aria-pressed="mode === choice.value" :disabled="advancing"
                 @click="selectMode(choice.value)">
                 <span class="official-emoji"><IconSymbol :glyph="choice.icon" :size="28" /></span><strong>{{ choice.title }}</strong><small>{{ choice.text }}</small>
               </button>
@@ -569,8 +669,8 @@ async function submit() {
             <p class="official-hint">{{ q('Mostramos únicamente las opciones de', 'Showing only') }} {{ mode === 'Maritime' ? q('transporte marítimo', 'ocean freight') : mode === 'Air' ? q('transporte aéreo', 'air freight') : q('transporte terrestre', 'ground transportation') }}.</p>
             <div class="official-choices">
               <button v-for="choice in typeOptions" :key="choice.value" type="button" class="official-choice"
-                :class="{ chosen: shipmentType === choice.value }" :aria-pressed="shipmentType === choice.value"
-                @click="shipmentType = choice.value">
+                :class="{ chosen: shipmentType === choice.value }" :aria-pressed="shipmentType === choice.value" :disabled="advancing"
+                @click="selectShipment(choice.value)">
                 <strong>{{ choice.title }}</strong><small>{{ choice.text }}</small>
               </button>
             </div>
@@ -684,7 +784,8 @@ async function submit() {
             <div class="official-fields">
               <label class="full">{{ q('Descripción de la carga', 'Cargo description') }} <span>*</span><textarea v-model.trim="form.cargoDescription" rows="3" maxlength="4000" :placeholder="q('¿Qué productos necesitás transportar?', 'What products do you need to ship?')" /></label>
               <label>{{ q('Código CABYS (opcional)', 'CABYS code (optional)') }}<input v-model.trim="form.cabysCode" maxlength="40" :placeholder="q('Ingresá el código si lo conocés', 'Enter the code if you know it')" /></label>
-              <label>{{ q('Valor de la carga (si aplica)', 'Cargo value (if applicable)') }}<input v-model.number="form.cargoValue" type="number" min="0" step="any" /></label>
+              <label>{{ q('Valor de la carga (si aplica)', 'Cargo value (if applicable)') }} <span v-if="form.services.includes('Seguro de carga')">*</span><input id="quote-cargo-value" v-model.number="form.cargoValue" type="number" min="0" step="any" /></label>
+              <label v-if="Number(form.cargoValue) > 0 || form.services.includes('Seguro de carga')">{{ q('Moneda del valor declarado (ISO 4217)', 'Declared value currency (ISO 4217)') }} <span>*</span><input id="quote-cargo-currency" v-model.trim="form.cargoCurrencyCode" maxlength="3" :placeholder="q('Ej.: USD, CRC', 'E.g. USD, CRC')" autocapitalize="characters" /></label>
               <label>{{ q('Peso declarado (si aplica)', 'Declared weight (if applicable)') }}<input v-model.number="form.declaredWeight" type="number" min="0" step="any" /></label>
               <label>{{ q('Cantidad de bultos (si aplica)', 'Number of packages (if applicable)') }}<input v-model.number="form.declaredPackages" type="number" min="0" step="1" /></label>
             </div>
@@ -712,6 +813,16 @@ async function submit() {
                 <div class="official-fields">
                   <label class="full">{{ q('Descripción', 'Description') }} <span>*</span><input v-model.trim="line.description" maxlength="400" /></label>
                   <label>{{ q('Cantidad', 'Quantity') }} <span>*</span><input v-model.number="line.quantity" min="1" step="1" type="number" /></label>
+                   <div class="official-custom-field official-incoterm-field">
+                     <label>{{ q('Tipo de unidad', 'Cargo unit type') }} <span v-if="catalogSource === 'dhole'">*</span></label>
+                     <FieldDropdown :model-value="line.unitType" @update:model-value="value => setPackageUnitType(line, value)" :aria-label="q('Tipo de unidad', 'Cargo unit type')" :options="[
+                       {value:'',label:q('Seleccioná una opción','Select an option')},
+                       {value:'Box',label:q('Caja','Box')},
+                       {value:'Pallet',label:q('Tarima','Pallet')},
+                       {value:'Loose',label:q('Bulto suelto','Loose package')},
+                       {value:'Other',label:q('Otra unidad','Other unit')}
+                     ]" />
+                   </div>
                   <label>{{ q('Peso total', 'Total weight') }} <span>*</span><input v-model.number="line.weight" min="0.001" step="any" type="number" /></label>
                   <label>{{ q('Largo', 'Length') }} <span>*</span><input v-model.number="line.length" min="0.001" step="any" type="number" /></label>
                   <label>{{ q('Ancho', 'Width') }} <span>*</span><input v-model.number="line.width" min="0.001" step="any" type="number" /></label>
@@ -727,8 +838,9 @@ async function submit() {
               </div>
             </div>
             <div class="official-nested"><h3>{{ q('Opciones de carga', 'Cargo options') }}</h3>
+              <p v-if="!equipmentMode" class="official-hint">{{ q('La estibabilidad se indica por separado en cada línea de carga y se refleja automáticamente en la solicitud.', 'Stackability is set for each cargo line and reflected automatically in the request.') }}</p>
               <div class="official-service-grid official-cargo-flags-grid">
-                <label v-for="flag in visibleCargoFlagOptions" :key="flag" class="official-service-card"
+                <label v-for="flag in cargoFlagOptions" :key="flag" class="official-service-card"
                   :class="{ 'official-service-card--selected': form.cargoFlags.includes(flag) }">
                   <input type="checkbox" :checked="form.cargoFlags.includes(flag)" @change="toggle(form.cargoFlags, flag)" />
                   <span class="official-service-icon" aria-hidden="true"><component :is="cargoFlagIcons[flag]" :size="22" :stroke-width="1.8" /></span>
@@ -743,9 +855,9 @@ async function submit() {
           </template>
           <p v-if="error" class="official-error" role="alert">{{ error }}</p>
           <footer class="official-buttons">
-            <button v-if="step>1" type="button" class="official-back" :disabled="busy" @click="back">{{ q('Atrás', 'Back') }}</button><span v-else></span>
-            <button v-if="step<4" type="button" class="official-primary" @click="next">{{ q('Continuar', 'Continue') }}</button>
-            <button v-else type="button" class="official-primary" :disabled="busy" @click="submit">{{ busy ? q('Enviando…', 'Sending…') : q('Enviar solicitud', 'Submit request') + ' →' }}</button>
+            <button v-if="step>1" type="button" class="official-back" :disabled="busy || advancing" @click="back">{{ q('Atrás', 'Back') }}</button><span v-else></span>
+            <button v-if="step<4" type="button" class="official-primary" :disabled="advancing || busy" :aria-busy="advancing" @click="next">{{ advancing && step === 2 ? q('Cargando opciones…', 'Loading options…') : q('Continuar', 'Continue') }}</button>
+            <button v-else type="button" class="official-primary" :disabled="busy || advancing" @click="submit">{{ busy ? q('Enviando…', 'Sending…') : q('Enviar solicitud', 'Submit request') + ' →' }}</button>
           </footer>
         </section>
       </template>

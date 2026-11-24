@@ -136,7 +136,12 @@ public static class DholeCatalogEndpoints
             try
             {
                 var choices = await loader.LoadFreshAsync(mode, shipmentType, ct);
-                return Results.Ok(choices);
+                // Browser must not assume delivery of an idempotency header
+                // means that the server stores a creation key.
+                return Results.Ok(choices with {
+                    ClientCreateIdempotencyEnabled =
+                        config.GetValue<bool>("DholeSubmission:ClientCreateIdempotencyEnabled")
+                });
             }
             catch (ArgumentException)
             {
@@ -148,6 +153,32 @@ public static class DholeCatalogEndpoints
                     statusCode: StatusCodes.Status502BadGateway);
             }
         }).RequireRateLimiting("public-read");
+
+        // Strict opt-in, private read-only catalogue check. Paths are fixed by
+        // server configuration after Dhole explicitly publishes each GET API.
+        // No browser-supplied URL, no public catalogue exposure, no Pricing POST.
+        app.MapGet("/api/admin/dhole/lookup-catalogs/{catalog}", async (
+            string catalog, DholeLookupCatalogService service,
+            HttpContext http, CancellationToken ct) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+            if (!DholeLookupCatalogService.IsKnownCatalog(catalog))
+                return Results.NotFound(new { code = "unknown_dhole_lookup" });
+            if (!service.Enabled)
+                return Results.NotFound(new { code = "dhole_lookup_disabled" });
+            if (!service.IsConfiguredFor(catalog))
+                return Results.Json(new { code = "dhole_lookup_not_configured" },
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            try
+            {
+                return Results.Ok(await service.GetAsync(catalog, ct));
+            }
+            catch (DholeLookupUnavailableException)
+            {
+                return Results.Json(new { code = "dhole_lookup_upstream_unavailable" },
+                    statusCode: StatusCodes.Status502BadGateway);
+            }
+        }).RequireAuthorization("admin").RequireRateLimiting("auth");
 
         return app;
     }

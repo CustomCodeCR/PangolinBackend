@@ -7,12 +7,18 @@ import { refreshSession } from '../services/auth'
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 const emit = defineEmits<{ (event: 'total-change', total: number): void }>()
 type Row = { id:string;customerName:string;mode:string;shipmentType:string;originName:string;destinationName:string;status:string;authorization:string;createdAtUtc:string }
-type Detail = {id:string;customerName:string;mode:string;shipmentType:string;status:string;authorization:string;createdAtUtc:string;form:Record<string,unknown>;history:{action:string;comment:string|null;createdAtUtc:string}[]}
+type Detail = {id:string;customerName:string;mode:string;shipmentType:string;status:string;authorization:string;dholeDispatchState:string;dholePriority:string|null;dholeReceiptCandidate?:string|null;dholeVerifiedReference?:string|null;dholeVerifiedAtUtc?:string|null;dholeConfirmationEmailState?:string|null;createdAtUtc:string;form:Record<string,unknown>;history:{action:string;comment:string|null;createdAtUtc:string}[]}
 const rows=ref<Row[]>([])
 const detail=ref<Detail|null>(null)
-const permissions=ref({canView:false,canManage:false,canAuthorize:false})
+const permissions=ref({canView:false,canManage:false,canAuthorize:false,dholeApprovalQueueEnabled:false,dholeDirectOutboxEnabled:false})
 const state=ref('Received')
 const comment=ref('')
+const dholePriority=ref('Green')
+const priorityOptions=[
+  {value:'Green',label:'Verde · Regular (72 h)'},
+  {value:'Yellow',label:'Amarillo · Prioritaria (48 h)'},
+  {value:'Red',label:'Rojo · Urgente (24 h)'}
+]
 const busy=ref(false)
 const error=ref('')
 const notice=ref('')
@@ -31,15 +37,18 @@ async function load(){busy.value=true;error.value='';try{
   rows.value=r.items;total.value=r.total;emit('total-change',r.total)
 }catch(e){error.value=msg(e)}finally{busy.value=false}}
 async function open(id:string){error.value='';detail.value=null;try{
-  const r=await api<Detail>('/api/admin/quotes/official/'+id);detail.value=r;state.value=r.status;comment.value=''
+  const r=await api<Detail>('/api/admin/quotes/official/'+id);detail.value=r;state.value=r.status;comment.value='';dholePriority.value=r.dholePriority||'Green'
 }catch(e){error.value=msg(e)}}
 async function review(){if(!detail.value||busy.value)return;busy.value=true;error.value='';notice.value='';try{
   await api('/api/admin/quotes/official/'+detail.value.id+'/review',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:state.value,comment:comment.value||null})})
   notice.value='Revisión guardada.';const id=detail.value.id;await load();await open(id)
 }catch(e){error.value=msg(e)}finally{busy.value=false}}
 async function decide(choice:'Authorized'|'Rejected'){if(!detail.value||busy.value)return;busy.value=true;error.value='';notice.value='';try{
-  await api('/api/admin/quotes/official/'+detail.value.id+'/authorization?decision='+choice,{method:'PUT'})
-  notice.value=choice==='Authorized'?'Autorizada internamente. No se ha enviado a Dhole.':'Autorización rechazada.'
+  const selected=choice==='Authorized' && permissions.value.dholeApprovalQueueEnabled ? '&priority='+encodeURIComponent(dholePriority.value) : ''
+  await api('/api/admin/quotes/official/'+detail.value.id+'/authorization?decision='+choice+selected,{method:'PUT'})
+  notice.value=choice==='Authorized'
+    ? (permissions.value.dholeApprovalQueueEnabled ? 'Autorizada y registrada para integración. Todavía no enviada a Dhole.' : 'Autorizada internamente. No se ha enviado a Dhole.')
+    : 'Autorización rechazada.'
   const id=detail.value.id;await load();await open(id)
 }catch(e){error.value=msg(e)}finally{busy.value=false}}
 onMounted(async()=>{const user=await refreshSession();if(user?.role!=='administrador'){error.value='Requiere sesión de administrador.';return}
@@ -59,6 +68,19 @@ const statusNames: Record<string, string> = {
 }
 const decisionNames: Record<string, string> = {
   Pending: 'Pendiente', Authorized: 'Autorizada', Rejected: 'Rechazada'
+}
+const dispatchNames: Record<string, string> = {
+  Disabled: 'Integración de envío no habilitada', NotStaged: 'Sin registro de envío',
+  AwaitingConnector: 'Aprobada; pendiente de integración con Dhole',
+  PendingDispatch: 'Guardada; pendiente de procesamiento de envío',
+  InFlight: 'Intento de envío iniciado; recepción aún no verificada',
+  HttpAcceptedUnverified: 'HTTP aceptado; pendiente de comprobar en Pricing',
+  AcceptedByProvider: 'Solicitud aceptada por la API de creación; sin verificación GET independiente',
+  Unconfirmed: 'Resultado de entrega incierto; requiere revisión',
+  Rejected: 'Dhole rechazó la solicitud',
+  Confirmed: 'Creación confirmada en Dhole',
+  Pending: 'Pendiente de transmisión', Sending: 'En proceso de envío',
+  Sent: 'Confirmada por Dhole', Failed: 'No se pudo preparar el envío; requiere revisión'
 }
 const fieldNames: Record<string, string> = {
   mode:'Modalidad', shipmentType:'Tipo de embarque', originLocationId:'Origen (referencia)', destinationLocationId:'Destino (referencia)',
@@ -133,7 +155,7 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
               <span class="off-admin-route">{{item.originName}} → {{item.destinationName}}</span>
               <span class="off-admin-item-bottom">
                 <span class="off-admin-status">{{statusNames[item.status] ?? item.status}}</span>
-                <span class="off-admin-approval">{{decisionNames[item.authorization] ?? item.authorization}}</span>
+                <span v-if="!permissions.dholeDirectOutboxEnabled" class="off-admin-approval">{{decisionNames[item.authorization] ?? item.authorization}}</span>
               </span>
             </button>
           </div>
@@ -154,9 +176,27 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
             </div>
             <div class="off-admin-status-row">
               <span class="off-admin-status">{{statusNames[detail.status] ?? detail.status}}</span>
-              <span class="off-admin-approval">{{decisionNames[detail.authorization] ?? detail.authorization}}</span>
+              <span v-if="!permissions.dholeDirectOutboxEnabled" class="off-admin-approval">{{decisionNames[detail.authorization] ?? detail.authorization}}</span>
               <span class="off-admin-muted">{{displayDate(detail.createdAtUtc)}}</span>
             </div>
+            <section class="off-admin-auth" aria-label="Estado de integración con Dhole">
+              <h3>Estado de Dhole</h3>
+              <p>{{dispatchNames[detail.dholeDispatchState] ?? 'Estado de envío no disponible'}}</p>
+              <p v-if="detail.dholePriority">Prioridad registrada: {{priorityOptions.find(item=>item.value===detail?.dholePriority)?.label ?? detail.dholePriority}}</p>
+              <template v-if="detail.dholeDispatchState === 'Confirmed' || detail.dholeDispatchState === 'AcceptedByProvider'">
+                <p v-if="detail.dholeDispatchState === 'AcceptedByProvider' && detail.dholeReceiptCandidate">UUID devuelto por la API de creación: {{detail.dholeReceiptCandidate}}. Verificación independiente pendiente.</p>
+                <p v-if="detail.dholeVerifiedReference">Referencia verificada en Pricing: {{detail.dholeVerifiedReference}}</p>
+                <p v-if="detail.dholeConfirmationEmailState === 'Accepted'">Correo de confirmación aceptado por Microsoft Graph.</p>
+                <p v-else-if="detail.dholeConfirmationEmailState === 'NeedsReview' || detail.dholeConfirmationEmailState === 'Claimed'">Revisar estado del correo de confirmación. No reenviar automáticamente.</p>
+                <p v-else-if="detail.dholeConfirmationEmailState === 'Pending'">Correo de confirmación pendiente.</p>
+              </template>
+              <p v-if="detail.dholeReceiptCandidate && (detail.dholeDispatchState === 'HttpAcceptedUnverified' || detail.dholeDispatchState === 'Unconfirmed')">Referencia recibida de Dhole (por verificar): {{detail.dholeReceiptCandidate}}</p>
+               <p v-if="detail.dholeDispatchState === 'AwaitingConnector'">Se registró la aprobación en Castro Fallas. Todavía no se ha realizado ningún envío externo.</p>
+              <p v-if="detail.dholeDispatchState === 'PendingDispatch'">La copia está guardada en Administración. El envío está pendiente y todavía no hay confirmación de Pricing.</p>
+               <p v-if="detail.dholeDispatchState === 'InFlight'">Se inició un único intento de entrega. No lo reenvíes: si la respuesta se perdió, Pricing podría haber creado la solicitud.</p>
+               <p v-if="detail.dholeDispatchState === 'HttpAcceptedUnverified'">La API aceptó la solicitud por HTTP, pero la creación todavía debe verificarse en Pricing. No la reenvíes.</p>
+               <p v-if="detail.dholeDispatchState === 'Unconfirmed'">El resultado remoto es incierto. Verificá si la solicitud existe en Pricing antes de cualquier acción; no hay reintento automático.</p>
+            </section>
             <h3>Información de la solicitud</h3>
             <dl class="off-admin-data">
               <div v-for="(value,key) in detail.form" :key="String(key)">
@@ -176,9 +216,17 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
               </label>
               <button type="submit" class="off-admin-primary" :disabled="busy">Guardar revisión</button>
             </form>
-            <section v-if="permissions.canAuthorize && detail.authorization==='Pending'" class="off-admin-auth">
+            <section v-if="permissions.canAuthorize && detail.authorization==='Pending' && !permissions.dholeDirectOutboxEnabled" class="off-admin-auth">
               <h3>Autorización especial</h3>
-              <p>Autorizar no envía la solicitud a Dhole.</p>
+              <p>{{ permissions.dholeApprovalQueueEnabled
+                ? 'Autorizar crea un registro local pendiente de integración. Todavía no envía a Dhole.'
+                : 'Autorizar no envía la solicitud a Dhole.' }}</p>
+              <div v-if="permissions.dholeApprovalQueueEnabled" class="off-admin-select-field">
+                <label>Prioridad para Pricing</label>
+                <FieldDropdown v-model="dholePriority" aria-label="Prioridad para Pricing"
+                  :options="priorityOptions" />
+                <p class="off-admin-muted">Verde es la prioridad inicial. Solo quien autoriza puede cambiarla; no es una promesa de entrega al cliente.</p>
+              </div>
               <div class="off-admin-actions">
                 <button type="button" class="off-admin-primary" :disabled="busy" @click="decide('Authorized')">Autorizar para Dhole</button>
                 <button type="button" class="off-admin-button" :disabled="busy" @click="decide('Rejected')">Rechazar</button>

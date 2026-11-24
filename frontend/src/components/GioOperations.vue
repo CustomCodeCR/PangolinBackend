@@ -2,14 +2,26 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ArrowLeft, CheckCircle2, ChevronRight, FileText, LoaderCircle, MapPin, Search, ShieldCheck, Ship } from '@lucide/vue'
 import { refreshSession } from '../services/auth'
-import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
+import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialEquipmentTypeLabel, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
 import { isCalendarDate, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
 import { loadDholeQuoteFormOptions, type DholeQuoteFormOptions } from '../lib/dholeQuoteForm'
+import { prepareQuoteSubmissionAttempt, clearQuoteSubmissionAttempt,
+  legacyQuoteResultUncertain, setLegacyQuoteResultUncertain,
+  unresolvedKeyedQuoteAttempt, type QuoteSubmissionAttempt } from '../lib/officialQuoteSubmissionAttempt'
+
+import { useOfficialQuoteDeliveryStatus, quoteDeliveryMessage } from '../lib/officialQuoteDeliveryStatus'
 
 type Kind = 'quote' | 'tracking' | 'itinerary'
 type Phase = 'collect' | 'confirm' | 'review' | 'auth' | 'location' | 'result'
 type Choice = { value: string; label: string }
 type Step = { key: string; prompt: string; choices?: Choice[]; optional?: boolean; hint?: string }
+type GioExtraEquipment = { size: string; type: string; quantity: number; weights: string }
+type GioExtraPackage = {
+  description: string; quantity: number; unitType: string; weight: number;
+  length: number; width: number; height: number; stackability: string
+}
+const extraEquipmentLines = ref<GioExtraEquipment[]>([])
+const extraPackageLines = ref<GioExtraPackage[]>([])
 type Location = { id: string; displayName: string; code: string | null }
 type Itinerary = { id: string; pol: string; pod: string; etd: string; eta: string; status: string; transport: string; modality: string }
 type Shipment = { title?: string | null; status?: string | null; origin?: string | null; destination?: string | null; etd?: string | null; eta?: string | null; customerStatus?: string | null; vessel?: string | null; bcf?: string | null; updatedAtUtc?: string | null }
@@ -31,6 +43,8 @@ const locationTerm = ref('')
 const locationChoices = ref<Location[]>([])
 const quoteId = ref('')
 const quoteStatus = ref('')
+const delivery = useOfficialQuoteDeliveryStatus()
+const deliveryState = delivery.state
 const quoteResultUrl = ref('/cotizaciones')
 const quoteResultAdmin = ref(false)
 const itineraryResultUrl = computed(() => {
@@ -55,6 +69,9 @@ const shipments = ref<Shipment[]>([])
 const shipmentTruncated = ref(false)
 const restrictedTracking = ref(false)
 const STORAGE_KEY = 'gcf-gio-quote-draft-v1'
+const CREATE_ATTEMPT_KEY = 'gcf-official-quote-gio-attempt-v1'
+let activeCreateAttempt: QuoteSubmissionAttempt | null = null
+let legacyAttemptMayHaveSaved = false
 const prefilled = ref(false)
 const editingField = ref('')
 type PendingValue = { key: string; value: string; display: string; locationId?: string }
@@ -146,10 +163,58 @@ const equipmentSizes = computed<Choice[]>(() => quoteCatalogSource.value === 'dh
   : officialEquipmentSizeOptions(values.shipmentType || '', tr))
 const equipmentTypes = computed<Choice[]>(() => quoteCatalogSource.value === 'dhole' && quoteCatalog.value
   ? (quoteCatalog.value.equipmentTypesBySize[values.equipmentSize] || []).map(value => ({
-      value,label:value === 'Furgón' ? tr('Furgón','Truck') : value
+      value,label:officialEquipmentTypeLabel(value, tr)
     }))
   : officialEquipmentTypeOptions(values.shipmentType || '', tr))
 const isEquipment = computed(() => ['FCL', 'FTL'].includes(values.shipmentType))
+const extraEquipmentTypes = (size: string): Choice[] => quoteCatalogSource.value === 'dhole' && quoteCatalog.value
+  ? (quoteCatalog.value.equipmentTypesBySize[size] || []).map(value => ({
+      value, label: officialEquipmentTypeLabel(value, tr)
+    }))
+  : officialEquipmentTypeOptions(values.shipmentType || '', tr)
+const cargoUnitChoices = computed<Choice[]>(() => [
+  {value:'Box',label:tr('Caja','Box')}, {value:'Pallet',label:tr('Tarima','Pallet')},
+  {value:'Loose',label:tr('Bulto suelto','Loose package')}, {value:'Other',label:tr('Otra unidad','Other unit')}
+])
+const newExtraEquipment = (): GioExtraEquipment => ({size:'',type:'',quantity:1,weights:''})
+const newExtraPackage = (): GioExtraPackage => ({
+  description:'',quantity:1,unitType:'',weight:0,length:0,width:0,height:0,stackability:'Stackable'
+})
+function addExtraLine() {
+  const lines = isEquipment.value ? extraEquipmentLines.value : extraPackageLines.value
+  if (lines.length >= 24) return
+  if (isEquipment.value) extraEquipmentLines.value.push(newExtraEquipment())
+  else extraPackageLines.value.push(newExtraPackage())
+}
+function extraLinesRaw(): string {
+  const lines = isEquipment.value ? extraEquipmentLines.value : extraPackageLines.value
+  return lines.length ? JSON.stringify({kind:isEquipment.value ? 'equipment' : 'packages',lines}) : 'none'
+}
+function parseExtraLines(raw: string): {kind:'equipment'|'packages';lines:unknown[]} {
+  if (raw === 'none') return {kind:isEquipment.value ? 'equipment' : 'packages',lines:[]}
+  const obj = JSON.parse(raw) as {kind?:string;lines?:unknown[]}
+  if (!obj || obj.kind !== (isEquipment.value ? 'equipment' : 'packages') ||
+      !Array.isArray(obj.lines) || obj.lines.length < 1 || obj.lines.length > 24)
+    throw new Error('Additional cargo lines invalid')
+  return {kind:obj.kind as 'equipment'|'packages',lines:obj.lines}
+}
+function restoreExtraLines() {
+  extraEquipmentLines.value = []
+  extraPackageLines.value = []
+  try {
+    if (!values.additionalLines || values.additionalLines === 'none') return
+    const data = parseExtraLines(values.additionalLines)
+    if (data.kind === 'equipment') extraEquipmentLines.value = data.lines as GioExtraEquipment[]
+    else extraPackageLines.value = data.lines as GioExtraPackage[]
+  } catch { delete values.additionalLines }
+}
+function extraLineLabel(value: string): string {
+  if (!value || value === 'none') return tr('Sin líneas adicionales','No additional lines')
+  try {
+    const parsed = parseExtraLines(value)
+    return parsed.lines.length+' '+tr('línea(s) adicional(es)','additional line(s)')
+  } catch { return tr('Líneas por revisar','Lines need review') }
+}
 const shipmentOptions = computed<Choice[]>(() => values.mode === 'Maritime'
   ? [{value:'FCL',label:i('Contenedor completo (FCL)','Full container (FCL)')},{value:'LCL',label:i('Carga consolidada (LCL)','Consolidated cargo (LCL)')}]
   : values.mode === 'Air' ? [{value:'AIR_LCL',label:i('Carga aérea (AIR LCL)','Air cargo (AIR LCL)')}]
@@ -200,11 +265,43 @@ const steps = computed<Step[]>(() => {
   )
   else result.push(
     {key:'packageQuantity',prompt:i('¿Cuántos bultos enviarás?','How many packages will you ship?')},
+     ...(quoteCatalogSource.value === 'dhole' ? [{key:'packageUnitType',prompt:i('¿Qué tipo de unidad de carga son?','What type of cargo unit are these?'),choices:[
+       {value:'Box',label:i('Caja','Box')}, {value:'Pallet',label:i('Tarima','Pallet')},
+       {value:'Loose',label:i('Bulto suelto','Loose package')}, {value:'Other',label:i('Otra unidad','Other unit')}
+     ]}] : []),
     {key:'packageWeight',prompt:i('¿Cuánto pesa cada bulto en kg?','How much does each package weigh in kg?')},
     {key:'packageLength',prompt:i('¿Largo de cada bulto, en cm?','Length of each package in cm?')},
     {key:'packageWidth',prompt:i('¿Ancho de cada bulto, en cm?','Width of each package in cm?')},
     {key:'packageHeight',prompt:i('¿Alto de cada bulto, en cm?','Height of each package in cm?')},
     {key:'stackable',prompt:i('¿Se pueden apilar los bultos?','Can the packages be stacked?'),choices:[{value:'Stackable',label:i('Sí','Yes')},{value:'NonStackable',label:'No'}]}
+  )
+  result.push({key:'additionalLines',prompt:isEquipment.value
+    ? i('¿Necesitás otro tamaño o tipo de equipo? Si son iguales, usá la cantidad de la primera línea. Podés agregar hasta 24 grupos más.',
+        'Do you need another equipment size or type? If the units are identical, use the quantity on the first line. You can add up to 24 more groups.')
+    : i('¿Tenés bultos con distinto peso, tamaño o tipo? Los bultos iguales van juntos en una línea usando Cantidad. Podés agregar hasta 24 grupos más.',
+        'Do any packages have different weights, dimensions or types? Identical packages belong in one line using Quantity. You can add up to 24 more groups.')})
+  result.push({key:'advancedDetails',prompt:i('¿Querés incluir los datos adicionales de tu tarifa (CABYS, valor declarado, observaciones y manejo)?','Would you like to include additional quote details (CABYS, declared value, notes and handling)?'),choices:[
+    {value:'yes',label:i('Sí, completar datos adicionales','Yes, add further details')},
+    {value:'no',label:i('No, continuar','No, continue')}
+  ]})
+  const insurance = requestedServices.includes('Seguro de carga')
+  if (values.advancedDetails === 'yes')
+    result.push({key:'cabysCode',prompt:i('¿Código CABYS de la mercancía, si lo conocés?','CABYS cargo code, if known?'),optional:true})
+  if (values.advancedDetails === 'yes' || insurance)
+    result.push({key:'cargoValue',prompt:insurance
+      ? i('Para seguro de carga, ¿cuál es el valor declarado de la mercancía?','For cargo insurance, what is the declared cargo value?')
+      : i('¿Valor declarado de la carga (opcional; no representa una tarifa)?','Declared cargo value (optional; not a freight quote)?'),
+      optional:!insurance})
+  if (insurance || (values.cargoValue && Number(values.cargoValue) > 0))
+    result.push({key:'cargoCurrencyCode',prompt:i('¿En qué moneda está el valor declarado? Escribí el código ISO de 3 letras (ej.: USD, CRC).','What currency is the declared value in? Enter a 3-letter ISO code (e.g. USD, CRC).')})
+  if (values.advancedDetails === 'yes') result.push(
+    {key:'declaredWeight',prompt:i('¿Peso declarado adicional (opcional)?','Additional declared weight (optional)?'),optional:true},
+    {key:'declaredPackages',prompt:i('¿Cantidad declarada adicional de bultos (opcional)?','Additional declared package count (optional)?'),optional:true},
+    {key:'overweight',prompt:i('¿La carga se considera sobrepeso?','Is this overweight cargo?'),choices:[
+      {value:'yes',label:i('Sí','Yes')},{value:'no',label:'No'}
+    ]},
+    {key:'destinationHandling',prompt:i('¿Necesitás indicar manejo especial en destino?','Any special handling at destination?'),optional:true},
+    {key:'observations',prompt:i('¿Observaciones adicionales para el equipo de cotizaciones?','Additional notes for the quoting team?'),optional:true}
   )
   result.push(
     {key:'contactName',prompt:i('¿A nombre de quién hacemos la solicitud?','Who should be the contact for this request?')},
@@ -221,16 +318,26 @@ const fieldLabels: Record<string, [string, string]> = {
   exwCargoStatus:['Estado EXW','EXW status'],exwPickupAddress:['Recolección EXW','EXW pickup'],
   cargoDescription:['Mercancía','Goods'],dangerousGoods:['Carga peligrosa','Dangerous goods'],equipmentSize:['Tamaño equipo','Equipment size'],equipmentType:['Tipo equipo','Equipment type'],
   equipmentQuantity:['Cantidad equipos','Equipment quantity'],equipmentWeights:['Pesos por unidad (kg)','Weights per unit (kg)'],
-  packageQuantity:['Bultos','Packages'],packageWeight:['Peso por bulto (kg)','Weight per package (kg)'],
+  packageQuantity:['Bultos','Packages'],packageUnitType:['Tipo de unidad','Cargo unit type'],packageWeight:['Peso por bulto (kg)','Weight per package (kg)'],
   packageLength:['Largo (cm)','Length (cm)'],packageWidth:['Ancho (cm)','Width (cm)'],packageHeight:['Alto (cm)','Height (cm)'],
   stackable:['Estibable','Stackable'], services:['Servicios solicitados','Requested services'],
+  additionalLines:['Líneas adicionales','Additional lines'],
+  advancedDetails:['Datos adicionales','Additional details'],
+  cabysCode:['Código CABYS','CABYS code'],cargoValue:['Valor declarado','Declared value'],
+  cargoCurrencyCode:['Moneda del valor','Value currency'],
+  declaredWeight:['Peso declarado adicional','Additional declared weight'],
+  declaredPackages:['Bultos declarados adicionales','Additional declared packages'],
+  overweight:['Sobrepeso','Overweight'],destinationHandling:['Manejo en destino','Destination handling'],
+  observations:['Observaciones','Notes'],
   fiscalStorageDays:['Días de almacenaje fiscal','Fiscal storage days'], deliveryAddress:['Dirección de entrega','Delivery address'], pickupAddress:['Dirección de recolección','Pickup address'],
   contactName:['Contacto','Contact'],contactEmail:['Correo','Email'],contactPhone:['Teléfono','Phone'],
   reference:['Referencia','Reference'],referenceType:['Tipo de referencia','Reference type'],transport:['Transporte','Transport'],departure:['Desde la fecha','Departure from']
 }
 const summary = computed(() => steps.value.map(step => ({
   key:step.key, label: tr((fieldLabels[step.key] ?? [step.key,step.key])[0], (fieldLabels[step.key] ?? [step.key,step.key])[1]),
-  value: step.key === 'services' ? serviceNames(values.services || '') : step.choices?.find(option => option.value === values[step.key])?.label ?? values[step.key]
+  value: step.key === 'additionalLines' ? extraLineLabel(values.additionalLines || '')
+    : step.key === 'services' ? serviceNames(values.services || '')
+    : step.choices?.find(option => option.value === values[step.key])?.label ?? values[step.key]
 })).filter(item => item.value))
 // Keep every matching location selectable at once in the scrollable list;
 // filter the complete Dhole feed, not just its first page.
@@ -246,6 +353,38 @@ const integer = (s: string, max: number) => /^\d+$/.test(s) && Number(s) > 0 && 
 const scrollEnd = async () => { await nextTick(); scroller.value?.scrollTo({top:scroller.value.scrollHeight,behavior:'smooth'}) }
 
 function validation(key: string, value: string): string {
+  if (key === 'additionalLines') {
+    try {
+      const {kind,lines} = parseExtraLines(value)
+      for (const raw of lines) {
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw))
+          throw Error('invalid cargo line')
+        const line = raw as Record<string, unknown>
+        if (kind === 'equipment') {
+          const size = String(line.size || ''), type = String(line.type || '')
+          const weights = String(line.weights || '').split(',').map(x => x.trim())
+          if (!equipmentSizes.value.some(choice => choice.value === size) ||
+              !extraEquipmentTypes(size).some(choice => choice.value === type) ||
+              !integer(String(line.quantity || ''), 100) ||
+              weights.length !== Number(line.quantity) ||
+              weights.some(x => !positive(x) || Number(x) > 100000000))
+            throw Error('invalid equipment')
+        } else if (String(line.description || '').trim().length < 2 ||
+            String(line.description).length > 400 ||
+            !integer(String(line.quantity || ''), 10000) ||
+            (quoteCatalogSource.value === 'dhole' && !cargoUnitChoices.value.some(x => x.value === line.unitType)) ||
+            !['Stackable','NonStackable'].includes(String(line.stackability)) ||
+            !positive(String(line.weight || '')) || Number(line.weight) > 100000000 ||
+            ['length','width','height'].some(key =>
+              !positive(String(line[key] || '')) || Number(line[key]) > 100000))
+          throw Error('invalid package')
+      }
+      return ''
+    } catch {
+      return tr('Revisá cada línea: tipo del catálogo, cantidad, pesos, medidas y estibabilidad válidos.',
+        'Check every line: catalog type, quantity, weights, dimensions and stackability.')
+    }
+  }
   if (key === 'services') {
     const list = value.split('|').filter(Boolean)
     if (!list.length || new Set(list).size !== list.length ||
@@ -276,7 +415,22 @@ function validation(key: string, value: string): string {
     if (weights.length !== Number(values.equipmentQuantity) || weights.some(x => !positive(x) || Number(x) > 100000000))
       return tr('Debe haber un peso positivo por cada unidad de equipo.', 'Provide one positive weight per equipment unit.')
   }
+  if (['cargoValue','declaredWeight','declaredPackages'].includes(key) && value &&
+      (!Number.isFinite(Number(value)) || Number(value) < 0 ||
+        (key === 'declaredPackages' && !/^\d+$/.test(value))))
+    return tr('Ingresá un número no negativo válido.', 'Enter a valid non-negative number.')
+  if (key === 'cargoValue' && value &&
+      values.services?.split('|').includes('Seguro de carga') && Number(value) <= 0)
+    return tr('El seguro exige un valor declarado positivo.', 'Insurance requires a positive declared value.')
+  if (key === 'declaredPackages' && value && Number(value) > 2147483647)
+    return tr('La cantidad supera el máximo admitido.', 'The count exceeds the supported maximum.')
+  if (key === 'cargoCurrencyCode' && !/^[A-Z]{3}$/.test(value))
+    return tr('Ingresá un código ISO de 3 letras mayúsculas.', 'Enter a 3-letter uppercase ISO code.')
+  if (key === 'cargoValue' && value && Number(value) > 1000000000000)
+    return tr('Valor fuera del límite permitido.', 'Declared value exceeds the allowed range.')
   const maxLength: Record<string,number> = {cargoDescription:4000, contactName:150, contactEmail:255,
+    cabysCode:40,observations:4000,destinationHandling:100, cargoCurrencyCode:3,cargoValue:40,
+    declaredWeight:40,declaredPackages:12,
     contactPhone:40, exwPickupAddress:800, deliveryAddress:800, pickupAddress:800, reference:64, equipmentWeights:400}
   if (value.length > (maxLength[key] ?? 200)) return tr('El dato es demasiado largo.', 'This value is too long.')
   if (['cargoDescription','contactName','exwPickupAddress','deliveryAddress','pickupAddress'].includes(key)) {
@@ -306,13 +460,32 @@ function advanceFrom(start: number) {
       phase.value = 'collect'
       return
     }
+    // Stored draft data is untrusted (outdated options, malformed cargo
+    // rows, edited quantities, invalid ISO currencies). Validate it again
+    // before presenting a review or silently skipping a prefilled answer.
+    if (props.kind === 'quote' && value) {
+      const issue = validation(item.key, value)
+      if (issue) {
+        delete values[item.key]
+        if (item.key === 'additionalLines') {
+          extraEquipmentLines.value = []
+          extraPackageLines.value = []
+        }
+        prefillConfirmation.delete(item.key)
+        phase.value = 'collect'
+        error.value = issue
+        return
+      }
+    }
     if (isQuoteLocation(item.key) && !selectedLocations[item.key] || props.kind === 'itinerary' && isCatalogueLocation(item.key) && !value) {
       phase.value = 'collect'
       return
     }
     if (value && prefillConfirmation.has(item.key)) {
       prefillConfirmation.delete(item.key)
-      pendingValue.value = { key:item.key, value, display:item.key === 'services' ? serviceNames(value) : item.choices?.find(choice=>choice.value===value)?.label || value }
+      pendingValue.value = { key:item.key, value, display:item.key === 'additionalLines'
+        ? extraLineLabel(value) : item.key === 'services' ? serviceNames(value)
+          : item.choices?.find(choice=>choice.value===value)?.label || value }
       phase.value = 'confirm'
       return
     }
@@ -326,18 +499,26 @@ function advanceFrom(start: number) {
 }
 function commitValue(item: Step, value: string, locationId?: string) {
   if (item.key === 'mode' && values.mode !== value) {
+    extraEquipmentLines.value = []
+    extraPackageLines.value = []
     for (const key of ['shipmentType','origin','destination','pod','equipmentSize','equipmentType','equipmentQuantity',
-      'equipmentWeights','packageQuantity','packageWeight','packageLength','packageWidth','packageHeight','stackable']) delete values[key]
+      'equipmentWeights','packageQuantity','packageUnitType','packageWeight','packageLength','packageWidth','packageHeight','stackable','additionalLines']) delete values[key]
     for (const role of ['origin','destination','pod']) delete selectedLocations[role]
     clearQuoteCatalog()
   }
   if (item.key === 'shipmentType' && values.shipmentType !== value) {
+    extraEquipmentLines.value = []
+    extraPackageLines.value = []
     for (const role of ['origin','destination','pod']) { delete values[role]; delete selectedLocations[role] }
     for (const key of ['equipmentSize','equipmentType','equipmentQuantity','equipmentWeights','packageQuantity',
-      'packageWeight','packageLength','packageWidth','packageHeight','stackable']) delete values[key]
+      'packageUnitType','packageWeight','packageLength','packageWidth','packageHeight','stackable','additionalLines']) delete values[key]
     clearQuoteCatalog()
   }
   if (item.key === 'equipmentSize' && values.equipmentSize !== value) delete values.equipmentType
+  if (item.key === 'advancedDetails' && value !== 'yes') {
+    for (const key of ['cabysCode','cargoValue','cargoCurrencyCode','declaredWeight','declaredPackages',
+      'overweight','destinationHandling','observations']) delete values[key]
+  }
   if (item.key === 'incoterm' && value !== 'EXW') {
     delete values.exwCargoStatus
     delete values.exwPickupAddress
@@ -349,20 +530,27 @@ function commitValue(item: Step, value: string, locationId?: string) {
     if (!selected.includes('Transporte recolección')) delete values.pickupAddress
     selectedServices.value = selected
   }
+  if (item.key === 'cargoValue' && values.cargoValue !== value) delete values.cargoCurrencyCode
   if (item.key === 'equipmentQuantity' && values.equipmentQuantity !== value) delete values.equipmentWeights
   if (isQuoteLocation(item.key)) {
     if (locationId) selectedLocations[item.key] = locationId
     else delete selectedLocations[item.key]
   }
   values[item.key] = value
-  const display = item.key === 'services' ? serviceNames(value) : item.choices?.find(choice => choice.value === value)?.label || value || tr('Omitido','Skipped')
+  const display = item.key === 'additionalLines' ? extraLineLabel(value)
+    : item.key === 'services' ? serviceNames(value)
+    : item.choices?.find(choice => choice.value === value)?.label || value || tr('Omitido','Skipped')
   history.value.push({question:item.prompt,answer:display})
   input.value = ''
   const edited = editingField.value !== ''
   editingField.value = ''
   if (edited) {
-    const missing = steps.value.findIndex(step => !step.optional &&
-      (!values[step.key] || (isQuoteLocation(step.key) && !selectedLocations[step.key])))
+    const missing = steps.value.findIndex(step => {
+      const existing = values[step.key] || ''
+      return (!step.optional &&
+          (!existing || (isQuoteLocation(step.key) && !selectedLocations[step.key]))) ||
+        (props.kind === 'quote' && !!existing && !!validation(step.key, existing))
+    })
     if (missing >= 0) advanceFrom(missing)
     else phase.value = 'review'
   } else advanceFrom(stepIndex.value + 1)
@@ -372,6 +560,7 @@ function accept(value = input.value, explicitLocationId?: string) {
   if (busy.value || phase.value !== 'collect' || !current.value) return
   const item = current.value
   let v = value.trim()
+  if (item.key === 'cargoCurrencyCode') v = v.toUpperCase()
   error.value = validation(item.key, v)
   if (error.value) return
   let locationId = explicitLocationId
@@ -389,6 +578,12 @@ function accept(value = input.value, explicitLocationId?: string) {
       error.value = tr('El origen y el destino deben ser diferentes.','Origin and destination must be different.')
       return
     }
+  }
+  // The additional lines were already confirmed explicitly by pressing
+  // Continue on the structured editor; never expose raw JSON in a chat bubble.
+  if (item.key === 'additionalLines') {
+    commitValue(item, v, locationId)
+    return
   }
   if (!item.choices && v) {
     pendingValue.value = {key:item.key, value:v, display:item.key === 'services' ? serviceNames(v) : v, locationId}
@@ -435,7 +630,8 @@ function editField(key: string) {
   phase.value = 'collect'
   editingField.value = key
   stepIndex.value = index
-  input.value = values[key] || proposedLocations[key] || ''
+  input.value = key === 'additionalLines' ? '' : values[key] || proposedLocations[key] || ''
+  if (key === 'additionalLines') restoreExtraLines()
   if (key === 'services') selectedServices.value = (values.services || 'Transporte internacional').split('|').filter(Boolean)
   history.value = []
   void scrollEnd()
@@ -511,6 +707,15 @@ onMounted(() => {
         if (Number.isFinite(saved.at) && Date.now() - saved.at >= 0 && Date.now() - saved.at <= 30 * 60 * 1000 &&
             saved.values && ['Maritime','Air','Land'].includes(saved.values.mode)) {
           Object.assign(values, saved.values)
+          restoreExtraLines()
+          // Drafts created before the service-list update must not reintroduce
+          // retired choices into new submissions. Keep other selected services.
+          if (typeof values.services === 'string') {
+            const supported = [...new Set(values.services.split('|').filter(service =>
+              (officialServiceOptions as readonly string[]).includes(service)))]
+            if (supported.length) values.services = supported.join('|')
+            else delete values.services
+          }
           for (const key of Object.keys(values)) prefillConfirmation.add(key)
           prefilled.value = true
           advanceFrom(0)
@@ -621,6 +826,7 @@ async function submitQuote() {
     return
   }
   const equipment = isEquipment.value
+  const extra = parseExtraLines(values.additionalLines)
   const requestedServices = values.services.split('|')
   const weights = equipment ? values.equipmentWeights.split(',').map(x => Number(x.trim())) : []
   const payload = {
@@ -630,31 +836,102 @@ async function submitQuote() {
     podLocationId:values.mode === 'Maritime' ? selectedLocations.pod : null,
     contactName:values.contactName, contactEmail:values.contactEmail,contactPhone:values.contactPhone,
     incoterm:values.incoterm,cargoReadyDate:values.cargoReadyDate,services:requestedServices,
-    equipment:equipment ? [{size:values.equipmentSize,type:values.equipmentType,quantity:Number(values.equipmentQuantity),unitWeightsKg:weights}] : [],
+    equipment:equipment ? [
+      {size:values.equipmentSize,type:values.equipmentType,quantity:Number(values.equipmentQuantity),unitWeightsKg:weights},
+      ...(extra.lines as GioExtraEquipment[]).map(line => ({
+        size:line.size,type:line.type,quantity:Number(line.quantity),
+        unitWeightsKg:String(line.weights).split(',').map(v => Number(v.trim()))
+      }))
+    ] : [],
     packages:equipment ? [] : [{
       description:values.cargoDescription,quantity:Number(values.packageQuantity),
-      weight:Number(values.packageWeight),length:Number(values.packageLength),width:Number(values.packageWidth),
+      unitType:quoteCatalogSource.value === 'dhole' ? values.packageUnitType : null,
+      // For Dhole, the official form persists TOTAL per cargo line.
+      // Keep the legacy GIO behavior unchanged for local catalog requests.
+      weight:quoteCatalogSource.value === 'dhole'
+        ? Number(values.packageWeight)*Number(values.packageQuantity)
+        : Number(values.packageWeight),
+      length:Number(values.packageLength),width:Number(values.packageWidth),
       height:Number(values.packageHeight),stackability:values.stackable
-    }],
+    }, ...(extra.lines as GioExtraPackage[]).map(line => ({
+      description:line.description,quantity:Number(line.quantity),
+      unitType:quoteCatalogSource.value === 'dhole' ? line.unitType : null,
+      weight:quoteCatalogSource.value === 'dhole' ? Number(line.weight)*Number(line.quantity) : Number(line.weight),
+      length:Number(line.length),width:Number(line.width),height:Number(line.height),
+      stackability:line.stackability
+    }))],
     dimensionUnit:equipment ? null : 'cm',weightUnit:equipment ? null : 'kg',
     exwCargoStatus:values.incoterm === 'EXW' ? values.exwCargoStatus : null,
     exwPickupAddress:values.incoterm === 'EXW' ? values.exwPickupAddress : null,
-    cargoDescription:values.cargoDescription,cabysCode:null,cargoValue:null,declaredWeight:null,
-    declaredPackages:null,observations:values.dangerousGoods === 'unsure' ? 'La peligrosidad de la carga está pendiente de confirmar.' : null,
-    cargoFlags:[...(values.dangerousGoods === 'yes' ? ['Carga peligrosa'] : []),...(!equipment && values.stackable === 'NonStackable' ? ['No estibable'] : [])],destinationHandling:null,
+    cargoDescription:values.cargoDescription,
+    cabysCode:values.cabysCode || null,
+    cargoValue:values.cargoValue ? Number(values.cargoValue) : null,
+    cargoCurrencyCode:Number(values.cargoValue) > 0 ? values.cargoCurrencyCode : null,
+    declaredWeight:values.declaredWeight ? Number(values.declaredWeight) : null,
+    declaredPackages:values.declaredPackages ? Number(values.declaredPackages) : null,
+    observations:[
+      ...(values.dangerousGoods === 'unsure' ? ['La peligrosidad de la carga está pendiente de confirmar.'] : []),
+      ...(values.observations ? [values.observations] : [])
+    ].join('\n') || null,
+    cargoFlags:[
+      ...(values.dangerousGoods === 'yes' ? ['Carga peligrosa'] : []),
+      ...(values.overweight === 'yes' ? ['Sobrepeso'] : []),
+      ...(!equipment && (values.stackable === 'NonStackable' ||
+        (extra.lines as GioExtraPackage[]).some(line => line.stackability === 'NonStackable'))
+        ? ['No estibable'] : [])
+    ],destinationHandling:values.destinationHandling || null,
     deliveryAddress:requestedServices.includes('Transporte entrega') ? values.deliveryAddress : null,
     pickupAddress:requestedServices.includes('Transporte recolección') ? values.pickupAddress : null,
     fiscalStorageDays:requestedServices.includes('Almacenamiento') ? Number(values.fiscalStorageDays) : null
   }
-  const data = await jsonResponse(await fetch('/api/quotes/official',{method:'POST',credentials:'same-origin',
-    headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}))
+  const body = JSON.stringify(payload)
+  const serverDedup = quoteCatalogSource.value === 'dhole' &&
+    quoteCatalog.value?.clientCreateIdempotencyEnabled === true
+  // Never cross an unresolved submission into a different server mode.
+  // Previously unkeyed requests have no recoverable creation identity;
+  // previously keyed attempts must never silently become unkeyed.
+  if (legacyAttemptMayHaveSaved ||
+      legacyQuoteResultUncertain(CREATE_ATTEMPT_KEY) ||
+      (!serverDedup && unresolvedKeyedQuoteAttempt(CREATE_ATTEMPT_KEY, activeCreateAttempt)))
+    throw new Error(tr(
+      'El resultado del envío anterior es incierto. Consultá con soporte antes de reenviar para evitar duplicados.',
+      'The previous request may have been saved. Contact support before retrying to avoid duplicates.'))
+  if (serverDedup)
+    activeCreateAttempt = await prepareQuoteSubmissionAttempt(
+      CREATE_ATTEMPT_KEY, body, activeCreateAttempt)
+  const headers: Record<string,string> = {'Content-Type':'application/json'}
+  if (serverDedup) headers['X-CF-Quote-Request-Key'] = activeCreateAttempt!.key
+  else {
+    // Without the optional DB key registry, a lost response is not safe
+    // to resend. Persist only a PII-free uncertainty marker.
+    legacyAttemptMayHaveSaved = true
+    setLegacyQuoteResultUncertain(CREATE_ATTEMPT_KEY)
+  }
+  const response = await fetch('/api/quotes/official',{method:'POST',credentials:'same-origin',
+    headers,body})
+  let data: Record<string,any>
+  try { data = await jsonResponse(response) }
+  catch (reason) {
+    if (response.status === 400) {
+      clearQuoteSubmissionAttempt(CREATE_ATTEMPT_KEY)
+      activeCreateAttempt = null
+      legacyAttemptMayHaveSaved = false
+    }
+    throw reason
+  }
   quoteId.value = String(data.id || '')
   quoteStatus.value = String(data.status || '')
   if (!quoteId.value) throw new Error(tr('No recibimos el identificador de la solicitud. Consultá con soporte antes de repetir el envío.','No request ID was returned. Contact support before submitting again.'))
+  const receiptKey = activeCreateAttempt?.key
+  delivery.follow(quoteId.value, receiptKey, data.dholeDispatchState)
+  clearQuoteSubmissionAttempt(CREATE_ATTEMPT_KEY)
+  activeCreateAttempt = null
+  legacyAttemptMayHaveSaved = false
   try {
     sessionStorage.removeItem(STORAGE_KEY)
     sessionStorage.setItem('gcf-gio-quote-receipt-v1', JSON.stringify({
       at:Date.now(), id:quoteId.value, status:quoteStatus.value,
+      receiptKey, deliveryState:deliveryState.value,
       mode:values.mode, origin:values.origin, destination:values.destination,
       // Snapshot only the fields confirmed and submitted. Nothing goes in the URL,
       // and the public receipt never fetches other customers' requests by ID.
@@ -739,7 +1016,62 @@ async function perform() {
       </div>
       <template v-if="phase === 'collect' && current">
         <div class="gio-ops__bubble">{{ current.prompt }}</div>
-        <div v-if="current.key === 'services'" class="gio-ops__services">
+        <div v-if="current.key === 'additionalLines'" class="gio-ops__extra-lines">
+          <p class="gio-ops__note">{{ isEquipment
+            ? tr('La primera línea de equipo ya quedó registrada. Añadí otra solo si necesitás un tipo o tamaño diferente.', 'Your first equipment group is already recorded. Add another only for a different type or size.')
+            : tr('La primera línea ya quedó registrada. Ejemplo: 10 cajas iguales = una línea con cantidad 10; otras tarimas o cajas de diferente tamaño = una línea adicional.', 'Your first cargo group is recorded. Example: 10 identical boxes = one line with quantity 10; pallets or different-size boxes = another line.') }}</p>
+          <template v-if="isEquipment">
+            <div v-for="(line,index) in extraEquipmentLines" :key="index" class="gio-ops__extra-line">
+              <strong>{{ tr('Equipo adicional','Additional equipment') }} {{ index+2 }}</strong>
+              <button type="button" class="gio-ops__secondary" @click="extraEquipmentLines.splice(index,1)">{{ tr('Quitar','Remove') }}</button>
+              <label>{{ tr('Tamaño','Size') }}
+                <select v-model="line.size" @change="line.type=''">
+                  <option value="">{{ tr('Seleccionar','Select') }}</option>
+                  <option v-for="choice in equipmentSizes" :key="choice.value" :value="choice.value">{{ choice.label }}</option>
+                </select>
+              </label>
+              <label>{{ tr('Tipo','Type') }}
+                <select v-model="line.type">
+                  <option value="">{{ tr('Seleccionar','Select') }}</option>
+                  <option v-for="choice in extraEquipmentTypes(line.size)" :key="choice.value" :value="choice.value">{{ choice.label }}</option>
+                </select>
+              </label>
+              <label>{{ tr('Cantidad','Quantity') }}
+                <input v-model.number="line.quantity" type="number" min="1" max="100" step="1" />
+              </label>
+              <label>{{ tr('Peso por equipo en kg, separado por comas','Weight in kg per equipment unit, comma-separated') }}
+                <input v-model="line.weights" maxlength="1200" :placeholder="tr('Ej.: 1200, 1100','E.g. 1200, 1100')" />
+              </label>
+            </div>
+          </template>
+          <template v-else>
+            <div v-for="(line,index) in extraPackageLines" :key="index" class="gio-ops__extra-line">
+              <strong>{{ tr('Línea de bultos adicional','Additional cargo line') }} {{ index+2 }}</strong>
+              <button type="button" class="gio-ops__secondary" @click="extraPackageLines.splice(index,1)">{{ tr('Quitar','Remove') }}</button>
+              <label>{{ tr('Descripción','Description') }}<input v-model.trim="line.description" maxlength="400" /></label>
+              <label>{{ tr('Tipo de unidad','Cargo unit type') }}
+                <select v-model="line.unitType">
+                  <option value="">{{ tr('Seleccionar','Select') }}</option>
+                  <option v-for="choice in cargoUnitChoices" :key="choice.value" :value="choice.value">{{ choice.label }}</option>
+                </select>
+              </label>
+              <label>{{ tr('Cantidad','Quantity') }}<input v-model.number="line.quantity" type="number" min="1" max="10000" step="1" /></label>
+              <label>{{ tr('Peso por bulto (kg)','Weight per package (kg)') }}<input v-model.number="line.weight" type="number" min="0.001" step="any" /></label>
+              <label>{{ tr('Largo (cm)','Length (cm)') }}<input v-model.number="line.length" type="number" min="0.001" step="any" /></label>
+              <label>{{ tr('Ancho (cm)','Width (cm)') }}<input v-model.number="line.width" type="number" min="0.001" step="any" /></label>
+              <label>{{ tr('Alto (cm)','Height (cm)') }}<input v-model.number="line.height" type="number" min="0.001" step="any" /></label>
+              <label>{{ tr('Estibabilidad','Stackability') }}
+                <select v-model="line.stackability">
+                  <option value="Stackable">{{ tr('Estibable','Stackable') }}</option>
+                  <option value="NonStackable">{{ tr('No estibable','Non-stackable') }}</option>
+                </select>
+              </label>
+            </div>
+          </template>
+          <button class="gio-ops__secondary" type="button" :disabled="busy || (isEquipment ? extraEquipmentLines.length : extraPackageLines.length) >= 24" @click="addExtraLine">+ {{ tr('Añadir línea','Add another line') }}</button>
+          <button class="gio-ops__primary" type="button" :disabled="busy" @click="accept(extraLinesRaw())">{{ tr('Continuar','Continue') }} <ChevronRight :size="15" /></button>
+        </div>
+        <div v-else-if="current.key === 'services'" class="gio-ops__services">
           <label v-for="service in serviceChoices" :key="service.value" class="gio-ops__service">
             <input type="checkbox" :checked="selectedServices.includes(service.value)" @change="toggleService(service.value)" />
             <span>{{ service.label }}</span>
@@ -792,8 +1124,9 @@ async function perform() {
       </template>
       <template v-else-if="phase === 'result'">
         <template v-if="kind === 'quote'">
-          <div class="gio-ops__bubble">{{ tr('¡Solicitud registrada! Este es el identificador confirmado por el sistema.','Request created! This is the ID returned by the system.') }}</div>
-          <section class="gio-ops__card"><h3><CheckCircle2 :size="18" />{{ tr('Solicitud recibida','Request received') }}</h3><p class="gio-ops__id">{{ quoteId }}</p><p>{{ quoteStatus }}</p><a class="gio-ops__primary gio-ops__link" :href="quoteResultUrl">{{ quoteResultAdmin ? tr('Ver cotizaciones en administración','Review quotes in administration') : tr('Ir a cotizaciones','Go to quotes') }}</a></section>
+          <div class="gio-ops__bubble" role="status">{{ quoteDeliveryMessage(deliveryState, tr) }}</div>
+          <div v-if="(deliveryState === 'Confirmed' || deliveryState === 'AcceptedByProvider')" class="gio-ops__bubble">{{ tr('Te enviaremos un correo de confirmación a la dirección indicada.','We will send a confirmation email to the address you provided.') }}</div>
+          <section class="gio-ops__card"><h3><CheckCircle2 :size="18" />{{ (deliveryState === 'Confirmed' || deliveryState === 'AcceptedByProvider') ? tr('Solicitud enviada','Request sent') : tr('Solicitud recibida','Request received') }}</h3><p class="gio-ops__id">{{ quoteId }}</p><p>{{ quoteStatus }}</p><a class="gio-ops__primary gio-ops__link" :href="quoteResultUrl">{{ quoteResultAdmin ? tr('Ver cotizaciones en administración','Review quotes in administration') : tr('Ir a cotizaciones','Go to quotes') }}</a></section>
         </template>
         <template v-else-if="kind === 'itinerary'">
           <div class="gio-ops__bubble">{{ itineraryTotal ? tr('Estos son los itinerarios publicados que coinciden con tu búsqueda.','These published itineraries match your search.') : tr('No hay itinerarios publicados con esos filtros.','There are no published itineraries matching those filters.') }}</div>
@@ -833,9 +1166,10 @@ async function perform() {
       <p v-else class="gio-ops__note">{{ tr('Sin coincidencias. Escribe otra ciudad o puerto.','No matches. Try a different city or port.') }}</p>
       <p v-if="error" class="gio-ops__error" role="alert">{{ error }}</p>
     </section>
-    <form v-if="phase === 'collect' && current && !current.choices && current.key !== 'services'" class="gio-ops__form" @submit.prevent="isCatalogueLocation(current.key) ? accept(locationTerm) : accept()">
+    <form v-if="phase === 'collect' && current && !current.choices && current.key !== 'services' && current.key !== 'additionalLines'" class="gio-ops__form" @submit.prevent="isCatalogueLocation(current.key) ? accept(locationTerm) : accept()">
       <input v-if="isCatalogueLocation(current.key)" v-model="locationTerm" :placeholder="tr('Buscar ciudad, puerto o aeropuerto…','Search city, port or airport…')" :aria-label="current.prompt" :disabled="locationLoading || !!locationLoadError || !locationChoices.length" maxlength="120" autocomplete="off" />
-      <input v-else v-model="input" :placeholder="current.hint || tr('Escribe tu respuesta…','Type your answer…')" :aria-label="current.prompt" :disabled="busy" :maxlength="['deliveryAddress','pickupAddress'].includes(current.key) ? 800 : 400" />
+      <textarea v-else-if="current.key === 'observations'" v-model="input" rows="3" maxlength="4000" :aria-label="current.prompt" :disabled="busy" />
+      <input v-else v-model="input" :placeholder="current.hint || tr('Escribe tu respuesta…','Type your answer…')" :aria-label="current.prompt" :disabled="busy" :maxlength="['deliveryAddress','pickupAddress','exwPickupAddress'].includes(current.key) ? 800 : current.key === 'cabysCode' ? 40 : current.key === 'destinationHandling' ? 100 : 400" />
       <button type="submit" :disabled="busy || (isCatalogueLocation(current.key) ? !locationTerm.trim() || locationLoading || !locationChoices.length : !input.trim() && !current.optional)" :aria-label="tr('Continuar','Continue')"><ChevronRight :size="19" /></button>
     </form>
   </div>
@@ -843,6 +1177,15 @@ async function perform() {
 
 <style scoped>
 .gio-ops{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;min-width:0;color:var(--gio-ink,#fff);font-size:12px}
+.gio-ops__extra-lines{display:flex;flex-direction:column;gap:9px;padding:8px 0}
+.gio-ops__extra-line{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;border:1px solid var(--gio-line,#777);border-radius:10px;padding:10px}
+.gio-ops__extra-line>strong{grid-column:1/-1}
+.gio-ops__extra-line>button{justify-self:start}
+.gio-ops__extra-line label{display:flex;flex-direction:column;gap:4px;min-width:0}
+.gio-ops__extra-line input,.gio-ops__extra-line select,.gio-ops__form textarea{font:inherit;width:100%;min-width:0;background:var(--gio-input,#14192d);color:var(--gio-ink,#fff);border:1px solid var(--gio-line,#888);border-radius:8px;padding:9px}
+.gio-ops__form textarea{flex:1 1 auto;min-height:74px;resize:vertical}
+@media(max-width:800px){.gio-ops__extra-line input,.gio-ops__extra-line select,.gio-ops__form textarea{font-size:16px}}
+.gio-ops__extra-lines>.gio-ops__primary,.gio-ops__extra-lines>.gio-ops__secondary{align-self:flex-start}
 .gio-ops__bar{flex:0 0 auto;display:flex;align-items:center;gap:10px;min-height:41px;padding:6px 12px;border-bottom:1px solid var(--gio-line,#555)}
 .gio-ops__bar strong{flex:1;font-size:12px}.gio-ops__bar>span{color:var(--gio-muted,#aaa)}
 .gio-ops__back{display:inline-flex;align-items:center;gap:5px;color:var(--gio-ink,#fff);border:0;background:transparent;font-size:11px;cursor:pointer}

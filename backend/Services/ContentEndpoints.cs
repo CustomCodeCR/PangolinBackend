@@ -24,13 +24,43 @@ public static class ContentEndpoints
             var rows = await db.ManagedNews.AsNoTracking()
                 .Where(x => x.Published && (x.ExpiresAt == null || x.ExpiresAt > DateTime.UtcNow))
                 .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
-                .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published, x.Author, x.PublishedAt, x.ExpiresAt })
+                .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published, x.Author, x.PublishedAt, x.ExpiresAt, x.Slug, x.ContentModifiedAt })
                 .ToListAsync(ct);
             return Results.Ok(rows.Select(x => new {
                 x.Id, x.Title, x.Category, x.Description, x.Body,
                 Image = CmsInlineNewsImages.PublicImageSrc(x.Id, x.Image, deliveryEnabled),
-                x.Published, x.Author, x.PublishedAt, x.ExpiresAt
+                x.Published, x.Author, x.PublishedAt, x.ExpiresAt,
+                Slug = x.Slug ?? NewsPermalink.Create(x.Title, x.PublishedAt, x.Id),
+                x.ContentModifiedAt
             }).ToList());
+        });
+
+        // Una ficha individual debe comprobarse en PostgreSQL en cada petición.
+        // Las listas/cache de Nuxt pueden conservar temporalmente un registro
+        // eliminado o despublicado; nunca deben convertirlo en un HTTP 200.
+        app.MapGet("/api/content/news/{id:guid}", async (
+            Guid id, AppDbContext db, IConfiguration config, HttpContext http, CancellationToken ct) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+            var now = DateTime.UtcNow;
+            var news = await db.ManagedNews.AsNoTracking()
+                .Where(x => x.Id == id && x.Published && (x.ExpiresAt == null || x.ExpiresAt > now))
+                .Select(x => new
+                {
+                    x.Id, x.Title, x.Category, x.Description, x.Body, x.Image,
+                    x.Published, x.Author, x.PublishedAt, x.ExpiresAt, x.Slug, x.ContentModifiedAt
+                })
+                .FirstOrDefaultAsync(ct);
+            if (news is null) return Results.NotFound();
+            var deliveryEnabled = config.GetValue<bool>("CmsNews:BinaryImageDeliveryEnabled");
+            return Results.Ok(new
+            {
+                news.Id, news.Title, news.Category, news.Description, news.Body,
+                Image = CmsInlineNewsImages.PublicImageSrc(news.Id, news.Image, deliveryEnabled),
+                news.Published, news.Author, news.PublishedAt, news.ExpiresAt,
+                Slug = news.Slug ?? NewsPermalink.Create(news.Title, news.PublishedAt, news.Id),
+                news.ContentModifiedAt
+            });
         });
 
         // Traducción pública exclusivamente de artículos publicados. Almacena en caché
@@ -115,7 +145,7 @@ public static class ContentEndpoints
         admin.MapGet("/news", async (AppDbContext db, CancellationToken ct) =>
             Results.Ok(await db.ManagedNews.AsNoTracking()
                 .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
-                .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published, x.Author, x.PublishedAt, x.ExpiresAt })
+                .Select(x => new { x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published, x.Author, x.PublishedAt, x.ExpiresAt, x.Slug, x.ContentModifiedAt })
                 .ToListAsync(ct)));
 
         admin.MapPost("/news", async (SaveNewsRequest input, AppDbContext db, ContentUpdatesPublisher updates, CancellationToken ct) =>
@@ -345,6 +375,20 @@ public static class ContentEndpoints
 
     private static void ApplyNews(ManagedNews target, SaveNewsRequest input)
     {
+        // A published legacy article with no stored slug must retain the
+        // public URL generated from its OLD title/date before any edit.
+        var previouslyPublished = target.Published;
+        if (previouslyPublished && string.IsNullOrWhiteSpace(target.Slug))
+            target.Slug = NewsPermalink.Create(target.Title, target.PublishedAt, target.Id);
+        var contentChanged =
+            target.Title != input.Title!.Trim() ||
+            target.Category != input.Category!.Trim() ||
+            target.Description != input.Description!.Trim() ||
+            target.Body != (input.Body?.Trim() ?? "") ||
+            target.Image != (input.Image?.Trim() ?? "") ||
+            target.Author != (input.Author?.Trim() ?? "") ||
+            (input.PublishedAt.HasValue && input.PublishedAt.Value.Date != target.PublishedAt?.Date);
+
         target.Title = input.Title!.Trim();
         target.Category = input.Category!.Trim();
         target.Description = input.Description!.Trim();
@@ -362,7 +406,16 @@ public static class ContentEndpoints
                 : input.ExpiresAt.Value.ToUniversalTime())
             : null;
         target.Published = input.Published;
-        target.UpdatedAt = DateTime.UtcNow;
+        var now = DateTime.UtcNow;
+        if (target.Published)
+        {
+            // Drafts have no permanent URL until their first publication.
+            target.Slug ??= NewsPermalink.Create(target.Title, target.PublishedAt, target.Id);
+            // Only actual editorial changes or first publication affect lastmod.
+            if (!previouslyPublished || contentChanged || target.ContentModifiedAt is null)
+                target.ContentModifiedAt = now;
+        }
+        target.UpdatedAt = now;
     }
 
     private static void ApplyMedia(ManagedMedia target, SaveMediaRequest input)
@@ -375,7 +428,8 @@ public static class ContentEndpoints
 
     private static object NewsView(ManagedNews x) => new
     {
-        x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published, x.Author, x.PublishedAt, x.ExpiresAt
+        x.Id, x.Title, x.Category, x.Description, x.Body, x.Image, x.Published, x.Author, x.PublishedAt, x.ExpiresAt,
+        x.Slug, x.ContentModifiedAt
     };
 
     private static object MediaView(ManagedMedia x) => new { x.Id, x.Name, x.Kind, x.Src, x.ObjectKey, x.MimeType, x.SizeBytes };

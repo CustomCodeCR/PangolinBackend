@@ -28,9 +28,14 @@ const slugifyNewsTitle = (title: string) => title.normalize('NFD')
   .toLowerCase()
   .replace(/[^a-z0-9]+/g, '-')
   .replace(/^-+|-+$/g, '') || 'noticia'
-const articleSlug = (article: { id: string; title: string; publishedAt?: string | null }) =>
-  `${article.publishedAt?.slice(0,10) || 'sin-fecha'}-${slugifyNewsTitle(article.title)}-${article.id.replace(/-/g, '').slice(-8).toLowerCase()}`
-const articlePath = (article: { id: string; title: string; publishedAt?: string | null }) => `/noticias/${articleSlug(article)}`
+const articleSlug = (article: { id: string; title: string; publishedAt?: string | null; slug?: string | null }) => {
+  const suffix = article.id.replace(/-/g, '').slice(-8).toLowerCase()
+  return article.slug && article.slug.length <= 240 &&
+    /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(article.slug) && article.slug.endsWith('-' + suffix)
+    ? article.slug
+    : `${article.publishedAt?.slice(0,10) || 'sin-fecha'}-${slugifyNewsTitle(article.title)}-${suffix}`
+}
+const articlePath = (article: { id: string; title: string; publishedAt?: string | null; slug?: string | null }) => `/noticias/${articleSlug(article)}`
 const articleHref = (id: string) => {
   const article = managedNews.value.find(item => item.id === id)
   return article ? articlePath(article) : '/noticias'
@@ -502,6 +507,7 @@ onUnmounted(() => {
           <div>
             <p class="section-tag">{{ $t('phrases.p066') }}</p>
             <h2 class="section-title">{{ $t('phrases.p072') }} <span>{{ $t('phrases.p073') }}</span></h2>
+            <p class="news-editorial-section-heading__intro">{{ q('Consultá nuestras publicaciones sobre logística, transporte de carga, aduanas y comercio exterior en Costa Rica y Centroamérica.', 'Read our coverage of logistics, freight transportation, customs and international trade in Costa Rica and Central America.') }}</p>
           </div>
           <span class="news-editorial-section-heading__count">{{ $t('phrases.p133') }} · 0{{ news.length }}</span>
         </div>
@@ -596,6 +602,8 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+/* Useful editorial context is visible in both SSR HTML and the hydrated page. */
+.news-editorial-section-heading__intro{max-width:670px;margin:12px 0 0;font-size:clamp(13px,1.2vw,15px);line-height:1.6;opacity:.86}
 .news-translation-feedback { padding-block: 10px; font-size: 13px; color: #aab8d0; }
 .news-article-page{--article-ink:#16181d;--article-muted:#626873;--article-line:rgba(20,24,32,.15);--article-accent:#c8102e;position:relative;min-height:0;padding:0 0 0;background:#fff;color:var(--article-ink)}
 .news-article-page__navigation{position:absolute;z-index:6;top:clamp(88px,10vh,112px);left:0;right:0;display:flex;align-items:center;justify-content:space-between;gap:20px;width:min(1480px,calc(100% - 64px));max-width:none;margin-inline:auto;padding-block:15px 20px}
