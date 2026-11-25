@@ -59,6 +59,36 @@ public static class OfficialQuoteEndpoints
             Encoding.UTF8.GetBytes(fingerprintInput))).ToLowerInvariant();
     }
 
+    // Tombstones are checked before any creation or replay. This check is
+    // backwards compatible with an installation that has not yet deployed the
+    // optional purge migration: no purge could have run there.
+    private static async Task<bool> HasPurgedSubmissionKeyAsync(
+        AppDbContext db, Guid key, CancellationToken ct)
+    {
+        var hasTombstoneColumn = await db.Database.SqlQueryRaw<bool>("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'official_quote_purge_audit'
+                  AND column_name = 'submission_key'
+            ) AS "Value"
+            """).SingleAsync(ct);
+        if (!hasTombstoneColumn) return false;
+
+        return await db.Database.SqlQuery<bool>($"""
+            SELECT EXISTS (
+                SELECT 1 FROM public.official_quote_purge_audit
+                WHERE submission_key = {key}
+            ) AS "Value"
+            """).SingleAsync(ct);
+    }
+
+    private static IResult PurgedSubmissionKeyResponse() =>
+        Results.Conflict(new {
+            code = "quote_request_key_purged",
+            error = "Esta solicitud fue eliminada definitivamente. No se puede volver a enviarla con la misma clave. Consultá con soporte."
+        });
+
     private static async Task<IResult> RepeatReceiptAsync(
         OfficialQuoteClientSubmission submission, string expectedDigest,
         bool stageDirect, AppDbContext db, CancellationToken ct)
@@ -70,7 +100,16 @@ public static class OfficialQuoteEndpoints
             });
         // The FK guarantees the parent exists. The key table stores no PII.
         var existing = await db.OfficialQuotes.AsNoTracking()
-            .SingleAsync(x => x.Id == submission.QuoteId, ct);
+            .SingleOrDefaultAsync(x => x.Id == submission.QuoteId, ct);
+        // A concurrent deletion can commit after the key lookup; the replay
+        // must not throw a 500 or try to reconstruct the old submission.
+        if (existing is null)
+            return await HasPurgedSubmissionKeyAsync(db, submission.SubmissionKey, ct)
+                ? PurgedSubmissionKeyResponse()
+                : Results.Conflict(new {
+                    code = "quote_replay_missing",
+                    error = "La solicitud ya no está disponible. Consultá con soporte antes de reenviar."
+                });
         var receipt = stageDirect
             ? await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
                 .Where(x => x.QuoteId == existing.Id)
@@ -101,7 +140,7 @@ public static class OfficialQuoteEndpoints
         return state;
     }
 
-    private static async Task LockCreationKeyAsync(
+    internal static async Task LockCreationKeyAsync(
         AppDbContext db, Guid key, IDbContextTransaction transaction, CancellationToken ct)
     {
         // PostgreSQL transaction-scoped advisory lock makes concurrent
@@ -388,6 +427,14 @@ public static class OfficialQuoteEndpoints
                             error = "La solicitud requiere una clave única válida; actualizá el formulario."
                         });
                     requestKey = parsedKey;
+                    // Deleted requests must remain blocked even when the prior
+                    // quote and deduplication row have been permanently erased.
+                    // No customer data or request digest exists in this tombstone.
+                    if (await HasPurgedSubmissionKeyAsync(db, parsedKey, ct))
+                    {
+                        http.Response.Headers.CacheControl = "no-store";
+                        return PurgedSubmissionKeyResponse();
+                    }
                     requestDigest = SubmissionDigest(input, user);
                     // Replays must survive a changed or temporarily unavailable
                     // catalogue after the original quote was already committed.
@@ -491,6 +538,13 @@ public static class OfficialQuoteEndpoints
                     if (deduplicateCreate)
                     {
                         await LockCreationKeyAsync(db, requestKey!.Value, transaction, ct);
+                        // This second check closes the race with a concurrent
+                        // archive purge, which takes the SAME advisory lock.
+                        if (await HasPurgedSubmissionKeyAsync(db, requestKey.Value, ct))
+                        {
+                            http.Response.Headers.CacheControl = "no-store";
+                            return PurgedSubmissionKeyResponse();
+                        }
                         // The first request may have committed while this request
                         // waited for the lock. Never create another copy in that case.
                         var prior = await db.OfficialQuoteClientSubmissions.AsNoTracking()
