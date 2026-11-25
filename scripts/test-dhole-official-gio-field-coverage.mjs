@@ -176,7 +176,7 @@ assert.ok(!retry.includes('JSON.stringify({body'), 'Do not persist raw quote bod
 // on the existing quote table; idempotency must still be isolated in its own
 // optional key table and must not require changes to historic quote payloads.
 const quoteColumnAdditions = [...schema.matchAll(
-  /ALTER TABLE public\\.official_quote_requests\\s+ADD COLUMN[\\s\\S]*?;/g
+  /ALTER TABLE public\.official_quote_requests\s+ADD COLUMN[\s\S]*?;/g
 )].map(match => match[0]);
 assert.equal(quoteColumnAdditions.length, 1,
   'Only the reviewed additive archive migration may extend official quote rows');
