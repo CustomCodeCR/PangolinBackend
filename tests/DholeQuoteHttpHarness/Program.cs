@@ -917,6 +917,20 @@ internal static class DholeQuoteHttpTest
                 await gated.ClaimOneForOfflineReviewAsync(db, CancellationToken.None) is null,
                 "Claim disabled means zero database state transitions");
         }
+        await using (var db = new AppDbContext(opts))
+        {
+            Assert(await DholeOfficialDispatchPass.RecordPreflightBlockAsync(db, directId,
+                DholePreflightBlockReason.CatalogUnavailable, CancellationToken.None),
+                "Record a controlled diagnostic for a pending, never-attempted job");
+            Assert(!await DholeOfficialDispatchPass.RecordPreflightBlockAsync(db, directId,
+                DholePreflightBlockReason.CatalogUnavailable, CancellationToken.None),
+                "Repeated identical preflight diagnostics do not rewrite the row");
+            var pending = await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
+                .SingleAsync(x => x.QuoteId == directId);
+            Assert(pending.State == "PendingDispatch" && pending.AttemptCount == 0 &&
+                pending.LastErrorCode == "PreflightCatalogUnavailable" && pending.LastAttemptAtUtc == null,
+                "Preflight reason is durable without reserving an attempt");
+        }
         var claimer = new DholeOfficialOutboxClaimService(previewFlags);
         async Task<Guid?> ClaimOnce()
         {
@@ -946,6 +960,17 @@ internal static class DholeQuoteHttpTest
                 !reader.IsDBNull(2) &&
                 reader.IsDBNull(3),
                 "Atomic claim increments one attempt without fabricating Dhole confirmation");
+        }
+        await using (var db = new AppDbContext(opts))
+        {
+            Assert(!await DholeOfficialDispatchPass.RecordPreflightBlockAsync(db, directId,
+                DholePreflightBlockReason.InvalidPayload, CancellationToken.None),
+                "A preflight diagnostic cannot overwrite an already claimed row");
+            var claimed = await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
+                .SingleAsync(x => x.QuoteId == directId);
+            Assert(claimed.State == "InFlight" && claimed.AttemptCount == 1 &&
+                claimed.LastErrorCode == null,
+                "A successful claim clears the obsolete preflight diagnostic");
         }
         // Isolated result recording: even a successful mock HTTP result is
         // never equivalent to a verified Pricing-created request.
