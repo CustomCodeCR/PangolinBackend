@@ -51,13 +51,13 @@ async function decide(choice:'Authorized'|'Rejected'){if(!detail.value||busy.val
     : 'Autorización rechazada.'
   const id=detail.value.id;await load();await open(id)
 }catch(e){error.value=msg(e)}finally{busy.value=false}}
-// Administrative removal hides only the inbox entry; the DB keeps the original
-// quote and its audit trail, and blocks removal when Dhole has any outbox row.
+// Archive hides only terminal work from the inbox. The DB keeps the original
+// quote and audit history; Dhole-linked requests are always protected.
 async function removeSelected(){
   if(!detail.value || !permissions.value.canManage || busy.value)return
   const id=detail.value.id
   const name=detail.value.customerName
-  if(!window.confirm('¿Eliminar de la bandeja la solicitud de '+name+'?\\n\\nLa solicitud y su historial se conservarán para auditoría. No cancela envíos a Dhole. Esta acción no se puede deshacer desde el panel.'))return
+  if(!window.confirm('¿Archivar la solicitud de '+name+'?\n\nSe ocultará de la bandeja activa, pero la solicitud y el historial quedan guardados para auditoría. No cancela operaciones de Dhole. Para restaurarla se requiere intervención administrativa.'))return
   busy.value=true;error.value='';notice.value=''
   try{
     await api('/api/admin/quotes/official/'+id,{method:'DELETE'})
@@ -65,7 +65,7 @@ async function removeSelected(){
     // Reload in the same page unless removing the last row on that page.
     if(rows.value.length===1 && page.value>1)page.value--
     await load()
-    notice.value='Solicitud eliminada de la bandeja. Su historial se conserva para auditoría.'
+    notice.value='Solicitud archivada y retirada de la bandeja activa. Su historial se conserva para auditoría.'
   }catch(e){error.value=msg(e)}finally{busy.value=false}
 }
 onMounted(async()=>{const user=await refreshSession();if(user?.role!=='administrador'){error.value='Requiere sesión de administrador.';return}
@@ -190,8 +190,12 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
                 <h2>{{detail.customerName}}</h2>
                 <p class="off-admin-muted off-admin-reference">Referencia: {{detail.id}}</p>
               </div>
-              <button v-if="permissions.canManage" type="button" class="off-admin-delete" :disabled="busy"
-                :aria-label="'Eliminar cotización de '+detail.customerName" @click="removeSelected">Eliminar</button>
+              <button v-if="permissions.canManage" type="button" class="off-admin-delete"
+                :disabled="busy || (detail.status!=='Closed' && detail.authorization!=='Rejected')"
+                :title="detail.status==='Closed' || detail.authorization==='Rejected'
+                  ? 'Archivar una solicitud finalizada sin integración Dhole'
+                  : 'Para archivar, primero cerrá o rechazá la solicitud'"
+                :aria-label="'Archivar cotización de '+detail.customerName" @click="removeSelected">Archivar</button>
             </div>
             <div class="off-admin-status-row">
               <span class="off-admin-status">{{statusNames[detail.status] ?? detail.status}}</span>
