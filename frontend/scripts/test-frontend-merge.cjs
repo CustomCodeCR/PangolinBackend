@@ -296,6 +296,27 @@ assert.doesNotMatch(officialQuote, /class="official-incoterm-trigger"|class="off
 assert.match(officialQuote, /const openLocation = ref<LocationField \| null>\(null\)/, 'Independent searchable location selectors remain available')
 assert.doesNotMatch(officialQuote, /<select v-model="line\.(size|type)">/, 'No native equipment selectors')
 const officialQuoteAdmin = source('src/pages/OfficialQuoteAdmin.vue')
+// Regression: archived records in the Administration panel must not retain a
+// light surface with pale text when html.theme-dark is active. Check BOTH
+// embedded (.app-site .off-admin) and standalone (.app-site.off-admin) cases.
+const archivedDarkRules = [...officialQuoteAdmin.matchAll(/html\.theme-dark[^{}]+\{[^{}]*\}/g)]
+  .map(x => x[0])
+  .filter(rule => rule.includes('.off-admin-archived-item'))
+assert.equal(archivedDarkRules.length, 3,
+  'El archivo administrativo conserva reglas exclusivas de fondo, título y texto en oscuro')
+for (const rule of archivedDarkRules) {
+  assert.ok(rule.includes('.app-site .off-admin .off-admin-archived-item') &&
+    rule.includes('.app-site.off-admin .off-admin-archived-item'),
+  'Cada regla oscura cubre administración independiente y embebida')
+}
+assert.match(archivedDarkRules[0], /background:#121a30 !important;/,
+  'La tarjeta archivada usa un fondo oscuro legible')
+assert.match(archivedDarkRules[0], /border-color:#3b465f !important;/,
+  'La tarjeta archivada mantiene un borde visible en modo oscuro')
+assert.match(archivedDarkRules[1], /color:#fff !important;/,
+  'El nombre archivado se muestra en blanco')
+assert.match(archivedDarkRules[2], /color:#d2d6e2 !important;/,
+  'Referencia, fecha y avisos conservan contraste suficiente en oscuro')
 assert.match(manager, /class="manager-tab-label">Cotizaciones<\/span> <span>\{\{ quotesTotal \}\}<\/span>/, 'Cotizaciones debe mostrar un contador a la derecha')
 assert.match(manager, /loadQuotesTotal\(\)/, 'El contador de Cotizaciones se carga desde la API')
 assert.match(manager, /@total-change="quotesTotal = \$event"/, 'El contador debe actualizarse al cargar el módulo de Cotizaciones')
