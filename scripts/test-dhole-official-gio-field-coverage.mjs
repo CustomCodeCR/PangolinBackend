@@ -149,13 +149,13 @@ assert.ok(harnessKeySql.includes("CHECK (request_digest ~ '^[0-9a-f]{64}$'),") &
 const tables = [...schema.matchAll(/CREATE TABLE IF NOT EXISTS public\.([a-z_]+)/g)]
   .map(x => x[1]);
 const expectedTables = [
-  'official_quote_locations','official_quote_requests',
+  'official_quote_locations','official_quote_requests','official_quote_purge_audit',
   'official_quote_client_submissions','official_quote_permissions',
   'official_quote_audit','official_quote_location_usage',
   'official_quote_dhole_outbox','official_quote_dhole_creation_outbox'
 ];
 assert.deepEqual(tables,expectedTables,
-  'OfficialQuote SQL must declare each of eight tables exactly once');
+  'OfficialQuote SQL must declare each of nine tables exactly once');
 const indexes = [...schema.matchAll(/CREATE (?:UNIQUE )?INDEX IF NOT EXISTS ([a-z_]+)/g)]
   .map(x => x[1]);
 assert.equal(indexes.length,new Set(indexes).size,
