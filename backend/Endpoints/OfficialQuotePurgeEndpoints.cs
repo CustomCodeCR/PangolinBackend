@@ -87,7 +87,13 @@ public static class OfficialQuotePurgeEndpoints
                 SELECT to_regclass('public.official_quote_dhole_creation_outbox') IS NOT NULL
                     AND to_regclass('public.official_quote_dhole_outbox') IS NOT NULL
                     AND to_regclass('public.official_quote_client_submissions') IS NOT NULL
-                    AND to_regclass('public.official_quote_purge_audit') IS NOT NULL AS "Value"
+                    AND to_regclass('public.official_quote_purge_audit') IS NOT NULL
+                    AND EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = 'public'
+                          AND table_name = 'official_quote_purge_audit'
+                          AND column_name = 'submission_key'
+                    ) AS "Value"
                 """).SingleAsync(ct);
             if (!completeSchema)
                 return Results.Json(new {
@@ -108,20 +114,48 @@ public static class OfficialQuotePurgeEndpoints
                     error = "Esta cotización tiene registros de Dhole y no puede eliminarse de la base de datos."
                 });
 
-            // Keep the creation idempotency key and its FK intact. Removing that
-            // key would let a delayed browser retry recreate an old quote.
-            if (await db.OfficialQuoteClientSubmissions.AsNoTracking()
-                .AnyAsync(x => x.QuoteId == id, ct))
-                return Results.Conflict(new {
-                    code = "quote_purge_idempotency_protected",
-                    error = "La cotización tiene una clave de reintento protegida y no puede eliminarse definitivamente."
-                });
+            // Keep ONLY the random UUID key as a durable tombstone, without
+            // its former payload digest or any customer details. Its original FK
+            // must be deleted before the quote so PostgreSQL can enforce RESTRICT.
+            var requestKey = await db.OfficialQuoteClientSubmissions.AsNoTracking()
+                .Where(x => x.QuoteId == id)
+                .Select(x => (Guid?)x.SubmissionKey)
+                .SingleOrDefaultAsync(ct);
+            if (requestKey.HasValue)
+            {
+                // Creation acquires this advisory lock before inserting. Taking
+                // the same lock here prevents the old browser key from being
+                // recycled while the archive is being permanently removed.
+                await OfficialQuoteEndpoints.LockCreationKeyAsync(
+                    db, requestKey.Value, tx, ct);
+            }
 
             try
             {
-                // Audit has ON DELETE CASCADE by design. The separate tombstone
-                // deliberately stores only UUID, actor, reason and timestamp;
-                // never a name, email, phone, observations or form JSON.
+                // Insert the no-PII tombstone and remove the optional FK before
+                // deleting the parent. ALL changes must commit atomically.
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"""
+                    INSERT INTO public.official_quote_purge_audit
+                        (quote_id, actor_user_id, reason, submission_key)
+                    VALUES ({id}, {actor.UsuarioId}, {request.Reason}, {requestKey})
+                    """, ct);
+                if (requestKey.HasValue)
+                {
+                    var removedKey = await db.Database.ExecuteSqlInterpolatedAsync(
+                        $"""
+                        DELETE FROM public.official_quote_client_submissions
+                        WHERE quote_id = {id} AND submission_key = {requestKey.Value}
+                        """, ct);
+                    if (removedKey != 1)
+                        return Results.Conflict(new {
+                            code = "quote_purge_changed",
+                            error = "La clave de reintento cambió durante la operación; no se eliminó nada."
+                        });
+                }
+
+                // The original audit FK has ON DELETE CASCADE. Only the separate
+                // key tombstone survives, intentionally without PII or digest.
                 var deleted = await db.Database.ExecuteSqlInterpolatedAsync(
                     $"DELETE FROM public.official_quote_requests WHERE id = {id} AND archived_at_utc IS NOT NULL", ct);
                 if (deleted != 1)
@@ -129,8 +163,6 @@ public static class OfficialQuotePurgeEndpoints
                         code = "quote_purge_changed",
                         error = "La cotización cambió durante la operación; no se eliminó."
                     });
-                await db.Database.ExecuteSqlInterpolatedAsync(
-                    $"INSERT INTO public.official_quote_purge_audit (quote_id, actor_user_id, reason) VALUES ({id}, {actor.UsuarioId}, {request.Reason})", ct);
                 await tx.CommitAsync(ct);
             }
             catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.ForeignKeyViolation ||
