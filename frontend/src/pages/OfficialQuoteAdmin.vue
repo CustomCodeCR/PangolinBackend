@@ -7,6 +7,7 @@ import { refreshSession } from '../services/auth'
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 const emit = defineEmits<{ (event: 'total-change', total: number): void }>()
 type Row = { id:string;customerName:string;mode:string;shipmentType:string;originName:string;destinationName:string;status:string;authorization:string;createdAtUtc:string }
+type ArchivedRow = {id:string;customerName:string;shipmentType:string;status:string;authorization:string;createdAtUtc:string;archivedAtUtc:string}
 type Detail = {id:string;customerName:string;mode:string;shipmentType:string;status:string;authorization:string;dholeDispatchState:string;dholePriority:string|null;dholeReceiptCandidate?:string|null;dholeVerifiedReference?:string|null;dholeVerifiedAtUtc?:string|null;dholeConfirmationEmailState?:string|null;createdAtUtc:string;form:Record<string,unknown>;history:{action:string;comment:string|null;createdAtUtc:string}[]}
 const rows=ref<Row[]>([])
 const detail=ref<Detail|null>(null)
@@ -24,6 +25,11 @@ const error=ref('')
 const notice=ref('')
 const page=ref(1)
 const total=ref(0)
+const showArchived=ref(false)
+const archivedRows=ref<ArchivedRow[]>([])
+const archivedPage=ref(1)
+const archivedTotal=ref(0)
+const archivedCanPurge=ref(false)
 const statuses=[['Received','Recibida'],['InReview','En revisión'],['AwaitingInformation','Pendiente de información'],['Closed','Cerrada']]
 function msg(e:unknown){return e instanceof Error ? e.message : 'Error inesperado.'}
 async function api<T>(url:string, init:RequestInit={}):Promise<T>{
@@ -66,6 +72,52 @@ async function removeSelected(){
     if(rows.value.length===1 && page.value>1)page.value--
     await load()
     notice.value='Solicitud archivada y retirada de la bandeja activa. Su historial se conserva para auditoría.'
+  }catch(e){error.value=msg(e)}finally{busy.value=false}
+}
+async function loadArchived(){
+  busy.value=true;error.value=''
+  try{
+    const response=await api<{items:ArchivedRow[];total:number;canPurge:boolean}>(
+      '/api/admin/quotes/official/archived?page='+archivedPage.value)
+    archivedRows.value=response.items
+    archivedTotal.value=response.total
+    archivedCanPurge.value=response.canPurge
+  }catch(e){error.value=msg(e)}finally{busy.value=false}
+}
+async function toggleArchived(){
+  showArchived.value=!showArchived.value
+  if(showArchived.value)await loadArchived()
+}
+function purgeAllowed(item:ArchivedRow):boolean {
+  return archivedCanPurge.value && item.archivedAtUtc !== null &&
+    Date.parse(item.archivedAtUtc) <= Date.now()-24*60*60*1000
+}
+async function purgeArchived(item:ArchivedRow){
+  if(!purgeAllowed(item) || busy.value)return
+  const motive=window.prompt(
+    'Eliminación IRREVERSIBLE de la solicitud '+item.id+
+    '.\\nMotivo: escribí PRUEBA o DEFECTUOSA')
+  if(motive===null)return
+  const reason=motive.trim().toUpperCase()==='PRUEBA' ? 'Prueba' :
+    motive.trim().toUpperCase()==='DEFECTUOSA' ? 'Defectuosa' : null
+  if(!reason){error.value='Indicá PRUEBA o DEFECTUOSA para eliminar.';return}
+  const expected='ELIMINAR '+item.id
+  const confirmation=window.prompt(
+    'Se borrarán la cotización y su historial asociado. No hay recuperación desde el panel.\\n'+
+    'Escribí exactamente lo siguiente para confirmar:\\n'+expected)
+  if(confirmation===null)return
+  if(confirmation!==expected){error.value='La referencia de confirmación no coincide. No se eliminó nada.';return}
+  busy.value=true;error.value='';notice.value=''
+  try{
+    await api('/api/admin/quotes/official/archived/'+item.id,{
+      method:'DELETE',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({confirmation,reason})
+    })
+    if(archivedRows.value.length===1 && archivedPage.value>1)archivedPage.value--
+    // loadArchived owns the busy flag, so await the operation before showing success.
+    await loadArchived()
+    notice.value='Solicitud eliminada definitivamente. Solo queda la constancia administrativa mínima.'
   }catch(e){error.value=msg(e)}finally{busy.value=false}
 }
 onMounted(async()=>{const user=await refreshSession();if(user?.role!=='administrador'){error.value='Requiere sesión de administrador.';return}
@@ -158,7 +210,11 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
               <p class="off-admin-card-eyebrow">BANDEJA DE ENTRADA</p>
               <h2>Solicitudes <span class="off-admin-counter">{{total}}</span></h2>
             </div>
-            <button type="button" class="off-admin-button" :disabled="busy" @click="load">Actualizar</button>
+            <div class="off-admin-actions">
+              <button v-if="permissions.canManage" type="button" class="off-admin-button"
+                :disabled="busy" @click="toggleArchived">{{showArchived ? 'Ocultar archivadas' : 'Ver archivadas'}}</button>
+              <button type="button" class="off-admin-button" :disabled="busy" @click="load">Actualizar</button>
+            </div>
           </div>
           <p v-if="rows.length===0" class="off-admin-muted off-admin-empty-message">Todavía no hay solicitudes oficiales.</p>
           <div class="off-admin-list">
@@ -272,6 +328,46 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
           </div>
         </section>
       </div>
+      <section v-if="showArchived && permissions.canManage" class="off-admin-card off-admin-archived" aria-label="Cotizaciones archivadas">
+        <div class="off-admin-card-heading">
+          <div>
+            <p class="off-admin-card-eyebrow">ARCHIVO ADMINISTRATIVO</p>
+            <h2>Archivadas <span class="off-admin-counter">{{archivedTotal}}</span></h2>
+          </div>
+          <button type="button" class="off-admin-button" :disabled="busy" @click="loadArchived">Actualizar archivo</button>
+        </div>
+        <p class="off-admin-muted">
+          Solo las solicitudes archivadas por al menos 24 horas, sin registros de Dhole ni claves
+          de idempotencia protegidas, pueden eliminarse de la base de datos. La eliminación
+          definitiva borra la solicitud y su historial; únicamente se conserva una constancia
+          administrativa mínima. No afecta las cotizaciones de Pricing.
+        </p>
+        <p v-if="!archivedRows.length" class="off-admin-muted">No hay cotizaciones archivadas en esta página.</p>
+        <div class="off-admin-archived-list">
+          <article v-for="item in archivedRows" :key="item.id" class="off-admin-archived-item">
+            <div>
+              <strong>{{item.customerName}}</strong>
+              <p class="off-admin-muted">Referencia: {{item.id}}</p>
+              <p class="off-admin-muted">{{item.shipmentType}} · Archivada: {{displayDate(item.archivedAtUtc)}}</p>
+            </div>
+            <div class="off-admin-actions">
+              <span v-if="!archivedCanPurge" class="off-admin-muted">Requiere permiso de autorización</span>
+              <span v-else-if="!purgeAllowed(item)" class="off-admin-muted">Disponible después de 24 horas</span>
+              <button v-if="archivedCanPurge" type="button" class="off-admin-delete"
+                :disabled="busy || !purgeAllowed(item)"
+                :aria-label="'Eliminar definitivamente cotización '+item.id"
+                @click="purgeArchived(item)">Eliminar de BD</button>
+            </div>
+          </article>
+        </div>
+        <div class="off-admin-pagination">
+          <button type="button" class="off-admin-button" :disabled="archivedPage<=1||busy"
+            @click="archivedPage--;loadArchived()">Anterior</button>
+          <span>Página {{archivedPage}}</span>
+          <button type="button" class="off-admin-button" :disabled="archivedPage*20>=archivedTotal||busy"
+            @click="archivedPage++;loadArchived()">Siguiente</button>
+        </div>
+      </section>
     </div>
     <SiteFooter v-if="!props.embedded" />
   </div>
@@ -398,6 +494,12 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
 .off-admin-primary {background:#b20c2a;border-color:#b20c2a;color:#fff!important;}
 .off-admin-primary:hover {background:#ca1639;border-color:#ca1639;}
 .off-admin-button:disabled,.off-admin-primary:disabled {opacity:.56;cursor:not-allowed;}
+.off-admin-archived {margin-top:26px;}
+.off-admin-archived-list {display:grid;gap:12px;margin-top:20px;}
+.off-admin-archived-item {display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;padding:17px;border:1px solid var(--oq-line);border-radius:14px;background:var(--oq-input);}
+.off-admin-archived-item strong {color:var(--oq-ink);font-size:14px;}
+.off-admin-archived-item p {margin:6px 0 0;}
+.off-admin-archived-item .off-admin-actions {display:flex;align-items:center;flex-wrap:wrap;gap:10px;}
 .off-admin-status-row {display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:5px;}
 .off-admin-data {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0;}
 .off-admin-data > div {min-width:0;padding:13px 15px;border:1px solid var(--oq-line);border-radius:12px;background:var(--oq-field);}
