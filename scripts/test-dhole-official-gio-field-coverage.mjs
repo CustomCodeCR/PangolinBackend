@@ -48,6 +48,9 @@ has(backend,['CargoCurrencyCode','Seguro de carga',
 has(gio,['additionalLines','extraEquipmentLines','extraPackageLines','extraEquipmentTypes',
   'packageUnitType','parseExtraLines','Seguro de carga','cargoCurrencyCode'],
   'GIO additional lines');
+const uncertaintyNote = 'La peligrosidad de la carga está pendiente de confirmar.';
+assert.ok(gio.includes(uncertaintyNote) && backend.includes(uncertaintyNote),
+  'Fixed GIO uncertainty note must match the backend observation-budget exception');
 // Stackability is a per-line fact in BOTH interfaces. The wizard must not
 // offer an independent "No estibable" checkbox: it can contradict the lines.
 // Both clients must derive the aggregate flag from any non-stackable line.
