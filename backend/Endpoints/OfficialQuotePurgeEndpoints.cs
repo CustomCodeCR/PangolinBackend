@@ -1,6 +1,7 @@
 using CastroFallas.MiniQuote.Api.Data;
 using CastroFallas.MiniQuote.Api.Services.Auth;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc;
 using Npgsql;
 
 namespace CastroFallas.MiniQuote.Api.Endpoints;
@@ -41,7 +42,7 @@ public static class OfficialQuotePurgeEndpoints
             return Results.Ok(new { items, total, page = n, canPurge });
         }).RequireRateLimiting("auth");
 
-        admin.MapDelete("/archived/{id:guid}", async (Guid id, PurgeRequest request,
+        admin.MapDelete("/archived/{id:guid}", async (Guid id, [FromBody] PurgeRequest request,
             AppDbContext db, AuthService auth, HttpContext http, CancellationToken ct) =>
         {
             http.Response.Headers.CacheControl = "no-store";
