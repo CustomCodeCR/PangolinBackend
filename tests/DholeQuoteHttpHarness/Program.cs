@@ -427,11 +427,16 @@ internal static class DholeQuoteHttpTest
         using (var archivedDetail = await Details(rejectedId))
             Assert(archivedDetail.StatusCode == HttpStatusCode.NotFound,
                 "Archived quote cannot be opened from Administration");
-        using (var reviewArchived = await AdminRequest(HttpMethod.Put,
-            $"/api/admin/quotes/official/{rejectedId}/review", "authorizer",
-            new { status = "InReview", comment = "No corresponde" }))
+        using (var staleReview = new HttpRequestMessage(HttpMethod.Put,
+            $"/api/admin/quotes/official/{rejectedId}/review"))
+        {
+            staleReview.Headers.Add("X-CI-Test-Actor", "authorizer");
+            staleReview.Content = JsonContent.Create(
+                new { status = "InReview", comment = "No corresponde" });
+            using var reviewArchived = await client.SendAsync(staleReview);
             Assert(reviewArchived.StatusCode == HttpStatusCode.NotFound,
                 "Archived quote cannot be reviewed or reopened by a stale admin tab");
+        }
         using (var list = await AdminRequest(HttpMethod.Get,
             "/api/admin/quotes/official?page=1", "authorizer"))
         {
