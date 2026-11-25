@@ -2,7 +2,7 @@ name: Frontend minimatch 11 compatibility probe (CI only)
 
 on:
   pull_request:
-    branches: [main-2]
+    branches: [main, main-2]
     paths:
       - .github/workflows/frontend-minimatch11-compatibility-probe.yml
       - frontend/package.json
@@ -22,24 +22,9 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Apply throwaway override to runner checkout only
+      - name: Install committed dependency graph without experimental overrides
         working-directory: frontend
-        shell: bash
-        run: |
-          set -euo pipefail
-          node - <<'NODE'
-          const fs = require('node:fs')
-          const file = 'package.json'
-          const json = JSON.parse(fs.readFileSync(file, 'utf8'))
-          if (json.overrides && Object.hasOwn(json.overrides, 'minimatch')) {
-            throw new Error('A permanent minimatch override already exists: do not layer probes')
-          }
-          json.overrides = { ...(json.overrides || {}), minimatch: '11.0.1' }
-          fs.writeFileSync(file, JSON.stringify(json, null, 2) + '\n')
-          console.log('Temporary minimatch@11.0.1 override in disposable CI runner')
-          NODE
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-          npm ci --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Report dependency tree and require patched minimatch
         working-directory: frontend
         shell: bash
@@ -48,22 +33,27 @@ jobs:
           npm ls minimatch --all
           node - <<'NODE'
           const fs = require('node:fs')
+          const manifest = JSON.parse(fs.readFileSync('package.json', 'utf8'))
           const pkgs = JSON.parse(fs.readFileSync('package-lock.json','utf8')).packages
+          const expected = manifest.overrides?.minimatch
+          if (typeof expected !== 'string' || !/^11\\.\\d+\\.\\d+$/.test(expected) || expected === '11.0.0')
+            throw Error('Expected a pinned patched minimatch 11 release; review intentional dependency migrations separately')
           const copies = Object.entries(pkgs).filter(([k]) => k === 'node_modules/minimatch' || k.endsWith('/node_modules/minimatch'))
-          if (copies.length < 1) throw Error('minimatch not found in probe dependency graph')
+          if (copies.length < 1) throw Error('minimatch not found in committed dependency graph')
           for (const [where, pkg] of copies) {
-            if (pkg.version !== '11.0.1') throw Error(where + ' resolved to ' + pkg.version)
+            if (pkg.version !== expected) throw Error(where + ' resolved to ' + pkg.version)
           }
-          console.log('Patched minimatch 11.0.1 resolved in throwaway dependency tree')
+          console.log('Patched minimatch ' + expected + ' resolved in committed dependency tree')
           NODE
-      - name: Compile Vue TypeScript and Vite with temporary minimatch
+          npm audit --audit-level=high
+      - name: Compile Vue TypeScript and Vite with committed minimatch
         working-directory: frontend
         run: npm run build
-      - name: Save deterministic candidate manifests for separate review
+      - name: Save verified committed manifests for review
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: minimatch-11-1-ci-candidate-manifests
+          name: minimatch-11-verified-manifests
           path: |
             frontend/package.json
             frontend/package-lock.json
@@ -80,5 +70,5 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$(git diff -- frontend/package.json frontend/package-lock.json)"
-          echo "CI-only local experiment; package.json and lockfile in PR remain unchanged."
+          git diff --exit-code -- frontend/package.json frontend/package-lock.json
+          echo "Committed package.json and lockfile were tested without mutation."
