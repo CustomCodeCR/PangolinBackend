@@ -189,9 +189,12 @@ async function main() {
       assert.ok(success,'Missing dropdown option '+id+': '+label)
       await sleep(60)
     }
-    const screenshot=async name=>{
+    const screenshot=async (name,focusSelector=null)=>{
       fs.mkdirSync(artifacts,{recursive:true})
-      await evaluate('window.scrollTo({top:0,behavior:"instant"})')
+      if (focusSelector) {
+        const focused=await evaluate('(()=>{const el=document.querySelector('+JSON.stringify(focusSelector)+');if(!el)return false;el.scrollIntoView({block:"center",behavior:"instant"});return true})()')
+        assert.ok(focused,'Screenshot target missing: '+focusSelector)
+      } else await evaluate('window.scrollTo({top:0,behavior:"instant"})')
       await sleep(270)
       const pic=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})
       fs.writeFileSync(path.join(artifacts,name),Buffer.from(pic.data,'base64'))
@@ -275,6 +278,19 @@ async function main() {
     assert.equal(await evaluate('document.querySelector("#quote-destination-handling")?.maxLength'),100,
       'Optional destination handling field is visible with the same 100-character limit as GIO')
     await value('#quote-destination-handling','Descarga delicada, mercancía frágil')
+    await screenshot('wizard-destination-handling-desktop-light.png','#quote-destination-handling')
+    await cdp('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true})
+    await sleep(380)
+    const handlingMobile=await evaluate('({width:window.innerWidth,scroll:document.documentElement.scrollWidth,field:!!document.querySelector("#quote-destination-handling")})')
+    assert.ok(handlingMobile.field && handlingMobile.scroll<=handlingMobile.width+3,
+      'Optional handling field should remain visible without horizontal overflow on mobile: '+JSON.stringify(handlingMobile))
+    await evaluate('document.documentElement.classList.add("theme-dark")')
+    await sleep(300)
+    await screenshot('wizard-destination-handling-mobile-dark.png','#quote-destination-handling')
+    const darkHandling=await evaluate('getComputedStyle(document.querySelector("#quote-destination-handling")).color')
+    assert.equal(darkHandling,'rgb(255, 255, 255)','Special handling must remain readable in dark mode')
+    await evaluate('document.documentElement.classList.remove("theme-dark")')
+    await cdp('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false})
     assert.ok(await exists('#quote-cargo-value'),'Declared cargo value input must exist')
     await value('#quote-cargo-value','1500')
     await waitFor(()=>exists('#quote-cargo-currency'),'Insurance must ask for ISO currency')
