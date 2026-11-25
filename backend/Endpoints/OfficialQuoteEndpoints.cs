@@ -805,11 +805,12 @@ public static class OfficialQuoteEndpoints
                         error = "No se puede cancelar localmente: esta cotización está autorizada o vinculada con Dhole. La cancelación en este panel no cancela operaciones de Pricing."
                     });
             }
+            var cancellingNow = update.Status == "Cancelled" && q.Status != "Cancelled";
             q.Status = update.Status;
             q.UpdatedAtUtc = DateTime.UtcNow;
             db.OfficialQuoteAudit.Add(new OfficialQuoteAudit {
                 QuoteId = id, ActorUserId = actor!.UsuarioId,
-                Action = update.Status == "Cancelled" && q.Status == "Cancelled" ? "Cancelled" : "Review",
+                Action = cancellingNow ? "Cancelled" : "Review",
                 Comment = string.IsNullOrWhiteSpace(update.Comment) ? null : update.Comment.Trim()
             });
             await db.SaveChangesAsync(ct);
