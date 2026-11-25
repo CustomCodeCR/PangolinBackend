@@ -345,6 +345,10 @@ def main():
         status, _ = call(browser, admin_route + '/restore', method='POST')
         require(status == 200, f'No se restauró el contenido visual predeterminado: {status}')
 
+    if os.environ.get('CMS_ALL_SLOTS_CI') == '1':
+        from test_cms_all_slots import verify_all_slots
+        verify_all_slots(browser, call, require)
+
     # Comentarios: autorizar solo administradores, nunca filtrar borradores,
     # publicar/retirar/editar y eliminar sin dejar datos de prueba.
     visitor = build_opener()
