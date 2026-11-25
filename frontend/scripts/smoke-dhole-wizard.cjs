@@ -272,6 +272,9 @@ async function main() {
     await click('.official-primary')
     await waitFor(()=>exists('.official-fields textarea[maxlength="4000"]'),'Step four cargo')
     await value('.official-fields textarea[maxlength="4000"]','CI cargo mock')
+    assert.equal(await evaluate('document.querySelector("#quote-destination-handling")?.maxLength'),100,
+      'Optional destination handling field is visible with the same 100-character limit as GIO')
+    await value('#quote-destination-handling','Descarga delicada, mercancía frágil')
     assert.ok(await exists('#quote-cargo-value'),'Declared cargo value input must exist')
     await value('#quote-cargo-value','1500')
     await waitFor(()=>exists('#quote-cargo-currency'),'Insurance must ask for ISO currency')
@@ -301,6 +304,8 @@ async function main() {
     assert.ok(posts[0].services.includes('Seguro de carga'),'Chosen insurance must be in submitted services')
     assert.equal(posts[0].cargoValue,1500,'Wizard must retain declared cargo value')
     assert.equal(posts[0].cargoCurrencyCode,'USD','Wizard must retain ISO currency')
+    assert.equal(posts[0].destinationHandling,'Descarga delicada, mercancía frágil',
+      'Wizard must transmit special destination handling in the existing field')
     assert.equal(postKeys.length,1,'Wizard should send only once after validation')
     assert.match(postKeys[0], /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
       'Wizard must include a strong UUIDv4 client creation key')
@@ -410,6 +415,7 @@ async function main() {
     await click('.official-primary')
     await waitFor(()=>posts.length===2,'LCL mock submission')
     assert.equal(posts[1].shipmentType,'LCL')
+    assert.equal(posts[1].destinationHandling,null,'Destination handling remains optional in other modalities')
     assert.equal(posts[1].packages.length,1)
     assert.equal(posts[1].packages[0].quantity,2)
     assert.equal(posts[1].packages[0].weight,400,'Form cargo weight is total for this line')
