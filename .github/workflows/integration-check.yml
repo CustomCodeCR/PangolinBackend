@@ -92,9 +92,13 @@ jobs:
         run: docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d login -f /tmp/SeedLocal.sql
       - name: Install SignalR test client (test containers only)
         run: npm ci --prefix frontend --ignore-scripts
+      - name: Export the actual visual editor catalog for isolated HTTP testing
+        run: node frontend/scripts/export-cms-catalog.cjs /tmp/cms-all-slots.json
       - name: Test login, SignalR broadcasts, roles, CRUD and quote modes
         env:
           SIGNALR_SMOKE: '1'
+          CMS_ALL_SLOTS_CI: '1'
+          CMS_ALL_SLOTS_CATALOG: /tmp/cms-all-slots.json
         run: python3 scripts/smoke-local.py
       - name: Test real UI login and role-gated pages with Chrome
         run: |
