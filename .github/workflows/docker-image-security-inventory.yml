@@ -38,8 +38,7 @@ jobs:
             gateway) docker pull nginx:1.27-alpine; docker tag nginx:1.27-alpine pangolin-audit:local ;;
             *) exit 1 ;;
           esac
-          docker image inspect pangolin-audit:local --format 'Image={{.Id}} User={{json .Config.User}} Created={{.Created}}'
-          docker image inspect pangolin-audit:local --format '{{json .RootFS.Layers}}'
+          docker image inspect pangolin-audit:local | python -c 'import json,sys; i=json.load(sys.stdin)[0]; print("Image",i["Id"],"User",i.get("Config",{}).get("User") or "(default root)","Created",i.get("Created")); print("Layers",i.get("RootFS",{}).get("Layers",[]))'
           docker save pangolin-audit:local -o "$RUNNER_TEMP/pangolin-image.tar"
       - name: Install versioned Trivy with verified release checksum manifest
         shell: bash
