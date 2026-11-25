@@ -36,7 +36,7 @@ jobs:
           const manifest = JSON.parse(fs.readFileSync('package.json', 'utf8'))
           const pkgs = JSON.parse(fs.readFileSync('package-lock.json','utf8')).packages
           const expected = manifest.overrides?.minimatch
-          if (typeof expected !== 'string' || !/^11\\.\\d+\\.\\d+$/.test(expected) || expected === '11.0.0')
+          if (typeof expected !== 'string' || !/^11[.][0-9]+[.][0-9]+$/.test(expected) || expected === '11.0.0')
             throw Error('Expected a pinned patched minimatch 11 release; review intentional dependency migrations separately')
           const copies = Object.entries(pkgs).filter(([k]) => k === 'node_modules/minimatch' || k.endsWith('/node_modules/minimatch'))
           if (copies.length < 1) throw Error('minimatch not found in committed dependency graph')
