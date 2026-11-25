@@ -648,6 +648,15 @@ public static class OfficialQuoteEndpoints
                 x => x.Id == id && x.ArchivedAtUtc == null, ct);
             if (q is null) return Results.NotFound();
 
+            // Only completed or rejected work may leave the active inbox.
+            // A Received/InReview/AwaitingInformation quote might still require
+            // action; never let a destructive-looking button hide that work.
+            if (q.Status != "Closed" && q.Authorization != "Rejected")
+                return Results.Conflict(new {
+                    code = "quote_archive_not_final",
+                    error = "Primero cerrá o rechazá la solicitud. No se puede archivar una cotización que todavía requiere atención."
+                });
+
             // Unlike feature flags, relation presence is a reliable guard when
             // operators have temporarily disabled an outbox that still has records.
             var directTable = await db.Database.SqlQueryRaw<bool>(
@@ -688,6 +697,11 @@ public static class OfficialQuoteEndpoints
                 update.Comment?.Length > 2000)
                 return Results.BadRequest(new { error = "Estado o comentario inválido." });
             await using var tx = await db.Database.BeginTransactionAsync(ct);
+            // Archive and review must serialize on the same row. Without this
+            // lock, a review could read an active quote before archive commits
+            // and overwrite its status after it is no longer visible.
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT 1 FROM public.official_quote_requests WHERE id = {id} FOR UPDATE", ct);
             var q = await db.OfficialQuotes.FirstOrDefaultAsync(x => x.Id == id && x.ArchivedAtUtc == null, ct);
             if (q is null) return Results.NotFound();
             q.Status = update.Status;
