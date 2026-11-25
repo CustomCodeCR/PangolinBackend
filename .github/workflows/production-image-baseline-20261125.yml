@@ -1,0 +1,108 @@
+name: Exact production image baseline (read-only)
+on:
+  pull_request:
+    branches: [main-2]
+    paths:
+      - '.github/workflows/production-image-baseline-20261125.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: read
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: backend
+            ref: ghcr.io/customcodecr/pangolinbackend/backend@sha256:e3c7c4b04f15dd43b0243b69172fb0d4ce9000740ce76adc103fbc8862ff00d8
+            id: sha256:e3c7c4b04f15dd43b0243b69172fb0d4ce9000740ce76adc103fbc8862ff00d8
+          - component: frontend
+            ref: ghcr.io/customcodecr/pangolinbackend/frontend@sha256:26666c6176fb69f7ef4530735f3d9ed290eff94417546450c0da44b7954e6816
+            id: sha256:26666c6176fb69f7ef4530735f3d9ed290eff94417546450c0da44b7954e6816
+          - component: nuxt
+            ref: ghcr.io/customcodecr/pangolinbackend/nuxt@sha256:272135247d7b465bbf5e29d38fb1092c664f81a315250e67163479ff80af4fe7
+            id: sha256:272135247d7b465bbf5e29d38fb1092c664f81a315250e67163479ff80af4fe7
+          - component: gateway
+            ref: nginx@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+            id: sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+    steps:
+      # Read-only access to existing registry artifacts, never the server.
+      - name: Authenticate to GHCR for image pull only
+        if: matrix.component != 'gateway'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify exact deployed image and save local archive without running it
+        shell: bash
+        env:
+          IMAGE_REF: ${{ matrix.ref }}
+          EXPECTED_ID: ${{ matrix.id }}
+        run: |
+          set -euo pipefail
+          docker pull "$IMAGE_REF"
+          test "$(docker image inspect --format '{{.Id}}' "$IMAGE_REF")" = "$EXPECTED_ID"
+          docker image inspect "$IMAGE_REF" | python -c 'import json,os,sys; i=json.load(sys.stdin)[0]; assert os.environ["IMAGE_REF"] in (i.get("RepoDigests") or []), "Manifest digest mismatch"; print("VERIFIED EXACT IMAGE",i["Id"])'
+          docker save "$IMAGE_REF" -o "$RUNNER_TEMP/pangolin-image.tar"
+      - name: Drop registry authentication before scanner execution
+        if: always() && matrix.component != 'gateway'
+        run: docker logout ghcr.io
+      - name: Install versioned Trivy with verified release checksum manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          release=https://github.com/aquasecurity/trivy/releases/download/v0.76.2
+          curl --fail --silent --show-error --location --retry 2 "$release/trivy_0.76.2_checksums.txt" -o trivy-checksums.txt
+          echo '802e4ac1418ed967cd3c4b901f4f71ca00b7363ede67778665a22d9f13f58c83  trivy-checksums.txt' | sha256sum -c -
+          archive=trivy_0.76.2_Linux-64bit.tar.gz
+          curl --fail --silent --show-error --location --retry 2 "$release/$archive" -o "$archive"
+          grep -F "  $archive" trivy-checksums.txt > trivy-selected.txt
+          test "$(wc -l < trivy-selected.txt)" = 1
+          sha256sum -c trivy-selected.txt
+          mkdir -p trivy-audit-bin
+          tar -xzf "$archive" -C trivy-audit-bin trivy
+          "$RUNNER_TEMP/trivy-audit-bin/trivy" --version
+      - name: Scan exact image archive and produce sanitized vulnerability inventory
+        shell: bash
+        env:
+          COMPONENT: ${{ matrix.component }}
+          EXPECTED_ID: ${{ matrix.id }}
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/trivy-audit-bin/trivy" image --input "$RUNNER_TEMP/pangolin-image.tar" --scanners vuln --pkg-types os,library --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL --ignore-unfixed=false --exit-code 0 --format json --output "$RUNNER_TEMP/raw-report.json" --timeout 12m
+          python - <<'PY'
+          import collections, json, os, pathlib
+          root = pathlib.Path(os.environ["RUNNER_TEMP"])
+          report = json.loads((root / "raw-report.json").read_text())
+          results = report.get("Results")
+          if not isinstance(results, list) or not results:
+              raise SystemExit("No image results; scan cannot certify a clean image")
+          counts = collections.Counter()
+          findings = []
+          for result in results:
+              for v in result.get("Vulnerabilities") or []:
+                  finding = {k: v.get(k) for k in ("VulnerabilityID", "PkgName", "InstalledVersion", "FixedVersion", "Severity", "PkgPath")}
+                  finding["Target"] = result.get("Target")
+                  counts[v.get("Severity", "UNKNOWN")] += 1
+                  findings.append(finding)
+                  if v.get("Severity") in ("HIGH", "CRITICAL"):
+                      print(json.dumps(finding, ensure_ascii=True))
+          summary = {"snapshot": "Argos 2026-11-25 sha-e9160d694379", "component": os.environ["COMPONENT"], "verifiedImageId": os.environ["EXPECTED_ID"], "counts": dict(counts), "findings": findings}
+          (root / "sanitized-report.json").write_text(json.dumps(summary, indent=2))
+          print("EXACT PRODUCTION IMAGE INVENTORY", summary["component"], summary["counts"])
+          PY
+      - name: Remove raw image archive and scanner metadata
+        if: always()
+        run: rm -f "$RUNNER_TEMP/pangolin-image.tar" "$RUNNER_TEMP/raw-report.json"
+      - name: Retain only sanitized vulnerability fields
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-production-audit-${{ matrix.component }}
+          path: ${{ runner.temp }}/sanitized-report.json
+          if-no-files-found: error
+          retention-days: 7
