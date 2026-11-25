@@ -316,8 +316,25 @@ async function assertServicesTheme(chrome, url) {
     assert.equal(defaultCardShadow, 'none', 'Las sombras de tarjetas estaban creando una franja gris entre fotos')
     const transform = await evaluate("document.querySelector('.services-directory__panel:not([style*=none]) .services-directory__track').style.transform")
     assert.ok(transform.startsWith('translate3d(-'), 'La pista debe aplicar un desplazamiento real')
-    await new Promise(resolve => setTimeout(resolve, 330))
-    const darkButton = await evaluate("(() => {const b=document.querySelector('.services-directory__panel:not([style*=none]) .services-directory__card-cta'); const c=getComputedStyle(b); return {background:c.backgroundColor,text:c.color}})()")
+    // The moving track may put a card under Chrome's previous pointer,
+    // and background-color transitions can yield intermediate RGB values.
+    // Measure the resting state, not hover/focus or a mid-transition frame.
+    await evaluate("document.activeElement?.blur(); window.scrollTo({top:0,behavior:'instant'}); true")
+    await send('Input.dispatchMouseEvent', {type:'mouseMoved',x:1,y:1,button:'none'})
+    const readDarkButton = () => evaluate("(() => {const panel=[...document.querySelectorAll('.services-directory__panel')].find(p=>getComputedStyle(p).display!=='none'); const card=panel?.querySelector('.services-directory__run:not(.is-clone) .services-directory__card'); const b=card?.querySelector('.services-directory__card-cta'); if(!b)return null; const c=getComputedStyle(b); return {background:c.backgroundColor,text:c.color,hover:card.matches(':hover'),focus:card.matches(':focus-visible'),dark:document.documentElement.classList.contains('theme-dark'),transition:b.getAnimations().some(a=>a.playState==='running'||a.pending)};})()")
+    let darkButton = null
+    let stableSamples = 0
+    let previousPalette = ''
+    for(let i=0;i<25;i++){
+      darkButton = await readDarkButton()
+      const resting = darkButton && darkButton.dark && !darkButton.hover && !darkButton.focus && !darkButton.transition
+      const palette = resting ? JSON.stringify([darkButton.background,darkButton.text]) : ''
+      stableSamples = palette && palette === previousPalette ? stableSamples + 1 : 0
+      previousPalette = palette
+      if(stableSamples>=3)break
+      await new Promise(resolve=>setTimeout(resolve,100))
+    }
+    assert.ok(stableSamples>=3, 'El botón debe alcanzar su estado oscuro sin hover, foco ni transición: '+JSON.stringify(darkButton))
     assert.equal(darkButton.background, 'rgb(11, 20, 40)', 'El botón oscuro debe usar el azul marino corporativo')
     assert.equal(darkButton.text, 'rgb(244, 246, 250)', 'Ver más debe ser legible en modo oscuro')
     console.log('PASS Chrome: carrusel continuo, cinco copias, Ver más oscuro y sin sombras')
