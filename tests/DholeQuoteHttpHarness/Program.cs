@@ -532,8 +532,19 @@ internal static class DholeQuoteHttpTest
             "Third fictional quote created for concurrency test");
         using var simultaneousJson = JsonDocument.Parse(await simultaneousResponse.Content.ReadAsStringAsync());
         var simultaneousId = simultaneousJson.RootElement.GetProperty("id").GetGuid();
+        // Use the second isolated host for BOTH creation and approvals.
+        // The original helper uses the first host's normal rate-limit budget;
+        // the new archive tests must not accidentally turn its 429 into a
+        // false negative for the atomic 200/409 approval invariant.
+        async Task<HttpResponseMessage> ConcurrentDecision()
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Put,
+                $"/api/admin/quotes/official/{simultaneousId}/authorization?decision=Authorized");
+            request.Headers.Add("X-CI-Test-Actor", "authorizer");
+            return await concurrencyClient.SendAsync(request);
+        }
         var concurrent = await Task.WhenAll(
-            Decide(simultaneousId, "Authorized"), Decide(simultaneousId, "Authorized"));
+            ConcurrentDecision(), ConcurrentDecision());
         Assert(concurrent.Count(x => x.StatusCode == HttpStatusCode.OK) == 1 &&
             concurrent.Count(x => x.StatusCode == HttpStatusCode.Conflict) == 1,
             "Exactly one concurrent approval wins, the other is rejected");
