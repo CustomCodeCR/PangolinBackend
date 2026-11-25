@@ -273,7 +273,16 @@ public static class OfficialQuoteEndpoints
         }
         Required(s.CargoDescription, "Descripción de carga", 4000);
         Optional(s.CabysCode, 40);
-        Optional(s.Observations, 4000);
+        // GIO already prefixes this fixed note when the applicant answers
+        // "No estoy seguro". It is system metadata, not part of the user's
+        // 4000-character budget. Preserve the original combined string in
+        // storage and Dhole; do not truncate or broadly increase the limit.
+        const string uncertaintyPrefix = "La peligrosidad de la carga está pendiente de confirmar.\n";
+        var observations = s.Observations?.Trim();
+        if (observations is not null && observations.StartsWith(uncertaintyPrefix, StringComparison.Ordinal))
+            Optional(observations[uncertaintyPrefix.Length..], 4000);
+        else
+            Optional(observations, 4000);
         if (s.CargoValue is < 0 || s.DeclaredWeight is < 0 || s.DeclaredPackages is < 0)
             throw new ArgumentException("Valor, peso y cantidad no admiten negativos.");
         // A requested cargo insurance quote cannot be priced from an unspecified
