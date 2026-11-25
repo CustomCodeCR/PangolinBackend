@@ -46,16 +46,21 @@ CREATE INDEX IF NOT EXISTS ix_official_quotes_admin_active_date
     ON public.official_quote_requests(created_at_utc DESC, id)
     WHERE archived_at_utc IS NULL;
 
--- Permanente: mantener solo un rastro mínimo sin datos del cliente cuando
--- se elimina físicamente una cotización que ya fue archivada y nunca vinculada
--- con Dhole ni protegida por una clave de idempotencia.
--- El UUID eliminado NO tiene FK a la cotización: debe sobrevivir al DELETE.
+-- Permanent purge audit: preserve only minimal UUID references and a
+-- controlled reason, never a customer's payload, contact or request digest.
+-- The optional random submission key is a durable tombstone: after a parent
+-- is physically removed, a late browser retry must never recreate the quote.
+-- No FK to the deleted quote or active client-submission row is allowed.
 CREATE TABLE IF NOT EXISTS public.official_quote_purge_audit (
     quote_id UUID PRIMARY KEY,
     actor_user_id UUID NULL REFERENCES public.usuarios(uuid) ON DELETE SET NULL,
     reason VARCHAR(16) NOT NULL CHECK (reason IN ('Prueba','Defectuosa')),
-    deleted_at_utc TIMESTAMPTZ NOT NULL DEFAULT now()
+    deleted_at_utc TIMESTAMPTZ NOT NULL DEFAULT now(),
+    submission_key UUID NULL UNIQUE
 );
+-- Additive upgrade for databases created by an earlier purge preview.
+ALTER TABLE public.official_quote_purge_audit
+    ADD COLUMN IF NOT EXISTS submission_key UUID NULL UNIQUE;
 
 -- Migración aditiva: una solicitud de invitado no pertenece a una cuenta registrada.
 -- Mantener las FK para solicitudes autenticadas y sus permisos de lectura.
