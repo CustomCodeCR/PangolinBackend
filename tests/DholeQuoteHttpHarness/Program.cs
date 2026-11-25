@@ -527,18 +527,17 @@ internal static class DholeQuoteHttpTest
             Assert(await key.ExecuteNonQueryAsync() == 1,
                 "Insert fictional client retry key only in disposable PostgreSQL");
         }
-        using (var keyPurge = await Purge(rejectedId, "authorizer"))
-            Assert(keyPurge.StatusCode == HttpStatusCode.Conflict,
-                "Client request key protects archived quote from physical deletion");
+        // A key alone is NOT a blocker anymore: the purge will store its UUID
+        // in a PII-free tombstone and atomically drop the old FK and hash.
+        // However, a Dhole relation must still block deletion unconditionally.
         await using (var db = new NpgsqlConnection(connectionString))
         {
             await db.OpenAsync();
-            await using var clear = new NpgsqlCommand("""
-                DELETE FROM public.official_quote_client_submissions WHERE quote_id = @id;
-                INSERT INTO public.official_quote_dhole_outbox (quote_id) VALUES (@id);
-                """, db);
-            clear.Parameters.AddWithValue("id", rejectedId);
-            await clear.ExecuteNonQueryAsync();
+            await using var link = new NpgsqlCommand(
+                "INSERT INTO public.official_quote_dhole_outbox (quote_id) VALUES (@id)", db);
+            link.Parameters.AddWithValue("id", rejectedId);
+            Assert(await link.ExecuteNonQueryAsync() == 1,
+                "Insert fictional Dhole approval link in isolated PostgreSQL");
         }
         using (var dholePurge = await Purge(rejectedId, "authorizer"))
             Assert(dholePurge.StatusCode == HttpStatusCode.Conflict,
@@ -565,14 +564,51 @@ internal static class DholeQuoteHttpTest
                 SELECT
                     (SELECT COUNT(*) FROM public.official_quote_requests WHERE id = @id),
                     (SELECT COUNT(*) FROM public.official_quote_audit WHERE quote_id = @id),
+                    (SELECT COUNT(*) FROM public.official_quote_client_submissions WHERE quote_id = @id),
                     (SELECT COUNT(*) FROM public.official_quote_purge_audit
-                     WHERE quote_id = @id AND reason = 'Defectuosa' AND actor_user_id IS NOT NULL)
+                     WHERE quote_id = @id AND reason = 'Defectuosa' AND actor_user_id IS NOT NULL
+                       AND submission_key = 'f8100000-0000-4000-8000-000000000015')
                 """, db);
             verify.Parameters.AddWithValue("id", rejectedId);
             await using var reader = await verify.ExecuteReaderAsync();
             Assert(await reader.ReadAsync() &&
-                reader.GetInt64(0) == 0 && reader.GetInt64(1) == 0 && reader.GetInt64(2) == 1,
-                "Quote and PII-bearing audit deleted; minimal administrator purge tombstone retained");
+                reader.GetInt64(0) == 0 && reader.GetInt64(1) == 0 &&
+                reader.GetInt64(2) == 0 && reader.GetInt64(3) == 1,
+                "Deleted quote, audit and keyed FK; only random-key purge tombstone survives");
+        }
+
+        // A browser can retry the same UUID even after its original quote and
+        // request digest have been erased. It must receive an explicit 409
+        // before any fresh catalog lookups or outbound Dhole operations.
+        using var replayFactory = factory.WithWebHostBuilder(host =>
+            host.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["DholeSubmission:ClientCreateIdempotencyEnabled"] = "true"
+                })));
+        using var replayClient = replayFactory.CreateClient(
+            new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        foreach (var staleBody in new Dictionary<string, object?>[] {
+            quote, new(quote) { ["contactName"] = "Changed stale retry" }
+        })
+        {
+            using var stale = new HttpRequestMessage(HttpMethod.Post, "/api/quotes/official");
+            stale.Headers.Add("X-CF-Quote-Request-Key", "f8100000-0000-4000-8000-000000000015");
+            stale.Content = JsonContent.Create(staleBody);
+            using var result = await replayClient.SendAsync(stale);
+            Assert(result.StatusCode == HttpStatusCode.Conflict,
+                "Purged request key must remain blocked for original and changed payloads");
+            using var body = JsonDocument.Parse(await result.Content.ReadAsStringAsync());
+            Assert(body.RootElement.GetProperty("code").GetString() == "quote_request_key_purged",
+                "Deleted key has a stable conflict code and cannot create a new quote");
+        }
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var verify = new NpgsqlCommand(
+                "SELECT COUNT(*) FROM public.official_quote_requests", db);
+            Assert(Convert.ToInt64(await verify.ExecuteScalarAsync()) == 1,
+                "Stale replay never creates a second quote after permanent deletion");
         }
 
         using (var accepted = await Decide(createdId, "Authorized"))
