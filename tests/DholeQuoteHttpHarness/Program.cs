@@ -1533,6 +1533,29 @@ internal static class DholeQuoteHttpTest
         scopeConfig["DholeSubmission:AllNewQuotesEnabled"] = "true";
         Assert(DholeOfficialWorkerScope.Read(scopeConfig) is null,
             "Conflicting pilot and broad scope is rejected");
+        // Pricing dispatch must not depend on Graph credentials or on a
+        // catalog used only by another mode. All original rollout and evidence
+        // gates remain mandatory. No actual worker or network is started here.
+        var dispatchGateConfig = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["Features:OfficialQuotesEnabled"] = "true",
+                ["DholeCatalogs:FormEnabled"] = "true",
+                ["DholeCatalogs:SubmissionEnabled"] = "true"
+            }).Build();
+        Assert(DholeOfficialDispatchWorker.CanDispatchNewQuotes(dispatchGateConfig, true, true),
+            "Pricing dispatch gate remains open without Graph or unrelated catalog configuration");
+        Assert(!DholeOfficialDispatchWorker.CanDispatchNewQuotes(dispatchGateConfig, false, true) &&
+            !DholeOfficialDispatchWorker.CanDispatchNewQuotes(dispatchGateConfig, true, false),
+            "Missing dispatch authorization or receipt evidence still blocks POST");
+        foreach (var gate in new[] { "Features:OfficialQuotesEnabled",
+            "DholeCatalogs:FormEnabled", "DholeCatalogs:SubmissionEnabled" })
+        {
+            dispatchGateConfig[gate] = "false";
+            Assert(!DholeOfficialDispatchWorker.CanDispatchNewQuotes(dispatchGateConfig, true, true),
+                "Disabled rollout gate blocks dispatch: " + gate);
+            dispatchGateConfig[gate] = "true";
+        }
         var notifyConfig = new ConfigurationBuilder().AddInMemoryCollection(
             new Dictionary<string, string?>
             {
@@ -1612,6 +1635,16 @@ internal static class DholeQuoteHttpTest
                 saved.VerifiedAtUtc == null && saved.ExternalReference == null,
                 "Creation evidence never masquerades as independent verification");
             var pilotScope = new DholeOfficialWorkerScope(temporaryId, null);
+            notifyConfig["Graph:ClientSecret"] = "";
+            Assert(!notifier.Enabled &&
+                await notifier.RunAsync(db, CancellationToken.None, pilotScope) == 0,
+                "Missing Graph configuration defers notification without discarding the accepted receipt");
+            var deferred = await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
+                .SingleAsync(x => x.QuoteId == temporaryId);
+            Assert(deferred.CreationReceiptAcceptedAtUtc != null &&
+                deferred.ConfirmationEmailClaimedAtUtc == null && deferred.AttemptCount == 1,
+                "Deferred notification leaves the accepted Pricing attempt untouched and claimable");
+            notifyConfig["Graph:ClientSecret"] = "ci-fictional";
             Assert(await notifier.RunAsync(db, CancellationToken.None, pilotScope) == 1 &&
                 await notifier.RunAsync(db, CancellationToken.None, pilotScope) == 0 &&
                 fakeNotification.MailCalls == 2 &&
