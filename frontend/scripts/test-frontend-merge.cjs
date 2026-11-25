@@ -317,6 +317,25 @@ assert.match(archivedDarkRules[1], /color:#fff !important;/,
   'El nombre archivado se muestra en blanco')
 assert.match(archivedDarkRules[2], /color:#d2d6e2 !important;/,
   'Referencia, fecha y avisos conservan contraste suficiente en oscuro')
+// The archive-success message previously inherited a WHITE light-mode surface
+// while global dark styling forced its text white. Prevent the same regression
+// for both success and error notices, in either administration mount layout.
+for (const [kind, background, foreground] of [
+  ['ok', '#172a28', '#edf9f1'],
+  ['alert', '#301d28', '#ffe8ee']
+]) {
+  const rule = [...officialQuoteAdmin.matchAll(/html\.theme-dark[^{}]+\{[^{}]*\}/g)]
+    .map(match => match[0])
+    .find(text => text.includes('.app-site .off-admin .off-admin-' + kind) &&
+      text.includes('.app-site.off-admin .off-admin-' + kind))
+  assert.ok(rule, 'Aviso ' + kind + ' tiene CSS oscuro en ambos montajes')
+  assert.ok(rule.includes('background:' + background + ' !important;'),
+    'Aviso ' + kind + ' conserva un fondo oscuro')
+  assert.ok(rule.includes('color:' + foreground + ' !important;'),
+    'Aviso ' + kind + ' tiene texto visible en modo oscuro')
+}
+assert.match(officialQuoteAdmin, /<p v-if="notice" class="off-admin-ok" role="status">/,
+  'El aviso de archivado conserva la semántica accesible de estado')
 assert.match(manager, /class="manager-tab-label">Cotizaciones<\/span> <span>\{\{ quotesTotal \}\}<\/span>/, 'Cotizaciones debe mostrar un contador a la derecha')
 assert.match(manager, /loadQuotesTotal\(\)/, 'El contador de Cotizaciones se carga desde la API')
 assert.match(manager, /@total-change="quotesTotal = \$event"/, 'El contador debe actualizarse al cargar el módulo de Cotizaciones')
