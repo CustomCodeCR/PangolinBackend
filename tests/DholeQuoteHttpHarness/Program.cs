@@ -468,15 +468,13 @@ internal static class DholeQuoteHttpTest
         using var purgeClient = purgeFactory.CreateClient(
             new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         async Task<HttpResponseMessage> Purge(Guid quoteId, string role,
-            string? confirmation = null, string reason = "Prueba", bool active = false)
+            string reason = "Prueba", bool active = false)
         {
             using var request = new HttpRequestMessage(HttpMethod.Delete,
                 active ? $"/api/admin/quotes/official/{quoteId}/purge" :
                     $"/api/admin/quotes/official/archived/{quoteId}");
             request.Headers.Add("X-CI-Test-Actor", role);
-            request.Content = JsonContent.Create(new {
-                confirmation = confirmation ?? $"ELIMINAR {quoteId:D}", reason
-            });
+            request.Content = JsonContent.Create(new { reason });
             return await purgeClient.SendAsync(request);
         }
         using (var archivedList = new HttpRequestMessage(HttpMethod.Get,
@@ -487,21 +485,18 @@ internal static class DholeQuoteHttpTest
             Assert(archivedResponse.StatusCode == HttpStatusCode.OK,
                 "Archived list is admin-only and available to non-purging admins");
             using var payload = JsonDocument.Parse(await archivedResponse.Content.ReadAsStringAsync());
-            Assert(!payload.RootElement.GetProperty("canPurge").GetBoolean() &&
+            Assert(payload.RootElement.GetProperty("canPurge").GetBoolean() &&
                 payload.RootElement.GetProperty("items").EnumerateArray()
                     .Any(x => x.GetProperty("id").GetGuid() == rejectedId),
-                "Viewer can inspect archived rows, but may not purge them");
+                "Any admin can see archived rows and is eligible to purge them");
         }
         using (var guestPurge = await Purge(rejectedId, "guest"))
             Assert(guestPurge.StatusCode == HttpStatusCode.Unauthorized,
                 "Guest cannot permanently delete quotes");
-        using (var viewerPurge = await Purge(rejectedId, "viewer"))
-            Assert(viewerPurge.StatusCode == HttpStatusCode.Forbidden,
-                "Ordinary admin without explicit authorization cannot purge");
-        using (var wrongConfirmation = await Purge(rejectedId, "authorizer",
-            confirmation: rejectedId.ToString("D")))
-            Assert(wrongConfirmation.StatusCode == HttpStatusCode.BadRequest,
-                "Permanent delete requires exact ELIMINAR UUID confirmation");
+        using (var invalidReason = await Purge(rejectedId, "viewer",
+            reason: "Otro"))
+            Assert(invalidReason.StatusCode == HttpStatusCode.BadRequest,
+                "Every admin reaches the purge endpoint, but invalid reasons are rejected");
         // There is no longer a 24-hour wait for a completed archived quote.
         // Simulate a protected client idempotency link. The deletion still
         // preserves the random request key as an irreversible replay tombstone.
@@ -530,9 +525,9 @@ internal static class DholeQuoteHttpTest
             Assert(await link.ExecuteNonQueryAsync() == 1,
                 "Insert fictional Dhole approval link in isolated PostgreSQL");
         }
-        using (var dholePurge = await Purge(rejectedId, "authorizer"))
+        using (var dholePurge = await Purge(rejectedId, "viewer"))
             Assert(dholePurge.StatusCode == HttpStatusCode.Conflict,
-                "Any Dhole outbox must prevent physical deletion even for archived rows");
+                "Any Dhole outbox must protect archived quotes from ALL admins");
         await using (var db = new NpgsqlConnection(connectionString))
         {
             await db.OpenAsync();
@@ -647,11 +642,8 @@ internal static class DholeQuoteHttpTest
                 "Cancelled must not authorize a new Dhole outbox");
         }
         using (var viewerPurgeActive = await Purge(cancelId, "viewer", active: true))
-            Assert(viewerPurgeActive.StatusCode == HttpStatusCode.Forbidden,
-                "Ordinary admin cannot purge cancelled quote");
-        using (var deleteCancelled = await Purge(cancelId, "authorizer", active: true))
-            Assert(deleteCancelled.StatusCode == HttpStatusCode.OK,
-                "Cancelled active quote is deleted immediately without archival or cooldown");
+            Assert(viewerPurgeActive.StatusCode == HttpStatusCode.OK,
+                "Any authenticated admin can permanently delete an eligible Cancelled quote");
         using (var repeatCancelled = await Purge(cancelId, "authorizer", active: true))
             Assert(repeatCancelled.StatusCode == HttpStatusCode.NotFound,
                 "Direct purge cannot be repeated after tombstone commit");

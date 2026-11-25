@@ -15,7 +15,7 @@ namespace CastroFallas.MiniQuote.Api.Endpoints;
 /// </summary>
 public static class OfficialQuotePurgeEndpoints
 {
-    public sealed record PurgeRequest(string? Confirmation, string? Reason);
+    public sealed record PurgeRequest(string? Reason);
 
     public static IEndpointRouteBuilder MapOfficialQuotePurge(this IEndpointRouteBuilder app)
     {
@@ -37,8 +37,9 @@ public static class OfficialQuotePurgeEndpoints
                 .Select(x => new { x.Id, x.CustomerName, x.Status, x.Authorization,
                     x.ShipmentType, x.CreatedAtUtc, x.ArchivedAtUtc })
                 .ToListAsync(ct);
-            var canPurge = await db.OfficialQuotePermissions.AsNoTracking()
-                .AnyAsync(x => x.UserId == actor.UsuarioId && x.CanAuthorize, ct);
+            // Every authenticated admin may purge eligible records; authorization
+            // to dispatch quotes to Dhole is a separate, unrelated capability.
+            var canPurge = true;
             http.Response.Headers.CacheControl = "no-store";
             return Results.Ok(new { items, total, page = n, canPurge });
         }).RequireRateLimiting("auth");
@@ -54,18 +55,16 @@ public static class OfficialQuotePurgeEndpoints
     {
             http.Response.Headers.CacheControl = "no-store";
             var actor = await auth.GetIdentityAsync(http, ct);
-            if (actor?.Role != "admin" ||
-                !await db.OfficialQuotePermissions.AsNoTracking()
-                    .AnyAsync(x => x.UserId == actor.UsuarioId && x.CanAuthorize, ct))
+            if (actor?.Role != "admin")
                 return Results.Forbid();
 
-            // Require an exact, case-sensitive written confirmation from the
-            // caller, even for a direct HTTP request bypassing the browser.
-            if (request.Confirmation != $"ELIMINAR {id:D}" ||
-                request.Reason is not ("Prueba" or "Defectuosa"))
+            // The irreversible action remains single-record and explicitly
+            // confirmed by the UI, but no typed UUID or separate authorization
+            // permission is required. The backend still validates the reason.
+            if (request.Reason is not ("Prueba" or "Defectuosa"))
                 return Results.BadRequest(new {
-                    code = "quote_purge_confirmation_required",
-                    error = "Indicá el motivo y escribí ELIMINAR seguido del UUID completo."
+                    code = "quote_purge_reason_required",
+                    error = "Seleccioná el motivo de eliminación: Prueba o Defectuosa."
                 });
 
             await using var tx = await db.Database.BeginTransactionAsync(ct);

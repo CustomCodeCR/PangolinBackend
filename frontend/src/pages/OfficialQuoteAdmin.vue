@@ -106,7 +106,7 @@ async function purgeArchived(item:ArchivedRow){
 }
 async function purgeSelected(){
   if(!detail.value || detail.value.status!=='Cancelled' ||
-    !permissions.value.canAuthorize || busy.value)return
+    !permissions.value.canView || busy.value)return
   await purgeQuote(detail.value.id, false)
 }
 async function purgeQuote(id:string, fromArchive:boolean){
@@ -118,18 +118,18 @@ async function purgeQuote(id:string, fromArchive:boolean){
   const reason=motive.trim().toUpperCase()==='PRUEBA' ? 'Prueba' :
     motive.trim().toUpperCase()==='DEFECTUOSA' ? 'Defectuosa' : null
   if(!reason){error.value='Indicá PRUEBA o DEFECTUOSA para eliminar.';return}
-  const expected='ELIMINAR '+id
-  const confirmation=window.prompt(
-    'Se borrarán la cotización y su historial asociado. No hay recuperación desde el panel.\\n'+
-    'Escribí exactamente lo siguiente para confirmar:\\n'+expected)
-  if(confirmation===null)return
-  if(confirmation!==expected){error.value='La referencia de confirmación no coincide. No se eliminó nada.';return}
+  if(!window.confirm(
+    '¿Eliminar definitivamente esta cotización?\n\n'+
+    'Se borrarán sus datos y su historial de la base de datos. '+
+    'No hay recuperación desde el panel.\n\n'+
+    'Las solicitudes relacionadas con Dhole están protegidas y no se pueden borrar.'
+  ))return
   busy.value=true;error.value='';notice.value=''
   try{
     await api('/api/admin/quotes/official/'+(fromArchive?'archived/'+id:id+'/purge'),{
       method:'DELETE',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({confirmation,reason})
+      body:JSON.stringify({reason})
     })
     if(fromArchive){
       if(archivedRows.value.length===1 && archivedPage.value>1)archivedPage.value--
@@ -233,7 +233,7 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
               <h2>Solicitudes <span class="off-admin-counter">{{total}}</span></h2>
             </div>
             <div class="off-admin-actions">
-              <button v-if="permissions.canManage" type="button" class="off-admin-button"
+              <button v-if="permissions.canView" type="button" class="off-admin-button"
                 :disabled="busy" @click="toggleArchived">{{showArchived ? 'Ocultar archivadas' : 'Ver archivadas'}}</button>
               <button type="button" class="off-admin-button" :disabled="busy" @click="load">Actualizar</button>
             </div>
@@ -275,11 +275,11 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
                     ? 'Archivar una solicitud finalizada sin integración Dhole'
                     : 'Para archivar, primero cerrá o rechazá la solicitud'"
                   :aria-label="'Archivar cotización de '+detail.customerName" @click="removeSelected">Archivar</button>
-                <button v-if="permissions.canManage || permissions.canAuthorize" type="button"
+                <button v-if="permissions.canView" type="button"
                   class="off-admin-delete off-admin-purge"
-                  :disabled="busy || detail.status!=='Cancelled' || !permissions.canAuthorize"
-                  :title="!permissions.canAuthorize ? 'Requiere permiso de autorización'
-                    : detail.status!=='Cancelled' ? 'Primero cambiá el estado a Cancelada y guardá la revisión'
+                  :disabled="busy || detail.status!=='Cancelled'"
+                  :title="detail.status!=='Cancelled'
+                    ? 'Primero cambiá el estado a Cancelada y guardá la revisión'
                     : 'Eliminación definitiva irreversible: no afecta registros de Dhole'"
                   :aria-label="'Eliminar definitivamente cotización de '+detail.customerName"
                   @click="purgeSelected">Eliminar de BD</button>
@@ -360,7 +360,7 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
           </div>
         </section>
       </div>
-      <section v-if="showArchived && permissions.canManage" class="off-admin-card off-admin-archived" aria-label="Cotizaciones archivadas">
+      <section v-if="showArchived && permissions.canView" class="off-admin-card off-admin-archived" aria-label="Cotizaciones archivadas">
         <div class="off-admin-card-heading">
           <div>
             <p class="off-admin-card-eyebrow">ARCHIVO ADMINISTRATIVO</p>
@@ -385,7 +385,6 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
               <p class="off-admin-muted">{{item.shipmentType}} · Archivada: {{displayDate(item.archivedAtUtc)}}</p>
             </div>
             <div class="off-admin-actions">
-              <span v-if="!archivedCanPurge" class="off-admin-muted">Requiere permiso de autorización</span>
               <button v-if="archivedCanPurge" type="button" class="off-admin-delete"
                 :disabled="busy || !purgeAllowed(item)"
                 :aria-label="'Eliminar definitivamente cotización '+item.id"
