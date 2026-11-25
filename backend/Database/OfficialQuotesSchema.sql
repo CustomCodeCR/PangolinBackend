@@ -46,6 +46,17 @@ CREATE INDEX IF NOT EXISTS ix_official_quotes_admin_active_date
     ON public.official_quote_requests(created_at_utc DESC, id)
     WHERE archived_at_utc IS NULL;
 
+-- Permanente: mantener solo un rastro mínimo sin datos del cliente cuando
+-- se elimina físicamente una cotización que ya fue archivada y nunca vinculada
+-- con Dhole ni protegida por una clave de idempotencia.
+-- El UUID eliminado NO tiene FK a la cotización: debe sobrevivir al DELETE.
+CREATE TABLE IF NOT EXISTS public.official_quote_purge_audit (
+    quote_id UUID PRIMARY KEY,
+    actor_user_id UUID NULL REFERENCES public.usuarios(uuid) ON DELETE SET NULL,
+    reason VARCHAR(16) NOT NULL CHECK (reason IN ('Prueba','Defectuosa')),
+    deleted_at_utc TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Migración aditiva: una solicitud de invitado no pertenece a una cuenta registrada.
 -- Mantener las FK para solicitudes autenticadas y sus permisos de lectura.
 ALTER TABLE public.official_quote_requests ALTER COLUMN cliente_id DROP NOT NULL;
