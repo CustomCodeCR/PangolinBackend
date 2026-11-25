@@ -571,7 +571,7 @@ public static class OfficialQuoteEndpoints
             if (p is null || !(p.CanView || p.CanManage || p.CanAuthorize)) return Results.Forbid();
             var n = page ?? 1;
             if (n is < 1 or > 100000) return Results.BadRequest();
-            var q = db.OfficialQuotes.AsNoTracking();
+            var q = db.OfficialQuotes.AsNoTracking().Where(x => x.ArchivedAtUtc == null);
             var total = await q.CountAsync(ct);
             var items = await q.OrderByDescending(x => x.CreatedAtUtc).ThenBy(x => x.Id)
                 .Skip((n - 1) * 20).Take(20)
@@ -587,7 +587,7 @@ public static class OfficialQuoteEndpoints
             var actor = await auth.GetIdentityAsync(http, ct);
             var p = await Permission(db, actor, ct);
             if (p is null || !(p.CanView || p.CanManage || p.CanAuthorize)) return Results.Forbid();
-            var q = await db.OfficialQuotes.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+            var q = await db.OfficialQuotes.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id && x.ArchivedAtUtc == null, ct);
             if (q is null) return Results.NotFound();
             var history = await db.OfficialQuoteAudit.AsNoTracking()
                 .Where(x => x.QuoteId == id).OrderByDescending(x => x.CreatedAtUtc)
@@ -629,6 +629,55 @@ public static class OfficialQuoteEndpoints
                 form = JsonSerializer.Deserialize<JsonElement>(q.FormJson), history });
         });
 
+        // Administrative "Eliminar" archives only the inbox row. It never performs
+        // a SQL DELETE, cancels a provider operation, or removes audit history.
+        // A quote with an outbox (in any state) must remain visible for Dhole
+        // reconciliation; optional outbox tables might not exist in older DBs.
+        admin.MapDelete("/{id:guid}", async (Guid id, AppDbContext db, AuthService auth,
+            HttpContext http, CancellationToken ct) =>
+        {
+            var actor = await auth.GetIdentityAsync(http, ct);
+            var p = await Permission(db, actor, ct);
+            if (p?.CanManage != true) return Results.Forbid();
+            http.Response.Headers.CacheControl = "no-store";
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            // Serialize archival with the authorization path using the same row lock.
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT 1 FROM public.official_quote_requests WHERE id = {id} FOR UPDATE", ct);
+            var q = await db.OfficialQuotes.FirstOrDefaultAsync(
+                x => x.Id == id && x.ArchivedAtUtc == null, ct);
+            if (q is null) return Results.NotFound();
+
+            // Unlike feature flags, relation presence is a reliable guard when
+            // operators have temporarily disabled an outbox that still has records.
+            var directTable = await db.Database.SqlQueryRaw<bool>(
+                "SELECT to_regclass('public.official_quote_dhole_creation_outbox') IS NOT NULL AS \"Value\"")
+                .SingleAsync(ct);
+            var approvalTable = await db.Database.SqlQueryRaw<bool>(
+                "SELECT to_regclass('public.official_quote_dhole_outbox') IS NOT NULL AS \"Value\"")
+                .SingleAsync(ct);
+            var linkedToDhole =
+                (directTable && await db.OfficialQuoteDholeCreationOutbox.AnyAsync(x => x.QuoteId == id, ct)) ||
+                (approvalTable && await db.OfficialQuoteDholeOutbox.AnyAsync(x => x.QuoteId == id, ct));
+            if (linkedToDhole)
+                return Results.Conflict(new {
+                    code = "quote_archive_dhole_linked",
+                    error = "No se puede eliminar de la bandeja: esta solicitud tiene un registro de integración con Dhole. Debe conservarse para seguimiento y auditoría."
+                });
+
+            var now = DateTime.UtcNow;
+            q.ArchivedAtUtc = now;
+            q.ArchivedById = actor!.UsuarioId;
+            q.UpdatedAtUtc = now;
+            db.OfficialQuoteAudit.Add(new OfficialQuoteAudit {
+                QuoteId = id, ActorUserId = actor.UsuarioId, Action = "Archived",
+                Comment = "Retirada de la bandeja administrativa; datos e historial conservados."
+            });
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return Results.Ok(new { q.Id, archived = true });
+        }).RequireRateLimiting("auth");
+
         admin.MapPut("/{id:guid}/review", async (Guid id, OfficialReviewUpdate update,
             AppDbContext db, AuthService auth, HttpContext http, CancellationToken ct) =>
         {
@@ -639,7 +688,7 @@ public static class OfficialQuoteEndpoints
                 update.Comment?.Length > 2000)
                 return Results.BadRequest(new { error = "Estado o comentario inválido." });
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            var q = await db.OfficialQuotes.FirstOrDefaultAsync(x => x.Id == id, ct);
+            var q = await db.OfficialQuotes.FirstOrDefaultAsync(x => x.Id == id && x.ArchivedAtUtc == null, ct);
             if (q is null) return Results.NotFound();
             q.Status = update.Status;
             q.UpdatedAtUtc = DateTime.UtcNow;
@@ -676,7 +725,7 @@ public static class OfficialQuoteEndpoints
             // concurrent authorizers from creating duplicate outbox entries.
             await db.Database.ExecuteSqlInterpolatedAsync(
                 $"SELECT 1 FROM public.official_quote_requests WHERE id = {id} FOR UPDATE", ct);
-            var q = await db.OfficialQuotes.FirstOrDefaultAsync(x => x.Id == id, ct);
+            var q = await db.OfficialQuotes.FirstOrDefaultAsync(x => x.Id == id && x.ArchivedAtUtc == null, ct);
             if (q is null) return Results.NotFound();
             if (q.Authorization != "Pending")
                 return Results.Conflict(new { error = "La solicitud ya tiene decisión." });
