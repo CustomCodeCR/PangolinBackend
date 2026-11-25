@@ -80,23 +80,33 @@ public sealed class DholeOfficialDispatchWorker(
                 // scope. A two-minute age is a signal to inspect, not a failure
                 // or a permission to retry. No names, IDs or payloads in logs.
                 var now = DateTime.UtcNow;
-                if (now >= nextHealthCheckUtc)
+                if (config.GetValue<bool>("DholeSubmission:DirectOutboxEnabled") &&
+                    now >= nextHealthCheckUtc)
                 {
                     nextHealthCheckUtc = now.AddMinutes(2);
-                    var cutoff = now.AddMinutes(-2);
-                    var scoped = db.OfficialQuoteDholeCreationOutbox.AsNoTracking();
-                    if (scope.PilotQuoteId is Guid healthPilot)
-                        scoped = scoped.Where(x => x.QuoteId == healthPilot);
-                    if (scope.StartAfterUtc is DateTime healthStart)
-                        scoped = scoped.Where(x => x.CreatedAtUtc >= healthStart);
-                    int pending = await scoped.CountAsync(x => x.State == "PendingDispatch" &&
-                        x.CreatedAtUtc <= cutoff, stoppingToken);
-                    int inFlight = await scoped.CountAsync(x => x.State == "InFlight" &&
-                        x.LastAttemptAtUtc != null && x.LastAttemptAtUtc <= cutoff, stoppingToken);
-                    if (pending > 0 || inFlight > 0 || (canDispatch && !mail.Enabled))
-                        logger.LogWarning("Dhole queue health: pending over two minutes {Pending}; in-flight over two minutes {InFlight}; dispatch configured {DispatchConfigured}; notification configured {NotificationConfigured}.",
-                            pending, inFlight, canDispatch, mail.Enabled);
+                    try
+                    {
+                        var cutoff = now.AddMinutes(-2);
+                        var scoped = db.OfficialQuoteDholeCreationOutbox.AsNoTracking();
+                        if (scope.PilotQuoteId is Guid healthPilot)
+                            scoped = scoped.Where(x => x.QuoteId == healthPilot);
+                        if (scope.StartAfterUtc is DateTime healthStart)
+                            scoped = scoped.Where(x => x.CreatedAtUtc >= healthStart);
+                        int pending = await scoped.CountAsync(x => x.State == "PendingDispatch" &&
+                            x.CreatedAtUtc <= cutoff, stoppingToken);
+                        int inFlight = await scoped.CountAsync(x => x.State == "InFlight" &&
+                            x.LastAttemptAtUtc != null && x.LastAttemptAtUtc <= cutoff, stoppingToken);
+                        if (pending > 0 || inFlight > 0 || (canDispatch && !mail.Enabled))
+                            logger.LogWarning("Dhole queue health: pending over two minutes {Pending}; in-flight over two minutes {InFlight}; dispatch configured {DispatchConfigured}; notification configured {NotificationConfigured}.",
+                                pending, inFlight, canDispatch, mail.Enabled);
+                    }
+                    catch (Exception) when (!stoppingToken.IsCancellationRequested)
+                    {
+                        // Observability must never become another delivery gate.
+                        logger.LogWarning("Dhole queue health check failed; delivery gates remain unchanged.");
+                    }
                 }
+                if (DholeOfficialWorkerScope.Read(config) != scope) break;
                 if (canDispatch)
                 {
                     var batch = await sp.GetRequiredService<DholeOfficialDispatchPass>()
