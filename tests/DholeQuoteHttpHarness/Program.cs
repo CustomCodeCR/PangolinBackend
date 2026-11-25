@@ -462,6 +462,155 @@ internal static class DholeQuoteHttpTest
                 "Archived quote remains persisted with actor and timestamp");
         }
 
+        // PERMANENT DELETE: separate TestServer to keep production rate limits
+        // unchanged while exercising all destructive-route safeguards.
+        using var purgeFactory = factory.WithWebHostBuilder(_ => { });
+        using var purgeClient = purgeFactory.CreateClient(
+            new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        async Task<HttpResponseMessage> Purge(Guid quoteId, string role,
+            string? confirmation = null, string reason = "Prueba")
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Delete,
+                $"/api/admin/quotes/official/archived/{quoteId}");
+            request.Headers.Add("X-CI-Test-Actor", role);
+            request.Content = JsonContent.Create(new {
+                confirmation = confirmation ?? $"ELIMINAR {quoteId:D}", reason
+            });
+            return await purgeClient.SendAsync(request);
+        }
+        using (var archivedList = new HttpRequestMessage(HttpMethod.Get,
+            "/api/admin/quotes/official/archived?page=1"))
+        {
+            archivedList.Headers.Add("X-CI-Test-Actor", "viewer");
+            using var archivedResponse = await purgeClient.SendAsync(archivedList);
+            Assert(archivedResponse.StatusCode == HttpStatusCode.OK,
+                "Archived list is admin-only and available to non-purging admins");
+            using var payload = JsonDocument.Parse(await archivedResponse.Content.ReadAsStringAsync());
+            Assert(!payload.RootElement.GetProperty("canPurge").GetBoolean() &&
+                payload.RootElement.GetProperty("items").EnumerateArray()
+                    .Any(x => x.GetProperty("id").GetGuid() == rejectedId),
+                "Viewer can inspect archived rows, but may not purge them");
+        }
+        using (var guestPurge = await Purge(rejectedId, "guest"))
+            Assert(guestPurge.StatusCode == HttpStatusCode.Unauthorized,
+                "Guest cannot permanently delete quotes");
+        using (var viewerPurge = await Purge(rejectedId, "viewer"))
+            Assert(viewerPurge.StatusCode == HttpStatusCode.Forbidden,
+                "Ordinary admin without explicit authorization cannot purge");
+        using (var wrongConfirmation = await Purge(rejectedId, "authorizer",
+            confirmation: rejectedId.ToString("D")))
+            Assert(wrongConfirmation.StatusCode == HttpStatusCode.BadRequest,
+                "Permanent delete requires exact ELIMINAR UUID confirmation");
+        using (var tooSoon = await Purge(rejectedId, "authorizer"))
+            Assert(tooSoon.StatusCode == HttpStatusCode.Conflict,
+                "Cooling-off prevents immediate permanent deletion");
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var advance = new NpgsqlCommand("""
+                UPDATE public.official_quote_requests
+                SET archived_at_utc = now() - interval '48 hours'
+                WHERE id = @id AND archived_at_utc IS NOT NULL
+                """, db);
+            advance.Parameters.AddWithValue("id", rejectedId);
+            Assert(await advance.ExecuteNonQueryAsync() == 1,
+                "Test fixture archived timestamp is moved only in disposable PostgreSQL");
+            // Simulate a protected client idempotency link. The DELETE must NOT
+            // drop this key or allow a previously used browser key to be replayed.
+            await using var key = new NpgsqlCommand("""
+                INSERT INTO public.official_quote_client_submissions
+                    (submission_key, quote_id, request_digest)
+                VALUES ('f8100000-0000-4000-8000-000000000015', @id, @digest)
+                """, db);
+            key.Parameters.AddWithValue("id", rejectedId);
+            key.Parameters.AddWithValue("digest", new string('a', 64));
+            Assert(await key.ExecuteNonQueryAsync() == 1,
+                "Insert fictional client retry key only in disposable PostgreSQL");
+        }
+        // A key alone is NOT a blocker anymore: the purge will store its UUID
+        // in a PII-free tombstone and atomically drop the old FK and hash.
+        // However, a Dhole relation must still block deletion unconditionally.
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var link = new NpgsqlCommand(
+                "INSERT INTO public.official_quote_dhole_outbox (quote_id) VALUES (@id)", db);
+            link.Parameters.AddWithValue("id", rejectedId);
+            Assert(await link.ExecuteNonQueryAsync() == 1,
+                "Insert fictional Dhole approval link in isolated PostgreSQL");
+        }
+        using (var dholePurge = await Purge(rejectedId, "authorizer"))
+            Assert(dholePurge.StatusCode == HttpStatusCode.Conflict,
+                "Any Dhole outbox must prevent physical deletion even for archived rows");
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var clear = new NpgsqlCommand(
+                "DELETE FROM public.official_quote_dhole_outbox WHERE quote_id = @id", db);
+            clear.Parameters.AddWithValue("id", rejectedId);
+            Assert(await clear.ExecuteNonQueryAsync() == 1,
+                "Remove fabricated Dhole link from isolated test DB only");
+        }
+        using (var allowedPurge = await Purge(rejectedId, "authorizer", reason: "Defectuosa"))
+            Assert(allowedPurge.StatusCode == HttpStatusCode.OK,
+                "Eligible archived quote can be permanently deleted after protections pass");
+        using (var repeatedPurge = await Purge(rejectedId, "authorizer"))
+            Assert(repeatedPurge.StatusCode == HttpStatusCode.NotFound,
+                "Already-purged quote cannot be deleted twice");
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var verify = new NpgsqlCommand("""
+                SELECT
+                    (SELECT COUNT(*) FROM public.official_quote_requests WHERE id = @id),
+                    (SELECT COUNT(*) FROM public.official_quote_audit WHERE quote_id = @id),
+                    (SELECT COUNT(*) FROM public.official_quote_client_submissions WHERE quote_id = @id),
+                    (SELECT COUNT(*) FROM public.official_quote_purge_audit
+                     WHERE quote_id = @id AND reason = 'Defectuosa' AND actor_user_id IS NOT NULL
+                       AND submission_key = 'f8100000-0000-4000-8000-000000000015')
+                """, db);
+            verify.Parameters.AddWithValue("id", rejectedId);
+            await using var reader = await verify.ExecuteReaderAsync();
+            Assert(await reader.ReadAsync() &&
+                reader.GetInt64(0) == 0 && reader.GetInt64(1) == 0 &&
+                reader.GetInt64(2) == 0 && reader.GetInt64(3) == 1,
+                "Deleted quote, audit and keyed FK; only random-key purge tombstone survives");
+        }
+
+        // A browser can retry the same UUID even after its original quote and
+        // request digest have been erased. It must receive an explicit 409
+        // before any fresh catalog lookups or outbound Dhole operations.
+        using var replayFactory = factory.WithWebHostBuilder(host =>
+            host.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["DholeSubmission:ClientCreateIdempotencyEnabled"] = "true"
+                })));
+        using var replayClient = replayFactory.CreateClient(
+            new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        foreach (var staleBody in new Dictionary<string, object?>[] {
+            quote, new(quote) { ["contactName"] = "Changed stale retry" }
+        })
+        {
+            using var stale = new HttpRequestMessage(HttpMethod.Post, "/api/quotes/official");
+            stale.Headers.Add("X-CF-Quote-Request-Key", "f8100000-0000-4000-8000-000000000015");
+            stale.Content = JsonContent.Create(staleBody);
+            using var result = await replayClient.SendAsync(stale);
+            Assert(result.StatusCode == HttpStatusCode.Conflict,
+                "Purged request key must remain blocked for original and changed payloads");
+            using var body = JsonDocument.Parse(await result.Content.ReadAsStringAsync());
+            Assert(body.RootElement.GetProperty("code").GetString() == "quote_request_key_purged",
+                "Deleted key has a stable conflict code and cannot create a new quote");
+        }
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var verify = new NpgsqlCommand(
+                "SELECT COUNT(*) FROM public.official_quote_requests", db);
+            Assert(Convert.ToInt64(await verify.ExecuteScalarAsync()) == 1,
+                "Stale replay never creates a second quote after permanent deletion");
+        }
+
         using (var accepted = await Decide(createdId, "Authorized"))
         {
             Assert(accepted.StatusCode == HttpStatusCode.OK,
