@@ -1735,6 +1735,22 @@ internal static class DholeQuoteHttpTest
         using (var observationClient = observationFactory.CreateClient(
             new WebApplicationFactoryClientOptions { AllowAutoRedirect = false }))
         {
+            var malformedCases = new[]
+            {
+                new Dictionary<string, object?>(quote) { ["equipment"] = new object?[] { null } },
+                new Dictionary<string, object?>(quote)
+                {
+                    ["shipmentType"] = "LCL", ["equipment"] = Array.Empty<object>(),
+                    ["packages"] = new object?[] { null }, ["weightUnit"] = "kg", ["dimensionUnit"] = "cm"
+                },
+                new Dictionary<string, object?>(quote) { ["cargoFlags"] = new string?[] { null } }
+            };
+            foreach (var malformed in malformedCases)
+            {
+                using var invalid = await observationClient.PostAsJsonAsync("/api/quotes/official", malformed);
+                Assert(invalid.StatusCode == HttpStatusCode.BadRequest,
+                    "Null list entries are malformed client data, not an internal server error");
+            }
             const string prefix = "La peligrosidad de la carga está pendiente de confirmar.\n";
             var maxNotes = new string('n', 4000);
             foreach (var tooLong in new[] { maxNotes + "x", prefix + maxNotes + "x" })
