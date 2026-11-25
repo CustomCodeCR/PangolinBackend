@@ -10,6 +10,9 @@ on:
       - 'frontend/.dockerignore'
       - 'backend/.dockerignore'
       - 'deploy/docker-compose.images.yml'
+      - 'frontend/package*.json'
+      - 'frontend/nuxt/package*.json'
+      - 'backend/**/*.csproj'
   workflow_dispatch:
 permissions:
   contents: read
@@ -35,7 +38,7 @@ jobs:
             backend) docker build --pull -f backend/Dockerfile.production -t pangolin-audit:local backend ;;
             frontend) docker build --pull --build-arg VITE_OFFICIAL_QUOTES_ENABLED=true -f frontend/Dockerfile -t pangolin-audit:local frontend ;;
             nuxt) docker build --pull -f frontend/nuxt/Dockerfile -t pangolin-audit:local frontend ;;
-            gateway) docker pull nginx:1.27-alpine; docker tag nginx:1.27-alpine pangolin-audit:local ;;
+            gateway) docker pull nginx:alpine@sha256:7fc0fb4af7bf006aeb31aea88069976060f8f0a0a86b667126742cc17f4e31ae; docker tag nginx:alpine@sha256:7fc0fb4af7bf006aeb31aea88069976060f8f0a0a86b667126742cc17f4e31ae pangolin-audit:local ;;
             *) exit 1 ;;
           esac
           docker image inspect pangolin-audit:local | python -c 'import json,sys; i=json.load(sys.stdin)[0]; print("Image",i["Id"],"User",i.get("Config",{}).get("User") or "(default root)","Created",i.get("Created")); print("Layers",i.get("RootFS",{}).get("Layers",[]))'
@@ -74,7 +77,7 @@ jobs:
               for v in result.get("Vulnerabilities") or []:
                   counts[v.get("Severity", "UNKNOWN")] += 1
                   if v.get("Severity") in ("HIGH", "CRITICAL"):
-                      print(v.get("VulnerabilityID"), v.get("PkgName"), v.get("InstalledVersion"), "fixed:", v.get("FixedVersion") or "not reported")
+                      print(v.get("VulnerabilityID"), v.get("PkgName"), v.get("InstalledVersion"), "fixed:", v.get("FixedVersion") or "not reported", "target:", result.get("Target"), "path:", v.get("PkgPath"))
           print("IMAGE INVENTORY", os.environ["COMPONENT"], dict(counts))
           if counts["HIGH"] or counts["CRITICAL"]:
               print("::warning::High or critical image findings require review; inventory is not a security clearance.")
