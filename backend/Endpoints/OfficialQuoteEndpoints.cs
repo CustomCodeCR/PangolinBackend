@@ -791,6 +791,7 @@ public static class OfficialQuoteEndpoints
                 dholeDispatchState = staged ? "AwaitingConnector" : "Disabled",
                 dholePriority = staged ? selectedPriority : null });
         }).RequireRateLimiting("auth");
+        app.MapOfficialQuotePurge();
         return app;
     }
 }
