@@ -796,9 +796,17 @@ public static class OfficialQuoteEndpoints
                 var approvalTable = await db.Database.SqlQueryRaw<bool>(
                     "SELECT to_regclass('public.official_quote_dhole_outbox') IS NOT NULL AS \"Value\"")
                     .SingleAsync(ct);
+                // Fail closed if legacy/partial schema prevents verifying
+                // an old Dhole relation. The purge endpoint already requires
+                // both tables; cancellation must not weaken that protection.
+                if (!directTable || !approvalTable)
+                    return Results.Json(new {
+                        code = "quote_cancel_schema_incomplete",
+                        error = "No se puede comprobar la relación con Dhole; cancelación bloqueada hasta completar la migración."
+                    }, statusCode: StatusCodes.Status503ServiceUnavailable);
                 var dholeLinked =
-                    (directTable && await db.OfficialQuoteDholeCreationOutbox.AnyAsync(x => x.QuoteId == id, ct)) ||
-                    (approvalTable && await db.OfficialQuoteDholeOutbox.AnyAsync(x => x.QuoteId == id, ct));
+                    await db.OfficialQuoteDholeCreationOutbox.AnyAsync(x => x.QuoteId == id, ct) ||
+                    await db.OfficialQuoteDholeOutbox.AnyAsync(x => x.QuoteId == id, ct);
                 if (dholeLinked || q.Authorization == "Authorized")
                     return Results.Conflict(new {
                         code = "quote_cancel_dhole_protected",
