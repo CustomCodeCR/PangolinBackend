@@ -604,7 +604,10 @@ internal static class DholeQuoteHttpTest
 
         // NEW DIRECT FLOW: active quote -> cancelled with a reason -> immediate
         // irreversible deletion. No archive step, no wait, no actual Dhole POST.
-        using var cancelResponse = await Submit(quote);
+        // New test submissions use the isolated purge host. The original
+        // shared test host must retain its rate-limit budget for older tests.
+        using var cancelResponse = await purgeClient.PostAsJsonAsync(
+            "/api/quotes/official", quote);
         Assert(cancelResponse.StatusCode == HttpStatusCode.Created,
             "Independent fictional request created for direct cancellation");
         using var cancelJson = JsonDocument.Parse(await cancelResponse.Content.ReadAsStringAsync());
@@ -663,7 +666,8 @@ internal static class DholeQuoteHttpTest
 
         // Another local quote may have a Dhole outbox even if it has not
         // attempted delivery yet. No admin may mark it Cancelled or purge it.
-        using var linkedResponse = await Submit(quote);
+        using var linkedResponse = await purgeClient.PostAsJsonAsync(
+            "/api/quotes/official", quote);
         Assert(linkedResponse.StatusCode == HttpStatusCode.Created,
             "Independent fictional request created for Dhole-link protection");
         using var linkedJson = JsonDocument.Parse(await linkedResponse.Content.ReadAsStringAsync());
