@@ -1354,4 +1354,19 @@ for (const key of [...regionalSlots.matchAll(/"key":\s*"([^"]+)"/g)].map(match =
     'Editor visual muestra un campo que el backend rechaza: ' + key)
 }
 
+
+ // CMS mutations must keep the same captured location through asynchronous saves.
+const editorSlotActions = source('src/pages/SiteVisualEditor.vue')
+const publishSlotAction = editorSlotActions.slice(editorSlotActions.indexOf('async function publish()'), editorSlotActions.indexOf('async function restore()'))
+assert.match(publishSlotAction, /const slot = selected\.value[\s\S]*?const draft = draftSnapshot\(slot\)[\s\S]*?saving\.value = true[\s\S]*?await writeDraft\(slot\.key, draft\)[\s\S]*?encodeURIComponent\(slot\.key\)\}\/publish/,
+  'Saving and publishing must use the same snapshot even when the selection changes')
+assert.doesNotMatch(publishSlotAction, /encodeURIComponent\(selected\.value\.key\)/,
+  'Never re-read the selected key after an asynchronous draft save')
+assert.match(editorSlotActions, /if \(updated\.key !== key\) throw new Error/,
+  'Reject a mutation response for a different slot')
+assert.match(editorSlotActions, /selectionRevision === revision && currentKey\.value === slot\.key\) select\(slot\)/,
+  'Restore must not overwrite another location currently being edited')
+assert.match(editorSlotActions, /selectionRevision === revision && currentKey\.value === slot\.key\) \{\s*mediaId\.value = item\.id/,
+  'A delayed upload must not assign its media to another selected location')
+
 console.log('OK: SignalR, CMS, MinIO, news, itinerary and tracking contracts.')
