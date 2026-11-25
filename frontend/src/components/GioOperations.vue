@@ -284,7 +284,7 @@ const steps = computed<Step[]>(() => {
     result.push({key:'pickupAddress',prompt:i('¿Cuál es la dirección de recolección?','What is the pickup address?')})
   result.push(
     {key:'cargoDescription',prompt:i('Describe la mercancía que necesitas transportar.','Describe the goods you need to transport.')},
-    {key:'dangerousGoods',prompt:i('¿La mercancía es peligrosa o requiere manejo especial?','Is this dangerous cargo or does it require special handling?'),choices:[{value:'yes',label:i('Sí','Yes')},{value:'no',label:'No'},{value:'unsure',label:i('No estoy seguro','Not sure')}]}
+    {key:'dangerousGoods',prompt:i('¿La mercancía está clasificada como peligrosa?','Is the cargo classified as dangerous goods?'),choices:[{value:'yes',label:i('Sí','Yes')},{value:'no',label:'No'},{value:'unsure',label:i('No estoy seguro','Not sure')}]}
   )
   if (isEquipment.value) result.push(
     {key:'equipmentSize',prompt:i('Selecciona el tamaño del equipo disponible.','Select an available equipment size.'),choices:equipmentSizes.value},
