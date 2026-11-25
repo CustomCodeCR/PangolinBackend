@@ -36,6 +36,16 @@ CREATE TABLE IF NOT EXISTS public.official_quote_requests (
         (mode = 'Land' AND shipment_type IN ('FTL','LTL'))
     )
 );
+-- Archivado administrativo seguro: oculta la solicitud de la bandeja sin
+-- destruir datos de auditoría, reintentos idempotentes o pruebas de entrega.
+-- Adición compatible con instalaciones que ya tienen cotizaciones guardadas.
+ALTER TABLE public.official_quote_requests
+    ADD COLUMN IF NOT EXISTS archived_at_utc TIMESTAMPTZ NULL,
+    ADD COLUMN IF NOT EXISTS archived_by_id UUID NULL REFERENCES public.usuarios(uuid) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS ix_official_quotes_admin_active_date
+    ON public.official_quote_requests(created_at_utc DESC, id)
+    WHERE archived_at_utc IS NULL;
+
 -- Migración aditiva: una solicitud de invitado no pertenece a una cuenta registrada.
 -- Mantener las FK para solicitudes autenticadas y sus permisos de lectura.
 ALTER TABLE public.official_quote_requests ALTER COLUMN cliente_id DROP NOT NULL;

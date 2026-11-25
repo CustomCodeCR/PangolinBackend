@@ -380,6 +380,21 @@ internal static class DholeQuoteHttpTest
         Assert((await Outbox(createdId)).count == 0,
             "Invalid priority never stages the quote");
 
+        // Active, unlinked quotes still need human attention. Even a manager
+        // cannot silently remove them before review or closure.
+        using (var pendingArchive = await AdminRequest(HttpMethod.Delete,
+            $"/api/admin/quotes/official/{createdId}", "authorizer"))
+        {
+            Assert(pendingArchive.StatusCode == HttpStatusCode.Conflict,
+                "Received quote cannot disappear from the inbox");
+            using var pendingError = JsonDocument.Parse(
+                await pendingArchive.Content.ReadAsStringAsync());
+            Assert(pendingError.RootElement.GetProperty("code").GetString() ==
+                "quote_archive_not_final", "Active archive has explicit conflict code");
+        }
+        Assert(await AuditCount(createdId, "Archived") == 0,
+            "Rejected premature archival cannot create an audit event");
+
         // Independent rejected quote: never enters integration outbox.
         using var rejectedResponse = await Submit(quote);
         Assert(rejectedResponse.StatusCode == HttpStatusCode.Created,
@@ -396,6 +411,57 @@ internal static class DholeQuoteHttpTest
             Assert(rejectAgain.StatusCode == HttpStatusCode.Conflict,
                 "Rejected decision is immutable");
 
+        // Removing a quote means an auditable archive, never a physical DELETE.
+        using (var guestRemove = await AdminRequest(HttpMethod.Delete,
+            $"/api/admin/quotes/official/{rejectedId}", "guest"))
+            Assert(guestRemove.StatusCode == HttpStatusCode.Unauthorized,
+                "A guest cannot remove an administrative quote");
+        using (var remove = await AdminRequest(HttpMethod.Delete,
+            $"/api/admin/quotes/official/{rejectedId}", "authorizer"))
+            Assert(remove.StatusCode == HttpStatusCode.OK,
+                "Manager archives a quote without a Dhole outbox");
+        using (var repeatRemove = await AdminRequest(HttpMethod.Delete,
+            $"/api/admin/quotes/official/{rejectedId}", "authorizer"))
+            Assert(repeatRemove.StatusCode == HttpStatusCode.NotFound,
+                "A quote already removed cannot be removed twice");
+        using (var archivedDetail = await Details(rejectedId))
+            Assert(archivedDetail.StatusCode == HttpStatusCode.NotFound,
+                "Archived quote cannot be opened from Administration");
+        using (var staleReview = new HttpRequestMessage(HttpMethod.Put,
+            $"/api/admin/quotes/official/{rejectedId}/review"))
+        {
+            staleReview.Headers.Add("X-CI-Test-Actor", "authorizer");
+            staleReview.Content = JsonContent.Create(
+                new { status = "InReview", comment = "No corresponde" });
+            using var reviewArchived = await client.SendAsync(staleReview);
+            Assert(reviewArchived.StatusCode == HttpStatusCode.NotFound,
+                "Archived quote cannot be reviewed or reopened by a stale admin tab");
+        }
+        using (var list = await AdminRequest(HttpMethod.Get,
+            "/api/admin/quotes/official?page=1", "authorizer"))
+        {
+            Assert(list.StatusCode == HttpStatusCode.OK, "Admin inbox available after removal");
+            using var json = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
+            Assert(!json.RootElement.GetProperty("items").EnumerateArray()
+                .Any(x => x.GetProperty("id").GetGuid() == rejectedId),
+                "Archived quote is hidden from admin inbox");
+        }
+        Assert(await AuditCount(rejectedId, "Archived") == 1 &&
+            await AuditCount(rejectedId, "Rejected") == 1,
+            "Archive keeps the original review/decision audit and records actor action");
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var check = new NpgsqlCommand("""
+                SELECT archived_at_utc IS NOT NULL, archived_by_id IS NOT NULL
+                FROM public.official_quote_requests WHERE id = @id
+                """, db);
+            check.Parameters.AddWithValue("id", rejectedId);
+            await using var row = await check.ExecuteReaderAsync();
+            Assert(await row.ReadAsync() && row.GetBoolean(0) && row.GetBoolean(1),
+                "Archived quote remains persisted with actor and timestamp");
+        }
+
         using (var accepted = await Decide(createdId, "Authorized"))
         {
             Assert(accepted.StatusCode == HttpStatusCode.OK,
@@ -411,6 +477,10 @@ internal static class DholeQuoteHttpTest
         Assert(await AuditCount(createdId, "Authorized") == 1 &&
             await AuditCount(createdId, "DholeStaged") == 1,
             "Approval and local staging each audited once");
+        using (var protectedRemoval = await AdminRequest(HttpMethod.Delete,
+            $"/api/admin/quotes/official/{createdId}", "authorizer"))
+            Assert(protectedRemoval.StatusCode == HttpStatusCode.Conflict,
+                "Quotes with approval outboxes must remain visible for reconciliation");
         using (var details = await Details(createdId))
         {
             Assert(details.StatusCode == HttpStatusCode.OK, "Admin details available");
@@ -462,8 +532,19 @@ internal static class DholeQuoteHttpTest
             "Third fictional quote created for concurrency test");
         using var simultaneousJson = JsonDocument.Parse(await simultaneousResponse.Content.ReadAsStringAsync());
         var simultaneousId = simultaneousJson.RootElement.GetProperty("id").GetGuid();
+        // Use the second isolated host for BOTH creation and approvals.
+        // The original helper uses the first host's normal rate-limit budget;
+        // the new archive tests must not accidentally turn its 429 into a
+        // false negative for the atomic 200/409 approval invariant.
+        async Task<HttpResponseMessage> ConcurrentDecision()
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Put,
+                $"/api/admin/quotes/official/{simultaneousId}/authorization?decision=Authorized");
+            request.Headers.Add("X-CI-Test-Actor", "authorizer");
+            return await concurrencyClient.SendAsync(request);
+        }
         var concurrent = await Task.WhenAll(
-            Decide(simultaneousId, "Authorized"), Decide(simultaneousId, "Authorized"));
+            ConcurrentDecision(), ConcurrentDecision());
         Assert(concurrent.Count(x => x.StatusCode == HttpStatusCode.OK) == 1 &&
             concurrent.Count(x => x.StatusCode == HttpStatusCode.Conflict) == 1,
             "Exactly one concurrent approval wins, the other is rejected");
@@ -523,6 +604,11 @@ internal static class DholeQuoteHttpTest
             "Direct opt-in creates one fictional quote and its outbox atomically");
         using var directReceipt = JsonDocument.Parse(await directResponse.Content.ReadAsStringAsync());
         var directId = directReceipt.RootElement.GetProperty("id").GetGuid();
+        // Even with the approval flag off, direct outbox links block removal.
+        using (var directRemove = await AdminRequest(HttpMethod.Delete,
+            $"/api/admin/quotes/official/{directId}", "authorizer"))
+            Assert(directRemove.StatusCode == HttpStatusCode.Conflict,
+                "Direct Dhole outbox makes a quote non-removable from the inbox");
         Assert(directReceipt.RootElement.GetProperty("dholeDispatchState").GetString() == "PendingDispatch",
             "Creation returns pending state, never claims remote delivery");
         // Legacy administrator authorization must not become a hidden gate or

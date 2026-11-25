@@ -51,6 +51,23 @@ async function decide(choice:'Authorized'|'Rejected'){if(!detail.value||busy.val
     : 'Autorización rechazada.'
   const id=detail.value.id;await load();await open(id)
 }catch(e){error.value=msg(e)}finally{busy.value=false}}
+// Archive hides only terminal work from the inbox. The DB keeps the original
+// quote and audit history; Dhole-linked requests are always protected.
+async function removeSelected(){
+  if(!detail.value || !permissions.value.canManage || busy.value)return
+  const id=detail.value.id
+  const name=detail.value.customerName
+  if(!window.confirm('¿Archivar la solicitud de '+name+'?\n\nSe ocultará de la bandeja activa, pero la solicitud y el historial quedan guardados para auditoría. No cancela operaciones de Dhole. Para restaurarla se requiere intervención administrativa.'))return
+  busy.value=true;error.value='';notice.value=''
+  try{
+    await api('/api/admin/quotes/official/'+id,{method:'DELETE'})
+    detail.value=null
+    // Reload in the same page unless removing the last row on that page.
+    if(rows.value.length===1 && page.value>1)page.value--
+    await load()
+    notice.value='Solicitud archivada y retirada de la bandeja activa. Su historial se conserva para auditoría.'
+  }catch(e){error.value=msg(e)}finally{busy.value=false}
+}
 onMounted(async()=>{const user=await refreshSession();if(user?.role!=='administrador'){error.value='Requiere sesión de administrador.';return}
   try {
     permissions.value = await api('/api/admin/quotes/official/permissions/me')
@@ -173,6 +190,12 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
                 <h2>{{detail.customerName}}</h2>
                 <p class="off-admin-muted off-admin-reference">Referencia: {{detail.id}}</p>
               </div>
+              <button v-if="permissions.canManage" type="button" class="off-admin-delete"
+                :disabled="busy || (detail.status!=='Closed' && detail.authorization!=='Rejected')"
+                :title="detail.status==='Closed' || detail.authorization==='Rejected'
+                  ? 'Archivar una solicitud finalizada sin integración Dhole'
+                  : 'Para archivar, primero cerrá o rechazá la solicitud'"
+                :aria-label="'Archivar cotización de '+detail.customerName" @click="removeSelected">Archivar</button>
             </div>
             <div class="off-admin-status-row">
               <span class="off-admin-status">{{statusNames[detail.status] ?? detail.status}}</span>
@@ -362,6 +385,16 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
 }
 .off-admin-button {background:var(--oq-input);color:var(--oq-ink);}
 .off-admin-button:hover {border-color:var(--oq-accent);}
+.off-admin-delete {
+  display:inline-flex;align-items:center;justify-content:center;min-height:44px;
+  padding:10px 17px;border-radius:11px;border:1px solid #b20c2a;
+  background:transparent;color:#b20c2a;font:inherit;font-size:13px;font-weight:850;
+  cursor:pointer;
+}
+.off-admin-delete:hover {background:rgba(178,12,42,.09);}
+.off-admin-delete:disabled {opacity:.55;cursor:not-allowed;}
+:global(html.theme-dark) .off-admin .off-admin-delete {color:#fff !important;border-color:#ef233c !important;background:#6c1730 !important;}
+:global(html.theme-dark) .off-admin .off-admin-delete:hover {background:#91213c !important;}
 .off-admin-primary {background:#b20c2a;border-color:#b20c2a;color:#fff!important;}
 .off-admin-primary:hover {background:#ca1639;border-color:#ca1639;}
 .off-admin-button:disabled,.off-admin-primary:disabled {opacity:.56;cursor:not-allowed;}
