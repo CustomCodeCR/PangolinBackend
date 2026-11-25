@@ -36,6 +36,19 @@ CREATE TABLE IF NOT EXISTS public.official_quote_requests (
         (mode = 'Land' AND shipment_type IN ('FTL','LTL'))
     )
 );
+-- Cancelled is a distinct, terminal ADMINISTRATIVE state. It never implies
+-- cancelling an existing external Dhole/Pricing request; those are blocked
+-- in the backend whenever an outbox record exists. Idempotent migration.
+-- The old inline status CHECK gets its default PostgreSQL constraint name.
+ALTER TABLE public.official_quote_requests
+    DROP CONSTRAINT IF EXISTS official_quote_requests_status_check;
+ALTER TABLE public.official_quote_requests
+    DROP CONSTRAINT IF EXISTS ck_official_quote_status;
+ALTER TABLE public.official_quote_requests
+    ADD CONSTRAINT ck_official_quote_status CHECK (
+        status IN ('Received','InReview','AwaitingInformation','Closed','Cancelled')
+    );
+
 -- Archivado administrativo seguro: oculta la solicitud de la bandeja sin
 -- destruir datos de auditoría, reintentos idempotentes o pruebas de entrega.
 -- Adición compatible con instalaciones que ya tienen cotizaciones guardadas.
