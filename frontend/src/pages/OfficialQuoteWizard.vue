@@ -1694,7 +1694,7 @@ html.theme-dark .app-site.official-page .official-add-equipment {
   margin-top: 7px;
 }
 .app-site.official-page .official-fields :is(input:not([type="checkbox"]), select, textarea),
-.app-site.official-page .official-single textarea {
+.app-site.official-page .official-single :is(input:not([type="checkbox"]),textarea) {
   background: rgba(255, 255, 255, .14) !important;
   border: 1px solid rgba(255, 255, 255, .34) !important;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 8px 22px rgba(28,16,22,.04);
@@ -1703,24 +1703,24 @@ html.theme-dark .app-site.official-page .official-add-equipment {
   transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
 }
 .app-site.official-page .official-fields :is(input:not([type="checkbox"]), select, textarea):focus-visible,
-.app-site.official-page .official-single textarea:focus-visible {
+.app-site.official-page .official-single :is(input:not([type="checkbox"]),textarea):focus-visible {
   border-color: #a80e18 !important;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 0 0 3px rgba(168,14,24,.2);
   outline: none;
 }
 html.theme-dark .app-site.official-page .official-fields :is(input:not([type="checkbox"]), select, textarea),
-html.theme-dark .app-site.official-page .official-single textarea {
+html.theme-dark .app-site.official-page .official-single :is(input:not([type="checkbox"]),textarea) {
   background: rgba(255, 255, 255, .035) !important;
   border-color: rgba(255, 255, 255, .22) !important;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 8px 22px rgba(0,0,0,.08);
   color: #fff !important;
 }
 html.theme-dark .app-site.official-page .official-fields :is(input:not([type="checkbox"]), textarea)::placeholder,
-html.theme-dark .app-site.official-page .official-single textarea::placeholder {
+html.theme-dark .app-site.official-page .official-single :is(input:not([type="checkbox"]),textarea)::placeholder {
   color: rgba(255,255,255,.62) !important;
 }
 html.theme-dark .app-site.official-page .official-fields :is(input:not([type="checkbox"]), select, textarea):focus-visible,
-html.theme-dark .app-site.official-page .official-single textarea:focus-visible {
+html.theme-dark .app-site.official-page .official-single :is(input:not([type="checkbox"]),textarea):focus-visible {
   border-color: #a80e18 !important;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 0 0 3px rgba(168,14,24,.28);
 }
@@ -1774,7 +1774,7 @@ html:not(.theme-dark) .app-site.official-page .official-summary {
   color: #242630 !important;
 }
 html:not(.theme-dark) .app-site.official-page .official-fields :is(input:not([type="checkbox"]), select, textarea),
-html:not(.theme-dark) .app-site.official-page .official-single textarea,
+html:not(.theme-dark) .app-site.official-page .official-single :is(input:not([type="checkbox"]),textarea),
 html:not(.theme-dark) .app-site.official-page .official-location-combobox > input {
   color: #242630 !important;
   color-scheme: light;
@@ -1850,7 +1850,7 @@ html:not(.theme-dark) .app-site.official-page .official-line::before {
   animation: quote-equipment-glow-pass 6s ease-in-out infinite !important;
 }
 html:not(.theme-dark) .app-site.official-page .official-fields :is(input:not([type="checkbox"]), select, textarea),
-html:not(.theme-dark) .app-site.official-page .official-single textarea {
+html:not(.theme-dark) .app-site.official-page .official-single :is(input:not([type="checkbox"]),textarea) {
   background: #fff !important;
   border-color: #cfd0d9 !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 4px 14px rgba(28, 16, 22, .04);
