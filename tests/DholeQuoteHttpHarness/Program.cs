@@ -1435,6 +1435,19 @@ sealed class CiFakeReceiptNotificationHandler(Guid reference) : HttpMessageHandl
                 !unsafeText.Html.Contains("Destino &amp; puerto") ||
                 !unsafeText.PlainText.Contains("Seguro de carga"))
                 throw new InvalidOperationException("Quote email did not escape customer data");
+            var maritimeMail = OfficialQuoteConfirmationTemplate.Build(
+                Guid.Parse("f8100000-0000-4000-8000-000000000011"), "Maritime", "LCL",
+                "San José", "Puerto Moín", ["Transporte internacional"], "Alajuela & alrededores");
+            if (!maritimeMail.PlainText.Contains("Puerto de entrada (POE): Puerto Moín") ||
+                !maritimeMail.PlainText.Contains("Destino final (POD): Alajuela & alrededores") ||
+                !maritimeMail.Html.Contains("Alajuela &amp; alrededores") ||
+                maritimeMail.PlainText.Contains("\nDestino: Puerto Moín"))
+                throw new InvalidOperationException("Maritime receipt did not distinguish POE and POD.");
+            var historicMail = OfficialQuoteConfirmationTemplate.Build(
+                Guid.Parse("f8100000-0000-4000-8000-000000000012"), "Maritime", "LCL",
+                "San José", "Puerto Moín", []);
+            if (!historicMail.PlainText.Contains("Destino final (POD): No indicado"))
+                throw new InvalidOperationException("Historic maritime receipt invented a POD.");
             MailCalls++;
             return new HttpResponseMessage(HttpStatusCode.Accepted);
         }

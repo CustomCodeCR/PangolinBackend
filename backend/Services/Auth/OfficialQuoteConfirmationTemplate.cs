@@ -22,7 +22,8 @@ public static class OfficialQuoteConfirmationTemplate
         [new("castro-fallas-logo-blanco.png", "image/png", LogoCid, Convert.FromBase64String(WhiteLogoBase64))];
 
     public static OfficialQuoteConfirmationMessage Build(Guid quoteId, string? mode,
-        string? shipmentType, string? origin, string? destination, IReadOnlyList<string>? services)
+        string? shipmentType, string? origin, string? destination, IReadOnlyList<string>? services,
+        string? verifiedPodName = null)
     {
         if (quoteId == Guid.Empty) throw new ArgumentException("Referencia inválida.", nameof(quoteId));
         var modeLabel = mode switch
@@ -47,9 +48,15 @@ public static class OfficialQuoteConfirmationTemplate
         var fields = new List<(string Label, string Value)>
         {
             ("Modalidad", modeLabel),
-            ("Origen", Display(origin)),
-            ("Destino", Display(destination))
+            ("Origen", Display(origin))
         };
+        if (mode == "Maritime")
+        {
+            fields.Add(("Puerto de entrada (POE)", Display(destination)));
+            fields.Add(("Destino final (POD)", Display(verifiedPodName)));
+        }
+        else
+            fields.Add(("Destino", Display(destination)));
         if (services is { Count: > 0 })
             fields.Add(("Servicios", string.Join(", ", services)));
         var reference = quoteId.ToString("D");
