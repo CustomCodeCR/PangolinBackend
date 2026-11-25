@@ -2,6 +2,7 @@ using System.Net.Mail;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using CastroFallas.MiniQuote.Api.Data;
 using CastroFallas.MiniQuote.Api.Models;
 using CastroFallas.MiniQuote.Api.Services.Auth;
@@ -28,6 +29,18 @@ public static class OfficialQuoteEndpoints
         "Transporte recolección"
     };
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    // Server-validated POD label for the receipt, not browser input.
+    // Unrelated to submission digest, provider POST, or idempotency.
+    private static string SerializeSavedForm(OfficialQuoteSubmit input, string? verifiedPodName)
+    {
+        var formJson = JsonSerializer.Serialize(input, Json);
+        if (input.Mode != "Maritime" || string.IsNullOrWhiteSpace(verifiedPodName))
+            return formJson;
+        var saved = JsonNode.Parse(formJson)!.AsObject();
+        saved["verifiedPodName"] = verifiedPodName;
+        return saved.ToJsonString(Json);
+    }
     // Usar el día calendario de Costa Rica, no UTC ni la zona horaria del servidor.
     private static readonly TimeZoneInfo CostaRicaTimeZone =
         TimeZoneInfo.FindSystemTimeZoneById("America/Costa_Rica");
@@ -405,6 +418,7 @@ public static class OfficialQuoteEndpoints
                 Validate(input, useDholeCatalogs: useDhole);
                 string originName;
                 string destinationName;
+                string? verifiedPodName = null;
                 DholeValidatedRoute? verifiedDholeRoute = null;
                 if (useDhole)
                 {
@@ -416,6 +430,7 @@ public static class OfficialQuoteEndpoints
                     verifiedDholeRoute = selected;
                     originName = selected.OriginName;
                     destinationName = selected.DestinationName;
+                    verifiedPodName = selected.PodName;
                 }
                 else
                 {
@@ -442,6 +457,8 @@ public static class OfficialQuoteEndpoints
                         return Results.BadRequest(new { error = "La ubicación no está habilitada para este campo y modalidad." });
                     originName = locations[input.OriginLocationId!.Value].DisplayName;
                     destinationName = locations[input.DestinationLocationId!.Value].DisplayName;
+                    if (input.Mode == "Maritime" && input.PodLocationId.HasValue)
+                        verifiedPodName = locations[input.PodLocationId.Value].DisplayName;
                 }
                 var quote = new OfficialQuoteRequest
                 {
@@ -453,7 +470,7 @@ public static class OfficialQuoteEndpoints
                     Mode = input.Mode!, ShipmentType = input.ShipmentType!,
                     OriginName = originName,
                     DestinationName = destinationName,
-                    FormJson = JsonSerializer.Serialize(input, Json)
+                    FormJson = SerializeSavedForm(input, verifiedPodName)
                 };
                 if (useDhole)
                 {
