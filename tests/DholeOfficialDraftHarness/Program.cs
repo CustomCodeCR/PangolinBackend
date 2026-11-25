@@ -121,6 +121,35 @@ var catalog = new DholeOfficialCatalogResolution(
         Guid.Parse("c2300000-0000-4000-8000-000000000001"), true)],
     []);
 var flat = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(preview, catalog, reviewAt);
+Assert(!flat.Body.TryGetProperty("form_cargoCondition", out _), "Non-EXW omits native customs condition");
+var exwCatalog = catalog with { IncotermValue = "EXW" };
+foreach (var (status, expected) in new[] { ("fiscal", "FiscalCargo"), ("nationalized", "NationalizedCargo") })
+{
+    var exwDraft = DholeOfficialQuoteDraftBuilder.Project(lcl with {
+        Incoterm = "EXW", ExwCargoStatus = status, ExwPickupAddress = "Bodega CI"
+    }, quoteId, maritime);
+    foreach (var manualReview in new[] { false, true })
+    {
+        var exwReview = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(exwDraft, exwCatalog, reviewAt, manualReview);
+        Assert(exwReview.ReadyForContractReview && !exwReview.RemoteSubmissionPermitted &&
+            exwReview.Body.GetProperty("form_cargoCondition").GetString() == expected &&
+            exwReview.Body.GetProperty("form_pickupAddress").GetString() == "Bodega CI" &&
+            !exwReview.Body.TryGetProperty("form_cargoValue", out _) &&
+            !exwReview.Body.TryGetProperty("form_currencyId", out _),
+            "Native EXW mapping without money or send permission");
+        if (manualReview)
+            Assert(exwReview.Body.GetProperty("form_cargoObservations").GetString()!.Contains("Estado EXW de la carga: " + status),
+                "Preserve original EXW observations as backup");
+    }
+}
+foreach (var bad in new string?[] { null, "", "unknown", "FiscalCargo" })
+    Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+        preview with { IncotermValue = "EXW", ExwCargoStatus = bad, ExwPickupAddress = "Bodega CI" }, exwCatalog, reviewAt),
+        "Unknown or missing EXW condition");
+Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+    preview with { IncotermValue = "EXW", ExwCargoStatus = "fiscal" }, exwCatalog, reviewAt), "Missing EXW address");
+Block(() => DholeOfficialQuoteFlatPreviewBuilder.BuildReview(
+    preview with { ExwCargoStatus = "fiscal" }, catalog, reviewAt), "Non-EXW must not carry EXW condition");
 Assert(flat.ReadyForContractReview && !flat.RemoteSubmissionPermitted,
     "review is deliberately not authorized for remote submission");
 Assert(flat.IdempotencyKey == "cf-official-" + quoteId.ToString("D"),
@@ -603,6 +632,11 @@ var tempNow = new DateTime(2026, 11, 24, 12, 0, 0, DateTimeKind.Utc);
 var tempExpiry = new DateTimeOffset(tempNow.AddDays(2));
 var tempLive = live.ToDictionary(x => x.Key, x => x.Value with
     { FetchedAtUtc = new DateTimeOffset(tempNow) }, StringComparer.Ordinal);
+Assert(new[] { "USD", "CRC", "EUR" }.All(DholeTemporaryDispatchCatalog.IsSupportedCurrency) &&
+    !DholeTemporaryDispatchCatalog.IsSupportedCurrency("ARS") &&
+    !DholeTemporaryDispatchCatalog.IsSupportedCurrency("usd") &&
+    !DholeTemporaryDispatchCatalog.IsSupportedCurrency(null),
+    "Capture currency allowlist matches three reviewed catalog codes");
 var tempLcl = DholeOfficialManualCatalogResolution.ReviewTemporary(preview, tempLive, tempNow, tempExpiry);
 Assert(tempLcl.Services.Any(x => x.Id == Guid.Parse("c2300000-0000-4000-8000-000000000001")),
     "Temporary services use supplied real identifiers");

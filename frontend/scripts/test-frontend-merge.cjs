@@ -296,10 +296,68 @@ assert.doesNotMatch(officialQuote, /class="official-incoterm-trigger"|class="off
 assert.match(officialQuote, /const openLocation = ref<LocationField \| null>\(null\)/, 'Independent searchable location selectors remain available')
 assert.doesNotMatch(officialQuote, /<select v-model="line\.(size|type)">/, 'No native equipment selectors')
 const officialQuoteAdmin = source('src/pages/OfficialQuoteAdmin.vue')
+// Regression: archived records in the Administration panel must not retain a
+// light surface with pale text when html.theme-dark is active. Check BOTH
+// embedded (.app-site .off-admin) and standalone (.app-site.off-admin) cases.
+const archivedDarkRules = [...officialQuoteAdmin.matchAll(/html\.theme-dark[^{}]+\{[^{}]*\}/g)]
+  .map(x => x[0])
+  .filter(rule => rule.includes('.off-admin-archived-item'))
+assert.equal(archivedDarkRules.length, 3,
+  'El archivo administrativo conserva reglas exclusivas de fondo, título y texto en oscuro')
+for (const rule of archivedDarkRules) {
+  assert.ok(rule.includes('.app-site .off-admin .off-admin-archived-item') &&
+    rule.includes('.app-site.off-admin .off-admin-archived-item'),
+  'Cada regla oscura cubre administración independiente y embebida')
+}
+assert.match(archivedDarkRules[0], /background:#121a30 !important;/,
+  'La tarjeta archivada usa un fondo oscuro legible')
+assert.match(archivedDarkRules[0], /border-color:#3b465f !important;/,
+  'La tarjeta archivada mantiene un borde visible en modo oscuro')
+assert.match(archivedDarkRules[1], /color:#fff !important;/,
+  'El nombre archivado se muestra en blanco')
+assert.match(archivedDarkRules[2], /color:#d2d6e2 !important;/,
+  'Referencia, fecha y avisos conservan contraste suficiente en oscuro')
+// The archive-success message previously inherited a WHITE light-mode surface
+// while global dark styling forced its text white. Prevent the same regression
+// for both success and error notices, in either administration mount layout.
+for (const [kind, background, foreground] of [
+  ['ok', '#172a28', '#edf9f1'],
+  ['alert', '#301d28', '#ffe8ee']
+]) {
+  const rule = [...officialQuoteAdmin.matchAll(/html\.theme-dark[^{}]+\{[^{}]*\}/g)]
+    .map(match => match[0])
+    .find(text => text.includes('.app-site .off-admin .off-admin-' + kind) &&
+      text.includes('.app-site.off-admin .off-admin-' + kind))
+  assert.ok(rule, 'Aviso ' + kind + ' tiene CSS oscuro en ambos montajes')
+  assert.ok(rule.includes('background:' + background + ' !important;'),
+    'Aviso ' + kind + ' conserva un fondo oscuro')
+  assert.ok(rule.includes('color:' + foreground + ' !important;'),
+    'Aviso ' + kind + ' tiene texto visible en modo oscuro')
+}
+assert.match(officialQuoteAdmin, /<p v-if="notice" class="off-admin-ok" role="status">/,
+  'El aviso de archivado conserva la semántica accesible de estado')
 assert.match(manager, /class="manager-tab-label">Cotizaciones<\/span> <span>\{\{ quotesTotal \}\}<\/span>/, 'Cotizaciones debe mostrar un contador a la derecha')
 assert.match(manager, /loadQuotesTotal\(\)/, 'El contador de Cotizaciones se carga desde la API')
 assert.match(manager, /@total-change="quotesTotal = \$event"/, 'El contador debe actualizarse al cargar el módulo de Cotizaciones')
 assert.match(officialQuoteAdmin, /emit\('total-change',r\.total\)/, 'Las cotizaciones deben emitir el total real al panel')
+assert.match(officialQuoteAdmin, /\['Cancelled','Cancelada'\]/,
+  'El estado Cancelada debe aparecer como opción explícita')
+assert.match(officialQuoteAdmin, /@click="purgeSelected">Eliminar de BD<\/button>/,
+  'Eliminar de BD debe estar en el detalle al lado de Archivar')
+assert.match(officialQuoteAdmin, /:disabled="busy \|\| detail\.status!=='Cancelled'"/,
+  'El botón solo exige estado Cancelada, sin permisos especiales adicionales')
+assert.match(officialQuoteAdmin, /<button v-if="permissions\.canView" type="button"\s+class="off-admin-delete off-admin-purge"/,
+  'La eliminación está disponible a cualquier admin con acceso al panel')
+assert.doesNotMatch(officialQuoteAdmin, /'ELIMINAR '\+id|Escribí exactamente lo siguiente/,
+  'La eliminación no solicita escribir ELIMINAR ni un UUID')
+assert.match(officialQuoteAdmin, /window\.confirm\(/,
+  'El borrado irreversible sigue solicitando una confirmación simple')
+assert.match(officialQuoteAdmin, /body:JSON\.stringify\(\{reason\}\)/,
+  'Solo se envía el motivo acotado al backend')
+assert.ok(officialQuoteAdmin.includes("fromArchive?'archived/'+id:id+'/purge'"),
+  'Las cotizaciones canceladas usan ruta de borrado directo, no la archivada')
+assert.doesNotMatch(officialQuoteAdmin, /Disponible después de 24 horas|Date\.now\(\)-24\*60\*60\*1000/,
+  'No hay espera de 24 horas para eliminar')
 assert.doesNotMatch(officialQuoteAdmin, /La autorización es interna\. La conexión y el envío a Dhole todavía no están disponibles\./, 'No mostrar el aviso introductorio de Dhole')
 assert.match(officialQuoteAdmin, /Autorizar no envía la solicitud a Dhole\./, 'Conservar la advertencia contextual al autorizar')
 assert.doesNotMatch(manager, /manager-tabs\.manager-subtabs--with-quotes > button\.manager-editor-visual-tab\s*\{[^}]*flex-wrap:wrap;/, 'Editor visual no debe envolver el contador hacia otra fila')

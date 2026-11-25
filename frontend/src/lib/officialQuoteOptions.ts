@@ -2,6 +2,20 @@
 // Keep serialized values identical across both entry points.
 export type QuoteChoice = { value: string; label: string }
 export type QuoteTranslate = (es: string, en: string) => string
+// Temporary reviewed Dhole currency options, pending a published currency GET.
+const officialCurrencyCodes = ['USD','CRC','EUR'] as const
+export function isOfficialCurrency(value: string): boolean {
+  return (officialCurrencyCodes as readonly string[]).includes(value)
+}
+export function officialCurrencyOptions(tr: QuoteTranslate): QuoteChoice[] {
+  const names: Record<typeof officialCurrencyCodes[number], string> = {
+    USD: tr('Dólar estadounidense','US dollar'),
+    CRC: tr('Colón costarricense','Costa Rican colón'),
+    EUR: tr('Euro','Euro')
+  }
+  return officialCurrencyCodes.map(value => ({value, label: value + ' — ' + names[value]}))
+}
+
 export const officialIncoterms = ['EXW','FCA','FAS','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP'] as const
 
 export const officialServiceOptions = [
@@ -59,4 +73,35 @@ export function officialEquipmentTypeOptions(type: string, tr: QuoteTranslate): 
     {value:'Furgón con cortina',label:tr('Furgón con cortina','Curtainsider')}
   ]
   return []
+}
+
+// Compare only complete positive line weights; do not infer missing values.
+export function totalCargoWeightKg(weights: unknown[], unit: string): number | null {
+  if (!weights.length || !['kg','lb'].includes(unit) ||
+      weights.some(v => v === '' || v === null || v === undefined)) return null
+  const numbers = weights.map(Number)
+  if (numbers.some(n => !Number.isFinite(n) || n <= 0)) return null
+  const total = numbers.reduce((sum, n) => sum + n, 0) * (unit === 'lb' ? 0.45359237 : 1)
+  return Number.isFinite(total) && total > 0 ? total : null
+}
+export function formatCargoWeightKg(weight: number, tr: QuoteTranslate): string {
+  return weight.toLocaleString(tr('es-CR','en-US'), weight > 0 && weight < 0.001
+    ? {maximumSignificantDigits: 3} : {maximumFractionDigits: 9})
+}
+export function declaredWeightAdvisory(declared: unknown, totalKg: number | null, tr: QuoteTranslate): string {
+  if (declared === '' || declared === null || declared === undefined ||
+      totalKg === null || !Number.isFinite(totalKg) || totalKg <= 0) return ''
+  const weight = Number(declared)
+  if (!Number.isFinite(weight) || weight < 0) return ''
+  const delta = weight - totalKg
+  // No business tolerance: flag every real difference in either direction.
+  // Ignore only machine-level floating-point noise from sums/conversions.
+  if (Math.abs(delta) <= Number.EPSILON * Math.max(Math.abs(weight), totalKg) * 4) return ''
+  const calculated = formatCargoWeightKg(totalKg, tr)
+  const stated = formatCargoWeightKg(weight, tr)
+  const difference = formatCargoWeightKg(Math.abs(delta), tr)
+  return tr(
+    `El peso calculado es ${calculated} kg y declaraste ${stated} kg (${difference} kg ${delta > 0 ? 'menos' : 'más'} en las líneas). Revisá que ambos pesos tengan la misma base (por ejemplo, embalaje o tara). Si la diferencia es intencional, podés continuar.`,
+    `The calculated weight is ${calculated} kg and you declared ${stated} kg (${difference} kg ${delta > 0 ? 'less' : 'more'} in the lines). Check that both weights use the same basis (e.g. packaging or tare). If the difference is intentional, you can continue.`
+  )
 }

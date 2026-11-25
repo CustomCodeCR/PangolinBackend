@@ -33,6 +33,26 @@ function Restore-HybridEnvironment {
         }
     }
 }
+# Read local opt-in settings from the process or gitignored .env.
+# Values (including the private API key) are never printed.
+function Get-LocalSetting {
+    param([string]$Name)
+    $processValue = [Environment]::GetEnvironmentVariable($Name)
+    if ($null -ne $processValue) { return $processValue.Trim() }
+    $pattern = '^\s*' + [regex]::Escape($Name) + '\s*=\s*(.*?)\s*$'
+    foreach ($line in [System.IO.File]::ReadLines((Resolve-Path '.env').Path)) {
+        if ($line -match $pattern) {
+            $value = $Matches[1].Trim()
+            if ($value.Length -ge 2 -and
+                (($value.StartsWith("'") -and $value.EndsWith("'")) -or
+                 ($value.StartsWith('"') -and $value.EndsWith('"')))) {
+                $value = $value.Substring(1, $value.Length - 2)
+            }
+            return $value
+        }
+    }
+    return ''
+}
 function Invoke-Compose {
     param([string[]]$Arguments)
     & docker compose @Arguments
@@ -146,6 +166,43 @@ try {
         }
     }
 
+    # Explicit LOCAL opt-in with a fixed, never-reset UTC cutoff.
+    # StageDholePilot always takes precedence and is non-sending.
+    $autoSendSetting = Get-LocalSetting 'DHOLE_MAIN2_AUTOSEND_ENABLED'
+    if ($autoSendSetting -notin @('', 'true', 'false')) {
+        throw 'DHOLE_MAIN2_AUTOSEND_ENABLED solo admite true o false.'
+    }
+    if ($Action -eq 'up' -and -not $StageDholePilot -and $autoSendSetting -eq 'true') {
+        if (-not ($activeFiles -contains 'compose.dhole-main2-preview.yaml')) {
+            throw 'El envio automatico requiere la clave GET de Dhole.'
+        }
+        $cutoffText = Get-LocalSetting 'DHOLE_MAIN2_AUTOSEND_START_UTC'
+        $cutoffTime = [DateTimeOffset]::MinValue
+        $valid = [DateTimeOffset]::TryParseExact(
+            $cutoffText, "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            [Globalization.CultureInfo]::InvariantCulture,
+            [Globalization.DateTimeStyles]::AssumeUniversal,
+            [ref]$cutoffTime)
+        if (-not $valid -or $cutoffTime.Offset -ne [TimeSpan]::Zero -or
+            $cutoffTime.UtcDateTime -gt [DateTime]::UtcNow) {
+            throw 'Corte UTC invalido o futuro; no se activara Dhole POST.'
+        }
+        $postKey = Get-LocalSetting 'DHOLE_PILOT_POST_KEY'
+        if ($postKey -cnotmatch '^dh_ext_[a-f0-9]{64}$') {
+            throw 'La clave POST privada no esta configurada correctamente.'
+        }
+        $postKey = $null
+        foreach ($setting in @('GRAPH_TENANT_ID', 'GRAPH_CLIENT_ID',
+            'GRAPH_CLIENT_SECRET', 'GRAPH_FROM')) {
+            if ([string]::IsNullOrWhiteSpace((Get-LocalSetting $setting))) {
+                throw "Falta la configuracion Graph: $setting"
+            }
+        }
+        $activeFiles += @('-f', 'compose.dhole-main2-autosend.yaml')
+        Write-Host 'ATENCION: envio REAL de todas las cotizaciones nuevas a Dhole activado en Docker LOCAL.'
+        Write-Host "Corte fijo UTC: $cutoffText. No se recupera ninguna cotizacion anterior."
+    }
+
     # Staging only: no POST, Graph confirmation or dispatcher even if
     # inherited configuration exists. Restrict this pilot to loopback.
     if ($StageDholePilot) {
@@ -170,6 +227,9 @@ try {
             Write-Host 'Verificación completada sin reconstruir ni reiniciar Docker.'
         }
         'rollback' {
+            if ($autoSendSetting -eq 'true') {
+                throw 'Desactiva DHOLE_MAIN2_AUTOSEND_ENABLED y recrea el backend antes de rollback.'
+            }
             # Stopping only the gateway frees port 5173; databases and backend stay intact.
             Invoke-Compose -Arguments ($files + @('stop', 'nuxt-main2-gateway', 'nuxt-local-gateway'))
             Restore-HybridEnvironment

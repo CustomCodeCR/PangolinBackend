@@ -13,6 +13,8 @@ gio = (ROOT / "frontend/src/components/GioOperations.vue").read_text(encoding="u
 date_helper = (ROOT / "frontend/src/lib/costaRicaDate.ts").read_text(encoding="utf-8")
 root = (ROOT / "frontend/src/Root.vue").read_text(encoding="utf-8")
 admin = (ROOT / "frontend/src/pages/ContentManager.vue").read_text(encoding="utf-8")
+quote_admin = (ROOT / "frontend/src/pages/OfficialQuoteAdmin.vue").read_text(encoding="utf-8")
+db_context = (ROOT / "backend/Data/AppDbContext.cs").read_text(encoding="utf-8")
 schema = (ROOT / "backend/Database/OfficialQuotesSchema.sql").read_text(encoding="utf-8")
 verified = (ROOT / "backend/Database/OfficialQuotesVerifiedLocations.sql").read_text(encoding="utf-8")
 release = (ROOT / ".github/workflows/pangolin-images.yml").read_text(encoding="utf-8")
@@ -70,6 +72,31 @@ checks = {
     "rollback V2 conservado": "VITE_OFFICIAL_QUOTES_ENABLED" in root and "QuoteApp" in root,
     "Cotizaciones en Contenido": "OfficialQuoteAdmin v-else-if" in admin,
     "13 ubicaciones terrestres": unique_land_rows,
+    "eliminar cotización solo desde administración": (
+        'admin.MapDelete("/{id:guid}"' in api
+        and 'if (p?.CanManage != true) return Results.Forbid();' in api
+        and "method:'DELETE'" in quote_admin
+        and "window.confirm(" in quote_admin
+        and 'v-if="permissions.canManage"' in quote_admin
+    ),
+    "eliminación administrativa conserva datos y auditoría": (
+        "ArchivedAtUtc" in model and "ArchivedById" in model
+        and 'HasColumnName("archived_at_utc")' in db_context
+        and "ADD COLUMN IF NOT EXISTS archived_at_utc" in schema
+        and "q.ArchivedAtUtc = now;" in api
+        and 'Action = "Archived"' in api
+        and "db.OfficialQuotes.Remove" not in api
+    ),
+    "bandeja y detalles excluyen cotizaciones archivadas": (
+        "Where(x => x.ArchivedAtUtc == null)" in api
+        and "x.Id == id && x.ArchivedAtUtc == null" in api
+    ),
+    "archivado protege referencias Dhole aun con flags apagados": (
+        "to_regclass('public.official_quote_dhole_creation_outbox')" in api
+        and "to_regclass('public.official_quote_dhole_outbox')" in api
+        and "quote_archive_dhole_linked" in api
+        and "Results.Conflict" in api
+    ),
     "no borrar registros": all(x not in verified.upper() for x in ("DELETE FROM", "DROP TABLE", "TRUNCATE")),
     "backend admite invitados sin quitar privacidad": (
         'MapGroup("/api/quotes/official");' in api

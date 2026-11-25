@@ -73,6 +73,11 @@ internal static class DholeTemporaryDispatchCatalog
             ["EUR"] = Guid.Parse("39c1ff4c-3bb2-48ac-820c-8de95259fbd8")
         };
 
+    // Capture allowlist only; independent of dispatch flags and optional expiry.
+    // Does not authorize a commercial value/currency mapping or conversion.
+    public static bool IsSupportedCurrency(string? iso) =>
+        iso is not null && Currencies.ContainsKey(iso);
+
     // Catalog data only. Does not establish the commercial meaning of form_currencyId.
     public static Guid? CurrencyId(string? iso, DateTimeOffset now, DateTimeOffset? expires) =>
         IsUsable(now, expires) && iso is not null && Currencies.TryGetValue(iso, out var id)

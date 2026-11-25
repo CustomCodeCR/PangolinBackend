@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ArrowLeft, CheckCircle2, ChevronRight, FileText, LoaderCircle, MapPin, Search, ShieldCheck, Ship } from '@lucide/vue'
 import { refreshSession } from '../services/auth'
-import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialEquipmentTypeLabel, officialServiceOptions, officialServiceName } from '../lib/officialQuoteOptions'
+import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialEquipmentTypeLabel, officialServiceOptions, officialServiceName, officialCurrencyOptions, isOfficialCurrency, totalCargoWeightKg, formatCargoWeightKg, declaredWeightAdvisory } from '../lib/officialQuoteOptions'
 import { isCalendarDate, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
 import { loadDholeQuoteFormOptions, type DholeQuoteFormOptions } from '../lib/dholeQuoteForm'
 import { prepareQuoteSubmissionAttempt, clearQuoteSubmissionAttempt,
@@ -198,6 +198,35 @@ function parseExtraLines(raw: string): {kind:'equipment'|'packages';lines:unknow
     throw new Error('Additional cargo lines invalid')
   return {kind:obj.kind as 'equipment'|'packages',lines:obj.lines}
 }
+const calculatedWeightKg = computed(() => {
+  if (props.kind !== 'quote' || !['FCL','FTL','LCL','LTL','AIR_LCL'].includes(values.shipmentType) || !values.additionalLines) return null
+  try {
+    const extra = parseExtraLines(values.additionalLines)
+    if (isEquipment.value) {
+      const lines = [{quantity:values.equipmentQuantity, weights:values.equipmentWeights}, ...(extra.lines as GioExtraEquipment[])]
+      const weights: number[] = []
+      for (const line of lines) {
+        const quantity = Number(line.quantity)
+        const entries = String(line.weights || '').split(',').map(v => Number(v.trim()))
+        if (!Number.isSafeInteger(quantity) || quantity < 1 || entries.length !== quantity ||
+            entries.some(n => !Number.isFinite(n) || n <= 0)) return null
+        weights.push(...entries)
+      }
+      return totalCargoWeightKg(weights, 'kg')
+    }
+    const lines = [{quantity:values.packageQuantity, weight:values.packageWeight}, ...(extra.lines as GioExtraPackage[])]
+    const weights: number[] = []
+    for (const line of lines) {
+      const quantity = Number(line.quantity), weight = Number(line.weight)
+      if (!Number.isSafeInteger(quantity) || quantity < 1 || !Number.isFinite(weight) || weight <= 0) return null
+      weights.push(quantity * weight)
+    }
+    return totalCargoWeightKg(weights, 'kg')
+  } catch { return null }
+})
+const weightNotice = computed(() => declaredWeightAdvisory(values.declaredWeight, calculatedWeightKg.value, tr))
+const pendingWeightNotice = computed(() => pendingValue.value?.key === 'declaredWeight'
+  ? declaredWeightAdvisory(pendingValue.value.value, calculatedWeightKg.value, tr) : '')
 function restoreExtraLines() {
   extraEquipmentLines.value = []
   extraPackageLines.value = []
@@ -293,9 +322,9 @@ const steps = computed<Step[]>(() => {
       : i('¿Valor declarado de la carga (opcional; no representa una tarifa)?','Declared cargo value (optional; not a freight quote)?'),
       optional:!insurance})
   if (insurance || (values.cargoValue && Number(values.cargoValue) > 0))
-    result.push({key:'cargoCurrencyCode',prompt:i('¿En qué moneda está el valor declarado? Escribí el código ISO de 3 letras (ej.: USD, CRC).','What currency is the declared value in? Enter a 3-letter ISO code (e.g. USD, CRC).')})
+    result.push({key:'cargoCurrencyCode',prompt:i('¿En qué moneda está el valor declarado?','What currency is the declared value in?'),choices:officialCurrencyOptions(i)})
   if (values.advancedDetails === 'yes') result.push(
-    {key:'declaredWeight',prompt:i('¿Peso declarado adicional (opcional)?','Additional declared weight (optional)?'),optional:true},
+    {key:'declaredWeight',prompt:i('¿Cuál es el peso total declarado en kg? (Opcional)','What is the total declared weight in kg? (Optional)'),optional:true},
     {key:'declaredPackages',prompt:i('¿Cantidad declarada adicional de bultos (opcional)?','Additional declared package count (optional)?'),optional:true},
     {key:'overweight',prompt:i('¿La carga se considera sobrepeso?','Is this overweight cargo?'),choices:[
       {value:'yes',label:i('Sí','Yes')},{value:'no',label:'No'}
@@ -325,7 +354,7 @@ const fieldLabels: Record<string, [string, string]> = {
   advancedDetails:['Datos adicionales','Additional details'],
   cabysCode:['Código CABYS','CABYS code'],cargoValue:['Valor declarado','Declared value'],
   cargoCurrencyCode:['Moneda del valor','Value currency'],
-  declaredWeight:['Peso declarado adicional','Additional declared weight'],
+  declaredWeight:['Peso total declarado (kg)','Total declared weight (kg)'],
   declaredPackages:['Bultos declarados adicionales','Additional declared packages'],
   overweight:['Sobrepeso','Overweight'],destinationHandling:['Manejo en destino','Destination handling'],
   observations:['Observaciones','Notes'],
@@ -424,8 +453,8 @@ function validation(key: string, value: string): string {
     return tr('El seguro exige un valor declarado positivo.', 'Insurance requires a positive declared value.')
   if (key === 'declaredPackages' && value && Number(value) > 2147483647)
     return tr('La cantidad supera el máximo admitido.', 'The count exceeds the supported maximum.')
-  if (key === 'cargoCurrencyCode' && !/^[A-Z]{3}$/.test(value))
-    return tr('Ingresá un código ISO de 3 letras mayúsculas.', 'Enter a 3-letter uppercase ISO code.')
+  if (key === 'cargoCurrencyCode' && !isOfficialCurrency(value))
+    return tr('Seleccioná una moneda disponible.', 'Select an available currency.')
   if (key === 'cargoValue' && value && Number(value) > 1000000000000)
     return tr('Valor fuera del límite permitido.', 'Declared value exceeds the allowed range.')
   const maxLength: Record<string,number> = {cargoDescription:4000, contactName:150, contactEmail:255,
@@ -1016,6 +1045,10 @@ async function perform() {
       </div>
       <template v-if="phase === 'collect' && current">
         <div class="gio-ops__bubble">{{ current.prompt }}</div>
+        <div v-if="current.key === 'declaredWeight' && calculatedWeightKg !== null" class="gio-ops__bubble gio-ops__bubble--quiet gio-ops__weight-reference">
+          {{ tr('Peso calculado según las líneas:', 'Calculated weight from cargo lines:') }} <strong>{{ formatCargoWeightKg(calculatedWeightKg, tr) }} kg</strong>.
+          {{ tr('Si tu peso declarado tiene otra base (embalaje o tara), podés indicarlo o bien omitir este dato.', 'If your declared weight has a different basis (packaging or tare), you can enter it or skip this field.') }}
+        </div>
         <div v-if="current.key === 'additionalLines'" class="gio-ops__extra-lines">
           <p class="gio-ops__note">{{ isEquipment
             ? tr('La primera línea de equipo ya quedó registrada. Añadí otra solo si necesitás un tipo o tamaño diferente.', 'Your first equipment group is already recorded. Add another only for a different type or size.')
@@ -1088,6 +1121,7 @@ async function perform() {
         <div class="gio-ops__bubble">{{ tr('Esto fue lo que entendí para', 'This is what I understood for') }} <strong>{{ tr((fieldLabels[pendingValue.key] || [pendingValue.key,pendingValue.key])[0], (fieldLabels[pendingValue.key] || [pendingValue.key,pendingValue.key])[1]) }}</strong>:</div>
         <section class="gio-ops__card gio-ops__confirmation">
           <p class="gio-ops__confirmed-value">{{ pendingValue.display }}</p>
+          <p v-if="pendingWeightNotice" class="gio-ops__weight-advisory" role="status">{{ pendingWeightNotice }}</p>
           <p class="gio-ops__note">{{ tr('¿Está correcto? Lo guardaré solo cuando lo confirmes.','Is this correct? I will only save it when you confirm.') }}</p>
           <div class="gio-ops__confirm-actions">
             <button class="gio-ops__primary" type="button" @click="confirmPending"><CheckCircle2 :size="16" />{{ tr('Sí, continuar','Yes, continue') }}</button>
@@ -1099,6 +1133,7 @@ async function perform() {
         <div class="gio-ops__bubble">{{ tr('Ya tengo los datos. Confirma el resumen antes de continuar.','I have the information. Please review it before proceeding.') }}</div>
         <section class="gio-ops__card">
           <h3><FileText :size="18" />{{ tr('Resumen','Summary') }}</h3>
+          <p v-if="weightNotice" class="gio-ops__weight-advisory" role="status">{{ weightNotice }}</p>
           <dl>
             <div v-for="item in summary" :key="item.key"><dt>{{ item.label }}</dt><dd>{{ item.value }}</dd><button class="gio-ops__edit" type="button" :aria-label="tr('Editar ','Edit ') + item.label" @click="editField(item.key)">{{ tr('Editar','Edit') }}</button></div>
           </dl>
@@ -1176,6 +1211,7 @@ async function perform() {
 </template>
 
 <style scoped>
+.gio-ops__weight-advisory{padding:9px;border:1px solid #ba8b42;border-radius:9px;color:var(--gio-ink,#fff);background:rgba(190,135,40,.09);font-size:12px;line-height:1.5;margin:4px 0}
 .gio-ops{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;min-width:0;color:var(--gio-ink,#fff);font-size:12px}
 .gio-ops__extra-lines{display:flex;flex-direction:column;gap:9px;padding:8px 0}
 .gio-ops__extra-line{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;border:1px solid var(--gio-line,#777);border-radius:10px;padding:10px}

@@ -80,15 +80,24 @@ public sealed class DholeOfficialConfirmationEmail(
                     // Read only the original administrative copy. Keep the
                     // message useful even if optional legacy form data is missing.
                     IReadOnlyList<string> services = [];
+                    string? verifiedPodName = null;
                     try
                     {
-                        services = JsonSerializer.Deserialize<OfficialQuoteSubmit>(
-                            job.FormJson, new JsonSerializerOptions(JsonSerializerDefaults.Web))
-                            ?.Services ?? [];
+                        var form = JsonSerializer.Deserialize<OfficialQuoteSubmit>(
+                            job.FormJson, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+                        services = form?.Services ?? [];
+                        if (job.Mode == "Maritime" && form?.PodLocationId is not null)
+                        {
+                            using var storedForm = JsonDocument.Parse(job.FormJson);
+                            if (storedForm.RootElement.TryGetProperty("verifiedPodName", out var pod) &&
+                                pod.ValueKind == JsonValueKind.String)
+                                verifiedPodName = pod.GetString();
+                        }
                     }
                     catch (JsonException) { }
                     var message = OfficialQuoteConfirmationTemplate.Build(job.QuoteId,
-                        job.Mode, job.ShipmentType, job.OriginName, job.DestinationName, services);
+                        job.Mode, job.ShipmentType, job.OriginName, job.DestinationName, services,
+                        verifiedPodName);
                     await graph.SendAsync(address.Address, message.Subject, message.PlainText, ct,
                         message.Html, OfficialQuoteConfirmationTemplate.Images);
                 }

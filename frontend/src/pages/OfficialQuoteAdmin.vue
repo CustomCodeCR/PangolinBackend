@@ -7,6 +7,7 @@ import { refreshSession } from '../services/auth'
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 const emit = defineEmits<{ (event: 'total-change', total: number): void }>()
 type Row = { id:string;customerName:string;mode:string;shipmentType:string;originName:string;destinationName:string;status:string;authorization:string;createdAtUtc:string }
+type ArchivedRow = {id:string;customerName:string;shipmentType:string;status:string;authorization:string;createdAtUtc:string;archivedAtUtc:string}
 type Detail = {id:string;customerName:string;mode:string;shipmentType:string;status:string;authorization:string;dholeDispatchState:string;dholePriority:string|null;dholeReceiptCandidate?:string|null;dholeVerifiedReference?:string|null;dholeVerifiedAtUtc?:string|null;dholeConfirmationEmailState?:string|null;createdAtUtc:string;form:Record<string,unknown>;history:{action:string;comment:string|null;createdAtUtc:string}[]}
 const rows=ref<Row[]>([])
 const detail=ref<Detail|null>(null)
@@ -24,7 +25,12 @@ const error=ref('')
 const notice=ref('')
 const page=ref(1)
 const total=ref(0)
-const statuses=[['Received','Recibida'],['InReview','En revisión'],['AwaitingInformation','Pendiente de información'],['Closed','Cerrada']]
+const showArchived=ref(false)
+const archivedRows=ref<ArchivedRow[]>([])
+const archivedPage=ref(1)
+const archivedTotal=ref(0)
+const archivedCanPurge=ref(false)
+const statuses=[['Received','Recibida'],['InReview','En revisión'],['AwaitingInformation','Pendiente de información'],['Closed','Cerrada'],['Cancelled','Cancelada']]
 function msg(e:unknown){return e instanceof Error ? e.message : 'Error inesperado.'}
 async function api<T>(url:string, init:RequestInit={}):Promise<T>{
   const r=await fetch(url,{...init,credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json',...(init.headers??{})}})
@@ -39,7 +45,16 @@ async function load(){busy.value=true;error.value='';try{
 async function open(id:string){error.value='';detail.value=null;try{
   const r=await api<Detail>('/api/admin/quotes/official/'+id);detail.value=r;state.value=r.status;comment.value='';dholePriority.value=r.dholePriority||'Green'
 }catch(e){error.value=msg(e)}}
-async function review(){if(!detail.value||busy.value)return;busy.value=true;error.value='';notice.value='';try{
+async function review(){
+  if(!detail.value||busy.value)return
+  if(state.value==='Cancelled' && !comment.value.trim()){
+    error.value='Para cancelar la solicitud, indicá el motivo en el comentario interno.'
+    return
+  }
+  if(state.value==='Cancelled' &&
+    !window.confirm('¿Cancelar esta solicitud en Castro Fallas? Esta acción no cancela operaciones en Dhole/Pricing y no puede revertirse desde el panel.'))return
+  busy.value=true;error.value='';notice.value=''
+  try{
   await api('/api/admin/quotes/official/'+detail.value.id+'/review',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:state.value,comment:comment.value||null})})
   notice.value='Revisión guardada.';const id=detail.value.id;await load();await open(id)
 }catch(e){error.value=msg(e)}finally{busy.value=false}}
@@ -51,6 +66,82 @@ async function decide(choice:'Authorized'|'Rejected'){if(!detail.value||busy.val
     : 'Autorización rechazada.'
   const id=detail.value.id;await load();await open(id)
 }catch(e){error.value=msg(e)}finally{busy.value=false}}
+// Archive hides only terminal work from the inbox. The DB keeps the original
+// quote and audit history; Dhole-linked requests are always protected.
+async function removeSelected(){
+  if(!detail.value || !permissions.value.canManage || busy.value)return
+  const id=detail.value.id
+  const name=detail.value.customerName
+  if(!window.confirm('¿Archivar la solicitud de '+name+'?\n\nSe ocultará de la bandeja activa, pero la solicitud y el historial quedan guardados para auditoría. No cancela operaciones de Dhole. Para restaurarla se requiere intervención administrativa.'))return
+  busy.value=true;error.value='';notice.value=''
+  try{
+    await api('/api/admin/quotes/official/'+id,{method:'DELETE'})
+    detail.value=null
+    // Reload in the same page unless removing the last row on that page.
+    if(rows.value.length===1 && page.value>1)page.value--
+    await load()
+    notice.value='Solicitud archivada y retirada de la bandeja activa. Su historial se conserva para auditoría.'
+  }catch(e){error.value=msg(e)}finally{busy.value=false}
+}
+async function loadArchived(){
+  busy.value=true;error.value=''
+  try{
+    const response=await api<{items:ArchivedRow[];total:number;canPurge:boolean}>(
+      '/api/admin/quotes/official/archived?page='+archivedPage.value)
+    archivedRows.value=response.items
+    archivedTotal.value=response.total
+    archivedCanPurge.value=response.canPurge
+  }catch(e){error.value=msg(e)}finally{busy.value=false}
+}
+async function toggleArchived(){
+  showArchived.value=!showArchived.value
+  if(showArchived.value)await loadArchived()
+}
+function purgeAllowed(item:ArchivedRow):boolean {
+  return archivedCanPurge.value && item.archivedAtUtc !== null
+}
+async function purgeArchived(item:ArchivedRow){
+  if(!purgeAllowed(item) || busy.value)return
+  await purgeQuote(item.id, true)
+}
+async function purgeSelected(){
+  if(!detail.value || detail.value.status!=='Cancelled' ||
+    !permissions.value.canView || busy.value)return
+  await purgeQuote(detail.value.id, false)
+}
+async function purgeQuote(id:string, fromArchive:boolean){
+  if(busy.value)return
+  const motive=window.prompt(
+    'Eliminación IRREVERSIBLE de la solicitud '+id+
+    '.\\nMotivo: escribí PRUEBA o DEFECTUOSA')
+  if(motive===null)return
+  const reason=motive.trim().toUpperCase()==='PRUEBA' ? 'Prueba' :
+    motive.trim().toUpperCase()==='DEFECTUOSA' ? 'Defectuosa' : null
+  if(!reason){error.value='Indicá PRUEBA o DEFECTUOSA para eliminar.';return}
+  if(!window.confirm(
+    '¿Eliminar definitivamente esta cotización?\n\n'+
+    'Se borrarán sus datos y su historial de la base de datos. '+
+    'No hay recuperación desde el panel.\n\n'+
+    'Las solicitudes relacionadas con Dhole están protegidas y no se pueden borrar.'
+  ))return
+  busy.value=true;error.value='';notice.value=''
+  try{
+    await api('/api/admin/quotes/official/'+(fromArchive?'archived/'+id:id+'/purge'),{
+      method:'DELETE',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({reason})
+    })
+    if(fromArchive){
+      if(archivedRows.value.length===1 && archivedPage.value>1)archivedPage.value--
+      await loadArchived()
+    } else {
+      detail.value=null
+      if(rows.value.length===1 && page.value>1)page.value--
+      await load()
+    }
+    notice.value='Solicitud eliminada definitivamente. Solo queda la constancia administrativa mínima.'
+  }catch(e){error.value=msg(e)}finally{busy.value=false}
+}
 onMounted(async()=>{const user=await refreshSession();if(user?.role!=='administrador'){error.value='Requiere sesión de administrador.';return}
   try {
     permissions.value = await api('/api/admin/quotes/official/permissions/me')
@@ -64,7 +155,7 @@ onMounted(async()=>{const user=await refreshSession();if(user?.role!=='administr
 })
 
 const statusNames: Record<string, string> = {
-  Received: 'Recibida', InReview: 'En revisión', AwaitingInformation: 'Pendiente de información', Closed: 'Cerrada'
+  Received: 'Recibida', InReview: 'En revisión', AwaitingInformation: 'Pendiente de información', Closed: 'Cerrada', Cancelled: 'Cancelada'
 }
 const decisionNames: Record<string, string> = {
   Pending: 'Pendiente', Authorized: 'Autorizada', Rejected: 'Rechazada'
@@ -141,7 +232,11 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
               <p class="off-admin-card-eyebrow">BANDEJA DE ENTRADA</p>
               <h2>Solicitudes <span class="off-admin-counter">{{total}}</span></h2>
             </div>
-            <button type="button" class="off-admin-button" :disabled="busy" @click="load">Actualizar</button>
+            <div class="off-admin-actions">
+              <button v-if="permissions.canView" type="button" class="off-admin-button"
+                :disabled="busy" @click="toggleArchived">{{showArchived ? 'Ocultar archivadas' : 'Ver archivadas'}}</button>
+              <button type="button" class="off-admin-button" :disabled="busy" @click="load">Actualizar</button>
+            </div>
           </div>
           <p v-if="rows.length===0" class="off-admin-muted off-admin-empty-message">Todavía no hay solicitudes oficiales.</p>
           <div class="off-admin-list">
@@ -172,6 +267,22 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
                 <p class="off-admin-card-eyebrow">{{detail.mode}} · {{detail.shipmentType}}</p>
                 <h2>{{detail.customerName}}</h2>
                 <p class="off-admin-muted off-admin-reference">Referencia: {{detail.id}}</p>
+              </div>
+              <div class="off-admin-actions">
+                <button v-if="permissions.canManage" type="button" class="off-admin-delete"
+                  :disabled="busy || (detail.status!=='Closed' && detail.authorization!=='Rejected')"
+                  :title="detail.status==='Closed' || detail.authorization==='Rejected'
+                    ? 'Archivar una solicitud finalizada sin integración Dhole'
+                    : 'Para archivar, primero cerrá o rechazá la solicitud'"
+                  :aria-label="'Archivar cotización de '+detail.customerName" @click="removeSelected">Archivar</button>
+                <button v-if="permissions.canView" type="button"
+                  class="off-admin-delete off-admin-purge"
+                  :disabled="busy || detail.status!=='Cancelled'"
+                  :title="detail.status!=='Cancelled'
+                    ? 'Primero cambiá el estado a Cancelada y guardá la revisión'
+                    : 'Eliminación definitiva irreversible: no afecta registros de Dhole'"
+                  :aria-label="'Eliminar definitivamente cotización de '+detail.customerName"
+                  @click="purgeSelected">Eliminar de BD</button>
               </div>
             </div>
             <div class="off-admin-status-row">
@@ -204,7 +315,7 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
                 <dd>{{readableValue(value)}}</dd>
               </div>
             </dl>
-            <form v-if="permissions.canManage" class="off-admin-form" @submit.prevent="review">
+            <form v-if="permissions.canManage && detail.status!=='Cancelled'" class="off-admin-form" @submit.prevent="review">
               <h3>Revisión administrativa</h3>
               <div class="off-admin-select-field">
                 <label>Estado de la solicitud</label>
@@ -216,7 +327,7 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
               </label>
               <button type="submit" class="off-admin-primary" :disabled="busy">Guardar revisión</button>
             </form>
-            <section v-if="permissions.canAuthorize && detail.authorization==='Pending' && !permissions.dholeDirectOutboxEnabled" class="off-admin-auth">
+            <section v-if="permissions.canAuthorize && detail.authorization==='Pending' && detail.status!=='Cancelled' && !permissions.dholeDirectOutboxEnabled" class="off-admin-auth">
               <h3>Autorización especial</h3>
               <p>{{ permissions.dholeApprovalQueueEnabled
                 ? 'Autorizar crea un registro local pendiente de integración. Todavía no envía a Dhole.'
@@ -249,6 +360,46 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
           </div>
         </section>
       </div>
+      <section v-if="showArchived && permissions.canView" class="off-admin-card off-admin-archived" aria-label="Cotizaciones archivadas">
+        <div class="off-admin-card-heading">
+          <div>
+            <p class="off-admin-card-eyebrow">ARCHIVO ADMINISTRATIVO</p>
+            <h2>Archivadas <span class="off-admin-counter">{{archivedTotal}}</span></h2>
+          </div>
+          <button type="button" class="off-admin-button" :disabled="busy" @click="loadArchived">Actualizar archivo</button>
+        </div>
+        <p class="off-admin-muted">
+          Las solicitudes archivadas y finalizadas sin registros de Dhole pueden eliminarse
+          sin esperar 24 horas. También podés eliminar directamente desde el detalle una solicitud
+          que haya sido cancelada. Si existe una clave de reintento, se conserva su identificador
+          aleatorio para impedir duplicaciones.
+          Se eliminan la solicitud y su historial, conservando una constancia mínima.
+          No afecta las cotizaciones de Pricing.
+        </p>
+        <p v-if="!archivedRows.length" class="off-admin-muted">No hay cotizaciones archivadas en esta página.</p>
+        <div class="off-admin-archived-list">
+          <article v-for="item in archivedRows" :key="item.id" class="off-admin-archived-item">
+            <div>
+              <strong>{{item.customerName}}</strong>
+              <p class="off-admin-muted">Referencia: {{item.id}}</p>
+              <p class="off-admin-muted">{{item.shipmentType}} · Archivada: {{displayDate(item.archivedAtUtc)}}</p>
+            </div>
+            <div class="off-admin-actions">
+              <button v-if="archivedCanPurge" type="button" class="off-admin-delete"
+                :disabled="busy || !purgeAllowed(item)"
+                :aria-label="'Eliminar definitivamente cotización '+item.id"
+                @click="purgeArchived(item)">Eliminar de BD</button>
+            </div>
+          </article>
+        </div>
+        <div class="off-admin-pagination">
+          <button type="button" class="off-admin-button" :disabled="archivedPage<=1||busy"
+            @click="archivedPage--;loadArchived()">Anterior</button>
+          <span>Página {{archivedPage}}</span>
+          <button type="button" class="off-admin-button" :disabled="archivedPage*20>=archivedTotal||busy"
+            @click="archivedPage++;loadArchived()">Siguiente</button>
+        </div>
+      </section>
     </div>
     <SiteFooter v-if="!props.embedded" />
   </div>
@@ -362,9 +513,25 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
 }
 .off-admin-button {background:var(--oq-input);color:var(--oq-ink);}
 .off-admin-button:hover {border-color:var(--oq-accent);}
+.off-admin-delete {
+  display:inline-flex;align-items:center;justify-content:center;min-height:44px;
+  padding:10px 17px;border-radius:11px;border:1px solid #b20c2a;
+  background:transparent;color:#b20c2a;font:inherit;font-size:13px;font-weight:850;
+  cursor:pointer;
+}
+.off-admin-delete:hover {background:rgba(178,12,42,.09);}
+.off-admin-delete:disabled {opacity:.55;cursor:not-allowed;}
+:global(html.theme-dark) .off-admin .off-admin-delete {color:#fff !important;border-color:#ef233c !important;background:#6c1730 !important;}
+:global(html.theme-dark) .off-admin .off-admin-delete:hover {background:#91213c !important;}
 .off-admin-primary {background:#b20c2a;border-color:#b20c2a;color:#fff!important;}
 .off-admin-primary:hover {background:#ca1639;border-color:#ca1639;}
 .off-admin-button:disabled,.off-admin-primary:disabled {opacity:.56;cursor:not-allowed;}
+.off-admin-archived {margin-top:26px;}
+.off-admin-archived-list {display:grid;gap:12px;margin-top:20px;}
+.off-admin-archived-item {display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;padding:17px;border:1px solid var(--oq-line);border-radius:14px;background:var(--oq-input);}
+.off-admin-archived-item strong {color:var(--oq-ink);font-size:14px;}
+.off-admin-archived-item p {margin:6px 0 0;}
+.off-admin-archived-item .off-admin-actions {display:flex;align-items:center;flex-wrap:wrap;gap:10px;}
 .off-admin-status-row {display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:5px;}
 .off-admin-data {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0;}
 .off-admin-data > div {min-width:0;padding:13px 15px;border:1px solid var(--oq-line);border-radius:12px;background:var(--oq-field);}
@@ -483,5 +650,41 @@ html.theme-dark .app-site.off-admin .off-admin-data > div,
 html.theme-dark .app-site .off-admin .off-admin-button,
 html.theme-dark .app-site.off-admin .off-admin-button {
   background-color:#060f21 !important;
+}
+
+/* Archived rows were introduced after the existing dark-theme overrides.
+   Keep their background and text in the same readable navy palette as the
+   active quote rows, including when embedded within ContentManager. The
+   selectors are dark-only so the light theme remains unchanged. */
+html.theme-dark .app-site .off-admin .off-admin-archived-item,
+html.theme-dark .app-site.off-admin .off-admin-archived-item {
+  background:#121a30 !important;
+  border-color:#3b465f !important;
+  color:#f6f7fc !important;
+}
+html.theme-dark .app-site .off-admin .off-admin-archived-item strong,
+html.theme-dark .app-site.off-admin .off-admin-archived-item strong {
+  color:#fff !important;
+}
+html.theme-dark .app-site .off-admin .off-admin-archived-item .off-admin-muted,
+html.theme-dark .app-site.off-admin .off-admin-archived-item .off-admin-muted {
+  color:#d2d6e2 !important;
+}
+
+/* Archive and review notices also belong to the dark surface palette.
+   The global dark-theme text override turned a pale success box white on
+   white. Scope these rules to both embedded and standalone official admin;
+   leave light mode and all status messages unchanged. */
+html.theme-dark .app-site .off-admin .off-admin-ok,
+html.theme-dark .app-site.off-admin .off-admin-ok {
+  background:#172a28 !important;
+  border-color:#4b9173 !important;
+  color:#edf9f1 !important;
+}
+html.theme-dark .app-site .off-admin .off-admin-alert,
+html.theme-dark .app-site.off-admin .off-admin-alert {
+  background:#301d28 !important;
+  border-color:#b94b67 !important;
+  color:#ffe8ee !important;
 }
 </style>

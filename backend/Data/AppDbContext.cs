@@ -92,6 +92,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         official.Property(x => x.AuthorizedAtUtc).HasColumnName("authorized_at_utc");
         official.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
         official.Property(x => x.UpdatedAtUtc).HasColumnName("updated_at_utc");
+        official.Property(x => x.ArchivedAtUtc).HasColumnName("archived_at_utc");
+        official.Property(x => x.ArchivedById).HasColumnName("archived_by_id");
 
         var officialLocation = modelBuilder.Entity<OfficialQuoteLocation>();
         officialLocation.ToTable("official_quote_locations", "public");

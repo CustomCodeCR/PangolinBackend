@@ -2,6 +2,7 @@ using System.Net.Mail;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using CastroFallas.MiniQuote.Api.Data;
 using CastroFallas.MiniQuote.Api.Models;
 using CastroFallas.MiniQuote.Api.Services.Auth;
@@ -18,7 +19,7 @@ public static class OfficialQuoteEndpoints
 {
     private static readonly string[] Incoterms =
         ["EXW", "FCA", "FAS", "FOB", "CFR", "CIF", "CPT", "CIP", "DAP", "DPU", "DDP"];
-    private static readonly string[] States = ["Received", "InReview", "AwaitingInformation", "Closed"];
+    private static readonly string[] States = ["Received", "InReview", "AwaitingInformation", "Closed", "Cancelled"];
     // Solo servicios ofrecidos por el formulario y GIO. Validar también en HTTP directo.
     private static readonly HashSet<string> AllowedServices = new(StringComparer.Ordinal)
     {
@@ -28,6 +29,18 @@ public static class OfficialQuoteEndpoints
         "Transporte recolección"
     };
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    // Server-validated POD label for the receipt, not browser input.
+    // Unrelated to submission digest, provider POST, or idempotency.
+    private static string SerializeSavedForm(OfficialQuoteSubmit input, string? verifiedPodName)
+    {
+        var formJson = JsonSerializer.Serialize(input, Json);
+        if (input.Mode != "Maritime" || string.IsNullOrWhiteSpace(verifiedPodName))
+            return formJson;
+        var saved = JsonNode.Parse(formJson)!.AsObject();
+        saved["verifiedPodName"] = verifiedPodName;
+        return saved.ToJsonString(Json);
+    }
     // Usar el día calendario de Costa Rica, no UTC ni la zona horaria del servidor.
     private static readonly TimeZoneInfo CostaRicaTimeZone =
         TimeZoneInfo.FindSystemTimeZoneById("America/Costa_Rica");
@@ -46,6 +59,36 @@ public static class OfficialQuoteEndpoints
             Encoding.UTF8.GetBytes(fingerprintInput))).ToLowerInvariant();
     }
 
+    // Tombstones are checked before any creation or replay. This check is
+    // backwards compatible with an installation that has not yet deployed the
+    // optional purge migration: no purge could have run there.
+    private static async Task<bool> HasPurgedSubmissionKeyAsync(
+        AppDbContext db, Guid key, CancellationToken ct)
+    {
+        var hasTombstoneColumn = await db.Database.SqlQueryRaw<bool>("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'official_quote_purge_audit'
+                  AND column_name = 'submission_key'
+            ) AS "Value"
+            """).SingleAsync(ct);
+        if (!hasTombstoneColumn) return false;
+
+        return await db.Database.SqlQuery<bool>($"""
+            SELECT EXISTS (
+                SELECT 1 FROM public.official_quote_purge_audit
+                WHERE submission_key = {key}
+            ) AS "Value"
+            """).SingleAsync(ct);
+    }
+
+    private static IResult PurgedSubmissionKeyResponse() =>
+        Results.Conflict(new {
+            code = "quote_request_key_purged",
+            error = "Esta solicitud fue eliminada definitivamente. No se puede volver a enviarla con la misma clave. Consultá con soporte."
+        });
+
     private static async Task<IResult> RepeatReceiptAsync(
         OfficialQuoteClientSubmission submission, string expectedDigest,
         bool stageDirect, AppDbContext db, CancellationToken ct)
@@ -57,7 +100,16 @@ public static class OfficialQuoteEndpoints
             });
         // The FK guarantees the parent exists. The key table stores no PII.
         var existing = await db.OfficialQuotes.AsNoTracking()
-            .SingleAsync(x => x.Id == submission.QuoteId, ct);
+            .SingleOrDefaultAsync(x => x.Id == submission.QuoteId, ct);
+        // A concurrent deletion can commit after the key lookup; the replay
+        // must not throw a 500 or try to reconstruct the old submission.
+        if (existing is null)
+            return await HasPurgedSubmissionKeyAsync(db, submission.SubmissionKey, ct)
+                ? PurgedSubmissionKeyResponse()
+                : Results.Conflict(new {
+                    code = "quote_replay_missing",
+                    error = "La solicitud ya no está disponible. Consultá con soporte antes de reenviar."
+                });
         var receipt = stageDirect
             ? await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
                 .Where(x => x.QuoteId == existing.Id)
@@ -88,7 +140,7 @@ public static class OfficialQuoteEndpoints
         return state;
     }
 
-    private static async Task LockCreationKeyAsync(
+    internal static async Task LockCreationKeyAsync(
         AppDbContext db, Guid key, IDbContextTransaction transaction, CancellationToken ct)
     {
         // PostgreSQL transaction-scoped advisory lock makes concurrent
@@ -229,10 +281,8 @@ public static class OfficialQuoteEndpoints
         if (s.Services.Contains("Seguro de carga") && s.CargoValue is null or <= 0)
             throw new ArgumentException("Para seguro de carga indicá el valor declarado de la mercancía.");
         var needsCurrency = s.CargoValue is > 0;
-        if (needsCurrency && (s.CargoCurrencyCode is null ||
-            s.CargoCurrencyCode.Length != 3 ||
-            s.CargoCurrencyCode.Any(x => x is < 'A' or > 'Z')))
-            throw new ArgumentException("Indicá la moneda del valor declarado con un código ISO de tres letras.");
+        if (needsCurrency && !DholeTemporaryDispatchCatalog.IsSupportedCurrency(s.CargoCurrencyCode))
+            throw new ArgumentException("Seleccioná una moneda del valor declarado disponible: USD, CRC o EUR.");
         if (!needsCurrency && !string.IsNullOrWhiteSpace(s.CargoCurrencyCode))
             throw new ArgumentException("La moneda declarada requiere un valor de mercancía positivo.");
         if (s.CargoFlags?.Count > 12 || s.CargoFlags?.Any(x => x.Length > 50) == true)
@@ -377,6 +427,14 @@ public static class OfficialQuoteEndpoints
                             error = "La solicitud requiere una clave única válida; actualizá el formulario."
                         });
                     requestKey = parsedKey;
+                    // Deleted requests must remain blocked even when the prior
+                    // quote and deduplication row have been permanently erased.
+                    // No customer data or request digest exists in this tombstone.
+                    if (await HasPurgedSubmissionKeyAsync(db, parsedKey, ct))
+                    {
+                        http.Response.Headers.CacheControl = "no-store";
+                        return PurgedSubmissionKeyResponse();
+                    }
                     requestDigest = SubmissionDigest(input, user);
                     // Replays must survive a changed or temporarily unavailable
                     // catalogue after the original quote was already committed.
@@ -407,6 +465,7 @@ public static class OfficialQuoteEndpoints
                 Validate(input, useDholeCatalogs: useDhole);
                 string originName;
                 string destinationName;
+                string? verifiedPodName = null;
                 DholeValidatedRoute? verifiedDholeRoute = null;
                 if (useDhole)
                 {
@@ -418,6 +477,7 @@ public static class OfficialQuoteEndpoints
                     verifiedDholeRoute = selected;
                     originName = selected.OriginName;
                     destinationName = selected.DestinationName;
+                    verifiedPodName = selected.PodName;
                 }
                 else
                 {
@@ -444,6 +504,8 @@ public static class OfficialQuoteEndpoints
                         return Results.BadRequest(new { error = "La ubicación no está habilitada para este campo y modalidad." });
                     originName = locations[input.OriginLocationId!.Value].DisplayName;
                     destinationName = locations[input.DestinationLocationId!.Value].DisplayName;
+                    if (input.Mode == "Maritime" && input.PodLocationId.HasValue)
+                        verifiedPodName = locations[input.PodLocationId.Value].DisplayName;
                 }
                 var quote = new OfficialQuoteRequest
                 {
@@ -455,7 +517,7 @@ public static class OfficialQuoteEndpoints
                     Mode = input.Mode!, ShipmentType = input.ShipmentType!,
                     OriginName = originName,
                     DestinationName = destinationName,
-                    FormJson = JsonSerializer.Serialize(input, Json)
+                    FormJson = SerializeSavedForm(input, verifiedPodName)
                 };
                 if (useDhole)
                 {
@@ -476,6 +538,13 @@ public static class OfficialQuoteEndpoints
                     if (deduplicateCreate)
                     {
                         await LockCreationKeyAsync(db, requestKey!.Value, transaction, ct);
+                        // This second check closes the race with a concurrent
+                        // archive purge, which takes the SAME advisory lock.
+                        if (await HasPurgedSubmissionKeyAsync(db, requestKey.Value, ct))
+                        {
+                            http.Response.Headers.CacheControl = "no-store";
+                            return PurgedSubmissionKeyResponse();
+                        }
                         // The first request may have committed while this request
                         // waited for the lock. Never create another copy in that case.
                         var prior = await db.OfficialQuoteClientSubmissions.AsNoTracking()
@@ -573,7 +642,7 @@ public static class OfficialQuoteEndpoints
             if (p is null || !(p.CanView || p.CanManage || p.CanAuthorize)) return Results.Forbid();
             var n = page ?? 1;
             if (n is < 1 or > 100000) return Results.BadRequest();
-            var q = db.OfficialQuotes.AsNoTracking();
+            var q = db.OfficialQuotes.AsNoTracking().Where(x => x.ArchivedAtUtc == null);
             var total = await q.CountAsync(ct);
             var items = await q.OrderByDescending(x => x.CreatedAtUtc).ThenBy(x => x.Id)
                 .Skip((n - 1) * 20).Take(20)
@@ -589,7 +658,7 @@ public static class OfficialQuoteEndpoints
             var actor = await auth.GetIdentityAsync(http, ct);
             var p = await Permission(db, actor, ct);
             if (p is null || !(p.CanView || p.CanManage || p.CanAuthorize)) return Results.Forbid();
-            var q = await db.OfficialQuotes.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+            var q = await db.OfficialQuotes.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id && x.ArchivedAtUtc == null, ct);
             if (q is null) return Results.NotFound();
             var history = await db.OfficialQuoteAudit.AsNoTracking()
                 .Where(x => x.QuoteId == id).OrderByDescending(x => x.CreatedAtUtc)
@@ -631,6 +700,64 @@ public static class OfficialQuoteEndpoints
                 form = JsonSerializer.Deserialize<JsonElement>(q.FormJson), history });
         });
 
+        // Administrative "Eliminar" archives only the inbox row. It never performs
+        // a SQL DELETE, cancels a provider operation, or removes audit history.
+        // A quote with an outbox (in any state) must remain visible for Dhole
+        // reconciliation; optional outbox tables might not exist in older DBs.
+        admin.MapDelete("/{id:guid}", async (Guid id, AppDbContext db, AuthService auth,
+            HttpContext http, CancellationToken ct) =>
+        {
+            var actor = await auth.GetIdentityAsync(http, ct);
+            var p = await Permission(db, actor, ct);
+            if (p?.CanManage != true) return Results.Forbid();
+            http.Response.Headers.CacheControl = "no-store";
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            // Serialize archival with the authorization path using the same row lock.
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT 1 FROM public.official_quote_requests WHERE id = {id} FOR UPDATE", ct);
+            var q = await db.OfficialQuotes.FirstOrDefaultAsync(
+                x => x.Id == id && x.ArchivedAtUtc == null, ct);
+            if (q is null) return Results.NotFound();
+
+            // Only completed or rejected work may leave the active inbox.
+            // A Received/InReview/AwaitingInformation quote might still require
+            // action; never let a destructive-looking button hide that work.
+            if (q.Status != "Closed" && q.Authorization != "Rejected")
+                return Results.Conflict(new {
+                    code = "quote_archive_not_final",
+                    error = "Primero cerrá o rechazá la solicitud. No se puede archivar una cotización que todavía requiere atención."
+                });
+
+            // Unlike feature flags, relation presence is a reliable guard when
+            // operators have temporarily disabled an outbox that still has records.
+            var directTable = await db.Database.SqlQueryRaw<bool>(
+                "SELECT to_regclass('public.official_quote_dhole_creation_outbox') IS NOT NULL AS \"Value\"")
+                .SingleAsync(ct);
+            var approvalTable = await db.Database.SqlQueryRaw<bool>(
+                "SELECT to_regclass('public.official_quote_dhole_outbox') IS NOT NULL AS \"Value\"")
+                .SingleAsync(ct);
+            var linkedToDhole =
+                (directTable && await db.OfficialQuoteDholeCreationOutbox.AnyAsync(x => x.QuoteId == id, ct)) ||
+                (approvalTable && await db.OfficialQuoteDholeOutbox.AnyAsync(x => x.QuoteId == id, ct));
+            if (linkedToDhole)
+                return Results.Conflict(new {
+                    code = "quote_archive_dhole_linked",
+                    error = "No se puede eliminar de la bandeja: esta solicitud tiene un registro de integración con Dhole. Debe conservarse para seguimiento y auditoría."
+                });
+
+            var now = DateTime.UtcNow;
+            q.ArchivedAtUtc = now;
+            q.ArchivedById = actor!.UsuarioId;
+            q.UpdatedAtUtc = now;
+            db.OfficialQuoteAudit.Add(new OfficialQuoteAudit {
+                QuoteId = id, ActorUserId = actor.UsuarioId, Action = "Archived",
+                Comment = "Retirada de la bandeja administrativa; datos e historial conservados."
+            });
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return Results.Ok(new { q.Id, archived = true });
+        }).RequireRateLimiting("auth");
+
         admin.MapPut("/{id:guid}/review", async (Guid id, OfficialReviewUpdate update,
             AppDbContext db, AuthService auth, HttpContext http, CancellationToken ct) =>
         {
@@ -640,13 +767,58 @@ public static class OfficialQuoteEndpoints
             if (update.Status is null || !States.Contains(update.Status) ||
                 update.Comment?.Length > 2000)
                 return Results.BadRequest(new { error = "Estado o comentario inválido." });
+            if (update.Status == "Cancelled" && string.IsNullOrWhiteSpace(update.Comment))
+                return Results.BadRequest(new {
+                    code = "quote_cancel_reason_required",
+                    error = "Indicá un motivo en el comentario para cancelar la solicitud."
+                });
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            var q = await db.OfficialQuotes.FirstOrDefaultAsync(x => x.Id == id, ct);
+            // Archive and review must serialize on the same row. Without this
+            // lock, a review could read an active quote before archive commits
+            // and overwrite its status after it is no longer visible.
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT 1 FROM public.official_quote_requests WHERE id = {id} FOR UPDATE", ct);
+            var q = await db.OfficialQuotes.FirstOrDefaultAsync(x => x.Id == id && x.ArchivedAtUtc == null, ct);
             if (q is null) return Results.NotFound();
+            if (q.Status == "Cancelled" && update.Status != "Cancelled")
+                return Results.Conflict(new {
+                    code = "quote_cancel_terminal",
+                    error = "Una cotización cancelada no puede volver a estar activa."
+                });
+            if (update.Status == "Cancelled" && q.Status != "Cancelled")
+            {
+                // Cancellation here is a local ADMIN action, not a Pricing cancel
+                // operation. Never allow it to disguise a pending, attempted or
+                // accepted Dhole submission (regardless of runtime feature flags).
+                var directTable = await db.Database.SqlQueryRaw<bool>(
+                    "SELECT to_regclass('public.official_quote_dhole_creation_outbox') IS NOT NULL AS \"Value\"")
+                    .SingleAsync(ct);
+                var approvalTable = await db.Database.SqlQueryRaw<bool>(
+                    "SELECT to_regclass('public.official_quote_dhole_outbox') IS NOT NULL AS \"Value\"")
+                    .SingleAsync(ct);
+                // Fail closed if legacy/partial schema prevents verifying
+                // an old Dhole relation. The purge endpoint already requires
+                // both tables; cancellation must not weaken that protection.
+                if (!directTable || !approvalTable)
+                    return Results.Json(new {
+                        code = "quote_cancel_schema_incomplete",
+                        error = "No se puede comprobar la relación con Dhole; cancelación bloqueada hasta completar la migración."
+                    }, statusCode: StatusCodes.Status503ServiceUnavailable);
+                var dholeLinked =
+                    await db.OfficialQuoteDholeCreationOutbox.AnyAsync(x => x.QuoteId == id, ct) ||
+                    await db.OfficialQuoteDholeOutbox.AnyAsync(x => x.QuoteId == id, ct);
+                if (dholeLinked || q.Authorization == "Authorized")
+                    return Results.Conflict(new {
+                        code = "quote_cancel_dhole_protected",
+                        error = "No se puede cancelar localmente: esta cotización está autorizada o vinculada con Dhole. La cancelación en este panel no cancela operaciones de Pricing."
+                    });
+            }
+            var cancellingNow = update.Status == "Cancelled" && q.Status != "Cancelled";
             q.Status = update.Status;
             q.UpdatedAtUtc = DateTime.UtcNow;
             db.OfficialQuoteAudit.Add(new OfficialQuoteAudit {
-                QuoteId = id, ActorUserId = actor!.UsuarioId, Action = "Review",
+                QuoteId = id, ActorUserId = actor!.UsuarioId,
+                Action = cancellingNow ? "Cancelled" : "Review",
                 Comment = string.IsNullOrWhiteSpace(update.Comment) ? null : update.Comment.Trim()
             });
             await db.SaveChangesAsync(ct);
@@ -678,8 +850,13 @@ public static class OfficialQuoteEndpoints
             // concurrent authorizers from creating duplicate outbox entries.
             await db.Database.ExecuteSqlInterpolatedAsync(
                 $"SELECT 1 FROM public.official_quote_requests WHERE id = {id} FOR UPDATE", ct);
-            var q = await db.OfficialQuotes.FirstOrDefaultAsync(x => x.Id == id, ct);
+            var q = await db.OfficialQuotes.FirstOrDefaultAsync(x => x.Id == id && x.ArchivedAtUtc == null, ct);
             if (q is null) return Results.NotFound();
+            if (q.Status == "Cancelled")
+                return Results.Conflict(new {
+                    code = "quote_cancel_terminal",
+                    error = "Una cotización cancelada no puede autorizarse para Dhole."
+                });
             if (q.Authorization != "Pending")
                 return Results.Conflict(new { error = "La solicitud ya tiene decisión." });
             q.Authorization = decision;
@@ -713,6 +890,7 @@ public static class OfficialQuoteEndpoints
                 dholeDispatchState = staged ? "AwaitingConnector" : "Disabled",
                 dholePriority = staged ? selectedPriority : null });
         }).RequireRateLimiting("auth");
+        app.MapOfficialQuotePurge();
         return app;
     }
 }
