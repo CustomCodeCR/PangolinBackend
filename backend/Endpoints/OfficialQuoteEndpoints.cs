@@ -19,7 +19,7 @@ public static class OfficialQuoteEndpoints
 {
     private static readonly string[] Incoterms =
         ["EXW", "FCA", "FAS", "FOB", "CFR", "CIF", "CPT", "CIP", "DAP", "DPU", "DDP"];
-    private static readonly string[] States = ["Received", "InReview", "AwaitingInformation", "Closed"];
+    private static readonly string[] States = ["Received", "InReview", "AwaitingInformation", "Closed", "Cancelled"];
     // Solo servicios ofrecidos por el formulario y GIO. Validar también en HTTP directo.
     private static readonly HashSet<string> AllowedServices = new(StringComparer.Ordinal)
     {
@@ -767,6 +767,11 @@ public static class OfficialQuoteEndpoints
             if (update.Status is null || !States.Contains(update.Status) ||
                 update.Comment?.Length > 2000)
                 return Results.BadRequest(new { error = "Estado o comentario inválido." });
+            if (update.Status == "Cancelled" && string.IsNullOrWhiteSpace(update.Comment))
+                return Results.BadRequest(new {
+                    code = "quote_cancel_reason_required",
+                    error = "Indicá un motivo en el comentario para cancelar la solicitud."
+                });
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             // Archive and review must serialize on the same row. Without this
             // lock, a review could read an active quote before archive commits
@@ -775,10 +780,36 @@ public static class OfficialQuoteEndpoints
                 $"SELECT 1 FROM public.official_quote_requests WHERE id = {id} FOR UPDATE", ct);
             var q = await db.OfficialQuotes.FirstOrDefaultAsync(x => x.Id == id && x.ArchivedAtUtc == null, ct);
             if (q is null) return Results.NotFound();
+            if (q.Status == "Cancelled" && update.Status != "Cancelled")
+                return Results.Conflict(new {
+                    code = "quote_cancel_terminal",
+                    error = "Una cotización cancelada no puede volver a estar activa."
+                });
+            if (update.Status == "Cancelled" && q.Status != "Cancelled")
+            {
+                // Cancellation here is a local ADMIN action, not a Pricing cancel
+                // operation. Never allow it to disguise a pending, attempted or
+                // accepted Dhole submission (regardless of runtime feature flags).
+                var directTable = await db.Database.SqlQueryRaw<bool>(
+                    "SELECT to_regclass('public.official_quote_dhole_creation_outbox') IS NOT NULL AS \"Value\"")
+                    .SingleAsync(ct);
+                var approvalTable = await db.Database.SqlQueryRaw<bool>(
+                    "SELECT to_regclass('public.official_quote_dhole_outbox') IS NOT NULL AS \"Value\"")
+                    .SingleAsync(ct);
+                var dholeLinked =
+                    (directTable && await db.OfficialQuoteDholeCreationOutbox.AnyAsync(x => x.QuoteId == id, ct)) ||
+                    (approvalTable && await db.OfficialQuoteDholeOutbox.AnyAsync(x => x.QuoteId == id, ct));
+                if (dholeLinked || q.Authorization == "Authorized")
+                    return Results.Conflict(new {
+                        code = "quote_cancel_dhole_protected",
+                        error = "No se puede cancelar localmente: esta cotización está autorizada o vinculada con Dhole. La cancelación en este panel no cancela operaciones de Pricing."
+                    });
+            }
             q.Status = update.Status;
             q.UpdatedAtUtc = DateTime.UtcNow;
             db.OfficialQuoteAudit.Add(new OfficialQuoteAudit {
-                QuoteId = id, ActorUserId = actor!.UsuarioId, Action = "Review",
+                QuoteId = id, ActorUserId = actor!.UsuarioId,
+                Action = update.Status == "Cancelled" && q.Status == "Cancelled" ? "Cancelled" : "Review",
                 Comment = string.IsNullOrWhiteSpace(update.Comment) ? null : update.Comment.Trim()
             });
             await db.SaveChangesAsync(ct);
@@ -812,6 +843,11 @@ public static class OfficialQuoteEndpoints
                 $"SELECT 1 FROM public.official_quote_requests WHERE id = {id} FOR UPDATE", ct);
             var q = await db.OfficialQuotes.FirstOrDefaultAsync(x => x.Id == id && x.ArchivedAtUtc == null, ct);
             if (q is null) return Results.NotFound();
+            if (q.Status == "Cancelled")
+                return Results.Conflict(new {
+                    code = "quote_cancel_terminal",
+                    error = "Una cotización cancelada no puede autorizarse para Dhole."
+                });
             if (q.Authorization != "Pending")
                 return Results.Conflict(new { error = "La solicitud ya tiene decisión." });
             q.Authorization = decision;
