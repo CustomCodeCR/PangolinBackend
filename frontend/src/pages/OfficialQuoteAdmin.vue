@@ -30,7 +30,7 @@ const archivedRows=ref<ArchivedRow[]>([])
 const archivedPage=ref(1)
 const archivedTotal=ref(0)
 const archivedCanPurge=ref(false)
-const statuses=[['Received','Recibida'],['InReview','En revisión'],['AwaitingInformation','Pendiente de información'],['Closed','Cerrada']]
+const statuses=[['Received','Recibida'],['InReview','En revisión'],['AwaitingInformation','Pendiente de información'],['Closed','Cerrada'],['Cancelled','Cancelada']]
 function msg(e:unknown){return e instanceof Error ? e.message : 'Error inesperado.'}
 async function api<T>(url:string, init:RequestInit={}):Promise<T>{
   const r=await fetch(url,{...init,credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json',...(init.headers??{})}})
@@ -45,7 +45,16 @@ async function load(){busy.value=true;error.value='';try{
 async function open(id:string){error.value='';detail.value=null;try{
   const r=await api<Detail>('/api/admin/quotes/official/'+id);detail.value=r;state.value=r.status;comment.value='';dholePriority.value=r.dholePriority||'Green'
 }catch(e){error.value=msg(e)}}
-async function review(){if(!detail.value||busy.value)return;busy.value=true;error.value='';notice.value='';try{
+async function review(){
+  if(!detail.value||busy.value)return
+  if(state.value==='Cancelled' && !comment.value.trim()){
+    error.value='Para cancelar la solicitud, indicá el motivo en el comentario interno.'
+    return
+  }
+  if(state.value==='Cancelled' &&
+    !window.confirm('¿Cancelar esta solicitud en Castro Fallas? Esta acción no cancela operaciones en Dhole/Pricing y no puede revertirse desde el panel.'))return
+  busy.value=true;error.value='';notice.value=''
+  try{
   await api('/api/admin/quotes/official/'+detail.value.id+'/review',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:state.value,comment:comment.value||null})})
   notice.value='Revisión guardada.';const id=detail.value.id;await load();await open(id)
 }catch(e){error.value=msg(e)}finally{busy.value=false}}
@@ -89,19 +98,27 @@ async function toggleArchived(){
   if(showArchived.value)await loadArchived()
 }
 function purgeAllowed(item:ArchivedRow):boolean {
-  return archivedCanPurge.value && item.archivedAtUtc !== null &&
-    Date.parse(item.archivedAtUtc) <= Date.now()-24*60*60*1000
+  return archivedCanPurge.value && item.archivedAtUtc !== null
 }
 async function purgeArchived(item:ArchivedRow){
   if(!purgeAllowed(item) || busy.value)return
+  await purgeQuote(item.id, true)
+}
+async function purgeSelected(){
+  if(!detail.value || detail.value.status!=='Cancelled' ||
+    !permissions.value.canAuthorize || busy.value)return
+  await purgeQuote(detail.value.id, false)
+}
+async function purgeQuote(id:string, fromArchive:boolean){
+  if(busy.value)return
   const motive=window.prompt(
-    'Eliminación IRREVERSIBLE de la solicitud '+item.id+
+    'Eliminación IRREVERSIBLE de la solicitud '+id+
     '.\\nMotivo: escribí PRUEBA o DEFECTUOSA')
   if(motive===null)return
   const reason=motive.trim().toUpperCase()==='PRUEBA' ? 'Prueba' :
     motive.trim().toUpperCase()==='DEFECTUOSA' ? 'Defectuosa' : null
   if(!reason){error.value='Indicá PRUEBA o DEFECTUOSA para eliminar.';return}
-  const expected='ELIMINAR '+item.id
+  const expected='ELIMINAR '+id
   const confirmation=window.prompt(
     'Se borrarán la cotización y su historial asociado. No hay recuperación desde el panel.\\n'+
     'Escribí exactamente lo siguiente para confirmar:\\n'+expected)
@@ -109,14 +126,19 @@ async function purgeArchived(item:ArchivedRow){
   if(confirmation!==expected){error.value='La referencia de confirmación no coincide. No se eliminó nada.';return}
   busy.value=true;error.value='';notice.value=''
   try{
-    await api('/api/admin/quotes/official/archived/'+item.id,{
+    await api('/api/admin/quotes/official/'+(fromArchive?'archived/'+id:id+'/purge'),{
       method:'DELETE',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({confirmation,reason})
     })
-    if(archivedRows.value.length===1 && archivedPage.value>1)archivedPage.value--
-    // loadArchived owns the busy flag, so await the operation before showing success.
-    await loadArchived()
+    if(fromArchive){
+      if(archivedRows.value.length===1 && archivedPage.value>1)archivedPage.value--
+      await loadArchived()
+    } else {
+      detail.value=null
+      if(rows.value.length===1 && page.value>1)page.value--
+      await load()
+    }
     notice.value='Solicitud eliminada definitivamente. Solo queda la constancia administrativa mínima.'
   }catch(e){error.value=msg(e)}finally{busy.value=false}
 }
@@ -133,7 +155,7 @@ onMounted(async()=>{const user=await refreshSession();if(user?.role!=='administr
 })
 
 const statusNames: Record<string, string> = {
-  Received: 'Recibida', InReview: 'En revisión', AwaitingInformation: 'Pendiente de información', Closed: 'Cerrada'
+  Received: 'Recibida', InReview: 'En revisión', AwaitingInformation: 'Pendiente de información', Closed: 'Cerrada', Cancelled: 'Cancelada'
 }
 const decisionNames: Record<string, string> = {
   Pending: 'Pendiente', Authorized: 'Autorizada', Rejected: 'Rechazada'
@@ -246,12 +268,22 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
                 <h2>{{detail.customerName}}</h2>
                 <p class="off-admin-muted off-admin-reference">Referencia: {{detail.id}}</p>
               </div>
-              <button v-if="permissions.canManage" type="button" class="off-admin-delete"
-                :disabled="busy || (detail.status!=='Closed' && detail.authorization!=='Rejected')"
-                :title="detail.status==='Closed' || detail.authorization==='Rejected'
-                  ? 'Archivar una solicitud finalizada sin integración Dhole'
-                  : 'Para archivar, primero cerrá o rechazá la solicitud'"
-                :aria-label="'Archivar cotización de '+detail.customerName" @click="removeSelected">Archivar</button>
+              <div class="off-admin-actions">
+                <button v-if="permissions.canManage" type="button" class="off-admin-delete"
+                  :disabled="busy || (detail.status!=='Closed' && detail.authorization!=='Rejected')"
+                  :title="detail.status==='Closed' || detail.authorization==='Rejected'
+                    ? 'Archivar una solicitud finalizada sin integración Dhole'
+                    : 'Para archivar, primero cerrá o rechazá la solicitud'"
+                  :aria-label="'Archivar cotización de '+detail.customerName" @click="removeSelected">Archivar</button>
+                <button v-if="permissions.canManage || permissions.canAuthorize" type="button"
+                  class="off-admin-delete off-admin-purge"
+                  :disabled="busy || detail.status!=='Cancelled' || !permissions.canAuthorize"
+                  :title="!permissions.canAuthorize ? 'Requiere permiso de autorización'
+                    : detail.status!=='Cancelled' ? 'Primero cambiá el estado a Cancelada y guardá la revisión'
+                    : 'Eliminación definitiva irreversible: no afecta registros de Dhole'"
+                  :aria-label="'Eliminar definitivamente cotización de '+detail.customerName"
+                  @click="purgeSelected">Eliminar de BD</button>
+              </div>
             </div>
             <div class="off-admin-status-row">
               <span class="off-admin-status">{{statusNames[detail.status] ?? detail.status}}</span>
@@ -283,7 +315,7 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
                 <dd>{{readableValue(value)}}</dd>
               </div>
             </dl>
-            <form v-if="permissions.canManage" class="off-admin-form" @submit.prevent="review">
+            <form v-if="permissions.canManage && detail.status!=='Cancelled'" class="off-admin-form" @submit.prevent="review">
               <h3>Revisión administrativa</h3>
               <div class="off-admin-select-field">
                 <label>Estado de la solicitud</label>
@@ -295,7 +327,7 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
               </label>
               <button type="submit" class="off-admin-primary" :disabled="busy">Guardar revisión</button>
             </form>
-            <section v-if="permissions.canAuthorize && detail.authorization==='Pending' && !permissions.dholeDirectOutboxEnabled" class="off-admin-auth">
+            <section v-if="permissions.canAuthorize && detail.authorization==='Pending' && detail.status!=='Cancelled' && !permissions.dholeDirectOutboxEnabled" class="off-admin-auth">
               <h3>Autorización especial</h3>
               <p>{{ permissions.dholeApprovalQueueEnabled
                 ? 'Autorizar crea un registro local pendiente de integración. Todavía no envía a Dhole.'
@@ -337,9 +369,10 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
           <button type="button" class="off-admin-button" :disabled="busy" @click="loadArchived">Actualizar archivo</button>
         </div>
         <p class="off-admin-muted">
-          Solo las solicitudes archivadas por al menos 24 horas y sin registros de Dhole
-          pueden eliminarse de la base de datos. Si existe una clave de reintento,
-          se conserva únicamente su identificador aleatorio para impedir duplicaciones.
+          Las solicitudes archivadas y finalizadas sin registros de Dhole pueden eliminarse
+          sin esperar 24 horas. También podés eliminar directamente desde el detalle una solicitud
+          que haya sido cancelada. Si existe una clave de reintento, se conserva su identificador
+          aleatorio para impedir duplicaciones.
           Se eliminan la solicitud y su historial, conservando una constancia mínima.
           No afecta las cotizaciones de Pricing.
         </p>
@@ -353,7 +386,6 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
             </div>
             <div class="off-admin-actions">
               <span v-if="!archivedCanPurge" class="off-admin-muted">Requiere permiso de autorización</span>
-              <span v-else-if="!purgeAllowed(item)" class="off-admin-muted">Disponible después de 24 horas</span>
               <button v-if="archivedCanPurge" type="button" class="off-admin-delete"
                 :disabled="busy || !purgeAllowed(item)"
                 :aria-label="'Eliminar definitivamente cotización '+item.id"

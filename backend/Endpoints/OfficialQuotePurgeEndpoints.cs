@@ -7,7 +7,8 @@ using Npgsql;
 namespace CastroFallas.MiniQuote.Api.Endpoints;
 
 /// <summary>
-/// Purges an already-archived, unlinked quote after a cooling-off period.
+/// Purges a locally cancelled unlinked quote, or a previously archived completed
+/// legacy quote, without requiring an archived-first workflow or waiting 24 hours.
 /// Never touches Dhole, ever retries an external operation, or bulk-deletes.
 /// The quote's personal data and cascading audit history are erased; a
 /// minimal PII-free tombstone records who performed the irreversible action.
@@ -42,9 +43,15 @@ public static class OfficialQuotePurgeEndpoints
             return Results.Ok(new { items, total, page = n, canPurge });
         }).RequireRateLimiting("auth");
 
-        admin.MapDelete("/archived/{id:guid}", async (Guid id, [FromBody] PurgeRequest request,
-            AppDbContext db, AuthService auth, HttpContext http, CancellationToken ct) =>
-        {
+        admin.MapDelete("/archived/{id:guid}", PurgeQuoteAsync).RequireRateLimiting("auth");
+        admin.MapDelete("/{id:guid}/purge", PurgeQuoteAsync).RequireRateLimiting("auth");
+
+        return app;
+    }
+
+    private static async Task<IResult> PurgeQuoteAsync(Guid id, [FromBody] PurgeRequest request,
+        AppDbContext db, AuthService auth, HttpContext http, CancellationToken ct)
+    {
             http.Response.Headers.CacheControl = "no-store";
             var actor = await auth.GetIdentityAsync(http, ct);
             if (actor?.Role != "admin" ||
@@ -66,19 +73,19 @@ public static class OfficialQuotePurgeEndpoints
             await db.Database.ExecuteSqlInterpolatedAsync(
                 $"SELECT 1 FROM public.official_quote_requests WHERE id = {id} FOR UPDATE", ct);
             var quote = await db.OfficialQuotes.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == id && x.ArchivedAtUtc != null, ct);
+                .FirstOrDefaultAsync(x => x.Id == id, ct);
             if (quote is null) return Results.NotFound();
 
-            if (quote.ArchivedAtUtc!.Value > DateTime.UtcNow.AddHours(-24))
+            // New workflow: status Cancelled is required for ACTIVE records.
+            // Previously archived Closed/Rejected records remain eligible for
+            // manual cleanup, without a 24-hour wait; nothing is automatic.
+            var eligible = quote.Status == "Cancelled" ||
+                (quote.ArchivedAtUtc != null &&
+                    (quote.Status == "Closed" || quote.Authorization == "Rejected"));
+            if (!eligible || quote.Authorization == "Authorized")
                 return Results.Conflict(new {
-                    code = "quote_purge_cooling_period",
-                    error = "La solicitud debe permanecer archivada por lo menos 24 horas antes de eliminarla definitivamente."
-                });
-
-            if (quote.Status != "Closed" && quote.Authorization != "Rejected")
-                return Results.Conflict(new {
-                    code = "quote_purge_not_final",
-                    error = "No se puede eliminar definitivamente una solicitud que requiere atención."
+                    code = "quote_purge_not_cancelled",
+                    error = "Para eliminar una solicitud activa, primero cambiá su estado a Cancelada. Las archivadas finalizadas también pueden eliminarse."
                 });
 
             // All mandatory proof tables must be present before authorizing any
@@ -157,7 +164,7 @@ public static class OfficialQuotePurgeEndpoints
                 // The original audit FK has ON DELETE CASCADE. Only the separate
                 // key tombstone survives, intentionally without PII or digest.
                 var deleted = await db.Database.ExecuteSqlInterpolatedAsync(
-                    $"DELETE FROM public.official_quote_requests WHERE id = {id} AND archived_at_utc IS NOT NULL", ct);
+                    $"DELETE FROM public.official_quote_requests WHERE id = {id} AND approval_status <> 'Authorized' AND (status = 'Cancelled' OR (archived_at_utc IS NOT NULL AND (status = 'Closed' OR approval_status = 'Rejected')))", ct);
                 if (deleted != 1)
                     return Results.Conflict(new {
                         code = "quote_purge_changed",
@@ -177,8 +184,5 @@ public static class OfficialQuotePurgeEndpoints
             }
 
             return Results.Ok(new { id, deleted = true });
-        }).RequireRateLimiting("auth");
-
-        return app;
     }
 }
