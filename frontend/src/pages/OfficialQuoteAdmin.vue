@@ -620,4 +620,23 @@ html.theme-dark .app-site .off-admin .off-admin-button,
 html.theme-dark .app-site.off-admin .off-admin-button {
   background-color:#060f21 !important;
 }
+
+/* Archived rows were introduced after the existing dark-theme overrides.
+   Keep their background and text in the same readable navy palette as the
+   active quote rows, including when embedded within ContentManager. The
+   selectors are dark-only so the light theme remains unchanged. */
+html.theme-dark .app-site .off-admin .off-admin-archived-item,
+html.theme-dark .app-site.off-admin .off-admin-archived-item {
+  background:#121a30 !important;
+  border-color:#3b465f !important;
+  color:#f6f7fc !important;
+}
+html.theme-dark .app-site .off-admin .off-admin-archived-item strong,
+html.theme-dark .app-site.off-admin .off-admin-archived-item strong {
+  color:#fff !important;
+}
+html.theme-dark .app-site .off-admin .off-admin-archived-item .off-admin-muted,
+html.theme-dark .app-site.off-admin .off-admin-archived-item .off-admin-muted {
+  color:#d2d6e2 !important;
+}
 </style>
