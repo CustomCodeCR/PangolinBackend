@@ -1,0 +1,89 @@
+name: Docker image security inventory (isolated)
+on:
+  pull_request:
+    branches: [main, main-2]
+    paths:
+      - '.github/workflows/docker-image-security-inventory.yml'
+      - 'frontend/Dockerfile'
+      - 'frontend/nuxt/Dockerfile'
+      - 'backend/Dockerfile.production'
+      - 'frontend/.dockerignore'
+      - 'backend/.dockerignore'
+      - 'deploy/docker-compose.images.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [backend, frontend, nuxt, gateway]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build or pull a disposable image (no registry push)
+        shell: bash
+        env:
+          COMPONENT: ${{ matrix.image }}
+        run: |
+          set -euo pipefail
+          case "$COMPONENT" in
+            backend) docker build --pull -f backend/Dockerfile.production -t pangolin-audit:local backend ;;
+            frontend) docker build --pull --build-arg VITE_OFFICIAL_QUOTES_ENABLED=true -f frontend/Dockerfile -t pangolin-audit:local frontend ;;
+            nuxt) docker build --pull -f frontend/nuxt/Dockerfile -t pangolin-audit:local frontend ;;
+            gateway) docker pull nginx:1.27-alpine; docker tag nginx:1.27-alpine pangolin-audit:local ;;
+            *) exit 1 ;;
+          esac
+          docker image inspect pangolin-audit:local --format 'Image={{.Id}} User={{json .Config.User}} Created={{.Created}}'
+          docker image inspect pangolin-audit:local --format '{{json .RootFS.Layers}}'
+          docker save pangolin-audit:local -o "$RUNNER_TEMP/pangolin-image.tar"
+      - name: Install versioned Trivy with verified release checksum manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          release=https://github.com/aquasecurity/trivy/releases/download/v0.76.2
+          curl --fail --silent --show-error --location --retry 2 "$release/trivy_0.76.2_checksums.txt" -o trivy-checksums.txt
+          echo '802e4ac1418ed967cd3c4b901f4f71ca00b7363ede67778665a22d9f13f58c83  trivy-checksums.txt' | sha256sum -c -
+          archive=trivy_0.76.2_Linux-64bit.tar.gz
+          curl --fail --silent --show-error --location --retry 2 "$release/$archive" -o "$archive"
+          grep -F "  $archive" trivy-checksums.txt > trivy-selected.txt
+          test "$(wc -l < trivy-selected.txt)" = 1
+          sha256sum -c trivy-selected.txt
+          mkdir -p trivy-audit-bin
+          tar -xzf "$archive" -C trivy-audit-bin trivy
+          "$RUNNER_TEMP/trivy-audit-bin/trivy" --version
+      - name: Inventory OS and application vulnerabilities from image archive
+        shell: bash
+        env:
+          COMPONENT: ${{ matrix.image }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/image-audit"
+          "$RUNNER_TEMP/trivy-audit-bin/trivy" image --input "$RUNNER_TEMP/pangolin-image.tar" --scanners vuln --pkg-types os,library --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL --ignore-unfixed=false --exit-code 0 --format json --output "$RUNNER_TEMP/image-audit/report.json" --timeout 12m
+          python - <<'PY'
+          import json, os, collections, pathlib
+          report = json.loads((pathlib.Path(os.environ["RUNNER_TEMP"]) / "image-audit/report.json").read_text())
+          if not isinstance(report.get("Results"), list) or not report["Results"]:
+              raise SystemExit("Scanner produced no image results; cannot claim a clean scan")
+          counts = collections.Counter()
+          for result in report["Results"]:
+              for v in result.get("Vulnerabilities") or []:
+                  counts[v.get("Severity", "UNKNOWN")] += 1
+                  if v.get("Severity") in ("HIGH", "CRITICAL"):
+                      print(v.get("VulnerabilityID"), v.get("PkgName"), v.get("InstalledVersion"), "fixed:", v.get("FixedVersion") or "not reported")
+          print("IMAGE INVENTORY", os.environ["COMPONENT"], dict(counts))
+          if counts["HIGH"] or counts["CRITICAL"]:
+              print("::warning::High or critical image findings require review; inventory is not a security clearance.")
+          PY
+      - name: Retain vulnerability report for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-audit-${{ matrix.image }}
+          path: ${{ runner.temp }}/image-audit/report.json
+          if-no-files-found: error
+          retention-days: 14
