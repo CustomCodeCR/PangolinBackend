@@ -39,6 +39,15 @@ public sealed class DholeOfficialDispatchWorker(
     IServiceScopeFactory scopes, IConfiguration config,
     ILogger<DholeOfficialDispatchWorker> logger) : BackgroundService
 {
+    // Pricing delivery and email are independent operations. Keep the
+    // explicit dispatch/receipt-evidence gates; per-quote preflight checks the
+    // applicable catalogs before any claim. Graph configuration is not a POST gate.
+    public static bool CanDispatchNewQuotes(IConfiguration config, bool dispatchConfigured, bool receiptEvidenceConfigured) =>
+        dispatchConfigured && receiptEvidenceConfigured &&
+        config.GetValue<bool>("Features:OfficialQuotesEnabled") &&
+        config.GetValue<bool>("DholeCatalogs:FormEnabled") &&
+        config.GetValue<bool>("DholeCatalogs:SubmissionEnabled");
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         // Capture once: broadening scope requires a deliberate restart. A
@@ -51,6 +60,7 @@ public sealed class DholeOfficialDispatchWorker(
         }
         Guid? dispatchCursor = null;
         Guid? verifyCursor = null;
+        var nextHealthCheckUtc = DateTime.MinValue;
         while (!stoppingToken.IsCancellationRequested &&
                DholeOfficialWorkerScope.Read(config) == scope)
         {
@@ -60,19 +70,44 @@ public sealed class DholeOfficialDispatchWorker(
                 var sp = services.ServiceProvider;
                 var db = sp.GetRequiredService<AppDbContext>();
                 var coordinator = sp.GetRequiredService<DholeOfficialDispatchAttemptCoordinator>();
-                var source = sp.GetRequiredService<DholeOfficialPublishedDispatchSource>();
                 var verifier = sp.GetRequiredService<DholeOfficialPricingVerification>();
                 var mail = sp.GetRequiredService<DholeOfficialConfirmationEmail>();
 
-                // Do not start new POSTs unless all confirmation dependencies
-                // are configured. Previously accepted receipts can still be
-                // independently verified and notified when POST is disabled.
                 var receiptPolicy = sp.GetRequiredService<DholeOfficialOutboxOutcomeService>();
-                if (coordinator.Enabled && (verifier.Enabled || receiptPolicy.AcceptCreationReceipt) && mail.Enabled &&
-                    source.IsConfiguredFor("LCL") && source.IsConfiguredFor("FTL") &&
-                    config.GetValue<bool>("Features:OfficialQuotesEnabled") &&
-                    config.GetValue<bool>("DholeCatalogs:FormEnabled") &&
-                    config.GetValue<bool>("DholeCatalogs:SubmissionEnabled"))
+                bool canDispatch = CanDispatchNewQuotes(config, coordinator.Enabled,
+                    verifier.Enabled || receiptPolicy.AcceptCreationReceipt);
+                // Aggregate monitoring only, bounded to the approved activation
+                // scope. A two-minute age is a signal to inspect, not a failure
+                // or a permission to retry. No names, IDs or payloads in logs.
+                var now = DateTime.UtcNow;
+                if (config.GetValue<bool>("DholeSubmission:DirectOutboxEnabled") &&
+                    now >= nextHealthCheckUtc)
+                {
+                    nextHealthCheckUtc = now.AddMinutes(2);
+                    try
+                    {
+                        var cutoff = now.AddMinutes(-2);
+                        var scoped = db.OfficialQuoteDholeCreationOutbox.AsNoTracking();
+                        if (scope.PilotQuoteId is Guid healthPilot)
+                            scoped = scoped.Where(x => x.QuoteId == healthPilot);
+                        if (scope.StartAfterUtc is DateTime healthStart)
+                            scoped = scoped.Where(x => x.CreatedAtUtc >= healthStart);
+                        int pending = await scoped.CountAsync(x => x.State == "PendingDispatch" &&
+                            x.CreatedAtUtc <= cutoff, stoppingToken);
+                        int inFlight = await scoped.CountAsync(x => x.State == "InFlight" &&
+                            x.LastAttemptAtUtc != null && x.LastAttemptAtUtc <= cutoff, stoppingToken);
+                        if (pending > 0 || inFlight > 0 || (canDispatch && !mail.Enabled))
+                            logger.LogWarning("Dhole queue health: pending over two minutes {Pending}; in-flight over two minutes {InFlight}; dispatch configured {DispatchConfigured}; notification configured {NotificationConfigured}.",
+                                pending, inFlight, canDispatch, mail.Enabled);
+                    }
+                    catch (Exception) when (!stoppingToken.IsCancellationRequested)
+                    {
+                        // Observability must never become another delivery gate.
+                        logger.LogWarning("Dhole queue health check failed; delivery gates remain unchanged.");
+                    }
+                }
+                if (DholeOfficialWorkerScope.Read(config) != scope) break;
+                if (canDispatch)
                 {
                     var batch = await sp.GetRequiredService<DholeOfficialDispatchPass>()
                         .RunAsync(db, dispatchCursor, stoppingToken, scope, limit: 1);
