@@ -22,6 +22,10 @@ public sealed class OfficialQuoteRequest
     public DateTime? AuthorizedAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+    // Administrative removal is reversible at database level and never destroys
+    // quote, audit, idempotency or any external-delivery evidence.
+    public DateTime? ArchivedAtUtc { get; set; }
+    public Guid? ArchivedById { get; set; }
 }
 // Completely separate table, queried only when creation idempotency is opted in.
 // This avoids changing the historic official quote schema while the flag is OFF.
