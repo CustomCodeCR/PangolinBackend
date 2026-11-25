@@ -164,12 +164,53 @@ foreach (var (mode, shipment, wire) in modes)
                 equipment.GetProperty("unitWeightsKg")[0].GetDecimal() == 1100m &&
                 equipment.GetProperty("unitWeightsKg")[1].GetDecimal() == 1300m, context + "/equipment");
         }
+        // Exercise the observation budget with all optional notes, distinct
+        // EXW and ordinary pickup addresses, and non-ASCII applicant text.
+        // All modes get the same stress case, with no additional network calls.
+        if (mask == 4095)
+        {
+            const string prefix = "La peligrosidad de la carga está pendiente de confirmar.\n";
+            var originalNotes = prefix + new string('á', 4000);
+            var exwAddress = new string('é', 800);
+            var pickupAddress = new string('ñ', 800);
+            var handling = new string('ó', 100);
+            var stressed = input with
+            {
+                Incoterm = "EXW", ExwCargoStatus = "nationalized", ExwPickupAddress = exwAddress,
+                PickupAddress = pickupAddress, DeliveryAddress = new string('ú', 800),
+                Observations = originalNotes, DestinationHandling = handling,
+                CargoValue = 1000000000000m, CargoCurrencyCode = "EUR",
+                DeclaredWeight = 1000000000m, DeclaredPackages = int.MaxValue,
+                CargoDescription = new string('í', 3000)
+            };
+            var roundTrip = JsonSerializer.Deserialize<OfficialQuoteSubmit>(
+                JsonSerializer.Serialize(stressed, json), json)!;
+            var stressedDraft = DholeOfficialQuoteDraftBuilder.Project(roundTrip, Id(9), route);
+            var stressedReview = DholeOfficialQuoteFlatPreviewBuilder.BuildReview(stressedDraft,
+                resolved with { IncotermValue = "EXW", IncotermId = Id(200) }, now,
+                manualCommercialReview: true);
+            var stressedBody = stressedReview.Body;
+            var stressedNotes = stressedBody.GetProperty("form_cargoObservations").GetString()!;
+            Check(stressedReview.ReadyForContractReview &&
+                DholeQuotePostTransport.IsValidFlatBody(stressedBody),
+                context + "/max observations valid at final transport");
+            Check(stressedNotes.StartsWith(originalNotes, StringComparison.Ordinal) &&
+                stressedNotes.Contains(exwAddress) && stressedNotes.Contains(handling) &&
+                stressedNotes.Contains("1000000000000 EUR") &&
+                stressedNotes.Contains("2147483647") && stressedNotes.Length <= 6000 &&
+                stressedBody.GetProperty("form_pickupAddress").GetString() == pickupAddress &&
+                stressedBody.GetProperty("form_cargoDescription").GetString()!.StartsWith(stressed.CargoDescription!, StringComparison.Ordinal),
+                context + "/max observations and Unicode preserved without truncation");
+            Check(System.Text.Encoding.UTF8.GetByteCount(stressedBody.GetRawText()) <= 128 * 1024,
+                context + "/max notes fit local transport byte budget");
+        }
         sample = body;
         count++;
     }
 }
 Check(count == 20475, "expected five modes x 4095 service subsets");
 Console.WriteLine($"PASS: {count} synthetic service/mode projections, with rotated conditional fields, units and incoterms; no HTTP.");
+Console.WriteLine("PASS: 5 maximum observation stress cases with Unicode, EXW and all commercial notes.");
 
 // Exercise actual transport on simulated replies, never a socket.
 var fake = new AuditHandler();
