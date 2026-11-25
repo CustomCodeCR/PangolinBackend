@@ -1558,6 +1558,29 @@ internal static class DholeQuoteHttpTest
         scopeConfig["DholeSubmission:AllNewQuotesEnabled"] = "true";
         Assert(DholeOfficialWorkerScope.Read(scopeConfig) is null,
             "Conflicting pilot and broad scope is rejected");
+        // Pricing dispatch must not depend on Graph credentials or on a
+        // catalog used only by another mode. All original rollout and evidence
+        // gates remain mandatory. No actual worker or network is started here.
+        var dispatchGateConfig = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["Features:OfficialQuotesEnabled"] = "true",
+                ["DholeCatalogs:FormEnabled"] = "true",
+                ["DholeCatalogs:SubmissionEnabled"] = "true"
+            }).Build();
+        Assert(DholeOfficialDispatchWorker.CanDispatchNewQuotes(dispatchGateConfig, true, true),
+            "Pricing dispatch gate remains open without Graph or unrelated catalog configuration");
+        Assert(!DholeOfficialDispatchWorker.CanDispatchNewQuotes(dispatchGateConfig, false, true) &&
+            !DholeOfficialDispatchWorker.CanDispatchNewQuotes(dispatchGateConfig, true, false),
+            "Missing dispatch authorization or receipt evidence still blocks POST");
+        foreach (var gate in new[] { "Features:OfficialQuotesEnabled",
+            "DholeCatalogs:FormEnabled", "DholeCatalogs:SubmissionEnabled" })
+        {
+            dispatchGateConfig[gate] = "false";
+            Assert(!DholeOfficialDispatchWorker.CanDispatchNewQuotes(dispatchGateConfig, true, true),
+                "Disabled rollout gate blocks dispatch: " + gate);
+            dispatchGateConfig[gate] = "true";
+        }
         var notifyConfig = new ConfigurationBuilder().AddInMemoryCollection(
             new Dictionary<string, string?>
             {
@@ -1637,6 +1660,16 @@ internal static class DholeQuoteHttpTest
                 saved.VerifiedAtUtc == null && saved.ExternalReference == null,
                 "Creation evidence never masquerades as independent verification");
             var pilotScope = new DholeOfficialWorkerScope(temporaryId, null);
+            notifyConfig["Graph:ClientSecret"] = "";
+            Assert(!notifier.Enabled &&
+                await notifier.RunAsync(db, CancellationToken.None, pilotScope) == 0,
+                "Missing Graph configuration defers notification without discarding the accepted receipt");
+            var deferred = await db.OfficialQuoteDholeCreationOutbox.AsNoTracking()
+                .SingleAsync(x => x.QuoteId == temporaryId);
+            Assert(deferred.CreationReceiptAcceptedAtUtc != null &&
+                deferred.ConfirmationEmailClaimedAtUtc == null && deferred.AttemptCount == 1,
+                "Deferred notification leaves the accepted Pricing attempt untouched and claimable");
+            notifyConfig["Graph:ClientSecret"] = "ci-fictional";
             Assert(await notifier.RunAsync(db, CancellationToken.None, pilotScope) == 1 &&
                 await notifier.RunAsync(db, CancellationToken.None, pilotScope) == 0 &&
                 fakeNotification.MailCalls == 2 &&
@@ -1696,6 +1729,40 @@ internal static class DholeQuoteHttpTest
             Assert(recovered.StatusCode == HttpStatusCode.Created,
                 "Exact keyed retry after proven rollback creates original quote once");
 
+        // GIO adds a fixed uncertainty note to the applicant's observations.
+        // Use a separate TestServer rate-limit bucket, no production traffic.
+        using (var observationFactory = factory.WithWebHostBuilder(_ => { }))
+        using (var observationClient = observationFactory.CreateClient(
+            new WebApplicationFactoryClientOptions { AllowAutoRedirect = false }))
+        {
+            const string prefix = "La peligrosidad de la carga está pendiente de confirmar.\n";
+            var maxNotes = new string('n', 4000);
+            foreach (var tooLong in new[] { maxNotes + "x", prefix + maxNotes + "x" })
+            {
+                using var invalid = await observationClient.PostAsJsonAsync("/api/quotes/official",
+                    new Dictionary<string, object?>(quote) { ["observations"] = tooLong });
+                Assert(invalid.StatusCode == HttpStatusCode.BadRequest,
+                    "Ordinary observations and uncertainty-prefixed applicant text retain the 4000-character limit");
+            }
+            using var accepted = await observationClient.PostAsJsonAsync("/api/quotes/official",
+                new Dictionary<string, object?>(quote) { ["observations"] = prefix + maxNotes });
+            Assert(accepted.StatusCode == HttpStatusCode.Created,
+                "GIO's fixed uncertainty metadata must not consume the user's observation budget");
+            using var responseJson = JsonDocument.Parse(await accepted.Content.ReadAsStringAsync());
+            var notesId = responseJson.RootElement.GetProperty("id").GetGuid();
+            await using var db = new AppDbContext(opts);
+            var saved = await db.OfficialQuotes.AsNoTracking().SingleAsync(x => x.Id == notesId);
+            using var savedForm = JsonDocument.Parse(saved.FormJson);
+            Assert(savedForm.RootElement.GetProperty("observations").GetString() == prefix + maxNotes,
+                "Persist the full applicant text and uncertainty note without truncation");
+            var restored = JsonSerializer.Deserialize<OfficialQuoteSubmit>(saved.FormJson,
+                new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+            var reviewDraft = DholeOfficialQuoteDraftBuilder.Project(restored, notesId,
+                new DholeValidatedRoute(saved.OriginName, saved.DestinationName,
+                    savedForm.RootElement.GetProperty("verifiedPodName").GetString()));
+            Assert(reviewDraft.Observations == prefix + maxNotes && !reviewDraft.DangerousCargo,
+                "Uncertainty remains a note and is not silently promoted to dangerous cargo");
+        }
         Assert(handler.Requests > 0 && handler.ForbiddenRequests == 0,
             "All Dhole traffic was fake HTTPS GET and used the fictional key");
         Console.WriteLine("PASS: legacy quote created with optional client key table missing");
