@@ -337,10 +337,11 @@ function displayDate(iso: string): string { return new Date(iso).toLocaleString(
           <button type="button" class="off-admin-button" :disabled="busy" @click="loadArchived">Actualizar archivo</button>
         </div>
         <p class="off-admin-muted">
-          Solo las solicitudes archivadas por al menos 24 horas, sin registros de Dhole ni claves
-          de idempotencia protegidas, pueden eliminarse de la base de datos. La eliminación
-          definitiva borra la solicitud y su historial; únicamente se conserva una constancia
-          administrativa mínima. No afecta las cotizaciones de Pricing.
+          Solo las solicitudes archivadas por al menos 24 horas y sin registros de Dhole
+          pueden eliminarse de la base de datos. Si existe una clave de reintento,
+          se conserva únicamente su identificador aleatorio para impedir duplicaciones.
+          Se eliminan la solicitud y su historial, conservando una constancia mínima.
+          No afecta las cotizaciones de Pricing.
         </p>
         <p v-if="!archivedRows.length" class="off-admin-muted">No hay cotizaciones archivadas en esta página.</p>
         <div class="off-admin-archived-list">
