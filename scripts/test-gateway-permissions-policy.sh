@@ -25,11 +25,11 @@ server {
 NGINX
 docker network create "$net" >/dev/null
 docker run -d --name "$net-vue" --network "$net" --network-alias frontend \
-  -v "$tmp/upstream.conf:/etc/nginx/conf.d/default.conf:ro" nginx:1.27-alpine >/dev/null
+  -v "$tmp/upstream.conf:/etc/nginx/conf.d/default.conf:ro" nginx:alpine@sha256:7fc0fb4af7bf006aeb31aea88069976060f8f0a0a86b667126742cc17f4e31ae >/dev/null
 docker run -d --name "$net-nuxt" --network "$net" --network-alias frontend-nuxt \
-  -v "$tmp/nuxt.conf:/etc/nginx/conf.d/default.conf:ro" nginx:1.27-alpine >/dev/null
+  -v "$tmp/nuxt.conf:/etc/nginx/conf.d/default.conf:ro" nginx:alpine@sha256:7fc0fb4af7bf006aeb31aea88069976060f8f0a0a86b667126742cc17f4e31ae >/dev/null
 docker run -d --name "$net-gateway" --network "$net" -p 127.0.0.1::80 \
-  -v "$PWD/deploy/nuxt-hybrid-gateway.conf:/etc/nginx/conf.d/default.conf:ro" nginx:1.27-alpine >/dev/null
+  -v "$PWD/deploy/nuxt-hybrid-gateway.conf:/etc/nginx/conf.d/default.conf:ro" nginx:alpine@sha256:7fc0fb4af7bf006aeb31aea88069976060f8f0a0a86b667126742cc17f4e31ae >/dev/null
 addr="$(docker port "$net-gateway" 80/tcp)"
 ready=0
 for i in $(seq 1 30); do
