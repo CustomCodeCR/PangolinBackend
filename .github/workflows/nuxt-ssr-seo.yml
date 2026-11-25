@@ -185,6 +185,9 @@ jobs:
             grep -Eq '^HTTP/[0-9.]+ 301 ' <<< "$headers"
             grep -Fqi 'Location: https://www.logisticacastrofallas.com/' <<< "$headers"
           done
+      - name: Verify one permissions policy across public and legacy routes
+        shell: bash
+        run: bash scripts/test-gateway-permissions-policy.sh
       - name: Guard Fennec apex from Pangolin host redirects
         shell: bash
         run: |
