@@ -1,0 +1,32 @@
+# LOCAL MAIN-2 ONLY. Never include in default compose.yaml or production.
+# Explicitly enabled only by the local hybrid launcher when
+# DHOLE_MAIN2_AUTOSEND_ENABLED=true and a permanent UTC cutoff has been chosen.
+# Real requests and applicant contact data WILL be sent to Pricing.
+# All historical rows before the fixed cutoff remain excluded. Do not set a
+# pilot UUID or allow an automatic retry of InFlight/Unconfirmed attempts.
+services:
+  backend:
+    environment:
+      Features__OfficialQuotesEnabled: "true"
+      DholeSubmission__DirectOutboxEnabled: "true"
+      DholeSubmission__ClientCreateIdempotencyEnabled: "true"
+      DholeSubmission__ApprovalQueueEnabled: "false"
+      DholeSubmission__WorkerEnabled: "true"
+      DholeSubmission__DispatcherEnabled: "true"
+      DholeSubmission__ClaimPreviewEnabled: "true"
+      DholeSubmission__OutcomePreviewEnabled: "true"
+      DholeSubmission__PostEnabled: "true"
+      DholeSubmission__ApplicantContactSharingApproved: "true"
+      DholeSubmission__PilotQuoteId: ""
+      DholeSubmission__AllNewQuotesEnabled: "true"
+      DholeSubmission__NewQuotesStartUtc: ${DHOLE_MAIN2_AUTOSEND_START_UTC:?Definir UTC fijo ANTES del primer envio automatico}
+      DholeSubmission__TemporaryCatalogsEnabled: "true"
+      # Temporary local mapping approved pending missing official GETs.
+      # Catalog endpoints for routes and incoterms still require fresh responses.
+      DholeSubmission__TemporaryCatalogsValidUntilUtc: ""
+      DholeSubmission__ManualCommercialReviewEnabled: "true"
+      DholeSubmission__AcceptCreationReceiptEnabled: "true"
+      DholeSubmission__VerificationEnabled: "false"
+      DholeSubmission__ConfirmationEmailEnabled: "true"
+      DholeSubmission__ApiKey: ${DHOLE_PILOT_POST_KEY:?Clave POST privada existente en .env}
+      Email__Mode: "Graph"
