@@ -146,6 +146,18 @@ jobs:
         working-directory: frontend/nuxt
       - name: Build Nuxt Alpine Docker image
         run: docker build -t cf-nuxt-preview-smoke -f frontend/nuxt/Dockerfile frontend
+      - name: Verify the actual Nuxt image has no npm and runs unprivileged
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint sh cf-nuxt-preview-smoke -ec '
+            test "$(id -u)" -ne 0
+            ! command -v npm
+            ! command -v npx
+            test ! -e /usr/local/lib/node_modules/npm
+            test -r /app/.output/server/index.mjs
+            node --version
+          '
       - name: Build compiled Vue preview (same quotes flag as local development)
         run: docker build --build-arg VITE_OFFICIAL_QUOTES_ENABLED=true -t cf-legacy-preview-smoke -f frontend/Dockerfile frontend
       - name: Test real local hybrid gateway with Chrome (no blank quote screen)
