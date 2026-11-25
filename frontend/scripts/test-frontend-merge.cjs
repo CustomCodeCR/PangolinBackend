@@ -346,7 +346,7 @@ assert.match(officialQuoteAdmin, /@click="purgeSelected">Eliminar de BD<\/button
   'Eliminar de BD debe estar en el detalle al lado de Archivar')
 assert.match(officialQuoteAdmin, /detail\.status!=='Cancelled' \|\| !permissions\.canAuthorize/,
   'El botón de borrado exige estado Cancelada y permiso especial')
-assert.match(officialQuoteAdmin, /\('archived\/\+'\+id:id\+'\/purge'\)/,
+assert.ok(officialQuoteAdmin.includes("fromArchive?'archived/'+id:id+'/purge'"),
   'Las cotizaciones canceladas usan ruta de borrado directo, no la archivada')
 assert.doesNotMatch(officialQuoteAdmin, /Disponible después de 24 horas|Date\.now\(\)-24\*60\*60\*1000/,
   'No hay espera de 24 horas para eliminar')
