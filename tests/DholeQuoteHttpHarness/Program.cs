@@ -380,6 +380,21 @@ internal static class DholeQuoteHttpTest
         Assert((await Outbox(createdId)).count == 0,
             "Invalid priority never stages the quote");
 
+        // Active, unlinked quotes still need human attention. Even a manager
+        // cannot silently remove them before review or closure.
+        using (var pendingArchive = await AdminRequest(HttpMethod.Delete,
+            $"/api/admin/quotes/official/{createdId}", "authorizer"))
+        {
+            Assert(pendingArchive.StatusCode == HttpStatusCode.Conflict,
+                "Received quote cannot disappear from the inbox");
+            using var pendingError = JsonDocument.Parse(
+                await pendingArchive.Content.ReadAsStringAsync());
+            Assert(pendingError.RootElement.GetProperty("code").GetString() ==
+                "quote_archive_not_final", "Active archive has explicit conflict code");
+        }
+        Assert(await AuditCount(createdId, "Archived") == 0,
+            "Rejected premature archival cannot create an audit event");
+
         // Independent rejected quote: never enters integration outbox.
         using var rejectedResponse = await Submit(quote);
         Assert(rejectedResponse.StatusCode == HttpStatusCode.Created,
@@ -412,6 +427,11 @@ internal static class DholeQuoteHttpTest
         using (var archivedDetail = await Details(rejectedId))
             Assert(archivedDetail.StatusCode == HttpStatusCode.NotFound,
                 "Archived quote cannot be opened from Administration");
+        using (var reviewArchived = await AdminRequest(HttpMethod.Put,
+            $"/api/admin/quotes/official/{rejectedId}/review", "authorizer",
+            new { status = "InReview", comment = "No corresponde" }))
+            Assert(reviewArchived.StatusCode == HttpStatusCode.NotFound,
+                "Archived quote cannot be reviewed or reopened by a stale admin tab");
         using (var list = await AdminRequest(HttpMethod.Get,
             "/api/admin/quotes/official?page=1", "authorizer"))
         {
