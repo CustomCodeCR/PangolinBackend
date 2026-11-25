@@ -340,6 +340,16 @@ assert.match(manager, /class="manager-tab-label">Cotizaciones<\/span> <span>\{\{
 assert.match(manager, /loadQuotesTotal\(\)/, 'El contador de Cotizaciones se carga desde la API')
 assert.match(manager, /@total-change="quotesTotal = \$event"/, 'El contador debe actualizarse al cargar el módulo de Cotizaciones')
 assert.match(officialQuoteAdmin, /emit\('total-change',r\.total\)/, 'Las cotizaciones deben emitir el total real al panel')
+assert.match(officialQuoteAdmin, /\['Cancelled','Cancelada'\]/,
+  'El estado Cancelada debe aparecer como opción explícita')
+assert.match(officialQuoteAdmin, /@click="purgeSelected">Eliminar de BD<\/button>/,
+  'Eliminar de BD debe estar en el detalle al lado de Archivar')
+assert.match(officialQuoteAdmin, /detail\.status!=='Cancelled' \|\| !permissions\.canAuthorize/,
+  'El botón de borrado exige estado Cancelada y permiso especial')
+assert.match(officialQuoteAdmin, /\('archived\/\+'\+id:id\+'\/purge'\)/,
+  'Las cotizaciones canceladas usan ruta de borrado directo, no la archivada')
+assert.doesNotMatch(officialQuoteAdmin, /Disponible después de 24 horas|Date\.now\(\)-24\*60\*60\*1000/,
+  'No hay espera de 24 horas para eliminar')
 assert.doesNotMatch(officialQuoteAdmin, /La autorización es interna\. La conexión y el envío a Dhole todavía no están disponibles\./, 'No mostrar el aviso introductorio de Dhole')
 assert.match(officialQuoteAdmin, /Autorizar no envía la solicitud a Dhole\./, 'Conservar la advertencia contextual al autorizar')
 assert.doesNotMatch(manager, /manager-tabs\.manager-subtabs--with-quotes > button\.manager-editor-visual-tab\s*\{[^}]*flex-wrap:wrap;/, 'Editor visual no debe envolver el contador hacia otra fila')
