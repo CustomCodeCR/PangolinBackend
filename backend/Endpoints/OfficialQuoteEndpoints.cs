@@ -233,6 +233,7 @@ public static class OfficialQuoteEndpoints
         {
             foreach (var line in s.Equipment!)
             {
+                if (line is null) throw new ArgumentException("Línea de equipo inválida.");
                 var selectedSize = Required(line.Size, "Tamaño/tipo de equipo", 60);
                 var selectedType = Required(line.Type, "Tipo de equipo", 100);
                 // Compartir las restricciones del cotizador oficial con GIO: no permitir
@@ -259,6 +260,7 @@ public static class OfficialQuoteEndpoints
                 throw new ArgumentException("Seleccioná las unidades de peso y dimensiones.");
             foreach (var line in s.Packages!)
             {
+                if (line is null) throw new ArgumentException("Línea de bulto inválida.");
                 Required(line.Description, "Descripción de bulto", 400);
                 if (line.Quantity is null or < 1 or > 10000 ||
                     line.Weight is null or <= 0 or > 100000000 ||
@@ -294,7 +296,7 @@ public static class OfficialQuoteEndpoints
             throw new ArgumentException("Seleccioná una moneda del valor declarado disponible: USD, CRC o EUR.");
         if (!needsCurrency && !string.IsNullOrWhiteSpace(s.CargoCurrencyCode))
             throw new ArgumentException("La moneda declarada requiere un valor de mercancía positivo.");
-        if (s.CargoFlags?.Count > 12 || s.CargoFlags?.Any(x => x.Length > 50) == true)
+        if (s.CargoFlags?.Count > 12 || s.CargoFlags?.Any(x => x is null || x.Length > 50) == true)
             throw new ArgumentException("Opciones de carga inválidas.");
         if (s.Incoterm == "EXW")
         {
