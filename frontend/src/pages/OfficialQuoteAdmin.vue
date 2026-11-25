@@ -639,4 +639,21 @@ html.theme-dark .app-site .off-admin .off-admin-archived-item .off-admin-muted,
 html.theme-dark .app-site.off-admin .off-admin-archived-item .off-admin-muted {
   color:#d2d6e2 !important;
 }
+
+/* Archive and review notices also belong to the dark surface palette.
+   The global dark-theme text override turned a pale success box white on
+   white. Scope these rules to both embedded and standalone official admin;
+   leave light mode and all status messages unchanged. */
+html.theme-dark .app-site .off-admin .off-admin-ok,
+html.theme-dark .app-site.off-admin .off-admin-ok {
+  background:#172a28 !important;
+  border-color:#4b9173 !important;
+  color:#edf9f1 !important;
+}
+html.theme-dark .app-site .off-admin .off-admin-alert,
+html.theme-dark .app-site.off-admin .off-admin-alert {
+  background:#301d28 !important;
+  border-color:#b94b67 !important;
+  color:#ffe8ee !important;
+}
 </style>
