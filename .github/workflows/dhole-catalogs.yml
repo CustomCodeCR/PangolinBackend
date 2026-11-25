@@ -27,6 +27,7 @@ on:
       - 'compose.dhole-main2-preview.yaml'
       - 'compose.dhole-main2-autosend.yaml'
       - 'scripts/test-main2-dhole-autosend.py'
+      - 'scripts/configure-main2-dhole-autosend.ps1'
       - '.github/workflows/dhole-catalogs.yml'
   workflow_dispatch:
 
@@ -57,6 +58,7 @@ jobs:
           foreach ($file in @(
             'scripts/test-dhole-catalog-docker.ps1',
             'scripts/start-main2-hybrid.ps1',
+            'scripts/configure-main2-dhole-autosend.ps1',
             'scripts/start-dhole-main2-preview.ps1'
           )) {
             $tokens = $null
