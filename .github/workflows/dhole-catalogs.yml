@@ -1,9 +1,15 @@
 name: Dhole catalogues - offline contract checks
 on:
   pull_request:
-    branches: [main-2]
+    branches: [main-2, main]
     paths:
       - 'backend/Services/DholeCatalog*.cs'
+      - 'backend/Services/DholeOfficial*.cs'
+      - 'backend/Services/DholeQuotePostTransport.cs'
+      - 'frontend/src/pages/OfficialQuoteWizard.vue'
+      - 'frontend/src/components/GioOperations.vue'
+      - 'frontend/src/lib/officialQuote*.ts'
+      - 'tests/DholeQuoteAuditMatrix/**'
       - 'backend/Services/DholeQuoteLocationProjector.cs'
       - 'backend/Services/DholeEquipmentProjector.cs'
       - 'backend/Services/DholeItineraryLocationProjector.cs'
@@ -46,6 +52,8 @@ jobs:
         run: dotnet build backend/CastroFallas.MiniQuote.Api.csproj -c Release
       - name: Verify Dhole normalization and invalid input contracts offline
         run: dotnet run --project tests/DholeCatalogHarness/DholeCatalogHarness.csproj -c Release
+      - name: Exhaust synthetic quote service and mode combinations; fake HTTP replies only
+        run: dotnet run --project tests/DholeQuoteAuditMatrix/DholeQuoteAuditMatrix.csproj -c Release
 
   isolated-docker:
     name: Start backend without databases and without real Dhole calls
