@@ -636,9 +636,16 @@ internal static class DholeQuoteHttpTest
             "Unexpected reopen"))
             Assert(reactivate.StatusCode == HttpStatusCode.Conflict,
                 "Cancelled cannot be reactivated via stale admin tab");
-        using (var authCancelled = await Decide(cancelId, "Authorized"))
+        // Keep the original host's auth-rate-limit budget unchanged for
+        // existing tests later in this suite; use the isolated purge host.
+        using (var attemptAuthorization = new HttpRequestMessage(HttpMethod.Put,
+            $"/api/admin/quotes/official/{cancelId}/authorization?decision=Authorized"))
+        {
+            attemptAuthorization.Headers.Add("X-CI-Test-Actor", "authorizer");
+            using var authCancelled = await purgeClient.SendAsync(attemptAuthorization);
             Assert(authCancelled.StatusCode == HttpStatusCode.Conflict,
                 "Cancelled must not authorize a new Dhole outbox");
+        }
         using (var viewerPurgeActive = await Purge(cancelId, "viewer", active: true))
             Assert(viewerPurgeActive.StatusCode == HttpStatusCode.Forbidden,
                 "Ordinary admin cannot purge cancelled quote");
