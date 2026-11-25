@@ -344,8 +344,16 @@ assert.match(officialQuoteAdmin, /\['Cancelled','Cancelada'\]/,
   'El estado Cancelada debe aparecer como opción explícita')
 assert.match(officialQuoteAdmin, /@click="purgeSelected">Eliminar de BD<\/button>/,
   'Eliminar de BD debe estar en el detalle al lado de Archivar')
-assert.match(officialQuoteAdmin, /detail\.status!=='Cancelled' \|\| !permissions\.canAuthorize/,
-  'El botón de borrado exige estado Cancelada y permiso especial')
+assert.match(officialQuoteAdmin, /:disabled="busy \|\| detail\.status!=='Cancelled'"/,
+  'El botón solo exige estado Cancelada, sin permisos especiales adicionales')
+assert.match(officialQuoteAdmin, /<button v-if="permissions\.canView" type="button"\s+class="off-admin-delete off-admin-purge"/,
+  'La eliminación está disponible a cualquier admin con acceso al panel')
+assert.doesNotMatch(officialQuoteAdmin, /'ELIMINAR '\+id|Escribí exactamente lo siguiente/,
+  'La eliminación no solicita escribir ELIMINAR ni un UUID')
+assert.match(officialQuoteAdmin, /window\.confirm\(/,
+  'El borrado irreversible sigue solicitando una confirmación simple')
+assert.match(officialQuoteAdmin, /body:JSON\.stringify\(\{reason\}\)/,
+  'Solo se envía el motivo acotado al backend')
 assert.ok(officialQuoteAdmin.includes("fromArchive?'archived/'+id:id+'/purge'"),
   'Las cotizaciones canceladas usan ruta de borrado directo, no la archivada')
 assert.doesNotMatch(officialQuoteAdmin, /Disponible después de 24 horas|Date\.now\(\)-24\*60\*60\*1000/,
