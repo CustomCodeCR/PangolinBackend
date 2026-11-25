@@ -468,10 +468,11 @@ internal static class DholeQuoteHttpTest
         using var purgeClient = purgeFactory.CreateClient(
             new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         async Task<HttpResponseMessage> Purge(Guid quoteId, string role,
-            string? confirmation = null, string reason = "Prueba")
+            string? confirmation = null, string reason = "Prueba", bool active = false)
         {
             using var request = new HttpRequestMessage(HttpMethod.Delete,
-                $"/api/admin/quotes/official/archived/{quoteId}");
+                active ? $"/api/admin/quotes/official/{quoteId}/purge" :
+                    $"/api/admin/quotes/official/archived/{quoteId}");
             request.Headers.Add("X-CI-Test-Actor", role);
             request.Content = JsonContent.Create(new {
                 confirmation = confirmation ?? $"ELIMINAR {quoteId:D}", reason
@@ -501,22 +502,12 @@ internal static class DholeQuoteHttpTest
             confirmation: rejectedId.ToString("D")))
             Assert(wrongConfirmation.StatusCode == HttpStatusCode.BadRequest,
                 "Permanent delete requires exact ELIMINAR UUID confirmation");
-        using (var tooSoon = await Purge(rejectedId, "authorizer"))
-            Assert(tooSoon.StatusCode == HttpStatusCode.Conflict,
-                "Cooling-off prevents immediate permanent deletion");
+        // There is no longer a 24-hour wait for a completed archived quote.
+        // Simulate a protected client idempotency link. The deletion still
+        // preserves the random request key as an irreversible replay tombstone.
         await using (var db = new NpgsqlConnection(connectionString))
         {
             await db.OpenAsync();
-            await using var advance = new NpgsqlCommand("""
-                UPDATE public.official_quote_requests
-                SET archived_at_utc = now() - interval '48 hours'
-                WHERE id = @id AND archived_at_utc IS NOT NULL
-                """, db);
-            advance.Parameters.AddWithValue("id", rejectedId);
-            Assert(await advance.ExecuteNonQueryAsync() == 1,
-                "Test fixture archived timestamp is moved only in disposable PostgreSQL");
-            // Simulate a protected client idempotency link. The DELETE must NOT
-            // drop this key or allow a previously used browser key to be replayed.
             await using var key = new NpgsqlCommand("""
                 INSERT INTO public.official_quote_client_submissions
                     (submission_key, quote_id, request_digest)
@@ -553,7 +544,7 @@ internal static class DholeQuoteHttpTest
         }
         using (var allowedPurge = await Purge(rejectedId, "authorizer", reason: "Defectuosa"))
             Assert(allowedPurge.StatusCode == HttpStatusCode.OK,
-                "Eligible archived quote can be permanently deleted after protections pass");
+                "Eligible archived quote can be permanently deleted immediately after archival");
         using (var repeatedPurge = await Purge(rejectedId, "authorizer"))
             Assert(repeatedPurge.StatusCode == HttpStatusCode.NotFound,
                 "Already-purged quote cannot be deleted twice");
@@ -610,6 +601,89 @@ internal static class DholeQuoteHttpTest
             Assert(Convert.ToInt64(await verify.ExecuteScalarAsync()) == 1,
                 "Stale replay never creates a second quote after permanent deletion");
         }
+
+        // NEW DIRECT FLOW: active quote -> cancelled with a reason -> immediate
+        // irreversible deletion. No archive step, no wait, no actual Dhole POST.
+        using var cancelResponse = await Submit(quote);
+        Assert(cancelResponse.StatusCode == HttpStatusCode.Created,
+            "Independent fictional request created for direct cancellation");
+        using var cancelJson = JsonDocument.Parse(await cancelResponse.Content.ReadAsStringAsync());
+        var cancelId = cancelJson.RootElement.GetProperty("id").GetGuid();
+        using (var prematurePurge = await Purge(cancelId, "authorizer", active: true))
+            Assert(prematurePurge.StatusCode == HttpStatusCode.Conflict,
+                "An active Received quote is protected from irreversible deletion");
+        async Task<HttpResponseMessage> ReviewForCancellation(Guid id, string status, string? reason)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Put,
+                $"/api/admin/quotes/official/{id}/review");
+            request.Headers.Add("X-CI-Test-Actor", "authorizer");
+            request.Content = JsonContent.Create(new { status, comment = reason });
+            return await purgeClient.SendAsync(request);
+        }
+        using (var noReason = await ReviewForCancellation(cancelId, "Cancelled", null))
+            Assert(noReason.StatusCode == HttpStatusCode.BadRequest,
+                "Cancelling an administrative quote requires an auditable reason");
+        using (var cancelled = await ReviewForCancellation(cancelId, "Cancelled",
+            "Prueba defectuosa, sin despacho externo"))
+            Assert(cancelled.StatusCode == HttpStatusCode.OK,
+                "Admin can cancel only the independent local quote");
+        Assert(await AuditCount(cancelId, "Cancelled") == 1,
+            "Cancellation is audited separately from ordinary reviews");
+        using (var reactivate = await ReviewForCancellation(cancelId, "Received",
+            "Unexpected reopen"))
+            Assert(reactivate.StatusCode == HttpStatusCode.Conflict,
+                "Cancelled cannot be reactivated via stale admin tab");
+        using (var authCancelled = await Decide(cancelId, "Authorized"))
+            Assert(authCancelled.StatusCode == HttpStatusCode.Conflict,
+                "Cancelled must not authorize a new Dhole outbox");
+        using (var viewerPurgeActive = await Purge(cancelId, "viewer", active: true))
+            Assert(viewerPurgeActive.StatusCode == HttpStatusCode.Forbidden,
+                "Ordinary admin cannot purge cancelled quote");
+        using (var deleteCancelled = await Purge(cancelId, "authorizer", active: true))
+            Assert(deleteCancelled.StatusCode == HttpStatusCode.OK,
+                "Cancelled active quote is deleted immediately without archival or cooldown");
+        using (var repeatCancelled = await Purge(cancelId, "authorizer", active: true))
+            Assert(repeatCancelled.StatusCode == HttpStatusCode.NotFound,
+                "Direct purge cannot be repeated after tombstone commit");
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var verifyCancel = new NpgsqlCommand("""
+                SELECT (SELECT COUNT(*) FROM public.official_quote_requests WHERE id = @id),
+                       (SELECT COUNT(*) FROM public.official_quote_audit WHERE quote_id = @id),
+                       (SELECT COUNT(*) FROM public.official_quote_purge_audit
+                        WHERE quote_id = @id AND reason = 'Prueba')
+                """, db);
+            verifyCancel.Parameters.AddWithValue("id", cancelId);
+            await using var reader = await verifyCancel.ExecuteReaderAsync();
+            Assert(await reader.ReadAsync() && reader.GetInt64(0)==0 &&
+                reader.GetInt64(1)==0 && reader.GetInt64(2)==1,
+                "Local quote content erased; only minimal audit tombstone retained");
+        }
+
+        // Another local quote may have a Dhole outbox even if it has not
+        // attempted delivery yet. No admin may mark it Cancelled or purge it.
+        using var linkedResponse = await Submit(quote);
+        Assert(linkedResponse.StatusCode == HttpStatusCode.Created,
+            "Independent fictional request created for Dhole-link protection");
+        using var linkedJson = JsonDocument.Parse(await linkedResponse.Content.ReadAsStringAsync());
+        var linkedId = linkedJson.RootElement.GetProperty("id").GetGuid();
+        await using (var db = new NpgsqlConnection(connectionString))
+        {
+            await db.OpenAsync();
+            await using var link = new NpgsqlCommand(
+                "INSERT INTO public.official_quote_dhole_outbox (quote_id) VALUES (@id)", db);
+            link.Parameters.AddWithValue("id", linkedId);
+            Assert(await link.ExecuteNonQueryAsync() == 1,
+                "Insert fictitious pending Dhole relation in disposable PostgreSQL");
+        }
+        using (var protectedCancel = await ReviewForCancellation(linkedId, "Cancelled",
+            "Prueba relacionada con Dhole"))
+            Assert(protectedCancel.StatusCode == HttpStatusCode.Conflict,
+                "Dhole relation blocks administrative cancellation before deleting");
+        using (var protectedPurge = await Purge(linkedId, "authorizer", active: true))
+            Assert(protectedPurge.StatusCode == HttpStatusCode.Conflict,
+                "Dhole-linked quote cannot be purged while still Received");
 
         using (var accepted = await Decide(createdId, "Authorized"))
         {
