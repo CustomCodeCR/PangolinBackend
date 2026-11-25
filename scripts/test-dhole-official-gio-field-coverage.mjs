@@ -172,8 +172,18 @@ for (const frontend of [wizard,gio])
   has(frontend,['prepareQuoteSubmissionAttempt','clearQuoteSubmissionAttempt',
     'X-CF-Quote-Request-Key'],'Quote UI retry protection');
 assert.ok(!retry.includes('JSON.stringify({body'), 'Do not persist raw quote bodies in retry state');
-assert.ok(!schema.includes('ALTER TABLE public.official_quote_requests\n    ADD COLUMN'),
-  'Historic official quote table must not require a migration when the flag is off');
+// The independent administrative archive feature uses two additive columns
+// on the existing quote table; idempotency must still be isolated in its own
+// optional key table and must not require changes to historic quote payloads.
+const quoteColumnAdditions = [...schema.matchAll(
+  /ALTER TABLE public\\.official_quote_requests\\s+ADD COLUMN[\\s\\S]*?;/g
+)].map(match => match[0]);
+assert.equal(quoteColumnAdditions.length, 1,
+  'Only the reviewed additive archive migration may extend official quote rows');
+assert.match(quoteColumnAdditions[0], /ADD COLUMN IF NOT EXISTS archived_at_utc TIMESTAMPTZ NULL/);
+assert.match(quoteColumnAdditions[0], /ADD COLUMN IF NOT EXISTS archived_by_id UUID NULL/);
+assert.doesNotMatch(quoteColumnAdditions[0], /submission_key|request_digest|idempotency/i,
+  'Client duplicate protection must remain in the optional key table');
 has(optionsType,['clientCreateIdempotencyEnabled','typeof v.clientCreateIdempotencyEnabled'],
   'Validated public Dhole capability');
 has(catalogEndpoint,['ClientCreateIdempotencyEnabled','DholeSubmission:ClientCreateIdempotencyEnabled'],
