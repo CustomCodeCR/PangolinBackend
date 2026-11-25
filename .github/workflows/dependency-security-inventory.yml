@@ -78,6 +78,12 @@ jobs:
           npm ci --no-audit --no-fund
           npm run build
           node scripts/test-frontend-merge.cjs
+      - name: Isolate Nuxt build from sibling Vue dependencies
+        shell: bash
+        run: |
+          test -d frontend/node_modules
+          mv frontend/node_modules "$RUNNER_TEMP/pangolin-vue-node-modules"
+          test ! -e frontend/node_modules
       - name: Build Nuxt candidate and exercise isolated SSR news
         working-directory: frontend/nuxt
         run: |
