@@ -12,8 +12,15 @@ permissions:
   contents: read
 jobs:
   hardened-backend:
+    name: hardened-backend (${{ matrix.filesystem }})
+    strategy:
+      fail-fast: false
+      matrix:
+        filesystem: [writable, readonly]
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      FIXTURE_FILESYSTEM: ${{ matrix.filesystem }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,6 +32,52 @@ jobs:
         run: |
           set -euo pipefail
           network="pangolin-privilege-fixture"
+          # Use the actual image UID/GID/HOME; never change the application identity.
+          uid="$(docker run --rm --network none --entrypoint id pangolin-privilege-ci:local -u)"
+          gid="$(docker run --rm --network none --entrypoint id pangolin-privilege-ci:local -g)"
+          home="$(docker run --rm --network none --entrypoint sh pangolin-privilege-ci:local -c 'printf "%s" "$HOME"')"
+          [[ "$uid" =~ ^[0-9]+$ && "$uid" != 0 && "$gid" =~ ^[0-9]+$ ]]
+          [[ "$home" =~ ^/home/[a-zA-Z0-9_-]+$ ]]
+          keydir="$home/.aspnet/DataProtection-Keys"
+          fs_flags=()
+          if [[ "$FIXTURE_FILESYSTEM" == readonly ]]; then
+            # CI experiment ONLY: keys deliberately ephemeral, no production persistence decision.
+            fs_flags=(--read-only
+              --tmpfs "/tmp:rw,nosuid,nodev,noexec,size=256m,mode=1777"
+              --tmpfs "$keydir:rw,nosuid,nodev,noexec,size=16m,uid=$uid,gid=$gid,mode=0700")
+          else
+            [[ "$FIXTURE_FILESYSTEM" == writable ]]
+          fi
+          check_filesystem() {
+            local container="$1" expected=false
+            if [[ "$FIXTURE_FILESYSTEM" == readonly ]]; then expected=true; fi
+            [[ "$(docker inspect -f '{{.HostConfig.ReadonlyRootfs}}' "$container")" == "$expected" ]]
+            if [[ "$expected" == true ]]; then
+              docker exec "$container" sh -ec '
+                export LC_ALL=C
+                p="/var/tmp/pangolin-readonly-fixture-$"
+                if output="$(touch "$p" 2>&1)"; then
+                  rm -f "$p"
+                  echo "Unexpected writable root filesystem" >&2
+                  exit 1
+                fi
+                case "$output" in *"Read-only file system"*) ;; *) exit 1 ;; esac
+                t="$(mktemp /tmp/pangolin-fixture.XXXXXX)"
+                printf fixture > "$t"
+                test "$(cat "$t")" = fixture
+                rm -f "$t"
+                test -w "$1"
+              ' sh "$keydir"
+              echo "PASS backend read-only root rejects writes; bounded temporary paths writable"
+            fi
+          }
+          check_fixture_keys() {
+            if [[ "$FIXTURE_FILESYSTEM" == readonly ]]; then
+              # Verify actual key generation without printing paths, key names or XML.
+              docker exec "$1" sh -ec 'test "$(find "$1" -maxdepth 1 -type f -name "key-*.xml" | wc -l)" -ge 1' sh "$keydir"
+              echo "PASS backend disposable DataProtection key creation"
+            fi
+          }
           cleanup() {
             docker rm -f -v pangolin-privilege-api pangolin-privilege-pg pangolin-privilege-mail-media >/dev/null 2>&1 || true
             docker volume rm pangolin-privilege-outbox >/dev/null 2>&1 || true
@@ -62,7 +115,7 @@ jobs:
           SQL
           # Internal-only network, no host ports, no real credentials or providers.
           docker run -d --name pangolin-privilege-api --network "$network" --network-alias backend --network-alias example.test \
-            --security-opt no-new-privileges:true --cap-drop ALL \
+            --security-opt no-new-privileges:true --cap-drop ALL "${fs_flags[@]}" \
             -e ASPNETCORE_ENVIRONMENT=Production \
             -e 'ConnectionStrings__Postgres=Host=postgres;Port=5432;Database=pangolin;Username=pangolin;Password=fixture-only-password' \
             -e Auth__OtpPepper="$(printf 'a%.0s' {1..64})" \
@@ -82,6 +135,7 @@ jobs:
             END { exit !(n && e && p && b && u) }
           '
           echo "PASS backend runtime: non-root, no-new-privileges, no Linux capabilities"
+          check_filesystem pangolin-privilege-api
           docker run --rm --network "$network" --entrypoint node node:22-alpine -e '
             const base = "http://example.test:5000";
             (async () => {
@@ -138,18 +192,16 @@ jobs:
               console.log("PASS restricted backend persisted session revocation");
             })().catch(e => { console.error(e.message); process.exitCode = 1; });
           '
+          check_fixture_keys pangolin-privilege-api
           # Exercise local-only mail and S3 HTTP against the same restricted image.
           # Development is mandatory for LocalOutbox; never enable it in Production.
           docker rm -f -v pangolin-privilege-api >/dev/null
-          uid="$(docker run --rm --network none --entrypoint id pangolin-privilege-ci:local -u)"
-          gid="$(docker run --rm --network none --entrypoint id pangolin-privilege-ci:local -g)"
-          [[ "$uid" =~ ^[0-9]+$ && "$uid" != 0 && "$gid" =~ ^[0-9]+$ ]]
           docker volume create pangolin-privilege-outbox >/dev/null
           docker run --rm --network none --user 0 --entrypoint sh \
             --mount source=pangolin-privilege-outbox,target=/outbox \
             pangolin-privilege-ci:local -c 'chown "$1:$2" /outbox && chmod 700 /outbox' sh "$uid" "$gid"
           docker run -d --name pangolin-privilege-mail-media --network "$network" --network-alias backend-mail-cms \
-            --security-opt no-new-privileges:true --cap-drop ALL \
+            --security-opt no-new-privileges:true --cap-drop ALL "${fs_flags[@]}" \
             --mount source=pangolin-privilege-outbox,target=/app/local-outbox \
             -e ASPNETCORE_ENVIRONMENT=Development -e Development__ApplySchema=false \
             -e 'ConnectionStrings__Postgres=Host=postgres;Port=5432;Database=pangolin;Username=pangolin;Password=fixture-only-password' \
@@ -170,8 +222,10 @@ jobs:
             /^Uid:/ { u = ($2 != 0 && $3 != 0) }
             END { exit !(n && e && p && b && u) }
           '
+          check_filesystem pangolin-privilege-mail-media
           docker run --rm --network "$network" --network-alias minio \
             --mount "type=bind,source=$GITHUB_WORKSPACE,target=/fixture,readonly" \
             --mount source=pangolin-privilege-outbox,target=/outbox,readonly \
             -e CI=true -e PANGOLIN_RESTRICTED_MAIL_MEDIA_FIXTURE=1 \
             --entrypoint python python:3.12-slim /fixture/scripts/test-restricted-backend-mail-media.py
+          check_fixture_keys pangolin-privilege-mail-media
