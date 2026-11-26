@@ -113,3 +113,77 @@ and `deploy=true` after reviewing operational safety; this rolls back
 so older images can ignore them. Restore a DB dump **only after independent
 operator assessment**; never run `docker compose down -v`, drop databases,
 or overwrite other apps' volumes.
+
+
+## Release recovery checkpoint (2026-11-25 security update)
+
+**Planning only. No production actions without fresh operator approval.**
+The previous release workflow's image-tag rollback is not a complete rollback
+of the production environment. Its publish job builds and pushes images before
+the deployment job, even when an earlier `image_tag` is supplied. Deployment
+downloads Compose and gateway configuration from the selected workflow run,
+not necessarily from the requested earlier image tag. A commit-shaped tag
+is a convention, not a registry immutability guarantee; preserve digests.
+
+Before any authorized next release, record and securely preserve the following
+on the verified runner host (do not upload secrets or database dumps to GitHub):
+
+- Current four container image references, image IDs and repository digests;
+  the gateway is part of the rollback baseline, not just backend and Vue.
+- The current release directory's Compose and gateway configuration files,
+  their SHA-256 hashes, and the current-tag marker. Preserve a private copy
+  outside the directory overwritten by deployment. Check actual mount paths
+  and active routing settings. Do not print environment contents or complete
+  Docker inspect output.
+- The private environment configuration and a recovery record of the active
+  routing/feature flags. Keep these with the responsible operator only.
+- A fresh PostgreSQL backup of the verified Pangolin database, with a
+  successful isolated restoration check. Account for media objects separately.
+  Never restore a previous database automatically after an application rollback:
+  new requests, sessions and outbox records may exist.
+- Confirm the old image digests remain retrievable and the previous configuration
+  works with them. Check old/new gateway compatibility in hosted CI and confirm
+  the selected release Compose resolves the intended gateway digest. Current
+  deployment explicitly pulls the three application images; check the gateway
+  is available before the cutover. Do not issue a registry pull on Argos as part
+  of a read-only inventory.
+
+### Read-only release baseline check
+
+On the confirmed Argos host, these checks print only file existence, hashes,
+file metadata and bounded container metadata. They do not create a backup.
+
+```bash
+sudo bash <<'BASH'
+set -euo pipefail
+set +x
+release=/home/actions-runner/pangolin-release
+for file in current-tag docker-compose.images.yml nuxt-hybrid-gateway.conf; do
+  test -r "$release/$file"
+  sha256sum "$release/$file"
+done
+docker ps -a --filter label=com.docker.compose.project=pangolin-production \
+  --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
+BASH
+```
+
+### Decision gates
+
+1. Approve candidate commit, review CI and exact production image findings.
+2. Confirm recovery prerequisites, operator and maintenance window. Keep the
+   deployment PR in draft until approved. Do not dispatch the production
+   workflow from development branches.
+3. If cutover checks fail, stop and assess whether reverting WWW routing
+   alone restores service. This is a routing fallback, not a full rollback.
+   For a full application/configuration rollback, use the previously preserved
+   compatible Compose, gateway and image digests under a separately approved
+   operator procedure. Never assume a previous application image tag restores
+   the previous configuration or database.
+4. Verify public pages, health/readiness, auth, private SPA routing, CMS media,
+   official quote outbox and tracking without creating real provider requests.
+   Confirm Fennec and other Dhole services are unaffected.
+5. Record final observed versions and checks. A successful HTTP smoke alone
+   does not certify recovery of all dependencies.
+
+These gates are documentation, not a tested restoration of the live host.
+The prior local dump/list check is not proof of an isolated full restore.
