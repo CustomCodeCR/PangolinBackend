@@ -158,6 +158,36 @@ try {
   homeCmsMode = 'published'
   assert.match(visible(await homeHtml()), /<h1\b[^>]*>CMS HOME FIXTURE BETA/)
   console.log('PASS Home SSR published text, request-local freshness, escaping, field isolation, fallback and recovery')
+  // Measure warm HTML response headers and body separately. Report, rather
+  // than claim a production SLA or compare against unrelated static routes.
+  async function sampleHome() {
+    const start = performance.now()
+    const response = await fetch(base + '/', { signal: AbortSignal.timeout(5000) })
+    const ttfb = performance.now() - start
+    assert.equal(response.status, 200)
+    const html = await response.text()
+    return { ttfb, total: performance.now() - start, bytes: Buffer.byteLength(html) }
+  }
+  const percentile = (values, p) => values.slice().sort((a,b)=>a-b)[Math.ceil(p*values.length)-1]
+  const samples = []
+  for (let i=0;i<12;i++) samples.push(await sampleHome())
+  console.log('MEASURE Home SSR warm sequential (fixture only)', JSON.stringify({
+    count:samples.length, ttfbP50ms:Math.round(percentile(samples.map(x=>x.ttfb),.5)),
+    ttfbP95ms:Math.round(percentile(samples.map(x=>x.ttfb),.95)),
+    totalP95ms:Math.round(percentile(samples.map(x=>x.total),.95)),
+    htmlBytes:samples[0].bytes
+  }))
+  const concurrent = await Promise.all(Array.from({length:8},()=>sampleHome()))
+  console.log('MEASURE Home SSR concurrent (fixture only)', JSON.stringify({
+    count:concurrent.length, ttfbP95ms:Math.round(percentile(concurrent.map(x=>x.ttfb),.95))
+  }))
+  homeCmsMode='slow'
+  const slowSample=await sampleHome()
+  console.log('MEASURE Home SSR slow upstream fallback (fixture only)', JSON.stringify({
+    ttfbMs:Math.round(slowSample.ttfb),totalMs:Math.round(slowSample.total)
+  }))
+  homeCmsMode='published'
+
   // News listing must render real editorial content on the server, not only
   // the loading shell after JavaScript, and keep descriptive card-image alt.
   const listingResponse = await fetch(base + '/noticias')
