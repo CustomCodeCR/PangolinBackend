@@ -31,16 +31,16 @@ jobs:
           }
           trap cleanup EXIT
           # Representative v3.6 series, NOT a claim about Argos' deployed version.
-          docker pull traefik:v3.6
+          docker pull traefik@sha256:31267173a15b4944e797a76ffd9c419707c8d8b32fe5b610f80cd0cfa05f372d
           docker pull node:22-alpine
-          docker image inspect traefik:v3.6 --format '{{json .RepoDigests}}'
-          docker run --rm --network none traefik:v3.6 version
+          docker image inspect traefik@sha256:31267173a15b4944e797a76ffd9c419707c8d8b32fe5b610f80cd0cfa05f372d --format '{{json .RepoDigests}}'
+          docker run --rm --network none traefik@sha256:31267173a15b4944e797a76ffd9c419707c8d8b32fe5b610f80cd0cfa05f372d version
           docker network create --internal "$network" >/dev/null
           # The Docker socket grants daemon access even with a read-only mount.
           # This is confined to the disposable GitHub-hosted runner; never Argos.
           docker run -d --name fixture-traefik --network "$network" \
             -v /var/run/docker.sock:/var/run/docker.sock:ro \
-            traefik:v3.6 \
+            traefik@sha256:31267173a15b4944e797a76ffd9c419707c8d8b32fe5b610f80cd0cfa05f372d \
             --entrypoints.web.address=:8080 \
             --providers.docker=true --providers.docker.exposedbydefault=false \
             '--providers.docker.constraints=Label(`pangolin.health-fixture`,`true`)' \
@@ -82,35 +82,48 @@ jobs:
           probe_routes() {
             docker run --rm --network "$network" --entrypoint node node:22-alpine -e '
               const expected=Number(process.argv[1]);
-              async function get(url,host){
-                const r=await fetch(url,{headers:host?{Host:host}:{},signal:AbortSignal.timeout(2000),redirect:"manual"});
-                return [r.status,await r.text()];
+              const http=require("node:http");
+              function get(url,host){
+                return new Promise((resolve,reject)=>{
+                  const req=http.get(url,{headers:host?{Host:host}:{}},r=>{
+                    let body="";
+                    r.setEncoding("utf8");
+                    r.on("data",s=>{body+=s});
+                    r.on("end",()=>resolve([r.statusCode,body]));
+                    r.on("error",reject);
+                  });
+                  const timer=setTimeout(()=>req.destroy(Error("probe timeout")),2000);
+                  req.on("close",()=>clearTimeout(timer));
+                  req.on("error",reject);
+                });
               }
               (async()=>{
+                let last="no response";
                 for(let i=0;i<40;i++){
                   try{
                     const [target,body]=await get("http://fixture-traefik:8080/","target.test");
                     const [control,controlBody]=await get("http://fixture-traefik:8080/","control.test");
                     const [direct,directBody]=await get("http://fixture-target:3000/");
+                    last=JSON.stringify({expected,target,control,direct,targetBodyMatches:body==="target fixture",controlBodyMatches:controlBody==="control fixture",directBodyMatches:directBody==="target fixture"});
                     if(target===expected&&(expected!==200||body==="target fixture")&&control===200&&controlBody==="control fixture"&&direct===200&&directBody==="target fixture"){
                       console.log("PASS target routed HTTP",target,"control 200 and direct target 200");
                       return;
                     }
-                  }catch{}
+                  }catch(e){last=String(e.message)}
                   await new Promise(r=>setTimeout(r,1000));
                 }
-                throw Error("Expected route state did not converge");
+                throw Error("Expected route state did not converge: "+last);
               })().catch(e=>{console.error(e.message);process.exitCode=1});
             ' "$1"
           }
           wait_health healthy
-          probe_routes 200
+          probe_routes 200 || { docker logs --tail 80 fixture-traefik >&2; exit 1; }
           started="$(docker inspect -f '{{.State.StartedAt}}' fixture-target)"
           docker kill --signal=SIGUSR2 fixture-target >/dev/null
           wait_health unhealthy
           expected=404
           if [[ "$ALLOW_EMPTY" == true ]]; then expected=503; fi
-          probe_routes "$expected"
+          probe_routes "$expected" || { docker logs --tail 80 fixture-traefik >&2; exit 1; }
           docker kill --signal=SIGUSR2 fixture-target >/dev/null
           wait_health healthy
           probe_routes 200
