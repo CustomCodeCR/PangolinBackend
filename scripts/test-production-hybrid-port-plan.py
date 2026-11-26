@@ -63,6 +63,11 @@ def check_layout(legacy: int, hybrid: int) -> None:
     assert set(nuxt.get("cap_drop", [])) == {"ALL"}
     assert not nuxt.get("cap_add") and not nuxt.get("privileged")
     print("PASS Nuxt Compose runtime privilege restrictions")
+    backend = services["backend"]
+    assert "no-new-privileges:true" in {v.replace("=", ":", 1) for v in backend.get("security_opt", [])}
+    assert set(backend.get("cap_drop", [])) == {"ALL"}
+    assert not backend.get("cap_add") and not backend.get("privileged")
+    print("PASS backend Compose runtime privilege restrictions")
     all_ports = [p[1] for name in ("frontend", "seo-gateway", "frontend-nuxt")
                  for p in host_ports(services[name])]
     assert len(all_ports) == len(set(all_ports)), "Duplicate host port"
