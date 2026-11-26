@@ -35,7 +35,17 @@ docker run -d --rm --name cf-hybrid-fake-api --network "$network" --network-alia
 docker run -d --rm --name cf-hybrid-vue --network "$network" --network-alias frontend-legacy-preview \
   -p 127.0.0.1:18084:80 cf-legacy-preview-smoke >/dev/null
 docker run -d --rm --name cf-hybrid-nuxt --network "$network" --network-alias frontend-nuxt \
+  --security-opt no-new-privileges:true --cap-drop ALL \
   -e NUXT_CMS_API_BASE=http://backend:5000 cf-nuxt-preview-smoke >/dev/null
+docker exec cf-hybrid-nuxt cat /proc/1/status | awk '
+  /^NoNewPrivs:/ { n = ($2 == 1) }
+  /^CapEff:/ { e = ($2 ~ /^0+$/) }
+  /^CapPrm:/ { p = ($2 ~ /^0+$/) }
+  /^CapBnd:/ { b = ($2 ~ /^0+$/) }
+  /^Uid:/ { u = ($2 != 0 && $3 != 0) }
+  END { exit !(n && e && p && b && u) }
+'
+echo "PASS Nuxt runtime: non-root, no-new-privileges, no Linux capabilities"
 docker run -d --rm --name cf-hybrid-gateway --network "$network" -p 127.0.0.1:18083:80 \
   -v "$PWD/deploy/nuxt-local-hybrid-gateway.conf:/etc/nginx/conf.d/default.conf:ro" \
   nginx:alpine@sha256:7fc0fb4af7bf006aeb31aea88069976060f8f0a0a86b667126742cc17f4e31ae >/dev/null
@@ -138,7 +148,17 @@ docker rm -f cf-hybrid-nuxt >/dev/null
 docker run -d --rm --name cf-hybrid-ip-holder --network "$network" \
   node:22-alpine node -e 'setInterval(()=>{},10000)' >/dev/null
 docker run -d --rm --name cf-hybrid-nuxt --network "$network" --network-alias frontend-nuxt \
+  --security-opt no-new-privileges:true --cap-drop ALL \
   -e NUXT_CMS_API_BASE=http://backend:5000 cf-nuxt-preview-smoke >/dev/null
+docker exec cf-hybrid-nuxt cat /proc/1/status | awk '
+  /^NoNewPrivs:/ { n = ($2 == 1) }
+  /^CapEff:/ { e = ($2 ~ /^0+$/) }
+  /^CapPrm:/ { p = ($2 ~ /^0+$/) }
+  /^CapBnd:/ { b = ($2 ~ /^0+$/) }
+  /^Uid:/ { u = ($2 != 0 && $3 != 0) }
+  END { exit !(n && e && p && b && u) }
+'
+echo "PASS Nuxt runtime: non-root, no-new-privileges, no Linux capabilities"
 new_nuxt_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' cf-hybrid-nuxt)"
 [[ "$old_nuxt_ip" != "$new_nuxt_ip" ]] || {
   echo "FAIL la prueba no consiguió cambiar la IP de Nuxt" >&2
