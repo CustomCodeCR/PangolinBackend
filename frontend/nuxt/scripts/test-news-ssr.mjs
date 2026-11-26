@@ -65,7 +65,25 @@ const invalidNews = [
 // Simulate a CMS deletion after a page was served, while its full list can
 // still be stale in Nitro cache. The single-item GET is authoritative.
 const revokedNews = new Set()
+let homeCmsMode = 'published'
+let homeCmsTitle = 'CMS HOME FIXTURE ALPHA'
 const api = createServer((req, res) => {
+  if (req.url === '/api/content/site') {
+    if (homeCmsMode === 'error') { res.writeHead(503); res.end('fixture'); return }
+    if (homeCmsMode === 'slow') {
+      setTimeout(() => { if (!res.destroyed) { res.writeHead(503); res.end('fixture') } }, 1500).unref()
+      return
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify(homeCmsMode === 'malformed' ? { invalid: true } :
+      homeCmsMode === 'empty' ? [] : [
+        {key:'home.hero.title1',textEs:homeCmsTitle,textEn:'CMS HOME EN FIXTURE',draftEs:'PRIVATE DRAFT FIXTURE',mediaSrc:'/private-fixture'},
+        {key:'home.hero.intro',textEs:'Texto publicado <script>FIXTURE_TAG</script>'},
+        {key:'shared.footer.title',textEs:'OUTSIDE HOME FIXTURE'},
+        null, {key:42,textEs:'INVALID KEY FIXTURE'}
+      ]))
+    return
+  }
   const single = req.url?.match(/^\/api\/content\/news\/([a-f0-9-]{36})$/i)
   if (single) {
     const candidate = news.find(item => item.id.toLowerCase() === single[1].toLowerCase())
@@ -116,6 +134,60 @@ try {
     await delay(200)
   }
   assert.ok(ready, 'Nuxt no inició: ' + logs.slice(-3000))
+  // Check actual visible SSR HTML, not merely serialized Nuxt payload.
+  async function homeHtml() {
+    const r = await fetch(base + '/', { signal: AbortSignal.timeout(5000) })
+    assert.equal(r.status, 200)
+    return await r.text()
+  }
+  const visible = html => html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+  const firstHome = await homeHtml()
+  assert.match(visible(firstHome), /<h1\b[^>]*>CMS HOME FIXTURE ALPHA/)
+  assert.match(visible(firstHome), /Texto publicado &lt;script&gt;FIXTURE_TAG&lt;\/script&gt;/)
+  assert.doesNotMatch(firstHome, /PRIVATE DRAFT FIXTURE|OUTSIDE HOME FIXTURE|INVALID KEY FIXTURE|private-fixture/)
+  homeCmsTitle = 'CMS HOME FIXTURE BETA'
+  const secondHome = await homeHtml()
+  assert.match(visible(secondHome), /<h1\b[^>]*>CMS HOME FIXTURE BETA/)
+  assert.doesNotMatch(secondHome, /CMS HOME FIXTURE ALPHA/)
+  for (const mode of ['empty', 'malformed', 'error', 'slow']) {
+    homeCmsMode = mode
+    const fallback = await homeHtml()
+    assert.match(visible(fallback), /<h1\b[^>]*>/)
+    assert.doesNotMatch(fallback, /CMS HOME FIXTURE ALPHA|CMS HOME FIXTURE BETA/)
+  }
+  homeCmsMode = 'published'
+  assert.match(visible(await homeHtml()), /<h1\b[^>]*>CMS HOME FIXTURE BETA/)
+  console.log('PASS Home SSR published text, request-local freshness, escaping, field isolation, fallback and recovery')
+  // Measure warm HTML response headers and body separately. Report, rather
+  // than claim a production SLA or compare against unrelated static routes.
+  async function sampleHome() {
+    const start = performance.now()
+    const response = await fetch(base + '/', { signal: AbortSignal.timeout(5000) })
+    const ttfb = performance.now() - start
+    assert.equal(response.status, 200)
+    const html = await response.text()
+    return { ttfb, total: performance.now() - start, bytes: Buffer.byteLength(html) }
+  }
+  const percentile = (values, p) => values.slice().sort((a,b)=>a-b)[Math.ceil(p*values.length)-1]
+  const samples = []
+  for (let i=0;i<12;i++) samples.push(await sampleHome())
+  console.log('MEASURE Home SSR warm sequential (fixture only)', JSON.stringify({
+    count:samples.length, ttfbP50ms:Math.round(percentile(samples.map(x=>x.ttfb),.5)),
+    ttfbP95ms:Math.round(percentile(samples.map(x=>x.ttfb),.95)),
+    totalP95ms:Math.round(percentile(samples.map(x=>x.total),.95)),
+    htmlBytes:samples[0].bytes
+  }))
+  const concurrent = await Promise.all(Array.from({length:8},()=>sampleHome()))
+  console.log('MEASURE Home SSR concurrent (fixture only)', JSON.stringify({
+    count:concurrent.length, ttfbP95ms:Math.round(percentile(concurrent.map(x=>x.ttfb),.95))
+  }))
+  homeCmsMode='slow'
+  const slowSample=await sampleHome()
+  console.log('MEASURE Home SSR slow upstream fallback (fixture only)', JSON.stringify({
+    ttfbMs:Math.round(slowSample.ttfb),totalMs:Math.round(slowSample.total)
+  }))
+  homeCmsMode='published'
+
   // News listing must render real editorial content on the server, not only
   // the loading shell after JavaScript, and keep descriptive card-image alt.
   const listingResponse = await fetch(base + '/noticias')

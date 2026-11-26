@@ -7,13 +7,26 @@ import IconSymbol from './components/IconSymbol.vue'
 import SiteMedia from './components/SiteMedia.vue'
 import StaticOptimizedImage from './components/StaticOptimizedImage.vue'
 import HomeInstagramReel from './components/HomeInstagramReel.vue'
-import { siteText, siteVisual, siteCssImage } from './siteCms'
+import { siteText as browserSiteText, siteVisual, siteCssImage, hasLoadedPublishedSiteCms, type PublishedSiteSlot } from './siteCms'
 import { services as baseServices, faqs as baseFaqs, type ServiceKey } from './content'
 import type { ManagedNews, ManagedComment } from './adminContent'
 import { subscribeToChanges } from './services/realtime'
 import { useI18n } from 'vue-i18n'
 
 const { t, locale } = useI18n({ useScope: 'global' })
+const props = defineProps<{ initialCmsText?: Record<string, PublishedSiteSlot> }>()
+const cmsMounted = ref(false)
+onMounted(() => { cmsMounted.value = true })
+// Keep the first hydration render identical to the request-local server snapshot.
+// The existing browser store remains authoritative after a successful refresh,
+// including publication, deletion and locale changes. Never seed its SSR singleton.
+function siteText(key: string, fallback: string, language: string): string {
+  if (props.initialCmsText === undefined || (cmsMounted.value && hasLoadedPublishedSiteCms()))
+    return browserSiteText(key, fallback, language)
+  const entry = props.initialCmsText[key]
+  return (language === 'en' ? entry?.textEn : entry?.textEs)?.trim() || fallback
+}
+
 type HomeServiceKey = ServiceKey | 'Fiscal' | 'Panama'
 // Nuxt SSR cannot know the viewport width. Hydration must start from the
 // SAME markup on server and client; otherwise a server-rendered open panel

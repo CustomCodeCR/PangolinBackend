@@ -28,7 +28,7 @@ export default defineNuxtConfig({
   },
   nitro: {
     prerender: {
-      routes: ['/', '/nosotros', '/servicios', '/privacidad', '/terminos', '/cookies', '/licencias', ...Object.keys(serviceGuides), ...servicePages.map(page => '/servicios/' + page.slug)]
+      routes: ['/nosotros', '/servicios', '/privacidad', '/terminos', '/cookies', '/licencias', ...Object.keys(serviceGuides), ...servicePages.map(page => '/servicios/' + page.slug)]
     }
   },
   routeRules: {
@@ -37,7 +37,8 @@ export default defineNuxtConfig({
     // Keep this alias out of the sitemap and preserve the current local host.
     '/home': { redirect: { to: '/', statusCode: 301 } },
     '/home/': { redirect: { to: '/', statusCode: 301 } },
-    '/': { prerender: true },
+    // Home CMS text is resolved per request; never freeze it into build artifacts.
+    '/': { prerender: false, cache: false },
     '/nosotros': { prerender: true },
     '/servicios': { prerender: true },
     '/servicios/**': { prerender: true },
