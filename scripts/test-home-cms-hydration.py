@@ -11,15 +11,47 @@ base = sys.argv[1].rstrip("/")
 alpha = "CMS HOME SSR ALPHA"
 beta = "CMS HOME BROWSER BETA"
 english = "CMS HOME EN FIXTURE"
-# Wait for the signal-driven fixture to become active.
+# Parse actual H1 content (Vue scoped CSS can add attributes).
+# Inspect only synthetic booleans, not full page HTML or payload.
+import json
+from html.parser import HTMLParser
+
+class HeadingParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.active = False
+        self.headings = []
+    def handle_starttag(self, tag, attrs):
+        if tag == "h1":
+            self.active = True
+            self.headings.append("")
+    def handle_endtag(self, tag):
+        if tag == "h1":
+            self.active = False
+    def handle_data(self, data):
+        if self.active:
+            self.headings[-1] += data
+
+last = {}
 for _ in range(20):
+    with urlopen(base + "/api/content/site", timeout=5) as response:
+        slots = json.load(response)
     with urlopen(base + "/", timeout=5) as response:
         html = response.read().decode("utf-8")
-    if "<h1>" + alpha in html:
+    parser = HeadingParser()
+    parser.feed(html)
+    last = {
+        "fixture_public_api": any(item.get("key") == "home.hero.title1" and item.get("textEs") == alpha for item in slots),
+        "h1_count": len(parser.headings),
+        "marker_in_visible_h1": any(alpha in heading for heading in parser.headings),
+        "marker_anywhere_html": alpha in html,
+    }
+    if last["fixture_public_api"] and last["marker_in_visible_h1"]:
         break
     time.sleep(.2)
 else:
-    raise AssertionError("Synthetic published title absent from visible SSR H1")
+    raise AssertionError("SSR H1 or fixture mismatch: " + str(last))
+print("PASS gateway public CMS fixture and SSR visible H1", last)
 
 def run(mode):
     options = Options()
