@@ -62,6 +62,10 @@ def check_layout(legacy: int, hybrid: int) -> None:
     assert "no-new-privileges:true" in {v.replace("=", ":", 1) for v in nuxt.get("security_opt", [])}
     assert set(nuxt.get("cap_drop", [])) == {"ALL"}
     assert not nuxt.get("cap_add") and not nuxt.get("privileged")
+    assert nuxt.get("read_only") is True, "Nuxt root filesystem must be read-only"
+    assert not nuxt.get("tmpfs"), "Do not introduce unneeded writable temporary mounts"
+    assert not nuxt.get("volumes"), "Do not introduce unneeded Nuxt volume mounts"
+    print("PASS Nuxt Compose read-only root filesystem")
     print("PASS Nuxt Compose runtime privilege restrictions")
     backend = services["backend"]
     assert "no-new-privileges:true" in {v.replace("=", ":", 1) for v in backend.get("security_opt", [])}
