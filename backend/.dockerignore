@@ -1,9 +1,8 @@
-bin
-obj
-local-outbox
-.env
-.env.*
-!*.example
-appsettings.Local.json
+**/bin
+**/obj
+**/local-outbox
+**/.env
+**/.env.*
+**/appsettings.Local.json
 **/*.user
-.git
+**/.git
