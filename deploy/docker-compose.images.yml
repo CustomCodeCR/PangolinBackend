@@ -117,6 +117,11 @@ services:
   frontend-nuxt:
     image: ghcr.io/customcodecr/pangolinbackend/nuxt:${PANGOLIN_IMAGE_TAG:?Definir PANGOLIN_IMAGE_TAG}
     restart: unless-stopped
+    # Verified by isolated SSR/browser and process-capability tests.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     environment:
       NUXT_CMS_API_BASE: "http://backend:5000"
       NUXT_PUBLIC_SITE_URL: "https://${FENNEC_WWW_HOST:?Definir FENNEC_WWW_HOST}"
