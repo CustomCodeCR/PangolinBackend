@@ -1,0 +1,41 @@
+name: Dependency security inventory - Nuxt and .NET
+on:
+  pull_request:
+    branches: [main, main-2]
+    paths:
+      - 'frontend/nuxt/package*.json'
+      - 'backend/**/*.csproj'
+      - 'backend/**/packages.lock.json'
+      - 'Directory.Packages.props'
+      - 'NuGet.Config'
+      - '.github/workflows/dependency-security-inventory.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  nuxt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Audit locked Nuxt dependency graph (including build dependencies)
+        working-directory: frontend/nuxt
+        run: npm audit --audit-level=high
+      - name: Audit locked Nuxt production dependency graph
+        if: success() || failure()
+        working-directory: frontend/nuxt
+        run: npm audit --omit=dev --audit-level=high
+  dotnet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore backend packages with advisory audit enabled
+        run: dotnet restore backend/CastroFallas.MiniQuote.Api.csproj -p:NuGetAudit=true -p:NuGetAuditMode=all -p:NuGetAuditLevel=low -p:WarningsAsErrors=NU1900%3BNU1903%3BNU1904%3BNU1905
+      - name: Report direct and transitive vulnerable NuGet packages
+        if: success() || failure()
+        run: dotnet package list --project backend/CastroFallas.MiniQuote.Api.csproj --vulnerable --include-transitive --no-restore

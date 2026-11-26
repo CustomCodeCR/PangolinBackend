@@ -1354,4 +1354,91 @@ for (const key of [...regionalSlots.matchAll(/"key":\s*"([^"]+)"/g)].map(match =
     'Editor visual muestra un campo que el backend rechaza: ' + key)
 }
 
+
+ // CMS mutations must keep the same captured location through asynchronous saves.
+const editorSlotActions = source('src/pages/SiteVisualEditor.vue')
+const publishSlotAction = editorSlotActions.slice(editorSlotActions.indexOf('async function publish()'), editorSlotActions.indexOf('async function restore()'))
+assert.match(publishSlotAction, /const slot = selected\.value[\s\S]*?const draft = draftSnapshot\(slot\)[\s\S]*?saving\.value = true[\s\S]*?await writeDraft\(slot\.key, draft\)[\s\S]*?encodeURIComponent\(slot\.key\)\}\/publish/,
+  'Saving and publishing must use the same snapshot even when the selection changes')
+assert.doesNotMatch(publishSlotAction, /encodeURIComponent\(selected\.value\.key\)/,
+  'Never re-read the selected key after an asynchronous draft save')
+assert.match(editorSlotActions, /if \(updated\.key !== key\) throw new Error/,
+  'Reject a mutation response for a different slot')
+assert.match(editorSlotActions, /selectionRevision === revision && currentKey\.value === slot\.key\) select\(slot\)/,
+  'Restore must not overwrite another location currently being edited')
+assert.match(editorSlotActions, /selectionRevision === revision && currentKey\.value === slot\.key\) \{\s*mediaId\.value = item\.id/,
+  'A delayed upload must not assign its media to another selected location')
+
 console.log('OK: SignalR, CMS, MinIO, news, itinerary and tracking contracts.')
+
+// Exercise the actual component's remote-read code with deferred HTTP responses.
+// This is an offline state-machine test, not a browser or real CMS write.
+async function testEditorRemoteReadOrdering() {
+  const ts = require('typescript')
+  const guardStart = editorSlotActions.indexOf('let remoteRevision = 0')
+  const guardEnd = editorSlotActions.indexOf('function select(', guardStart)
+  const readStart = editorSlotActions.indexOf('async function refreshRemote()')
+  const readEnd = editorSlotActions.indexOf('const stopEditorEvents', readStart)
+  assert.ok(guardStart >= 0 && guardEnd > guardStart && readStart >= 0 && readEnd > readStart)
+  const state = Object.fromEntries(['loading', 'saving', 'savingFeaturedReel', 'savingFacebook'].map(k => [k, { value: false }]))
+  state.isLiveAdmin = { value: true }
+  state.rows = { value: [] }
+  state.media = { value: [] }
+  const requests = []
+  function fakeFetch(url) {
+    return new Promise(resolve => requests.push({ url, resolve }))
+  }
+  const code = ts.transpileModule(
+    editorSlotActions.slice(guardStart, guardEnd) + '\n' +
+    editorSlotActions.slice(readStart, readEnd),
+    { compilerOptions: { target: ts.ScriptTarget.ES2022 } }
+  ).outputText
+  const { refreshRemote, invalidateRemoteReads } = new Function(
+    ...Object.keys(state), 'fetch', code + '\nreturn {refreshRemote, invalidateRemoteReads}'
+  )(...Object.values(state), fakeFetch)
+  function finish(pair, name) {
+    assert.equal(pair.length, 2)
+    for (const req of pair) req.resolve({ ok: true, json: async () => [{ key: name, id: name }] })
+  }
+  const old = refreshRemote()
+  const oldPair = requests.splice(0)
+  const newer = refreshRemote()
+  finish(requests.splice(0), 'newest')
+  await newer
+  finish(oldPair, 'old')
+  await old
+  assert.equal(state.rows.value[0].key, 'newest')
+  assert.equal(state.media.value[0].id, 'newest')
+  // A local mutation can finish before the stale GET response arrives.
+  for (const busy of ['saving', 'savingFeaturedReel', 'savingFacebook', 'loading']) {
+    const read = refreshRemote()
+    const pair = requests.splice(0)
+    invalidateRemoteReads()
+    state[busy].value = true
+    await refreshRemote()
+    assert.equal(requests.length, 0, 'No new remote read during ' + busy)
+    state.rows.value = [{ key: 'local-' + busy }]
+    state.media.value = [{ id: 'local-' + busy }]
+    state[busy].value = false
+    finish(pair, 'stale')
+    await read
+    assert.equal(state.rows.value[0].key, 'local-' + busy)
+    assert.equal(state.media.value[0].id, 'local-' + busy)
+  }
+  const logoutRead = refreshRemote()
+  state.isLiveAdmin.value = false
+  finish(requests.splice(0), 'after-logout')
+  await logoutRead
+  assert.equal(state.rows.value[0].key, 'local-loading')
+  state.isLiveAdmin.value = true
+  const resumed = refreshRemote()
+  finish(requests.splice(0), 'reconnected')
+  await resumed
+  assert.equal(state.rows.value[0].key, 'reconnected')
+  for (const match of editorSlotActions.matchAll(/^  (loading|saving|savingFeaturedReel|savingFacebook)\.value = true/gm)) {
+    assert.ok(editorSlotActions.slice(0, match.index).endsWith('  invalidateRemoteReads()\n'),
+      'Every local mutation/load must invalidate outstanding reads: ' + match[1])
+  }
+  console.log('PASS: visual editor ignores out-of-order reads, stale responses after four write/load states and responses after admin access ends.')
+}
+testEditorRemoteReadOrdering().catch(error => { console.error(error); process.exitCode = 1 })

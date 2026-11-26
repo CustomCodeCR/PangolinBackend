@@ -89,6 +89,7 @@ public sealed class DholeOfficialOutboxClaimService(IConfiguration configuration
             SET state = 'InFlight',
                 attempt_count = attempt_count + 1,
                 last_attempt_at_utc = now(),
+                last_error_code = NULL,
                 updated_at_utc = now()
             WHERE quote_id = @quote_id
               AND idempotency_key = @idempotency_key
@@ -138,6 +139,7 @@ public sealed class DholeOfficialOutboxClaimService(IConfiguration configuration
             SET state = 'InFlight',
                 attempt_count = attempt_count + 1,
                 last_attempt_at_utc = now(),
+                last_error_code = NULL,
                 updated_at_utc = now()
             FROM candidate
             WHERE o.quote_id = candidate.quote_id

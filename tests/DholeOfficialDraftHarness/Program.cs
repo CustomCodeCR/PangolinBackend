@@ -543,6 +543,18 @@ using (var manualDocument = JsonDocument.Parse(manualJson))
             serviceRows[0].id &&
         !fromAdmin.RemoteSubmissionPermitted,
         "Persisted Admin quote is the source for a verified, unsendable dispatch preview");
+    var originalForm = storedOfficial.FormJson;
+    storedOfficial.FormJson = JsonSerializer.Serialize(lcl with
+    {
+        ContactName = " " + lcl.ContactName + " ",
+        ContactEmail = " " + lcl.ContactEmail + " ",
+        ContactPhone = " " + lcl.ContactPhone + " "
+    }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+    var trimmedContactReview = DholeOfficialDispatchPreflight.ReviewSavedQuote(
+        storedOfficial, maritime, manualDocument.RootElement, live, reviewAt);
+    Assert(trimmedContactReview.Body.GetRawText() == fromAdmin.Body.GetRawText(),
+        "Trim surrounding contact whitespace exactly as the saved Admin columns do");
+    storedOfficial.FormJson = originalForm;
     Block(() => DholeOfficialDispatchPreflight.ReviewSavedQuote(
         storedOfficial, new DholeValidatedRoute("forged", maritime.DestinationName, maritime.PodName),
         manualDocument.RootElement, live, reviewAt),

@@ -74,9 +74,9 @@ public static class DholeOfficialDispatchPreflight
         // catalogs by the caller; no browser-supplied route labels here.
         if (form.CatalogSource != "dhole" ||
             savedQuote.Mode != form.Mode || savedQuote.ShipmentType != form.ShipmentType ||
-            !string.Equals(savedQuote.ContactName, form.ContactName, StringComparison.Ordinal) ||
-            !string.Equals(savedQuote.ContactEmail, form.ContactEmail, StringComparison.Ordinal) ||
-            !string.Equals(savedQuote.ContactPhone, form.ContactPhone, StringComparison.Ordinal) ||
+            !string.Equals(savedQuote.ContactName, form.ContactName?.Trim(), StringComparison.Ordinal) ||
+            !string.Equals(savedQuote.ContactEmail, form.ContactEmail?.Trim(), StringComparison.Ordinal) ||
+            !string.Equals(savedQuote.ContactPhone, form.ContactPhone?.Trim(), StringComparison.Ordinal) ||
             savedQuote.OriginName != verifiedRoute.OriginName ||
             savedQuote.DestinationName != verifiedRoute.DestinationName)
             throw new ArgumentException(

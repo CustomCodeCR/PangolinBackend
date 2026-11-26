@@ -38,7 +38,7 @@ docker run -d --rm --name cf-hybrid-nuxt --network "$network" --network-alias fr
   -e NUXT_CMS_API_BASE=http://backend:5000 cf-nuxt-preview-smoke >/dev/null
 docker run -d --rm --name cf-hybrid-gateway --network "$network" -p 127.0.0.1:18083:80 \
   -v "$PWD/deploy/nuxt-local-hybrid-gateway.conf:/etc/nginx/conf.d/default.conf:ro" \
-  nginx:1.27-alpine >/dev/null
+  nginx:alpine@sha256:7fc0fb4af7bf006aeb31aea88069976060f8f0a0a86b667126742cc17f4e31ae >/dev/null
 ready=0
 for _ in $(seq 1 50); do
   if curl -fsS "$base/servicios/transporte-maritimo" >/tmp/cf-hybrid-service.html 2>/dev/null; then

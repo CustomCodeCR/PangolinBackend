@@ -146,6 +146,18 @@ jobs:
         working-directory: frontend/nuxt
       - name: Build Nuxt Alpine Docker image
         run: docker build -t cf-nuxt-preview-smoke -f frontend/nuxt/Dockerfile frontend
+      - name: Verify the actual Nuxt image has no npm and runs unprivileged
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint sh cf-nuxt-preview-smoke -ec '
+            test "$(id -u)" -ne 0
+            ! command -v npm
+            ! command -v npx
+            test ! -e /usr/local/lib/node_modules/npm
+            test -r /app/.output/server/index.mjs
+            node --version
+          '
       - name: Build compiled Vue preview (same quotes flag as local development)
         run: docker build --build-arg VITE_OFFICIAL_QUOTES_ENABLED=true -t cf-legacy-preview-smoke -f frontend/Dockerfile frontend
       - name: Test real local hybrid gateway with Chrome (no blank quote screen)
@@ -162,7 +174,7 @@ jobs:
             --add-host frontend:127.0.0.1 \
             --add-host frontend-nuxt:127.0.0.1 \
             -v "$PWD/deploy/nuxt-hybrid-gateway.conf:/etc/nginx/conf.d/default.conf:ro" \
-            nginx:1.27-alpine nginx -t
+            nginx:alpine@sha256:7fc0fb4af7bf006aeb31aea88069976060f8f0a0a86b667126742cc17f4e31ae nginx -t
       - name: Verify /home and /home/ point to the HTTPS canonical URL
         shell: bash
         run: |
@@ -172,7 +184,7 @@ jobs:
             --add-host frontend-nuxt:127.0.0.1 \
             -p 127.0.0.1:18092:80 \
             -v "$PWD/deploy/nuxt-hybrid-gateway.conf:/etc/nginx/conf.d/default.conf:ro" \
-            nginx:1.27-alpine
+            nginx:alpine@sha256:7fc0fb4af7bf006aeb31aea88069976060f8f0a0a86b667126742cc17f4e31ae
           trap 'docker rm -f cf-seo-canonical-redirect >/dev/null 2>&1 || true' EXIT
           ready=0
           for i in $(seq 1 30); do
@@ -185,6 +197,9 @@ jobs:
             grep -Eq '^HTTP/[0-9.]+ 301 ' <<< "$headers"
             grep -Fqi 'Location: https://www.logisticacastrofallas.com/' <<< "$headers"
           done
+      - name: Verify one permissions policy across public and legacy routes
+        shell: bash
+        run: bash scripts/test-gateway-permissions-policy.sh
       - name: Guard Fennec apex from Pangolin host redirects
         shell: bash
         run: |
@@ -200,7 +215,7 @@ jobs:
             --add-host frontend-legacy-preview:127.0.0.1 \
             --add-host frontend-nuxt:127.0.0.1 \
             -v "$PWD/deploy/nuxt-local-hybrid-gateway.conf:/etc/nginx/conf.d/default.conf:ro" \
-            nginx:1.27-alpine nginx -t
+            nginx:alpine@sha256:7fc0fb4af7bf006aeb31aea88069976060f8f0a0a86b667126742cc17f4e31ae nginx -t
       - name: Validate actual AlmaLinux image deployment Compose
         shell: bash
         run: |

@@ -73,7 +73,15 @@ const defaultCopyEn = computed(() => selected.value.type === 'text' ? selected.v
 function previewSrc(item: ManagedMedia): string {
   return item.objectKey ? `/api/admin/content/media/${encodeURIComponent(item.id)}/file` : item.src
 }
+let selectionRevision = 0
+// A remote snapshot may finish after a local write or a newer remote read.
+let remoteRevision = 0
+function invalidateRemoteReads() { remoteRevision++ }
+function editorBusy() {
+  return loading.value || saving.value || savingFeaturedReel.value || savingFacebook.value
+}
 function select(slot: SiteSlotDefinition) {
+  selectionRevision++
   currentKey.value = slot.key
   const current = rows.value.find(x => x.key === slot.key)
   textEs.value = current?.draftEs ?? ''
@@ -97,6 +105,8 @@ function switchPage(next: string) {
   if (first) select(first)
 }
 async function load() {
+  if (saving.value) return
+  invalidateRemoteReads()
   loading.value = true
   try {
     if (!isLiveAdmin.value) return
@@ -139,6 +149,7 @@ async function saveFeaturedReel() {
     featuredReelError.value = 'Indicá el enlace original de Instagram para asociar el video.'
     return
   }
+  invalidateRemoteReads()
   savingFeaturedReel.value = true
   try {
     const response = await fetch('/api/admin/content/instagram-reel', {
@@ -183,6 +194,7 @@ async function uploadFeaturedReelVideo(event: Event) {
     input.value = ''
     return
   }
+  invalidateRemoteReads()
   savingFeaturedReel.value = true
   try {
     const form = new FormData()
@@ -215,6 +227,7 @@ async function saveFacebookVideo() {
     facebookError.value = 'Indicá el enlace original del video antes de seleccionar un archivo.'
     return
   }
+  invalidateRemoteReads()
   savingFacebook.value = true
   try {
     const response = await fetch('/api/admin/content/facebook-video', {
@@ -258,6 +271,7 @@ async function uploadFacebookVideo(event: Event) {
     input.value = ''
     return
   }
+  invalidateRemoteReads()
   savingFacebook.value = true
   try {
     const form = new FormData()
@@ -280,23 +294,34 @@ async function uploadFacebookVideo(event: Event) {
   }
 }
 
+function draftSnapshot(slot: SiteSlotDefinition) {
+  return slot.type === 'text'
+    ? { textEs: textEs.value, textEn: textEn.value, mediaId: null }
+    : { textEs: null, textEn: null, mediaId: mediaId.value || null }
+}
+function rememberSlot(updated: EditableSiteSlot, key: string) {
+  if (updated.key !== key) throw new Error('La respuesta no corresponde a la ubicación solicitada.')
+  rows.value = [...rows.value.filter(x => x.key !== key), updated]
+}
+async function writeDraft(key: string, draft: ReturnType<typeof draftSnapshot>) {
+  const res = await fetch(`/api/admin/content/site/${encodeURIComponent(key)}`, {
+    method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(draft)
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => null)
+    throw new Error(body?.error || `No se pudo guardar el borrador (HTTP ${res.status}).`)
+  }
+  rememberSlot(await res.json() as EditableSiteSlot, key)
+}
 async function saveDraft(): Promise<boolean> {
-  if (!isLiveAdmin.value || saving.value) return false
+  if (!isLiveAdmin.value || saving.value || loading.value) return false
+  const slot = selected.value
+  const draft = draftSnapshot(slot)
+  invalidateRemoteReads()
   saving.value = true; error.value = ''; notice.value = ''
   try {
-    const slot = selected.value
-    const res = await fetch(`/api/admin/content/site/${encodeURIComponent(slot.key)}`, {
-      method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(slot.type === 'text'
-        ? { textEs: textEs.value, textEn: textEn.value, mediaId: null }
-        : { textEs: null, textEn: null, mediaId: mediaId.value || null })
-    })
-    if (!res.ok) {
-      const body = await res.json().catch(() => null)
-      throw new Error(body?.error || `No se pudo guardar el borrador (HTTP ${res.status}).`)
-    }
-    const updated = await res.json() as EditableSiteSlot
-    rows.value = [...rows.value.filter(x => x.key !== updated.key), updated]
+    await writeDraft(slot.key, draft)
     notice.value = 'Borrador guardado. La web pública todavía no ha cambiado.'
     return true
   } catch (cause) {
@@ -305,33 +330,41 @@ async function saveDraft(): Promise<boolean> {
   } finally { saving.value = false }
 }
 async function publish() {
-  if (!(await saveDraft())) return
-  saving.value = true
+  if (!isLiveAdmin.value || saving.value || loading.value) return
+  // Freeze both the target and the user's draft before the first await.
+  // A location change or a remote refresh cannot redirect the POST.
+  const slot = selected.value
+  const draft = draftSnapshot(slot)
+  invalidateRemoteReads()
+  saving.value = true; error.value = ''; notice.value = ''
   try {
-    const res = await fetch(`/api/admin/content/site/${encodeURIComponent(selected.value.key)}/publish`, {
+    await writeDraft(slot.key, draft)
+    const res = await fetch(`/api/admin/content/site/${encodeURIComponent(slot.key)}/publish`, {
       method: 'POST', credentials: 'same-origin'
     })
     if (!res.ok) {
       const data = await res.json().catch(() => null)
       throw new Error(data?.error || `No se pudo publicar (HTTP ${res.status}).`)
     }
-    const updated = await res.json() as EditableSiteSlot
-    rows.value = [...rows.value.filter(x => x.key !== updated.key), updated]
+    rememberSlot(await res.json() as EditableSiteSlot, slot.key)
     notice.value = '¡Publicado! El cambio ya se refleja en la página correspondiente.'
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'Error publicando cambios.' }
   finally { saving.value = false }
 }
 async function restore() {
-  if (!isLiveAdmin.value || saving.value || !window.confirm('¿Restaurar el contenido original de esta ubicación en la web pública?')) return
-  saving.value = true; error.value = ''
+  if (!isLiveAdmin.value || saving.value || loading.value) return
+  const slot = selected.value
+  const revision = selectionRevision
+  if (!window.confirm('¿Restaurar el contenido original de esta ubicación en la web pública?')) return
+  invalidateRemoteReads()
+  saving.value = true; error.value = ''; notice.value = ''
   try {
-    const res = await fetch(`/api/admin/content/site/${encodeURIComponent(selected.value.key)}/restore`, {
+    const res = await fetch(`/api/admin/content/site/${encodeURIComponent(slot.key)}/restore`, {
       method: 'POST', credentials: 'same-origin'
     })
     if (!res.ok) throw new Error('No se pudo restaurar la ubicación.')
-    const updated = await res.json() as EditableSiteSlot
-    rows.value = [...rows.value.filter(x => x.key !== updated.key), updated]
-    select(selected.value)
+    rememberSlot(await res.json() as EditableSiteSlot, slot.key)
+    if (selectionRevision === revision && currentKey.value === slot.key) select(slot)
     notice.value = 'Se restauró el contenido original sin borrar archivos de MinIO.'
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'No se pudo restaurar.' }
   finally { saving.value = false }
@@ -339,7 +372,9 @@ async function restore() {
 async function upload(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
-  if (!file || !isLiveAdmin.value || !storageEnabled.value) return
+  if (!file || !isLiveAdmin.value || !storageEnabled.value || saving.value || loading.value) return
+  const slot = selected.value
+  const revision = selectionRevision
   error.value = ''; notice.value = ''
   if (!['image/png','image/jpeg','image/webp','image/gif','video/mp4','video/webm'].includes(file.type)) {
     error.value = 'Solo se permiten imágenes PNG/JPEG/WebP/GIF o videos MP4/WebM.'
@@ -349,6 +384,7 @@ async function upload(event: Event) {
     error.value = 'Archivo demasiado grande. Máximo 5 MB para imágenes o 20 MB para videos.'
     return
   }
+  invalidateRemoteReads()
   saving.value = true
   try {
     const form = new FormData()
@@ -362,13 +398,16 @@ async function upload(event: Event) {
     }
     const item = await res.json() as ManagedMedia
     media.value = [item, ...media.value]
-    mediaId.value = item.id
-    notice.value = 'Archivo subido a MinIO. Guardá y publicá esta asignación para cambiar la web.'
+    if (selectionRevision === revision && currentKey.value === slot.key) {
+      mediaId.value = item.id
+      notice.value = 'Archivo subido a MinIO. Guardá y publicá esta asignación para cambiar la web.'
+    }
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'No se pudo subir el archivo.' }
   finally { saving.value = false; input.value = '' }
 }
 async function refreshRemote() {
-  if (!isLiveAdmin.value || loading.value || saving.value) return
+  if (!isLiveAdmin.value || editorBusy()) return
+  const revision = ++remoteRevision
   try {
     const [slots, library] = await Promise.all([
       fetch('/api/admin/content/site', { credentials: 'same-origin', cache: 'no-store' }),
@@ -377,6 +416,7 @@ async function refreshRemote() {
     if (!slots.ok || !library.ok) return
     const [newRows, newMedia] = await Promise.all([slots.json(), library.json()])
     if (!Array.isArray(newRows) || !Array.isArray(newMedia)) return
+    if (revision !== remoteRevision || !isLiveAdmin.value || editorBusy()) return
     rows.value = newRows as EditableSiteSlot[]
     media.value = newMedia as ManagedMedia[]
     // No reemplazar textEs/textEn/mediaId. Podrían tener ediciones sin guardar.
@@ -393,7 +433,7 @@ onMounted(load)
     <header class="visual-editor__intro">
       <div><p class="manager-eyebrow">CONTENIDO DEL SITIO</p><h2>Editor visual</h2>
       </div>
-      <button type="button" class="visual-editor__button" @click="load" :disabled="loading">Actualizar biblioteca</button>
+      <button type="button" class="visual-editor__button" @click="load" :disabled="loading || saving">Actualizar biblioteca</button>
     </header>
     
     <section class="visual-editor__featured-reel" aria-labelledby="featured-reel-title">
