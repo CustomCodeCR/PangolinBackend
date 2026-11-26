@@ -6,13 +6,47 @@ cd "$(dirname "$0")/.."
 network="cf-hybrid-smoke"
 base="http://127.0.0.1:18083"
 cleanup() {
-  for name in cf-hybrid-gateway cf-hybrid-nuxt cf-hybrid-vue cf-hybrid-fake-api cf-hybrid-ip-holder; do
+  for name in cf-hybrid-gateway cf-hybrid-nuxt cf-hybrid-vue cf-hybrid-fake-api cf-hybrid-ip-holder cf-hybrid-health-fixture; do
     docker rm -f "$name" >/dev/null 2>&1 || true
   done
   docker network rm "$network" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
+# Test-only liveness: strict HTTP 200 on the public root, with an absolute deadline.
+# No database readiness or external network dependency is part of this probe.
+nuxt_health_cmd='node -e '\''const http=require("node:http"); const timer=setTimeout(()=>process.exit(1),2000); const req=http.get("http://127.0.0.1:3000/",res=>{clearTimeout(timer);res.destroy();process.exit(res.statusCode===200?0:1)});req.on("error",()=>process.exit(1));'\'''
+wait_health() {
+  local container="$1" expected="$2" state
+  for _ in $(seq 1 60); do
+    state="$(docker inspect -f '{{.State.Health.Status}}' "$container")"
+    if [[ "$state" == "$expected" ]]; then return 0; fi
+    sleep 1
+  done
+  echo "FAIL expected health $expected for $container (last: $state)" >&2
+  return 1
+}
 docker network create "$network" >/dev/null
+# Exercise the same command in the real runtime image against a synthetic server.
+# SIGUSR2 toggles 503/200 without restarting the process or publishing a port.
+docker run -d --rm --name cf-hybrid-health-fixture --network none \
+  --security-opt no-new-privileges:true --cap-drop ALL --read-only \
+  --health-cmd "$nuxt_health_cmd" --health-interval 2s --health-timeout 3s --health-retries 2 \
+  --entrypoint node cf-nuxt-preview-smoke -e '
+    let status=503;
+    process.on("SIGUSR2",()=>{status=status===503?200:503});
+    require("node:http").createServer((req,res)=>{res.writeHead(status);res.end("fixture")}).listen(3000,"127.0.0.1");
+  ' >/dev/null
+wait_health cf-hybrid-health-fixture unhealthy
+echo "PASS Nuxt health probe rejects HTTP 503"
+fixture_started="$(docker inspect -f '{{.State.StartedAt}}' cf-hybrid-health-fixture)"
+docker kill --signal=SIGUSR2 cf-hybrid-health-fixture >/dev/null
+wait_health cf-hybrid-health-fixture healthy
+test "$(docker inspect -f '{{.State.StartedAt}}' cf-hybrid-health-fixture)" = "$fixture_started"
+docker kill --signal=SIGUSR2 cf-hybrid-health-fixture >/dev/null
+wait_health cf-hybrid-health-fixture unhealthy
+test "$(docker inspect -f '{{.State.StartedAt}}' cf-hybrid-health-fixture)" = "$fixture_started"
+echo "PASS Docker health transitions unhealthy/healthy/unhealthy without restart"
+docker rm -f cf-hybrid-health-fixture >/dev/null
 docker run -d --rm --name cf-hybrid-fake-api --network "$network" --network-alias backend node:22-alpine node -e '
   require("http").createServer((req,res)=>{
     res.setHeader("Content-Type","application/json");
@@ -36,7 +70,10 @@ docker run -d --rm --name cf-hybrid-vue --network "$network" --network-alias fro
   -p 127.0.0.1:18084:80 cf-legacy-preview-smoke >/dev/null
 docker run -d --rm --name cf-hybrid-nuxt --network "$network" --network-alias frontend-nuxt \
   --security-opt no-new-privileges:true --cap-drop ALL --read-only \
+  --health-cmd "$nuxt_health_cmd" --health-interval 2s --health-timeout 3s --health-retries 3 --health-start-period 15s \
   -e NUXT_CMS_API_BASE=http://backend:5000 cf-nuxt-preview-smoke >/dev/null
+wait_health cf-hybrid-nuxt healthy
+echo "PASS actual Nuxt HTTP liveness under read-only and restricted privileges"
 docker exec cf-hybrid-nuxt cat /proc/1/status | awk '
   /^NoNewPrivs:/ { n = ($2 == 1) }
   /^CapEff:/ { e = ($2 ~ /^0+$/) }
@@ -164,7 +201,10 @@ docker run -d --rm --name cf-hybrid-ip-holder --network "$network" \
   node:22-alpine node -e 'setInterval(()=>{},10000)' >/dev/null
 docker run -d --rm --name cf-hybrid-nuxt --network "$network" --network-alias frontend-nuxt \
   --security-opt no-new-privileges:true --cap-drop ALL --read-only \
+  --health-cmd "$nuxt_health_cmd" --health-interval 2s --health-timeout 3s --health-retries 3 --health-start-period 15s \
   -e NUXT_CMS_API_BASE=http://backend:5000 cf-nuxt-preview-smoke >/dev/null
+wait_health cf-hybrid-nuxt healthy
+echo "PASS actual Nuxt HTTP liveness under read-only and restricted privileges"
 docker exec cf-hybrid-nuxt cat /proc/1/status | awk '
   /^NoNewPrivs:/ { n = ($2 == 1) }
   /^CapEff:/ { e = ($2 ~ /^0+$/) }
