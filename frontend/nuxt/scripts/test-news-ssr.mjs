@@ -116,6 +116,28 @@ try {
     await delay(200)
   }
   assert.ok(ready, 'Nuxt no inició: ' + logs.slice(-3000))
+  // Same local runtime, sample counts and timing method as PR 361.
+  async function sampleHome() {
+    const start = performance.now()
+    const response = await fetch(base + '/', { signal: AbortSignal.timeout(5000) })
+    const ttfb = performance.now() - start
+    assert.equal(response.status, 200)
+    const html = await response.text()
+    return { ttfb, total: performance.now() - start, bytes: Buffer.byteLength(html) }
+  }
+  const percentile = (values, p) => values.slice().sort((a,b)=>a-b)[Math.ceil(p*values.length)-1]
+  const samples = []
+  for (let i=0;i<12;i++) samples.push(await sampleHome())
+  console.log('MEASURE baseline Home static sequential (fixture only)', JSON.stringify({
+    count:samples.length, ttfbP50ms:Math.round(percentile(samples.map(x=>x.ttfb),.5)),
+    ttfbP95ms:Math.round(percentile(samples.map(x=>x.ttfb),.95)),
+    totalP95ms:Math.round(percentile(samples.map(x=>x.total),.95)),
+    htmlBytes:samples[0].bytes
+  }))
+  const concurrent = await Promise.all(Array.from({length:8},()=>sampleHome()))
+  console.log('MEASURE baseline Home static concurrent (fixture only)', JSON.stringify({
+    count:concurrent.length, ttfbP95ms:Math.round(percentile(concurrent.map(x=>x.ttfb),.95))
+  }))
   // News listing must render real editorial content on the server, not only
   // the loading shell after JavaScript, and keep descriptive card-image alt.
   const listingResponse = await fetch(base + '/noticias')

@@ -56,10 +56,18 @@ test "$(docker inspect -f '{{.State.StartedAt}}' cf-hybrid-health-fixture)" = "$
 echo "PASS Docker health transitions unhealthy/healthy/unhealthy without restart"
 docker rm -f cf-hybrid-health-fixture >/dev/null
 docker run -d --rm --name cf-hybrid-fake-api --network "$network" --network-alias backend node:22-alpine node -e '
+  let textFixture=false;
+  process.on("SIGUSR2",()=>{textFixture=!textFixture});
   require("http").createServer((req,res)=>{
     res.setHeader("Content-Type","application/json");
     if (req.url.startsWith("/api/auth/me")) { res.writeHead(401); return res.end(JSON.stringify({error:"No autenticado"})); }
     if (req.url.startsWith("/api/content/news")) return res.end("[]");
+    if (req.url === "/api/content/site" && textFixture) {
+      const mode=req.headers["x-pangolin-ci-cms"];
+      if (mode==="failure") {res.writeHead(503);return res.end("{}")}
+      const text=mode==="refresh"?"CMS HOME BROWSER BETA":"CMS HOME SSR ALPHA";
+      return res.end(JSON.stringify([{key:"home.hero.title1",textEs:text,textEn:"CMS HOME EN FIXTURE"}]));
+    }
     if (req.url.startsWith("/api/content/site")) return res.end(JSON.stringify([
       {key:"shared.logo.media",mediaSrc:"/api/content/media/11111111-1111-1111-1111-111111111111/file",mediaKind:"Imagen"},
       {key:"home.about.media",mediaSrc:"/api/content/media/11111111-1111-1111-1111-111111111111/file",mediaKind:"Imagen"},
@@ -274,6 +282,10 @@ test "$(docker inspect -f '{{.State.StartedAt}}' cf-hybrid-gateway)" = "$gateway
 echo "PASS gateway composite readiness recovers without gateway restart"
 python3 -m venv /tmp/cf-hybrid-selenium
 /tmp/cf-hybrid-selenium/bin/pip install --disable-pip-version-check --quiet selenium==4.38.0
+# Baseline diagnostic: same synthetic public CMS as PR 361, unmodified app.
+docker kill --signal=SIGUSR2 cf-hybrid-fake-api >/dev/null
+/tmp/cf-hybrid-selenium/bin/python scripts/test-home-baseline-hydration.py "$base"
+docker kill --signal=SIGUSR2 cf-hybrid-fake-api >/dev/null
 /tmp/cf-hybrid-selenium/bin/python scripts/test-nuxt-menu-selenium.py "$base"
 /tmp/cf-hybrid-selenium/bin/python scripts/test-nuxt-home-services-selenium.py "$base"
 /tmp/cf-hybrid-selenium/bin/python scripts/test-nuxt-image-selenium.py "$base"
