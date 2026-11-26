@@ -86,3 +86,52 @@ assert "location ~ ^/(administracion|admin|cotizaciones|tracking|itinerario|bien
 assert "location = /api/public-news" in gateway_text
 assert "location ^~ /api/" in gateway_text
 print("PASS hybrid forwards private Vue assets, authenticated routes, and API")
+
+
+# Check the actual deployment workflow without dispatching it or running Docker
+# operations against production. Extract the preflight shell and test it with a
+# fake Docker executable that records arguments and fails the image pull.
+import tempfile
+
+workflow = (ROOT / ".github/workflows/pangolin-images.yml").read_text(encoding="utf-8")
+publish_job = workflow.split("\n  publish:\n", 1)[1].split("\n  deploy:\n", 1)[0]
+deploy_job = workflow.split("\n  deploy:\n", 1)[1]
+assert "    if: ${{ github.ref == 'refs/heads/main' }}" in publish_job
+assert "    if: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy)) }}" in deploy_job
+pull_step = deploy_job.split("      - name: Pull all precompiled application and gateway images before database changes\n", 1)[1].split("\n      - name:", 1)[0]
+script = "\n".join(line[10:] for line in pull_step.split("        run: |\n", 1)[1].splitlines() if line.startswith("          "))
+assert "set -euo pipefail" in script
+assert "pull backend frontend frontend-nuxt seo-gateway" in script
+assert deploy_job.index(pull_step) < deploy_job.index("Provision isolated pangolin PostgreSQL role")
+# Use only a private temporary fake executable; do not run any real image pull.
+with tempfile.TemporaryDirectory() as directory:
+    temp = Path(directory)
+    fake = temp / "docker"
+    fake.write_text("""#!/bin/sh
+printf '%s\\n' "$*" >> "$TEST_CALLS"
+case "$*" in
+  *"pull backend frontend frontend-nuxt seo-gateway") exit "${TEST_PULL_RC:-0}" ;;
+  "image inspect postgres:16-alpine") exit 0 ;;
+  *) exit 99 ;;
+esac
+""", encoding="utf-8")
+    fake.chmod(0o700)
+    calls = temp / "calls"
+    env = {"PATH": str(temp) + ":/usr/bin:/bin", "TEST_CALLS": str(calls),
+           "DHOLE_ENV_FILE": "/fixture/only.env", "COMPOSE_FILE": "/fixture/compose.yml"}
+    for failure in (False, True):
+        calls.write_text("")
+        result = subprocess.run(["bash", "-c", script + "\necho PREFLIGHT_PASSED"],
+                                env=dict(env, TEST_PULL_RC="17" if failure else "0"),
+                                text=True, capture_output=True)
+        observed = calls.read_text().splitlines()
+        assert observed[0].endswith("pull backend frontend frontend-nuxt seo-gateway")
+        if failure:
+            assert result.returncode == 17
+            assert len(observed) == 1
+            assert "PREFLIGHT_PASSED" not in result.stdout
+        else:
+            assert result.returncode == 0
+            assert observed[1:] == ["image inspect postgres:16-alpine"]
+            assert "PREFLIGHT_PASSED" in result.stdout
+print("PASS production workflow main-only guards and gateway pre-pull failure stops preflight")
