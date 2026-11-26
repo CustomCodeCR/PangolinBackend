@@ -74,6 +74,12 @@ function previewSrc(item: ManagedMedia): string {
   return item.objectKey ? `/api/admin/content/media/${encodeURIComponent(item.id)}/file` : item.src
 }
 let selectionRevision = 0
+// A remote snapshot may finish after a local write or a newer remote read.
+let remoteRevision = 0
+function invalidateRemoteReads() { remoteRevision++ }
+function editorBusy() {
+  return loading.value || saving.value || savingFeaturedReel.value || savingFacebook.value
+}
 function select(slot: SiteSlotDefinition) {
   selectionRevision++
   currentKey.value = slot.key
@@ -100,6 +106,7 @@ function switchPage(next: string) {
 }
 async function load() {
   if (saving.value) return
+  invalidateRemoteReads()
   loading.value = true
   try {
     if (!isLiveAdmin.value) return
@@ -142,6 +149,7 @@ async function saveFeaturedReel() {
     featuredReelError.value = 'Indicá el enlace original de Instagram para asociar el video.'
     return
   }
+  invalidateRemoteReads()
   savingFeaturedReel.value = true
   try {
     const response = await fetch('/api/admin/content/instagram-reel', {
@@ -186,6 +194,7 @@ async function uploadFeaturedReelVideo(event: Event) {
     input.value = ''
     return
   }
+  invalidateRemoteReads()
   savingFeaturedReel.value = true
   try {
     const form = new FormData()
@@ -218,6 +227,7 @@ async function saveFacebookVideo() {
     facebookError.value = 'Indicá el enlace original del video antes de seleccionar un archivo.'
     return
   }
+  invalidateRemoteReads()
   savingFacebook.value = true
   try {
     const response = await fetch('/api/admin/content/facebook-video', {
@@ -261,6 +271,7 @@ async function uploadFacebookVideo(event: Event) {
     input.value = ''
     return
   }
+  invalidateRemoteReads()
   savingFacebook.value = true
   try {
     const form = new FormData()
@@ -307,6 +318,7 @@ async function saveDraft(): Promise<boolean> {
   if (!isLiveAdmin.value || saving.value || loading.value) return false
   const slot = selected.value
   const draft = draftSnapshot(slot)
+  invalidateRemoteReads()
   saving.value = true; error.value = ''; notice.value = ''
   try {
     await writeDraft(slot.key, draft)
@@ -323,6 +335,7 @@ async function publish() {
   // A location change or a remote refresh cannot redirect the POST.
   const slot = selected.value
   const draft = draftSnapshot(slot)
+  invalidateRemoteReads()
   saving.value = true; error.value = ''; notice.value = ''
   try {
     await writeDraft(slot.key, draft)
@@ -343,6 +356,7 @@ async function restore() {
   const slot = selected.value
   const revision = selectionRevision
   if (!window.confirm('¿Restaurar el contenido original de esta ubicación en la web pública?')) return
+  invalidateRemoteReads()
   saving.value = true; error.value = ''; notice.value = ''
   try {
     const res = await fetch(`/api/admin/content/site/${encodeURIComponent(slot.key)}/restore`, {
@@ -370,6 +384,7 @@ async function upload(event: Event) {
     error.value = 'Archivo demasiado grande. Máximo 5 MB para imágenes o 20 MB para videos.'
     return
   }
+  invalidateRemoteReads()
   saving.value = true
   try {
     const form = new FormData()
@@ -391,7 +406,8 @@ async function upload(event: Event) {
   finally { saving.value = false; input.value = '' }
 }
 async function refreshRemote() {
-  if (!isLiveAdmin.value || loading.value || saving.value) return
+  if (!isLiveAdmin.value || editorBusy()) return
+  const revision = ++remoteRevision
   try {
     const [slots, library] = await Promise.all([
       fetch('/api/admin/content/site', { credentials: 'same-origin', cache: 'no-store' }),
@@ -400,6 +416,7 @@ async function refreshRemote() {
     if (!slots.ok || !library.ok) return
     const [newRows, newMedia] = await Promise.all([slots.json(), library.json()])
     if (!Array.isArray(newRows) || !Array.isArray(newMedia)) return
+    if (revision !== remoteRevision || !isLiveAdmin.value || editorBusy()) return
     rows.value = newRows as EditableSiteSlot[]
     media.value = newMedia as ManagedMedia[]
     // No reemplazar textEs/textEn/mediaId. Podrían tener ediciones sin guardar.
