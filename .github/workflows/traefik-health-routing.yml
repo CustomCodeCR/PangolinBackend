@@ -8,15 +8,29 @@ permissions:
   contents: read
 jobs:
   routing:
-    name: health routing (allowEmptyServices=${{ matrix.allow_empty }})
+    name: health routing (${{ matrix.profile }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
-        allow_empty: ['false', 'true']
+        include:
+          - profile: reject-unhealthy
+            allow_empty: 'false'
+            explicit_port: 'true'
+            expected: 404
+          - profile: known-defect-13261
+            allow_empty: 'true'
+            explicit_port: 'true'
+            expected: 500
+          - profile: empty-with-discovered-port
+            allow_empty: 'true'
+            explicit_port: 'false'
+            expected: 503
     env:
       ALLOW_EMPTY: ${{ matrix.allow_empty }}
+      EXPLICIT_PORT: ${{ matrix.explicit_port }}
+      EXPECTED_UNHEALTHY: ${{ matrix.expected }}
     steps:
       # No checkout, secrets, external providers, or self-hosted runner.
       - name: Test Docker provider against disposable services only
@@ -24,6 +38,12 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$ALLOW_EMPTY" == false || "$ALLOW_EMPTY" == true ]]
+          [[ "$EXPLICIT_PORT" == false || "$EXPLICIT_PORT" == true ]]
+          [[ "$EXPECTED_UNHEALTHY" =~ ^(404|500|503)$ ]]
+          target_labels=()
+          if [[ "$EXPLICIT_PORT" == true ]]; then
+            target_labels=(--label traefik.http.routers.target.service=target --label traefik.http.services.target.loadbalancer.server.port=3000)
+          fi
           network="pangolin-health-routing-fixture"
           cleanup() {
             docker rm -f -v fixture-traefik fixture-target fixture-control >/dev/null 2>&1 || true
@@ -51,8 +71,7 @@ jobs:
             --label pangolin.health-fixture=true --label traefik.enable=true \
             --label 'traefik.http.routers.target.rule=Host(`target.test`)' \
             --label traefik.http.routers.target.entrypoints=web \
-            --label traefik.http.routers.target.service=target \
-            --label traefik.http.services.target.loadbalancer.server.port=3000 \
+            --expose 3000 "${target_labels[@]}" \
             --health-cmd "$health_cmd" --health-interval 2s --health-timeout 3s --health-retries 2 \
             node:22-alpine node -e '
               let healthy=true;
@@ -121,12 +140,16 @@ jobs:
           started="$(docker inspect -f '{{.State.StartedAt}}' fixture-target)"
           docker kill --signal=SIGUSR2 fixture-target >/dev/null
           wait_health unhealthy
-          expected=404
-          if [[ "$ALLOW_EMPTY" == true ]]; then expected=503; fi
-          probe_routes "$expected" || { docker logs --tail 80 fixture-traefik >&2; exit 1; }
+          # Characterize a known upstream defect on this exact pinned version;
+          # HTTP 500 is NOT an acceptable production readiness contract.
+          # https://github.com/traefik/traefik/issues/13261
+          probe_routes "$EXPECTED_UNHEALTHY" || { docker logs --tail 80 fixture-traefik >&2; exit 1; }
           docker kill --signal=SIGUSR2 fixture-target >/dev/null
           wait_health healthy
           probe_routes 200
           test "$(docker inspect -f '{{.State.StartedAt}}' fixture-target)" = "$started"
           test "$(docker inspect -f '{{.RestartCount}}' fixture-target)" = 0
-          echo "PASS Docker provider health routing and recovery without restart"
+          if [[ "$EXPECTED_UNHEALTHY" == 500 ]]; then
+            echo "::warning::Reproduced upstream issue 13261: explicit port plus allowEmptyServices returns 500 instead of documented 503. Do not adopt this as production policy."
+          fi
+          echo "PASS characterization of Docker provider health routing and recovery without restart"
