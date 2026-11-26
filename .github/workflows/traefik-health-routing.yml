@@ -1,0 +1,119 @@
+name: Traefik Docker health routing (disposable)
+on:
+  pull_request:
+    branches: [main-2, main]
+    paths:
+      - '.github/workflows/traefik-health-routing.yml'
+permissions:
+  contents: read
+jobs:
+  routing:
+    name: health routing (allowEmptyServices=${{ matrix.allow_empty }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        allow_empty: ['false', 'true']
+    env:
+      ALLOW_EMPTY: ${{ matrix.allow_empty }}
+    steps:
+      # No checkout, secrets, external providers, or self-hosted runner.
+      - name: Test Docker provider against disposable services only
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$ALLOW_EMPTY" == false || "$ALLOW_EMPTY" == true ]]
+          network="pangolin-health-routing-fixture"
+          cleanup() {
+            docker rm -f -v fixture-traefik fixture-target fixture-control >/dev/null 2>&1 || true
+            docker network rm "$network" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          # Representative v3.6 series, NOT a claim about Argos' deployed version.
+          docker pull traefik:v3.6
+          docker pull node:22-alpine
+          docker image inspect traefik:v3.6 --format '{{json .RepoDigests}}'
+          docker run --rm --network none traefik:v3.6 version
+          docker network create --internal "$network" >/dev/null
+          # The Docker socket grants daemon access even with a read-only mount.
+          # This is confined to the disposable GitHub-hosted runner; never Argos.
+          docker run -d --name fixture-traefik --network "$network" \
+            -v /var/run/docker.sock:/var/run/docker.sock:ro \
+            traefik:v3.6 \
+            --entrypoints.web.address=:8080 \
+            --providers.docker=true --providers.docker.exposedbydefault=false \
+            '--providers.docker.constraints=Label(`pangolin.health-fixture`,`true`)' \
+            --providers.docker.network="$network" \
+            --providers.docker.allowEmptyServices="$ALLOW_EMPTY" >/dev/null
+          health_cmd='node -e '\''fetch("http://127.0.0.1:3000/health",{signal:AbortSignal.timeout(1500)}).then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))'\'''
+          docker run -d --name fixture-target --network "$network" \
+            --label pangolin.health-fixture=true --label traefik.enable=true \
+            --label 'traefik.http.routers.target.rule=Host(`target.test`)' \
+            --label traefik.http.routers.target.entrypoints=web \
+            --label traefik.http.routers.target.service=target \
+            --label traefik.http.services.target.loadbalancer.server.port=3000 \
+            --health-cmd "$health_cmd" --health-interval 2s --health-timeout 3s --health-retries 2 \
+            node:22-alpine node -e '
+              let healthy=true;
+              process.on("SIGUSR2",()=>{healthy=!healthy});
+              require("node:http").createServer((req,res)=>{
+                if(req.url==="/health"){res.writeHead(healthy?200:503);res.end("probe")}
+                else res.end("target fixture");
+              }).listen(3000,"0.0.0.0");
+            ' >/dev/null
+          docker run -d --name fixture-control --network "$network" \
+            --label pangolin.health-fixture=true --label traefik.enable=true \
+            --label 'traefik.http.routers.control.rule=Host(`control.test`)' \
+            --label traefik.http.routers.control.entrypoints=web \
+            --label traefik.http.routers.control.service=control \
+            --label traefik.http.services.control.loadbalancer.server.port=3000 \
+            node:22-alpine node -e '
+              require("node:http").createServer((req,res)=>res.end("control fixture")).listen(3000,"0.0.0.0");
+            ' >/dev/null
+          wait_health() {
+            local expected="$1"
+            for i in $(seq 1 40); do
+              if [[ "$(docker inspect -f '{{.State.Health.Status}}' fixture-target)" == "$expected" ]]; then return; fi
+              sleep 1
+            done
+            echo "FAIL health did not reach $expected" >&2; return 1
+          }
+          probe_routes() {
+            docker run --rm --network "$network" --entrypoint node node:22-alpine -e '
+              const expected=Number(process.argv[1]);
+              async function get(url,host){
+                const r=await fetch(url,{headers:host?{Host:host}:{},signal:AbortSignal.timeout(2000),redirect:"manual"});
+                return [r.status,await r.text()];
+              }
+              (async()=>{
+                for(let i=0;i<40;i++){
+                  try{
+                    const [target,body]=await get("http://fixture-traefik:8080/","target.test");
+                    const [control,controlBody]=await get("http://fixture-traefik:8080/","control.test");
+                    const [direct,directBody]=await get("http://fixture-target:3000/");
+                    if(target===expected&&(expected!==200||body==="target fixture")&&control===200&&controlBody==="control fixture"&&direct===200&&directBody==="target fixture"){
+                      console.log("PASS target routed HTTP",target,"control 200 and direct target 200");
+                      return;
+                    }
+                  }catch{}
+                  await new Promise(r=>setTimeout(r,1000));
+                }
+                throw Error("Expected route state did not converge");
+              })().catch(e=>{console.error(e.message);process.exitCode=1});
+            ' "$1"
+          }
+          wait_health healthy
+          probe_routes 200
+          started="$(docker inspect -f '{{.State.StartedAt}}' fixture-target)"
+          docker kill --signal=SIGUSR2 fixture-target >/dev/null
+          wait_health unhealthy
+          expected=404
+          if [[ "$ALLOW_EMPTY" == true ]]; then expected=503; fi
+          probe_routes "$expected"
+          docker kill --signal=SIGUSR2 fixture-target >/dev/null
+          wait_health healthy
+          probe_routes 200
+          test "$(docker inspect -f '{{.State.StartedAt}}' fixture-target)" = "$started"
+          test "$(docker inspect -f '{{.RestartCount}}' fixture-target)" = 0
+          echo "PASS Docker provider health routing and recovery without restart"
