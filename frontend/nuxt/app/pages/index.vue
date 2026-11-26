@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import seoRoutes from '../../../seo/routes.json'
 import LegacyHome from '@legacy/Home.vue'
 import guides from '../../../seo/service-landings.json'
 // La fuente de los identificadores JSON-LD debe coincidir con los canonicals.
 const seoBase = String(useRuntimeConfig().public.siteUrl).replace(/\/$/, '')
 const { canonical, organizationId } = usePublicSeo({
-  path: '/', title: 'Castro Fallas | Agencia aduanal y logística en Costa Rica',
-  description: 'Grupo Castro Fallas: coordinación logística, agenciamiento aduanal, carga marítima, aérea y terrestre en Costa Rica. Servicios FCL, LCL, FTL y LTL.',
+  path: '/', title: seoRoutes['/'].title,
+  description: seoRoutes['/'].description,
   schema: [{
     '@type': 'Service', '@id': seoBase + '/#transporte-logistico',
     name: 'Servicios de logística y transporte internacional',

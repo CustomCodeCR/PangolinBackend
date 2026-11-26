@@ -9,6 +9,11 @@ services:
   backend:
     image: ghcr.io/customcodecr/pangolinbackend/backend:${PANGOLIN_IMAGE_TAG:?Definir PANGOLIN_IMAGE_TAG}
     restart: unless-stopped
+    # Verified by isolated production-image authentication, mail and CMS tests.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     environment:
       TZ: "${TZ:-America/Costa_Rica}"
       ASPNETCORE_ENVIRONMENT: Production
@@ -117,6 +122,13 @@ services:
   frontend-nuxt:
     image: ghcr.io/customcodecr/pangolinbackend/nuxt:${PANGOLIN_IMAGE_TAG:?Definir PANGOLIN_IMAGE_TAG}
     restart: unless-stopped
+    # Verified by isolated read-only SSR/browser and recreation tests.
+    read_only: true
+    # Verified by isolated SSR/browser and process-capability tests.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     environment:
       NUXT_CMS_API_BASE: "http://backend:5000"
       NUXT_PUBLIC_SITE_URL: "https://${FENNEC_WWW_HOST:?Definir FENNEC_WWW_HOST}"

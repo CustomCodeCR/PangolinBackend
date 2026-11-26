@@ -19,6 +19,7 @@ on:
       - "scripts/test-nuxt-*.py"
       - "deploy/nuxt-local-hybrid-gateway.conf"
       - "deploy/nuxt-hybrid-gateway.conf"
+      - "deploy/docker-compose.images.yml"
       - ".github/workflows/nuxt-ssr-seo.yml"
   pull_request:
     branches: [main, main-2]
@@ -39,6 +40,8 @@ on:
       - "scripts/test-nuxt-*.py"
       - "deploy/nuxt-local-hybrid-gateway.conf"
       - "deploy/nuxt-hybrid-gateway.conf"
+      - "deploy/docker-compose.images.yml"
+      - ".github/workflows/nuxt-ssr-seo.yml"
   workflow_dispatch:
 permissions:
   contents: read
@@ -152,8 +155,10 @@ jobs:
           set -euo pipefail
           docker run --rm --entrypoint sh cf-nuxt-preview-smoke -ec '
             test "$(id -u)" -ne 0
-            ! command -v npm
-            ! command -v npx
+            if command -v npm >/dev/null 2>&1 || command -v npx >/dev/null 2>&1; then
+              echo "Unexpected package manager in Nuxt runtime image" >&2
+              exit 1
+            fi
             test ! -e /usr/local/lib/node_modules/npm
             test -r /app/.output/server/index.mjs
             node --version
