@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import seoRoutes from '../../../seo/routes.json'
 import LegacyAbout from '@legacy/pages/About.vue'
 usePublicSeo({
-  path: '/nosotros', title: 'Nosotros | Grupo Castro Fallas, logística en Costa Rica',
-  description: 'Conocé a Grupo Castro Fallas y sus servicios de logística internacional, gestión aduanera y coordinación de transporte de carga en Costa Rica.'
+  path: '/nosotros', title: seoRoutes['/nosotros'].title,
+  description: seoRoutes['/nosotros'].description
 })
 </script>
 <template>
