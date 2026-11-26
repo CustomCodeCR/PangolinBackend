@@ -5,6 +5,8 @@ on:
     paths:
       - '.github/workflows/backend-runtime-privilege-isolation.yml'
       - 'backend/**'
+      - 'scripts/test-restricted-backend-mail-media.py'
+      - 'scripts/test-cms-media-http.py'
       - 'deploy/docker-compose.images.yml'
 permissions:
   contents: read
@@ -24,12 +26,14 @@ jobs:
           set -euo pipefail
           network="pangolin-privilege-fixture"
           cleanup() {
-            docker rm -f -v pangolin-privilege-api pangolin-privilege-pg >/dev/null 2>&1 || true
+            docker rm -f -v pangolin-privilege-api pangolin-privilege-pg pangolin-privilege-mail-media >/dev/null 2>&1 || true
+            docker volume rm pangolin-privilege-outbox >/dev/null 2>&1 || true
             docker network rm "$network" >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
           docker pull postgres:16-alpine
           docker pull node:22-alpine
+          docker pull python:3.12-slim
           docker network create --internal "$network" >/dev/null
           docker run -d --name pangolin-privilege-pg --network "$network" --network-alias postgres \
             -e POSTGRES_DB=login -e POSTGRES_USER=postgres \
@@ -134,3 +138,40 @@ jobs:
               console.log("PASS restricted backend persisted session revocation");
             })().catch(e => { console.error(e.message); process.exitCode = 1; });
           '
+          # Exercise local-only mail and S3 HTTP against the same restricted image.
+          # Development is mandatory for LocalOutbox; never enable it in Production.
+          docker rm -f -v pangolin-privilege-api >/dev/null
+          uid="$(docker run --rm --network none --entrypoint id pangolin-privilege-ci:local -u)"
+          gid="$(docker run --rm --network none --entrypoint id pangolin-privilege-ci:local -g)"
+          [[ "$uid" =~ ^[0-9]+$ && "$uid" != 0 && "$gid" =~ ^[0-9]+$ ]]
+          docker volume create pangolin-privilege-outbox >/dev/null
+          docker run --rm --network none --user 0 --entrypoint sh \
+            --mount source=pangolin-privilege-outbox,target=/outbox \
+            pangolin-privilege-ci:local -c 'chown "$1:$2" /outbox && chmod 700 /outbox' sh "$uid" "$gid"
+          docker run -d --name pangolin-privilege-mail-media --network "$network" --network-alias backend-mail-cms \
+            --security-opt no-new-privileges:true --cap-drop ALL \
+            --mount source=pangolin-privilege-outbox,target=/app/local-outbox \
+            -e ASPNETCORE_ENVIRONMENT=Development -e Development__ApplySchema=false \
+            -e 'ConnectionStrings__Postgres=Host=postgres;Port=5432;Database=pangolin;Username=pangolin;Password=fixture-only-password' \
+            -e Auth__OtpPepper="$(printf 'a%.0s' {1..64})" \
+            -e Auth__JwtSigningKey="$(printf 'b%.0s' {1..64})" -e Auth__SecureCookie=false \
+            -e Email__Mode=LocalOutbox -e Email__LoginUrl=https://example.test/bienvenidos \
+            -e Storage__Endpoint=http://minio:19091 -e Storage__Bucket=cms-test \
+            -e Storage__AccessKey=ci-fake -e Storage__SecretKey=ci-fake \
+            -e CmsMedia__ResponsiveWebpEnabled=true -e CmsNews__BinaryImageDeliveryEnabled=true \
+            -e DholeSubmission__WorkerEnabled=false -e DholeTracking__Enabled=false \
+            -e DholeCatalogs__Enabled=false -e DholeSubmission__ApprovalQueueEnabled=false \
+            pangolin-privilege-ci:local >/dev/null
+          docker exec pangolin-privilege-mail-media cat /proc/1/status | awk '
+            /^NoNewPrivs:/ { n = ($2 == 1) }
+            /^CapEff:/ { e = ($2 ~ /^0+$/) }
+            /^CapPrm:/ { p = ($2 ~ /^0+$/) }
+            /^CapBnd:/ { b = ($2 ~ /^0+$/) }
+            /^Uid:/ { u = ($2 != 0 && $3 != 0) }
+            END { exit !(n && e && p && b && u) }
+          '
+          docker run --rm --network "$network" --network-alias minio \
+            --mount "type=bind,source=$GITHUB_WORKSPACE,target=/fixture,readonly" \
+            --mount source=pangolin-privilege-outbox,target=/outbox,readonly \
+            -e CI=true -e PANGOLIN_RESTRICTED_MAIL_MEDIA_FIXTURE=1 \
+            --entrypoint python python:3.12-slim /fixture/scripts/test-restricted-backend-mail-media.py
