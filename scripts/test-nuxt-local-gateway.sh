@@ -15,6 +15,14 @@ trap cleanup EXIT
 # Test-only liveness: strict HTTP 200 on the public root, with an absolute deadline.
 # No database readiness or external network dependency is part of this probe.
 nuxt_health_cmd='node -e '\''const http=require("node:http"); const timer=setTimeout(()=>process.exit(1),2000); const req=http.get("http://127.0.0.1:3000/",res=>{clearTimeout(timer);res.destroy();process.exit(res.statusCode===200?0:1)});req.on("error",()=>process.exit(1));'\'''
+# Test-only probes, using the BusyBox wget shipped in these Nginx Alpine images.
+# Require a successful GET with exactly one HTTP status line and HTTP 200;
+# redirects and HTTP errors are not healthy. No package installs.
+nginx_http_ok='http_ok() { response="$(wget -S -T 2 -O /dev/null "$1" 2>&1)" && printf "%s\\n" "$response" | awk '\''/^[[:space:]]*HTTP\\/[0-9.]+ / {n++; if ($2 != 200) bad=1} END {exit !(n==1 && !bad)}'\''; };'
+vue_health_cmd="$nginx_http_ok http_ok http://127.0.0.1/index.html"
+# This is composite ROUTE READINESS, not Nginx process liveness:
+# a failed Nuxt upstream must fail it even when Nginx and Vue still respond.
+gateway_health_cmd="$nginx_http_ok http_ok http://127.0.0.1/servicios/transporte-maritimo && http_ok http://127.0.0.1/bienvenidos"
 wait_health() {
   local container="$1" expected="$2" state
   for _ in $(seq 1 60); do
@@ -67,7 +75,10 @@ docker run -d --rm --name cf-hybrid-fake-api --network "$network" --network-alia
 ' >/dev/null
 # Solo para la auditoría: Vue compilado y la vista híbrida desde el mismo host.
 docker run -d --rm --name cf-hybrid-vue --network "$network" --network-alias frontend-legacy-preview \
+  --health-cmd "$vue_health_cmd" --health-interval 2s --health-timeout 3s --health-retries 2 --health-start-period 15s \
   -p 127.0.0.1:18084:80 cf-legacy-preview-smoke >/dev/null
+wait_health cf-hybrid-vue healthy
+echo "PASS Vue static HTTP probe with shipped wget"
 docker run -d --rm --name cf-hybrid-nuxt --network "$network" --network-alias frontend-nuxt \
   --security-opt no-new-privileges:true --cap-drop ALL --read-only \
   --health-cmd "$nuxt_health_cmd" --health-interval 2s --health-timeout 3s --health-retries 3 --health-start-period 15s \
@@ -99,8 +110,12 @@ docker exec cf-hybrid-nuxt node -e '
 '
 echo "PASS Nuxt runtime read-only root filesystem: actual write rejected with EROFS"
 docker run -d --rm --name cf-hybrid-gateway --network "$network" -p 127.0.0.1:18083:80 \
+  --health-cmd "$gateway_health_cmd" --health-interval 2s --health-timeout 6s --health-retries 2 --health-start-period 15s \
   -v "$PWD/deploy/nuxt-local-hybrid-gateway.conf:/etc/nginx/conf.d/default.conf:ro" \
   nginx:alpine@sha256:7fc0fb4af7bf006aeb31aea88069976060f8f0a0a86b667126742cc17f4e31ae >/dev/null
+wait_health cf-hybrid-gateway healthy
+gateway_started="$(docker inspect -f '{{.State.StartedAt}}' cf-hybrid-gateway)"
+echo "PASS local hybrid gateway composite route readiness"
 ready=0
 for _ in $(seq 1 50); do
   if curl -fsS "$base/servicios/transporte-maritimo" >/tmp/cf-hybrid-service.html 2>/dev/null; then
@@ -196,6 +211,12 @@ done
 # su conexión sin reiniciar Nginx ni volver a enlazar las rutas.
 old_nuxt_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' cf-hybrid-nuxt)"
 docker rm -f cf-hybrid-nuxt >/dev/null
+# While Nuxt is absent, Nginx and Vue still answer the legacy route.
+wait_health cf-hybrid-gateway unhealthy
+wait_health cf-hybrid-vue healthy
+curl -fsS --max-time 4 "$base/bienvenidos" >/dev/null
+curl -fsS --max-time 4 http://127.0.0.1:18084/index.html >/dev/null
+echo "PASS gateway route readiness fails on missing Nuxt while Vue route remains available"
 # Ocupar la IP antigua para comprobar de verdad el cambio de DNS.
 docker run -d --rm --name cf-hybrid-ip-holder --network "$network" \
   node:22-alpine node -e 'setInterval(()=>{},10000)' >/dev/null
@@ -248,6 +269,9 @@ done
   exit 1
 }
 echo "PASS recuperación después de recrear Nuxt sin reiniciar Nginx"
+wait_health cf-hybrid-gateway healthy
+test "$(docker inspect -f '{{.State.StartedAt}}' cf-hybrid-gateway)" = "$gateway_started"
+echo "PASS gateway composite readiness recovers without gateway restart"
 python3 -m venv /tmp/cf-hybrid-selenium
 /tmp/cf-hybrid-selenium/bin/pip install --disable-pip-version-check --quiet selenium==4.38.0
 /tmp/cf-hybrid-selenium/bin/python scripts/test-nuxt-menu-selenium.py "$base"
