@@ -1,10 +1,12 @@
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 
 export interface SiteSlotDefinition { page: string; pageLabel: string; key: string; section: string; type: 'media' | 'text'; label: string; help: string; fallback: string; originalEs?: string; originalEn?: string; fallbackKind?: 'Imagen' | 'Video' }
 export interface PublishedSiteSlot { key: string; textEs?: string | null; textEn?: string | null; mediaSrc?: string | null; mediaKind?: string | null }
 export interface EditableSiteSlot { key: string; draftEs?: string | null; draftEn?: string | null; draftMediaId?: string | null; publishedEs?: string | null; publishedEn?: string | null; publishedMediaId?: string | null; updatedAt?: string; publishedAt?: string | null }
 
 const published = reactive<Record<string, PublishedSiteSlot>>({})
+const publishedLoaded = ref(false)
+export function hasLoadedPublishedSiteCms(): boolean { return publishedLoaded.value }
 let pending: Promise<void> | null = null
 let revision = 0
 export function loadPublishedSiteCms(force = false): Promise<void> {
@@ -18,6 +20,7 @@ export function loadPublishedSiteCms(force = false): Promise<void> {
     if (requestRevision !== revision) return
     for (const key of Object.keys(published)) delete published[key]
     for (const item of data as PublishedSiteSlot[]) if (typeof item.key === 'string') published[item.key] = item
+    publishedLoaded.value = true
   }).catch(() => { /* Mantener contenido ya cargado ante una caída temporal. */ })
   pending = request.finally(() => { if (requestRevision === revision) pending = null })
   return pending
