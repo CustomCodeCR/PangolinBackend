@@ -193,6 +193,61 @@ jobs:
             })().catch(e => { console.error(e.message); process.exitCode = 1; });
           '
           check_fixture_keys pangolin-privilege-api
+          # Failure injection ONLY against PostgreSQL created by this hosted CI job.
+          # Liveness must not depend on the database; readiness must fail closed.
+          api_started="$(docker inspect -f '{{.State.StartedAt}}' pangolin-privilege-api)"
+          api_id="$(docker inspect -f '{{.Id}}' pangolin-privilege-api)"
+          pg_id="$(docker inspect -f '{{.Id}}' pangolin-privilege-pg)"
+          [[ "$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$pg_id")" == "$network" ]]
+          [[ "$(docker network inspect -f '{{.Internal}}' "$network")" == true ]]
+          docker stop --time 10 "$pg_id" >/dev/null
+          test "$(docker inspect -f '{{.State.Running}}' "$pg_id")" = false
+          docker run --rm --network "$network" --entrypoint node node:22-alpine -e '
+            const base="http://example.test:5000";
+            (async()=>{
+              const live=async()=> {
+                const r=await fetch(base+"/api/health",{signal:AbortSignal.timeout(3000),redirect:"error"});
+                if(r.status!==200||(await r.json()).status!=="ok") throw Error("Liveness failed with DB stopped");
+              };
+              await live();
+              const r=await fetch(base+"/api/health/ready",{signal:AbortSignal.timeout(45000),redirect:"error"});
+              if(r.status!==503) throw Error("Readiness did not return 503");
+              const b=await r.json();
+              if(b.status!=="not_ready"||b.postgres!=="error") throw Error("Readiness failure contract mismatch");
+              await live();
+              console.log("PASS backend liveness 200 and readiness 503 during isolated PostgreSQL outage");
+            })().catch(e=>{console.error(e.message);process.exitCode=1});
+          '
+          docker start "$pg_id" >/dev/null
+          pg_ready=0
+          for i in $(seq 1 45); do
+            if docker exec "$pg_id" pg_isready -q -h 127.0.0.1 -U postgres -d login; then pg_ready=1; break; fi
+            sleep 1
+          done
+          [[ "$pg_ready" == 1 ]]
+          docker run --rm --network "$network" --entrypoint node node:22-alpine -e '
+            const base="http://example.test:5000";
+            (async()=>{
+              for(let i=0;i<30;i++){
+                try{
+                  const r=await fetch(base+"/api/health/ready",{signal:AbortSignal.timeout(3000),redirect:"error"});
+                  const b=await r.json();
+                  if(r.status===200&&b.status==="ready"&&b.postgres==="ok"){
+                    const l=await fetch(base+"/api/health",{signal:AbortSignal.timeout(3000),redirect:"error"});
+                    if(l.status!==200||(await l.json()).status!=="ok") throw Error("Liveness failed after recovery");
+                    console.log("PASS backend readiness and liveness recover after fixture PostgreSQL restart");
+                    return;
+                  }
+                }catch{}
+                await new Promise(r=>setTimeout(r,1000));
+              }
+              throw Error("Backend readiness failed to recover within retry budget");
+            })().catch(e=>{console.error(e.message);process.exitCode=1});
+          '
+          test "$(docker inspect -f '{{.Id}}' pangolin-privilege-api)" = "$api_id"
+          test "$(docker inspect -f '{{.State.StartedAt}}' "$api_id")" = "$api_started"
+          test "$(docker inspect -f '{{.RestartCount}}' "$api_id")" = 0
+          echo "PASS backend recovered without restarting application container"
           # Exercise local-only mail and S3 HTTP against the same restricted image.
           # Development is mandatory for LocalOutbox; never enable it in Production.
           docker rm -f -v pangolin-privilege-api >/dev/null
