@@ -45,7 +45,7 @@ jobs:
           done
           sudo chown -R "$uid:$gid" "$fixture/certs" "$fixture/state" "$fixture/restored"
           sudo chmod 700 "$fixture/certs" "$fixture/state" "$fixture/restored"
-          sudo chmod 600 "$fixture/certs/"*.pfx
+          sudo chmod 600 "$fixture/certs/right.pfx" "$fixture/certs/wrong.pfx"
           chmod -R a+rX "$RUNNER_TEMP/dp-harness"
           run_fixture() {
             local state="$1" mode="$2" access="$3"
