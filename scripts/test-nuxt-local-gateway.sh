@@ -18,7 +18,7 @@ nuxt_health_cmd='node -e '\''const http=require("node:http"); const timer=setTim
 # Test-only probes, using the BusyBox wget shipped in these Nginx Alpine images.
 # Require a successful GET with exactly one HTTP status line and HTTP 200;
 # redirects and HTTP errors are not healthy. No package installs.
-nginx_http_ok='http_ok() { response="$(wget -S -T 2 -O /dev/null "$1" 2>&1)" && printf "%s\\n" "$response" | awk '\''/^[[:space:]]*HTTP\\/[0-9.]+ / {n++; if ($2 != 200) bad=1} END {exit !(n==1 && !bad)}'\''; };'
+nginx_http_ok='http_ok() { response="$(wget -S -T 2 -O /dev/null "$1" 2>&1)" && printf "%s\\n" "$response" | awk '\''substr($1,1,5)=="HTTP/" {n++; if ($2 != 200) bad=1} END {exit !(n==1 && !bad)}'\''; };'
 vue_health_cmd="$nginx_http_ok http_ok http://127.0.0.1/index.html"
 # This is composite ROUTE READINESS, not Nginx process liveness:
 # a failed Nuxt upstream must fail it even when Nginx and Vue still respond.
