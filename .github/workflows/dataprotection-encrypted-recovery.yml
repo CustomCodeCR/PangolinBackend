@@ -1,0 +1,71 @@
+name: DataProtection encrypted recovery (isolated)
+on:
+  pull_request:
+    branches: [main-2, main]
+    paths:
+      - 'tests/DataProtectionRecoveryHarness/**'
+      - '.github/workflows/dataprotection-encrypted-recovery.yml'
+      - 'backend/Dockerfile.production'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  encrypted-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build actual backend image and isolated framework harness
+        run: |
+          docker build --pull -f backend/Dockerfile.production -t pangolin-dp-ci:local backend
+          dotnet publish tests/DataProtectionRecoveryHarness/DataProtectionRecoveryHarness.csproj -c Release -o "$RUNNER_TEMP/dp-harness"
+      - name: Validate encrypted keys, recreation and restore without any external services
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          fixture="$(mktemp -d "$RUNNER_TEMP/dp-fixture.XXXXXX")"
+          trap 'sudo rm -rf -- "$fixture"' EXIT
+          mkdir "$fixture"/{certs,state,restored}
+          uid="$(docker run --rm --network none --entrypoint id pangolin-dp-ci:local -u)"
+          gid="$(docker run --rm --network none --entrypoint id pangolin-dp-ci:local -g)"
+          [[ "$uid" =~ ^[0-9]+$ && "$uid" != 0 && "$gid" =~ ^[0-9]+$ ]]
+          for name in right wrong; do
+            openssl req -x509 -newkey rsa:2048 -nodes -days 2 \
+              -subj "/CN=synthetic-ci-$name" -keyout "$fixture/$name.key" \
+              -out "$fixture/$name.crt" >/dev/null 2>&1
+            openssl pkcs12 -export -inkey "$fixture/$name.key" -in "$fixture/$name.crt" \
+              -out "$fixture/certs/$name.pfx" -passout pass:fixture-only-not-a-secret
+            rm "$fixture/$name.key" "$fixture/$name.crt"
+          done
+          sudo chown -R "$uid:$gid" "$fixture/certs" "$fixture/state" "$fixture/restored"
+          sudo chmod 700 "$fixture/certs" "$fixture/state" "$fixture/restored"
+          sudo chmod 600 "$fixture/certs/"*.pfx
+          chmod -R a+rX "$RUNNER_TEMP/dp-harness"
+          run_fixture() {
+            local state="$1" mode="$2" access="$3"
+            docker run --rm --network none --read-only --cap-drop ALL \
+              --security-opt no-new-privileges:true \
+              --tmpfs /tmp:rw,nosuid,nodev,noexec,size=64m,mode=1777 \
+              --mount "type=bind,source=$RUNNER_TEMP/dp-harness,target=/harness,readonly" \
+              --mount "type=bind,source=$fixture/certs,target=/certs,readonly" \
+              --volume "$state:/state:$access" \
+              -e PANGOLIN_DP_ISOLATED_FIXTURE=1 \
+              --entrypoint dotnet pangolin-dp-ci:local /harness/DataProtectionRecoveryHarness.dll "$mode"
+          }
+          run_fixture "$fixture/state" protect rw
+          # Each invocation is a fresh, restricted container; no network or host secrets.
+          run_fixture "$fixture/state" recover ro
+          run_fixture "$fixture/state" wrong-certificate ro
+          run_fixture "$fixture/state" recover ro
+          # Local disposable backup of key ring and protected fixture payload.
+          # Certificate remains separately supplied; do not upload either as artifacts.
+          sudo cp -a "$fixture/state/." "$fixture/restored/"
+          sudo rm -rf -- "$fixture/state"
+          run_fixture "$fixture/restored" recover ro
+          echo "PASS encrypted fixture backup recovered in fresh container"
