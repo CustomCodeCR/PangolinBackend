@@ -1,0 +1,89 @@
+name: Backend runtime privilege isolation (disposable)
+on:
+  pull_request:
+    branches: [main-2, main]
+    paths:
+      - '.github/workflows/backend-runtime-privilege-isolation.yml'
+      - 'backend/**'
+      - 'deploy/docker-compose.images.yml'
+permissions:
+  contents: read
+jobs:
+  hardened-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build actual production backend image
+        run: docker build --pull -f backend/Dockerfile.production -t pangolin-privilege-ci:local backend
+      - name: Verify isolated production-mode startup under restricted privileges
+        shell: bash
+        run: |
+          set -euo pipefail
+          network="pangolin-privilege-fixture"
+          cleanup() {
+            docker rm -f -v pangolin-privilege-api pangolin-privilege-pg >/dev/null 2>&1 || true
+            docker network rm "$network" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          docker pull postgres:16-alpine
+          docker pull node:22-alpine
+          docker network create --internal "$network" >/dev/null
+          docker run -d --name pangolin-privilege-pg --network "$network" --network-alias postgres \
+            -e POSTGRES_DB=login -e POSTGRES_USER=postgres \
+            -e POSTGRES_PASSWORD=fixture-only-password postgres:16-alpine >/dev/null
+          for i in $(seq 1 45); do
+            if docker exec pangolin-privilege-pg pg_isready -U postgres -d login >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          docker exec pangolin-privilege-pg pg_isready -U postgres -d login
+          for schema in AuthSchema.sql OfficialQuotesSchema.sql; do
+            docker exec -i pangolin-privilege-pg psql -X -v ON_ERROR_STOP=1 -U postgres -d login < "backend/Database/$schema" >/dev/null
+          done
+          # Internal-only network, no host ports, no real credentials or providers.
+          docker run -d --name pangolin-privilege-api --network "$network" --network-alias backend \
+            --security-opt no-new-privileges:true --cap-drop ALL \
+            -e ASPNETCORE_ENVIRONMENT=Production \
+            -e 'ConnectionStrings__Postgres=Host=postgres;Port=5432;Database=login;Username=postgres;Password=fixture-only-password' \
+            -e Auth__OtpPepper="$(printf 'a%.0s' {1..64})" \
+            -e Auth__JwtSigningKey="$(printf 'b%.0s' {1..64})" \
+            -e Security__PublicOrigin=https://example.test \
+            -e Email__Mode=Smtp -e Smtp__Host=smtp.example.test \
+            -e DholeSubmission__WorkerEnabled=false \
+            -e DholeTracking__Enabled=false -e DholeCatalogs__Enabled=false \
+            -e DholeSubmission__ApprovalQueueEnabled=false \
+            pangolin-privilege-ci:local >/dev/null
+          docker exec pangolin-privilege-api cat /proc/1/status | awk '
+            /^NoNewPrivs:/ { n = ($2 == 1) }
+            /^CapEff:/ { e = ($2 ~ /^0+$/) }
+            /^CapPrm:/ { p = ($2 ~ /^0+$/) }
+            /^CapBnd:/ { b = ($2 ~ /^0+$/) }
+            /^Uid:/ { u = ($2 != 0 && $3 != 0) }
+            END { exit !(n && e && p && b && u) }
+          '
+          echo "PASS backend runtime: non-root, no-new-privileges, no Linux capabilities"
+          docker run --rm --network "$network" --entrypoint node node:22-alpine -e '
+            const base = "http://backend:5000";
+            (async () => {
+              let ready = false;
+              for (let i = 0; i < 60; i++) {
+                try {
+                  const response = await fetch(base + "/api/health/ready", {signal: AbortSignal.timeout(2000)});
+                  if (response.ok) {
+                    const body = await response.json();
+                    if (body.status === "ready" && body.postgres === "ok") { ready = true; break; }
+                  }
+                } catch {}
+                await new Promise(r => setTimeout(r, 1000));
+              }
+              if (!ready) throw Error("Backend did not become ready");
+              for (const [path, expected] of [["/api/health", 200], ["/api/content/news", 200], ["/api/auth/me", 401]]) {
+                const response = await fetch(base + path, {signal: AbortSignal.timeout(5000)});
+                if (response.status !== expected) throw Error(path + ": HTTP " + response.status);
+                await response.arrayBuffer();
+                console.log("PASS", path, expected);
+              }
+            })().catch(e => { console.error(e.message); process.exitCode = 1; });
+          '
