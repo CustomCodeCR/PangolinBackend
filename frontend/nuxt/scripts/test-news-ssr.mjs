@@ -65,7 +65,25 @@ const invalidNews = [
 // Simulate a CMS deletion after a page was served, while its full list can
 // still be stale in Nitro cache. The single-item GET is authoritative.
 const revokedNews = new Set()
+let homeCmsMode = 'published'
+let homeCmsTitle = 'CMS HOME FIXTURE ALPHA'
 const api = createServer((req, res) => {
+  if (req.url === '/api/content/site') {
+    if (homeCmsMode === 'error') { res.writeHead(503); res.end('fixture'); return }
+    if (homeCmsMode === 'slow') {
+      setTimeout(() => { if (!res.destroyed) { res.writeHead(503); res.end('fixture') } }, 1500).unref()
+      return
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify(homeCmsMode === 'malformed' ? { invalid: true } :
+      homeCmsMode === 'empty' ? [] : [
+        {key:'home.hero.title1',textEs:homeCmsTitle,textEn:'CMS HOME EN FIXTURE',draftEs:'PRIVATE DRAFT FIXTURE',mediaSrc:'/private-fixture'},
+        {key:'home.hero.intro',textEs:'Texto publicado <script>FIXTURE_TAG</script>'},
+        {key:'shared.footer.title',textEs:'OUTSIDE HOME FIXTURE'},
+        null, {key:42,textEs:'INVALID KEY FIXTURE'}
+      ]))
+    return
+  }
   const single = req.url?.match(/^\/api\/content\/news\/([a-f0-9-]{36})$/i)
   if (single) {
     const candidate = news.find(item => item.id.toLowerCase() === single[1].toLowerCase())
@@ -116,6 +134,30 @@ try {
     await delay(200)
   }
   assert.ok(ready, 'Nuxt no inició: ' + logs.slice(-3000))
+  // Check actual visible SSR HTML, not merely serialized Nuxt payload.
+  async function homeHtml() {
+    const r = await fetch(base + '/', { signal: AbortSignal.timeout(5000) })
+    assert.equal(r.status, 200)
+    return await r.text()
+  }
+  const visible = html => html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+  const firstHome = await homeHtml()
+  assert.match(visible(firstHome), /<h1\b[^>]*>CMS HOME FIXTURE ALPHA/)
+  assert.match(visible(firstHome), /Texto publicado &lt;script&gt;FIXTURE_TAG&lt;\/script&gt;/)
+  assert.doesNotMatch(firstHome, /PRIVATE DRAFT FIXTURE|OUTSIDE HOME FIXTURE|INVALID KEY FIXTURE|private-fixture/)
+  homeCmsTitle = 'CMS HOME FIXTURE BETA'
+  const secondHome = await homeHtml()
+  assert.match(visible(secondHome), /<h1\b[^>]*>CMS HOME FIXTURE BETA/)
+  assert.doesNotMatch(secondHome, /CMS HOME FIXTURE ALPHA/)
+  for (const mode of ['empty', 'malformed', 'error', 'slow']) {
+    homeCmsMode = mode
+    const fallback = await homeHtml()
+    assert.match(visible(fallback), /<h1\b[^>]*>/)
+    assert.doesNotMatch(fallback, /CMS HOME FIXTURE ALPHA|CMS HOME FIXTURE BETA/)
+  }
+  homeCmsMode = 'published'
+  assert.match(visible(await homeHtml()), /<h1\b[^>]*>CMS HOME FIXTURE BETA/)
+  console.log('PASS Home SSR published text, request-local freshness, escaping, field isolation, fallback and recovery')
   // News listing must render real editorial content on the server, not only
   // the loading shell after JavaScript, and keep descriptive card-image alt.
   const listingResponse = await fetch(base + '/noticias')
