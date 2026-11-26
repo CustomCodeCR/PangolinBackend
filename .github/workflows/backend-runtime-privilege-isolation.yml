@@ -46,8 +46,18 @@ jobs:
             docker exec -i -e PGPASSWORD=fixture-only-password pangolin-privilege-pg \
               psql -X -w -h 127.0.0.1 -v ON_ERROR_STOP=1 -U pangolin -d pangolin < "backend/Database/$schema" >/dev/null
           done
+          # Seed only a synthetic account and challenge inside this disposable DB.
+          docker exec -i -e PGPASSWORD=fixture-only-password pangolin-privilege-pg \
+            psql -X -w -h 127.0.0.1 -v ON_ERROR_STOP=1 -U pangolin -d pangolin < backend/Database/SeedLocal.sql >/dev/null
+          otp_hash="$(python3 -c 'import hmac,hashlib; print(hmac.new(b"a"*64,b"c1000000000040008000000000000001:482615",hashlib.sha256).hexdigest())')"
+          docker exec -i -e PGPASSWORD=fixture-only-password pangolin-privilege-pg \
+            psql -X -w -h 127.0.0.1 -v ON_ERROR_STOP=1 -U pangolin -d pangolin -v "fixture_hash=$otp_hash" <<'SQL'
+          INSERT INTO otp_challenges(uuid, usuario_id, tipo_acceso, otp_hash, expires_at)
+          SELECT 'c1000000-0000-4000-8000-000000000001', uuid, tipo_acceso, :'fixture_hash', now() + interval '5 minutes'
+          FROM usuarios WHERE correo = 'demo.usuario@castrofallas.test';
+          SQL
           # Internal-only network, no host ports, no real credentials or providers.
-          docker run -d --name pangolin-privilege-api --network "$network" --network-alias backend \
+          docker run -d --name pangolin-privilege-api --network "$network" --network-alias backend --network-alias example.test \
             --security-opt no-new-privileges:true --cap-drop ALL \
             -e ASPNETCORE_ENVIRONMENT=Production \
             -e 'ConnectionStrings__Postgres=Host=postgres;Port=5432;Database=pangolin;Username=pangolin;Password=fixture-only-password' \
@@ -69,7 +79,7 @@ jobs:
           '
           echo "PASS backend runtime: non-root, no-new-privileges, no Linux capabilities"
           docker run --rm --network "$network" --entrypoint node node:22-alpine -e '
-            const base = "http://backend:5000";
+            const base = "http://example.test:5000";
             (async () => {
               let ready = false;
               for (let i = 0; i < 60; i++) {
@@ -89,5 +99,38 @@ jobs:
                 await response.arrayBuffer();
                 console.log("PASS", path, expected);
               }
+              // Fixture challenge intentionally bypasses only delivery, not the actual
+              // verification, JWT issuance, persistence, authorization or revocation.
+              const otp = {challengeId:"c1000000-0000-4000-8000-000000000001",codigo:"482615"};
+              async function request(path, expected, method="GET", body, cookie, origin="https://example.test") {
+                const headers = {Origin:origin};
+                if (body !== undefined) headers["Content-Type"] = "application/json";
+                if (cookie) headers.Cookie = cookie;
+                const res = await fetch(base+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(5000)});
+                if (res.status!==expected) throw Error(path+": HTTP "+res.status+" expected "+expected);
+                return res;
+              }
+              await request("/api/auth/verify-otp",403,"POST",otp,undefined,"https://untrusted.test");
+              console.log("PASS restricted backend rejects untrusted browser origin");
+              await request("/api/auth/verify-otp",401,"POST",{...otp,codigo:"000000"});
+              const verified = await request("/api/auth/verify-otp",200,"POST",otp);
+              const identity = await verified.json();
+              if (identity.user?.role!=="admin") throw Error("Unexpected fixture role");
+              const setCookie = verified.headers.get("set-cookie") || "";
+              if (!/^cf_session=[^;]+;/.test(setCookie) || !/;\s*httponly(?:;|$)/i.test(setCookie) || !/;\s*secure(?:;|$)/i.test(setCookie) || !/;\s*samesite=strict(?:;|$)/i.test(setCookie)) throw Error("Session cookie flags incorrect");
+              const cookie = setCookie.split(";")[0];
+              await request("/api/auth/verify-otp",401,"POST",otp);
+              const me = await (await request("/api/auth/me",200,"GET",undefined,cookie)).json();
+              if (me.role!=="admin") throw Error("Invalid persisted session");
+              console.log("PASS restricted backend OTP validation, replay rejection and persisted JWT");
+              const quote = await (await request("/api/quotes",201,"POST",{serviceType:"Maritime",origin:"Fixture Origin",destination:"Fixture Destination",cargoType:"Fixture cargo",weightKg:100,pieces:1},cookie)).json();
+              if (!quote.id) throw Error("Fixture quote not created");
+              const mine = await (await request("/api/quotes/mine?page=1&pageSize=20",200,"GET",undefined,cookie)).json();
+              if (!mine.items?.some(q=>q.id===quote.id)) throw Error("Fixture quote not persisted");
+              await request("/api/admin/content/site",200,"GET",undefined,cookie);
+              console.log("PASS restricted backend fixture local quote and authorized CMS read");
+              await request("/api/auth/logout",204,"POST",{},cookie);
+              await request("/api/auth/me",401,"GET",undefined,cookie);
+              console.log("PASS restricted backend persisted session revocation");
             })().catch(e => { console.error(e.message); process.exitCode = 1; });
           '
