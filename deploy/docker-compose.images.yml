@@ -9,6 +9,11 @@ services:
   backend:
     image: ghcr.io/customcodecr/pangolinbackend/backend:${PANGOLIN_IMAGE_TAG:?Definir PANGOLIN_IMAGE_TAG}
     restart: unless-stopped
+    # Verified by isolated production-image authentication, mail and CMS tests.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     environment:
       TZ: "${TZ:-America/Costa_Rica}"
       ASPNETCORE_ENVIRONMENT: Production
