@@ -19,6 +19,7 @@ on:
       - "scripts/test-nuxt-*.py"
       - "deploy/nuxt-local-hybrid-gateway.conf"
       - "deploy/nuxt-hybrid-gateway.conf"
+      - "deploy/docker-compose.images.yml"
       - ".github/workflows/nuxt-ssr-seo.yml"
   pull_request:
     branches: [main, main-2]
@@ -39,6 +40,7 @@ on:
       - "scripts/test-nuxt-*.py"
       - "deploy/nuxt-local-hybrid-gateway.conf"
       - "deploy/nuxt-hybrid-gateway.conf"
+      - "deploy/docker-compose.images.yml"
       - ".github/workflows/nuxt-ssr-seo.yml"
   workflow_dispatch:
 permissions:
