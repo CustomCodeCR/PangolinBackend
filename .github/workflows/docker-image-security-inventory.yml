@@ -17,6 +17,51 @@ on:
 permissions:
   contents: read
 jobs:
+  context-exclusions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify recursive Docker context exclusions with synthetic files
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          for component in frontend backend; do
+            ctx="$tmp/$component"
+            output="$tmp/export-$component"
+            mkdir -p "$ctx/nested/deeper"
+            cp "$component/.dockerignore" "$ctx/.dockerignore"
+            touch "$ctx/source.txt" "$ctx/nested/deeper/source.txt"
+            if [[ "$component" == frontend ]]; then
+              excluded=(.env .env.local .env.production.example .git/config node_modules/pkg/index.js dist/index.html .nuxt/build.js .output/server/index.mjs .vite/cache .cache/cache coverage/report.json debug.log)
+            else
+              excluded=(.env .env.local .env.production.example .git/config bin/app.dll obj/project.assets.json local-outbox/mail.json appsettings.Local.json project.csproj.user)
+            fi
+            for prefix in "" "nested/deeper/"; do
+              for file in "${excluded[@]}"; do
+                mkdir -p "$(dirname "$ctx/$prefix$file")"
+                printf 'synthetic fixture only\n' > "$ctx/$prefix$file"
+              done
+            done
+            docker build --output "type=local,dest=$output" -f - "$ctx" <<'DOCKERFILE'
+          FROM scratch
+          COPY . /context/
+          DOCKERFILE
+            for prefix in "" "nested/deeper/"; do
+              test -f "$output/context/${prefix}source.txt"
+              for file in "${excluded[@]}"; do
+                if [[ -e "$output/context/$prefix$file" ]]; then
+                  echo "Unexpected build context file: $component/$prefix$file" >&2
+                  exit 1
+                fi
+              done
+            done
+            echo "PASS recursive Docker context exclusions: $component"
+          done
   inventory:
     runs-on: ubuntu-latest
     timeout-minutes: 30
