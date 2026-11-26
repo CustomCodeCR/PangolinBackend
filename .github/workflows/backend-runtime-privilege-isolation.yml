@@ -57,7 +57,7 @@ jobs:
           FROM usuarios WHERE correo = 'demo.usuario@castrofallas.test';
           SQL
           # Internal-only network, no host ports, no real credentials or providers.
-          docker run -d --name pangolin-privilege-api --network "$network" --network-alias backend \
+          docker run -d --name pangolin-privilege-api --network "$network" --network-alias backend --network-alias example.test \
             --security-opt no-new-privileges:true --cap-drop ALL \
             -e ASPNETCORE_ENVIRONMENT=Production \
             -e 'ConnectionStrings__Postgres=Host=postgres;Port=5432;Database=pangolin;Username=pangolin;Password=fixture-only-password' \
@@ -79,7 +79,7 @@ jobs:
           '
           echo "PASS backend runtime: non-root, no-new-privileges, no Linux capabilities"
           docker run --rm --network "$network" --entrypoint node node:22-alpine -e '
-            const base = "http://backend:5000";
+            const base = "http://example.test:5000";
             (async () => {
               let ready = false;
               for (let i = 0; i < 60; i++) {
@@ -102,20 +102,22 @@ jobs:
               // Fixture challenge intentionally bypasses only delivery, not the actual
               // verification, JWT issuance, persistence, authorization or revocation.
               const otp = {challengeId:"c1000000-0000-4000-8000-000000000001",codigo:"482615"};
-              async function request(path, expected, method="GET", body, cookie) {
-                const headers = {Origin:"https://example.test"};
+              async function request(path, expected, method="GET", body, cookie, origin="https://example.test") {
+                const headers = {Origin:origin};
                 if (body !== undefined) headers["Content-Type"] = "application/json";
                 if (cookie) headers.Cookie = cookie;
                 const res = await fetch(base+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(5000)});
                 if (res.status!==expected) throw Error(path+": HTTP "+res.status+" expected "+expected);
                 return res;
               }
+              await request("/api/auth/verify-otp",403,"POST",otp,undefined,"https://untrusted.test");
+              console.log("PASS restricted backend rejects untrusted browser origin");
               await request("/api/auth/verify-otp",401,"POST",{...otp,codigo:"000000"});
               const verified = await request("/api/auth/verify-otp",200,"POST",otp);
               const identity = await verified.json();
               if (identity.user?.role!=="admin") throw Error("Unexpected fixture role");
               const setCookie = verified.headers.get("set-cookie") || "";
-              if (!/^cf_session=[^;]+;/.test(setCookie) || !/;\\s*httponly(?:;|$)/i.test(setCookie) || !/;\\s*secure(?:;|$)/i.test(setCookie) || !/;\\s*samesite=strict(?:;|$)/i.test(setCookie)) throw Error("Session cookie flags incorrect");
+              if (!/^cf_session=[^;]+;/.test(setCookie) || !/;\s*httponly(?:;|$)/i.test(setCookie) || !/;\s*secure(?:;|$)/i.test(setCookie) || !/;\s*samesite=strict(?:;|$)/i.test(setCookie)) throw Error("Session cookie flags incorrect");
               const cookie = setCookie.split(";")[0];
               await request("/api/auth/verify-otp",401,"POST",otp);
               const me = await (await request("/api/auth/me",200,"GET",undefined,cookie)).json();
