@@ -35,18 +35,22 @@ jobs:
             -e POSTGRES_DB=login -e POSTGRES_USER=postgres \
             -e POSTGRES_PASSWORD=fixture-only-password postgres:16-alpine >/dev/null
           for i in $(seq 1 45); do
-            if docker exec pangolin-privilege-pg pg_isready -U postgres -d login >/dev/null 2>&1; then break; fi
+            if docker exec pangolin-privilege-pg pg_isready -h 127.0.0.1 -U postgres -d login >/dev/null 2>&1; then break; fi
             sleep 1
           done
-          docker exec pangolin-privilege-pg pg_isready -U postgres -d login
+          docker exec pangolin-privilege-pg pg_isready -h 127.0.0.1 -U postgres -d login
+          docker exec pangolin-privilege-pg psql -X -v ON_ERROR_STOP=1 -U postgres -d login \
+            -c "CREATE ROLE pangolin LOGIN PASSWORD 'fixture-only-password' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS" \
+            -c "CREATE DATABASE pangolin OWNER pangolin" >/dev/null
           for schema in AuthSchema.sql OfficialQuotesSchema.sql; do
-            docker exec -i pangolin-privilege-pg psql -X -v ON_ERROR_STOP=1 -U postgres -d login < "backend/Database/$schema" >/dev/null
+            docker exec -i -e PGPASSWORD=fixture-only-password pangolin-privilege-pg \
+              psql -X -w -h 127.0.0.1 -v ON_ERROR_STOP=1 -U pangolin -d pangolin < "backend/Database/$schema" >/dev/null
           done
           # Internal-only network, no host ports, no real credentials or providers.
           docker run -d --name pangolin-privilege-api --network "$network" --network-alias backend \
             --security-opt no-new-privileges:true --cap-drop ALL \
             -e ASPNETCORE_ENVIRONMENT=Production \
-            -e 'ConnectionStrings__Postgres=Host=postgres;Port=5432;Database=login;Username=postgres;Password=fixture-only-password' \
+            -e 'ConnectionStrings__Postgres=Host=postgres;Port=5432;Database=pangolin;Username=pangolin;Password=fixture-only-password' \
             -e Auth__OtpPepper="$(printf 'a%.0s' {1..64})" \
             -e Auth__JwtSigningKey="$(printf 'b%.0s' {1..64})" \
             -e Security__PublicOrigin=https://example.test \
