@@ -72,16 +72,21 @@ def run(mode):
         # Confirm the browser mounted and the interactive accordion works.
         wait.until(lambda d: d.execute_script(
             "return document.querySelectorAll('#servicios .service-accordion__item.is-open').length === 1"))
+        def assert_hydration(stage):
+            failures = [entry["message"] for entry in driver.get_log("browser")
+                        if "hydration" in entry["message"].lower() and
+                        "mismatch" in entry["message"].lower()]
+            assert not failures, f"Hydration mismatch ({mode}, {stage}): {failures}"
+        assert_hydration("initial Spanish mount")
         if mode == "refresh":
             driver.execute_script("localStorage.setItem('user-locale','en')")
             driver.refresh()
             wait.until(lambda d: english in title())
+            wait.until(lambda d: d.execute_script(
+                "return performance.getEntriesByName(location.origin + '/api/content/site').length > 0"))
+            assert_hydration("English reload")
         else:
             assert alpha in title(), "Failed browser fetch replaced published SSR text"
-        failures = [entry["message"] for entry in driver.get_log("browser")
-                    if "hydration" in entry["message"].lower() and
-                    "mismatch" in entry["message"].lower()]
-        assert not failures, "Hydration mismatch: " + str(failures)
         print("PASS Home CMS browser", mode, "SSR handoff and mounted interaction")
 
 run("refresh")
