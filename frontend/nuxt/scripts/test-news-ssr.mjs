@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { setTimeout as delay } from 'node:timers/promises'
 import assert from 'node:assert/strict'
 import path from 'node:path'
+import { readFileSync } from 'node:fs'
 
 const cmsResponsiveSmoke = process.env.CMS_RESPONSIVE_SSR_SMOKE === '1'
 const cmsImage = '/api/content/media/01234567-89ab-cdef-0123-456789abcdef/file'
@@ -116,6 +117,30 @@ try {
     await delay(200)
   }
   assert.ok(ready, 'Nuxt no inició: ' + logs.slice(-3000))
+  // Public landing metadata must match the editorial inventory used by Vue.
+  // Verify delivered HTML, not component source or post-hydration JavaScript.
+  const routeMetadata = JSON.parse(readFileSync(new URL('../../seo/routes.json', import.meta.url), 'utf8'))
+  for (const route of ['/', '/nosotros', '/servicios', '/noticias']) {
+    const response = await fetch(base + route, { signal: AbortSignal.timeout(10000) })
+    assert.equal(response.status, 200, 'Public landing status: ' + route)
+    const head = (await response.text()).split('</head>')[0]
+    const expected = routeMetadata[route]
+    const title = head.match(/<title>([^<]*)<\/title>/)?.[1]
+    assert.equal(title, expected.title, 'Public title parity: ' + route)
+    const tags = head.match(/<meta\b[^>]*>/g) || []
+    for (const [attribute, key, value] of [
+      ['name', 'description', expected.description],
+      ['property', 'og:title', expected.title],
+      ['property', 'og:description', expected.description],
+      ['name', 'twitter:title', expected.title],
+      ['name', 'twitter:description', expected.description]
+    ]) {
+      const matches = tags.filter(tag => tag.includes(attribute + '="' + key + '"'))
+      assert.equal(matches.length, 1, 'Exactly one meta ' + key + ': ' + route)
+      assert.equal(matches[0].match(/content="([^"]*)"/)?.[1], value, 'Metadata parity ' + key + ': ' + route)
+    }
+  }
+  console.log('PASS four public landings share editorial title and description in SSR metadata')
   // News listing must render real editorial content on the server, not only
   // the loading shell after JavaScript, and keep descriptive card-image alt.
   const listingResponse = await fetch(base + '/noticias')
