@@ -3,6 +3,113 @@
 // No consulta Search Console ni promete indexación por parte de Google.
 import assert from 'node:assert/strict'
 
+// Scope: crawler groups and ASCII prefix / end-anchor paths used by this
+// site's policy. Not a general-purpose RFC 9309 URL normalization library.
+// Google merges matching groups, ignores blank/comment/unknown lines, and
+// uses the most specific agent instead of inheriting the wildcard rules.
+// https://developers.google.com/crawling/docs/robots-txt/robots-txt-spec
+function parseRobotsGroups(robots) {
+  const groups = []
+  let group = null
+  let sawRule = false
+  for (const raw of robots.split(/\r?\n/)) {
+    const line = raw.split('#', 1)[0].trim()
+    const match = /^(user-agent|allow|disallow)\s*:\s*(.*)$/i.exec(line)
+    if (!match) continue
+    const field = match[1].toLowerCase()
+    const value = match[2].trim()
+    if (field === 'user-agent') {
+      const agent = /^(\*|[a-z0-9_-]+)/i.exec(value)?.[1]?.toLowerCase()
+      if (!agent) continue
+      if (!group || sawRule) {
+        group = { agents: [], rules: [] }
+        groups.push(group)
+        sawRule = false
+      }
+      group.agents.push(agent)
+    } else if (group) {
+      sawRule = true
+      if (value.startsWith('/')) group.rules.push({ allow: field === 'allow', path: value })
+    }
+  }
+  return groups
+}
+
+function canCrawl(groups, agent, route) {
+  const token = agent.toLowerCase()
+  const ranked = groups.map(group => ({
+    group,
+    rank: Math.max(-1, ...group.agents.map(name =>
+      name === '*' ? 0 : token.startsWith(name) ? name.length : -1))
+  }))
+  const best = Math.max(-1, ...ranked.map(item => item.rank))
+  if (best < 0) return true
+  const rules = ranked.filter(item => item.rank === best).flatMap(item => item.group.rules)
+  const matched = rules.filter(rule => {
+    const exactPath = rule.path.endsWith('$')
+    const prefix = exactPath ? rule.path.slice(0, -1) : rule.path
+    // Current production policy uses prefix and end-anchor rules only.
+    // Reject unsupported wildcard patterns rather than silently misread them.
+    if (prefix.includes('*')) throw new Error('Unsupported robots.txt path pattern: ' + rule.path)
+    return exactPath ? route === prefix : route.startsWith(prefix)
+  })
+  matched.sort((a, b) => b.path.length - a.path.length || Number(b.allow) - Number(a.allow))
+  return matched.length ? matched[0].allow : true
+}
+
+function testRobotsGroups() {
+  const site = [
+    'Allow: /', 'Allow: /api/content/media/', 'Allow: /api/content/news$',
+    'Allow: /api/content/site$', 'Allow: /api/public-news$',
+    'Disallow: /api/', 'Disallow: /cotizaciones', 'Disallow: /tracking'
+  ].join('\n')
+  const origin = ['OAI-SearchBot', 'ChatGPT-User', '*'].map(agent =>
+    'User-agent: ' + agent + '\n' + site).join('\n\n') + '\n\nUser-agent: GPTBot\nDisallow: /'
+  const cloudflare = [
+    '# BEGIN Cloudflare Managed content', 'User-agent: *',
+    'Content-Signal: search=yes,ai-train=no,use=reference', 'Allow: /',
+    '', 'User-agent: Google-Extended', 'Disallow: /',
+    'User-agent: AwarioSmartBot', 'User-agent: AwarioRssBot', 'Disallow: /',
+    'User-agent: GPTBot', 'Disallow: /', '# END Cloudflare Managed Content'
+  ].join('\n')
+  const publicPaths = ['/', '/noticias', '/api/content/media/example/file',
+    '/api/content/news', '/api/content/site', '/api/public-news']
+  const privatePaths = ['/api/auth/me', '/api/admin/content/news',
+    '/api/hubs/updates/negotiate', '/api/content/news/00000000-0000-0000-0000-000000000000/translation',
+    '/cotizaciones?service=fcl', '/tracking']
+  for (const fixture of [origin, cloudflare + '\n\n' + origin, origin + '\n\n' + cloudflare]) {
+    const groups = parseRobotsGroups(fixture)
+    for (const agent of ['Googlebot', 'Googlebot-Image', 'OAI-SearchBot', 'ChatGPT-User']) {
+      for (const path of publicPaths) assert.equal(canCrawl(groups, agent, path), true, agent + ' public ' + path)
+      for (const path of privatePaths) assert.equal(canCrawl(groups, agent, path), false, agent + ' private ' + path)
+    }
+    for (const path of publicPaths) assert.equal(canCrawl(groups, 'GPTBot', path), false)
+  }
+  const check = (fixture, agent, route, expected) =>
+    assert.equal(canCrawl(parseRobotsGroups(fixture), agent, route), expected, agent + ' ' + route)
+  // Negative controls: a genuinely unsafe policy must remain detectable.
+  check('User-agent: *\nAllow: /', 'Googlebot', '/api/auth/me', true)
+  check(origin + '\nUser-agent: Googlebot\nAllow: /', 'Googlebot', '/api/auth/me', true)
+  check(origin + '\nUser-agent: Googlebot\nAllow: /', 'Googlebot-Image', '/api/auth/me', true)
+  check(origin + '\nUser-agent: Googlebot-Image\nDisallow: /', 'Googlebot-Image', '/noticias', false)
+  check(origin + '\nUser-agent: *\nDisallow: /api/content/news$', 'Googlebot', '/api/content/news', true)
+  check('User-agent: *\nDisallow: /api/\nUser-agent: *\nAllow: /api/auth/me$', 'Googlebot', '/api/auth/me', true)
+  check('User-agent: *\nDisallow: /api/\nUser-agent: *\nDisallow: /noticias', 'Googlebot', '/noticias', false)
+  check('User-agent: a\n\nSitemap: https://example.test/sitemap.xml\n# comment\nUser-agent: B\nDisallow: /', 'b', '/', false)
+  check('User-agent: a\n\nSitemap: https://example.test/sitemap.xml\nUser-agent: b\nDisallow: /', 'a', '/', false)
+  check('\uFEFFUSER-AGENT : *\r\nDisallow: /api/ # private\r\nAllow: /api/content/news$', 'Googlebot', '/api/auth/me', false)
+  check('User-agent: *\nDisallow:\nAllow: /', 'Googlebot', '/', true)
+  check('User-agent: *\nDisallow: /api/\nUser-agent: Googlebot\nDisallow: /news\nUser-agent: Googlebot\nDisallow: /other', 'Googlebot', '/other', false)
+  assert.throws(() => canCrawl(parseRobotsGroups('User-agent: *\nDisallow: /*.php'), 'Googlebot', '/'), /Unsupported/)
+}
+
+testRobotsGroups()
+if (process.argv[2] === '--robots-self-test') {
+  console.log('PASS SEO robots.txt: grupos repetidos, Cloudflare y controles negativos')
+  process.exit(0)
+}
+
+
 const previewOrigin = (process.argv[2] || 'http://127.0.0.1:3000').replace(/\/$/, '')
 const canonicalOrigin = 'https://www.logisticacastrofallas.com'
 const privatePrefixes = ['/api', '/admin', '/administracion', '/bienvenidos', '/cotizaciones', '/tracking', '/itinerario']
@@ -100,24 +207,7 @@ if (robotsResponse.status !== 200) fail('/robots.txt', 'HTTP ' + robotsResponse.
 else {
   const robots = await robotsResponse.text()
   if (!robots.includes('Sitemap: ' + canonicalOrigin + '/sitemap.xml')) fail('/robots.txt', 'Sitemap no canónico')
-  // Validar excepciones CMS públicas mediante la regla más específica.
-  const groups = robots.trim().split(/\r?\n\s*\r?\n/).map(section => section.split(/\r?\n/).map(line => line.trim()).filter(Boolean))
-  function canCrawl(agent, route) {
-    const exact = groups.find(lines => lines.some(line => line.toLowerCase() === 'user-agent: ' + agent.toLowerCase()))
-    const wildcard = groups.find(lines => lines.some(line => line.toLowerCase() === 'user-agent: *'))
-    const lines = exact || wildcard || []
-    const rules = lines.flatMap(line => {
-      const match = /^(allow|disallow):\s*(\S+)/i.exec(line)
-      if (!match) return []
-      const rule = match[2]
-      const exactPath = rule.endsWith('$')
-      const prefix = exactPath ? rule.slice(0, -1) : rule
-      const matches = exactPath ? route === prefix : route.startsWith(prefix)
-      return matches ? [{ allow: match[1].toLowerCase() === 'allow', length: rule.length }] : []
-    })
-    rules.sort((a, b) => b.length - a.length || Number(b.allow) - Number(a.allow))
-    return rules.length ? rules[0].allow : true
-  }
+  const groups = parseRobotsGroups(robots)
   const publicResources = [
     '/api/content/media/18f28700-8a4c-470c-b2db-8ea661fbd038/file',
     '/api/content/news',
@@ -131,11 +221,11 @@ else {
     '/api/content/news/00000000-0000-0000-0000-000000000000/translation'
   ]
   for (const agent of ['Googlebot', 'Googlebot-Image', 'OAI-SearchBot', 'ChatGPT-User']) {
-    for (const path of publicResources) if (!canCrawl(agent, path)) fail('/robots.txt', agent + ' no puede rastrear recurso público ' + path)
-    for (const path of internalResources) if (canCrawl(agent, path)) fail('/robots.txt', agent + ' puede rastrear API interna ' + path)
+    for (const path of publicResources) if (!canCrawl(groups, agent, path)) fail('/robots.txt', agent + ' no puede rastrear recurso público ' + path)
+    for (const path of internalResources) if (canCrawl(groups, agent, path)) fail('/robots.txt', agent + ' puede rastrear API interna ' + path)
   }
   for (const path of ['/', '/noticias', '/api/content/media/18f28700-8a4c-470c-b2db-8ea661fbd038/file']) {
-    if (canCrawl('GPTBot', path)) fail('/robots.txt', 'Se modificó la política existente de GPTBot para ' + path)
+    if (canCrawl(groups, 'GPTBot', path)) fail('/robots.txt', 'Se modificó la política existente de GPTBot para ' + path)
   }
 }
 
