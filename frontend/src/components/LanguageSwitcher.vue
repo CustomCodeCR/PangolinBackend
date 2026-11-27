@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import LanguageFlag from './LanguageFlag.vue'
 
 const { locale, t } = useI18n({ useScope: 'global' })
 const props = withDefaults(defineProps<{ compact?: boolean; vertical?: boolean; dropdown?: boolean }>(), { compact: false, vertical: false, dropdown: false })
@@ -25,10 +26,10 @@ onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
 <template>
   <div ref="root" class="language-switcher" :class="{ 'language-switcher--compact': props.compact, 'language-switcher--vertical': props.vertical, 'language-switcher--dropdown': props.dropdown }" role="group" :aria-label="t('custom.header.language')">
     <template v-if="props.dropdown">
-      <button class="language-switcher__current" type="button" :aria-label="`${t('custom.header.language')}: ${locale === 'es' ? 'Español' : 'English'}`" :aria-expanded="open" @click.stop="open = !open"><span class="language-switcher__flag" aria-hidden="true">{{ locale === 'es' ? '🇪🇸' : '🇬🇧' }}</span><span class="language-switcher__name">{{ locale === 'es' ? 'Español' : 'English' }}</span><span class="language-switcher__chevron" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false"><path d="m4 6 4 4 4-4" /></svg></span></button>
+      <button class="language-switcher__current" type="button" :aria-label="`${t('custom.header.language')}: ${locale === 'es' ? 'Español' : 'English'}`" :aria-expanded="open" @click.stop="open = !open"><span class="language-switcher__flag" aria-hidden="true"><LanguageFlag :language="locale === 'es' ? 'es' : 'en'" /></span><span class="language-switcher__name">{{ locale === 'es' ? 'Español' : 'English' }}</span><span class="language-switcher__chevron" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false"><path d="m4 6 4 4 4-4" /></svg></span></button>
       <div v-if="open" class="language-switcher__menu">
-        <button type="button" :class="{ active: locale === 'es' }" :aria-pressed="locale === 'es'" lang="es" @click="setLanguage('es')"><span aria-hidden="true">🇪🇸</span> Español</button>
-        <button type="button" :class="{ active: locale === 'en' }" :aria-pressed="locale === 'en'" lang="en" @click="setLanguage('en')"><span aria-hidden="true">🇬🇧</span> English</button>
+        <button type="button" :class="{ active: locale === 'es' }" :aria-pressed="locale === 'es'" lang="es" @click="setLanguage('es')"><span aria-hidden="true"><LanguageFlag language="es" /></span> Español</button>
+        <button type="button" :class="{ active: locale === 'en' }" :aria-pressed="locale === 'en'" lang="en" @click="setLanguage('en')"><span aria-hidden="true"><LanguageFlag language="en" /></span> English</button>
       </div>
     </template>
     <template v-else>
@@ -52,8 +53,8 @@ onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
 .language-switcher--vertical button{min-width:26px;padding:4px 5px 4px 8px;text-align:left}
 .language-switcher--vertical button.active::after{left:0;right:auto;top:3px;bottom:3px;width:2px;height:auto;border-radius:2px}
 .language-switcher--dropdown{position:relative;top:auto;left:auto;right:auto;align-self:auto;width:52px;transform:none;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:0}
-.language-switcher--dropdown .language-switcher__current{display:flex;align-items:center;justify-content:center;gap:2px;width:100%;padding:5px 2px;border:0;border-radius:8px;color:inherit;font-size:14px;font-weight:800;opacity:1}
-.language-switcher__flag{font-size:20px;line-height:1}
+.language-switcher--dropdown .language-switcher__current{display:flex;align-items:center;justify-content:flex-start;gap:8px;width:100%;min-width:0;padding:7px 3px;border:0;border-radius:8px;color:inherit;font-size:14px;font-weight:800;opacity:1}
+.language-switcher__flag{display:inline-flex;align-items:center;justify-content:center;flex:0 0 25px;width:25px;height:17px;line-height:1}
 .language-switcher__name{font-size:12px;font-weight:750;white-space:nowrap}
 .language-switcher__chevron{display:inline-flex;flex:0 0 16px;align-items:center;justify-content:center;width:16px;height:16px;line-height:0;transition:transform .18s}
 .language-switcher__chevron svg{display:block;width:12px;height:12px;overflow:visible}

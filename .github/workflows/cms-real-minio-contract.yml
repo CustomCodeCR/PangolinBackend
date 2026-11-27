@@ -1,0 +1,65 @@
+name: CMS real MinIO contract (disposable, loopback only)
+
+on:
+  pull_request:
+    branches: [main-2, main]
+    paths:
+      - tests/CmsRealMinioContract/**
+      - backend/Services/CmsImageVariants.cs
+      - backend/Services/ObjectStorageService.cs
+      - compose.yaml
+      - scripts/test-cms-webp-compose.py
+      - .github/workflows/cms-real-minio-contract.yml
+
+permissions:
+  contents: read
+
+jobs:
+  real-minio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      CMS_REAL_MINIO_ISOLATED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Start official pinned MinIO binary on loopback only
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Historical community container registries are no longer reliable.
+          # Official GitHub release asset digest is pinned and verified before execution.
+          minio="$RUNNER_TEMP/minio-ci"
+          curl --fail --location --show-error --silent --retry 3 \
+            -o "$minio" \
+            https://github.com/minio/minio/releases/download/RELEASE.2025-09-07T16-13-09Z/minio.linux-amd64.RELEASE.2025-09-07T16-13-09Z
+          echo "7c5bd8512c6e966455b1d198209358b2d191c77a83ab377c4073281065fb855f  $minio" | sha256sum --check
+          chmod 700 "$minio"
+          mkdir -p "$RUNNER_TEMP/minio-ci-data"
+          MINIO_ROOT_USER=ci-webp-only \
+            MINIO_ROOT_PASSWORD=ci-webp-disposable-password-only \
+            MINIO_BROWSER=off \
+            "$minio" server "$RUNNER_TEMP/minio-ci-data" \
+              --address 127.0.0.1:19119 \
+              --console-address 127.0.0.1:19120 \
+              > "$RUNNER_TEMP/minio-ci.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/minio-ci.pid"
+          for i in $(seq 1 35); do
+            if curl --silent --fail http://127.0.0.1:19119/minio/health/live > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -n 80 "$RUNNER_TEMP/minio-ci.log"
+          exit 1
+      - name: Run production codec and S3 client against disposable MinIO
+        run: dotnet run --project tests/CmsRealMinioContract/CmsRealMinioContract.csproj --configuration Release
+      - name: Remove ephemeral server and data regardless of result
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/minio-ci.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/minio-ci.pid")" || true
+          fi
+          rm -rf "$RUNNER_TEMP/minio-ci" "$RUNNER_TEMP/minio-ci-data" "$RUNNER_TEMP/minio-ci.pid" "$RUNNER_TEMP/minio-ci.log"

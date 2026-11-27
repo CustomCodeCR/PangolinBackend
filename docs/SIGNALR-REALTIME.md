@@ -79,3 +79,36 @@ administrador y un visitante anónimo conectados simultáneamente al Hub.
   cortes largos, implementar outbox/cursor persistente y reconciliación.
 - Producción exige HTTPS/WSS, reverse proxy que permita Upgrade y controles
   de origen/capacidad adecuados. No se debe exponer el broker de prueba 8081.
+
+
+## Diagnóstico rápido del gateway híbrido de main-2 (sin sesión)
+
+Ante el aviso de WebSocket en PageSpeed (issue #214), el endpoint
+`GET /api/auth/me` devuelve **401 normalmente** cuando la solicitud
+no incluye una sesión. Esto por sí solo no significa que el backend falle.
+
+Para comprobar el hub en el Docker local de Windows, con Node.js 22+,
+desde la raíz del repositorio:
+
+```powershell
+node .\scripts\check-signalr-gateway.cjs http://192.168.1.26:5173/
+node .\scripts\check-signalr-gateway.cjs http://192.168.1.26:8083/
+```
+
+Reemplazá la IP por la de tu máquina si es diferente. **No se envían cookies ni OTP**;
+el script rechaza dominios públicos y únicamente consulta:
+1. `GET /api/auth/me` (esperado: 401 sin sesión).
+2. `POST /api/hubs/updates/negotiate` (esperado: 200 y WebSockets disponible).
+3. `ws://<gateway>/api/hubs/updates` (esperado: Upgrade y handshake SignalR).
+
+El token efímero de negociación se mantiene en memoria y no aparece en la salida.
+No crea usuarios, contenido CMS, notificaciones, cotizaciones ni registros operativos.
+
+Si falla **negotiate**, revisar la ruta `/api/` del gateway y la salud del backend.
+Si negotiate funciona pero falla el **handshake WebSocket**, revisar Upgrade,
+proxy intermedio, afinidad en múltiples réplicas y registros del backend.
+Si pasa en 5173/8083 pero falla en WWW, comparar la configuración del
+proxy público y la red de producción; no modificar Cloudflare/Fennec sin aprobación.
+
+El test simulado de este diagnóstico corre en CI desde `frontend/scripts/test-signalr-gateway-fixture.cjs`;
+no demuestra por sí mismo que SignalR funcione en producción.

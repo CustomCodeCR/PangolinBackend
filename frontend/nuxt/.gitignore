@@ -1,0 +1,7 @@
+node_modules/
+.nuxt/
+.output/
+.data/
+public/images/
+public/videos/
+public/favicon.png

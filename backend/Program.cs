@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -40,6 +41,48 @@ builder.Services.AddHttpClient("DholeTracking", client =>
     client.BaseAddress = new Uri("https://api.logisticacastrofallas.com/");
     client.Timeout = TimeSpan.FromSeconds(12);
 }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+// Independent GET-only external catalogues; no user-controlled URLs or redirects.
+builder.Services.AddHttpClient("DholeCatalogs", client =>
+{
+    client.BaseAddress = new Uri("https://api.logisticacastrofallas.com/");
+    client.Timeout = TimeSpan.FromSeconds(12);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AllowAutoRedirect = false,
+    UseCookies = false
+});
+// Separate, opt-in GET-only Dhole lookup: never uses the normal catalogue key.
+// Fixed HTTPS host and redirects disabled even when the published path changes.
+builder.Services.AddHttpClient("DholeLookups", client =>
+{
+    client.BaseAddress = new Uri("https://api.logisticacastrofallas.com/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AllowAutoRedirect = false,
+    UseCookies = false
+});
+// Independent read-only Pricing verification. No hosted service invokes it yet.
+builder.Services.AddHttpClient("DholeQuoteVerification", client =>
+{
+    client.BaseAddress = new Uri("https://api.logisticacastrofallas.com/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AllowAutoRedirect = false,
+    UseCookies = false
+});
+// Future POST transport only. No endpoint/worker invokes it in this phase.
+// Private DholeSubmission:ApiKey and PostEnabled are intentionally NOT in Compose.
+builder.Services.AddHttpClient("DholeQuotePost", client =>
+{
+    client.BaseAddress = new Uri("https://api.logisticacastrofallas.com/");
+    client.Timeout = TimeSpan.FromSeconds(12);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AllowAutoRedirect = false,
+    UseCookies = false
+});
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(postgres));
 // Redis y MongoDB se utilizan SOLO para cache/auditoría de cotizaciones.
 // Si no se configuran, el login y las cotizaciones siguen usando PostgreSQL.
@@ -101,9 +144,8 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("admin", policy => policy.RequireRole("admin"));
     options.AddPolicy("registered", policy => policy.RequireRole("client", "admin"));
 });
-// WebRTC SDP signaling can exceed the old 4 KB chat message limit; every hub
-// method validates its own input lengths. Camera frames never pass through SignalR.
-builder.Services.AddSignalR(options => { options.EnableDetailedErrors = false; options.MaximumReceiveMessageSize = 32 * 1024; });
+builder.Services.AddSignalR(options => { options.EnableDetailedErrors = false; options.MaximumReceiveMessageSize = 4 * 1024; })
+    .AddHubOptions<AdminChatHub>(options => options.MaximumReceiveMessageSize = 32 * 1024);
 builder.Services.AddSingleton<ContentUpdatesPublisher>();
 builder.Services.AddSingleton<AdminChatMediaStore>();
 builder.Services.AddSingleton<AdminChatAudioStore>();
@@ -113,6 +155,23 @@ builder.Services.AddScoped<AssistantService>();
 builder.Services.AddSingleton<NewsTranslationService>();
 builder.Services.AddSingleton<TrackingStatusTranslationService>();
 builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<DholeCatalogService>();
+builder.Services.AddSingleton<DholeLookupCatalogService>();
+builder.Services.AddSingleton<DholeQuotePostTransport>();
+builder.Services.AddSingleton<DholeQuoteFormCatalogLoader>();
+// Registration is deliberately opt-in at startup; no default environment or
+// Compose settings activate it. The worker also checks runtime safety gates.
+if (builder.Configuration.GetValue<bool>("DholeSubmission:WorkerEnabled"))
+{
+    builder.Services.AddScoped<DholeOfficialOutboxClaimService>();
+    builder.Services.AddScoped<DholeOfficialOutboxOutcomeService>();
+    builder.Services.AddScoped<DholeOfficialDispatchAttemptCoordinator>();
+    builder.Services.AddScoped<DholeOfficialPublishedDispatchSource>();
+    builder.Services.AddScoped<DholeOfficialDispatchPass>();
+    builder.Services.AddScoped<DholeOfficialPricingVerification>();
+    builder.Services.AddScoped<DholeOfficialConfirmationEmail>();
+    builder.Services.AddHostedService<DholeOfficialDispatchWorker>();
+}
 builder.Services.AddSingleton<AssistantFreeQuota>();
 builder.Services.AddSingleton<ObjectStorageService>();
 builder.Services.AddHttpClient("Groq", client =>
@@ -132,13 +191,33 @@ builder.Services.AddHttpClient("GroqTracking", client =>
 });
 builder.Services.AddProblemDetails();
 
-// Se utiliza la dirección real de la conexión local; NO se confía en headers
-// X-Forwarded-For o X-Real-IP enviados por un navegador.
+// Las consultas públicas no deben consumir el cupo de autenticación.
+// Las cabeceras de proxy solo se consideran cuando el salto inmediato figura
+// expresamente en RateLimiting:TrustedProxyIps; nunca confiar en XFF sin validar.
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = (rejection, _) =>
+    {
+        rejection.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        // Informar el tiempo de espera para impedir reintentos agresivos.
+        var seconds = rejection.Lease.TryGetMetadata(MetadataName.RetryAfter, out TimeSpan delay)
+            ? Math.Max(1, (int)Math.Ceiling(delay.TotalSeconds)) : 60;
+        rejection.HttpContext.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
+        rejection.HttpContext.Response.Headers.CacheControl = "no-store";
+        return ValueTask.CompletedTask;
+    };
+    options.AddPolicy("public-read", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        RateLimitClientKey.PublicRead(ctx, builder.Configuration),
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 120,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        }));
     options.AddPolicy("auth", ctx => RateLimitPartition.GetFixedWindowLimiter(
-        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        RateLimitClientKey.PerAddress(ctx, builder.Configuration),
         _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 20,
@@ -174,6 +253,16 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
             AutoReplenishment = true
         }));
+    // Guest quote submissions must be throttled independently of login and reads.
+    options.AddPolicy("public-quote", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 12,
+            Window = TimeSpan.FromMinutes(10),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        }));
     options.AddPolicy("assistant", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
@@ -199,7 +288,22 @@ if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("Dev
         var sql = await File.ReadAllTextAsync(scriptPath);
         await db.Database.ExecuteSqlRawAsync(sql);
         var officialPath = Path.Combine(app.Environment.ContentRootPath, "Database", "OfficialQuotesSchema.sql");
-        await db.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync(officialPath));
+        // This reviewed SQL file includes PostgreSQL regex quantifiers (e.g.
+        // {64}). ExecuteSqlRawAsync feeds SQL through composite formatting and
+        // can throw FormatException even though the SQL itself is valid.
+        // Execute the static local migration as literal SQL through ADO.NET.
+        // Only Development with ApplySchema=true may run this path.
+        await db.Database.OpenConnectionAsync();
+        try
+        {
+            await using var officialCommand = db.Database.GetDbConnection().CreateCommand();
+            officialCommand.CommandText = await File.ReadAllTextAsync(officialPath);
+            await officialCommand.ExecuteNonQueryAsync();
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
         // Ubicaciones ficticias e inequívocamente marcadas como PRUEBA.
         // Solo se cargan en el ambiente Development cuando se aplica el esquema local.
         // Nunca se cargan automáticamente en producción ni sustituyen el catálogo oficial.
@@ -255,15 +359,24 @@ app.Use(async (ctx, next) =>
         bool localVite = app.Environment.IsDevelopment() && origin.Scheme == "http" && origin.Port == 5173 &&
             (origin.Host == "localhost" || origin.Host == "127.0.0.1") &&
             (ctx.Request.Host.Host == "localhost" || ctx.Request.Host.Host == "127.0.0.1");
-        // TLS terminates at a trusted reverse proxy. The ASP.NET hop is internal HTTP,
-        // so validate the browser against an exact configured HTTPS origin rather than
-        // trusting client-supplied X-Forwarded-Proto/X-Forwarded-Host headers.
+        // TLS terminates at a trusted reverse proxy. Match the browser Origin AND
+        // the Host forwarded by nginx against explicitly configured HTTPS hosts.
+        // The canonical WWW and legacy apex must both be configured; no wildcard,
+        // arbitrary forwarded headers or cross-site browser origins are trusted.
         bool trustedPublicOrigin = !app.Environment.IsDevelopment() &&
-            Uri.TryCreate(builder.Configuration["Security:PublicOrigin"], UriKind.Absolute, out var publicUri) &&
-            publicUri.Scheme == Uri.UriSchemeHttps &&
-            string.Equals(ctx.Request.Host.Host, publicUri.Host, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(origin.GetLeftPart(UriPartial.Authority),
-                publicUri.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase);
+            new[]
+            {
+                builder.Configuration["Security:PublicOrigin"],
+                builder.Configuration["Security:AdditionalPublicOrigin"]
+            }.Any(configuredOrigin =>
+                Uri.TryCreate(configuredOrigin, UriKind.Absolute, out var publicUri) &&
+                publicUri.Scheme == Uri.UriSchemeHttps &&
+                publicUri.AbsolutePath == "/" &&
+                publicUri.Query.Length == 0 &&
+                publicUri.Fragment.Length == 0 &&
+                string.Equals(ctx.Request.Host.Host, publicUri.Host, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(origin.GetLeftPart(UriPartial.Authority),
+                    publicUri.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase));
         // In local development Tailscale Serve terminates HTTPS and forwards to
         // Vite over HTTP. Trust ONLY the one explicitly configured tailnet host.
         // Do not trust X-Forwarded-* headers or allow arbitrary HTTPS origins.
@@ -302,12 +415,14 @@ app.Use(async (ctx, next) =>
 });
 
 app.UseRouting();
-app.UseRateLimiter();
 app.UseAuthentication();
+// Las consultas públicas autenticadas pueden particionarse por su usuario validado.
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapTrackingDemo();
 app.MapDholeTracking();
+app.MapDholeCatalogs();
 app.MapGet("/api/health", () => Results.Ok(new
 {
     service = "CastroFallas.MiniQuote.Api", status = "ok", version = "rediseno-auth-otp-v1", utc = DateTime.UtcNow
@@ -394,19 +509,31 @@ app.MapPost("/api/auth/request-otp", async (
 {
     try
     {
-        var (result, limited, accountUnavailable) = await auth.RequestOtpAsync(input, ct);
+        var (result, limited, accountUnavailable, retryAfterSeconds) = await auth.RequestOtpAsync(input, ct);
         http.Response.Headers.CacheControl = "no-store";
-        if (limited) return Results.Json(new { error = "Demasiados intentos. Esperá antes de solicitar otro código." }, statusCode: 429);
+        if (limited)
+        {
+            http.Response.Headers.RetryAfter = Math.Clamp(retryAfterSeconds, 1, 900).ToString(CultureInfo.InvariantCulture);
+            return Results.Json(new { code = "otp_rate_limited", error = "Debés esperar antes de solicitar otro código." }, statusCode: 429);
+        }
         if (accountUnavailable) return Results.Json(
             new { error = "No se pudo iniciar sesión con ese correo. Verificá que esté registrado y habilitado.", code = "account_unavailable" },
             statusCode: StatusCodes.Status404NotFound);
         if (result is null) return Results.BadRequest(new { error = "Revisá el correo, tipo de acceso y código Dynamics." });
+        // The response was successful, but further OTP requests might need to wait.
+        if (retryAfterSeconds > 0)
+            http.Response.Headers.RetryAfter = Math.Clamp(retryAfterSeconds, 1, 900).ToString(CultureInfo.InvariantCulture);
         return Results.Ok(result);
     }
     catch (EmailDeliveryException ex)
     {
         app.Logger.LogError(ex, "Error al preparar/enviar email OTP. TraceId={TraceId}", http.TraceIdentifier);
-        return Results.Json(new { error = "No se pudo entregar el código. Revisá la configuración de correo.", code = "email_unavailable", traceId = http.TraceIdentifier }, statusCode: 503);
+        // A first failed attempt is allowed one immediate retry. Only
+        // advertise a cooldown after the second (or fourth) attempt.
+        if (ex.RetryAfterSeconds > 0)
+            http.Response.Headers.RetryAfter = Math.Clamp(ex.RetryAfterSeconds, 1, 900).ToString(CultureInfo.InvariantCulture);
+        http.Response.Headers.CacheControl = "no-store";
+        return Results.Json(new { error = "El servicio de correo no está disponible temporalmente.", code = "email_unavailable", traceId = http.TraceIdentifier }, statusCode: 503);
     }
     catch (Exception ex) when (ex is NpgsqlException or DbUpdateException or TimeoutException)
     {
@@ -515,8 +642,89 @@ app.MapGet("/api/quotes/{id:guid}", async (
 }).RequireAuthorization("registered");
 
 
+// Autocomplete público del catálogo de itinerarios publicado, sin acceso a edición.
+app.MapGet("/api/assistant/itinerary-locations", async (
+    string routeRole, string? origin, AppDbContext db, HttpContext http, CancellationToken ct) =>
+{
+    http.Response.Headers.CacheControl = "no-store";
+    if (routeRole is not ("origin" or "destination") || origin?.Length > 150)
+        return Results.BadRequest(new { error = "Filtro de ubicaciones inválido." });
+    var listed = db.Itinerarios.AsNoTracking();
+    IQueryable<string> locations = routeRole == "origin"
+        ? listed.Select(x => x.Pol)
+        : listed.Where(x => string.IsNullOrWhiteSpace(origin) || x.Pol == origin).Select(x => x.Pod);
+    var names = await locations.Where(value => value != null && value != "")
+        .Distinct().OrderBy(value => value).Take(300).ToListAsync(ct);
+    return Results.Ok(new { items = names.Select(name => new { id = name, displayName = name, code = (string?)null }) });
+}).RequireRateLimiting("public-read");
+
+// Single public catalogue for the itinerary filter: two reads (origin and
+// destination) instead of querying four shipment types separately on every
+// page load. Source remains the official quote catalogue; no duplicate data.
+app.MapGet("/api/itinerarios/locations", async (
+    string transport, string routeRole, AppDbContext db, IConfiguration config,
+    DholeCatalogService dhole, HttpContext http, CancellationToken ct) =>
+{
+    http.Response.Headers.CacheControl = "no-store";
+    if (transport is not ("all" or "maritime" or "ground") ||
+        routeRole is not ("origin" or "destination"))
+        return Results.BadRequest(new { error = "Filtros de ubicaciones inválidos." });
+
+    // Separate opt-in for Itinerarios: its destination field is POD (not POE).
+    // Existing database-backed filters remain identical until this is enabled.
+    if (config.GetValue<bool>("DholeCatalogs:ItinerariesEnabled"))
+    {
+        if (!dhole.IsConfigured)
+            return Results.Json(new { code = "catalog_not_configured" },
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        try
+        {
+            var catalog = routeRole == "origin" ? "pol" : "pod";
+            var snapshot = await dhole.GetAsync(catalog, ct);
+            if (snapshot.Stale)
+                return Results.Json(new { code = "catalog_stale" },
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+
+            var names = DholeItineraryLocationProjector.Project(
+                transport, routeRole,
+                catalog == "pol" ? snapshot.Items : [],
+                catalog == "pod" ? snapshot.Items : []);
+            if (names.Length == 0)
+                return Results.Json(new { code = "catalog_empty" },
+                    statusCode: StatusCodes.Status502BadGateway);
+            return Results.Ok(new { source = "dhole", items = names.Select(name => new { displayName = name }) });
+        }
+        catch (DholeCatalogUnavailableException)
+        {
+            return Results.Json(new { code = "catalog_upstream_unavailable" },
+                statusCode: StatusCodes.Status502BadGateway);
+        }
+    }
+
+    var types = transport switch
+    {
+        "maritime" => new[] { "FCL", "LCL" },
+        "ground" => new[] { "FTL", "LTL" },
+        _ => new[] { "FCL", "LCL", "FTL", "LTL" }
+    };
+    var locations = await db.OfficialQuoteLocations.AsNoTracking()
+        .Where(x => x.Active &&
+            (x.Code == null || !x.Code.StartsWith("DEV-")) &&
+            ((transport != "ground" && x.Kind == "seaport") ||
+             (transport != "maritime" && x.Kind == "inland")) &&
+            db.OfficialQuoteLocationUsages.Any(u => u.LocationId == x.Id &&
+                types.Contains(u.ShipmentType) && u.RouteRole == routeRole))
+        .Select(x => x.DisplayName)
+        .Distinct()
+        .OrderBy(name => name)
+        .Take(1000)
+        .Select(name => new { displayName = name })
+        .ToListAsync(ct);
+    return Results.Ok(new { items = locations });
+}).RequireRateLimiting("public-read");
+
 app.MapGet("/api/itinerarios", async (
-    AppDbContext db, AuthService auth, HttpContext http,
+    AppDbContext db, HttpContext http,
     string? pol, string? pod, string? status, string? transporte,
     string? modalidad, DateOnly? closing, DateOnly? etd, DateOnly? eta,
     DateOnly? closingDesde, DateOnly? closingHasta,
@@ -524,9 +732,6 @@ app.MapGet("/api/itinerarios", async (
     DateOnly? etaDesde, DateOnly? etaHasta,
     int? page, int? pageSize, CancellationToken ct) =>
 {
-    if (await auth.GetIdentityAsync(http, ct) is null)
-        return Results.Unauthorized();
-
     var currentPage = page ?? 1;
     var currentPageSize = pageSize ?? 20;
     // Límites explícitos: evitan desbordamientos en Skip y consultas excesivas.
@@ -569,6 +774,7 @@ app.MapGet("/api/itinerarios", async (
         .Skip((int)offset).Take(currentPageSize)
         .Select(x => new {
             x.Id, x.Pol, x.Pod, x.Closing, x.Status, x.Etd, x.Eta,
+            x.Carrier, x.Vessel, x.Voyage,
             Transport = x.Transporte, Modality = x.Modalidad
         }).ToListAsync(ct);
     http.Response.Headers.CacheControl = "no-store";
@@ -579,7 +785,7 @@ app.MapGet("/api/itinerarios", async (
         pageSize = currentPageSize,
         totalPages = (int)Math.Ceiling((double)total / currentPageSize)
     });
-}).RequireAuthorization("registered");
+}).RequireRateLimiting("public-read");
 
 // CRUD administrativo aislado del frontend: política admin en cada ruta de escritura.
 app.MapItinerariosCrud();
@@ -589,9 +795,15 @@ app.MapAdminUsers();
 
 // Noticias públicas publicadas y mantenimiento de contenido reservado a admins.
 app.MapManagedContent();
+// Safe binary delivery of legacy inline news images; public feed opt-in only.
+app.MapCmsInlineNewsImages();
 app.MapInstagramReel();
 app.MapFacebookFeaturedVideo();
 app.MapManagedMediaObjects();
+// Explicit, admin-only inspection/backfill of existing CMS originals (disabled by default).
+app.MapCmsMediaBackfill();
+// Metadata-only CMS inventory; never downloads image payloads or reads S3.
+app.MapCmsImageInventory();
 app.MapSiteCms();
 // Endpoint público de conexión. Los grupos privados se validan con la cookie JWT
 // revocable al establecer conexión; el hub no permite que clientes emitan eventos.
@@ -602,3 +814,6 @@ app.MapAdminChatMedia();
 app.MapAdminChatAudio();
 
 app.Run();
+
+// Allows isolated, in-memory HTTP integration tests to use the real API routes.
+public partial class Program { }

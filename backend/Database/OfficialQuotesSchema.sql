@@ -11,8 +11,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_official_quote_locations_kind_code
     ON public.official_quote_locations(kind,code) WHERE code IS NOT NULL;
 CREATE TABLE IF NOT EXISTS public.official_quote_requests (
     id UUID PRIMARY KEY,
-    cliente_id UUID NOT NULL REFERENCES public.clientes(uuid) ON DELETE RESTRICT,
-    usuario_id UUID NOT NULL REFERENCES public.usuarios(uuid) ON DELETE RESTRICT,
+    cliente_id UUID NULL REFERENCES public.clientes(uuid) ON DELETE RESTRICT,
+    usuario_id UUID NULL REFERENCES public.usuarios(uuid) ON DELETE RESTRICT,
     customer_name VARCHAR(200) NOT NULL,
     contact_name VARCHAR(150) NOT NULL,
     contact_email VARCHAR(255) NOT NULL,
@@ -36,6 +36,60 @@ CREATE TABLE IF NOT EXISTS public.official_quote_requests (
         (mode = 'Land' AND shipment_type IN ('FTL','LTL'))
     )
 );
+-- Cancelled is a distinct, terminal ADMINISTRATIVE state. It never implies
+-- cancelling an existing external Dhole/Pricing request; those are blocked
+-- in the backend whenever an outbox record exists. Idempotent migration.
+-- The old inline status CHECK gets its default PostgreSQL constraint name.
+ALTER TABLE public.official_quote_requests
+    DROP CONSTRAINT IF EXISTS official_quote_requests_status_check;
+ALTER TABLE public.official_quote_requests
+    DROP CONSTRAINT IF EXISTS ck_official_quote_status;
+ALTER TABLE public.official_quote_requests
+    ADD CONSTRAINT ck_official_quote_status CHECK (
+        status IN ('Received','InReview','AwaitingInformation','Closed','Cancelled')
+    );
+
+-- Archivado administrativo seguro: oculta la solicitud de la bandeja sin
+-- destruir datos de auditoría, reintentos idempotentes o pruebas de entrega.
+-- Adición compatible con instalaciones que ya tienen cotizaciones guardadas.
+ALTER TABLE public.official_quote_requests
+    ADD COLUMN IF NOT EXISTS archived_at_utc TIMESTAMPTZ NULL,
+    ADD COLUMN IF NOT EXISTS archived_by_id UUID NULL REFERENCES public.usuarios(uuid) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS ix_official_quotes_admin_active_date
+    ON public.official_quote_requests(created_at_utc DESC, id)
+    WHERE archived_at_utc IS NULL;
+
+-- Permanent purge audit: preserve only minimal UUID references and a
+-- controlled reason, never a customer's payload, contact or request digest.
+-- The optional random submission key is a durable tombstone: after a parent
+-- is physically removed, a late browser retry must never recreate the quote.
+-- No FK to the deleted quote or active client-submission row is allowed.
+CREATE TABLE IF NOT EXISTS public.official_quote_purge_audit (
+    quote_id UUID PRIMARY KEY,
+    actor_user_id UUID NULL REFERENCES public.usuarios(uuid) ON DELETE SET NULL,
+    reason VARCHAR(16) NOT NULL CHECK (reason IN ('Prueba','Defectuosa')),
+    deleted_at_utc TIMESTAMPTZ NOT NULL DEFAULT now(),
+    submission_key UUID NULL UNIQUE
+);
+-- Additive upgrade for databases created by an earlier purge preview.
+ALTER TABLE public.official_quote_purge_audit
+    ADD COLUMN IF NOT EXISTS submission_key UUID NULL UNIQUE;
+
+-- Migración aditiva: una solicitud de invitado no pertenece a una cuenta registrada.
+-- Mantener las FK para solicitudes autenticadas y sus permisos de lectura.
+ALTER TABLE public.official_quote_requests ALTER COLUMN cliente_id DROP NOT NULL;
+ALTER TABLE public.official_quote_requests ALTER COLUMN usuario_id DROP NOT NULL;
+
+-- Creation idempotency is completely optional. No new columns on the historic
+-- quote table: all existing flows still work before this DDL is deployed.
+-- This table is only read/written if ClientCreateIdempotencyEnabled=true.
+CREATE TABLE IF NOT EXISTS public.official_quote_client_submissions (
+    submission_key UUID PRIMARY KEY,
+    quote_id UUID NOT NULL UNIQUE REFERENCES public.official_quote_requests(id) ON DELETE RESTRICT,
+    request_digest VARCHAR(64) NOT NULL CHECK (request_digest ~ '^[0-9a-f]{64}$'),
+    created_at_utc TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE INDEX IF NOT EXISTS ix_official_quotes_customer_date
     ON public.official_quote_requests(cliente_id,created_at_utc DESC);
 CREATE INDEX IF NOT EXISTS ix_official_quotes_review_date
@@ -66,3 +120,66 @@ CREATE TABLE IF NOT EXISTS public.official_quote_location_usage (
  PRIMARY KEY (location_id, shipment_type, route_role)
 );
 CREATE INDEX IF NOT EXISTS ix_official_quote_location_usage_lookup ON public.official_quote_location_usage (shipment_type, route_role);
+
+-- Opt-in stage for approved Dhole submissions. No external calls or worker.
+-- Apply this additive migration with a backup before enabling the queue flag.
+-- Only one staged record per quote, even after repeated requests.
+CREATE TABLE IF NOT EXISTS public.official_quote_dhole_outbox (
+    quote_id UUID PRIMARY KEY REFERENCES public.official_quote_requests(id) ON DELETE RESTRICT,
+    approved_by_id UUID NULL REFERENCES public.usuarios(uuid) ON DELETE SET NULL,
+    state VARCHAR(24) NOT NULL DEFAULT 'AwaitingConnector'
+        CHECK (state IN ('AwaitingConnector','Pending','Sending','Sent','Failed')),
+    priority VARCHAR(6) NOT NULL DEFAULT 'Green'
+        CONSTRAINT ck_official_quote_dhole_priority CHECK (priority IN ('Green','Yellow','Red')),
+    attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+    external_reference VARCHAR(180) NULL,
+    last_error_code VARCHAR(60) NULL,
+    last_attempt_at_utc TIMESTAMPTZ NULL,
+    sent_at_utc TIMESTAMPTZ NULL,
+    created_at_utc TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at_utc TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- Idempotent upgrade for an outbox created before priority was introduced.
+-- Apply with ApprovalQueueEnabled=false and a DB backup.
+-- The column CHECK is created only when adding priority to a legacy table;
+-- a fresh table already has the identically named table-level constraint.
+ALTER TABLE public.official_quote_dhole_outbox
+    ADD COLUMN IF NOT EXISTS priority VARCHAR(6) NOT NULL DEFAULT 'Green'
+    CONSTRAINT ck_official_quote_dhole_priority
+    CHECK (priority IN ('Green','Yellow','Red'));
+CREATE INDEX IF NOT EXISTS ix_official_quote_dhole_outbox_state
+    ON public.official_quote_dhole_outbox(state,created_at_utc);
+
+-- Creation-time outbox for new Dhole-backed official quotes. Entirely independent
+-- of the old administrator-approval outbox; no external HTTP/worker uses this table.
+-- Apply with a database backup before setting DirectOutboxEnabled=true.
+-- A quote and its delivery job are committed or rolled back together.
+CREATE TABLE IF NOT EXISTS public.official_quote_dhole_creation_outbox (
+    quote_id UUID PRIMARY KEY REFERENCES public.official_quote_requests(id) ON DELETE RESTRICT,
+    idempotency_key VARCHAR(80) NOT NULL UNIQUE CHECK (length(btrim(idempotency_key)) > 0),
+    state VARCHAR(32) NOT NULL DEFAULT 'PendingDispatch'
+        CHECK (state IN ('PendingDispatch','InFlight','HttpAcceptedUnverified',
+                        'Rejected','Unconfirmed','Confirmed','Failed')),
+    priority VARCHAR(6) NOT NULL DEFAULT 'Green' CHECK (priority IN ('Green','Yellow','Red')),
+    attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+    external_reference VARCHAR(180) NULL,
+    last_error_code VARCHAR(60) NULL,
+    last_attempt_at_utc TIMESTAMPTZ NULL,
+    verified_at_utc TIMESTAMPTZ NULL,
+    created_at_utc TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at_utc TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- A provider receipt is not the verified external_reference.
+ALTER TABLE public.official_quote_dhole_creation_outbox
+    ADD COLUMN IF NOT EXISTS provider_reference_candidate UUID NULL;
+-- Distinct from independent GET verification; never backfill old receipts.
+ALTER TABLE public.official_quote_dhole_creation_outbox
+    ADD COLUMN IF NOT EXISTS creation_receipt_accepted_at_utc TIMESTAMPTZ NULL;
+-- Confirmation email uses an independent once-only reservation. A failure or
+-- lost response never reopens the Dhole POST or automatically repeats mail.
+ALTER TABLE public.official_quote_dhole_creation_outbox
+    ADD COLUMN IF NOT EXISTS confirmation_email_claimed_at_utc TIMESTAMPTZ NULL,
+    ADD COLUMN IF NOT EXISTS confirmation_email_accepted_at_utc TIMESTAMPTZ NULL,
+    ADD COLUMN IF NOT EXISTS confirmation_email_error_code VARCHAR(60) NULL;
+CREATE INDEX IF NOT EXISTS ix_official_quote_dhole_creation_state
+    ON public.official_quote_dhole_creation_outbox(state, created_at_utc);

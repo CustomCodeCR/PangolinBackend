@@ -102,3 +102,24 @@ export function localizeTrackingStatus(value: string | null | undefined, languag
   if (!original) return '—'
   return shipmentStatuses[normalizeLookup(original)]?.[language] ?? original
 }
+
+
+/**
+ * Select an illustrative equipment icon without changing Dynamics data or its
+ * displayed count/size. Explicit transport mode takes priority if fields clash.
+ * Unknown or full-load values keep the existing closed-container icon.
+ */
+export function isTrackingConsolidatedEquipment(
+  mode: string | null | undefined,
+  count: string | null | undefined,
+  size: string | null | undefined
+): boolean {
+  const consolidation = /(?:^|\s)(?:lcl|ltl)(?=\s|$)|\bconsolidad[oa]s?\b|\bconsolidat(?:ed|ion)\b|\bgroupage\b|\bcarga suelta\b/
+  const full = /(?:^|\s)(?:fcl|ftl)(?=\s|$)|\b(?:contenedor|container) completo\b|\bfull container\b/
+  const transport = normalizeLookup(mode ?? '')
+  if (full.test(transport)) return false
+  if (consolidation.test(transport)) return true
+  const equipment = normalizeLookup([count, size].filter(Boolean).join(' '))
+  if (full.test(equipment)) return false
+  return consolidation.test(equipment)
+}

@@ -4,6 +4,10 @@ export interface TrackingPoint {
   name: string
   lat: number
   lon: number
+  /** Approximate map location only. A country centroid is never an airport or port. */
+  precision?: 'known-place' | 'city-centroid' | 'regional-centroid' | 'port-approximation' | 'country-centroid'
+  /** Used to avoid rendering an extra country stop when a specific place is known. */
+  countryIso?: string
 }
 export interface TrackingDemoShipment {
   demo: true

@@ -2,13 +2,26 @@ name: Backend and frontend integration
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, main-2]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  dependency-audit:
+    name: Audit frontend npm dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Audit all npm dependencies strictly (including development)
+        run: node scripts/audit-frontend-deps.cjs
+
   build:
     name: Build .NET and Vue
     runs-on: ubuntu-latest
@@ -27,11 +40,15 @@ jobs:
       - name: Build frontend
         run: |
           npm ci --prefix frontend
-          npm run build --prefix frontend
+          VITE_OFFICIAL_QUOTES_ENABLED=true npm run build --prefix frontend
       - name: SEO static HTML checks
         run: npm run seo:check --prefix frontend
+      - name: Verify production hybrid entrypoint plan (no deployment)
+        run: python3 scripts/test-production-hybrid-port-plan.py
       - name: Static integration checks
         run: python3 scripts/verify-integration.py
+      - name: Official quotes deployment and API contract checks
+        run: python3 scripts/verify-official-quotes.py
 
   smoke:
     name: PostgreSQL OTP CRUD CMS smoke
@@ -46,10 +63,12 @@ jobs:
       # the backend without requiring MongoDB for this integration smoke.
       - name: Start required test dependencies (PostgreSQL and Redis)
         run: docker compose up -d --wait postgres redis
+      - name: Exercise additive CMS news migration three times in isolated PostgreSQL
+        run: python3 scripts/test-cms-news-migration.py
       - name: Build backend test container
         run: docker compose build backend
       - name: Start backend without optional MongoDB
-        run: docker compose run -d --no-deps --service-ports -e Mongo__ConnectionString= backend
+        run: docker compose run -d --no-deps --service-ports -e Mongo__ConnectionString= backend dotnet run --project CastroFallas.MiniQuote.Api.csproj --no-launch-profile
       - name: Wait for backend readiness
         run: |
           ready=0
@@ -73,9 +92,13 @@ jobs:
         run: docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d login -f /tmp/SeedLocal.sql
       - name: Install SignalR test client (test containers only)
         run: npm ci --prefix frontend --ignore-scripts
+      - name: Export the actual visual editor catalog for isolated HTTP testing
+        run: node frontend/scripts/export-cms-catalog.cjs /tmp/cms-all-slots.json
       - name: Test login, SignalR broadcasts, roles, CRUD and quote modes
         env:
           SIGNALR_SMOKE: '1'
+          CMS_ALL_SLOTS_CI: '1'
+          CMS_ALL_SLOTS_CATALOG: /tmp/cms-all-slots.json
         run: python3 scripts/smoke-local.py
       - name: Test real UI login and role-gated pages with Chrome
         run: |
@@ -83,6 +106,10 @@ jobs:
           /tmp/cf-ui-e2e-venv/bin/pip install --disable-pip-version-check selenium==4.38.0
           npm run build --prefix frontend
           /tmp/cf-ui-e2e-venv/bin/python scripts/smoke-browser-live.py
+      - name: Verify previous OTP survives failed LOCAL resend (no Microsoft)
+        env:
+          OTP_OUTBOX_FAILURE_TEST: '1'
+        run: python3 scripts/test-otp-failed-resend.py
       - name: Adjuntar revisión visual de la PR (HTML + capturas de Chrome)
         if: always()
         uses: actions/upload-artifact@v4

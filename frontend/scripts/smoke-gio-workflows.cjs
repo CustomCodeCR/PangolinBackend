@@ -1,0 +1,511 @@
+#!/usr/bin/env node
+// Browser-level contract: GIO does not submit a quote before confirmation or expose
+// unscoped Dynamics shipment data to a signed-in customer.
+'use strict'
+const assert = require('node:assert/strict')
+const http = require('node:http')
+const os = require('node:os')
+const fs = require('node:fs')
+const path = require('node:path')
+const { spawn, spawnSync } = require('node:child_process')
+const WebSocket = require('ws')
+
+const frontend = path.resolve(__dirname, '..')
+const host = '127.0.0.1'
+let role = null
+let quoteWrites = []
+let quotePostKeys = []
+let failNextQuote = false
+let rejectedQuoteAttempts = 0
+let trackingReads = 0
+let itineraryReads = 0
+let dholeOptionsReads = 0
+const dynamicDholeMock = process.env.GIO_DHOLE_MOCK === '1'
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+function chromeBinary() {
+  for (const name of [process.env.CHROME_BIN, 'google-chrome', 'chromium', 'chromium-browser'].filter(Boolean)) {
+    const result = spawnSync('which', [name], { encoding: 'utf8' })
+    if (result.status === 0) return result.stdout.trim()
+  }
+  throw Error('Chrome or Chromium is required')
+}
+const api = http.createServer(async (req, res) => {
+  const url = new URL(req.url || '/', 'http://localhost')
+  const send = (status, data) => {
+    res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' })
+    res.end(JSON.stringify(data))
+  }
+  if (url.pathname === '/api/auth/me') return role
+    ? send(200, {correo:'test@example.invalid',role,nombre:'Smoke Test'})
+    : send(401,{error:'Unauthorized'})
+  if (url.pathname === '/api/content/site') return send(200,{})
+  if (url.pathname === '/api/content/news') return send(200,[])
+  // Run this browser test twice: first with the legacy form, then with
+  // a fake dynamic catalogue using identical labels but EXTERNAL UUIDs.
+  if (url.pathname === '/api/quotes/official/dhole-options') {
+    dholeOptionsReads++
+    if (!dynamicDholeMock) return send(404,{code:'dhole_form_disabled'})
+    // Simulate the full-sized real Air POL/POE feeds: hundreds of "A" records
+    // followed by an airport at the END. Search must never drop late entries.
+    const mockLocations = (size, known, suffix) => [
+      known,
+      ...Array.from({length:size-2}, (_,i)=>({
+        id:'a0000000-0000-4000-8000-'+String(i+1).padStart(12,'0'),
+        displayName:'Aeropuerto A '+String(i+1).padStart(4,'0')+suffix,
+        code:'A-'+String(i+1)
+      })),
+      {id:'f0000000-0000-4000-8000-'+suffix.padStart(12,'0'),
+       displayName:'Zúrich terminal '+suffix,code:'ZRH'}
+    ]
+    return send(200,{
+      source:'dhole',mode:url.searchParams.get('mode'),shipmentType:url.searchParams.get('shipmentType'),
+      clientCreateIdempotencyEnabled:true,
+      incoterms:['FOB'],
+      origins:mockLocations(854,{id:'11111111-1111-4111-8111-111111111111',displayName:'Shanghái',code:'SHA'},'1'),
+      destinations:mockLocations(851,{id:'22222222-2222-4222-8222-222222222222',displayName:'Puerto Caldera',code:'CAL'},'2'),
+      pods:[{id:'33333333-3333-4333-8333-333333333333',displayName:'POD terrestre',code:'TER'}],
+      equipmentSizes:[{value:'40 pies',label:'40 pies'}],
+      equipmentTypesBySize:{'40 pies':['Dry Van']}
+    })
+  }
+  if (url.pathname === '/api/assistant/quote-locations' || url.pathname === '/api/quotes/official/locations') {
+    const source = url.searchParams.get('routeRole')
+    const item = source === 'origin'
+      ? {id:'11111111-1111-1111-1111-111111111111',displayName:'Shanghái',code:'SHA'}
+      : source === 'pod'
+        ? {id:'33333333-3333-3333-8333-333333333333',displayName:'POD terrestre',code:'TER'}
+        : {id:'22222222-2222-2222-2222-222222222222',displayName:'Puerto Caldera',code:'CAL'}
+    return send(200,{items:[item]})
+  }
+  if (url.pathname === '/api/quotes/official' && req.method === 'POST') {
+    quotePostKeys.push(String(req.headers['x-cf-quote-request-key'] || ''))
+    const chunks = []
+    for await (const chunk of req) chunks.push(chunk)
+    const body = JSON.parse(Buffer.concat(chunks).toString())
+    if (failNextQuote) {
+      failNextQuote = false
+      rejectedQuoteAttempts++
+      return send(dynamicDholeMock ? 503 : 400,
+        {error:'Proveedor temporalmente no disponible'})
+    }
+    quoteWrites.push(body)
+    return send(201,{id:'33333333-3333-3333-3333-333333333333',status:'Received'})
+  }
+  if (url.pathname === '/api/assistant/itinerary-locations') {
+    const isOrigin = url.searchParams.get('routeRole') === 'origin'
+    const name = isOrigin ? 'Shanghái' : 'Puerto Caldera'
+    return send(200,{items:[{id:name,displayName:name,code:null}]})
+  }
+  if (url.pathname === '/api/itinerarios') {
+    itineraryReads++
+    return send(200,{items:[{id:'44444444-4444-4444-4444-444444444444',
+      pol:'Shanghái',pod:'Puerto Caldera',etd:'2026-11-20',eta:'2026-12-05',
+      transport:'maritime',modality:'FCL',status:'planning'}],total:1,page:1,pageSize:5,totalPages:1})
+  }
+  if (url.pathname === '/api/tracking/dynamics/search') {
+    trackingReads++
+    return send(200,{records:[{title:'Private shipment',status:'In transit'}],truncated:false})
+  }
+  send(404,{error:'not mocked'})
+})
+function listen(server) {
+  return new Promise((resolve, reject) => {
+    server.once('error',reject)
+    server.listen(0,host,()=>resolve(server.address().port))
+  })
+}
+function close(server) { return new Promise(resolve => server.close(resolve)) }
+async function waitFor(fn, timeout = 14000) {
+  const started = Date.now()
+  while (Date.now() - started < timeout) {
+    try { const result = await fn(); if (result) return result } catch { /* browser not ready yet */ }
+    await sleep(140)
+  }
+  throw Error('Timed out waiting for GIO / Chrome')
+}
+function launch(bin,args,opts) {
+  const child = spawn(bin,args,opts)
+  child.on('error', err => { process.stderr.write(String(err) + '\n') })
+  return child
+}
+async function main() {
+  let vite, chrome, socket
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(),'gio-ops-cdp-'))
+  const debugPort = 9318
+  try {
+    const apiPort = await listen(api)
+    vite = launch(process.execPath,[path.join(frontend,'node_modules/vite/bin/vite.js'),
+      '--host',host,'--port','5189','--strictPort'],{
+      cwd:frontend,env:{...process.env,VITE_API_PROXY_TARGET:'http://'+host+':'+apiPort,
+         VITE_OFFICIAL_QUOTES_ENABLED:'true'},stdio:'ignore'
+    })
+    await waitFor(async () => {
+      const res = await fetch('http://'+host+':5189/')
+      return res.ok
+    },24000)
+    chrome = launch(chromeBinary(),[
+      '--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',
+      '--no-first-run','--disable-background-networking','--disable-extensions',
+      '--remote-allow-origins=*','--remote-debugging-port='+debugPort,
+      '--user-data-dir='+profile,'about:blank'
+    ],{stdio:'ignore'})
+    const target = await waitFor(async () => {
+      const res = await fetch('http://'+host+':'+debugPort+'/json/list')
+      const items = await res.json()
+      return items.find(item => item.type === 'page' && item.webSocketDebuggerUrl)
+    },16000)
+    socket = new WebSocket(target.webSocketDebuggerUrl)
+    await new Promise((resolve,reject) => { socket.once('open',resolve); socket.once('error',reject) })
+    let next = 1
+    const pending = new Map()
+    socket.on('message', data => {
+      const m = JSON.parse(data.toString())
+      if (m.id && pending.has(m.id)) { const p=pending.get(m.id);pending.delete(m.id);m.error?p.reject(Error(JSON.stringify(m.error))):p.resolve(m.result) }
+    })
+    const cdp = (method,params={}) => new Promise((resolve,reject)=>{
+      const id = next++
+      pending.set(id,{resolve,reject})
+      socket.send(JSON.stringify({id,method,params}))
+    })
+    const evaluate = async expression => {
+      const data = await cdp('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true})
+      if (data.exceptionDetails) throw Error('Chrome JS error: '+data.exceptionDetails.text)
+      return data.result?.value
+    }
+    const click = async selector => evaluate('(()=>{const b=document.querySelector('+JSON.stringify(selector)+');if(!b)return false;b.click();return true})()')
+    const has = text => evaluate('document.body.innerText.includes('+JSON.stringify(text)+')')
+    const choose = async text => {
+      const ok = await waitFor(()=>evaluate('(()=>{const b=[...document.querySelectorAll(".gio-ops__choices button")].find(x=>x.textContent.trim().includes('+JSON.stringify(text)+'));if(!b)return false;b.click();return true})()'))
+      assert.ok(ok,'Missing choice: '+text)
+      await sleep(70)
+    }
+    const chooseService = async name => {
+      const clicked = await evaluate('(()=>{const target=[...document.querySelectorAll(".gio-ops__service")].find(x=>x.textContent.includes('+JSON.stringify(name)+'));if(!target)return false;target.querySelector("input")?.click();return true})()')
+      assert.ok(clicked,'Missing service option: '+name)
+      await sleep(40)
+    }
+    const rejectValue = async (value, message) => {
+      const attempted = await evaluate('(()=>{const field=document.querySelector(".gio-ops__form input");if(!field)return false;const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(field,'+JSON.stringify(value)+');field.dispatchEvent(new Event("input",{bubbles:true}));field.closest("form").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));return true})()')
+      assert.ok(attempted,'Missing answer field for invalid '+value)
+      await waitFor(()=>has(message))
+      assert.equal(await evaluate('!!document.querySelector(".gio-ops__confirmation")'),false,'Invalid value must not advance: '+value)
+    }
+    const confirm = async () => {
+      await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__confirmation")'))
+      assert.ok(await click('.gio-ops__confirm-actions .gio-ops__primary'),'Missing confirm control')
+      await sleep(70)
+    }
+    const answer = async text => {
+      const ok = await waitFor(()=>evaluate('(()=>{const field=document.querySelector(".gio-ops__form input");if(!field)return false;const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(field,'+JSON.stringify(text)+');field.dispatchEvent(new Event("input",{bubbles:true}));field.closest("form").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));return true})()'))
+      assert.ok(ok,'Missing answer field for '+text)
+      await confirm()
+    }
+    await cdp('Page.enable')
+    await cdp('Runtime.enable')
+    await cdp('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false})
+    await cdp('Page.navigate',{url:'http://'+host+':5189/'})
+    await waitFor(()=>evaluate('!!document.querySelector(".site-assistant__mascot")'))
+    assert.ok(await click('.site-assistant__mascot'))
+    await waitFor(()=>evaluate('document.querySelectorAll(".site-assistant__quick button").length===4'))
+    const compactWidth = await evaluate('document.querySelector(".site-assistant__panel").getBoundingClientRect().width')
+    assert.ok(await click('.site-assistant__resize button[aria-label="Agrandar ventana de GIO"]'))
+    const expandedWidth = await evaluate('document.querySelector(".site-assistant__panel").getBoundingClientRect().width')
+    assert.ok(expandedWidth > compactWidth, 'Window should expand on desktop')
+    assert.ok(await click('.site-assistant__resize button[aria-label="Agrandar ventana de GIO"]'))
+    const wideWidth = await evaluate('document.querySelector(".site-assistant__panel").getBoundingClientRect().width')
+    assert.ok(wideWidth > expandedWidth, 'The third size should be larger than medium')
+    assert.ok(await click('.site-assistant__resize button[aria-label="Encoger ventana de GIO"]'))
+    assert.ok(await click('.site-assistant__resize button[aria-label="Encoger ventana de GIO"]'))
+    const reducedWidth = await evaluate('document.querySelector(".site-assistant__panel").getBoundingClientRect().width')
+    assert.equal(Math.round(reducedWidth),Math.round(compactWidth),'The initial window size is the minimum')
+    assert.ok(await evaluate('document.querySelectorAll(".site-assistant__quick button")[0].click()||true'))
+    await waitFor(()=>evaluate('document.querySelectorAll(".gio-ops__choices button").length >= 3'))
+    await choose('Marítimo')
+    await choose('FCL')
+    await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__location-list button")'))
+    if (dynamicDholeMock) {
+      const results = await evaluate('({full:document.querySelector(".gio-ops__location-count")?.textContent.trim(),visible:document.querySelectorAll(".gio-ops__location-dock .gio-ops__location-list button").length,more:!!document.querySelector(".gio-ops__location-dock .gio-ops__more"),scrollable:document.querySelector(".gio-ops__location-dock .gio-ops__location-list").scrollHeight>document.querySelector(".gio-ops__location-dock .gio-ops__location-list").clientHeight})')
+      assert.equal(results.full,'854','All 854 Dhole origins must be counted')
+      assert.equal(results.visible,854,'Every Dhole option must be rendered without a Show More button')
+      assert.equal(results.more,false,'No Show More button is allowed')
+      assert.ok(results.scrollable,'Full list should be scrollable without expanding GIO')
+      assert.ok(await evaluate('(()=>{const el=document.querySelector(".gio-ops__form input");const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(el,"Zúrich");el.dispatchEvent(new Event("input",{bubbles:true}));return true})()'))
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__location-list button")?.textContent.includes("Zúrich terminal 1")'))
+      assert.equal(await evaluate('document.querySelector(".gio-ops__location-count")?.textContent.trim()'),'1',
+        'Searching must find an airport at the END of the whole feed')
+      assert.ok(await evaluate('(()=>{const el=document.querySelector(".gio-ops__form input");const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(el,"");el.dispatchEvent(new Event("input",{bubbles:true}));return true})()'))
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__location-count")?.textContent.trim()==="854"'))
+    }
+    const placement = await evaluate('(()=>{const dock=document.querySelector(".gio-ops__location-dock").getBoundingClientRect();const input=document.querySelector(".gio-ops__form").getBoundingClientRect();const btn=document.querySelector(".gio-ops__location-list button").getBoundingClientRect();return {aboveInput:dock.bottom<=input.top+2,visible:btn.top>=dock.top && btn.bottom<=dock.bottom+2,codeVisible:!!document.querySelector(".gio-ops__location-list button small")}})()')
+    assert.ok(placement.aboveInput && placement.visible,'Suggestions must remain visible above composer in the compact panel')
+    assert.equal(placement.codeVisible,false,'Never display import codes such as VIDEO-SEA')
+    await cdp('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true})
+    // Layout and enter animation should settle before checking mobile geometry.
+    await sleep(1100)
+    const mobilePlacement = await evaluate('(()=>{const dock=document.querySelector(".gio-ops__location-dock").getBoundingClientRect();const input=document.querySelector(".gio-ops__form").getBoundingClientRect();const btn=document.querySelector(".gio-ops__location-list button").getBoundingClientRect();const size=window.innerWidth;return {size,dockTop:dock.top,dockBottom:dock.bottom,dockHeight:dock.height,inputTop:input.top,inputBottom:input.bottom,inputHeight:input.height,viewport:innerHeight,aboveInput:dock.bottom<=input.top+2,visible:btn.top>=dock.top && btn.bottom<=dock.bottom+2,keyboardSpace:input.bottom<=innerHeight+2}})()')
+    assert.ok(mobilePlacement.size<=800 && mobilePlacement.aboveInput && mobilePlacement.visible && mobilePlacement.keyboardSpace,'Mobile suggestions and composer must remain visible: ' + JSON.stringify(mobilePlacement))
+    await cdp('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false})
+    await sleep(120)
+    assert.ok(await evaluate('(()=>{const field=document.querySelector(".gio-ops__form input"); const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(field,"es pan");field.dispatchEvent(new Event("input",{bubbles:true}));field.closest("form").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));return true})()'))
+    await waitFor(()=>has('No puedo aceptar lugares sin verificar'))
+    assert.equal(await evaluate('!!document.querySelector(".gio-ops__confirmation")'),false,'Unverified origins must never advance')
+    assert.ok(await evaluate('(()=>{const field=document.querySelector(".gio-ops__form input");const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(field,"");field.dispatchEvent(new Event("input",{bubbles:true}));return true})()'))
+    await choose('Shanghái')
+    await confirm()
+    await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__location-list button")'))
+    await choose('Puerto Caldera')
+    await confirm()
+    await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__location-list button")'))
+    assert.ok(await has('POD'),'GIO must ask maritime FCL customers for POD')
+    assert.equal(await evaluate('[...document.querySelectorAll(".gio-ops__choices button")].some(b=>b.textContent.includes("Omitir"))'),false,
+      'Mandatory maritime FCL POD cannot be skipped in GIO')
+    await choose('POD terrestre')
+    await confirm()
+    await choose('FOB')
+    await rejectValue('2020-01-01', 'La fecha de carga lista debe ser hoy o posterior')
+    const futureReadyDate = new Date(Date.now() + 45 * 86400000).toISOString().slice(0,10)
+    await answer(futureReadyDate)
+    await waitFor(()=>evaluate('document.querySelectorAll(".gio-ops__service").length === 12'))
+    assert.equal(await evaluate('[...document.querySelectorAll(".gio-ops__service")].some(x=>x.textContent.includes("Transporte nacional"))'),false,
+      'National transport must not appear in new GIO quote choices')
+    assert.equal(await evaluate('document.querySelectorAll(".gio-ops__service input:checked").length'),1,'International transportation is initially selected')
+    await chooseService('Transporte internacional')
+    assert.equal(await evaluate('document.querySelectorAll(".gio-ops__service input:checked").length'),0,'All services can be unchecked')
+    assert.equal(await evaluate('document.querySelector(".gio-ops__services .gio-ops__primary").disabled'),true,'Cannot submit an empty service selection')
+    await chooseService('Transporte internacional')
+    await chooseService('Almacenamiento')
+    await chooseService('Transporte entrega')
+    await chooseService('Seguro de carga')
+    assert.ok(await click('.gio-ops__services .gio-ops__primary'),'Service selection must continue')
+    await waitFor(()=>has('¿Está correcto?'))
+    await confirm()
+    await rejectValue('0', 'Los días de almacenaje deben ser un entero')
+    await answer('12')
+    await rejectValue('x', 'Escribe una descripción clara')
+    await answer('Centro de distribución, San José, Costa Rica')
+    assert.ok(await evaluate('(()=>{const field=document.querySelector(".gio-ops__form input");const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(field,"es pan");field.dispatchEvent(new Event("input",{bubbles:true}));field.closest("form").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));return true})()'))
+    await waitFor(()=>has('¿Está correcto?'))
+    assert.ok(await click('.gio-ops__confirm-actions .gio-ops__secondary'),'Correction control missing')
+    await answer('Electrodomésticos')
+    await choose('No')
+    await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__choices button")'))
+    assert.equal(await evaluate('!!document.querySelector(".gio-ops__form input")'),false,'Equipment size must use official choices')
+    await choose('40 pies')
+    await choose('Dry Van')
+    await answer('1')
+    await answer('8000')
+    await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__extra-lines")'))
+    assert.ok(await click('.gio-ops__extra-lines > .gio-ops__secondary'),'GIO must offer additional equipment')
+    await waitFor(()=>evaluate('document.querySelectorAll(".gio-ops__extra-line").length===1'))
+    assert.ok(await evaluate('(()=>{const s=document.querySelector(".gio-ops__extra-line select");s.value="40 pies";s.dispatchEvent(new Event("change",{bubbles:true}));return true})()'))
+    await waitFor(()=>evaluate('([...document.querySelectorAll(".gio-ops__extra-line select")][1]?.options.length||0)>1'))
+    assert.ok(await evaluate('(()=>{const root=document.querySelector(".gio-ops__extra-line");const selects=root.querySelectorAll("select");selects[1].value="Dry Van";selects[1].dispatchEvent(new Event("change",{bubbles:true}));const inputs=root.querySelectorAll("input");for(const [i,v] of ["1","5000"].entries()){const el=inputs[i];const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(el,v);el.dispatchEvent(new Event("input",{bubbles:true}))}return true})()'))
+    assert.ok(await click('.gio-ops__extra-lines > .gio-ops__primary'),'GIO must accept additional equipment line')
+    await choose('Sí, completar datos adicionales')
+    await answer('1234567890000')
+    await rejectValue('0', 'El seguro exige un valor declarado positivo')
+    await answer('1500')
+    await waitFor(()=>has('¿En qué moneda está el valor declarado?'))
+    assert.equal(await evaluate('!!document.querySelector(".gio-ops__form input")'),false,'Currency must use choices, not free text')
+    assert.deepEqual(await evaluate('[...document.querySelectorAll(".gio-ops__choices button")].map(x=>x.textContent.trim())'),
+      ['USD — Dólar estadounidense','CRC — Colón costarricense','EUR — Euro'],
+      'GIO offers only the same three currencies as the wizard')
+    await choose('USD — Dólar estadounidense')
+    await waitFor(()=>evaluate('document.querySelector(".gio-ops__weight-reference strong")?.textContent.replace(/[^0-9]/g,"")==="13000"'))
+    const setDeclaredWeight = async text => {
+      assert.ok(await evaluate('(()=>{const field=document.querySelector(".gio-ops__form input");if(!field)return false;const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(field,'+JSON.stringify(text)+');field.dispatchEvent(new Event("input",{bubbles:true}));field.closest("form").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));return true})()'))
+      await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__confirmation")'))
+    }
+    await setDeclaredWeight('13000')
+    assert.equal(await evaluate('!!document.querySelector(".gio-ops__confirmation .gio-ops__weight-advisory")'),false,'Equal weights do not warn')
+    await click('.gio-ops__confirm-actions .gio-ops__secondary')
+    await setDeclaredWeight('13000.1')
+    await waitFor(()=>evaluate('document.querySelector(".gio-ops__confirmation .gio-ops__weight-advisory")?.textContent.includes("kg menos")'))
+    await click('.gio-ops__confirm-actions .gio-ops__secondary')
+    await setDeclaredWeight('8000')
+    await waitFor(()=>evaluate('document.querySelector(".gio-ops__confirmation .gio-ops__weight-advisory")?.textContent.includes("kg más")'))
+    await confirm()
+    await answer('2')
+    await choose('Sí')
+    await answer('Descarga delicada en destino')
+    await choose('Omitir')
+    await answer('Test Client')
+    await rejectValue('correo-invalido', 'Correo electrónico inválido')
+    await answer('test@example.invalid')
+    await answer('+506 2272 6772')
+    await waitFor(()=>has('Confirmar y enviar solicitud'))
+    assert.ok(await evaluate('document.querySelector(".gio-ops__card .gio-ops__weight-advisory")?.textContent.includes("kg más")'),'Weight mismatch persists on review')
+    const editContact = await evaluate('(()=>{const row=[...document.querySelectorAll(".gio-ops__card dl>div")].find(x=>x.querySelector("dt")?.textContent==="Contacto");if(!row)return false;row.querySelector(".gio-ops__edit").click();return true})()')
+    assert.ok(editContact,'User must be able to edit a specific field')
+    await answer('Edited Client')
+    await waitFor(()=>has('Confirmar y enviar solicitud'))
+    assert.equal(quoteWrites.length,0,'Quote sent without user confirmation')
+    failNextQuote = true
+    await click('.gio-ops__primary')
+    await waitFor(()=>has('Proveedor temporalmente no disponible'))
+    assert.equal(rejectedQuoteAttempts,1,'Exactly one simulated provider failure should occur')
+    assert.equal(quoteWrites.length,0,'A failed request must not be counted as a created quote')
+    if (dynamicDholeMock)
+      assert.match(quotePostKeys[0], /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+        'Dhole-enabled GIO must generate a secure random v4 creation key')
+    else
+      assert.equal(quotePostKeys[0],'',
+        'Legacy GIO must not send a key the server cannot deduplicate')
+    assert.ok(await evaluate('!!document.querySelector(".gio-ops__card .gio-ops__edit")'),
+      'GIO must retain the review after a server failure')
+    await click('.gio-ops__primary')
+    await waitFor(()=>has('33333333-3333-3333-3333-333333333333'))
+    assert.equal(quoteWrites.length,1,'Guest quote must be created exactly once')
+    assert.equal(quotePostKeys.length,2,'Mock network/server failure permits exactly one safe retry')
+    if (dynamicDholeMock)
+      assert.equal(quotePostKeys[0],quotePostKeys[1],
+        'Dhole-enabled GIO must reuse the original key after ambiguous HTTP failure')
+    else
+      assert.equal(quotePostKeys[1],'',
+        'Legacy validation retry must not invent deduplication capability')
+    assert.equal(await evaluate('sessionStorage.getItem("gcf-official-quote-gio-attempt-v1")'),null,
+      'Verified creation receipt clears the temporary retry identity')
+    const guestReceipt = await evaluate('(()=>{try{return JSON.parse(sessionStorage.getItem("gcf-gio-quote-receipt-v1")||"null")}catch{return null}})()')
+    assert.equal(guestReceipt?.id,'33333333-3333-3333-3333-333333333333','Guest must retain the issued receipt')
+    assert.ok(Array.isArray(guestReceipt?.details) && guestReceipt.details.length > 10,
+      'GIO must preserve the complete submitted summary rather than only route and ID')
+    assert.equal(guestReceipt.details.find(x=>x.key==='contactName')?.value, 'Edited Client')
+    assert.equal(guestReceipt.details.find(x=>x.key==='equipmentWeights')?.value, '8000')
+    assert.deepEqual(quoteWrites[0].services,
+      ['Transporte internacional','Almacenamiento','Transporte entrega','Seguro de carga'])
+    assert.equal(quoteWrites[0].fiscalStorageDays,12,'Fiscal storage days must be included')
+    assert.equal(quoteWrites[0].deliveryAddress,'Centro de distribución, San José, Costa Rica')
+    assert.equal(quoteWrites[0].cabysCode,'1234567890000','GIO must preserve optional CABYS code')
+    assert.equal(quoteWrites[0].cargoValue,1500,'Insurance requires positive declared amount')
+    assert.equal(quoteWrites[0].cargoCurrencyCode,'USD','Insurance requires explicit ISO currency')
+    assert.equal(quoteWrites[0].declaredWeight,8000,'Optional declared weight must be retained')
+    assert.equal(quoteWrites[0].declaredPackages,2,'Optional declared packages must be retained')
+    assert.ok(quoteWrites[0].cargoFlags.includes('Sobrepeso'),'Overweight flag from GIO must be retained')
+    assert.equal(quoteWrites[0].destinationHandling,'Descarga delicada en destino')
+    assert.equal(quoteWrites[0].pickupAddress,null,'Unselected pickup service must not send an address')
+    assert.ok(guestReceipt.details.find(x=>x.key==='services')?.value?.includes('Almacenamiento'),
+      'Receipt must include the confirmed service list')
+    assert.equal(guestReceipt.details.find(x=>x.key==='fiscalStorageDays')?.value,'12')
+    assert.equal(quoteWrites[0].shipmentType,'FCL')
+    assert.equal(quoteWrites[0].equipment[0].size,'40 pies')
+    assert.equal(quoteWrites[0].equipment[0].type,'Dry Van')
+    assert.equal(quoteWrites[0].contactName,'Edited Client')
+    assert.deepEqual(quoteWrites[0].equipment[0].unitWeightsKg,[8000])
+    assert.equal(quoteWrites[0].equipment.length,2,'Additional GIO line must reach the official backend')
+    assert.deepEqual(quoteWrites[0].equipment[1],{size:'40 pies',type:'Dry Van',quantity:1,unitWeightsKg:[5000]},
+      'GIO must preserve selected catalog combination and per-unit weight for an additional line')
+    assert.equal(quoteWrites[0].catalogSource, dynamicDholeMock ? 'dhole' : null,
+      'Explicit source discriminates dynamic Dhole from legacy quotes')
+    assert.ok(dholeOptionsReads >= 1,'GIO must check whether Dhole quote options are enabled')
+    assert.equal(quoteWrites[0].originLocationId,
+      dynamicDholeMock ? '11111111-1111-4111-8111-111111111111' : '11111111-1111-1111-1111-111111111111')
+    assert.equal(quoteWrites[0].destinationLocationId,
+      dynamicDholeMock ? '22222222-2222-4222-8222-222222222222' : '22222222-2222-2222-2222-222222222222')
+    assert.equal(quoteWrites[0].podLocationId,
+      dynamicDholeMock ? '33333333-3333-4333-8333-333333333333' : '33333333-3333-3333-8333-333333333333',
+      'Maritime FCL must include confirmed POD in submissions from GIO')
+    assert.ok(await evaluate(`!!document.querySelector('.gio-ops__card a[href="/cotizaciones?gioReceipt=1"]')`),'Guest must see the direct quote receipt link')
+    // Reuse confirmed fields to request a distinct quote as an admin.
+    role = 'administrador'
+    const newQuote = await evaluate('(()=>{const b=[...document.querySelectorAll(".gio-ops__secondary")].find(x=>x.textContent.includes("Nueva consulta"));if(!b)return false;b.click();return true})()')
+    assert.ok(newQuote,'Missing new query')
+    await choose('Marítimo')
+    await waitFor(()=>has('Confirmar y enviar solicitud'))
+    await click('.gio-ops__primary')
+    await waitFor(()=>evaluate(`!!document.querySelector('.gio-ops__card a[href*="cotizaciones-oficiales?quote="]')`))
+    assert.equal(quoteWrites.length,2,'Admin second quote should be submitted once')
+    assert.deepEqual(quoteWrites[1].services,quoteWrites[0].services,'Admin must preserve the selected services')
+    role = null
+    await click('.gio-ops__back')
+    await waitFor(()=>evaluate('document.querySelectorAll(".site-assistant__quick button").length===4'))
+    await evaluate('document.querySelectorAll(".site-assistant__quick button")[2].click()')
+    await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__location-list button")'))
+    await choose('Shanghái')
+    await confirm()
+    await waitFor(()=>evaluate('!!document.querySelector(".gio-ops__location-list button")'))
+    await choose('Puerto Caldera')
+    await confirm()
+    await choose('Marítimo')
+    await choose('Omitir')
+    await waitFor(()=>has('Consultar'))
+    await click('.gio-ops__primary')
+    await waitFor(()=>has('2026-12-05'))
+    assert.equal(itineraryReads,1,'Public itinerary API should be called exactly once')
+    const itineraryLink = await evaluate(`document.querySelector('.gio-ops__card a[href^="/itinerario?"]')?.getAttribute('href') || ''`)
+    const itineraryParams = new URL(itineraryLink || '/itinerario', 'http://example.invalid').searchParams
+    assert.equal(itineraryParams.get('pol'),'Shanghái','GIO must hand off the searched origin')
+    assert.equal(itineraryParams.get('pod'),'Puerto Caldera','GIO must hand off the searched destination')
+    assert.equal(itineraryParams.get('transporte'),'maritime','GIO must hand off the transport mode')
+    await click('.gio-ops__back')
+    role = 'cliente'
+    await waitFor(()=>evaluate('document.querySelectorAll(".site-assistant__quick button").length===4'))
+    await evaluate('document.querySelectorAll(".site-assistant__quick button")[1].click()')
+    await choose('BCF / BL / HBL')
+    await answer('GCF2026-00515')
+    await click('.gio-ops__primary')
+    await waitFor(()=>has('verificación adicional de titularidad'))
+    assert.equal(trackingReads,0,'Customer shipment must not call unscoped Dynamics lookup')
+    role = null
+    await cdp('Page.navigate',{url:'http://'+host+':5189/cotizaciones?gioReceipt=1'})
+    await waitFor(()=>evaluate('!!document.querySelector(".official-success .official-receipt")'),24000)
+    const receiptPage = await evaluate(`(()=>{
+      const root=document.querySelector('.official-success');
+      return {
+        reference:root?.querySelector('.official-id')?.textContent||'',
+        headings:[...root.querySelectorAll('.official-receipt-group h4')].map(x=>x.textContent),
+        text:root?.querySelector('.official-receipt')?.innerText||'',
+        returnHome:!!root?.querySelector('a[href="/home"]'),
+        newRequest:!!root?.querySelector('a[href="/cotizaciones"]')
+      }
+    })()`)
+    assert.ok(receiptPage.reference.includes('33333333-3333-3333-3333-333333333333'))
+    assert.equal(receiptPage.headings.length,3,'Receipt needs route, cargo and contact sections')
+    assert.ok(receiptPage.text.includes('Shanghái') && receiptPage.text.includes('Puerto Caldera'))
+    assert.ok(receiptPage.text.includes('Edited Client') && receiptPage.text.includes('8000'))
+    assert.ok(receiptPage.returnHome && receiptPage.newRequest,'Receipt must keep useful next actions')
+    const contrastLight = await evaluate('(()=>{const root=document.querySelector(".official-success");const group=root.querySelector(".official-receipt-group");const link=root.querySelector(".official-link--subtle");const welcome=document.querySelector(".site-header--quotes .nav-login");return {text:getComputedStyle(group.querySelector("dd")).color,button:getComputedStyle(link).color,background:getComputedStyle(link).backgroundColor,welcome:welcome?getComputedStyle(welcome).color:null}})()')
+    assert.equal(contrastLight.button,'rgb(255, 255, 255)','New request button must have white text in light mode')
+    assert.notEqual(contrastLight.background,'rgba(0, 0, 0, 0)','New request button needs a solid red background')
+    if (contrastLight.welcome) assert.equal(contrastLight.welcome,'rgb(255, 255, 255)','Welcome button must be white in light mode')
+    await evaluate('document.documentElement.classList.add("theme-dark")')
+    const contrastDark = await evaluate('(()=>{const root=document.querySelector(".official-success");const group=root.querySelector(".official-receipt-group");return {groupBg:getComputedStyle(group).backgroundColor,heading:getComputedStyle(group.querySelector("h4")).color,value:getComputedStyle(group.querySelector("dd")).color,button:getComputedStyle(root.querySelector(".official-link--subtle")).color}})()')
+    assert.equal(contrastDark.value,'rgb(255, 255, 255)','Dark mode receipt values must stay white')
+    assert.equal(contrastDark.button,'rgb(255, 255, 255)','Dark mode new request button stays white')
+    assert.notEqual(contrastDark.groupBg,'rgb(249, 247, 249)','Dark mode receipt cards must not keep their light background')
+    if (dynamicDholeMock) {
+      // Exercise the exact AIR_LCL route reported by users: a whole feed of
+      // 854 POL and 851 POE options remains searchable beyond early "A" items.
+      await cdp('Page.navigate',{url:'http://'+host+':5189/?gioAir=1'})
+      await waitFor(()=>evaluate('!!document.querySelector(".site-assistant__mascot")'))
+      assert.ok(await click('.site-assistant__mascot'))
+      await waitFor(()=>evaluate('document.querySelectorAll(".site-assistant__quick button").length===4'))
+      assert.ok(await evaluate('document.querySelectorAll(".site-assistant__quick button")[0].click()||true'))
+      await choose('Aéreo')
+      await choose('Carga aérea')
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__location-count")?.textContent.trim()==="854"'))
+      assert.ok(await evaluate('(()=>{const el=document.querySelector(".gio-ops__form input");const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(el,"Zúrich");el.dispatchEvent(new Event("input",{bubbles:true}));return true})()'))
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__location-count")?.textContent.trim()==="1"'))
+      await choose('Zúrich terminal 1')
+      await confirm()
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__location-count")?.textContent.trim()==="851"'))
+      assert.ok(await evaluate('(()=>{const el=document.querySelector(".gio-ops__form input");const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;setter.call(el,"Zúrich");el.dispatchEvent(new Event("input",{bubbles:true}));return true})()'))
+      await waitFor(()=>evaluate('document.querySelector(".gio-ops__location-count")?.textContent.trim()==="1"'))
+      await choose('Zúrich terminal 2')
+      await confirm()
+      await waitFor(()=>has('Incoterm'))
+      console.log('PASS: Air AIR_LCL searches all 854 POL / 851 POE, including final Zúrich options')
+    }
+    console.log('PASS: guest/admin quotes, services, storage/delivery requirements, invalid inputs, contrast, complete receipts, itineraries, and tracking guards')
+  } finally {
+    try { socket?.close() } catch {}
+    if (chrome) chrome.kill('SIGKILL')
+    if (vite) vite.kill('SIGKILL')
+    await close(api)
+    // Chrome may still be flushing its profile after SIGKILL; do not fail an otherwise
+    // successful business-flow test solely because temporary cleanup raced that exit.
+    try { fs.rmSync(profile,{recursive:true,force:true,maxRetries:12,retryDelay:250}) }
+    catch (e) { console.warn('Chrome temporary profile cleanup:', e.message) }
+  }
+}
+main().catch(error => { console.error(error); process.exitCode=1 })

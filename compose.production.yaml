@@ -54,12 +54,18 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:5000
       Development__ApplySchema: "false"
+      # Do not change public news image URLs until staging verifies new delivery.
+      CmsNews__BinaryImageDeliveryEnabled: ${CMS_NEWS_BINARY_IMAGES:-false}
       Features__OfficialQuotesEnabled: "false"
       ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=login;Username=postgres;Password=${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD}"
       Auth__OtpPepper: ${AUTH_OTP_PEPPER:?Falta AUTH_OTP_PEPPER}
       Auth__JwtSigningKey: ${AUTH_JWT_SIGNING_KEY:?Falta AUTH_JWT_SIGNING_KEY}
       Auth__SecureCookie: "true"
       Security__PublicOrigin: ${PUBLIC_ORIGIN:?Configurar URL publica HTTPS}
+      # Optional exact IPs of the *immediate* trusted reverse proxies.
+      # Never enter 0.0.0.0/0 or a public-client range; blank means do not trust XFF.
+      RateLimiting__TrustedProxyIps__0: ${RATE_LIMIT_TRUSTED_PROXY_IP_0:-}
+      RateLimiting__TrustedProxyIps__1: ${RATE_LIMIT_TRUSTED_PROXY_IP_1:-}
       Email__Mode: ${EMAIL_MODE:?Elegir Smtp o Graph; nunca LocalOutbox en produccion}
       Smtp__Host: ${SMTP_HOST:-}
       Smtp__Port: ${SMTP_PORT:-587}
@@ -93,6 +99,8 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_OFFICIAL_QUOTES_ENABLED: "false"
+        # Opt-in only after backend feature flag is enabled and variants exist.
+        VITE_CMS_RESPONSIVE_WEBP_ENABLED: ${CMS_RESPONSIVE_WEBP_FRONTEND:-false}
     restart: unless-stopped
     # Intended for a host-side TLS reverse proxy; never publish plain HTTP on 0.0.0.0.
     ports:

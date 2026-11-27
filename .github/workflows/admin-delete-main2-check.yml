@@ -1,7 +1,7 @@
 name: Delete inactive users safely - main-2
 on:
   pull_request:
-    branches: [main-2]
+    branches: [main-2, main]
     paths:
       - "backend/Services/AdminUsersEndpoints.cs"
       - "frontend/src/pages/ContentManager.vue"

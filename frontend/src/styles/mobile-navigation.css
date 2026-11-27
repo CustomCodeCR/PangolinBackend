@@ -16,6 +16,19 @@
     background:transparent; animation:none;
   }
   html .site-header.site-header--menu-open .main-nav.main-nav--open { width:100%; min-width:0; }
+  /* Keep the Services submenu on the same dark navy/burgundy surface as
+     Cargo internacional and Configuration, instead of inheriting the red drawer. */
+  html .site-header.site-header--menu-open .main-nav.main-nav--open
+    .nav-dropdown--services .nav-dropdown__menu {
+    background: linear-gradient(110deg, #0b1127 0%, #1b1029 53%, #3a102b 100%) !important;
+    border: 1px solid rgba(255,255,255,.24) !important;
+    box-shadow: 0 12px 30px rgba(0,0,0,.2) !important;
+  }
+  html .site-header.site-header--menu-open .main-nav.main-nav--open
+    .nav-dropdown--services .nav-dropdown__menu::before {
+    content: none !important;
+  }
+
   html .app-site .home-hero.home-hero--menu-open,
   html .app-site .news-editorial-hero:has(> .site-header--menu-open) { padding-top:0 !important; }
 }

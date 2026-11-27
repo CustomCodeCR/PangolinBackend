@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import {computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref} from 'vue'
 import routeSeo from '../seo/routes.json'
+import serviceGuides from '../seo/service-landings.json'
+import { servicePages } from './content/servicePages'
 import Home from './Home.vue'
 const QuoteApp = defineAsyncComponent(() => import('./App.vue'))
 const Login = defineAsyncComponent(() => import('./pages/Login.vue'))
@@ -9,6 +11,7 @@ const About = defineAsyncComponent(() => import('./pages/About.vue'))
 const Tracking = defineAsyncComponent(() => import('./pages/Tracking.vue'))
 const Itinerary = defineAsyncComponent(() => import('./pages/Itinerary.vue'))
 const Services = defineAsyncComponent(() => import('./pages/Services.vue'))
+const ServiceLanding = defineAsyncComponent(() => import('./pages/ServiceLanding.vue'))
 const Legal = defineAsyncComponent(() => import('./pages/Legal.vue'))
 const Administration = defineAsyncComponent(() => import('./pages/Administration.vue'))
 const OfficialQuoteWizard = defineAsyncComponent(() => import('./pages/OfficialQuoteWizard.vue'))
@@ -72,11 +75,15 @@ applyPageSeo()
 const officialQuotesEnabled = import.meta.env.VITE_OFFICIAL_QUOTES_ENABLED === 'true'
 const quoteAccess = ref<'checking' | 'allowed' | 'denied' | 'forbidden'>('checking')
 const trackingAccess = ref<'checking' | 'allowed' | 'denied'>('checking')
+// Preview strictly local and development-only: no authenticated search is unlocked.
+const localTrackingVisualPreview = import.meta.env.DEV
+  && ['localhost', '127.0.0.1'].includes(window.location.hostname)
+  && new URLSearchParams(window.location.search).get('previewTracking') === '1'
 const requestPath = window.location.pathname.replace(/\/+$/, '') || '/'
 const legacyAdminRoute = requestPath === '/admin/contenido' || requestPath === '/admin/usuarios'
 const officialAdminRoute = requestPath === '/administracion/cotizaciones-oficiales'
 const adminRoute = requestPath === '/administracion' || legacyAdminRoute || officialAdminRoute
-const restrictedRoute = requestPath === '/tracking' || requestPath === '/itinerario' || adminRoute
+const restrictedRoute = requestPath === '/tracking' || adminRoute
 const routeAccess = ref<'checking' | 'ready'>(restrictedRoute ? 'checking' : 'ready')
 const loginNextHref = '/bienvenidos?next=' + encodeURIComponent(window.location.pathname + window.location.search)
 // La página pública no recibe borradores: consulta solamente la API publicada.
@@ -94,9 +101,10 @@ onMounted(async () => {
     return
   }
   if (requestPath === '/cotizaciones' || requestPath === '/cotizaciones/nuevo') {
-    // En desarrollo, permite mostrar el cotizador para revisión visual sin sesión.
-    // El asistente mantiene bloqueado el envío porque sessionOk depende de una sesión real.
-    if (!user && import.meta.env.DEV && authState.previewRole === 'cliente') quoteAccess.value = 'allowed'
+    // El formulario oficial recibe solicitudes públicas. El cotizador V2
+    // conserva su restricción para no abrir consultas privadas por accidente.
+    if (officialQuotesEnabled) quoteAccess.value = 'allowed'
+    else if (!user && import.meta.env.DEV && authState.previewRole === 'cliente') quoteAccess.value = 'allowed'
     else if (!user) quoteAccess.value = 'denied'
     else quoteAccess.value = role === 'cliente' || role === 'administrador' ? 'allowed' : 'forbidden'
   }
@@ -108,11 +116,8 @@ onMounted(async () => {
     return
   }
   if (requestPath === '/tracking') {
-    trackingAccess.value = user && (role === 'cliente' || role === 'administrador') ? 'allowed' : 'denied'
-  }
-  if (requestPath === '/itinerario' && role !== 'cliente' && role !== 'administrador') {
-    window.location.replace('/home?acceso=cliente')
-    return
+    trackingAccess.value = localTrackingVisualPreview || !!user && (role === 'cliente' || role === 'administrador')
+      ? 'allowed' : 'denied'
   }
   nextTick(() => {
     if (window.location.hash) document.getElementById(decodeURIComponent(window.location.hash.slice(1)))?.scrollIntoView()
@@ -129,6 +134,7 @@ const page = computed(()=> {
   if(path==='/noticias' || path.startsWith('/noticias/')) return 'news'
   if(path==='/nosotros') return 'about'
   if(path==='/servicios') return 'services'
+  if(Object.prototype.hasOwnProperty.call(serviceGuides, path) || servicePages.some(item => path === `/servicios/${item.slug}`)) return 'service-landing'
   if(path==='/tracking') return 'tracking'
   if(path==='/itinerario') return 'itinerary'
   if(path==='/cotizaciones') return officialQuotesEnabled ? 'official-quote' : 'quote-legacy'
@@ -165,6 +171,7 @@ const page = computed(()=> {
   <News v-else-if="page==='news'"/>
   <About v-else-if="page==='about'"/>
   <Services v-else-if="page==='services'"/>
+  <ServiceLanding v-else-if="page==='service-landing'"/>
   <div v-else-if="page==='notFound'" class="app-site">
     <SiteHeader />
     <main class="container" style="min-height:60vh;padding-block:6rem">

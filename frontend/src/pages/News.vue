@@ -4,29 +4,43 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import EmblaCarousel, { type EmblaCarouselType } from 'embla-carousel'
 import type { ManagedNews } from '../adminContent'
+import { sanitizeNewsHtml } from '../lib/newsRichText'
+import StaticOptimizedImage from '../components/StaticOptimizedImage.vue'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import { subscribeToChanges } from '../services/realtime'
 
 // Los enlaces anteriores con article=ID siguen funcionando mientras cada noticia usa una ruta legible.
-const requestedArticleId = new URLSearchParams(window.location.search).get('article')
-const requestedArticleSlug = window.location.pathname.match(/^\/noticias\/([^/]+)\/?$/)?.[1] ?? null
+const props = defineProps<{ initialNews?: ManagedNews[] | null; serverPath?: string }>()
+// En SSR se recibe la ruta real desde Nuxt y las noticias ya publicadas por el CMS.
+const currentNewsUrl = typeof window === 'undefined'
+  ? new URL(props.serverPath || '/noticias', 'https://www.logisticacastrofallas.com')
+  : new URL(window.location.href)
+const requestedArticleId = typeof window === 'undefined'
+  ? currentNewsUrl.searchParams.get('article')
+  : new URLSearchParams(window.location.search).get('article')
+const requestedArticleSlug = currentNewsUrl.pathname.match(/^\/noticias\/([^/]+)\/?$/)?.[1] ?? null
 const isArticlePage = Boolean(requestedArticleId || requestedArticleSlug)
-const managedNews = ref<ManagedNews[]>([])
+const managedNews = ref<ManagedNews[]>(props.initialNews ?? [])
 const newsExpirationClock = ref(Date.now())
 const slugifyNewsTitle = (title: string) => title.normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '')
   .toLowerCase()
   .replace(/[^a-z0-9]+/g, '-')
   .replace(/^-+|-+$/g, '') || 'noticia'
-const articleSlug = (article: { id: string; title: string; publishedAt?: string | null }) =>
-  `${article.publishedAt?.slice(0,10) || 'sin-fecha'}-${slugifyNewsTitle(article.title)}-${article.id.replace(/-/g, '').slice(-8).toLowerCase()}`
-const articlePath = (article: { id: string; title: string; publishedAt?: string | null }) => `/noticias/${articleSlug(article)}`
+const articleSlug = (article: { id: string; title: string; publishedAt?: string | null; slug?: string | null }) => {
+  const suffix = article.id.replace(/-/g, '').slice(-8).toLowerCase()
+  return article.slug && article.slug.length <= 240 &&
+    /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(article.slug) && article.slug.endsWith('-' + suffix)
+    ? article.slug
+    : `${article.publishedAt?.slice(0,10) || 'sin-fecha'}-${slugifyNewsTitle(article.title)}-${suffix}`
+}
+const articlePath = (article: { id: string; title: string; publishedAt?: string | null; slug?: string | null }) => `/noticias/${articleSlug(article)}`
 const articleHref = (id: string) => {
   const article = managedNews.value.find(item => item.id === id)
   return article ? articlePath(article) : '/noticias'
 }
-const newsLoaded = ref(false)
+const newsLoaded = ref(props.initialNews != null)
 const newsError = ref(false)
 const activeStoryIndex = ref(0)
 const emblaViewport = ref<HTMLElement | null>(null)
@@ -114,6 +128,12 @@ async function translateNewsToEnglish() {
   englishLoading.value = false
 }
 watch(locale, () => { if (locale.value === 'en') void translateNewsToEnglish() })
+// The editorial headline is already next to each image. Keep alt text short
+// and descriptive without repeating very long article headlines verbatim.
+const newsImageAlt = (title: string) => {
+  const cleaned = title.replace(/\s+/g, ' ').trim()
+  return cleaned.length <= 100 ? cleaned : cleaned.slice(0, 100).replace(/\s+\S*$/, '').trim()
+}
 const formatArticleDate = (iso: string | null | undefined) => iso
   ? new Intl.DateTimeFormat(locale.value === 'en' ? 'en-US' : 'es-CR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(iso)) : ''
 const leadStory = computed(() => news.value[activeStoryIndex.value] ?? news.value[0])
@@ -132,7 +152,7 @@ const articleStage = ref<HTMLElement | null>(null)
 const articleStoryPanel = ref<HTMLElement | null>(null)
 const articleRevealProgress = computed(() => {
   if (!articleDragging.value) {
-    if (window.matchMedia('(max-width: 720px)').matches) return articleTextOpen.value ? 1 : 0
+    if ((typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches)) return articleTextOpen.value ? 1 : 0
     return articleScrollProgress.value
   }
   const progress = articleTextOpen.value
@@ -142,7 +162,7 @@ const articleRevealProgress = computed(() => {
 })
 let articleScrollFrame = 0
 function updateArticleScrollProgress() {
-  if (window.matchMedia('(max-width: 720px)').matches) {
+  if ((typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches)) {
     articleScrollProgress.value = 0
     return
   }
@@ -164,7 +184,7 @@ function scheduleArticleScrollProgress() {
   })
 }
 const articlePanelMarginTop = computed(() => {
-  const base = window.matchMedia('(max-width: 720px)').matches ? -52 : -86
+  const base = (typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches) ? -52 : -86
   const offset = articleDragging.value
     ? (articleTextOpen.value ? -220 + articleDragOffset.value : articleDragOffset.value)
     : articleTextOpen.value ? -220 : 0
@@ -180,7 +200,7 @@ const articleVisualStyle = computed(() => ({
 }))
 const articleReadingDragMaxHeight = computed(() => {
   if (!articleDragging.value) return undefined
-  const collapsedHeight = window.matchMedia('(max-width: 720px)').matches ? 250 : 235
+  const collapsedHeight = (typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches) ? 250 : 235
   const revealDistance = articleTextOpen.value
     ? Math.max(0, articleDragOffset.value)
     : Math.max(0, -articleDragOffset.value)
@@ -278,11 +298,17 @@ onUnmounted(() => {
   window.removeEventListener('mousemove', moveArticlePanelMouseDrag, true)
   window.removeEventListener('mouseup', finishArticlePanelMouseDrag, true)
 })
-// Render the CMS plain text as readable HTML paragraphs without changing its wording.
-const activeArticleParagraphs = computed(() => (activeArticle.value?.body ?? '')
-  .split(/\n\s*\n/)
-  .map(paragraph => paragraph.trim())
-  .filter(Boolean))
+// Rich-text articles are sanitized before rendering; old plain-text news remains supported.
+const articleHtmlHydrated = ref(false)
+onMounted(() => { articleHtmlHydrated.value = true })
+const activeArticleHtml = computed(() => {
+  const html = activeArticle.value?.body ?? ''
+  if (articleHtmlHydrated.value && typeof DOMParser !== 'undefined') return sanitizeNewsHtml(html)
+  // Mismo HTML seguro en SSR y en la primera hidratación. Después, el navegador
+  // recupera el formato permitido con sanitizeNewsHtml, evitando ejecutar HTML remoto.
+  const text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  return '<p>' + text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>'
+})
 function setNewsMeta(attribute: 'name' | 'property', key: string, content: string | null) {
   const selector = `meta[${attribute}="${key}"]`
   let element = document.head.querySelector<HTMLMetaElement>(selector)
@@ -402,8 +428,8 @@ async function loadPublicNews() {
   } catch { if (!disposed && request === requestVersion) newsError.value = true }
   finally { if (!disposed && request === requestVersion) newsLoaded.value = true }
 }
-const unsubscribeNews = subscribeToChanges('news', () => { void loadPublicNews() })
-const unsubscribeSync = subscribeToChanges('sync', () => { void loadPublicNews() })
+const unsubscribeNews = typeof window === 'undefined' ? () => {} : subscribeToChanges('news', () => { void loadPublicNews() })
+const unsubscribeSync = typeof window === 'undefined' ? () => {} : subscribeToChanges('sync', () => { void loadPublicNews() })
 onMounted(() => {
   window.addEventListener('scroll', scheduleArticleScrollProgress, { passive: true })
   window.addEventListener('resize', scheduleArticleScrollProgress, { passive: true })
@@ -435,7 +461,7 @@ onUnmounted(() => {
       <div ref="emblaViewport" class="news-editorial-hero__viewport" aria-hidden="true">
         <div class="news-editorial-hero__slides">
           <div v-for="(story, index) in news" :key="story.id" class="news-editorial-hero__slide">
-            <img :src="story.image" alt="" :fetchpriority="index === 0 ? 'high' : 'auto'" decoding="async" />
+            <StaticOptimizedImage :src="story.image" alt="" sizes="100vw" :loading="index === 0 ? 'eager' : 'lazy'" :fetchpriority="index === 0 ? 'high' : 'auto'" decoding="async" />
           </div>
         </div>
       </div>
@@ -481,12 +507,13 @@ onUnmounted(() => {
           <div>
             <p class="section-tag">{{ $t('phrases.p066') }}</p>
             <h2 class="section-title">{{ $t('phrases.p072') }} <span>{{ $t('phrases.p073') }}</span></h2>
+            <p class="news-editorial-section-heading__intro">{{ q('Consultá nuestras publicaciones sobre logística, transporte de carga, aduanas y comercio exterior en Costa Rica y Centroamérica.', 'Read our coverage of logistics, freight transportation, customs and international trade in Costa Rica and Central America.') }}</p>
           </div>
           <span class="news-editorial-section-heading__count">{{ $t('phrases.p133') }} · 0{{ news.length }}</span>
         </div>
         <div v-if="news.length" class="news-editorial-grid">
           <article v-for="(article, index) in news" :key="article.id" class="news-editorial-card" :class="{ 'news-editorial-card--lead': index === 0 }">
-            <div class="news-editorial-card__image"><img :src="article.image" :alt="article.title" loading="lazy" /><span>{{ String(index + 1).padStart(2, '0') }}</span></div>
+            <div class="news-editorial-card__image"><StaticOptimizedImage :src="article.image" :alt="newsImageAlt(article.title)" :sizes="index === 0 ? '(max-width: 720px) 100vw, 66vw' : '(max-width: 720px) 100vw, (max-width: 1200px) 50vw, 34vw'" loading="lazy" /><span>{{ String(index + 1).padStart(2, '0') }}</span></div>
             <div class="news-editorial-card__copy">
               <p class="section-tag">{{ article.category }} · {{ $t('phrases.p074') }}</p>
               <h3>{{ article.title }}</h3>
@@ -511,7 +538,7 @@ onUnmounted(() => {
             <div class="news-article-page__panel">
               <div class="news-article-page__hero">
                 <figure class="news-article-page__visual">
-                  <img :src="activeArticle.image" :alt="activeArticle.title" fetchpriority="high" decoding="async" />
+                  <StaticOptimizedImage :src="activeArticle.image" :alt="newsImageAlt(activeArticle.title)" sizes="100vw" loading="eager" fetchpriority="high" decoding="async" />
                   <figcaption class="news-article-page__visual-mark">
                     <span class="news-article-page__visual-dot" aria-hidden="true"></span>
                     {{ q('HISTORIAS QUE NOS CONECTAN', 'STORIES THAT CONNECT US') }}
@@ -544,13 +571,13 @@ onUnmounted(() => {
             </div>
             <div class="news-article-page__reading" :class="{ 'is-expanded': articleTextOpen, 'is-dragging': articleDragging }" :style="{ maxHeight: articleReadingDragMaxHeight }">
               <figure class="news-article-page__side-image" aria-hidden="true">
-                <img :src="activeArticle.image" alt="" loading="lazy" />
+                <StaticOptimizedImage :src="activeArticle.image" alt="" sizes="(max-width: 720px) 100vw, 40vw" loading="lazy" />
               </figure>
               <section id="contenido-noticia" class="news-article-page__content" :aria-label="q('Contenido de la noticia', 'Article content')">
                 <p class="news-article-page__content-kicker">{{ activeArticle.category }} <span aria-hidden="true">/</span> {{ q('ARTÍCULO COMPLETO', 'FULL ARTICLE') }}</p>
                 <p v-if="activeArticle.description?.trim() && activeArticle.description.trim() !== activeArticle.body?.trim()" class="news-article-page__standfirst">{{ activeArticle.description }}</p>
                 <div class="news-article-page__body">
-                  <p v-for="(paragraph, index) in activeArticleParagraphs" :key="index">{{ paragraph }}</p>
+                  <div class="news-article-page__formatted" v-html="activeArticleHtml"></div>
                 </div>
                 <p v-if="activeArticle.author" class="news-article-page__author">{{ q('Autor:', 'Author:') }} <strong>{{ activeArticle.author }}</strong></p>
                 <div class="news-article-page__closing">
@@ -575,6 +602,8 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+/* Useful editorial context is visible in both SSR HTML and the hydrated page. */
+.news-editorial-section-heading__intro{max-width:670px;margin:12px 0 0;font-size:clamp(13px,1.2vw,15px);line-height:1.6;opacity:.86}
 .news-translation-feedback { padding-block: 10px; font-size: 13px; color: #aab8d0; }
 .news-article-page{--article-ink:#16181d;--article-muted:#626873;--article-line:rgba(20,24,32,.15);--article-accent:#c8102e;position:relative;min-height:0;padding:0 0 0;background:#fff;color:var(--article-ink)}
 .news-article-page__navigation{position:absolute;z-index:6;top:clamp(88px,10vh,112px);left:0;right:0;display:flex;align-items:center;justify-content:space-between;gap:20px;width:min(1480px,calc(100% - 64px));max-width:none;margin-inline:auto;padding-block:15px 20px}
@@ -589,8 +618,8 @@ onUnmounted(() => {
 .news-article-page__hero{position:relative;display:flex;align-items:flex-end;height:100%;min-height:0}
 .news-article-page__visual{position:absolute;z-index:0;inset:0;min-width:0;min-height:0;margin:0;overflow:hidden;background:#182339}
 .news-article-page__visual::after{position:absolute;inset:0;content:"";background:linear-gradient(0deg,rgba(3,7,16,.56) 0%,rgba(3,7,16,.2) 23%,transparent 58%),linear-gradient(90deg,rgba(200,16,46,calc(var(--article-reveal-progress,0)*.16)) 0%,transparent 82%);pointer-events:none;transition:background .22s linear}
-.news-article-page__visual img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;object-position:center 42%;filter:var(--article-visual-filter,blur(0));opacity:var(--article-visual-opacity,1);transform:scale(1.04);transition:filter .22s linear,opacity .22s linear}
-.news-article-page.is-article-dragging .news-article-page__visual img{transition:none}
+.news-article-page__visual :deep(img){position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;object-position:center 42%;filter:var(--article-visual-filter,blur(0));opacity:var(--article-visual-opacity,1);transform:scale(1.04);transition:filter .22s linear,opacity .22s linear}
+.news-article-page.is-article-dragging .news-article-page__visual :deep(img){transition:none}
 .news-article-page__visual-mark{position:absolute;z-index:1;top:26px;right:28px;display:flex;align-items:center;gap:9px;margin:0;color:#fff;font-size:10px;font-weight:800;letter-spacing:.13em;text-shadow:0 1px 6px rgba(0,0,0,.45)}
 /* Align the caption 24px inside the reading panel's left edge, even when
    the panel is centered at its 1600px max width on large desktops. */
@@ -620,10 +649,11 @@ onUnmounted(() => {
 .news-article-page__content-kicker{margin:0 0 25px;color:var(--article-accent);font-size:10px;font-weight:850;letter-spacing:.13em;text-transform:uppercase}
 .news-article-page__content-kicker span{margin-inline:9px;color:#a9b2c1}
 .news-article-page__standfirst{margin:0 0 27px;color:#202329;font-size:clamp(21px,2.3vw,29px);font-weight:750;letter-spacing:-.035em;line-height:1.35;overflow-wrap:anywhere}
-.news-article-page__body{color:var(--article-ink);font-size:clamp(16px,1.3vw,18px);font-weight:400;line-height:1.85;overflow-wrap:anywhere}
+.news-article-page__body{--news-richtext-color:var(--article-ink);--news-richtext-background:#fff;color:var(--article-ink);font-size:clamp(16px,1.3vw,18px);font-weight:400;line-height:1.85;overflow-wrap:anywhere}
+:global(html.theme-dark .news-article-page__body){--news-richtext-background:#0c1226}
 .news-article-page__body p{margin:0 0 1.35em;white-space:pre-line}
 .news-article-page__side-image{position:relative;align-self:start;top:auto;min-width:0;margin:0;overflow:hidden;aspect-ratio:1.55;border-radius:20px;background:#131c2b}
-.news-article-page__side-image img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 42%}
+.news-article-page__side-image :deep(img){display:block;width:100%;height:100%;object-fit:cover;object-position:center 42%}
 .news-article-page__closing{display:flex;align-items:center;gap:16px;margin-top:clamp(42px,6vw,76px);color:var(--article-muted);font-size:10px;font-weight:800;letter-spacing:.12em;white-space:nowrap}
 .news-article-page__closing-line{width:56px;height:2px;background:#c8102e}
 .news-article-page__story-heading{position:relative;min-height:50px}
@@ -641,7 +671,7 @@ onUnmounted(() => {
 :global(html:not(.theme-dark) .news-article-page__visual-mark){color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.65)}
 :global(html.theme-dark .app-site.news-page main.news-article-page){--article-ink:#f2f3f6;--article-muted:#b5bac6;--article-line:rgba(235,241,252,.16);--article-accent:#ed2946;background:radial-gradient(ellipse 68% 520px at 0% 0%,rgba(214,14,52,.3) 0%,rgba(178,11,45,.16) 38%,rgba(126,10,34,.06) 60%,transparent 80%),linear-gradient(90deg,#211018 0%,#160d17 46%,#01081d 100%),#01081d fixed!important;background-attachment:fixed!important;color:var(--article-ink)}
 :global(html.theme-dark .app-site.news-page.news-article-mode){background:radial-gradient(ellipse 68% 520px at 0% 0%,rgba(214,14,52,.3) 0%,rgba(178,11,45,.16) 38%,rgba(126,10,34,.06) 60%,transparent 80%),linear-gradient(90deg,#211018 0%,#160d17 46%,#01081d 100%) fixed!important;background-attachment:fixed!important}
-:global(html.theme-dark .site-header.site-header--overlay){position:absolute!important;top:0;left:0;width:100%;background:linear-gradient(180deg,rgba(1,8,29,.72),rgba(1,8,29,.2) 72%,transparent)!important}
+:global(html.theme-dark .site-header.site-header--overlay:not(.site-header--menu-open)){position:absolute!important;top:0;left:0;width:100%;background:linear-gradient(180deg,rgba(1,8,29,.72),rgba(1,8,29,.2) 72%,transparent)!important}
 :global(body:has(.news-article-page) .site-header.site-header--overlay .menu-toggle){border:1px solid rgba(255,255,255,.46)!important;border-radius:50%!important;background:rgba(255,255,255,.12)!important;box-shadow:none!important;color:#fff!important;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 :global(html.theme-dark .news-article-page__navigation a),:global(html.theme-dark .news-article-page__navigation>span){color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.55)}
 :global(html.theme-dark .news-article-page__meta){border-color:rgba(235,241,252,.16)}
@@ -676,7 +706,7 @@ onUnmounted(() => {
   .news-article-page__side-image{position:static;aspect-ratio:1.35;border-radius:15px}
 }
 @media(max-width:380px){.news-article-page__visual-mark{font-size:7px}.news-article-page__story-heading h1{font-size:32px}}
-@media(prefers-reduced-motion:reduce){.news-article-page__story-panel,.news-article-page__visual img,.news-article-page__reading,.news-article-page__visual-mark{transition:none}}
+@media(prefers-reduced-motion:reduce){.news-article-page__story-panel,.news-article-page__visual :deep(img),.news-article-page__reading,.news-article-page__visual-mark{transition:none}}
 
 .news-empty-hero { position: relative; z-index: 2; min-height: 320px; padding-top: 135px; padding-bottom: 95px; color: #fff; }
 .news-empty-hero h1 { font-size: clamp(42px, 6vw, 76px); line-height: 1.1; margin: 18px 0; }
@@ -724,4 +754,14 @@ onUnmounted(() => {
   .news-article-page__publisher,
   .news-article-page__meta-category { justify-content:flex-start; }
 }
+.news-article-page__formatted :deep(:is(h1,h2,h3)){font-weight:750;line-height:1.3;margin:1.5em 0 .65em}
+.news-article-page__formatted :deep(h1){font-size:clamp(1.7rem,3vw,2.25rem)}
+.news-article-page__formatted :deep(h2){font-size:clamp(1.4rem,2.5vw,1.8rem)}
+.news-article-page__formatted :deep(h3){font-size:1.2rem}
+.news-article-page__formatted :deep(p){margin:0 0 1.2em;line-height:1.8}
+.news-article-page__formatted :deep(:is(ul,ol)){padding-left:1.6em;margin:0 0 1.2em}
+.news-article-page__formatted :deep(ul){list-style:disc}
+.news-article-page__formatted :deep(ol){list-style:decimal}
+.news-article-page__formatted :deep(li){margin-bottom:.4em}
+.news-article-page__formatted :deep(blockquote){border-left:3px solid #a80d29;padding-left:1em;margin:1.3em 0}
 </style>

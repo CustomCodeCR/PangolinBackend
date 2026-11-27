@@ -1,0 +1,155 @@
+name: Traefik Docker health routing (disposable)
+on:
+  pull_request:
+    branches: [main-2, main]
+    paths:
+      - '.github/workflows/traefik-health-routing.yml'
+permissions:
+  contents: read
+jobs:
+  routing:
+    name: health routing (${{ matrix.profile }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - profile: reject-unhealthy
+            allow_empty: 'false'
+            explicit_port: 'true'
+            expected: 404
+          - profile: known-defect-13261
+            allow_empty: 'true'
+            explicit_port: 'true'
+            expected: 500
+          - profile: empty-with-discovered-port
+            allow_empty: 'true'
+            explicit_port: 'false'
+            expected: 503
+    env:
+      ALLOW_EMPTY: ${{ matrix.allow_empty }}
+      EXPLICIT_PORT: ${{ matrix.explicit_port }}
+      EXPECTED_UNHEALTHY: ${{ matrix.expected }}
+    steps:
+      # No checkout, secrets, external providers, or self-hosted runner.
+      - name: Test Docker provider against disposable services only
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$ALLOW_EMPTY" == false || "$ALLOW_EMPTY" == true ]]
+          [[ "$EXPLICIT_PORT" == false || "$EXPLICIT_PORT" == true ]]
+          [[ "$EXPECTED_UNHEALTHY" =~ ^(404|500|503)$ ]]
+          target_labels=()
+          if [[ "$EXPLICIT_PORT" == true ]]; then
+            target_labels=(--label traefik.http.routers.target.service=target --label traefik.http.services.target.loadbalancer.server.port=3000)
+          fi
+          network="pangolin-health-routing-fixture"
+          cleanup() {
+            docker rm -f -v fixture-traefik fixture-target fixture-control >/dev/null 2>&1 || true
+            docker network rm "$network" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          # Representative v3.6 series, NOT a claim about Argos' deployed version.
+          docker pull traefik@sha256:31267173a15b4944e797a76ffd9c419707c8d8b32fe5b610f80cd0cfa05f372d
+          docker pull node:22-alpine
+          docker image inspect traefik@sha256:31267173a15b4944e797a76ffd9c419707c8d8b32fe5b610f80cd0cfa05f372d --format '{{json .RepoDigests}}'
+          docker run --rm --network none traefik@sha256:31267173a15b4944e797a76ffd9c419707c8d8b32fe5b610f80cd0cfa05f372d version
+          docker network create --internal "$network" >/dev/null
+          # The Docker socket grants daemon access even with a read-only mount.
+          # This is confined to the disposable GitHub-hosted runner; never Argos.
+          docker run -d --name fixture-traefik --network "$network" \
+            -v /var/run/docker.sock:/var/run/docker.sock:ro \
+            traefik@sha256:31267173a15b4944e797a76ffd9c419707c8d8b32fe5b610f80cd0cfa05f372d \
+            --entrypoints.web.address=:8080 \
+            --providers.docker=true --providers.docker.exposedbydefault=false \
+            '--providers.docker.constraints=Label(`pangolin.health-fixture`,`true`)' \
+            --providers.docker.network="$network" \
+            --providers.docker.allowEmptyServices="$ALLOW_EMPTY" >/dev/null
+          health_cmd='node -e '\''fetch("http://127.0.0.1:3000/health",{signal:AbortSignal.timeout(1500)}).then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))'\'''
+          docker run -d --name fixture-target --network "$network" \
+            --label pangolin.health-fixture=true --label traefik.enable=true \
+            --label 'traefik.http.routers.target.rule=Host(`target.test`)' \
+            --label traefik.http.routers.target.entrypoints=web \
+            --expose 3000 "${target_labels[@]}" \
+            --health-cmd "$health_cmd" --health-interval 2s --health-timeout 3s --health-retries 2 \
+            node:22-alpine node -e '
+              let healthy=true;
+              process.on("SIGUSR2",()=>{healthy=!healthy});
+              require("node:http").createServer((req,res)=>{
+                if(req.url==="/health"){res.writeHead(healthy?200:503);res.end("probe")}
+                else res.end("target fixture");
+              }).listen(3000,"0.0.0.0");
+            ' >/dev/null
+          docker run -d --name fixture-control --network "$network" \
+            --label pangolin.health-fixture=true --label traefik.enable=true \
+            --label 'traefik.http.routers.control.rule=Host(`control.test`)' \
+            --label traefik.http.routers.control.entrypoints=web \
+            --label traefik.http.routers.control.service=control \
+            --label traefik.http.services.control.loadbalancer.server.port=3000 \
+            node:22-alpine node -e '
+              require("node:http").createServer((req,res)=>res.end("control fixture")).listen(3000,"0.0.0.0");
+            ' >/dev/null
+          wait_health() {
+            local expected="$1"
+            for i in $(seq 1 40); do
+              if [[ "$(docker inspect -f '{{.State.Health.Status}}' fixture-target)" == "$expected" ]]; then return; fi
+              sleep 1
+            done
+            echo "FAIL health did not reach $expected" >&2; return 1
+          }
+          probe_routes() {
+            docker run --rm --network "$network" --entrypoint node node:22-alpine -e '
+              const expected=Number(process.argv[1]);
+              const http=require("node:http");
+              function get(url,host){
+                return new Promise((resolve,reject)=>{
+                  const req=http.get(url,{headers:host?{Host:host}:{}},r=>{
+                    let body="";
+                    r.setEncoding("utf8");
+                    r.on("data",s=>{body+=s});
+                    r.on("end",()=>resolve([r.statusCode,body]));
+                    r.on("error",reject);
+                  });
+                  const timer=setTimeout(()=>req.destroy(Error("probe timeout")),2000);
+                  req.on("close",()=>clearTimeout(timer));
+                  req.on("error",reject);
+                });
+              }
+              (async()=>{
+                let last="no response";
+                for(let i=0;i<40;i++){
+                  try{
+                    const [target,body]=await get("http://fixture-traefik:8080/","target.test");
+                    const [control,controlBody]=await get("http://fixture-traefik:8080/","control.test");
+                    const [direct,directBody]=await get("http://fixture-target:3000/");
+                    last=JSON.stringify({expected,target,control,direct,targetBodyMatches:body==="target fixture",controlBodyMatches:controlBody==="control fixture",directBodyMatches:directBody==="target fixture"});
+                    if(target===expected&&(expected!==200||body==="target fixture")&&control===200&&controlBody==="control fixture"&&direct===200&&directBody==="target fixture"){
+                      console.log("PASS target routed HTTP",target,"control 200 and direct target 200");
+                      return;
+                    }
+                  }catch(e){last=String(e.message)}
+                  await new Promise(r=>setTimeout(r,1000));
+                }
+                throw Error("Expected route state did not converge: "+last);
+              })().catch(e=>{console.error(e.message);process.exitCode=1});
+            ' "$1"
+          }
+          wait_health healthy
+          probe_routes 200 || { docker logs --tail 80 fixture-traefik >&2; exit 1; }
+          started="$(docker inspect -f '{{.State.StartedAt}}' fixture-target)"
+          docker kill --signal=SIGUSR2 fixture-target >/dev/null
+          wait_health unhealthy
+          # Characterize a known upstream defect on this exact pinned version;
+          # HTTP 500 is NOT an acceptable production readiness contract.
+          # https://github.com/traefik/traefik/issues/13261
+          probe_routes "$EXPECTED_UNHEALTHY" || { docker logs --tail 80 fixture-traefik >&2; exit 1; }
+          docker kill --signal=SIGUSR2 fixture-target >/dev/null
+          wait_health healthy
+          probe_routes 200
+          test "$(docker inspect -f '{{.State.StartedAt}}' fixture-target)" = "$started"
+          test "$(docker inspect -f '{{.RestartCount}}' fixture-target)" = 0
+          if [[ "$EXPECTED_UNHEALTHY" == 500 ]]; then
+            echo "::warning::Reproduced upstream issue 13261: explicit port plus allowEmptyServices returns 500 instead of documented 503. Do not adopt this as production policy."
+          fi
+          echo "PASS characterization of Docker provider health routing and recovery without restart"

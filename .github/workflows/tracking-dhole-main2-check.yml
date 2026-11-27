@@ -1,7 +1,7 @@
 name: Dhole tracking integration - main-2
 on:
   pull_request:
-    branches: [main-2]
+    branches: [main-2, main]
     paths:
       - "backend/Endpoints/DholeTrackingEndpoints.cs"
       - "backend/Program.cs"

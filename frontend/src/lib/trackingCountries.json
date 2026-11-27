@@ -1,0 +1,1752 @@
+[
+  {
+    "name": "Andorra",
+    "nameEs": "Andorra",
+    "iso2": "AD",
+    "lat": 42.5,
+    "lon": 1.5
+  },
+  {
+    "name": "United Arab Emirates",
+    "nameEs": "Emiratos Árabes Unidos",
+    "iso2": "AE",
+    "lat": 24,
+    "lon": 54
+  },
+  {
+    "name": "Afghanistan",
+    "nameEs": "Afganistán",
+    "iso2": "AF",
+    "lat": 33,
+    "lon": 65
+  },
+  {
+    "name": "Antigua and Barbuda",
+    "nameEs": "Antigua y Barbuda",
+    "iso2": "AG",
+    "lat": 17.05,
+    "lon": -61.8
+  },
+  {
+    "name": "Anguilla",
+    "nameEs": "Anguilla",
+    "iso2": "AI",
+    "lat": 18.25,
+    "lon": -63.16666666
+  },
+  {
+    "name": "Albania",
+    "nameEs": "Albania",
+    "iso2": "AL",
+    "lat": 41,
+    "lon": 20
+  },
+  {
+    "name": "Armenia",
+    "nameEs": "Armenia",
+    "iso2": "AM",
+    "lat": 40,
+    "lon": 45
+  },
+  {
+    "name": "Angola",
+    "nameEs": "Angola",
+    "iso2": "AO",
+    "lat": -12.5,
+    "lon": 18.5
+  },
+  {
+    "name": "Antarctica",
+    "nameEs": "Antártida",
+    "iso2": "AQ",
+    "lat": -74.65,
+    "lon": 4.48
+  },
+  {
+    "name": "Argentina",
+    "nameEs": "Argentina",
+    "iso2": "AR",
+    "lat": -34,
+    "lon": -64
+  },
+  {
+    "name": "American Samoa",
+    "nameEs": "Samoa Americana",
+    "iso2": "AS",
+    "lat": -14.33333333,
+    "lon": -170
+  },
+  {
+    "name": "Austria",
+    "nameEs": "Austria",
+    "iso2": "AT",
+    "lat": 47.33333333,
+    "lon": 13.33333333
+  },
+  {
+    "name": "Australia",
+    "nameEs": "Australia",
+    "iso2": "AU",
+    "lat": -27,
+    "lon": 133
+  },
+  {
+    "name": "Aruba",
+    "nameEs": "Aruba",
+    "iso2": "AW",
+    "lat": 12.5,
+    "lon": -69.96666666
+  },
+  {
+    "name": "Aland Islands",
+    "nameEs": "Alandia",
+    "iso2": "AX",
+    "lat": 60.116667,
+    "lon": 19.9
+  },
+  {
+    "name": "Azerbaijan",
+    "nameEs": "Azerbaiyán",
+    "iso2": "AZ",
+    "lat": 40.5,
+    "lon": 47.5
+  },
+  {
+    "name": "Bosnia and Herzegovina",
+    "nameEs": "Bosnia y Herzegovina",
+    "iso2": "BA",
+    "lat": 44,
+    "lon": 18
+  },
+  {
+    "name": "Barbados",
+    "nameEs": "Barbados",
+    "iso2": "BB",
+    "lat": 13.16666666,
+    "lon": -59.53333333
+  },
+  {
+    "name": "Bangladesh",
+    "nameEs": "Bangladesh",
+    "iso2": "BD",
+    "lat": 24,
+    "lon": 90
+  },
+  {
+    "name": "Belgium",
+    "nameEs": "Bélgica",
+    "iso2": "BE",
+    "lat": 50.83333333,
+    "lon": 4
+  },
+  {
+    "name": "Burkina Faso",
+    "nameEs": "Burkina Faso",
+    "iso2": "BF",
+    "lat": 13,
+    "lon": -2
+  },
+  {
+    "name": "Bulgaria",
+    "nameEs": "Bulgaria",
+    "iso2": "BG",
+    "lat": 43,
+    "lon": 25
+  },
+  {
+    "name": "Bahrain",
+    "nameEs": "Bahrein",
+    "iso2": "BH",
+    "lat": 26,
+    "lon": 50.55
+  },
+  {
+    "name": "Burundi",
+    "nameEs": "Burundi",
+    "iso2": "BI",
+    "lat": -3.5,
+    "lon": 30
+  },
+  {
+    "name": "Benin",
+    "nameEs": "Benín",
+    "iso2": "BJ",
+    "lat": 9.5,
+    "lon": 2.25
+  },
+  {
+    "name": "Saint-Barthelemy",
+    "nameEs": "San Bartolomé",
+    "iso2": "BL",
+    "lat": 18.5,
+    "lon": -63.41666666
+  },
+  {
+    "name": "Bermuda",
+    "nameEs": "Bermudas",
+    "iso2": "BM",
+    "lat": 32.33333333,
+    "lon": -64.75
+  },
+  {
+    "name": "Brunei",
+    "nameEs": "Brunei",
+    "iso2": "BN",
+    "lat": 4.5,
+    "lon": 114.66666666
+  },
+  {
+    "name": "Bolivia",
+    "nameEs": "Bolivia",
+    "iso2": "BO",
+    "lat": -17,
+    "lon": -65
+  },
+  {
+    "name": "Bonaire, Sint Eustatius and Saba",
+    "nameEs": "Bonaire, Sint Eustatius and Saba",
+    "iso2": "BQ",
+    "lat": 12.15,
+    "lon": -68.266667
+  },
+  {
+    "name": "Brazil",
+    "nameEs": "Brasil",
+    "iso2": "BR",
+    "lat": -10,
+    "lon": -55
+  },
+  {
+    "name": "The Bahamas",
+    "nameEs": "Bahamas",
+    "iso2": "BS",
+    "lat": 24.25,
+    "lon": -76
+  },
+  {
+    "name": "Bhutan",
+    "nameEs": "Bután",
+    "iso2": "BT",
+    "lat": 27.5,
+    "lon": 90.5
+  },
+  {
+    "name": "Bouvet Island",
+    "nameEs": "Isla Bouvet",
+    "iso2": "BV",
+    "lat": -54.43333333,
+    "lon": 3.4
+  },
+  {
+    "name": "Botswana",
+    "nameEs": "Botswana",
+    "iso2": "BW",
+    "lat": -22,
+    "lon": 24
+  },
+  {
+    "name": "Belarus",
+    "nameEs": "Bielorrusia",
+    "iso2": "BY",
+    "lat": 53,
+    "lon": 28
+  },
+  {
+    "name": "Belize",
+    "nameEs": "Belice",
+    "iso2": "BZ",
+    "lat": 17.25,
+    "lon": -88.75
+  },
+  {
+    "name": "Canada",
+    "nameEs": "Canadá",
+    "iso2": "CA",
+    "lat": 60,
+    "lon": -95
+  },
+  {
+    "name": "Cocos (Keeling) Islands",
+    "nameEs": "Islas Cocos o Islas Keeling",
+    "iso2": "CC",
+    "lat": -12.5,
+    "lon": 96.83333333
+  },
+  {
+    "name": "Democratic Republic of the Congo",
+    "nameEs": "Congo (Rep. Dem.)",
+    "iso2": "CD",
+    "lat": 0,
+    "lon": 25
+  },
+  {
+    "name": "Central African Republic",
+    "nameEs": "República Centroafricana",
+    "iso2": "CF",
+    "lat": 7,
+    "lon": 21
+  },
+  {
+    "name": "Congo",
+    "nameEs": "Congo",
+    "iso2": "CG",
+    "lat": -1,
+    "lon": 15
+  },
+  {
+    "name": "Switzerland",
+    "nameEs": "Suiza",
+    "iso2": "CH",
+    "lat": 47,
+    "lon": 8
+  },
+  {
+    "name": "Ivory Coast",
+    "nameEs": "Costa de Marfil",
+    "iso2": "CI",
+    "lat": 8,
+    "lon": -5
+  },
+  {
+    "name": "Cook Islands",
+    "nameEs": "Islas Cook",
+    "iso2": "CK",
+    "lat": -21.23333333,
+    "lon": -159.76666666
+  },
+  {
+    "name": "Chile",
+    "nameEs": "Chile",
+    "iso2": "CL",
+    "lat": -30,
+    "lon": -71
+  },
+  {
+    "name": "Cameroon",
+    "nameEs": "Camerún",
+    "iso2": "CM",
+    "lat": 6,
+    "lon": 12
+  },
+  {
+    "name": "China",
+    "nameEs": "China",
+    "iso2": "CN",
+    "lat": 35,
+    "lon": 105
+  },
+  {
+    "name": "Colombia",
+    "nameEs": "Colombia",
+    "iso2": "CO",
+    "lat": 4,
+    "lon": -72
+  },
+  {
+    "name": "Costa Rica",
+    "nameEs": "Costa Rica",
+    "iso2": "CR",
+    "lat": 10,
+    "lon": -84
+  },
+  {
+    "name": "Cuba",
+    "nameEs": "Cuba",
+    "iso2": "CU",
+    "lat": 21.5,
+    "lon": -80
+  },
+  {
+    "name": "Cape Verde",
+    "nameEs": "Cabo Verde",
+    "iso2": "CV",
+    "lat": 16,
+    "lon": -24
+  },
+  {
+    "name": "Curaçao",
+    "nameEs": "Curaçao",
+    "iso2": "CW",
+    "lat": 12.116667,
+    "lon": -68.933333
+  },
+  {
+    "name": "Christmas Island",
+    "nameEs": "Isla de Navidad",
+    "iso2": "CX",
+    "lat": -10.5,
+    "lon": 105.66666666
+  },
+  {
+    "name": "Cyprus",
+    "nameEs": "Chipre",
+    "iso2": "CY",
+    "lat": 35,
+    "lon": 33
+  },
+  {
+    "name": "Czech Republic",
+    "nameEs": "República Checa",
+    "iso2": "CZ",
+    "lat": 49.75,
+    "lon": 15.5
+  },
+  {
+    "name": "Germany",
+    "nameEs": "Alemania",
+    "iso2": "DE",
+    "lat": 51,
+    "lon": 9
+  },
+  {
+    "name": "Djibouti",
+    "nameEs": "Yibuti",
+    "iso2": "DJ",
+    "lat": 11.5,
+    "lon": 43
+  },
+  {
+    "name": "Denmark",
+    "nameEs": "Dinamarca",
+    "iso2": "DK",
+    "lat": 56,
+    "lon": 10
+  },
+  {
+    "name": "Dominica",
+    "nameEs": "Dominica",
+    "iso2": "DM",
+    "lat": 15.41666666,
+    "lon": -61.33333333
+  },
+  {
+    "name": "Dominican Republic",
+    "nameEs": "República Dominicana",
+    "iso2": "DO",
+    "lat": 19,
+    "lon": -70.66666666
+  },
+  {
+    "name": "Algeria",
+    "nameEs": "Argelia",
+    "iso2": "DZ",
+    "lat": 28,
+    "lon": 3
+  },
+  {
+    "name": "Ecuador",
+    "nameEs": "Ecuador",
+    "iso2": "EC",
+    "lat": -2,
+    "lon": -77.5
+  },
+  {
+    "name": "Estonia",
+    "nameEs": "Estonia",
+    "iso2": "EE",
+    "lat": 59,
+    "lon": 26
+  },
+  {
+    "name": "Egypt",
+    "nameEs": "Egipto",
+    "iso2": "EG",
+    "lat": 27,
+    "lon": 30
+  },
+  {
+    "name": "Western Sahara",
+    "nameEs": "Sahara Occidental",
+    "iso2": "EH",
+    "lat": 24.5,
+    "lon": -13
+  },
+  {
+    "name": "Eritrea",
+    "nameEs": "Eritrea",
+    "iso2": "ER",
+    "lat": 15,
+    "lon": 39
+  },
+  {
+    "name": "Spain",
+    "nameEs": "España",
+    "iso2": "ES",
+    "lat": 40,
+    "lon": -4
+  },
+  {
+    "name": "Ethiopia",
+    "nameEs": "Etiopía",
+    "iso2": "ET",
+    "lat": 8,
+    "lon": 38
+  },
+  {
+    "name": "Finland",
+    "nameEs": "Finlandia",
+    "iso2": "FI",
+    "lat": 64,
+    "lon": 26
+  },
+  {
+    "name": "Fiji Islands",
+    "nameEs": "Fiyi",
+    "iso2": "FJ",
+    "lat": -18,
+    "lon": 175
+  },
+  {
+    "name": "Falkland Islands",
+    "nameEs": "Islas Malvinas",
+    "iso2": "FK",
+    "lat": -51.75,
+    "lon": -59
+  },
+  {
+    "name": "Micronesia",
+    "nameEs": "Micronesia",
+    "iso2": "FM",
+    "lat": 6.91666666,
+    "lon": 158.25
+  },
+  {
+    "name": "Faroe Islands",
+    "nameEs": "Islas Faroe",
+    "iso2": "FO",
+    "lat": 62,
+    "lon": -7
+  },
+  {
+    "name": "France",
+    "nameEs": "Francia",
+    "iso2": "FR",
+    "lat": 46,
+    "lon": 2
+  },
+  {
+    "name": "Gabon",
+    "nameEs": "Gabón",
+    "iso2": "GA",
+    "lat": -1,
+    "lon": 11.75
+  },
+  {
+    "name": "United Kingdom",
+    "nameEs": "Reino Unido",
+    "iso2": "GB",
+    "lat": 54,
+    "lon": -2
+  },
+  {
+    "name": "Grenada",
+    "nameEs": "Grenada",
+    "iso2": "GD",
+    "lat": 12.11666666,
+    "lon": -61.66666666
+  },
+  {
+    "name": "Georgia",
+    "nameEs": "Georgia",
+    "iso2": "GE",
+    "lat": 42,
+    "lon": 43.5
+  },
+  {
+    "name": "French Guiana",
+    "nameEs": "Guayana Francesa",
+    "iso2": "GF",
+    "lat": 4,
+    "lon": -53
+  },
+  {
+    "name": "Guernsey",
+    "nameEs": "Guernsey",
+    "iso2": "GG",
+    "lat": 49.46666666,
+    "lon": -2.58333333
+  },
+  {
+    "name": "Ghana",
+    "nameEs": "Ghana",
+    "iso2": "GH",
+    "lat": 8,
+    "lon": -2
+  },
+  {
+    "name": "Gibraltar",
+    "nameEs": "Gibraltar",
+    "iso2": "GI",
+    "lat": 36.13333333,
+    "lon": -5.35
+  },
+  {
+    "name": "Greenland",
+    "nameEs": "Groenlandia",
+    "iso2": "GL",
+    "lat": 72,
+    "lon": -40
+  },
+  {
+    "name": "The Gambia",
+    "nameEs": "Gambia",
+    "iso2": "GM",
+    "lat": 13.46666666,
+    "lon": -16.56666666
+  },
+  {
+    "name": "Guinea",
+    "nameEs": "Guinea",
+    "iso2": "GN",
+    "lat": 11,
+    "lon": -10
+  },
+  {
+    "name": "Guadeloupe",
+    "nameEs": "Guadalupe",
+    "iso2": "GP",
+    "lat": 16.25,
+    "lon": -61.583333
+  },
+  {
+    "name": "Equatorial Guinea",
+    "nameEs": "Guinea Ecuatorial",
+    "iso2": "GQ",
+    "lat": 2,
+    "lon": 10
+  },
+  {
+    "name": "Greece",
+    "nameEs": "Grecia",
+    "iso2": "GR",
+    "lat": 39,
+    "lon": 22
+  },
+  {
+    "name": "South Georgia",
+    "nameEs": "Islas Georgias del Sur y Sandwich del Sur",
+    "iso2": "GS",
+    "lat": -54.5,
+    "lon": -37
+  },
+  {
+    "name": "Guatemala",
+    "nameEs": "Guatemala",
+    "iso2": "GT",
+    "lat": 15.5,
+    "lon": -90.25
+  },
+  {
+    "name": "Guam",
+    "nameEs": "Guam",
+    "iso2": "GU",
+    "lat": 13.46666666,
+    "lon": 144.78333333
+  },
+  {
+    "name": "Guinea-Bissau",
+    "nameEs": "Guinea-Bisáu",
+    "iso2": "GW",
+    "lat": 12,
+    "lon": -15
+  },
+  {
+    "name": "Guyana",
+    "nameEs": "Guyana",
+    "iso2": "GY",
+    "lat": 5,
+    "lon": -59
+  },
+  {
+    "name": "Hong Kong S.A.R.",
+    "nameEs": "Hong Kong",
+    "iso2": "HK",
+    "lat": 22.25,
+    "lon": 114.16666666
+  },
+  {
+    "name": "Heard Island and McDonald Islands",
+    "nameEs": "Islas Heard y McDonald",
+    "iso2": "HM",
+    "lat": -53.1,
+    "lon": 72.51666666
+  },
+  {
+    "name": "Honduras",
+    "nameEs": "Honduras",
+    "iso2": "HN",
+    "lat": 15,
+    "lon": -86.5
+  },
+  {
+    "name": "Croatia",
+    "nameEs": "Croacia",
+    "iso2": "HR",
+    "lat": 45.16666666,
+    "lon": 15.5
+  },
+  {
+    "name": "Haiti",
+    "nameEs": "Haiti",
+    "iso2": "HT",
+    "lat": 19,
+    "lon": -72.41666666
+  },
+  {
+    "name": "Hungary",
+    "nameEs": "Hungría",
+    "iso2": "HU",
+    "lat": 47,
+    "lon": 20
+  },
+  {
+    "name": "Indonesia",
+    "nameEs": "Indonesia",
+    "iso2": "ID",
+    "lat": -5,
+    "lon": 120
+  },
+  {
+    "name": "Ireland",
+    "nameEs": "Irlanda",
+    "iso2": "IE",
+    "lat": 53,
+    "lon": -8
+  },
+  {
+    "name": "Israel",
+    "nameEs": "Israel",
+    "iso2": "IL",
+    "lat": 31.5,
+    "lon": 34.75
+  },
+  {
+    "name": "Man (Isle of)",
+    "nameEs": "Isla de Man",
+    "iso2": "IM",
+    "lat": 54.25,
+    "lon": -4.5
+  },
+  {
+    "name": "India",
+    "nameEs": "India",
+    "iso2": "IN",
+    "lat": 20,
+    "lon": 77
+  },
+  {
+    "name": "British Indian Ocean Territory",
+    "nameEs": "Territorio Británico del Océano Índico",
+    "iso2": "IO",
+    "lat": -6,
+    "lon": 71.5
+  },
+  {
+    "name": "Iraq",
+    "nameEs": "Irak",
+    "iso2": "IQ",
+    "lat": 33,
+    "lon": 44
+  },
+  {
+    "name": "Iran",
+    "nameEs": "Iran",
+    "iso2": "IR",
+    "lat": 32,
+    "lon": 53
+  },
+  {
+    "name": "Iceland",
+    "nameEs": "Islandia",
+    "iso2": "IS",
+    "lat": 65,
+    "lon": -18
+  },
+  {
+    "name": "Italy",
+    "nameEs": "Italia",
+    "iso2": "IT",
+    "lat": 42.83333333,
+    "lon": 12.83333333
+  },
+  {
+    "name": "Jersey",
+    "nameEs": "Jersey",
+    "iso2": "JE",
+    "lat": 49.25,
+    "lon": -2.16666666
+  },
+  {
+    "name": "Jamaica",
+    "nameEs": "Jamaica",
+    "iso2": "JM",
+    "lat": 18.25,
+    "lon": -77.5
+  },
+  {
+    "name": "Jordan",
+    "nameEs": "Jordania",
+    "iso2": "JO",
+    "lat": 31,
+    "lon": 36
+  },
+  {
+    "name": "Japan",
+    "nameEs": "Japón",
+    "iso2": "JP",
+    "lat": 36,
+    "lon": 138
+  },
+  {
+    "name": "Kenya",
+    "nameEs": "Kenia",
+    "iso2": "KE",
+    "lat": 1,
+    "lon": 38
+  },
+  {
+    "name": "Kyrgyzstan",
+    "nameEs": "Kirguizistán",
+    "iso2": "KG",
+    "lat": 41,
+    "lon": 75
+  },
+  {
+    "name": "Cambodia",
+    "nameEs": "Camboya",
+    "iso2": "KH",
+    "lat": 13,
+    "lon": 105
+  },
+  {
+    "name": "Kiribati",
+    "nameEs": "Kiribati",
+    "iso2": "KI",
+    "lat": 1.41666666,
+    "lon": 173
+  },
+  {
+    "name": "Comoros",
+    "nameEs": "Comoras",
+    "iso2": "KM",
+    "lat": -12.16666666,
+    "lon": 44.25
+  },
+  {
+    "name": "Saint Kitts and Nevis",
+    "nameEs": "San Cristóbal y Nieves",
+    "iso2": "KN",
+    "lat": 17.33333333,
+    "lon": -62.75
+  },
+  {
+    "name": "North Korea",
+    "nameEs": "Corea del Norte",
+    "iso2": "KP",
+    "lat": 40,
+    "lon": 127
+  },
+  {
+    "name": "South Korea",
+    "nameEs": "Corea del Sur",
+    "iso2": "KR",
+    "lat": 37,
+    "lon": 127.5
+  },
+  {
+    "name": "Kuwait",
+    "nameEs": "Kuwait",
+    "iso2": "KW",
+    "lat": 29.5,
+    "lon": 45.75
+  },
+  {
+    "name": "Cayman Islands",
+    "nameEs": "Islas Caimán",
+    "iso2": "KY",
+    "lat": 19.5,
+    "lon": -80.5
+  },
+  {
+    "name": "Kazakhstan",
+    "nameEs": "Kazajistán",
+    "iso2": "KZ",
+    "lat": 48,
+    "lon": 68
+  },
+  {
+    "name": "Laos",
+    "nameEs": "Laos",
+    "iso2": "LA",
+    "lat": 18,
+    "lon": 105
+  },
+  {
+    "name": "Lebanon",
+    "nameEs": "Líbano",
+    "iso2": "LB",
+    "lat": 33.83333333,
+    "lon": 35.83333333
+  },
+  {
+    "name": "Saint Lucia",
+    "nameEs": "Santa Lucía",
+    "iso2": "LC",
+    "lat": 13.88333333,
+    "lon": -60.96666666
+  },
+  {
+    "name": "Liechtenstein",
+    "nameEs": "Liechtenstein",
+    "iso2": "LI",
+    "lat": 47.26666666,
+    "lon": 9.53333333
+  },
+  {
+    "name": "Sri Lanka",
+    "nameEs": "Sri Lanka",
+    "iso2": "LK",
+    "lat": 7,
+    "lon": 81
+  },
+  {
+    "name": "Liberia",
+    "nameEs": "Liberia",
+    "iso2": "LR",
+    "lat": 6.5,
+    "lon": -9.5
+  },
+  {
+    "name": "Lesotho",
+    "nameEs": "Lesotho",
+    "iso2": "LS",
+    "lat": -29.5,
+    "lon": 28.5
+  },
+  {
+    "name": "Lithuania",
+    "nameEs": "Lituania",
+    "iso2": "LT",
+    "lat": 56,
+    "lon": 24
+  },
+  {
+    "name": "Luxembourg",
+    "nameEs": "Luxemburgo",
+    "iso2": "LU",
+    "lat": 49.75,
+    "lon": 6.16666666
+  },
+  {
+    "name": "Latvia",
+    "nameEs": "Letonia",
+    "iso2": "LV",
+    "lat": 57,
+    "lon": 25
+  },
+  {
+    "name": "Libya",
+    "nameEs": "Libia",
+    "iso2": "LY",
+    "lat": 25,
+    "lon": 17
+  },
+  {
+    "name": "Morocco",
+    "nameEs": "Marruecos",
+    "iso2": "MA",
+    "lat": 32,
+    "lon": -5
+  },
+  {
+    "name": "Monaco",
+    "nameEs": "Mónaco",
+    "iso2": "MC",
+    "lat": 43.73333333,
+    "lon": 7.4
+  },
+  {
+    "name": "Moldova",
+    "nameEs": "Moldavia",
+    "iso2": "MD",
+    "lat": 47,
+    "lon": 29
+  },
+  {
+    "name": "Montenegro",
+    "nameEs": "Montenegro",
+    "iso2": "ME",
+    "lat": 42.5,
+    "lon": 19.3
+  },
+  {
+    "name": "Saint-Martin (French part)",
+    "nameEs": "Saint Martin",
+    "iso2": "MF",
+    "lat": 18.08333333,
+    "lon": -63.95
+  },
+  {
+    "name": "Madagascar",
+    "nameEs": "Madagascar",
+    "iso2": "MG",
+    "lat": -20,
+    "lon": 47
+  },
+  {
+    "name": "Marshall Islands",
+    "nameEs": "Islas Marshall",
+    "iso2": "MH",
+    "lat": 9,
+    "lon": 168
+  },
+  {
+    "name": "North Macedonia",
+    "nameEs": "Macedonia del Norte",
+    "iso2": "MK",
+    "lat": 41.83333333,
+    "lon": 22
+  },
+  {
+    "name": "Mali",
+    "nameEs": "Mali",
+    "iso2": "ML",
+    "lat": 17,
+    "lon": -4
+  },
+  {
+    "name": "Myanmar",
+    "nameEs": "Myanmar",
+    "iso2": "MM",
+    "lat": 22,
+    "lon": 98
+  },
+  {
+    "name": "Mongolia",
+    "nameEs": "Mongolia",
+    "iso2": "MN",
+    "lat": 46,
+    "lon": 105
+  },
+  {
+    "name": "Macau S.A.R.",
+    "nameEs": "Macao",
+    "iso2": "MO",
+    "lat": 22.16666666,
+    "lon": 113.55
+  },
+  {
+    "name": "Northern Mariana Islands",
+    "nameEs": "Islas Marianas del Norte",
+    "iso2": "MP",
+    "lat": 15.2,
+    "lon": 145.75
+  },
+  {
+    "name": "Martinique",
+    "nameEs": "Martinica",
+    "iso2": "MQ",
+    "lat": 14.666667,
+    "lon": -61
+  },
+  {
+    "name": "Mauritania",
+    "nameEs": "Mauritania",
+    "iso2": "MR",
+    "lat": 20,
+    "lon": -12
+  },
+  {
+    "name": "Montserrat",
+    "nameEs": "Montserrat",
+    "iso2": "MS",
+    "lat": 16.75,
+    "lon": -62.2
+  },
+  {
+    "name": "Malta",
+    "nameEs": "Malta",
+    "iso2": "MT",
+    "lat": 35.83333333,
+    "lon": 14.58333333
+  },
+  {
+    "name": "Mauritius",
+    "nameEs": "Mauricio",
+    "iso2": "MU",
+    "lat": -20.28333333,
+    "lon": 57.55
+  },
+  {
+    "name": "Maldives",
+    "nameEs": "Maldivas",
+    "iso2": "MV",
+    "lat": 3.25,
+    "lon": 73
+  },
+  {
+    "name": "Malawi",
+    "nameEs": "Malawi",
+    "iso2": "MW",
+    "lat": -13.5,
+    "lon": 34
+  },
+  {
+    "name": "Mexico",
+    "nameEs": "México",
+    "iso2": "MX",
+    "lat": 23,
+    "lon": -102
+  },
+  {
+    "name": "Malaysia",
+    "nameEs": "Malasia",
+    "iso2": "MY",
+    "lat": 2.5,
+    "lon": 112.5
+  },
+  {
+    "name": "Mozambique",
+    "nameEs": "Mozambique",
+    "iso2": "MZ",
+    "lat": -18.25,
+    "lon": 35
+  },
+  {
+    "name": "Namibia",
+    "nameEs": "Namibia",
+    "iso2": "NA",
+    "lat": -22,
+    "lon": 17
+  },
+  {
+    "name": "New Caledonia",
+    "nameEs": "Nueva Caledonia",
+    "iso2": "NC",
+    "lat": -21.5,
+    "lon": 165.5
+  },
+  {
+    "name": "Niger",
+    "nameEs": "Níger",
+    "iso2": "NE",
+    "lat": 16,
+    "lon": 8
+  },
+  {
+    "name": "Norfolk Island",
+    "nameEs": "Isla de Norfolk",
+    "iso2": "NF",
+    "lat": -29.03333333,
+    "lon": 167.95
+  },
+  {
+    "name": "Nigeria",
+    "nameEs": "Nigeria",
+    "iso2": "NG",
+    "lat": 10,
+    "lon": 8
+  },
+  {
+    "name": "Nicaragua",
+    "nameEs": "Nicaragua",
+    "iso2": "NI",
+    "lat": 13,
+    "lon": -85
+  },
+  {
+    "name": "Netherlands",
+    "nameEs": "Países Bajos",
+    "iso2": "NL",
+    "lat": 52.5,
+    "lon": 5.75
+  },
+  {
+    "name": "Norway",
+    "nameEs": "Noruega",
+    "iso2": "NO",
+    "lat": 62,
+    "lon": 10
+  },
+  {
+    "name": "Nepal",
+    "nameEs": "Nepal",
+    "iso2": "NP",
+    "lat": 28,
+    "lon": 84
+  },
+  {
+    "name": "Nauru",
+    "nameEs": "Nauru",
+    "iso2": "NR",
+    "lat": -0.53333333,
+    "lon": 166.91666666
+  },
+  {
+    "name": "Niue",
+    "nameEs": "Niue",
+    "iso2": "NU",
+    "lat": -19.03333333,
+    "lon": -169.86666666
+  },
+  {
+    "name": "New Zealand",
+    "nameEs": "Nueva Zelanda",
+    "iso2": "NZ",
+    "lat": -41,
+    "lon": 174
+  },
+  {
+    "name": "Oman",
+    "nameEs": "Omán",
+    "iso2": "OM",
+    "lat": 21,
+    "lon": 57
+  },
+  {
+    "name": "Panama",
+    "nameEs": "Panamá",
+    "iso2": "PA",
+    "lat": 9,
+    "lon": -80
+  },
+  {
+    "name": "Peru",
+    "nameEs": "Perú",
+    "iso2": "PE",
+    "lat": -10,
+    "lon": -76
+  },
+  {
+    "name": "French Polynesia",
+    "nameEs": "Polinesia Francesa",
+    "iso2": "PF",
+    "lat": -15,
+    "lon": -140
+  },
+  {
+    "name": "Papua New Guinea",
+    "nameEs": "Papúa Nueva Guinea",
+    "iso2": "PG",
+    "lat": -6,
+    "lon": 147
+  },
+  {
+    "name": "Philippines",
+    "nameEs": "Filipinas",
+    "iso2": "PH",
+    "lat": 13,
+    "lon": 122
+  },
+  {
+    "name": "Pakistan",
+    "nameEs": "Pakistán",
+    "iso2": "PK",
+    "lat": 30,
+    "lon": 70
+  },
+  {
+    "name": "Poland",
+    "nameEs": "Polonia",
+    "iso2": "PL",
+    "lat": 52,
+    "lon": 20
+  },
+  {
+    "name": "Saint Pierre and Miquelon",
+    "nameEs": "San Pedro y Miquelón",
+    "iso2": "PM",
+    "lat": 46.83333333,
+    "lon": -56.33333333
+  },
+  {
+    "name": "Pitcairn Island",
+    "nameEs": "Islas Pitcairn",
+    "iso2": "PN",
+    "lat": -25.06666666,
+    "lon": -130.1
+  },
+  {
+    "name": "Puerto Rico",
+    "nameEs": "Puerto Rico",
+    "iso2": "PR",
+    "lat": 18.25,
+    "lon": -66.5
+  },
+  {
+    "name": "Palestinian Territory Occupied",
+    "nameEs": "Palestina",
+    "iso2": "PS",
+    "lat": 31.9,
+    "lon": 35.2
+  },
+  {
+    "name": "Portugal",
+    "nameEs": "Portugal",
+    "iso2": "PT",
+    "lat": 39.5,
+    "lon": -8
+  },
+  {
+    "name": "Palau",
+    "nameEs": "Palau",
+    "iso2": "PW",
+    "lat": 7.5,
+    "lon": 134.5
+  },
+  {
+    "name": "Paraguay",
+    "nameEs": "Paraguay",
+    "iso2": "PY",
+    "lat": -23,
+    "lon": -58
+  },
+  {
+    "name": "Qatar",
+    "nameEs": "Catar",
+    "iso2": "QA",
+    "lat": 25.5,
+    "lon": 51.25
+  },
+  {
+    "name": "Reunion",
+    "nameEs": "Reunión",
+    "iso2": "RE",
+    "lat": -21.15,
+    "lon": 55.5
+  },
+  {
+    "name": "Romania",
+    "nameEs": "Rumania",
+    "iso2": "RO",
+    "lat": 46,
+    "lon": 25
+  },
+  {
+    "name": "Serbia",
+    "nameEs": "Serbia",
+    "iso2": "RS",
+    "lat": 44,
+    "lon": 21
+  },
+  {
+    "name": "Russia",
+    "nameEs": "Rusia",
+    "iso2": "RU",
+    "lat": 60,
+    "lon": 100
+  },
+  {
+    "name": "Rwanda",
+    "nameEs": "Ruanda",
+    "iso2": "RW",
+    "lat": -2,
+    "lon": 30
+  },
+  {
+    "name": "Saudi Arabia",
+    "nameEs": "Arabia Saudí",
+    "iso2": "SA",
+    "lat": 25,
+    "lon": 45
+  },
+  {
+    "name": "Solomon Islands",
+    "nameEs": "Islas Salomón",
+    "iso2": "SB",
+    "lat": -8,
+    "lon": 159
+  },
+  {
+    "name": "Seychelles",
+    "nameEs": "Seychelles",
+    "iso2": "SC",
+    "lat": -4.6574977,
+    "lon": 55.4540146
+  },
+  {
+    "name": "Sudan",
+    "nameEs": "Sudán",
+    "iso2": "SD",
+    "lat": 15,
+    "lon": 30
+  },
+  {
+    "name": "Sweden",
+    "nameEs": "Suecia",
+    "iso2": "SE",
+    "lat": 62,
+    "lon": 15
+  },
+  {
+    "name": "Singapore",
+    "nameEs": "Singapur",
+    "iso2": "SG",
+    "lat": 1.36666666,
+    "lon": 103.8
+  },
+  {
+    "name": "Saint Helena",
+    "nameEs": "Santa Helena",
+    "iso2": "SH",
+    "lat": -15.95,
+    "lon": -5.7
+  },
+  {
+    "name": "Slovenia",
+    "nameEs": "Eslovenia",
+    "iso2": "SI",
+    "lat": 46.11666666,
+    "lon": 14.81666666
+  },
+  {
+    "name": "Svalbard and Jan Mayen Islands",
+    "nameEs": "Islas Svalbard y Jan Mayen",
+    "iso2": "SJ",
+    "lat": 78,
+    "lon": 20
+  },
+  {
+    "name": "Slovakia",
+    "nameEs": "República Eslovaca",
+    "iso2": "SK",
+    "lat": 48.66666666,
+    "lon": 19.5
+  },
+  {
+    "name": "Sierra Leone",
+    "nameEs": "Sierra Leone",
+    "iso2": "SL",
+    "lat": 8.5,
+    "lon": -11.5
+  },
+  {
+    "name": "San Marino",
+    "nameEs": "San Marino",
+    "iso2": "SM",
+    "lat": 43.76666666,
+    "lon": 12.41666666
+  },
+  {
+    "name": "Senegal",
+    "nameEs": "Senegal",
+    "iso2": "SN",
+    "lat": 14,
+    "lon": -14
+  },
+  {
+    "name": "Somalia",
+    "nameEs": "Somalia",
+    "iso2": "SO",
+    "lat": 10,
+    "lon": 49
+  },
+  {
+    "name": "Suriname",
+    "nameEs": "Surinam",
+    "iso2": "SR",
+    "lat": 4,
+    "lon": -56
+  },
+  {
+    "name": "South Sudan",
+    "nameEs": "Sudán del Sur",
+    "iso2": "SS",
+    "lat": 7,
+    "lon": 30
+  },
+  {
+    "name": "Sao Tome and Principe",
+    "nameEs": "Santo Tomé y Príncipe",
+    "iso2": "ST",
+    "lat": 1,
+    "lon": 7
+  },
+  {
+    "name": "El Salvador",
+    "nameEs": "El Salvador",
+    "iso2": "SV",
+    "lat": 13.83333333,
+    "lon": -88.91666666
+  },
+  {
+    "name": "Sint Maarten (Dutch part)",
+    "nameEs": "Sint Maarten (Dutch part)",
+    "iso2": "SX",
+    "lat": 18.033333,
+    "lon": -63.05
+  },
+  {
+    "name": "Syria",
+    "nameEs": "Siria",
+    "iso2": "SY",
+    "lat": 35,
+    "lon": 38
+  },
+  {
+    "name": "Eswatini",
+    "nameEs": "Suazilandia",
+    "iso2": "SZ",
+    "lat": -26.5,
+    "lon": 31.5
+  },
+  {
+    "name": "Turks and Caicos Islands",
+    "nameEs": "Islas Turks y Caicos",
+    "iso2": "TC",
+    "lat": 21.75,
+    "lon": -71.58333333
+  },
+  {
+    "name": "Chad",
+    "nameEs": "Chad",
+    "iso2": "TD",
+    "lat": 15,
+    "lon": 19
+  },
+  {
+    "name": "French Southern Territories",
+    "nameEs": "Tierras Australes y Antárticas Francesas",
+    "iso2": "TF",
+    "lat": -49.25,
+    "lon": 69.167
+  },
+  {
+    "name": "Togo",
+    "nameEs": "Togo",
+    "iso2": "TG",
+    "lat": 8,
+    "lon": 1.16666666
+  },
+  {
+    "name": "Thailand",
+    "nameEs": "Tailandia",
+    "iso2": "TH",
+    "lat": 15,
+    "lon": 100
+  },
+  {
+    "name": "Tajikistan",
+    "nameEs": "Tayikistán",
+    "iso2": "TJ",
+    "lat": 39,
+    "lon": 71
+  },
+  {
+    "name": "Tokelau",
+    "nameEs": "Islas Tokelau",
+    "iso2": "TK",
+    "lat": -9,
+    "lon": -172
+  },
+  {
+    "name": "Timor-Leste",
+    "nameEs": "Timor Oriental",
+    "iso2": "TL",
+    "lat": -8.83333333,
+    "lon": 125.91666666
+  },
+  {
+    "name": "Turkmenistan",
+    "nameEs": "Turkmenistán",
+    "iso2": "TM",
+    "lat": 40,
+    "lon": 60
+  },
+  {
+    "name": "Tunisia",
+    "nameEs": "Túnez",
+    "iso2": "TN",
+    "lat": 34,
+    "lon": 9
+  },
+  {
+    "name": "Tonga",
+    "nameEs": "Tonga",
+    "iso2": "TO",
+    "lat": -20,
+    "lon": -175
+  },
+  {
+    "name": "Turkey",
+    "nameEs": "Turquía",
+    "iso2": "TR",
+    "lat": 39,
+    "lon": 35
+  },
+  {
+    "name": "Trinidad and Tobago",
+    "nameEs": "Trinidad y Tobago",
+    "iso2": "TT",
+    "lat": 11,
+    "lon": -61
+  },
+  {
+    "name": "Tuvalu",
+    "nameEs": "Tuvalu",
+    "iso2": "TV",
+    "lat": -8,
+    "lon": 178
+  },
+  {
+    "name": "Taiwan",
+    "nameEs": "Taiwán",
+    "iso2": "TW",
+    "lat": 23.5,
+    "lon": 121
+  },
+  {
+    "name": "Tanzania",
+    "nameEs": "Tanzania",
+    "iso2": "TZ",
+    "lat": -6,
+    "lon": 35
+  },
+  {
+    "name": "Ukraine",
+    "nameEs": "Ucrania",
+    "iso2": "UA",
+    "lat": 49,
+    "lon": 32
+  },
+  {
+    "name": "Uganda",
+    "nameEs": "Uganda",
+    "iso2": "UG",
+    "lat": 1,
+    "lon": 32
+  },
+  {
+    "name": "United States Minor Outlying Islands",
+    "nameEs": "Islas Ultramarinas Menores de Estados Unidos",
+    "iso2": "UM",
+    "lat": 0,
+    "lon": 0
+  },
+  {
+    "name": "United States",
+    "nameEs": "Estados Unidos",
+    "iso2": "US",
+    "lat": 38,
+    "lon": -97
+  },
+  {
+    "name": "Uruguay",
+    "nameEs": "Uruguay",
+    "iso2": "UY",
+    "lat": -33,
+    "lon": -56
+  },
+  {
+    "name": "Uzbekistan",
+    "nameEs": "Uzbekistán",
+    "iso2": "UZ",
+    "lat": 41,
+    "lon": 64
+  },
+  {
+    "name": "Vatican City State (Holy See)",
+    "nameEs": "Santa Sede",
+    "iso2": "VA",
+    "lat": 41.9,
+    "lon": 12.45
+  },
+  {
+    "name": "Saint Vincent and the Grenadines",
+    "nameEs": "San Vicente y Granadinas",
+    "iso2": "VC",
+    "lat": 13.25,
+    "lon": -61.2
+  },
+  {
+    "name": "Venezuela",
+    "nameEs": "Venezuela",
+    "iso2": "VE",
+    "lat": 8,
+    "lon": -66
+  },
+  {
+    "name": "Virgin Islands (British)",
+    "nameEs": "Islas Vírgenes del Reino Unido",
+    "iso2": "VG",
+    "lat": 18.431383,
+    "lon": -64.62305
+  },
+  {
+    "name": "Virgin Islands (US)",
+    "nameEs": "Islas Vírgenes de los Estados Unidos",
+    "iso2": "VI",
+    "lat": 18.34,
+    "lon": -64.93
+  },
+  {
+    "name": "Vietnam",
+    "nameEs": "Vietnam",
+    "iso2": "VN",
+    "lat": 16.16666666,
+    "lon": 107.83333333
+  },
+  {
+    "name": "Vanuatu",
+    "nameEs": "Vanuatu",
+    "iso2": "VU",
+    "lat": -16,
+    "lon": 167
+  },
+  {
+    "name": "Wallis and Futuna Islands",
+    "nameEs": "Wallis y Futuna",
+    "iso2": "WF",
+    "lat": -13.3,
+    "lon": -176.2
+  },
+  {
+    "name": "Samoa",
+    "nameEs": "Samoa",
+    "iso2": "WS",
+    "lat": -13.58333333,
+    "lon": -172.33333333
+  },
+  {
+    "name": "Kosovo",
+    "nameEs": "Kosovo",
+    "iso2": "XK",
+    "lat": 42.5612909,
+    "lon": 20.3403035
+  },
+  {
+    "name": "Yemen",
+    "nameEs": "Yemen",
+    "iso2": "YE",
+    "lat": 15,
+    "lon": 48
+  },
+  {
+    "name": "Mayotte",
+    "nameEs": "Mayotte",
+    "iso2": "YT",
+    "lat": -12.83333333,
+    "lon": 45.16666666
+  },
+  {
+    "name": "South Africa",
+    "nameEs": "República de Sudáfrica",
+    "iso2": "ZA",
+    "lat": -29,
+    "lon": 24
+  },
+  {
+    "name": "Zambia",
+    "nameEs": "Zambia",
+    "iso2": "ZM",
+    "lat": -15,
+    "lon": 30
+  },
+  {
+    "name": "Zimbabwe",
+    "nameEs": "Zimbabue",
+    "iso2": "ZW",
+    "lat": -20,
+    "lon": 30
+  }
+]

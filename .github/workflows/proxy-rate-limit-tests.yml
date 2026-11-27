@@ -1,0 +1,24 @@
+name: Proxy rate-limit safety checks
+
+on:
+  pull_request:
+    branches: [main-2, main]
+    paths:
+      - "backend/Services/RateLimitClientKey.cs"
+      - "tests/RateLimitClientKeyHarness/**"
+      - ".github/workflows/proxy-rate-limit-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-proxy-identity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Validate trusted hops and spoof-resistant rate partitions
+        run: dotnet run --project tests/RateLimitClientKeyHarness/RateLimitClientKeyHarness.csproj -c Release
