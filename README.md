@@ -39,6 +39,8 @@ curl.exe -i http://127.0.0.1:5000/api/health/ready
 
 ### Activar respuestas de IA en GIO
 
+Para transferir Groq a la cuenta empresarial y revisar la titularidad de MinIO en Argos, ver [guía de transferencia operativa](docs/GIO-GROQ-HANDOVER.md). No copiar el .env local a producción.
+
 1. Creá una API key de Groq en https://console.groq.com/keys y guardala SOLO en tu `.env` privado como `GROQ_API_KEY=...` y `GROQ_MODEL=openai/gpt-oss-20b`. No la pongás en el frontend ni en GitHub.
 2. Recreá el backend para cargar la configuración: `docker compose up -d --build backend`.
 3. Vite reenvía `/api/assistant/chat` al backend; por eso funciona desde localhost y desde la IP de red mientras ambos usen ese mismo servidor.
