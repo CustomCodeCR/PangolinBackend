@@ -19,7 +19,7 @@ img{display:block;max-width:100%}
 .btn:hover{transform:translateY(-2px)}.btn span{font-size:17px}.btn-primary{background:#b30923;color:#fff;box-shadow:0 10px 24px rgba(158,8,30,.18)}.btn-primary:hover{background:#d10a2b}.btn-outline-light{color:#fff;border:1px solid rgba(255,255,255,.85);background:#ffffff18}.btn-outline-light:hover{background:#fff2}.btn-white{background:#fff;color:#ad0e26}.btn-block{width:100%}
 .site-header{height:85px;position:relative;z-index:20;background:#ae0d25;color:white}.site-header--overlay{position:absolute;top:0;left:0;width:100%;background:transparent}
 .header-inner{width:min(1260px,calc(100% - 84px));height:100%;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:30px}
-.site-brand{display:flex;align-items:center;flex-shrink:0}.site-brand img{width:105px;height:auto;object-fit:contain;filter:drop-shadow(0 1px 2px #0003)}
+.site-brand{display:flex;align-items:center;flex-shrink:0}.site-brand img{width:157.5px;height:auto;max-height:66px;object-fit:contain;filter:drop-shadow(0 1px 2px #0003)}
 .main-nav{display:flex;align-items:center;gap:24px}.main-nav>a{font-weight:800;font-size:12px;color:#fff;white-space:nowrap;padding:11px 4px;border-bottom:2px solid transparent;transition:color .18s,border-color .18s}.main-nav>a:hover,.main-nav>a.is-active{border-bottom-color:#fff}
 .main-nav>a.nav-login{background:#ad0922;border:0;padding:12px 24px;border-radius:100px;box-shadow:0 5px 20px #0002}.nav-login span{margin-left:8px}.menu-toggle{display:none;color:white;background:#af0923;border:0;border-radius:8px;font-size:26px;width:44px;height:44px}
 /* Home hero */
@@ -42,7 +42,7 @@ img{display:block;max-width:100%}
 .faq-section{position:relative;color:white;background:#1e1219 url('/images/operation.webp') center/cover no-repeat}.faq-background{position:absolute;inset:0;background:linear-gradient(110deg,#391019b8,#7b1b24a9)}.faq-content{position:relative;z-index:1}.white-title{color:white}.white-title span{color:white}.faq-list{max-width:890px;margin:37px auto 0;display:grid;gap:10px}.faq-item{background:#fff;border-radius:11px;overflow:hidden;color:#1b2028}.faq-item>button{display:flex;align-items:center;justify-content:space-between;gap:18px;width:100%;padding:15px 23px;border:0;background:transparent;color:#27252a;text-align:left;font-size:13px;font-weight:850}.faq-item>button strong{color:#b40822;font-size:24px;line-height:1}.faq-answer{font-size:13px;color:#585b63;line-height:1.7;padding:0 23px 18px}.faq-item--open{box-shadow:0 14px 25px #0002}
 .home-last-cta{padding:70px 0;background:#fff}.home-last-cta__inner{display:flex;justify-content:space-between;align-items:center;gap:30px}.home-last-cta h2{font-family:"Arial Black",system-ui,sans-serif;font-weight:900;letter-spacing:-.05em;color:#af0b25;font-size:clamp(30px,3.4vw,46px);line-height:1.2;margin:10px 0}.home-last-cta h2 span{color:#22242b}
 /* footer */
-.site-footer{background:#101218;color:#fff;padding:44px 0 22px}.footer-top{display:grid;grid-template-columns:2fr 1.4fr .8fr;gap:50px}.footer-identity img{width:128px}.footer-identity p{font-size:12px;color:#b1b5c0;max-width:330px;line-height:1.8}.site-footer h3{font-size:13px;margin:1px 0 14px}.site-footer a:not(.footer-identity a){display:block;color:#c4c7d0;font-size:12px;line-height:1.8}.site-footer a:hover{color:white}.footer-bottom{border-top:1px solid #ffffff17;display:flex;justify-content:space-between;margin-top:38px;padding-top:18px;color:#858994;font-size:11px}
+.site-footer{background:#101218;color:#fff;padding:44px 0 22px}.footer-top{display:grid;grid-template-columns:2fr 1.4fr .8fr;gap:50px}.footer-identity img{width:128px}.footer-identity p{font-size:12px;color:#b1b5c0;max-width:330px;line-height:1.8}.site-footer h2{font-size:13px;margin:1px 0 14px}.site-footer a:not(.footer-identity a){display:block;color:#c4c7d0;font-size:12px;line-height:1.8}.site-footer a:hover{color:white}.footer-bottom{border-top:1px solid #ffffff17;display:flex;justify-content:space-between;margin-top:38px;padding-top:18px;color:#858994;font-size:11px}
 /* inner pages */
 .inner-hero{height:490px;position:relative;background:#6a1b26 center/cover no-repeat;color:#fff}.inner-hero--news{background-image:linear-gradient(90deg,#990e2cb8 0%,#b0203c85 46%,#2219295c),url('/images/news-ai.webp')}.inner-hero--about{height:545px;background-image:linear-gradient(90deg,#ac0e2bcc 0%,#bb153270 50%,#15224a30),url('/images/hero.webp')}.inner-hero__copy{padding-top:160px;position:relative;z-index:2}.inner-hero__copy h1{font-family:"Arial Black",system-ui,sans-serif;font-size:clamp(42px,5.5vw,76px);line-height:1.1;letter-spacing:-.05em;margin:12px 0 17px}.inner-hero__copy>p:not(.section-tag){line-height:1.65;font-size:16px;max-width:470px}.inner-hero__copy .btn{margin-top:15px}.section-topline{display:flex;justify-content:space-between;align-items:center}
 .news-featured{display:grid;gap:25px;margin-top:45px}.news-featured-card{display:grid;grid-template-columns:49% 51%;overflow:hidden;min-height:305px;border-radius:26px;background:#fcf5f6;border:1px solid #f3e4e7}.news-featured-card:nth-child(even){direction:rtl}.news-featured-card:nth-child(even)>*{direction:ltr}.news-featured-card__image{overflow:hidden}.news-featured-card__image img{width:100%;height:100%;object-fit:cover;transition:transform .3s}.news-featured-card:hover img{transform:scale(1.03)}.news-featured-card__copy{padding:39px 42px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center}.news-featured-card__copy h3{font-family:"Arial Black",system-ui,sans-serif;font-size:clamp(22px,2.8vw,34px);letter-spacing:-.04em;line-height:1.2;color:#ad0823;margin:12px 0}.news-featured-card__copy p{font-size:14px;color:#555965;line-height:1.7}.demo-article-label{font-size:10px;color:#9d6270;letter-spacing:.03em;font-weight:700;margin-top:8px}.red-cta{position:relative;isolation:isolate;overflow:hidden;background:#fff8f8;color:#20242b;padding:48px 0}
@@ -65,7 +65,7 @@ html.theme-dark .red-cta::before{background:radial-gradient(ellipse at center,rg
 .page-shell{width:min(980px,calc(100% - 72px));margin:0 auto;padding:28px 0 90px}.page-shell .hero{margin-bottom:24px}.page-shell .hero h2{font-size:24px;letter-spacing:-.035em;margin:7px 0}.page-shell .hero>p:last-child{color:#666b72;font-size:13px}.page-shell .eyebrow{margin:0;font-size:11px;font-weight:900;letter-spacing:.14em;color:#af0b23}.panel{background:#fff;border:1px solid #f0e1e6;border-radius:24px;padding:32px;box-shadow:0 14px 45px #6614260a}.quote-form{display:grid;gap:19px}.two-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.quote-form label{display:grid;gap:8px;font-size:13px;font-weight:800;color:#323036}.quote-form input,.quote-form select,.quote-form textarea{padding:13px 14px;background:#fff;border:1px solid #dfe1e7;border-radius:9px;outline:none;width:100%;color:#27282e}.quote-form input:focus,.quote-form select:focus,.quote-form textarea:focus{border-color:#a70b23;box-shadow:0 0 0 3px #a70b2315}.quote-form>button{border:0;color:white;background:#b30925;border-radius:8px;padding:14px 23px;font-weight:900;margin-top:5px}.quote-form>button:disabled{opacity:.6;cursor:wait}.panel .error{background:#fff0f2;color:#a00b23;padding:15px;border-radius:10px}.result-card{margin-top:24px;border-top:1px solid #eee;padding-top:25px}.result-card .status{background:#e8f3eb;color:#266b39;padding:7px 12px;border-radius:20px;font-size:11px;font-weight:900}.result-card h2{margin-top:15px}.quote-id{color:#6a6a74;overflow-wrap:anywhere}.result-card dl{display:grid;gap:12px}.result-card dl>div{display:grid;grid-template-columns:110px 1fr;gap:15px}.result-card dt{color:#7e7e88}.result-card dd{margin:0;font-weight:750}.result-footer{display:flex;justify-content:space-between;align-items:center;gap:15px}.result-footer small{color:#7a7a87}.result-footer button{border:0;border-radius:8px;background:#f1e2e7;color:#a50720;padding:12px 18px;font-weight:800}
 /* viewport adaptation */
 @media(max-width:1100px){.main-nav{gap:13px}.main-nav>a{font-size:11px}.header-inner{width:calc(100% - 50px)}.home-hero__content{padding-top:175px}.home-hero h1{font-size:clamp(43px,6vw,75px)}}
-@media(max-width:800px){.container{width:min(100% - 38px,660px)}.section-spacing{padding:70px 0}.site-header{height:72px}.site-brand img{width:96px}.menu-toggle{display:block}.main-nav{display:none;position:absolute;top:72px;left:0;right:0;flex-direction:column;align-items:stretch;gap:4px;padding:17px 25px 24px;background:#9f0921;box-shadow:0 19px 30px #0002}.main-nav--open{display:flex}.main-nav>a{padding:12px 15px;font-size:13px}.main-nav>a.nav-login{text-align:center;margin-top:5px}.home-hero{min-height:620px;height:auto}.home-hero__content{padding-top:165px;padding-bottom:170px}.home-hero h1{font-size:clamp(42px,8vw,62px)}.hero-actions{flex-wrap:wrap}.news-band-grid{gap:6px}.news-band-tile{height:150px}.news-band-tile__overlay strong{font-size:11px}.service-feature{height:410px}.stats-grid{grid-template-columns:repeat(2,1fr);row-gap:25px}.tracking-home-grid,.tracking-grid{grid-template-columns:1fr}.tracking-home-copy{margin-bottom:-35px}.world-globe{min-height:390px}.experience-intro{grid-template-columns:1fr;gap:10px}.experience-intro__card{max-width:550px}.promise-grid{gap:9px}.promise-card{padding:20px;min-height:225px;border-radius:22px}.promise-card h3{font-size:17px}.about-intro-grid{grid-template-columns:1fr;gap:30px}.about-image-card{height:330px}.login-screen{grid-template-columns:1fr}.login-visual{min-height:410px;padding:40px}.login-visual__content img{width:115px;margin-bottom:20px}.login-visual__content h1{font-size:60px}.login-visual__bottom{bottom:22px;left:40px}.login-card-column{min-height:510px}.login-mini-brand{top:25px}}
+@media(max-width:800px){.container{width:min(100% - 38px,660px)}.section-spacing{padding:70px 0}.site-header{height:72px}.site-brand img{width:144px;max-height:56px}.menu-toggle{display:block}.main-nav{display:none;position:absolute;top:72px;left:0;right:0;flex-direction:column;align-items:stretch;gap:4px;padding:17px 25px 24px;background:#9f0921;box-shadow:0 19px 30px #0002}.main-nav--open{display:flex}.main-nav>a{padding:12px 15px;font-size:13px}.main-nav>a.nav-login{text-align:center;margin-top:5px}.home-hero{min-height:620px;height:auto}.home-hero__content{padding-top:165px;padding-bottom:170px}.home-hero h1{font-size:clamp(42px,8vw,62px)}.hero-actions{flex-wrap:wrap}.news-band-grid{gap:6px}.news-band-tile{height:150px}.news-band-tile__overlay strong{font-size:11px}.service-feature{height:410px}.stats-grid{grid-template-columns:repeat(2,1fr);row-gap:25px}.tracking-home-grid,.tracking-grid{grid-template-columns:1fr}.tracking-home-copy{margin-bottom:-35px}.world-globe{min-height:390px}.experience-intro{grid-template-columns:1fr;gap:10px}.experience-intro__card{max-width:550px}.promise-grid{gap:9px}.promise-card{padding:20px;min-height:225px;border-radius:22px}.promise-card h3{font-size:17px}.about-intro-grid{grid-template-columns:1fr;gap:30px}.about-image-card{height:330px}.login-screen{grid-template-columns:1fr}.login-visual{min-height:410px;padding:40px}.login-visual__content img{width:115px;margin-bottom:20px}.login-visual__content h1{font-size:60px}.login-visual__bottom{bottom:22px;left:40px}.login-card-column{min-height:510px}.login-mini-brand{top:25px}}
 @media(max-width:580px){.container{width:calc(100% - 32px)}.header-inner{width:calc(100% - 35px)}.section-title{font-size:34px}.section-desc{font-size:14px}.home-hero{min-height:595px;background-position:60% center}.home-hero__content{padding-top:145px;padding-bottom:140px}.home-hero h1{font-size:clamp(35px,9vw,48px)}.home-hero__content>p:not(.section-tag){font-size:14px;max-width:350px}.hero-vertical-text{display:none}.hero-actions{align-items:stretch;flex-direction:column;max-width:235px}.hero-actions .btn{justify-content:space-between}.news-band{border-radius:19px;padding:10px}.news-band-header,.news-band-bottom{font-size:17px}.news-band-grid{grid-template-columns:1fr 1fr}.news-band-tile:last-child{display:none}.news-band-tile{height:150px}.news-band-tile__overlay{padding:35px 8px 8px}.news-band-tile__overlay strong{font-size:10px}.news-band-header a{font-size:9px}.service-tab{padding:0 4px;font-size:9px}.service-tab__icon{width:43px;height:43px;font-size:20px}.service-select:before{top:21px}.service-feature{height:420px;border-radius:22px}.service-feature__vertical{display:none}.service-feature__content{left:22px;bottom:45px;right:15px}.service-feature__content h3{font-size:30px}.service-feature__content p{font-size:13px}.stats-band{padding:29px 0}.stats-grid strong{font-size:29px}.stats-grid span{font-size:11px}.tracking-home-copy .section-title{font-size:42px}.world-globe{min-height:290px;aspect-ratio:1.13}.globe-floating-tag{font-size:8px}.tag-cr{bottom:12%!important}.experience-intro__card{padding:22px 25px}.promise-grid{grid-template-columns:1fr;gap:12px}.promise-card{min-height:170px}.faq-item>button{font-size:12px;padding:13px 14px}.faq-answer{padding:0 14px 16px}.home-last-cta__inner{align-items:flex-start;flex-direction:column}.footer-top{grid-template-columns:1fr 1fr;gap:25px}.footer-identity{grid-column:1/-1}.footer-bottom{gap:15px;flex-direction:column}.inner-hero,.inner-hero--about{height:510px}.inner-hero__copy{padding-top:155px}.inner-hero__copy h1{font-size:39px}.big-years strong{font-size:112px}.big-years span{font-size:22px}.news-featured-card,.news-featured-card:nth-child(even){grid-template-columns:1fr;direction:ltr}.news-featured-card__image{height:230px}.news-featured-card__copy{padding:25px}.red-cta__inner{flex-direction:column;align-items:flex-start}.complementary-grid,.access-grid{grid-template-columns:1fr}.complementary-card{height:315px}.access-card{height:200px}.login-visual{min-height:360px;padding:30px}.login-visual__content h1{font-size:50px}.login-visual__content img{width:105px}.login-visual__bottom{left:30px}.login-card-column{padding:95px 24px 65px;min-height:480px}.login-mini-brand{right:26px;top:28px;font-size:9px}.login-card h2{font-size:48px}.login-end{font-size:9px}.tracking-page{padding:50px 0}.tracking-copy .back-link{margin-bottom:24px}.page-shell{width:calc(100% - 32px)}.quote-top{padding-top:45px}.panel{padding:20px}.two-columns{grid-template-columns:1fr}.result-card dl>div{grid-template-columns:90px 1fr}.result-footer{align-items:stretch;flex-direction:column}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
 
@@ -94,10 +94,22 @@ html.theme-dark .app-site {
   color: #fff !important;
 }
 
-/* Texto blanco */
+/* En tema oscuro, los componentes normales conservan el blanco.
+   Los textos enriquecidos de noticias son una excepción: sus colores son
+   formatos elegidos por el editor y deben ganar sobre esta regla global.
+   :where() mantiene la especificidad original sin elevar prioridades. */
+html.theme-dark .app-site,
+html.theme-dark .app-site :not(:where(
+  .news-rich-editor__content,
+  .news-rich-editor__content *,
+  .news-article-page__formatted,
+  .news-article-page__formatted *
+)) {
+  color: #fff !important;
+}
+/* Preservar los bordes existentes; la excepción es SOLO para color. */
 html.theme-dark .app-site,
 html.theme-dark .app-site * {
-  color: #fff !important;
   border-color: #555 !important;
 }
 
@@ -129,10 +141,22 @@ html.theme-dark .app-site {
   color: #fff !important;
 }
 
-/* Texto blanco */
+/* En tema oscuro, los componentes normales conservan el blanco.
+   Los textos enriquecidos de noticias son una excepción: sus colores son
+   formatos elegidos por el editor y deben ganar sobre esta regla global.
+   :where() mantiene la especificidad original sin elevar prioridades. */
+html.theme-dark .app-site,
+html.theme-dark .app-site :not(:where(
+  .news-rich-editor__content,
+  .news-rich-editor__content *,
+  .news-article-page__formatted,
+  .news-article-page__formatted *
+)) {
+  color: #fff !important;
+}
+/* Preservar los bordes existentes; la excepción es SOLO para color. */
 html.theme-dark .app-site,
 html.theme-dark .app-site * {
-  color: #fff !important;
   border-color: #555 !important;
 }
 
@@ -164,10 +188,22 @@ html.theme-dark .app-site {
   color: #fff !important;
 }
 
-/* Texto blanco */
+/* En tema oscuro, los componentes normales conservan el blanco.
+   Los textos enriquecidos de noticias son una excepción: sus colores son
+   formatos elegidos por el editor y deben ganar sobre esta regla global.
+   :where() mantiene la especificidad original sin elevar prioridades. */
+html.theme-dark .app-site,
+html.theme-dark .app-site :not(:where(
+  .news-rich-editor__content,
+  .news-rich-editor__content *,
+  .news-article-page__formatted,
+  .news-article-page__formatted *
+)) {
+  color: #fff !important;
+}
+/* Preservar los bordes existentes; la excepción es SOLO para color. */
 html.theme-dark .app-site,
 html.theme-dark .app-site * {
-  color: #fff !important;
   border-color: #555 !important;
 }
 
@@ -1503,6 +1539,21 @@ html.theme-dark .quote-flow .quote-cargo-form button,html.theme-dark .quote-flow
 @keyframes quote-number-drift{from{background-position:0% 50%}to{background-position:100% 50%}}
 @media(prefers-reduced-motion:reduce){.quote-flow .cargo-form-section__heading>span,html.theme-dark .quote-flow .cargo-form-section__heading>span{animation:none;background-position:50% 50%!important}}
 
+/* Keep Home FAQ answers mounted: animate the panel height and opacity in
+   both directions, matching the interaction used by the About value cards. */
+.faq-answer-panel{
+  display:grid;grid-template-rows:0fr;opacity:0;visibility:hidden;
+  transition:grid-template-rows .3s ease,opacity .25s ease,visibility .3s;
+}
+.faq-answer-panel.is-open{
+  grid-template-rows:1fr;opacity:1;visibility:visible;
+  transition:grid-template-rows .3s ease,opacity .25s ease,visibility 0s;
+}
+.faq-answer-clip{min-height:0;overflow:hidden}
+@media(prefers-reduced-motion:reduce){
+  .faq-answer-panel,.faq-answer-panel.is-open{transition:none!important}
+}
+
 /* Home page FAQ glow and contact cards */
 .faq-section{overflow:hidden}
 .faq-background:after{content:"";position:absolute;top:8%;bottom:8%;left:-38%;width:66%;pointer-events:none;background:radial-gradient(ellipse at center,rgba(237,23,55,.42) 0%,rgba(190,11,41,.2) 38%,transparent 72%);filter:blur(54px);opacity:.8;animation:faq-red-diffuse 9s ease-in-out infinite alternate}
@@ -1518,10 +1569,23 @@ html.theme-dark .quote-flow .quote-cargo-form button,html.theme-dark .quote-flow
 .home-contact-card small{color:rgba(255,255,255,.88)!important;font-size:12px;line-height:1.55;overflow-wrap:anywhere}
 html.theme-dark .home-contact-details{background:#01081D!important}
 html.theme-dark .home-contact-card,html.theme-dark .home-contact-card *{color:#fff!important}
-@media(max-width:1050px){.home-contact-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:650px){.home-contact-details{padding:18px 0 55px}.home-contact-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.home-contact-card{min-height:180px;padding:20px 12px}.home-contact-card strong{font-size:12px}.home-contact-card small{font-size:11px}}
-@media(min-width:391px) and (max-width:650px){.home-contact-grid>.home-contact-card:last-child{grid-column:1/-1}}
-@media(max-width:390px){.home-contact-grid{grid-template-columns:1fr}}
+/* Center the incomplete last row: 3+2 on tablet, 2+2+1 on
+   smaller screens, while preserving five equal tiles on desktop. */
+@media(max-width:1050px){
+  .home-contact-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
+  .home-contact-grid>.home-contact-card{box-sizing:border-box;min-width:0;flex:0 0 calc((100% - 32px)/3)}
+}
+@media(max-width:650px){
+  .home-contact-details{padding:18px 0 55px}
+  .home-contact-grid{gap:11px}
+  .home-contact-grid>.home-contact-card{flex-basis:calc((100% - 11px)/2)}
+  .home-contact-card{min-height:180px;padding:20px 12px}
+  .home-contact-card strong{font-size:12px}
+  .home-contact-card small{font-size:11px}
+}
+@media(max-width:390px){
+  .home-contact-grid>.home-contact-card{flex-basis:100%}
+}
 @media(prefers-reduced-motion:reduce){.faq-background:after{animation:none;left:20%;opacity:.55}}
 
 /* Keep the FAQ photo visible in dark mode and blend the animated red glow over it. */
@@ -2607,6 +2671,8 @@ html.theme-dark .scroll-progress-button__value{stroke:#ee344e}
 .nav-dropdown__menu{position:absolute;top:calc(100% + 8px);left:0;min-width:180px;padding:7px;background:#fff;border:1px solid #f0dfe2;border-radius:13px;box-shadow:0 14px 30px #1409122b;z-index:30}
 .nav-dropdown__menu a{display:block;padding:11px 13px;border-radius:8px;color:#29232a;font-size:12px;font-weight:800;white-space:nowrap}
 .nav-dropdown__menu a:hover{background:#fff0f2;color:#b20c2a}
+.services-nav-dropdown__menu{max-height:min(72vh,520px);min-width:255px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.services-nav-dropdown__menu a{white-space:normal;line-height:1.35}
 .nav-login{display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;white-space:nowrap;background:#ad0922;border:0;padding:12px 24px;border-radius:100px;box-shadow:0 5px 20px #0002}
 .nav-login:hover{background:#cf0a2b}
 @media(max-width:1100px){.main-nav{gap:12px}.nav-dropdown__trigger{font-size:11px}.header-account-tools__controls .theme-toggle{font-size:26px}}
@@ -3107,6 +3173,7 @@ html.theme-dark .itinerary-result-status--delayed{background:#4a2029;color:#ffbe
 .services-page .complementary{padding-top:48px;padding-bottom:76px;background:#fff8f8}
 html.theme-dark .services-page .complementary{background:transparent!important}
 .services-page__digital{padding-top:76px;padding-bottom:88px}
+.services-faq{background:var(--surface,#fff);color:var(--ink,#20242b)}.services-faq__inner{max-width:1000px}.services-faq__item{padding:20px 22px;border:1px solid rgba(128,128,140,.26);border-radius:16px;background:color-mix(in srgb,var(--surface,#fff) 88%,transparent)}.services-faq__item+.services-faq__item{margin-top:10px}.services-faq__item summary{font-weight:800;cursor:pointer}.services-faq__item p{max-width:820px;margin:14px 0 0;color:var(--muted,#565b67);line-height:1.7}html.theme-dark .services-faq{--surface:#101728;--ink:#fff;--muted:#d4d6df}.services-faq__item{border-color:rgba(128,128,140,.3)}html.theme-dark .services-faq__item{background:rgba(255,255,255,.045);border-color:rgba(255,255,255,.16)}
 html.theme-dark .services-page__digital{background:transparent}
 
 /* Services page: let the cover dissolve into the transport section and keep
@@ -3495,7 +3562,7 @@ body { min-width: 0; }
 @media (max-width: 1080px) {
   .site-header { height: 72px; }
   .header-inner { width: min(100% - 38px, 1220px); gap: 14px; }
-  .site-brand img { width: 96px; }
+  .site-brand img { width: 144px; max-height: 56px; }
   .site-header .menu-toggle { display: grid; place-items: center; flex: 0 0 44px; }
   .site-header .main-nav {
     display: none; position: absolute; z-index: 50;
@@ -4268,7 +4335,7 @@ html.theme-dark .app-site.news-page .news-editorial-hero__bottomline-rule {
 /* NAV MÓVIL: al abrir hamburguesa, la barra superior y el panel usan
    exactamente el mismo rojo (también encima del hero con overlay). */
 @media (max-width: 1080px) {
-  /* The menu stays in page flow and pushes following content down. */
+  /* Fallback del encabezado compacto; Teleport aplica la capa fija sin desplazar el contenido. */
   .site-header.site-header--menu-open {
     position: relative !important;
     z-index: 1000 !important;
@@ -4842,7 +4909,10 @@ html:not(.theme-dark) .login-visual__content h1 em { color: var(--login-accent) 
 .login-visual{background-image:linear-gradient(125deg,#9c092ad9 0%,#9b0c28bf 33%,#1c174347 75%),var(--cms-login-hero,url('/images/hero.webp'))}
 .login-visual:has(>.cms-background-video){isolation:isolate;background-image:none;background-color:#1c243c}
 .login-visual:has(>.cms-background-video)::before{content:"";position:absolute;z-index:1;inset:0;background:linear-gradient(125deg,#9c092ad9,#1c174347);pointer-events:none}
-.login-visual:has(>.cms-background-video)>.login-guest-back,.login-visual:has(>.cms-background-video)>.login-visual__content,.login-visual:has(>.cms-background-video)>.login-visual__bottom{position:relative;z-index:2}
+.login-visual:has(>.cms-background-video)>.login-guest-back{position:absolute;z-index:3}
+.login-visual:has(>.cms-background-video)>.login-visual__content,.login-visual:has(>.cms-background-video)>.login-visual__bottom{position:relative;z-index:2}
+/* En pantallas compactas, Volver queda en la esquina opuesta al logo. */
+@media(max-width:800px){.login-visual .login-guest-back{top:16px;left:auto;right:clamp(18px,4vw,32px);max-width:calc(100% - 36px);white-space:nowrap}}
 .faq-section{background-image:var(--cms-faq,url('/images/operation.webp'))}
 .faq-section>.cms-background-video{z-index:0}
 .access-card--tracking{background-image:var(--cms-access-tracking,url('/images/tracking-red.webp'))}
@@ -5447,4 +5517,572 @@ html.theme-dark .content-manager .manager-form input[type="file"] {
   .app-site #servicios .home-news-sidebar__group:nth-child(n+3) {
     display: none !important;
   }
+}
+
+
+/* Submenú de Transportes: un único panel y un único desplazamiento.
+   Sin flyout lateral: no puede quedar recortado ni producir scroll horizontal.
+   Los colores e interacción funcionan en el mismo orden en Vue y Nuxt. */
+.site-header .nav-dropdown--services > .services-nav-dropdown__menu {
+  width: 292px;
+  max-width: min(320px, calc(100vw - 32px));
+  min-width: 0;
+  max-height: min(68dvh, 510px);
+  box-sizing: border-box;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+html.theme-dark .site-header .nav-dropdown--services > .services-nav-dropdown__menu {
+  position: absolute;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+.site-header .services-nav-dropdown__menu a.is-current,
+html.theme-dark .site-header .services-nav-dropdown__menu a.is-current {
+  background: #ad0922 !important;
+  color: #fff !important;
+  border-radius: 9px;
+}
+.site-header .services-transport-group {
+  position: relative;
+  min-width: 0;
+  isolation: isolate;
+}
+.site-header .services-transport-group__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 42px;
+  padding: 11px 13px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #29232a;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+.site-header .services-transport-group__trigger:is(:hover, :focus-visible),
+.site-header .services-transport-group.is-current-group > .services-transport-group__trigger {
+  background: #fff0f2;
+  color: #ad0922;
+}
+.site-header .services-transport-group__chevron {
+  flex: 0 0 16px;
+  transform: rotate(0deg);
+  transition: transform .18s ease;
+}
+.site-header .services-transport-group.is-open .services-transport-group__chevron {
+  transform: rotate(180deg);
+}
+.site-header .services-transport-group > .services-transport-group__submenu {
+  position: static !important;
+  inset: auto !important;
+  display: grid;
+  gap: 2px;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0;
+  margin: 3px 0 5px;
+  padding: 6px;
+  border: 1px solid #efd9df;
+  border-radius: 12px;
+  background: #fff7f9;
+  box-shadow: none;
+  box-sizing: border-box;
+}
+.site-header .services-transport-group__submenu a {
+  display: block;
+  padding: 10px 12px;
+  color: #29232a;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: break-word;
+  border-radius: 9px;
+}
+.site-header .services-transport-group__submenu a:is(:hover, :focus-visible) {
+  background: #ffe5ea;
+  color: #ad0922;
+}
+html.theme-dark .site-header .services-transport-group__trigger { color: #fff; }
+html.theme-dark .site-header .services-transport-group__trigger:is(:hover, :focus-visible),
+html.theme-dark .site-header .services-transport-group.is-current-group > .services-transport-group__trigger {
+  background: rgba(178,11,45,.32);
+  color: #fff;
+}
+html.theme-dark .site-header .services-transport-group > .services-transport-group__submenu {
+  background: rgba(255,255,255,.06);
+  border-color: rgba(255,255,255,.20);
+}
+html.theme-dark .site-header .services-transport-group__submenu a {
+  color: #fff;
+}
+html.theme-dark .site-header .services-transport-group__submenu a:is(:hover, :focus-visible) {
+  background: rgba(255,255,255,.13);
+  color: #fff;
+}
+/* Cuando la navegación se convierte en drawer, se desplaza SOLO el drawer.
+   Nunca dos barras internas superpuestas. */
+@media (max-width: 1080px) {
+  .site-header .nav-dropdown--services > .services-nav-dropdown__menu,
+  html.theme-dark .site-header .nav-dropdown--services > .services-nav-dropdown__menu {
+    position: static !important;
+    inset: auto !important;
+    width: calc(100% - 30px);
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 15px 8px;
+    box-sizing: border-box;
+  }
+  .site-header .services-transport-group__trigger,
+  html.theme-dark .site-header .services-transport-group__trigger { color: #fff; }
+  .site-header .services-transport-group__trigger:is(:hover, :focus-visible),
+  .site-header .services-transport-group.is-current-group > .services-transport-group__trigger {
+    color: #fff;
+    background: rgba(255,255,255,.15);
+  }
+  .site-header .services-transport-group > .services-transport-group__submenu {
+    background: rgba(255,255,255,.09);
+    border-color: rgba(255,255,255,.20);
+  }
+  .site-header .services-transport-group__submenu a,
+  html.theme-dark .site-header .services-transport-group__submenu a {
+    color: #fff !important;
+  }
+  .site-header .services-nav-dropdown__menu a.is-current,
+  html.theme-dark .site-header .services-nav-dropdown__menu a.is-current {
+    background: #ad0922 !important;
+    color: #fff !important;
+  }
+}
+
+/* Nuxt/Vite cargan los estilos scoped en orden distinto. Esta especificidad
+   asegura que el selector de idioma use el ancho real de Configuración. */
+.site-header .header-settings__panel .language-switcher.language-switcher--dropdown {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  flex: 0 1 auto !important;
+  box-sizing: border-box;
+}
+.site-header .header-settings__panel .language-switcher.language-switcher--dropdown .language-switcher__current {
+  display: flex !important;
+  justify-content: flex-start !important;
+  width: 100% !important;
+  min-width: 0;
+}
+.site-header .header-settings__panel .language-switcher.language-switcher--dropdown .language-switcher__menu {
+  display: grid !important;
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+.site-header .header-settings__panel .language-switcher__menu button {
+  min-width: 0;
+  width: 100%;
+  white-space: normal;
+}
+
+/* La hoja mobile-navigation.css mantiene el drawer lateral DERECHO en
+   teléfonos (<=800px), con su ancho y animación originales. No sobrescribirlo.
+   Solo en pantallas intermedias, de 801 a 1080px, el encabezado compacto
+   se superpone a la página sin empujar el título ni la foto de Nosotros. */
+@media (min-width: 801px) and (max-width: 1080px) {
+  html body > .site-header.site-header--menu-open {
+    position: fixed !important;
+    inset: 0 0 auto 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    min-height: 0 !important;
+    z-index: 2147483000 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    background: #9f0921 !important;
+  }
+}
+
+
+/* Admin Itinerarios: dark transport-required notice.
+   Global CSS avoids interference from the component's scoped selectors.
+   Deliberately leaves the light theme exactly as it is. */
+html.theme-dark .content-manager .manager-itinerary-location-field .manager-itinerary-hint-popover {
+  background: #2d222a !important;
+  background-color: #2d222a !important;
+  border-color: #7e4b5a !important;
+  color: #f0e7ec !important;
+  box-shadow: 0 12px 32px rgba(0,0,0,.44) !important;
+}
+html.theme-dark .content-manager .manager-itinerary-location-field .manager-itinerary-hint-popover::after {
+  background: #2d222a !important;
+  border-color: #7e4b5a !important;
+}
+html.theme-dark .content-manager .manager-itinerary-location-field .manager-itinerary-hint-popover > div,
+html.theme-dark .content-manager .manager-itinerary-location-field .manager-itinerary-hint-popover > div > span {
+  color: #f0e7ec !important;
+}
+html.theme-dark .content-manager .manager-itinerary-location-field .manager-itinerary-hint-popover strong {
+  color: #ffacb8 !important;
+}
+html.theme-dark .content-manager .manager-itinerary-location-field .manager-itinerary-hint-popover button {
+  color: #f0e7ec !important;
+}
+html.theme-dark .content-manager .manager-itinerary-location-field .manager-itinerary-hint-popover button:is(:hover,:focus-visible) {
+  color: #fff !important;
+  background: #50343f !important;
+}
+
+
+/* About hero: keep the yard photograph visible behind the experience claim.
+   The hero grows along with the intro/values flow; nothing overlaps or is
+   shifted independently. The existing light/dark fade colors stay unchanged. */
+.about-reference-page .inner-hero--about {
+  height: 480px;
+}
+.about-reference-page .inner-hero--about::after {
+  height: 23%;
+}
+.about-reference-page .about-hero__copy {
+  position: relative;
+  z-index: 2;
+}
+.about-reference-page .about-hero__copy .big-years span {
+  text-shadow: 0 2px 12px rgba(40, 8, 20, .46);
+}
+@media (max-width: 800px) {
+  .about-reference-page .inner-hero--about {
+    min-height: 405px;
+    height: auto;
+  }
+  .about-reference-page .inner-hero--about::after {
+    height: 26%;
+  }
+}
+@media (max-width: 580px) {
+  .about-reference-page .inner-hero--about {
+    min-height: 380px;
+  }
+  .about-reference-page .inner-hero--about::after {
+    height: 30%;
+  }
+}
+
+/* Carrusel visual de Servicios en modo oscuro.
+   Las fotografías son elementos <img>/<video> y se mantienen visibles encima
+   del color de respaldo, a diferencia del antiguo directorio de cajas planas. */
+html.theme-dark .app-site.services-page .services-directory{
+  background:#0b1428!important;background-color:#0b1428!important;background-image:none!important;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__intro{
+  color:#cbd2df!important;-webkit-text-fill-color:#cbd2df!important;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__categories{
+  background:#142039;border-color:#435069;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__category{
+  color:#f4f6fa;-webkit-text-fill-color:#f4f6fa;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__category.is-active{
+  background:#b20b2d;color:#fff;-webkit-text-fill-color:#fff;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__category:not(.is-active):hover{
+  background:#23304a;
+}
+html.theme-dark .app-site.services-page .services-directory a.services-directory__card,
+html.theme-dark .app-site.services-page .services-directory a.services-directory__card:is(:link,:visited){
+  background:#142239!important;background-image:none!important;border-color:#435069!important;
+  color:#f4f6fa!important;-webkit-text-fill-color:#f4f6fa!important;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__card .services-directory__card-title{
+  color:#fff!important;-webkit-text-fill-color:#fff!important;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__card .services-directory__card-cta{
+  background:#0b1428!important;border:1px solid #46536b!important;
+  color:#f4f6fa!important;-webkit-text-fill-color:#f4f6fa!important;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__card .services-directory__card-arrow{
+  background:#2b2138!important;color:#f4f6fa!important;-webkit-text-fill-color:#f4f6fa!important;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__card:is(:hover,:focus-visible){
+  border-color:#f07189!important;box-shadow:inset 0 0 0 2px rgba(240,113,137,.42)!important;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__card:is(:hover,:focus-visible) .services-directory__card-cta{
+  background:#172641!important;border-color:#64718a!important;
+  color:#fff!important;-webkit-text-fill-color:#fff!important;
+}
+html.theme-dark .app-site.services-page .services-directory .services-directory__card:is(:hover,:focus-visible) .services-directory__card-arrow{
+  background:#b20b2d!important;color:#fff!important;-webkit-text-fill-color:#fff!important;
+}
+
+/* Login OTP: use the same dark navy surfaces as the form, even when the
+   lazy-loaded Vue scoped stylesheet is injected after global CSS. */
+html.theme-dark .login-screen .login-auth-card .login-auth-feedback {
+  background: #0b1428 !important;
+  background-color: #0b1428 !important;
+  background-image: none !important;
+  border: 1px solid #435069 !important;
+  color: #f4f6fa !important;
+  -webkit-text-fill-color: #f4f6fa !important;
+}
+html.theme-dark .login-screen .login-auth-card .login-auth-feedback__copy strong {
+  color: #f4f6fa !important;
+  -webkit-text-fill-color: #f4f6fa !important;
+}
+html.theme-dark .login-screen .login-auth-card .login-auth-feedback__copy > span {
+  color: #cbd2df !important;
+  -webkit-text-fill-color: #cbd2df !important;
+}
+html.theme-dark .login-screen .login-auth-card .login-auth-feedback__copy small {
+  color: #ffa6b6 !important;
+  -webkit-text-fill-color: #ffa6b6 !important;
+}
+html.theme-dark .login-screen .login-auth-card .login-auth-feedback__icon {
+  background: #301e34 !important;
+  background-color: #301e34 !important;
+  border: 1px solid #68435a !important;
+  color: #ffa6b6 !important;
+  -webkit-text-fill-color: #ffa6b6 !important;
+}
+html.theme-dark .login-screen .login-auth-card .login-auth-sending {
+  background: #101b32 !important;
+  background-color: #101b32 !important;
+  border: 1px solid #435069 !important;
+  color: #d4dceb !important;
+  -webkit-text-fill-color: #d4dceb !important;
+}
+
+
+/* PageSpeed home accessibility: preserve the tiny decorative dots while giving
+   each actual button a >=44px hit target and a visible keyboard focus. */
+.app-site main>section.stats-band .stats-carousel-dots {
+  gap: 2px;
+  margin-top: -16px;
+}
+.app-site main>section.stats-band .stats-carousel-dots button,
+.app-site main>section.stats-band .stats-carousel-dots button.active {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  background: transparent !important;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.app-site main>section.stats-band .stats-carousel-dots button::after {
+  content: '';
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 99px;
+  background: rgba(255,255,255,.75);
+}
+.app-site main>section.stats-band .stats-carousel-dots button.active::after {
+  width: 25px;
+  background: #fff;
+}
+.app-site main>section.stats-band .stats-carousel-dots button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -4px;
+}
+/* White text on the deep red strip must not become translucent during the
+   automatic slide transition, which would weaken contrast and readability. */
+.app-site main>section.stats-band .stats-slide strong,
+.app-site main>section.stats-band .stats-slide span {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+.app-site main>section.stats-band .stat-slide-enter-active,
+.app-site main>section.stats-band .stat-slide-leave-active {
+  transition: transform .22s ease;
+}
+.app-site main>section.stats-band .stat-slide-enter-from,
+.app-site main>section.stats-band .stat-slide-leave-to {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-site main>section.stats-band .stat-slide-enter-active,
+  .app-site main>section.stats-band .stat-slide-leave-active {
+    transition: none;
+  }
+}
+/* Footer links retain their appearance, but no longer have ~20px-tall targets. */
+.site-footer .footer-top > div:not(.footer-identity) > a,
+.site-footer .footer-legal nav > a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  width: fit-content;
+  padding-block: 8px;
+}
+.site-footer .footer-legal nav { flex-wrap: wrap; }
+.site-footer .footer-legal nav > a { padding-inline: 8px; }
+
+
+/* Navigation hover-only underlines. The red current-page pill stays unchanged.
+   Keep a transparent border for stable layout; don't leave a gray rule visible
+   after switching between light and dark themes or opening a dropdown. */
+@media (min-width: 801px) {
+  .site-header .main-nav > a:not(.is-active):not(.nav-login),
+  .site-header .main-nav .nav-dropdown:not(.nav-dropdown--active) > .nav-dropdown__trigger {
+    border-bottom: 2px solid transparent !important;
+    text-decoration: none !important;
+  }
+  .site-header .main-nav > a:not(.is-active):not(.nav-login):is(:hover, :focus-visible),
+  .site-header .main-nav .nav-dropdown:not(.nav-dropdown--active) > .nav-dropdown__trigger:is(:hover, :focus-visible) {
+    border-bottom-color: rgba(255, 255, 255, .82) !important;
+  }
+}
+
+
+/* Home transport cards on intermediate laptop widths.
+   Below full desktop, the news rail moves underneath so the six service
+   tabs cannot squeeze the active description into an unreadable strip.
+   The mobile (<=800px) accordion is intentionally untouched. */
+@media (min-width:801px) and (max-width:1100px) {
+  .app-site.home-page #servicios .services-news-layout {
+    grid-template-columns:minmax(0,1fr);
+    gap:26px;
+  }
+  .app-site.home-page #servicios .service-accordion {
+    height:clamp(455px,38vw,500px);
+    min-height:clamp(455px,38vw,500px);
+  }
+  .app-site.home-page #servicios .service-accordion__item {
+    height:100%;
+  }
+}
+
+/* CSS container measurements, not device names, drive the copy scale.
+   In particular, this also covers larger windows with browser zoom. */
+@media (min-width:801px) {
+  .app-site.home-page #servicios .services-main {
+    container-type:inline-size;
+  }
+  .app-site.home-page #servicios .service-accordion__panel {
+    align-items:safe flex-end;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+  }
+  .app-site.home-page #servicios .service-accordion__copy {
+    margin-right:0;
+  }
+}
+@container (max-width:1100px) {
+  .app-site.home-page #servicios .service-accordion__panel {
+    padding:20px 15px 22px;
+  }
+  .app-site.home-page #servicios .service-accordion__copy h3 {
+    font-size:clamp(20px,2.2vw,29px);
+    line-height:1.13;
+    margin-bottom:8px;
+  }
+  .app-site.home-page #servicios .service-accordion__copy p {
+    font-size:clamp(12px,1.15vw,14px);
+    line-height:1.45;
+    margin-bottom:12px;
+  }
+  .app-site.home-page #servicios .service-accordion__copy .btn {
+    min-height:40px;
+    padding:9px 14px;
+  }
+}
+
+
+/* Laptop Home: retain the desktop services + news side-by-side composition
+   above the true stacked-layout breakpoint. The 801–1100px stacked view
+   and <=800px mobile accordion keep their existing behavior. */
+@media (min-width:1101px) and (max-width:1550px) {
+  .app-site.home-page #servicios .services-news-layout {
+    grid-template-columns:minmax(0,1fr) minmax(215px,clamp(215px,19vw,280px));
+    gap:clamp(16px,2vw,30px);
+    align-items:stretch !important;
+  }
+  .app-site.home-page #servicios .services-main { min-width:0; }
+  .app-site.home-page #servicios .home-news-sidebar {
+    min-width:0;
+    height:auto;
+    align-self:stretch;
+  }
+  .app-site.home-page #servicios .home-news-sidebar__list {
+    min-height:0;
+    flex:1 1 auto;
+  }
+  .app-site.home-page #servicios .service-accordion {
+    height:clamp(455px,38vw,500px);
+    min-height:clamp(455px,38vw,500px);
+  }
+}
+
+/* Home transport labels remain vertically anchored while cards expand.
+   The initial open card is selected before render (Home.vue); prevent
+   the collapsed trigger from participating in flex layout during resizing. */
+@media (min-width: 801px) {
+  .app-site.home-page #servicios .service-accordion__item > .service-accordion__trigger {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    align-items: center;
+    justify-content: center !important;
+  }
+  .app-site.home-page #servicios .service-accordion__item.is-open > .service-accordion__trigger {
+    width: 58px;
+  }
+  .app-site.home-page #servicios .service-accordion__trigger .service-accordion__name {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Panama warehouse route button: the global dark-theme * selector forces white
+   on nested spans/icons and gray borders, so the exception must also be global. */
+html.theme-dark .app-site.home-page .service-modal a.service-modal__route {
+  background: rgba(33, 27, 32, .78) !important;
+  border-color: rgba(255, 82, 110, .7) !important;
+  color: #ff526e !important;
+}
+html.theme-dark .app-site.home-page .service-modal a.service-modal__route span,
+html.theme-dark .app-site.home-page .service-modal a.service-modal__route svg,
+html.theme-dark .app-site.home-page .service-modal a.service-modal__route svg path {
+  color: #ff526e !important;
+}
+html.theme-dark .app-site.home-page .service-modal a.service-modal__route svg,
+html.theme-dark .app-site.home-page .service-modal a.service-modal__route svg path {
+  fill: currentColor !important;
+}
+html.theme-dark .app-site.home-page .service-modal a.service-modal__route:hover,
+html.theme-dark .app-site.home-page .service-modal a.service-modal__route:focus-visible {
+  background: rgba(52, 31, 43, .93) !important;
+  border-color: #ff526e !important;
+}
+
+/* Make the Panama warehouse label and target icon match the Benefits heading.
+   The site-wide dark-theme text rule otherwise overrides their inherited colors. */
+html.theme-dark .app-site.home-page .service-modal .service-modal__warehouse-copy strong,
+html.theme-dark .app-site.home-page .service-modal svg.service-modal__warehouse-icon,
+html.theme-dark .app-site.home-page .service-modal svg.service-modal__warehouse-icon * {
+  color: #ff526e !important;
+}
+html.theme-dark .app-site.home-page .service-modal svg.service-modal__warehouse-icon,
+html.theme-dark .app-site.home-page .service-modal svg.service-modal__warehouse-icon * {
+  stroke: #ff526e !important;
 }

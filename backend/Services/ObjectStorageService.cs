@@ -50,6 +50,34 @@ public sealed class ObjectStorageService : IDisposable
         }, ct);
     }
 
+    // S3 atomically rejects an existing object key with HTTP 412. A simple
+    // HEAD-before-PUT is not sufficient to prevent multi-host overwrite races.
+    // Backfill uses this method exclusively; ordinary uploads are unchanged.
+    public async Task<bool> UploadIfAbsentAsync(
+        string key, Stream content, long length, string mime, CancellationToken ct)
+    {
+        if (_client is null) throw new InvalidOperationException("S3 no configurado.");
+        try
+        {
+            await _client.PutObjectAsync(new PutObjectRequest
+            {
+                BucketName = Bucket,
+                Key = key,
+                InputStream = content,
+                ContentType = mime,
+                AutoCloseStream = false,
+                IfNoneMatch = "*",
+                Headers = { ContentLength = length }
+            }, ct);
+            return true;
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.PreconditionFailed)
+        {
+            // Another process already uploaded this variant; no changes made.
+            return false;
+        }
+    }
+
     public Task<GetObjectResponse> DownloadAsync(string key, CancellationToken ct,
         long? rangeStart = null, long? rangeEnd = null)
     {
@@ -58,6 +86,26 @@ public sealed class ObjectStorageService : IDisposable
         if (rangeStart is long start && rangeEnd is long end)
             request.ByteRange = new ByteRange(start, end);
         return _client.GetObjectAsync(request, ct);
+    }
+
+    // HEAD avoids streaming an entire image when deciding whether an opt-in
+    // WebP derivative exists; a missing derivative always falls back to the original.
+    public async Task<long?> TryGetSizeAsync(string key, CancellationToken ct)
+    {
+        if (_client is null) throw new InvalidOperationException("S3 no configurado.");
+        try
+        {
+            var response = await _client.GetObjectMetadataAsync(new GetObjectMetadataRequest
+            {
+                BucketName = Bucket,
+                Key = key
+            }, ct);
+            return response.ContentLength;
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
     }
 
     public async Task DeleteAsync(string key, CancellationToken ct)

@@ -1,0 +1,92 @@
+name: Dhole quote POST transport - mocked safety checks
+on:
+  pull_request:
+    branches: [main-2]
+    paths:
+      - 'backend/Services/DholeQuotePostTransport.cs'
+      - 'backend/Services/DholeOfficialQuoteDraftBuilder.cs'
+      - 'backend/Services/DholeOfficialQuoteFlatPreviewBuilder.cs'
+      - 'backend/Services/DholeOfficialDeliveryStateMachine.cs'
+      - 'backend/Services/DholeOfficialDispatchAttemptCoordinator.cs'
+      - 'backend/Models/OfficialQuoteModels.cs'
+      - 'backend/Endpoints/OfficialQuoteEndpoints.cs'
+      - 'tests/DholeOfficialDraftHarness/**'
+      - 'backend/Program.cs'
+      - 'tests/DholePostTransportHarness/**'
+      - 'scripts/dhole-post-transport-fixtures.mjs'
+      - 'scripts/dhole-temporary-manual-catalog-import.mjs'
+      - 'scripts/review-dhole-pricing-services-export.mjs'
+      - 'scripts/tests/dhole-temporary-manual-catalog-import.test.mjs'
+      - 'scripts/dhole-catalog-id-resolver.mjs'
+      - 'scripts/dhole-one-shot-ci-fixture.mjs'
+      - 'scripts/dhole-lcl-manual-preflight.mjs'
+      - 'tools/DholeOneShotQuote/**'
+      - 'scripts/dhole-rate-request-preview.mjs'
+      - 'scripts/dhole-public-rate-request-preview.mjs'
+      - 'scripts/test-dhole-official-gio-field-coverage.mjs'
+      - 'frontend/src/components/GioOperations.vue'
+      - 'frontend/src/pages/OfficialQuoteWizard.vue'
+      - 'frontend/src/lib/officialQuoteOptions.ts'
+      - 'frontend/src/lib/officialQuoteSubmissionAttempt.ts'
+      - '.github/workflows/dhole-post-transport-preflight.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mock-post-no-real-network:
+    name: Default-off quote transport mock (never contacts Dhole)
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check 103-field Dhole contract and mandatory/conditional wizard-GIO parity without network
+        run: node scripts/test-dhole-official-gio-field-coverage.mjs
+      - name: Map 12 services and 16 FTL types using only fictional manual exports
+        run: node --test scripts/tests/dhole-temporary-manual-catalog-import.test.mjs
+      - name: Validate real official web/GIO form projection into unsendable Dhole drafts
+        run: dotnet run --project tests/DholeOfficialDraftHarness/DholeOfficialDraftHarness.csproj --configuration Release
+      - name: Build five fake external quote contracts (Node, offline only)
+        run: node scripts/dhole-post-transport-fixtures.mjs "$RUNNER_TEMP/dhole-flat-fixtures.json"
+      - name: Verify fake C# POST with five JS-generated contracts; never contact Dhole
+        run: dotnet run --project tests/DholePostTransportHarness/DholePostTransportHarness.csproj --configuration Release -- "$RUNNER_TEMP/dhole-flat-fixtures.json"
+      - name: Generate a wholly fictional manual-LCL review (local file only)
+        run: node scripts/dhole-one-shot-ci-fixture.mjs "$RUNNER_TEMP/dhole-one-shot-review.json"
+      - name: Compile and preview the one-shot CLI with no network
+        run: dotnet run --project tools/DholeOneShotQuote/DholeOneShotQuote.csproj --configuration Release -- preview "$RUNNER_TEMP/dhole-one-shot-review.json"
+      - name: Reject cargo fields that previously rendered as one legacy unit (no network)
+        run: |
+          node -e 'const fs=require("node:fs");const [p,o]=process.argv.slice(1);const j=JSON.parse(fs.readFileSync(p,"utf8"));j.publishedFlatBody.sellerContext_consolidatedCargoLines=[{description:"Caja CI",packages:3,weightKg:10,lengthCm:20,widthCm:12,heightCm:8}];fs.writeFileSync(o,JSON.stringify(j));' "$RUNNER_TEMP/dhole-one-shot-review.json" "$RUNNER_TEMP/dhole-legacy-wrong-cargo.json"
+          if dotnet run --project tools/DholeOneShotQuote/DholeOneShotQuote.csproj --no-build --configuration Release -- preview "$RUNNER_TEMP/dhole-legacy-wrong-cargo.json"; then
+            echo "ERROR: historical one-unit cargo shape unexpectedly passed."
+            exit 1
+          fi
+          echo "PASS: old 1-unit zero-dimension cargo shape blocked."
+      - name: Reject an LCL amount with no verified currency (no network)
+        run: |
+          node -e 'const fs=require("node:fs");const p=process.argv[1],o=process.argv[2];const j=JSON.parse(fs.readFileSync(p,"utf8"));j.publishedFlatBody.form_cargoValue=1600;fs.writeFileSync(o,JSON.stringify(j));' "$RUNNER_TEMP/dhole-one-shot-review.json" "$RUNNER_TEMP/invalid-currencyless-review.json"
+          if dotnet run --project tools/DholeOneShotQuote/DholeOneShotQuote.csproj --no-build --configuration Release -- preview "$RUNNER_TEMP/invalid-currencyless-review.json"; then
+            echo "ERROR: Currencyless cargo value was accepted"
+            exit 1
+          fi
+          echo "PASS: unqualified cargo value rejected before any POST"
+      - name: Reject mismatched approval identity before any HTTP
+        run: |
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const [src,rv,ap]=process.argv.slice(1);const data=JSON.parse(fs.readFileSync(src,"utf8"));data.publishedFlatBody.form_cargoObservations="PRUEBA CONTROLADA AUTORIZADA. DATOS FICTICIOS.";fs.writeFileSync(rv,JSON.stringify(data));const digest=crypto.createHash("sha256").update(JSON.stringify(data.publishedFlatBody)).digest("hex");fs.writeFileSync(ap,JSON.stringify({scope:"PR274_ONE_QUOTE_LCL_OFFICIAL_DHOLE",purpose:"CONTROLLED_TEST_WITH_FICTIONAL_CONTACT",operatorApproved:true,payloadSha256:digest,approvedAtUtc:new Date().toISOString(),catalogsVerifiedAtUtc:new Date().toISOString(),quoteId:"b1111111-1111-4111-8111-111111111111"}));' "$RUNNER_TEMP/dhole-one-shot-review.json" "$RUNNER_TEMP/dhole-id-mismatch-review.json" "$RUNNER_TEMP/dhole-id-mismatch-approval.json"
+          if output=$(dotnet run --project tools/DholeOneShotQuote/DholeOneShotQuote.csproj --no-build --configuration Release -- send "$RUNNER_TEMP/dhole-id-mismatch-review.json" "$RUNNER_TEMP/dhole-id-mismatch-approval.json" 2>&1); then
+            echo "ERROR: a mismatched approval identity was accepted"
+            exit 1
+          fi
+          echo "$output" | grep -F "BLOCKED: approval and payload idempotency identities do not match."
+      - name: Prove NO ENVIAR review cannot be sent without a separate approval
+        run: |
+          if dotnet run --project tools/DholeOneShotQuote/DholeOneShotQuote.csproj --no-build --configuration Release -- send "$RUNNER_TEMP/dhole-one-shot-review.json" "$RUNNER_TEMP/nonexistent-approval.json"; then
+            echo "ERROR: One-shot test review unexpectedly sendable"
+            exit 1
+          fi
+          echo "PASS: direct send blocked for the offline review"

@@ -1,0 +1,27 @@
+# PRUEBA LOCAL AISLADA DE CATÁLOGOS DHOLE (NO PRODUCCIÓN)
+# Sólo el backend; no levanta Postgres, Redis, MongoDB ni frontend.
+# /api/dhole/catalogs/{catalog} no requiere DB, correo, CMS ni sesiones.
+# No usar compose.yaml / compose.production.yaml para esta verificación.
+name: cf-dhole-catalog-smoke
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.production
+    restart: "no"
+    env_file:
+      - .env.dhole-catalog-smoke
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://0.0.0.0:5000
+      Development__ApplySchema: "false"
+      Features__OfficialQuotesEnabled: "false"
+      DholeTracking__Enabled: "false"
+      Email__Mode: Smtp
+      # Sólo cumple el requisito de configuración. No hay conexión a ninguna BD.
+      ConnectionStrings__Postgres: "Host=127.0.0.1;Port=5432;Database=not_used;Username=not_used;Password=not_used"
+      Redis__ConnectionString: ""
+      Mongo__ConnectionString: ""
+    ports:
+      - "127.0.0.1:5517:5000"

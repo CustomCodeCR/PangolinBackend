@@ -67,7 +67,7 @@ function chromeBinary() {
   }
   throw Error('Chrome/Chromium unavailable')
 }
-async function dump(url, viewport = '1280,900') {
+async function dumpOnce(url, viewport) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(),'cf-news-test-'))
   return new Promise((resolve,reject) => {
     const chrome = spawn(chromeBinary(),[
@@ -75,18 +75,30 @@ async function dump(url, viewport = '1280,900') {
       '--disable-background-networking','--virtual-time-budget=11000','--window-size='+viewport,'--user-data-dir='+dir,
       '--dump-dom',url
     ],{stdio:['ignore','pipe','pipe']})
-    let out='',err=''
-    const watchdog=setTimeout(()=>chrome.kill('SIGKILL'),35000)
+    let out='',err='',timedOut=false
+    // Slow shared runners can exceed the old 35s cap before Chrome is ready.
+    // Do not weaken any DOM assertions: only retry process-launch failures.
+    const watchdog=setTimeout(()=>{timedOut=true;chrome.kill('SIGKILL')},60000)
     chrome.stdout.on('data',b=>{out+=b})
-    chrome.stderr.on('data',b=>{if(err.length<3000)err+=b})
+    chrome.stderr.on('data',b=>{err=(err+b.toString()).slice(-3000)})
     chrome.on('error',reject)
     chrome.on('close',code=>{
       clearTimeout(watchdog)
-      fs.rmSync(dir,{recursive:true,force:true})
-      if(code!==0)reject(Error('Chrome exited '+code+' '+err.slice(-500)))
+      try { fs.rmSync(dir,{recursive:true,force:true,maxRetries:5,retryDelay:200}) }
+      catch(e) { console.warn('Could not remove test Chrome profile:',e.code) }
+      if(code!==0) reject(Error((timedOut ? 'Chrome startup timed out' : 'Chrome exited '+code) +
+        ' [last stderr] ' + err.slice(-800)))
       else resolve(out)
     })
   })
+}
+async function dump(url, viewport = '1280,900') {
+  try { return await dumpOnce(url, viewport) }
+  catch(error) {
+    if (!/Chrome (?:startup timed out|exited)/.test(String(error.message))) throw error
+    console.warn('Chrome process failed on shared CI runner; retrying once with fresh profile:',error.message)
+    return dumpOnce(url, viewport)
+  }
 }
 async function main(){
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve)})

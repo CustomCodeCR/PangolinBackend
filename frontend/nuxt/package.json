@@ -1,0 +1,35 @@
+{
+  "name": "pangolin-nuxt-public",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/stage-public.mjs",
+    "dev": "nuxt dev --host 0.0.0.0",
+    "prebuild": "node scripts/stage-public.mjs",
+    "postbuild": "node scripts/check-service-videos.mjs",
+    "build": "nuxt build",
+    "preview": "nuxt preview --host 0.0.0.0",
+    "start": "node .output/server/index.mjs",
+    "check": "node scripts/check-contract.mjs",
+    "test:ssr-news": "node scripts/test-news-ssr.mjs"
+  },
+  "dependencies": {
+    "@lucide/vue": "^1.56.0",
+    "@microsoft/signalr": "^10.0.11",
+    "d3-geo": "3.1.1",
+    "driver.js": "^1.10.1",
+    "embla-carousel": "^8.6.0",
+    "nuxt": "^4.0.0",
+    "topojson-client": "3.1.0",
+    "vue": "^3.5.0",
+    "vue-i18n": "^11.4.23",
+    "vue-router": "^4.5.0",
+    "world-atlas": "2.0.2",
+    "ws": "^8.22.0"
+  },
+  "overrides": {
+    "readdir-glob": {
+      "minimatch": "11.0.9"
+    }
+  }
+}

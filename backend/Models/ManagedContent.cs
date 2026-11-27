@@ -12,6 +12,9 @@ public sealed class ManagedNews
     public string Author { get; set; } = "";
     public DateTime? PublishedAt { get; set; }
     public DateTime? ExpiresAt { get; set; }
+    // La URL se fija en la primera publicación y no cambia al editar el titular.
+    public string? Slug { get; set; }
+    public DateTime? ContentModifiedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

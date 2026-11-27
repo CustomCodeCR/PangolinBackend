@@ -4,8 +4,8 @@ namespace CastroFallas.MiniQuote.Api.Models;
 public sealed class OfficialQuoteRequest
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid ClienteId { get; set; }
-    public Guid UsuarioId { get; set; }
+    public Guid? ClienteId { get; set; }
+    public Guid? UsuarioId { get; set; }
     public string CustomerName { get; set; } = "";
     public string ContactName { get; set; } = "";
     public string ContactEmail { get; set; } = "";
@@ -22,7 +22,62 @@ public sealed class OfficialQuoteRequest
     public DateTime? AuthorizedAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+    // Administrative removal is reversible at database level and never destroys
+    // quote, audit, idempotency or any external-delivery evidence.
+    public DateTime? ArchivedAtUtc { get; set; }
+    public Guid? ArchivedById { get; set; }
 }
+// Completely separate table, queried only when creation idempotency is opted in.
+// This avoids changing the historic official quote schema while the flag is OFF.
+public sealed class OfficialQuoteClientSubmission
+{
+    public Guid SubmissionKey { get; set; }
+    public Guid QuoteId { get; set; }
+    public string RequestDigest { get; set; } = "";
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+// Creation-time outbox for validated Dhole-backed official submissions.
+// Independent of administrative approval. Never contains duplicated PII or a payload.
+// No worker or sender consumes these records yet.
+public sealed class OfficialQuoteDholeCreationOutbox
+{
+    public Guid QuoteId { get; set; }
+    public string IdempotencyKey { get; set; } = "";
+    public string State { get; set; } = "PendingDispatch";
+    public string Priority { get; set; } = "Green";
+    public int AttemptCount { get; set; }
+    public Guid? ProviderReferenceCandidate { get; set; }
+    public DateTime? CreationReceiptAcceptedAtUtc { get; set; }
+    public DateTime? ConfirmationEmailClaimedAtUtc { get; set; }
+    public DateTime? ConfirmationEmailAcceptedAtUtc { get; set; }
+    public string? ConfirmationEmailErrorCode { get; set; }
+    public string? ExternalReference { get; set; }
+    public string? LastErrorCode { get; set; }
+    public DateTime? LastAttemptAtUtc { get; set; }
+    public DateTime? VerifiedAtUtc { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+// An approved quote is staged for a future, separately authorized Dhole API.
+// An outbox row does NOT imply any remote request was made.
+public sealed class OfficialQuoteDholeOutbox
+{
+    public Guid QuoteId { get; set; }
+    public Guid? ApprovedById { get; set; }
+    public string State { get; set; } = "AwaitingConnector";
+    // Provisional admin-selected priority for the future connector; Green by default.
+    public string Priority { get; set; } = "Green";
+    public int AttemptCount { get; set; }
+    public string? ExternalReference { get; set; }
+    public string? LastErrorCode { get; set; }
+    public DateTime? LastAttemptAtUtc { get; set; }
+    public DateTime? SentAtUtc { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
 public sealed class OfficialQuoteLocation
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -58,7 +113,9 @@ public sealed record OfficialContainerInput(
     string? Size, string? Type, int? Quantity, List<decimal>? UnitWeightsKg);
 public sealed record OfficialPackageInput(
     string? Description, int? Quantity, decimal? Weight,
-    decimal? Length, decimal? Width, decimal? Height, string? Stackability);
+    decimal? Length, decimal? Width, decimal? Height, string? Stackability,
+    // Explicit Dhole category: legacy quotes may omit it; never infer from description.
+    string? UnitType = null);
 public sealed record OfficialQuoteSubmit(
     string? Mode, string? ShipmentType,
     Guid? OriginLocationId, Guid? DestinationLocationId, Guid? PodLocationId,
@@ -71,5 +128,9 @@ public sealed record OfficialQuoteSubmit(
     decimal? CargoValue, decimal? DeclaredWeight, int? DeclaredPackages,
     string? Observations, List<string>? CargoFlags,
     string? DestinationHandling,
-    string? DeliveryAddress = null, string? PickupAddress = null, int? FiscalStorageDays = null);
+    string? DeliveryAddress = null, string? PickupAddress = null, int? FiscalStorageDays = null,
+    string? CatalogSource = null,
+    // ISO 4217 code entered by the customer. NEVER assume a Dhole currency
+    // UUID from this code; a later authenticated lookup must verify the ID.
+    string? CargoCurrencyCode = null);
 public sealed record OfficialReviewUpdate(string? Status, string? Comment);

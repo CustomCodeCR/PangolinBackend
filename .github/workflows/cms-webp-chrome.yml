@@ -1,0 +1,71 @@
+name: CMS News WebP in Chrome (isolated opt-in/on-off)
+
+on:
+  pull_request:
+    branches: [main-2, main]
+    paths:
+      - frontend/src/components/StaticOptimizedImage.vue
+      - frontend/src/cmsResponsiveImages.ts
+      - frontend/src/pages/News.vue
+      - frontend/src/Home.vue
+      - frontend/scripts/smoke-cms-webp-browser.cjs
+      - frontend/scripts/smoke-cms-webp-screenshots.py
+      - .github/workflows/cms-webp-chrome.yml
+
+permissions:
+  contents: read
+
+jobs:
+  chrome-cms-news:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        enabled: ['false', 'true']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Verify Chrome is installed
+        run: |
+          if command -v google-chrome >/dev/null; then
+            google-chrome --version
+          elif command -v chromium >/dev/null; then
+            chromium --version
+          else
+            echo 'Chrome/Chromium is required for browser smoke' >&2
+            exit 1
+          fi
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Build Vue with CMS WebP flag on or off
+        working-directory: frontend
+        env:
+          VITE_CMS_RESPONSIVE_WEBP_ENABLED: ${{ matrix.enabled }}
+        run: npm run build
+      - name: Install isolated screenshot browser driver and pixel validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/cms-screenshot-venv"
+          "$RUNNER_TEMP/cms-screenshot-venv/bin/pip" install --disable-pip-version-check selenium==4.38.0 pillow==11.3.0
+      - name: Inspect real Chrome currentSrc on mobile, desktop and missing derivative
+        working-directory: frontend
+        env:
+          CI: 'true'
+          CMS_WEBP_BROWSER_FLAG: ${{ matrix.enabled }}
+          CMS_WEBP_SCREENSHOT_PYTHON: ${{ runner.temp }}/cms-screenshot-venv/bin/python
+        run: node scripts/smoke-cms-webp-browser.cjs
+      - name: Publish fictitious News screenshots for visual review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cms-webp-news-chrome-${{ matrix.enabled }}
+          path: ${{ runner.temp }}/cms-webp-chrome-screenshots/${{ matrix.enabled }}/*.png
+          if-no-files-found: warn
+          retention-days: 14

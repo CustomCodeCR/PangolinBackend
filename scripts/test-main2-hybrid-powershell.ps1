@@ -1,0 +1,83 @@
+# Regression for Windows PowerShell 5.1; Docker and HTTP are mocked.
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+$root = Split-Path -Parent $PSScriptRoot
+$launcher = Join-Path $PSScriptRoot 'start-main2-hybrid.ps1'
+$tokens = $null
+$errors = $null
+[System.Management.Automation.Language.Parser]::ParseFile($launcher, [ref]$tokens, [ref]$errors) | Out-Null
+if ($errors.Count -gt 0) {
+    throw "El lanzador no se puede analizar en PowerShell 5.1: $($errors | Out-String)"
+}
+$source = Get-Content -Raw -Path $launcher
+if ($source.Contains('compose @files ps -q')) {
+    throw 'Se reintrodujo la consulta Compose ps -q que fallaba en Docker Desktop.'
+}
+$testEnv = Join-Path $root '.env'
+if (Test-Path $testEnv) { throw 'La prueba simulada no debe ejecutarse con .env existente.' }
+$global:MockDockerCalls = @()
+function docker {
+    param([Parameter(ValueFromRemainingArguments=$true)][string[]]$DockerArgs)
+    $global:LASTEXITCODE = 0
+    $global:MockDockerCalls += ,@($DockerArgs)
+    if ($DockerArgs.Count -gt 0 -and $DockerArgs[0] -eq 'compose') {
+        $composeText = $DockerArgs -join ' '
+        if ($composeText.Contains('config') -and $composeText.Contains('--format json')) {
+            return '{"services":{"nuxt-main2-gateway":{"ports":[{"published":"5173","host_ip":"127.0.0.1","target":80}]},"nuxt-local-gateway":{"ports":[{"published":"8083","host_ip":"127.0.0.1","target":80}]}}}'
+        }
+        # Simulate successful docker compose config / up / ps without touching the daemon.
+        return
+    }
+    if ($DockerArgs.Count -gt 0 -and $DockerArgs[0] -eq 'ps') {
+        $filterText = $DockerArgs -join ' '
+        if ($filterText.Contains('service=nuxt-main2-gateway')) { return 'fake-main2-id' }
+        if ($filterText.Contains('service=nuxt-local-gateway')) { return 'fake-alternate-id' }
+    }
+    if ($DockerArgs.Count -gt 0 -and $DockerArgs[0] -eq 'inspect') {
+        if ($DockerArgs[-1] -eq 'fake-main2-id') {
+            return '{"80/tcp":[{"HostIp":"127.0.0.1","HostPort":"5173"}]}'
+        }
+        if ($DockerArgs[-1] -eq 'fake-alternate-id') {
+            return '{"80/tcp":[{"HostIp":"127.0.0.1","HostPort":"8083"}]}'
+        }
+    }
+    throw "Llamada Docker inesperada en verificación: $($DockerArgs -join ' ')"
+}
+function Invoke-WebRequest {
+    param([string]$Uri, [switch]$UseBasicParsing, [int]$TimeoutSec)
+    if ($Uri -match '/bienvenidos$') {
+        return [pscustomobject]@{ StatusCode = 200; Content = '<html><div id="app"></div></html>' }
+    }
+    if ($Uri -match '/servicios/transporte-maritimo$') {
+        return [pscustomobject]@{ StatusCode = 200; Content = '<html><main class="service-landing-page"></main></html>' }
+    }
+    throw "URL inesperada: $Uri"
+}
+try {
+    Set-Content -Path $testEnv -Value '# Test fixture sin secretos.' -Encoding UTF8
+    & $launcher -Action verify -BindIp '127.0.0.1'
+    if ($global:MockDockerCalls.Count -ne 4) {
+        throw "Esperábamos dos consultas Docker ps y dos inspect, recibimos $($global:MockDockerCalls.Count)."
+    }
+    foreach ($call in $global:MockDockerCalls) {
+        if ($call -contains 'up' -or $call -contains 'stop' -or $call -contains 'rm' -or $call -contains 'restart') {
+            throw "La verificación intentó modificar contenedores: $($call -join ' ')"
+        }
+    }
+    Write-Host 'PASS Windows PowerShell 5.1: verificación sin reconstruir Docker.'
+
+    # Regression for the FULL -Action up path: previously threw on undefined probeIp
+    # after successfully building and verifying real gateway bindings.
+    $global:MockDockerCalls = @()
+    & $launcher -Action up -BindIp '127.0.0.1'
+    $composeUps = @($global:MockDockerCalls | Where-Object {
+        ($_[0] -eq 'compose') -and ($_ -contains 'up')
+    })
+    if ($composeUps.Count -ne 3) {
+        throw "Se esperaban 3 comandos docker compose up simulados, se recibieron $($composeUps.Count)."
+    }
+    Write-Host 'PASS Windows PowerShell 5.1: -Action up completo con Docker simulado.'
+} finally {
+    Remove-Item -Path $testEnv -ErrorAction SilentlyContinue
+    Remove-Variable -Scope Global -Name MockDockerCalls -ErrorAction SilentlyContinue
+}

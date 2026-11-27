@@ -51,7 +51,7 @@ check('embla-carousel' in json.loads(read('frontend/package.json'))['dependencie
 check('node_modules/embla-carousel' in json.loads(read('frontend/package-lock.json'))['packages'], 'Lockfile actualizado para carrusel')
 check("if(path==='/servicios') return 'services'" in rootvue and '<Services v-else-if' in rootvue, 'Nueva página Servicios registrada y conservada con autenticación')
 check("url: '/servicios'" in header and 'logoutSession' in header, 'Menú actualizado sin perder logout')
-check('EmblaCarousel' in read('frontend/src/pages/News.vue') and 'news-article-modal' in read('frontend/src/pages/News.vue'), 'Nueva página Noticias y modal disponible')
+check('EmblaCarousel' in read('frontend/src/pages/News.vue') and ('news-article-modal' in read('frontend/src/pages/News.vue') or ('news-article-page' in read('frontend/src/pages/News.vue') and 'articlePath' in read('frontend/src/pages/News.vue'))), 'Página de Noticias conserva carrusel y lectura de artículos (modal o página completa)')
 check((root/'frontend/src/pages/Services.vue').is_file(), 'Página Servicios incluida')
 check('selectTransport' in read('frontend/src/pages/Itinerary.vue'), 'Mejoras de transporte incorporadas')
 # Protección frente a las regresiones introducidas por la integración del frontend.
@@ -59,8 +59,10 @@ itinerary = read('frontend/src/pages/Itinerary.vue')
 date_inputs = re.findall(r'<input\s+v-model="item\.(closing|etd|eta)"\s+type="date"', itinerary)
 check(len(date_inputs) == 3 and set(date_inputs) == {'closing', 'etd', 'eta'}
       and not any(stale in itinerary for stale in
-                  ('closingDesde', 'closingHasta', 'etdDesde', 'etdHasta', 'etaDesde', 'etaHasta')),
-      'Itinerarios: exactamente un Closing, ETD y ETA; no hay fechas duplicadas')
+                  ('closingDesde', 'closingHasta', 'etdHasta', 'etaDesde', 'etaHasta')),
+      'Itinerarios: exactamente un Closing, ETD y ETA; sin controles de fecha duplicados')
+check("params.get('etdDesde')" in itinerary and "filters.set('etdDesde', earliestDeparture.value)" in itinerary,
+      'Itinerarios: traspaso de ETD desde GIO sin duplicar la casilla ETD')
 check("['closing', 'etd', 'eta'] as const" in itinerary and
       "filters.set(key, f[key])" in itinerary and
       all(exact in program for exact in ('DateOnly? closing', 'DateOnly? etd', 'DateOnly? eta')),
@@ -186,24 +188,32 @@ check("import { Anchor } from '@lucide/vue'" in app
       and 'fill: none !important;' in shared_mobile_styles,
       'Cuatro íconos de cotización blancos, sin emoji azul y con SVG monócromo')
 legal_page = read('frontend/src/pages/Legal.vue')
-check('type LegalDocument = { title: string; intro: string; sections: LegalSection[] }' in legal_page
+# The published legal documents were converted from a provisional draft format
+# to complete ES/EN entries. Verify routes, sections, contact/identity and notices
+# instead of requiring obsolete intro fields or old provisional wording.
+check('type LegalDocument = { title: string; sections: LegalSection[] }' in legal_page
       and 'class="legal-draft"' not in legal_page
       and 'content.draft' not in legal_page
       and 'Borrador para revisión' not in legal_page
       and 'Working draft' not in legal_page
       and 'Este borrador' not in legal_page
       and 'This draft' not in legal_page
-      and legal_page.count('sections: [') == 8
+      and legal_page.count('"sections": [') == 8
       and all(title in legal_page for title in [
-          'Política de privacidad', 'Términos y condiciones',
+          'Política de privacidad', 'Términos y condiciones de uso',
           'Política de cookies y almacenamiento local', 'Créditos y licencias',
-          'Privacy policy', 'Terms and conditions',
-          'Cookie and local storage policy', 'Credits and licenses'
+          'Privacy Policy', 'Terms and Conditions of Use',
+          'Cookie and Local Storage Policy', 'Credits and Licenses'
       ])
+      and 'Aduanera Castro Fallas S.A.' in legal_page
+      and '3-101-035767' in legal_page
+      and 'comercial@castrofallas.com' in legal_page
+      and '<section v-for="(section, index) in content.sections"' in legal_page
       and '.legal-draft' not in shared_mobile_styles
-      and 'La razón social, cédula jurídica y domicilio' in legal_page
-      and '/licenses/globe-third-party-notices.txt' in legal_page and (root / 'frontend/public/licenses/globe-third-party-notices.txt').is_file(),
-      'Páginas legales ES/EN sin aviso de borrador y con advertencias de datos por confirmar')
+      and '/licenses/globe-third-party-notices.txt' in legal_page
+      and (root / 'frontend/public/licenses/globe-third-party-notices.txt').is_file(),
+      'Páginas legales ES/EN: ocho documentos, identidad, contacto y licencias, sin borradores')
+
 check('class="container quote-access-status quote-access-status--blocked"' in rootvue
       and rootvue.count('class="container quote-access-status quote-access-status--blocked"') == (3 if 'trackingSessionRequiredHelp' in rootvue else 2)
       and ('trackingSessionRequiredHelp' not in rootvue or "page==='tracking' && trackingAccess !== 'allowed'" in rootvue)
@@ -341,4 +351,53 @@ check('localOutbox' not in login and 'news-editorial-hero__sidebar' in read('fro
       'Estilos nuevos y login sin aviso incorrecto de LocalOutbox')
 check('5500' in read('frontend/src/pages/News.vue'), 'Carrusel más rápido de frontend 8 conservado')
 check('VITE_API_PROXY_TARGET' in read('frontend/vite.config.ts'), 'Proxy Docker conservado')
+# Verifica coordenadas ilustrativas y correspondencias con el catálogo oficial de Cotizaciones.
+import subprocess
+subprocess.run([sys.executable, str(root / 'scripts/verify-tracking-ports.py')], check=True)
+# Contracto de producción: se debe respetar lo que ya funciona en main.
+prod_workflow = read('.github/workflows/pangolin-images.yml')
+prod_compose = read('deploy/docker-compose.images.yml')
+news_migration = read('backend/Database/CmsNewsMetadataMigration.sql')
+check('VITE_OFFICIAL_QUOTES_ENABLED=true' in prod_workflow
+      and 'Features__OfficialQuotesEnabled: "true"' in prod_compose
+      and all(name in prod_workflow for name in (
+          '/app/Database/OfficialQuotesSchema.sql',
+          '/app/Database/OfficialQuotesVerifiedLocations.sql',
+          '/app/Database/OfficialQuotesVideoLocations.sql',
+          'ready_roles', 'required_tables')),
+      'Produccion preserva cotizaciones oficiales habilitadas y el catalogo aprobado de main')
+check('Security__AdditionalPublicOrigin:' in prod_compose
+      and 'PANGOLIN_TRAEFIK_ENABLED: "true"' in prod_workflow
+      and 'Cross-site POST Origin correctly rejected.' in prod_workflow,
+      'Produccion conserva dominio WWW, validacion Origin y dominio raiz independiente')
+check('pg_dump -Fc' in prod_workflow
+      and 'pg_restore --list' in prod_workflow
+      and 'pg_restore --list' in prod_workflow.split('Apply additive CMS news metadata migration')[0]
+      and prod_workflow.index('pg_dump -Fc') < prod_workflow.index('Initialize base schema')
+      and prod_workflow.index('Apply additive CMS news metadata migration') < prod_workflow.index('Deploy backend and frontend'),
+      'Backup privado validado precede a cualquier migracion y al reinicio de produccion')
+check(all(token in news_migration for token in (
+          'ADD COLUMN IF NOT EXISTS author VARCHAR(160)',
+          'ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ',
+          'ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ NULL',
+          'WHERE published = TRUE AND published_at IS NULL',
+          "SET LOCAL lock_timeout = '5s'"))
+      and 'CmsNewsMetadataMigration.sql' in prod_workflow
+      and 'CmsNewsPermalinksMigration.sql' in prod_workflow
+      and prod_workflow.index('/app/Database/CmsNewsMetadataMigration.sql') < prod_workflow.index('/app/Database/CmsNewsPermalinksMigration.sql') < prod_workflow.index('Deploy backend and frontend')
+      and "column_name IN ('author','published_at','expires_at','slug','content_modified_at')" in prod_workflow
+      and 'ADD COLUMN IF NOT EXISTS slug VARCHAR(240) NULL' in read('backend/Database/CmsNewsPermalinksMigration.sql')
+      and 'ADD COLUMN IF NOT EXISTS content_modified_at TIMESTAMPTZ NULL' in read('backend/Database/CmsNewsPermalinksMigration.sql')
+      and 'scripts/test-cms-news-production-migration.sh' in read('.github/workflows/ci.yml')
+      and '$base/noticias' in prod_workflow
+      and '/api/content/news' in prod_workflow
+      and 'x.ExpiresAt' in read('backend/Services/ContentEndpoints.cs')
+      and 'scripts/test-cms-news-migration.py' in read('.github/workflows/integration-check.yml'),
+      'Migracion CMS aditiva, idempotente, probada por CI y aplicada antes de reiniciar')
+check('DholeTracking__Enabled: "${PANGOLIN_DHOLE_TRACKING_ENABLED:-false}"' in prod_compose
+      and 'DholeTracking__ApiKey: "${PANGOLIN_DHOLE_TRACKING_API_KEY:-}"' in prod_compose
+      and 'PANGOLIN_DHOLE_TRACKING_API_KEY' in prod_workflow
+      and 'Production tracking enabled without private API key' in prod_workflow,
+      'Dynamics desactivado por defecto, secreto privado y guardia de despliegue')
+
 print('Comprobaciones estáticas de integración finalizadas.')

@@ -130,6 +130,8 @@ public static class DholeTrackingEndpoints
                     mode = GetFormatted(item, "new_transporte"),
                     portOfLoading = GetFormatted(item, "new_pol"),
                     portOfEntry = GetFormatted(item, "new_poe"),
+                    // Ordered stops only if the upstream Dynamics connector explicitly supplies them.
+                    routeStops = GetRouteStops(item),
                     etd = Get(item, "new_etd1"),
                     eta = Get(item, "new_eta"),
                     vessel = Get(item, "new_barcodesalida"),
@@ -175,6 +177,24 @@ public static class DholeTrackingEndpoints
             return Results.Json(new { code = "tracking_bad_response", error = "Respuesta inesperada." },
                 statusCode: StatusCodes.Status502BadGateway);
         }
+    }
+
+    private static string[] GetRouteStops(JsonElement item)
+    {
+        // No intermediate location is inferred from a status or an unrelated field.
+        // A missing explicit list means the visual route uses only the supplied
+        // origin, ports, and destination.
+        if (!item.TryGetProperty("routeStops", out var routeStops) ||
+            routeStops.ValueKind != JsonValueKind.Array)
+            return Array.Empty<string>();
+
+        return routeStops.EnumerateArray()
+            .Where(stop => stop.ValueKind == JsonValueKind.String)
+            .Select(stop => stop.GetString()?.Trim())
+            .Where(stop => !string.IsNullOrWhiteSpace(stop))
+            .Take(20)
+            .Select(stop => stop!.Length > 160 ? stop[..160] : stop)
+            .ToArray();
     }
 
     private static string? Get(JsonElement item, string key)

@@ -9,6 +9,9 @@ export type ManagedNews = {
   author?: string
   publishedAt?: string | null
   expiresAt?: string | null
+  // Read-only metadata supplied by the CMS. Saving ignores client slug edits.
+  slug?: string | null
+  contentModifiedAt?: string | null
 }
 
 export type ManagedItinerary = {

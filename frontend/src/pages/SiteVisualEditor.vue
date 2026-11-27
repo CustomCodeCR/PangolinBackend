@@ -5,12 +5,14 @@ import { authState } from '../services/auth'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import { subscribeToChanges } from '../services/realtime'
 import i18n from '../i18n'
-import { siteSlotCatalog, type EditableSiteSlot, type SiteSlotDefinition } from '../siteCms'
+import { siteSlotCatalog } from '../siteCmsCatalog'
+import type { EditableSiteSlot, SiteSlotDefinition } from '../siteCms'
 import type { ManagedMedia } from '../adminContent'
 
 const page = ref('home')
 const query = ref('')
 const typeFilter = ref<'all' | 'media' | 'text'>('all')
+const serviceFilter = ref('')
 const previewError = reactive({ published: false, draft: false })
 const currentKey = ref('home.hero.media')
 const rows = ref<EditableSiteSlot[]>([])
@@ -46,8 +48,10 @@ const featuredVideoChoices = computed(() => media.value.filter(item =>
 const selectedFeaturedVideo = computed(() => featuredVideoChoices.value.find(item => item.id === featuredReelMediaId.value))
 const selectedFacebookVideo = computed(() => featuredVideoChoices.value.find(item => item.id === featuredFacebookMediaId.value))
 const pages = [...new Map(siteSlotCatalog.map(slot => [slot.page, { id: slot.page, label: slot.pageLabel }])).values()]
+const serviceOptions = computed(() => [...new Set(siteSlotCatalog.filter(slot => slot.page === 'details').map(slot => slot.section.split(' · ')[0]))])
 const visible = computed(() => siteSlotCatalog.filter(slot =>
   slot.page === page.value &&
+  (!serviceFilter.value || slot.section.startsWith(serviceFilter.value + ' · ')) &&
   (typeFilter.value === 'all' || slot.type === typeFilter.value) &&
   (slot.label + ' ' + slot.section + ' ' + slot.help + ' ' + slot.key + ' ' + slot.fallback).toLocaleLowerCase('es')
     .includes(query.value.trim().toLocaleLowerCase('es'))))
@@ -58,17 +62,26 @@ const selectableMedia = computed(() => media.value.filter(x => x.kind === 'Image
 const selectedMedia = computed(() => media.value.find(x => x.id === mediaId.value))
 const publishedMedia = computed(() => media.value.find(x => x.id === row.value?.publishedMediaId))
 const draftSrc = computed(() => selectedMedia.value ? previewSrc(selectedMedia.value) : selected.value.type === 'media' ? selected.value.fallback : '')
-const draftIsVideo = computed(() => selectedMedia.value?.kind.startsWith('Video') ?? false)
+const draftIsVideo = computed(() => selectedMedia.value ? selectedMedia.value.kind.startsWith('Video') : selected.value.fallbackKind === 'Video')
 const publishedSrc = computed(() => publishedMedia.value ? previewSrc(publishedMedia.value) : selected.value.fallback)
-const publishedIsVideo = computed(() => publishedMedia.value?.kind === 'Video')
-const pageHref = computed(() => ({ home: '/home', services: '/servicios', about: '/nosotros', login: '/bienvenidos', shared: '/home' } as Record<string,string>)[selected.value.page] || '/home')
+const publishedIsVideo = computed(() => publishedMedia.value ? publishedMedia.value.kind.startsWith('Video') : selected.value.fallbackKind === 'Video')
+const pageHref = computed(() => selected.value.page === 'details' ? '/servicios/' + selected.value.key.split('.')[1] : ({ home: '/home', services: '/servicios', about: '/nosotros', login: '/bienvenidos', shared: '/home' } as Record<string,string>)[selected.value.page] || '/home')
 watch([currentKey, mediaId, rows], () => { previewError.published = false; previewError.draft = false })
-const defaultCopy = computed(() => selected.value.type === 'text' ? i18n.global.t(selected.value.fallback) : '')
+const defaultCopy = computed(() => selected.value.type === 'text' ? selected.value.originalEs ?? i18n.global.t(selected.value.fallback) : '')
+const defaultCopyEn = computed(() => selected.value.type === 'text' ? selected.value.originalEn ?? '' : '')
 
 function previewSrc(item: ManagedMedia): string {
   return item.objectKey ? `/api/admin/content/media/${encodeURIComponent(item.id)}/file` : item.src
 }
+let selectionRevision = 0
+// A remote snapshot may finish after a local write or a newer remote read.
+let remoteRevision = 0
+function invalidateRemoteReads() { remoteRevision++ }
+function editorBusy() {
+  return loading.value || saving.value || savingFeaturedReel.value || savingFacebook.value
+}
 function select(slot: SiteSlotDefinition) {
+  selectionRevision++
   currentKey.value = slot.key
   const current = rows.value.find(x => x.key === slot.key)
   textEs.value = current?.draftEs ?? ''
@@ -79,7 +92,7 @@ function select(slot: SiteSlotDefinition) {
   previewError.published = false
   previewError.draft = false
 }
-watch([query, typeFilter], () => {
+watch([query, typeFilter, serviceFilter], () => {
   if (visible.value.length && !visible.value.some(slot => slot.key === currentKey.value))
     select(visible.value[0])
 })
@@ -87,10 +100,13 @@ function switchPage(next: string) {
   page.value = next
   query.value = ''
   typeFilter.value = 'all'
+  serviceFilter.value = ''
   const first = siteSlotCatalog.find(x => x.page === next)
   if (first) select(first)
 }
 async function load() {
+  if (saving.value) return
+  invalidateRemoteReads()
   loading.value = true
   try {
     if (!isLiveAdmin.value) return
@@ -133,6 +149,7 @@ async function saveFeaturedReel() {
     featuredReelError.value = 'Indicá el enlace original de Instagram para asociar el video.'
     return
   }
+  invalidateRemoteReads()
   savingFeaturedReel.value = true
   try {
     const response = await fetch('/api/admin/content/instagram-reel', {
@@ -177,6 +194,7 @@ async function uploadFeaturedReelVideo(event: Event) {
     input.value = ''
     return
   }
+  invalidateRemoteReads()
   savingFeaturedReel.value = true
   try {
     const form = new FormData()
@@ -209,6 +227,7 @@ async function saveFacebookVideo() {
     facebookError.value = 'Indicá el enlace original del video antes de seleccionar un archivo.'
     return
   }
+  invalidateRemoteReads()
   savingFacebook.value = true
   try {
     const response = await fetch('/api/admin/content/facebook-video', {
@@ -252,6 +271,7 @@ async function uploadFacebookVideo(event: Event) {
     input.value = ''
     return
   }
+  invalidateRemoteReads()
   savingFacebook.value = true
   try {
     const form = new FormData()
@@ -274,23 +294,34 @@ async function uploadFacebookVideo(event: Event) {
   }
 }
 
+function draftSnapshot(slot: SiteSlotDefinition) {
+  return slot.type === 'text'
+    ? { textEs: textEs.value, textEn: textEn.value, mediaId: null }
+    : { textEs: null, textEn: null, mediaId: mediaId.value || null }
+}
+function rememberSlot(updated: EditableSiteSlot, key: string) {
+  if (updated.key !== key) throw new Error('La respuesta no corresponde a la ubicación solicitada.')
+  rows.value = [...rows.value.filter(x => x.key !== key), updated]
+}
+async function writeDraft(key: string, draft: ReturnType<typeof draftSnapshot>) {
+  const res = await fetch(`/api/admin/content/site/${encodeURIComponent(key)}`, {
+    method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(draft)
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => null)
+    throw new Error(body?.error || `No se pudo guardar el borrador (HTTP ${res.status}).`)
+  }
+  rememberSlot(await res.json() as EditableSiteSlot, key)
+}
 async function saveDraft(): Promise<boolean> {
-  if (!isLiveAdmin.value || saving.value) return false
+  if (!isLiveAdmin.value || saving.value || loading.value) return false
+  const slot = selected.value
+  const draft = draftSnapshot(slot)
+  invalidateRemoteReads()
   saving.value = true; error.value = ''; notice.value = ''
   try {
-    const slot = selected.value
-    const res = await fetch(`/api/admin/content/site/${encodeURIComponent(slot.key)}`, {
-      method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(slot.type === 'text'
-        ? { textEs: textEs.value, textEn: textEn.value, mediaId: null }
-        : { textEs: null, textEn: null, mediaId: mediaId.value || null })
-    })
-    if (!res.ok) {
-      const body = await res.json().catch(() => null)
-      throw new Error(body?.error || `No se pudo guardar el borrador (HTTP ${res.status}).`)
-    }
-    const updated = await res.json() as EditableSiteSlot
-    rows.value = [...rows.value.filter(x => x.key !== updated.key), updated]
+    await writeDraft(slot.key, draft)
     notice.value = 'Borrador guardado. La web pública todavía no ha cambiado.'
     return true
   } catch (cause) {
@@ -299,33 +330,41 @@ async function saveDraft(): Promise<boolean> {
   } finally { saving.value = false }
 }
 async function publish() {
-  if (!(await saveDraft())) return
-  saving.value = true
+  if (!isLiveAdmin.value || saving.value || loading.value) return
+  // Freeze both the target and the user's draft before the first await.
+  // A location change or a remote refresh cannot redirect the POST.
+  const slot = selected.value
+  const draft = draftSnapshot(slot)
+  invalidateRemoteReads()
+  saving.value = true; error.value = ''; notice.value = ''
   try {
-    const res = await fetch(`/api/admin/content/site/${encodeURIComponent(selected.value.key)}/publish`, {
+    await writeDraft(slot.key, draft)
+    const res = await fetch(`/api/admin/content/site/${encodeURIComponent(slot.key)}/publish`, {
       method: 'POST', credentials: 'same-origin'
     })
     if (!res.ok) {
       const data = await res.json().catch(() => null)
       throw new Error(data?.error || `No se pudo publicar (HTTP ${res.status}).`)
     }
-    const updated = await res.json() as EditableSiteSlot
-    rows.value = [...rows.value.filter(x => x.key !== updated.key), updated]
+    rememberSlot(await res.json() as EditableSiteSlot, slot.key)
     notice.value = '¡Publicado! El cambio ya se refleja en la página correspondiente.'
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'Error publicando cambios.' }
   finally { saving.value = false }
 }
 async function restore() {
-  if (!isLiveAdmin.value || saving.value || !window.confirm('¿Restaurar el contenido original de esta ubicación en la web pública?')) return
-  saving.value = true; error.value = ''
+  if (!isLiveAdmin.value || saving.value || loading.value) return
+  const slot = selected.value
+  const revision = selectionRevision
+  if (!window.confirm('¿Restaurar el contenido original de esta ubicación en la web pública?')) return
+  invalidateRemoteReads()
+  saving.value = true; error.value = ''; notice.value = ''
   try {
-    const res = await fetch(`/api/admin/content/site/${encodeURIComponent(selected.value.key)}/restore`, {
+    const res = await fetch(`/api/admin/content/site/${encodeURIComponent(slot.key)}/restore`, {
       method: 'POST', credentials: 'same-origin'
     })
     if (!res.ok) throw new Error('No se pudo restaurar la ubicación.')
-    const updated = await res.json() as EditableSiteSlot
-    rows.value = [...rows.value.filter(x => x.key !== updated.key), updated]
-    select(selected.value)
+    rememberSlot(await res.json() as EditableSiteSlot, slot.key)
+    if (selectionRevision === revision && currentKey.value === slot.key) select(slot)
     notice.value = 'Se restauró el contenido original sin borrar archivos de MinIO.'
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'No se pudo restaurar.' }
   finally { saving.value = false }
@@ -333,7 +372,9 @@ async function restore() {
 async function upload(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
-  if (!file || !isLiveAdmin.value || !storageEnabled.value) return
+  if (!file || !isLiveAdmin.value || !storageEnabled.value || saving.value || loading.value) return
+  const slot = selected.value
+  const revision = selectionRevision
   error.value = ''; notice.value = ''
   if (!['image/png','image/jpeg','image/webp','image/gif','video/mp4','video/webm'].includes(file.type)) {
     error.value = 'Solo se permiten imágenes PNG/JPEG/WebP/GIF o videos MP4/WebM.'
@@ -343,6 +384,7 @@ async function upload(event: Event) {
     error.value = 'Archivo demasiado grande. Máximo 5 MB para imágenes o 20 MB para videos.'
     return
   }
+  invalidateRemoteReads()
   saving.value = true
   try {
     const form = new FormData()
@@ -356,13 +398,16 @@ async function upload(event: Event) {
     }
     const item = await res.json() as ManagedMedia
     media.value = [item, ...media.value]
-    mediaId.value = item.id
-    notice.value = 'Archivo subido a MinIO. Guardá y publicá esta asignación para cambiar la web.'
+    if (selectionRevision === revision && currentKey.value === slot.key) {
+      mediaId.value = item.id
+      notice.value = 'Archivo subido a MinIO. Guardá y publicá esta asignación para cambiar la web.'
+    }
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'No se pudo subir el archivo.' }
   finally { saving.value = false; input.value = '' }
 }
 async function refreshRemote() {
-  if (!isLiveAdmin.value || loading.value || saving.value) return
+  if (!isLiveAdmin.value || editorBusy()) return
+  const revision = ++remoteRevision
   try {
     const [slots, library] = await Promise.all([
       fetch('/api/admin/content/site', { credentials: 'same-origin', cache: 'no-store' }),
@@ -371,6 +416,7 @@ async function refreshRemote() {
     if (!slots.ok || !library.ok) return
     const [newRows, newMedia] = await Promise.all([slots.json(), library.json()])
     if (!Array.isArray(newRows) || !Array.isArray(newMedia)) return
+    if (revision !== remoteRevision || !isLiveAdmin.value || editorBusy()) return
     rows.value = newRows as EditableSiteSlot[]
     media.value = newMedia as ManagedMedia[]
     // No reemplazar textEs/textEn/mediaId. Podrían tener ediciones sin guardar.
@@ -387,7 +433,7 @@ onMounted(load)
     <header class="visual-editor__intro">
       <div><p class="manager-eyebrow">CONTENIDO DEL SITIO</p><h2>Editor visual</h2>
       </div>
-      <button type="button" class="visual-editor__button" @click="load" :disabled="loading">Actualizar biblioteca</button>
+      <button type="button" class="visual-editor__button" @click="load" :disabled="loading || saving">Actualizar biblioteca</button>
     </header>
     
     <section class="visual-editor__featured-reel" aria-labelledby="featured-reel-title">
@@ -421,7 +467,7 @@ onMounted(load)
               aria-label="Video original para el Reel destacado"
               :disabled="!isLiveAdmin || loading || savingFeaturedReel"
               :options="[
-                {value:'', label:'Solo enlace de Instagram (reproductor incrustado)'},
+                {value:'', label:'Solo enlace (intentará reproductor oficial de Instagram)'},
                 ...featuredVideoChoices.map(item => ({value:item.id, label:item.name}))
               ]" />
           </div>
@@ -430,7 +476,7 @@ onMounted(load)
             <input id="featured-reel-upload" type="file" accept="video/mp4,video/webm"
               :disabled="!isLiveAdmin || loading || savingFeaturedReel" @change="uploadFeaturedReelVideo" />
           </label>
-          <p v-else class="visual-editor__hint">Para subir el MP4 original necesitás activar MinIO. También podés conservar el enlace y usar el reproductor de Instagram.</p>
+          <p v-else class="visual-editor__hint">Con solo el enlace, la web intentará el reproductor oficial de Instagram. Si Instagram lo bloquea, aparecerá un enlace externo. Para reproducir de forma más fiable, asociá un video original autorizado mediante MinIO.</p>
           <video v-if="selectedFeaturedVideo" class="visual-editor__featured-video-preview"
             :key="selectedFeaturedVideo.id" :src="`/api/admin/content/media/${selectedFeaturedVideo.id}/file`"
             controls muted playsinline preload="metadata" aria-label="Vista previa del video original" />
@@ -444,10 +490,10 @@ onMounted(load)
       </form>
       <p v-if="featuredReelError" class="visual-editor__error" role="alert">{{ featuredReelError }}</p>
       <p v-if="featuredReelNotice" class="visual-editor__success" role="status">{{ featuredReelNotice }}</p>
-      <p v-if="publishedReel" class="visual-editor__featured-reel-current">Publicado: <a :href="publishedReel" target="_blank" rel="noopener noreferrer">{{ publishedReel }}</a> · {{ publishedReelMediaId ? 'Video completo (sin interfaz de Instagram)' : 'Reproductor de Instagram' }}</p>
+      <p v-if="publishedReel" class="visual-editor__featured-reel-current">Publicado: <a :href="publishedReel" target="_blank" rel="noopener noreferrer">{{ publishedReel }}</a> · {{ publishedReelMediaId ? 'Video original integrado' : 'Reproductor oficial de Instagram (sujeto a permisos)' }}</p>
       <p v-else class="visual-editor__featured-reel-current">Sin Reel elegido. La web mostrará el enlace al perfil de Instagram.</p>
       <p v-if="!isLiveAdmin" class="visual-editor__hint">Necesitás una sesión administradora real para modificar el Reel.</p>
-      <small class="visual-editor__hint">Con solo el enlace, Instagram controla el reproductor y muestra su propia interfaz. Con el video original subido, se reproduce a ancho completo dentro de la tarjeta. Usá únicamente archivos que la empresa tenga derecho a publicar.</small>
+      <small class="visual-editor__hint">Con solo pegar el enlace, el Home intentará el reproductor oficial de Instagram cuando el visitante pulse reproducir. Si la cuenta o el navegador bloquean la inserción, el Reel podrá abrirse en Instagram. Para reproducción integrada más fiable, asociá un MP4/WebM original autorizado o una URL de video válida de la API oficial de Instagram. No se extrae el video del enlace.</small>
       <div class="visual-editor__social-divider" role="separator"></div>
       <h4>Video de Facebook del Home</h4>
       <p class="visual-editor__hint">Página oficial: <a href="https://www.facebook.com/grupocastrofallas1" target="_blank" rel="noopener noreferrer">Grupo Castro Fallas en Facebook ↗</a>. Elegí un video o Reel público específico; el Home no extrae publicaciones automáticamente.</p>
@@ -505,6 +551,11 @@ onMounted(load)
       <div class="visual-editor__columns">
         <aside class="visual-editor__locations">
           <label>Buscar ubicación <input v-model="query" type="search" placeholder="Ej. Portada, servicio aéreo…" /></label>
+          <div v-if="page === 'details'" class="visual-editor__library-field">
+            <label>Elegir servicio</label>
+            <FieldDropdown v-model="serviceFilter" aria-label="Filtrar por servicio"
+              :options="[{value:'',label:'Todos los servicios'},...serviceOptions.map(item=>({value:item,label:item}))]" />
+          </div>
           <div class="visual-editor__filters" role="group" aria-label="Filtrar ubicaciones por tipo">
             <button type="button" :aria-pressed="typeFilter === 'all'" :class="{ active: typeFilter === 'all' }" @click="typeFilter = 'all'">Todos</button>
             <button type="button" :aria-pressed="typeFilter === 'media'" :class="{ active: typeFilter === 'media' }" @click="typeFilter = 'media'">Imágenes / videos</button>
@@ -528,9 +579,10 @@ onMounted(load)
             <a :href="pageHref" target="_blank" rel="noopener noreferrer">Ver página real ↗</a>
           </div>
           <template v-if="selected.type === 'text'">
-            <p class="visual-editor__hint">Texto original: {{ defaultCopy }}</p>
+            <p class="visual-editor__hint">Texto original (ES): {{ defaultCopy }}</p>
+            <p v-if="defaultCopyEn" class="visual-editor__hint">Texto original (EN): {{ defaultCopyEn }}</p>
             <label>Texto en español <textarea v-model="textEs" maxlength="1600" rows="4" :placeholder="defaultCopy" /></label>
-            <label>Texto en inglés <textarea v-model="textEn" maxlength="1600" rows="4" placeholder="Dejalo vacío para usar el texto inglés original" /></label>
+            <label>Texto en inglés <textarea v-model="textEn" maxlength="1600" rows="4" :placeholder="defaultCopyEn || 'Dejalo vacío para usar el texto inglés original'" /></label>
             <p class="visual-editor__hint">Si un idioma queda vacío, se mostrará el texto original traducido de la web.</p>
             <div class="visual-editor__text-preview"><strong>Vista previa (ES)</strong><p>{{ textEs || defaultCopy }}</p></div>
           </template>
@@ -551,7 +603,7 @@ onMounted(load)
             <div class="visual-editor__library-field">
               <label>Archivo de la biblioteca de MinIO</label>
               <FieldDropdown v-model="mediaId" aria-label="Archivo de la biblioteca de MinIO" :options="[
-                { value:'', label:selected.fallback ? 'Usar imagen original de esta ubicación' : 'Sin imagen asignada' },
+                { value:'', label:selected.fallback ? 'Usar archivo original de esta ubicación' : 'Sin archivo asignado' },
                 ...selectableMedia.map(file => ({value:file.id,label:file.name + ' (' + file.kind + ')'}))
               ]" />
             </div>
@@ -633,6 +685,18 @@ html.theme-dark .visual-editor__featured-reel :is(header>a,.visual-editor__featu
 .visual-editor__library-field > label{font-size:13px;font-weight:750}
 .visual-editor__locations input,.visual-editor__details textarea,.visual-editor__details input,.visual-editor__details select{min-width:0;width:100%;padding:11px;border-radius:9px;border:1px solid #cbd1d8;font:inherit;background:white;color:#202126}
 .visual-editor__locations button{display:grid;gap:4px;text-align:left;padding:12px;border:1px solid #e1e4e9;border-radius:12px;background:#fff;color:#202126;cursor:pointer}
+/* El selector de servicios reutiliza FieldDropdown: no debe heredar la
+   cuadrícula de los botones de ubicaciones (desplazaba la flecha abajo). */
+.visual-editor .visual-editor__locations .visual-editor__library-field .cf-dropdown__trigger{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  width:100%;min-width:0;
+}
+.visual-editor .visual-editor__locations .visual-editor__library-field .cf-dropdown__value{
+  flex:1 1 auto;min-width:0;
+}
+.visual-editor .visual-editor__locations .visual-editor__library-field .cf-dropdown__chevron{
+  flex:0 0 8px;margin-left:auto;
+}
 .visual-editor__locations button.active{border-color:#a70c2b;background:rgba(168,14,24,.08)}
 .visual-editor__locations small,.visual-editor__description,.visual-editor__hint{color:#657079;font-size:12px;line-height:1.5}
 .visual-editor__slot-type{font-size:10px;color:#9c0b28;font-weight:800;text-transform:uppercase;letter-spacing:.05em}

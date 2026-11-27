@@ -1,0 +1,74 @@
+name: Frontend minimatch 11 compatibility probe (CI only)
+
+on:
+  pull_request:
+    branches: [main, main-2]
+    paths:
+      - .github/workflows/frontend-minimatch11-compatibility-probe.yml
+      - frontend/package.json
+      - frontend/package-lock.json
+
+permissions:
+  contents: read
+
+jobs:
+  minimatch-v11-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install committed dependency graph without experimental overrides
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Report dependency tree and require patched minimatch
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ls minimatch --all
+          node - <<'NODE'
+          const fs = require('node:fs')
+          const manifest = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+          const pkgs = JSON.parse(fs.readFileSync('package-lock.json','utf8')).packages
+          const expected = manifest.overrides?.minimatch
+          if (typeof expected !== 'string' || !/^11[.][0-9]+[.][0-9]+$/.test(expected) || expected === '11.0.0')
+            throw Error('Expected a pinned patched minimatch 11 release; review intentional dependency migrations separately')
+          const copies = Object.entries(pkgs).filter(([k]) => k === 'node_modules/minimatch' || k.endsWith('/node_modules/minimatch'))
+          if (copies.length < 1) throw Error('minimatch not found in committed dependency graph')
+          for (const [where, pkg] of copies) {
+            if (pkg.version !== expected) throw Error(where + ' resolved to ' + pkg.version)
+          }
+          console.log('Patched minimatch ' + expected + ' resolved in committed dependency tree')
+          NODE
+          npm audit --audit-level=high
+      - name: Compile Vue TypeScript and Vite with committed minimatch
+        working-directory: frontend
+        run: npm run build
+      - name: Save verified committed manifests for review
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: minimatch-11-verified-manifests
+          path: |
+            frontend/package.json
+            frontend/package-lock.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Run existing real Chrome route and CMS feature smokes
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/smoke-browser.cjs
+          npm run test:cms-responsive
+      - name: Confirm no changes to branch were pushed
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- frontend/package.json frontend/package-lock.json
+          echo "Committed package.json and lockfile were tested without mutation."

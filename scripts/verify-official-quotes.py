@@ -9,10 +9,18 @@ ROOT = Path(__file__).resolve().parents[1]
 api = (ROOT / "backend/Endpoints/OfficialQuoteEndpoints.cs").read_text(encoding="utf-8")
 model = (ROOT / "backend/Models/OfficialQuoteModels.cs").read_text(encoding="utf-8")
 wizard = (ROOT / "frontend/src/pages/OfficialQuoteWizard.vue").read_text(encoding="utf-8")
+gio = (ROOT / "frontend/src/components/GioOperations.vue").read_text(encoding="utf-8")
+date_helper = (ROOT / "frontend/src/lib/costaRicaDate.ts").read_text(encoding="utf-8")
 root = (ROOT / "frontend/src/Root.vue").read_text(encoding="utf-8")
 admin = (ROOT / "frontend/src/pages/ContentManager.vue").read_text(encoding="utf-8")
+quote_admin = (ROOT / "frontend/src/pages/OfficialQuoteAdmin.vue").read_text(encoding="utf-8")
+db_context = (ROOT / "backend/Data/AppDbContext.cs").read_text(encoding="utf-8")
 schema = (ROOT / "backend/Database/OfficialQuotesSchema.sql").read_text(encoding="utf-8")
 verified = (ROOT / "backend/Database/OfficialQuotesVerifiedLocations.sql").read_text(encoding="utf-8")
+release = (ROOT / ".github/workflows/pangolin-images.yml").read_text(encoding="utf-8")
+
+prod_compose = (ROOT / "deploy/docker-compose.images.yml").read_text(encoding="utf-8")
+prod_workflow = (ROOT / ".github/workflows/pangolin-images.yml").read_text(encoding="utf-8")
 
 # Contar solo filas VALUES, no ocurrencias de 'inland' en el WHERE/SELECT.
 land_rows = re.findall(
@@ -36,13 +44,100 @@ checks = {
         and "form.services.includes('Almacenamiento')" in wizard
         and "form.fiscalStorageDays" in wizard
     ),
-    "LCL exige POD": 's.ShipmentType == "LCL" && s.PodLocationId is null' in api,
+    "POD obligatorio en marítimo FCL/LCL (backend, wizard y GIO)": (
+        's.Mode == "Maritime" && (!s.PodLocationId.HasValue || s.PodLocationId == Guid.Empty)' in api
+        and "mode.value === 'Maritime' && !form.podLocationId" in wizard
+        and "values.mode === 'Maritime') result.push({key:'pod'" in gio
+        and "values.mode === 'Maritime' ? ['pod'] : []" in gio
+    ),
+    "cotizador exige fecha de hoy o posterior": (
+        'isCargoReadyDateOnOrAfterToday(form.cargoReadyDate)' in wizard
+        and ':min="earliestReadyDate"' in wizard
+    ),
+    "GIO comprueba fechas anteriores al día de hoy": (
+        "key === 'cargoReadyDate' && !isCargoReadyDateOnOrAfterToday(value)" in gio
+        and "const issue = validation(pending.key, pending.value)" in gio
+    ),
+    "día real de Costa Rica compartido": (
+        "timeZone: 'America/Costa_Rica'" in date_helper
+        and 'formatToParts(now)' in date_helper
+    ),
+    "servidor rechaza fechas pasadas": (
+        's.CargoReadyDate.Value < TodayInCostaRica()' in api
+        and 'TimeZoneInfo.FindSystemTimeZoneById("America/Costa_Rica")' in api
+        and 'Results.BadRequest(new { error = ex.Message })' in api
+    ),
     "ubicaciones por campo autorizadas": "official_quote_location_usage" in schema and "requiredUses" in api,
     "sin mapas para direcciones": "google.maps" not in wizard.lower() and "mapbox" not in wizard.lower(),
     "rollback V2 conservado": "VITE_OFFICIAL_QUOTES_ENABLED" in root and "QuoteApp" in root,
     "Cotizaciones en Contenido": "OfficialQuoteAdmin v-else-if" in admin,
     "13 ubicaciones terrestres": unique_land_rows,
+    "eliminar cotización solo desde administración": (
+        'admin.MapDelete("/{id:guid}"' in api
+        and 'if (p?.CanManage != true) return Results.Forbid();' in api
+        and "method:'DELETE'" in quote_admin
+        and "window.confirm(" in quote_admin
+        and 'v-if="permissions.canManage"' in quote_admin
+    ),
+    "eliminación administrativa conserva datos y auditoría": (
+        "ArchivedAtUtc" in model and "ArchivedById" in model
+        and 'HasColumnName("archived_at_utc")' in db_context
+        and "ADD COLUMN IF NOT EXISTS archived_at_utc" in schema
+        and "q.ArchivedAtUtc = now;" in api
+        and 'Action = "Archived"' in api
+        and "db.OfficialQuotes.Remove" not in api
+    ),
+    "bandeja y detalles excluyen cotizaciones archivadas": (
+        "Where(x => x.ArchivedAtUtc == null)" in api
+        and "x.Id == id && x.ArchivedAtUtc == null" in api
+    ),
+    "archivado protege referencias Dhole aun con flags apagados": (
+        "to_regclass('public.official_quote_dhole_creation_outbox')" in api
+        and "to_regclass('public.official_quote_dhole_outbox')" in api
+        and "quote_archive_dhole_linked" in api
+        and "Results.Conflict" in api
+    ),
     "no borrar registros": all(x not in verified.upper() for x in ("DELETE FROM", "DROP TABLE", "TRUNCATE")),
+    "backend admite invitados sin quitar privacidad": (
+        'MapGroup("/api/quotes/official");' in api
+        and '.RequireRateLimiting("public-quote")' in api
+        and 'group.MapGet("/{id:guid}"' in api
+        and '.RequireAuthorization("registered")' in api
+        and 'app.MapGroup("/api/admin/quotes/official").RequireAuthorization("admin")' in api
+    ),
+    "modelo y SQL admiten cliente/usuario opcionales": (
+        'Guid? ClienteId' in model and 'Guid? UsuarioId' in model
+        and 'ALTER COLUMN cliente_id DROP NOT NULL' in schema
+        and 'ALTER COLUMN usuario_id DROP NOT NULL' in schema
+    ),
+    "publicación activa cotizaciones oficiales": 'VITE_OFFICIAL_QUOTES_ENABLED=true' in release,
+    "preflight publica catálogo e itinerarios": (
+        "catalog_http" in release and '"$catalog_http" != "200"' in release
+        and '"items"' in release
+        and "itinerary_http" in release and '"$itinerary_http" != "200"' in release
+    ),
+    "preflight mantiene privadas las lecturas individuales": (
+        "for protected_path in '/api/quotes/official/00000000-0000-0000-0000-000000000000'" in release
+        and "'/api/admin/quotes/official/permissions/me'" in release
+        and '"$quote_http" != "401" && "$quote_http" != "403"' in release
+        and "for protected_path in '/api/quotes/official/locations" not in release
+    ),
+    "despliegue verifica migración de invitados": (
+        'nullable_columns="$(pg_query' in release and '"$nullable_columns" != "2"' in release
+        and release.index("pg_dump -Fc") < release.index("OfficialQuotesSchema.sql")
+        < release.index('nullable_columns="$(pg_query') < release.index('up -d --no-build --no-deps backend frontend')
+    ),
+
+    "frontend oficial habilitado en producción": "VITE_OFFICIAL_QUOTES_ENABLED=true" in prod_workflow,
+    "API oficial habilitada en producción": 'Features__OfficialQuotesEnabled: "true"' in prod_compose,
+    "migración y catálogo no ficticio preparados": all(
+        sql in prod_workflow for sql in
+        ("OfficialQuotesSchema.sql", "OfficialQuotesVerifiedLocations.sql",
+         "OfficialQuotesVideoLocations.sql", "--single-transaction",
+         'ready_roles" != "12"')
+    ),
+    "semillas de Development excluidas de producción": "OfficialQuotesDevelopmentLocations.sql" not in prod_workflow,
+    "prueba de autorización posterior al despliegue": "/api/admin/quotes/official/permissions/me" in prod_workflow,
 }
 for title, ok in checks.items():
     print(f"{'OK' if ok else 'ERROR'}: {title}")

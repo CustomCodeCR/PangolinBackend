@@ -75,6 +75,8 @@ export declare class CastroGlobe {
   setZoom(zoom: number): this;
   flyTo(lon: number, lat: number, options?: {instant?: boolean; zoom?: number}): this;
   project(lon: number, lat: number): {x:number; y:number; visible:boolean} | null;
+  /** Project a route point above the sphere with the same lift as drawArcs. */
+  projectElevated(lon: number, lat: number, lift?: number): {x:number; y:number; visible:boolean} | null;
   resize(): this;
   destroy(): void;
 }

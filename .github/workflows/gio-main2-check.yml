@@ -1,0 +1,78 @@
+name: GIO conversational logistics - main-2
+on:
+  pull_request:
+    branches: [main-2, main]
+    paths:
+      - "frontend/src/components/GioOperations.vue"
+      - "frontend/src/components/AssistantBot.vue"
+      - "frontend/src/pages/OfficialQuoteWizard.vue"
+      - "frontend/src/lib/officialQuoteOptions.ts"
+      - "frontend/src/lib/officialQuoteSubmissionAttempt.ts"
+      - "frontend/scripts/test-frontend-merge.cjs"
+      - "frontend/src/services/auth.ts"
+      - "backend/Services/AssistantService.cs"
+      - "backend/Endpoints/OfficialQuoteEndpoints.cs"
+      - "backend/Program.cs"
+      - "frontend/scripts/smoke-gio-workflows.cjs"
+      - "frontend/scripts/smoke-dhole-wizard.cjs"
+      - "frontend/scripts/test-official-quote-submission-attempt.cjs"
+      - ".github/workflows/gio-main2-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gio-frontend:
+    name: Compile and smoke-test GIO
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Compile backend
+        run: dotnet build backend/CastroFallas.MiniQuote.Api.csproj --configuration Release
+      - name: Install pinned frontend dependencies
+        run: npm ci --prefix frontend
+      - name: Check retry safety on HTTPS and LAN HTTP without touching Dhole
+        run: node frontend/scripts/test-official-quote-submission-attempt.cjs
+      - name: Compile TypeScript and Vue into production assets
+        run: npm run build --prefix frontend
+      - name: Verify preserved frontend integration contracts
+        run: node frontend/scripts/test-frontend-merge.cjs
+      - name: Run Chrome route smoke checks
+        run: node frontend/scripts/smoke-browser.cjs
+      - name: Exercise real GIO actions with a fake backend in Chrome
+        run: node frontend/scripts/smoke-gio-workflows.cjs
+      - name: Exercise GIO with fake Dhole UUIDs and dynamic equipment options
+        env:
+          GIO_DHOLE_MOCK: "1"
+        run: node frontend/scripts/smoke-gio-workflows.cjs
+
+  quote-wizard-browser:
+    name: Chrome quote wizard (Dhole opt-in and responsive visual)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install pinned frontend dependencies
+        run: npm ci --prefix frontend
+      - name: Exercise official quote wizard with fake Dhole and real Chrome DOM
+        run: node frontend/scripts/smoke-dhole-wizard.cjs
+      - name: Upload isolated desktop/mobile/dark review screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dhole-quote-wizard-visual
+          path: artifacts/dhole-quote-visual/
+          if-no-files-found: ignore

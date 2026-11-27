@@ -1,0 +1,84 @@
+[
+  {
+    "name": "Qingdao, China",
+    "aliases": [
+      "Qingdao"
+    ],
+    "lat": 36.0671,
+    "lon": 120.3826
+  },
+  {
+    "name": "Puerto Caldera, Costa Rica",
+    "quoteCatalogName": "Puerto Caldera, Costa Rica",
+    "aliases": [
+      "Pto. Caldera",
+      "Caldera, Costa Rica",
+      "Caldera"
+    ],
+    "lat": 9.912291,
+    "lon": -84.720318
+  },
+  {
+    "name": "Mundra, India",
+    "aliases": [
+      "Mundra"
+    ],
+    "lat": 22.74,
+    "lon": 69.7
+  },
+  {
+    "name": "Cristóbal, Panamá",
+    "quoteCatalogName": "Cristóbal, Panamá",
+    "aliases": [
+      "Cristobal",
+      "Colon, Panama"
+    ],
+    "lat": 9.35,
+    "lon": -79.9
+  },
+  {
+    "name": "San José, Costa Rica",
+    "aliases": [
+      "San Jose, Costa Rica"
+    ],
+    "lat": 9.93,
+    "lon": -84.09
+  },
+  {
+    "name": "Balboa, Panamá",
+    "quoteCatalogName": "Balboa, Panamá",
+    "aliases": [
+      "Pto. Balboa",
+      "Puerto Balboa"
+    ],
+    "lat": 8.958333,
+    "lon": -79.570833
+  },
+  {
+    "name": "Shenzhen, China",
+    "aliases": [
+      "Shenzhen"
+    ],
+    "lat": 22.483333,
+    "lon": 113.916667
+  },
+  {
+    "name": "Busan, Corea del Sur",
+    "quoteCatalogName": "Busan, Corea del Sur",
+    "aliases": [
+      "Busan, South Korea",
+      "Busan"
+    ],
+    "lat": 35.1,
+    "lon": 129.0333
+  },
+  {
+    "name": "Callao, Perú",
+    "quoteCatalogName": "Callao, Perú",
+    "aliases": [
+      "Callao"
+    ],
+    "lat": -12.0536882,
+    "lon": -77.1212778
+  }
+]

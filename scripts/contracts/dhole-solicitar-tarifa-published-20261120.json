@@ -1,0 +1,537 @@
+{
+  "name": "Solicitar tarifa",
+  "slug": "solicitar-tarifa-wjicua4",
+  "method": "POST",
+  "target": "pricing-rate-request-create",
+  "enabled": true,
+  "source": "Official Dhole API Manager export supplied 2026-11-20; snapshot, not runtime discovery",
+  "defaults": {
+    "clientName": "CLIENTE GENERICO",
+    "executiveName": "Castro Fallas"
+  },
+  "responseRoot": null,
+  "outputs": [
+    {
+      "public": "value",
+      "internal": "value",
+      "required": false
+    }
+  ],
+  "inputs": [
+    {
+      "public": "priority",
+      "internal": "priority",
+      "required": true
+    },
+    {
+      "public": "shipmentMode",
+      "internal": "shipmentMode",
+      "required": false
+    },
+    {
+      "public": "originName",
+      "internal": "originName",
+      "required": false
+    },
+    {
+      "public": "destinationName",
+      "internal": "destinationName",
+      "required": false
+    },
+    {
+      "public": "poeId",
+      "internal": "poeId",
+      "required": false
+    },
+    {
+      "public": "poeName",
+      "internal": "poeName",
+      "required": false
+    },
+    {
+      "public": "podId",
+      "internal": "podId",
+      "required": false
+    },
+    {
+      "public": "podName",
+      "internal": "podName",
+      "required": false
+    },
+    {
+      "public": "form_rateType",
+      "internal": "payload.form.rateType",
+      "required": false
+    },
+    {
+      "public": "form_modality",
+      "internal": "payload.form.modality",
+      "required": false
+    },
+    {
+      "public": "form_shipmentMode",
+      "internal": "payload.form.shipmentMode",
+      "required": false
+    },
+    {
+      "public": "form_originId",
+      "internal": "payload.form.originId",
+      "required": false
+    },
+    {
+      "public": "form_destinationId",
+      "internal": "payload.form.destinationId",
+      "required": false
+    },
+    {
+      "public": "form_podId",
+      "internal": "payload.form.podId",
+      "required": false
+    },
+    {
+      "public": "form_equipmentSize",
+      "internal": "payload.form.equipmentSize",
+      "required": false
+    },
+    {
+      "public": "form_equipmentType",
+      "internal": "payload.form.equipmentType",
+      "required": false
+    },
+    {
+      "public": "form_equipmentId",
+      "internal": "payload.form.equipmentId",
+      "required": false
+    },
+    {
+      "public": "form_equipmentQuantity",
+      "internal": "payload.form.equipmentQuantity",
+      "required": false
+    },
+    {
+      "public": "form_incotermId",
+      "internal": "payload.form.incotermId",
+      "required": false
+    },
+    {
+      "public": "form_cargoCondition",
+      "internal": "payload.form.cargoCondition",
+      "required": false
+    },
+    {
+      "public": "form_serviceIds",
+      "internal": "payload.form.serviceIds",
+      "required": false
+    },
+    {
+      "public": "form_loadDate",
+      "internal": "payload.form.loadDate",
+      "required": false
+    },
+    {
+      "public": "form_validTo",
+      "internal": "payload.form.validTo",
+      "required": false
+    },
+    {
+      "public": "form_selectedImportRateId",
+      "internal": "payload.form.selectedImportRateId",
+      "required": false
+    },
+    {
+      "public": "form_manualRate",
+      "internal": "payload.form.manualRate",
+      "required": false
+    },
+    {
+      "public": "form_clientId",
+      "internal": "payload.form.clientId",
+      "required": false
+    },
+    {
+      "public": "form_clientName",
+      "internal": "payload.form.clientName",
+      "required": false
+    },
+    {
+      "public": "form_executiveId",
+      "internal": "payload.form.executiveId",
+      "required": false
+    },
+    {
+      "public": "form_executiveName",
+      "internal": "payload.form.executiveName",
+      "required": false
+    },
+    {
+      "public": "form_idtraNumber",
+      "internal": "payload.form.idtraNumber",
+      "required": false
+    },
+    {
+      "public": "form_otherReferences",
+      "internal": "payload.form.otherReferences",
+      "required": false
+    },
+    {
+      "public": "form_pickupAddress",
+      "internal": "payload.form.pickupAddress",
+      "required": false
+    },
+    {
+      "public": "form_warehouseId",
+      "internal": "payload.form.warehouseId",
+      "required": false
+    },
+    {
+      "public": "form_pickupLatitude",
+      "internal": "payload.form.pickupLatitude",
+      "required": false
+    },
+    {
+      "public": "form_pickupLongitude",
+      "internal": "payload.form.pickupLongitude",
+      "required": false
+    },
+    {
+      "public": "form_freeDays",
+      "internal": "payload.form.freeDays",
+      "required": false
+    },
+    {
+      "public": "form_transitDays",
+      "internal": "payload.form.transitDays",
+      "required": false
+    },
+    {
+      "public": "form_agentId",
+      "internal": "payload.form.agentId",
+      "required": false
+    },
+    {
+      "public": "form_carrierId",
+      "internal": "payload.form.carrierId",
+      "required": false
+    },
+    {
+      "public": "form_currencyId",
+      "internal": "payload.form.currencyId",
+      "required": false
+    },
+    {
+      "public": "form_freightCost",
+      "internal": "payload.form.freightCost",
+      "required": false
+    },
+    {
+      "public": "form_freightSale",
+      "internal": "payload.form.freightSale",
+      "required": false
+    },
+    {
+      "public": "form_cabysSearch",
+      "internal": "payload.form.cabysSearch",
+      "required": false
+    },
+    {
+      "public": "form_cabysCode",
+      "internal": "payload.form.cabysCode",
+      "required": false
+    },
+    {
+      "public": "form_cargoDescription",
+      "internal": "payload.form.cargoDescription",
+      "required": false
+    },
+    {
+      "public": "form_cargoObservations",
+      "internal": "payload.form.cargoObservations",
+      "required": false
+    },
+    {
+      "public": "form_cargoValue",
+      "internal": "payload.form.cargoValue",
+      "required": false
+    },
+    {
+      "public": "form_cargoWeightKg",
+      "internal": "payload.form.cargoWeightKg",
+      "required": false
+    },
+    {
+      "public": "form_cargoPackages",
+      "internal": "payload.form.cargoPackages",
+      "required": false
+    },
+    {
+      "public": "form_storageDays",
+      "internal": "payload.form.storageDays",
+      "required": false
+    },
+    {
+      "public": "form_cargoPallets",
+      "internal": "payload.form.cargoPallets",
+      "required": false
+    },
+    {
+      "public": "form_cargoLengthCm",
+      "internal": "payload.form.cargoLengthCm",
+      "required": false
+    },
+    {
+      "public": "form_cargoWidthCm",
+      "internal": "payload.form.cargoWidthCm",
+      "required": false
+    },
+    {
+      "public": "form_cargoHeightCm",
+      "internal": "payload.form.cargoHeightCm",
+      "required": false
+    },
+    {
+      "public": "form_dangerousCargo",
+      "internal": "payload.form.dangerousCargo",
+      "required": false
+    },
+    {
+      "public": "form_nonStackable",
+      "internal": "payload.form.nonStackable",
+      "required": false
+    },
+    {
+      "public": "form_overweight",
+      "internal": "payload.form.overweight",
+      "required": false
+    },
+    {
+      "public": "form_merchantHaulage",
+      "internal": "payload.form.merchantHaulage",
+      "required": false
+    },
+    {
+      "public": "form_carrierHaulage",
+      "internal": "payload.form.carrierHaulage",
+      "required": false
+    },
+    {
+      "public": "form_miamiCommercialPlan",
+      "internal": "payload.form.miamiCommercialPlan",
+      "required": false
+    },
+    {
+      "public": "form_miamiWhsQty",
+      "internal": "payload.form.miamiWhsQty",
+      "required": false
+    },
+    {
+      "public": "form_miamiIncludeSed",
+      "internal": "payload.form.miamiIncludeSed",
+      "required": false
+    },
+    {
+      "public": "form_miamiSedQty",
+      "internal": "payload.form.miamiSedQty",
+      "required": false
+    },
+    {
+      "public": "form_miamiBonded",
+      "internal": "payload.form.miamiBonded",
+      "required": false
+    },
+    {
+      "public": "form_miamiDimensionInputUnit",
+      "internal": "payload.form.miamiDimensionInputUnit",
+      "required": false
+    },
+    {
+      "public": "form_miamiWeightInputUnit",
+      "internal": "payload.form.miamiWeightInputUnit",
+      "required": false
+    },
+    {
+      "public": "form_portHandlingMode",
+      "internal": "payload.form.portHandlingMode",
+      "required": false
+    },
+    {
+      "public": "form_emptyReturn",
+      "internal": "payload.form.emptyReturn",
+      "required": false
+    },
+    {
+      "public": "form_electronicSeal",
+      "internal": "payload.form.electronicSeal",
+      "required": false
+    },
+    {
+      "public": "form_manualName",
+      "internal": "payload.form.manualName",
+      "required": false
+    },
+    {
+      "public": "form_manualSection",
+      "internal": "payload.form.manualSection",
+      "required": false
+    },
+    {
+      "public": "form_manualChargeBasis",
+      "internal": "payload.form.manualChargeBasis",
+      "required": false
+    },
+    {
+      "public": "form_fclContainers",
+      "internal": "payload.form.fclContainers",
+      "required": false
+    },
+    {
+      "public": "form_landContainers",
+      "internal": "payload.form.landContainers",
+      "required": false
+    },
+    {
+      "public": "form_inlandPickupLocation_address",
+      "internal": "payload.form.inlandPickupLocation.address",
+      "required": false
+    },
+    {
+      "public": "form_inlandPickupLocation_latitude",
+      "internal": "payload.form.inlandPickupLocation.latitude",
+      "required": false
+    },
+    {
+      "public": "form_inlandPickupLocation_longitude",
+      "internal": "payload.form.inlandPickupLocation.longitude",
+      "required": false
+    },
+    {
+      "public": "form_inlandDeliveryLocation_address",
+      "internal": "payload.form.inlandDeliveryLocation.address",
+      "required": false
+    },
+    {
+      "public": "form_inlandDeliveryLocation_latitude",
+      "internal": "payload.form.inlandDeliveryLocation.latitude",
+      "required": false
+    },
+    {
+      "public": "form_inlandDeliveryLocation_longitude",
+      "internal": "payload.form.inlandDeliveryLocation.longitude",
+      "required": false
+    },
+    {
+      "public": "pickupLocations",
+      "internal": "payload.pickupLocations",
+      "required": false
+    },
+    {
+      "public": "supportEntityId",
+      "internal": "payload.supportEntityId",
+      "required": false
+    },
+    {
+      "public": "supportDocuments",
+      "internal": "payload.supportDocuments",
+      "required": false
+    },
+    {
+      "public": "requestContext_executiveName",
+      "internal": "payload.requestContext.executiveName",
+      "required": false
+    },
+    {
+      "public": "requestContext_equipmentType",
+      "internal": "payload.requestContext.equipmentType",
+      "required": false
+    },
+    {
+      "public": "requestContext_poeId",
+      "internal": "payload.requestContext.poeId",
+      "required": false
+    },
+    {
+      "public": "requestContext_poeName",
+      "internal": "payload.requestContext.poeName",
+      "required": false
+    },
+    {
+      "public": "requestContext_podId",
+      "internal": "payload.requestContext.podId",
+      "required": false
+    },
+    {
+      "public": "requestContext_podName",
+      "internal": "payload.requestContext.podName",
+      "required": false
+    },
+    {
+      "public": "requestContext_equipmentQuantity",
+      "internal": "payload.requestContext.equipmentQuantity",
+      "required": false
+    },
+    {
+      "public": "requestContext_containers",
+      "internal": "payload.requestContext.containers",
+      "required": false
+    },
+    {
+      "public": "requestContext_modality",
+      "internal": "payload.requestContext.modality",
+      "required": false
+    },
+    {
+      "public": "requestContext_incotermName",
+      "internal": "payload.requestContext.incotermName",
+      "required": false
+    },
+    {
+      "public": "sellerContext_cargoReadyDate",
+      "internal": "payload.sellerContext.cargoReadyDate",
+      "required": false
+    },
+    {
+      "public": "sellerContext_portHandlingMode",
+      "internal": "payload.sellerContext.portHandlingMode",
+      "required": false
+    },
+    {
+      "public": "sellerContext_consolidatedCargoLines",
+      "internal": "payload.sellerContext.consolidatedCargoLines",
+      "required": false
+    },
+    {
+      "public": "sellerContext_cargoVolumeUnit",
+      "internal": "payload.sellerContext.cargoVolumeUnit",
+      "required": false
+    },
+    {
+      "public": "sellerContext_cargoWeightInputUnit",
+      "internal": "payload.sellerContext.cargoWeightInputUnit",
+      "required": false
+    },
+    {
+      "public": "sellerContext_cargoDimensionInputUnit",
+      "internal": "payload.sellerContext.cargoDimensionInputUnit",
+      "required": false
+    },
+    {
+      "public": "sellerContext_cargoDimensionStorageUnit",
+      "internal": "payload.sellerContext.cargoDimensionStorageUnit",
+      "required": false
+    },
+    {
+      "public": "sellerContext_physicalVolumeCbm",
+      "internal": "payload.sellerContext.physicalVolumeCbm",
+      "required": false
+    },
+    {
+      "public": "sellerContext_billableVolumeCbm",
+      "internal": "payload.sellerContext.billableVolumeCbm",
+      "required": false
+    },
+    {
+      "public": "sellerContext_chargeableVolumeCbm",
+      "internal": "payload.sellerContext.chargeableVolumeCbm",
+      "required": false
+    }
+  ]
+}

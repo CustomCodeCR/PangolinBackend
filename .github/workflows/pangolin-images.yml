@@ -32,6 +32,7 @@ concurrency:
 jobs:
   publish:
     name: Build and publish images on GitHub-hosted runner
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.version.outputs.tag }}
@@ -61,7 +62,7 @@ jobs:
           file: ./frontend/Dockerfile
           push: true
           build-args: |
-            VITE_OFFICIAL_QUOTES_ENABLED=false
+            VITE_OFFICIAL_QUOTES_ENABLED=true
           tags: |
             ghcr.io/customcodecr/pangolinbackend/frontend:latest
             ghcr.io/customcodecr/pangolinbackend/frontend:${{ steps.version.outputs.tag }}
@@ -69,6 +70,20 @@ jobs:
             org.opencontainers.image.source=https://github.com/CustomCodeCR/PangolinBackend
           cache-from: type=gha,scope=pangolin-frontend
           cache-to: type=gha,mode=max,scope=pangolin-frontend
+
+      - name: Build and publish Pangolin Nuxt SSR
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/nuxt/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/customcodecr/pangolinbackend/nuxt:latest
+            ghcr.io/customcodecr/pangolinbackend/nuxt:${{ steps.version.outputs.tag }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/CustomCodeCR/PangolinBackend
+          cache-from: type=gha,scope=pangolin-nuxt
+          cache-to: type=gha,mode=max,scope=pangolin-nuxt
 
       - name: Build and publish Pangolin backend
         uses: docker/build-push-action@v6
@@ -88,14 +103,16 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pangolin-compose
-          path: deploy/docker-compose.images.yml
+          path: |
+            deploy/docker-compose.images.yml
+            deploy/nuxt-hybrid-gateway.conf
           if-no-files-found: error
           retention-days: 7
 
   deploy:
     name: Deploy images using existing Dhole infrastructure
     needs: publish
-    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy) }}
+    if: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy)) }}
     runs-on: [self-hosted, linux, x64, dhole]
     environment: production
     permissions:
@@ -119,9 +136,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "COMPOSE_FILE=$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml" >> "$GITHUB_ENV"
           test -r "$DHOLE_ENV_FILE"
           test -r "$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml"
+          test -r "$RUNNER_TEMP/pangolin-runtime/nuxt-hybrid-gateway.conf"
+          gateway_dir="$HOME/pangolin-release"
+          mkdir -p "$gateway_dir"
+          install -m 0644 "$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml" "$gateway_dir/docker-compose.images.yml"
+          install -m 0644 "$RUNNER_TEMP/pangolin-runtime/nuxt-hybrid-gateway.conf" "$gateway_dir/nuxt-hybrid-gateway.conf"
+          export COMPOSE_FILE="$gateway_dir/docker-compose.images.yml"
+          export PANGOLIN_GATEWAY_CONFIG_PATH="$gateway_dir/nuxt-hybrid-gateway.conf"
+          echo "COMPOSE_FILE=$COMPOSE_FILE" >> "$GITHUB_ENV"
+          echo "PANGOLIN_GATEWAY_CONFIG_PATH=$PANGOLIN_GATEWAY_CONFIG_PATH" >> "$GITHUB_ENV"
           read_var() { grep -m1 "^$1=" "$DHOLE_ENV_FILE" | cut -d= -f2- || true; }
           pgpass="$(read_var PANGOLIN_POSTGRES_PASSWORD)"
           otp="$(read_var PANGOLIN_AUTH_OTP_PEPPER)"
@@ -168,8 +193,23 @@ jobs:
               exit 1
             fi
           done
+          # Tracking is an explicit production opt-in. Never print the credential.
+          tracking_enabled="$(read_var PANGOLIN_DHOLE_TRACKING_ENABLED)"
+          case "${tracking_enabled:-false}" in
+            true)
+              if [[ -z "$(read_var PANGOLIN_DHOLE_TRACKING_API_KEY)" ]]; then
+                echo "::error::Production tracking enabled without private API key. Refusing deployment."
+                exit 1
+              fi
+              ;;
+            false|"") ;;
+            *)
+              echo "::error::PANGOLIN_DHOLE_TRACKING_ENABLED must be true or false."
+              exit 1
+              ;;
+          esac
           docker network inspect "$DHOLE_NETWORK" >/dev/null
-          docker compose --env-file "$DHOLE_ENV_FILE" -f "$RUNNER_TEMP/pangolin-runtime/docker-compose.images.yml" -p pangolin-production config --quiet
+          docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production config --quiet
 
       - name: Enforce WWW-only cutover without touching Fennec apex
         shell: bash
@@ -191,11 +231,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull precompiled frontend and backend images
+      - name: Pull all precompiled application and gateway images before database changes
         shell: bash
         run: |
           set -euo pipefail
-          docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production pull backend frontend
+          docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production pull backend frontend frontend-nuxt seo-gateway
           docker image inspect postgres:16-alpine >/dev/null 2>&1 || docker pull postgres:16-alpine
 
       - name: Provision isolated pangolin PostgreSQL role and database on Dhole postgres
@@ -234,7 +274,37 @@ jobs:
             '
           unset PGPASSWORD PANGOLIN_DB_PASSWORD
 
-      - name: Initialize Pangolin tables only for a clean database
+      - name: Backup and verify the exact target Pangolin database before migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          read_var() { grep -m1 "^$1=" "$DHOLE_ENV_FILE" | cut -d= -f2- || true; }
+          export PGHOST="$(read_var POSTGRES_HOST)"
+          export PGPORT="$(read_var POSTGRES_PORT)"
+          export PGUSER=pangolin
+          export PGPASSWORD="$(read_var PANGOLIN_POSTGRES_PASSWORD)"
+          # These are precisely the same PostgreSQL host/user/database as the production backend.
+          target="$(docker run --rm --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD postgres:16-alpine psql -X -d pangolin -Atqc "SELECT current_database() || ':' || current_user")"
+          if [[ "$target" != "pangolin:pangolin" ]]; then
+            echo "::error::Unexpected production database identity. Backup and deployment stopped."
+            exit 1
+          fi
+          backup_dir="$HOME/pangolin-backups"
+          mkdir -p "$backup_dir"
+          chmod 700 "$backup_dir"
+          backup="$(mktemp "$backup_dir/pangolin-predeploy-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX.dump")"
+          trap 'rm -f "$backup"' ERR
+          docker run --rm --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD postgres:16-alpine \
+            pg_dump -Fc --no-owner --no-acl -d pangolin > "$backup"
+          test -s "$backup"
+          docker run --rm -i postgres:16-alpine pg_restore --list < "$backup" >/dev/null
+          chmod 600 "$backup"
+          trap - ERR
+          echo "Verified private PostgreSQL backup: $backup"
+          unset PGPASSWORD
+
+      - name: Initialize base schema and prepare official quotes catalog
         shell: bash
         run: |
           set -euo pipefail
@@ -252,18 +322,83 @@ jobs:
             echo "Fresh Pangolin database: applying schema from backend image."
             {
               docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/AuthSchema.sql
-              docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/OfficialQuotesSchema.sql
             } | docker run --rm -i --network "$DHOLE_NETWORK" \
               -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD \
-              postgres:16-alpine psql -X -d pangolin --single-transaction -v ON_ERROR_STOP=1 >/dev/null
+              postgres:16-alpine psql -X -d pangolin --single-transaction -v ON_ERROR_STOP=1 -f - >/dev/null
           else
-            required="$(pg_query "SELECT COUNT(*) FROM (VALUES ('public.clientes'), ('public.usuarios'), ('public.otp_challenges'), ('public.auth_sessions'), ('public.cms_news'), ('public.cms_comments'), ('public.itinerarios'), ('public.quote_requests'), ('public.official_quote_requests')) AS t(tab) WHERE to_regclass(t.tab) IS NOT NULL")"
-            if [[ "$required" != "9" ]]; then
-              echo "::error::Existing Pangolin schema is incomplete. Backup and perform a reviewed migration."
+            required="$(pg_query "SELECT COUNT(*) FROM (VALUES ('public.clientes'), ('public.usuarios'), ('public.otp_challenges'), ('public.auth_sessions'), ('public.cms_news'), ('public.cms_comments'), ('public.itinerarios'), ('public.quote_requests')) AS t(tab) WHERE to_regclass(t.tab) IS NOT NULL")"
+            if [[ "$required" != "8" ]]; then
+              echo "::error::Existing Pangolin base schema is incomplete. Stop and perform a reviewed migration."
               exit 1
             fi
-            echo "Existing Pangolin schema verified: no migration applied."
+            echo "Existing Pangolin base schema verified; official schema will be checked and upgraded additively."
           fi
+          # Solo archivos oficiales sin datos DEV; DDL IF NOT EXISTS e INSERT ON CONFLICT.
+          # Una sola transacción, con ON_ERROR_STOP: un error impide el despliegue.
+          echo "Applying additive official quote tables and verified location catalogs."
+          {
+            docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/OfficialQuotesSchema.sql
+            docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/OfficialQuotesVerifiedLocations.sql
+            docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/OfficialQuotesVideoLocations.sql
+          } | docker run --rm -i --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD postgres:16-alpine psql -X -d pangolin --single-transaction -v ON_ERROR_STOP=1 -f - >/dev/null
+          # Verificar cada combinación usada por el asistente antes de mostrarlo al cliente.
+          ready_roles="$(pg_query "SELECT COUNT(*) FROM (VALUES
+            ('seaport','FCL','origin'),('seaport','FCL','destination'),('inland','FCL','pod'),
+            ('seaport','LCL','origin'),('seaport','LCL','destination'),('inland','LCL','pod'),
+            ('airport','AIR_LCL','origin'),('airport','AIR_LCL','destination'),
+            ('inland','FTL','origin'),('inland','FTL','destination'),
+            ('inland','LTL','origin'),('inland','LTL','destination')
+          ) AS needed(kind, shipment_type, route_role) WHERE EXISTS (
+            SELECT 1 FROM public.official_quote_locations loc
+            JOIN public.official_quote_location_usage u ON u.location_id=loc.id
+            WHERE loc.active AND loc.kind=needed.kind
+              AND u.shipment_type=needed.shipment_type AND u.route_role=needed.route_role
+          )")"
+          if [[ "$ready_roles" != "12" ]]; then
+            echo "::error::Official quote location catalog incomplete (ready roles: $ready_roles/12). Refusing to deploy."
+            exit 1
+          fi
+          required_tables="$(pg_query "SELECT COUNT(*) FROM (VALUES
+            ('public.official_quote_locations'),('public.official_quote_location_usage'),
+            ('public.official_quote_requests'),('public.official_quote_permissions'),
+            ('public.official_quote_audit')
+          ) AS t(tab) WHERE to_regclass(t.tab) IS NOT NULL")"
+          if [[ "$required_tables" != "5" ]]; then
+            echo "::error::Missing official quotes tables after migration."
+            exit 1
+          fi
+          # Invitados: si alguna columna sigue NOT NULL el nuevo backend devolvería 500
+          # al guardar una solicitud sin cuenta. Verificar antes de desplegar imágenes.
+          nullable_columns="$(pg_query "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='official_quote_requests' AND column_name IN ('cliente_id','usuario_id') AND is_nullable='YES'")"
+          if [[ "$nullable_columns" != "2" ]]; then
+            echo "::error::Guest quote columns are not nullable; refusing to deploy."
+            exit 1
+          fi
+          echo "Official quote schema, guest columns and all 12 location roles verified. No development fixtures loaded."
+          unset PGPASSWORD
+
+      - name: Apply additive CMS news metadata migration before starting new code
+        shell: bash
+        run: |
+          set -euo pipefail
+          read_var() { grep -m1 "^$1=" "$DHOLE_ENV_FILE" | cut -d= -f2- || true; }
+          export PGHOST="$(read_var POSTGRES_HOST)"
+          export PGPORT="$(read_var POSTGRES_PORT)"
+          export PGUSER=pangolin
+          export PGPASSWORD="$(read_var PANGOLIN_POSTGRES_PASSWORD)"
+          # The migration is idempotent and fails atomically; never restart on partial schema.
+          {
+            docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/CmsNewsMetadataMigration.sql
+            docker run --rm --entrypoint cat "ghcr.io/customcodecr/pangolinbackend/backend:$PANGOLIN_IMAGE_TAG" /app/Database/CmsNewsPermalinksMigration.sql
+          } | docker run --rm -i --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD \
+                postgres:16-alpine psql -X -d pangolin --single-transaction -v ON_ERROR_STOP=1 -f - >/dev/null
+          columns="$(docker run --rm --network "$DHOLE_NETWORK" -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD \
+            postgres:16-alpine psql -X -d pangolin -Atqc "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='cms_news' AND column_name IN ('author','published_at','expires_at','slug','content_modified_at')")"
+          if [[ "$columns" != "5" ]]; then
+            echo "::error::CMS news metadata schema not ready; refusing to deploy."
+            exit 1
+          fi
+          echo "CMS news migration verified (author, published_at, expires_at, slug, content_modified_at; idempotent, no news deleted)."
           unset PGPASSWORD
 
       - name: Deploy backend and frontend (images only)
@@ -308,4 +443,146 @@ jobs:
             echo "::error::Traefik WWW route did not return Pangolin backend readiness."
             exit 1
           fi
+          # El catálogo oficial y los itinerarios publicados son públicos en main-2.
+          # Los detalles de una cotización y las operaciones administrativas NO lo son.
+          catalog_path='/api/quotes/official/locations?kind=seaport&shipmentType=FCL&routeRole=origin'
+          catalog_http="$(curl -sS -o /tmp/pangolin-official-catalog.json -w '%{http_code}' --max-time 5 "http://127.0.0.1:$local_port$catalog_path")"
+          if [[ "$catalog_http" != "200" ]] || ! grep -q '"items"' /tmp/pangolin-official-catalog.json; then
+            echo "::error::Public official quote catalog unavailable or invalid (HTTP $catalog_http)."
+            exit 1
+          fi
+          itinerary_http="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$local_port/api/itinerarios?page=1&pageSize=1")"
+          if [[ "$itinerary_http" != "200" ]]; then
+            echo "::error::Public itineraries API unavailable (HTTP $itinerary_http)."
+            exit 1
+          fi
+          news_http="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "http://127.0.0.1:$local_port/api/content/news")"
+          if [[ "$news_http" != "200" ]]; then
+            echo "::error::Public news API unavailable (HTTP $news_http)."
+            exit 1
+          fi
+          # Un ID con formato válido no debe permitir leer solicitudes ajenas sin sesión.
+          for protected_path in '/api/quotes/official/00000000-0000-0000-0000-000000000000' '/api/admin/quotes/official/permissions/me'; do
+            quote_http="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$local_port$protected_path")"
+            if [[ "$quote_http" != "401" && "$quote_http" != "403" ]]; then
+              echo "::error::Private official quote API unexpectedly accessible (HTTP $quote_http)."
+              exit 1
+            fi
+          done
+          echo "Public catalogs respond successfully; private quote and admin reads require authentication."
+          # Reproducir un POST real de navegador con TLS terminado en Traefik:
+          # Logout sin cookie no revoca sesiones ni envía OTP.
+          # Ambas variantes del dominio deben validar su propio Origin y Host.
+          root_host="$(grep -m1 '^FENNEC_HOST=' "$DHOLE_ENV_FILE" | cut -d= -f2- | tr -d '\r')"
+          test -n "$root_host"
+          for public_host in "$host" "$root_host"; do
+            status="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 -X POST \
+              -H "Host: $public_host" -H "Origin: https://$public_host" \
+              "http://127.0.0.1:$local_port/api/auth/logout")"
+            if [[ "$status" != "204" ]]; then
+              echo "::error::Pangolin rejects valid POST Origin for $public_host (HTTP $status)."
+              exit 1
+            fi
+            echo "Pangolin accepts valid same-host HTTPS Origin: $public_host"
+          done
+          blocked="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 -X POST \
+            -H "Host: $host" -H "Origin: https://outside.example" \
+            "http://127.0.0.1:$local_port/api/auth/logout")"
+          if [[ "$blocked" != "403" ]]; then
+            echo "::error::Pangolin must reject cross-site POST Origin (HTTP $blocked)."
+            exit 1
+          fi
+          echo "Cross-site POST Origin correctly rejected."
+
           docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production ps
+      - name: Start Nuxt canary and hybrid gateway without changing WWW
+        shell: bash
+        env:
+          PANGOLIN_NUXT_TRAEFIK_ENABLED: "false"
+        run: |
+          set -euo pipefail
+          docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production \
+            up -d --no-build --no-deps frontend-nuxt seo-gateway
+
+      - name: Verify Nuxt SSR and private SPA API before cutover
+        shell: bash
+        run: |
+          set -euo pipefail
+          local_port="$(grep -m1 '^PANGOLIN_HYBRID_LOCAL_PORT=' "$DHOLE_ENV_FILE" | cut -d= -f2- || true)"
+          local_port="${local_port:-8183}"
+          base="http://127.0.0.1:$local_port"
+          ready=false
+          for attempt in $(seq 1 30); do
+            if curl -fsS --max-time 5 "$base/" -o /tmp/pangolin-nuxt-ssr.html; then
+              ready=true
+              break
+            fi
+            sleep 3
+          done
+          if [[ "$ready" != true ]]; then
+            echo "::error::Nuxt canary did not become healthy; preserving old WWW frontend."
+            docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production logs --tail 60 frontend-nuxt seo-gateway
+            exit 1
+          fi
+          grep -Fq 'application/ld+json' /tmp/pangolin-nuxt-ssr.html
+          grep -Fq 'home-page' /tmp/pangolin-nuxt-ssr.html
+          curl -fsS --max-time 10 "$base/nosotros" | grep -q 'about-reference-page'
+          # Confirmar la sección FAQ renderizada por SSR, sin depender de mayúsculas o idioma del título.
+          curl -fsS --max-time 10 "$base/servicios/almacenamiento-fiscal" -o /tmp/pangolin-service-fiscal.html
+          grep -Fq 'id="guide-faq"' /tmp/pangolin-service-fiscal.html
+          grep -Fq 'class="service-landing-faq__item"' /tmp/pangolin-service-fiscal.html
+          curl -fsS --max-time 10 "$base/robots.txt" | grep -q 'OAI-SearchBot'
+          curl -fsS --max-time 10 "$base/sitemap.xml" | grep -q 'almacenamiento-fiscal'
+          curl -fsS --max-time 20 "$base/api/content/news" >/dev/null
+          news_http="$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' "$base/noticias")"
+          if [[ "$news_http" != "200" ]]; then
+            echo "::error::Nuxt news canary unavailable (HTTP $news_http)."
+            exit 1
+          fi
+          curl -fsS --max-time 10 "$base/api/health/ready" >/dev/null
+          for path in '/cotizaciones' '/tracking' '/administracion'; do
+            status="$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' "$base$path")"
+            if [[ "$status" != "200" && "$status" != "302" && "$status" != "307" ]]; then
+              echo "::error::Legacy path $path returned HTTP $status; preserving old WWW frontend."
+              exit 1
+            fi
+          done
+          echo "Nuxt SSR, crawler routes and protected legacy paths passed canary."
+
+      - name: Activate Nuxt for WWW only with automatic rollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          rollback() {
+            echo "::error::Nuxt WWW verification failed. Disabling Nuxt router to restore legacy frontend."
+            PANGOLIN_NUXT_TRAEFIK_ENABLED=false docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production \
+              up -d --no-build --no-deps seo-gateway || true
+          }
+          trap rollback ERR
+          PANGOLIN_NUXT_TRAEFIK_ENABLED=true docker compose --env-file "$DHOLE_ENV_FILE" -f "$COMPOSE_FILE" -p pangolin-production \
+            up -d --no-build --no-deps seo-gateway
+          host="$(grep -m1 '^FENNEC_WWW_HOST=' "$DHOLE_ENV_FILE" | cut -d= -f2- | tr -d '\r')"
+          ready=false
+          for attempt in $(seq 1 30); do
+            if curl -fsS --max-time 8 -H "Host: $host" http://127.0.0.1/ -o /tmp/pangolin-activated-ssr.html \
+                && grep -Fq 'application/ld+json' /tmp/pangolin-activated-ssr.html \
+                && grep -Fq 'home-page' /tmp/pangolin-activated-ssr.html; then
+              ready=true
+              break
+            fi
+            sleep 2
+          done
+          if [[ "$ready" != true ]]; then
+            echo "::error::Traefik WWW is not serving Nuxt HTML."
+            false
+          fi
+          curl -fsS --max-time 8 -H "Host: $host" http://127.0.0.1/api/health/ready >/dev/null
+          curl -fsS --max-time 20 -H "Host: $host" http://127.0.0.1/api/content/news >/dev/null
+          news_http="$(curl -sS --max-time 20 -H "Host: $host" -o /dev/null -w '%{http_code}' http://127.0.0.1/noticias)"
+          if [[ "$news_http" != "200" ]]; then
+            echo "::error::WWW news page unavailable (HTTP $news_http)."
+            false
+          fi
+          echo "$PANGOLIN_IMAGE_TAG" > "$HOME/pangolin-release/current-tag"
+          echo "Nuxt SSR active on WWW; Fennec apex unchanged; legacy frontend available for rollback."
+          trap - ERR

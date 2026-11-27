@@ -35,7 +35,7 @@ public sealed class AuthService(
 
     // El login necesita distinguir un correo no habilitado antes de abrir el formulario OTP.
     // Esta respuesta expone una diferencia de existencia; conservar los límites por IP y correo.
-    public async Task<(OtpStarted? Result, bool TooMany, bool AccountUnavailable)> RequestOtpAsync(RequestOtpDto input, CancellationToken ct)
+    public async Task<(OtpStarted? Result, bool TooMany, bool AccountUnavailable, int RetryAfterSeconds)> RequestOtpAsync(RequestOtpDto input, CancellationToken ct)
     {
         var suppliedRole = (input.TipoAcceso ?? "").Trim().ToLowerInvariant();
         var automaticRole = suppliedRole.Length == 0;
@@ -50,7 +50,7 @@ public sealed class AuthService(
             !string.Equals(address.Address, email, StringComparison.OrdinalIgnoreCase) ||
             (!automaticRole && suppliedRole == "cliente" && string.IsNullOrWhiteSpace(dynamics)) ||
             dynamics.Length > 200)
-            return (null, false, false);
+            return (null, false, false, 0);
 
         // Límite por dirección incluso cuando no existe el usuario. El registro
         // es atómico en PostgreSQL: funciona sin Redis y entre varias instancias.
@@ -66,10 +66,11 @@ public sealed class AuthService(
                     THEN 1 ELSE otp_rate_limits.request_count + 1 END,
                 last_requested_at = NOW()
             WHERE otp_rate_limits.window_start <= NOW() - INTERVAL '15 minutes'
-                OR (otp_rate_limits.request_count < 3
-                    AND otp_rate_limits.last_requested_at <= NOW() - INTERVAL '60 seconds');
+                OR (otp_rate_limits.request_count < 4
+                    AND (otp_rate_limits.request_count % 2 = 1
+                         OR otp_rate_limits.last_requested_at <= NOW() - INTERVAL '60 seconds'));
             """, ct);
-        if (allowed == 0) return (null, true, false);
+        if (allowed == 0) return (null, true, false, await GetOtpRetrySecondsAsync(emailKey, ct));
 
         var user = await db.Usuarios.Include(u => u.Cliente)
             .FirstOrDefaultAsync(u => u.Correo.ToLower() == email &&
@@ -81,15 +82,14 @@ public sealed class AuthService(
         // No generar un challenge ficticio: el navegador debe permanecer en el paso del correo.
         // Se agrupan cuentas inexistentes, inactivas y clientes deshabilitados.
         if (user is null)
-            return (null, false, true);
+            return (null, false, true, 0);
 
         // El rol real de la cuenta determina el challenge, el JWT y los permisos.
         var role = user.TipoAcceso;
 
         var now = DateTime.UtcNow;
-        var cooldown = await db.OtpChallenges.AsNoTracking()
-            .AnyAsync(x => x.UsuarioId == user.Uuid && x.CreatedAt > now.AddSeconds(-60), ct);
-        if (cooldown) return (null, true, false);
+        // PostgreSQL's atomic per-email quota now grants a second immediate
+        // request; a separate 60-second challenge check would reject it.
 
         var id = Guid.NewGuid();
         var otp = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
@@ -99,25 +99,49 @@ public sealed class AuthService(
             OtpHash = OtpHash(id, otp), CreatedAt = now,
             ExpiresAt = now.AddMinutes(OtpTtlMinutes)
         };
-        // El último código invalida los anteriores.
-        await db.OtpChallenges.Where(x => x.UsuarioId == user.Uuid && x.UsedAt == null)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.UsedAt, now), ct);
+        // Do not invalidate a previously valid code until a new email was sent.
+        // An external mail outage must not revoke the user's old, usable OTP.
         db.OtpChallenges.Add(row);
         await db.SaveChangesAsync(ct);
 
         try
         {
-            await SendMailAsync(email, otp, ct);
+            await SendMailAsync(email, otp, id, ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             // Nunca registrar el OTP; permitir diagnosticar sin exponer secretos.
             logger.LogError(ex, "No se pudo entregar un OTP a la cuenta {UserId}", user.Uuid);
             row.UsedAt = DateTime.UtcNow;
             await db.SaveChangesAsync(ct);
-            throw new EmailDeliveryException();
+            throw new EmailDeliveryException(await GetOtpRetrySecondsAsync(emailKey, ct));
         }
-        return (new OtpStarted(id, GenericMessage, 300), false, false);
+        // Invalidate older challenges only after successful acceptance by mail transport.
+        await db.OtpChallenges.Where(x => x.UsuarioId == user.Uuid && x.Uuid != id && x.CreatedAt < row.CreatedAt && x.UsedAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.UsedAt, DateTime.UtcNow), ct);
+        // Let the UI proactively disable resending after the second (or
+        // fourth) successful request, not only after a rejected attempt.
+        return (new OtpStarted(id, GenericMessage, 300), false, false,
+            await GetOtpRetrySecondsAsync(emailKey, ct));
+    }
+
+    // Two requests may be made back-to-back, followed by a 60-second pause.
+    // Maximum 4 requests per 15-minute fixed window, enforced atomically.
+    // The first/third attempt can retry immediately (zero Retry-After);
+    // the second requires 60 seconds; the fourth waits for window reset.
+    private async Task<int> GetOtpRetrySecondsAsync(string identifierHash, CancellationToken ct)
+    {
+        var seconds = await db.Database.SqlQuery<int>($"""
+            SELECT CASE
+                WHEN request_count >= 4 AND window_start > NOW() - INTERVAL '15 minutes'
+                    THEN GREATEST(1, CEIL(EXTRACT(EPOCH FROM window_start + INTERVAL '15 minutes' - NOW())))::integer
+                WHEN request_count % 2 = 0
+                    THEN GREATEST(0, CEIL(EXTRACT(EPOCH FROM last_requested_at + INTERVAL '60 seconds' - NOW())))::integer
+                ELSE 0
+            END AS "Value"
+            FROM otp_rate_limits WHERE identifier_hash = {identifierHash}
+            """).SingleOrDefaultAsync(ct);
+        return Math.Clamp(seconds, 0, 900);
     }
 
     public async Task<(string Token, AuthIdentity Identity)?> VerifyOtpAsync(VerifyOtpDto input, CancellationToken ct)
@@ -270,20 +294,32 @@ public sealed class AuthService(
         new(u.Uuid, u.ClienteId, u.Cliente.Nombre, u.Correo, role, JwtAuthOptions.MapRole(role), null);
     private const string GenericMessage = "Si los datos corresponden a una cuenta habilitada, recibirás un código por correo.";
 
-    private async Task SendMailAsync(string email, string otp, CancellationToken ct)
+    private async Task SendMailAsync(string email, string otp, Guid challengeId, CancellationToken ct)
     {
         var mode = configuration["Email:Mode"] ?? "Smtp";
+        var verificationUrl = OtpEmailTemplate.VerificationUrl(challengeId, configuration["Email:LoginUrl"]);
+        // Never generate an insecure HTTP link in production.
+        if (!environment.IsDevelopment() &&
+            !verificationUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Email:LoginUrl requiere HTTPS fuera de Development.");
         string from = mode.Equals("Graph", StringComparison.OrdinalIgnoreCase)
             ? configuration["Graph:From"] ?? throw new InvalidOperationException("Graph:From sin configurar")
             : configuration["Smtp:From"] ?? "pruebas@castrofallas.local";
         var message = new MimeMessage();
         message.From.Add(MailboxAddress.Parse(from));
         message.To.Add(MailboxAddress.Parse(email));
-        message.Subject = "Código de acceso | Castro Fallas";
-        message.Body = new TextPart("plain")
+        message.Subject = OtpEmailTemplate.Subject(otp);
+        // La alternativa de texto sigue disponible cuando el cliente bloquea HTML.
+        var plainText = OtpEmailTemplate.PlainText(otp, verificationUrl);
+        var htmlText = OtpEmailTemplate.Html(otp, verificationUrl);
+        var body = new BodyBuilder { TextBody = plainText, HtmlBody = htmlText };
+        foreach (var image in OtpEmailAssets.Images)
         {
-            Text = $"Tu código temporal de Castro Fallas es: {otp}\n\nVálido durante 5 minutos y una sola vez. Si no lo solicitaste, ignorá este mensaje."
-        };
+            var resource = body.LinkedResources.Add(image.FileName, image.Content);
+            resource.ContentId = image.ContentId;
+            // MimeKit detects image/png or image/jpeg from the .png/.jpg filename.
+        }
+        message.Body = body.ToMessageBody();
 
         // Demostración LOCAL: se genera un archivo .eml en el backend.
         // No se entrega a Gmail; no existe ningún endpoint que exponga el OTP.
@@ -302,7 +338,7 @@ public sealed class AuthService(
         }
         if (mode.Equals("Graph", StringComparison.OrdinalIgnoreCase))
         {
-            await graphEmailSender.SendAsync(email, message.Subject, ((TextPart)message.Body).Text, ct);
+            await graphEmailSender.SendAsync(email, message.Subject, plainText, ct, htmlText, OtpEmailAssets.Images);
             return;
         }
         if (!mode.Equals("Smtp", StringComparison.OrdinalIgnoreCase))
@@ -330,4 +366,7 @@ public sealed class AuthService(
     }
 }
 
-public sealed class EmailDeliveryException : Exception { }
+public sealed class EmailDeliveryException(int retryAfterSeconds) : Exception
+{
+    public int RetryAfterSeconds { get; } = retryAfterSeconds;
+}

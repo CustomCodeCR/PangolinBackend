@@ -1,0 +1,99 @@
+name: Frontend production-dependency boundary (security)
+
+on:
+  pull_request:
+    branches: [main-2, main]
+    paths:
+      - frontend/package.json
+      - frontend/package-lock.json
+      - frontend/Dockerfile
+      - frontend/nuxt/Dockerfile
+      - scripts/check-frontend-dev-runtime-boundary.py
+      - .github/workflows/frontend-runtime-dependency-boundary.yml
+
+permissions:
+  contents: read
+
+jobs:
+  production-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert frontend dev dependencies remain outside runtime Docker stages
+        run: python3 scripts/check-frontend-dev-runtime-boundary.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Audit production frontend dependencies (additional check, not replacement)
+        run: npm audit --prefix frontend --omit=dev --audit-level=high
+
+
+  audit-fix-probe:
+    name: Investigate npm audit fix (disposable copy, no dependency changes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Evaluate proposed npm remediation in an ephemeral directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          scratch="$(mktemp -d "$RUNNER_TEMP/npm-audit-probe.XXXXXX")"
+          trap 'rm -rf "$scratch"' EXIT
+          cp frontend/package.json frontend/package-lock.json "$scratch/"
+          cp frontend/package-lock.json "$scratch/before-lock.json"
+          cd "$scratch"
+
+          # Do not use --force, write the repository, install dependencies,
+          # execute npm lifecycle scripts or accept audit exit 1 as clean.
+          set +e
+          npm audit fix --package-lock-only --ignore-scripts --no-fund --json > fix.json 2> fix.stderr
+          fix_code=$?
+          npm audit --audit-level=high --json > audit.json 2> audit.stderr
+          audit_code=$?
+          set -e
+
+          node - "$fix_code" "$audit_code" <<'NODE'
+          const fs = require('node:fs')
+          const [fixCode, auditCode] = process.argv.slice(2).map(Number)
+          const read = file => JSON.parse(fs.readFileSync(file, 'utf8'))
+          const before = read('before-lock.json').packages || {}
+          const after = read('package-lock.json').packages || {}
+          const audit = read('audit.json')
+          if (audit.error || !audit.metadata || !audit.vulnerabilities)
+            throw new Error('Unable to obtain complete npm audit report; cannot assess candidate')
+          let changes = []
+          for (const path of new Set([...Object.keys(before), ...Object.keys(after)])) {
+            if ((before[path]?.version ?? null) !== (after[path]?.version ?? null)) {
+              changes.push({
+                package: path, from: before[path]?.version ?? null,
+                to: after[path]?.version ?? null
+              })
+            }
+          }
+          changes = changes.sort((a, b) => a.package.localeCompare(b.package))
+          const vulnerable = Object.entries(audit.vulnerabilities)
+            .map(([packageName, v]) => ({
+              name: packageName, severity: v.severity, fixAvailable: v.fixAvailable
+            }))
+          const report = {
+            commandExitCodes: { fix: fixCode, audit: auditCode },
+            changesToDisposableLockfile: changes,
+            remaining: audit.metadata.vulnerabilities,
+            advisories: vulnerable
+          }
+          fs.writeFileSync('probe-summary.json', JSON.stringify(report, null, 2))
+          console.log('npm audit fix (temporary copy) exit:', fixCode)
+          console.log('npm audit after proposed fix exit:', auditCode)
+          console.log('Proposed dependency changes:', JSON.stringify(changes))
+          console.log('Remaining vulnerabilities:', JSON.stringify(audit.metadata.vulnerabilities))
+          console.log('Remaining high/critical packages:', JSON.stringify(
+            vulnerable.filter(x => ['high', 'critical'].includes(x.severity))))
+          console.log('Probe does NOT change committed manifests or assert the CVE is fixed')
+          NODE
+          git -C "$GITHUB_WORKSPACE" diff --exit-code -- frontend/package.json frontend/package-lock.json
+          echo "PASS: only temporary npm files changed; repository manifests are untouched."

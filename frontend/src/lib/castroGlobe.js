@@ -160,6 +160,30 @@ export class CastroGlobe {
     const p = this.projector([Number(lon), Number(lat)])
     return p && Number.isFinite(p[0]) && Number.isFinite(p[1]) ? { x: p[0], y: p[1], visible } : null
   }
+  // Reuse exactly the elevated great-circle geometry of drawArcs, so tracking
+  // vehicles and their trails float over the globe instead of hugging its skin.
+  projectElevated(lon, lat, lift = 0) {
+    if (!this.width || !this.height) return null
+    const longitude = Number(lon), latitude = Number(lat)
+    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null
+    this.updateProjection()
+    const angle = wrap(longitude - this.lon) * DEG
+    const latAngle = latitude * DEG
+    const cameraAngle = this.lat * DEG
+    const sinLat = Math.sin(latAngle), cosLat = Math.cos(latAngle)
+    const cosLon = Math.cos(angle)
+    const elevation = Math.max(0, Math.min(.5, Number(lift) || 0))
+    const scale = 1 + elevation
+    const x = this.width / 2 + this.radius * scale * cosLat * Math.sin(angle)
+    const y = this.height / 2 - this.radius * scale *
+      (Math.cos(cameraAngle) * sinLat - Math.sin(cameraAngle) * cosLat * cosLon) -
+      this.radius * elevation * .38
+    const dot = Math.sin(cameraAngle) * sinLat + Math.cos(cameraAngle) * cosLat * cosLon
+    const outside = Math.hypot(x - this.width / 2, y - this.height / 2) > this.radius + .5
+    return Number.isFinite(x) && Number.isFinite(y)
+      ? { x, y, visible: dot >= 0 || outside }
+      : null
+  }
   visible(lon, lat) {
     const la = lat * DEG, ca = this.lat * DEG, d = (lon - this.lon) * DEG
     return Math.sin(la) * Math.sin(ca) + Math.cos(la) * Math.cos(ca) * Math.cos(d) >= 0

@@ -9,17 +9,67 @@ services:
   backend:
     image: ghcr.io/customcodecr/pangolinbackend/backend:${PANGOLIN_IMAGE_TAG:?Definir PANGOLIN_IMAGE_TAG}
     restart: unless-stopped
+    # Verified by isolated production-image authentication, mail and CMS tests.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     environment:
       TZ: "${TZ:-America/Costa_Rica}"
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: "http://+:5000"
       Development__ApplySchema: "false"
-      Features__OfficialQuotesEnabled: "false"
+      Features__OfficialQuotesEnabled: "true"
       ConnectionStrings__Postgres: "Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=pangolin;Username=pangolin;Password=${PANGOLIN_POSTGRES_PASSWORD:?Definir PANGOLIN_POSTGRES_PASSWORD}"
       Auth__OtpPepper: "${PANGOLIN_AUTH_OTP_PEPPER:?Definir PANGOLIN_AUTH_OTP_PEPPER}"
       Auth__JwtSigningKey: "${PANGOLIN_AUTH_JWT_SIGNING_KEY:?Definir PANGOLIN_AUTH_JWT_SIGNING_KEY}"
       Auth__SecureCookie: "true"
       Security__PublicOrigin: "https://${FENNEC_WWW_HOST:?Definir FENNEC_WWW_HOST}"
+      # El acceso al dominio raiz tambien debe pasar validacion Origin/Host.
+      # No cambia la ruta Traefik: la raiz sigue en Fennec hasta su corte.
+      Security__AdditionalPublicOrigin: "https://${FENNEC_HOST:?Definir FENNEC_HOST}"
+      # Dynamics is opt-in on the production host and never exposes its API key to Vite/browser.
+      DholeTracking__Enabled: "${PANGOLIN_DHOLE_TRACKING_ENABLED:-false}"
+      DholeTracking__ApiKey: "${PANGOLIN_DHOLE_TRACKING_API_KEY:-}"
+      # Dhole quote/catalog APIs use a separate key from tracking. Defaults are
+      # opt-out so an image deployment cannot silently change quote submissions.
+      DholeCatalogs__Enabled: "${PANGOLIN_DHOLE_CATALOGS_ENABLED:-false}"
+      DholeCatalogs__ApiKey: "${PANGOLIN_DHOLE_CATALOGS_API_KEY:-}"
+      # Both form and submission must be true AFTER validating all five modes.
+      DholeCatalogs__FormEnabled: "${PANGOLIN_DHOLE_CATALOGS_FORM_ENABLED:-false}"
+      DholeCatalogs__SubmissionEnabled: "${PANGOLIN_DHOLE_CATALOGS_SUBMISSION_ENABLED:-false}"
+      # Independent opt-in for itinerary port suggestions (not tracking).
+      DholeCatalogs__ItinerariesEnabled: "${PANGOLIN_DHOLE_CATALOGS_ITINERARIES_ENABLED:-false}"
+      # Explicit rollout only: all write/notification gates OFF by default.
+      DholeSubmission__DirectOutboxEnabled: "${PANGOLIN_DHOLE_DIRECT_OUTBOX_ENABLED:-false}"
+      DholeSubmission__ClientCreateIdempotencyEnabled: "${PANGOLIN_DHOLE_CLIENT_IDEMPOTENCY_ENABLED:-false}"
+      DholeSubmission__WorkerEnabled: "${PANGOLIN_DHOLE_WORKER_ENABLED:-false}"
+      DholeSubmission__DispatcherEnabled: "${PANGOLIN_DHOLE_DISPATCHER_ENABLED:-false}"
+      DholeSubmission__ClaimPreviewEnabled: "${PANGOLIN_DHOLE_CLAIM_ENABLED:-false}"
+      DholeSubmission__OutcomePreviewEnabled: "${PANGOLIN_DHOLE_OUTCOME_ENABLED:-false}"
+      DholeSubmission__PostEnabled: "${PANGOLIN_DHOLE_POST_ENABLED:-false}"
+      DholeSubmission__ApiKey: "${PANGOLIN_DHOLE_POST_API_KEY:-}"
+      DholeSubmission__ApplicantContactSharingApproved: "${PANGOLIN_DHOLE_CONTACT_SHARING_APPROVED:-false}"
+      DholeSubmission__AllNewQuotesEnabled: "${PANGOLIN_DHOLE_ALL_NEW_QUOTES_ENABLED:-false}"
+      DholeSubmission__NewQuotesStartUtc: "${PANGOLIN_DHOLE_NEW_QUOTES_START_UTC:-}"
+      DholeSubmission__TemporaryCatalogsEnabled: "${PANGOLIN_DHOLE_TEMPORARY_CATALOGS_ENABLED:-false}"
+      DholeSubmission__TemporaryCatalogsValidUntilUtc: "${PANGOLIN_DHOLE_TEMPORARY_CATALOGS_VALID_UNTIL_UTC:-}"
+      DholeSubmission__ManualCommercialReviewEnabled: "${PANGOLIN_DHOLE_MANUAL_COMMERCIAL_REVIEW_ENABLED:-false}"
+      DholeSubmission__AcceptCreationReceiptEnabled: "${PANGOLIN_DHOLE_ACCEPT_CREATION_RECEIPT_ENABLED:-false}"
+      DholeSubmission__ConfirmationEmailEnabled: "${PANGOLIN_DHOLE_CONFIRMATION_EMAIL_ENABLED:-false}"
+      DholeSubmission__VerificationEnabled: "${PANGOLIN_DHOLE_VERIFICATION_ENABLED:-false}"
+      DholeSubmission__VerificationPath: "${PANGOLIN_DHOLE_VERIFICATION_PATH:-}"
+      DholeSubmission__VerificationApiKey: "${PANGOLIN_DHOLE_VERIFICATION_API_KEY:-}"
+      # Optional verified proxy hops for public-read and auth quotas.
+      # Empty by default: do not trust X-Forwarded-For until the real production
+      # chain and stable proxy identities are confirmed. Never use a Docker subnet.
+      RateLimiting__TrustedProxyIps__0: "${PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_IP_0:-}"
+      RateLimiting__TrustedProxyIps__1: "${PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_IP_1:-}"
+      # Prefer verified Docker DNS service names over ephemeral container IPs.
+      # Leave blank until trusted-hop chain has been verified end-to-end.
+      RateLimiting__TrustedProxyHostnames__0: "${PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_HOST_0:-}"
+      RateLimiting__TrustedProxyHostnames__1: "${PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_HOST_1:-}"
+      RateLimiting__TrustedProxyHostnames__2: "${PANGOLIN_RATE_LIMIT_TRUSTED_PROXY_HOST_2:-}"
       Email__Mode: "${PANGOLIN_EMAIL_MODE:-Graph}"
       Graph__TenantId: "${PANGOLIN_GRAPH_TENANT_ID:-}"
       Graph__ClientId: "${PANGOLIN_GRAPH_CLIENT_ID:-}"
@@ -51,6 +101,8 @@ services:
     networks:
       - pangolin-internal
       - dhole
+    # Fase normal: 8180 sirve Vue. En el corte supervisado mover este puerto
+    # a 8184 ANTES de asignar 8180 al gateway. Nunca exponerlo en 0.0.0.0.
     ports:
       - "127.0.0.1:${PANGOLIN_LOCAL_PORT:-8180}:80"
     depends_on:
@@ -65,6 +117,54 @@ services:
       - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-www.priority=1000"
       - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-www.service=${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin"
       - "traefik.http.services.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin.loadbalancer.server.port=80"
+
+  # Nuxt SSR sirve páginas públicas y comparte backend/API internos.
+  frontend-nuxt:
+    image: ghcr.io/customcodecr/pangolinbackend/nuxt:${PANGOLIN_IMAGE_TAG:?Definir PANGOLIN_IMAGE_TAG}
+    restart: unless-stopped
+    # Verified by isolated read-only SSR/browser and recreation tests.
+    read_only: true
+    # Verified by isolated SSR/browser and process-capability tests.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      NUXT_CMS_API_BASE: "http://backend:5000"
+      NUXT_PUBLIC_SITE_URL: "https://${FENNEC_WWW_HOST:?Definir FENNEC_WWW_HOST}"
+    networks:
+      - pangolin-internal
+    depends_on:
+      - backend
+    ports:
+      - "127.0.0.1:${PANGOLIN_NUXT_LOCAL_PORT:-8182}:3000"
+
+  # Gateway híbrido: Nuxt público, SPA legacy para sesión/cotizaciones/tracking.
+  # Activación independiente después de pasar la validación interna.
+  seo-gateway:
+    image: nginx:alpine@sha256:7fc0fb4af7bf006aeb31aea88069976060f8f0a0a86b667126742cc17f4e31ae
+    restart: unless-stopped
+    volumes:
+      - "${PANGOLIN_GATEWAY_CONFIG_PATH:-/opt/dhole/pangolin-release/nuxt-hybrid-gateway.conf}:/etc/nginx/conf.d/default.conf:ro"
+    networks:
+      - pangolin-internal
+      - dhole
+    # Fase normal: 8183 es el canary. Con cutover supervisado, 8180 pasa
+    # a servir este gateway, siempre conservando Vue en la red Docker interna.
+    # No basta cambiar puertos: Cloudflare puede usar un origen distinto.
+    ports:
+      - "127.0.0.1:${PANGOLIN_HYBRID_LOCAL_PORT:-8183}:80"
+    depends_on:
+      - frontend
+      - frontend-nuxt
+    labels:
+      - "traefik.enable=${PANGOLIN_NUXT_TRAEFIK_ENABLED:-false}"
+      - "traefik.docker.network=${DHOLE_NETWORK:-dhole}"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-nuxt-www.rule=Host(`${FENNEC_WWW_HOST:?Definir FENNEC_WWW_HOST}`)"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-nuxt-www.entrypoints=web"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-nuxt-www.priority=1100"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-nuxt-www.service=${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-nuxt"
+      - "traefik.http.services.${TRAEFIK_ROUTER_PREFIX:-prod}-pangolin-nuxt.loadbalancer.server.port=80"
 
 networks:
   pangolin-internal: {}

@@ -69,6 +69,139 @@ public static class SiteCmsEndpoints
         "services.multimodal.detail"
     };
 
+
+    // Los campos nuevos están estrictamente enumerados; el cliente no puede
+    // crear claves arbitrarias. No se eliminan datos CMS existentes.
+    static SiteCmsEndpoints()
+    {
+        foreach (var retired in new[] {
+            "home.digital.card.0.title", "home.digital.card.0.subtitle",
+            "home.digital.card.1.title", "home.digital.card.1.subtitle",
+            "home.digital.card.2.title", "home.digital.card.2.subtitle"
+        }) TextKeys.Remove(retired);
+
+        foreach (var field in new[] {
+            "who", "heading", "historyAction", "imageLabel", "missionTag", "mission", "missionBody",
+            "visionTag", "vision", "visionBody", "culture", "servicesTag", "capabilitiesTitle",
+            "serviceAction", "quoteAction"
+        }) TextKeys.Add("about.copy." + field);
+        for (var i=0;i<5;i++)
+        {
+            TextKeys.Add("about.valueDetails." + i);
+            TextKeys.Add("about.capability." + i + ".title");
+            TextKeys.Add("about.capability." + i + ".detail");
+        }
+        for (var i=0;i<3;i++) MediaKeys.Add("about.gallery." + i + ".media");
+
+        // Sobre nosotros: allow only the active structure and environmental editor slots.
+        // Historical CMS rows remain in storage but are not editable as duplicate fields.
+        foreach (var key in new[] {
+            "about.structure.kicker", "about.structure.heading",
+            "about.environment.kicker", "about.environment.heading",
+            "about.structure.6.description"
+        }) TextKeys.Add(key);
+        for (var i = 2; i <= 5; i++)
+        {
+            TextKeys.Add("about.structure." + i + ".title");
+            TextKeys.Add("about.structure." + i + ".description");
+            MediaKeys.Add("about.structure." + i + ".media");
+        }
+        for (var i = 0; i < 5; i++)
+        {
+            TextKeys.Add("about.structure.departments." + i);
+            TextKeys.Add("about.structure.departments." + i + ".description");
+        }
+        for (var i = 0; i < 3; i++)
+            TextKeys.Add("about.environment.pillar." + i + ".title");
+        MediaKeys.Add("about.structure.6.media");
+
+        foreach (var field in new[] {
+            "home.tracking.heading1", "home.tracking.heading2", "home.tracking.intro",
+            "home.access.heading1", "home.access.heading2", "home.access.tracking", "home.access.quote",
+            "home.news.heading", "services.faq.heading",
+            "services.directory.heading", "services.directory.intro",
+            "services.directory.transport.title", "services.directory.logistics.title",
+            "services.access.heading1", "services.access.heading2", "services.access.intro",
+            "services.access.tracking", "services.access.quote"
+        }) TextKeys.Add(field);
+        // Fiscal and Panama cards (including modal copy) are listed in the visual editor.
+        // Keep the CMS allowlist synchronized so drafts and publications are not rejected.
+        MediaKeys.Add("home.services.fiscal.media");
+        MediaKeys.Add("home.services.panama.media");
+        foreach (var key in new[] {
+            "home.services.fiscal.title", "home.services.fiscal.detail",
+            "home.services.fiscal.locationA257", "home.services.fiscal.locationA287",
+            "home.services.fiscal.hazardous", "home.services.fiscal.rotation",
+            "home.services.panama.title", "home.services.panama.detail",
+            "home.services.panama.benefits.heading",
+            "home.services.panama.benefits.0", "home.services.panama.benefits.1",
+            "home.services.panama.benefits.2"
+        }) TextKeys.Add(key);
+
+        // Seven editable Home infrastructure headings; only explicitly allowed CMS keys
+        // are writable and publishable through the backend.
+        foreach (var key in new[] {
+            "home.specialties.heading",
+            "home.specialties.fiscal.eyebrow", "home.specialties.fiscal.lead",
+            "home.specialties.fiscal.title",
+            "home.specialties.panama.eyebrow", "home.specialties.panama.lead",
+            "home.specialties.panama.title"
+        }) TextKeys.Add(key);
+        for(var i=0;i<4;i++)
+        {
+            TextKeys.Add("home.stats." + i + ".label");
+            TextKeys.Add("services.faq." + i + ".q");
+            TextKeys.Add("services.faq." + i + ".a");
+        }
+
+        var guideSlugs = new[] {
+            "almacenamiento-fiscal", "agenciamiento-aduanal", "consolidadora-de-carga"
+        };
+        var transportSlugs = new[] {
+            "transporte-maritimo", "transporte-terrestre", "transporte-aereo",
+            "transporte-local", "transporte-panama-costa-rica"
+        };
+        foreach (var slug in guideSlugs.Concat(transportSlugs))
+        {
+            // The services directory carousel uses a separate editable image
+            // for each of these eight known routes.
+            MediaKeys.Add("services.directory." + slug + ".media");
+            var prefix = "service." + slug + ".";
+            MediaKeys.Add(prefix + "hero.media");
+            MediaKeys.Add(prefix + "story.media");
+            foreach (var field in new[] { "label", "title", "intro", "eyebrow", "location", "ctaLabel" }) TextKeys.Add(prefix + field);
+        }
+        foreach (var slug in guideSlugs)
+        {
+            var prefix = "service." + slug + ".";
+            foreach (var field in new[] {
+                "heading", "body", "answer", "quoteHeading", "quoteIntro", "scopeNote"
+            }) TextKeys.Add(prefix + field);
+            for(var i=0;i<4;i++) TextKeys.Add(prefix + "point." + i + ".body");
+            for(var i=0;i<3;i++) TextKeys.Add(prefix + "quoteItem." + i);
+            for(var i=0;i<5;i++)
+            {
+                TextKeys.Add(prefix + "faq." + i + ".q");
+                TextKeys.Add(prefix + "faq." + i + ".a");
+            }
+        }
+        foreach (var slug in transportSlugs)
+        {
+            var prefix = "service." + slug + ".";
+            foreach (var field in new[] { "heading", "body", "answer" }) TextKeys.Add(prefix + field);
+            for(var i=0;i<4;i++)
+            {
+                TextKeys.Add(prefix + "point." + i + ".title");
+                TextKeys.Add(prefix + "point." + i + ".body");
+            }
+            for(var i=0;i<3;i++)
+            {
+                TextKeys.Add(prefix + "faq." + i + ".q");
+                TextKeys.Add(prefix + "faq." + i + ".a");
+            }
+        }
+    }
+
     public static void MapSiteCms(this IEndpointRouteBuilder app)
     {
         app.MapGet("/api/content/site", async (AppDbContext db, HttpContext http, CancellationToken ct) =>

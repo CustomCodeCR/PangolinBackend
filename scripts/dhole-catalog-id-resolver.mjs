@@ -1,0 +1,168 @@
+// Local, read-only resolution against DholeCatalogNormalizer snapshots.
+// No fetch, HTTP client, credentials or persistence. A mapping is not permission
+// to transmit: the official external POST contract is published, but not enabled here.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const KIND_NAMES = new Map([
+  ['dry-van', 'Dry Van'], ['high-cube', 'High Cube'],
+  ['open-top', 'Open Top'], ['open-side', 'Open Side'],
+  ['tank', 'Tank'], ['flat-rack', 'Flat Rack'], ['nor', 'NOR'],
+]);
+const FTL_KINDS = new Map([
+  ['Furgón seco', { kind: 'dry-van', code: 'DRY_VAN' }],
+  ['Plataforma / Carreta', { kind: 'platform', code: 'PLATFORM' }],
+  ['Refrigerado', { kind: 'reefer', code: 'REEFER' }],
+  ['Furgón con cortina', { kind: 'curtain-side', code: 'CURTAIN_SIDE' }],
+]);
+const FTL_SIZES = new Set(['24', '26', '48', '53']);
+// Stable Config/Pricing service codes verified against the official catalog.
+// Do not commit production UUIDs: each preview must resolve an active, unique
+// UUID from a fresh catalog snapshot. "Transporte nacional" has no verified
+// Pricing service code and must remain blocked, not remapped to delivery/pickup.
+const SERVICE_CODES = Object.freeze({
+  'Transporte internacional': 'INT_TRANSPORT',
+  'Agencia de Aduanas CR': 'CUSTOMS_CR',
+  'Agencia de Aduanas Exterior': 'CUSTOMS_FOREIGN',
+  'Almacenamiento': 'STORAGE',
+  'Control de inventario': 'INVENTORY_CONTROL',
+  'Embalaje': 'PACKING',
+  'Exoneración': 'EXONERATION',
+  'Picking Carga': 'PICKING',
+  'Recepción de carga': 'RECEPTION',
+  'Seguro de carga': 'CARGO_INSURANCE',
+  'Transporte entrega': 'DELIVERY',
+  'Transporte recolección': 'PICKUP',
+});
+const FRESH_FOR_MS = 5 * 60 * 1000;
+const idValid = (id) => typeof id === 'string' &&
+  UUID.test(id) && id !== '00000000-0000-0000-0000-000000000000';
+const active = (x) => x?.isActive !== false;
+const contains = (list, value) => Array.isArray(list) &&
+  list.some(x => typeof x === 'string' && x.toLowerCase() === value.toLowerCase());
+
+// A real DholeCatalogService snapshot has {catalog, fetchedAtUtc, stale, items};
+// the mapping rejects stale/missing catalogues instead of using legacy defaults.
+function freshItems(snapshots, key, now, errors, requireExplicitActive = false) {
+  const snapshot = snapshots?.[key];
+  const ms = Date.parse(snapshot?.fetchedAtUtc);
+  if (snapshot?.catalog !== key || snapshot.stale !== false ||
+      !Array.isArray(snapshot.items) || !Number.isFinite(ms) ||
+      now - ms > FRESH_FOR_MS || ms - now > 30_000) {
+    errors.push('snapshot:' + key + ': ausente, obsoleto o no verificado');
+    return null;
+  }
+  // A missing isActive flag is not evidence of an active Pricing service or FTL type.
+  // Other legacy catalogues keep their existing semantics until their contracts change.
+  return snapshot.items.filter(item => requireExplicitActive ? item?.isActive === true : active(item));
+}
+const unique = (items, predicate) => items.filter(predicate);
+const missing = (errors, key) => {
+  if (!errors.includes(key)) errors.push(key);
+};
+
+// Resolves names saved by the official wizard against fresh, *catalog-backed*
+// IDs. Pricing service and FTL type lookups are optional and only available
+// AFTER separately approved/publicly published read-only GET APIs exist.
+// Priority, CRM identity and the external POST contract are never invented.
+export function resolveDholeQuoteCatalogIds(source, snapshots, now = Date.now()) {
+  const f = source?.form ?? source;
+  if (!f || f.catalogSource !== 'dhole') throw new Error('Fuente Dhole no validada.');
+  const blockers = [];
+  const lookup = { incotermIds: {}, serviceIds: {}, equipment: {} };
+  const termItems = freshItems(snapshots, 'incoterms', now, blockers);
+  if (termItems) {
+    const terms = unique(termItems, item => item?.value === f.incoterm);
+    if (terms.length !== 1 || !idValid(terms[0]?.id))
+      missing(blockers, 'incotermId: inexistente, duplicado o UUID inválido');
+    else lookup.incotermIds[f.incoterm] = terms[0].id;
+  }
+  if (f.mode === 'Maritime') {
+    const podItems = freshItems(snapshots, 'pod', now, blockers);
+    if (podItems) {
+      const matches = unique(podItems, item => item?.id === f.podLocationId);
+      if (matches.length !== 1 || !idValid(matches[0].id) || !matches[0].name)
+        missing(blockers, 'podName: identificador POD no vigente');
+      else lookup.podName = matches[0].name;
+    }
+  }
+  if (f.shipmentType === 'FCL') {
+    const sizes = freshItems(snapshots, 'container-sizes', now, blockers);
+    const types = freshItems(snapshots, 'container-types', now, blockers);
+    if (sizes && types) for (const line of f.equipment ?? []) {
+      const key = 'FCL:' + String(line.size) + '|' + String(line.type);
+      const sizesWithName = unique(sizes, x => x?.name === line.size);
+      if (sizesWithName.length !== 1 || !idValid(sizesWithName[0]?.id)) {
+        missing(blockers, 'equipment:' + key + ': tamaño ambiguo o ausente');
+        continue;
+      }
+      const sizeCode = sizesWithName[0].value;
+      const matches = unique(types, item =>
+        item?.size === sizeCode &&
+        KIND_NAMES.get(String(item?.kind).toLowerCase()) === line.type &&
+        contains(item?.shipmentModes, 'FCL') &&
+        (contains(item?.modalities, 'Maritime') ||
+         contains(item?.modalities, 'Multimodal')));
+      if (matches.length !== 1 || !idValid(matches[0]?.id) ||
+          typeof matches[0]?.code !== 'string' || !matches[0].code.trim()) {
+        missing(blockers, 'equipment:' + key + ': tipo ausente o ambiguo');
+        continue;
+      }
+      const type = matches[0];
+      lookup.equipment[key] = {
+        id: type.id, name: line.type, code: type.code,
+      };
+    }
+  }
+  if (f.shipmentType === 'FTL') {
+    const trucks = freshItems(snapshots, 'truck-sizes', now, blockers);
+    const types = freshItems(snapshots, 'land-equipment-types', now, blockers, true);
+    for (const line of f.equipment ?? []) {
+      const key = 'FTL:' + String(line.size) + '|' + String(line.type);
+      const candidates = unique(trucks ?? [], x => x?.name === line.size);
+      if (candidates.length !== 1 || !idValid(candidates[0]?.id)) {
+        missing(blockers, 'equipment:' + key + ': tamaño de furgón ambiguo o ausente');
+        continue;
+      }
+      // Resolve a TYPE UUID, never the size UUID. Require the exact official
+      // size + kind + code triple; a generic "Furgón" cannot resolve.
+      const kind = FTL_KINDS.get(line.type);
+      const sizeCode = String(candidates[0].feet ?? candidates[0].value ?? '').trim();
+      // Resolve by the unique official *code* first. A second active row with
+      // the same code (even with invalid UUID or conflicting metadata) blocks
+      // mapping rather than being silently ignored.
+      const matches = kind && FTL_SIZES.has(sizeCode) ? unique(types ?? [], item =>
+        item?.code === sizeCode + '_' + kind.code) : [];
+      if (matches.length !== 1 || !idValid(matches[0]?.id) ||
+          matches[0]?.size !== sizeCode || matches[0]?.kind !== kind?.kind) {
+        missing(blockers, 'equipment:' + key + ': falta verificar ID de tipo de furgón en Pricing');
+        continue;
+      }
+      lookup.equipment[key] = {
+        id: matches[0].id, name: line.type, code: matches[0].code,
+      };
+    }
+  }
+  if (!Array.isArray(f.services) || f.services.length === 0) {
+    missing(blockers, 'serviceIds: no hay servicios para mapear');
+  } else {
+    const services = freshItems(snapshots, 'pricing-services', now, blockers, true);
+    for (const name of f.services) {
+      const code = Object.hasOwn(SERVICE_CODES, name) ? SERVICE_CODES[name] : null;
+      if (!code) {
+        missing(blockers, 'serviceId:' + name + ': sin código confirmado en Pricing');
+        continue;
+      }
+      // Match the code before validating UUID: duplicate active codes must
+      // reject even if only one record happens to carry a valid identifier.
+      const matches = unique(services ?? [], x => x?.code === code);
+      if (matches.length !== 1 || !idValid(matches[0]?.id)) {
+        missing(blockers, 'serviceId:' + name + ': código no vigente o UUID ambiguo');
+      } else lookup.serviceIds[name] = matches[0].id;
+    }
+  }
+  missing(blockers, 'priority: debe elegirla un administrador autorizado');
+  // A published POST exists, but this resolver creates only internal preview
+  // lookups, not an allowlisted flat external request.
+  missing(blockers, 'externalContract: falta validar transformación al POST público plano');
+
+  return { lookup, blockers };
+}

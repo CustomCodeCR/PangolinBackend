@@ -1,13 +1,21 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import type { Component } from 'vue'
-import { Boxes, FileCheck, FileText, Globe, Package, PackageCheck, ShieldCheck, Ship, Truck, Warehouse } from '@lucide/vue'
+import { AlertTriangle, Boxes, FileCheck, FileText, Globe, Package, PackageCheck, Scale, ShieldCheck, Ship, Truck, Warehouse } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import SiteHeader from '../components/SiteHeader.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import IconSymbol from '../components/IconSymbol.vue'
 import FieldDropdown from '../components/FieldDropdown.vue'
 import { refreshSession } from '../services/auth'
+import { officialIncoterms, officialEquipmentSizeOptions, officialEquipmentTypeOptions, officialEquipmentTypeLabel, officialServiceOptions, officialServiceName, officialCurrencyOptions, isOfficialCurrency, totalCargoWeightKg, formatCargoWeightKg, declaredWeightAdvisory } from '../lib/officialQuoteOptions'
+import { loadDholeQuoteFormOptions, type DholeQuoteFormOptions } from '../lib/dholeQuoteForm'
+import { costaRicaToday, isCargoReadyDateOnOrAfterToday } from '../lib/costaRicaDate'
+import { prepareQuoteSubmissionAttempt, clearQuoteSubmissionAttempt,
+  legacyQuoteResultUncertain, setLegacyQuoteResultUncertain,
+  unresolvedKeyedQuoteAttempt, type QuoteSubmissionAttempt } from '../lib/officialQuoteSubmissionAttempt'
+
+import { useOfficialQuoteDeliveryStatus, quoteDeliveryMessage } from '../lib/officialQuoteDeliveryStatus'
 
 const { locale } = useI18n({ useScope: 'global' })
 const q = (es: string, en: string) => locale.value === 'en' ? en : es
@@ -16,8 +24,7 @@ type Mode = 'Maritime' | 'Air' | 'Land'
 type Type = 'FCL' | 'LCL' | 'AIR_LCL' | 'FTL' | 'LTL'
 type Loc = { id: string; displayName: string; code: string | null }
 type ContainerLine = { size: string; type: string; quantity: number; unitWeightsKg: number[] }
-type EquipmentOption = { value: string; label: string }
-type PackageLine = { description: string; quantity: number; weight: number; length: number; width: number; height: number; stackability: 'Stackable' | 'NonStackable' }
+type PackageLine = { description: string; quantity: number; unitType: '' | 'Box' | 'Pallet' | 'Loose' | 'Other'; weight: number; length: number; width: number; height: number; stackability: 'Stackable' | 'NonStackable' }
 const localQuotePreview = import.meta.env.DEV && new URLSearchParams(window.location.search).get('previewRole') === 'cliente'
 const previewLocations: Loc[] = [
   { id: 'preview-acajutla', displayName: 'Acajutla, El Salvador', code: null },
@@ -28,12 +35,26 @@ const previewLocations: Loc[] = [
   { id: 'preview-antwerp', displayName: 'Antwerp / Amberes, Bélgica', code: null }
 ]
 const step = ref(1)
+const advancing = ref(false)
 const mode = ref<Mode | null>(null)
 const shipmentType = ref<Type | null>(null)
+const catalogSource = ref<'local' | 'dhole'>('local')
+const dholeFormOptions = ref<DholeQuoteFormOptions | null>(null)
 const busy = ref(false)
-const sessionOk = ref(false)
+type GioReceiptDetail = { key: string; value: string }
+type GioReceipt = { at: number; id: string; status: string; mode: string; origin: string; destination: string; details?: GioReceiptDetail[]; deliveryState?:string; receiptKey?:string }
+const gioReceipt = ref<GioReceipt | null>(null)
 const error = ref('')
 const createdId = ref('')
+const delivery = useOfficialQuoteDeliveryStatus()
+const deliveryState = delivery.state
+const CREATE_ATTEMPT_KEY = 'gcf-official-quote-wizard-attempt-v1'
+let activeCreateAttempt: QuoteSubmissionAttempt | null = null
+let legacyAttemptMayHaveSaved = false
+const earliestReadyDate = ref(costaRicaToday())
+let earliestReadyTimer: number | undefined
+const syncEarliestReadyDate = () => { earliestReadyDate.value = costaRicaToday() }
+const cargoReadyDateError = () => q('La fecha de carga lista debe ser hoy o posterior (hora de Costa Rica).', 'The cargo ready date must be today or later (Costa Rica time).')
 const locations = ref<Loc[]>([])
 const destinations = ref<Loc[]>([])
 const podOptions = ref<Loc[]>([])
@@ -44,9 +65,9 @@ const form = reactive({
   incoterm: '', cargoReadyDate: '', exwCargoStatus: '', exwPickupAddress: '',
   services: ['Transporte internacional'] as string[],
   equipment: [{ size: '', type: '', quantity: 1, unitWeightsKg: [0] }] as ContainerLine[],
-  packages: [{ description: '', quantity: 1, weight: 0, length: 0, width: 0, height: 0, stackability: 'Stackable' }] as PackageLine[],
+  packages: [{ description: '', quantity: 1, unitType: '', weight: 0, length: 0, width: 0, height: 0, stackability: 'Stackable' }] as PackageLine[],
   dimensionUnit: 'cm', weightUnit: 'kg', cargoDescription: '', cabysCode: '',
-  cargoValue: '' as number | '', declaredWeight: '' as number | '', declaredPackages: '' as number | '',
+  cargoValue: '' as number | '', cargoCurrencyCode: '', declaredWeight: '' as number | '', declaredPackages: '' as number | '',
   observations: '', cargoFlags: [] as string[], destinationHandling: '',
   deliveryAddress: '', pickupAddress: '', fiscalStorageDays: '' as number | ''
 })
@@ -63,17 +84,29 @@ const typeOptions = computed(() => mode.value === 'Maritime'
 const equipmentMode = computed(() => shipmentType.value === 'FCL' || shipmentType.value === 'FTL')
 type LocationField = 'origin' | 'destination' | 'pod'
 const openLocation = ref<LocationField | null>(null)
-const equipmentSizeOptions = computed<EquipmentOption[]>(() => shipmentType.value === 'FCL'
-  ? ['20', '40', '45', '48'].map(n => ({ value: n + ' pies', label: n + ' ' + q('pies', 'ft') }))
-  : [
-      { value: '24 pies / 5 TON', label: '24 ' + q('pies', 'ft') + ' / 5 TON' },
-      { value: '26 pies / 7 TON', label: '26 ' + q('pies', 'ft') + ' / 7 TON' },
-      { value: '40 pies', label: '40 ' + q('pies', 'ft') },
-      { value: '53 pies', label: '53 ' + q('pies', 'ft') }
-    ])
-const equipmentTypeOptions = computed<EquipmentOption[]>(() => shipmentType.value === 'FCL'
-  ? ['Dry Van', 'High Cube', 'Open Top', 'Open Side', 'Tank', 'Flat Rack', 'NOR'].map(value => ({ value, label: value }))
-  : [{ value: 'Furgón', label: q('Furgón', 'Truck') }])
+const equipmentSizeOptions = computed(() => catalogSource.value === 'dhole' && dholeFormOptions.value
+  ? dholeFormOptions.value.equipmentSizes.map(choice => ({
+      value: choice.value,
+      label: choice.label.replace(' pies', q(' pies', ' ft'))
+    }))
+  : officialEquipmentSizeOptions(shipmentType.value || '', q))
+const equipmentTypeOptions = computed(() => officialEquipmentTypeOptions(shipmentType.value || '', q))
+function equipmentTypeOptionsFor(line: ContainerLine) {
+  if (catalogSource.value === 'dhole' && dholeFormOptions.value) {
+    return (dholeFormOptions.value.equipmentTypesBySize[line.size] || []).map(value => ({
+      value,
+      label: officialEquipmentTypeLabel(value, q)
+    }))
+  }
+  return equipmentTypeOptions.value
+}
+watch(() => form.equipment.map(line => line.size), () => {
+  if (catalogSource.value !== 'dhole' || !dholeFormOptions.value) return
+  for (const line of form.equipment) {
+    const allowed = dholeFormOptions.value.equipmentTypesBySize[line.size] || []
+    if (line.type && !allowed.includes(line.type)) line.type = ''
+  }
+})
 function closeOtherDropdowns(event: Event) {
   const target = event.target instanceof Element ? event.target : null
   if (!target || target.closest('.official-location-combobox')) return
@@ -150,8 +183,10 @@ function handleLocationKeydown(field: LocationField, event: KeyboardEvent) {
     openLocation.value = null
   }
 }
-const incoterms = ['EXW','FCA','FAS','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP']
-const serviceOptions = ['Transporte internacional','Agencia de Aduanas CR','Agencia de Aduanas Exterior','Almacenamiento','Control de inventario','Embalaje','Exoneración','Picking Carga','Recepción de carga','Seguro de carga','Transporte entrega','Transporte recolección','Transporte nacional']
+const incoterms = computed(() => catalogSource.value === 'dhole' && dholeFormOptions.value
+  ? dholeFormOptions.value.incoterms
+  : [...officialIncoterms])
+const serviceOptions = officialServiceOptions
 const serviceIcons: Record<string, Component> = {
   'Transporte internacional': Globe,
   'Agencia de Aduanas CR': FileCheck,
@@ -164,15 +199,91 @@ const serviceIcons: Record<string, Component> = {
   'Recepción de carga': PackageCheck,
   'Seguro de carga': ShieldCheck,
   'Transporte entrega': Truck,
-  'Transporte recolección': Truck,
-  'Transporte nacional': Truck
+  'Transporte recolección': Truck
 }
-const cargoFlagOptions = ['Carga peligrosa','No estibable','Sobrepeso']
-const visibleCargoFlagOptions = computed(() => shipmentType.value === 'FCL' ? cargoFlagOptions.filter(flag => flag !== 'No estibable') : cargoFlagOptions)
-watch(() => shipmentType.value === 'FCL', (isFullContainer) => {
-  if (isFullContainer) form.cargoFlags = form.cargoFlags.filter(flag => flag !== 'No estibable')
-})
+// Estibabilidad belongs to each cargo line; the global flag is derived for
+// Pricing and never selected separately to avoid conflicting answers.
+const cargoFlagOptions = ['Carga peligrosa','Sobrepeso']
+const cargoFlagIcons: Record<string, Component> = {
+  'Carga peligrosa': AlertTriangle,
+  'Sobrepeso': Scale
+}
 const stepNames = computed(() => [q('Modalidad', 'Mode'), q('Embarque', 'Shipment'), q('Información', 'Information'), q('Carga y envío', 'Cargo and delivery')])
+
+// Receipt details are a snapshot of this visitor's own confirmed submission.
+// They are never fetched from a public /api/quotes/official/{id} endpoint.
+const receiptFieldLabels: Record<string, [string, string]> = {
+  mode:['Modalidad','Mode'], shipmentType:['Tipo de embarque','Shipment type'],
+  origin:['Origen','Origin'], destination:['Destino','Destination'],
+  pod:['Puerto de descarga (POD)','Port of discharge (POD)'],
+  incoterm:['Incoterm','Incoterm'], cargoReadyDate:['Carga lista','Cargo ready'],
+  exwCargoStatus:['Estado EXW','EXW status'], exwPickupAddress:['Recolección EXW','EXW pickup'],
+  services:['Servicios solicitados','Requested services'],
+  fiscalStorageDays:['Días de almacenaje fiscal','Fiscal storage days'],
+  deliveryAddress:['Dirección de entrega','Delivery address'], pickupAddress:['Dirección de recolección','Pickup address'],
+  cargoDescription:['Mercancía','Goods'], dangerousGoods:['Carga peligrosa','Dangerous goods'],
+  equipmentSize:['Tamaño del equipo','Equipment size'], equipmentType:['Tipo de equipo','Equipment type'],
+  equipmentQuantity:['Cantidad de equipos','Equipment quantity'],
+  equipmentWeights:['Pesos por unidad (kg)','Weights per unit (kg)'],
+  equipmentSummary:['Equipos y pesos','Equipment and weights'],
+  packageQuantity:['Cantidad de bultos','Number of packages'], packageWeight:['Peso por bulto (kg)','Weight per package (kg)'],
+  packageLength:['Largo (cm)','Length (cm)'], packageWidth:['Ancho (cm)','Width (cm)'],
+  packageHeight:['Alto (cm)','Height (cm)'], stackable:['Estibable','Stackable'],
+  packagesSummary:['Bultos y dimensiones','Packages and dimensions'],
+  contactName:['Nombre de contacto','Contact name'], contactEmail:['Correo','Email'], contactPhone:['Teléfono','Phone']
+}
+const receiptGroupDefinitions = [
+  { id:'route', name:['Ruta y condiciones','Route and terms'], fields:['mode','shipmentType','origin','destination','pod','incoterm','cargoReadyDate','exwCargoStatus','exwPickupAddress','services','fiscalStorageDays','deliveryAddress','pickupAddress'] },
+  { id:'cargo', name:['Detalles de la carga','Cargo details'], fields:['cargoDescription','dangerousGoods','equipmentSummary','equipmentSize','equipmentType','equipmentQuantity','equipmentWeights','packagesSummary','packageQuantity','packageWeight','packageLength','packageWidth','packageHeight','stackable'] },
+  { id:'contact', name:['Datos de contacto','Contact details'], fields:['contactName','contactEmail','contactPhone'] }
+] as const
+
+const receiptSections = computed(() => {
+  if (!createdId.value) return []
+  let fields: Record<string,string> = {}
+  if (gioReceipt.value) {
+    for (const item of gioReceipt.value.details || []) fields[item.key] = item.value
+    // Support receipts created before the detailed handoff was introduced.
+    if (!fields.mode) fields.mode = gioReceipt.value.mode
+    if (!fields.origin) fields.origin = gioReceipt.value.origin
+    if (!fields.destination) fields.destination = gioReceipt.value.destination
+  } else {
+    // Direct wizard submissions also get a summary of their own submitted form.
+    fields = {
+      mode: displayMode(mode.value),
+      shipmentType: displayShipmentType(shipmentType.value),
+      origin: selectedOrigin.value?.displayName || locationSearch.origin,
+      destination: selectedDest.value?.displayName || locationSearch.destination,
+      pod: podOptions.value.find(x => x.id === form.podLocationId)?.displayName || '',
+      incoterm: form.incoterm, cargoReadyDate: form.cargoReadyDate,
+      exwCargoStatus: form.exwCargoStatus, exwPickupAddress: form.exwPickupAddress,
+      services: form.services.map(displayService).join(', '),
+      fiscalStorageDays: form.services.includes('Almacenamiento') ? String(form.fiscalStorageDays) : '',
+      deliveryAddress: form.services.includes('Transporte entrega') ? form.deliveryAddress : '',
+      pickupAddress: form.services.includes('Transporte recolección') ? form.pickupAddress : '',
+      cargoDescription: form.cargoDescription,
+      dangerousGoods: form.cargoFlags.includes('Carga peligrosa') ? q('Sí', 'Yes') : '',
+      equipmentSummary: equipmentMode.value
+        ? form.equipment.map((item, i) =>
+          String(i+1) + '. ' + item.quantity + ' × ' + item.size + ' · ' + item.type +
+          ' · ' + item.unitWeightsKg.join(', ') + ' kg').join('\n')
+        : '',
+      packagesSummary: !equipmentMode.value
+        ? form.packages.map((item, i) =>
+          String(i+1) + '. ' + item.description + (item.unitType ? ' (' + item.unitType + ')' : '') + ' · ' + item.quantity + ' × ' + item.weight +
+          ' kg · ' + item.length + ' × ' + item.width + ' × ' + item.height + ' ' + form.dimensionUnit).join('\n')
+        : '',
+      contactName: form.contactName, contactEmail: form.contactEmail, contactPhone: form.contactPhone
+    }
+  }
+  return receiptGroupDefinitions.map(group => ({
+    id:group.id, name:q(group.name[0], group.name[1]),
+    rows:group.fields.filter(key => typeof fields[key] === 'string' && fields[key].trim()).map(key => ({
+      key, label:q(receiptFieldLabels[key][0],receiptFieldLabels[key][1]), value:fields[key]
+    }))
+  })).filter(group => group.rows.length)
+})
+
 function displayMode(value: Mode | null) {
   if (value === 'Maritime') return q('Marítimo', 'Ocean')
   if (value === 'Air') return q('Aéreo', 'Air')
@@ -188,34 +299,23 @@ function displayShipmentType(value: Type | null) {
   return value || ''
 }
 function displayService(value: string) {
-  const labels: Record<string, [string, string]> = {
-    'Transporte internacional': ['Transporte internacional', 'International transportation'],
-    'Agencia de Aduanas CR': ['Agencia de Aduanas CR', 'Costa Rica customs brokerage'],
-    'Agencia de Aduanas Exterior': ['Agencia de Aduanas Exterior', 'Foreign customs brokerage'],
-    'Almacenamiento': ['Almacenamiento', 'Warehousing'],
-    'Control de inventario': ['Control de inventario', 'Inventory control'],
-    'Embalaje': ['Embalaje', 'Packing'],
-    'Exoneración': ['Exoneración', 'Duty exemption'],
-    'Picking Carga': ['Picking Carga', 'Cargo picking'],
-    'Recepción de carga': ['Recepción de carga', 'Cargo receiving'],
-    'Seguro de carga': ['Seguro de carga', 'Cargo insurance'],
-    'Transporte entrega': ['Transporte entrega', 'Delivery transportation'],
-    'Transporte recolección': ['Transporte recolección', 'Pickup transportation'],
-    'Transporte nacional': ['Transporte nacional', 'Domestic transportation'],
-    'Carga peligrosa': ['Carga peligrosa', 'Dangerous goods'],
-    'No estibable': ['No estibable', 'Non-stackable'],
-    'Sobrepeso': ['Sobrepeso', 'Overweight']
-  }
-  const pair = labels[value]
-  return pair ? q(pair[0], pair[1]) : value
+  return officialServiceName(value, q)
 }
 function selectMode(value: Mode) {
+  if (advancing.value || step.value !== 1) return
   if (mode.value !== value) {
     mode.value = value
     shipmentType.value = null
+    catalogSource.value = 'local'
+    dholeFormOptions.value = null
     form.originLocationId = ''; form.destinationLocationId = ''; form.podLocationId = ''
     locations.value = []; destinations.value = []; podOptions.value = []
   }
+  error.value = ''
+}
+function selectShipment(value: Type) {
+  if (advancing.value || step.value !== 2 || !typeOptions.value.some(x => x.value === value)) return
+  shipmentType.value = value
   error.value = ''
 }
 function toggle(collection: string[], value: string) {
@@ -224,88 +324,201 @@ function toggle(collection: string[], value: string) {
   else collection.push(value)
 }
 function addEquipment() { if (form.equipment.length < 25) form.equipment.push({size:'',type:'',quantity:1,unitWeightsKg:[0]}) }
-function addPackage() { if (form.packages.length < 25) form.packages.push({description:'',quantity:1,weight:0,length:0,width:0,height:0,stackability:'Stackable'}) }
+const calculatedWeightKg = computed(() => {
+  if (!shipmentType.value) return null
+  if (equipmentMode.value) {
+    if (form.equipment.some(line => !Number.isInteger(Number(line.quantity)) ||
+        Number(line.quantity) < 1 || line.unitWeightsKg.length !== Number(line.quantity))) return null
+    return totalCargoWeightKg(form.equipment.flatMap(line => line.unitWeightsKg), 'kg')
+  }
+  return totalCargoWeightKg(form.packages.map(line => line.weight), form.weightUnit)
+})
+const weightNotice = computed(() => declaredWeightAdvisory(form.declaredWeight, calculatedWeightKg.value, q))
+function addPackage() { if (form.packages.length < 25) form.packages.push({description:'',quantity:1,unitType:'',weight:0,length:0,width:0,height:0,stackability:'Stackable'}) }
+function setPackageUnitType(line: PackageLine, value: string) {
+  line.unitType = value === 'Box' || value === 'Pallet' || value === 'Loose' || value === 'Other'
+    ? value : ''
+}
 function syncWeights(line: ContainerLine) {
   const n = Number(line.quantity)
   if (!Number.isInteger(n) || n < 1 || n > 25) return
   while(line.unitWeightsKg.length < n) line.unitWeightsKg.push(0)
   line.unitWeightsKg.splice(n)
 }
-async function loadLocations() {
-  if (!mode.value || !shipmentType.value) return
-  const kind = mode.value === 'Maritime' ? 'seaport' : mode.value === 'Air' ? 'airport' : 'inland'
+async function loadLocations(): Promise<boolean> {
+  if (!mode.value || !shipmentType.value) return false
+  const chosenMode = mode.value
+  const chosenType = shipmentType.value
+  const kind = chosenMode === 'Maritime' ? 'seaport' : chosenMode === 'Air' ? 'airport' : 'inland'
   locationLoading.value = true
   if (localQuotePreview) {
+    catalogSource.value = 'local'
+    dholeFormOptions.value = null
     locations.value = previewLocations
     destinations.value = previewLocations
     podOptions.value = previewLocations
     error.value = ''
     locationLoading.value = false
-    return
+    return true
   }
   try {
+    // When Dhole form+submission flags are disabled, the backend explicitly
+    // returns dhole_form_disabled and we retain the exact legacy behavior.
+    // Any other upstream/network error fails closed: no silent local fallback.
+    const dynamic = await loadDholeQuoteFormOptions(chosenMode, chosenType)
+    if (chosenMode !== mode.value || chosenType !== shipmentType.value) return false
+    if (dynamic) {
+      catalogSource.value = 'dhole'
+      dholeFormOptions.value = dynamic
+      locations.value = dynamic.origins
+      destinations.value = dynamic.destinations
+      podOptions.value = dynamic.pods
+      const eligibleIds = (options: Loc[], id: string) => options.some(x => x.id === id)
+      if (!eligibleIds(locations.value, form.originLocationId)) clearLocation('origin')
+      if (!eligibleIds(destinations.value, form.destinationLocationId)) clearLocation('destination')
+      if (!eligibleIds(podOptions.value, form.podLocationId)) clearLocation('pod')
+      if (form.incoterm && !dynamic.incoterms.includes(form.incoterm)) form.incoterm = ''
+      for (const line of form.equipment) {
+        if (!dynamic.equipmentSizes.some(option => option.value === line.size)) line.size = ''
+        if (!(dynamic.equipmentTypesBySize[line.size] || []).includes(line.type)) line.type = ''
+      }
+      error.value = ''
+      return true
+    }
+
+    catalogSource.value = 'local'
+    dholeFormOptions.value = null
     const fetchRole = async (routeRole: 'origin' | 'destination' | 'pod') => {
-      const params = new URLSearchParams({kind,shipmentType:shipmentType.value!,routeRole})
-      const response = await fetch('/api/quotes/official/locations?' + params, {credentials:'same-origin',cache:'no-store'})
+      const params = new URLSearchParams({ kind, shipmentType: chosenType, routeRole })
+      const response = await fetch('/api/quotes/official/locations?' + params, { credentials: 'same-origin', cache: 'no-store' })
       if (!response.ok) throw new Error(q('No se pudo consultar el catálogo de ', 'Could not load the ') + routeRole + q('.', ' catalog.'))
-      const result = await response.json() as {items: Loc[]}
+      const result = await response.json() as { items: Loc[] }
       return result.items
     }
-    const [orig, dest, pod] = await Promise.all([fetchRole('origin'),fetchRole('destination'),mode.value === 'Maritime' ? fetchRole('pod') : Promise.resolve([] as Loc[])])
-    const usePreviewData = localQuotePreview && (!orig.length || !dest.length)
-    locations.value = usePreviewData ? previewLocations : orig
-    destinations.value = usePreviewData ? previewLocations : dest
-    podOptions.value = usePreviewData ? previewLocations : pod
-    if (usePreviewData) error.value = ''
+    const [orig, dest, pod] = await Promise.all([
+      fetchRole('origin'), fetchRole('destination'),
+      chosenMode === 'Maritime' ? fetchRole('pod') : Promise.resolve([] as Loc[])
+    ])
+    if (chosenMode !== mode.value || chosenType !== shipmentType.value) return false
+    locations.value = orig
+    destinations.value = dest
+    podOptions.value = pod
+    error.value = ''
+    return true
   } catch (e) {
-    if (localQuotePreview) {
-      locations.value = previewLocations
-      destinations.value = previewLocations
-      podOptions.value = previewLocations
-      error.value = ''
-    } else {
-      error.value = (e as Error).message
-    }
+    locations.value = []
+    destinations.value = []
+    podOptions.value = []
+    error.value = e instanceof Error ? e.message : q('No se pudo consultar el catálogo.', 'Could not load the catalogue.')
+    return false
+  } finally {
+    locationLoading.value = false
   }
-  finally { locationLoading.value = false }
 }
+
 onMounted(async () => {
+  syncEarliestReadyDate()
+  earliestReadyTimer = window.setInterval(syncEarliestReadyDate, 60_000)
+  if (new URLSearchParams(window.location.search).get('gioReceipt') === '1') {
+    try {
+      const raw = sessionStorage.getItem('gcf-gio-quote-receipt-v1')
+      if (raw) {
+        const saved = JSON.parse(raw) as GioReceipt
+        if (typeof saved.at === 'number' && Date.now() >= saved.at &&
+            Date.now() - saved.at <= 30 * 60 * 1000 &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(saved.id) &&
+            ['Maritime','Air','Land'].includes(saved.mode)) {
+          // Only recognized fields from this same-tab, short-lived receipt may
+          // appear in the summary. Vue renders all values as escaped text.
+          const details = Array.isArray(saved.details)
+            ? saved.details.filter((item): item is GioReceiptDetail =>
+                !!item && typeof item.key === 'string' &&
+                Object.prototype.hasOwnProperty.call(receiptFieldLabels, item.key) &&
+                typeof item.value === 'string' && item.value.length <= 4000
+              ).slice(0, 32)
+            : []
+          gioReceipt.value = {
+            at:saved.at, id:saved.id, status:typeof saved.status === 'string' ? saved.status : '',
+            mode:saved.mode, origin:typeof saved.origin === 'string' ? saved.origin.slice(0, 180) : '',
+            destination:typeof saved.destination === 'string' ? saved.destination.slice(0, 180) : '',
+            details
+          }
+          createdId.value = saved.id
+          // Treat only the server's authenticated receipt read as confirmation.
+          // Session storage is merely a same-tab capability handoff.
+          if (saved.receiptKey)
+            delivery.follow(saved.id, saved.receiptKey, 'PendingDispatch')
+        }
+      }
+    } catch { /* Invalid or blocked storage: leave the normal quote form available. */ }
+  }
   const user = await refreshSession()
-  if (!user || !['cliente','administrador'].includes(user.role)) return
-  sessionOk.value = true
-  form.contactEmail = user.correo
+  if (user && ['cliente','administrador'].includes(user.role)) form.contactEmail = user.correo
 })
-function validate(): string {
-  if (step.value === 1) return mode.value ? '' : q('Seleccioná la modalidad.', 'Select a transport mode.')
-  if (step.value === 2) return shipmentType.value ? '' : q('Seleccioná el tipo de embarque.', 'Select a shipment type.')
-  if (step.value === 3) {
+onUnmounted(() => {
+  if (earliestReadyTimer !== undefined) window.clearInterval(earliestReadyTimer)
+})
+function validate(currentStep = step.value): string {
+  if (currentStep === 1) return mode.value ? '' : q('Seleccioná la modalidad.', 'Select a transport mode.')
+  if (currentStep === 2) return shipmentType.value && typeOptions.value.some(x => x.value === shipmentType.value) ? '' : q('Seleccioná el tipo de embarque.', 'Select a shipment type.')
+  if (currentStep === 3) {
     if (!form.originLocationId || !form.destinationLocationId || form.originLocationId === form.destinationLocationId) return q('Elegí origen y destino distintos.', 'Choose different origin and destination locations.')
-    if (shipmentType.value === 'LCL' && !form.podLocationId) return q('Seleccioná el POD requerido en marítimo LCL.', 'Select the required POD for ocean LCL.')
+    if (mode.value === 'Maritime' && !form.podLocationId) return q('Seleccioná el POD obligatorio para transporte marítimo.', 'Select the required POD for ocean freight.')
     if (!form.incoterm) return q('Seleccioná un Incoterm.', 'Select an Incoterm.')
     if (!form.cargoReadyDate) return q('Indicá la fecha de carga lista.', 'Enter the cargo ready date.')
+    if (!isCargoReadyDateOnOrAfterToday(form.cargoReadyDate)) return cargoReadyDateError()
     if (!form.services.length) return q('Seleccioná al menos un servicio.', 'Select at least one service.')
     if (form.services.includes('Transporte entrega') && !form.deliveryAddress.trim()) return q('Escribí la dirección de entrega.', 'Enter the delivery address.')
     if (form.services.includes('Transporte recolección') && !form.pickupAddress.trim()) return q('Escribí la dirección de recolección.', 'Enter the pickup address.')
     if (form.services.includes('Almacenamiento') && (!Number.isInteger(Number(form.fiscalStorageDays)) || Number(form.fiscalStorageDays) < 1 || Number(form.fiscalStorageDays) > 36500)) return q('Indicá los días de almacenaje fiscal.', 'Enter the number of fiscal storage days.')
     if (form.incoterm === 'EXW' && (!form.exwCargoStatus || !form.exwPickupAddress.trim())) return q('Completá el tipo de carga y la dirección de recolección EXW.', 'Complete the cargo type and EXW pickup address.')
     if (equipmentMode.value && form.equipment.some(x => !x.size || !x.type || !Number.isInteger(Number(x.quantity)) || x.quantity < 1 || x.unitWeightsKg.length !== Number(x.quantity) || x.unitWeightsKg.some(v => Number(v) <= 0))) return q('Completá todos los equipos y el peso de cada unidad.', 'Complete every equipment item and the weight of each unit.')
+    if (equipmentMode.value && catalogSource.value === 'dhole' &&
+        form.equipment.some(line => !(dholeFormOptions.value?.equipmentTypesBySize[line.size] || []).includes(line.type)))
+      return q('La combinación de contenedor o furgón no está disponible.', 'This container or truck combination is unavailable.')
     return ''
   }
   if (!form.contactName.trim() || !form.contactEmail.trim() || !form.contactPhone.trim()) return q('Completá los datos de contacto.', 'Complete your contact details.')
   if (!form.cargoDescription.trim()) return q('Describí la carga.', 'Describe the cargo.')
+  if (form.services.includes('Seguro de carga') && (form.cargoValue === '' || !Number.isFinite(Number(form.cargoValue)) || Number(form.cargoValue) <= 0))
+    return q('Para el seguro de carga indicá un valor declarado positivo.', 'For cargo insurance enter a positive declared cargo value.')
+  if (Number(form.cargoValue) > 0 && !isOfficialCurrency(form.cargoCurrencyCode))
+    return q('Seleccioná una moneda disponible para el valor declarado.', 'Select an available currency for the declared value.')
   if (!equipmentMode.value && form.packages.some(x => !x.description.trim() || x.quantity < 1 || x.weight <= 0 || x.length <= 0 || x.width <= 0 || x.height <= 0)) return q('Completá todas las medidas y los pesos de cada línea.', 'Complete the dimensions and weight for every cargo line.')
+  if (!equipmentMode.value && catalogSource.value === 'dhole' && form.packages.some(x => !x.unitType)) return q('Seleccioná el tipo de unidad de cada línea para Dhole.', 'Select the cargo unit type of each line for Dhole.')
   return ''
 }
 async function next() {
-  error.value = validate()
+  // Multiple clicks during the asynchronous catalog load used to capture
+  // step 2, then independently increment the live step to 3 and 4.
+  if (advancing.value || busy.value || step.value >= 4 || createdId.value) return
+  const from = step.value
+  error.value = validate(from)
   if (error.value) return
-  if (step.value === 2) await loadLocations()
-  if (step.value < 4) { step.value++; window.scrollTo({top:0,behavior:'smooth'}) }
+  advancing.value = true
+  try {
+    if (from === 2 && !(await loadLocations())) return
+    if (step.value !== from) return
+    step.value = from + 1
+    window.scrollTo({top:0,behavior:'smooth'})
+    // Keep the lock until the new controls have replaced the old ones.
+    await nextTick()
+  } finally {
+    advancing.value = false
+  }
 }
-function back() { if (step.value > 1) {step.value--;error.value='';window.scrollTo({top:0,behavior:'smooth'})} }
+function back() {
+  if (advancing.value || busy.value || createdId.value) return
+  if (step.value > 1) {step.value--;error.value='';window.scrollTo({top:0,behavior:'smooth'})}
+}
 function payload() {
+  const cargoFlags = form.cargoFlags.filter(flag => flag !== 'No estibable')
+  if (!equipmentMode.value && form.packages.some(line => line.stackability === 'NonStackable')) {
+    cargoFlags.push('No estibable')
+  }
   return {
     mode: mode.value, shipmentType: shipmentType.value,
+    catalogSource: catalogSource.value === 'dhole' ? 'dhole' : null,
     originLocationId: form.originLocationId, destinationLocationId: form.destinationLocationId,
     podLocationId: mode.value === 'Maritime' && form.podLocationId ? form.podLocationId : null,
     contactName: form.contactName, contactEmail: form.contactEmail, contactPhone: form.contactPhone,
@@ -318,9 +531,10 @@ function payload() {
     exwPickupAddress: form.incoterm === 'EXW' ? form.exwPickupAddress : null,
     cargoDescription: form.cargoDescription, cabysCode: form.cabysCode || null,
     cargoValue: form.cargoValue === '' ? null : Number(form.cargoValue),
+    cargoCurrencyCode: Number(form.cargoValue) > 0 ? form.cargoCurrencyCode.trim().toUpperCase() : null,
     declaredWeight: form.declaredWeight === '' ? null : Number(form.declaredWeight),
     declaredPackages: form.declaredPackages === '' ? null : Number(form.declaredPackages),
-    observations: form.observations || null, cargoFlags: form.cargoFlags,
+    observations: form.observations || null, cargoFlags,
     destinationHandling: form.destinationHandling || null,
     deliveryAddress: form.services.includes('Transporte entrega') ? form.deliveryAddress.trim() : null,
     pickupAddress: form.services.includes('Transporte recolección') ? form.pickupAddress.trim() : null,
@@ -328,18 +542,77 @@ function payload() {
   }
 }
 async function submit() {
-  if (!sessionOk.value || busy.value) return
+  if (busy.value || advancing.value || step.value !== 4 || createdId.value) return
+  // Independently revalidate all previous screens, not only the visible one.
+  for (const previous of [1, 2, 3]) {
+    const issue = validate(previous)
+    if (issue) {
+      error.value = issue
+      step.value = previous
+      syncEarliestReadyDate()
+      window.scrollTo({top:0,behavior:'smooth'})
+      return
+    }
+  }
+  // Recheck on submit: a wizard can stay open across midnight in Costa Rica.
+  if (!isCargoReadyDateOnOrAfterToday(form.cargoReadyDate)) {
+    error.value = cargoReadyDateError()
+    step.value = 3
+    syncEarliestReadyDate()
+    return
+  }
   error.value = validate()
   if (error.value) return
+  // Only true from the CURRENT Dhole options endpoint means PostgreSQL
+  // actually deduplicates keyed requests. A legacy backend must not receive
+  // a key it cannot honor or silently accept duplicate retransmissions.
+  const serverDedup = catalogSource.value === 'dhole' &&
+    dholeFormOptions.value?.clientCreateIdempotencyEnabled === true
+  // An ambiguous unkeyed submission cannot be made safe just because
+  // the server later enables keys. Likewise an unresolved keyed submission
+  // must never be silently downgraded to a NEW unkeyed request.
+  if (legacyAttemptMayHaveSaved ||
+      legacyQuoteResultUncertain(CREATE_ATTEMPT_KEY) ||
+      (!serverDedup && unresolvedKeyedQuoteAttempt(CREATE_ATTEMPT_KEY, activeCreateAttempt))) {
+    error.value = q(
+      'El resultado del envío anterior es incierto. Consultá con soporte antes de volver a enviarlo para evitar duplicados.',
+      'The prior submission may have been saved. Contact support before submitting again to avoid duplicates.')
+    return
+  }
   busy.value = true
   try {
+    const body = JSON.stringify(payload())
+    if (serverDedup)
+      activeCreateAttempt = await prepareQuoteSubmissionAttempt(
+        CREATE_ATTEMPT_KEY, body, activeCreateAttempt)
+    const headers: Record<string,string> = { 'Content-Type':'application/json' }
+    if (serverDedup) headers['X-CF-Quote-Request-Key'] = activeCreateAttempt!.key
+    else {
+      // Mark before fetch: the connection could be lost after DB commit.
+      legacyAttemptMayHaveSaved = true
+      setLegacyQuoteResultUncertain(CREATE_ATTEMPT_KEY)
+    }
     const response = await fetch('/api/quotes/official', {
-      method:'POST',credentials:'same-origin',
-      headers:{'Content-Type':'application/json'},body:JSON.stringify(payload())
+      method:'POST',credentials:'same-origin',headers,body
     })
-    const data = await response.json() as {id?:string;error?:string}
-    if (!response.ok) throw new Error(data.error || 'No se pudo enviar la solicitud (HTTP '+response.status+').')
-    createdId.value = data.id || ''
+    const data = await response.json() as {id?:string;error?:string;dholeDispatchState?:string}
+    if (!response.ok) {
+      if (response.status === 400) {
+        // Server definitively rejected validation before saving the request.
+        clearQuoteSubmissionAttempt(CREATE_ATTEMPT_KEY)
+        activeCreateAttempt = null
+        legacyAttemptMayHaveSaved = false
+      }
+      throw new Error(data.error || 'No se pudo confirmar la solicitud (HTTP '+response.status+').')
+    }
+    if (!data.id) throw new Error(q(
+      'No recibimos el identificador de la cotización. Consultá con soporte antes de repetir el envío.',
+      'No quote ID was received. Contact support before resubmitting.'))
+    createdId.value = data.id
+    delivery.follow(data.id, activeCreateAttempt?.key, data.dholeDispatchState)
+    clearQuoteSubmissionAttempt(CREATE_ATTEMPT_KEY)
+    activeCreateAttempt = null
+    legacyAttemptMayHaveSaved = false
   } catch (e) { error.value = e instanceof Error ? e.message : 'Error al enviar.' }
   finally { busy.value = false }
 }
@@ -356,10 +629,29 @@ async function submit() {
       </header>
       <div v-if="createdId" class="official-success" role="status">
         <span class="official-success-icon">✓</span>
-          <h2>{{ q('¡Solicitud recibida!', 'Request received!') }}</h2>
-          <p>{{ q('Se guardó correctamente y está pendiente de revisión administrativa. Todavía no se ha enviado a Dhole.', 'Your request was saved and is awaiting administrative review. It has not been sent to Dhole.') }}</p>
+          <h2>{{ (deliveryState === 'Confirmed' || deliveryState === 'AcceptedByProvider') ? q('¡Solicitud enviada!', 'Request sent!') : q('¡Solicitud recibida!', 'Request received!') }}</h2>
+          <p>{{ quoteDeliveryMessage(deliveryState, q) }}</p>
+          <p v-if="(deliveryState === 'Confirmed' || deliveryState === 'AcceptedByProvider')">{{ q('Te enviaremos un correo de confirmación a la dirección indicada.', 'We will send a confirmation email to the address you provided.') }}</p>
           <p class="official-id">{{ q('Número de referencia:', 'Reference number:') }} {{ createdId }}</p>
-          <a class="official-link" href="/home">{{ q('Volver al inicio', 'Back to home') }}</a>
+          <section v-if="receiptSections.length" class="official-receipt" aria-labelledby="official-receipt-title">
+            <h3 id="official-receipt-title">{{ q('Resumen de tu solicitud', 'Your request summary') }}</h3>
+            <p class="official-receipt-intro">{{ q('Estos son los datos que enviaste al equipo. El precio, la disponibilidad y las condiciones finales se confirmarán durante la revisión.', 'These are the details you submitted. Rates, availability, and final terms will be confirmed during review.') }}</p>
+            <div class="official-receipt-grid">
+              <section v-for="group in receiptSections" :key="group.id" class="official-receipt-group" :class="'official-receipt-group--' + group.id">
+                <h4>{{ group.name }}</h4>
+                <dl>
+                  <div v-for="item in group.rows" :key="item.key" class="official-receipt-row">
+                    <dt>{{ item.label }}</dt>
+                    <dd>{{ item.value }}</dd>
+                  </div>
+                </dl>
+              </section>
+            </div>
+          </section>
+          <nav class="official-receipt-actions" :aria-label="q('Acciones después del envío', 'Actions after submission')">
+            <a class="official-link" href="/home">{{ q('Volver al inicio', 'Back to home') }}</a>
+            <a class="official-link official-link--subtle" href="/cotizaciones">{{ q('Nueva solicitud', 'New request') }}</a>
+          </nav>
       </div>
       <template v-else>
         <nav class="official-progress" :aria-label="q('Progreso de la solicitud', 'Request progress')">
@@ -376,7 +668,7 @@ async function submit() {
             <p class="official-hint">{{ q('Elegí la modalidad que mejor corresponde a tu solicitud.', 'Choose the transport mode that best fits your request.') }}</p>
             <div class="official-choices">
               <button v-for="choice in modeOptions" :key="choice.value" type="button" class="official-choice"
-                :class="{ chosen: mode === choice.value }" :aria-pressed="mode === choice.value"
+                :class="{ chosen: mode === choice.value }" :aria-pressed="mode === choice.value" :disabled="advancing"
                 @click="selectMode(choice.value)">
                 <span class="official-emoji"><IconSymbol :glyph="choice.icon" :size="28" /></span><strong>{{ choice.title }}</strong><small>{{ choice.text }}</small>
               </button>
@@ -387,8 +679,8 @@ async function submit() {
             <p class="official-hint">{{ q('Mostramos únicamente las opciones de', 'Showing only') }} {{ mode === 'Maritime' ? q('transporte marítimo', 'ocean freight') : mode === 'Air' ? q('transporte aéreo', 'air freight') : q('transporte terrestre', 'ground transportation') }}.</p>
             <div class="official-choices">
               <button v-for="choice in typeOptions" :key="choice.value" type="button" class="official-choice"
-                :class="{ chosen: shipmentType === choice.value }" :aria-pressed="shipmentType === choice.value"
-                @click="shipmentType = choice.value">
+                :class="{ chosen: shipmentType === choice.value }" :aria-pressed="shipmentType === choice.value" :disabled="advancing"
+                @click="selectShipment(choice.value)">
                 <strong>{{ choice.title }}</strong><small>{{ choice.text }}</small>
               </button>
             </div>
@@ -421,14 +713,13 @@ async function submit() {
                 </div>
               </div>
               <div v-if="mode === 'Maritime'" class="official-location-field">
-                <label for="quote-pod">POD {{ shipmentType === 'LCL' ? q('(requerido)', '(required)') : q('(opcional)', '(optional)') }}</label>
+                <label for="quote-pod">POD <span>*</span></label>
                 <div class="official-location-combobox">
-                  <input id="quote-pod" :value="locationSearch.pod" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'pod'" aria-controls="quote-pod-options" autocomplete="off" :placeholder="shipmentType === 'LCL' ? q('Buscar ciudad o país', 'Search city or country') : q('Sin POD adicional', 'No additional POD')" @focus="focusLocation('pod')" @input="updateLocationSearch('pod', $event)" @keydown="handleLocationKeydown('pod', $event)" @blur="closeLocation('pod')" />
+                  <input id="quote-pod" :value="locationSearch.pod" role="combobox" aria-autocomplete="list" :aria-expanded="openLocation === 'pod'" aria-controls="quote-pod-options" autocomplete="off" :placeholder="q('Buscar puerto de descarga', 'Search port of discharge')" required @focus="focusLocation('pod')" @input="updateLocationSearch('pod', $event)" @keydown="handleLocationKeydown('pod', $event)" @blur="closeLocation('pod')" />
                   <button type="button" class="official-location-toggle" :class="{ 'official-location-toggle--clear': !!form.podLocationId }" :aria-label="form.podLocationId ? q('Limpiar POD', 'Clear POD') : q('Mostrar opciones de POD', 'Show POD options')" @mousedown.prevent @click="form.podLocationId ? clearLocation('pod') : toggleLocation('pod')">⌄</button>
                   <ul v-if="openLocation === 'pod'" id="quote-pod-options" class="official-location-options" role="listbox">
-                    <li v-if="shipmentType !== 'LCL'"><button type="button" role="option" :aria-selected="!form.podLocationId" @mousedown.prevent @click="form.podLocationId = ''; locationSearch.pod = ''; openLocation = null">{{ q('Sin POD adicional', 'No additional POD') }}</button></li>
                     <li v-for="(loc,index) in optionsFor('pod')" :key="loc.id"><button type="button" role="option" :aria-selected="form.podLocationId === loc.id" :id="`quote-pod-option-${index}`" @mousedown.prevent @click="chooseLocation('pod', loc)"><span>{{ loc.displayName }}</span></button></li>
-                    <li v-if="!optionsFor('pod').length && shipmentType === 'LCL'" class="official-location-empty">{{ q('No hay ubicaciones que coincidan.', 'No matching locations.') }}</li>
+                    <li v-if="!optionsFor('pod').length" class="official-location-empty">{{ q('No hay ubicaciones que coincidan.', 'No matching locations.') }}</li>
                   </ul>
                 </div>
               </div>
@@ -440,7 +731,7 @@ async function submit() {
                     ...incoterms.map(value => ({value, label:value}))
                   ]" />
               </div>
-              <label>{{ q('Fecha de carga lista', 'Cargo ready date') }} <span>*</span><input v-model="form.cargoReadyDate" type="date" required /></label>
+              <label>{{ q('Fecha de carga lista', 'Cargo ready date') }} <span>*</span><input v-model="form.cargoReadyDate" type="date" :min="earliestReadyDate" @focus="syncEarliestReadyDate" required /></label>
             </div>
             <div v-if="form.incoterm === 'EXW'" class="official-nested">
               <h3>{{ q('Información adicional para EXW', 'Additional EXW information') }}</h3>
@@ -471,7 +762,7 @@ async function submit() {
                     <div class="official-custom-field official-incoterm-field official-equipment-field">
                       <label :for="'quote-equipment-type-' + i">{{ q('Tipo', 'Type') }} <span>*</span></label>
                       <FieldDropdown :id="'quote-equipment-type-' + i" v-model="line.type" :aria-label="q('Tipo', 'Type')"
-                        :options="[{value:'',label:q('Seleccionar','Select')}, ...equipmentTypeOptions]" />
+                        :options="[{value:'',label:q('Seleccionar','Select')}, ...equipmentTypeOptionsFor(line)]" />
                     </div>
                     <label>{{ q('Cantidad', 'Quantity') }} <span>*</span><input v-model.number="line.quantity" type="number" min="1" max="25" step="1" @input="syncWeights(line)" /></label>
                     <label v-for="(weight,wi) in line.unitWeightsKg" :key="wi">{{ q('Peso', 'Weight') }} {{ wi+1 }} (kg) <span>*</span><input v-model.number="line.unitWeightsKg[wi]" type="number" min="0.001" step="any" /></label>
@@ -503,8 +794,13 @@ async function submit() {
             <div class="official-fields">
               <label class="full">{{ q('Descripción de la carga', 'Cargo description') }} <span>*</span><textarea v-model.trim="form.cargoDescription" rows="3" maxlength="4000" :placeholder="q('¿Qué productos necesitás transportar?', 'What products do you need to ship?')" /></label>
               <label>{{ q('Código CABYS (opcional)', 'CABYS code (optional)') }}<input v-model.trim="form.cabysCode" maxlength="40" :placeholder="q('Ingresá el código si lo conocés', 'Enter the code if you know it')" /></label>
-              <label>{{ q('Valor de la carga (si aplica)', 'Cargo value (if applicable)') }}<input v-model.number="form.cargoValue" type="number" min="0" step="any" /></label>
-              <label>{{ q('Peso declarado (si aplica)', 'Declared weight (if applicable)') }}<input v-model.number="form.declaredWeight" type="number" min="0" step="any" /></label>
+              <label>{{ q('Valor de la carga (si aplica)', 'Cargo value (if applicable)') }} <span v-if="form.services.includes('Seguro de carga')">*</span><input id="quote-cargo-value" v-model.number="form.cargoValue" type="number" min="0" step="any" /></label>
+              <div v-if="Number(form.cargoValue) > 0 || form.services.includes('Seguro de carga')" class="official-custom-field official-incoterm-field">
+                <label for="quote-cargo-currency">{{ q('Moneda del valor declarado', 'Declared value currency') }} <span>*</span></label>
+                <FieldDropdown id="quote-cargo-currency" v-model="form.cargoCurrencyCode" :aria-label="q('Moneda del valor declarado', 'Declared value currency')"
+                  :options="[{value:'',label:q('Seleccionar','Select')}, ...officialCurrencyOptions(q)]" />
+              </div>
+              <label>{{ q('Peso total declarado (kg, opcional)', 'Total declared weight (kg, optional)') }}<input id="quote-declared-weight" v-model.number="form.declaredWeight" type="number" min="0" step="any" /></label>
               <label>{{ q('Cantidad de bultos (si aplica)', 'Number of packages (if applicable)') }}<input v-model.number="form.declaredPackages" type="number" min="0" step="1" /></label>
             </div>
             <div v-if="!equipmentMode" class="official-nested">
@@ -520,7 +816,7 @@ async function submit() {
   </div>
   <div class="official-custom-field official-incoterm-field">
     <label>{{ q('Unidad de peso', 'Weight unit') }}</label>
-    <FieldDropdown v-model="form.weightUnit" :aria-label="q('Unidad de peso', 'Weight unit')" :options="[
+    <FieldDropdown id="quote-weight-unit" v-model="form.weightUnit" :aria-label="q('Unidad de peso', 'Weight unit')" :options="[
       {value:'kg',label:q('Kilogramos','Kilograms')+' (kg)'},
       {value:'lb',label:q('Libras','Pounds')+' (lb)'}
     ]" />
@@ -531,6 +827,16 @@ async function submit() {
                 <div class="official-fields">
                   <label class="full">{{ q('Descripción', 'Description') }} <span>*</span><input v-model.trim="line.description" maxlength="400" /></label>
                   <label>{{ q('Cantidad', 'Quantity') }} <span>*</span><input v-model.number="line.quantity" min="1" step="1" type="number" /></label>
+                   <div class="official-custom-field official-incoterm-field">
+                     <label>{{ q('Tipo de unidad', 'Cargo unit type') }} <span v-if="catalogSource === 'dhole'">*</span></label>
+                     <FieldDropdown :model-value="line.unitType" @update:model-value="value => setPackageUnitType(line, value)" :aria-label="q('Tipo de unidad', 'Cargo unit type')" :options="[
+                       {value:'',label:q('Seleccioná una opción','Select an option')},
+                       {value:'Box',label:q('Caja','Box')},
+                       {value:'Pallet',label:q('Tarima','Pallet')},
+                       {value:'Loose',label:q('Bulto suelto','Loose package')},
+                       {value:'Other',label:q('Otra unidad','Other unit')}
+                     ]" />
+                   </div>
                   <label>{{ q('Peso total', 'Total weight') }} <span>*</span><input v-model.number="line.weight" min="0.001" step="any" type="number" /></label>
                   <label>{{ q('Largo', 'Length') }} <span>*</span><input v-model.number="line.length" min="0.001" step="any" type="number" /></label>
                   <label>{{ q('Ancho', 'Width') }} <span>*</span><input v-model.number="line.width" min="0.001" step="any" type="number" /></label>
@@ -545,15 +851,32 @@ async function submit() {
                 </div>
               </div>
             </div>
-            <div class="official-nested"><h3>{{ q('Opciones de carga', 'Cargo options') }}</h3><div class="official-checks"><label v-for="flag in visibleCargoFlagOptions" :key="flag"><input type="checkbox" :checked="form.cargoFlags.includes(flag)" @change="toggle(form.cargoFlags,flag)" />{{ displayService(flag) }}</label></div><label class="official-single">{{ q('Observaciones', 'Notes') }}<textarea v-model.trim="form.observations" maxlength="4000" rows="3" /></label></div>
+            <div v-if="calculatedWeightKg !== null" class="official-weight-reference">
+              <p class="official-hint">{{ q('Peso calculado según las líneas:', 'Calculated weight from cargo lines:') }} <strong>{{ formatCargoWeightKg(calculatedWeightKg, q) }} kg</strong></p>
+              <div v-if="weightNotice" class="official-weight-advisory" role="status"><AlertTriangle :size="18" aria-hidden="true" /><span>{{ weightNotice }}</span></div>
+            </div>
+            <div class="official-nested"><h3>{{ q('Opciones de carga', 'Cargo options') }}</h3>
+              <p v-if="!equipmentMode" class="official-hint">{{ q('La estibabilidad se indica por separado en cada línea de carga y se refleja automáticamente en la solicitud.', 'Stackability is set for each cargo line and reflected automatically in the request.') }}</p>
+              <div class="official-service-grid official-cargo-flags-grid">
+                <label v-for="flag in cargoFlagOptions" :key="flag" class="official-service-card"
+                  :class="{ 'official-service-card--selected': form.cargoFlags.includes(flag) }">
+                  <input type="checkbox" :checked="form.cargoFlags.includes(flag)" @change="toggle(form.cargoFlags, flag)" />
+                  <span class="official-service-icon" aria-hidden="true"><component :is="cargoFlagIcons[flag]" :size="22" :stroke-width="1.8" /></span>
+                  <span class="official-service-name">{{ displayService(flag) }}</span>
+                  <span class="official-service-state" aria-hidden="true"><IconSymbol v-if="form.cargoFlags.includes(flag)" glyph="✓" :size="15" /></span>
+                </label>
+              </div>
+              <label class="official-single">{{ q('Manejo especial en destino (opcional)', 'Special handling at destination (optional)') }}<input id="quote-destination-handling" v-model.trim="form.destinationHandling" maxlength="100" :placeholder="q('Ej.: descarga delicada, equipo especial...', 'E.g., delicate unloading, special equipment...')" /></label>
+              <label class="official-single">{{ q('Observaciones', 'Notes') }}<textarea v-model.trim="form.observations" maxlength="4000" rows="3" /></label>
+            </div>
             <div class="official-nested"><h3>{{ q('Datos de contacto', 'Contact details') }}</h3><div class="official-fields"><label>{{ q('Nombre', 'Name') }} <span>*</span><input v-model.trim="form.contactName" maxlength="150" autocomplete="name" /></label><label>{{ q('Correo', 'Email') }} <span>*</span><input v-model.trim="form.contactEmail" type="email" maxlength="255" autocomplete="email" /></label><label>{{ q('Teléfono', 'Phone') }} <span>*</span><input v-model.trim="form.contactPhone" maxlength="40" autocomplete="tel" /></label></div></div>
             <div class="official-summary"><strong>{{ q('Resumen', 'Summary') }}</strong><span>{{ displayMode(mode) }} · {{ displayShipmentType(shipmentType) }}</span><span>{{ selectedOrigin?.displayName }} → {{ selectedDest?.displayName }}</span><span>{{ form.services.map(displayService).join(', ') }}</span></div>
           </template>
           <p v-if="error" class="official-error" role="alert">{{ error }}</p>
           <footer class="official-buttons">
-            <button v-if="step>1" type="button" class="official-back" :disabled="busy" @click="back">{{ q('Atrás', 'Back') }}</button><span v-else></span>
-            <button v-if="step<4" type="button" class="official-primary" @click="next">{{ q('Continuar', 'Continue') }}</button>
-            <button v-else type="button" class="official-primary" :disabled="busy || !sessionOk" @click="submit">{{ busy ? q('Enviando…', 'Sending…') : q('Enviar solicitud', 'Submit request') + ' →' }}</button>
+            <button v-if="step>1" type="button" class="official-back" :disabled="busy || advancing" @click="back">{{ q('Atrás', 'Back') }}</button><span v-else></span>
+            <button v-if="step<4" type="button" class="official-primary" :disabled="advancing || busy" :aria-busy="advancing" @click="next">{{ advancing && step === 2 ? q('Cargando opciones…', 'Loading options…') : q('Continuar', 'Continue') }}</button>
+            <button v-else type="button" class="official-primary" :disabled="busy || advancing" @click="submit">{{ busy ? q('Enviando…', 'Sending…') : q('Enviar solicitud', 'Submit request') + ' →' }}</button>
           </footer>
         </section>
       </template>
@@ -563,7 +886,9 @@ async function submit() {
 </template>
 
 <style scoped>
-.official-page{background:linear-gradient(142deg,#fff8f8 0%,#f7f4f6 56%,#fff 100%);color:#242630}.official-shell{width:min(960px,calc(100% - 32px));margin:auto;padding:52px 0 90px}.official-header{max-width:700px;margin-bottom:29px}.official-kicker{font-size:11px;font-weight:900;letter-spacing:.16em;color:#a90a26;margin:0 0 12px}.official-header h1{font-family:"Arial Black",system-ui,sans-serif;font-size:clamp(34px,5vw,58px);font-weight:900;line-height:1.09;letter-spacing:-.055em;margin:0 0 17px}.official-header h1 span{color:#b20c2a}.official-header>p:last-child,.official-hint{color:#626778;font-size:14px;line-height:1.7}.official-progress{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:20px}.official-progress-item{display:flex;align-items:center;gap:9px;border-radius:12px;padding:11px 12px;background:#efedf0;color:#777584;min-width:0}.official-progress-item span{display:grid;place-items:center;flex-shrink:0;width:29px;height:29px;border-radius:50%;background:#dedbe0;font-size:12px;font-weight:850}.official-progress-item small{font-size:12px;font-weight:750;white-space:normal}.official-progress-item.current{background:#a90928;color:white}.official-progress-item.current span{background:white;color:#a90928}.official-progress-item.done{color:#39735a;background:#e8f5ec}.official-panel{background:white;border:1px solid #e9e0e5;box-shadow:0 20px 55px #38202a0b;border-radius:23px;padding:clamp(20px,4vw,42px)}.official-panel h2{font-size:clamp(23px,3vw,30px);letter-spacing:-.035em;margin:0 0 8px}.official-choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px;margin-top:28px}.official-choice{background:#fff;border:1px solid #dcdde4;border-radius:15px;min-height:140px;display:flex;flex-direction:column;text-align:left;gap:11px;padding:21px;cursor:pointer;color:#262935}.official-choice:hover,.official-choice.chosen{border-color:#af1432;background:#fff6f7;box-shadow:0 0 0 2px #b5142920}.official-emoji{font-size:27px}.official-choice strong{font-size:17px}.official-choice small{font-size:12px;color:#687080;line-height:1.5}.official-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}.official-fields label,.official-single{display:flex;flex-direction:column;gap:7px;font-size:12px;color:#4e5260;font-weight:800;min-width:0}.official-fields label span{color:#ad112f}.official-fields .full{grid-column:1/-1}.official-fields input,.official-fields select,.official-fields textarea,.official-single textarea{width:100%;background:white;color:#252937;border:1px solid #cfd0d9;border-radius:10px;padding:12px;min-height:45px;font:inherit;font-size:14px;outline-offset:2px}.official-fields input:focus,.official-fields select:focus,.official-fields textarea:focus{outline:2px solid #b61534}.official-nested{margin-top:27px;padding-top:24px;border-top:1px solid #eee5e9}.official-nested h3{font-size:17px;margin:0 0 12px}.official-line{padding:18px;background:#faf9fb;border:1px solid #e8e1e7;border-radius:14px;margin:12px 0}.official-line strong{font-size:13px}.official-headline{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}.official-ghost,.official-remove{border:1px solid #d6bdc5;background:white;color:#9b1732;font-size:12px;font-weight:850;border-radius:9px;padding:9px 12px;cursor:pointer}.official-remove{color:#7a5964}.official-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:15px 0}.official-checks label{display:flex;align-items:center;gap:8px;font-size:13px;line-height:1.5}.official-checks input{accent-color:#ae112e;width:17px;height:17px}.official-single{margin-top:20px}.official-summary{padding:15px;margin-top:25px;display:grid;gap:8px;border-radius:12px;background:#f8f5f7;font-size:13px;overflow-wrap:anywhere}.official-summary span{color:#656b76}.official-buttons{border-top:1px solid #ede7eb;padding-top:22px;margin-top:29px;display:flex;justify-content:space-between;gap:12px}.official-primary,.official-back{padding:13px 23px;border-radius:11px;min-height:46px;border:0;font-weight:850;font-size:13px;cursor:pointer}.official-primary{background:#b20c2d;color:white}.official-primary:disabled{opacity:.6}.official-back{border:1px solid #d4c4cc;color:#9b1b36;background:white}.official-error,.official-catalog-alert{margin-top:20px;padding:13px;border-radius:12px;border:1px solid #e8b4bf;color:#981a38;background:#fff0f3;font-size:13px;line-height:1.6}.official-success{text-align:center;background:white;border-radius:22px;border:1px solid #dfd9df;padding:50px 24px}.official-success-icon{font-size:36px;color:#238756}.official-success h2{font-size:28px}.official-success p{line-height:1.6}.official-id{overflow-wrap:anywhere;color:#697080;font-size:13px}.official-link{display:inline-block;margin-top:16px;color:white;background:#ad0d2b;padding:12px 20px;border-radius:10px;font-weight:800}@media(max-width:670px){.official-shell{padding-top:30px}.official-progress-item{flex-direction:column;padding:9px 4px;gap:4px;text-align:center}.official-progress-item small{font-size:10px}.official-fields,.official-checks{grid-template-columns:1fr}.official-buttons .official-primary{flex:1}.official-choices{grid-template-columns:1fr}.official-choice{min-height:98px}}
+.official-weight-advisory{display:flex;align-items:flex-start;gap:9px;margin-top:12px;padding:12px;border:1px solid #ba8b42;border-radius:12px;color:inherit;font-size:13px;line-height:1.5;background:rgba(190,135,40,.09)}.official-weight-advisory svg{flex-shrink:0;color:#b37a25}
+:global(html.theme-dark) .official-weight-advisory svg{color:#f2b85d}
+.official-page{background:linear-gradient(142deg,#fff8f8 0%,#f7f4f6 56%,#fff 100%);color:#242630}.official-shell{width:min(960px,calc(100% - 32px));margin:auto;padding:52px 0 90px}.official-header{max-width:700px;margin-bottom:29px}.official-kicker{font-size:11px;font-weight:900;letter-spacing:.16em;color:#a90a26;margin:0 0 12px}.official-header h1{font-family:"Arial Black",system-ui,sans-serif;font-size:clamp(34px,5vw,58px);font-weight:900;line-height:1.09;letter-spacing:-.055em;margin:0 0 17px}.official-header h1 span{color:#b20c2a}.official-header>p:last-child,.official-hint{color:#626778;font-size:14px;line-height:1.7}.official-progress{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:20px}.official-progress-item{display:flex;align-items:center;gap:9px;border-radius:12px;padding:11px 12px;background:#efedf0;color:#777584;min-width:0}.official-progress-item span{display:grid;place-items:center;flex-shrink:0;width:29px;height:29px;border-radius:50%;background:#dedbe0;font-size:12px;font-weight:850}.official-progress-item small{font-size:12px;font-weight:750;white-space:normal}.official-progress-item.current{background:#a90928;color:white}.official-progress-item.current span{background:white;color:#a90928}.official-progress-item.done{color:#39735a;background:#e8f5ec}.official-panel{background:white;border:1px solid #e9e0e5;box-shadow:0 20px 55px #38202a0b;border-radius:23px;padding:clamp(20px,4vw,42px)}.official-panel h2{font-size:clamp(23px,3vw,30px);letter-spacing:-.035em;margin:0 0 8px}.official-choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px;margin-top:28px}.official-choice{background:#fff;border:1px solid #dcdde4;border-radius:15px;min-height:140px;display:flex;flex-direction:column;text-align:left;gap:11px;padding:21px;cursor:pointer;color:#262935}.official-choice:hover,.official-choice.chosen{border-color:#af1432;background:#fff6f7;box-shadow:0 0 0 2px #b5142920}.official-emoji{font-size:27px}.official-choice strong{font-size:17px}.official-choice small{font-size:12px;color:#687080;line-height:1.5}.official-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}.official-fields label,.official-single{display:flex;flex-direction:column;gap:7px;font-size:12px;color:#4e5260;font-weight:800;min-width:0}.official-fields label span{color:#ad112f}.official-fields .full{grid-column:1/-1}.official-fields input,.official-fields select,.official-fields textarea,.official-single textarea,.official-single input{width:100%;background:white;color:#252937;border:1px solid #cfd0d9;border-radius:10px;padding:12px;min-height:45px;font:inherit;font-size:14px;outline-offset:2px}.official-fields input:focus,.official-fields select:focus,.official-fields textarea:focus,.official-single textarea:focus,.official-single input:focus{outline:2px solid #b61534}.official-nested{margin-top:27px;padding-top:24px;border-top:1px solid #eee5e9}.official-nested h3{font-size:17px;margin:0 0 12px}.official-line{padding:18px;background:#faf9fb;border:1px solid #e8e1e7;border-radius:14px;margin:12px 0}.official-line strong{font-size:13px}.official-headline{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}.official-ghost,.official-remove{border:1px solid #d6bdc5;background:white;color:#9b1732;font-size:12px;font-weight:850;border-radius:9px;padding:9px 12px;cursor:pointer}.official-remove{color:#7a5964}.official-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:15px 0}.official-checks label{display:flex;align-items:center;gap:8px;font-size:13px;line-height:1.5}.official-checks input{accent-color:#ae112e;width:17px;height:17px}.official-single{margin-top:20px}.official-summary{padding:15px;margin-top:25px;display:grid;gap:8px;border-radius:12px;background:#f8f5f7;font-size:13px;overflow-wrap:anywhere}.official-summary span{color:#656b76}.official-buttons{border-top:1px solid #ede7eb;padding-top:22px;margin-top:29px;display:flex;justify-content:space-between;gap:12px}.official-primary,.official-back{padding:13px 23px;border-radius:11px;min-height:46px;border:0;font-weight:850;font-size:13px;cursor:pointer}.official-primary{background:#b20c2d;color:white}.official-primary:disabled{opacity:.6}.official-back{border:1px solid #d4c4cc;color:#9b1b36;background:white}.official-error,.official-catalog-alert{margin-top:20px;padding:13px;border-radius:12px;border:1px solid #e8b4bf;color:#981a38;background:#fff0f3;font-size:13px;line-height:1.6}.official-success{text-align:center;background:white;border-radius:22px;border:1px solid #dfd9df;padding:50px 24px}.official-success-icon{font-size:36px;color:#238756}.official-success h2{font-size:28px}.official-success p{line-height:1.6}.official-id{overflow-wrap:anywhere;color:#697080;font-size:13px}.official-link{display:inline-block;margin-top:16px;color:white;background:#ad0d2b;padding:12px 20px;border-radius:10px;font-weight:800}@media(max-width:670px){.official-shell{padding-top:30px}.official-progress-item{flex-direction:column;padding:9px 4px;gap:4px;text-align:center}.official-progress-item small{font-size:10px}.official-fields,.official-checks{grid-template-columns:1fr}.official-buttons .official-primary{flex:1}.official-choices{grid-template-columns:1fr}.official-choice{min-height:98px}}
 
 /* El formulario reemplaza a la versión anterior sin perder su rojo institucional. */
 .official-page .official-shell { position: relative; }
@@ -604,6 +929,36 @@ async function submit() {
 :global(html.theme-dark) .official-page .official-link { background:#b20c2a!important; color:#fff!important; }
 :global(html.theme-dark) .official-page .official-kicker { color:#ff8ca2!important; }
 @media (prefers-reduced-motion:reduce) { .official-page * { scroll-behavior:auto!important; } }
+
+
+/* Detailed, same-tab request receipt. No public detail endpoint or price promises. */
+.official-receipt{max-width:860px;margin:32px auto 0;padding-top:25px;border-top:1px solid #e5dae0;text-align:left}
+.official-receipt h3{margin:0 0 8px;font-size:clamp(19px,2.4vw,24px);letter-spacing:-.025em}
+.official-receipt-intro{max-width:750px;margin:0 0 21px;color:#626778;font-size:13px;line-height:1.7}
+.official-receipt-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.official-receipt-group{min-width:0;padding:20px;border:1px solid #e9e0e5;border-radius:16px;background:#f9f7f9}
+.official-receipt-group--route{grid-column:1/-1}
+.official-receipt-group h4{margin:0 0 16px;font-size:15px;font-weight:850;color:#aa1834}
+.official-receipt-group dl{margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px}
+.official-receipt-row{min-width:0;text-align:left}
+.official-receipt-row dt{margin:0 0 5px;font-size:11px;font-weight:800;color:#666b78}
+.official-receipt-row dd{margin:0;font-size:13px;line-height:1.55;font-weight:650;overflow-wrap:anywhere;white-space:pre-line}
+.official-receipt-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin-top:25px}
+.official-receipt-actions .official-link{margin-top:0;text-decoration:none}
+.official-link--subtle{color:#a71130!important;background:transparent!important;border:1px solid #a71130}
+:global(html.theme-dark) .official-page .official-receipt{border-top-color:#4d4554}
+:global(html.theme-dark) .official-page .official-receipt-intro,
+:global(html.theme-dark) .official-page .official-receipt-row dt{color:#c7c9d4}
+:global(html.theme-dark) .official-page .official-receipt-group{background:#161b2b;border-color:#484659}
+:global(html.theme-dark) .official-page .official-receipt-group h4{color:#ff8296}
+:global(html.theme-dark) .official-page .official-receipt-row dd{color:#fff}
+:global(html.theme-dark) .official-page .official-link--subtle{color:#fff!important;border-color:#ff8296}
+@media(max-width:670px){
+  .official-receipt-grid,.official-receipt-group dl{grid-template-columns:1fr}
+  .official-receipt-group--route{grid-column:auto}
+  .official-receipt-group{padding:17px}
+  .official-receipt-actions .official-link{flex:1 1 160px;text-align:center}
+}
 </style>
 
 <style>
@@ -1339,7 +1694,7 @@ html.theme-dark .app-site.official-page .official-add-equipment {
   margin-top: 7px;
 }
 .app-site.official-page .official-fields :is(input:not([type="checkbox"]), select, textarea),
-.app-site.official-page .official-single textarea {
+.app-site.official-page .official-single :is(input:not([type="checkbox"]),textarea) {
   background: rgba(255, 255, 255, .14) !important;
   border: 1px solid rgba(255, 255, 255, .34) !important;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 8px 22px rgba(28,16,22,.04);
@@ -1348,24 +1703,24 @@ html.theme-dark .app-site.official-page .official-add-equipment {
   transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
 }
 .app-site.official-page .official-fields :is(input:not([type="checkbox"]), select, textarea):focus-visible,
-.app-site.official-page .official-single textarea:focus-visible {
+.app-site.official-page .official-single :is(input:not([type="checkbox"]),textarea):focus-visible {
   border-color: #a80e18 !important;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 0 0 3px rgba(168,14,24,.2);
   outline: none;
 }
 html.theme-dark .app-site.official-page .official-fields :is(input:not([type="checkbox"]), select, textarea),
-html.theme-dark .app-site.official-page .official-single textarea {
+html.theme-dark .app-site.official-page .official-single :is(input:not([type="checkbox"]),textarea) {
   background: rgba(255, 255, 255, .035) !important;
   border-color: rgba(255, 255, 255, .22) !important;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 8px 22px rgba(0,0,0,.08);
   color: #fff !important;
 }
 html.theme-dark .app-site.official-page .official-fields :is(input:not([type="checkbox"]), textarea)::placeholder,
-html.theme-dark .app-site.official-page .official-single textarea::placeholder {
+html.theme-dark .app-site.official-page .official-single :is(input:not([type="checkbox"]),textarea)::placeholder {
   color: rgba(255,255,255,.62) !important;
 }
 html.theme-dark .app-site.official-page .official-fields :is(input:not([type="checkbox"]), select, textarea):focus-visible,
-html.theme-dark .app-site.official-page .official-single textarea:focus-visible {
+html.theme-dark .app-site.official-page .official-single :is(input:not([type="checkbox"]),textarea):focus-visible {
   border-color: #a80e18 !important;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 0 0 3px rgba(168,14,24,.28);
 }
@@ -1419,7 +1774,7 @@ html:not(.theme-dark) .app-site.official-page .official-summary {
   color: #242630 !important;
 }
 html:not(.theme-dark) .app-site.official-page .official-fields :is(input:not([type="checkbox"]), select, textarea),
-html:not(.theme-dark) .app-site.official-page .official-single textarea,
+html:not(.theme-dark) .app-site.official-page .official-single :is(input:not([type="checkbox"]),textarea),
 html:not(.theme-dark) .app-site.official-page .official-location-combobox > input {
   color: #242630 !important;
   color-scheme: light;
@@ -1495,7 +1850,7 @@ html:not(.theme-dark) .app-site.official-page .official-line::before {
   animation: quote-equipment-glow-pass 6s ease-in-out infinite !important;
 }
 html:not(.theme-dark) .app-site.official-page .official-fields :is(input:not([type="checkbox"]), select, textarea),
-html:not(.theme-dark) .app-site.official-page .official-single textarea {
+html:not(.theme-dark) .app-site.official-page .official-single :is(input:not([type="checkbox"]),textarea) {
   background: #fff !important;
   border-color: #cfd0d9 !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 4px 14px rgba(28, 16, 22, .04);
@@ -1915,5 +2270,60 @@ html.theme-dark .app-site.official-page .official-service-card--selected .offici
 @media (prefers-reduced-motion: reduce) {
   .app-site.official-page .official-service-card { transition: none; }
 }
+
+/* Contraste de cotizaciones: botones compactos y tarjetas legibles en ambos temas. */
+/* Override the generic light-quote header rule (:is(.main-nav a, ...)) without
+   changing the other menu labels. The fallback also covers the mobile Teleport. */
+html:not(.theme-dark) .app-site.official-page > .site-header.site-header--quotes .main-nav .header-account-tools > a.nav-login,
+html:not(.theme-dark) .site-header.site-header--quotes .main-nav .header-account-tools > a.nav-login,
+html:not(.theme-dark) .site-header.site-header--quotes .main-nav .header-account-tools > a.nav-login:visited,
+html:not(.theme-dark) .site-header.site-header--quotes .main-nav .header-account-tools > a.nav-login svg {
+  color:#fff !important;
+  stroke:currentColor;
+}
+.app-site.official-page .official-receipt-actions .official-link {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  box-sizing:border-box;
+  margin-top:0;
+  padding:10px 17px;
+  min-height:40px;
+  font-size:13px;
+  line-height:1.3;
+  border:1px solid #a80e18;
+  background:#a80e18 !important;
+  color:#fff !important;
+  text-decoration:none;
+}
+.app-site.official-page .official-receipt-actions .official-link--subtle {
+  background:#97122a !important;
+  border-color:#97122a !important;
+  color:#fff !important;
+}
+html.theme-dark .app-site.official-page .official-receipt-actions .official-link,
+html.theme-dark .app-site.official-page .official-receipt-actions .official-link--subtle {
+  background:#a80e18 !important;
+  border-color:#c93b52 !important;
+  color:#fff !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-success .official-receipt-group {
+  background:#f9f7f9 !important;
+  border-color:#e9e0e5 !important;
+  color:#242630 !important;
+}
+html:not(.theme-dark) .app-site.official-page .official-success .official-receipt-group h4 { color:#a80e18 !important; }
+html:not(.theme-dark) .app-site.official-page .official-success .official-receipt-row dt { color:#596170 !important; }
+html:not(.theme-dark) .app-site.official-page .official-success .official-receipt-row dd { color:#252937 !important; }
+html.theme-dark .app-site.official-page .official-success .official-receipt-group {
+  background:#171c2b !important;
+  border-color:#495268 !important;
+  color:#fff !important;
+}
+html.theme-dark .app-site.official-page .official-success .official-receipt-group h4 { color:#ff8ba0 !important; }
+html.theme-dark .app-site.official-page .official-success .official-receipt-row dt { color:#c5cfdd !important; }
+html.theme-dark .app-site.official-page .official-success .official-receipt-row dd { color:#fff !important; }
+html.theme-dark .app-site.official-page .official-success .official-receipt-intro { color:#d2d6e0 !important; }
+
 </style>
 

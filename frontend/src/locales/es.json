@@ -250,7 +250,7 @@
     "faqs": [
       {
         "q": "¿Qué servicios ofrece Grupo Castro Fallas?",
-        "a": "Ofrecemos soluciones logísticas integrales que incluyen transporte marítimo, aéreo y terrestre, gestión aduanera, almacenamiento fiscal y general, transporte internacional y servicios especializados para facilitar las operaciones de importación y exportación."
+        "a": "Ofrecemos soluciones logísticas integrales que incluyen transporte marítimo, aéreo y terrestre, gestión aduanera, almacén fiscal, transporte internacional y servicios especializados para facilitar las operaciones de importación y exportación."
       },
       {
         "q": "¿Cómo puedo solicitar una cotización?",
@@ -316,6 +316,9 @@
         "profile": "Ver perfil de Instagram",
         "reel": "Último Reel de Grupo Castro Fallas",
         "play": "Reproducir el último Reel",
+        "playExternal": "Ver el Reel en Instagram (se abre en otra pestaña)",
+        "embedLoading": "Cargando reproductor de Instagram…",
+        "embedUnavailable": "Instagram no permitió cargar el reproductor aquí. Podés abrir el Reel en Instagram.",
         "open": "Abrir Reel",
         "unavailable": "Visita nuestro perfil para ver nuestros Reels",
         "loading": "Buscando nuestro último Reel…"
@@ -495,10 +498,19 @@
       "userHelp": "Tu cuenta debe estar activa y registrada con tipo de acceso «usuario».",
       "sendCode": "Enviar código al correo",
       "sending": "Enviando…",
+      "sendingDetail": "Estamos contactando al servicio de correo. La respuesta puede tardar unos segundos.",
+      "mailUnavailableTitle": "No pudimos enviar tu código",
+      "mailUnavailableDescription": "El servicio de correo no está disponible temporalmente. Intentá nuevamente en unos minutos.",
+      "mailImmediateRetryDescription": "El servicio de correo no está disponible temporalmente. Podés intentar enviar el código una vez más.",
+      "rateTitle": "Esperá un momento",
+      "rateDescription": "Por seguridad, necesitás esperar antes de solicitar otro código.",
+      "retryIn": "Podés intentar nuevamente en {seconds} segundos.",
+      "retryButton": "Reintentar en {seconds} s",
+      "serviceError": "No pudimos completar la solicitud. Intentá más tarde.",
       "otpMessage": "Revisa tu correo.",
       "accountUnavailable": "No pudimos iniciar sesión con ese correo. Verificá que esté registrado y habilitado, o contactá al administrador.",
       "otpLabel": "Código de 6 dígitos",
-      "otpHelp": "Vence a los 5 minutos; máximo 5 intentos. Cada código puede utilizarse una sola vez.",
+      "otpHelp": "Vence a los 5 minutos; máximo 5 intentos. Si pediste otro código, usá el de tu última solicitud.",
       "verify": "Verificar y entrar",
       "verifying": "Verificando…",
       "back": "Volver",
